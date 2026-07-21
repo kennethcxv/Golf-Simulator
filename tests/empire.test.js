@@ -83,6 +83,7 @@ test('every archetype initializes to spec and appraises near its hidden true val
   for (const id of roster) {
     const e = newEmpire('realistic', 777);
     e.cash = 10_000_000;
+    e.acquisitions = 2; // this test validates realization, not progression gating
     const res = buyProperty(e, id);
     assert.equal(res.ok, true, `${id}: ${res.reason}`);
     const h = e.holdings[0];

@@ -29,7 +29,7 @@ test('the contract covers every current catalog SKU with no planned-only provisi
   const current = SHOP_CATALOG.map((sku) => sku.id).sort();
   const expected = [...current, ...PLANNED_PACKAGING_SKU_IDS].sort();
 
-  assert.equal(SHOP_CATALOG.length, 41, 'catalog audit count did not silently change');
+  assert.equal(SHOP_CATALOG.length, 57, 'catalog audit count did not silently change');
   assert.deepEqual(PLANNED_PACKAGING_SKU_IDS, []);
   assert.deepEqual(PRODUCT_PACKAGING_SKU_IDS, expected);
   assert.equal(new Set(PRODUCT_PACKAGING_SKU_IDS).size, PRODUCT_PACKAGING_SKU_IDS.length);
@@ -90,13 +90,16 @@ test('SKU quantities equal exact socket capacities rather than a representative 
   const expectedCapacity = {
     driver1: 2, driver2: 2, driver3: 2,
     irons1: 1, irons2: 1,
-    putter1: 2, putter2: 2, wedge1: 2, wedge2: 2,
+    putter1: 2, putter2: 2, putter3: 2, wedge1: 2, wedge2: 2,
     balls1: 12, balls2: 12, balls3: 12,
-    glove1: 8, polo1: 8, polo2: 8, cap1: 8, jacket2: 8, shoe1: 4, sock1: 8,
-    tees1: 12, towel1: 12, marker1: 12, range2: 4, umb1: 6, bag1: 1,
+    glove1: 8, glove2: 8, polo1: 8, polo2: 8, pants2: 8, shorts1: 8,
+    cap1: 8, cap2: 8, jacket2: 8, shoe1: 4, shoe3: 4, sock1: 8,
+    tees1: 12, towel1: 12, marker1: 12, divot1: 12, range2: 4,
+    sunglasses2: 4, bottle1: 8, umb1: 6, bag1: 1, bag3: 1, scorecard1: 12,
     vac1: 1, rug1: 1, plant1: 1, poster1: 1, board1: 1, light1: 1, lounge1: 1,
     repairkit1: 1, desk1: 1, chair1: 1, laptop1: 1, counter1: 1, shelfkit1: 1, safetykit1: 1,
-    water1: 12, snack1: 12,
+    water1: 12, sportdrink2: 12, soda1: 12,
+    chips1: 12, bar2: 12, crackers1: 12, snack1: 12,
   };
   assert.deepEqual(Object.keys(expectedCapacity).sort(), PRODUCT_PACKAGING_SKU_IDS);
 
@@ -175,8 +178,8 @@ test('Fairway Spring water and Bunker Bites use exact twelve-unit provisions lay
   assert.equal(snack.box.modelId, 'delivery_bulk_provisions_carton');
   assert.deepEqual(water.box.dimensions, dims(0.50, 0.30, 0.38));
   assert.deepEqual(snack.box.dimensions, dims(0.50, 0.30, 0.38));
-  assert.deepEqual(water.allowedStocking.fixtureIds, ['snackrack']);
-  assert.deepEqual(snack.allowedStocking.fixtureIds, ['snackrack']);
+  assert.deepEqual(water.allowedStocking.fixtureIds, ['cold_drinks']);
+  assert.deepEqual(snack.allowedStocking.fixtureIds, ['snack_rack']);
 });
 
 test('lookups and validators reject unknown or malformed contracts', () => {

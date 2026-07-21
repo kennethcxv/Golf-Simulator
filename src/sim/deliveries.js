@@ -34,6 +34,13 @@ import {
   importLegacyStoredPlaceables,
   storeDeliveredPlaceables,
 } from './propertyInventory.js';
+import {
+  ensureArrivalOrder,
+  openBoxInventory,
+  receiveBoxInventory,
+  refreshOrderFromLedger,
+  takeBoxInventory,
+} from './inventoryLifecycle.js';
 
 // kept for old callers; the truth is unitsPerBox(sku), which knows that a stand bag
 // does not pack twelve to a carton just because its category says 'accessories'
@@ -746,7 +753,7 @@ function validatedArrival(order) {
   };
 }
 
-export function arriveOrder(state, order) {
+export function arriveOrder(state, order, { maxBoxes = Infinity } = {}) {
   // Replays short-circuit before inspecting payload details, matching the
   // shipped idempotency behavior even if a retry carries stale/corrupt fields.
   const replay = arrivedBoxesForReplay(state, order?.id);
@@ -764,9 +771,29 @@ export function arriveOrder(state, order) {
     return d.boxes.filter((box) => box.orderId === order.id);
   }
   const { sku, manifest } = validated;
+  const recordedOrder = ensureArrivalOrder(state, { ...order, manifest });
+  if (!recordedOrder) return [];
+  order = recordedOrder;
+  order.receivedManifestBoxIndexes = Array.isArray(order.receivedManifestBoxIndexes)
+    ? order.receivedManifestBoxIndexes
+    : [];
+  const receivedIndexes = new Set(order.receivedManifestBoxIndexes);
+  const pending = manifest.boxes
+    .map((box, index) => ({ box, index }))
+    .filter((entry) => !receivedIndexes.has(entry.index));
+  const take = Math.min(pending.length, receivingFree(state), Math.max(0, Math.floor(maxBoxes)));
+  if (take <= 0) return [];
+  const landing = pending.slice(0, take);
+  const usedPadSlots = occupiedReceivingSlots(d.boxes, 'pad', PAD_CAPACITY);
+  const usedFallbackSlots = occupiedReceivingSlots(d.boxes, 'receiving-fallback', FALLBACK_CAPACITY);
+  const padSlots = Array.from({ length: PAD_CAPACITY }, (_, index) => index)
+    .filter((index) => !usedPadSlots.has(index));
+  const fallbackSlots = Array.from({ length: FALLBACK_CAPACITY }, (_, index) => index)
+    .filter((index) => !usedFallbackSlots.has(index));
   const made = [];
   for (const { box: manifestBox, index: manifestIndex } of landing) {
-    const id = deliveries.nextBoxId++;
+    const id = d.nextBoxId++;
+    const b = manifestBox;
     const skuId = manifestBox.skuId || order.skuId;
     const lineId = manifestBox.lineId
       || (order.lines && order.lines.find((line) => line.skuId === skuId)?.id)
@@ -784,8 +811,11 @@ export function arriveOrder(state, order) {
       persistentId: `box-${id}`,
       skuId,
       orderId: order.id,
+      parentOrderId: order.id,
       qty: b.qty,
       initialQty: b.qty,
+      initialQuantity: b.qty,
+      remainingQuantity: b.qty,
       cap: b.qty,             // what it shipped with — 'partial contents' means qty < cap
       lb: b.lb,
       box: b.kind,
@@ -800,7 +830,11 @@ export function arriveOrder(state, order) {
       contentScale: b.contentScale,
       supplierId: manifest.supplierId || order.supplierId || null,
       supplier: manifest.supplier || order.supplier || null,
-      loc: 'pad',
+      contents: received.contents,
+      loc,
+      currentLocation: loc,
+      receivingSlot,
+      currentCarrier: null,
       tape: 0,                // compatibility mirror of cutProgress
       cutProgress: 0,
       tapeSegments: tapeSegmentsAt(0),
@@ -808,6 +842,11 @@ export function arriveOrder(state, order) {
       flapProgress: [0, 0, 0, 0], // four physical panels, each 0 closed .. 1 open
       openingProgress: 0,
       flattenProgress: 0,
+      openedState: 'unopened',
+      inventoryOpened: false,
+      damageState: 'intact',
+      disposalState: 'active',
+      manifestIndex,
       flat: false,
       lifecycle: BOX_LIFECYCLE.SEALED,
       schemaVersion: BOX_SCHEMA_VERSION,
@@ -819,17 +858,33 @@ export function arriveOrder(state, order) {
     ...made,
   ]);
   d.boxes.push(...made);
-  if (order.id !== undefined && order.id !== null) d.arrivedOrderIds.push(order.id);
-  d.shipments.push({
-    orderId: order.id,
-    skuId: order.skuId,
-    supplierId: manifest.supplierId || order.supplierId || null,
-    supplier: manifest.supplier,
-    units: order.qty,
-    boxCount: manifest.boxCount,
-    weight: manifest.weight,
-    landedMin: (state.clock && state.clock.minutes) || 0,
-  });
+  const complete = order.receivedManifestBoxIndexes.length >= manifest.boxes.length;
+  if (complete && order.id !== undefined && order.id !== null) d.arrivedOrderIds.push(order.id);
+  let shipment = d.shipments.find((candidate) => candidate.orderId === order.id);
+  if (!shipment) {
+    shipment = {
+      orderId: order.id,
+      skuId: order.skuId || null,
+      lines: (order.lines || []).map((line) => ({ skuId: line.skuId, quantity: line.quantity })),
+      supplierId: manifest.supplierId || order.supplierId || null,
+      supplier: manifest.supplier || order.supplier || null,
+      units: order.quantity || order.qty,
+      receivedUnits: 0,
+      boxCount: manifest.boxCount,
+      receivedBoxCount: 0,
+      weight: manifest.weight,
+      boxIds: [],
+      usedFallback: false,
+      landedMin: (state.clock && state.clock.minutes) || 0,
+    };
+    d.shipments.push(shipment);
+  }
+  shipment.boxIds.push(...made.map((box) => box.id));
+  shipment.receivedBoxCount += made.length;
+  shipment.receivedUnits += made.reduce((sum, box) => sum + box.initialQuantity, 0);
+  shipment.usedFallback ||= made.some((box) => box.loc === 'receiving-fallback');
+  shipment.lastLandedMin = (state.clock && state.clock.minutes) || 0;
+  refreshOrderFromLedger(state, order.id);
   notify(state, {
     kind: 'delivery',
     text: `Delivery arriving: ${sku.name} × ${order.qty} — the van checked in with ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} for receiving.`,
@@ -1087,6 +1142,8 @@ export function openFlap(state, id, amount = 1) {
   advanceLifecycle(box, BOX_LIFECYCLE.OPENING);
   const done = flapsOpen(box);
   if (done) {
+    const opened = openBoxInventory(state, box);
+    if (!opened.ok && !opened.done) return opened;
     advanceLifecycle(box, isPartial(box) ? BOX_LIFECYCLE.PARTIALLY_EMPTIED : BOX_LIFECYCLE.OPEN);
   }
   return {
@@ -1110,6 +1167,10 @@ export function takeFromBox(state, id, want) {
   if (!flapsOpen(box)) return { ok: false, reason: 'Open the flaps first.' };
   if (box.qty <= 0) return { ok: false, reason: 'It is empty.' };
   if (carriedBox(state)) return { ok: false, reason: 'Set the box you are carrying down first.' };
+  if (!box.inventoryOpened) {
+    const opened = openBoxInventory(state, box);
+    if (!opened.ok && !opened.done) return opened;
+  }
 
   const room = armRoom(state, box.skuId);
   if (room <= 0) {
@@ -1128,7 +1189,6 @@ export function takeFromBox(state, id, want) {
     : Math.max(0, Math.floor(Number.isFinite(want) ? want : 0));
   const taken = Math.min(requested, room, box.qty);
   if (taken <= 0) return { ok: false, reason: 'Choose at least one item to take.' };
-  box.qty -= taken;
   const c = state.shop.carry;
   const before = box.qty;
   const moved = takeBoxInventory(

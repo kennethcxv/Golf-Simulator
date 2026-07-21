@@ -4,7 +4,7 @@
 // corner onto the laptop's physical display every frame — the interface IS the screen. Nothing
 // here knows about 3D; it just has to be a good 1024x640 application.
 //
-// SEVEN PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
+// EIGHT PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
 // list; Shop folds stock, ordering, pricing and deliveries into four tabs; Course folds
 // condition, tasks and holes into three; Upgrades is where money becomes lasting improvement;
 // Finances is a money history a player can trust; Settings is small. The look is the approved
@@ -20,11 +20,16 @@ import { el, toast } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import { calendarOf } from '../sim/time.js';
 import {
+  membershipPricingResponse, productPricingResponse, rentalPricingResponse,
+  setGreenFee, setMembershipDue, setProductMarkup, setRentalPrice,
+} from '../sim/pricing.js';
+import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
 import { supplierFor } from '../data/suppliers.js';
 import {
   placeOrder, cancelOrder, orderCost, priceFor, velocity, buyRentalSets,
+  deliveryTracking, expediteOrder, priorityDeliveryQuote,
 } from '../sim/shop.js';
 import {
   boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY,
@@ -41,6 +46,10 @@ import {
   TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot, slotAvailability,
   markReservationNoShow,
 } from '../sim/reservations.js';
+import {
+  CART_INFRASTRUCTURE, cartReservationQuote, fleetSummary, purchaseFleetCart,
+  serviceFleetCart, upgradeFleetInfrastructure,
+} from '../sim/cartFleet.js';
 import {
   createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
 } from '../sim/customerIdentity.js';
@@ -85,7 +94,16 @@ import {
   shopProgressionSummary, tryCompleteShopExpansion,
 } from '../sim/shopProgression.js';
 import { shopExpansionLayoutSafety } from '../sim/layout.js';
-import { ZONE, HOLE_STATUS } from '../sim/constants.js';
+import { ZONE, HOLE_STATUS, TURF_ZONES } from '../sim/constants.js';
+import {
+  assignPropertyManager, auctionNextBid, holdingValue, inspectPropertyListing,
+  placeAuctionBid, propertyAccess,
+} from '../sim/empire.js';
+import { listingAgeLabel, marketConditionLabel } from '../sim/marketplace.js';
+import {
+  PROPERTY_INSPECTION_COST, PROPERTY_MANAGER_TIERS, passiveOperationsProjection,
+  propertyOperationsProfile, REMOTE_PROPERTY_UTILITIES_PER_DAY,
+} from '../sim/propertyOperations.js';
 import {
   SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
 } from './laptopWidgets.js';
@@ -115,7 +133,7 @@ const SHOP_CLOSE_MIN = 20 * 60;
 // Order/shipment statuses — six worn on the road (sim/deliveries ORDER_FLOW), three by a
 // shipment standing on the floor (shipmentStatus). Every label has machinery behind it.
 const ORDER_STATUS = {
-  received: { label: 'Ordered', tone: '' },
+  received: { label: 'Supplier received', tone: '' },
   processing: { label: 'Processing', tone: '' },
   packed: { label: 'Packed', tone: '' },
   shipped: { label: 'On the way', tone: '' },
@@ -136,6 +154,7 @@ const ICONS = {
   flag: [['p', 'M6.6 20.8V4'], ['p', 'M6.6 4.6l9.6 2.9-9.6 3'], ['p', 'M3.8 20.8h5.6']],
   up: [['p', 'M5 20.6h14'], ['p', 'M12 16.6V5.4'], ['p', 'M7.2 9.9 12 5.2l4.8 4.7']],
   dollar: [['p', 'M4.4 6.9h15.2a1.3 1.3 0 0 1 1.3 1.3v7.6a1.3 1.3 0 0 1-1.3 1.3H4.4a1.3 1.3 0 0 1-1.3-1.3V8.2a1.3 1.3 0 0 1 1.3-1.3z'], ['c', 12, 12, 2.6], ['p', 'M6.5 12h.01'], ['p', 'M17.5 12h.01']],
+  building: [['p', 'M4.2 20.5V7.2L12 3.5l7.8 3.7v13.3'], ['p', 'M2.8 20.5h18.4'], ['p', 'M8 10h2'], ['p', 'M14 10h2'], ['p', 'M8 14h2'], ['p', 'M14 14h2'], ['p', 'M10.2 20.5v-3.2h3.6v3.2']],
   gear: [['c', 12, 12, 3.1], ['p', 'M12 2.6v2.8'], ['p', 'M12 18.6v2.8'], ['p', 'M2.6 12h2.8'], ['p', 'M18.6 12h2.8'], ['p', 'M5.2 5.2l2 2'], ['p', 'M16.8 16.8l2 2'], ['p', 'M18.8 5.2l-2 2'], ['p', 'M7.2 16.8l-2 2']],
   bell: [['p', 'M17.8 8.8a5.8 5.8 0 1 0-11.6 0c0 6.2-2.4 7.2-2.4 7.2h16.4s-2.4-1-2.4-7.2'], ['p', 'M10.4 19.4a1.85 1.85 0 0 0 3.2 0']],
   power: [['p', 'M12 3.2v7.6'], ['p', 'M17.5 6.4a7.7 7.7 0 1 1-11 0']],
@@ -259,6 +278,21 @@ const hour12 = (m) => {
   const h = Math.floor(mm / 60);
   return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
 };
+const compactDuration = (minutes) => {
+  if (!Number.isFinite(minutes)) return 'ETA pending';
+  if (minutes <= 0) return 'At receiving';
+  if (minutes < 1) return '<1m';
+  const total = Math.max(1, Math.floor(minutes));
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const mins = total % 60;
+  if (days) return `${days}d${hours ? ` ${hours}h` : ''}`;
+  if (hours) return `${hours}h${mins ? ` ${mins}m` : ''}`;
+  return `${mins}m`;
+};
+const compactPriorityGain = (minutes) => minutes >= 1440
+  ? `~${Math.max(1, Math.round(minutes / 1440))}d`
+  : compactDuration(minutes);
 // The money history must visibly reconcile: amounts show cents when they carry them.
 const exactMoney = (v) => {
   const n = Number(v) || 0;
@@ -272,13 +306,14 @@ const exactMoney = (v) => {
 const conditionWord = (h) => (h >= 70 ? 'Good' : h >= 45 ? 'Fair' : 'Poor');
 const conditionTone = (h) => (h >= 70 ? 'ok' : h >= 45 ? 'warn' : 'bad');
 
-// THE WHOLE SIDEBAR. Seven entries, no groups, no scroll.
+// THE WHOLE SIDEBAR. Eight entries, no groups, no scroll.
 const NAV = [
   { id: 'home', icon: 'home', label: 'Home' },
   { id: 'reservations', icon: 'calendar', label: 'Bookings' },
   { id: 'shop', icon: 'bag', label: 'Pro Shop' },
   { id: 'course', icon: 'flag', label: 'Course' },
   { id: 'upgrades', icon: 'up', label: 'Upgrades' },
+  { id: 'properties', icon: 'building', label: 'Properties' },
   { id: 'finances', icon: 'dollar', label: 'Business' },
   { id: 'settings', icon: 'gear', label: 'Settings' },
 ];
@@ -297,6 +332,8 @@ const PAGE_ALIAS = {
   rentals: ['upgrades', 'equipment'],
   events: ['upgrades', 'course'],
   analytics: ['finances', 'finances'],
+  empire: ['properties', 'portfolio'],
+  marketplace: ['properties', 'market'],
   reviews: ['finances', 'reviews'],
   marketing: ['finances', 'marketing'],
   customers: ['reservations', null],
@@ -354,6 +391,8 @@ export function bookLaptopReservation(state, {
   partySize = 1,
   customerId = null,
   fullName = null,
+  transport = 'walking',
+  holes = 18,
 } = {}) {
   const size = Number(partySize);
   const availability = slotAvailability(state, dayAbs, minute, size);
@@ -374,12 +413,19 @@ export function bookLaptopReservation(state, {
     `laptop-reservation:${state.reservations?.nextId ?? directory.nextOrdinal}`,
   );
   const bookingName = selectedIdentity?.fullName || String(fullName || '').trim() || generated.fullName;
+  const cartQuote = transport === 'cart'
+    ? cartReservationQuote(state, { dayAbs, minute, partySize: size, holes })
+    : { ok: true, fee: 0 };
+  if (!cartQuote.ok) return { ok: false, reason: cartQuote.reason, cartQuote };
   const result = bookSlot(state, dayAbs, minute, {
     name: bookingName,
     fullName: bookingName,
     partySize: size,
     customerId: selectedIdentity?.customerId,
     customerIdentity: selectedIdentity || undefined,
+    transport,
+    holes,
+    totalFee: (Number(state.club?.greenFee) || 0) * size + cartQuote.fee,
   });
   if (result.ok) identityForReservation(state, result.res);
   return result;
@@ -391,6 +437,8 @@ export function makeLaptop(app, opts) {
   let cart = new Map();    // order basket: skuId -> qty
   let teeDay = 0;
   let teePartySize = 1;
+  let teeTransport = 'walking';
+  let teeHoles = 18;
   let scale = app.preferences?.values?.display?.uiScale || 1;
   let pending = null;      // the live confirmation, if one is open
   let modal = null;        // the open detail modal, if any — () => element
@@ -502,21 +550,35 @@ export function makeLaptop(app, opts) {
   });
 
   // CONFIRMATION + CANCELLATION — an inline bar on the glass, never a detached browser modal.
-  function askConfirm(message, confirmLabel, onYes) {
-    pending = { message, confirmLabel, onYes };
+  function askConfirm(message, confirmLabel, onYes, details = [], tone = 'danger') {
+    pending = { message, confirmLabel, onYes, details, tone, restoreScroll: content.scrollTop };
+    content.scrollTop = 0;
     render();
   }
   function confirmBar() {
     if (!pending) return null;
     return el('div', { class: 'lt-confirm' },
-      el('span', { class: 'lt-confirmmsg', text: pending.message }),
+      el('div', { class: 'lt-confirmcopy' },
+        el('div', { class: 'lt-confirmmsg', text: pending.message }),
+        pending.details.length ? el('div', {
+          class: `lt-confirmfacts ${pending.details.some((detail) => detail.nowrap) ? 'lt-confirmfacts-dates' : ''}`,
+        },
+          ...pending.details.map((detail) => el('div', { class: 'lt-confirmfact' },
+            el('span', { text: detail.label }),
+            el('strong', { text: detail.value })))) : null),
       el('button', {
         class: 'lt-mini lt-cancel',
         text: 'Cancel',
-        onclick: () => { pending = null; click(); render(); },
+        onclick: () => {
+          const restoreScroll = pending.restoreScroll;
+          pending = null;
+          click();
+          render();
+          content.scrollTop = restoreScroll;
+        },
       }),
       el('button', {
-        class: 'lt-primary lt-danger',
+        class: `lt-primary lt-${pending.tone}`,
         text: pending.confirmLabel,
         onclick: () => { const f = pending.onYes; pending = null; click(); if (f() !== false) render(); },
       }),
@@ -963,10 +1025,14 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-minihead', text: m.entry.fullName }),
         row(el('span', { class: 'lt-mulabel', text: 'Tee time' }), el('span', { style: 'font-size:0.84em', text: `${fmtSlot(m.slot.minute)}, ${teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `in ${teeDay} days`}` })),
         row(el('span', { class: 'lt-mulabel', text: 'Party' }), el('span', { style: 'font-size:0.84em', text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` })),
-        row(el('span', { class: 'lt-mulabel', text: 'Round' }), el('span', { style: 'font-size:0.84em', text: `${m.r.holes || 18} holes · ${m.r.transport === 'cart' ? 'cart' : 'walking'}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Round' }), el('span', { style: 'font-size:0.84em', text: `${m.r.holes || 18} holes · ${m.r.transport === 'cart' ? `${m.r.cartsRequested} cart${m.r.cartsRequested === 1 ? '' : 's'}` : 'walking'}` })),
         row(el('span', { class: 'lt-mulabel', text: 'Rentals' }), el('span', { style: 'font-size:0.84em', text: Array.isArray(m.r.rentalRequirements) && m.r.rentalRequirements.length ? m.r.rentalRequirements.join(', ') : 'none' })),
         row(el('span', { class: 'lt-mulabel', text: 'Payment preference' }), chip(m.r.paymentPreference === 'cash' ? 'Cash' : m.r.paymentPreference === 'card' ? 'Card' : 'Ask at desk')),
-        row(el('span', { class: 'lt-mulabel', text: 'Green fee' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.fee || 0) }), deposit ? meta(`deposit ${formatMoney(deposit)} paid`) : null),
+        row(el('span', { class: 'lt-mulabel', text: 'Green fees' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.greenFeeSubtotal ?? m.r.fee ?? 0) })),
+        m.r.transport === 'cart'
+          ? row(el('span', { class: 'lt-mulabel', text: 'Cart rental' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.cartRentalFee || 0) }))
+          : null,
+        deposit ? row(el('span', { class: 'lt-mulabel', text: 'Deposit paid' }), word(formatMoney(deposit), 'ok')) : null,
         row(el('span', { class: 'lt-mulabel', text: 'Due at desk' }), chip(due > 0 ? formatMoney(due) : 'Paid', due > 0 ? 'warn' : 'ok')),
         row(el('span', { class: 'lt-mulabel', text: 'Status' }), chip(statusText(m.r), statusTone(m.r))),
         m.r.status === 'noShow' && m.r.noShowFeeStatus
@@ -1008,6 +1074,7 @@ export function makeLaptop(app, opts) {
       el('td', {}, el('span', { class: 'lt-slottime', text: fmtSlot(m.slot.minute) })),
       el('td', {}, el('span', { style: 'font-weight:600', text: m.entry.fullName })),
       el('td', { text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` }),
+      el('td', { text: m.r.transport === 'cart' ? `${m.r.cartsRequested} cart${m.r.cartsRequested === 1 ? '' : 's'}` : 'Walking' }),
       el('td', {}, word(statusText(m.r), statusTone(m.r))),
       el('td', { class: 'lt-num' },
         el('button', { class: 'lt-mini', text: 'View', onclick: () => viewReservation(m) })));
@@ -1015,7 +1082,10 @@ export function makeLaptop(app, opts) {
     // the walk-in adder: pick a time with room, pick a party size, done. A walk-in is
     // standing at the desk NOW — today's already-passed times are not on offer.
     const openSlots = model.slots.filter((s) => s.remainingCapacity >= teePartySize
-      && (teeDay > 0 || s.minute >= cal.minuteOfDay - 10));
+      && (teeDay > 0 || s.minute >= cal.minuteOfDay - 10)
+      && (teeTransport !== 'cart' || cartReservationQuote(st, {
+        dayAbs, minute: s.minute, partySize: teePartySize, holes: teeHoles,
+      }).ok));
     const timeSel = el('select', { class: 'lt-select' },
       ...openSlots.map((s) => el('option', { value: String(s.minute), text: `${fmtSlot(s.minute)} (${s.remainingCapacity} open)` })));
     const partySel = el('select', {
@@ -1023,11 +1093,25 @@ export function makeLaptop(app, opts) {
       onchange: (e) => { teePartySize = Number(e.target.value) || 1; click(); render(); },
     }, ...Array.from({ length: Math.max(1, Math.min(16, Number(st.reservations.config?.maxGroupSize) || TEE_SHEET.maxGroupSize)) }, (_, i) => i + 1)
       .map((size) => el('option', { value: String(size), text: `${size} player${size === 1 ? '' : 's'}`, selected: size === teePartySize ? 'selected' : undefined })));
+    const transportSel = el('select', {
+      class: 'lt-select',
+      onchange: (e) => { teeTransport = e.target.value === 'cart' ? 'cart' : 'walking'; click(); render(); },
+    },
+    el('option', { value: 'walking', text: 'Walking', selected: teeTransport === 'walking' ? 'selected' : undefined }),
+    el('option', { value: 'cart', text: 'Rental cart', selected: teeTransport === 'cart' ? 'selected' : undefined }));
+    const holesSel = el('select', {
+      class: 'lt-select',
+      onchange: (e) => { teeHoles = Number(e.target.value) === 9 ? 9 : 18; click(); render(); },
+    },
+    el('option', { value: '9', text: '9 holes', selected: teeHoles === 9 ? 'selected' : undefined }),
+    el('option', { value: '18', text: '18 holes', selected: teeHoles === 18 ? 'selected' : undefined }));
     const addCard = rs.adding
       ? card(
         el('div', { class: 'lt-minihead', text: 'Add a walk-in' }),
         row(el('span', { class: 'lt-mulabel', text: 'Time' }), timeSel),
         row(el('span', { class: 'lt-mulabel', text: 'Party' }), partySel),
+        row(el('span', { class: 'lt-mulabel', text: 'Round' }), holesSel),
+        row(el('span', { class: 'lt-mulabel', text: 'Transport' }), transportSel),
         row(
           el('button', { class: 'lt-mini', text: 'Never mind', onclick: () => { rs.adding = false; click(); render(); } }),
           el('button', {
@@ -1036,7 +1120,9 @@ export function makeLaptop(app, opts) {
             disabled: openSlots.length ? undefined : 'disabled',
             onclick: () => {
               const minute = Number(timeSel.value);
-              const result = bookLaptopReservation(st, { dayAbs, minute, partySize: teePartySize });
+              const result = bookLaptopReservation(st, {
+                dayAbs, minute, partySize: teePartySize, transport: teeTransport, holes: teeHoles,
+              });
               if (!result.ok) toast(result.reason, 'warn');
               else {
                 toast(`${result.res.fullName} booked for ${fmtSlot(minute)}.`);
@@ -1047,7 +1133,12 @@ export function makeLaptop(app, opts) {
             },
           }),
         ),
-        openSlots.length ? null : meta('No slot this day fits that party size.'),
+        teeTransport === 'cart' && openSlots.length
+          ? meta(`${cartReservationQuote(st, { dayAbs, minute: Number(timeSel.value), partySize: teePartySize, holes: teeHoles }).requested} cart${teePartySize > 2 ? 's' : ''} · ${formatMoney(cartReservationQuote(st, { dayAbs, minute: Number(timeSel.value), partySize: teePartySize, holes: teeHoles }).fee)} added`)
+          : null,
+        openSlots.length ? null : meta(teeTransport === 'cart'
+          ? 'No tee time this day has both player and rental-cart capacity.'
+          : 'No slot this day fits that party size.'),
       )
       : null;
 
@@ -1081,7 +1172,7 @@ export function makeLaptop(app, opts) {
         ? card(el('table', { class: 'lt-table' },
           el('thead', {}, el('tr', {},
             el('th', { text: 'Time' }), el('th', { text: 'Customer' }), el('th', { text: 'Party' }),
-            el('th', { text: 'Status' }), el('th', {}))),
+            el('th', { text: 'Transport' }), el('th', { text: 'Status' }), el('th', {}))),
           el('tbody', {}, ...shown.map(rowOf))))
         : empty(flat.length ? 'Nothing under that filter.' : 'Nothing booked this day — walk-ins welcome.'),
     );
@@ -1308,20 +1399,31 @@ export function makeLaptop(app, opts) {
         render();
         return;
       }
-      if (placed) {
-        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
-        if (app.audio && app.audio.ready) app.audio.chime();
-      }
-      for (const f of failed) toast(f, 'warn');
-      if (placed && !failed.length) { ts('shop').tab = 'deliveries'; }
+      cart.clear();
+      toast(`Order accepted — ${formatMoney(result.cost)}. ${plural(result.boxes, 'box')} to the receiving pad.`, 'delivery');
+      if (app.audio && app.audio.ready) app.audio.chime();
+      ts('shop').tab = 'deliveries';
       render();
     };
     const placeOrderFlow = () => {
       // small orders can skip the confirmation if the player turned that off in Settings
       if (prefsOf().confirmOrders === false && total < 100) { placeAll(); return; }
+      const leads = [...cart.keys()].map((id) => LEAD_DAYS[skuById(id).cat]);
+      const minLead = Math.min(...leads);
+      const maxLead = Math.max(...leads);
+      const timing = minLead === maxLead
+        ? `${minLead}-day standard service; exact window follows`
+        : `${minLead}–${maxLead} day standard service; exact windows follow`;
       askConfirm(
-        `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} delivery. ${plural(boxCount, 'box')} to the pad outside.`,
+        `Review ${formatMoney(total)} order`,
         'Place the order', placeAll,
+        [
+          { label: 'Stock', value: formatMoney(goods) },
+          { label: 'Freight', value: formatMoney(freight) },
+          { label: 'Receiving', value: `${plural(boxCount, 'box')} to the pad outside` },
+          { label: 'Timing', value: timing },
+        ],
+        'commit',
       );
     };
 
@@ -1345,7 +1447,9 @@ export function makeLaptop(app, opts) {
         meta(`${supplierCount} supplier${supplierCount === 1 ? '' : 's'} · ${plural(boxCount, 'box')} · delivery ${formatMoney(freight)}`),
         el('span', { class: 'lt-headspace' }),
         el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: `Total ${formatMoney(total)}` }),
-        primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
+        pending
+          ? chip('Review above', 'warn')
+          : primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
       el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
       catBar,
@@ -1443,7 +1547,6 @@ export function makeLaptop(app, opts) {
   }
 
   function shopDeliveriesTab(st) {
-    const cal = calendarOf(st.clock.minutes);
     const orders = st.shop.orders.slice().sort((a, b) => a.deliveryMin - b.deliveryMin);
     const shipments = shipmentsOf(st);
     const boxes = boxesOf(st);
@@ -1457,31 +1560,80 @@ export function makeLaptop(app, opts) {
     const orderRow = (o) => {
       const sku = skuById(o.skuId);
       const supplier = supplierFor(sku);
-      const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
-      const days = o.arrivesDay - cal.dayAbs;
-      const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+      const tracking = deliveryTracking(o, st.clock.minutes);
+      const s = tracking.blocked
+        ? { label: 'Pad blocked', tone: 'bad' }
+        : ORDER_STATUS[tracking.status] || { label: tracking.status, tone: '' };
       // A blocked driver unloaded nothing, so the player can still turn that van away.
-      const canCancel = !!o.blocked || (o.status !== 'arriving' && o.status !== 'delivered');
+      const canCancel = tracking.blocked || !['arriving', 'delivered'].includes(tracking.status);
       const man = o.manifest || shipOf(sku, o.qty);
-      return el('div', { class: 'lt-order' },
+      const open = Number.isFinite(o.window && o.window.open) ? o.window.open : tracking.deliveryMin;
+      const close = Number.isFinite(o.window && o.window.close) ? o.window.close : tracking.deliveryMin + 120;
+      const arrivalCal = calendarOf(open);
+      const quote = priorityDeliveryQuote(st, o.id, st.clock.minutes);
+      const priorityCal = quote.ok ? calendarOf(quote.schedule.deliveryMin) : null;
+      const priorityButton = quote.ok
+        ? el('button', {
+          class: 'lt-mini lt-priority',
+          text: `Priority ${formatMoney(quote.fee)} · save ${compactPriorityGain(quote.minutesSaved)}`,
+          onclick: () => askConfirm(
+            `Move this delivery forward by ${compactDuration(quote.minutesSaved)} for ${formatMoney(quote.fee)}?`,
+            'Book priority',
+            () => {
+              const res = expediteOrder(st, o.id);
+              toast(
+                res.ok ? `Priority booked — ETA ${clock12(res.order.deliveryMin)}.` : res.reason,
+                res.ok ? 'delivery' : 'warn',
+              );
+            },
+            [
+              { label: 'Current ETA', value: `${arrivalCal.seasonName} Day ${arrivalCal.dayOfSeason} · ${clock12(tracking.deliveryMin)}`, nowrap: true },
+              { label: 'Priority ETA', value: `${priorityCal.seasonName} Day ${priorityCal.dayOfSeason} · ${clock12(quote.schedule.deliveryMin)}`, nowrap: true },
+              { label: 'Dispatch fee', value: formatMoney(quote.fee) },
+              { label: 'Cash after', value: formatMoney(st.cash - quote.fee) },
+            ],
+            'commit',
+          ),
+        })
+        : null;
+      const cancelButton = canCancel
+        ? el('button', {
+          class: 'lt-mini lt-cancel',
+          text: 'Cancel',
+          onclick: () => askConfirm(
+            `Cancel ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
+            'Cancel the order',
+            () => {
+              const res = cancelOrder(st, o.id);
+              toast(res.ok ? `Cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
+            },
+          ),
+        })
+        : null;
+      return el('div', { class: 'lt-order lt-delivery-order', 'data-order-id': String(o.id) },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
-          el('div', { class: 'lt-prodmeta', text: `${supplier.name} · ${plural(man.boxCount, 'box')} · ${when}, ${hour12(o.window.open)}–${hour12(o.window.close)} · paid ${formatMoney(o.cost)}` })),
-        chip(s.label, s.tone),
-        canCancel
-          ? el('button', {
-            class: 'lt-mini lt-cancel',
-            text: 'Cancel',
-            onclick: () => askConfirm(
-              `Cancel ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
-              'Cancel the order',
-              () => {
-                const res = cancelOrder(st, o.id);
-                toast(res.ok ? `Cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
-              },
-            ),
-          })
+          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}${tracking.priority ? ' · PRIORITY' : ''}` }),
+          el('div', { class: 'lt-prodmeta', text: `${supplier.name} · Order #${o.id} · ${plural(man.boxCount, 'box')} · paid ${formatMoney(o.cost)}` }),
+          el('div', { class: 'lt-delivery-window', text: `${arrivalCal.seasonName} Day ${arrivalCal.dayOfSeason} · ${hour12(open)}–${hour12(close)} window` }),
+          el('div', { class: `lt-delivery-eta ${tracking.blocked ? 'warn' : ''}`, text: tracking.blocked
+            ? 'ETA paused — clear receiving'
+            : `Estimated arrival ${clock12(tracking.deliveryMin)} · ${compactDuration(tracking.etaMinutes)} remaining` }),
+          el('div', {
+            class: `lt-delivery-track ${tracking.blocked ? 'warn' : ''}`,
+            role: 'progressbar',
+            'aria-label': `Delivery progress for ${sku.name}`,
+            'aria-valuemin': '0',
+            'aria-valuemax': '100',
+            'aria-valuenow': String(tracking.progress),
+          }, el('div', { class: 'lt-delivery-trackfill', style: `width:${tracking.progress}%` })),
+          el('div', { class: 'lt-delivery-steps' }, ...tracking.milestones.map((milestone) => el('span', {
+            class: milestone.state,
+            text: milestone.label,
+          })))),
+        el('span', { class: `lt-chip lt-delivery-status ${s.tone}`, text: s.label }),
+        priorityButton || cancelButton
+          ? el('div', { class: 'lt-orderactions' }, priorityButton, cancelButton)
           : null);
     };
 
@@ -1492,11 +1644,14 @@ export function makeLaptop(app, opts) {
       const s = ORDER_STATUS[status];
       const mine = boxes.filter((b) => b.orderId === sh.orderId);
       const left = mine.reduce((a, b) => a + b.qty, 0);
-      return el('div', { class: 'lt-order' },
+      const cartons = mine.filter((b) => b.qty > 0).length;
+      return el('div', { class: 'lt-order lt-delivered-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
-          el('div', { class: 'lt-prodmeta', text: left ? `${supplier.name} · ${left} still in the cardboard — your boxes are outside or in the back` : `${supplier.name} · all unpacked` })),
+          el('div', { class: 'lt-prodmeta', text: left
+            ? `${supplier.name} · ${left} units remain in ${plural(cartons, 'carton')} — carry in, cut, then shelve`
+            : `${supplier.name} · all cartons unpacked and stock transferred` })),
         chip(s.label, s.tone),
         el('button', {
           class: 'lt-mini', text: 'Reorder',
@@ -1517,7 +1672,12 @@ export function makeLaptop(app, opts) {
         flowStep(3, 'Stock', 'Carry, cut, unpack, and shelve every physical carton.')) : null,
       blockedNow.length
         ? errBox(`A van cannot unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). Carry boxes inside and the driver returns.`)
-        : null,
+        : el('div', { class: 'lt-delivery-pad' },
+          el('div', {},
+            el('div', { class: 'lt-minihead', text: 'Receiving pad' }),
+            el('div', { class: 'lt-prodmeta', text: `${PAD_CAPACITY}-carton capacity across five physical pallets` })),
+          el('div', { class: 'lt-delivery-padcount', text: `${used} / ${PAD_CAPACITY}` }),
+          used >= PAD_CAPACITY - 2 ? chip('nearly full', 'warn') : chip(`${PAD_CAPACITY - used} open`, 'ok')),
       sect(`On the way (${orders.length})`),
       orders.length ? el('div', { class: 'lt-orderlist' }, ...orders.map(orderRow)) : empty('Nothing on the road.'),
       sect(`Delivered (${shipments.length})`),
@@ -2169,9 +2329,70 @@ export function makeLaptop(app, opts) {
 
   function upgradesEquipmentTab(st) {
     const f = st.shop.rentalFleet;
+    const carts = fleetSummary(st);
+    const cartPurchaseCost = 4500 + Math.max(0, carts.carts - 4) * 900;
     const tractorFixed = st.tractor && st.tractor.repaired;
     const tractorMissing = st.tractor ? TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]) : [];
+    const service = (cart, action, label) => {
+      const result = serviceFleetCart(st, cart.id, action);
+      toast(result.ok ? `${cart.id.replace('fleet-cart-', 'Cart ')} ${label}.` : result.reason, result.ok ? '' : 'warn');
+    };
+    const infraCard = (kind, capacityText) => {
+      const spec = CART_INFRASTRUCTURE[kind];
+      const level = st.cartFleet.infrastructure[kind];
+      const maxed = level >= spec.maxLevel;
+      const cost = maxed ? 0 : spec.costs[level];
+      return card(
+        el('div', { class: 'lt-minihead', text: spec.label }),
+        row(chip(`Level ${level}`, level > 0 ? 'ok' : ''), meta(capacityText)),
+        el('div', { class: 'lt-cardfoot' }, el('button', {
+          class: 'lt-mini',
+          text: maxed ? 'Fully upgraded' : `Upgrade — ${formatMoney(cost)}`,
+          disabled: maxed || cashOf() < cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(`Upgrade ${spec.label.toLowerCase()} for ${formatMoney(cost)}?`, 'Build it', () => {
+            const result = upgradeFleetInfrastructure(st, kind);
+            toast(result.ok ? `${spec.label} is now level ${result.level}.` : result.reason, result.ok ? '' : 'warn');
+          }),
+        })),
+      );
+    };
     return [
+      card(
+        row(
+          el('div', {},
+            el('div', { class: 'lt-minihead', text: 'Customer rental carts' }),
+            meta('Golfers reserve these with their tee time, load their bags, play every hole, and return the keys.')),
+          el('span', { style: 'flex:1' }),
+          el('button', {
+            class: 'lt-primary',
+            text: `Buy cart — ${formatMoney(cartPurchaseCost)}`,
+            disabled: cashOf() < cartPurchaseCost || carts.carts >= carts.capacity.total ? 'disabled' : undefined,
+            onclick: () => askConfirm(`Add one customer rental cart for ${formatMoney(cartPurchaseCost)}?`, 'Buy the cart', () => {
+              const result = purchaseFleetCart(st);
+              toast(result.ok ? `${result.cart.id.replace('fleet-cart-', 'Cart ')} joins the rental row.` : result.reason, result.ok ? '' : 'warn');
+            }),
+          })),
+        el('div', { class: 'lt-stats lt-stats4' },
+          stat('Fleet', String(carts.carts), `${carts.capacity.total} parking capacity`, carts.overflowUsed ? 'warn' : ''),
+          stat('Ready', String(carts.counts.available || 0), `${carts.activeTrips} active trip${carts.activeTrips === 1 ? '' : 's'}`, (carts.counts.available || 0) ? 'ok' : 'bad'),
+          stat('Average charge', `${Math.round(carts.averageCharge)}%`, `${carts.capacity.chargers} charging point${carts.capacity.chargers === 1 ? '' : 's'}`, carts.averageCharge < 35 ? 'bad' : carts.averageCharge < 65 ? 'warn' : 'ok'),
+          stat('Condition', `${Math.round(carts.averageCondition)}%`, `${Math.round(carts.averageCleanliness)}% clean`, carts.averageCondition < 55 ? 'bad' : carts.averageCondition < 75 ? 'warn' : 'ok')),
+      ),
+      sect('Fleet infrastructure'),
+      el('div', { class: 'lt-cols' },
+        infraCard('parking', `${carts.capacity.parking} bays + ${carts.capacity.overflow} overflow`),
+        infraCard('charging', `${carts.capacity.chargers} overnight points`),
+        infraCard('service', `${carts.capacity.serviceBays} service bay${carts.capacity.serviceBays === 1 ? '' : 's'}`)),
+      sect('Individual carts'),
+      el('div', { class: 'lt-orderlist' }, ...st.cartFleet.carts.map((cart) => el('div', { class: 'lt-order' },
+        el('div', { class: 'lt-avatar', text: cart.id.replace('fleet-cart-', '') }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: cart.id.replace('fleet-cart-', 'Rental cart ') }),
+          el('div', { class: 'lt-prodmeta', text: `${Math.round(cart.charge)}% charge · ${Math.round(cart.cleanliness)}% clean · ${Math.round(cart.condition)}% condition · ${cart.rounds} rounds` })),
+        chip(cart.status.replace(/-/g, ' ').replace(/^./, (letter) => letter.toUpperCase()), cart.status === 'available' ? 'ok' : cart.assignedTripId ? 'warn' : ''),
+        el('button', { class: 'lt-mini', text: 'Charge', disabled: cart.assignedTripId || cart.charge >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'charge', 'charged') }),
+        el('button', { class: 'lt-mini', text: 'Clean', disabled: cart.assignedTripId || cart.cleanliness >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'clean', 'cleaned') }),
+        el('button', { class: 'lt-mini', text: 'Repair', disabled: cart.assignedTripId || cart.condition >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'repair', 'repaired') })))),
       card(
         el('div', { class: 'lt-minihead', text: 'Rental club sets' }),
         row(el('span', { class: 'lt-mulabel', text: 'Fleet' }),
@@ -2205,6 +2426,303 @@ export function makeLaptop(app, opts) {
   // ==========================================================================================
   // BUSINESS — finances, reviews, memberships, and marketing in one purposeful desk
   // ==========================================================================================
+  function pageProperties() {
+    const empire = app.empire;
+    if (!empire) {
+      paint(head('Properties'), empty('Start an empire before opening the property desk.'));
+      return;
+    }
+    const ps = ts('properties', { tab: 'portfolio' });
+    const cal = calendarOf(app.state.clock.minutes);
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' },
+      ...[['portfolio', 'Portfolio'], ['market', `Market (${empire.market.length + (empire.auctions?.length || 0)})`]].map(([id, label]) => el('button', {
+        class: `lt-tab ${ps.tab === id ? 'on' : ''}`,
+        text: label,
+        onclick: () => { ps.tab = id; click(); render(); },
+      })),
+    );
+
+    const bidAuction = (property) => {
+      const result = placeAuctionBid(empire, property.id);
+      if (!result.ok) toast(result.reason, 'warn');
+      else {
+        toast(`${formatMoney(result.bid)} is now held in escrow for ${property.name}.`);
+        opts.autosave?.();
+      }
+      render();
+    };
+
+    const showInspection = (property, report) => openModal(() => el('div', {},
+      el('div', { class: 'lt-minihead' }, icon('building'), el('span', { text: `${property.name} — inspection` })),
+      el('div', { class: 'lt-stats lt-stats2' },
+        stat('Appraisal range', `${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`),
+        stat('Repair reserve', formatMoney(report.maintenanceReserve)),
+        stat('Report age', report.inspectedDay === cal.dayAbs ? 'Today' : `Day ${report.inspectedDay + 1}`),
+        stat('Inspection fee', formatMoney(report.feePaid)),
+      ),
+      sect('Material risks'),
+      ...report.risks.map((risk) => row(word(risk, risk.startsWith('No material') ? 'ok' : 'warn'))),
+      sect('Independent view'),
+      ...report.opportunities.map((opportunity) => row(meta(opportunity))),
+      sect('Operating profile'),
+      row(chip(property.regionLabel || report.region), chip(property.climateLabel || report.climate), chip(property.difficultyLabel || `Difficulty ${report.difficulty}`), chip(`Demand ${report.customerDemand}`)),
+      row(meta(`Expansion ${report.expansionPotential}/100 · Full property operating cost ${formatMoney(report.operatingCostPerDay)}/day`)),
+      note('The appraiser reports a range. The seller still decides the ask, and restoration remains your responsibility.'),
+      el('div', { class: 'lt-modalbtns' },
+        el('button', { class: 'lt-mini', text: 'Close', onclick: () => closeModal() }),
+        property.auction
+          ? el('button', {
+            class: 'lt-primary',
+            text: property.auction.highBidder === 'player'
+              ? `Leading at ${formatMoney(property.auction.playerEscrow)}`
+              : `Bid ${formatMoney(auctionNextBid(property))}`,
+            disabled: property.auction.highBidder === 'player'
+              || cashOf() < auctionNextBid(property) ? 'disabled' : undefined,
+            onclick: () => { closeModal(); bidAuction(property); },
+          })
+          : el('button', {
+            class: 'lt-primary', text: `Buy for ${formatMoney(property.askingPrice)}`,
+            disabled: cashOf() < property.askingPrice ? 'disabled' : undefined,
+            onclick: () => { closeModal(); opts.buyProperty?.(property.id); render(); },
+          })),
+    ));
+
+    const orderInspection = (property) => {
+      const result = inspectPropertyListing(empire, property.id);
+      if (!result.ok) {
+        toast(result.reason, 'warn');
+        render();
+        return;
+      }
+      if (!result.already) {
+        toast(`Independent report ready for ${property.name}.`);
+        opts.autosave?.();
+      }
+      showInspection(property, result.report);
+    };
+
+    const showManagement = (holding) => openModal(() => {
+      const { operations } = propertyOperationsProfile(holding);
+      const propertyOverhead = Math.round(Math.max(0, Number(holding.property.operatingCostPerDay) || 0) * 0.45);
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('users'), el('span', { text: `${holding.property.name} — remote management` })),
+        note(`A manager protects work you already completed while you are away. No contract restores a neglected course for free. Daily totals include ${formatMoney(propertyOverhead)} remote overhead and ${formatMoney(REMOTE_PROPERTY_UTILITIES_PER_DAY)} utilities.`),
+        ...Object.values(PROPERTY_MANAGER_TIERS).map((tier) => {
+          const current = operations.managerTier === tier.id;
+          const sizeFactor = Math.max(1, holding.property.size / 9);
+          const dailyCost = Math.round(
+            tier.dailyCostPerNine * sizeFactor + propertyOverhead + REMOTE_PROPERTY_UTILITIES_PER_DAY,
+          );
+          return el('div', { class: `lt-manager-option ${current ? 'on' : ''}` },
+            el('div', { class: 'lt-row' },
+              el('strong', { text: tier.label }),
+              current ? chip('Current', 'ok') : null,
+              el('span', { class: 'lt-headspace' }),
+              word(`${formatMoney(dailyCost)}/day`),
+              el('button', {
+                class: current ? 'lt-mini' : 'lt-primary',
+                disabled: current ? 'disabled' : undefined,
+                text: current ? 'Assigned' : tier.hireCost ? `Hire — ${formatMoney(tier.hireCost)}` : 'Use caretaker',
+                onclick: () => {
+                  const result = assignPropertyManager(empire, holding.property.id, tier.id);
+                  if (!result.ok) toast(result.reason, 'warn');
+                  else {
+                    toast(result.already ? `${tier.label} is already assigned.` : `${result.operations.managerName} assigned.`);
+                    opts.autosave?.();
+                  }
+                  closeModal();
+                },
+              })),
+            el('div', { class: 'lt-property-copy', text: tier.description }),
+            el('div', { class: 'lt-row' },
+              chip(`Decay floor ${tier.conditionFloor}`),
+              chip(`${tier.roundsMultiplier.toFixed(2)}× remote play`),
+              chip(`${tier.revenueMultiplier.toFixed(2)}× fee yield`)),
+          );
+        }),
+        el('div', { class: 'lt-modalbtns' },
+          el('button', { class: 'lt-primary', text: 'Close', onclick: () => closeModal() })),
+      );
+    });
+
+    if (ps.tab === 'portfolio') {
+      let totalValue = 0;
+      let combinedNet = 0;
+      for (const holding of empire.holdings) {
+        totalValue += holdingValue(empire, holding);
+        combinedNet += holding.property.id === empire.activeId
+          ? (holding.state.ledger.yesterday?.net || 0)
+          : (holding.passive?.lastNet || 0);
+      }
+      const managedCount = empire.holdings.filter((holding) => propertyOperationsProfile(holding).operations.managerTier !== 'caretaker').length;
+      paint(
+        head('Properties', 'Buy, staff, visit, and sell real playable courses from the physical office laptop.'),
+        confirmBar(),
+        tabBar,
+        el('div', { class: 'lt-stats lt-stats4' },
+          stat('Empire wallet', formatMoney(cashOf())),
+          stat('Portfolio value', formatMoney(totalValue)),
+          stat('All clubs yesterday', `${combinedNet >= 0 ? '+' : ''}${formatMoney(combinedNet)}`, null, combinedNet >= 0 ? 'ok' : 'bad'),
+          stat('Remote managers', `${managedCount} of ${empire.holdings.length}`),
+        ),
+        ...empire.holdings.map((holding) => {
+          const isActive = holding.property.id === empire.activeId;
+          const condition = isActive ? clubRatings(holding.state).condition : holding.passive?.conditionEst || holding.property.condition;
+          const value = holdingValue(empire, holding);
+          const net = isActive ? (holding.state.ledger.yesterday?.net || 0) : (holding.passive?.lastNet || 0);
+          const { operations, tier } = propertyOperationsProfile(holding);
+          const projection = passiveOperationsProjection(holding);
+          return el('div', { class: `lt-property-card ${isActive ? 'active' : ''}` },
+            el('div', { class: 'lt-property-band', style: `--property-health:${Math.round(condition)}%` }),
+            el('div', { class: 'lt-property-body' },
+              el('div', { class: 'lt-row' },
+                el('strong', { class: 'lt-property-name', text: holding.property.name }),
+                isActive ? chip('You are here', 'ok') : chip(`Away ${holding.passive?.days || 0}d`, 'warn'),
+                el('span', { class: 'lt-headspace' }),
+                word(formatMoney(value), 'ok')),
+              el('div', { class: 'lt-row' },
+                chip(`${holding.property.size} holes`),
+                chip(holding.property.regionLabel || holding.property.region),
+                chip(holding.property.climateLabel || holding.property.climate),
+                chip(`Condition ${Math.round(condition)}`, conditionTone(condition)),
+                chip(`${net >= 0 ? '+' : ''}${formatMoney(net)}/day`, net >= 0 ? 'ok' : 'bad'),
+                chip(tier.id === 'caretaker' ? operations.managerName : `${tier.label}: ${operations.managerName}`)),
+              !isActive
+                ? el('div', { class: 'lt-property-copy', text: `Condition decay floor ${projection.protectedCondition} (protection only); yesterday ${formatMoney(holding.passive.lastGrossRevenue || 0)} gross, ${formatMoney(holding.passive.lastOperatingCost || projection.dailyManagementCost)} operating cost.` })
+                : el('div', { class: 'lt-property-copy', text: 'Running live under your direct control. Its manager contract takes effect when you travel.' }),
+              el('div', { class: 'lt-property-actions' },
+                isActive ? word('Operating in person', 'ok') : el('button', {
+                  class: 'lt-primary', text: 'Travel to property',
+                  onclick: () => { opts.close(); opts.switchProperty?.(holding.property.id); },
+                }),
+                el('button', { class: 'lt-mini', text: 'Manage remotely', onclick: () => showManagement(holding) }),
+                el('span', { class: 'lt-headspace' }),
+                el('button', {
+                  class: 'lt-mini lt-text-danger', text: 'Sell property',
+                  onclick: () => askConfirm(
+                    `Sell ${holding.property.name} permanently for ${formatMoney(value)}? Every member, employee, and saved improvement leaves with the deed.`,
+                    `Sell for ${formatMoney(value)}`,
+                    () => { opts.close(); opts.sellProperty?.(holding.property.id); },
+                  ),
+                })),
+            ),
+          );
+        }),
+        !empire.holdings.length ? empty('No holdings yet. Open the Market tab to choose a course.') : null,
+      );
+      return;
+    }
+
+    const mood = marketConditionLabel(empire.marketCondition);
+    paint(
+      head('Properties', 'Every listing is a real course. The seller sets the ask; inspection narrows the uncertainty.'),
+      confirmBar(),
+      tabBar,
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Market', mood.label, mood.hint),
+        stat('Opportunities', String(empire.market.length + (empire.auctions?.length || 0)), `${empire.auctions?.length || 0} live auctions`),
+        stat('Empire wallet', formatMoney(cashOf())),
+        stat('Inspection', formatMoney(PROPERTY_INSPECTION_COST), 'independent report'),
+      ),
+      (empire.auctions?.length || 0) ? sect('Live auctions') : null,
+      ...(empire.auctions || []).map((property) => {
+        const report = empire.inspections?.[property.id];
+        const access = propertyAccess(empire, property);
+        const auction = property.auction;
+        const nextBid = auctionNextBid(property);
+        const escrow = auction.highBidder === 'player' ? Number(auction.playerEscrow) || 0 : 0;
+        const additional = Math.max(0, nextBid - escrow);
+        const affordable = cashOf() >= additional;
+        const playerLeading = auction.highBidder === 'player';
+        const daysLeft = Math.max(0, auction.endsDay - cal.dayAbs);
+        return el('div', { class: 'lt-market-card auction' },
+          el('div', { class: 'lt-property-band auction', style: `--property-health:${Math.round(property.condition)}%` }),
+          el('div', { class: 'lt-property-body' },
+            el('div', { class: 'lt-row' },
+              el('strong', { class: 'lt-property-name', text: property.name }),
+              chip(`${daysLeft} day${daysLeft === 1 ? '' : 's'} left`, daysLeft <= 2 ? 'warn' : ''),
+              playerLeading ? chip('You lead', 'ok') : auction.highBidder ? chip(`${auction.highBidder} leads`, 'warn') : chip('No bids'),
+              el('span', { class: 'lt-headspace' }),
+              word(`${auction.highBidder ? 'Current' : 'Opening'} ${formatMoney(auction.currentBid)}`, playerLeading ? 'ok' : '')),
+            el('div', { class: 'lt-row' },
+              chip(property.regionLabel || property.region),
+              chip(property.climateLabel || property.climate),
+              chip(`${property.size} holes · ${property.difficultyLabel}`),
+              chip(`Demand ${property.customerDemand}/100`),
+              chip(`Expansion ${property.expansionPotential}/100`)),
+            el('div', { class: 'lt-property-copy', text: property.blurb }),
+            report ? el('div', { class: 'lt-inspection-strip' },
+              word(`Inspected: ${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`, 'ok'),
+              meta(`Repairs ${formatMoney(report.maintenanceReserve)}`)) : null,
+            !access.unlocked ? el('div', { class: 'lt-inspection-strip locked' }, word(access.reason, 'warn')) : null,
+            el('div', { class: 'lt-property-actions' },
+              el('button', {
+                class: 'lt-mini', text: report ? 'Open inspection' : `Inspect — ${formatMoney(PROPERTY_INSPECTION_COST)}`,
+                disabled: !access.unlocked || (!report && cashOf() < PROPERTY_INSPECTION_COST) ? 'disabled' : undefined,
+                onclick: () => orderInspection(property),
+              }),
+              meta(playerLeading ? `${formatMoney(escrow)} escrow secured` : `${formatMoney(additional)} additional escrow`),
+              el('span', { class: 'lt-headspace' }),
+              el('button', {
+                class: 'lt-primary',
+                text: !access.unlocked ? 'Locked' : playerLeading ? `Leading at ${formatMoney(escrow)}` : affordable ? `Bid ${formatMoney(nextBid)}` : 'Not enough cash',
+                disabled: !access.unlocked || !affordable || playerLeading ? 'disabled' : undefined,
+                onclick: () => bidAuction(property),
+              })),
+          ),
+        );
+      }),
+      empire.market.length ? sect('Conventional listings') : null,
+      ...empire.market.map((property) => {
+        const report = empire.inspections?.[property.id];
+        const access = propertyAccess(empire, property);
+        const affordable = access.unlocked && cashOf() >= property.askingPrice;
+        return el('div', { class: 'lt-market-card' },
+          el('div', { class: 'lt-property-band market', style: `--property-health:${Math.round(property.condition)}%` }),
+          el('div', { class: 'lt-property-body' },
+            el('div', { class: 'lt-row' },
+              el('strong', { class: 'lt-property-name', text: property.name }),
+              chip(listingAgeLabel(cal.dayAbs - (property.listedDay ?? cal.dayAbs))),
+              el('span', { class: 'lt-headspace' }),
+              word(formatMoney(property.askingPrice), affordable ? 'ok' : 'bad')),
+            el('div', { class: 'lt-row' },
+              chip(property.regionLabel || property.region),
+              chip(property.climateLabel || property.climate),
+              chip(`${property.size} holes · par ${property.par}`),
+              chip(`${property.yards.toLocaleString('en-US')} yd`),
+              chip(`Design ${Math.round(property.design)}`),
+              chip(`Condition ${Math.round(property.condition)}`, conditionTone(property.condition)),
+              property.sickGreens ? chip(`${property.sickGreens} sick green${property.sickGreens === 1 ? '' : 's'}`, 'warn') : null),
+            el('div', { class: 'lt-row' },
+              chip(property.courseClass),
+              chip(property.difficultyLabel),
+              chip(`Demand ${property.customerDemand}/100`),
+              chip(`Expansion ${property.expansionPotential}/100`),
+              meta(`${formatMoney(property.operatingCostPerDay)}/day property overhead`)),
+            el('div', { class: 'lt-property-copy', text: property.blurb }),
+            report ? el('div', { class: 'lt-inspection-strip' },
+              word(`Inspected: ${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`, 'ok'),
+              meta(`Repairs ${formatMoney(report.maintenanceReserve)}`)) : null,
+            !access.unlocked ? el('div', { class: 'lt-inspection-strip locked' }, word(access.reason, 'warn')) : null,
+            el('div', { class: 'lt-property-actions' },
+              el('button', {
+                class: 'lt-mini', text: report ? 'Open inspection' : `Inspect — ${formatMoney(PROPERTY_INSPECTION_COST)}`,
+                disabled: !access.unlocked || (!report && cashOf() < PROPERTY_INSPECTION_COST) ? 'disabled' : undefined,
+                onclick: () => orderInspection(property),
+              }),
+              el('span', { class: 'lt-headspace' }),
+              el('button', {
+                class: 'lt-primary', text: !access.unlocked ? 'Locked' : affordable ? 'Buy property' : 'Not enough cash',
+                disabled: affordable ? undefined : 'disabled',
+                onclick: () => { opts.buyProperty?.(property.id); render(); },
+              })),
+          ),
+        );
+      }),
+      !empire.market.length ? empty('No properties are listed today. The market continues to move with world time.') : null,
+    );
+  }
+
   function pageFinances() {
     const st = app.state;
     const bs = ts('finances', { tab: 'finances', win: 'week' });
@@ -2233,48 +2751,6 @@ export function makeLaptop(app, opts) {
     const revToday = sumLines(st.ledger?.today?.revenue);
     const expToday = sumLines(st.ledger?.today?.expense);
     const owed = arrearsOf(st);
-    const operationDays = financeWindow === 'today' ? 1 : financeWindow === 'week' ? 7 : 24;
-    const operationSummaries = Array.from({ length: operationDays }, (_, index) => (
-      operationFinanceSummary(st, cal.dayAbs - index)
-    ));
-    const operationWindow = operationSummaries.reduce((out, summary) => {
-      out.entries.push(...summary.entries);
-      out.cashIn += summary.cashIn;
-      out.cashOut += summary.cashOut;
-      for (const [category, amount] of Object.entries(summary.categories)) {
-        out.categories[category] = (out.categories[category] || 0) + amount;
-      }
-      return out;
-    }, { entries: [], cashIn: 0, cashOut: 0, categories: {} });
-    operationWindow.netCash = operationWindow.cashIn - operationWindow.cashOut;
-    operationWindow.stableIdsUnique = new Set(operationWindow.entries.map((entry) => entry.id)).size === operationWindow.entries.length;
-    const OPERATION_LABEL = {
-      bookingRevenue: 'Prepaid bookings',
-      bookingDeposits: 'Booking deposits',
-      bookingBalances: 'Balances collected',
-      walkInRevenue: 'Walk-in green fees',
-      cancellationFees: 'Cancellation fees retained',
-      noShowFees: 'No-show fees retained / charged',
-      bookingRefunds: 'Booking refunds',
-    };
-    const operationRows = Object.entries(OPERATION_LABEL)
-      .map(([category, label]) => [category, label, operationWindow.categories[category] || 0])
-      .filter(([, , amount]) => amount > 0.005)
-      .map(([category, label, amount]) => row(
-        el('span', { text: label }),
-        meta(category === 'cancellationFees' || category === 'noShowFees' ? 'policy classification' : ''),
-        el('span', {
-          class: `lt-num ${category === 'bookingRefunds' ? 'lt-neg' : 'lt-pos'}`,
-          text: `${category === 'bookingRefunds' ? '-' : ''}${operationMoney(amount)}`,
-        })));
-    const toDay = cal.dayAbs;
-    const fromDay = financeWindow === 'month' ? toDay - 23 : financeWindow === 'week' ? toDay - 6 : toDay;
-    const profit = financialSummary(st, fromDay, toDay);
-    const daily = latestDailySummary(st);
-    const week = weeklySummary(st);
-    const entries = (led.entries || [])
-      .filter((entry) => entry.day >= fromDay && entry.day <= toDay)
-      .slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 24);
 
     const hist = Array.isArray(st.ledger?.history) ? st.ledger.history : [];
     const windowDays = fs.win === 'season' ? 24 : 7;
@@ -2297,6 +2773,7 @@ export function makeLaptop(app, opts) {
       chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
       severance: 'Severance', training: 'Training', shopOrders: 'Stock order',
       rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
+      propertyServices: 'Property services',
       cashOverShort: 'Register over/short',
     };
     const txRow = (t) => {
@@ -2687,6 +3164,7 @@ export function makeLaptop(app, opts) {
     shop: pageShop,
     course: pageCourse,
     upgrades: pageUpgrades,
+    properties: pageProperties,
     finances: pageFinances,
     settings: pageSettings,
   };
@@ -2743,6 +3221,70 @@ export function makeLaptop(app, opts) {
     if (overlay) content.appendChild(overlay);
   }
 
+  function refreshLiveDeliveryRows() {
+    if (typeof content.querySelectorAll !== 'function') return;
+    const rows = [...content.querySelectorAll('.lt-delivery-order[data-order-id]')];
+    const orders = app.state?.shop?.orders || [];
+    if (rows.length !== orders.length) {
+      render();
+      return;
+    }
+    const byId = new Map(orders.map((order) => [String(order.id), order]));
+    const textIfChanged = (node, value) => {
+      if (node && node.textContent !== value) node.textContent = value;
+    };
+    for (const row of rows) {
+      const order = byId.get(row.getAttribute('data-order-id'));
+      if (!order) {
+        render();
+        return;
+      }
+      const sku = skuById(order.skuId);
+      const tracking = deliveryTracking(order, app.state.clock.minutes);
+      const status = tracking.blocked
+        ? { label: 'Pad blocked', tone: 'bad' }
+        : ORDER_STATUS[tracking.status] || { label: tracking.status, tone: '' };
+      const canCancel = tracking.blocked || !['arriving', 'delivered'].includes(tracking.status);
+      const canPrioritize = priorityDeliveryQuote(app.state, order.id, app.state.clock.minutes).ok;
+      const hasCancel = !!row.querySelector('.lt-cancel');
+      const hasPriority = !!row.querySelector('.lt-priority');
+      // Action availability changes only at meaningful status thresholds. Let
+      // the full page own those rare structural transitions; ordinary 1 Hz ETA
+      // ticks remain targeted text/progress writes.
+      if (canCancel !== hasCancel || canPrioritize !== hasPriority) {
+        render();
+        return;
+      }
+      const eta = tracking.blocked
+        ? 'ETA paused — clear receiving'
+        : `Estimated arrival ${clock12(tracking.deliveryMin)} · ${compactDuration(tracking.etaMinutes)} remaining`;
+      const etaNode = row.querySelector('.lt-delivery-eta');
+      textIfChanged(etaNode, eta);
+      const etaClass = `lt-delivery-eta ${tracking.blocked ? 'warn' : ''}`.trim();
+      if (etaNode && etaNode.className !== etaClass) etaNode.className = etaClass;
+
+      const progress = row.querySelector('.lt-delivery-track');
+      const progressValue = String(tracking.progress);
+      if (progress?.getAttribute('aria-valuenow') !== progressValue) progress?.setAttribute('aria-valuenow', progressValue);
+      const progressClass = `lt-delivery-track ${tracking.blocked ? 'warn' : ''}`.trim();
+      if (progress && progress.className !== progressClass) progress.className = progressClass;
+      const fill = row.querySelector('.lt-delivery-trackfill');
+      const width = `${tracking.progress}%`;
+      if (fill && fill.style.width !== width) fill.style.width = width;
+
+      const steps = [...row.querySelectorAll('.lt-delivery-steps span')];
+      tracking.milestones.forEach((milestone, index) => {
+        const step = steps[index];
+        if (step && step.className !== milestone.state) step.className = milestone.state;
+      });
+      const statusNode = row.querySelector('.lt-delivery-status');
+      textIfChanged(statusNode, status.label);
+      const statusClass = `lt-chip lt-delivery-status ${status.tone}`.trim();
+      if (statusNode && statusNode.className !== statusClass) statusNode.className = statusClass;
+      textIfChanged(row.querySelector('.lt-ordername'), `${sku.name} × ${order.qty}${tracking.priority ? ' · PRIORITY' : ''}`);
+    }
+  }
+
   let liveTimer = null;
 
   function refreshLive() {
@@ -2779,7 +3321,18 @@ export function makeLaptop(app, opts) {
       root.style.display = '';
       render();
       clearInterval(liveTimer);
-      liveTimer = setInterval(refreshLive, 1000); // clock, ETA and blocked state stay live
+      liveTimer = setInterval(() => {
+        refreshStatus();
+        // The delivery ETA is clock-derived. Update only its live text and
+        // progress nodes at 1 Hz so the 3D frame does not pay for rebuilding the
+        // full product/management DOM once a second.
+        const liveDeliveries = page === 'shop' && ts('shop').tab === 'deliveries' && !pending && !modal;
+        if (liveDeliveries) refreshLiveDeliveryRows();
+      }, 1000);
+      // Browser interval IDs are numbers; Node's headless DOM tests return a
+      // Timeout object. Do not let a failed page assertion pin the whole test
+      // process after the failure has already been reported.
+      liveTimer?.unref?.();
     },
     close() {
       root.style.display = 'none';

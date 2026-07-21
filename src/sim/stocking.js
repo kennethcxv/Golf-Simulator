@@ -19,6 +19,13 @@ import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import { FIXTURES } from '../data/shopLayout.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import {
+  INVENTORY_STAGE,
+  adoptExternalInventory,
+  allocationsForStage,
+  ensureInventoryLifecycle,
+  moveInventory,
+} from './inventoryLifecycle.js';
+import {
   importLegacyStoredPlaceables,
   storeDeliveredPlaceables,
   withdrawStoredPlaceables,
@@ -194,7 +201,7 @@ export function storeInBack(state, units = 999) {
       importLegacyStoredPlaceables(state, c.skuId, state.shop.inventory[c.skuId].back);
     }
   }
-  setCarry(state, c.skuId, c.qty - moved);
+  setCarry(state, c.skuId, c.qty - moved, allocationSplit.used ? allocationSplit.left : null);
   const left = carriedGoods(state);
   return { ok: true, moved, left: left ? left.qty : 0 };
 }
@@ -213,6 +220,22 @@ export function takeFromBack(state, skuId, want = 999) {
     };
   }
   const taken = Math.min(want, room, inv.back);
+  let allocation = allocationsForStage(state, {
+    stage: INVENTORY_STAGE.RESERVE,
+    skuId,
+    quantity: taken,
+    excludeAllocations: (carriedGoods(state) && carriedGoods(state).allocations) || [],
+  });
+  if (!allocation.ok) {
+    const adopted = adoptExternalInventory(state, {
+      skuId,
+      quantity: taken,
+      stage: INVENTORY_STAGE.RESERVE,
+      note: 'Legacy back-stock projection adopted before carrying',
+    });
+    if (!adopted.ok) return allocation;
+    allocation = adopted;
+  }
   if (placeableSpecBySkuId(skuId)) {
     importLegacyStoredPlaceables(state, skuId, inv.back);
     const withdrawn = withdrawStoredPlaceables(state, skuId, taken);

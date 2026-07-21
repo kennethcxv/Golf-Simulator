@@ -42,20 +42,27 @@ test('the truck lands at its minute — not before, exactly once', () => {
   assert.ok(!again.some((e) => e.kind === 'arrived'), 'no double arrival');
 });
 
-test('dispatch and arriving-soon updates fire exactly once, statuses progress', () => {
+test('dispatch, morning, and arriving-soon updates fire exactly once as statuses progress', () => {
   const state = newGame('relaxed', 7);
   const o = orderUp(state);
   const dispatched = o.timing.dispatchMin;
   const e1 = tickDeliveries(state, dispatched);
   assert.ok(e1.some((e) => e.kind === 'dispatched' && e.order.id === o.id), 'dispatch update');
   assert.ok(!tickDeliveries(state, dispatched + 10).some((e) => e.kind === 'dispatched'), 'dispatch fires once');
+  const morning = o.arrivesDay * 1440 + 6 * 60 + 5;
+  const morningEvents = tickDeliveries(state, morning);
+  assert.ok(morningEvents.some((e) => e.kind === 'morning' && e.order.id === o.id), 'morning heads-up');
+  assert.ok(!tickDeliveries(state, morning + 10).some((e) => e.kind === 'morning'), 'morning fires once');
+  const soonAt = o.deliveryMin - 45;
+  const soonEvents = tickDeliveries(state, soonAt);
+  assert.ok(soonEvents.some((e) => e.kind === 'soon' && e.order.id === o.id), 'one-hour warning');
+  assert.ok(['out', 'arriving'].includes(o.status), 'truck is out');
 
   // "Arriving soon" still means the final half hour, not the whole estimate.
   tickDeliveries(state, o.deliveryMin - 40);
   assert.equal(o.status, 'out', 'forty minutes out: still on the van');
-  const soonAt = o.deliveryMin - 25;
-  const e2 = tickDeliveries(state, soonAt);
-  assert.ok(e2.some((e) => e.kind === 'soon' && e.order.id === o.id), 'arriving-soon update');
+  const finalApproach = tickDeliveries(state, o.deliveryMin - 25);
+  assert.ok(!finalApproach.some((e) => e.kind === 'soon'), 'one-hour warning does not repeat');
   assert.equal(o.status, 'arriving', 'inside half an hour: arriving soon');
   tickDeliveries(state, o.deliveryMin - 10);
   assert.equal(o.status, 'arriving', 'ten minutes out: now it is arriving');

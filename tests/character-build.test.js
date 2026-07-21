@@ -77,7 +77,7 @@ test('the rig pivots and carry grips survive by name', () => {
 
 test('every animation mode updates to a finite, floor-respecting pose without throwing', () => {
   const character = makeCharacter();
-  const MODES = ['Idle', 'Walk', 'WalkBag', 'Swing', 'Browse', 'Checkout', 'Present', 'Receive', 'ReceiveBag', 'Declined', 'Impatient'];
+  const MODES = ['Idle', 'Walk', 'WalkBag', 'Swing', 'Browse', 'Checkout', 'Present', 'Receive', 'ReceiveBag', 'Declined', 'Impatient', 'Drive'];
   for (const mode of MODES) {
     character.setMode(mode);
     for (let i = 0; i < 6; i++) character.update(0.12);

@@ -25,6 +25,10 @@ import { makeFpHands, GRIPS } from './fpHands.js';
 import {
   tractorStep, repairTractor, tractorRemaining, recordTractorUse, STEP_LABEL,
 } from '../sim/tractor.js';
+import {
+  VEHICLE_SPECS, vehicleById, mountVehicle, parkVehicle,
+  setVehiclePose, storeVehicleCargo, takeVehicleCargo, toggleVehicleLights,
+} from '../sim/vehicles.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
@@ -75,7 +79,7 @@ import {
   floraLodNeedsRefresh,
 } from './floraLod.js';
 import { floraWindEligible, floraWindStrength } from './floraWind.js';
-import { attachSocket, socketWorld } from './toolSockets.js';
+import { socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 import { DOOR_MAIN } from '../data/shopLayout.js';
@@ -2798,7 +2802,11 @@ export function makeCourseScene(canvas, state) {
   const _gc = new THREE.Color();
 
   let grassStructureBounds = new Float64Array(0);
+  let customerFleetGrassBounds = null;
   function insideStructure(wx, wz) {
+    if (customerFleetGrassBounds
+      && wx >= customerFleetGrassBounds.minX && wx <= customerFleetGrassBounds.maxX
+      && wz >= customerFleetGrassBounds.minZ && wz <= customerFleetGrassBounds.maxZ) return true;
     return pointInsideGrassStructureBounds(grassStructureBounds, wx, wz);
   }
 
@@ -3762,11 +3770,34 @@ export function makeCourseScene(canvas, state) {
   const golferGroup = new THREE.Group();
   scene.add(golferGroup);
   const golfers = [];
+  const customerCartGroup = new THREE.Group();
+  customerCartGroup.name = 'CustomerRentalCartFleet';
+  scene.add(customerCartGroup);
+  const customerCartVisuals = new Map();
+  let customerCartModel = null;
+  let customerGolfBagModel = null;
+  let golferIronModel = null;
+  let customerFleetStationModel = null;
+  let customerFleetStationVisual = null;
+  let customerFleetStationCollider = null;
+  let customerFleetBayBuilt = false;
   // STYLE GUIDE §5: one saturated polo per figure over khaki — the references'
   // golfer wardrobe (blue/navy/pink/orange/white/green)
   const POLO_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0xf0ede2, 0x3f7a34];
   const KHAKI_COLORS = [0xc2b190, 0xb9a67e, 0x9a8f78];
   const CAP_COLORS = [0xf2efe4, 0x2c3e66, 0x2f5c38, 0xe9e2cc];
+
+  function equipGolferCharacter(char) {
+    if (!char || !golferIronModel || char.equipment?.kind === 'golf-club') return false;
+    const club = cloneShared(golferIronModel);
+    club.name = 'GolferIronEquipment';
+    club.scale.setScalar(METERS_TO_YARDS);
+    club.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+    });
+    char.attachEquipment(club, { side: 'R', kind: 'golf-club' });
+    return true;
+  }
 
   function golferHoleCorridor(course2) {
     const open = course2.holes.filter((h) => h.status === HOLE_STATUS.OPEN && h.tee && h.pin);
@@ -3783,6 +3814,7 @@ export function makeCourseScene(canvas, state) {
     const khaki = KHAKI_COLORS[Math.floor(Math.random() * KHAKI_COLORS.length)];
     const capC = CAP_COLORS[Math.floor(Math.random() * CAP_COLORS.length)];
     const char = makeCharacter({ polo, khaki, cap: capC });
+    equipGolferCharacter(char);
     char.setMode('Walk');
     char.root.userData.char = char;
     golferGroup.add(char.root);
@@ -3902,7 +3934,12 @@ export function makeCourseScene(canvas, state) {
         if (o !== w) pushFrom(o.mesh.position.x, o.mesh.position.z, 1.3);
       }
       if (walk.active && !cart.mounted) pushFrom(walk.x, walk.z, 1.5);
-      if (!cartHidden) pushFrom(cart.x, cart.z, 2.6);
+      for (const vehicle of vehicleActors) {
+        if (vehicleAvailable(vehicle)) pushFrom(vehicle.x, vehicle.z, vehicle.radius + 1.35);
+      }
+      for (const rental of customerCartVisuals.values()) {
+        if (rental.root.visible) pushFrom(rental.root.position.x, rental.root.position.z, 2.45);
+      }
       const avMag = Math.hypot(w.avoidX, w.avoidZ);
       if (avMag > 2.5) {
         w.avoidX *= 2.5 / avMag;
@@ -4658,13 +4695,22 @@ export function makeCourseScene(canvas, state) {
       const rr = t.r + r;
       if (dx * dx + dz * dz < rr * rr) return true;
     }
-    // the parked cart is solid too (you're never "inside" it except driving it)
-    if (cartHidden) { /* a broken tractor elsewhere is its own collider */ } else
-    if (!cart.mounted && !ignoreCart) {
-      const dx = nx - cart.x;
-      const dz = nz - cart.z;
-      const rr = 1.1 + r;
-      if (dx * dx + dz * dz < rr * rr) return true;
+    // Every parked vehicle is solid; only the currently driven actor is exempt.
+    if (!ignoreCart) {
+      for (const vehicle of vehicleActors) {
+        if (!vehicleAvailable(vehicle) || vehicle.mounted) continue;
+        const dx = nx - vehicle.x;
+        const dz = nz - vehicle.z;
+        const rr = vehicle.radius + r;
+        if (dx * dx + dz * dz < rr * rr) return true;
+      }
+      for (const rental of customerCartVisuals.values()) {
+        if (!rental.root.visible) continue;
+        const dx = nx - rental.root.position.x;
+        const dz = nz - rental.root.position.z;
+        const rr = 1.35 + r;
+        if (dx * dx + dz * dz < rr * rr) return true;
+      }
     }
     // ponds: you stop at the water's edge (sample the toe of the step)
     for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
@@ -4690,12 +4736,19 @@ export function makeCourseScene(canvas, state) {
   // and escalate if the player is pressing a key and going nowhere anyway.
   const safeTrail = createSafeTrail(30);
   const stuckMon = createStuckMonitor({ softMs: 700, hardMs: 1800 });
-  const cartCol = []; // the parked cart, as a collider, only while it is parked
+  const cartCol = []; // all parked vehicle colliders
   let safeClock = 0;
 
   function walkColliderGroups() {
     cartCol.length = 0;
-    if (!cart.mounted && !cartHidden) cartCol.push({ x: cart.x, z: cart.z, r: 1.1 });
+    for (const vehicle of vehicleActors) {
+      if (vehicleAvailable(vehicle) && !vehicle.mounted) {
+        cartCol.push({ x: vehicle.x, z: vehicle.z, r: vehicle.radius });
+      }
+    }
+    for (const rental of customerCartVisuals.values()) {
+      if (rental.root.visible) cartCol.push({ x: rental.root.position.x, z: rental.root.position.z, r: 1.35 });
+    }
     return [structColliders, propColliders, treeColliders, cartCol];
   }
 
@@ -4849,19 +4902,46 @@ export function makeCourseScene(canvas, state) {
     });
   }
 
-  // --- the golf cart: fast traversal, shop-convention interaction ---------------------
-  // Not vehicle physics — a faster movement profile with steer-to-turn handling
-  // and a wider collision circle, plus a real mesh that parks where you leave it.
+  // --- property vehicles: fast traversal, shop-convention interaction -----------------
+  // Not vehicle physics — a faster movement profile with steer-to-turn handling,
+  // persistent operating state, and authored meshes that park where you leave them.
 
-  const cart = {
-    x: 0, z: 0, yaw: Math.PI,
+  const tractorSpec = VEHICLE_SPECS.tractor;
+  const tractorRecord = vehicleById(state, 'tractor-1');
+  const tractorVehicle = {
+    id: 'tractor-1', type: 'tractor', spec: tractorSpec, record: tractorRecord,
+    x: Number.isFinite(tractorRecord?.x) ? tractorRecord.x : 0,
+    z: Number.isFinite(tractorRecord?.z) ? tractorRecord.z : 0,
+    yaw: Number.isFinite(tractorRecord?.yaw) ? tractorRecord.yaw : Math.PI,
     mounted: false,
-    speed: 10, // yd/s ≈ 20 mph — honest golf-cart pace, ~3× walking
-    reverse: 3.5,
-    turnRate: 1.6, // rad/s at driving speed
-    eye: 1.9, // the tractor seat sits high
-    radius: 1.15, // real tractor footprint (deck included, forgivingly)
+    speed: tractorSpec.speedYdPerSec,
+    reverse: tractorSpec.reverseYdPerSec,
+    turnRate: tractorSpec.turnRateRadPerSec,
+    eye: tractorSpec.seatEyeYd,
+    radius: tractorSpec.collisionRadiusYd,
+    mesh: null, parts: null, runtimeLights: null, driver: null,
+    lightsOn: tractorRecord?.lightsOn === true,
+    label: 'Grounds tractor',
   };
+  const golfCartSpec = VEHICLE_SPECS.golf_cart;
+  const golfCartRecord = vehicleById(state, 'golf-cart-1');
+  const golfCartVehicle = {
+    id: 'golf-cart-1', type: 'golf_cart', spec: golfCartSpec, record: golfCartRecord,
+    x: Number.isFinite(golfCartRecord?.x) ? golfCartRecord.x : 0,
+    z: Number.isFinite(golfCartRecord?.z) ? golfCartRecord.z : 0,
+    yaw: Number.isFinite(golfCartRecord?.yaw) ? golfCartRecord.yaw : Math.PI,
+    mounted: false,
+    speed: golfCartSpec.speedYdPerSec,
+    reverse: golfCartSpec.reverseYdPerSec,
+    turnRate: golfCartSpec.turnRateRadPerSec,
+    eye: golfCartSpec.seatEyeYd,
+    radius: golfCartSpec.collisionRadiusYd,
+    mesh: null, parts: null, runtimeLights: null, driver: null,
+    lightsOn: golfCartRecord?.lightsOn === true,
+    label: 'Fleet golf cart',
+  };
+  const vehicleActors = [tractorVehicle, golfCartVehicle];
+  let cart = tractorVehicle;
   let cartMesh = null;
   let tractorModel = null;
   let wheelRoll = 0;
@@ -4869,49 +4949,15 @@ export function makeCourseScene(canvas, state) {
     wheels: [], steer: [], steeringWheel: null, steeringBaseZ: 0,
     hitch: null, mowerPivot: null, mowerBlades: [], modelBaseY: 0,
   };
+  let golfCartMesh = null;
+  const vehicleAvailable = (vehicle) => vehicle !== tractorVehicle || !cartHidden;
 
-  function buildCartMesh() {
-    // STYLE GUIDE §1/§5 equipment: grounds-crew utility language — green body,
-    // tan bench, cream canopy, black running gear (the references' "Turf Boss")
-    const g = new THREE.Group();
-    const green = new THREE.MeshStandardMaterial({ color: 0x3d5c40, roughness: 0.6 });
-    const cream = new THREE.MeshStandardMaterial({ color: 0xe5ddc4, roughness: 0.55 });
-    const tan = new THREE.MeshStandardMaterial({ color: 0xc9b98a, roughness: 0.8 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x24221e, roughness: 0.85 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 2.4), green);
-    body.position.y = 0.55;
-    body.castShadow = true;
-    g.add(body);
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.9), tan);
-    seat.position.set(0, 0.95, 0.4);
-    g.add(seat);
-    const dash = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.35, 0.25), dark);
-    dash.position.set(0, 0.95, -0.65);
-    g.add(dash);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 2.0), cream);
-    roof.position.y = 2.0;
-    roof.castShadow = true;
-    g.add(roof);
-    for (const [px, pz] of [[-0.6, -0.9], [0.6, -0.9], [-0.6, 0.75], [0.6, 0.75]]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.25, 6), dark);
-      post.position.set(px, 1.38, pz);
-      g.add(post);
-    }
-    const wheelGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.2, 12);
-    wheelGeo.rotateZ(Math.PI / 2);
-    for (const [px, pz] of [[-0.62, -0.85], [0.62, -0.85], [-0.62, 0.85], [0.62, 0.85]]) {
-      const wheel = new THREE.Mesh(wheelGeo, dark);
-      wheel.position.set(px, 0.28, pz);
-      g.add(wheel);
-    }
-    return g;
-  }
-
-  function placeCartMesh() {
-    if (!cartMesh) return;
-    cartMesh.visible = !cartHidden;
-    cartMesh.position.set(cart.x, walkSurfaceHeightAt(cart.x, cart.z), cart.z);
-    cartMesh.rotation.y = cart.yaw;
+  function placeCartMesh(vehicle = cart) {
+    const mesh = vehicle.mesh;
+    if (!mesh) return;
+    mesh.visible = vehicleAvailable(vehicle);
+    mesh.position.set(vehicle.x, walkSurfaceHeightAt(vehicle.x, vehicle.z), vehicle.z);
+    mesh.rotation.y = vehicle.yaw;
   }
 
   function animateTractor(dt, travel, throttle, steer, cutting) {
@@ -4934,24 +4980,392 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
-  function parkCartAtClubhouse() {
+  function parkCartAtClubhouse(vehicle = tractorVehicle) {
     const spawn = walkDefaultSpawn();
-    cart.x = spawn.x + 5.5;
-    cart.z = spawn.z + 1.5;
-    cart.yaw = Math.PI;
-    for (let push = 1; push < 30 && walkBlocked(cart.x, cart.z, cart.radius + 0.4, true); push++) cart.z += 1.5;
-    placeCartMesh();
+    vehicle.x = spawn.x + 5.5;
+    vehicle.z = spawn.z + 1.5;
+    vehicle.yaw = Math.PI;
+    for (let push = 1; push < 30 && walkBlocked(vehicle.x, vehicle.z, vehicle.radius + 0.4, true); push++) vehicle.z += 1.5;
+    setVehiclePose(state, vehicle.id, vehicle);
+    placeCartMesh(vehicle);
   }
 
-  function mountCart() {
-    if (state.courseMaintenance?.equipment?.tractor) {
+  function mountCart(vehicle = cart) {
+    if (vehicle === tractorVehicle && state.courseMaintenance?.equipment?.tractor) {
       state.courseMaintenance.equipment.tractor.bladesEngaged = false;
     }
+    const mounted = mountVehicle(state, vehicle.id);
+    if (!mounted.ok) return false;
+    cart = vehicle;
     cart.mounted = true;
+    if (cart.driver) cart.driver.root.visible = true;
     walk.x = cart.x;
     walk.z = cart.z;
     walk.yaw = cart.yaw;
-    if (walkHooks.engine) walkHooks.engine(true); // she idles the moment you're up
+    if (walkHooks.engine) walkHooks.engine(true, cart.type);
+    return true;
+  }
+
+  function rentalCartParkingPose(homeSlot = 0) {
+    const spawn = walkDefaultSpawn();
+    const slot = Math.max(0, Math.floor(Number(homeSlot) || 0));
+    const column = slot % 3;
+    const row = Math.floor(slot / 3);
+    return {
+      x: spawn.x - 11.3 + column * 3.25,
+      z: spawn.z + 2.4 + row * 4.25,
+      yaw: Math.PI,
+    };
+  }
+
+  function buildCustomerFleetBay() {
+    if (customerFleetBayBuilt) return;
+    customerFleetBayBuilt = true;
+    const apronTexture = texAsphalt.clone();
+    apronTexture.repeat.set(4, 4);
+    apronTexture.needsUpdate = true;
+    const asphalt = new THREE.MeshStandardMaterial({ map: apronTexture, color: 0x66645f, roughness: 0.96 });
+    const stripe = new THREE.MeshStandardMaterial({ color: 0xd7cba7, roughness: 0.82 });
+    const backLeft = rentalCartParkingPose(3);
+    const frontRight = rentalCartParkingPose(2);
+    customerFleetGrassBounds = {
+      minX: backLeft.x - 1.8,
+      maxX: frontRight.x + 1.8,
+      minZ: frontRight.z - 2.25,
+      maxZ: backLeft.z + 2.25,
+    };
+    const apronX = (customerFleetGrassBounds.minX + customerFleetGrassBounds.maxX) / 2;
+    const apronZ = (customerFleetGrassBounds.minZ + customerFleetGrassBounds.maxZ) / 2;
+    const apronWidth = customerFleetGrassBounds.maxX - customerFleetGrassBounds.minX;
+    const apronDepth = customerFleetGrassBounds.maxZ - customerFleetGrassBounds.minZ;
+    const radius = 0.65;
+    const apronShape = new THREE.Shape();
+    apronShape.moveTo(-apronWidth / 2 + radius, -apronDepth / 2);
+    apronShape.lineTo(apronWidth / 2 - radius, -apronDepth / 2);
+    apronShape.quadraticCurveTo(apronWidth / 2, -apronDepth / 2, apronWidth / 2, -apronDepth / 2 + radius);
+    apronShape.lineTo(apronWidth / 2, apronDepth / 2 - radius);
+    apronShape.quadraticCurveTo(apronWidth / 2, apronDepth / 2, apronWidth / 2 - radius, apronDepth / 2);
+    apronShape.lineTo(-apronWidth / 2 + radius, apronDepth / 2);
+    apronShape.quadraticCurveTo(-apronWidth / 2, apronDepth / 2, -apronWidth / 2, apronDepth / 2 - radius);
+    apronShape.lineTo(-apronWidth / 2, -apronDepth / 2 + radius);
+    apronShape.quadraticCurveTo(-apronWidth / 2, -apronDepth / 2, -apronWidth / 2 + radius, -apronDepth / 2);
+    const apronY = heightAt(apronX, apronZ) + 0.014;
+    const apron = new THREE.Mesh(new THREE.ShapeGeometry(apronShape, 8), asphalt);
+    apron.rotation.x = -Math.PI / 2;
+    apron.position.set(apronX, apronY, apronZ);
+    apron.receiveShadow = true;
+    apron.name = 'RentalCartParkingApron';
+    customerCartGroup.add(apron);
+    for (let slot = 0; slot < 6; slot += 1) {
+      const pose = rentalCartParkingPose(slot);
+      for (const side of [-1, 1]) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.025, 3.75), stripe);
+        line.position.set(pose.x + side * 1.34, apronY + 0.02, pose.z);
+        line.name = `RentalCartBayLine_${slot + 1}_${side < 0 ? 'L' : 'R'}`;
+        customerCartGroup.add(line);
+      }
+    }
+    const first = rentalCartParkingPose(0);
+    const sign = textSprite('RENTAL CARTS', {
+      w: 512, fontPx: 58, scaleW: 3.9,
+      fg: '#f3ead6', bg: 'rgba(31,66,43,0.94)', border: '#b89c5c',
+    });
+    const signX = first.x + 3.25;
+    const signZ = first.z - 2.05;
+    const groundY = heightAt(signX, signZ);
+    sign.position.set(signX, groundY + 2.18, signZ);
+    sign.name = 'RentalCartBaySign';
+    customerCartGroup.add(sign);
+    const postMaterial = new THREE.MeshStandardMaterial({ color: 0x244c35, roughness: 0.78, metalness: 0.05 });
+    for (const x of [-1.65, 1.65]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 2.05, 10), postMaterial);
+      post.position.set(signX + x, groundY + 1.03, signZ + 0.015);
+      post.castShadow = true;
+      post.name = `RentalCartSignPost_${x < 0 ? 'L' : 'R'}`;
+      customerCartGroup.add(post);
+    }
+    grassAnchor.set(1e9, 1e9);
+  }
+
+  function makeCustomerCartVisual(cartRecord, index) {
+    if (!customerCartModel) return null;
+    const root = new THREE.Group();
+    root.name = `CustomerRentalCart_${cartRecord.id}`;
+    root.userData.customerFleetCart = cartRecord.id;
+    const model = cloneShared(customerCartModel);
+    model.scale.setScalar(METERS_TO_YARDS);
+    model.rotation.y = Math.PI;
+    let lod0 = null;
+    let lod1 = null;
+    const wheels = [];
+    model.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+      if (object.name === 'LOD0_Detail') lod0 = object;
+      if (object.name === 'LOD1_Silhouette') lod1 = object;
+      if (object.name.startsWith('PIVOT_Wheel_')) wheels.push(object);
+    });
+    if (lod0) lod0.visible = true;
+    if (lod1) lod1.visible = false;
+    root.add(model);
+
+    const char = makeCharacter({
+      polo: POLO_COLORS[index % POLO_COLORS.length],
+      khaki: KHAKI_COLORS[index % KHAKI_COLORS.length],
+      cap: CAP_COLORS[index % CAP_COLORS.length],
+    });
+    char.root.name = `RentalCartGolfer_${cartRecord.id}`;
+    char.root.visible = false;
+    const passenger = makeCharacter({
+      polo: POLO_COLORS[(index + 3) % POLO_COLORS.length],
+      khaki: KHAKI_COLORS[(index + 1) % KHAKI_COLORS.length],
+      cap: CAP_COLORS[(index + 2) % CAP_COLORS.length],
+    });
+    equipGolferCharacter(char);
+    equipGolferCharacter(passenger);
+    passenger.root.name = `RentalCartPassenger_${cartRecord.id}`;
+    passenger.root.visible = false;
+    customerCartGroup.add(root, char.root, passenger.root);
+    const visual = {
+      id: cartRecord.id, root, model, char, passenger, lod0, lod1, wheels, bags: [], initialized: false,
+    };
+    customerCartVisuals.set(cartRecord.id, visual);
+    return visual;
+  }
+
+  function ensureCustomerFleetStation() {
+    if (!customerFleetStationModel || customerFleetStationVisual) return customerFleetStationVisual;
+    const root = new THREE.Group();
+    root.name = 'CustomerFleetChargingAndServiceStation';
+    root.userData.customerFleetInfrastructure = true;
+    const model = cloneShared(customerFleetStationModel);
+    model.scale.setScalar(METERS_TO_YARDS);
+    model.rotation.y = Math.PI;
+    let lod0 = null;
+    let lod1 = null;
+    model.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+      if (object.name === 'LOD0_Detail') lod0 = object;
+      if (object.name === 'LOD1_Silhouette') lod1 = object;
+    });
+    if (lod0) lod0.visible = true;
+    if (lod1) lod1.visible = false;
+    root.add(model);
+    const rightBay = rentalCartParkingPose(2);
+    root.position.set(rightBay.x + 2.85, playHeightAt(rightBay.x + 2.85, rightBay.z + 2.1), rightBay.z + 2.1);
+    root.rotation.y = -Math.PI / 2;
+    customerCartGroup.add(root);
+    // Keep the player out of the authored charger/locker shell. The station is
+    // rotated 90 degrees in the world, so its shallow model depth lies on X.
+    customerFleetStationCollider = {
+      minX: root.position.x - 0.45,
+      maxX: root.position.x + 0.45,
+      minZ: root.position.z - 1.45,
+      maxZ: root.position.z + 1.45,
+    };
+    propColliders.push(customerFleetStationCollider);
+    customerFleetStationVisual = { root, lod0, lod1 };
+    return customerFleetStationVisual;
+  }
+
+  function ensureCustomerCartBags(visual) {
+    if (!customerGolfBagModel || visual.bags.length) return;
+    for (const x of [-0.34, 0.34]) {
+      const bag = cloneShared(customerGolfBagModel);
+      bag.name = `LoadedGolfBag_${visual.id}_${x < 0 ? 'L' : 'R'}`;
+      bag.scale.setScalar(METERS_TO_YARDS);
+      bag.position.set(x, 0.12, 1.02);
+      bag.rotation.set(-0.17, Math.PI, 0);
+      bag.visible = false;
+      visual.root.add(bag);
+      visual.bags.push(bag);
+    }
+  }
+
+  function activeTripForCart(st, cartId) {
+    return (st.cartFleet?.trips || []).find((trip) => trip.phase !== 'complete' && trip.cartIds?.includes(cartId)) || null;
+  }
+
+  function rentalCartCoursePose(st, cartRecord, trip) {
+    const parked = rentalCartParkingPose(cartRecord.homeSlot);
+    if (!trip || ['waiting-cart', 'walk-to-cart', 'loading', 'returning-key'].includes(trip.phase)) return parked;
+    const holeId = trip.holeIds?.[Math.min(trip.holeIndex, Math.max(0, trip.holeIds.length - 1))];
+    const hole = course.holes.find((entry) => entry.id === holeId) || course.holes[Math.min(trip.holeIndex, course.holes.length - 1)];
+    if (!hole?.tee) return parked;
+    const cartIndex = Math.max(0, trip.cartIds.indexOf(cartRecord.id));
+    const tee = { x: worldX(hole.tee.x), z: worldZ(hole.tee.y) };
+    const pin = hole.pin ? { x: worldX(hole.pin.x), z: worldZ(hole.pin.y) } : tee;
+    const dx = pin.x - tee.x;
+    const dz = pin.z - tee.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const side = (cartIndex - (trip.cartIds.length - 1) / 2) * 3.0 + 6.2;
+    const atTee = {
+      x: tee.x + (-dz / len) * side - (dx / len) * 3.4,
+      z: tee.z + (dx / len) * side - (dz / len) * 3.4,
+      yaw: Math.atan2(dx, dz),
+    };
+    if (trip.phase === 'parked-at-hole') return atTee;
+
+    let from = parked;
+    if (trip.holeIndex > 0) {
+      const previousId = trip.holeIds?.[trip.holeIndex - 1];
+      const previous = course.holes.find((entry) => entry.id === previousId);
+      if (previous?.tee && previous?.pin) {
+        const pdx = worldX(previous.pin.x) - worldX(previous.tee.x);
+        const pdz = worldZ(previous.pin.y) - worldZ(previous.tee.y);
+        const plen = Math.hypot(pdx, pdz) || 1;
+        from = {
+          x: worldX(previous.tee.x) + (-pdz / plen) * side - (pdx / plen) * 3.4,
+          z: worldZ(previous.tee.y) + (pdx / plen) * side - (pdz / plen) * 3.4,
+          yaw: Math.atan2(pdx, pdz),
+        };
+      }
+    }
+    const duration = trip.phase === 'returning' ? 3 : 1.5;
+    const destination = trip.phase === 'returning' ? parked : atTee;
+    if (trip.phase === 'returning') from = atTee;
+    const transitionStart = Number(trip.nextTransitionAt) - duration;
+    const progress = clamp(((st.clock?.minutes || 0) - transitionStart) / duration, 0, 1);
+    const x = from.x + (destination.x - from.x) * progress;
+    const z = from.z + (destination.z - from.z) * progress;
+    return { x, z, yaw: Math.atan2(destination.x - from.x, destination.z - from.z) };
+  }
+
+  function syncCustomerCartFleet(dt, st) {
+    if (!customerCartModel || !st.cartFleet?.carts) return;
+    buildCustomerFleetBay();
+    const station = ensureCustomerFleetStation();
+    if (station) {
+      const stationDistance = Math.hypot(
+        camera.position.x - station.root.position.x,
+        camera.position.z - station.root.position.z,
+      );
+      station.root.visible = stationDistance < 360;
+      if (station.lod0) station.lod0.visible = stationDistance < 70;
+      if (station.lod1) station.lod1.visible = stationDistance >= 70;
+    }
+    const liveIds = new Set(st.cartFleet.carts.map((entry) => entry.id));
+    for (const [id, visual] of customerCartVisuals) {
+      if (liveIds.has(id)) continue;
+      customerCartGroup.remove(visual.root, visual.char.root, visual.passenger.root);
+      visual.char.dispose();
+      visual.passenger.dispose();
+      customerCartVisuals.delete(id);
+    }
+    st.cartFleet.carts.forEach((cartRecord, index) => {
+      const visual = customerCartVisuals.get(cartRecord.id) || makeCustomerCartVisual(cartRecord, index);
+      if (!visual) return;
+      ensureCustomerCartBags(visual);
+      const trip = activeTripForCart(st, cartRecord.id);
+      const pose = rentalCartCoursePose(st, cartRecord, trip);
+      const y = playHeightAt(pose.x, pose.z);
+      const previousX = visual.root.position.x;
+      const previousZ = visual.root.position.z;
+      if (!visual.initialized) {
+        visual.root.position.set(pose.x, y, pose.z);
+        visual.root.rotation.y = pose.yaw;
+        visual.initialized = true;
+      } else {
+        const ease = Math.min(1, dt * 4.5);
+        visual.root.position.x += (pose.x - visual.root.position.x) * ease;
+        visual.root.position.z += (pose.z - visual.root.position.z) * ease;
+        visual.root.position.y = playHeightAt(visual.root.position.x, visual.root.position.z);
+        const deltaYaw = Math.atan2(Math.sin(pose.yaw - visual.root.rotation.y), Math.cos(pose.yaw - visual.root.rotation.y));
+        visual.root.rotation.y += deltaYaw * ease;
+        const travel = Math.hypot(visual.root.position.x - previousX, visual.root.position.z - previousZ);
+        if (travel > 0.0001) {
+          for (const wheel of visual.wheels) wheel.rotation.x -= travel / 0.33;
+        }
+      }
+      const distance = Math.hypot(camera.position.x - visual.root.position.x, camera.position.z - visual.root.position.z);
+      visual.root.visible = distance < 520;
+      if (visual.lod0) visual.lod0.visible = distance < 72;
+      if (visual.lod1) visual.lod1.visible = distance >= 72;
+      const transitionAt = Number(trip?.nextTransitionAt);
+      const phaseDuration = trip?.phase === 'loading' ? 2
+        : trip?.phase === 'parked-at-hole' ? 6
+          : trip?.phase === 'returning-key' ? 1 : 0;
+      const phaseProgress = phaseDuration && Number.isFinite(transitionAt)
+        ? clamp(((st.clock?.minutes || 0) - (transitionAt - phaseDuration)) / phaseDuration, 0, 1) : 0;
+      const bagsLoaded = trip && trip.phase !== 'returning-key'
+        && (trip.equipmentLoaded || (trip.phase === 'loading' && phaseProgress >= 0.35));
+      for (const bag of visual.bags) bag.visible = Boolean(bagsLoaded);
+
+      const driving = trip && ['driving-to-hole', 'returning'].includes(trip.phase);
+      const onFoot = trip && ['walk-to-cart', 'loading', 'parked-at-hole', 'returning-key'].includes(trip.phase);
+      const tripGolfers = [visual.char, visual.passenger];
+      const cartPartyIndex = trip ? Math.max(0, trip.cartIds.indexOf(cartRecord.id)) : 0;
+      for (const [golferIndex, golfer] of tripGolfers.entries()) {
+        golfer.root.visible = Boolean(driving || onFoot) && distance < 180;
+        if (!golfer.root.visible) continue;
+        const seatSide = golferIndex === 0 ? -0.34 : 0.34;
+        if (driving) {
+          golfer.setMode('Drive');
+          const localZ = -0.03;
+          const sin = Math.sin(visual.root.rotation.y);
+          const cos = Math.cos(visual.root.rotation.y);
+          golfer.root.position.set(
+            visual.root.position.x + seatSide * cos + localZ * sin,
+            visual.root.position.y + 0.08,
+            visual.root.position.z - seatSide * sin + localZ * cos,
+          );
+          golfer.root.rotation.y = visual.root.rotation.y + Math.PI;
+        } else if (trip.phase === 'walk-to-cart') {
+          golfer.setMode('Walk');
+          const spawn = walkDefaultSpawn();
+          const started = Number(trip.nextTransitionAt) - 2;
+          const progress = clamp(((st.clock?.minutes || 0) - started) / 2, 0, 1);
+          const x = spawn.x + (visual.root.position.x - spawn.x) * progress
+            + seatSide + cartPartyIndex * 0.9;
+          const z = spawn.z + (visual.root.position.z - spawn.z) * progress
+            + golferIndex * 0.45 + cartPartyIndex * 0.35;
+          golfer.root.position.set(x, playHeightAt(x, z), z);
+          golfer.root.rotation.y = Math.atan2(visual.root.position.x - spawn.x, visual.root.position.z - spawn.z);
+        } else if (trip.phase === 'parked-at-hole') {
+          const holeId = trip.holeIds?.[Math.min(trip.holeIndex, Math.max(0, trip.holeIds.length - 1))];
+          const hole = course.holes.find((entry) => entry.id === holeId) || course.holes[trip.holeIndex];
+          if (hole?.tee && hole?.pin) {
+            const teeX = worldX(hole.tee.x);
+            const teeZ = worldZ(hole.tee.y);
+            const pinX = worldX(hole.pin.x);
+            const pinZ = worldZ(hole.pin.y);
+            const along = Math.min(0.06, phaseProgress * 0.08) + golferIndex * 0.008;
+            const dirX = pinX - teeX;
+            const dirZ = pinZ - teeZ;
+            const len = Math.hypot(dirX, dirZ) || 1;
+            const partyOrdinal = cartPartyIndex * 2 + golferIndex;
+            const partyCount = Math.max(2, trip.cartIds.length * 2);
+            const lateral = (partyOrdinal - (partyCount - 1) / 2) * 1.15;
+            const x = teeX + dirX * along + (-dirZ / len) * lateral;
+            const z = teeZ + dirZ * along + (dirX / len) * lateral;
+            golfer.setMode(golferIndex === 0 && phaseProgress >= 0.1 && phaseProgress <= 0.62 ? 'Swing' : phaseProgress > 0.85 ? 'Idle' : 'Walk');
+            golfer.root.position.set(x, playHeightAt(x, z), z);
+            golfer.root.rotation.y = Math.atan2(dirX, dirZ);
+          }
+        } else if (trip.phase === 'returning-key') {
+          golfer.setMode('Walk');
+          const spawn = walkDefaultSpawn();
+          const startX = visual.root.position.x + Math.sin(visual.root.rotation.y) * 1.9 + seatSide;
+          const startZ = visual.root.position.z + Math.cos(visual.root.rotation.y) * 1.9 + golferIndex * 0.45;
+          const partyOrdinal = cartPartyIndex * 2 + golferIndex;
+          const targetX = spawn.x + (partyOrdinal - (trip.cartIds.length * 2 - 1) / 2) * 0.58;
+          const targetZ = spawn.z + cartPartyIndex * 0.32;
+          const x = startX + (targetX - startX) * phaseProgress;
+          const z = startZ + (targetZ - startZ) * phaseProgress;
+          golfer.root.position.set(x, playHeightAt(x, z), z);
+          golfer.root.rotation.y = Math.atan2(targetX - startX, targetZ - startZ);
+        } else {
+          golfer.setMode(trip.phase === 'loading' ? 'Browse' : 'WalkBag');
+          const rear = trip.phase === 'loading' ? 2.2 : 2.35;
+          golfer.root.position.set(
+            visual.root.position.x + Math.sin(visual.root.rotation.y) * rear + Math.cos(visual.root.rotation.y) * seatSide * 1.5,
+            visual.root.position.y,
+            visual.root.position.z + Math.cos(visual.root.rotation.y) * rear - Math.sin(visual.root.rotation.y) * seatSide * 1.5,
+          );
+          golfer.root.rotation.y = visual.root.rotation.y + Math.PI;
+        }
+        golfer.update(dt);
+      }
+    });
   }
 
   function dismountCart() {
@@ -4959,22 +5373,35 @@ export function makeCourseScene(canvas, state) {
       state.courseMaintenance.equipment.tractor.bladesEngaged = false;
     }
     cart.mounted = false;
-    if (walkHooks.engine) walkHooks.engine(false);
+    if (cart.driver) cart.driver.root.visible = false;
+    if (walkHooks.engine) walkHooks.engine(false, cart.type);
     cart.x = walk.x;
     cart.z = walk.z;
     cart.yaw = walk.yaw;
-    // step out the side: right door first, then left, then out the back
-    const rx = Math.cos(walk.yaw);
-    const rz = -Math.sin(walk.yaw);
-    const exits = [[rx * 1.7, rz * 1.7], [-rx * 1.7, -rz * 1.7], [Math.sin(walk.yaw) * 2.4, Math.cos(walk.yaw) * 2.4]];
-    for (const [ox, oz] of exits) {
-      if (!walkBlocked(walk.x + ox, walk.z + oz)) {
-        walk.x += ox;
-        walk.z += oz;
+    parkVehicle(state, cart.id, cart);
+    placeCartMesh(cart);
+    // Sweep a full ring around the parked machine. A porch can block both
+    // doors and the rear at once, so the former three-point probe could leave
+    // the first-person camera inside bodywork.
+    const exitRadius = cart.radius + walk.radius + 0.5;
+    const preferred = walk.yaw - Math.PI / 2;
+    let exit = null;
+    for (let index = 0; index < 16; index++) {
+      const offset = index === 0 ? 0 : Math.ceil(index / 2) * (index % 2 ? 1 : -1);
+      const angle = preferred + offset * (Math.PI / 8);
+      const x = cart.x - Math.sin(angle) * exitRadius;
+      const z = cart.z - Math.cos(angle) * exitRadius;
+      if (walkFreeAt(x, z, walk.radius)) {
+        exit = { x, z };
         break;
       }
     }
-    placeCartMesh();
+    if (!exit) exit = nearestFree(cart.x, cart.z, (x, z) => walkFreeAt(x, z, walk.radius), 0.35, 32);
+    if (exit) {
+      walk.x = exit.x;
+      walk.z = exit.z;
+      safeTrail.record(exit.x, exit.z);
+    }
   }
 
   // --- the hand hose: instant, tangible watering ---------------------------------------
@@ -4983,7 +5410,134 @@ export function makeCourseScene(canvas, state) {
   // visual answer is immediate: spray particles, a live moisture readout on the
   // prompt, and the wet-darkening term in the turf shader above.
 
-  let walkTool = null; // hand tools plus the pushed greens mower / spreader
+  function setVehicleLightsVisual(vehicle) {
+    const on = vehicle.lightsOn;
+    for (const material of vehicle.parts?.lampMaterials || []) material.emissiveIntensity = on ? 2.8 : 0.12;
+    if (vehicle.runtimeLights) vehicle.runtimeLights.visible = on;
+  }
+
+  function toggleMountedVehicleLights() {
+    if (!cart.mounted) return false;
+    const toggled = toggleVehicleLights(state, cart.id);
+    if (!toggled.ok) return false;
+    cart.lightsOn = toggled.lightsOn;
+    setVehicleLightsVisual(cart);
+    if (walkHooks.toast) walkHooks.toast(`${cart.label} lights ${cart.lightsOn ? 'on' : 'off'}.`);
+    return true;
+  }
+
+  function bindVehicleParts(vehicle) {
+    const root = vehicle.mesh;
+    if (!root) return;
+    const parts = {
+      lod0: root.getObjectByName('LOD0_Detail'),
+      lod1: root.getObjectByName('LOD1_Silhouette'),
+      wheels: ['FL', 'FR', 'RL', 'RR'].map((id) => root.getObjectByName(`PIVOT_Wheel_${id}`)).filter(Boolean),
+      steer: ['FL', 'FR'].map((id) => root.getObjectByName(`PIVOT_Steer_${id}`)).filter(Boolean),
+      steeringWheel: root.getObjectByName('PIVOT_SteeringWheel'),
+      mower: root.getObjectByName('PIVOT_MowerDeck'),
+      lampMaterials: [],
+    };
+    const lampMaterials = new Set();
+    root.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+      if (!object.name.startsWith('LIGHT_') || !object.isMesh || !object.material) return;
+      const source = Array.isArray(object.material) ? object.material : [object.material];
+      const cloned = source.map((material) => material.clone());
+      object.material = Array.isArray(object.material) ? cloned : cloned[0];
+      for (const material of cloned) {
+        if (!material.emissive) continue;
+        if (object.userData.vehicle_light === 'head') material.emissive.set(0xffb75e);
+        else if (object.userData.vehicle_light === 'tail') material.emissive.set(0xc51f12);
+        lampMaterials.add(material);
+      }
+    });
+    parts.lampMaterials = [...lampMaterials];
+    if (parts.lod0) parts.lod0.visible = true;
+    if (parts.lod1) parts.lod1.visible = false;
+    vehicle.parts = parts;
+
+    const socket = root.getObjectByName('SOCKET_Seat');
+    if (socket) {
+      root.updateMatrixWorld(true);
+      const seat = new THREE.Vector3();
+      socket.getWorldPosition(seat);
+      root.worldToLocal(seat);
+      const driver = makeCharacter({
+        polo: 0x315b42, khaki: 0xc8b98d, cap: 0xeee4cc, skin: 0xd6a47a,
+      });
+      driver.root.name = `VehicleDriver_${vehicle.id}`;
+      driver.root.scale.setScalar(0.94);
+      const seatToRoot = vehicle.type === 'golf_cart' ? 1.14 : 1.03;
+      driver.root.position.set(seat.x, seat.y - seatToRoot, seat.z);
+      driver.root.rotation.y = Math.PI;
+      driver.root.visible = vehicle.mounted;
+      driver.setMode('Drive');
+      root.add(driver.root);
+      vehicle.driver = driver;
+    }
+
+    const lights = new THREE.Group();
+    lights.name = `RuntimeLights_${vehicle.id}`;
+    for (const x of [-0.38, 0.38]) {
+      const beam = new THREE.SpotLight(0xffd9a0, 42, 30, 0.38, 0.5, 1.35);
+      beam.position.set(x, 1.18, -1.35);
+      beam.castShadow = false;
+      const target = new THREE.Object3D();
+      target.position.set(x, 0.45, -9);
+      lights.add(beam, target);
+      beam.target = target;
+    }
+    root.add(lights);
+    vehicle.runtimeLights = lights;
+    setVehicleLightsVisual(vehicle);
+  }
+
+  function adoptVehicle(vehicle, model) {
+    model.scale.setScalar(METERS_TO_YARDS);
+    model.rotation.y = Math.PI;
+    model.traverse((object) => {
+      if (object.isMesh) object.castShadow = !object.name.startsWith('COL_');
+    });
+    const wrap = new THREE.Group();
+    wrap.name = `Vehicle_${vehicle.id}`;
+    wrap.add(model);
+    removeOwnedObject(vehicle.mesh);
+    vehicle.mesh = wrap;
+    if (vehicle === tractorVehicle) cartMesh = wrap;
+    else golfCartMesh = wrap;
+    scene.add(wrap);
+    bindVehicleParts(vehicle);
+    placeCartMesh(vehicle);
+  }
+
+  function animateVehicle(vehicle, signedDistance, steer) {
+    if (!vehicle.parts) return;
+    for (const wheel of vehicle.parts.wheels) {
+      const axle = wheel.name.endsWith('RL') || wheel.name.endsWith('RR') ? 'rear' : 'front';
+      const radiusYd = vehicle.spec.wheelRadiusM[axle] * METERS_TO_YARDS;
+      if (radiusYd > 0) wheel.rotation.x -= signedDistance / radiusYd;
+    }
+    const steerAngle = steer * vehicle.spec.steeringLimitRad;
+    for (const pivot of vehicle.parts.steer) pivot.rotation.y = steerAngle;
+    if (vehicle.parts.steeringWheel) vehicle.parts.steeringWheel.rotation.z = -steerAngle * 1.8;
+    if (vehicle.parts.mower && vehicle.type === 'tractor') {
+      vehicle.parts.mower.rotation.x = signedDistance ? Math.sin(time * 34) * 0.018 : 0;
+    }
+  }
+
+  function updateVehicleLods() {
+    for (const vehicle of vehicleActors) {
+      if (!vehicle.parts?.lod0 || !vehicle.parts?.lod1) continue;
+      const distance = Math.hypot(camera.position.x - vehicle.x, camera.position.z - vehicle.z);
+      const near = vehicle.mounted || distance < vehicle.spec.lodDistanceYd;
+      vehicle.parts.lod0.visible = near;
+      vehicle.parts.lod1.visible = !near;
+      if (vehicle.runtimeLights) vehicle.runtimeLights.visible = vehicle.lightsOn && distance < 90;
+    }
+  }
+
+  let walkTool = null; // cleaning, groundskeeping, delivery and maintenance hand tools
   let walkSpraying = false; // "holding the use button" for whichever tool is out
   let walkSoaping = false; // right button, pressure washer only: lay foam instead of water
   let washHintClock = 0; // don't nag about soap more than once every few seconds
@@ -5014,19 +5568,19 @@ export function makeCourseScene(canvas, state) {
   // hand-wired block down here. The groundskeeping tools and the box cutter are still authored
   // below; the vacuum's registry build replaces the two-box wand that stood in for it.
   const toolViewmodels = buildToolViewmodels();
-  // The asset pipeline builds authored first-person viewmodels for the cleaning kit, and nothing
-  // was loading them — finished geometry that never reached the screen. Adopt them in the
-  // background: the procedural tools above are already usable, so equipping never waits on I/O,
-  // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
-  let toolViewmodelsAuthored = null;
-  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => {
-    toolViewmodelsAuthored = r;
-    if (walkTool && CLEANING_TOOLS[walkTool]) {
-      fpHands.setTool(walkTool, toolViewmodels.gripsFor(walkTool));
-      toolViewmodels.setEquipped(walkTool, true);
-      toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
-    }
-  });
+  // Cleaning viewmodels are optional hero content: the procedural fallback appears immediately,
+  // while the authored GLB loads only when that tool is first equipped. QA may call this with no
+  // id to await the whole kit without making normal boots pay for nine invisible assets.
+  const toolViewmodelLoader = new GLTFLoader();
+  const toolViewmodelsAuthored = new Map();
+  const toolViewmodelsReady = async (tool = null) => {
+    const ids = tool
+      ? [tool]
+      : Object.values(CLEANING_TOOLS).filter((def) => def.fp?.glb).map((def) => def.id);
+    const results = await Promise.all(ids.map((id) => toolViewmodels.ensureAuthored(id, toolViewmodelLoader)));
+    for (const result of results) toolViewmodelsAuthored.set(result.id, result);
+    return tool ? results[0] : results;
+  };
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
     washer: new THREE.Group(), boxcutter: new THREE.Group(),
@@ -5354,8 +5908,12 @@ export function makeCourseScene(canvas, state) {
   // read as held in hands rather than glued to the camera
   const heldAnim = { t: 1, show: false, pendingHide: false };
   let cutterStroke = 0;
+  let retiringTool = null;
   let bobPhase = 0;
   let walkMoving = false;
+  let toolWalkBlend = 0;
+  let toolSprintBlend = 0;
+  let toolUseBlend = 0;
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -5394,22 +5952,34 @@ export function makeCourseScene(canvas, state) {
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
+      if (retiringTool && heldGroups[retiringTool]) heldGroups[retiringTool].visible = false;
+      retiringTool = null;
+      fpHands.setTool(null);
       return;
     }
-    // gait-synced bob: strong under way, a slow breathe at rest
-    bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
-    const sway = walk.reducedMotion || !walk.cameraBob ? 0 : (walkMoving ? 1 : 0.25);
+    // One blended locomotion layer serves every first-person tool. Entering a walk, sprint or use
+    // state eases instead of snapping; long floor tools and compact hand tools therefore share the
+    // same readable body rhythm without duplicating animation branches per tool.
+    const blendStep = 1 - Math.exp(-dt * 9);
+    toolWalkBlend += ((walkMoving ? 1 : 0) - toolWalkBlend) * blendStep;
+    toolSprintBlend += ((walkMoving && walkHeld.has('shift') ? 1 : 0) - toolSprintBlend) * blendStep;
+    toolUseBlend += (((walkSpraying || walkSoaping || holdActive) ? 1 : 0) - toolUseBlend) * blendStep;
+    const gaitRate = 1.6 + toolWalkBlend * 7.1 + toolSprintBlend * 2.8;
+    bobPhase += dt * gaitRate;
+    const sway = walk.reducedMotion || !walk.cameraBob
+      ? 0 : 0.25 + toolWalkBlend * 0.75 + toolSprintBlend * 0.35;
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
     // instead of shoving the lance back. fpHands reports the offset; the rig applies it.
     const kickBack = fpHands.rigOffset;
     heldRoot.position.set(
       Math.cos(bobPhase * 0.5) * 0.01 * sway + kickBack.jitterX,
-      -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway,
-      kickBack.back,
+      -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway - toolSprintBlend * 0.018,
+      kickBack.back + toolSprintBlend * 0.025 + toolUseBlend * 0.006,
     );
-    heldRoot.rotation.x = 0.45 * (1 - k) + kickBack.pitch;
-    heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway;
+    heldRoot.rotation.x = 0.45 * (1 - k) + kickBack.pitch - toolSprintBlend * 0.025;
+    heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway
+      + Math.sin(bobPhase) * 0.006 * toolWalkBlend;
     if (walkTool === 'boxcutter') {
       cutterStroke = holdActive ? Math.min(1, cutterStroke + dt * 0.72) : Math.max(0, cutterStroke - dt * 4.5);
       const cut = easeOutCubic(cutterStroke);
@@ -5531,6 +6101,11 @@ export function makeCourseScene(canvas, state) {
       clubhouseApi?.stopCleaningEffects?.();
       walkHooks.toolChanged?.(tool || null, previousTool || null);
     }
+    if (CLEANING_TOOLS[tool]?.fp?.glb) {
+      // Do not await: the procedural registry model is the zero-latency fallback. Motion state is
+      // recorded below and replayed when the authored model lands.
+      toolViewmodelsReady(tool);
+    }
     if (HELD_TOOL_ASSET_MANIFEST[tool]) {
       // Equipping is the first safe actual-use boundary: ordinary boots stay
       // lean, while the authored model begins loading before this frame makes
@@ -5540,7 +6115,10 @@ export function makeCourseScene(canvas, state) {
     }
     walkTool = tool;
     toolViewmodels.setTool(tool, previousTool);
-    for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
+    retiringTool = !tool ? previousTool : null;
+    for (const [name, g] of Object.entries(heldGroups)) {
+      g.visible = name === tool || (!tool && name === retiringTool);
+    }
     // Every tool remains physically held. The cutter uses a smaller pinching
     // hand behind its handle so the blade contact and highlighted tape path
     // stay visible without leaving the knife floating on the carton.
@@ -5548,6 +6126,9 @@ export function makeCourseScene(canvas, state) {
       heldGroups[tool].add(fpHands.root);
       fpHands.setTool(tool, toolViewmodels.gripsFor(tool));
       toolViewmodels.setEquipped(tool, true);
+    } else if (retiringTool && heldGroups[retiringTool] && GRIPS[retiringTool]) {
+      heldGroups[retiringTool].add(fpHands.root);
+      fpHands.setTool(retiringTool, toolViewmodels.gripsFor(retiringTool));
     } else {
       fpHands.setTool(null);
     }
@@ -5616,22 +6197,6 @@ export function makeCourseScene(canvas, state) {
     return { handled: true, enabled: equipment.bladesEngaged, label };
   }
 
-  function toggleMowerBlades() {
-    let equipment = null;
-    let label = '';
-    if (cart.mounted) {
-      equipment = state.courseMaintenance?.equipment?.tractor;
-      label = 'Tractor mower';
-    } else if (walkTool === 'greensMower') {
-      equipment = state.courseMaintenance?.equipment?.greensMower;
-      label = 'Greens mower';
-    }
-    if (!equipment) return { handled: false };
-    equipment.engineOn = true;
-    equipment.bladesEngaged = !equipment.bladesEngaged;
-    return { handled: true, enabled: equipment.bladesEngaged, label };
-  }
-
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
@@ -5659,23 +6224,36 @@ export function makeCourseScene(canvas, state) {
   function walkFindFocus() {
     if (cart.mounted) {
       const mower = state.courseMaintenance?.equipment?.tractor;
-      const cutting = mower?.bladesEngaged;
-      walkFocus = { kind: 'cart', label: cutting
-        ? 'Tractor · mower blades ON [R] · [E] park here'
-        : 'Tractor · engine running · [R] engage mower blades · [E] park here' };
+      const detail = cart.type === 'tractor'
+        ? mower?.bladesEngaged ? 'mower blades ON [R]' : 'mower blades off [R]'
+        : `charge ${Math.round(cart.record.energy)}%`;
+      walkFocus = {
+        kind: 'cart', vehicle: cart,
+        label: `${cart.label} - ${detail} - [L] lights - [E] park here`,
+      };
       return;
     }
-    if (!cartHidden) {
-      const dx = cart.x - walk.x;
-      const dz = cart.z - walk.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist < 3.6) {
-        const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
-        if (facing > 0.35) {
-          walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
-          return;
-        }
-      }
+    let focusedVehicle = null;
+    let focusedVehicleDistance = Infinity;
+    for (const vehicle of vehicleActors) {
+      if (!vehicleAvailable(vehicle)) continue;
+      const dx = vehicle.x - walk.x;
+      const dz = vehicle.z - walk.z;
+      const distance = Math.max(0.001, Math.hypot(dx, dz));
+      if (distance >= 3.8 || distance >= focusedVehicleDistance) continue;
+      const facing = ((dx / distance) * -Math.sin(walk.yaw)) + ((dz / distance) * -Math.cos(walk.yaw));
+      if (facing <= 0.30) continue;
+      focusedVehicle = vehicle;
+      focusedVehicleDistance = distance;
+    }
+    if (focusedVehicle) {
+      const storage = `${focusedVehicle.record.cargo.length}/${focusedVehicle.spec.storageSlots} storage`;
+      const energy = `${Math.round(focusedVehicle.record.energy)}% ${focusedVehicle.spec.energyKind}`;
+      walkFocus = {
+        kind: 'cart', vehicle: focusedVehicle,
+        label: `${focusedVehicle.label} - ${energy} - ${storage} - [E] take the wheel`,
+      };
+      return;
     }
     // An articulated prop may retain the interaction it has already started.
     // Resolve this before rescoring its moving focus point so the hand-truck
@@ -5841,7 +6419,7 @@ export function makeCourseScene(canvas, state) {
     if (walkFocus.kind === 'cart') {
       if (isRepeat) return;
       walkSetTool(null); // hands on the wheel
-      mountCart();
+      mountCart(walkFocus.vehicle || cart);
     } else if (walkFocus.kind === 'prop') {
       // a prop that has a hold verb is driven per-frame; the tap only fires its one-shot action
       if (isRepeat) return;
@@ -5850,6 +6428,9 @@ export function makeCourseScene(canvas, state) {
         walkSetTool(requestedTool);
         autoTool = requestedTool;
         contextToolRequiresRelease = true;
+        if (requestedTool === 'cloth' && walkHooks.toast) {
+          walkHooks.toast('Microfibre cloth ready — release, then hold [E] to wipe the glass.', 'tool');
+        }
         return;
       }
       if (walkFocus.prop.action) walkFocus.prop.action();
@@ -5869,7 +6450,42 @@ export function makeCourseScene(canvas, state) {
   // needs free hands, so a contextual tool is stowed before it fires.
   function walkInteractSecondary(isRepeat = false) {
     if (!walk.active || isRepeat || cart.mounted) return false;
-    if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.secondaryAction) return false;
+    if (!walkFocus) return false;
+    if (walkFocus.kind === 'cart') {
+      const vehicle = walkFocus.vehicle || cart;
+      if (walkTool) {
+        const tool = walkTool;
+        if (vehicle.record.cargo.some((entry) => entry.id === tool && entry.kind === 'tool')) {
+          if (walkHooks.toast) walkHooks.toast(`${CLEANING_TOOLS[tool]?.label || tool} is already stowed.`, 'warn');
+          return false;
+        }
+        const stored = storeVehicleCargo(state, vehicle.id, { id: tool, kind: 'tool', quantity: 1 });
+        if (!stored.ok) {
+          if (walkHooks.toast) walkHooks.toast(`${vehicle.label} storage is full.`, 'warn');
+          return false;
+        }
+        const label = CLEANING_TOOLS[tool]?.label || tool;
+        walkSetTool(null);
+        if (walkHooks.toast) walkHooks.toast(`${label} stowed — ${vehicle.record.cargo.length}/${vehicle.spec.storageSlots} slots used.`);
+        return true;
+      }
+      const cargo = vehicle.record.cargo[0];
+      if (!cargo) {
+        if (walkHooks.toast) walkHooks.toast(`${vehicle.label} storage is empty.`);
+        return false;
+      }
+      if (!heldGroups[cargo.id]) {
+        if (walkHooks.toast) walkHooks.toast(`${cargo.id} needs its own unload interaction.`, 'warn');
+        return false;
+      }
+      const taken = takeVehicleCargo(state, vehicle.id, cargo.id, 1);
+      if (!taken.ok) return false;
+      walkSetTool(cargo.id);
+      const label = CLEANING_TOOLS[cargo.id]?.label || cargo.id;
+      if (walkHooks.toast) walkHooks.toast(`${label} retrieved — ${vehicle.record.cargo.length}/${vehicle.spec.storageSlots} slots used.`);
+      return true;
+    }
+    if (walkFocus.kind !== 'prop' || !walkFocus.prop.secondaryAction) return false;
     // Never let X short-circuit the contextual E release gate. In particular,
     // the placement key may still be physically down during the first frame
     // after a carton lands on a work surface.
@@ -5887,6 +6503,7 @@ export function makeCourseScene(canvas, state) {
   let autoTool = null;
   let contextToolRequiresRelease = false;
   let holdActive = false;      // are we mid-hold this frame? (drives the hands' cutting motion)
+  let contextUseTool = null;
   let cutterContactBlend = 0;
   let cutterBladeBlend = 0;
   let cutterContactCueArmed = true;
@@ -6037,6 +6654,15 @@ export function makeCourseScene(canvas, state) {
     holdActive = true;
   }
 
+  function syncContextToolUse() {
+    const next = holdActive && autoTool && walkTool === autoTool ? walkTool : null;
+    if (next === contextUseTool) return;
+    if (contextUseTool) toolViewmodels.setUsing(contextUseTool, false);
+    contextUseTool = next;
+    if (contextUseTool) toolViewmodels.setUsing(contextUseTool, true);
+    if (walkHooks.toolLoop) walkHooks.toolLoop(contextUseTool);
+  }
+
   function updateBoxCutterPose(dt) {
     const cutter = heldGroups.boxcutter;
     const focusedProp = walkFocus && walkFocus.kind === 'prop' ? walkFocus.prop : null;
@@ -6142,6 +6768,8 @@ export function makeCourseScene(canvas, state) {
     walkSetSpraying(false);
     walkSetSoaping(false);
     walkHooks.toolChanged?.(walkTool || null, walkTool || null);
+    holdActive = false;
+    syncContextToolUse();
   }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
@@ -6247,6 +6875,8 @@ export function makeCourseScene(canvas, state) {
     walk.active = false;
     walkSetSpraying(false);
     walkSetSoaping(false);
+    holdActive = false;
+    syncContextToolUse();
     heldRoot.visible = false; // the overview camera carries no hand tools
     walkHeld.clear();
     window.removeEventListener('keydown', walkKeyDown);
@@ -6317,7 +6947,10 @@ export function makeCourseScene(canvas, state) {
     if (cart.mounted) {
       walkMoving = false; // hands on the wheel
       // cart handling: W/S throttle along the heading, A/D steer — no strafing
-      const throttle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
+      const driveX0 = walk.x;
+      const driveZ0 = walk.z;
+      const requestedThrottle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
+      const throttle = cart.record.energy > 0 ? requestedThrottle : 0;
       const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
       if (steer) {
         // full authority under way, gentle pivot when stopped; reversed in reverse
@@ -6332,14 +6965,18 @@ export function makeCourseScene(canvas, state) {
       cart.x = walk.x;
       cart.z = walk.z;
       cart.yaw = walk.yaw;
-      placeCartMesh();
       let tractorCutting = false;
+      const driveDistance = Math.hypot(walk.x - driveX0, walk.z - driveZ0);
+      setVehiclePose(state, cart.id, cart, driveDistance);
+      animateVehicle(cart, driveDistance * Math.sign(throttle), steer);
+      placeCartMesh(cart);
 
       // the hitched deck CUTS: cells under it (2.5 yd behind the seat, the
       // deck's width) mow to the zone's ideal height through the same hook
       // family the hose uses — real sim writes, stripes as the payoff
       const tractorMower = state.courseMaintenance?.equipment?.tractor;
-      if (throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired && tractorMower?.bladesEngaged) {
+      if (cart.type === 'tractor' && throttle && walkHooks.mowAt
+          && state.tractor && state.tractor.repaired && tractorMower?.bladesEngaged) {
         const dxT = walk.x + Math.sin(walk.yaw) * 2.5;
         const dzT = walk.z + Math.cos(walk.yaw) * 2.5;
         const rx = Math.cos(walk.yaw);
@@ -6359,7 +6996,7 @@ export function makeCourseScene(canvas, state) {
               speedYdPerSec: throttle > 0 ? cart.speed : cart.reverse,
               directionRad: walk.yaw,
             });
-            if (result?.changed) cut = true;
+            if (result?.changed) tractorCutting = true;
             if (!result?.ok && result?.reason && maintenanceFeedbackClock <= 0) {
               maintenanceFeedbackClock = 2.5;
               if (walkHooks.toast) walkHooks.toast(result.reason, 'warn');
@@ -6378,14 +7015,17 @@ export function makeCourseScene(canvas, state) {
           mowTexClock = 0.25; // next cut repaints immediately
         }
         updateClippings(dt, dxT, heightAt(dxT, dzT), dzT, tractorCutting);
+        if (mowerMesh) mowerMesh.rotation.x = tractorCutting ? Math.sin(time * 42) * 0.024 : 0;
       } else {
         updateClippings(dt, walk.x, heightAt(walk.x, walk.z), walk.z, false);
       }
       const travel = Math.hypot(walk.x - px0, walk.z - pz0);
       animateTractor(dt, travel, throttle, steer, tractorCutting);
-      recordTractorUse(state, {
-        x: cart.x, z: cart.z, yaw: cart.yaw, seconds: dt, mowing: tractorCutting,
-      });
+      if (cart.type === 'tractor') {
+        recordTractorUse(state, {
+          x: cart.x, z: cart.z, yaw: cart.yaw, seconds: dt, mowing: tractorCutting,
+        });
+      }
     } else {
       animateTractor(dt, 0, 0, 0, false);
       updateClippings(dt, walk.x, 0, walk.z, false); // clippings settle after you hop off
@@ -6461,6 +7101,7 @@ export function makeCourseScene(canvas, state) {
     walkFindFocus();
     reconcileAutoTool();   // the box cutter appears when you look at a taped box, and only then
     runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
+    syncContextToolUse();
     updateHeldFeel(dt);
     updateBoxCutterPose(dt);
 
@@ -7594,10 +8235,15 @@ export function makeCourseScene(canvas, state) {
       if (grassUniforms) grassUniforms.uGrassTime.value = time;
     }
     if (st) updateGolfers(dtMs / 1000, st);
+    if (st) syncCustomerCartFleet(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);
     if (maintenanceIrrigationEntries.some((entry) => entry.head.enabled)) {
       refreshMaintenanceWorldProps(time);
     }
+    for (const vehicle of vehicleActors) {
+      if (vehicle.driver?.root.visible) vehicle.driver.update(dtMs / 1000);
+    }
+    updateVehicleLods();
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
     prepareFrameShadows(renderer.shadowMap);
     // flag wave
@@ -7719,6 +8365,15 @@ export function makeCourseScene(canvas, state) {
     const clubhouse = clubhouseApi?.dispose ? clubhouseApi.dispose() : null;
     const cleaningViewmodels = toolViewmodels.releaseForSceneDispose();
     while (golfers.length) removeGolfer(golfers.length - 1);
+    for (const visual of customerCartVisuals.values()) {
+      // Character resources are owned per figure, unlike the shared cart/bag
+      // clones. Detach them before their explicit disposer runs so the scene
+      // sweep below cannot dispose the same geometries and materials twice.
+      customerCartGroup.remove(visual.char.root, visual.passenger.root);
+      visual.char.dispose();
+      visual.passenger.dispose();
+    }
+    customerCartVisuals.clear();
 
     const cachedObjectResources = mergeSceneResources();
     for (const cached of objectGlbCache.values()) {
@@ -7747,6 +8402,7 @@ export function makeCourseScene(canvas, state) {
       cachedObjectResources,
       collectSceneResources(flagstickModel),
       collectSceneResources(cupModel),
+      collectSceneResources(golferIronModel),
       ...[...sharedPutModelRoots].map((root) => collectSceneResources(root)),
       { textures: explicitTextures, renderTargets: explicitTargets },
     );
@@ -7782,131 +8438,49 @@ export function makeCourseScene(canvas, state) {
     reusePreparedFlowField: true,
   });
   updatePlan(null);
-  cartMesh = buildCartMesh(); // primitive placeholder until the real model lands
+  cartMesh = new THREE.Group();
+  cartMesh.name = 'Vehicle_tractor-1_LoadAnchor';
+  tractorVehicle.mesh = cartMesh;
   scene.add(cartMesh);
+  golfCartMesh = new THREE.Group();
+  golfCartMesh.name = 'Vehicle_golf-cart-1_LoadAnchor';
+  golfCartVehicle.mesh = golfCartMesh;
+  scene.add(golfCartMesh);
   cartHidden = !!(state.tractor && !state.tractor.repaired); // earn it first
 
   // The production mower is a separate authored implement mounted to the tractor's
   // named hitch. Keeping the roots separate lets the deck and blades animate without
   // making the tractor asset itself disposable or save-state aware.
   let mowerMesh = null;
-  let mowerProduction = false;
-
-  function mountMower() {
-    if (!cartMesh || !mowerMesh) return;
-    const parent = tractorRig.hitch || cartMesh;
-    parent.add(mowerMesh);
-    if (mowerProduction) {
-      mowerMesh.scale.setScalar(1);
-      mowerMesh.position.set(0, tractorRig.hitch ? 0 : 0.49, tractorRig.hitch ? 0 : 1.72);
-      mowerMesh.rotation.set(0, 0, 0);
-    } else {
-      mowerMesh.scale.setScalar(2.6);
-      mowerMesh.rotation.set(0, Math.PI / 2, 0);
-      mowerMesh.position.set(0, 0.02, 2.45);
-    }
-    new GLTFLoader().load('vendor/models/mower_deck.glb', (g) => {
-      adoptLoadedGltf(g, (loaded) => {
-        const m = loaded.scene;
-        m.scale.setScalar(2.6);
-        m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-        m.rotation.y = Math.PI / 2; // deck width across the tractor's tail
-        m.position.set(0, 0.02, 2.45);
-        mowerMesh = m;
-        cartMesh.add(mowerMesh);
-      });
-    }, undefined, () => {});
-  }
-
-  function configureMower(m, production) {
-    mowerProduction = production;
-    tractorRig.mowerPivot = production ? m.getObjectByName('MowerDeck_Pivot') : null;
-    tractorRig.mowerBlades = [];
-    m.traverse((o) => {
-      if (o.name.startsWith('COL_')) o.visible = false;
-      if (o.isMesh) o.castShadow = true;
-      if (production && o.name.startsWith('BladeDisc_')) tractorRig.mowerBlades.push(o);
-    });
-    mowerMesh = m;
-    mountMower();
-  }
-
   function attachMower() {
-    if (!cartMesh || state.tractor?.attachment !== 'mower') return;
-    if (mowerMesh) {
-      mountMower();
-      return;
-    }
-    new GLTFLoader().load('vendor/models/mower_deck_production.glb',
-      (g) => configureMower(g.scene, true),
-      undefined,
-      () => new GLTFLoader().load('vendor/models/mower_deck.glb',
-        (g) => configureMower(g.scene, false), undefined, () => {}));
+    mowerMesh = tractorVehicle.parts?.mower || null;
+    return mowerMesh;
   }
 
-  function captureTractorRig(m) {
-    tractorModel = m;
-    tractorRig.wheels = [];
-    tractorRig.steer = [];
-    tractorRig.steeringWheel = null;
-    tractorRig.hitch = null;
-    m.traverse((o) => {
-      if (o.name.startsWith('COL_')) o.visible = false;
-      if (/^Wheel_[FR][LR]$/.test(o.name)) tractorRig.wheels.push({ node: o, baseX: o.rotation.x });
-      if (/^Steer_F[LR]$/.test(o.name)) tractorRig.steer.push({ node: o, baseY: o.rotation.y });
-      if (o.name === 'SteeringWheel') tractorRig.steeringWheel = o;
-      if (o.name === 'Mower_Hitch') tractorRig.hitch = o;
-    });
-    tractorRig.steeringBaseZ = tractorRig.steeringWheel?.rotation.z || 0;
-    tractorRig.modelBaseY = m.position.y;
-    if (mowerMesh) mountMower();
-  }
-
-  // Original project-authored production machine first, legacy supplied assets as
-  // fallbacks, and the primitive placeholder only if all network loads fail.
-  function adoptTractor(m, scale, { flip = false, production = false } = {}) {
-    m.scale.setScalar(scale);
-    m.traverse((o) => {
-      if (o.name.startsWith('COL_')) o.visible = false;
-      if (o.isMesh) o.castShadow = true;
-    });
-    const wrap = new THREE.Group();
-    m.position.y = production ? -0.02 : -0.1; // settle the tires into the turf on slopes
-    if (flip) m.rotation.y = Math.PI; // model authored front-toward-viewer (+Z)
-    wrap.add(m);
-    const previousCart = cartMesh;
-    if (mowerMesh?.parent === previousCart) previousCart.remove(mowerMesh);
-    removeOwnedObject(previousCart);
-    cartMesh = wrap;
-    scene.add(cartMesh);
-    if (production) captureTractorRig(m);
-    else {
-      tractorModel = null;
-      tractorRig.wheels = [];
-      tractorRig.steer = [];
-      tractorRig.steeringWheel = null;
-      tractorRig.hitch = null;
-      if (mowerMesh) mountMower();
-    }
-    placeCartMesh();
-    recordTractorUse(state, { x: cart.x, z: cart.z, yaw: cart.yaw });
-  }
+  // The restored tractor is deferred until repair is complete; the broken and
+  // restored authored variants are mutually exclusive on the request path.
   let tractorModelRequested = false;
   function ensureTractorModel() {
     if (tractorModelRequested || sceneDisposed) return;
     tractorModelRequested = true;
-    new GLTFLoader().load('vendor/models/tractor_red.glb',
-      (g) => adoptLoadedGltf(g, (loaded) => adoptTractor(loaded.scene, 3.6, true)),
-      undefined,
-      () => {
-        if (sceneDisposed) return;
-        new GLTFLoader().load(
-          'vendor/models/tractor.glb',
-          (g) => adoptLoadedGltf(g, (loaded) => adoptTractor(loaded.scene, 1)),
-          undefined,
-          () => {},
-        );
-      });
+    new GLTFLoader().load(tractorSpec.model,
+      (g) => adoptLoadedGltf(g, (loaded) => {
+        adoptVehicle(tractorVehicle, loaded.scene);
+        attachMower();
+      }),
+      undefined, () => {});
+  }
+  let golfCartModelRequested = false;
+  function ensureGolfCartModel() {
+    if (golfCartModelRequested || sceneDisposed) return;
+    golfCartModelRequested = true;
+    new GLTFLoader().load(golfCartSpec.model,
+      (g) => adoptLoadedGltf(g, (loaded) => {
+        customerCartModel = loaded.scene.clone(true);
+        customerCartModel.name = 'CustomerRentalCartSharedModel';
+        adoptVehicle(golfCartVehicle, loaded.scene);
+      }),
+      undefined, () => {});
   }
   // New properties begin with the broken machine in the yard. Keep the 48 MiB
   // decoded restored model (64 MiB with mips) off their boot path until the
@@ -7916,6 +8490,30 @@ export function makeCourseScene(canvas, state) {
     ensureTractorModel();
     attachMower();
   }
+  ensureGolfCartModel();
+  new GLTFLoader().load('vendor/models/clubhouse/golf_bag.glb',
+    (g) => adoptLoadedGltf(g, (loaded) => {
+      customerGolfBagModel = loaded.scene;
+      customerGolfBagModel.name = 'CustomerRentalBagSharedModel';
+    }),
+    undefined, () => {});
+  new GLTFLoader().load('vendor/models/world/golfer_iron.glb',
+    (g) => adoptLoadedGltf(g, (loaded) => {
+      golferIronModel = loaded.scene;
+      golferIronModel.name = 'GolferIronSharedModel';
+      for (const walker of golfers) equipGolferCharacter(walker.mesh?.userData?.char);
+      for (const visual of customerCartVisuals.values()) {
+        equipGolferCharacter(visual.char);
+        equipGolferCharacter(visual.passenger);
+      }
+    }),
+    undefined, () => {});
+  new GLTFLoader().load('vendor/models/vehicles/cart_fleet_station.glb',
+    (g) => adoptLoadedGltf(g, (loaded) => {
+      customerFleetStationModel = loaded.scene;
+      customerFleetStationModel.name = 'CustomerFleetStationSharedModel';
+    }),
+    undefined, () => {});
 
   // shared prop loader for the yard/entrance dressing
   const SHARED_PUT_MODELS = new Set(['vendor/models/leaves_pile.glb']);
@@ -7971,6 +8569,34 @@ export function makeCourseScene(canvas, state) {
     // the entrance sign and flags; the east side earns you the tractor
     const yard = { x: bx + 14.5, z: bz + 18.5, yaw: 0.7 };
     const t = state.tractor;
+
+    // One batched, project-owned Blender asset turns the former open field into
+    // a legible service yard. Its true-scale pad seats the existing shed,
+    // workbench, tool chest, repair chores, and parked tractor; named convex
+    // proxies become the same walk blockers the rest of the course consumes.
+    putModel(
+      'vendor/models/world/maintenance_yard_dressing.glb',
+      METERS_TO_YARDS,
+      bx + 17.0,
+      bz + 16.9,
+      0,
+      (model) => {
+        model.name = 'MaintenanceYardDressing';
+        model.updateMatrixWorld(true);
+        model.traverse((object) => {
+          if (!object.name.startsWith('COL_')) return;
+          const bounds = new THREE.Box3().setFromObject(object);
+          object.visible = false;
+          if (bounds.isEmpty()) return;
+          propColliders.push({
+            minX: bounds.min.x,
+            maxX: bounds.max.x,
+            minZ: bounds.min.z,
+            maxZ: bounds.max.z,
+          });
+        });
+      },
+    );
 
     putModel('vendor/models/shed.glb', 5.2, bx + 20.5, bz + 13, -1.9);
     propColliders.push({ minX: bx + 17.8, maxX: bx + 23.2, minZ: bz + 10.3, maxZ: bz + 15.7 });
@@ -8070,8 +8696,11 @@ export function makeCourseScene(canvas, state) {
     let brokenGroup = null;
     const brokenCollider = { x: yard.x, z: yard.z, r: 1.25 };
     propColliders.push(brokenCollider);
-    putModel('vendor/models/tractor_production.glb', 1, yard.x, yard.z, yard.yaw, (m) => {
+    putModel(tractorSpec.brokenModel, METERS_TO_YARDS, yard.x, yard.z, yard.yaw + Math.PI, (m) => {
       brokenGroup = m;
+      m.traverse((o) => {
+        if (o.name.startsWith('COL_') || o.name === 'LOD1_Silhouette') o.visible = false;
+      });
       m.rotation.z = 0.045; // flat rear tire sag
       m.position.y -= 0.14;
       m.traverse((o) => {
@@ -8079,8 +8708,8 @@ export function makeCourseScene(canvas, state) {
         if (o.isMesh && o.material) {
           o.material = o.material.clone();
           if (o.material.color) {
-            o.material.color.multiplyScalar(0.6);
-            o.material.color.lerp(new THREE.Color(0x6e4a2c), 0.28); // rust film
+            o.material.color.multiplyScalar(0.78);
+            o.material.color.lerp(new THREE.Color(0x795538), 0.18); // readable rust film
           }
           o.material.roughness = 1;
         }
@@ -8151,12 +8780,13 @@ export function makeCourseScene(canvas, state) {
         if (brokenGroup) removeOwnedObject(brokenGroup);
         walkProps.splice(walkProps.indexOf(tractorProp), 1);
         propColliders.splice(propColliders.indexOf(brokenCollider), 1);
-        cart.x = yard.x;
-        cart.z = yard.z;
-        cart.yaw = yard.yaw;
+        tractorVehicle.x = yard.x;
+        tractorVehicle.z = yard.z;
+        tractorVehicle.yaw = yard.yaw;
+        setVehiclePose(state, tractorVehicle.id, tractorVehicle);
         cartHidden = false;
         ensureTractorModel();
-        placeCartMesh();
+        placeCartMesh(tractorVehicle);
         attachMower();
         play('chime');
         say('She lives! The tractor is yours — mower deck hitched. [E] to take the wheel.');
@@ -8533,30 +9163,29 @@ export function makeCourseScene(canvas, state) {
         action: null,
       });
 
-      // Golf carts are no longer parked scenery. The fleet is assigned to live
-      // round parties and the same vehicle follows their canonical route.
+      // The club's golf cart is a persistent, player-drivable vehicle.
+      if (!Number.isFinite(golfCartRecord?.x) || !Number.isFinite(golfCartRecord?.z)) {
+        golfCartVehicle.x = bx + 9.5;
+        golfCartVehicle.z = bz + 12.5;
+        golfCartVehicle.yaw = 2.2;
+        setVehiclePose(state, golfCartVehicle.id, golfCartVehicle);
+      }
+      placeCartMesh(golfCartVehicle);
     }
   }
   buildCourseProps();
   buildHeroMaintenanceProps();
   refreshWalkColliders(); // parking needs to see the world
-  const savedTractor = state.tractor?.repaired ? state.tractor.location : null;
-  if (savedTractor && [savedTractor.x, savedTractor.z, savedTractor.yaw].every(Number.isFinite)) {
-    cart.x = savedTractor.x;
-    cart.z = savedTractor.z;
-    cart.yaw = savedTractor.yaw;
-    placeCartMesh();
-  } else if (yardHome) {
-    // the tractor lives at the yard, broken or not
-    cart.x = yardHome.x;
-    cart.z = yardHome.z;
-    cart.yaw = yardHome.yaw;
-    placeCartMesh();
-    if (state.tractor?.repaired) {
-      recordTractorUse(state, { x: cart.x, z: cart.z, yaw: cart.yaw });
+  if (yardHome) {
+    if (!Number.isFinite(tractorRecord?.x) || !Number.isFinite(tractorRecord?.z)) {
+      tractorVehicle.x = yardHome.x;
+      tractorVehicle.z = yardHome.z;
+      tractorVehicle.yaw = yardHome.yaw;
+      setVehiclePose(state, tractorVehicle.id, tractorVehicle);
     }
+    placeCartMesh(tractorVehicle);
   } else {
-    parkCartAtClubhouse();
+    parkCartAtClubhouse(tractorVehicle);
   }
   resize();
   rig.apply();
@@ -8781,7 +9410,39 @@ export function makeCourseScene(canvas, state) {
       return removed;
     },
     golferCount: () => golfers.length,
+    golferVisualState: () => golfers.map((entry) => {
+      const char = entry.mesh?.userData?.char;
+      const equipment = char?.equipment?.object || null;
+      return {
+        x: entry.mesh.position.x,
+        y: entry.mesh.position.y,
+        z: entry.mesh.position.z,
+        yaw: entry.mesh.rotation.y,
+        mode: char?.mode || null,
+        idleVariant: char?.idleVariant ?? null,
+        equipment: char?.equipment?.kind || null,
+        equipmentVisible: equipment?.visible === true,
+      };
+    }),
     setGolfersVisible: (v) => { golferGroup.visible = !!v; },
+    customerCartCount: () => customerCartVisuals.size,
+    customerFleetStationReady: () => Boolean(customerFleetStationVisual?.root?.visible),
+    customerFleetStationCollisionReady: () => Boolean(customerFleetStationCollider),
+    customerCartVisualState: () => [...customerCartVisuals.values()].map((visual) => ({
+      id: visual.id,
+      visible: visual.root.visible,
+      x: visual.root.position.x,
+      y: visual.root.position.y,
+      z: visual.root.position.z,
+      golferVisible: visual.char.root.visible || visual.passenger.root.visible,
+      golferCount: [visual.char, visual.passenger].filter((golfer) => golfer.root.visible).length,
+      golferMode: visual.char.mode,
+      golferX: visual.char.root.position.x,
+      golferY: visual.char.root.position.y,
+      golferZ: visual.char.root.position.z,
+      bagsVisible: visual.bags.filter((bag) => bag.visible).length,
+      phase: activeTripForCart(state, visual.id)?.phase || 'parked',
+    })),
     setEditorShadowFocus,
     assetBarrier: (timeoutMs = 12000) => ({
       idle: !assetsInFlight,
@@ -8796,7 +9457,13 @@ export function makeCourseScene(canvas, state) {
       interactSecondary: walkInteractSecondary,
       getFocusLabel: () => {
         if (!walkFocus) return null;
-        const secondary = walkFocus.kind === 'prop'
+        const secondary = walkFocus.kind === 'cart'
+          ? (walkTool
+            ? 'stow equipped tool'
+            : walkFocus.vehicle?.record?.cargo?.length
+              ? `retrieve ${CLEANING_TOOLS[walkFocus.vehicle.record.cargo[0].id]?.label || walkFocus.vehicle.record.cargo[0].id}`
+              : null)
+          : walkFocus.kind === 'prop'
           ? (typeof walkFocus.prop.secondaryLabel === 'function'
             ? walkFocus.prop.secondaryLabel()
             : walkFocus.prop.secondaryLabel)
@@ -8810,8 +9477,20 @@ export function makeCourseScene(canvas, state) {
         cart.x = x;
         cart.z = z;
         if (yaw !== undefined) cart.yaw = yaw;
-        placeCartMesh();
+        setVehiclePose(state, cart.id, cart);
+        placeCartMesh(cart);
       },
+      placeVehicle: (id, x, z, yaw) => {
+        const vehicle = vehicleActors.find((entry) => entry.id === id);
+        if (!vehicle) return false;
+        vehicle.x = x;
+        vehicle.z = z;
+        if (yaw !== undefined) vehicle.yaw = yaw;
+        setVehiclePose(state, vehicle.id, vehicle);
+        placeCartMesh(vehicle);
+        return true;
+      },
+      toggleVehicleLights: toggleMountedVehicleLights,
       setTool: walkSetTool,
       getTool: () => walkTool,
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
@@ -8831,6 +9510,11 @@ export function makeCourseScene(canvas, state) {
           camera.updateProjectionMatrix();
         }
       },
+      toolViewmodelsReady,
+      toolMotionDiagnostics: () => ({
+        authored: [...toolViewmodelsAuthored.values()],
+        motions: toolViewmodels.motionDiagnostics(),
+      }),
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
       setSoaping: walkSetSoaping,
@@ -8855,7 +9539,8 @@ export function makeCourseScene(canvas, state) {
       aimCell: walkAimCell,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
-      cart, // cart state, same purpose
+      get cart() { return cart; }, // current/last driven vehicle, retained for input and QA compatibility
+      vehicles: vehicleActors,
       colliders: { trees: treeColliders, structures: structColliders }, // read-only for QA
     },
     dispose,

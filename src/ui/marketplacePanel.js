@@ -4,10 +4,10 @@
 
 import { el, modal } from './ui.js';
 import { formatMoney } from '../core/utils.js';
-import { syncWallet, worldMinutes } from '../sim/empire.js';
+import { propertyAccess, syncWallet, worldMinutes } from '../sim/empire.js';
 import { marketConditionLabel, listingAgeLabel } from '../sim/marketplace.js';
 import { calendarOf } from '../sim/time.js';
-import { propertyTier, tierUnlocked, ensureEmpireProgression } from '../sim/propertyProgression.js';
+import { propertyTier } from '../sim/propertyProgression.js';
 
 const MOOD_STYLE = {
   buyers: 'border-color:var(--accent-2)',
@@ -27,7 +27,6 @@ export function openMarketplace(app, handlers) {
       const wallet = syncWallet(empire);
       const today = calendarOf(worldMinutes(empire)).dayAbs;
       const mood = marketConditionLabel(empire.marketCondition);
-      const progression = ensureEmpireProgression(empire);
       const rows = [
         el('section', { class: 'market-overview', 'aria-label': 'Market summary' },
           el('div', { class: 'market-stats' },
@@ -43,8 +42,8 @@ export function openMarketplace(app, handlers) {
       }
       for (const p of empire.market) {
         const tier = propertyTier(p);
-        const unlocked = tierUnlocked(empire, tier.id);
-        const affordable = wallet >= p.askingPrice;
+        const access = propertyAccess(empire, p);
+        const affordable = access.unlocked && wallet >= p.askingPrice;
         rows.push(el('article', { class: 'listing market-listing' },
           el('div', { class: 'listing-main' },
             el('div', { class: 'listing-title-block' },
@@ -55,9 +54,11 @@ export function openMarketplace(app, handlers) {
               el('span', { class: 'listing-price', text: formatMoney(p.askingPrice) }),
               el('button', {
                 class: affordable ? 'primary' : '',
-                text: affordable ? 'Buy' : 'Not enough cash',
+                text: !access.unlocked ? 'Locked' : affordable ? 'Buy' : 'Not enough cash',
                 disabled: affordable ? null : 'disabled',
-                title: affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
+                title: !access.unlocked
+                  ? access.reason
+                  : affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
                 onclick: () => {
                   const res = handlers.buyFromMarket(p.id);
                   if (res && res.closeMarket) close();
@@ -67,6 +68,9 @@ export function openMarketplace(app, handlers) {
             ),
           ),
           el('div', { class: 'listing-signals' },
+            el('span', { class: 'status-chip', text: p.regionLabel || p.region }),
+            el('span', { class: 'status-chip', text: p.climateLabel || p.climate }),
+            el('span', { class: 'status-chip', text: p.difficultyLabel || `Difficulty ${p.difficulty}` }),
             el('span', { class: 'status-chip', text: `Design ${Math.round(p.design)}` }),
             el('span', { class: 'status-chip', text: `Condition ${Math.round(p.condition)}` }),
             el('span', { class: 'status-chip', text: `${p.startingMembers} members` }),
@@ -76,6 +80,9 @@ export function openMarketplace(app, handlers) {
               ? el('span', { class: 'status-chip', style: 'border-color:var(--warn)', text: `⚠ ${p.sickGreens} sick green${p.sickGreens > 1 ? 's' : ''}` })
               : null,
           ),
+          !access.unlocked
+            ? el('div', { class: 'listing-access muted', style: 'color:var(--warn)', text: access.reason })
+            : el('div', { class: 'listing-access muted', text: `${formatMoney(p.operatingCostPerDay)}/day estimated property overhead` }),
           el('p', { class: 'listing-blurb muted', text: p.blurb }),
         ));
       }

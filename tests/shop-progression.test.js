@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
+import { FIXTURES } from '../src/data/shopLayout.js';
 import { placedFixtures, commitPlacement, routesIntact, shopExpansionLayoutSafety } from '../src/sim/layout.js';
 import { placeOrder } from '../src/sim/shop.js';
 import { appraiseProperty } from '../src/sim/valuation.js';
@@ -86,7 +87,7 @@ test('future authored fixtures cannot activate into a player-created collision',
 
   // The putter studio is not installed at STANDARD, so its saved future pose
   // may coexist until the PREMIUM contractor tries to reveal that footprint.
-  commitPlacement(state, 'rack_putters', -6.9, -6.15, 0);
+  commitPlacement(state, 'rack_putters', -6.0, 0.65, 0);
   beginShopExpansion(state, 'premium');
   for (let day = 0; day < SHOP_TIERS.premium.days; day++) {
     tickShopProgressionDaily(state, shopExpansionLayoutSafety);
@@ -113,6 +114,9 @@ test('legacy saves keep their existing full floor and tier-2 supplier access', (
   assert.equal(migrated.shop.progression.tier, 'standard');
   assert.equal(migrated.shop.progression.legacyFullLayout, true);
   assert.equal(migrated.shop.unlockedTier, 2);
-  assert.equal(placedFixtures(migrated).length, 18);
+  assert.equal(
+    placedFixtures(migrated).length,
+    FIXTURES.filter((fixture) => !fixture.generatedOnly).length,
+  );
   assert.equal(routesIntact(migrated), true);
 });

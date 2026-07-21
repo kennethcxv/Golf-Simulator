@@ -1276,6 +1276,23 @@ export function makeAudio(preferences = null) {
         osc.connect(lp).connect(gain);
         osc.start();
       }
+    } else if (kind === 'electricCart') {
+      // Quiet electric transaxle: restrained gear/tyre noise, distinct from
+      // the petrol tractor and soft enough for repeated course traversal.
+      filter.type = 'lowpass';
+      filter.frequency.value = 760;
+      const tyre = ctx.createGain();
+      tyre.gain.value = 0.30;
+      src.connect(filter).connect(tyre).connect(gain);
+      for (const [frequency, level] of [[132, 0.13], [264, 0.035]]) {
+        const motor = ctx.createOscillator();
+        motor.type = 'sine';
+        motor.frequency.value = frequency;
+        const motorGain = ctx.createGain();
+        motorGain.gain.value = level;
+        motor.connect(motorGain).connect(gain);
+        motor.start();
+      }
     } else if (kind === 'washer') {
       // a hard, narrow jet hissing off a wall, over the throb of the pump
       filter.type = 'bandpass';
@@ -1354,7 +1371,7 @@ export function makeAudio(preferences = null) {
   }
 
   const TOOL_LOOP_LEVEL = {
-    hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05, mower: 0.055,
+    hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05, mower: 0.055, electricCart: 0.036,
     washer: 0.075, soap: 0.03, // the washer is loud; foam is not
     // The hand tools are quiet work. A broom you are pushing yourself should not be as loud as a
     // petrol pump, and a cloth should be barely there — this is the difference between a kit that

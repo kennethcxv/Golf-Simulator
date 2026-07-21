@@ -122,18 +122,25 @@ function clubRack(skuId, len) {
 // felt grooves (the game's native head-at-slot pose), grips on the rail
 function putterRack(skuId) {
   const h = HOME.get(skuId);
-  const right = h && h.lane === 1;
-  const m = right ? 0.5 : -0.5;
-  const tag = right ? 'R' : 'L';
-  return Array.from({ length: 10 }, (_, k) => ({
-    x: m + (k - 4.5) * 0.09,
-    y: 0.185,
-    z: 0.045 - (k % 2) * 0.055,
-    lean: (k % 2) * 0.04 - 0.02,
-    len: 0.80,
-    ry: 0.12 + (k % 2) * 0.10,
-    socketName: moduleSocket(skuId, tag, `PUTTER_SLOT_${String(k + 1).padStart(2, '0')}`),
-  }));
+  const lane = h ? h.lane : 0;
+  const lanes = Math.max(1, h ? h.lanes : 1);
+  const positions = [];
+  for (const [moduleIndex, m] of [-0.5, 0.5].entries()) {
+    const tag = moduleIndex ? 'R' : 'L';
+    for (let k = 0; k < 10; k++) {
+      positions.push({
+        x: m + (k - 4.5) * 0.09,
+        y: 0.185,
+        z: 0.045 - (k % 2) * 0.055,
+        lean: (k % 2) * 0.04 - 0.02,
+        len: 0.80,
+        ry: 0.12 + (k % 2) * 0.10,
+        socketName: moduleSocket(skuId, tag, `PUTTER_SLOT_${String(k + 1).padStart(2, '0')}`),
+      });
+    }
+  }
+  const width = Math.floor(positions.length / lanes);
+  return positions.slice(lane * width, lane * width + width);
 }
 
 // dozen-boxes fronted on a ball_shelf module — one module per line
@@ -212,23 +219,72 @@ function accessoryHybrid(skuId, lane, productDrop) {
 // z ±0.21). Each lane owns four stacks of three — polo1 the west pair of
 // columns, polo2 the east pair. Twelve per lane, same capacity as ever.
 function tableApparel(skuId) {
-  const h = HOME.get(skuId);
-  const lane = laneOf(skuId);
-  const colXs = h && h.lanes === 1
-    ? [-0.57, -0.19, 0.19, 0.57]
-    : lane === 0 ? [-0.57, -0.19] : [0.19, 0.57];
-  const out = [];
-  for (let i = 0; i < 12; i++) {             // four stacks of three, folded
-    const stack = Math.floor(i / 3);
-    out.push({
-      x: colXs[stack % colXs.length],
-      y: 0.801 + (i % 3) * 0.055,
-      z: stack < 2 ? -0.21 : 0.21,
-      ry: (i % 2) * 0.09 - 0.045,
-      folded: true,
-    });
-  }
-  return out;
+  const cx = laneX(skuId, 1.36);
+  return [-0.21, 0.21].flatMap((z, stack) => Array.from({ length: 3 }, (_, index) => ({
+    x: cx,
+    y: 0.801 + index * 0.055,
+    z,
+    ry: (stack + index) % 2 ? 0.045 : -0.045,
+    folded: true,
+  })));
+}
+
+// The production shop fits eight carded accessory lines across one wide
+// pegboard. Each line owns a vertical column, so every unit remains legible
+// and no two SKUs can claim the same physical place.
+function pegColumn(skuId) {
+  const cx = laneX(skuId, 2.8);
+  return [0.38, 0.64, 0.90, 1.16, 1.42, 1.68].map((y, index) => ({
+    x: cx, y, z: 0.13,
+    ry: index % 2 ? 0.025 : -0.025,
+    pegged: true,
+  }));
+}
+
+function apparelLane(skuId) {
+  const cx = laneX(skuId, 2.8);
+  return [0.50, 1.05, 1.60].flatMap((y) => [-0.12, 0.12].map((dx) => ({
+    x: cx + dx, y: y + 0.10, z: 0.10, folded: true, wall: true,
+  })));
+}
+
+function hatLane(skuId) {
+  const cx = laneX(skuId, 0.72);
+  return HAT_ROWS.map((y, index) => ({
+    x: cx, y: y + 0.030, z: 0.12, rx: -0.16,
+    ry: index % 2 ? 0.04 : -0.04,
+  }));
+}
+
+function shoeLane(skuId) {
+  const cx = laneX(skuId, 2.4);
+  return SHOE_ROWS.flatMap((y) => [-0.22, 0.22].map((dx) => ({
+    x: cx + dx, y: y + 0.014, z: 0.03, rx: -0.18,
+  })));
+}
+
+function bagLane(skuId) {
+  const cx = laneX(skuId, 2.2);
+  return [-0.23, 0.23].flatMap((z, row) => [-0.18, 0.18].map((dx, col) => ({
+    x: cx + dx, y: 0.12, z,
+    ry: -0.32 + laneOf(skuId) * 0.25 + row * 0.12 + col * 0.08,
+    lean: -0.08,
+  })));
+}
+
+function narrowFacings(skuId, {
+  usable = 0.72, ys = [0.35, 0.70, 1.05, 1.40], z = 0.08, spread = 0.055,
+} = {}) {
+  const cx = laneX(skuId, usable);
+  return ys.flatMap((y, row) => [-spread, spread].map((dx, col) => ({
+    x: cx + dx, y, z, ry: (row + col) % 2 ? 0.025 : -0.025,
+  })));
+}
+
+function scorecardStacks() {
+  return [-0.22, 0, 0.22].flatMap((x) => Array.from({ length: 4 }, (_, index) => ({
+    x, y: 0.84, z: -0.10 + index * 0.07, ry: (index - 1.5) * 0.035,
+  })));
 }
 
 export const APPAREL_DISPLAY_TINTS = Object.freeze([
@@ -396,6 +452,7 @@ const BUILD = {
   wedge2: (id) => clubRack(id, 1.03),
   putter1: putterRack,
   putter2: putterRack,
+  putter3: putterRack,
 
   // the ball wall: one ball_shelf module per line, five boxes to a board
   balls1: ballModule,
@@ -405,27 +462,42 @@ const BUILD = {
   // the accessory slatwall run: carded tees and markers use real hooks plus
   // shelf landings; towels fill the east module. Premium optics live in their
   // dedicated Asset 30 case on the entrance feature table.
-  tees1: (id) => accessoryHybrid(id, 0, -0.105),
-  marker1: (id) => accessoryHybrid(id, 1, -0.090),
-  towel1: (id) => authoredAccessoryProducts(id, 2),
-  range2: rangefinderCase,
-  umb1: () => barrel(8),
+  tees1: pegColumn,
+  marker1: pegColumn,
+  towel1: pegColumn,
+  divot1: pegColumn,
+  range2: pegColumn,
+  sunglasses2: pegColumn,
+  bottle1: pegColumn,
+  umb1: pegColumn,
 
   // apparel
   polo1: tableApparel,
-  polo2: apparelDisplay,
-  jacket2: apparelWall,
-  cap1: hatWall,
-  glove1: gloveModule,
-  sock1: sockModule,
-  shoe1: shoeWall,
+  polo2: tableApparel,
+  pants2: tableApparel,
+  shorts1: tableApparel,
+  jacket2: apparelLane,
+  cap1: hatLane,
+  cap2: hatLane,
+  glove1: apparelLane,
+  glove2: apparelLane,
+  sock1: apparelLane,
+  shoe1: shoeLane,
+  shoe3: shoeLane,
 
   // bags
-  bag1: () => bagPlinth(5),
+  bag1: bagLane,
+  bag3: bagLane,
 
   // authored grab-and-go sockets: fourteen bottles and ten snack pouches
-  water1: () => SNACKRACK_AUTHORED_SLOTS.water1,
-  snack1: () => SNACKRACK_AUTHORED_SLOTS.snack1,
+  water1: (id) => narrowFacings(id, { z: 0.27 }),
+  sportdrink2: (id) => narrowFacings(id, { z: 0.27 }),
+  soda1: (id) => narrowFacings(id, { z: 0.27 }),
+  chips1: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
+  bar2: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
+  crackers1: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
+  snack1: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
+  scorecard1: scorecardStacks,
 };
 
 const CACHE = new Map();

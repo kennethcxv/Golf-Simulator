@@ -294,7 +294,7 @@ test('unknown future save data survives migration without overriding canonical f
     migrated.courseMaintenance.futureMaintenanceField,
     raw.courseMaintenance.futureMaintenanceField,
   );
-  assert.equal(migrated.version, 6, 'the integrated schema remains authoritative');
+  assert.equal(migrated.version, SAVE_VERSION, 'the integrated schema remains authoritative');
 });
 
 test('update advances the clock and runs daily ticks across midnight', () => {

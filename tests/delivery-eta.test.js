@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { placeOrder, cancelOrder, orderStatusAt, tickDeliveries } from '../src/sim/shop.js';
 import { skuById } from '../src/data/shopItems.js';
-import { boxesOf, PAD_CAPACITY } from '../src/sim/deliveries.js';
+import { boxesOf, PAD_CAPACITY, FALLBACK_CAPACITY } from '../src/sim/deliveries.js';
 import {
   quoteDelivery, deliveryEtaText, deliveryQuoteText, expressFeeFor,
 } from '../src/sim/deliveryEta.js';
@@ -12,6 +12,7 @@ const setup = ({ tutorialComplete = false } = {}) => {
   const state = newGame('relaxed', 7301);
   state.cash = 200000;
   state.shop.unlockedTier = 3;
+  state.shop.progression.tier = 'premium';
   state.tutorial.complete = tutorialComplete;
   return state;
 };
@@ -104,6 +105,9 @@ test('multiple orders queue at the receiving pad and blocked ETA explains the ac
   const state = setup({ tutorialComplete: true });
   for (let i = 0; i < PAD_CAPACITY; i++) {
     boxesOf(state).push({ id: 700 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'pad', box: 'carton' });
+  }
+  for (let i = 0; i < FALLBACK_CAPACITY; i++) {
+    boxesOf(state).push({ id: 800 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'receiving-fallback', box: 'carton' });
   }
   placeOrder(state, 'balls1', 12);
   placeOrder(state, 'polo1', 8);

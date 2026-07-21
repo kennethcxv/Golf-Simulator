@@ -1211,9 +1211,11 @@ export function buildFixtures(B) {
   }
 
   const FIXTURE_BUILDERS = {
-    shelf: shelfUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
-    hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
+    shelf: ballwallUnit, pegboard: pegboardUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
+    hatstand: hatwallUnit, bagstand: bagstandUnit, shoerack: shoewallUnit,
     apparelwall: apparelwallUnit,
+    fittingroom: fittingroomUnit, fridge: fridgeUnit,
+    service: serviceUnit, premiumcase: premiumcaseUnit, demo: demoUnit, demorack: demoRackUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
     snackrack: snackrackUnit,
     officeDesk: officeDeskUnit, officeChair: officeChairUnit,

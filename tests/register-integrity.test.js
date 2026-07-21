@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
 import {
   createTx, scanItem, requestPayment, acceptCash, openDrawer, depositTendered,
   takeFromDrawer, handOverChange, printReceipt, takeReceipt, packReceipt, bagItem,
@@ -201,17 +202,17 @@ test('reload recovery respects per-SKU fixture capacity and sends overflow to ba
   state.shop.progression.tier = 'premium';
   state.shop.unlockedTier = 3;
   const inv = state.shop.inventory.bag1;
-  inv.shelf = 5; // bag1 has five physical platform slots; its category fallback is 24
+  inv.shelf = capacityOf('bag1');
   inv.back = 1;
   pickFromShelf(state, 'bag1', 'bag-held');
-  assert.equal(inv.shelf, 4);
+  assert.equal(inv.shelf, capacityOf('bag1') - 1);
 
   // The display was replenished while the shopper still had the original bag.
   inv.back -= 1;
   inv.shelf += 1;
   const reloaded = deserialize(serialize(state));
 
-  assert.equal(reloaded.shop.inventory.bag1.shelf, 5, 'the physical fixture did not overfill');
+  assert.equal(reloaded.shop.inventory.bag1.shelf, capacityOf('bag1'), 'the physical fixture did not overfill');
   assert.equal(reloaded.shop.inventory.bag1.back, 1, 'the recovered unit remained owned in back stock');
   assert.deepEqual(heldUnits(reloaded), []);
 });

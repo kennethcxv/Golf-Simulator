@@ -51,6 +51,120 @@ export function appraiseStats(stats) {
   return appraiseStatsBreakdown(stats).value;
 }
 
+// --- property operating profile --------------------------------------------------
+// Listings used to describe only the golf. These profiles make the land around
+// it economically meaningful too: climate drives real weather, while demand,
+// tourism, upkeep and expansion headroom let two similarly priced courses play
+// like different acquisitions. Records stay plain JSON so old saves can be
+// completed deterministically on load.
+
+export const PROPERTY_REGIONS = Object.freeze({
+  heartland: Object.freeze({
+    label: 'Heartland', climate: 'temperate', climateLabel: 'Four-season temperate',
+    courseClass: 'Public course', tourism: 38, maintenance: 1, utilities: 1,
+    expansion: 72, weather: 'Warm summers, frost-prone winters, regular rain', unlockTier: 0,
+  }),
+  coast: Object.freeze({
+    label: 'Coastal Belt', climate: 'maritime', climateLabel: 'Cool maritime',
+    courseClass: 'Coastal public course', tourism: 78, maintenance: 1.08, utilities: 0.92,
+    expansion: 48, weather: 'Mild temperatures, frequent showers, persistent wind', unlockTier: 0,
+  }),
+  highlands: Object.freeze({
+    label: 'Highlands', climate: 'alpine', climateLabel: 'Mountain',
+    courseClass: 'Mountain resort', tourism: 86, maintenance: 1.2, utilities: 1.12,
+    expansion: 54, weather: 'Short season, cold nights, fast-changing mountain storms', unlockTier: 1,
+  }),
+  desert: Object.freeze({
+    label: 'Red Mesa', climate: 'arid', climateLabel: 'Hot arid',
+    courseClass: 'Desert course', tourism: 82, maintenance: 1.28, utilities: 1.42,
+    expansion: 68, weather: 'Hot, dry and windy with rare heavy downpours', unlockTier: 1,
+  }),
+  heritage: Object.freeze({
+    label: 'Heritage County', climate: 'temperate', climateLabel: 'Sheltered temperate',
+    courseClass: 'Luxury country club', tourism: 66, maintenance: 1.48, utilities: 1.3,
+    expansion: 36, weather: 'Long playing season with costly storm cleanup', unlockTier: 2,
+  }),
+});
+
+const PROPERTY_REGION = Object.freeze({
+  'willow-creek': 'heartland',
+  'bent-pines': 'highlands',
+  'flatiron-meadows': 'heartland',
+  'saltgrass-point': 'coast',
+  'red-mesa-dunes': 'desert',
+  'thornbury-estate': 'heritage',
+  'quarry-bluffs': 'highlands',
+  'cypress-hollow': 'coast',
+  'fairview-commons': 'heritage',
+});
+
+const TEMPLATE_REGION = Object.freeze({
+  'neglected-gem': 'highlands',
+  'tired-muni': 'heartland',
+  'polished-bore': 'heartland',
+  executive: 'coast',
+  waterlogged: 'coast',
+  'legacy-trap': 'heritage',
+  'championship-wreck': 'heritage',
+  'desert-reclamation': 'desert',
+});
+
+const DIFFICULTY = ['Beginner', 'Approachable', 'Challenging', 'Demanding', 'Championship'];
+
+export function propertyDifficultyLabel(value) {
+  return DIFFICULTY[clamp(Math.round(Number(value) || 1), 1, 5) - 1];
+}
+
+export function completePropertyProfile(property) {
+  if (!property || typeof property !== 'object') return property;
+  const region = property.region && PROPERTY_REGIONS[property.region]
+    ? property.region
+    : PROPERTY_REGION[property.id] || TEMPLATE_REGION[property.archetype] || 'heartland';
+  const profile = PROPERTY_REGIONS[region];
+  const sizeF = Math.max(1, (Number(property.size) || 9) / 9);
+  const elevation = Number(property.layout?.elevAmp) || (region === 'highlands' ? 1.4 : 0.6);
+  const hazards = (Number(property.layout?.bunkers) || 0) + (Number(property.layout?.ponds) || 0) * 2;
+  const computedDifficulty = clamp(Math.round(
+    1 + (Number(property.design) - 68) / 11 + elevation * 0.55 + (region === 'coast' ? 0.45 : 0),
+  ), 1, 5);
+  const tourism = clamp(Math.round(profile.tourism + (Number(property.design) - 72) * 0.32), 15, 98);
+  const demand = clamp(Math.round(
+    (Number(property.startingMembers) || 0) * 1.05
+      + (Number(property.startingReputation) || 25) * 0.72
+      + tourism * 0.3,
+  ), 18, 98);
+  const maintenance = Math.round((
+    105 * sizeF * profile.maintenance
+      + (Number(property.sickGreens) || 0) * 18
+      + hazards * 3
+  ) / 5) * 5;
+  const operating = maintenance + Math.round((58 * sizeF * profile.utilities) / 5) * 5;
+  const expansion = clamp(Math.round(
+    profile.expansion + (property.size <= 9 ? 10 : -18) - elevation * 3,
+  ), 12, 95);
+
+  property.region = region;
+  property.regionLabel = property.regionLabel || profile.label;
+  property.climate = property.climate || profile.climate;
+  property.climateLabel = property.climateLabel || profile.climateLabel;
+  property.courseClass = property.courseClass || (property.id === 'willow-creek' ? 'Small municipal course' : profile.courseClass);
+  property.difficulty = Number.isFinite(property.difficulty) ? property.difficulty : computedDifficulty;
+  property.difficultyLabel = property.difficultyLabel || propertyDifficultyLabel(property.difficulty);
+  property.customerDemand = Number.isFinite(property.customerDemand) ? property.customerDemand : demand;
+  property.expansionPotential = Number.isFinite(property.expansionPotential) ? property.expansionPotential : expansion;
+  property.maxHoles = Number.isFinite(property.maxHoles)
+    ? property.maxHoles : property.size + (expansion >= 64 ? 9 : 0);
+  property.maintenanceCostPerDay = Number.isFinite(property.maintenanceCostPerDay)
+    ? property.maintenanceCostPerDay : maintenance;
+  property.operatingCostPerDay = Number.isFinite(property.operatingCostPerDay)
+    ? property.operatingCostPerDay : operating;
+  property.tourismRating = Number.isFinite(property.tourismRating) ? property.tourismRating : tourism;
+  property.weather = property.weather || profile.weather;
+  property.unlockTier = Number.isFinite(property.unlockTier) ? property.unlockTier : profile.unlockTier;
+  property.saleType = property.saleType || 'listing';
+  return property;
+}
+
 // --- the archetype roster ---------------------------------------------------------
 // Hand-authored so each property has a DIFFERENT weak point — never one template
 // scaled up and down. listingBias is how the seller prices against true value
@@ -124,6 +238,23 @@ const ARCHETYPES = [
     startingReputation: 36,
     shopLevel: 4,
     listingBias: 0.88,
+  },
+  {
+    id: 'red-mesa-dunes',
+    name: 'Red Mesa Dunes',
+    blurb: 'A desert daily-fee course built around red-rock washes. Spectacular winter demand, punishing water bills, and nine holes of wind-exposed target golf.',
+    size: 9,
+    layout: {
+      kind: 'serpentine', margin: 8, bands: 5, roughR: 4.2, fairwayR: 2.0,
+      greenR: 1.65, greenRJitter: 0.25, doglegChance: 0.42, bunkers: 8, ponds: 0, elevAmp: 1.35,
+      parMix: [4, 3, 4, 5, 3, 4, 4, 3, 4], parRange: { 3: [14, 27], 4: [34, 46], 5: [58, 65] },
+    },
+    condition: 54,
+    sickGreens: 1,
+    diseaseKind: 'dollarSpot',
+    startingMembers: 11,
+    startingReputation: 34,
+    listingBias: 0.94,
   },
   {
     id: 'thornbury-estate',
@@ -439,7 +570,7 @@ export function generateMarketplace(seed = 1) {
     const jitter = 1 + (master.next() - 0.5) * 0.06;
     record.askingPrice = Math.max(round500(record.trueValue * a.listingBias * jitter), 5500);
     record.tierId = listingTierId(record);
-    return record;
+    return completePropertyProfile(record);
   });
 }
 
@@ -564,6 +695,22 @@ const LISTING_TEMPLATES = [
       'The low holes hold water like a saucer and the brown patch knows it. Solve the drainage story and an honest course walks out of the swamp.',
       'Three ponds by design, five more by accident every spring. The turf disease chart reads like a medical drama; the routing underneath is blameless.',
       'Saturated fairways, fungus on the low greens, and a pump house held together with tape. Water made this mess and water management can unmake it.',
+    ],
+  },
+  {
+    key: 'desert-reclamation', weight: 2, size: 9,
+    condition: [38, 58], sick: [0, 1], disease: 'dollarSpot',
+    members: [8, 18], rep: [27, 40], bias: [0.82, 1.02],
+    layout: {
+      margin: 8, bands: [4, 5], roughR: [4.0, 4.35], fairwayR: [1.9, 2.15],
+      greenR: [1.45, 1.8], greenRJitter: 0.3, dogleg: [0.34, 0.52],
+      bunkers: [6, 10], ponds: [0, 0], elevAmp: [0.9, 1.55],
+      parWeights: { 3: 3, 4: 5, 5: 1 },
+    },
+    blurbs: [
+      'Red-rock target golf with winter-tourism upside and an irrigation system that invoices like a second mortgage. The views sell rounds; the water bill takes them back.',
+      'Nine desert holes threaded through dry washes and exposed mesas. Strong seasonal demand, no shade, and every green depends on aging pumps.',
+      'A resort-course idea left half-finished: dramatic land, lean turf corridors, and enough visitor traffic to justify finishing it properly.',
     ],
   },
   {
@@ -718,7 +865,7 @@ export function generateListing(seed, opts = {}) {
   const jitter = 1 + (rng.next() - 0.5) * 0.06;
   record.askingPrice = Math.max(round500(record.trueValue * bias * jitter * marketCondition), 5500);
   record.tierId = listingTierId(record);
-  return record;
+  return completePropertyProfile(record);
 }
 
 // --- what the screens say ----------------------------------------------------------------

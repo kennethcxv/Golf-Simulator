@@ -722,6 +722,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   // those lifecycle edges, so it tells audio here instead of waiting for a pointerup that may
   // never arrive (alt-tab and rapid belt cycling are the common cases).
   app.scene3d.walk.hooks.toolChanged = () => { if (audio.ready) audio.setToolLoop(null); };
+  app.scene3d.walk.hooks.toolLoop = (kind) => { if (audio.ready) audio.setToolLoop(kind); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
   app.scene3d.walk.hooks.openFrontDesk = (reservationId) => enterFrontDesk(reservationId);
@@ -839,7 +840,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     recordManualWork(st, 'mow', i);
     return true;
   };
-  app.scene3d.walk.hooks.engine = (on) => { if (audio.ready) audio.setToolLoop(on ? 'mower' : null); };
+  app.scene3d.walk.hooks.engine = (on, vehicleType = 'tractor') => {
+    if (audio.ready) audio.setToolLoop(on ? (vehicleType === 'golf_cart' ? 'electricCart' : 'mower') : null);
+  };
   app.scene3d.walk.hooks.rakeLabelAt = (cx, cy) => {
     const st = app.state;
     const i = cy * st.course.w + cx;
@@ -2068,6 +2071,8 @@ window.addEventListener('keydown', (e) => {
       }
       case 'i': case 'I':
         setMaintenanceVisible(!maintenancePanel?.isVisible());
+      case 'l': case 'L':
+        if (!e.repeat && app.scene3d.walk.toggleVehicleLights) app.scene3d.walk.toggleVehicleLights();
         break;
       case 'g': case 'G':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
@@ -2293,12 +2298,14 @@ function frame(ts) {
         };
         const man = ev.order.manifest;
         const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
-        if (ev.kind === 'dispatched') {
-          toast(`📦 ${name} has dispatched — ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
+        if (ev.kind === 'morning') {
+          toast(`📦 ${name} arrives today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`, 'delivery');
+        } else if (ev.kind === 'dispatched') {
+          toast(`📦 ${name} has dispatched — ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`, 'delivery');
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`, 'delivery');
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`, 'delivery');
           const clubhouse = app.scene3d && app.scene3d.clubhouse
             ? app.scene3d.clubhouse() : null;
           const presented = clubhouse && clubhouse.presentDeliveryArrival
@@ -2317,7 +2324,7 @@ function frame(ts) {
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
           // quietly delete them either — the order is still out there and will try again.
-          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
+          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'delivery warn');
         }
       }
     }
@@ -2713,6 +2720,10 @@ function boot() {
       autosave();
       return result;
     },
+    buyProperty: (propertyId) => handlers.buyFromMarket(propertyId),
+    switchProperty: (propertyId) => handlers.switchTo(propertyId),
+    sellProperty: (propertyId) => handlers.sellHolding(propertyId, app.speedIdx || 1),
+    autosave: () => autosave(),
   });
   editorUi = makeCourseEditor(app, {
     onExit: () => exitEditor(),

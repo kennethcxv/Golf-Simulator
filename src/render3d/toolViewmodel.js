@@ -103,8 +103,20 @@ export function buildToolViewmodels() {
   }
 
   const loaded = new Map();
+  const pending = new Map();
+  const motionState = new Map();
   const activeTools = new Set();
   let equippedTool = null;
+  let disposed = false;
+
+  const stateFor = (id) => {
+    let state = motionState.get(id);
+    if (!state) {
+      state = { equipped: false, using: false };
+      motionState.set(id, state);
+    }
+    return state;
+  };
 
   const PHASE_CLIP = Object.freeze({
     equip: /_Equip$/i,
@@ -123,6 +135,7 @@ export function buildToolViewmodels() {
   function playAction(entry, clip, { loop = false, fade = 0 } = {}) {
     if (!entry?.mixer || !clip) return null;
     const action = entry.mixer.clipAction(clip);
+    if (entry.activeAction && entry.activeAction !== action && fade > 0) entry.activeAction.fadeOut(fade);
     action.stop();
     action.reset();
     action.enabled = true;
@@ -133,7 +146,63 @@ export function buildToolViewmodels() {
     entry.actions.add(action);
     entry.played.add(clip.name);
     entry.lastClip = clip.name;
+    entry.activeAction = action;
+    entry.activeName = clip.name;
     return action;
+  }
+
+  function stopSequence(entry) {
+    entry.sequence = null;
+    entry.sequenceIndex = 0;
+    entry.pendingLoop = null;
+  }
+
+  function playNamed(entry, name, options = {}) {
+    if (!name) return null;
+    const clip = entry?.clips?.find((candidate) => candidate.name === name);
+    return playAction(entry, clip, options);
+  }
+
+  function beginUseLoop(entry) {
+    const names = entry.definition?.fp?.motion?.useLoop || [];
+    if (!names.length) return false;
+    entry.sequence = names;
+    entry.sequenceIndex = 0;
+    entry.pendingLoop = null;
+    return !!playNamed(entry, names[0], { loop: names.length === 1, fade: 0.08 });
+  }
+
+  function bindMixerLifecycle(entry) {
+    if (!entry.mixer) return;
+    entry.onFinished = ({ action }) => {
+      if (action !== entry.activeAction) return;
+      const state = stateFor(entry.definition.id);
+      if (!state.using) return;
+      if (entry.pendingLoop) {
+        beginUseLoop(entry);
+        return;
+      }
+      if (!entry.sequence || entry.sequence.length < 2) return;
+      entry.sequenceIndex = (entry.sequenceIndex + 1) % entry.sequence.length;
+      playNamed(entry, entry.sequence[entry.sequenceIndex], { fade: 0.02 });
+    };
+    entry.mixer.addEventListener('finished', entry.onFinished);
+  }
+
+  function applyMotionState(id) {
+    const entry = loaded.get(id);
+    if (!entry) return false;
+    const state = stateFor(id);
+    const motion = entry.definition.fp?.motion || {};
+    if (state.using) {
+      stopSequence(entry);
+      if (motion.useStart && playNamed(entry, motion.useStart, { fade: 0.08 })) {
+        entry.pendingLoop = motion.useLoop || [];
+      } else beginUseLoop(entry);
+    } else if (state.equipped) {
+      playNamed(entry, motion.equip, { fade: 0.08 });
+    }
+    return true;
   }
 
   function playPhase(toolId, phase, options = {}) {
@@ -161,35 +230,53 @@ export function buildToolViewmodels() {
 
   function setActive(toolId, on) {
     if (!toolId) return false;
+    const state = stateFor(toolId);
+    const changed = state.using !== !!on;
+    state.using = !!on;
     if (on) activeTools.add(toolId);
     else activeTools.delete(toolId);
     const entry = loaded.get(toolId);
-    if (!entry || entry.active === !!on) return false;
+    if (!entry || (!changed && entry.active === !!on)) return false;
     entry.active = !!on;
     entry.using = !!on;
-    if (entry.activeAction) {
-      entry.activeAction.stop();
-      entry.activeAction = null;
-    }
+    stopSequence(entry);
+    const motion = entry.definition?.fp?.motion || {};
     if (on) {
-      playPhase(toolId, 'start');
-      entry.activeAction = playPhase(toolId, 'active', { loop: true });
+      if (motion.useStart && playNamed(entry, motion.useStart, { fade: 0.08 })) {
+        entry.pendingLoop = motion.useLoop || [];
+      } else if (!beginUseLoop(entry)) {
+        playPhase(toolId, 'start');
+        entry.activeAction = playPhase(toolId, 'active', { loop: true });
+      }
     } else {
-      playPhase(toolId, 'stop');
+      if (!playNamed(entry, motion.useStop, { fade: 0.08 })) playPhase(toolId, 'stop');
     }
     return true;
   }
 
   function setEquipped(toolId, on) {
+    if (!toolId) return false;
+    const state = stateFor(toolId);
+    state.equipped = !!on;
+    if (!on) {
+      state.using = false;
+      activeTools.delete(toolId);
+    }
     const entry = loaded.get(toolId);
     if (!entry || entry.equipped === !!on) return false;
     entry.equipped = !!on;
+    entry.active = on ? entry.active : false;
+    entry.using = on ? entry.using : false;
+    stopSequence(entry);
     // A clamped equip/unequip pose must not blend with the next belt cycle.
     entry.mixer?.stopAllAction();
     entry.activeAction = null;
-    return playClip(toolId, on
-      ? [`${toolId}_equip`, `${toolId}wand_equip`, 'equip']
-      : [`${toolId}_unequip`, `${toolId}wand_unequip`, 'unequip', 'putaway']);
+    entry.activeName = null;
+    const motion = entry.definition?.fp?.motion || {};
+    return !!(playNamed(entry, on ? motion.equip : motion.unequip, { fade: 0.08 })
+      || playClip(toolId, on
+        ? [`${toolId}_equip`, `${toolId}wand_equip`, 'equip']
+        : [`${toolId}_unequip`, `${toolId}wand_unequip`, 'unequip', 'putaway']));
   }
 
   function setUsing(toolId, on) {
@@ -229,13 +316,23 @@ export function buildToolViewmodels() {
    * SOCKET_GripPrimary…). Those are the truth once loaded — the registry's hand-authored socket
    * positions were only ever standing in for them.
    */
-  async function adoptAuthored(loader, onReady) {
-    const jobs = [];
-    for (const def of Object.values(CLEANING_TOOLS)) {
-      if (!def.fp || !def.fp.glb) continue;
-      jobs.push(new Promise((resolve) => {
+  function ensureAuthored(id, loader) {
+    const def = CLEANING_TOOLS[id];
+    if (!def?.fp?.glb) return Promise.resolve({ id, ok: false, reason: 'no authored asset' });
+    if (loaded.has(id)) return Promise.resolve({ id, ok: true, cached: true });
+    if (pending.has(id)) return pending.get(id);
+    const job = new Promise((resolve) => {
         loader.load(def.fp.glb, (gltf) => {
           try {
+            if (disposed) {
+              gltf.scene?.traverse((o) => {
+                if (!o.isMesh) return;
+                o.geometry?.dispose();
+                const materials = Array.isArray(o.material) ? o.material : [o.material];
+                for (const material of materials) material?.dispose();
+              });
+              return resolve({ id: def.id, ok: false, reason: 'disposed' });
+            }
             const group = groups[def.id];
             if (!group) return resolve({ id: def.id, ok: false, reason: 'no group' });
             const root = gltf.scene;
@@ -262,7 +359,7 @@ export function buildToolViewmodels() {
             // where they are, and the authored geometry is transformed to meet them. Visual quality
             // improves; behaviour does not move a millimetre.
             const M_TO_YD = 1.0936133;
-            root.scale.setScalar(M_TO_YD);
+            root.scale.setScalar(M_TO_YD * (def.fp.scale || 1));
             root.rotation.y = Math.PI; // authored +Z forward -> our -Z forward
             root.updateMatrixWorld(true);
 
@@ -334,11 +431,21 @@ export function buildToolViewmodels() {
                 right: def.grip,
                 left: def.support,
               },
+              definition: def,
               lastClip: null,
+              activeName: null,
+              sequence: null,
+              sequenceIndex: 0,
+              pendingLoop: null,
+              onFinished: null,
             };
             loaded.set(def.id, entry);
-            if (def.id === equippedTool) setEquipped(def.id, true);
-            if (activeTools.has(def.id)) setUsing(def.id, true);
+            bindMixerLifecycle(entry);
+            const requested = stateFor(def.id);
+            entry.equipped = requested.equipped;
+            entry.active = requested.using;
+            entry.using = requested.using;
+            applyMotionState(def.id);
             resolve({ id: def.id, ok: true });
           } catch (err) {
             resolve({ id: def.id, ok: false, reason: err.message });
@@ -348,8 +455,16 @@ export function buildToolViewmodels() {
           // fully playable. Report it rather than throwing away a working viewmodel.
           resolve({ id: def.id, ok: false, reason: err?.message || 'load failed' });
         });
-      }));
-    }
+      });
+    pending.set(id, job);
+    job.finally(() => pending.delete(id));
+    return job;
+  }
+
+  async function adoptAuthored(loader, onReady) {
+    const jobs = Object.values(CLEANING_TOOLS)
+      .filter((def) => def.fp?.glb)
+      .map((def) => ensureAuthored(def.id, loader));
     const results = await Promise.all(jobs);
     if (onReady) onReady(results);
     return results;
@@ -358,6 +473,7 @@ export function buildToolViewmodels() {
   return {
     groups,
     adoptAuthored,
+    ensureAuthored,
     authoredCount: () => loaded.size,
     setTool,
     setActive,
@@ -402,9 +518,20 @@ export function buildToolViewmodels() {
       return true;
     },
     update(dtSec) {
-      const dt = Math.max(0, Math.min(0.1, Number(dtSec) || 0));
-      for (const entry of loaded.values()) entry.mixer?.update(dt);
+      const dt = Math.max(0, Number(dtSec) || 0);
+      for (const [id, entry] of loaded.entries()) {
+        const state = stateFor(id);
+        if (state.equipped || state.using) entry.mixer?.update(dt);
+      }
     },
+    motionDiagnostics: () => Object.freeze([...loaded.entries()].map(([id, entry]) => Object.freeze({
+      id,
+      clipCount: entry.clips.length,
+      activeClip: entry.activeName,
+      using: stateFor(id).using,
+      equipped: stateFor(id).equipped,
+      mixerTime: entry.mixer?.time ?? null,
+    }))),
     diagnostics: () => ({
       authoredCount: loaded.size,
       authored: loaded.size,
@@ -441,6 +568,7 @@ export function buildToolViewmodels() {
         detachedMaterials++;
       }
       for (const entry of loaded.values()) {
+        if (entry.mixer && entry.onFinished) entry.mixer.removeEventListener('finished', entry.onFinished);
         entry.mixer?.stopAllAction();
         entry.mixer?.uncacheRoot(entry.root);
       }
@@ -449,8 +577,10 @@ export function buildToolViewmodels() {
       return { detachedGeometries, detachedMaterials, mixers: loaded.size };
     },
     dispose() {
+      disposed = true;
       for (const entry of loaded.values()) {
         for (const action of entry.actions) action.stop();
+        if (entry.mixer && entry.onFinished) entry.mixer.removeEventListener('finished', entry.onFinished);
         entry.mixer?.stopAllAction();
         entry.mixer?.uncacheRoot(entry.root);
         entry.root.traverse((o) => {
@@ -461,6 +591,8 @@ export function buildToolViewmodels() {
         });
       }
       loaded.clear();
+      pending.clear();
+      motionState.clear();
       activeTools.clear();
       for (const g of geoCache.values()) g.dispose();
       for (const m of mats.values()) m.dispose();

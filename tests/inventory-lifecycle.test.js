@@ -30,8 +30,8 @@ test('fresh-state migration captures physical opening stock without changing it'
   const lifecycle = state.shop.inventoryLifecycle;
 
   assert.equal(lifecycle.schemaVersion, 1);
-  assert.equal(inventoryPosition(state, 'balls1').shelf, 10);
-  assert.equal(inventoryPosition(state, 'tees1').shelf, 14);
+  assert.equal(inventoryPosition(state, 'balls1').shelf, state.shop.inventory.balls1.shelf);
+  assert.equal(inventoryPosition(state, 'tees1').shelf, state.shop.inventory.tees1.shelf);
   assert.equal(reconcileInventory(state).ok, true);
 
   // Ensuring twice is a pure normalization pass, not a second opening balance.

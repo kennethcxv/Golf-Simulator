@@ -46,6 +46,7 @@ import {
 } from './propertyInventory.js';
 import { ensureConstructionFinishes } from './constructionFinishes.js';
 import { ensureCleaningToolState } from './cleaningToolState.js';
+import { deliveryTimingOf, isStarterDelivery, quoteDelivery } from './deliveryEta.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -490,7 +491,47 @@ export function orderCost(sku, qty) {
 
 // each order ships into a two-hour window on its arrival day; the truck lands
 // at a specific (deterministic per order) minute inside it
-export function placeOrder(state, skuId, qty) {
+const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
+
+export const DELIVERY_TRACKING_MILESTONES = Object.freeze([
+  Object.freeze({ id: 'received', label: 'Ordered', statusIndex: 0 }),
+  Object.freeze({ id: 'packed', label: 'Packed', statusIndex: 2 }),
+  Object.freeze({ id: 'out', label: 'On road', statusIndex: 4 }),
+  Object.freeze({ id: 'arriving', label: 'Arriving', statusIndex: 5 }),
+]);
+
+const DELIVERY_STATUS_INDEX = Object.freeze({
+  received: 0, processing: 1, packed: 2, shipped: 3, out: 4, arriving: 5, delivered: 6,
+});
+const PRIORITY_MINIMUM_LEAD_MINUTES = 90;
+
+function chargeOrderSurcharge(state, order, amount, kind) {
+  const surcharge = Math.round((Number(amount) || 0) * 100) / 100;
+  if (!(surcharge > 0)) return { ok: true, amount: 0 };
+  if (state.cash < surcharge) return { ok: false, reason: 'Not enough cash.' };
+  const posted = addExpense(state, 'shopOrders', surcharge, {
+    idempotencyKey: `supplier-order:${order.id}:${kind}`,
+    relatedId: order.id,
+    description: `${kind === 'priority' ? 'Priority dispatch' : 'Express supplier handling'} for order ${order.id}`,
+    source: 'supplier-order',
+    accountingClass: 'inventory',
+  });
+  if (!posted.ok || posted.duplicate) {
+    return { ok: false, reason: posted.reason || 'This delivery surcharge was already charged.' };
+  }
+  order.cost = Math.round(((order.cost || 0) + surcharge) * 100) / 100;
+  order.totalCost = Math.round(((order.totalCost || 0) + surcharge) * 100) / 100;
+  order.chargeAmount = Math.round(((order.chargeAmount || 0) + surcharge) * 100) / 100;
+  order.accountingBreakdown ||= { inventory: 0, capital: 0 };
+  order.accountingBreakdown.inventory = Math.round(
+    ((order.accountingBreakdown.inventory || 0) + surcharge) * 100,
+  ) / 100;
+  order.surchargeLedgerKeys ||= {};
+  order.surchargeLedgerKeys[kind] = posted.entry?.idempotencyKey || null;
+  return { ok: true, amount: surcharge };
+}
+
+export function placeOrder(state, skuId, qty, { service = 'standard' } = {}) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (RETAIL_CATS.has(sku.cat) && !shopCategoryUnlocked(state, sku.cat)) {
@@ -511,6 +552,40 @@ export function placeOrder(state, skuId, qty) {
   const purchase = submitPurchaseOrders(state, { lines: [{ skuId, quantity: qty }] });
   if (!purchase.ok) return { ok: false, reason: purchase.reason };
   const purchasedOrder = purchase.orders[0];
+
+  const starter = isStarterDelivery(state);
+  const eta = quoteDelivery(state, sku, qty, {
+    service,
+    orderId: purchasedOrder.id,
+    starter,
+    goods: purchasedOrder.goods,
+    freight: purchasedOrder.shippingCost,
+  });
+  const surcharge = chargeOrderSurcharge(state, purchasedOrder, eta.expressFee, 'express');
+  if (!surcharge.ok) {
+    cancelPurchaseOrder(state, purchasedOrder.id);
+    return surcharge;
+  }
+  if (starter && state.shop.starterOrderMin == null) state.shop.starterOrderMin = state.clock.minutes;
+  Object.assign(purchasedOrder, {
+    service: eta.service,
+    pace: eta.pace,
+    expressFee: eta.expressFee,
+    arrivesDay: eta.arrivesDay,
+    placedMin: eta.placedMin,
+    deliveryEtaMin: eta.deliveryMin,
+    deliveryMin: eta.deliveryMin,
+    window: { ...eta.window },
+    timing: {
+      processingMinutes: eta.processingMinutes,
+      transitMinutes: eta.transitMinutes,
+      dispatchMin: eta.dispatchMin,
+      supplierSpeedModifier: eta.supplierSpeedModifier,
+      expressModifier: eta.expressModifier,
+    },
+    status: 'received',
+    notif: {},
+  });
 
   if (placeableSpecBySkuId(skuId)) {
     const ownership = registerPlaceablePurchase(state, skuId, qty, {
@@ -533,6 +608,15 @@ export function placeOrder(state, skuId, qty) {
       open: Math.max(state.clock.minutes + 3, deliveryMin - 6),
       close: deliveryMin + 24,
     };
+    purchasedOrder.pace = 'campaign';
+    const processingMinutes = Math.max(1, Math.floor((deliveryMin - purchasedOrder.placedMin) * 0.4));
+    purchasedOrder.timing = {
+      processingMinutes,
+      transitMinutes: deliveryMin - purchasedOrder.placedMin - processingMinutes,
+      dispatchMin: purchasedOrder.placedMin + processingMinutes,
+      supplierSpeedModifier: 1,
+      expressModifier: 1,
+    };
     if (sku.campaign) {
       state.campaign.purchased ||= {};
       state.campaign.purchased[skuId] = Math.max(
@@ -547,12 +631,14 @@ export function placeOrder(state, skuId, qty) {
     cost: purchasedOrder.totalCost,
     goods: purchasedOrder.goods,
     fee: purchasedOrder.shippingCost,
+    expressFee: purchasedOrder.expressFee,
     order: purchasedOrder,
     boxes: purchasedOrder.manifest.boxCount,
     weight: purchasedOrder.manifest.weight,
     supplier: purchasedOrder.supplier,
   };
 
+  /* Superseded by the conserved-inventory purchase path above.
   // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
   // stands there — one object, read twice, so the two can never disagree.
   const manifest = planShipment(sku, qty);
@@ -628,7 +714,7 @@ export function placeOrder(state, skuId, qty) {
     weight: purchasedOrder.manifest.weight,
     supplier: purchasedOrder.supplier,
   };
-
+  */
 }
 
 // WHERE AN ORDER IS, AT A GIVEN MINUTE.
@@ -653,6 +739,102 @@ export function orderStatusAt(o, nowMin) {
   if (t >= lead * 0.30) return 'packed';
   if (t >= lead * 0.08) return 'processing';
   return 'received';
+}
+
+// A live tracker derived from the clock and the one delivery appointment already
+// persisted on the order. No progress state is accumulated, so sleep, reload and
+// large time jumps cannot make the laptop disagree with the van.
+export function deliveryTracking(order, nowMin) {
+  const fallbackDay = Number.isFinite(order.arrivesDay) ? order.arrivesDay : Math.floor(nowMin / 1440);
+  const deliveryMin = Number.isFinite(order.deliveryMin)
+    ? order.deliveryMin
+    : Number.isFinite(order.window && order.window.open)
+      ? order.window.open
+      : fallbackDay * 1440 + 10 * 60;
+  const placedMin = Number.isFinite(order.placedMin) ? order.placedMin : Math.min(nowMin, deliveryMin - 1);
+  const computedStatus = orderStatusAt({ ...order, deliveryMin, placedMin }, nowMin);
+  const status = order.blocked ? 'blocked' : computedStatus;
+  const statusIndex = order.blocked ? 5 : (DELIVERY_STATUS_INDEX[computedStatus] ?? 0);
+  const lead = Math.max(1, deliveryMin - placedMin);
+  const progress = order.blocked
+    ? 98
+    : Math.round(clamp((nowMin - placedMin) / lead, 0, 1) * 100);
+  const activeMilestone = statusIndex >= 5 ? 3 : statusIndex >= 4 ? 2 : statusIndex >= 2 ? 1 : 0;
+  const delivered = statusIndex >= DELIVERY_STATUS_INDEX.delivered;
+
+  return {
+    status,
+    statusIndex,
+    progress,
+    deliveryMin,
+    etaMinutes: Math.max(0, deliveryMin - nowMin),
+    blocked: !!order.blocked,
+    priority: !!order.priority,
+    milestones: DELIVERY_TRACKING_MILESTONES.map((milestone, index) => ({
+      ...milestone,
+      state: delivered || index < activeMilestone ? 'done' : index === activeMilestone ? 'active' : 'pending',
+    })),
+  };
+}
+
+function prioritySchedule(order, nowMin) {
+  const threshold = Math.ceil(nowMin + PRIORITY_MINIMUM_LEAD_MINUTES);
+  const currentDelivery = Number(order.deliveryMin);
+  if (!Number.isFinite(currentDelivery) || threshold >= currentDelivery) return null;
+  const remaining = currentDelivery - nowMin;
+  const requestedSaving = Math.max(30, Math.round(remaining * 0.35));
+  const deliveryMin = Math.max(threshold, currentDelivery - requestedSaving);
+  if (deliveryMin >= currentDelivery) return null;
+  const halfWindow = 15;
+  return {
+    arrivesDay: Math.floor(deliveryMin / 1440),
+    window: { open: Math.max(nowMin + 1, deliveryMin - halfWindow), close: deliveryMin + halfWindow },
+    deliveryMin,
+  };
+}
+
+export function priorityDeliveryQuote(state, orderId, nowMin = state.clock.minutes) {
+  const order = state.shop && state.shop.orders && state.shop.orders.find((o) => o.id === orderId);
+  if (!order) return { ok: false, reason: 'No such order.' };
+  if (order.priority) return { ok: false, reason: 'Priority dispatch is already booked.' };
+  if (order.blocked) return { ok: false, reason: 'Clear the receiving pad before changing this delivery.' };
+  const tracking = deliveryTracking(order, nowMin);
+  if (!['received', 'processing', 'packed'].includes(tracking.status)) {
+    return { ok: false, reason: 'This order is already on the road.' };
+  }
+  const schedule = prioritySchedule(order, nowMin);
+  if (!schedule) return { ok: false, reason: 'No earlier priority window is available.' };
+  const boxCount = (order.manifest && order.manifest.boxCount) || 1;
+  const goods = Number.isFinite(order.goods) ? order.goods : Math.max(0, order.cost - (order.fee || 0));
+  const fee = Math.round(Math.max(18, goods * 0.08 + boxCount * 3) * 100) / 100;
+  return {
+    ok: true,
+    fee,
+    minutesSaved: Math.round(order.deliveryMin - schedule.deliveryMin),
+    schedule,
+  };
+}
+
+export function expediteOrder(state, orderId) {
+  const quote = priorityDeliveryQuote(state, orderId, state.clock.minutes);
+  if (!quote.ok) return quote;
+  if (state.cash < quote.fee) return { ok: false, reason: 'Not enough cash for priority dispatch.' };
+  const order = state.shop.orders.find((o) => o.id === orderId);
+  const charged = chargeOrderSurcharge(state, order, quote.fee, 'priority');
+  if (!charged.ok) return charged;
+  order.priorityFee = quote.fee;
+  order.priority = true;
+  order.arrivesDay = quote.schedule.arrivesDay;
+  order.window = { ...quote.schedule.window };
+  order.deliveryMin = quote.schedule.deliveryMin;
+  order.status = orderStatusAt(order, state.clock.minutes);
+  order.notif = {};
+  notify(state, {
+    kind: 'delivery',
+    text: `Priority dispatch booked for order #${order.id}. The van is due in the new delivery window.`,
+    dedupeKey: `priority:${order.id}`,
+  });
+  return { ...quote, order };
 }
 
 // --- WHAT ACTUALLY SOLD, LINE BY LINE ------------------------------------------------------
@@ -822,9 +1004,24 @@ export function tickDeliveries(state, nowMin) {
       o.notif.dispatched = true;
       events.push({ kind: 'dispatched', order: o });
     }
-    if (!o.notif.soon && nowMin >= o.deliveryMin - 30 && nowMin < o.deliveryMin) {
+    const morningMin = o.arrivesDay * 1440 + 6 * 60;
+    if (!o.notif.morning && nowMin >= morningMin && nowMin < o.window.open && nowMin < timing.dispatchMin) {
+      o.notif.morning = true;
+      events.push({ kind: 'morning', order: o });
+      notify(state, {
+        kind: 'delivery',
+        text: `Order #${o.id} is due today in its scheduled delivery window. Keep the receiving pad clear.`,
+        dedupeKey: `delivery-morning:${o.id}`,
+      });
+    }
+    if (!o.notif.soon && nowMin >= o.deliveryMin - 60 && nowMin < o.deliveryMin) {
       o.notif.soon = true;
       events.push({ kind: 'soon', order: o });
+      notify(state, {
+        kind: 'delivery',
+        text: `Order #${o.id} is less than an hour from its scheduled arrival.`,
+        dedupeKey: `delivery-soon:${o.id}`,
+      });
     }
   }
   if (arrivals.length) {
@@ -832,11 +1029,12 @@ export function tickDeliveries(state, nowMin) {
     for (const arrival of arrivals) {
       const o = arrival.order;
       const boxes = arriveOrder(state, o, { maxBoxes: arrival.count });
-      const complete = o.remainingUnreceivedQuantity <= 0;
-      if (complete) completed.push(o);
+      const landedOrder = state.shop.orders.find((candidate) => candidate.id === o.id) || o;
+      const complete = landedOrder.remainingUnreceivedQuantity <= 0;
+      if (complete) completed.push(landedOrder);
       events.push({
         kind: complete ? 'arrived' : 'partial-arrival',
-        order: o,
+        order: landedOrder,
         boxes,
         usedFallback: boxes.some((box) => box.loc === 'receiving-fallback'),
       });
@@ -884,8 +1082,10 @@ export function deliverOrdersDue(state, dayAbs) {
   const received = [];
   for (const arrival of arrivals) {
     const boxes = arriveOrder(state, arrival.order, { maxBoxes: arrival.count });
-    if (boxes.length) received.push(arrival.order);
-    if (arrival.order.remainingUnreceivedQuantity <= 0) completed.push(arrival.order);
+    const landedOrder = state.shop.orders.find((candidate) => candidate.id === arrival.order.id)
+      || arrival.order;
+    if (boxes.length) received.push(landedOrder);
+    if (landedOrder.remainingUnreceivedQuantity <= 0) completed.push(landedOrder);
   }
   state.shop.orders = state.shop.orders.filter((order) => !completed.includes(order));
   return received;

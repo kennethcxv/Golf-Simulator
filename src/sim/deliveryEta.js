@@ -13,7 +13,7 @@ export const DELIVERY_SERVICE = Object.freeze({
 // 1x), so promises are expressed in useful same-day game hours. These spans let
 // the player finish a shop or grounds task without blocking the opening arc.
 export const DELIVERY_PACE = Object.freeze({
-  starter: { id: 'starter', label: 'Opening order', min: 120, max: 210, window: 30 },
+  starter: { id: 'starter', label: 'Opening order', min: 150, max: 210, window: 30 },
   local: { id: 'local', label: 'Local merchandise', min: 240, max: 420, window: 60 },
   equipment: { id: 'equipment', label: 'Large equipment', min: 480, max: 780, window: 90 },
 });

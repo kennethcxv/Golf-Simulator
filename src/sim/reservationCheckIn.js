@@ -5,6 +5,7 @@
 
 import {
   reservationById,
+  reservationPaymentRevenueSplit,
   RESERVATION_DEPOSIT_TYPE,
   reservationDepositReference,
 } from './reservations.js';
@@ -21,17 +22,45 @@ import {
   completeServicePayment,
   serviceTicketByReference,
 } from './register.js';
+import { beginCartTrip } from './cartFleet.js';
 
 export const RESERVATION_CHECK_IN_TYPE = 'reservation-check-in';
 export const GREEN_FEE_SKU = 'service:green-fee';
+export const CART_RENTAL_SKU = 'service:cart-rental';
 
 const round2 = (value) => Math.round(Number(value) * 100) / 100;
 
 function paymentAmountFor(reservation) {
-  return round2(reservation.balanceDue != null ? reservation.balanceDue : reservation.fee);
+  const value = Number.isFinite(reservation.balanceDue) ? reservation.balanceDue
+    : Number.isFinite(reservation.fee) ? reservation.fee : 0;
+  return round2(value);
+}
+
+function paymentLinesFor(reservation) {
+  const split = reservationPaymentRevenueSplit(reservation, paymentAmountFor(reservation));
+  const referenceId = reservationPaymentReference(reservation.id);
+  const lines = [];
+  if (split.greenFees > 0 || split.rentals <= 0) {
+    lines.push({
+      uid: `${referenceId}:green-fee`, skuId: GREEN_FEE_SKU,
+      name: 'Green Fee', price: split.greenFees,
+    });
+  }
+  if (split.rentals > 0) {
+    lines.push({
+      uid: `${referenceId}:cart-rental`, skuId: CART_RENTAL_SKU,
+      name: `Cart Rental (${reservation.cartsRequested || 1})`, price: split.rentals,
+    });
+  }
+  return { lines, split };
 }
 
 function ticketedDepositIsConsistent(state, reservation) {
+  if ((reservation.depositPaid || 0) > 0
+    && !reservation.depositReferenceId
+    && (reservation.depositStatus === 'none' || reservation.depositStatus == null)) {
+    reservation.depositStatus = 'legacy-untracked';
+  }
   if (reservation.depositStatus !== 'paid' && !reservation.depositReferenceId) return true;
   const depositPaid = round2(reservation.depositPaid || 0);
   const expected = round2(reservation.fee - depositPaid);
@@ -69,21 +98,22 @@ export function createReservationCheckInTx(state, reservationId, {
   if (typeof rng !== 'function') return { ok: false, reason: 'A payment random source is required.' };
 
   const referenceId = reservationPaymentReference(reservation.id);
-  const uid = `${referenceId}:green-fee`;
+  const { lines, split } = paymentLinesFor(reservation);
   const tx = createTx({
-    items: [{ uid, skuId: GREEN_FEE_SKU, name: 'Green Fee', price: amount }],
+    items: lines,
     mode: state.mode || 'relaxed',
     prefer: method,
     rng,
   });
   // It is a virtual line on the shared monitor, not a physical product.  Marking
   // it scanned lets the existing requestPayment/card/cash APIs run unchanged.
-  tx.items[0].scanned = true;
+  for (const item of tx.items) item.scanned = true;
   tx.kind = 'service';
   tx.servicePayment = {
     type: RESERVATION_CHECK_IN_TYPE,
     referenceId,
     revenueKey: 'greenFees',
+    revenueSplit: split,
     amount,
     reservationId: reservation.id,
   };
@@ -146,7 +176,17 @@ export function finalizeReservationCheckIn(
 
   const snapshottedFee = paymentAmountFor(reservation);
   const referenceId = reservationPaymentReference(reservation.id);
-  const virtualLine = tx.items && tx.items.length === 1 ? tx.items[0] : null;
+  const expectedPayment = paymentLinesFor(reservation);
+  const paymentLinesMatch = Array.isArray(tx.items)
+    && tx.items.length === expectedPayment.lines.length
+    && tx.items.every((item, index) => {
+      const expected = expectedPayment.lines[index];
+      return item.uid === expected.uid
+        && item.skuId === expected.skuId
+        && item.name === expected.name
+        && round2(item.price) === round2(expected.price)
+        && item.scanned === true;
+    });
   if (
     !Number.isFinite(snapshottedFee)
     || snapshottedFee < 0
@@ -154,11 +194,7 @@ export function finalizeReservationCheckIn(
     || service.referenceId !== referenceId
     || round2(service.amount) !== snapshottedFee
     || !ticketedDepositIsConsistent(state, reservation)
-    || !virtualLine
-    || virtualLine.uid !== `${referenceId}:green-fee`
-    || virtualLine.skuId !== GREEN_FEE_SKU
-    || round2(virtualLine.price) !== snapshottedFee
-    || virtualLine.scanned !== true
+    || !paymentLinesMatch
     || round2(tx.discount || 0) !== 0
     || round2(totalOf(tx)) !== snapshottedFee
     || round2(dueOf(tx)) !== snapshottedFee
@@ -173,6 +209,7 @@ export function finalizeReservationCheckIn(
     type: RESERVATION_CHECK_IN_TYPE,
     referenceId,
     revenueKey: 'greenFees',
+    revenueSplit: expectedPayment.split,
     expectedTotal: snapshottedFee,
     customer: reservation.fullName || reservation.name,
     details: {
@@ -183,6 +220,9 @@ export function finalizeReservationCheckIn(
       depositPaid: round2(reservation.depositPaid || 0),
       depositReferenceId: reservation.depositReferenceId || null,
       totalReservationFee: round2(reservation.fee),
+      greenFeeSubtotal: round2(reservation.greenFeeSubtotal ?? reservation.fee),
+      cartRentalFee: round2(reservation.cartRentalFee || 0),
+      cartsRequested: reservation.cartsRequested || 0,
     },
   });
   if (!banked.ok) return banked;
@@ -208,6 +248,7 @@ export function finalizeReservationCheckIn(
   reservation.currentDestination = 'course';
   reservation.arrivalStatus = 'arrived';
   reservation.checkInStatus = 'checked-in';
+  const cart = beginCartTrip(state, reservation, { at: reservation.checkedInAt });
   if (!reservation.visitHistoryRecorded && reservation.customerId) {
     const recorded = recordCustomerVisit(state, reservation.customerId, {
       dayAbs: reservation.dayAbs,
@@ -225,5 +266,6 @@ export function finalizeReservationCheckIn(
     reservation,
     receipt: fulfilled.receipt,
     ticket: banked.ticket,
+    cart,
   };
 }

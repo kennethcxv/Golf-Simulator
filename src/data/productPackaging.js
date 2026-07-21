@@ -156,6 +156,7 @@ export const PACKAGING_LAYOUTS = deepFreeze({
   FIXTURE1: layout('FIXTURE1', 'FIXTURE_PACKAGE', 1, dimensions(0.59, 0.50, 0.37)),
   FURNITURE1: layout('FURNITURE1', 'FURNITURE_CRATE', 1, dimensions(1.19, 0.90, 0.79)),
   DRINK12: layout('DRINK12', 'BULK_PROVISIONS', 12, dimensions(0.075, 0.23, 0.075)),
+  BOTTLE8: layout('BOTTLE8', 'BULK_PROVISIONS', 8, dimensions(0.09, 0.25, 0.09)),
   // The project-owned Bunker Bites pouch is 160 x 195 x 71.5 mm. Three
   // face-out pouches span the exact 0.48 m clear width of the bulk carton;
   // the authored sockets provide the packing clearance without shrinking it.
@@ -176,12 +177,14 @@ const RETAIL_FIXTURES = {
   glove: ['shelf_small'],
   polo: ['table_polos'],
   cap: ['hatstand'],
-  jacket: ['rail_outer'],
+  jacket: ['shelf_small'],
   accessories: ['shelf_acc'],
   bag: ['bagstand'],
   shoe: ['shoerack'],
   socks: ['shelf_small'],
-  provisions: ['snackrack'],
+  drinks: ['cold_drinks'],
+  snacks: ['snack_rack'],
+  scorecards: ['member_station'],
 };
 
 function product({
@@ -248,6 +251,7 @@ const PRODUCT_SPECS = [
   product({ skuId: 'irons2', status: 'retail', category: 'clubs', physical: dimensions(1.04, 0.0807, 0.1584), packed: dimensions(1.07, 0.19, 0.19), packedState: 'complete-set-bundled-with-head-divider', packedOrientation: 'lengthwise-single-set', layoutId: 'IRONSET1', unitWeightLb: 8.5, longProduct: true, fixtureIds: RETAIL_FIXTURES.irons, exceptionProfile: 'IRON_SET1' }),
   product({ skuId: 'putter1', status: 'retail', category: 'clubs', physical: dimensions(0.94, 0.0517, 0.0542), packed: dimensions(0.97, 0.07, 0.09), packedState: 'head-and-shaft-guarded', packedOrientation: 'lengthwise-heads-opposed', layoutId: 'CLUB2', unitWeightLb: 1.2, longProduct: true, fixtureIds: RETAIL_FIXTURES.putter }),
   product({ skuId: 'putter2', status: 'retail', category: 'clubs', physical: dimensions(0.96, 0.0528, 0.0554), packed: dimensions(0.99, 0.07, 0.09), packedState: 'head-and-shaft-guarded', packedOrientation: 'lengthwise-heads-opposed', layoutId: 'CLUB2', unitWeightLb: 1.2, longProduct: true, fixtureIds: RETAIL_FIXTURES.putter }),
+  product({ skuId: 'putter3', status: 'retail', category: 'clubs', physical: dimensions(0.98, 0.0540, 0.0570), packed: dimensions(1.01, 0.075, 0.095), packedState: 'head-and-shaft-guarded', packedOrientation: 'lengthwise-heads-opposed', layoutId: 'CLUB2', unitWeightLb: 1.2, longProduct: true, fixtureIds: RETAIL_FIXTURES.putter }),
   product({ skuId: 'wedge1', status: 'retail', category: 'clubs', physical: dimensions(0.96, 0.0779, 0.0710), packed: dimensions(0.99, 0.085, 0.10), packedState: 'head-and-shaft-guarded', packedOrientation: 'lengthwise-heads-opposed', layoutId: 'CLUB2', unitWeightLb: 0.95, longProduct: true, fixtureIds: RETAIL_FIXTURES.irons }),
   product({ skuId: 'wedge2', status: 'retail', category: 'clubs', physical: dimensions(0.98, 0.0795, 0.0725), packed: dimensions(1.01, 0.085, 0.10), packedState: 'head-and-shaft-guarded', packedOrientation: 'lengthwise-heads-opposed', layoutId: 'CLUB2', unitWeightLb: 0.95, longProduct: true, fixtureIds: RETAIL_FIXTURES.irons }),
 
@@ -256,19 +260,29 @@ const PRODUCT_SPECS = [
   product({ skuId: 'balls3', status: 'retail', category: 'balls', physical: dimensions(0.155, 0.0740, 0.1288), packed: dimensions(0.155, 0.0740, 0.1288), packedState: 'sealed-retail-dozen-carton', packedOrientation: 'brand-face-up', layoutId: 'BALL12', unitWeightLb: 1.4, fixtureIds: RETAIL_FIXTURES.balls }),
 
   product({ skuId: 'glove1', status: 'retail', category: 'apparel', physical: dimensions(0.1723, 0.0293, 0.2200), packed: dimensions(0.22, 0.03, 0.18), packedState: 'retail-hang-card-flat', packedOrientation: 'cards-face-up', layoutId: 'GLOVE8', unitWeightLb: 0.1, fixtureIds: RETAIL_FIXTURES.glove }),
+  product({ skuId: 'glove2', status: 'retail', category: 'apparel', physical: dimensions(0.1723, 0.0293, 0.2200), packed: dimensions(0.22, 0.03, 0.18), packedState: 'retail-hang-card-flat', packedOrientation: 'cards-face-up', layoutId: 'GLOVE8', unitWeightLb: 0.1, fixtureIds: RETAIL_FIXTURES.glove }),
   product({ skuId: 'polo1', status: 'retail', category: 'apparel', physical: dimensions(0.2000, 0.0925, 0.1650), packed: dimensions(0.2000, 0.0925, 0.1650), packedState: 'folded-with-tissue-and-size-tag', packedOrientation: 'collar-face-up', layoutId: 'APPAREL8', unitWeightLb: 0.5, fixtureIds: RETAIL_FIXTURES.polo }),
   product({ skuId: 'polo2', status: 'retail', category: 'apparel', physical: dimensions(0.2000, 0.0925, 0.1650), packed: dimensions(0.2000, 0.0925, 0.1650), packedState: 'folded-with-tissue-and-size-tag', packedOrientation: 'collar-face-up', layoutId: 'APPAREL8', unitWeightLb: 0.5, fixtureIds: RETAIL_FIXTURES.polo }),
+  product({ skuId: 'pants2', status: 'retail', category: 'apparel', physical: dimensions(0.2200, 0.1050, 0.1900), packed: dimensions(0.2200, 0.1000, 0.1900), packedState: 'folded-compressed-with-tissue-and-size-tag', packedOrientation: 'waistband-face-up', layoutId: 'APPAREL8', unitWeightLb: 1.0, fixtureIds: RETAIL_FIXTURES.polo }),
+  product({ skuId: 'shorts1', status: 'retail', category: 'apparel', physical: dimensions(0.2100, 0.0950, 0.1800), packed: dimensions(0.2100, 0.0950, 0.1800), packedState: 'folded-with-tissue-and-size-tag', packedOrientation: 'waistband-face-up', layoutId: 'APPAREL8', unitWeightLb: 0.7, fixtureIds: RETAIL_FIXTURES.polo }),
   product({ skuId: 'cap1', status: 'retail', category: 'apparel', physical: dimensions(0.2081, 0.1235, 0.2100), packed: dimensions(0.2081, 0.0700, 0.2100), packedState: 'nested-crowns-with-tissue-form', packedOrientation: 'bills-aligned-face-front', layoutId: 'CAP_NEST8', unitWeightLb: 0.25, fixtureIds: RETAIL_FIXTURES.cap }),
+  product({ skuId: 'cap2', status: 'retail', category: 'apparel', physical: dimensions(0.2081, 0.1235, 0.2100), packed: dimensions(0.2081, 0.0700, 0.2100), packedState: 'nested-crowns-with-tissue-form', packedOrientation: 'bills-aligned-face-front', layoutId: 'CAP_NEST8', unitWeightLb: 0.25, fixtureIds: RETAIL_FIXTURES.cap }),
   product({ skuId: 'jacket2', status: 'retail', category: 'apparel', physical: dimensions(0.2150, 0.0947, 0.1822), packed: dimensions(0.2150, 0.0947, 0.1822), packedState: 'folded-with-tissue-and-size-tag', packedOrientation: 'zipper-face-up', layoutId: 'APPAREL8', unitWeightLb: 1.3, fixtureIds: RETAIL_FIXTURES.jacket }),
   product({ skuId: 'shoe1', status: 'retail', category: 'apparel', physical: dimensions(0.3100, 0.1150, 0.1900), packed: dimensions(0.32, 0.13, 0.24), packedState: 'pair-in-retail-shoe-box-with-tissue', packedOrientation: 'toe-end-face-front', layoutId: 'SHOE4', unitWeightLb: 2.4, fixtureIds: RETAIL_FIXTURES.shoe }),
+  product({ skuId: 'shoe3', status: 'retail', category: 'apparel', physical: dimensions(0.3150, 0.1200, 0.1950), packed: dimensions(0.32, 0.13, 0.24), packedState: 'pair-in-retail-shoe-box-with-tissue', packedOrientation: 'toe-end-face-front', layoutId: 'SHOE4', unitWeightLb: 2.1, fixtureIds: RETAIL_FIXTURES.shoe }),
   product({ skuId: 'sock1', status: 'retail', category: 'apparel', physical: dimensions(0.1500, 0.0731, 0.1269), packed: dimensions(0.1500, 0.0731, 0.1269), packedState: 'banded-folded-pair', packedOrientation: 'label-face-up', layoutId: 'FLAT8', unitWeightLb: 0.15, fixtureIds: RETAIL_FIXTURES.socks }),
 
   product({ skuId: 'tees1', status: 'retail', category: 'accessories', physical: dimensions(0.1300, 0.1200, 0.0460), packed: dimensions(0.1300, 0.1200, 0.0460), packedState: 'sealed-retail-pouch', packedOrientation: 'label-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.35, fixtureIds: RETAIL_FIXTURES.accessories }),
   product({ skuId: 'towel1', status: 'retail', category: 'accessories', physical: dimensions(0.2000, 0.1034, 0.0751), packed: dimensions(0.2000, 0.1034, 0.0751), packedState: 'rolled-and-banded', packedOrientation: 'hang-tag-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.4, fixtureIds: RETAIL_FIXTURES.accessories }),
   product({ skuId: 'marker1', status: 'retail', category: 'accessories', physical: dimensions(0.1400, 0.1050, 0.0195), packed: dimensions(0.1400, 0.1050, 0.0195), packedState: 'sealed-retail-blister-card', packedOrientation: 'card-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.2, fixtureIds: RETAIL_FIXTURES.accessories }),
+  product({ skuId: 'divot1', status: 'retail', category: 'accessories', physical: dimensions(0.1200, 0.1000, 0.0180), packed: dimensions(0.1200, 0.1000, 0.0180), packedState: 'sealed-retail-blister-card', packedOrientation: 'card-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.15, fixtureIds: RETAIL_FIXTURES.accessories }),
   product({ skuId: 'range2', status: 'retail', category: 'accessories', physical: dimensions(0.1900, 0.1023, 0.1435), packed: dimensions(0.1900, 0.1023, 0.1435), packedState: 'retail-box-in-padded-cell', packedOrientation: 'display-face-up', layoutId: 'RANGE4', unitWeightLb: 0.75, fragile: true, fixtureIds: RETAIL_FIXTURES.accessories }),
+  product({ skuId: 'sunglasses2', status: 'retail', category: 'accessories', physical: dimensions(0.1800, 0.0700, 0.0800), packed: dimensions(0.1900, 0.1000, 0.1000), packedState: 'hard-case-in-padded-cell', packedOrientation: 'display-face-up', layoutId: 'RANGE4', unitWeightLb: 0.15, fragile: true, fixtureIds: RETAIL_FIXTURES.accessories }),
+  product({ skuId: 'bottle1', status: 'retail', category: 'accessories', physical: dimensions(0.0750, 0.2400, 0.0750), packed: dimensions(0.0750, 0.2400, 0.0750), packedState: 'protective-sleeve-upright', packedOrientation: 'upright-labels-out', layoutId: 'BOTTLE8', unitWeightLb: 0.7, fixtureIds: RETAIL_FIXTURES.accessories }),
   product({ skuId: 'umb1', status: 'retail', category: 'accessories', physical: dimensions(0.8400, 0.1116, 0.1077), packed: dimensions(0.86, 0.115, 0.112), packedState: 'sleeved-with-tip-and-handle-guards', packedOrientation: 'lengthwise-alternating-handles', layoutId: 'UMBRELLA6', unitWeightLb: 1.2, longProduct: true, fixtureIds: RETAIL_FIXTURES.accessories, exceptionProfile: 'UMBRELLA_LONG6' }),
   product({ skuId: 'bag1', status: 'retail', category: 'accessories', physical: dimensions(0.72, 0.25, 0.30), packed: dimensions(0.66, 0.24, 0.30), packedState: 'protective-sleeve-with-straps-compressed', packedOrientation: 'length-axis-vertical', layoutId: 'BAG1', unitWeightLb: 5.5, longProduct: true, fixtureIds: RETAIL_FIXTURES.bag }),
+  product({ skuId: 'bag3', status: 'retail', category: 'accessories', physical: dimensions(0.72, 0.25, 0.30), packed: dimensions(0.66, 0.24, 0.30), packedState: 'protective-sleeve-with-straps-compressed', packedOrientation: 'length-axis-vertical', layoutId: 'BAG1', unitWeightLb: 7.5, longProduct: true, fixtureIds: RETAIL_FIXTURES.bag }),
+  product({ skuId: 'scorecard1', status: 'retail', category: 'accessories', physical: dimensions(0.1500, 0.0040, 0.1000), packed: dimensions(0.1500, 0.0200, 0.1000), packedState: 'banded-scorecard-stack', packedOrientation: 'print-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.05, fixtureIds: RETAIL_FIXTURES.scorecards }),
 
   product({ skuId: 'vac1', status: 'nonretail', category: 'supplies', physical: dimensions(0.42, 0.68, 0.38), packed: dimensions(0.58, 0.36, 0.37), packedState: 'hose-and-wand-detached-in-moulded-insert', packedOrientation: 'motor-base-on-side', layoutId: 'FIXTURE1', unitWeightLb: 17, fixtureIds: ['restoration-bay'] }),
   product({ skuId: 'repairkit1', status: 'nonretail', category: 'supplies', physical: dimensions(0.50, 0.25, 0.35), packed: dimensions(0.55, 0.30, 0.35), packedState: 'labelled-replacement-parts-in-divided-tray', packedOrientation: 'hardware-tray-flat', layoutId: 'FIXTURE1', unitWeightLb: 18, fixtureIds: ['campaign-repair-site'] }),
@@ -287,8 +301,13 @@ const PRODUCT_SPECS = [
 
   // Planned sellable provisions. They are included now so the physical delivery contract lands
   // before catalog/save integration and cannot later fall through to a generic carton.
-  product({ skuId: 'water1', status: 'retail', category: 'provisions', physical: dimensions(0.068, 0.218, 0.068), packed: dimensions(0.068, 0.218, 0.068), packedState: 'sealed-pet-bottle-with-tamper-band', packedOrientation: 'upright-labels-out', layoutId: 'DRINK12', unitWeightLb: 1.1, fixtureIds: RETAIL_FIXTURES.provisions }),
-  product({ skuId: 'snack1', status: 'retail', category: 'provisions', physical: dimensions(0.160, 0.195, 0.0715), packed: dimensions(0.160, 0.195, 0.0715), packedState: 'sealed-retail-snack-pouch', packedOrientation: 'upright-labels-out', layoutId: 'SNACK12', unitWeightLb: 0.12, fragile: false, fixtureIds: RETAIL_FIXTURES.provisions }),
+  product({ skuId: 'water1', status: 'retail', category: 'provisions', physical: dimensions(0.068, 0.218, 0.068), packed: dimensions(0.068, 0.218, 0.068), packedState: 'sealed-pet-bottle-with-tamper-band', packedOrientation: 'upright-labels-out', layoutId: 'DRINK12', unitWeightLb: 1.1, fixtureIds: RETAIL_FIXTURES.drinks }),
+  product({ skuId: 'sportdrink2', status: 'retail', category: 'accessories', physical: dimensions(0.072, 0.225, 0.072), packed: dimensions(0.072, 0.225, 0.072), packedState: 'sealed-pet-bottle-with-tamper-band', packedOrientation: 'upright-labels-out', layoutId: 'DRINK12', unitWeightLb: 1.2, fixtureIds: RETAIL_FIXTURES.drinks }),
+  product({ skuId: 'soda1', status: 'retail', category: 'accessories', physical: dimensions(0.066, 0.122, 0.066), packed: dimensions(0.066, 0.122, 0.066), packedState: 'sealed-aluminium-can', packedOrientation: 'upright-labels-out', layoutId: 'DRINK12', unitWeightLb: 0.8, fixtureIds: RETAIL_FIXTURES.drinks }),
+  product({ skuId: 'chips1', status: 'retail', category: 'accessories', physical: dimensions(0.160, 0.195, 0.0715), packed: dimensions(0.160, 0.195, 0.0715), packedState: 'sealed-retail-snack-pouch', packedOrientation: 'upright-labels-out', layoutId: 'SNACK12', unitWeightLb: 0.15, fixtureIds: RETAIL_FIXTURES.snacks }),
+  product({ skuId: 'bar2', status: 'retail', category: 'accessories', physical: dimensions(0.145, 0.055, 0.025), packed: dimensions(0.145, 0.055, 0.025), packedState: 'sealed-retail-bar-wrapper', packedOrientation: 'label-face-up', layoutId: 'SNACK12', unitWeightLb: 0.12, fixtureIds: RETAIL_FIXTURES.snacks }),
+  product({ skuId: 'crackers1', status: 'retail', category: 'accessories', physical: dimensions(0.150, 0.180, 0.060), packed: dimensions(0.150, 0.180, 0.060), packedState: 'sealed-retail-snack-pouch', packedOrientation: 'upright-labels-out', layoutId: 'SNACK12', unitWeightLb: 0.18, fixtureIds: RETAIL_FIXTURES.snacks }),
+  product({ skuId: 'snack1', status: 'retail', category: 'provisions', physical: dimensions(0.160, 0.195, 0.0715), packed: dimensions(0.160, 0.195, 0.0715), packedState: 'sealed-retail-snack-pouch', packedOrientation: 'upright-labels-out', layoutId: 'SNACK12', unitWeightLb: 0.12, fragile: false, fixtureIds: RETAIL_FIXTURES.snacks }),
 ];
 
 export const PRODUCT_PACKAGING = deepFreeze(Object.fromEntries(

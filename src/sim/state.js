@@ -38,6 +38,9 @@ import {
   initCustomerDirectory, ensureCustomerDirectory, reconcileReservationCustomerIdentities,
 } from './customerIdentity.js';
 import { initTractor, ensureTractor } from './tractor.js';
+import { initVehicles, ensureVehicles } from './vehicles.js';
+import { initCartFleet, ensureCartFleet, advanceCartFleet, fleetDailyTick } from './cartFleet.js';
+import { initGolfDay, ensureGolfDay, golfDayTick } from './golfDay.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { ensureSurfaceDamage, surfaceDamageDaily } from './surfaceDamage.js';
 import { ensureMaintenanceOrders, tickMaintenanceOrders } from './maintenanceOrders.js';
@@ -101,7 +104,11 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // future schemas are refused instead of being silently downgraded.
 // v12 adds property-scoped placeable ownership and tiered pro-shop expansion.
 // v13 joins the authored furniture catalog to that ownership/layout boundary.
-export const SAVE_VERSION = 13;
+// v14 adds property-scoped vehicles with stable identity and safe parking state.
+// v15 adds the persistent customer rental-cart fleet and exact-once trips.
+// v16 persists live golf operations so in-flight rounds recover at safe,
+// deterministic checkpoints instead of disappearing on reload.
+export const SAVE_VERSION = 16;
 
 export const MIN_SUPPORTED_SAVE_VERSION = 1;
 export const SAVE_MIGRATIONS = Object.freeze([
@@ -117,6 +124,9 @@ export const SAVE_MIGRATIONS = Object.freeze([
   Object.freeze({ version: 11, name: 'validated-lifecycle-state' }),
   Object.freeze({ version: 12, name: 'property-inventory-and-shop-progression' }),
   Object.freeze({ version: 13, name: 'authored-furniture-catalog' }),
+  Object.freeze({ version: 14, name: 'property-vehicle-fleet' }),
+  Object.freeze({ version: 15, name: 'customer-rental-cart-fleet' }),
+  Object.freeze({ version: 16, name: 'live-golf-day-operations' }),
 ]);
 
 const CLEANING_FIELD = wetGridForRoom(RENO.room);
@@ -273,9 +283,9 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initClub(state);
   initReputation(state);
   initShop(state);
-  ensureInventoryLifecycle(state);
   ensureFurnitureCatalogState(state);
   reconcileShelfCapacity(state.shop);
+  ensureInventoryLifecycle(state);
   // Persisted interaction authorities exist from the first save, not only
   // after the renderer happens to construct the clubhouse or register.
   state.shop.drawer = newDrawer();
@@ -291,10 +301,13 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureProperty(state); // ...and a landlord
   bindPropertyInventory(state, opts.propertyId || `property:${seed}`);
   initReservations(state);
+  initGolfDay(state);
   initCustomerSimulation(state);
   planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   initCustomerDirectory(state);
   initTractor(state);
+  initVehicles(state);
+  initCartFleet(state);
   initCourseProps(state);
   initCourseMaintenance(state);
   initLedger(state);
@@ -321,7 +334,12 @@ export function dailyTick(state) {
       shopDailyAccrual(state);
     }
     if (state.golfers && (!state.campaign?.enabled || state.campaign.businessOpen)) {
-      simulateDayRounds(state, state.club.lastRounds || 0);
+      const livePlayers = (state.golfDay?.completed || [])
+        .filter((round) => round.dayAbs === closingDay)
+        .reduce((sum, round) => sum + Number(round.partySize || 0), 0);
+      // Live rounds already update persistent golfers and reviews. The legacy
+      // demand layer fills only the remaining background traffic.
+      simulateDayRounds(state, Math.max(0, (state.club.lastRounds || 0) - livePlayers));
     }
     if (state.progression) resolveTournamentIfDue(state, closingDay);
     // the rent falls due whether or not it was a good week; it is announced two days out
@@ -348,6 +366,7 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, todayAbs);
+  if (state.cartFleet) fleetDailyTick(state, todayAbs);
   if (state.reservations && (!state.campaign?.enabled || state.campaign.businessOpen)) {
     if (state.reservations.lastOnlineGenerationDayAbs !== todayAbs) {
       state.reservations.lastOnlineGenerationDayAbs = todayAbs;
@@ -399,6 +418,7 @@ export function hourlyTick(state, hourOfDay) {
   }
   turfHourlyTick(state, hourOfDay);
   courseMaintenanceHourlyTick(state, { coarseAdvanced: true });
+  if (state.golfDay) golfDayTick(state, state.clock.minutes);
 }
 
 export function update(state, gameMinutes) {
@@ -421,6 +441,8 @@ export function update(state, gameMinutes) {
   }
   state.clock.minutes = target;
   if (state.reservations) processReservationTimeline(state, { at: target, chargeFees: true });
+  if (state.cartFleet) advanceCartFleet(state, { at: target });
+  if (state.golfDay) golfDayTick(state, target);
   return { daysPassed };
 }
 
@@ -446,16 +468,19 @@ export function snapshot(state) {
   // is their sole identity authority. Reconcile before every persisted snapshot.
   reconcileReservationCustomerIdentities(state);
   const { course, turf } = state;
+  const forward = state.__forwardSaveFields || {};
   return ({
+    ...(forward.top || {}),
     version: SAVE_VERSION,
     mode: state.mode,
     seed: state.seed,
     rngState: state.rngState,
-    clock: { minutes: state.clock.minutes },
+    clock: { ...(forward.clock || {}), minutes: state.clock.minutes },
     cash: Number.isFinite(state.cash) ? Math.round(state.cash * 100) / 100 : 0,
     clubName: state.clubName,
     pendingMorning: state.pendingMorning,
     course: {
+      ...(forward.course || {}),
       w: course.w,
       h: course.h,
       zones: Array.from(course.zones),
@@ -483,9 +508,11 @@ export function snapshot(state) {
       paint: course.paint && course.paint.some((v) => v !== 255) ? Array.from(course.paint) : null,
     },
     weather: {
+      ...(forward.weather || {}),
       today: state.weather.today,
       droughtDays: state.weather.droughtDays,
       bias: state.weather.bias,
+      climate: state.weather.climate || 'temperate',
     },
     maintenance: state.maintenance,
     golfers: state.golfers,
@@ -494,8 +521,11 @@ export function snapshot(state) {
     ledger: state.ledger,
     shop: shopForSave(state.shop),
     reservations: state.reservations,
+    golfDay: state.golfDay,
     customerDirectory: state.customerDirectory,
     tractor: state.tractor,
+    vehicles: state.vehicles,
+    cartFleet: state.cartFleet,
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
@@ -506,6 +536,7 @@ export function snapshot(state) {
     failed: state.failed || null,
     turf: turf
       ? {
+          ...(forward.turf || {}),
           health: Array.from(turf.health, round1),
           moisture: Array.from(turf.moisture, round1),
           nutrients: Array.from(turf.nutrients, round1),
@@ -518,7 +549,10 @@ export function snapshot(state) {
           ballMarks: Array.from(turf.ballMarks || [], round1),
         }
       : null,
-    courseMaintenance: snapshotCourseMaintenance(state.courseMaintenance),
+    courseMaintenance: {
+      ...(forward.courseMaintenance || {}),
+      ...snapshotCourseMaintenance(state.courseMaintenance),
+    },
     reputation: state.reputation,
     business: state.business,
     campaign: state.campaign,
@@ -1056,7 +1090,7 @@ export function deserializeWithReport(json) {
   const domains = [
     'weather', 'maintenance', 'golfers', 'staff', 'club', 'reputation', 'business',
     'ledger', 'shop',
-    'reservations', 'customerDirectory', 'tractor', 'props', 'progression',
+    'reservations', 'golfDay', 'customerDirectory', 'tractor', 'props', 'progression',
     'tutorial', 'notifications', 'uiPrefs', 'property', 'propertyInventory',
   ];
   for (const key of domains) {
@@ -1103,10 +1137,17 @@ export function deserializeWithReport(json) {
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   ensurePropertyInventory(state);
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
+  ensureGolfDay(state, { restoring: true }); // transient shots resume from a safe deterministic checkpoint
   ensureCustomerDirectory(state); // pre-v4 saves gain stable full-name customer authority
   reconcileReservationCustomerIdentities(state); // enroll legacy bookings once, then repair their references
   recoverCustomerSimulation(state);
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
+  if (raw.vehicles) state.vehicles = raw.vehicles;
+  ensureVehicles(state, { recoverActive: true }); // v13 adds stable property-scoped identity; loading parks active input safely
+  if (raw.cartFleet) state.cartFleet = raw.cartFleet;
+  ensureCartFleet(state); // v14 adds the property rental fleet without disturbing the player's utility cart
+  advanceCartFleet(state, { at: state.clock.minutes }); // resume, or safely catch up, a persisted customer round
+  if (raw.props) state.props = raw.props;
   ensureCourseProps(state); // old saves gain the litter/sign restoration props
   ensureMaintenanceOrders(state);
   ensureSurfaceDamage(state);
@@ -1133,6 +1174,36 @@ export function deserializeWithReport(json) {
     min: 0,
     max: 0xffffffff,
   }, report, '$.rngState');
+  // Forward-compatible payloads remain opaque. Canonical fields above always
+  // win, while unknown top-level and domain fields survive a load/save cycle.
+  const forwardSaveFields = { top: {}, clock: {}, course: {}, weather: {}, turf: {}, courseMaintenance: {} };
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(key in state)) {
+      state[key] = cloneSaveValue(value);
+      forwardSaveFields.top[key] = cloneSaveValue(value);
+    }
+  }
+  for (const key of ['clock', 'course', 'weather', 'turf', 'courseMaintenance']) {
+    if (!isRecord(raw[key]) || !isRecord(state[key])) continue;
+    const knownFields = {
+      clock: new Set(['minutes']),
+      course: new Set(['w', 'h', 'zones', 'elevation', 'holes', 'nextHoleId', 'structures', 'objects', 'nextObjectId', 'paths', 'nextPathId', 'vec', 'paint']),
+      weather: new Set(['today', 'droughtDays', 'bias', 'climate']),
+      turf: new Set(['health', 'moisture', 'nutrients', 'heightMm', 'wear', 'disType', 'disSev', 'treated', 'divots', 'ballMarks']),
+      courseMaintenance: new Set(Object.keys(snapshotCourseMaintenance(state.courseMaintenance) || {})),
+    }[key];
+    for (const [field, value] of Object.entries(raw[key])) {
+      if (!knownFields.has(field)) forwardSaveFields[key][field] = cloneSaveValue(value);
+      if (!(field in state[key])) {
+        state[key][field] = cloneSaveValue(value);
+      }
+    }
+  }
+  Object.defineProperty(state, '__forwardSaveFields', {
+    value: forwardSaveFields,
+    enumerable: false,
+    configurable: true,
+  });
   state.version = SAVE_VERSION;
   return { state, report: finishSaveReport(report) };
 }

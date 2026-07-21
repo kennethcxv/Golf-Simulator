@@ -74,10 +74,12 @@ export const WINDOW_DIM = { w: 2.4, h: 1.9, sill: 0.85 };
 // the collider, the layout tests and the placement validator all read it, so a fixture can never
 // be one size to the physics and another to the rules.
 export const FIXTURE_HALF = {
-  shelf: [1.6, 0.35], rack: [1.25, 0.25], table: [0.80, 0.45], hatstand: [0.53, 0.18],
-  bagstand: [0.83, 0.23], shoerack: [1.3, 0.4], apparelwall: [0.63, 0.25],
-  feature: [0.85, 0.55], backshelf: [1.4, 0.45], rail: [0.60, 0.225],
-  backcounter: [1.7, 0.35], snackrack: [0.53, 0.25],
+  shelf: [1.6, 0.35], pegboard: [1.6, 0.35], apparelwall: [1.6, 0.35],
+  rack: [1.5, 0.45], table: [1.2, 0.72], hatstand: [0.4, 0.4],
+  bagstand: [1.3, 0.65], shoerack: [1.3, 0.4], fittingroom: [1.1, 0.85],
+  feature: [1.05, 0.65], fridge: [0.48, 0.48], snackrack: [0.75, 0.38],
+  service: [0.48, 0.38], premiumcase: [1.2, 0.4], demo: [2.0, 0.62],
+  backshelf: [1.4, 0.45], rail: [1.1, 0.45], backcounter: [1.6, 0.3],
   officeDesk: [1.0, 0.55], officeChair: [0.34, 0.34], officeFiling: [0.375, 0.30],
   packingbench: [0.95, 0.525],
 };
@@ -285,8 +287,8 @@ export function resolvedOfficeLayout(state) {
 export const LOUNGE = {
   bounds: { minX: 2.4, maxX: 5.7, minZ: -INTERIOR.d / 2, maxZ: -3.2 },
   chairA: { x: 3.45, z: -5.75, ry: 0 },
-  chairB: { x: 4.80, z: -3.80, ry: -2.10 },
-  coffee: { x: 3.45, z: -4.55 },
+  chairB: { x: 2.45, z: -4.10, ry: -2.10 },
+  coffee: { x: 3.65, z: -4.55 },
   rug: { x: 3.85, z: -4.9, ry: 0 },
   trophy: { x: 5.42, z: -5.58, ry: -Math.PI / 2 },   // on the partition's west face
   events: { x: 5.55, z: -3.75, ry: -Math.PI / 2 },   // club events board beside it
@@ -408,7 +410,7 @@ export const HOURS_SIGN = { x: 0.58, z: 6.77 };        // readable between the d
 // --- retail fixtures ----------------------------------------------------------------
 // kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | apparelwall | feature
 //     | snackrack | backcounter | backshelf
-export const FIXTURES = [
+const LEGACY_FIXTURES = [
   // the club wall — one architectural run down the west wall (refs 1/5)
   { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.45, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall', footprint: { minX: -1.23, maxX: 1.23, minZ: -0.23, maxZ: 0.23 } },
   { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.99, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall', footprint: { minX: -1.23, maxX: 1.23, minZ: -0.23, maxZ: 0.23 } },
@@ -437,6 +439,36 @@ export const FIXTURES = [
   { id: 'backshelf_e2', kind: 'backshelf', x: 9.9, z: -0.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
   // Generated properties convey these service-room furnishings as real owned
   // objects. Legacy saves keep their fixed authored office and bench instead.
+  { id: 'office_desk', kind: 'officeDesk', x: 9.50, z: 4.5, ry: Math.PI / 2, skus: [], title: 'Office desk', zone: 'office', generatedOnly: true },
+  { id: 'office_chair', kind: 'officeChair', x: 8.50, z: 4.5, ry: Math.PI / 2, skus: [], title: 'Office chair', zone: 'office', generatedOnly: true },
+  { id: 'office_filing', kind: 'officeFiling', x: 9.75, z: 3.00, ry: -Math.PI / 2, skus: [], title: 'Filing cabinet', zone: 'office', generatedOnly: true },
+  { id: 'packing_bench', kind: 'packingbench', x: 7.0, z: -1.0, ry: 0, skus: [], title: 'Packing bench', zone: 'stockroom', generatedOnly: true },
+];
+
+// Production retail catalogue. Customer sockets, tier-gated experiences, and
+// the generated-property service furniture all share this one fixture authority.
+export const FIXTURES = [
+  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }], experienceAfter: ['tour_vault'] },
+  { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.2, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
+  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2', 'putter3'], title: 'Putter studio', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }], experienceAfter: ['putting_demo'] },
+  { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Golf balls', zone: 'balls', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
+  { id: 'shelf_acc', kind: 'pegboard', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'divot1', 'range2', 'sunglasses2', 'bottle1', 'umb1'], title: 'Golf essentials', zone: 'accessories', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
+  { id: 'shelf_small', kind: 'apparelwall', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'glove2', 'sock1', 'jacket2'], title: 'Apparel & gloves', zone: 'apparel', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }], experienceAfter: ['fittingroom'] },
+  { id: 'hatstand', kind: 'hatstand', x: 1.55, z: -5.9, ry: 0, skus: ['cap1', 'cap2'], title: 'Hat tree', sign: 'Club headwear', zone: 'apparel', browse: [{ x: 0, z: 0.9 }], stock: [{ x: 0, z: 0.82 }] },
+  { id: 'table_polos', kind: 'table', x: -6.0, z: 0.65, ry: 0, skus: ['polo1', 'polo2', 'pants2', 'shorts1'], title: 'Course apparel', zone: 'apparel', browse: [{ x: -0.72, z: 1.18 }, { x: 0.72, z: 1.18 }, { x: 0, z: -1.18 }], stock: [{ x: 0, z: 1.12 }], experienceAfter: ['fittingroom'] },
+  { id: 'bagstand', kind: 'bagstand', x: 2.05, z: -2.65, ry: 0, skus: ['bag1', 'bag3'], title: 'Golf bags', zone: 'bags', browse: [{ x: -0.65, z: 1.12 }, { x: 0.65, z: 1.12 }], stock: [{ x: 0, z: 1.05 }], minTier: 2 },
+  { id: 'fittingroom', kind: 'fittingroom', x: 4.45, z: -2.4, ry: 0, skus: [], title: 'Fitting room', zone: 'shoes', minTier: 3, experience: 'fitting', browse: [{ x: 0, z: 0.16 }], experienceTarget: { x: 0, z: -0.58 } },
+  { id: 'shoerack', kind: 'shoerack', x: 5.25, z: -0.25, ry: -Math.PI / 2, skus: ['shoe1', 'shoe3'], title: 'Golf shoes', zone: 'shoes', browse: [{ x: -0.62, z: 0.92 }, { x: 0.62, z: 0.92 }], stock: [{ x: 0, z: 0.88 }], minTier: 2, experienceAfter: ['fittingroom'] },
+  { id: 'cold_drinks', kind: 'fridge', x: 5.17, z: 1.53, ry: 0, skus: ['water1', 'sportdrink2', 'soda1'], title: 'Cold drinks', zone: 'refreshments', browse: [{ x: 0, z: 0.98 }], stock: [{ x: 0, z: 0.9 }] },
+  { id: 'snack_rack', kind: 'snackrack', x: 3.94, z: 1.60, ry: 0, skus: ['chips1', 'bar2', 'crackers1', 'snack1'], title: 'Turn snacks', zone: 'refreshments', browse: [{ x: 0, z: 0.88 }], stock: [{ x: 0, z: 0.82 }] },
+  { id: 'member_station', kind: 'service', x: 1.70, z: 2.20, ry: 0, skus: ['scorecard1'], title: 'Scorecards', zone: 'membership', browse: [{ x: 0, z: 0.82 }], stock: [{ x: 0, z: 0.78 }] },
+  { id: 'feature', kind: 'feature', x: -3.35, z: 3.10, ry: 0, skus: [], title: 'New arrivals', zone: 'entrance', minTier: 2 },
+  { id: 'tour_vault', kind: 'premiumcase', x: 5.25, z: -5.20, ry: -Math.PI / 2, skus: [], title: 'Tour Vault', zone: 'premium', minTier: 3, experience: 'premium', browse: [{ x: 0, z: 0.82 }], experienceTarget: { x: 0, z: 0 } },
+  { id: 'putting_demo', kind: 'demo', x: -7.0, z: 4.95, ry: 0, skus: [], title: 'Putting studio', zone: 'premium', minTier: 3, experience: 'putting', browse: [{ x: 1.22, z: 0 }], experienceTarget: { x: -1.48, z: 0 } },
+  { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.15, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
+  { id: 'backshelf_n', kind: 'backshelf', x: 8.05, z: -6.1, ry: 0, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
+  { id: 'backshelf_e', kind: 'backshelf', x: 9.9, z: -5.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom', short: true },
+  { id: 'backshelf_e2', kind: 'backshelf', x: 9.9, z: -0.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
   { id: 'office_desk', kind: 'officeDesk', x: 9.50, z: 4.5, ry: Math.PI / 2, skus: [], title: 'Office desk', zone: 'office', generatedOnly: true },
   { id: 'office_chair', kind: 'officeChair', x: 8.50, z: 4.5, ry: Math.PI / 2, skus: [], title: 'Office chair', zone: 'office', generatedOnly: true },
   { id: 'office_filing', kind: 'officeFiling', x: 9.75, z: 3.00, ry: -Math.PI / 2, skus: [], title: 'Filing cabinet', zone: 'office', generatedOnly: true },

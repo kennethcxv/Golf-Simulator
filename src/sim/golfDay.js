@@ -432,6 +432,11 @@ function assignCart(day, partyId, position) {
 function chooseTransport(reservation) {
   const requested = reservation.transport || reservation.party?.transport;
   if (requested === 'walk' || requested === 'ride') return requested;
+  // The production reservation engine calls these options walking/cart while
+  // the live-round simulation calls them walk/ride. Keep both public contracts
+  // without letting a compatibility alias randomize the player's choice.
+  if (requested === 'walking') return 'walk';
+  if (requested === 'cart') return 'ride';
   const memberCount = reservation.party.members.filter((member) => member.memberStatus === 'member').length;
   return (stableHash(reservation.id, reservation.partySize) + memberCount) % 5 < 3 ? 'ride' : 'walk';
 }

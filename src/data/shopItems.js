@@ -49,7 +49,6 @@ export const SHOP_CATALOG = [
   // clubhouse impulse goods - these use the existing accessories economy while
   // `form` gives the physical display an honest package silhouette.
   { id: 'scorecard1', cat: 'accessories', tier: 1, name: 'Willow Creek scorecard', cost: 0.5, msrp: 2, lb: 0.05, form: 'scorecard' },
-  { id: 'water1', cat: 'accessories', tier: 1, name: 'Still water', cost: 0.65, msrp: 2.5, lb: 1.1, form: 'drink' },
   { id: 'sportdrink2', cat: 'accessories', tier: 2, name: 'Caddie citrus drink', cost: 1.1, msrp: 3.75, lb: 1.2, form: 'drink' },
   { id: 'soda1', cat: 'accessories', tier: 1, name: 'Clubhouse cola', cost: 0.7, msrp: 2.75, lb: 0.8, form: 'can' },
   { id: 'chips1', cat: 'accessories', tier: 1, name: 'Sea-salt kettle chips', cost: 0.8, msrp: 2.75, lb: 0.15, form: 'snack' },

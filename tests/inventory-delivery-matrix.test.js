@@ -74,6 +74,7 @@ function openPhysicalBox(state, box) {
   assert.equal(cutTape(state, box.id, 1).ok, true);
   assert.equal(openFlap(state, box.id).ok, true);
   assert.equal(openFlap(state, box.id).ok, true);
+  assert.equal(openFlap(state, box.id).ok, true);
   assert.equal(flapsOpen(box), true);
 }
 
@@ -155,9 +156,9 @@ test('matrix: simultaneous arrivals reserve pad and fallback, block safely, then
   }
   assertReconciled(state, 'receiving-full');
 
-  const cleared = boxesOf(state).find((box) => box.loc === 'pad');
-  assert.equal(pickUpBox(state, cleared.id).ok, true);
-  assert.equal(putDownBox(state, cleared.id, { x: 6.4, z: -4.4, ry: 0 }).ok, true);
+  const cleared = boxesOf(state).find((box) => box.loc === 'pad' && pickUpBox(state, box.id).ok);
+  assert.ok(cleared);
+  assert.equal(putDownBox(state, cleared.id, 'stock').ok, true);
   const recovered = tickDeliveries(state, 2002);
   assert.equal(recovered.some((event) => event.kind === 'arrived'), true);
   assert.equal(padCount(state), PAD_CAPACITY);
@@ -211,6 +212,7 @@ test('matrix: delivery while away and every required save point preserve identit
   assert.equal(cutTape(state, box.id, 1).ok, true);
   openFlap(state, box.id);
   openFlap(state, box.id);
+  openFlap(state, box.id);
   assert.equal(takeFromBox(state, box.id, 5).ok, true);
   assert.equal(box.qty, 7);
 
@@ -227,13 +229,13 @@ test('matrix: delivery while away and every required save point preserve identit
   state = deserialize(serialize(state));
   assert.equal(carriedBox(state).persistentId, boxId, 'save while carrying preserves the same box');
   assert.equal(putDownBox(state, carriedBox(state).id, {
-    x: 6.9, y: 0.925, z: -0.94, ry: 0, surface: 'worktable', slot: 0,
+    kind: 'surface', surfaceId: 'station:packing:top', x: 0, z: 0, ry: 0,
   }).ok, true);
   state = deserialize(serialize(state));
   box = boxesOf(state).find((candidate) => candidate.persistentId === boxId);
   assert.deepEqual(
-    { x: box.x, y: box.y, z: box.z, surface: box.surface, slot: box.surfaceSlot },
-    { x: 6.9, y: 0.925, z: -0.94, surface: 'worktable', slot: 0 },
+    { x: box.x, z: box.z, surfaceId: box.surfaceId },
+    { x: 0, z: 0, surfaceId: 'station:packing:top' },
   );
   assertReconciled(state, 'save-worktable-transform');
 });

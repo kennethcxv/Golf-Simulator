@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { SHOP_CATALOG, skuById, RETAIL_CATS } from '../src/data/shopItems.js';
 import { FIXTURES, FIXTURE_HALF } from '../src/data/shopLayout.js';
 import {
-  APPAREL_TINTS, slotsFor, capacityOf, homeFixture, laneOf,
+  slotsFor, capacityOf, homeFixture, laneOf, stockPresentationState, visibleSlotsFor,
 } from '../src/data/fixtureSlots.js';
 import { shelfCapacity } from '../src/sim/shop.js';
 
@@ -47,31 +47,20 @@ test('THE INVARIANT: the shelf capacity the sim enforces is the number of slots 
   }
 });
 
-test('a golf-bag platform holds five bags, not twenty-four', () => {
-  assert.equal(capacityOf('bag1'), 5);
-  assert.equal(shelfCapacity(skuById('bag1')), 5);
+test('a golf-bag platform holds four bags, not twenty-four', () => {
+  assert.equal(capacityOf('bag1'), 4);
+  assert.equal(shelfCapacity(skuById('bag1')), 4);
   // and the category default it used to inherit is nothing to do with it
   assert.notEqual(capacityOf('bag1'), capacityOf('tees1'));
 });
 
-test('Asset 20 has one stable outerwear home with four hanging and four folded places', () => {
-  const rail = homeFixture('jacket2');
-  assert.equal(rail.id, 'rail_outer');
-  assert.equal(rail.kind, 'rail');
-  assert.deepEqual(rail.skus, ['jacket2']);
-  const slots = slotsFor('jacket2');
-  assert.equal(capacityOf('jacket2'), 8);
-  assert.deepEqual(slots.map((s) => s.socketName), [
-    'APPAREL_HANGER_SLOT_01', 'APPAREL_HANGER_SLOT_02',
-    'APPAREL_HANGER_SLOT_03', 'APPAREL_HANGER_SLOT_04',
-    'APPAREL_FOLD_SLOT_01', 'APPAREL_FOLD_SLOT_02',
-    'APPAREL_FOLD_SLOT_03', 'APPAREL_FOLD_SLOT_04',
-  ]);
-  assert.ok(slots.slice(0, 4).every((s) => !s.folded));
-  assert.ok(slots.slice(4).every((s) => s.folded));
-  assert.deepEqual(slots.slice(0, 4).map((s) => s.tint), [...APPAREL_TINTS]);
-  assert.deepEqual(slots.slice(4).map((s) => s.tint), [...APPAREL_TINTS]);
-  assert.ok(slots[4].y < slots[6].y, 'folded stock fills the lower shelf first');
+test('outerwear has one lane on the shared apparel wall', () => {
+  const wall = homeFixture('jacket2');
+  assert.equal(wall.id, 'shelf_small');
+  assert.equal(wall.kind, 'apparelwall');
+  assert.ok(wall.skus.includes('jacket2'));
+  assert.equal(capacityOf('jacket2'), 6);
+  assert.ok(slotsFor('jacket2').every((slot) => slot.folded && slot.wall));
 });
 
 test('no two items on a fixture stand in the same place', () => {

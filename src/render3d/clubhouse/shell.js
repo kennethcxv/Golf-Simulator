@@ -524,31 +524,37 @@ export function buildShell(B) {
     group.add(skirt);
     trackProductionFallback('exteriorShellStructure', skirt);
 
-    // post-mounted club sign by the walk (the reference's PINEHOLLOW board)
+    // A compact post-mounted club sign sits beside the west planting bed. The
+    // former oversized board stood east of the walk and dominated the player's
+    // oblique approach, visually blocking the double doors even though its
+    // collider technically missed the clearway.
     const words = ((state && state.clubName) || 'GOLF CLUB').toUpperCase().split(' ');
     const mid = Math.ceil(words.length / 2);
     const clubSignTex = makeSignTexture([words.slice(0, mid).join(' '), words.slice(mid).join(' ') || 'GOLF CLUB'], { w: 384, h: 160 });
     const signG = new THREE.Group();
-    for (const sx of [-0.85, 0.85]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.11, 1.5, 0.11), mats.walnutDark);
-      post.position.set(sx, 0.75, 0);
+    signG.name = 'ClubApproachSign';
+    for (const sx of [-0.68, 0.68]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.28, 0.10), mats.walnutDark);
+      post.position.set(sx, 0.64, 0);
       post.castShadow = true;
       signG.add(post);
     }
-    const board = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.7, 0.06), mats.walnutDark);
-    board.position.set(0, 1.15, 0);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.58, 0.06), mats.walnutDark);
+    board.position.set(0, 0.98, 0);
     board.castShadow = true;
     signG.add(board);
     const face = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.98, 0.6),
+      new THREE.PlaneGeometry(1.64, 0.49),
       new THREE.MeshStandardMaterial({ map: clubSignTex, roughness: 0.8 }),
     );
-    face.position.set(0, 1.15, 0.033);
+    face.position.set(0, 0.98, 0.033);
     signG.add(face);
-    signG.position.set(DOOR_MAIN.x + 3.4, 0, stairZ0 + 2.3);
-    signG.rotation.y = 0.35;
+    const approachSignX = DOOR_MAIN.x - 4.2;
+    const approachSignZ = stairZ0 + 2.0;
+    signG.position.set(approachSignX, 0, approachSignZ);
+    signG.rotation.y = -0.12;
     group.add(signG);
-    addCol(colBoxAt(DOOR_MAIN.x + 3.4, stairZ0 + 2.3, 2.0, 0.4));
+    addCol(colBoxAt(approachSignX, approachSignZ, 1.72, 0.34));
     const chimney = new THREE.Mesh(
       new THREE.BoxGeometry(1.0, 3.0, 1.0),
       new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.9 }),

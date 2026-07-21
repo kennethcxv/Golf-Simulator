@@ -72,7 +72,7 @@ export function emptyLines() {
       upkeep: 0, utilities: 0, works: 0, severance: 0, training: 0,
       shopOrders: 0, deliveryCosts: 0, rentalFleet: 0, equipment: 0,
       cleaningSupplies: 0, propertyExpenses: 0, events: 0, rent: 0,
-      checkoutShortage: 0, bookingRefunds: 0,
+      checkoutShortage: 0, bookingRefunds: 0, propertyServices: 0,
     },
   };
 }
@@ -200,6 +200,9 @@ function aggregateCashLine(ledger, side, key, amount) {
 export function postLedgerEntry(state, spec = {}) {
   const ledger = ensureLedger(state);
   const direction = spec.direction === 'expense' ? 'expense' : spec.direction === 'reversal' ? 'reversal' : 'revenue';
+  if (!Number.isFinite(Number(spec.amount))) {
+    return { ok: false, reason: 'Ledger amounts must be finite.' };
+  }
   const amount = r2(Math.abs(spec.amount));
   if (!(amount > 0)) return { ok: false, reason: 'Ledger amounts must be positive.' };
 

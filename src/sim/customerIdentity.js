@@ -353,7 +353,9 @@ export function identityForReservation(state, reservation) {
   reservation.customerId = identity.customerId;
   reservation.fullName = identity.fullName;
   reservation.name = identity.fullName;
-  reservation.paymentPreference = identity.paymentPreference;
+  if (reservation._compatEngine && reservation.paymentPreference == null) {
+    reservation.paymentPreference = identity.paymentPreference;
+  }
 
   const suppliedMembers = Array.isArray(reservation.groupMembers)
     ? reservation.groupMembers.filter((member) => member && typeof member === 'object')

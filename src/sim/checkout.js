@@ -5,9 +5,17 @@
 // happen in front of you. Counters here are session-flavor; the money is
 // real (addRevenue → ledger → closeBooks like everything else).
 
-import { addRevenue } from './economy.js';
+import { addCostOfGoods, addRevenue, recordOutcome } from './economy.js';
 import { skuById } from '../data/shopItems.js';
 import { shelfCapacity, skuDisplayIsPlaced } from './shop.js';
+import {
+  INVENTORY_STAGE,
+  adoptExternalInventory,
+  allocationsForHeldUnit,
+  forgetHeldAllocations,
+  moveInventory,
+  rememberHeldAllocations,
+} from './inventoryLifecycle.js';
 
 // --- units in flight --------------------------------------------------------------
 // A unit a shopper is carrying is off the shelf but not yet sold. That in-between
@@ -30,9 +38,39 @@ export function pickFromShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
   if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
-  if (uid && heldUnits(state).some((unit) => unit.uid === uid)) {
+  state.shop.nextHeldId = Number.isSafeInteger(state.shop.nextHeldId) ? state.shop.nextHeldId : 1;
+  const heldUid = uid || `anonymous-${state.shop.nextHeldId++}`;
+  if (heldUnits(state).some((unit) => unit.uid === heldUid)) {
     return { ok: false, reason: 'That held UID is already in use.' };
   }
+  let moved = moveInventory(state, {
+    from: INVENTORY_STAGE.SHELF,
+    to: INVENTORY_STAGE.CUSTOMER_HELD,
+    skuId,
+    quantity: 1,
+    referenceId: `customer-pick:${heldUid}`,
+    reason: `Customer ${heldUid} picked up product`,
+  });
+  if (!moved.ok && inv.shelf > 0) {
+    const adopted = adoptExternalInventory(state, {
+      skuId,
+      quantity: 1,
+      stage: INVENTORY_STAGE.SHELF,
+      note: 'Legacy checkout caller supplied unallocated shelf stock',
+    });
+    if (adopted.ok) {
+      moved = moveInventory(state, {
+        from: INVENTORY_STAGE.SHELF,
+        to: INVENTORY_STAGE.CUSTOMER_HELD,
+        skuId,
+        quantity: 1,
+        allocations: adopted.allocations,
+        referenceId: `customer-pick:${heldUid}`,
+        reason: `Customer ${heldUid} picked up product`,
+      });
+    }
+  }
+  if (!moved.ok) return moved;
   inv.shelf -= 1;
   heldUnits(state).push({ uid: heldUid, skuId });
   rememberHeldAllocations(state, heldUid, moved.allocations);
@@ -50,20 +88,24 @@ export function returnToShelf(state, skuId, uid = null) {
   const entry = held[i];
   const sku = skuById(skuId);
   if (!sku) return { ok: false };
-  let heldIndex = -1;
-  if (uid) {
-    heldIndex = heldUnits(state).findIndex((h) => h.uid === uid && h.skuId === skuId);
-    if (heldIndex < 0) return { ok: false, reason: 'That held unit is no longer available.' };
-  }
   const cap = shelfCapacity(sku);
   // A held unit still belongs to the shop even when its display was refilled
   // while the customer had it. Fill the real fixture first, then preserve the
   // overflow in back stock instead of silently deleting it at the capacity cap.
   const location = skuDisplayIsPlaced(state, skuId) && inv.shelf < cap ? 'shelf' : 'back';
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: location === 'shelf' ? INVENTORY_STAGE.SHELF : INVENTORY_STAGE.RESERVE,
+    skuId,
+    quantity: 1,
+    allocations: allocationsForHeldUnit(state, entry.uid),
+    referenceId: `customer-return:${entry.uid}`,
+    reason: `Customer ${entry.uid} abandoned purchase`,
+  });
+  if (!moved.ok) return moved;
   inv[location] = (inv[location] || 0) + 1;
-  if (uid) {
-    heldUnits(state).splice(heldIndex, 1);
-  }
+  held.splice(i, 1);
+  forgetHeldAllocations(state, entry.uid);
   return { ok: true, location };
 }
 
@@ -140,10 +182,20 @@ export function consumeHeldBatch(state, items) {
 export function recoverCheckout(state) {
   const held = heldUnits(state);
   if (!held.length) return { returned: 0 };
+  // Modern customers are persistent simulation entities, so their carts and
+  // held units survive together. Only recover inventory that belongs to the
+  // legacy renderer-only customer model or has no surviving cart owner.
+  const persistedCustomerUids = new Set(
+    (state.shop?.customerSimulation?.active || [])
+      .flatMap((customer) => Array.isArray(customer.cart) ? customer.cart : [])
+      .map((item) => item?.uid)
+      .filter(Boolean),
+  );
   let returned = 0;
   let shelf = 0;
   let back = 0;
   for (const h of held.slice()) {
+    if (persistedCustomerUids.has(h.uid)) continue;
     const res = returnToShelf(state, h.skuId, h.uid);
     if (!res.ok) continue;
     returned += 1;

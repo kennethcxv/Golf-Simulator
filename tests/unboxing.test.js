@@ -21,6 +21,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { skuById } from '../src/data/shopItems.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
 import { FLOOR_BOX_SURFACE_ID } from '../src/data/boxPlacementSurfaces.js';
 import {
   boxesOf, arriveOrder, pickUpBox, putDownBox, carriedBox,
@@ -224,7 +225,7 @@ test('a fixture takes what belongs on it, and tells you where the rest goes', ()
   const wrong = stockFixture(st, 'shelf_balls');
   assert.equal(wrong.ok, false, 'caps do not go on the ball wall');
   assert.ok(wrong.invalid);
-  assert.match(wrong.reason, /hat wall/i, 'and it says where they DO go');
+  assert.match(wrong.reason, /hat (wall|tree)/i, 'and it says where they DO go');
   assert.equal(st.shop.inventory.cap1.shelf, 0, 'nothing moved');
   assert.equal(carriedGoods(st).qty, armfulOf(skuById('cap1')), 'you are still holding them all');
 
@@ -232,8 +233,8 @@ test('a fixture takes what belongs on it, and tells you where the rest goes', ()
   assert.ok(right.ok);
   assert.equal(right.moved, Math.min(armfulOf(skuById('cap1')), capacityOf('cap1')));
   assert.equal(st.shop.inventory.cap1.shelf, right.moved);
-  assert.equal(carriedGoods(st).qty, armfulOf(skuById('cap1')) - right.moved,
-    'the authored four-cap facing leaves the overflow in your hands');
+  assert.equal(carriedGoods(st)?.qty || 0, armfulOf(skuById('cap1')) - right.moved,
+    'any authored overflow remains in your hands');
   assert.equal(homeOf('cap1').id, 'hatstand');
 });
 

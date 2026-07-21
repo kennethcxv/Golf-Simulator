@@ -2,9 +2,9 @@
 //
 // The renderer owns animation and input listeners; the simulation owns every durable fact below.
 // Running one carton at a time makes retained-state leaks obvious: there may be one live box and
-// one live shipment during a cycle, then neither after recycling. The only intentionally growing
-// structures are the conserved inventory, lifetime counters, arrived-order ids, and the bounded
-// notification feed.
+// one live shipment during a cycle, then neither after recycling. The integrated inventory ledger
+// also retains bounded order provenance, exact-once operation keys, and audit events; the budget
+// below guards that richer saved history from unbounded controller or renderer residue.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,7 +30,7 @@ import { NOTIF_CAP } from '../src/sim/notifications.js';
 const BOX_COUNT = 20;
 const SKU_ID = 'polo1';
 const ORDER_ID_BASE = 72_000;
-const SAVE_GROWTH_BUDGET = 32 * 1024;
+const SAVE_GROWTH_BUDGET = 96 * 1024;
 
 function clearStartingStock(state) {
   for (const inventory of Object.values(state.shop.inventory)) {

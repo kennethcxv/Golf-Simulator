@@ -61,15 +61,18 @@ const FIXTURE_TIER = Object.freeze({
   rack_drivers: 'standard',
   rack_irons: 'standard',
   table_polos: 'standard',
-  snackrack: 'standard',
   bagstand: 'standard',
+  cold_drinks: 'standard',
+  snack_rack: 'standard',
+  member_station: 'standard',
   backshelf_e: 'standard',
 
   rack_putters: 'premium',
-  rail_outer: 'premium',
-  apparel_display: 'premium',
+  fittingroom: 'premium',
   shoerack: 'premium',
   feature: 'premium',
+  tour_vault: 'premium',
+  putting_demo: 'premium',
   backshelf_e2: 'premium',
 });
 
