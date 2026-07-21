@@ -1294,6 +1294,10 @@ function decodeTypedArray(text, Type, length, width, height) {
 
 export function snapshotCourseMaintenance(model) {
   if (!model) return null;
+  // snapshot() is occasionally fed an already JSON-safe snapshot by save
+  // validation and evidence tooling. Preserve that encoded authority instead
+  // of trying to encode runtime typed arrays that are intentionally absent.
+  if (!model.surface && model.surfaceField && model.fields) return model;
   const cacheValid = model.runtime?.encodedFields
     && model.runtime.encodedRevision === model.runtime.saveRevision;
   const fields = cacheValid

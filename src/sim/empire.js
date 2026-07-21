@@ -1311,14 +1311,24 @@ export function deserializeEmpireWithReport(raw) {
     nested.state.property.climate = property.climate;
     nested.state.property.maintenanceCostPerDay = property.maintenanceCostPerDay;
     nested.state.property.operatingCostPerDay = property.operatingCostPerDay;
-    holdings.push({
+    const holding = {
       property,
       passive: normalizedPassive(rawHolding.passive, nested.state, index, report),
       operations: isRecord(rawHolding.operations)
         ? cloneSaveValue(rawHolding.operations)
         : defaultPropertyOperations(property),
       state: nested.state,
-    });
+    };
+    const unknownHoldingFields = Object.fromEntries(Object.entries(rawHolding)
+      .filter(([key]) => !['property', 'passive', 'operations', 'state'].includes(key))
+      .map(([key, value]) => [key, cloneSaveValue(value)]));
+    if (Object.keys(unknownHoldingFields).length) {
+      Object.defineProperty(holding, '__unknownSaveFields', {
+        value: unknownHoldingFields,
+        configurable: true,
+      });
+    }
+    holdings.push(holding);
   }
 
   const clockMinutes = finiteNumber(data.clockMinutes, DAY_START_MIN, { min: 0, max: Number.MAX_SAFE_INTEGER });
@@ -1395,6 +1405,22 @@ export function deserializeEmpireWithReport(raw) {
       finiteNumber(data.acquisitions, holdings.length, { integer: true, min: 0, max: 1_000_000 }),
     ),
   };
+
+  const knownEmpireFields = new Set([
+    'empireVersion', 'version', 'mode', 'seed', 'cash', 'clockMinutes', 'activeId',
+    'firstPurchaseDone', 'log', 'market', 'auctions', 'marketRngState', 'lastMarketDay',
+    'marketCondition', 'marketConditionTarget', 'progression', 'inspections',
+    'acquisitions', 'holdings',
+  ]);
+  const unknownEmpireFields = Object.fromEntries(Object.entries(data)
+    .filter(([key]) => !knownEmpireFields.has(key))
+    .map(([key, value]) => [key, cloneSaveValue(value)]));
+  if (Object.keys(unknownEmpireFields).length) {
+    Object.defineProperty(empire, '__unknownSaveFields', {
+      value: unknownEmpireFields,
+      configurable: true,
+    });
+  }
 
   ensureEmpireProgression(empire);
 

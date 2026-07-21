@@ -347,7 +347,7 @@ test('objects: place, refuse greens, move, duplicate, remove, scatter, undo chai
   const a = addObject(st, s, 'tree_oak', QX, QY);
   assert.equal(a.ok, true);
   assert.equal(st.course.objects.length, countBefore + 1);
-  const mv = moveObject(st, s, a.object.id, { x: QX + 2, rot: 1.2 });
+  const mv = moveObject(st, s, a.object.id, { x: QX + 4, rot: 1.2 });
   assert.equal(mv.ok, true);
   const dup = duplicateObject(st, s, a.object.id);
   assert.equal(dup.ok, true);

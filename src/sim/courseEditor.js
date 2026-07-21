@@ -2426,7 +2426,7 @@ export function discardSession(state, session) {
   session.changedCells.clear();
   state.sections = labelSections(state.course);
   session.openingAppraisal = appraiseProperty(state);
-  return { ok: true };
+  return { ok: true, operations };
 }
 
 // --- measurement -----------------------------------------------------------------------

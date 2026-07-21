@@ -324,7 +324,8 @@ test('corrupt market layouts and passive summaries recover to finite buildable v
     sinceVisitNet: Number.NEGATIVE_INFINITY,
     accruedNet: {},
   };
-  const listing = raw.market.find((property) => property.id === 'thornbury-estate');
+  const listing = raw.market.find((property) => property.size === 18) || raw.market[0];
+  assert.ok(listing, 'the launch market retains a listing to corrupt and recover');
   listing.askingPrice = 'free';
   listing.condition = 999;
   listing.layout = {
@@ -351,9 +352,9 @@ test('corrupt market layouts and passive summaries recover to finite buildable v
   assert.ok(Number.isFinite(holdingValue(first.empire, recoveredParked)));
   assert.ok(Object.values(recoveredParked.passive).every(Number.isFinite));
   first.empire.cash = 10_000_000;
-  const purchase = buyProperty(first.empire, 'thornbury-estate');
+  const purchase = buyProperty(first.empire, listing.id);
   assert.equal(purchase.ok, true, purchase.reason);
-  assert.equal(purchase.state.course.holes.length, 18);
+  assert.equal(purchase.state.course.holes.length, listing.size);
 
   const second = deserializeEmpireWithReport(empireSnapshot(first.empire));
   assert.equal(second.report.recovered, false, 'portfolio repair is canonical after one load');

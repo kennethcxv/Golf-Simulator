@@ -161,6 +161,9 @@ export function completePropertyProfile(property) {
   property.tourismRating = Number.isFinite(property.tourismRating) ? property.tourismRating : tourism;
   property.weather = property.weather || profile.weather;
   property.unlockTier = Number.isFinite(property.unlockTier) ? property.unlockTier : profile.unlockTier;
+  property.shopLevel = Number.isFinite(property.shopLevel)
+    ? clamp(Math.round(property.shopLevel), 1, 5)
+    : 1;
   property.saleType = property.saleType || 'listing';
   return property;
 }
