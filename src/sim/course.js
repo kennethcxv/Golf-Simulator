@@ -24,12 +24,14 @@ export function makeCourse(w = GRID_W, h = GRID_H) {
     // cart/walking paths as splines; PATH zone cells are derived from these
     paths: [], // { id, pts: [{x, y}...], width (yd), material }
     nextPathId: 1,
+    irrigationHeads: [], // paid, persistent sprinkler heads in cell coordinates
   };
 }
 
 // Older saves (and freshly deserialized courses) may lack the editor-era
 // fields; give them safe defaults in place.
 export function ensureCourseShape(course) {
+  if (!Array.isArray(course.irrigationHeads)) course.irrigationHeads = [];
   if (!Array.isArray(course.objects)) course.objects = [];
   if (!Number.isFinite(course.nextObjectId)) {
     course.nextObjectId = course.objects.reduce((m, o) => Math.max(m, o.id || 0), 0) + 1;

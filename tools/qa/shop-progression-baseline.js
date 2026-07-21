@@ -1,5 +1,5 @@
 async (page) => {
-  const out = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-property-expansion-world-overhaul/qa/property-expansion-world-overhaul/shop-progression/before';
+  const out = `${process.cwd().replaceAll('\\', '/')}/qa/property-expansion-world-overhaul/shop-progression/before`;
 
   const diagnostics = [];
   page.on('console', (message) => {

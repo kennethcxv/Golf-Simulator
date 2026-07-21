@@ -11,6 +11,7 @@ import { idx, inBounds, getZone, validateHole, labelSections } from './course.js
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
 import { notify } from './notifications.js';
+import { nextPropertyCommandId } from './property.js';
 
 const ZONE_COST_KEY = {
   [ZONE.OUT]: 'out',

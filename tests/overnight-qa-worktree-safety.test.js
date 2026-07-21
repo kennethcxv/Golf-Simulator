@@ -62,9 +62,9 @@ test('all tracked QA source is free of personal absolute paths', () => {
 
 test('strict checkout acceptance derives its cashier stand from the live clubhouse transform', () => {
   const source = sourceOf('tools/qa/register-acceptance-driver.mjs');
-  assert.match(source, /const\s+offset\s*=\s*app\.scene3d\.clubhouse\(\)\.interior\.position/u);
-  assert.match(source, /walk\.x\s*=\s*offset\.x\s*\+\s*2\.80/u);
-  assert.match(source, /walk\.z\s*=\s*offset\.z\s*\+\s*5\.35/u);
+  assert.match(source, /const\s+origin\s*=\s*clubhouse\.interior\.position/u);
+  assert.match(source, /walk\.x\s*=\s*2\.80\s*\+\s*origin\.x/u);
+  assert.match(source, /walk\.z\s*=\s*5\.35\s*\+\s*origin\.z/u);
   assert.doesNotMatch(source, /walk\.x\s*=\s*2\.80\s*-\s*8/u);
   assert.doesNotMatch(source, /walk\.z\s*=\s*5\.35\s*\+\s*228/u);
 });

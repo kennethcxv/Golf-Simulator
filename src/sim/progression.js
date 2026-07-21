@@ -7,8 +7,9 @@ import { clamp } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { courseDesignRating } from './course.js';
 import { conditionRating } from './turf.js';
-import { addRevenue, addExpense } from './economy.js';
+import { addRevenue, addExpense, recordOutcome } from './economy.js';
 import { notify } from './notifications.js';
+import { applyReputationChange } from './reputation.js';
 
 export const UPGRADES = {
   greensMowerII: {

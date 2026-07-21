@@ -66,7 +66,7 @@ const result = { delivery: null, cleaning: {}, placement: {}, frontDesk: {}, mai
 const deliverySource = await fs.readFile(path.join(ROOT, 'tools', 'qa', 'delivery-loop.js'), 'utf8');
 const deliveryOut = OUT.replaceAll('\\', '/');
 const configuredDelivery = deliverySource
-  .replace("const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/delivery';", `const OUT = '${deliveryOut}';`)
+  .replace(/const OUT = [^\n]+;/, `const OUT = '${deliveryOut}';`)
   .replaceAll('http://localhost:8457/', BASE_URL);
 try {
   result.delivery = await (0, eval)(configuredDelivery)(page);

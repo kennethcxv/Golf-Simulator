@@ -4,7 +4,7 @@
 async (managedPage) => {
   const browser = managedPage.context().browser();
   if (!browser) throw new Error('The managed Playwright context does not expose its browser.');
-  const outDir = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-checkout-delivery-groundskeeping-balance/qa/checkout-delivery-groundskeeping-balance/current/video';
+  const outDir = `${process.cwd().replaceAll('\\', '/')}/qa/checkout-delivery-groundskeeping-balance/current/video`;
   const context = await browser.newContext({
     viewport: { width: 1600, height: 900 },
     recordVideo: { dir: outDir, size: { width: 1600, height: 900 } },

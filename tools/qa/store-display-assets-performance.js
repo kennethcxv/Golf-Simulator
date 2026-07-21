@@ -1,7 +1,7 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-store-display-assets';
+  const repo = process.cwd();
   const mode = process.env.STORE_DISPLAY_PERF_MODE || 'default';
   const out = process.env.STORE_DISPLAY_PERF_OUT
     ? path.resolve(repo, process.env.STORE_DISPLAY_PERF_OUT)

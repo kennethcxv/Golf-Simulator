@@ -504,6 +504,7 @@ export function snapshot(state) {
         pts: p.pts.map((q) => ({ x: Math.round(q.x * 1000) / 1000, y: Math.round(q.y * 1000) / 1000 })),
       })) : [],
       nextPathId: course.nextPathId || 1,
+      irrigationHeads: course.irrigationHeads || [],
       vec: course.vec || null,
       paint: course.paint && course.paint.some((v) => v !== 255) ? Array.from(course.paint) : null,
     },
@@ -803,6 +804,11 @@ function normalizeCourse(savedCourse, seed, persistedVersion, report) {
     nextObjectId: safeNextId(objects, savedCourse.nextObjectId),
     paths,
     nextPathId: safeNextId(paths, savedCourse.nextPathId),
+    irrigationHeads: recordsOnly(savedCourse.irrigationHeads, report, '$.course.irrigationHeads', {
+      max: n,
+      accept: (head) => Number.isInteger(head.x) && Number.isInteger(head.y)
+        && head.x >= 0 && head.x < w && head.y >= 0 && head.y < h,
+    }),
   };
   const vector = normalizeCourseVector(savedCourse.vec, seed, report);
   if (vector) course.vec = vector;
@@ -1187,7 +1193,7 @@ export function deserializeWithReport(json) {
     if (!isRecord(raw[key]) || !isRecord(state[key])) continue;
     const knownFields = {
       clock: new Set(['minutes']),
-      course: new Set(['w', 'h', 'zones', 'elevation', 'holes', 'nextHoleId', 'structures', 'objects', 'nextObjectId', 'paths', 'nextPathId', 'vec', 'paint']),
+      course: new Set(['w', 'h', 'zones', 'elevation', 'holes', 'nextHoleId', 'structures', 'objects', 'nextObjectId', 'paths', 'nextPathId', 'irrigationHeads', 'vec', 'paint']),
       weather: new Set(['today', 'droughtDays', 'bias', 'climate']),
       turf: new Set(['health', 'moisture', 'nutrients', 'heightMm', 'wear', 'disType', 'disSev', 'treated', 'divots', 'ballMarks']),
       courseMaintenance: new Set(Object.keys(snapshotCourseMaintenance(state.courseMaintenance) || {})),

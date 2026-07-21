@@ -2,7 +2,7 @@
 // mounting, driving, steering, mowing, parking, saving, and continuing all use the
 // normal controls and the game's own save path.
 async (page) => {
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-checkout-delivery-groundskeeping-balance';
+  const repo = process.cwd().replaceAll('\\', '/');
   const outDir = `${repo}/qa/checkout-delivery-groundskeeping-balance/current/tractor`;
   const target = 'http://127.0.0.1:18457/';
   const shot = page.__qaOriginalScreenshot ? page.__qaOriginalScreenshot.bind(page) : page.screenshot.bind(page);

@@ -504,7 +504,11 @@ test('one 20-box paid arrival makes three exact Ref 41 loads without losing auth
         assert.ok(phases.has('pallet-settle'), `box ${boxId} never settled onto the pallet`);
         const root = deliveryBoxRoot(scene, boxId);
         assert.equal(root?.parent?.name, 'DeliveryBoxWorldRoot');
-        assert.equal(root?.userData.deliveryPresentationState, 'pallet-ready');
+        const authority = authorityBefore.find((box) => box.id === boxId);
+        assert.equal(
+          root?.userData.deliveryPresentationState,
+          authority?.loc === 'pad' ? 'pallet-ready' : 'world-ready',
+        );
         assert.equal(root?.userData.deliveryInteractionEnabled, true);
       }
       transferredAcrossTrips.push(...completed.completed.map((entry) => entry.boxId));

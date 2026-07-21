@@ -507,6 +507,20 @@ export function createRegisterMode(B) {
   interior.add(root);
   const cashierHands = makeCashierHands(root);
   suppressInteriorSunShadows(cashierHands.root);
+  const customerPalm = new THREE.Mesh(
+    new THREE.SphereGeometry(0.075, 12, 8),
+    new THREE.MeshStandardMaterial({
+      color: 0xf0d8b4,
+      roughness: 0.85,
+      transparent: true,
+      opacity: 0.30,
+      depthWrite: false,
+    }),
+  );
+  customerPalm.name = 'CheckoutCustomerPalmTarget';
+  customerPalm.userData = { pick: true, kind: 'palm' };
+  customerPalm.visible = false;
+  root.add(customerPalm);
 
   const screenCanvas = document.createElement('canvas');
   screenCanvas.width = SCREEN_W;
@@ -669,6 +683,7 @@ export function createRegisterMode(B) {
 
   let selectedItem = null;
   let scanDrag = null;
+  let scanMotion = null;
   const dragPlane = new THREE.Plane();
   const dragPlaneNormal = new THREE.Vector3();
   const dragPlanePoint = new THREE.Vector3();

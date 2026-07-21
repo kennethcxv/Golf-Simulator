@@ -3,7 +3,7 @@ async (page) => {
   // through the physical laptop, real construction time, reload recovery, the
   // four rendered floors, and a matched full-shop performance/lifecycle probe.
   const fs = await import('node:fs/promises');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-property-expansion-world-overhaul';
+  const repo = process.cwd().replaceAll('\\', '/');
   const out = `${repo}/qa/property-expansion-world-overhaul/shop-progression/after`;
   await fs.mkdir(out, { recursive: true });
 

@@ -2,7 +2,7 @@
 // green, while section selection, order creation/assignment, time controls,
 // editor planning/confirmation, and Continue all use player-facing controls.
 async (page) => {
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-checkout-delivery-groundskeeping-balance';
+  const repo = process.cwd().replaceAll('\\', '/');
   const outDir = `${repo}/qa/checkout-delivery-groundskeeping-balance/current/maintenance`;
   const target = 'http://127.0.0.1:18457/';
   const shot = page.__qaOriginalScreenshot ? page.__qaOriginalScreenshot.bind(page) : page.screenshot.bind(page);

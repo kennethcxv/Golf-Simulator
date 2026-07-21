@@ -10,6 +10,7 @@
 // walkProps/propColliders in WORLD coordinates.
 
 import * as THREE from 'three';
+import { rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { makeCharacter } from './characterAsset.js';
@@ -24,7 +25,7 @@ import {
 import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
+  MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, fixtureSockets, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
   resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import {
@@ -4658,7 +4659,6 @@ export function makeClubhouse(ctx) {
   // Labels remain exact, but only labels used by the current rebuild survive.
   // That keeps a hundred partial-unpack cycles from retaining a hundred canvases.
   const shipLabelCache = new Map();
-  let shipLabelGeneration = 0;
   function boxLabelMat(box, sku) {
     const key = String(box.id);
     let entry = shipLabelCache.get(key);
@@ -4697,19 +4697,6 @@ export function makeClubhouse(ctx) {
     if (box.fragile) {
       c.fillStyle = '#a12a1e'; c.font = 'bold 17px Georgia';
       c.fillText('FRAGILE', 158, 143);
-    }
-    const texture = new THREE.CanvasTexture(cv);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85 });
-    shipLabelCache.set(key, { material, used: shipLabelGeneration });
-    return material;
-  }
-  function pruneShipLabels() {
-    for (const [key, entry] of shipLabelCache) {
-      if (entry.used === shipLabelGeneration) continue;
-      if (entry.material.map) entry.material.map.dispose();
-      entry.material.dispose();
-      shipLabelCache.delete(key);
     }
     entry.tex.needsUpdate = true;
     return entry.mat;
@@ -5460,20 +5447,47 @@ export function makeClubhouse(ctx) {
     return mounted;
   }
 
-  function deliveryPadTransferTarget(box, padPlans) {
-    const plan = padPlans.get(box.id);
-    if (!plan) return null;
-    const wp = L2W(plan.x, plan.z);
-    const gy = Number.isFinite(deliveryPadSurfaceY)
+  function deliveryReceivingTransferTarget(box, padPlans) {
+    let lx;
+    let lz;
+    let ry;
+    let baseLift = 0;
+    let palletIndex = null;
+    if (box.loc === 'pad') {
+      const plan = padPlans.get(box.id);
+      if (!plan) return null;
+      ({ x: lx, z: lz, ry } = plan);
+      baseLift = plan.baseY || 0;
+      palletIndex = plan.palletIndex;
+    } else if (box.loc === 'receiving-fallback') {
+      const slot = Number.isSafeInteger(box.receivingSlot) ? box.receivingSlot : 0;
+      const footprint = slot % 6;
+      const layer = Math.floor(slot / 6);
+      const at = STOCKROOM.receivingInside;
+      lx = at.x + (footprint % 2 - 0.5) * 0.88;
+      lz = at.z + (Math.floor(footprint / 2) - 1) * 1.0;
+      ry = boxDims(box.box || 'carton').w > 0.9 ? Math.PI / 2 : 0;
+      if (layer > 0) {
+        const support = boxesOf(state).find((candidate) => (
+          candidate.loc === 'receiving-fallback'
+          && candidate.receivingSlot === footprint
+        ));
+        baseLift = support ? boxDims(support.box || 'carton').h + 0.025 : 0;
+      }
+    } else {
+      return null;
+    }
+    const wp = L2W(lx, lz);
+    const gy = box.loc === 'pad' && Number.isFinite(deliveryPadSurfaceY)
       ? deliveryPadSurfaceY : groundYAt(wp.x, wp.z);
     const surfaceY = gy !== null && gy !== undefined
       ? gy : heightAt(wp.x, wp.z) + 0.02;
-    const baseY = surfaceY + (plan.baseY || 0);
-    const lift = plan.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX
+    const baseY = surfaceY + baseLift;
+    const lift = palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX
       ? coupledDeliveryPalletLiftOffset : 0;
     const worldMatrix = new THREE.Matrix4().compose(
       new THREE.Vector3(wp.x, baseY + lift, wp.z),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, plan.ry, 0)),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)),
       new THREE.Vector3(1, 1, 1),
     );
     boxGroup.updateWorldMatrix(true, false);
@@ -5485,7 +5499,8 @@ export function makeClubhouse(ctx) {
     return {
       position, quaternion, scale,
       baseY: position.y - lift,
-      palletIndex: plan.palletIndex,
+      palletIndex,
+      destination: box.loc,
     };
   }
 
@@ -5530,7 +5545,9 @@ export function makeClubhouse(ctx) {
     if (!loadContext) return 0;
     const allBoxes = boxesOf(state);
     const loadIds = new Set(loadContext.boxIds);
-    const cargoBoxes = allBoxes.filter((box) => box.loc === 'pad' && loadIds.has(box.id));
+    const cargoBoxes = allBoxes.filter((box) => (
+      ['pad', 'receiving-fallback'].includes(box.loc) && loadIds.has(box.id)
+    ));
     if (!cargoBoxes.length) return 0;
     // Reapply the measured load once at the UNLOAD boundary, then reveal only
     // these exact identities. Later numbered trips for the same order remain
@@ -5551,7 +5568,7 @@ export function makeClubhouse(ctx) {
     for (const placement of placements) {
       const box = cargoBoxes.find((candidate) => candidate.id === placement.boxId);
       const root = boxViews.get(placement.boxId)?.root;
-      const target = box && deliveryPadTransferTarget(box, padPlans);
+      const target = box && deliveryReceivingTransferTarget(box, padPlans);
       if (!box || !root || !target) continue;
       root.updateWorldMatrix(true, false);
       const worldStart = root.getWorldPosition(new THREE.Vector3());
@@ -5586,6 +5603,7 @@ export function makeClubhouse(ctx) {
         targetScale: target.scale,
         targetBaseY: target.baseY,
         palletIndex: target.palletIndex,
+        destination: target.destination,
         waypoints,
         reparentError,
       });
@@ -5619,7 +5637,7 @@ export function makeClubhouse(ctx) {
     let rebuild = false;
     for (const [boxId, transfer] of deliveryBoxTransfers) {
       const box = current.get(boxId);
-      if (!box || box.loc !== 'pad') {
+      if (!box || !['pad', 'receiving-fallback'].includes(box.loc)) {
         deliveryBoxTransfers.delete(boxId);
         rebuild = true;
         continue;
@@ -5686,6 +5704,7 @@ export function makeClubhouse(ctx) {
         pathMode: transfer.waypoints.mode,
         duration: transfer.duration,
         palletIndex: transfer.palletIndex,
+        destination: transfer.destination,
         reparentError: transfer.reparentError,
         waypoints: transfer.waypoints.world,
         target: Object.freeze(transfer.targetPosition.toArray()),
@@ -5703,7 +5722,7 @@ export function makeClubhouse(ctx) {
       const trip = loadCount > 1 ? ` (load ${loadIndex + 1} of ${loadCount})` : '';
       if (completed === expected) {
         sfx('boxdown');
-        deliveryTransferBatch.finalMessage = `${completed} carton${completed === 1 ? '' : 's'} staged safely on the receiving pallets${trip}.`;
+        deliveryTransferBatch.finalMessage = `${completed} carton${completed === 1 ? '' : 's'} staged safely in receiving${trip}.`;
       } else {
         say(`Carton transfer interrupted; ${completed} of ${expected} reached receiving${trip}.`);
         deliveryTransferBatch = null;
@@ -5833,7 +5852,7 @@ export function makeClubhouse(ctx) {
           poseCarriedBoxHands(box);
           continue;
         }
-        let lx; let lz; let ry;
+        let lx; let lz; let ry; let ly = 0;
         let fixedSurfaceY = null;
         let fixedQuaternion = null;
         let resolvedSurfaceId = null;
@@ -5930,7 +5949,7 @@ export function makeClubhouse(ctx) {
         m.scale.setScalar(1);
         m.position.set(
           wp.x,
-          boxBaseY + coupledLift,
+          boxBaseY + coupledLift + ly,
           wp.z,
         );
         if (padPlan?.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX) {
@@ -6889,7 +6908,7 @@ export function makeClubhouse(ctx) {
     const existing = deliveryArrivalPresentations.get(presentationKey);
     if (existing) return existing;
     const cargoBoxes = boxesOf(state).filter((box) => (
-      box.loc === 'pad' && sameDeliveryOrder(box, orderId)
+      ['pad', 'receiving-fallback'].includes(box.loc) && sameDeliveryOrder(box, orderId)
     ));
     if (!cargoBoxes.length) return false;
     const cargoPlan = planDeliveryVanCargo(cargoBoxes);
@@ -7198,6 +7217,29 @@ export function makeClubhouse(ctx) {
     return L2W(s.x, s.z);
   }
 
+  function experienceStop(fixture, claimed) {
+    if (!fixture?.experience) return null;
+    const socket = fixtureSockets(fixture).find((candidate) => !claimed.has(candidate.key));
+    if (!socket) return null;
+    const target = fixture.experienceTarget
+      ? fixtureSockets({ ...fixture, browse: [fixture.experienceTarget] })[0]
+      : { x: fixture.x, z: fixture.z };
+    const world = L2W(socket.x, socket.z);
+    const face = L2W(target.x, target.z);
+    return {
+      kind: 'experience',
+      experience: fixture.experience,
+      title: fixture.title,
+      fixtureId: fixture.id,
+      socketKey: socket.key,
+      x: world.x,
+      z: world.z,
+      faceX: face.x,
+      faceZ: face.z,
+      duration: fixture.experience === 'putting' ? 5.2 : fixture.experience === 'fitting' ? 4.2 : 3.2,
+    };
+  }
+
   function spawnCustomer(toCounter = false, reservation = null, options = {}) {
     // Keep the existing boolean call surface used by organic shoppers and QA,
     // while allowing a due tee-time record to supply stable presentation identity.
@@ -7293,7 +7335,12 @@ export function makeClubhouse(ctx) {
     stops.push({ kind: 'walk', x: doorW.x, z: doorW.z + 2.6 });
     stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
     if (!toCounter && !walkInRequest) {
-      const browsable = placedFixtures(state).filter((f) => f.skus && f.skus.length > 0);
+      const floorFixtures = placedFixtures(state);
+      const browsable = floorFixtures.filter((f) => f.skus && f.skus.length > 0);
+      const claimed = new Set(customers.flatMap((customer) => customer.stops
+        .slice(customer.stopIdx)
+        .map((stop) => stop.socketKey)
+        .filter(Boolean)));
       // Plan one real fixture visit per intended unit, preferring different
       // displays before revisiting a well-stocked one.
       organicPlan = planOrganicOrder(browsable, state.shop.inventory, rng);
@@ -8765,7 +8812,6 @@ export function makeClubhouse(ctx) {
     updateBoxLifecycleAnimations(dt);
     updateRecyclingDrop(dt);
     updateFlicker(dt);
-    updateDeliveryVehicle(dt);
     builder.update(dtMs);
     if (office.updateLid) office.updateLid(dt);
     if (moteFade > 0) {

@@ -5,7 +5,7 @@ async (page) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`CONSOLE: ${m.text()}`); });
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-checkout-delivery-groundskeeping-balance/qa/checkout-delivery-groundskeeping-balance/current/delivery';
+  const OUT = `${process.cwd().replaceAll('\\', '/')}/qa/checkout-delivery-groundskeeping-balance/current/delivery`;
   const shot = page.__qaOriginalScreenshot ? page.__qaOriginalScreenshot.bind(page) : page.screenshot.bind(page);
   const goto = page.__qaOriginalGoto ? page.__qaOriginalGoto.bind(page) : page.goto.bind(page);
   const log = [];

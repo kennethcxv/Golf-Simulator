@@ -7,8 +7,6 @@ function loadPlaywright() {
   const candidates = [
     'playwright',
     process.env.PLAYWRIGHT_PATH,
-    'C:/Users/Kenneth/AppData/Local/npm-cache/_npx/9833c18b2d85bc59/node_modules/playwright',
-    'C:/Users/Kenneth/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright',
   ].filter(Boolean);
   for (const candidate of candidates) {
     try {

@@ -72,7 +72,7 @@ for (const mode of ['cash', 'card']) {
   const output = path.join(OUT, mode).replaceAll('\\', '/');
   const configured = source
     .replace("const MODE = 'cash';", `const MODE = '${mode}';`)
-    .replace("const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/register/' + MODE;", `const OUT = '${output}';`)
+    .replace(/const OUT = [^\n]+;/, `const OUT = '${output}';`)
     .replaceAll("http://localhost:8457/", BASE_URL);
   const run = (0, eval)(configured);
   try {
