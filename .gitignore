@@ -3,15 +3,11 @@ dist/
 out/
 *.log
 __pycache__/
-*.pyc
+*.py[cod]
 .DS_Store
 Thumbs.db
 .playwright-mcp/
-__pycache__/
-*.py[cod]
 /qa/
-__pycache__/
-*.py[cod]
 *.blend1
 # Claude Code session state; /.claude/worktrees holds live git worktrees whose
 # .git files would corrupt this repository if committed.

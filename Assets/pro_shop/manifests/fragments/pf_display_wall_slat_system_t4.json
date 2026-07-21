@@ -1,0 +1,102 @@
+{
+ "id": "pf_display_wall_slat_system_t4",
+ "kind": "fixtures",
+ "category": "store_displays/wall_slat_system",
+ "dims_m": [
+  2.25,
+  0.38,
+  2.38
+ ],
+ "min_z": 0.0,
+ "tris": 3432,
+ "textures": [
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "SLAT_SYSTEM_SLOT_01",
+  "SLAT_SYSTEM_SLOT_02",
+  "SLAT_SYSTEM_SLOT_03",
+  "SLAT_SYSTEM_SLOT_04",
+  "SLAT_SYSTEM_SLOT_05",
+  "SLAT_SYSTEM_SLOT_06",
+  "SLAT_SYSTEM_SLOT_07",
+  "SLAT_SYSTEM_SLOT_08",
+  "SLAT_SYSTEM_SLOT_09",
+  "SLAT_SYSTEM_SLOT_10",
+  "SLAT_SYSTEM_SLOT_11",
+  "SLAT_SYSTEM_SLOT_12",
+  "SLAT_SYSTEM_SLOT_13",
+  "SLAT_SYSTEM_SLOT_14",
+  "SLAT_SYSTEM_SLOT_15",
+  "SLAT_SYSTEM_SLOT_16",
+  "SLAT_SYSTEM_SLOT_17",
+  "SLAT_SYSTEM_SLOT_18",
+  "SLAT_SYSTEM_SLOT_19",
+  "SLAT_SYSTEM_SLOT_20",
+  "SLAT_SYSTEM_SLOT_21",
+  "SLAT_SYSTEM_SLOT_22",
+  "SLAT_SYSTEM_SLOT_23",
+  "SLAT_SYSTEM_SLOT_24",
+  "SLAT_SYSTEM_SLOT_25",
+  "SLAT_SYSTEM_SLOT_26",
+  "SLAT_SYSTEM_SLOT_27",
+  "SLAT_SYSTEM_SLOT_28",
+  "SLAT_SYSTEM_SLOT_29",
+  "SLAT_SYSTEM_SLOT_30",
+  "SLAT_SYSTEM_SLOT_31",
+  "SLAT_SYSTEM_SLOT_32",
+  "SLAT_SYSTEM_SLOT_33",
+  "SLAT_SYSTEM_SLOT_34",
+  "SLAT_SYSTEM_SLOT_35",
+  "SLAT_SYSTEM_SLOT_36",
+  "SLAT_SYSTEM_SLOT_37",
+  "SLAT_SYSTEM_SLOT_38",
+  "SLAT_SYSTEM_SLOT_39",
+  "SLAT_SYSTEM_SLOT_40",
+  "SLAT_SYSTEM_SLOT_41",
+  "SLAT_SYSTEM_SLOT_42"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_wall_slat_system_t4.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/wall_slat_system/pf_display_wall_slat_system_t4.blend",
+ "name": "Wall Slat System - Tier 4 High-end",
+ "variant": "resort_boutique",
+ "tier": 4,
+ "quality": "High-end",
+ "price_band": 4,
+ "material_story": "fitted walnut casework, cream panels, brass",
+ "size_grade": 4,
+ "material_grade": 4,
+ "custom_woodwork_level": 3,
+ "fixture_complexity_grade": 4,
+ "integrated_light_count": 3,
+ "target_dimensions_m": [
+  2.25,
+  0.38,
+  2.38
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}

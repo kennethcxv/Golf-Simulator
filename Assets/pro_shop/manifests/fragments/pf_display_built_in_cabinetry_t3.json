@@ -1,0 +1,85 @@
+{
+ "id": "pf_display_built_in_cabinetry_t3",
+ "kind": "fixtures",
+ "category": "store_displays/built_in_cabinetry",
+ "dims_m": [
+  2.0,
+  0.677,
+  2.18
+ ],
+ "min_z": 0.0,
+ "tris": 2628,
+ "textures": [
+  "NRM_wood_0.6_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSOak:1024x512"
+ ],
+ "sockets": [
+  "CABINET_SLOT_01_01",
+  "CABINET_SLOT_01_02",
+  "CABINET_SLOT_01_03",
+  "CABINET_SLOT_01_04",
+  "CABINET_SLOT_01_05",
+  "CABINET_SLOT_02_01",
+  "CABINET_SLOT_02_02",
+  "CABINET_SLOT_02_03",
+  "CABINET_SLOT_02_04",
+  "CABINET_SLOT_02_05",
+  "CABINET_SLOT_03_01",
+  "CABINET_SLOT_03_02",
+  "CABINET_SLOT_03_03",
+  "CABINET_SLOT_03_04",
+  "CABINET_SLOT_03_05",
+  "CABINET_SLOT_04_01",
+  "CABINET_SLOT_04_02",
+  "CABINET_SLOT_04_03",
+  "CABINET_SLOT_04_04",
+  "CABINET_SLOT_04_05",
+  "CABINET_SLOT_05_01",
+  "CABINET_SLOT_05_02",
+  "CABINET_SLOT_05_03",
+  "CABINET_SLOT_05_04",
+  "CABINET_SLOT_05_05"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_built_in_cabinetry_t3.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/built_in_cabinetry/pf_display_built_in_cabinetry_t3.blend",
+ "name": "Built In Cabinetry - Tier 3 Premium",
+ "variant": "lodge_crafted",
+ "tier": 3,
+ "quality": "Premium",
+ "price_band": 3,
+ "material_story": "thick charcoal frame, crafted oak, restrained brass",
+ "size_grade": 3,
+ "material_grade": 3,
+ "custom_woodwork_level": 2,
+ "fixture_complexity_grade": 3,
+ "integrated_light_count": 2,
+ "target_dimensions_m": [
+  2.0,
+  0.58,
+  2.18
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}

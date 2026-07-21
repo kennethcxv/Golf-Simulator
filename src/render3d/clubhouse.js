@@ -79,6 +79,7 @@ import {
 } from '../sim/customerIdentity.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
+import { createStoreDisplayRuntime } from './clubhouse/storeDisplayRuntime.js';
 import {
   PRO_SHOP_EQUIPMENT_SHOWCASE_QUERY,
   buildProShopEquipmentShowcase,
@@ -500,6 +501,17 @@ export function makeClubhouse(ctx) {
   };
   const custGroup = new THREE.Group();      // customers walk in WORLD space (they go outside)
   scene.add(group, interior, custGroup);
+  // The complete 90-asset display library is a lazy runtime catalog. Nothing is
+  // decoded during ordinary play; a five-asset family showroom is activated on
+  // demand (or with ?storeDisplayShowroom=<family>) for in-game review.
+  const storeDisplays = createStoreDisplayRuntime({ scene, camera, center, heightAt });
+  const requestedDisplayFamily = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('storeDisplayShowroom')
+    : null;
+  if (requestedDisplayFamily
+    && storeDisplays.diagnostics().availableFamilies.includes(requestedDisplayFamily)) {
+    storeDisplays.showFamily(requestedDisplayFamily).catch(() => {});
+  }
 
   const L2W = (lx, lz) => ({ x: center.x + lx, z: center.z + lz });
   const W2L = (wx, wz) => ({ x: wx - center.x, z: wz - center.z });
@@ -8640,6 +8652,7 @@ export function makeClubhouse(ctx) {
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
 
     const equipmentBorrowedResources = deliveryEquipment?.borrowedResources?.() || null;
+    const storeDisplaysDisposal = storeDisplays.dispose();
     clearDeliveryVanColliders();
     const deliveryEquipmentDisposal = deliveryEquipment?.dispose?.() || null;
     deliveryArrivalHandles.clear();
@@ -8691,12 +8704,14 @@ export function makeClubhouse(ctx) {
       deliveryEquipment: deliveryEquipmentDisposal,
       boxPlacement: boxPlacementDisposal,
       sheet06Production: sheet06ProductionDisposal,
+      storeDisplays: storeDisplaysDisposal,
     });
     return disposalSummary;
   }
 
   return {
     group, interior,
+    storeDisplays,
     update, syncCameraVisibility, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,
     sheet06Production: sheet06ProductionPublic,
