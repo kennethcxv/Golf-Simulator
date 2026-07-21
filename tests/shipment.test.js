@@ -210,6 +210,9 @@ test('the past-day delivery safety net obeys the same receiving capacity', () =>
   for (let i = 0; i < PAD_CAPACITY - 1; i++) {
     boxesOf(s).push({ id: 700 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'pad', box: 'carton' });
   }
+  for (let i = 0; i < FALLBACK_CAPACITY; i++) {
+    boxesOf(s).push({ id: 750 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'receiving-fallback', box: 'carton' });
+  }
   placeOrder(s, 'tees1', 1);
   placeOrder(s, 'glove1', 1);
   const overdueDay = Math.max(...s.shop.orders.map((order) => order.arrivesDay)) + 1;

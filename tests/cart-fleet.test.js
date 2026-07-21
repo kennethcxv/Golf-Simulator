@@ -24,7 +24,7 @@ import {
   GREEN_FEE_SKU,
 } from '../src/sim/reservationCheckIn.js';
 import {
-  requestPayment, presentCard, insertCard, submitCardAmount, runCard,
+  requestPayment, presentCard, insertCard, enterCardDigit, submitCardAmount, runCard, totalOf,
 } from '../src/sim/register.js';
 
 function tomorrow(state) {
@@ -50,6 +50,9 @@ function approveCard(state, reservation) {
   assert.equal(requestPayment(tx).ok, true);
   assert.equal(presentCard(tx).ok, true);
   assert.equal(insertCard(tx).ok, true);
+  for (const digit of String(Math.round(totalOf(tx) * 100))) {
+    assert.equal(enterCardDigit(tx, digit).ok, true);
+  }
   assert.equal(submitCardAmount(tx).ok, true);
   assert.equal(runCard(tx).result, 'approved');
   return tx;

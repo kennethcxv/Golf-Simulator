@@ -1129,6 +1129,41 @@ export function vacuumOwned(state) {
   return !!inv && inv.back > 0;
 }
 
+function moveReserveStockToShelf(state, skuId, quantity, reason) {
+  let ledgerMove = moveInventory(state, {
+    from: INVENTORY_STAGE.RESERVE,
+    to: INVENTORY_STAGE.SHELF,
+    skuId,
+    quantity,
+    reason,
+  });
+  if (ledgerMove.ok) return ledgerMove;
+
+  // Legacy saves and scenario builders may contain physical backroom stock
+  // that predates lot tracking. Adopt only the missing reserve quantity, then
+  // retry the same auditable movement. Player and staff restocking must follow
+  // the same conservation rule.
+  const trackedReserve = inventoryLots(state, { active: true, skuId })
+    .reduce((sum, lot) => sum + (lot.buckets[INVENTORY_STAGE.RESERVE] || 0), 0);
+  const deficit = Math.max(0, quantity - trackedReserve);
+  const adopted = deficit > 0 && adoptExternalInventory(state, {
+    skuId,
+    quantity: deficit,
+    stage: INVENTORY_STAGE.RESERVE,
+    note: 'Legacy shelf restock supplied unallocated backroom stock',
+  });
+  if (adopted?.ok) {
+    ledgerMove = moveInventory(state, {
+      from: INVENTORY_STAGE.RESERVE,
+      to: INVENTORY_STAGE.SHELF,
+      skuId,
+      quantity,
+      reason,
+    });
+  }
+  return ledgerMove;
+}
+
 // the player, standing at a shelf in the 3D shop
 export function restockShelfFromBackroom(state, skuId) {
   const sku = skuById(skuId);
@@ -1138,36 +1173,9 @@ export function restockShelfFromBackroom(state, skuId) {
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
   if (move <= 0) return { ok: false, reason: inv.back <= 0 ? 'Backroom is empty.' : 'Shelf is full.' };
-  let ledgerMove = moveInventory(state, {
-    from: INVENTORY_STAGE.RESERVE,
-    to: INVENTORY_STAGE.SHELF,
-    skuId,
-    quantity: move,
-    reason: 'Restocked shelf from backroom',
-  });
-  if (!ledgerMove.ok) {
-    // Older save fixtures and code-level scenario builders can still inject
-    // physical backroom stock directly. Adopt only the untracked deficit so
-    // existing purchase-order provenance remains intact and auditable.
-    const trackedReserve = inventoryLots(state, { active: true, skuId })
-      .reduce((sum, lot) => sum + (lot.buckets[INVENTORY_STAGE.RESERVE] || 0), 0);
-    const deficit = Math.max(0, move - trackedReserve);
-    const adopted = deficit > 0 && adoptExternalInventory(state, {
-      skuId,
-      quantity: deficit,
-      stage: INVENTORY_STAGE.RESERVE,
-      note: 'Legacy shelf restock supplied unallocated backroom stock',
-    });
-    if (adopted?.ok) {
-      ledgerMove = moveInventory(state, {
-        from: INVENTORY_STAGE.RESERVE,
-        to: INVENTORY_STAGE.SHELF,
-        skuId,
-        quantity: move,
-        reason: 'Restocked shelf from backroom',
-      });
-    }
-  }
+  const ledgerMove = moveReserveStockToShelf(
+    state, skuId, move, 'Restocked shelf from backroom',
+  );
   if (!ledgerMove.ok) return ledgerMove;
   inv.back -= move;
   inv.shelf += move;
@@ -1190,13 +1198,7 @@ export function restockShelvesByStaff(state) {
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
     if (move > 0) {
-      const ledgerMove = moveInventory(state, {
-        from: INVENTORY_STAGE.RESERVE,
-        to: INVENTORY_STAGE.SHELF,
-        skuId: sku.id,
-        quantity: move,
-        reason: 'Floor staff restock',
-      });
+      const ledgerMove = moveReserveStockToShelf(state, sku.id, move, 'Floor staff restock');
       if (!ledgerMove.ok) continue;
       inv.back -= move;
       inv.shelf += move;

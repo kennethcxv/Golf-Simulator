@@ -8,7 +8,7 @@ import {
   ensureNotifications, NOTIF_CAP,
 } from '../src/sim/notifications.js';
 import { placeOrder, tickDeliveries } from '../src/sim/shop.js';
-import { arriveOrder } from '../src/sim/deliveries.js';
+import { arriveOrder, FALLBACK_CAPACITY, PAD_CAPACITY } from '../src/sim/deliveries.js';
 import { postReview } from '../src/sim/reviews.js';
 
 test('notify files an item, unread until read', () => {
@@ -94,14 +94,18 @@ test('a posted review files one heads-up per day, not one per review', () => {
 test('a blocked van tells the office once per episode', () => {
   const st = newGame('relaxed', 49);
   st.cash = 80000;
-  // fill the pad so the next van has no room: nine fake standing boxes
+  // Fill both receiving zones so the next van has no room. Overflow receiving
+  // is intentional, but the combined capacity remains a hard physical limit.
   placeOrder(st, 'balls1', 6);
   const order = st.shop.orders[0];
   st.shop.deliveries = st.shop.deliveries || {};
   arriveOrder(st, { ...order, id: 900, manifest: order.manifest });
   const d = st.shop.deliveries;
-  while (d.boxes.length < 9) {
+  while (d.boxes.filter((box) => box.loc === 'pad').length < PAD_CAPACITY) {
     d.boxes.push({ ...d.boxes[0], id: d.nextBoxId++, loc: 'pad' });
+  }
+  while (d.boxes.filter((box) => box.loc === 'receiving-fallback').length < FALLBACK_CAPACITY) {
+    d.boxes.push({ ...d.boxes[0], id: d.nextBoxId++, loc: 'receiving-fallback' });
   }
   // force the real order due now, with a manifest bigger than the free pad space
   order.deliveryMin = st.clock.minutes;

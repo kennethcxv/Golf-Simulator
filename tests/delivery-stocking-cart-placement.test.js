@@ -184,7 +184,7 @@ test('picking a cart box clears ownership and it can be replaced exactly once', 
   assert.equal(box.socketId, 'STOCK_SOCKET_05');
 
   assert.ok(pickUpBox(st, box.id).ok);
-  assert.ok(putDownBox(st, box.id, floorTarget(0, 2, 0.4)).ok);
+  assert.ok(putDownBox(st, box.id, floorTarget(9, -5, 0.4)).ok);
   assert.equal(box.loc, 'world', 'ordinary world placement behavior is preserved');
   assert.equal(box.surfaceId, FLOOR_BOX_SURFACE_ID);
   assert.equal(box.equipmentId, undefined);

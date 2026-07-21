@@ -933,13 +933,19 @@ function floorBoxRect(box) {
 }
 
 function floorRouteIntact(state, candidateRect, selfId, options) {
+  // A migrated or newly generated authored layout can contain core furniture
+  // that predates this conservative grid proof. Never let such a pre-existing
+  // mismatch brick every floor set-down: overlap, wall, partition, clearway,
+  // and support checks still apply, while route rejection is enforced whenever
+  // the same scene is valid before adding the candidate carton.
+  if (candidateRect && !floorRouteIntact(state, null, selfId, options)) return true;
   const fixtures = placedFixturesReadOnly(state);
   const rects = fixtures.map(fixtureRect);
   rects.push(...fixedFloorBlockers(state, options).map((entry) => entry.rect));
   for (const box of boxesOnSurface(state, FLOOR_BOX_SURFACE_ID, { exceptId: selfId })) {
     if (Number.isFinite(box.x) && Number.isFinite(box.z)) rects.push(floorBoxRect(box));
   }
-  rects.push(candidateRect);
+  if (candidateRect) rects.push(candidateRect);
 
   const solidAt = (x, z) => {
     if (Math.abs(x) > INTERIOR.w / 2 - BODY_RADIUS

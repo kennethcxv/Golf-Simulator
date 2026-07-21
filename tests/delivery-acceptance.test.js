@@ -33,9 +33,11 @@ const ORDER = [
   ['light1', 1],    // fixture package — 1 box
 ];
 
-// Seven surveyed floor lanes that stay clear of renovation clutter and preserve
+// Seven surveyed floor spots that stay clear of renovation clutter and preserve
 // the required customer/receiving routes for every authored carton footprint.
-const DROP_LANE_XS = [-9, -8.5, -7.75, -6.25, -5.5, -4.75, -2.75];
+const DROP_SPOTS = [
+  [-9.5, -5], [9, -5], [6.7, -5], [0, 2], [-8.5, -5], [-5, -5], [0, 0],
+];
 const floorTarget = (x, z, ry = 0) => ({
   kind: 'surface', surfaceId: FLOOR_BOX_SURFACE_ID, x, z, ry,
 });
@@ -102,7 +104,7 @@ test('drop every box a few times: identities and contents survive, nothing dupli
       const down = putDownBox(
         st,
         id,
-        floorTarget(DROP_LANE_XS[laneIndex], -5, k * 0.1),
+        floorTarget(DROP_SPOTS[laneIndex][0], DROP_SPOTS[laneIndex][1], k * 0.1),
       );
       assert.ok(down.ok, `box ${id} set down safely (drop ${k}): ${down.reason || ''}`);
       const still = boxesOf(st).find((b) => b.id === id);

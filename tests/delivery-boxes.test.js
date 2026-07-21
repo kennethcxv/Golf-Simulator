@@ -29,12 +29,12 @@ test('a box set down in the world keeps its identity and exact spot', () => {
   assert.equal(box.loc, 'pad');
   assert.ok(pickUpBox(state, box.id).ok);
   assert.equal(carriedBox(state).id, box.id);
-  const res = putDownBox(state, box.id, floorTarget(3.25, -1.5, 0.7));
+  const res = putDownBox(state, box.id, floorTarget(9, -5, 0.7));
   assert.ok(res.ok);
   assert.equal(box.loc, 'world');
   assert.equal(box.surfaceId, FLOOR_BOX_SURFACE_ID);
-  assert.equal(box.x, 3.25);
-  assert.equal(box.z, -1.5);
+  assert.equal(box.x, 9);
+  assert.equal(box.z, -5);
   assert.equal(box.ry, 0.7);
 });
 
@@ -45,7 +45,7 @@ test('pick-up/set-down cycles never lose or duplicate a box', () => {
     assert.ok(pickUpBox(state, box.id).ok, `cycle ${i} pickup`);
     // Reuse one known-clear floor support: pickup releases its occupancy before
     // the next placement, while rotation still exercises ten exact transforms.
-    const spot = floorTarget(3.25, -1.5, i * 0.3);
+    const spot = floorTarget(9, -5, i * 0.3);
     assert.ok(putDownBox(state, box.id, spot).ok, `cycle ${i} setdown`);
     assert.equal(boxesOf(state).length, 1, `cycle ${i} count`);
     assert.equal(boxesOf(state)[0].id, box.id, `cycle ${i} identity`);
@@ -59,14 +59,14 @@ test('world boxes and their positions survive a save/load round trip', () => {
   const state = freshState();
   const box = boxesOf(state)[0];
   assert.ok(pickUpBox(state, box.id).ok);
-  assert.ok(putDownBox(state, box.id, floorTarget(3.25, -1.5, 1.1)).ok);
+  assert.ok(putDownBox(state, box.id, floorTarget(9, -5, 1.1)).ok);
   const loaded = JSON.parse(JSON.stringify(state));
   const again = boxesOf(loaded)[0];
   assert.equal(again.id, box.id);
   assert.equal(again.loc, 'world');
   assert.equal(again.surfaceId, FLOOR_BOX_SURFACE_ID);
-  assert.equal(again.x, 3.25);
-  assert.equal(again.z, -1.5);
+  assert.equal(again.x, 9);
+  assert.equal(again.z, -5);
   assert.equal(again.ry, 1.1);
 });
 
