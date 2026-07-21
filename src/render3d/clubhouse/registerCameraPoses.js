@@ -33,3 +33,15 @@ export function cardTerminalPose(station, counterTop) {
     fov: 32,
   };
 }
+
+// Receipt feed: keep the thermal printer, output slot, and full paper travel in
+// one close composition. The player is not entering data during this automatic
+// beat, so a short eased glance can prove that the physical printer actually
+// produced the receipt before the camera returns to the customer handoff.
+export function receiptPrinterPose(station, counterTop) {
+  return {
+    eye: { x: station.x - 0.56, y: counterTop + 0.67, z: station.z + 0.90 },
+    look: { x: station.x - 0.26, y: counterTop + 0.16, z: station.z - 0.04 },
+    fov: 46,
+  };
+}

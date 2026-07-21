@@ -5573,13 +5573,30 @@ export function makeClubhouse(ctx) {
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
     const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
+    const appearanceFixture = options?.appearanceFixture
+      && typeof options.appearanceFixture === 'object'
+      ? options.appearanceFixture
+      : null;
+    const appearanceValue = (key, fallback) => (
+      appearanceFixture && Object.prototype.hasOwnProperty.call(appearanceFixture, key)
+        ? appearanceFixture[key]
+        : fallback()
+    );
     const char = makeCharacter({
-      polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
-      khaki: TROUSERS[rng.int(TROUSERS.length)],
-      skin: SKINS[rng.int(SKINS.length)],
-      cap: rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null,
+      polo: appearanceValue('polo', () => CUST_COLORS[rng.int(CUST_COLORS.length)]),
+      khaki: appearanceValue('khaki', () => TROUSERS[rng.int(TROUSERS.length)]),
+      skin: appearanceValue('skin', () => SKINS[rng.int(SKINS.length)]),
+      cap: appearanceValue(
+        'cap',
+        () => (rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null),
+      ),
     });
-    char.root.scale.setScalar(0.87 + rng.next() * 0.12);
+    const fixtureScale = Number(appearanceFixture?.scale);
+    char.root.scale.setScalar(
+      Number.isFinite(fixtureScale)
+        ? Math.max(0.75, Math.min(1.1, fixtureScale))
+        : 0.87 + rng.next() * 0.12,
+    );
     char.setMode('Walk');
     char.root.userData.char = char;
     const g = char.root;
@@ -7257,8 +7274,11 @@ export function makeClubhouse(ctx) {
       releaseReservationCustomer(customer, 'completed');
       return { ok: true, alreadyReleased, customer: reservationCustomerSnapshot(customer) };
     },
-    sendToCounter(skuIds, payMethod = null) {
-      const c = spawnCustomer(false);
+    sendToCounter(skuIds, payMethod = null, options = {}) {
+      // The optional appearance fixture is diagnostics-only. It lets repeated
+      // performance sales compare the same character topology without changing
+      // the randomized presentation of organic shoppers or normal QA callers.
+      const c = spawnCustomer(false, null, options);
       if (!c) return null;
       // An explicit method is the scripted/QA override; otherwise the customer
       // keeps the balanced-bag preference they drew at spawn.

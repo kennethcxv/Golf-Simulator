@@ -43,7 +43,9 @@ import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 import {
   billFit, billLayout, clipFillRatio, coinLayout,
 } from './drawerMoneyLayout.js';
-import { cardHandoffPose, cardTerminalPose } from './registerCameraPoses.js';
+import {
+  cardHandoffPose, cardTerminalPose, receiptPrinterPose,
+} from './registerCameraPoses.js';
 import { createScopedBooleanOverride } from './scopedBooleanOverride.js';
 import { suppressInteriorSunShadows } from './interiorShadowPolicy.js';
 
@@ -705,6 +707,7 @@ export function createRegisterMode(B) {
     { x: 2.92, y: 1.64, z: 5.22 },
     { x: 3.04, y: 1.28, z: 4.10 },
   ), fov: 49 };
+  const receiptFocus = receiptPrinterPose(REGISTER.printer, COUNTER_TOP);
   const POSES = {
     overview: MIXED_POSE,
     // Working the screen is done from BELOW it, looking UP. The old pose put the
@@ -722,6 +725,10 @@ export function createRegisterMode(B) {
       { x: 3.42, y: 2.12, z: 5.78 },
       { x: 3.42, y: 0.72, z: 4.66 },
     ), fov: 50 },
+    receipt: {
+      pose: poseBetween(receiptFocus.eye, receiptFocus.look),
+      fov: receiptFocus.fov,
+    },
   };
 
   // A timed, eased move between two poses: short, predictable, and stable while
@@ -763,7 +770,8 @@ export function createRegisterMode(B) {
     // from the live transaction stage.
     if (accessibilityPrefs.reducedCameraMotion
         || ['scan', 'card', 'cash'].includes(workspace)
-        || tx?.stage === 'cash-tender') {
+        || tx?.stage === 'cash-tender'
+        || receiptFocusActive()) {
       lookTargetYaw = 0;
       lookTargetPitch = 0;
       return;
@@ -3714,6 +3722,11 @@ export function createRegisterMode(B) {
       0, 0, textureCanvas.width, textureCanvas.height,
     );
     const texture = new THREE.CanvasTexture(textureCanvas);
+    // The authored Receipt_Strip is bottom-anchored for the feed animation, but
+    // its UVs use the GLTF convention. CanvasTexture's default vertical flip put
+    // the header at the torn edge and made every line upside down from the
+    // cashier camera. Preserve canvas top as receipt top for a readable print.
+    texture.flipY = false;
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
     return texture;
@@ -3773,6 +3786,7 @@ export function createRegisterMode(B) {
         }),
       );
       receiptMesh.name = 'PrintedReceipt';
+      receiptMesh.userData.kind = 'receipt';
       receiptMesh.userData.authoredGeometry = !!geometry;
       root.add(receiptMesh);
       resetToPrinter = true;
@@ -4759,6 +4773,10 @@ export function createRegisterMode(B) {
 
   // Which preset the current checkout state deserves. Workspaces map directly;
   // the monitor workspace splits by what the player is actually doing there.
+  function receiptFocusActive() {
+    return deliveryPhase === 'receipt-print' || deliveryPhase === 'receipt-ready';
+  }
+
   function poseKey() {
     if (workspace === 'scan') return 'scan';
     if (workspace === 'card') {
@@ -4771,11 +4789,13 @@ export function createRegisterMode(B) {
       return waiting ? 'cardTake' : 'card';
     }
     if (workspace === 'cash') return 'cash';
+    if (receiptFocusActive()) return 'receipt';
     // Cash can be presented from either side of the queue marker. Track the
     // actual customer hand just as the card handoff does, then return to the
     // authored POS/drawer frame after the player accepts the tender.
     if (tx?.stage === 'cash-tender') return 'cashTake';
-    // the receipt/bag handover plays out inside the working frame — no jump to watch paper
+    // Once the printed strip clears the slot, return to the shared working frame
+    // for the customer receipt and bag handoff.
     if (activeTab === 'check-in') return 'checkin';
     return 'overview';
   }
@@ -4851,7 +4871,8 @@ export function createRegisterMode(B) {
     // pan the next product, keypad digit, drawer denomination, or tender out of
     // reach. Overview/check-in retain the eased neck motion for looking around.
     const lockWorkingFrame = ['scan', 'card', 'cash'].includes(workspace)
-      || tx?.stage === 'cash-tender';
+      || tx?.stage === 'cash-tender'
+      || receiptFocusActive();
     if (lockWorkingFrame) {
       lookYaw = 0;
       lookPitch = 0;

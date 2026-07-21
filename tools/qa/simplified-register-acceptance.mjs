@@ -112,10 +112,40 @@ async function projectObject(page, predicate) {
       : bounds.getCenter(new THREE.Vector3());
     world.project(app.scene3d.camera);
     const rect = document.querySelector('canvas').getBoundingClientRect();
+    let screenBounds = null;
+    let fullyInView = false;
+    if (!bounds.isEmpty()) {
+      const xs = [bounds.min.x, bounds.max.x];
+      const ys = [bounds.min.y, bounds.max.y];
+      const zs = [bounds.min.z, bounds.max.z];
+      const projected = [];
+      for (const x of xs) {
+        for (const y of ys) {
+          for (const z of zs) {
+            const corner = new THREE.Vector3(x, y, z).project(app.scene3d.camera);
+            projected.push({
+              x: rect.left + ((corner.x + 1) / 2) * rect.width,
+              y: rect.top + ((-corner.y + 1) / 2) * rect.height,
+              z: corner.z,
+            });
+          }
+        }
+      }
+      const left = Math.min(...projected.map((point) => point.x));
+      const top = Math.min(...projected.map((point) => point.y));
+      const right = Math.max(...projected.map((point) => point.x));
+      const bottom = Math.max(...projected.map((point) => point.y));
+      screenBounds = { left, top, right, bottom, width: right - left, height: bottom - top };
+      fullyInView = projected.every((point) => point.z >= -1 && point.z <= 1)
+        && left >= rect.left && top >= rect.top
+        && right <= rect.right && bottom <= rect.bottom;
+    }
     return {
       x: rect.left + ((world.x + 1) / 2) * rect.width,
       y: rect.top + ((-world.y + 1) / 2) * rect.height,
       inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+      fullyInView,
+      screenBounds,
     };
   }, predicate);
 }
@@ -989,12 +1019,19 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
 
   await scanAll(page, shot, mode);
   let cashDrawerTravelEvidence = null;
+  let receiptVisibilityEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
   ), null, { timeout: 10000 });
   await waitCamera(page, 'monitor');
+  receiptVisibilityEvidence = await projectObject(page, { kind: 'receipt' });
+  assert(receiptVisibilityEvidence?.inView && receiptVisibilityEvidence.fullyInView,
+    'The physical receipt did not remain fully visible during printer focus.');
+  assert(receiptVisibilityEvidence.screenBounds.width >= 45
+      && receiptVisibilityEvidence.screenBounds.height >= 80,
+  `The physical receipt printed too small to read (${Math.round(receiptVisibilityEvidence.screenBounds.width)}x${Math.round(receiptVisibilityEvidence.screenBounds.height)} px).`);
   await shot('12b-receipt-printing.png');
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -1076,6 +1113,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     final,
     evidence,
     cashDrawerTravelEvidence,
+    receiptVisibilityEvidence,
     audioVideoCapture,
     console: { errors, pageErrors, failedRequests, nonAbortedFailedRequests: nonAborted },
   };

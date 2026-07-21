@@ -2043,10 +2043,11 @@ export async function startDynamicProbe(page) {
       // A requestAnimationFrame callback receives the previous frame's high-
       // resolution timestamp. It can therefore be a few milliseconds earlier
       // than performance.now() captured immediately before scheduling this
-      // first callback. The explicit zero-time boundary owns that interval;
-      // skip any pre-boundary rAF instead of emitting a negative/duplicate
-      // elapsed sample that would make trace coverage unverifiable.
-      if (now <= state.startedAt) {
+      // first callback. The explicit zero-time boundary owns that interval.
+      // The persisted trace rounds elapsed milliseconds to three decimals, so
+      // also reject a sub-microsecond positive delta that would serialize as a
+      // duplicate zero-time sample and invalidate an otherwise complete trace.
+      if (now - state.startedAt < 0.001) {
         requestAnimationFrame(frame);
         return;
       }
@@ -2841,12 +2842,25 @@ async function waitForAllCustomersRemoved(page, timeout = 22000) {
   }, null, { timeout });
 }
 
+const PERFORMANCE_CUSTOMER_APPEARANCE_FIXTURE = Object.freeze({
+  polo: 0x4a6d94,
+  khaki: 0x8a8577,
+  skin: 0xb9865e,
+  cap: 0x2c3e66,
+  scale: 0.93,
+});
+
 async function sendPerformanceCustomer(page, method, { exactCashFixture = false } = {}) {
-  const customer = await page.evaluate(({ skuIds, payment, cashFixture }) => {
+  const customer = await page.evaluate(({ skuIds, payment, cashFixture, appearanceFixture }) => {
     const clubhouse = window.__fw.scene3d.clubhouse();
-    const created = clubhouse.sendToCounter(skuIds, payment);
+    const created = clubhouse.sendToCounter(skuIds, payment, { appearanceFixture });
     return { created, payment, cashFixture };
-  }, { skuIds: ITEMS, payment: method, cashFixture: exactCashFixture });
+  }, {
+    skuIds: ITEMS,
+    payment: method,
+    cashFixture: exactCashFixture,
+    appearanceFixture: PERFORMANCE_CUSTOMER_APPEARANCE_FIXTURE,
+  });
   assert(customer?.created, `Could not create deterministic ${method} performance customer.`);
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.getTx()?.items.length === 3
