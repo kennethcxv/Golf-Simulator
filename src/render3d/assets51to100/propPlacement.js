@@ -161,12 +161,31 @@ const runtimeUrl = (p) => `vendor/models/assets_51_100/${p.sheet}/${p.stem}.glb`
  */
 function runtimePlacement(authored, state) {
   const office = resolvedOfficeLayout(state);
-  if (authored.n === 81) return { ...authored, x: office.chair.x, z: office.chair.z, ry: office.chair.ry };
-  if (authored.n === 82) return { ...authored, x: office.filing.x, z: office.filing.z, ry: office.filing.ry };
-  if (authored.n === 83 && office.lamp) return { ...authored, ...office.lamp };
-  if (authored.n === 84 && office.printer) return { ...authored, ...office.printer };
-  if (authored.n === 85 && office.phone) return { ...authored, ...office.phone };
+  const generated = !!state?.shop?.generation;
+  if (authored.n === 81) return { ...authored, x: office.chair.x, z: office.chair.z, ry: office.chair.ry, hidden: generated };
+  if (authored.n === 82) return { ...authored, x: office.filing.x, z: office.filing.z, ry: office.filing.ry, hidden: generated };
+  if (authored.n === 83 && office.lamp) return { ...authored, ...office.lamp, hidden: office.lamp.available === false };
+  if (authored.n === 84 && office.printer) return { ...authored, ...office.printer, hidden: office.printer.available === false };
+  if (authored.n === 85 && office.phone) return { ...authored, ...office.phone, hidden: office.phone.available === false };
   return authored;
+}
+
+function placeRuntimeRoot(root, placement) {
+  root.position.set(0, 0, 0);
+  root.rotation.y = placement.ry || 0;
+  root.updateMatrix();
+  const socketLocal = root.userData.socketPlacementLocal;
+  if (socketLocal) {
+    const offset = socketLocal.clone().applyMatrix4(root.matrix);
+    root.position.set(
+      placement.x - offset.x,
+      (placement.y || 0) - offset.y,
+      placement.z - offset.z,
+    );
+  } else {
+    root.position.set(placement.x, placement.y || 0, placement.z);
+  }
+  root.visible = !placement.hidden;
 }
 
 export function buildProps({ interior, loader, state = null }) {
@@ -176,6 +195,7 @@ export function buildProps({ interior, loader, state = null }) {
 
   const placed = [];
   const failed = [];
+  const roots = new Map();
 
   const jobs = PROP_PLACEMENTS.map((authored) => new Promise((resolve) => {
     const p = runtimePlacement(authored, state);
@@ -191,15 +211,14 @@ export function buildProps({ interior, loader, state = null }) {
         // by its authoring origin, which sits mid-body on most of them — a fire extinguisher would
         // hang 0.44 m through the wall it is bracketed to.
         const socket = root.getObjectByName('SOCKET_PLACEMENT');
-        const target = new THREE.Vector3(p.x, p.y || 0, p.z);
         if (socket) {
           socket.updateWorldMatrix(true, false);
           const at = new THREE.Vector3().setFromMatrixPosition(socket.matrixWorld);
-          root.position.set(target.x - at.x, target.y - at.y, target.z - at.z);
+          root.userData.socketPlacementLocal = root.worldToLocal(at.clone());
         } else {
-          root.position.copy(target);
           failed.push({ n: p.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
         }
+        placeRuntimeRoot(root, p);
 
         root.traverse((o) => {
           if (!o.isMesh) return;
@@ -210,6 +229,7 @@ export function buildProps({ interior, loader, state = null }) {
         });
 
         group.add(root);
+        roots.set(p.n, root);
         placed.push({ n: p.n, name: root.name, at: [p.x, p.y || 0, p.z] });
         resolve(true);
       } catch (err) {
@@ -255,6 +275,12 @@ export function buildProps({ interior, loader, state = null }) {
       assetNumbers: placed.map((p) => p.n).sort((a, b) => a - b),
       superseded: [...superseded],
     }),
+    refreshGeneratedFurnishings() {
+      for (const authored of PROP_PLACEMENTS) {
+        const root = roots.get(authored.n);
+        if (root) placeRuntimeRoot(root, runtimePlacement(authored, state));
+      }
+    },
     dispose() {
       // Dispose each distinct resource ONCE. Two props can legitimately share a geometry or a
       // material — the cloth and sponge come out of one authored set, and a stubbed loader in the
@@ -272,6 +298,7 @@ export function buildProps({ interior, loader, state = null }) {
       for (const m of materials) m.dispose();
       group.removeFromParent();
       placed.length = 0;
+      roots.clear();
     },
   };
 }

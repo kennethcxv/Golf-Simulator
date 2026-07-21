@@ -132,6 +132,44 @@ export function buildFixtures(B) {
     return core;
   }
 
+  const generatedCourseLevel = state.shop?.generation?.courseLevel || 0;
+  const serviceFinishTarget = (role) => {
+    const targets = {
+      wood: [0x777b72, 0xa77d4f, 0x68472f, 0x62584c, 0x493022],
+      metal: [0x6d7470, 0x646b66, 0x4d514c, 0x444b47, 0x263c31],
+      chair: [0x4f5552, 0x343b37, 0x352f2b, 0x303533, 0x252926],
+    };
+    return targets[role]?.[Math.max(0, generatedCourseLevel - 1)] || targets[role]?.[1];
+  };
+  const serviceFinishMix = [0.62, 0.30, 0.38, 0.34, 0.46][Math.max(0, generatedCourseLevel - 1)] || 0.3;
+  function serviceMaterial(source, role = 'wood') {
+    if (!generatedCourseLevel) return source;
+    const material = source.clone();
+    if (material.color) material.color.lerp(new THREE.Color(serviceFinishTarget(role)), serviceFinishMix);
+    material.roughness = Math.max(
+      generatedCourseLevel === 1 ? 0.94 : generatedCourseLevel >= 4 ? 0.70 : 0.82,
+      Number(material.roughness) || 0,
+    );
+    material.metalness = Math.min(role === 'metal' ? 0.32 : 0.12, Number(material.metalness) || 0);
+    return material;
+  }
+  function applyServiceKitFinish(root, role = 'wood') {
+    if (!generatedCourseLevel || !root) return root;
+    const clones = new Map();
+    root.traverse((object) => {
+      if (!object.isMesh || !object.material) return;
+      const finish = (source) => {
+        if (!source) return source;
+        if (!clones.has(source)) clones.set(source, serviceMaterial(source, role));
+        return clones.get(source);
+      };
+      object.material = Array.isArray(object.material)
+        ? object.material.map(finish)
+        : finish(object.material);
+    });
+    return root;
+  }
+
   // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
   // architecture, not furniture the player pushes around.
   let tracking = false;
@@ -872,12 +910,123 @@ export function buildFixtures(B) {
     return g;
   }
 
+  function officeDeskUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'MovableOfficeDesk';
+    const fallback = new THREE.Group();
+    const deskWood = serviceMaterial(mats.walnut, 'wood');
+    const deskFrame = serviceMaterial(mats.walnutDark, generatedCourseLevel === 1 ? 'metal' : 'wood');
+    const top = new THREE.Mesh(roundedBox(1.9, 0.08, 0.95, 0.025), deskWood);
+    top.position.y = 0.71;
+    fallback.add(top);
+    for (const [x, z] of [[-0.84, -0.38], [0.84, -0.38], [-0.84, 0.38], [0.84, 0.38]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.67, 0.09), deskFrame);
+      leg.position.set(x, 0.335, z);
+      fallback.add(leg);
+    }
+    g.add(fallback);
+    if (merch) merch.onReady(() => {
+      const kit = applyServiceKitFinish(
+        merch.instantiateKit && merch.instantiateKit('office_desk'),
+        generatedCourseLevel === 1 ? 'metal' : 'wood',
+      );
+      if (!kit) return;
+      kit.rotation.y = -Math.PI;
+      g.add(kit);
+      disposeReplacedFixture(fallback);
+    });
+    addFixtureCollider(f);
+    return g;
+  }
+
+  function officeChairUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'MovableOfficeChair';
+    const fallback = new THREE.Group();
+    const chairFinish = serviceMaterial(mats.charcoal, 'chair');
+    const seat = new THREE.Mesh(roundedBox(0.52, 0.12, 0.52, 0.04), chairFinish);
+    seat.position.y = 0.48;
+    const back = new THREE.Mesh(roundedBox(0.52, 0.62, 0.10, 0.04), chairFinish);
+    back.position.set(0, 0.80, -0.25);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.40, 10), serviceMaterial(mats.iron, 'metal'));
+    stem.position.y = 0.24;
+    fallback.add(seat, back, stem);
+    g.add(fallback);
+    if (merch) merch.onReady(() => {
+      const kit = applyServiceKitFinish(
+        (merch.instantiateKit && merch.instantiateKit('office_chair'))
+          || merch.instantiateRaw('office_chair'),
+        'chair',
+      );
+      if (!kit) return;
+      g.add(kit);
+      disposeReplacedFixture(fallback);
+    });
+    addFixtureCollider(f);
+    return g;
+  }
+
+  function officeFilingUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'MovableOfficeFiling';
+    const fallback = new THREE.Mesh(roundedBox(0.68, 0.72, 0.52, 0.025), serviceMaterial(mats.iron, 'metal'));
+    fallback.position.y = 0.36;
+    g.add(fallback);
+    if (merch) merch.onReady(() => {
+      const kit = applyServiceKitFinish(
+        merch.instantiateKit && merch.instantiateKit('filing_cabinet'),
+        generatedCourseLevel >= 4 ? 'wood' : 'metal',
+      );
+      if (!kit) return;
+      g.add(kit);
+      disposeReplacedFixture(fallback);
+    });
+    addFixtureCollider(f);
+    return g;
+  }
+
+  function packingBenchUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'MovablePackingBench';
+    const benchWood = serviceMaterial(mats.rawWood, 'wood');
+    const benchMetal = serviceMaterial(mats.iron, 'metal');
+    const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), benchWood);
+    top.position.y = 0.92;
+    const under = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.7), benchWood);
+    under.position.y = 0.42;
+    g.add(top, under);
+    for (const [x, z] of [[-0.78, -0.36], [0.78, -0.36], [-0.78, 0.36], [0.78, 0.36]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.92, 0.06), benchMetal);
+      leg.position.set(x, 0.46, z);
+      g.add(leg);
+    }
+    const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.3), mats.trimPaint);
+    clipboard.position.set(-0.4, 0.458, 0.1);
+    clipboard.rotation.y = 0.3;
+    const tapeGun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.06), mats.charcoal);
+    tapeGun.position.set(0.35, 0.485, -0.1);
+    tapeGun.rotation.y = -0.4;
+    g.add(clipboard, tapeGun);
+    if (merch) merch.onReady(() => {
+      const tapeRoll = merch.instantiate('delivery_packing_tape_roll');
+      if (!tapeRoll) return;
+      tapeRoll.name = 'PackingBenchTapeRoll';
+      tapeRoll.position.set(0.18, 0.50, -0.12);
+      tapeRoll.rotation.set(Math.PI / 2, -0.2, 0);
+      g.add(tapeRoll);
+    });
+    addFixtureCollider(f);
+    return g;
+  }
+
   const FIXTURE_BUILDERS = {
     shelf: shelfUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
     hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
     apparelwall: apparelwallUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
     snackrack: snackrackUnit,
+    officeDesk: officeDeskUnit, officeChair: officeChairUnit,
+    officeFiling: officeFilingUnit, packingbench: packingBenchUnit,
   };
   // The shop as the PLAYER has it, not as it was designed — placedFixtures() applies whatever they
   // moved, turned or put away, and falls through to the default plan for everything else.
@@ -1133,7 +1282,7 @@ export function buildLounge(B) {
 // ------------------------------------------------------- stockroom extras ---
 // The working room (ref 9): packing bench, cleaning corner, receiving sign.
 export function buildStockroomDressing(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, colBoxAt, state } = B;
   const P = STOCKROOM.packing;
 
   // A STOCKROOM IS FULL. Ref 8: shelves of cartons, a hand truck, a packing
@@ -1144,7 +1293,7 @@ export function buildStockroomDressing(B) {
   // The models arrive asynchronously, well after the shop is built, so the
   // dressing is deferred rather than placed inline — otherwise it would simply
   // never appear.
-  if (merch) merch.onReady(() => {
+  if (!state?.shop?.generation && merch) merch.onReady(() => {
     const RACKS = [
       { x: 8.05, z: -6.1, ry: 0, len: 2.6 },
       { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7 },
@@ -1202,42 +1351,44 @@ export function buildStockroomDressing(B) {
 
   // Packing bench: keep the authored worktop clear for a real delivery carton.
   // The clipboard, tape gun, and ref-50 roll live on the lower supply shelf.
-  const bench = new THREE.Group();
-  const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
-  top.position.y = 0.92;
-  top.castShadow = true;
-  top.receiveShadow = true;
-  bench.add(top);
-  const under = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.7), mats.rawWood);
-  under.position.y = 0.42;
-  bench.add(under);
-  for (const [lx, lz] of [[-0.78, -0.36], [0.78, -0.36], [-0.78, 0.36], [0.78, 0.36]]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.92, 0.06), mats.iron);
-    leg.position.set(lx, 0.46, lz);
-    bench.add(leg);
+  if (!state?.shop?.generation) {
+    const bench = new THREE.Group();
+    const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
+    top.position.y = 0.92;
+    top.castShadow = true;
+    top.receiveShadow = true;
+    bench.add(top);
+    const under = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.7), mats.rawWood);
+    under.position.y = 0.42;
+    bench.add(under);
+    for (const [lx, lz] of [[-0.78, -0.36], [0.78, -0.36], [-0.78, 0.36], [0.78, 0.36]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.92, 0.06), mats.iron);
+      leg.position.set(lx, 0.46, lz);
+      bench.add(leg);
+    }
+    const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.3), mats.trimPaint);
+    clipboard.position.set(-0.4, 0.458, 0.1);
+    clipboard.rotation.y = 0.3;
+    bench.add(clipboard);
+    const tapeGun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.06), mats.charcoal);
+    tapeGun.position.set(0.35, 0.485, -0.1);
+    tapeGun.rotation.y = -0.4;
+    bench.add(tapeGun);
+    if (merch) merch.onReady(() => {
+      const tapeRoll = merch.instantiate('delivery_packing_tape_roll');
+      if (!tapeRoll) return;
+      tapeRoll.name = 'PackingBenchTapeRoll';
+      // The authored roll is 10 cm in diameter; its 0.50 m centre rests on the
+      // lower shelf without competing with the box-placement surface above.
+      tapeRoll.position.set(0.18, 0.50, -0.12);
+      tapeRoll.rotation.set(Math.PI / 2, -0.2, 0);
+      bench.add(tapeRoll);
+    });
+    bench.position.set(P.x, 0, P.z);
+    bench.rotation.y = P.ry;
+    interior.add(bench);
+    addCol(colBoxAt(P.x, P.z, 1.9, 1.05));
   }
-  const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.3), mats.trimPaint);
-  clipboard.position.set(-0.4, 0.458, 0.1);
-  clipboard.rotation.y = 0.3;
-  bench.add(clipboard);
-  const tapeGun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.06), mats.charcoal);
-  tapeGun.position.set(0.35, 0.485, -0.1);
-  tapeGun.rotation.y = -0.4;
-  bench.add(tapeGun);
-  if (merch) merch.onReady(() => {
-    const tapeRoll = merch.instantiate('delivery_packing_tape_roll');
-    if (!tapeRoll) return;
-    tapeRoll.name = 'PackingBenchTapeRoll';
-    // The authored roll is 10 cm in diameter; its 0.50 m centre rests on the
-    // lower shelf without competing with the box-placement surface above.
-    tapeRoll.position.set(0.18, 0.50, -0.12);
-    tapeRoll.rotation.set(Math.PI / 2, -0.2, 0);
-    bench.add(tapeRoll);
-  });
-  bench.position.set(P.x, 0, P.z);
-  bench.rotation.y = P.ry;
-  interior.add(bench);
-  addCol(colBoxAt(P.x, P.z, 1.9, 1.05));
 
   // Cleaning corner: mop bucket, mop, broom against the partition.
   //

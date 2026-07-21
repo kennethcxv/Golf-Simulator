@@ -2,7 +2,12 @@ async (page) => {
   const fs = await import('node:fs/promises');
   const path = await import('node:path');
   const base = process.env.QA_BASE_URL || 'http://localhost:8497/';
-  const out = path.join(process.cwd(), 'qa', 'store-generation', 'ownership-normal-controls');
+  const requestedTargetFixtureId = String(process.env.QA_TARGET_FIXTURE_ID || '').trim();
+  const targetFixtureId = requestedTargetFixtureId || 'backshelf_e2';
+  const evidenceName = requestedTargetFixtureId
+    ? `ownership-${targetFixtureId.replaceAll('_', '-')}`
+    : 'ownership-normal-controls';
+  const out = path.join(process.cwd(), 'qa', 'store-generation', evidenceName);
   await fs.mkdir(out, { recursive: true });
 
   const diagnostics = [];
@@ -58,18 +63,19 @@ async (page) => {
       const clubhouse = app.scene3d.clubhouse();
       const origin = clubhouse.interior.position;
       const walk = app.scene3d.walk.state;
-      const distance = 3.0;
+      const fallbackDistance = 3.0;
       const offset = Math.abs(Math.sin(pose.ry || 0)) > 0.5
-        ? { x: distance, z: 0 }
-        : { x: 0, z: distance };
-      walk.x = origin.x + pose.x + offset.x;
-      walk.z = origin.z + pose.z + offset.z;
+        ? { x: fallbackDistance, z: 0 }
+        : { x: 0, z: fallbackDistance };
+      walk.x = origin.x + (pose.view?.x ?? pose.x + offset.x);
+      walk.z = origin.z + (pose.view?.z ?? pose.z + offset.z);
       const dx = origin.x + pose.x - walk.x;
       const dz = origin.z + pose.z - walk.z;
+      const distance = Math.hypot(dx, dz) || 1;
       walk.yaw = Math.atan2(-dx / distance, -dz / distance);
       walk.pitch = -Math.atan2(walk.eye, distance);
       app.scene3d.walk.clearKeys?.();
-      return { fixture: { id: pose.id, x: pose.x, z: pose.z, ry: pose.ry }, distance };
+      return { fixture: { ...pose }, distance };
     }, fixture);
   }
 
@@ -77,14 +83,26 @@ async (page) => {
     const fixture = await page.evaluate(async (id) => {
       const { placedFixtures } = await import('/src/sim/layout.js');
       const app = window.__fw;
-      const found = placedFixtures(app.state).find((entry) => entry.id === id);
+      const fixtures = placedFixtures(app.state);
+      const found = fixtures.find((entry) => entry.id === id);
       if (!found) throw new Error(`Fixture ${id} is not placed`);
-      return { id: found.id, x: found.x, z: found.z, ry: found.ry };
+      let view = null;
+      if (id === 'office_chair') {
+        const desk = fixtures.find((entry) => entry.id === 'office_desk');
+        const dx = found.x - desk.x;
+        const dz = found.z - desk.z;
+        const length = Math.hypot(dx, dz) || 1;
+        view = { x: found.x + dx / length * 1.6, z: found.z + dz / length * 1.6 };
+      } else if (id === 'office_filing') {
+        view = { x: 8.15, z: 4.15 };
+      } else if (id === 'packing_bench') {
+        view = { x: 8.15, z: -2.75 };
+      }
+      return { id: found.id, title: found.title, x: found.x, z: found.z, ry: found.ry, view };
     }, fixtureId);
     return aimAtPose(fixture);
   }
 
-  const targetFixtureId = 'backshelf_e2';
   await launchBoutique();
   const initialAim = await aimAtFixture(targetFixtureId);
   await page.waitForTimeout(500);
@@ -109,7 +127,7 @@ async (page) => {
   // Generated decor entries sort first; the newly stored fixture is the final entry.
   await page.keyboard.press('ArrowUp');
   const selectedStoredText = await page.evaluate(() => window.__fw.scene3d.clubhouse().build.inventoryText());
-  if (!selectedStoredText.includes('Backroom shelving')) {
+  if (!selectedStoredText.includes(initialAim.fixture.title)) {
     throw new Error(`Stored fixture was not selected through inventory controls: ${selectedStoredText}`);
   }
   await page.screenshot({ path: path.join(out, '03-stored-inventory.png') });

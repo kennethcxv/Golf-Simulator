@@ -267,18 +267,97 @@ function buildCheckoutAndServiceIdentity(root, generation, palette) {
     addBox(root, 'BoutiqueCheckoutBrassRail', [COUNTER.len, 0.045, 0.075], [COUNTER.x, 0.86, frontZ - 0.05], brass);
   }
 
+  // Keep the accepted scanner, drawer, card terminal, cash handoff and player
+  // stand fixed, but make the generated checkout plan physically legible. The
+  // selected service side gets its own inset/bag return and each queue family
+  // receives a different floor path and set of compact brass wayfinding posts.
+  const serviceSign = generation.checkout.serviceSide === 'left-bagging' ? -1 : 1;
+  const serviceX = COUNTER.x + serviceSign * (COUNTER.len / 2 - 0.43);
+  addBox(
+    root,
+    `GeneratedCheckoutServiceReturn-${generation.checkout.serviceSide}`,
+    [0.68, 0.54, 0.055],
+    [serviceX, 0.54, frontZ - 0.065],
+    level >= 4 ? brass : accent,
+  );
+  addBox(
+    root,
+    'GeneratedCheckoutServiceMarker',
+    [0.44, 0.05, 0.075],
+    [serviceX, 0.87, frontZ - 0.08],
+    level === 1 ? steel : brass,
+  );
+
+  const queuePaths = {
+    straight: [
+      { x: COUNTER.queueBase.x, z: COUNTER.queueBase.z },
+      { x: 1.35, z: 2.55 },
+      { x: 0.30, z: 1.95 },
+    ],
+    'soft-angle': [
+      { x: COUNTER.queueBase.x, z: COUNTER.queueBase.z },
+      { x: 1.55, z: 2.45 },
+      { x: 1.10, z: 1.35 },
+      { x: 0.15, z: 0.75 },
+    ],
+    'short-serpentine': [
+      { x: COUNTER.queueBase.x, z: COUNTER.queueBase.z },
+      { x: 1.30, z: 2.65 },
+      { x: 0.75, z: 1.75 },
+      { x: 1.55, z: 1.05 },
+      { x: 0.45, z: 0.35 },
+    ],
+  };
+  const queue = queuePaths[generation.checkout.queueShape] || queuePaths.straight;
+  for (let index = 0; index < queue.length - 1; index++) {
+    const from = queue[index];
+    const to = queue[index + 1];
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const length = Math.hypot(dx, dz);
+    addBox(
+      root,
+      `GeneratedQueueInlay-${generation.checkout.queueShape}-${index}`,
+      [0.055, 0.012, length],
+      [(from.x + to.x) / 2, 0.018, (from.z + to.z) / 2],
+      level === 1 ? steel : brass,
+      Math.atan2(dx, dz),
+    );
+  }
+  for (const [index, point] of queue.slice(1).entries()) {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.12, 0.025, 14), level === 1 ? steel : brass);
+    base.name = `GeneratedQueueMarker-${generation.checkout.queueShape}-${index}`;
+    base.position.set(point.x, 0.026, point.z);
+    root.add(base);
+  }
+
+  const checkoutLabel = generation.checkout.variant.replaceAll('-', ' ').toUpperCase();
+  const checkoutTexture = makeSignTexture([checkoutLabel], {
+    w: 640, h: 128, frame: false,
+    field: level === 1 ? '#b8b1a0' : '#eee6d7',
+    ink: '#274332', sizes: [30],
+  });
+  const checkoutPlaque = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.62, 0.26),
+    new THREE.MeshStandardMaterial({ map: checkoutTexture, roughness: 0.86 }),
+  );
+  checkoutPlaque.name = 'GeneratedCheckoutVariantPlaque';
+  checkoutPlaque.position.set(COUNTER.x, 0.54, frontZ - 0.085);
+  checkoutPlaque.rotation.y = Math.PI;
+  root.add(checkoutPlaque);
+
   // The opaque service partition stays physically unchanged. Its west face is
-  // dressed per generated office family, keeping the laptop and working chair
-  // at their accepted interaction anchors while making the room program visible.
-  const serviceX = 5.56;
+  // dressed per generated office family while the owned desk, chair, and their
+  // attached laptop move independently inside the room.
+  const officeServiceX = 5.56;
   const serviceZ = 4.12;
   // The office is open to the sales floor. Frame that real opening; never add
   // an uncollided wall where the player and laptop route already pass.
   const frameSurface = level >= 4 ? brass : level === 1 ? steel : wood;
   for (const z of [2.62, 5.62]) {
-    addBox(root, `GeneratedOfficePartitionEdge${z}`, [0.09, 2.12, 0.08], [serviceX - 0.03, 1.48, z], frameSurface, Math.PI / 2);
+    addBox(root, `GeneratedOfficePartitionEdge${z}`, [0.09, 2.12, 0.08], [officeServiceX - 0.03, 1.48, z], frameSurface, Math.PI / 2);
   }
-  addBox(root, 'GeneratedOfficePartitionHeader', [3.08, 0.13, 0.10], [serviceX - 0.03, 2.49, serviceZ], frameSurface, Math.PI / 2);
+  addBox(root, 'GeneratedOfficePartitionHeader', [3.08, 0.13, 0.10], [officeServiceX - 0.03, 2.49, serviceZ], frameSurface, Math.PI / 2);
 
   const officeLabel = generation.rooms.office.variant.replaceAll('-', ' ').toUpperCase();
   const texture = makeSignTexture([officeLabel, 'OFFICE'], {
@@ -294,7 +373,7 @@ function buildCheckoutAndServiceIdentity(root, generation, palette) {
     new THREE.MeshStandardMaterial({ map: texture, roughness: 0.84, side: THREE.DoubleSide }),
   );
   sign.name = 'GeneratedOfficeVariantSign';
-  sign.position.set(serviceX - 0.085, 2.43, serviceZ);
+  sign.position.set(officeServiceX - 0.085, 2.43, serviceZ);
   sign.rotation.y = -Math.PI / 2;
   root.add(sign);
 }

@@ -308,31 +308,43 @@ function fixtureCandidates(rng, level, tier) {
 
 const OFFICE_PLACEMENTS = Object.freeze({
   'east-front': Object.freeze({
-    desk: Object.freeze({ x: 9.55, z: 4.50, ry: Math.PI / 2 }),
-    chair: Object.freeze({ x: 8.65, z: 4.50, ry: Math.PI / 2 }),
-    laptop: Object.freeze({ x: 9.55, z: 4.50, ry: Math.PI / 2 }),
-    filing: Object.freeze({ x: 9.92, z: 3.40, ry: -Math.PI / 2 }),
+    desk: Object.freeze({ x: 9.50, z: 4.50, ry: Math.PI / 2 }),
+    chair: Object.freeze({ x: 8.50, z: 4.50, ry: Math.PI / 2 }),
+    laptop: Object.freeze({ x: 9.50, z: 4.50, ry: Math.PI / 2 }),
+    filing: Object.freeze({ x: 9.75, z: 3.00, ry: -Math.PI / 2 }),
     lamp: Object.freeze({ x: 9.72, z: 5.18, ry: -1.10 }),
     phone: Object.freeze({ x: 9.70, z: 3.98, ry: -1.40 }),
-    printer: Object.freeze({ x: 9.88, z: 3.55, ry: Math.PI / 2 }),
+    printer: Object.freeze({ x: 9.72, z: 2.95, ry: Math.PI / 2 }),
   }),
   'east-rear': Object.freeze({
-    desk: Object.freeze({ x: 8.25, z: 5.72, ry: Math.PI }),
-    chair: Object.freeze({ x: 8.25, z: 4.72, ry: Math.PI }),
-    laptop: Object.freeze({ x: 8.25, z: 5.72, ry: Math.PI }),
-    filing: Object.freeze({ x: 9.78, z: 3.20, ry: -Math.PI / 2 }),
+    desk: Object.freeze({ x: 8.25, z: 5.75, ry: Math.PI }),
+    chair: Object.freeze({ x: 8.25, z: 4.75, ry: Math.PI }),
+    laptop: Object.freeze({ x: 8.25, z: 5.75, ry: Math.PI }),
+    filing: Object.freeze({ x: 9.75, z: 3.25, ry: -Math.PI / 2 }),
     lamp: Object.freeze({ x: 7.60, z: 5.55, ry: -0.25 }),
     phone: Object.freeze({ x: 8.78, z: 5.54, ry: -0.10 }),
     printer: Object.freeze({ x: 9.72, z: 3.36, ry: Math.PI / 2 }),
   }),
   'rear-corner': Object.freeze({
-    desk: Object.freeze({ x: 6.45, z: 4.62, ry: -Math.PI / 2 }),
-    chair: Object.freeze({ x: 7.38, z: 4.62, ry: -Math.PI / 2 }),
-    laptop: Object.freeze({ x: 6.45, z: 4.62, ry: -Math.PI / 2 }),
-    filing: Object.freeze({ x: 9.78, z: 3.20, ry: -Math.PI / 2 }),
+    desk: Object.freeze({ x: 6.50, z: 4.50, ry: -Math.PI / 2 }),
+    chair: Object.freeze({ x: 7.50, z: 4.50, ry: -Math.PI / 2 }),
+    laptop: Object.freeze({ x: 6.50, z: 4.50, ry: -Math.PI / 2 }),
+    filing: Object.freeze({ x: 9.75, z: 3.25, ry: -Math.PI / 2 }),
     lamp: Object.freeze({ x: 6.62, z: 3.95, ry: 1.10 }),
     phone: Object.freeze({ x: 6.62, z: 5.14, ry: 1.35 }),
     printer: Object.freeze({ x: 9.72, z: 3.36, ry: Math.PI / 2 }),
+  }),
+});
+
+const STORAGE_PLACEMENTS = Object.freeze({
+  'east-rear': Object.freeze({
+    packing: Object.freeze({ x: 7.00, z: -1.00, ry: 0 }),
+  }),
+  'rear-spine': Object.freeze({
+    packing: Object.freeze({ x: 6.75, z: -2.25, ry: Math.PI / 2 }),
+  }),
+  'split-east': Object.freeze({
+    packing: Object.freeze({ x: 8.75, z: -0.50, ry: Math.PI / 2 }),
   }),
 });
 
@@ -340,6 +352,7 @@ function roomPlan(rng, profileSpec) {
   const office = choose(rng, profileSpec.officeVariants);
   const storage = choose(rng, profileSpec.storageVariants);
   const officeSide = choose(rng, ['east-front', 'east-rear', 'rear-corner']);
+  const storageSide = choose(rng, ['east-rear', 'rear-spine', 'split-east']);
   const secondary = profileSpec.level === 1
     ? ['restroom', 'employee-room', 'mechanical-closet']
     : profileSpec.level === 2
@@ -351,7 +364,7 @@ function roomPlan(rng, profileSpec) {
           : ['private-fitting-room', 'client-salon', 'secure-stock'];
   return {
     office: { variant: office, side: officeSide, pose: OFFICE_PLACEMENTS[officeSide] },
-    storage: { variant: storage, side: choose(rng, ['east-rear', 'rear-spine', 'split-east']) },
+    storage: { variant: storage, side: storageSide, pose: STORAGE_PLACEMENTS[storageSide] },
     secondary,
     circulation: profileSpec.layoutFamily,
   };
@@ -437,6 +450,13 @@ export function generateShopDefinition({ seed = 1, propertyId = 'property', cour
   const rng = makeRng(derivedSeed);
   const palette = { ...choose(rng, profileSpec.palettes) };
   const fixturePlan = fixtureCandidates(rng, level, profileSpec.startingTier);
+  const rooms = roomPlan(rng, profileSpec);
+  Object.assign(fixturePlan.poses, {
+    office_desk: { ...rooms.office.pose.desk },
+    office_chair: { ...rooms.office.pose.chair },
+    office_filing: { ...rooms.office.pose.filing },
+    packing_bench: { ...rooms.storage.pose.packing },
+  });
   const decor = decorPlan(rng, profileSpec);
   const lighting = {
     family: choose(rng, profileSpec.lightingFamilies),
@@ -471,7 +491,7 @@ export function generateShopDefinition({ seed = 1, propertyId = 'property', cour
     palette,
     lighting,
     checkout,
-    rooms: roomPlan(rng, profileSpec),
+    rooms,
     fixturePoses: fixturePlan.poses,
     decor,
     merchandising: merchandisingPlan(rng, profileSpec, profileSpec.startingTier),

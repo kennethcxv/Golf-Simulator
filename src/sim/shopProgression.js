@@ -94,6 +94,8 @@ export function fixtureUnlockedForTier(fixtureId, tierId) {
 
 export function fixtureIsInstalled(state, fixtureId, tierId = null) {
   const progression = state?.shop?.progression;
+  const fixture = FIXTURES.find((entry) => entry.id === fixtureId);
+  if (fixture?.generatedOnly && !state?.shop?.generation) return false;
   // Pre-v12 saves keep the exact floor they were already using until they buy
   // their next tier. This is explicit migration compatibility, not a second
   // runtime authority for new games.

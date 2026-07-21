@@ -58,6 +58,10 @@ const FIXTURE_PRICE_BY_KIND = Object.freeze({
   backcounter: 1350,
   backshelf: 925,
   snackrack: 525,
+  officeDesk: 1200,
+  officeChair: 625,
+  officeFiling: 575,
+  packingbench: 850,
 });
 
 const QUALITY_MULTIPLIER = Object.freeze([0, 0.65, 1.0, 1.35, 1.75, 2.25]);
@@ -243,7 +247,9 @@ export function routesIntact(state, override) {
   // the places a shop only works if you can get to
   if (!reached(queueSlot(0))) return false;
   if (!reached(COUNTER.staffStand)) return false;
-  if (!reached(resolvedOfficeLayout(state).chair)) return false;
+  const office = resolvedOfficeLayout(state);
+  const officeAccess = office.access || office.chair;
+  if (officeAccess?.available !== false && !reached(officeAccess)) return false;
   if (!reached(STOCKROOM.receivingInside)) return false;
   // ...and every unit the customer is meant to browse
   for (const f of fixtures) {

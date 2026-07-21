@@ -26,11 +26,12 @@ const fresh = () => {
   ensureLayout(st);
   return st;
 };
+const LEGACY_FIXTURES = FIXTURES.filter((fixture) => !fixture.generatedOnly);
 
 test('an untouched shop is exactly the designed floor plan', () => {
   const st = fresh();
   const placed = placedFixtures(st);
-  assert.equal(placed.length, FIXTURES.length);
+  assert.equal(placed.length, LEGACY_FIXTURES.length);
   for (const f of placed) {
     const orig = FIXTURES.find((o) => o.id === f.id);
     assert.equal(f.x, orig.x);
@@ -41,7 +42,7 @@ test('an untouched shop is exactly the designed floor plan', () => {
 
 test('the default plan validates: every fixture is legal where it already is', () => {
   const st = fresh();
-  for (const f of FIXTURES) {
+  for (const f of LEGACY_FIXTURES) {
     const r = validatePlacement(st, f.id, f.x, f.z, f.ry || 0);
     assert.equal(r.ok, true, `${f.id} is legal where the designer put it: ${r.reasons.join(', ')}`);
   }

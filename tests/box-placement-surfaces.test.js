@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { newGame } from '../src/sim/state.js';
+import { initializeGeneratedShop } from '../src/sim/shopGeneration.js';
+import { commitPlacement, restoreFixture, storeFixture } from '../src/sim/layout.js';
 import {
   APPAREL_TABLE_BOX_SURFACE_ID,
   BACKCOUNTER_EAST_BOX_SURFACE_ID,
@@ -172,6 +174,24 @@ test('retail stock reserves its footprint while the cleared packing worktop stay
     state, carton(2), worldTarget(PACKING_STATION_BOX_SURFACE_ID, 0.55, 0.18),
   );
   assert.equal(clearWorkEnd.ok, true, clearWorkEnd.reason);
+});
+
+test('a generated packing worktop follows its owned bench and disappears with it', () => {
+  const state = newGame('relaxed', 45812, { propertyId: 'moving-packing-bench' });
+  initializeGeneratedShop(state, {
+    id: 'moving-packing-bench', seed: 45812, shopLevel: 4,
+  });
+  const initial = surfaceById(state, PACKING_STATION_BOX_SURFACE_ID);
+  assert.equal(initial.available, true);
+  commitPlacement(state, 'packing_bench', 6.90, -0.90, 0);
+  const moved = surfaceById(state, PACKING_STATION_BOX_SURFACE_ID);
+  assert.deepEqual(moved.worldPose, { x: 7.00, y: 0.955, z: -1.00, ry: 0 });
+
+  storeFixture(state, 'packing_bench');
+  assert.equal(surfaceById(state, PACKING_STATION_BOX_SURFACE_ID).available, false);
+  assert.match(surfaceById(state, PACKING_STATION_BOX_SURFACE_ID).unavailableReason, /storage/i);
+  assert.ok(restoreFixture(state, 'packing_bench'));
+  assert.equal(surfaceById(state, PACKING_STATION_BOX_SURFACE_ID).available, true);
 });
 
 test('floor validation covers geometry, fixtures, door clearways, staff space, and other boxes', () => {

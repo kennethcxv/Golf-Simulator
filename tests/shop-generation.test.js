@@ -5,6 +5,7 @@ import { placeableSpecBySkuId } from '../src/data/placeableItems.js';
 import { newEmpire, initPropertyState } from '../src/sim/empire.js';
 import {
   buyFixtureReplacement,
+  commitPlacement,
   fixtureOwnershipEntries,
   placedFixtures,
   restoreFixture,
@@ -12,6 +13,7 @@ import {
   sellStoredFixture,
   storeFixture,
 } from '../src/sim/layout.js';
+import { resolvedOfficeLayout } from '../src/data/shopLayout.js';
 import { ownedPlaceableItem, propertyInventoryTotals } from '../src/sim/propertyInventory.js';
 import { removeDecorPlacement, sellStoredDecor } from '../src/sim/shop.js';
 import { initializeGeneratedShop } from '../src/sim/shopGeneration.js';
@@ -202,6 +204,35 @@ test('generated fixtures can be stored, sold, bought back, and returned to the f
   const loaded = deserialize(serialize(state));
   assert.ok(placedFixtures(loaded).some((entry) => entry.id === fixture.id));
   assert.equal(fixtureOwnershipEntries(loaded).find((entry) => entry.id === fixture.id).status, 'placed');
+});
+
+test('generated service rooms convey owned office furniture and a movable packing bench', () => {
+  const state = newGame('relaxed', 88421, { propertyId: 'owned-service-rooms' });
+  const generated = initializeGeneratedShop(state, {
+    id: 'owned-service-rooms', seed: 88421, shopLevel: 5,
+  });
+  const serviceIds = ['office_desk', 'office_chair', 'office_filing', 'packing_bench'];
+  const placed = new Map(placedFixtures(state).map((fixture) => [fixture.id, fixture]));
+  const ownership = new Map(fixtureOwnershipEntries(state).map((entry) => [entry.id, entry]));
+  for (const id of serviceIds) {
+    assert.ok(placed.has(id), `${id} is physically installed`);
+    assert.equal(placed.get(id).x * 4, Math.round(placed.get(id).x * 4), `${id} x is build-grid native`);
+    assert.equal(placed.get(id).z * 4, Math.round(placed.get(id).z * 4), `${id} z is build-grid native`);
+    assert.equal(ownership.get(id)?.status, 'placed', `${id} is owned`);
+    assert.ok(
+      generated.generatedObjects.some((entry) => entry.sourceId === id && entry.sellable && entry.replaceable),
+      `${id} is declared sellable and replaceable`,
+    );
+  }
+
+  const before = resolvedOfficeLayout(state);
+  commitPlacement(state, 'office_desk', before.desk.x + 0.25, before.desk.z, before.desk.ry);
+  const moved = resolvedOfficeLayout(state);
+  const movedBy = moved.desk.x - before.desk.x;
+  assert.notEqual(movedBy, 0);
+  assert.equal(moved.laptop.x, before.laptop.x + movedBy, 'the laptop follows the owned desk');
+  assert.equal(moved.lamp.x, before.lamp.x + movedBy, 'desk dressing follows the owned desk');
+  assert.equal(moved.phone.x, before.phone.x + movedBy, 'the telephone follows the owned desk');
 });
 
 test('the conveyed starting shop does not create an instant appraisal windfall', () => {

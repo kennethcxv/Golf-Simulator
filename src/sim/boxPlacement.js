@@ -47,6 +47,7 @@ import {
   deliveryEquipmentSurfaceId,
   deliveryPalletSurfaceId,
 } from '../data/boxPlacementSurfaces.js';
+import { fixtureIsInstalled } from './shopProgression.js';
 
 const EPSILON = 1e-6;
 const BODY_RADIUS = PLAYER_DIAM / 2;
@@ -296,18 +297,23 @@ export function boxPlacementEnvelope(box, placement = {}, zArg = 0, ryArg = 0, b
 
 function layoutFixture(state, fixtureId) {
   const base = FIXTURES.find((entry) => entry.id === fixtureId);
-  if (!base) return null;
+  if (!base || (base.generatedOnly && !state?.shop?.generation)) return null;
+  if (state?.shop?.generation && !fixtureIsInstalled(state, fixtureId)) return null;
   const layout = state?.shop?.layout;
   const stored = Array.isArray(layout?.stored) && layout.stored.includes(fixtureId);
+  const sold = Array.isArray(layout?.sold) && layout.sold.includes(fixtureId);
   const moved = layout?.moved?.[fixtureId];
+  const generated = state?.shop?.generation?.fixturePoses?.[fixtureId];
   const movedIsValid = !moved || (
     Number.isFinite(moved.x) && Number.isFinite(moved.z) && Number.isFinite(moved.ry)
   );
   return {
     fixture: movedIsValid && moved
       ? { ...base, x: moved.x, z: moved.z, ry: moved.ry }
-      : base,
-    stored,
+      : generated && Number.isFinite(generated.x) && Number.isFinite(generated.z)
+        ? { ...base, x: generated.x, z: generated.z, ry: Number.isFinite(generated.ry) ? generated.ry : base.ry }
+        : base,
+    stored: stored || sold,
     valid: movedIsValid,
   };
 }
@@ -315,13 +321,21 @@ function layoutFixture(state, fixtureId) {
 function placedFixturesReadOnly(state) {
   const layout = state?.shop?.layout;
   const stored = new Set(Array.isArray(layout?.stored) ? layout.stored : []);
+  const sold = new Set(Array.isArray(layout?.sold) ? layout.sold : []);
+  const generated = state?.shop?.generation?.fixturePoses || {};
   const out = [];
   for (const base of FIXTURES) {
-    if (stored.has(base.id)) continue;
+    if (base.generatedOnly && !state?.shop?.generation) continue;
+    if (state?.shop?.generation && !fixtureIsInstalled(state, base.id)) continue;
+    if (stored.has(base.id) || sold.has(base.id)) continue;
     const moved = layout?.moved?.[base.id];
+    const conveyed = generated[base.id];
+    const fixture = conveyed && Number.isFinite(conveyed.x) && Number.isFinite(conveyed.z)
+      ? { ...base, x: conveyed.x, z: conveyed.z, ry: Number.isFinite(conveyed.ry) ? conveyed.ry : base.ry }
+      : base;
     out.push(moved && Number.isFinite(moved.x) && Number.isFinite(moved.z) && Number.isFinite(moved.ry)
-      ? { ...base, x: moved.x, z: moved.z, ry: moved.ry }
-      : base);
+      ? { ...fixture, x: moved.x, z: moved.z, ry: moved.ry }
+      : fixture);
   }
   for (const extra of Array.isArray(layout?.extra) ? layout.extra : []) {
     if (extra && Number.isFinite(extra.x) && Number.isFinite(extra.z)) out.push(extra);
@@ -376,6 +390,12 @@ function resolveParentPose(state, parent, options) {
         ry: resolved.fixture.ry || 0,
       },
     };
+  }
+  if (parent.kind === 'generated-fixture') {
+    if (!state?.shop?.generation) {
+      return { ok: true, pose: { ...parent.defaultPose, y: parent.defaultPose?.y || 0 } };
+    }
+    return resolveParentPose(state, { kind: 'fixture', id: parent.id }, options);
   }
   if (parent.kind === 'equipment') {
     const override = optionPose(options, parent.id);
@@ -831,6 +851,7 @@ function activeRenovationBlockers(state) {
 
 function fixedFloorBlockers(state, options) {
   const office = resolvedOfficeLayout(state);
+  const generatedFurnishings = !!state?.shop?.generation;
   const blockers = [
     // Exact baseline collider footprints from the clubhouse builders. These
     // objects are not movable FIXTURES, so placedFixturesReadOnly cannot see
@@ -840,28 +861,12 @@ function fixedFloorBlockers(state, options) {
       COUNTER.x, COUNTER.z, COUNTER.len + 0.30, COUNTER.depth + 0.20, COUNTER.ry,
     ),
     fixedBlocker(
-      'packing-bench', 'packing bench',
-      STOCKROOM.packing.x, STOCKROOM.packing.z, 1.90, 1.05, STOCKROOM.packing.ry,
-    ),
-    fixedBlocker(
       'recycling-station', 'cardboard recycling station',
       STOCKROOM.bin.x, STOCKROOM.bin.z, 0.78, 0.62, -Math.PI / 2,
     ),
     fixedBlocker(
       'cleaning-corner', 'cleaning equipment',
       STOCKROOM.cleaning.x, STOCKROOM.cleaning.z, 0.70, 0.50,
-    ),
-    fixedBlocker(
-      'office-desk', 'office desk',
-      office.desk.x, office.desk.z, 2.00, 1.10, office.desk.ry,
-    ),
-    fixedBlocker(
-      'office-chair', 'office chair',
-      office.chair.x, office.chair.z, 0.85, 0.85, office.chair.ry,
-    ),
-    fixedBlocker(
-      'office-filing-cabinet', 'office filing cabinet',
-      office.filing.x, office.filing.z, 0.75, 0.60, office.filing.ry,
     ),
     fixedBlocker(
       'lounge-chair-a', 'lounge chair',
@@ -880,6 +885,26 @@ function fixedFloorBlockers(state, options) {
     fixedBlocker('partition-display', 'partition display', 5.44, 1.35, 0.50, 1.26),
     fixedBlocker('retail-gondola', 'retail gondola', 0.40, -0.90, 1.30, 0.70),
   ];
+  if (!generatedFurnishings) {
+    blockers.push(
+      fixedBlocker(
+        'packing-bench', 'packing bench',
+        STOCKROOM.packing.x, STOCKROOM.packing.z, 1.90, 1.05, STOCKROOM.packing.ry,
+      ),
+      fixedBlocker(
+        'office-desk', 'office desk',
+        office.desk.x, office.desk.z, 2.00, 1.10, office.desk.ry,
+      ),
+      fixedBlocker(
+        'office-chair', 'office chair',
+        office.chair.x, office.chair.z, 0.85, 0.85, office.chair.ry,
+      ),
+      fixedBlocker(
+        'office-filing-cabinet', 'office filing cabinet',
+        office.filing.x, office.filing.z, 0.75, 0.60, office.filing.ry,
+      ),
+    );
+  }
   for (const [id, dimensions, fallback] of [
     [STOCKING_CART_EQUIPMENT_ID, [1.00, 0.50], { x: 6.35, y: 0, z: -3.4, ry: 0 }],
     ['delivery_hand_truck', [0.50, 0.45], { x: 6.1, y: 0, z: -5.9, ry: 0.6 }],

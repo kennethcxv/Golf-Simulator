@@ -639,6 +639,10 @@ export function makeClubhouse(ctx) {
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
   // SOCKET_PLACEMENT rather than by its authoring origin.
   const props71to100 = buildProps({ interior, loader: new GLTFLoader(), state });
+  let syncGeneratedFurnishings = () => {
+    props71to100.refreshGeneratedFurnishings?.();
+  };
+  props71to100.ready.then(() => syncGeneratedFurnishings());
 
   const sheet06ProductionPublic = Object.freeze({
     ready: sheet06Production.ready,
@@ -719,6 +723,7 @@ export function makeClubhouse(ctx) {
   // shelf that moved is a wall that moved, as far as they are concerned.
   function rebuildLayout() {
     relayFixtures();
+    syncGeneratedFurnishings();
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
@@ -794,6 +799,7 @@ export function makeClubhouse(ctx) {
     syncTieredLounge();
     refreshTierDressing();
     relayFixtures();
+    syncGeneratedFurnishings();
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
@@ -1162,68 +1168,70 @@ export function makeClubhouse(ctx) {
   // computer that opens the management desk — the real laptop lands next
   const office = { computerProp: null };
   {
-    // The Sheet-04 executive desk (walnut top, two drawer pedestals, brass
-    // pulls) replaces the plank desk. Its top is a real 0.75 desk height —
-    // the laptop rig is self-relative, so the laptop simply sits lower.
-    // Kit front (drawer faces) points +Z at ry 0; the desk faces the chair
-    // to its west, so ry −π/2.
-    const desk = new THREE.Group();
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.95), woodMat);
-    top.position.y = 0.92;
-    top.castShadow = true;
-    desk.add(top);
-    for (const [lx, lz] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.92, 0.09), darkMat);
-      leg.position.set(lx, 0.46, lz);
-      desk.add(leg);
+    if (!state.shop?.generation) {
+      // The Sheet-04 executive desk (walnut top, two drawer pedestals, brass
+      // pulls) replaces the plank desk. Its top is a real 0.75 desk height —
+      // the laptop rig is self-relative, so the laptop simply sits lower.
+      // Kit front (drawer faces) points +Z at ry 0; the desk faces the chair
+      // to its west, so ry −π/2.
+      const desk = new THREE.Group();
+      const top = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.95), woodMat);
+      top.position.y = 0.92;
+      top.castShadow = true;
+      desk.add(top);
+      for (const [lx, lz] of [[-0.85, -0.38], [0.85, -0.38], [-0.85, 0.38], [0.85, 0.38]]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.92, 0.09), darkMat);
+        leg.position.set(lx, 0.46, lz);
+        desk.add(leg);
+      }
+      const drawers = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.8), darkMat);
+      drawers.position.set(0.6, 0.35, 0);
+      desk.add(drawers);
+      desk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
+      desk.rotation.y = officePlan.desk.ry;
+      interior.add(desk);
+      const deskQuarterTurn = Math.abs(Math.sin(officePlan.desk.ry || 0)) > 0.5;
+      addCol(colBoxAt(
+        officePlan.desk.x,
+        officePlan.desk.z,
+        deskQuarterTurn ? 1.1 : 2.0,
+        deskQuarterTurn ? 2.0 : 1.1,
+      ));
+      merch.onReady(() => {
+        const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
+        if (!kitDesk) return;
+        kitDesk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
+        kitDesk.rotation.y = officePlan.desk.ry - Math.PI;
+        interior.add(kitDesk);
+        disposeClubhouseFallback(desk);
+      });
+
+      // task chair — the Sheet-04 kit chair (five-star base, casters, black
+      // leather), facing east toward the desk. The Tripo scan is the fallback.
+      merch.onReady(() => {
+        const kitChair = merch.instantiateKit && merch.instantiateKit('office_chair');
+        const chair = kitChair || merch.instantiateRaw('office_chair');
+        if (!chair) return;
+        chair.position.set(officePlan.chair.x, 0, officePlan.chair.z);
+        chair.rotation.y = officePlan.chair.ry ?? (kitChair ? Math.PI / 2 : -Math.PI / 2);
+        // Asset 81 is the Sheet-09 office chair, authored for this same spot. Named so the prop
+        // placement table can retire this one when that lands — otherwise the office has two
+        // chairs a centimetre apart, which is worse than either alone.
+        chair.name = 'LegacyOfficeChair';
+        interior.add(chair);
+      });
+
+      // the Sheet-04 filing cabinet against the east wall, north of the desk —
+      // LEDGERS / SUPPLIERS / STAFF / COURSE, which is the office's whole job
+      merch.onReady(() => {
+        const filing = merch.instantiateKit && merch.instantiateKit('filing_cabinet');
+        if (!filing) return;
+        filing.position.set(officePlan.filing.x, 0, officePlan.filing.z);
+        filing.rotation.y = officePlan.filing.ry;
+        interior.add(filing);
+      });
+      addCol(colBoxAt(officePlan.filing.x, officePlan.filing.z, 0.75, 0.6));
     }
-    const drawers = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.8), darkMat);
-    drawers.position.set(0.6, 0.35, 0);
-    desk.add(drawers);
-    desk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
-    desk.rotation.y = officePlan.desk.ry;
-    interior.add(desk);
-    const deskQuarterTurn = Math.abs(Math.sin(officePlan.desk.ry || 0)) > 0.5;
-    addCol(colBoxAt(
-      officePlan.desk.x,
-      officePlan.desk.z,
-      deskQuarterTurn ? 1.1 : 2.0,
-      deskQuarterTurn ? 2.0 : 1.1,
-    ));
-    merch.onReady(() => {
-      const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
-      if (!kitDesk) return;
-      kitDesk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
-      kitDesk.rotation.y = officePlan.desk.ry - Math.PI;
-      interior.add(kitDesk);
-      disposeClubhouseFallback(desk);
-    });
-
-    // task chair — the Sheet-04 kit chair (five-star base, casters, black
-    // leather), facing east toward the desk. The Tripo scan is the fallback.
-    merch.onReady(() => {
-      const kitChair = merch.instantiateKit && merch.instantiateKit('office_chair');
-      const chair = kitChair || merch.instantiateRaw('office_chair');
-      if (!chair) return;
-      chair.position.set(officePlan.chair.x, 0, officePlan.chair.z);
-      chair.rotation.y = officePlan.chair.ry ?? (kitChair ? Math.PI / 2 : -Math.PI / 2);
-      // Asset 81 is the Sheet-09 office chair, authored for this same spot. Named so the prop
-      // placement table can retire this one when that lands — otherwise the office has two
-      // chairs a centimetre apart, which is worse than either alone.
-      chair.name = 'LegacyOfficeChair';
-      interior.add(chair);
-    });
-
-    // the Sheet-04 filing cabinet against the east wall, north of the desk —
-    // LEDGERS / SUPPLIERS / STAFF / COURSE, which is the office's whole job
-    merch.onReady(() => {
-      const filing = merch.instantiateKit && merch.instantiateKit('filing_cabinet');
-      if (!filing) return;
-      filing.position.set(officePlan.filing.x, 0, officePlan.filing.z);
-      filing.rotation.y = officePlan.filing.ry;
-      interior.add(filing);
-    });
-    addCol(colBoxAt(officePlan.filing.x, officePlan.filing.z, 0.75, 0.6));
 
     // wall course map — a real framed board, flush on the office's south wall:
     // backing panel with thickness, mitered frame lip, map face proud of the
@@ -1554,6 +1562,30 @@ export function makeClubhouse(ctx) {
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
     office.laptop = laptop;
+    let computerPropRegistered = true;
+    syncGeneratedFurnishings = () => {
+      props71to100.refreshGeneratedFurnishings?.();
+      const current = resolvedOfficeLayout(state);
+      const available = current.desk?.available !== false && current.laptop?.available !== false;
+      if (current.laptop) {
+        laptop.position.set(current.laptop.x - 0.10, 0.752, current.laptop.z);
+        laptop.rotation.y = current.laptop.ry;
+      }
+      laptop.visible = available;
+      if (office.computerProp && current.laptop) {
+        const world = L2W(current.laptop.x, current.laptop.z);
+        office.computerProp.x = world.x;
+        office.computerProp.z = world.z;
+      }
+      if (available && !computerPropRegistered) {
+        addProp(office.computerProp);
+        computerPropRegistered = true;
+      } else if (!available && computerPropRegistered) {
+        removeProp(office.computerProp);
+        computerPropRegistered = false;
+      }
+    };
+    syncGeneratedFurnishings();
 
     // Where the camera settles when you sit down. Derived from the OPEN lid, the live field of
     // view and the window shape, so the screen fills the view on any monitor — a hardcoded seat
