@@ -39,10 +39,10 @@ export function buildShopProgressionVisuals(B) {
   root.add(floor);
 
   const standardFloor = mats.oakFloor.clone();
-  standardFloor.color.setHex(0xd6bd91);
+  standardFloor.color.setHex(state.shop?.generation?.palette?.floor || 0xd6bd91);
   standardFloor.roughness = 0.96;
   const luxuryFloor = mats.oakFloor.clone();
-  luxuryFloor.color.setHex(0xd8c4a2);
+  luxuryFloor.color.setHex(state.shop?.generation?.palette?.floor || 0xd8c4a2);
   luxuryFloor.roughness = 0.86;
 
   // The accepted register workspace never moves. A shallow customer-side

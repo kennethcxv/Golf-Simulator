@@ -92,6 +92,12 @@ export function makeBuildPanel({ getApi }) {
     const fitted = ['installation', 'vehicle'].includes(object.placementMode);
     if (location === 'installed') {
       controls.append(button({ class: 'build-mini', text: 'Uninstall', onclick: () => getApi()?.uninstallById(object.id) }));
+    } else if (location === 'sold' && object.fixture && object.replacementPrice > 0) {
+      controls.append(button({
+        class: 'build-mini primary',
+        text: `Replace ${money(object.replacementPrice)}`,
+        onclick: () => getApi()?.replaceById(object.id),
+      }));
     } else if (location !== 'sold' && object.render?.kind !== 'existing') {
       controls.append(button({
         class: 'build-mini primary',
@@ -108,7 +114,10 @@ export function makeBuildPanel({ getApi }) {
         onclick: () => getApi()?.cycleVariant(object.id),
       }));
     }
-    if (!['sold', 'installed'].includes(location) && !object.requiredObject && object.sellValue > 0) {
+    if (!['sold', 'installed'].includes(location)
+      && (!object.fixture || location === 'stored')
+      && !object.requiredObject
+      && object.sellValue > 0) {
       controls.append(button({ class: 'build-mini danger', text: 'Sell', onclick: () => getApi()?.sellById(object.id) }));
     }
     if (object.requiredObject) {

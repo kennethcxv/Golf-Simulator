@@ -68,6 +68,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 22,
     startingReputation: 30,
+    shopLevel: 1,
     listingBias: 0.82,
   },
   {
@@ -85,6 +86,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 7,
     startingReputation: 20,
+    shopLevel: 3,
     listingBias: 0.72,
   },
   {
@@ -102,6 +104,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 26,
     startingReputation: 44,
+    shopLevel: 2,
     listingBias: 1.05,
   },
   {
@@ -119,6 +122,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 14,
     startingReputation: 36,
+    shopLevel: 4,
     listingBias: 0.88,
   },
   {
@@ -136,6 +140,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 12,
     startingReputation: 26,
+    shopLevel: 5,
     listingBias: 1.0,
   },
   {
@@ -153,6 +158,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 16,
     startingReputation: 33,
+    shopLevel: 3,
     listingBias: 0.95,
   },
   {
@@ -170,6 +176,7 @@ const ARCHETYPES = [
     diseaseKind: 'brownPatch',
     startingMembers: 9,
     startingReputation: 24,
+    shopLevel: 4,
     listingBias: 0.9,
   },
   {
@@ -187,6 +194,7 @@ const ARCHETYPES = [
     diseaseKind: 'dollarSpot',
     startingMembers: 20,
     startingReputation: 38,
+    shopLevel: 2,
     listingBias: 1.24,
   },
 ];
@@ -411,6 +419,7 @@ export function generateMarketplace(seed = 1) {
       diseaseKind: a.diseaseKind,
       startingMembers: a.startingMembers,
       startingReputation: a.startingReputation,
+      shopLevel: a.shopLevel,
     };
     const course = buildPropertyCourse(record);
     record.design = round1(courseDesignRating(course));
@@ -474,6 +483,7 @@ const NAME_C = ['', ' Golf Club', ' G.C.', ' Country Club', ' Municipal', ' Golf
 const LISTING_TEMPLATES = [
   {
     key: 'neglected-gem', weight: 3, size: 9,
+    shopLevel: 1,
     condition: [26, 42], sick: [2, 4], disease: 'dollarSpot',
     members: [5, 14], rep: [18, 30], bias: [0.72, 0.9],
     layout: {
@@ -490,6 +500,7 @@ const LISTING_TEMPLATES = [
   },
   {
     key: 'tired-muni', weight: 3, size: 9,
+    shopLevel: 1,
     condition: [42, 56], sick: [1, 3], disease: 'dollarSpot',
     members: [14, 26], rep: [26, 36], bias: [0.8, 0.96],
     layout: {
@@ -506,6 +517,7 @@ const LISTING_TEMPLATES = [
   },
   {
     key: 'polished-bore', weight: 2, size: 9,
+    shopLevel: 2,
     condition: [66, 80], sick: [0, 0], disease: 'dollarSpot',
     members: [20, 30], rep: [38, 48], bias: [0.98, 1.12],
     layout: {
@@ -522,6 +534,7 @@ const LISTING_TEMPLATES = [
   },
   {
     key: 'executive', weight: 2, size: 9,
+    shopLevel: 2,
     condition: [56, 70], sick: [0, 1], disease: 'dollarSpot',
     members: [10, 18], rep: [30, 40], bias: [0.82, 0.96],
     layout: {
@@ -538,6 +551,7 @@ const LISTING_TEMPLATES = [
   },
   {
     key: 'waterlogged', weight: 2, size: 9,
+    shopLevel: 1,
     condition: [34, 50], sick: [2, 4], disease: 'brownPatch',
     members: [8, 16], rep: [22, 32], bias: [0.84, 0.98],
     layout: {
@@ -554,6 +568,7 @@ const LISTING_TEMPLATES = [
   },
   {
     key: 'legacy-trap', weight: 2, size: 9,
+    shopLevel: 3,
     condition: [55, 68], sick: [0, 1], disease: 'dollarSpot',
     members: [16, 26], rep: [32, 42], bias: [1.12, 1.3],
     layout: {
@@ -570,6 +585,7 @@ const LISTING_TEMPLATES = [
   },
   {
     key: 'championship-wreck', weight: 1, size: 18,
+    shopLevel: 4,
     condition: [32, 46], sick: [3, 5], disease: 'dollarSpot',
     members: [10, 18], rep: [24, 32], bias: [0.92, 1.1],
     layout: {
@@ -682,6 +698,7 @@ export function generateListing(seed, opts = {}) {
     diseaseKind: t.disease,
     startingMembers: intIn(rng, t.members),
     startingReputation: Math.round(floatIn(rng, t.rep)),
+    shopLevel: t.shopLevel,
     archetype: t.key,
   };
   const course = buildPropertyCourse(record);

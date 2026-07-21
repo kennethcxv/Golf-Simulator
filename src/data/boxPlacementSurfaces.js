@@ -61,6 +61,12 @@ const fixtureParent = (fixtureId) => Object.freeze({
   id: fixtureId,
 });
 
+const generatedFixtureParent = (fixtureId, defaultPose) => Object.freeze({
+  kind: 'generated-fixture',
+  id: fixtureId,
+  defaultPose: Object.freeze({ ...defaultPose }),
+});
+
 const equipmentParent = (equipmentId, defaultPose) => Object.freeze({
   kind: 'equipment',
   id: equipmentId,
@@ -135,8 +141,11 @@ const packingStation = surface({
   id: PACKING_STATION_BOX_SURFACE_ID,
   kind: 'unpacking-station',
   label: 'Packing bench',
-  parent: WORLD_PARENT,
-  localPose: freezePose(STOCKROOM.packing.x, 1.0061, STOCKROOM.packing.z, STOCKROOM.packing.ry),
+  // Generated shops own and can move/sell the bench. Legacy saves still
+  // resolve against the fixed authored pose through this parent's fallback.
+  parent: generatedFixtureParent('packing_bench', STOCKROOM.packing),
+  localPose: freezePose(0, 1.0061, 0, 0),
+  generatedLocalY: 0.955,
   bounds: freezeBounds(-0.80, 0.80, -0.375, 0.375),
   maxHeight: 2.20,
   capacity: 1,

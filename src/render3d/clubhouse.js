@@ -25,6 +25,7 @@ import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
   MAT, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
+  resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -108,6 +109,7 @@ import {
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
+import { buildShopGenerationVisuals } from './clubhouse/shopGenerationVisuals.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
 import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
@@ -527,6 +529,7 @@ export function makeClubhouse(ctx) {
   const {
     scene, camera, renderer, state, center, heightAt, walkProps, propColliders, walk, hooks,
   } = ctx;
+  const officePlan = resolvedOfficeLayout(state);
   const layoutRecovery = recoverInvalidObjects(state);
   if (layoutRecovery.recovered.length) {
     queueMicrotask(() => hooks.toast?.(
@@ -632,6 +635,18 @@ export function makeClubhouse(ctx) {
 
   // --- materials + the building shell (clubhouse/materials.js + clubhouse/shell.js) ------
   const mats = makeClubhouseMaterials((state && state.clubName) || 'The Club');
+  const generatedPalette = state?.shop?.generation?.palette;
+  if (generatedPalette) {
+    mats.plaster.color.setHex(generatedPalette.wall);
+    mats.ceiling.color.setHex(generatedPalette.trim);
+    mats.trimPaint.color.setHex(generatedPalette.trim);
+    mats.greenPaint.color.setHex(generatedPalette.accent);
+    mats.sagePaint.color.setHex(generatedPalette.wall);
+    mats.walnut.color.setHex(generatedPalette.wood);
+    mats.walnutDark.color.setHex(generatedPalette.wood).offsetHSL(0, 0, -0.16);
+    mats.rawWood.color.setHex(generatedPalette.wood).offsetHSL(0, -0.08, 0.12);
+    mats.oakFloor.color.setHex(generatedPalette.floor);
+  }
   const materialKitResources = collectMaterialResources(mats);
   function disposeClubhouseFallback(root) {
     if (!root) return;
@@ -689,6 +704,7 @@ export function makeClubhouse(ctx) {
     enabled: equipmentShowcaseEnabled,
   });
   const shell = buildShell(B);
+  const shopGenerationVisuals = buildShopGenerationVisuals(B);
   const defaultSurfaceLooks = Object.freeze(Object.fromEntries(
     Object.entries(shell.styleSurfaces || {}).map(([kind, material]) => [kind, captureMaterialLook(material)]),
   ));
@@ -759,19 +775,6 @@ export function makeClubhouse(ctx) {
   }
   refreshRoomStyle();
 
-  function refreshRoomStyle() {
-    const selected = roomStyle(state);
-    for (const kind of ['floor', 'walls', 'trim']) {
-      const material = shell.styleSurfaces?.[kind];
-      const option = ROOM_STYLE_OPTIONS[kind]?.find((entry) => entry.id === selected[kind]);
-      if (!material || !option) continue;
-      material.color.setHex(option.color);
-      if (Number.isFinite(option.roughness)) material.roughness = option.roughness;
-      material.needsUpdate = true;
-    }
-  }
-  refreshRoomStyle();
-
   // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
   B.onWindowDirt = () => shell.lighting.setWindowDirt(windowDirtAvg(state));
   const dirt = buildDirt(B, shell.windowDefs);
@@ -829,9 +832,10 @@ export function makeClubhouse(ctx) {
   const washing = buildWashing(B); // exterior grime: a mask you erode with the jet, not an [E] verb
   scene.add(washing.jet, washing.mist);
 
+  let props61to100 = null;
   let conditionNow = 100;
   function refreshEntranceMatAppearance() {
-    const matRoot = props71to100.getRoot(100);
+    const matRoot = props61to100?.getRoot(100);
     if (!matRoot) return;
     const cleanliness = state.campaign?.enabled ? campaignZoneProgress(state).entrance : conditionNow / 100;
     const soil = 1 - Math.max(0, Math.min(1, cleanliness));
@@ -853,9 +857,6 @@ export function makeClubhouse(ctx) {
     shell.lighting.refreshCondition(conditionNow);
     refreshEntranceMatAppearance();
   }
-  props71to100.ready.then(() => {
-    if (interior.parent) refreshEntranceMatAppearance();
-  });
   const updateFlicker = (dt) => shell.lighting.updateFlicker(dt);
 
   // --- fixtures, lounge, stockroom dressing (clubhouse/fixtures.js) ----------------------
@@ -916,7 +917,7 @@ export function makeClubhouse(ctx) {
   }
   setFittingCurtainOpen(state.shop?.assetRuntime?.asset_063?.open === true);
 
-  const props61to100 = buildProps({
+  props61to100 = buildProps({
     interior,
     loader: new GLTFLoader(),
     state,
@@ -940,7 +941,12 @@ export function makeClubhouse(ctx) {
     const status = cleaningStatus(state);
     if (status) props61to100.setBucketWater(status.bucket);
   };
-  props61to100.ready.then(syncBucketVisual);
+  let syncGeneratedFurnishings = () => props61to100.refreshGeneratedFurnishings?.();
+  props61to100.ready.then(() => {
+    syncBucketVisual();
+    syncGeneratedFurnishings();
+    if (interior.parent) refreshEntranceMatAppearance();
+  });
 
   function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
     const local = fixtureBrowsePoint(fixture, localX, localZ);
@@ -998,6 +1004,7 @@ export function makeClubhouse(ctx) {
     props61to100.detachFixturePlacements();
     relayFixtures();
     props61to100.syncFixturePlacements();
+    syncGeneratedFurnishings();
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
@@ -1076,7 +1083,10 @@ export function makeClubhouse(ctx) {
     shopProgressionVisuals.refresh();
     syncTieredLounge();
     refreshTierDressing();
+    props61to100.detachFixturePlacements();
     relayFixtures();
+    props61to100.syncFixturePlacements();
+    syncGeneratedFurnishings();
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
@@ -1546,7 +1556,13 @@ export function makeClubhouse(ctx) {
   const officeChairFallbackRoot = new THREE.Group();
   officeChairFallbackRoot.name = 'OfficeChairFallbackRoot';
   interior.add(officeChairFallbackRoot);
-  const officeDeskCollider = colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0);
+  const officeDeskQuarterTurn = Math.abs(Math.sin(officePlan.desk.ry || 0)) > 0.5;
+  const officeDeskCollider = colBoxAt(
+    officePlan.desk.x,
+    officePlan.desk.z,
+    officeDeskQuarterTurn ? 1.1 : 2.0,
+    officeDeskQuarterTurn ? 2.0 : 1.1,
+  );
   let officeDeskColliderActive = false;
   const setOfficeDeskColliderActive = (active) => {
     if (active && !officeDeskColliderActive) {
@@ -1577,16 +1593,17 @@ export function makeClubhouse(ctx) {
     const drawers = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.8), darkMat);
     drawers.position.set(0.6, 0.35, 0);
     desk.add(drawers);
-    desk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
-    desk.rotation.y = OFFICE.desk.ry;
+    desk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
+    desk.rotation.y = officePlan.desk.ry;
     officeDeskFallbackRoot.add(desk);
-    setOfficeDeskColliderActive(facilityInstalled(state, 'officeDesk'));
+    setOfficeDeskColliderActive(!state.shop?.generation && facilityInstalled(state, 'officeDesk'));
     merch.onReady(() => {
+      if (state.shop?.generation) return;
       const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
       if (!kitDesk) return;
       kitDesk.name = 'LegacyOfficeDeskAuthored';
-      kitDesk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
-      kitDesk.rotation.y = -Math.PI / 2;
+      kitDesk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
+      kitDesk.rotation.y = officePlan.desk.ry - Math.PI;
       officeDeskFallbackRoot.add(kitDesk);
       disposeClubhouseFallback(desk);
     });
@@ -1594,12 +1611,14 @@ export function makeClubhouse(ctx) {
     // task chair — the Sheet-04 kit chair (five-star base, casters, black
     // leather), facing east toward the desk. The Tripo scan is the fallback.
     merch.onReady(() => {
+      if (state.shop?.generation) return;
       const equipmentChair = merch.instantiateEquipment && merch.instantiateEquipment('office_chair');
       const kitChair = !equipmentChair && merch.instantiateKit && merch.instantiateKit('office_chair');
       const chair = equipmentChair || kitChair || merch.instantiateRaw('office_chair');
       if (!chair) return;
-      chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
-      chair.rotation.y = (equipmentChair || kitChair) ? Math.PI / 2 : -Math.PI / 2;
+      chair.position.set(officePlan.chair.x, 0, officePlan.chair.z);
+      chair.rotation.y = officePlan.chair.ry
+        ?? ((equipmentChair || kitChair) ? Math.PI / 2 : -Math.PI / 2);
       // Asset 81 is the Sheet-09 office chair, authored for this same spot. Named so the prop
       // placement table can retire this one when that lands — otherwise the office has two
       // chairs a centimetre apart, which is worse than either alone.
@@ -1610,14 +1629,17 @@ export function makeClubhouse(ctx) {
     // the Sheet-04 filing cabinet against the east wall, north of the desk —
     // LEDGERS / SUPPLIERS / STAFF / COURSE, which is the office's whole job
     merch.onReady(() => {
+      if (state.shop?.generation) return;
       const filing = merch.instantiateKit && merch.instantiateKit('filing_cabinet');
       if (!filing) return;
       filing.name = 'LegacyOfficeFilingCabinet';
-      filing.position.set(9.88, 0, 2.75);
-      filing.rotation.y = -Math.PI / 2;
+      filing.position.set(officePlan.filing.x, 0, officePlan.filing.z);
+      filing.rotation.y = officePlan.filing.ry;
       interior.add(filing);
     });
-    addCol(colBoxAt(9.88, 2.75, 0.75, 0.6));
+    if (!state.shop?.generation) {
+      addCol(colBoxAt(officePlan.filing.x, officePlan.filing.z, 0.75, 0.6));
+    }
 
     // wall course map — a real framed board, flush on the office's south wall:
     // backing panel with thickness, mitered frame lip, map face proud of the
@@ -1815,8 +1837,8 @@ export function makeClubhouse(ctx) {
     // 0.752 = the Sheet-04 kit desk's top (0.75) + clearance. The whole sit
     // rig (seat pose, screen corners) derives from the laptop's live world
     // matrix, so lowering the laptop reseats everything with it.
-    laptop.position.set(OFFICE.laptop.x - 0.10, 0.833, OFFICE.laptop.z);
-    laptop.rotation.y = OFFICE.laptop.ry;
+    laptop.position.set(officePlan.laptop.x - 0.10, 0.833, officePlan.laptop.z);
+    laptop.rotation.y = officePlan.laptop.ry;
     interior.add(laptop);
 
     // SCREEN STATE: 'off' → 'boot' → 'live' (the DOM is on the glass) | 'desk' (nobody sitting)
@@ -1948,7 +1970,7 @@ export function makeClubhouse(ctx) {
     office.lidOpenAngle = LID_OPEN;
     office.laptopObject = laptop;
 
-    const compWp = L2W(OFFICE.laptop.x, OFFICE.laptop.z);
+    const compWp = L2W(officePlan.laptop.x, officePlan.laptop.z);
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
       label: () => facilityInstalled(state, 'laptop')
@@ -1957,6 +1979,30 @@ export function makeClubhouse(ctx) {
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
     office.laptop = laptop;
+    let computerPropRegistered = true;
+    syncGeneratedFurnishings = () => {
+      props61to100.refreshGeneratedFurnishings?.();
+      const current = resolvedOfficeLayout(state);
+      const available = facilityInstalled(state, 'laptop')
+        && current.desk?.available !== false
+        && current.laptop?.available !== false;
+      if (current.laptop) {
+        laptop.position.set(current.laptop.x - 0.10, 0.833, current.laptop.z);
+        laptop.rotation.y = current.laptop.ry;
+        const world = L2W(current.laptop.x, current.laptop.z);
+        office.computerProp.x = world.x;
+        office.computerProp.z = world.z;
+      }
+      laptop.visible = available;
+      if (available && !computerPropRegistered) {
+        addProp(office.computerProp);
+        computerPropRegistered = true;
+      } else if (!available && computerPropRegistered) {
+        removeProp(office.computerProp);
+        computerPropRegistered = false;
+      }
+    };
+    syncGeneratedFurnishings();
 
     // Where the camera settles when you sit down. Derived from the OPEN lid, the live field of
     // view and the window shape, so the screen fills the view on any monitor — a hardcoded seat
@@ -2002,12 +2048,13 @@ export function makeClubhouse(ctx) {
   let sheet07Production = null;
   function refreshCampaignVisualAvailability() {
     const deskReady = facilityInstalled(state, 'officeDesk');
-    officeDeskFallbackRoot.visible = deskReady;
-    officeChairFallbackRoot.visible = facilityInstalled(state, 'officeChair');
-    office.laptop.visible = facilityInstalled(state, 'laptop');
-    setOfficeDeskColliderActive(deskReady);
+    const generatedOffice = !!state.shop?.generation;
+    officeDeskFallbackRoot.visible = !generatedOffice && deskReady;
+    officeChairFallbackRoot.visible = !generatedOffice && facilityInstalled(state, 'officeChair');
+    setOfficeDeskColliderActive(!generatedOffice && deskReady);
+    syncGeneratedFurnishings();
     refreshCheckoutAvailability();
-    props71to100.refreshVisibility();
+    props61to100.refreshVisibility?.();
     if (sheet07Production) sheet07Production.refresh();
     if (shell.setBusinessOpen) shell.setBusinessOpen(campaignAllowsBusiness(state));
   }
@@ -9058,6 +9105,7 @@ export function makeClubhouse(ctx) {
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     refreshShopProgression,
     shopProgressionDiagnostics: () => shopProgressionVisuals.diagnostics(),
+    shopGenerationDiagnostics: () => shopGenerationVisuals.diagnostics(),
     // build mode: the shop is the player's to arrange
     build: builder,
     furnitureDiagnostics: () => ({

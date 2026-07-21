@@ -542,18 +542,25 @@ export function makeKraftTexture({ seed = 29 } = {}) {
 }
 
 // The club rug: deep green field, double gold border, pine mark + club name.
-export function makeRugTexture(clubName = 'PINE HOLLOW', { w = 512, h = 384 } = {}) {
+export function makeRugTexture(clubName = 'PINE HOLLOW', {
+  w = 512,
+  h = 384,
+  field = '#1f4a26',
+  weaveDark = '#18391d3a',
+  weaveLight = '#2a5a3233',
+  accent = '#c9a227',
+} = {}) {
   const c = makeCanvas(w, h);
   const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.fillStyle = '#1f4a26';
+  ctx.fillStyle = field;
   ctx.fillRect(0, 0, w, h);
   // carpet weave noise
   const r = rng(9);
   for (let i = 0; i < 5200; i++) {
-    ctx.fillStyle = r() < 0.5 ? '#18391d3a' : '#2a5a3233';
+    ctx.fillStyle = r() < 0.5 ? weaveDark : weaveLight;
     ctx.fillRect(r() * w, r() * h, 2, 1.4);
   }
-  ctx.strokeStyle = '#c9a227';
+  ctx.strokeStyle = accent;
   ctx.lineWidth = 6;
   ctx.strokeRect(14, 14, w - 28, h - 28);
   ctx.lineWidth = 2.5;
@@ -561,7 +568,7 @@ export function makeRugTexture(clubName = 'PINE HOLLOW', { w = 512, h = 384 } = 
   // pine motif: three stacked triangle tiers + trunk
   const px = w / 2;
   const py = h / 2 - 26;
-  ctx.fillStyle = '#c9a227cc';
+  ctx.fillStyle = accent;
   for (let t = 0; t < 3; t++) {
     const tw = 34 + t * 20;
     const ty = py - 30 + t * 26;
@@ -573,7 +580,7 @@ export function makeRugTexture(clubName = 'PINE HOLLOW', { w = 512, h = 384 } = 
     ctx.fill();
   }
   ctx.fillRect(px - 5, py + 34, 10, 16);
-  ctx.fillStyle = '#c9a227';
+  ctx.fillStyle = accent;
   ctx.textAlign = 'center';
   ctx.font = `bold ${Math.round(h * 0.085)}px Georgia`;
   ctx.fillText(clubName.toUpperCase(), px, h / 2 + 78);

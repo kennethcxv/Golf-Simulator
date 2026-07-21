@@ -78,6 +78,8 @@ export const FIXTURE_HALF = {
   bagstand: [0.83, 0.23], shoerack: [1.3, 0.4], apparelwall: [0.63, 0.25],
   feature: [0.85, 0.55], backshelf: [1.4, 0.45], rail: [0.60, 0.225],
   backcounter: [1.7, 0.35], snackrack: [0.53, 0.25],
+  officeDesk: [1.0, 0.55], officeChair: [0.34, 0.34], officeFiling: [0.375, 0.30],
+  packingbench: [0.95, 0.525],
 };
 
 export function fixtureRect(f) {
@@ -155,6 +157,74 @@ export const OFFICE = {
   map: { x: 8.9, z: 6.44, ry: Math.PI },         // framed course map on the office's south wall
   calendar: { x: 7.1, z: 2.15, ry: Math.PI },    // on partition B's office face
 };
+
+export function resolvedOfficeLayout(state) {
+  const generated = state?.shop?.generation?.rooms?.office?.pose;
+  const fallback = {
+    ...OFFICE,
+    filing: { x: 9.92, z: 3.40, ry: -Math.PI / 2 },
+    lamp: null,
+    phone: null,
+    printer: null,
+  };
+  if (!generated || typeof generated !== 'object') return fallback;
+  const layout = state?.shop?.layout || {};
+  const stored = new Set(Array.isArray(layout.stored) ? layout.stored : []);
+  const sold = new Set(Array.isArray(layout.sold) ? layout.sold : []);
+  const conveyed = state.shop.generation.fixturePoses || {};
+  const fixturePose = (fixtureId, source) => {
+    const moved = layout.moved?.[fixtureId];
+    const pose = moved || conveyed[fixtureId] || source;
+    return {
+      ...source,
+      ...pose,
+      available: !stored.has(fixtureId) && !sold.has(fixtureId),
+    };
+  };
+  const sourceDesk = { ...OFFICE.desk, ...(generated.desk || {}) };
+  const desk = fixturePose('office_desk', sourceDesk);
+  const chair = fixturePose('office_chair', { ...OFFICE.chair, ...(generated.chair || {}) });
+  const filing = fixturePose('office_filing', {
+    x: 9.92, z: 3.40, ry: -Math.PI / 2, ...(generated.filing || {}),
+  });
+  const attachTo = (sourceAnchor, targetAnchor, sourcePose) => {
+    if (!sourcePose) return null;
+    const sourceYaw = sourceAnchor.ry || 0;
+    const targetYaw = targetAnchor.ry || 0;
+    const dx = sourcePose.x - sourceAnchor.x;
+    const dz = sourcePose.z - sourceAnchor.z;
+    const localX = dx * Math.cos(sourceYaw) - dz * Math.sin(sourceYaw);
+    const localZ = dx * Math.sin(sourceYaw) + dz * Math.cos(sourceYaw);
+    return {
+      ...sourcePose,
+      x: targetAnchor.x + localX * Math.cos(targetYaw) + localZ * Math.sin(targetYaw),
+      z: targetAnchor.z - localX * Math.sin(targetYaw) + localZ * Math.cos(targetYaw),
+      ry: (sourcePose.ry || 0) + targetYaw - sourceYaw,
+      available: targetAnchor.available,
+    };
+  };
+  const awayX = chair.x - desk.x;
+  const awayZ = chair.z - desk.z;
+  const awayLength = Math.max(0.001, Math.hypot(awayX, awayZ));
+  return {
+    ...fallback,
+    desk,
+    chair,
+    filing,
+    laptop: attachTo(sourceDesk, desk, { ...OFFICE.laptop, ...(generated.laptop || {}) }),
+    lamp: attachTo(sourceDesk, desk, generated.lamp),
+    phone: attachTo(sourceDesk, desk, generated.phone),
+    printer: attachTo(generated.filing || fallback.filing, filing, generated.printer),
+    // The chair centre is intentionally solid. Navigation validates the clear
+    // approach beside it, while the laptop interaction radius handles sitting.
+    access: {
+      x: chair.x + awayX / awayLength * 0.85,
+      z: chair.z + awayZ / awayLength * 0.85,
+      ry: chair.ry,
+      available: desk.available,
+    },
+  };
+}
 
 // The lounge is furnished from day one (dirty) — refs 1/2/8. The set below is
 // base dressing; the lounge1 decor upgrade replaces it with the premium suite.
@@ -311,6 +381,12 @@ export const FIXTURES = [
   { id: 'backshelf_n', kind: 'backshelf', x: 8.05, z: -6.1, ry: 0, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
   { id: 'backshelf_e', kind: 'backshelf', x: 9.9, z: -5.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom', short: true },
   { id: 'backshelf_e2', kind: 'backshelf', x: 9.9, z: -0.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
+  // Generated properties convey these service-room furnishings as real owned
+  // objects. Legacy saves keep their fixed authored office and bench instead.
+  { id: 'office_desk', kind: 'officeDesk', x: 9.50, z: 4.5, ry: Math.PI / 2, skus: [], title: 'Office desk', zone: 'office', generatedOnly: true },
+  { id: 'office_chair', kind: 'officeChair', x: 8.50, z: 4.5, ry: Math.PI / 2, skus: [], title: 'Office chair', zone: 'office', generatedOnly: true },
+  { id: 'office_filing', kind: 'officeFiling', x: 9.75, z: 3.00, ry: -Math.PI / 2, skus: [], title: 'Filing cabinet', zone: 'office', generatedOnly: true },
+  { id: 'packing_bench', kind: 'packingbench', x: 7.0, z: -1.0, ry: 0, skus: [], title: 'Packing bench', zone: 'stockroom', generatedOnly: true },
 ];
 
 // --- start-state clutter (the "dirty, not nonsensical" rule: piles sit off the

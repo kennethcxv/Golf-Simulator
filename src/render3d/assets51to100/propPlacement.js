@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CLEANING_TOOLS } from '../../data/cleaningTools.js';
-import { INTERIOR } from '../../data/shopLayout.js';
+import { INTERIOR, resolvedOfficeLayout } from '../../data/shopLayout.js';
 import {
   PLACED_ASSET_NUMBERS, PROP_PLACEMENTS, RUNTIME_ASSET_MANIFEST_BY_NUMBER,
 } from './runtimeManifest.js';
@@ -50,7 +50,42 @@ export function detailedPropsVisibleAt(
   return Math.hypot(dx, dz) < clearance;
 }
 
-const vectorFromTransform = (record) => new THREE.Vector3(...record.defaultTransform.position);
+const DYNAMIC_GENERATED_ASSET_NUMBERS = new Set([65, 81, 82, 83, 84, 85]);
+
+function runtimePlacement(authored, state) {
+  if (!DYNAMIC_GENERATED_ASSET_NUMBERS.has(authored.n)) return authored;
+  if (authored.n === 65) return { ...authored, hidden: !!state?.shop?.generation };
+  const office = resolvedOfficeLayout(state);
+  const generated = !!state?.shop?.generation;
+  if (authored.n === 81) {
+    return {
+      ...authored,
+      x: office.chair.x,
+      z: office.chair.z,
+      ry: office.chair.ry,
+      hidden: generated || office.chair.available === false,
+    };
+  }
+  if (authored.n === 82) {
+    return {
+      ...authored,
+      x: office.filing.x,
+      z: office.filing.z,
+      ry: office.filing.ry,
+      hidden: generated || office.filing.available === false,
+    };
+  }
+  if (authored.n === 83 && office.lamp) {
+    return { ...authored, ...office.lamp, hidden: office.lamp.available === false };
+  }
+  if (authored.n === 84 && office.printer) {
+    return { ...authored, ...office.printer, hidden: office.printer.available === false };
+  }
+  if (authored.n === 85 && office.phone) {
+    return { ...authored, ...office.phone, hidden: office.phone.available === false };
+  }
+  return authored;
+}
 
 const COLLISION_PROXY_NAME = /^(?:COL_|COLLISION_|VOLUME_)/i;
 
@@ -259,7 +294,7 @@ function batchPlacedStaticVisuals(parent, entries, merch) {
   for (const entry of entries) {
     // Persisted movable fixtures must carry their visual with their anchor. Everything else in
     // this runtime has a fixed clubhouse-local pose, including nested worktable pickups.
-    if (entry.fixtureId || !entry.staticBatch?.visual) continue;
+    if (entry.fixtureId || entry.dynamicPlacement || !entry.staticBatch?.visual) continue;
     entry.staticBatch.visual.traverseVisible((object) => {
       if (object.isMesh && object.layers.mask !== 0 && object.geometry && object.material
         && !Array.isArray(object.material)) {
@@ -639,6 +674,23 @@ export function buildProps({
     return true;
   }
 
+  function applyWorldPlacement(entry, placement) {
+    const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[entry.n];
+    entry.placement = placement;
+    entry.root.scale.setScalar(manifest.binding.runtimeScale);
+    entry.root.rotation.set(0, placement.ry || 0, 0);
+    entry.root.position.set(0, 0, 0);
+    const target = new THREE.Vector3(placement.x, placement.y || 0, placement.z);
+    const socketAligned = placeSocketAt(entry.root, target);
+    if (!socketAligned && !entry.missingPlacementSocketReported) {
+      failed.push({ n: entry.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
+      entry.missingPlacementSocketReported = true;
+    }
+    entry.root.visible = !placement.hidden
+      && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(entry.n));
+    return socketAligned;
+  }
+
   function registerWalkProp(entry, { tool = null, socket = 'SOCKET_PLACEMENT', suffix = '' } = {}) {
     if (typeof addProp !== 'function') return null;
     const placement = entry.placement;
@@ -689,7 +741,14 @@ export function buildProps({
     return prop;
   }
 
-  function prepareEntry(root, gltf, placement, fixtureId = null, instanceIndex = 0) {
+  function prepareEntry(
+    root,
+    gltf,
+    placement,
+    fixtureId = null,
+    instanceIndex = 0,
+    authoredPlacement = placement,
+  ) {
     const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[placement.n];
     root.name = uniqueRootName(placement.n, fixtureId);
     root.userData.assetRuntime = Object.freeze({
@@ -731,6 +790,8 @@ export function buildProps({
       n: placement.n,
       root,
       placement,
+      authoredPlacement,
+      dynamicPlacement: DYNAMIC_GENERATED_ASSET_NUMBERS.has(placement.n),
       fixtureId,
       stateRecord,
       walkProps: [],
@@ -748,11 +809,7 @@ export function buildProps({
       mountFixtureEntry(entry);
     } else {
       group.add(root);
-      root.scale.setScalar(manifest.binding.runtimeScale);
-      root.rotation.set(0, placement.ry || 0, 0);
-      root.position.set(0, 0, 0);
-      const socketAligned = placeSocketAt(root, vectorFromTransform(manifest));
-      if (!socketAligned) failed.push({ n: placement.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
+      applyWorldPlacement(entry, placement);
     }
 
     const spec = placement.interaction;
@@ -779,7 +836,8 @@ export function buildProps({
     return entry;
   }
 
-  const jobs = PROP_PLACEMENTS.map((placement) => new Promise((resolve) => {
+  const jobs = PROP_PLACEMENTS.map((authoredPlacement) => new Promise((resolve) => {
+    const placement = runtimePlacement(authoredPlacement, state);
     const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[placement.n];
     loader.load(manifest.glbPath, (gltf) => {
       try {
@@ -789,7 +847,7 @@ export function buildProps({
         const roots = fixtureIds.map((_, index) => (index === 0 ? gltf.scene : gltf.scene.clone(true)));
         fixtureIds.forEach((fixtureId, index) => {
           const root = roots[index];
-          prepareEntry(root, gltf, placement, fixtureId, index);
+          prepareEntry(root, gltf, placement, fixtureId, index, authoredPlacement);
         });
 
         resolve(true);
@@ -904,12 +962,25 @@ export function buildProps({
       let total = 0;
       for (const [number, entries] of placedByNumber) {
         for (const entry of entries) {
-          entry.root.visible = detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(number);
+          entry.root.visible = !entry.placement.hidden
+            && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(number));
           if (entry.root.visible) visible += 1;
           total += 1;
         }
       }
       return { detailedVisible, visible, total };
+    },
+    refreshGeneratedFurnishings() {
+      let refreshed = 0;
+      for (const number of DYNAMIC_GENERATED_ASSET_NUMBERS) {
+        for (const entry of placedByNumber.get(number) || []) {
+          if (entry.fixtureId || entry.placement.parentAsset) continue;
+          applyWorldPlacement(entry, runtimePlacement(entry.authoredPlacement, state));
+          refreshed += 1;
+        }
+      }
+      updateInteractionOrigins();
+      return refreshed;
     },
     interactionTargets: () => {
       updateInteractionOrigins();

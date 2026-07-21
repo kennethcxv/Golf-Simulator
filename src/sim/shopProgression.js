@@ -94,6 +94,8 @@ export function fixtureUnlockedForTier(fixtureId, tierId) {
 
 export function fixtureIsInstalled(state, fixtureId, tierId = null) {
   const progression = state?.shop?.progression;
+  const fixture = FIXTURES.find((entry) => entry.id === fixtureId);
+  if (fixture?.generatedOnly && !state?.shop?.generation) return false;
   if (!tierId && state?.campaign?.enabled) {
     const facilities = state.shop?.reno?.facilities || {};
     if (facilities.displayShelves
@@ -159,7 +161,10 @@ export function shopCustomerCapacity(state) {
 }
 
 export function shopPropertyImprovementValue(state) {
-  return shopTier(state).propertyValue;
+  const currentValue = shopTier(state).propertyValue;
+  const conveyedTier = state?.shop?.generation?.startingTier;
+  const conveyedValue = SHOP_TIERS[conveyedTier]?.propertyValue || 0;
+  return Math.max(0, currentValue - conveyedValue);
 }
 
 export function installedShopFixtures(state, tierId = null) {

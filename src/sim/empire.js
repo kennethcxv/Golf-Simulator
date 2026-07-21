@@ -26,9 +26,17 @@ import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
 import { courseDesignRating, holePar, holeDistanceYd } from './course.js';
 import { memberCounts } from './club.js';
 import { deliverOrdersDue, tickDeliveries } from './shop.js';
-import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
-import { appraiseProperty } from './valuation.js';
+import {
+  generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, round500, MARKET,
+} from './marketplace.js';
+import { appraiseProperty, appraisalBreakdown } from './valuation.js';
 import { bindPropertyInventory } from './propertyInventory.js';
+import { seedReputation } from './reputation.js';
+import {
+  initEmpireProgression, ensureEmpireProgression, propertyReadiness, unlockEarnedTier,
+} from './propertyProgression.js';
+import { initBusiness } from './business.js';
+import { initializeGeneratedShop } from './shopGeneration.js';
 
 export const EMPIRE_VERSION = 3;
 
@@ -210,6 +218,7 @@ export function initPropertyState(property, mode) {
   // the golf world has roughly heard of it to the extent the locals like it
   state.progression.prestige = clamp(8 + property.startingReputation * 0.3, 5, 30);
   initBusiness(state);
+  initializeGeneratedShop(state, property);
   return state;
 }
 

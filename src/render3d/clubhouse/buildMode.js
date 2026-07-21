@@ -11,6 +11,7 @@ import {
 import { FIXTURE_HALF, SHELL } from '../../data/shopLayout.js';
 import {
   FINE_GRID, GRID, commitObjectPlacement, commitPlacement, ensureLayout, objectById, placedFixtures, placedObjects,
+  buyFixtureReplacement, fixtureOwnershipEntries,
   placementSurfaces, recoverObject, redoPlacement, roomStyle, sellObject,
   setObjectVariant, setRoomStyle, soldObjects, storeFixture, storeObject, storedObjects,
   undoPlacement, validateObjectPlacement, validatePlacement,
@@ -733,6 +734,28 @@ export function buildBuildMode(B, deps) {
     return true;
   }
 
+  function replaceById(id) {
+    const fixture = fixtureOwnershipEntries(state).find((entry) => entry.id === id);
+    if (!fixture || fixture.status !== 'sold') {
+      hooks.toast?.('That shop fixture does not need replacing.', 'warn');
+      return false;
+    }
+    const result = buyFixtureReplacement(
+      state,
+      id,
+      `fixture-build-replacement:${id}:${ensureLayout(state).revision}`,
+    );
+    if (!result.ok) {
+      hooks.toast?.(result.reason || 'Could not buy that replacement.', 'warn');
+      return false;
+    }
+    rebuildLayout();
+    hooks.sfx?.('cash');
+    hooks.toast?.(`${fixture.title} replaced for $${result.cost}. It is ready in storage.`);
+    panel.refresh();
+    return true;
+  }
+
   function recoverById(id) {
     const result = recoverObject(state, id);
     if (!result.ok) hooks.toast?.(result.reason, 'warn');
@@ -879,6 +902,7 @@ export function buildBuildMode(B, deps) {
     stow: () => storeById(),
     storeById,
     sellById,
+    replaceById,
     recoverById,
     undo,
     redo,
@@ -901,8 +925,23 @@ export function buildBuildMode(B, deps) {
     purchaseSku,
     installById,
     uninstallById,
-    uiModel: () => ({
-      placed: placedObjects(state), stored: storedObjects(state), sold: soldObjects(state),
+    uiModel: () => {
+      const fixtureEconomics = new Map(
+        fixtureOwnershipEntries(state).map((entry) => [entry.id, entry]),
+      );
+      const decorateFixture = (object) => {
+        const fixture = fixtureEconomics.get(object.id);
+        return fixture ? {
+          ...object,
+          sellValue: fixture.sellValue,
+          replacementPrice: fixture.purchasePrice,
+          fixtureStatus: fixture.status,
+        } : object;
+      };
+      return {
+      placed: placedObjects(state).map(decorateFixture),
+      stored: storedObjects(state).map(decorateFixture),
+      sold: soldObjects(state).map(decorateFixture),
       installed: purchasedFurnitureInstances(state, { states: ['installed'] })
         .map((instance) => objectById(state, instance.id)).filter(Boolean),
       catalog: furnitureCatalogAvailability(state),
@@ -913,7 +952,8 @@ export function buildBuildMode(B, deps) {
       undoCount: ensureLayout(state).history.undo.length,
       redoCount: ensureLayout(state).history.redo.length,
       gridEnabled, rotationSnapEnabled, carrying,
-    }),
+      };
+    },
     label() {
       if (!active || panel.isOpen()) return null;
       if (carrying) {

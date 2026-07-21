@@ -10,11 +10,13 @@ import assert from 'node:assert/strict';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { RENO, ensureShopReno } from '../src/sim/shop.js';
 import {
-  SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, DOOR_MAIN,
+  SHELL, INTERIOR, FIXTURES as ALL_FIXTURES, COUNTER, OFFICE, STOCKROOM, DOOR_MAIN,
   DOOR_CLEARWAY, BACKDOOR_CLEARWAY, CLUTTER_SPOTS, queueSlot, fixtureRect, FIXTURE_HALF,
 } from '../src/data/shopLayout.js';
 import { SHOP_CATALOG, DECOR_SPOTS, skuById, RETAIL_CATS, SHELF_CAP } from '../src/data/shopItems.js';
 import { placeOrder } from '../src/sim/shop.js';
+
+const FIXTURES = ALL_FIXTURES.filter((fixture) => !fixture.generatedOnly);
 
 const inRect = (p, r) => p.x >= r.minX && p.x <= r.maxX && p.z >= r.minZ && p.z <= r.maxZ;
 const inInterior = (p, margin = 0) =>
