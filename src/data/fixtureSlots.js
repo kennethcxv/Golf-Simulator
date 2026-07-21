@@ -216,10 +216,10 @@ function accessoryHybrid(skuId, lane, productDrop) {
 
 // folded stacks on the Sheet-04 apparel_table (kit top surface 0.80; stack
 // positions match the table's APPAREL_TABLE_SLOT grid at x ±0.57/±0.19,
-// z ±0.21). Each lane owns four stacks of three — polo1 the west pair of
-// columns, polo2 the east pair. Twelve per lane, same capacity as ever.
+// z ±0.21). The current four-line table assigns each SKU one x column with
+// two three-high stacks, for six physical units per product line.
 function tableApparel(skuId) {
-  const cx = laneX(skuId, 1.36);
+  const cx = laneX(skuId, 1.52);
   return [-0.21, 0.21].flatMap((z, stack) => Array.from({ length: 3 }, (_, index) => ({
     x: cx,
     y: 0.801 + index * 0.055,

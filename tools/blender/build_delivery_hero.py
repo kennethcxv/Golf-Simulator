@@ -367,7 +367,7 @@ def build_apparel_box(M):
     add_content_layout(
         "APPAREL8",
         "apparel",
-        ("polo1", "polo2", "jacket2"),
+        ("polo1", "polo2", "jacket2", "pants2", "shorts1"),
         "folded-with-tissue-and-size-tag",
         apparel_definitions,
     )
@@ -631,7 +631,7 @@ def validate_scene(asset_id, root, required):
         expected_layouts = {
             "APPAREL8": {
                 "capacity": 8,
-                "skus": ("polo1", "polo2", "jacket2"),
+                "skus": ("polo1", "polo2", "jacket2", "pants2", "shorts1"),
                 "max_dims": (0.220, 0.190, 0.100),
             },
             "FLAT8": {

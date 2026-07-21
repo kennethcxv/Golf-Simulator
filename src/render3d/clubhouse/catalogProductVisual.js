@@ -16,6 +16,7 @@ const VISUALS = {
   irons2: visual('iron-set', { model: 'checkout_product_iron_set', tint: 0xb08c4f, tier: 2, length: 1.04, size: [1.04, 0.0807, 0.1584], barcode: 'club-tag', grip: 'two-hand', oversize: true }),
   putter1: visual('putter', { model: 'checkout_product_putter', tint: 0x78957e, tier: 1, length: 0.94, size: [0.94, 0.0517, 0.0542], barcode: 'club-tag', grip: 'two-hand', oversize: true }),
   putter2: visual('putter', { model: 'checkout_product_putter', tint: 0xb08c4f, tier: 2, length: 0.96, size: [0.96, 0.0528, 0.0554], barcode: 'club-tag', grip: 'two-hand', oversize: true }),
+  putter3: visual('putter', { model: 'checkout_product_putter', tint: 0x315c43, tier: 3, length: 0.98, size: [0.98, 0.0540, 0.0570], barcode: 'club-tag', grip: 'two-hand', oversize: true }),
   wedge1: visual('wedge', { model: 'checkout_product_wedge', tint: 0x78957e, tier: 1, length: 0.96, size: [0.96, 0.0779, 0.0710], barcode: 'club-tag', grip: 'two-hand', oversize: true }),
   wedge2: visual('wedge', { model: 'checkout_product_wedge', tint: 0xb08c4f, tier: 2, length: 0.98, size: [0.98, 0.0795, 0.0725], barcode: 'club-tag', grip: 'two-hand', oversize: true }),
 
@@ -24,25 +25,40 @@ const VISUALS = {
   balls3: visual('ball-box', { model: 'checkout_product_ball_carton', tint: 0x315c43, tier: 3, barcode: 'package-side', size: [0.155, 0.0740, 0.1288] }),
 
   glove1: visual('glove', { model: 'checkout_product_glove', tier: 1, barcode: 'hang-tag', size: [0.1723, 0.0293, 0.2200], rotation: [Math.PI / 2, 0, 0] }),
+  glove2: visual('glove', { model: 'checkout_product_glove', tint: 0xb08c4f, tier: 3, barcode: 'hang-tag', size: [0.1723, 0.0293, 0.2200], rotation: [Math.PI / 2, 0, 0] }),
   polo1: visual('folded-polo', { model: 'checkout_product_folded_polo', tint: 0x4e7a52, tier: 1, barcode: 'apparel-tag', size: [0.2000, 0.0925, 0.1650] }),
   polo2: visual('folded-polo', { model: 'checkout_product_folded_polo', tint: 0x5b7f9e, tier: 2, barcode: 'apparel-tag', size: [0.2000, 0.0925, 0.1650] }),
+  pants2: visual('folded-jacket', { model: 'checkout_product_folded_jacket', tint: 0x6b5a44, tier: 2, barcode: 'apparel-tag', size: [0.2200, 0.1050, 0.1900], fit: 'exact' }),
+  shorts1: visual('folded-polo', { model: 'checkout_product_folded_polo', tint: 0xb8a178, tier: 1, barcode: 'apparel-tag', size: [0.2100, 0.0950, 0.1800], fit: 'exact' }),
   cap1: visual('cap', { model: 'checkout_product_cap', tint: 0x315c43, tier: 1, barcode: 'apparel-tag', size: [0.2081, 0.1235, 0.2100] }),
+  cap2: visual('cap', { model: 'checkout_product_cap', tint: 0xb08c4f, tier: 2, barcode: 'apparel-tag', size: [0.2081, 0.1235, 0.2100] }),
   jacket2: visual('folded-jacket', { model: 'checkout_product_folded_jacket', tint: 0x33455e, tier: 2, barcode: 'apparel-tag', size: [0.2150, 0.0947, 0.1822] }),
   // The loose pair on the shoe-wall boards is a try-on sample. The inventory
   // unit a shopper carries and scans is the authored Fairhollow retail carton,
   // so its package identity cannot disappear between shelf and checkout.
   shoe1: visual('shoe-box', { model: 'checkout_product_shoe_box', tint: 0xf0ead8, tier: 2, barcode: 'package-side', size: [0.3100, 0.1150, 0.1900], grip: 'medium' }),
+  shoe3: visual('shoe-box', { model: 'checkout_product_shoe_box', tint: 0x315c43, tier: 3, barcode: 'package-side', size: [0.3150, 0.1200, 0.1950], grip: 'medium' }),
   sock1: visual('sock-pair', { model: 'checkout_product_sock_pair', tint: 0xe8e0cf, tier: 1, barcode: 'apparel-tag', size: [0.1500, 0.0731, 0.1269] }),
 
   tees1: visual('tee-pouch', { model: 'checkout_product_tee_pouch', tier: 1, barcode: 'package-back', size: [0.1300, 0.1200, 0.0460] }),
   towel1: visual('towel-roll', { model: 'checkout_product_towel_roll', tint: 0x78957e, tier: 1, barcode: 'hang-tag', size: [0.2000, 0.1034, 0.0751] }),
   marker1: visual('marker-card', { model: 'checkout_product_marker_blister', tier: 1, barcode: 'package-back', size: [0.1400, 0.1050, 0.0195] }),
+  divot1: visual('marker-card', { model: 'checkout_product_marker_blister', tint: 0xb08c4f, tier: 1, barcode: 'package-back', size: [0.1200, 0.1000, 0.0180], fit: 'exact' }),
   range2: visual('rangefinder', { model: 'checkout_product_rangefinder', tier: 3, barcode: 'hang-tag', size: [0.1900, 0.1023, 0.1435] }),
+  sunglasses2: visual('rangefinder', { model: 'checkout_product_rangefinder', tint: 0x33455e, tier: 2, barcode: 'hang-tag', size: [0.1800, 0.0700, 0.0800], fit: 'exact' }),
+  bottle1: visual('water-bottle', { model: 'provisions_fairway_spring_water', raw: true, tier: 2, barcode: 'package-back', size: [0.0750, 0.2400, 0.0750] }),
   umb1: visual('umbrella', { model: 'checkout_product_umbrella', tint: 0x315c43, tier: 1, barcode: 'hang-tag', size: [0.8400, 0.1116, 0.1077], grip: 'two-hand', oversize: true }),
   bag1: visual('stand-bag', { model: 'checkout_product_stand_bag', tint: 0x315c43, tier: 2, barcode: 'hang-tag', size: [0.72, 0.25, 0.30], grip: 'two-hand', oversize: true }),
+  bag3: visual('stand-bag', { model: 'checkout_product_stand_bag', tint: 0xb08c4f, tier: 3, barcode: 'hang-tag', size: [0.72, 0.25, 0.30], grip: 'two-hand', oversize: true }),
+  scorecard1: visual('marker-card', { model: 'checkout_product_marker_blister', tier: 1, barcode: 'package-back', size: [0.1500, 0.0040, 0.1000], fit: 'exact' }),
 
   water1: visual('water-bottle', { model: 'provisions_fairway_spring_water', raw: true, barcode: 'package-back', size: [0.068, 0.218, 0.068] }),
+  sportdrink2: visual('water-bottle', { model: 'provisions_fairway_spring_water', raw: true, tier: 2, barcode: 'package-back', size: [0.072, 0.225, 0.072] }),
+  soda1: visual('water-bottle', { model: 'provisions_fairway_spring_water', raw: true, tier: 1, barcode: 'package-back', size: [0.066, 0.122, 0.066] }),
   snack1: visual('snack-pouch', { model: 'provisions_bunker_bites_chips', raw: true, barcode: 'package-back', size: [0.160, 0.195, 0.0715] }),
+  chips1: visual('snack-pouch', { model: 'provisions_bunker_bites_chips', raw: true, tier: 1, barcode: 'package-back', size: [0.160, 0.195, 0.0715] }),
+  bar2: visual('snack-pouch', { model: 'provisions_bunker_bites_chips', raw: true, tier: 2, barcode: 'package-back', size: [0.145, 0.055, 0.025] }),
+  crackers1: visual('snack-pouch', { model: 'provisions_bunker_bites_chips', raw: true, tier: 1, barcode: 'package-back', size: [0.150, 0.180, 0.060] }),
 
   // Equipment and decor are physical deliveries even though they never enter a
   // customer basket. Their descriptors make the opened freight truthful instead
@@ -76,6 +92,7 @@ function visual(kind, options = {}) {
     gripMode: options.grip || 'small',
     separateHandoff: !!options.oversize,
     authoredRotation: options.rotation || null,
+    fitMode: options.fit || 'uniform',
   });
 }
 
@@ -121,14 +138,15 @@ function visibleBounds(root) {
   return found ? out : new THREE.Box3(new THREE.Vector3(), new THREE.Vector3(0.01, 0.01, 0.01));
 }
 
-function fitAuthored(object, target, rotation = null) {
+function fitAuthored(object, target, rotation = null, fitMode = 'uniform') {
   const fitted = new THREE.Group();
   fitted.add(object);
   if (rotation) object.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
   let bounds = visibleBounds(fitted);
   const size = bounds.getSize(new THREE.Vector3());
   const ratios = [target[0] / Math.max(size.x, 0.0001), target[1] / Math.max(size.y, 0.0001), target[2] / Math.max(size.z, 0.0001)];
-  object.scale.multiplyScalar(Math.min(...ratios));
+  if (fitMode === 'exact') object.scale.multiply(new THREE.Vector3(...ratios));
+  else object.scale.multiplyScalar(Math.min(...ratios));
   bounds = visibleBounds(fitted);
   const center = bounds.getCenter(new THREE.Vector3());
   object.position.x -= center.x;
@@ -163,7 +181,7 @@ function authored(merch, descriptor, { rotation = null, size = descriptor.size }
   const authoredRotation = rotation || (descriptor.authoredRotation
     ? { x: descriptor.authoredRotation[0], y: descriptor.authoredRotation[1], z: descriptor.authoredRotation[2] }
     : null);
-  return size ? fitAuthored(object, size, authoredRotation) : object;
+  return size ? fitAuthored(object, size, authoredRotation, descriptor.fitMode) : object;
 }
 
 function palette(mats, resources) {

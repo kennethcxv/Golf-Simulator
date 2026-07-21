@@ -136,7 +136,7 @@ PROFILES = {
             layout(
                 "ACCESSORY_CARD12",
                 "accessories",
-                ("tees1", "towel1", "marker1"),
+                ("tees1", "towel1", "marker1", "divot1", "scorecard1"),
                 "retail_card_or_small_carton",
                 # Required 2 x 3 x 2 grid.
                 grid_slots(
@@ -149,7 +149,7 @@ PROFILES = {
             layout(
                 "GLOVE8",
                 "apparel:glove",
-                ("glove1",),
+                ("glove1", "glove2"),
                 "flat_retail_sleeve",
                 # Distinct flat 2 x 1 x 4 stack; it shares only the shell.
                 grid_slots(
@@ -163,7 +163,7 @@ PROFILES = {
             layout(
                 "RANGE4",
                 "accessories:rangefinder",
-                ("range2",),
+                ("range2", "sunglasses2"),
                 "protective_retail_case",
                 # Fragile optics: four cases in an exact 2 x 1 x 2 layout.
                 grid_slots(
@@ -209,7 +209,7 @@ PROFILES = {
             layout(
                 "SHOE4",
                 "apparel:shoes",
-                ("shoe1",),
+                ("shoe1", "shoe3"),
                 "retail_shoe_box",
                 grid_slots(
                     (-0.142, 0.142),
@@ -232,7 +232,7 @@ PROFILES = {
             layout(
                 "BAG1",
                 "accessories:golf_bag",
-                ("bag1",),
+                ("bag1", "bag3"),
                 "protective_bag_with_foam_blocks",
                 (
                     slot(
@@ -258,7 +258,7 @@ PROFILES = {
             layout(
                 "FIXTURE1",
                 "supplies:fixture",
-                ("vac1", "light1", "board1", "poster1", "plant1"),
+                ("vac1", "repairkit1", "chair1", "laptop1", "safetykit1", "light1", "board1", "poster1", "plant1"),
                 "foam_blocked_fixture",
                 (
                     slot(
@@ -283,7 +283,7 @@ PROFILES = {
             layout(
                 "FURNITURE1",
                 "decor:furniture",
-                ("rug1", "lounge1"),
+                ("rug1", "lounge1", "desk1", "counter1", "shelfkit1"),
                 "flat_pack_timber_reinforced",
                 (
                     slot(
@@ -308,7 +308,7 @@ PROFILES = {
             layout(
                 "DRINK12",
                 "provisions:drink",
-                ("water1",),
+                ("water1", "sportdrink2", "soda1"),
                 "sealed_bottle_case",
                 # Required upright 4 x 3 single layer.
                 grid_slots(
@@ -320,9 +320,22 @@ PROFILES = {
                 ),
             ),
             layout(
+                "BOTTLE8",
+                "accessories:bottle",
+                ("bottle1",),
+                "protective-sleeve-upright",
+                grid_slots(
+                    (-0.165, -0.055, 0.055, 0.165),
+                    (-0.090, 0.090),
+                    (0.145,),
+                    (0.090, 0.090, 0.250),
+                    upright=True,
+                ),
+            ),
+            layout(
                 "SNACK12",
                 "provisions:snack",
-                ("snack1",),
+                ("snack1", "chips1", "bar2", "crackers1"),
                 "sealed_snack_multipack",
                 # Twelve face-out bags in a 3 x 4 presentation tray.
                 grid_slots(

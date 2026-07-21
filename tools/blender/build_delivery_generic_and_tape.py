@@ -385,7 +385,7 @@ def build_generic_box(M):
     # stack. The legacy CONTENT_SLOT_01..08 anchors above remain untouched for
     # pre-layout runtime compatibility; new code selects only this exact root.
     layout_id = "CAP_NEST8"
-    allowed_skus = ("cap1",)
+    allowed_skus = ("cap1", "cap2")
     packaging_state = "nested-crowns-with-tissue-form"
     layout_root = empty(
         f"CONTENT_LAYOUT_{layout_id}",
@@ -792,7 +792,7 @@ def validate_scene(asset_id, root, required):
             raise RuntimeError("CAP_NEST8 layout hierarchy or capacity changed")
         if layout.get("packaging_shell_id") != "GENERIC_MERCHANDISE":
             raise RuntimeError("CAP_NEST8 packaging shell contract changed")
-        if tuple(json.loads(layout.get("allowed_skus", "[]"))) != ("cap1",):
+        if tuple(json.loads(layout.get("allowed_skus", "[]"))) != ("cap1", "cap2"):
             raise RuntimeError("CAP_NEST8 allowed SKU contract changed")
         for index in range(1, 9):
             slot = by_name[f"CONTENT_SLOT_CAP_NEST8_{index:02d}"]

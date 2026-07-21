@@ -660,7 +660,7 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
     # heads still occupy opposite end cradles and the 130 mm fit envelope.
     # Legacy CONTENT_SLOT_01/02 remain for old saves.
     layout_id = "CLUB2"
-    allowed_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "wedge1", "wedge2")
+    allowed_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "putter3", "wedge1", "wedge2")
     packaging_state = "head-and-shaft-guarded"
     layout_root = empty(
         f"CONTENT_LAYOUT_{layout_id}",
@@ -957,7 +957,7 @@ def validate(root: bpy.types.Object, *, imported: bool = False) -> dict:
             raise RuntimeError(f"CONTENT_SLOT_{index:02d} category changed")
 
     layout = by_name["CONTENT_LAYOUT_CLUB2"]
-    expected_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "wedge1", "wedge2")
+    expected_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "putter3", "wedge1", "wedge2")
     if layout.parent is not root or int(layout.get("capacity", -1)) != 2:
         raise RuntimeError("CLUB2 layout hierarchy or capacity changed")
     if layout.get("packaging_shell_id") != "LONG_CLUB_CARTON":

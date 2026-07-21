@@ -49,6 +49,7 @@ const SPECS = Object.freeze({
     kind: 'provisions', dimensions: [0.50, 0.38, 0.30], segments: 8,
     layouts: Object.freeze({
       DRINK12: Object.freeze({ capacity: 12, category: 'provisions:drink', grid: [4, 1, 3] }),
+      BOTTLE8: Object.freeze({ capacity: 8, category: 'accessories:bottle', grid: [4, 1, 2] }),
       SNACK12: Object.freeze({ capacity: 12, category: 'provisions:snack', grid: [3, 1, 4] }),
     }),
   }),

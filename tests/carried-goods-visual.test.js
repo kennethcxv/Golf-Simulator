@@ -74,10 +74,15 @@ test('every known SKU carry builds named authored catalog proxies and never a ge
       assert.equal(product.userData.carriedGoodsSkuId, sku.id);
       assert.equal(product.userData.carriedGoodsKind, visual.kind);
       assert.equal(product.userData.catalogProductContext, 'stock-carry');
-      assert.ok(product.getObjectByName(`AUTHORED_CARRY_${visual.model}`),
-        `${sku.id} carries its ${visual.model} authored content`);
+      if (visual.model) {
+        assert.ok(product.getObjectByName(`AUTHORED_CARRY_${visual.model}`),
+          `${sku.id} carries its ${visual.model} authored content`);
+      } else {
+        assert.ok(product.children.length > 0, `${sku.id} retains an explicit procedural packed proxy`);
+      }
     }
-    assert.equal(merch.requested.length, products.length, `${sku.id} builds one SKU proxy per visible unit`);
+    assert.equal(merch.requested.length, visual.model ? products.length : 0,
+      `${sku.id} requests authored content only when its descriptor names a model`);
     assert.ok(merch.requested.every((model) => model === visual.model), `${sku.id} requests only its exact model`);
     disposeTestVisual(root);
   }

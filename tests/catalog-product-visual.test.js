@@ -108,7 +108,7 @@ function fakeCanvasContext() {
 
 test('every sellable catalog SKU has an explicit physical family, barcode surface and grip', () => {
   const ids = new Set(explicitCatalogVisualIds());
-  assert.equal(retail.length, 27);
+  assert.equal(retail.length, 43);
   for (const sku of retail) {
     const visual = catalogProductVisual(sku);
     assert.ok(ids.has(sku.id), `${sku.id} has an explicit checkout visual`);
@@ -123,9 +123,9 @@ test('every sellable catalog SKU has an explicit physical family, barcode surfac
   assert.equal(catalogProductVisual({ id: 'future-headcover', name: 'Driver head cover' }).kind, 'headcover');
 });
 
-test('all 41 catalog SKUs resolve explicit physical descriptors aligned to exact delivery contracts', () => {
+test('all 57 catalog SKUs resolve explicit physical descriptors aligned to exact delivery contracts', () => {
   const catalogIds = SHOP_CATALOG.map((sku) => sku.id).sort();
-  assert.equal(SHOP_CATALOG.length, 41, 'the audited catalog count changed');
+  assert.equal(SHOP_CATALOG.length, 57, 'the audited catalog count changed');
   assert.deepEqual(explicitCatalogVisualIds().sort(), catalogIds,
     'explicit visuals neither omit a catalog SKU nor retain a stale generic entry');
 
@@ -170,7 +170,7 @@ test('all 41 catalog SKUs resolve explicit physical descriptors aligned to exact
     'unknown products remain visibly exceptional instead of masquerading as an authored SKU');
 });
 
-test('all 41 SKU selections satisfy their shipped carton layout metadata at runtime', async () => {
+test('all 57 SKU selections satisfy their shipped carton layout metadata at runtime', async () => {
   const models = [...new Set(SHOP_CATALOG.map((sku) => productPackagingFor(sku.id).box.modelId))];
   const cartonScenes = await loadScenes(models);
   for (const sku of SHOP_CATALOG) {
@@ -194,7 +194,10 @@ test('every raw catalog model ships its authored pickup target and barcode ancho
     return visual.raw && visual.model;
   });
   assert.deepEqual(rawSkus.map((sku) => sku.id).sort(),
-    ['board1', 'light1', 'lounge1', 'plant1', 'poster1', 'rug1', 'snack1', 'vac1', 'water1']);
+    [
+      'bar2', 'board1', 'bottle1', 'chips1', 'crackers1', 'light1', 'lounge1',
+      'plant1', 'poster1', 'rug1', 'snack1', 'soda1', 'sportdrink2', 'vac1', 'water1',
+    ]);
 
   for (const sku of rawSkus) {
     const visual = catalogProductVisual(sku);
@@ -326,7 +329,7 @@ test('shipped family GLBs retain authored anchors, collisions, dimensions and ti
   }
 });
 
-test('sibling SKU tiers use distinct identity tints backed by one cached material per tint', () => {
+test('sibling SKU tiers use distinct identity tints backed by one cached material per tint', async () => {
   const drivers = ['driver1', 'driver2', 'driver3'].map((id) => catalogProductVisual(retail.find((sku) => sku.id === id)));
   assert.equal(new Set(drivers.map((visual) => visual.tint)).size, 3, 'driver tiers declare three visual identities');
 
@@ -342,6 +345,7 @@ test('sibling SKU tiers use distinct identity tints backed by one cached materia
     const accentBase = new THREE.MeshStandardMaterial({ color: 0x777777 });
     const fabricBase = new THREE.MeshStandardMaterial({ color: 0x888888 });
     const merch = createMerch({ merchPlastic: accentBase, merchFabric: fabricBase, charcoal: fabricBase });
+    if (!merch.isReady()) await new Promise((resolve) => merch.onReady(resolve));
     assert.equal(merch.isReady(), true);
 
     const first = merch.instantiate('checkout_product_driver', { tint: drivers[0].tint });

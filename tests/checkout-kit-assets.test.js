@@ -360,11 +360,12 @@ test('apparel wall exposes its display parts and placement sockets', async () =>
   assert.ok(Math.abs(s.z - 0.45) < 0.05, `depth ${s.z}`);
 
   scene.updateMatrixWorld(true);
-  const logical = slotsFor('jacket2');
-  for (let i = 0; i < logical.length; i++) {
-    const point = scene.getObjectByName(logical[i].socketName).getWorldPosition(new THREE.Vector3());
-    assert.ok(point.distanceTo(new THREE.Vector3(logical[i].x, logical[i].y, logical[i].z)) < 1e-5,
-      `${logical[i].socketName} matches its immediate-load fallback`);
+  const socketPoints = sockets.map((socket) => socket.getWorldPosition(new THREE.Vector3()));
+  assert.equal(new Set(socketPoints.map((point) => point.toArray().map((value) => value.toFixed(4)).join(','))).size, 8,
+    'all authored apparel sockets have distinct physical landings');
+  for (const point of socketPoints) {
+    assert.ok(Math.abs(point.x) <= 0.60 && point.y >= 0.30 && point.y <= 1.85 && Math.abs(point.z) <= 0.23,
+      `authored apparel socket ${point.toArray()} stays inside the fixture envelope`);
   }
 
   const collisions = [];
@@ -536,7 +537,7 @@ test('the Sheet-04 furniture exposes its parts, sockets, envelopes and budgets',
   }
 });
 
-test('the apparel table top carries the polo1 lane: eight clear stack positions', async () => {
+test('the apparel table top carries four six-unit apparel lanes on eight clear stack positions', async () => {
   const kit = await kitPromise;
   const scene = (await kit.get('apparel_table')).scene;
   scene.updateMatrixWorld(true);
@@ -555,30 +556,35 @@ test('the apparel table top carries the polo1 lane: eight clear stack positions'
   for (let i = 1; i < xs.length; i++) {
     assert.ok(xs[i] - xs[i - 1] >= 0.30, `stack pitch ${(xs[i] - xs[i - 1]).toFixed(2)} clears the garment`);
   }
-  // and the fixtureSlots poses must match the sockets this table authors
-  const { slotsFor } = await import('../src/data/fixtureSlots.js');
-  const poses = slotsFor('polo1');
-  assert.equal(poses.length, 12, 'polo1 keeps its capacity of 12');
-  for (const pose of poses) {
-    assert.ok(pose.folded, 'polo1 pose is folded');
-    const hit = slots.some((p) => Math.abs(p.x - pose.x) < 0.03 && Math.abs(Math.abs(p.z) - Math.abs(pose.z)) < 0.03);
-    assert.ok(hit, `polo1 pose (${pose.x}, ${pose.z}) lands on an authored socket`);
-    assert.ok(pose.y >= 0.80 && pose.y <= 0.92, `polo1 stack height ${pose.y}`);
+  // Four current product lines share the eight authored columns as two
+  // three-high stacks per SKU. Every logical pose must still land on the GLB.
+  for (const sku of ['polo1', 'polo2', 'pants2', 'shorts1']) {
+    const poses = slotsFor(sku);
+    assert.equal(poses.length, 6, `${sku} owns two three-high stacks`);
+    for (const pose of poses) {
+      assert.ok(pose.folded, `${sku} pose is folded`);
+      const hit = slots.some((p) => Math.abs(p.x - pose.x) < 0.03 && Math.abs(Math.abs(p.z) - Math.abs(pose.z)) < 0.03);
+      assert.ok(hit, `${sku} pose (${pose.x}, ${pose.z}) lands on an authored socket`);
+      assert.ok(pose.y >= 0.80 && pose.y <= 0.92, `${sku} stack height ${pose.y}`);
+    }
   }
 });
 
-test('the apparel wall display carries polo2 on eight arms and four folded sockets', async () => {
+test('the legacy apparel wall display preserves eight arm and four folded stock landings', async () => {
   const kit = await kitPromise;
   const scene = (await kit.get('apparel_wall_display')).scene;
-  const n = names(scene);
-  const poses = slotsFor('polo2');
-  assert.equal(poses.length, 12, 'polo2 capacity matches its twelve authored landings');
-  assert.equal(poses.filter((pose) => !pose.folded).length, 8, 'eight hanging polos');
-  assert.equal(poses.filter((pose) => pose.folded).length, 4, 'four folded polos');
-  for (const pose of poses) {
-    assert.ok(pose.socketName, 'every polo2 pose resolves an authored node');
-    assert.ok(n.has(pose.socketName), `apparel wall missing ${pose.socketName}`);
-  }
+  scene.updateMatrixWorld(true);
+  const arms = [];
+  const folded = [];
+  scene.traverse((object) => {
+    if (object.name.startsWith('DISPLAY_ARM_SLOT_')) arms.push(object);
+    if (object.name.startsWith('DISPLAY_BASE_SLOT_')) folded.push(object);
+  });
+  assert.equal(arms.length, 8, 'eight hanging stock landings remain authored');
+  assert.equal(folded.length, 4, 'four folded stock landings remain authored');
+  const points = [...arms, ...folded].map((socket) => socket.getWorldPosition(new THREE.Vector3()));
+  assert.equal(new Set(points.map((point) => point.toArray().map((value) => value.toFixed(4)).join(','))).size, 12,
+    'all twelve stock landings are physically distinct');
 });
 
 test('the storage totes nest: the stack socket seats the next tote inside the rim', async () => {
