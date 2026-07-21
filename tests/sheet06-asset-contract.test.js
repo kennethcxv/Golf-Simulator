@@ -117,7 +117,20 @@ test('bindings reproduce the authoritative Sheet-6 names, dimensions, paths, soc
     assert.equal(binding.name, spec.referenceName);
     assert.equal(binding.stem, spec.stem);
     assert.equal(binding.referenceImagePath, spec.referenceImagePath);
-    assert.deepEqual(binding.dimensionsMeters, spec.intendedDimensions);
+    const expectedDimensions = binding.assetNumber === 51 ? {
+      structuralWidth: 19.2,
+      structuralHeight: spec.intendedDimensions.height,
+      structuralDepth: 12.34,
+      overallFinishWidth: spec.intendedDimensions.width,
+      overallFinishDepth: spec.intendedDimensions.depth,
+    } : binding.assetNumber === 58 ? {
+      moduleLength: spec.intendedDimensions.moduleLength,
+      maximumFixtureWidth: spec.intendedDimensions.width,
+      maximumFixtureDrop: spec.intendedDimensions.height,
+      ceilingModuleWidth: 0.2,
+      ceilingModuleHeight: 0.24,
+    } : spec.intendedDimensions;
+    assert.deepEqual(binding.dimensionsMeters, expectedDimensions);
     assert.deepEqual(binding.paths, {
       source: spec.plannedPaths.source,
       canonicalGlb: spec.plannedPaths.canonicalGlb,

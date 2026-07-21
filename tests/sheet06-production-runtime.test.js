@@ -57,16 +57,41 @@ function assetRoot(number) {
   if (number === 51) {
     for (const name of SUPPRESS_51) root.add(namedGroup(name));
     root.add(namedGroup('MESH_FieldstoneWaterTable'));
+    for (const variant of ['construction_garage_door_municipal', 'construction_garage_door_luxury']) {
+      const mesh = renderMesh(`Garage_${variant}`);
+      mesh.userData.construction_garage_variant = variant;
+      root.add(mesh);
+    }
+    for (const variant of ['construction_landscape_lighting_municipal', 'construction_landscape_lighting_luxury']) {
+      const mesh = renderMesh(`Landscape_${variant}`);
+      mesh.userData.construction_lighting_variant = variant;
+      root.add(mesh);
+    }
   }
   if (number === 52) {
     for (const name of SUPPRESS_52) root.add(namedGroup(name));
     root.add(namedGroup('MESH_RoofMoldPatch'));
     root.add(namedGroup('MESH_MossPatch'));
     root.add(namedGroup('MESH_BoardedWindow'));
+    for (const name of ['MESH_BoardedApertureDamage', 'MESH_BoardedApertureFasteners']) {
+      root.add(namedGroup(name));
+    }
     root.add(namedGroup('MESH_WarpedTrim'));
   }
   if (number === 53) {
-    root.add(namedGroup('PIVOT_DoorLeft'), namedGroup('PIVOT_DoorRight'));
+    const left = namedGroup('PIVOT_DoorLeft');
+    const right = namedGroup('PIVOT_DoorRight');
+    for (const [side, pivot] of [['Left', left], ['Right', right]]) {
+      const legacy = renderMesh(`Door${side}LegacyVisual`);
+      legacy.userData.construction_door_legacy_visual = true;
+      pivot.add(legacy);
+      for (const variant of ['construction_hollow_core_municipal', 'construction_double_entry_luxury']) {
+        const mesh = renderMesh(`Door${side}_${variant}`);
+        mesh.userData.construction_door_variant = variant;
+        pivot.add(mesh);
+      }
+    }
+    root.add(left, right);
   }
   return root;
 }
@@ -174,6 +199,18 @@ function fakeDoorApi({ log = [], failBind = false } = {}) {
   };
 }
 
+function fakeLightingApi({ log = [] } = {}) {
+  let visible = true;
+  return {
+    setLegacyFixtureVisualsVisible(nextVisible) {
+      visible = Boolean(nextVisible);
+      log.push(`lighting-visuals-${visible}`);
+      return { visible, visualCount: 3 };
+    },
+    diagnostics: () => ({ visible }),
+  };
+}
+
 function captureVisibility(registry) {
   return Object.fromEntries(Object.entries(registry).map(([key, handle]) => [
     key,
@@ -213,13 +250,17 @@ test('production layout deterministically covers windows, perimeter/service fini
   }
   assert.equal(layout.beamRuns.length, 6, 'reference-like three-by-three coffer rhythm');
   assert.ok(layout.beamRuns.every((run) => run.singleModule === true), 'each coffer run uses one continuous scale-safe beam');
-  assert.equal(layout.ceilingPanelRuns.length, 1, 'one continuous cream ceiling carrier');
-  assert.equal(layout.ceilingPanelRuns[0].singleModule, true,
-    'the scale-safe carrier does not expose beveled module ends');
-  assert.ok(layout.ceilingPanelRuns[0].scaleAcross > 50,
-    'the exact-depth source carrier expands perpendicular to close the ceiling');
+  assert.equal(layout.ceilingPanelRuns.length, 10, 'roughly 1.2 m ceiling rows cover the room depth');
+  assert.ok(layout.ceilingPanelRuns.every((run) => run.singleModule !== true),
+    'finish rows retain repeating bays instead of stretching one authored strip');
+  assert.ok(layout.ceilingPanelRuns.every((run) => run.scaleAcross > 5 && run.scaleAcross < 7),
+    'the 0.20 m source carrier expands only to a believable architectural bay depth');
+  assert.equal(new Set(layout.ceilingPanelRuns.map((run) => run.start.z)).size, 10,
+    'each carrier row occupies its own depth datum');
   assert.equal(layout.beamPlacements.length, 8, 'recessed mounts remain restrained between coffers');
   assert.ok(layout.beamPlacements.every((placement) => placement.variant === 'light_mount'));
+  assert.equal(layout.wallLightPlacements.length, 10, 'wall sconces retain their own perimeter datums');
+  assert.ok(layout.wallLightPlacements.every((placement) => placement.variant === 'wall_light_mount'));
   assert.equal(layout.damageSites.length, 5);
   assert.ok(layout.damageSites.length >= 4 && layout.damageSites.length <= 6);
   assert.ok(layout.damageSites.every(({ rotationY }) => Math.abs(rotationY % Math.PI) < 1e-9),
@@ -263,11 +304,19 @@ test('runtime stages invisibly, activates all ten assets atomically, forwards st
   const adapterFactory = fakeAdapterFactory({ gate, log, captures });
   const assemblyFactory = fakeAssemblyFactory({ log, captures });
   const doorApi = fakeDoorApi({ log });
-  const state = { shop: { reno: { architecture: { doors: { main: { left: 'closed', right: 'open' } } } } } };
+  const lightingApi = fakeLightingApi({ log });
+  const state = { shop: { reno: {
+    architecture: { doors: { main: { left: 'closed', right: 'open' } } },
+    constructionFinishes: { installed: {
+      doors: { finishId: 'hollow-core', qualityId: 'municipal' },
+      'garage-doors': { finishId: 'garage-door', qualityId: 'municipal' },
+      lighting: { finishId: 'led-panels', qualityId: 'municipal' },
+    } },
+  } } };
   const stateBefore = JSON.stringify(state);
 
   const runtime = createSheet06ProductionRuntime({
-    group, interior, state, shellFallbacks: registry, doorApi, adapterFactory, assemblyFactory,
+    group, interior, state, shellFallbacks: registry, doorApi, lightingApi, adapterFactory, assemblyFactory,
   });
   assert.equal(runtime.mounts.exteriorStaging.visible, false);
   assert.equal(runtime.mounts.interiorStaging.visible, false);
@@ -285,7 +334,28 @@ test('runtime stages invisibly, activates all ten assets atomically, forwards st
   assert.equal(activated.glbCollisionObjectsActivated, 0);
   assert.equal(activated.hiddenFallbackCount, 7);
   assert.equal(activated.hiddenTemplateCount, 6);
+  assert.equal(activated.legacyLightingVisualsHidden, true);
   assert.equal(activated.suppressionCount, 9);
+  assert.equal(activated.apertureBoardingHidden, false);
+  assert.deepEqual(activated.door.construction, {
+    selectedVariant: 'construction_hollow_core_municipal',
+    taggedNodeCount: 4,
+    visibleTaggedNodeCount: 2,
+    legacyMeshCount: 2,
+  });
+  assert.deepEqual(activated.garageDoor, {
+    selectedVariant: 'construction_garage_door_municipal',
+    taggedNodeCount: 2,
+    visibleTaggedNodeCount: 1,
+  });
+  assert.deepEqual(activated.landscapeLighting, {
+    selectedVariant: null,
+    active: false,
+    taggedNodeCount: 2,
+    visibleTaggedNodeCount: 0,
+    lightSourceCount: 3,
+    lightSourcesActive: false,
+  });
   assert.equal(activated.layout.windowCount, 4);
   assert.equal(activated.layout.damageSiteCount, 5);
   assert.equal(captures.assemblyOptions.exterior, runtime.mounts.exteriorLive);
@@ -301,7 +371,11 @@ test('runtime stages invisibly, activates all ten assets atomically, forwards st
   for (const name of ['MESH_RoofMoldPatch', 'MESH_MossPatch', 'MESH_BoardedWindow', 'MESH_WarpedTrim']) {
     assert.equal(runtime.getRoot(52).getObjectByName(name).visible, true, `${name} remains authoritative`);
   }
-  for (let number = 55; number <= 60; number += 1) assert.equal(runtime.getRoot(number).visible, false);
+  for (let number = 55; number <= 60; number += 1) {
+    assert.equal(runtime.getRoot(number).visible, false);
+    assert.equal(runtime.getRoot(number).parent, null,
+      `Asset ${number} template library is detached from the live scene after assembly`);
+  }
   assert.ok(Object.values(registry).every((handle) => (
     Array.isArray(handle.nodes) ? handle.nodes.every((node) => !node.visible) : !handle.visible
   )));
@@ -315,7 +389,14 @@ test('runtime stages invisibly, activates all ten assets atomically, forwards st
   assert.equal(activated.interiorShadowMeshCount, interiorMeshes.length);
 
   assert.deepEqual(runtime.update(0.125), { disposed: false, adapter: 11, assembly: 22 });
-  const nextState = { shop: { reno: { architecture: { doors: { main: { left: 'open', right: 'closed' } } } } } };
+  const nextState = { shop: { reno: {
+    architecture: { doors: { main: { left: 'open', right: 'closed' } } },
+    constructionFinishes: { installed: {
+      doors: { finishId: 'double-entry', qualityId: 'luxury' },
+      'garage-doors': { finishId: 'garage-door', qualityId: 'luxury' },
+      lighting: { finishId: 'landscape-lighting', qualityId: 'luxury' },
+    } },
+  } } };
   const nextBefore = JSON.stringify(nextState);
   const applied = await runtime.applyState(nextState);
   assert.equal(applied.active, true);
@@ -324,15 +405,54 @@ test('runtime stages invisibly, activates all ten assets atomically, forwards st
   assert.equal(runtime.getRoot(53).getObjectByName('PIVOT_DoorLeft').rotation.y, 0.25,
     'door controller immediately reasserts the live angle after adapter state writes');
   assert.equal(runtime.getRoot(53).getObjectByName('PIVOT_DoorRight').rotation.y, -0.25);
+  assert.equal(runtime.diagnostics().door.construction.selectedVariant, 'construction_double_entry_luxury');
+  assert.equal(runtime.diagnostics().garageDoor.selectedVariant, 'construction_garage_door_luxury');
+  assert.deepEqual(runtime.diagnostics().landscapeLighting, {
+    selectedVariant: 'construction_landscape_lighting_luxury',
+    active: true,
+    taggedNodeCount: 2,
+    visibleTaggedNodeCount: 1,
+    lightSourceCount: 3,
+    lightSourcesActive: true,
+  });
+  assert.equal(runtime.getRoot(51).getObjectByName('Garage_construction_garage_door_municipal').visible, false);
+  assert.equal(runtime.getRoot(51).getObjectByName('Garage_construction_garage_door_luxury').visible, true);
+  assert.equal(runtime.getRoot(51).getObjectByName('Landscape_construction_landscape_lighting_municipal').visible, false);
+  assert.equal(runtime.getRoot(51).getObjectByName('Landscape_construction_landscape_lighting_luxury').visible, true);
+  assert.equal(runtime.diagnostics().apertureBoardingHidden, true);
+  const selectedDoorMeshes = [];
+  runtime.getRoot(53).traverse((node) => {
+    if (node.isMesh && node.userData.construction_door_variant && node.visible) selectedDoorMeshes.push(node);
+  });
+  assert.equal(selectedDoorMeshes.length, 2);
+  assert.ok(selectedDoorMeshes.every((mesh) => mesh.userData.construction_door_variant === 'construction_double_entry_luxury'));
   assert.equal(JSON.stringify(nextState), nextBefore);
   assert.equal(JSON.stringify(state), stateBefore);
   const borrowed = runtime.borrowedResources();
   assert.equal(runtime.borrowedResources(), borrowed, 'borrowed cache identity is forwarded, not cloned');
 
   log.length = 0;
+  const grimeOnlyState = structuredClone(nextState);
+  grimeOnlyState.shop.reno.surfaceGrime = { floor: 0.42, walls: 0.18 };
+  const grimeApplied = await runtime.applyState(grimeOnlyState);
+  assert.deepEqual(grimeApplied.adapter, {
+    applied: 0,
+    failed: 0,
+    skippedUnchangedArchitecture: true,
+  });
+  assert.deepEqual(grimeApplied.assembly, {
+    applied: false,
+    skippedUnchangedVisualState: true,
+  });
+  assert.equal(grimeApplied.door, null);
+  assert.deepEqual(log, [],
+    'grime-only simulation ticks do not rebuild adapters, finishes, or the door controller');
+
+  log.length = 0;
   const disposed = runtime.dispose();
   assert.equal(disposed.disposedResources, 0);
   assert.deepEqual(log.slice(0, 3), ['assembly-dispose', 'door-unbind', 'adapter-dispose']);
+  assert.equal(log.at(-1), 'lighting-visuals-true');
   assert.deepEqual(captureVisibility(registry), originalFallbacks);
   for (const name of [...SUPPRESS_51, ...SUPPRESS_52]) {
     const root = name.includes('Weather') || name.includes('Damp') ? 52 : 51;

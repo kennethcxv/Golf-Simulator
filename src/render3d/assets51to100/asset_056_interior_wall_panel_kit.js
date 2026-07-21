@@ -11,7 +11,13 @@ export const ASSET_056_INTERIOR_WALL_PANEL_KIT = defineSheet06Binding({
   stem: 'interior_wall_panel_kit',
   name: 'INTERIOR WALL-PANEL KIT',
   referenceImagePath: 'Designs/RefrenceImages/51-60_refrence_images/ChatGPT Image Jul 17, 2026, 11_23_56 PM.png',
-  intendedUse: 'Gap-free wainscoting, raised-panel, corner, end and aperture connector modules',
+  intendedUse: 'Gap-free wainscoting plus thirty purchasable drywall, paint, wood, stone, trim and moulding grade carriers',
+  constructionFinishes: {
+    category: 'walls',
+    families: ['drywall', 'paint', 'wood-panels', 'stone', 'luxury-trim', 'luxury-moulding'],
+    qualities: ['municipal', 'standard', 'premium', 'high-end', 'luxury'],
+    variantCount: 30,
+  },
   paths: {
     source: 'asset_sources/blender/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.blend',
     canonicalGlb: 'Assets/assets_51_100/glb/sheet_06/asset_056_interior_wall_panel_kit.glb',

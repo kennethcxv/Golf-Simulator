@@ -11,14 +11,31 @@ export const ASSET_058_CEILING_AND_BEAM_KIT = defineSheet06Binding({
   stem: 'ceiling_and_beam_kit',
   name: 'CEILING AND BEAM KIT',
   referenceImagePath: 'Designs/RefrenceImages/51-60_refrence_images/ChatGPT Image Jul 17, 2026, 11_23_56 PM.png',
-  intendedUse: 'Modular beams, intersections, caps, ceiling panels, trim and recessed-light mounts',
+  intendedUse: 'Modular ceiling finishes plus purchasable ceiling and wall-mounted lighting grades',
   paths: {
     source: 'asset_sources/blender/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.blend',
     canonicalGlb: 'Assets/assets_51_100/glb/sheet_06/asset_058_ceiling_and_beam_kit.glb',
     runtimeGlb: 'vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb',
     integrationModule: 'src/render3d/assets51to100/asset_058_ceiling_and_beam_kit.js',
   },
-  dimensionsMeters: { moduleLength: 3.6, width: 0.2, height: 0.24 },
+  dimensionsMeters: {
+    moduleLength: 3.6,
+    maximumFixtureWidth: 0.96,
+    maximumFixtureDrop: 1.08,
+    ceilingModuleWidth: 0.2,
+    ceilingModuleHeight: 0.24,
+  },
+  supportedConstructionFinishFamilies: Object.freeze([
+    'drop-ceiling', 'commercial', 'wood-beams', 'vaulted', 'luxury-coffered',
+  ]),
+  supportedConstructionQualityLevels: Object.freeze([
+    'municipal', 'standard', 'premium', 'high-end', 'luxury',
+  ]),
+  constructionVariantCount: 25,
+  supportedConstructionLightingFamilies: Object.freeze([
+    'led-panels', 'track-lighting', 'pendant-lighting', 'luxury-chandeliers', 'wall-sconces',
+  ]),
+  constructionLightingVariantCount: 25,
   runtimeScale: METERS_TO_YARDS,
   requiredSockets: [
     'SOCKET_BeamNext', 'SOCKET_BeamCross', 'SOCKET_BeamEnd', 'SOCKET_RecessedLight',

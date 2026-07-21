@@ -77,15 +77,6 @@ async (page) => {
       shelfGlove: window.__fw.state.shop.inventory.glove1.shelf,
     };
   });
-  const money = () => page.evaluate(() => ({
-    revenue: (window.__fw.state.shop.salesLive || {}).revenue || 0,
-    units: (window.__fw.state.shop.salesLive || {}).units || 0,
-    held: (window.__fw.state.shop.held || []).length,
-    saleHeld: (window.__fw.state.shop.held || [])
-      .filter((unit) => unit.uid === 'customer-unit-1' || unit.uid === 'customer-unit-2').length,
-    shelfBalls: window.__fw.state.shop.inventory.balls3.shelf,
-    shelfGlove: window.__fw.state.shop.inventory.glove1.shelf,
-  }));
   // Wait for a REAL condition on the transaction, never for a stopwatch. Typed
   // predicates, not eval'd source: a harness that builds `new Function()` out of a
   // string is a code-injection shape, and there is no reason to reach for one here.
@@ -716,7 +707,6 @@ async (page) => {
     };
   });
   const nonAborted = failedRequests.filter((request) => !/ERR_ABORTED/.test(request.error));
-  const finalMoney = log[log.length - 1];
   const ok = errors.length === 0
     && nonAborted.length === 0
     && inventoryAudit.reconciled

@@ -335,3 +335,28 @@ Every family includes `ANCHOR_ProductBarcode`, `ANCHOR_ProductGripPrimary`, a si
 `ANCHOR_ProductGripSecondary`. The retained independent source/import/runtime audit,
 per-family previews, and contact sheet are under
 `qa/cash-register-production/final/catalog-assets/independent-review/`.
+
+## Clubhouse construction finish upgrades (2026-07-20)
+
+The material-upgrade work uses the three user-supplied concept boards under
+`Designs/ClubHouse/` as visual direction only. No pixels, geometry, brands, or
+third-party assets are copied from them. The boards establish the five-grade
+municipal → standard → premium → high-end → luxury country-club progression,
+Pinehollow palette, and broad construction silhouettes.
+
+The project-owned repeatable `tools/blender/build_assets_51_60.py` generator
+extends the existing Sheet 6 sources with all 175 original construction variants:
+
+| Asset | Construction content |
+| --- | --- |
+| 51 | 5 garage-door grades and 5 landscape-lighting grades |
+| 53 | 5 door families x 5 grades |
+| 55 | 4 window families x 5 grades |
+| 56 | 6 wall families x 5 grades |
+| 58 | 5 ceiling families x 5 grades and 5 indoor-lighting families x 5 grades |
+| 59 | 8 flooring families x 5 grades |
+
+The editable `.blend`, canonical GLB, and byte-identical runtime GLB remain in
+the established Sheet 6 pipeline for every changed asset. No external textures,
+downloaded models, Tripo sources, Imagegen outputs, or other third-party assets
+are used.

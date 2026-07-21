@@ -759,6 +759,8 @@ export function buildShell(B) {
   // daylight fills at the windows sell real sun through the glass; night turns
   // the glass warm from outside. All returned through one API.
   const practicals = []; // {light, glow(emissive mesh), base}
+  const legacyFixtureVisuals = [];
+  let legacyFixtureVisualsVisible = true;
   const CEIL_Y = SHELL.h; // interior space: measured from the finished floor
 
   function addCan(lx, lz, { real = false, intensity = 9 } = {}) {
@@ -812,6 +814,8 @@ export function buildShell(B) {
         lamp.traverse((o) => {
           if (o.isMesh && o.userData.slot === 'M_glass') o.material = glassMat;
         });
+        lamp.visible = legacyFixtureVisualsVisible;
+        legacyFixtureVisuals.push(lamp);
         interior.add(lamp);
       });
       return entry;
@@ -825,6 +829,8 @@ export function buildShell(B) {
     const glassBody = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.32, 0.27), glassMat);
     glassBody.position.y = CEIL_Y - 0.75;
     g.add(glassBody);
+    g.visible = legacyFixtureVisualsVisible;
+    legacyFixtureVisuals.push(g);
     interior.add(g);
     return entry;
   }
@@ -935,6 +941,14 @@ export function buildShell(B) {
           || mats.concrete;
       }
       applyPracticalLevels();
+    },
+    setLegacyFixtureVisualsVisible(visible) {
+      legacyFixtureVisualsVisible = Boolean(visible);
+      for (const visual of legacyFixtureVisuals) visual.visible = legacyFixtureVisualsVisible;
+      return Object.freeze({
+        visible: legacyFixtureVisualsVisible,
+        visualCount: legacyFixtureVisuals.length,
+      });
     },
     setTimeMood(minuteOfDay) {
       // full day 07:00–18:30, 75-minute ramps either side

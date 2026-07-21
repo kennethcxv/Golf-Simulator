@@ -55,14 +55,14 @@ IDENTITIES = {
 }
 
 DIMENSIONS = {
-    51: (19.20, 12.34, 7.13),
+    51: (19.89, 13.46, 7.13),
     52: (19.20, 12.34, 7.13),
     53: (1.80, 0.24, 2.45),
     54: (11.52, 3.29, 4.02),
     55: (2.19, 0.23, 1.74),
     56: (1.20, 0.075, 1.15),
     57: (2.40, 0.025, 0.14),
-    58: (3.60, 0.20, 0.24),
+    58: (3.60, 0.96, 1.08),
     59: (1.00, 1.00, 0.018),
     60: (1.00, 1.00, 0.035),
 }
@@ -502,13 +502,42 @@ def _dormer(
 
 
 def build_51() -> bpy.types.Object:
+    construction_garage_qualities = [
+        ("municipal", "Municipal", 1, 0.94, "BCC1BE", "ribbed_steel"),
+        ("standard", "Standard", 2, 0.82, "627668", "insulated_panel"),
+        ("premium", "Premium", 3, 0.67, "3B403D", "flush_black"),
+        ("high_end", "HighEnd", 4, 0.52, "A7784D", "carriage_oak"),
+        ("luxury", "Luxury", 5, 0.40, "9B6542", "country_club_carriage"),
+    ]
+    construction_garage_ids = [
+        f"construction_garage_door_{quality_id}"
+        for quality_id, _quality_label, _level, _roughness, _hex_color, _profile in construction_garage_qualities
+    ]
+    construction_landscape_qualities = [
+        ("municipal", "Municipal", 1, 0.94, "555B58"),
+        ("standard", "Standard", 2, 0.82, "405044"),
+        ("premium", "Premium", 3, 0.67, "2F3532"),
+        ("high_end", "HighEnd", 4, 0.52, "765B3D"),
+        ("luxury", "Luxury", 5, 0.40, "A17D4C"),
+    ]
+    construction_landscape_ids = [
+        f"construction_landscape_lighting_{quality_id}"
+        for quality_id, _quality_label, _level, _roughness, _hex_color in construction_landscape_qualities
+    ]
     root, p = _root(
         51,
         structural_shell=True,
         structural_role="CANONICAL_STRUCTURAL_AUTHORITY",
         structural_authority=True,
-        mesh_budget=80,
+        mesh_budget=100,
         triangle_budget=120000,
+        variant_ids_json=json.dumps(construction_garage_ids + construction_landscape_ids),
+        construction_garage_family_count=1,
+        construction_quality_level_count=len(construction_garage_qualities),
+        construction_garage_variant_count=len(construction_garage_ids),
+        construction_landscape_lighting_family_count=1,
+        construction_landscape_lighting_variant_count=len(construction_landscape_ids),
+        construction_reference="Designs/ClubHouse — five-grade municipal-to-luxury service-bay door board",
     )
     m = _custom_materials(p)
     surface = _surface_materials("siding_green", "charcoal_shingle", "fieldstone")
@@ -666,6 +695,168 @@ def build_51() -> bpy.types.Object:
     # Two gabled dormers establish the reference clubhouse silhouette while retaining modular windows.
     _dormer("DormerWest", -6.45, 2.35, 4.40, dormers, surface["siding_green"], surface["charcoal_shingle"], p["warm_cream"], aperture_recess)
     _dormer("DormerEntry", DOOR_X, 3.15, 4.34, dormers, surface["siding_green"], surface["charcoal_shingle"], p["warm_cream"], aperture_recess)
+
+    # A finish-only overhead service-bay façade occupies the solid east
+    # stockroom wall between its window and receiving door. The analytic wall
+    # remains collision authority; five tagged skins provide a believable
+    # ribbed-steel to carriage-house progression without inventing a new route.
+    garage_root = _group("LOD0_ConstructionGarageDoorFinishes", root, construction_category="garage-doors")
+    garage_x = SHELL_W / 2.0 + 0.038
+    garage_y = -0.25
+    garage_width = 3.20
+    garage_height = 2.65
+    for variant_index, (quality_id, quality_label, quality_level, roughness, hex_color, profile) in enumerate(construction_garage_qualities):
+        variant_id = f"construction_garage_door_{quality_id}"
+        color = A.hex_to_linear_rgba(hex_color)[:3]
+        material = A.material(
+            f"S06_GarageDoor_{quality_label}", (*color, 1.0), roughness=roughness,
+            metallic=0.72 if quality_level <= 3 else 0.04,
+            coat=max(0.0, (quality_level - 3) * 0.055),
+        )
+        props = {
+            "construction_category": "garage-doors",
+            "construction_garage_variant": variant_id,
+            "construction_finish_family": "garage-door",
+            "construction_quality": quality_id,
+            "construction_quality_level": quality_level,
+            "variant_index": variant_index,
+            "authored_dimensions_m": "3.20 x 2.65 x 0.08",
+            "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+        }
+        group = _group(f"LOD0_GarageDoor{quality_label}", garage_root, **props)
+        group.hide_render = True
+        depth = 0.050 + quality_level * 0.004
+        face_x = garage_x + depth / 2.0
+        trim_material = p["warm_charcoal"] if quality_level == 3 else material
+        parts: list[bpy.types.Object] = [
+            _box(
+                f"GarageDoor{quality_label}BackReveal",
+                (0.018, garage_width + 0.20, garage_height + 0.20),
+                (garage_x + 0.005, garage_y, FLOOR_Z + garage_height / 2.0),
+                p["warm_charcoal"], group, bevel=0.006,
+            ),
+            _box(
+                f"GarageDoor{quality_label}Field",
+                (depth, garage_width, garage_height),
+                (face_x, garage_y, FLOOR_Z + garage_height / 2.0),
+                material, group, bevel=0.004 + quality_level * 0.0015,
+            ),
+            _box(f"GarageDoor{quality_label}CasingWest", (0.022, 0.085, garage_height + 0.10), (garage_x + depth + 0.011, garage_y - garage_width / 2.0 - 0.055, FLOOR_Z + garage_height / 2.0 + 0.05), trim_material, group, bevel=0.007),
+            _box(f"GarageDoor{quality_label}CasingEast", (0.022, 0.085, garage_height + 0.10), (garage_x + depth + 0.011, garage_y + garage_width / 2.0 + 0.055, FLOOR_Z + garage_height / 2.0 + 0.05), trim_material, group, bevel=0.007),
+            _box(f"GarageDoor{quality_label}CasingHead", (0.022, garage_width + 0.20, 0.095), (garage_x + depth + 0.011, garage_y, FLOOR_Z + garage_height + 0.0475), trim_material, group, bevel=0.008),
+            _box(f"GarageDoor{quality_label}Threshold", (0.028, garage_width + 0.16, 0.075), (garage_x + depth + 0.014, garage_y, FLOOR_Z + 0.0375), trim_material, group, bevel=0.009),
+        ]
+        course_count = 1 if profile == "ribbed_steel" else 5
+        for course_index in range(1, course_count):
+            z = FLOOR_Z + garage_height * course_index / course_count
+            if profile in ("carriage_oak", "country_club_carriage") and z > FLOOR_Z + garage_height - 0.72:
+                continue
+            parts.append(_box(
+                f"GarageDoor{quality_label}Course_{course_index}",
+                (0.014 + quality_level * 0.002, garage_width - 0.06, 0.035 + quality_level * 0.003),
+                (garage_x + depth + 0.007, garage_y, z), material, group, bevel=0.0025,
+            ))
+        if profile == "ribbed_steel":
+            for rib_index in range(1, 13):
+                y = garage_y - garage_width / 2.0 + garage_width * rib_index / 13.0
+                parts.append(_box(
+                    f"GarageDoor{quality_label}VerticalRib_{rib_index}",
+                    (0.018, 0.026, garage_height - 0.10),
+                    (garage_x + depth + 0.009, y, FLOOR_Z + garage_height / 2.0),
+                    material, group, bevel=0.002,
+                ))
+        if profile in ("insulated_panel", "carriage_oak", "country_club_carriage"):
+            for stile_index, y in enumerate((garage_y - garage_width / 3.0, garage_y, garage_y + garage_width / 3.0)):
+                parts.append(_box(
+                    f"GarageDoor{quality_label}Stile_{stile_index}",
+                    (0.018 + quality_level * 0.002, 0.050, garage_height - 0.10),
+                    (garage_x + depth + 0.009, y, FLOOR_Z + garage_height / 2.0),
+                    material, group, bevel=0.003 + quality_level * 0.0008,
+                ))
+        if profile == "flush_black":
+            parts.append(_box(
+                f"GarageDoor{quality_label}ShadowReveal",
+                (0.018, garage_width - 0.12, 0.055),
+                (garage_x + depth + 0.009, garage_y, FLOOR_Z + garage_height - 0.28),
+                material, group, bevel=0.004,
+            ))
+        glass_parts: list[bpy.types.Object] = []
+        if profile in ("carriage_oak", "country_club_carriage"):
+            window_count = 3 if profile == "carriage_oak" else 4
+            window_span = garage_width - 0.30
+            window_w = window_span / window_count - 0.08
+            for window_index in range(window_count):
+                y = garage_y - window_span / 2.0 + window_span * (window_index + 0.5) / window_count
+                window_trim = p["restrained_brass"] if profile == "country_club_carriage" else material
+                parts.extend([
+                    _box(f"GarageDoor{quality_label}WindowTop_{window_index}", (0.025, window_w, 0.045), (garage_x + depth + 0.0125, y, FLOOR_Z + garage_height - 0.20), window_trim, group, bevel=0.004),
+                    _box(f"GarageDoor{quality_label}WindowBottom_{window_index}", (0.025, window_w, 0.045), (garage_x + depth + 0.0125, y, FLOOR_Z + garage_height - 0.67), window_trim, group, bevel=0.004),
+                    _box(f"GarageDoor{quality_label}WindowSideA_{window_index}", (0.025, 0.045, 0.47), (garage_x + depth + 0.0125, y - window_w / 2.0, FLOOR_Z + garage_height - 0.435), window_trim, group, bevel=0.004),
+                    _box(f"GarageDoor{quality_label}WindowSideB_{window_index}", (0.025, 0.045, 0.47), (garage_x + depth + 0.0125, y + window_w / 2.0, FLOOR_Z + garage_height - 0.435), window_trim, group, bevel=0.004),
+                ])
+                glass_parts.append(_box(
+                    f"GarageDoor{quality_label}Glass_{window_index}",
+                    (0.012, window_w - 0.055, 0.40),
+                    (garage_x + depth + 0.007, y, FLOOR_Z + garage_height - 0.435),
+                    m["clear_glass"], group, bevel=0.002,
+                ))
+            parts.append(_box(
+                f"GarageDoor{quality_label}PullHandle",
+                (0.035, 0.52, 0.090),
+                (garage_x + depth + 0.0175, garage_y, FLOOR_Z + 0.38),
+                p["restrained_brass"], group, bevel=0.012,
+            ))
+        _join_meshes(
+            f"GarageDoor{quality_label}Assembly", parts,
+            parent=group, properties=props, hide_render=True,
+        )
+        if glass_parts:
+            _join_meshes(
+                f"GarageDoor{quality_label}Glazing", glass_parts,
+                parent=group, properties={**props, "glazing": True}, hide_render=True,
+            )
+
+    # Five weatherproof landscape-light grades share eight stable exterior
+    # datums. They sit inside the canonical shell bounds so the finish upgrade
+    # does not change navigation or the validated building footprint.
+    landscape_root = _group("LOD0_ConstructionLandscapeLighting", root, construction_category="lighting")
+    landscape_positions = [
+        (-8.0, -7.15), (-5.6, -7.15), (-3.2, -7.15), (-0.8, -7.15),
+        (2.0, -7.15), (4.8, -7.15), (10.15, -2.0), (10.15, 1.8),
+    ]
+    for variant_index, (quality_id, quality_label, quality_level, roughness, hex_color) in enumerate(construction_landscape_qualities):
+        variant_id = f"construction_landscape_lighting_{quality_id}"
+        color = A.hex_to_linear_rgba(hex_color)[:3]
+        housing = A.material(
+            f"S06_LandscapeLighting_{quality_label}", (*color, 1.0), roughness=roughness,
+            metallic=0.55 if quality_level <= 3 else 0.36,
+            coat=max(0.0, (quality_level - 3) * 0.06),
+        )
+        props = {
+            "construction_category": "lighting",
+            "construction_lighting_variant": variant_id,
+            "construction_finish_family": "landscape_lighting",
+            "construction_quality": quality_id,
+            "construction_quality_level": quality_level,
+            "variant_index": variant_index,
+            "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+        }
+        group = _group(f"LOD0_LandscapeLighting{quality_label}", landscape_root, **props)
+        group.hide_render = True
+        pieces: list[bpy.types.Object] = []
+        fixture_height = 0.40 + quality_level * 0.085
+        post_radius = 0.035 + quality_level * 0.004
+        for fixture_index, (x, y) in enumerate(landscape_positions):
+            cap_radius = 0.095 + quality_level * 0.008
+            pieces.extend([
+                A.cylinder(f"Landscape{quality_label}Post_{fixture_index}", post_radius, fixture_height - 0.13, (x, y, (fixture_height - 0.13) / 2.0), housing, vertices=12 + quality_level * 2, parent=group, bevel=0.005),
+                A.cylinder(f"Landscape{quality_label}Lantern_{fixture_index}", cap_radius * 0.82, 0.10 + quality_level * 0.008, (x, y, fixture_height - 0.10), m["lamp"], vertices=14 + quality_level * 2, parent=group, bevel=0.008),
+                A.cylinder(f"Landscape{quality_label}Cap_{fixture_index}", cap_radius, 0.045, (x, y, fixture_height - 0.025), p["restrained_brass"] if quality_level >= 4 else housing, vertices=14 + quality_level * 2, parent=group, bevel=0.009),
+            ])
+        _join_meshes(
+            f"LandscapeLighting{quality_label}Assembly", pieces,
+            parent=group, properties=props, hide_render=True,
+        )
 
     # Simplified blockers preserve every walkable opening, especially the entrance.
     A.collision_box("Foundation", (SHELL_W, SHELL_D, FLOOR_Z), (0.0, 0.0, FLOOR_Z / 2.0), parent=collision, purpose="walkable")
@@ -846,7 +1037,37 @@ def _door_leaf(
 
 
 def build_53() -> bpy.types.Object:
-    root, p = _root(53, interaction="true double-leaf hinged entrance", mesh_budget=36, triangle_budget=60000)
+    construction_door_families = [
+        ("hollow_core", "HollowCore", "hollow", "BDAF91"),
+        ("solid", "Solid", "solid", "7B5738"),
+        ("glass", "Glass", "glass", "3F5148"),
+        ("luxury_wood", "LuxuryWood", "luxury_wood", "623B25"),
+        ("double_entry", "DoubleEntry", "double_entry", "4C2E1E"),
+    ]
+    construction_qualities = [
+        ("municipal", "Municipal", 1, 0.92),
+        ("standard", "Standard", 2, 0.80),
+        ("premium", "Premium", 3, 0.66),
+        ("high_end", "HighEnd", 4, 0.52),
+        ("luxury", "Luxury", 5, 0.40),
+    ]
+    construction_door_ids = [
+        f"construction_{family_id}_{quality_id}"
+        for family_id, _family_label, _profile, _hex_color in construction_door_families
+        for quality_id, _quality_label, _quality_level, _roughness in construction_qualities
+    ]
+    root, p = _root(
+        53,
+        interaction="true double-leaf hinged entrance",
+        mesh_budget=220,
+        triangle_budget=180000,
+        variant_ids_json=json.dumps(construction_door_ids),
+        construction_door_family_count=len(construction_door_families),
+        construction_quality_level_count=len(construction_qualities),
+        construction_door_variant_count=len(construction_door_ids),
+        construction_reference="Designs/ClubHouse — five-grade municipal-to-luxury door board",
+        construction_runtime_contract="toggle tagged leaf meshes beneath the canonical animated pivots",
+    )
     m = _custom_materials(p)
     walnut = _surface_materials("walnut")["walnut"]
     frame = _group("LOD0_DoorFrame", root)
@@ -867,6 +1088,163 @@ def build_53() -> bpy.types.Object:
     _door_leaf("DoorLeft", left, -0.80, 0.0, p, walnut, m["clear_glass"])
     _door_leaf("DoorRight", right, 0.0, 0.80, p, walnut, m["clear_glass"])
     _box("DoorLeft_Astragal", (0.045, 0.13, 2.30), (-0.0225, 0.0, 1.19), walnut, left, bevel=0.010, properties={"door_leaf": "DoorLeft", "astragal": True})
+    for pivot in (left, right):
+        for candidate in (pivot, *pivot.children_recursive):
+            if candidate.type == "MESH":
+                candidate["construction_door_legacy_visual"] = True
+
+    construction_variant_index = 0
+    for family_id, family_label, profile, hex_color in construction_door_families:
+        base_color = A.hex_to_linear_rgba(hex_color)[:3]
+        for quality_id, quality_label, quality_level, roughness in construction_qualities:
+            variant_id = f"construction_{family_id}_{quality_id}"
+            tint = 0.84 + quality_level * 0.043
+            color = tuple(min(0.95, channel * tint) for channel in base_color)
+            leaf_material = A.material(
+                f"S06_Door_{family_label}_{quality_label}",
+                (*color, 1.0), roughness=roughness,
+                metallic=0.55 if profile == "glass" else 0.02,
+                coat=max(0.0, (quality_level - 3) * 0.05),
+            )
+            shared_props = {
+                "construction_category": "doors",
+                "construction_door_variant": variant_id,
+                "construction_finish_family": family_id,
+                "construction_quality": quality_id,
+                "construction_quality_level": quality_level,
+                "variant_index": construction_variant_index,
+                "authored_dimensions_m": "1.80 x 2.45 x 0.24",
+                "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+            }
+            construction_variant_index += 1
+            for side, pivot, x0, x1 in (
+                ("Left", left, -0.80, 0.0),
+                ("Right", right, 0.0, 0.80),
+            ):
+                center = (x0 + x1) / 2.0
+                width = x1 - x0
+                props = {**shared_props, "construction_door_side": side.lower()}
+                group = _group(f"LOD0_Door{family_label}{quality_label}{side}", pivot, **props)
+                group.hide_render = True
+                leaf_depth = 0.065 + quality_level * 0.006
+                relief = 0.008 + quality_level * 0.0022
+                leaf_parts: list[bpy.types.Object] = []
+                glass_parts: list[bpy.types.Object] = []
+                hardware_parts: list[bpy.types.Object] = []
+                if profile == "hollow":
+                    leaf_parts.append(_box(
+                        f"Door{family_label}{quality_label}{side}Slab",
+                        (width - 0.025, leaf_depth, 2.30), (center, 0.0, 1.19),
+                        leaf_material, group, bevel=0.004 + quality_level * 0.0014,
+                    ))
+                    if quality_level >= 3:
+                        for rail_index, z in enumerate((0.60, 1.74)):
+                            leaf_parts.append(_box(
+                                f"Door{family_label}{quality_label}{side}PressedRail_{rail_index}",
+                                (width - 0.12, relief, 0.035), (center, -leaf_depth / 2.0 - relief / 2.0, z),
+                                leaf_material, group, bevel=0.003,
+                            ))
+                elif profile == "solid":
+                    leaf_parts.append(_box(
+                        f"Door{family_label}{quality_label}{side}SolidSlab",
+                        (width - 0.025, leaf_depth, 2.30), (center, 0.0, 1.19),
+                        leaf_material, group, bevel=0.008 + quality_level * 0.0018,
+                    ))
+                    panel_count = 2 + (1 if quality_level >= 4 else 0)
+                    panel_h = 1.86 / panel_count
+                    for panel_index in range(panel_count):
+                        leaf_parts.append(_box(
+                            f"Door{family_label}{quality_label}{side}RaisedPanel_{panel_index}",
+                            (width - 0.17, relief, panel_h * 0.72),
+                            (center, -leaf_depth / 2.0 - relief / 2.0, 0.22 + panel_h * (panel_index + 0.5)),
+                            leaf_material, group, bevel=0.012 + quality_level * 0.002,
+                        ))
+                elif profile == "glass":
+                    stile = max(0.075, 0.125 - quality_level * 0.008)
+                    leaf_parts.extend([
+                        _box(f"Door{family_label}{quality_label}{side}StileOuter", (stile, leaf_depth, 2.30), (x0 + stile / 2.0, 0.0, 1.19), leaf_material, group, bevel=0.006),
+                        _box(f"Door{family_label}{quality_label}{side}StileInner", (stile, leaf_depth, 2.30), (x1 - stile / 2.0, 0.0, 1.19), leaf_material, group, bevel=0.006),
+                        _box(f"Door{family_label}{quality_label}{side}RailBottom", (width - 2.0 * stile, leaf_depth, 0.17), (center, 0.0, 0.125), leaf_material, group, bevel=0.006),
+                        _box(f"Door{family_label}{quality_label}{side}RailTop", (width - 2.0 * stile, leaf_depth, 0.12), (center, 0.0, 2.28), leaf_material, group, bevel=0.006),
+                    ])
+                    glass_parts.append(_box(
+                        f"Door{family_label}{quality_label}{side}FullGlass",
+                        (width - 2.0 * stile - 0.025, 0.012, 2.03),
+                        (center, 0.020, 1.20), m["clear_glass"], group, bevel=0.002,
+                    ))
+                    if quality_level <= 2:
+                        leaf_parts.append(_box(
+                            f"Door{family_label}{quality_label}{side}SafetyBar",
+                            (width - 2.0 * stile, leaf_depth * 0.85, 0.065),
+                            (center, -0.006, 1.02), leaf_material, group, bevel=0.004,
+                        ))
+                elif profile == "luxury_wood":
+                    leaf_parts.append(_box(
+                        f"Door{family_label}{quality_label}{side}TimberSlab",
+                        (width - 0.025, leaf_depth, 2.30), (center, 0.0, 1.19),
+                        leaf_material, group, bevel=0.010 + quality_level * 0.002,
+                    ))
+                    for panel_index, (z, h) in enumerate(((0.47, 0.58), (1.18, 0.55), (1.88, 0.54))):
+                        leaf_parts.append(_box(
+                            f"Door{family_label}{quality_label}{side}MouldedPanel_{panel_index}",
+                            (width - 0.15, relief * 1.18, h),
+                            (center, -leaf_depth / 2.0 - relief * 0.59, z),
+                            leaf_material, group, bevel=0.018 + quality_level * 0.0025,
+                        ))
+                elif profile == "double_entry":
+                    stile = max(0.085, 0.125 - quality_level * 0.006)
+                    leaf_parts.extend([
+                        _box(f"Door{family_label}{quality_label}{side}StileOuter", (stile, leaf_depth, 2.30), (x0 + stile / 2.0, 0.0, 1.19), leaf_material, group, bevel=0.009),
+                        _box(f"Door{family_label}{quality_label}{side}StileInner", (stile, leaf_depth, 2.30), (x1 - stile / 2.0, 0.0, 1.19), leaf_material, group, bevel=0.009),
+                        _box(f"Door{family_label}{quality_label}{side}RailBottom", (width - 2.0 * stile, leaf_depth, 0.16), (center, 0.0, 0.12), leaf_material, group, bevel=0.009),
+                        _box(f"Door{family_label}{quality_label}{side}LockRail", (width - 2.0 * stile, leaf_depth, 0.12), (center, 0.0, 0.80), leaf_material, group, bevel=0.009),
+                        _box(f"Door{family_label}{quality_label}{side}RailTop", (width - 2.0 * stile, leaf_depth, 0.12), (center, 0.0, 2.28), leaf_material, group, bevel=0.009),
+                        _box(f"Door{family_label}{quality_label}{side}LowerPanel", (width - 2.0 * stile - 0.04, relief * 1.20, 0.48), (center, -leaf_depth / 2.0 - relief * 0.60, 0.43), leaf_material, group, bevel=0.020),
+                    ])
+                    glass_parts.append(_box(
+                        f"Door{family_label}{quality_label}{side}UpperGlass",
+                        (width - 2.0 * stile - 0.035, 0.012, 1.30),
+                        (center, 0.020, 1.52), m["clear_glass"], group, bevel=0.002,
+                    ))
+                    for muntin_index, z in enumerate((1.18, 1.52, 1.86)):
+                        leaf_parts.append(_box(
+                            f"Door{family_label}{quality_label}{side}Muntin_{muntin_index}",
+                            (width - 2.0 * stile, 0.030, 0.022),
+                            (center, -leaf_depth / 2.0 - 0.015, z), leaf_material, group, bevel=0.004,
+                        ))
+                    leaf_parts.append(_box(
+                        f"Door{family_label}{quality_label}{side}MuntinVertical",
+                        (0.024, 0.030, 1.30), (center, -leaf_depth / 2.0 - 0.015, 1.52),
+                        leaf_material, group, bevel=0.004,
+                    ))
+                handle_x = x1 - 0.13 if side == "Left" else x0 + 0.13
+                hardware_parts.extend([
+                    _box(
+                        f"Door{family_label}{quality_label}{side}Backplate",
+                        (0.075, 0.024, 0.25), (handle_x, -leaf_depth / 2.0 - 0.020, 1.03),
+                        p["restrained_brass"], group, bevel=0.010,
+                    ),
+                    _box(
+                        f"Door{family_label}{quality_label}{side}Lever",
+                        (0.145, 0.035, 0.035),
+                        (handle_x + (-0.050 if side == "Left" else 0.050), -leaf_depth / 2.0 - 0.035, 1.03),
+                        p["restrained_brass"], group, bevel=0.010,
+                    ),
+                ])
+                _join_meshes(
+                    f"Door{family_label}{quality_label}{side}Leaf",
+                    leaf_parts, parent=group, properties=props, hide_render=True,
+                )
+                if glass_parts:
+                    _join_meshes(
+                        f"Door{family_label}{quality_label}{side}Glass",
+                        glass_parts, parent=group, properties={**props, "glazing": True, "clear_view": True}, hide_render=True,
+                    )
+                _join_meshes(
+                    f"Door{family_label}{quality_label}{side}Hardware",
+                    hardware_parts, parent=group,
+                    properties={**props, "interaction_hardware": True}, hide_render=True,
+                )
     stops = [
         _box("DoorStopLeft", (0.035, 0.035, 2.28), (-0.765, 0.085, 1.18), walnut, frame, bevel=0.006),
         _box("DoorStopRight", (0.035, 0.035, 2.28), (0.765, 0.085, 1.18), walnut, frame, bevel=0.006),
@@ -1113,13 +1491,36 @@ def _window_variant(
 
 
 def build_55() -> bpy.types.Object:
+    construction_window_families = [
+        ("cheap_aluminum", "CheapAluminum", "utility", "858984"),
+        ("commercial", "Commercial", "commercial", "365044"),
+        ("premium_black", "PremiumBlack", "black", "252825"),
+        ("luxury_country_club", "LuxuryCountryClub", "country_club", "65412C"),
+    ]
+    construction_qualities = [
+        ("municipal", "Municipal", 1, 0.90),
+        ("standard", "Standard", 2, 0.78),
+        ("premium", "Premium", 3, 0.64),
+        ("high_end", "HighEnd", 4, 0.50),
+        ("luxury", "Luxury", 5, 0.38),
+    ]
+    construction_window_ids = [
+        f"construction_{family_id}_{quality_id}"
+        for family_id, _family_label, _profile, _hex_color in construction_window_families
+        for quality_id, _quality_label, _quality_level, _roughness in construction_qualities
+    ]
+    legacy_variant_ids = ["standard", "narrow", "wide", "arched"]
     root, p = _root(
         55,
         modular_variants="standard,narrow,wide,arched",
-        mesh_budget=36,
-        triangle_budget=55000,
+        mesh_budget=80,
+        triangle_budget=90000,
         variant_selection_contract="adapter selects exactly one variant_id; Blender hide_render is preview-only",
-        variant_ids_json=json.dumps(["standard", "narrow", "wide", "arched"]),
+        variant_ids_json=json.dumps(legacy_variant_ids + construction_window_ids),
+        construction_window_family_count=len(construction_window_families),
+        construction_quality_level_count=len(construction_qualities),
+        construction_window_variant_count=len(construction_window_ids),
+        construction_reference="Designs/ClubHouse — five-grade municipal-to-luxury window board",
     )
     m = _custom_materials(p)
     walnut = _surface_materials("walnut")["walnut"]
@@ -1128,6 +1529,110 @@ def build_55() -> bpy.types.Object:
     _window_variant("Narrow", 1.10, 1.74, root, p, walnut, m["clear_glass"], hidden=True)
     _window_variant("Wide", 2.19, 1.32, root, p, walnut, m["clear_glass"], hidden=True)
     _window_variant("Arched", 1.55, 1.74, root, p, walnut, m["clear_glass"], arched=True, hidden=True)
+
+    construction_variant_index = len(legacy_variant_ids)
+    for family_id, family_label, profile, hex_color in construction_window_families:
+        base_color = A.hex_to_linear_rgba(hex_color)[:3]
+        for quality_id, quality_label, quality_level, roughness in construction_qualities:
+            variant_id = f"construction_{family_id}_{quality_id}"
+            tint = 0.82 + quality_level * 0.045
+            color = tuple(min(0.94, channel * tint) for channel in base_color)
+            metallic = 0.72 if profile in ("utility", "commercial", "black") else 0.04
+            frame_material = A.material(
+                f"S06_Window_{family_label}_{quality_label}",
+                (*color, 1.0), roughness=roughness, metallic=metallic,
+                coat=max(0.0, (quality_level - 3) * 0.035),
+            )
+            props = {
+                **_variant_properties(variant_id),
+                "construction_category": "windows",
+                "construction_finish_family": family_id,
+                "construction_quality": quality_id,
+                "construction_quality_level": quality_level,
+                "variant_index": construction_variant_index,
+                "authored_dimensions_m": "2.19 x 1.74 x 0.23",
+                "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+            }
+            construction_variant_index += 1
+            group = _group(f"LOD0_Window{family_label}{quality_label}", root, **props)
+            group.hide_render = True
+            frame_width = {
+                "utility": 0.090,
+                "commercial": 0.105,
+                "black": 0.070,
+                "country_club": 0.125,
+            }[profile] - min(0.018, (quality_level - 1) * 0.0035)
+            frame_depth = 0.105 + quality_level * 0.009
+            bevel = 0.003 + quality_level * 0.0015
+            half_w = 2.19 / 2.0
+            height = 1.74
+            frame_parts = [
+                _box(f"Window{family_label}{quality_label}FrameLeft", (frame_width, frame_depth, height), (-half_w + frame_width / 2.0, 0.0, height / 2.0), frame_material, group, bevel=bevel),
+                _box(f"Window{family_label}{quality_label}FrameRight", (frame_width, frame_depth, height), (half_w - frame_width / 2.0, 0.0, height / 2.0), frame_material, group, bevel=bevel),
+                _box(f"Window{family_label}{quality_label}FrameBottom", (2.19 - 2.0 * frame_width, frame_depth, frame_width), (0.0, 0.0, frame_width / 2.0), frame_material, group, bevel=bevel),
+                _box(f"Window{family_label}{quality_label}FrameTop", (2.19 - 2.0 * frame_width, frame_depth, frame_width), (0.0, 0.0, height - frame_width / 2.0), frame_material, group, bevel=bevel),
+            ]
+            rail_z = 0.79 + quality_level * 0.015
+            rail_width = frame_width * (1.20 if profile == "country_club" else 0.86)
+            frame_parts.append(_box(
+                f"Window{family_label}{quality_label}MeetingRail",
+                (2.19 - 2.0 * frame_width, frame_depth * 0.92, rail_width),
+                (0.0, -0.004, rail_z), frame_material, group, bevel=bevel,
+            ))
+            if profile == "utility":
+                if quality_level <= 2:
+                    frame_parts.append(_box(
+                        f"Window{family_label}{quality_label}UtilityMullion",
+                        (frame_width * 0.70, frame_depth * 0.80, height - 2.0 * frame_width),
+                        (0.0, -0.008, height / 2.0), frame_material, group, bevel=bevel * 0.60,
+                    ))
+            elif profile == "commercial":
+                for mullion_index, x in enumerate((-0.36, 0.36)):
+                    frame_parts.append(_box(
+                        f"Window{family_label}{quality_label}CommercialMullion_{mullion_index}",
+                        (frame_width * 0.72, frame_depth * 0.86, height - 2.0 * frame_width),
+                        (x, -0.006, height / 2.0), frame_material, group, bevel=bevel * 0.70,
+                    ))
+            elif profile == "black":
+                if quality_level >= 3:
+                    frame_parts.append(_box(
+                        f"Window{family_label}{quality_label}SlimCentreMullion",
+                        (frame_width * 0.55, frame_depth * 0.80, height - 2.0 * frame_width),
+                        (0.0, -0.010, height / 2.0), frame_material, group, bevel=bevel * 0.55,
+                    ))
+            elif profile == "country_club":
+                verticals = 2 + (1 if quality_level >= 4 else 0)
+                for mullion_index in range(1, verticals + 1):
+                    x = -0.95 + 1.90 * mullion_index / (verticals + 1)
+                    frame_parts.append(_box(
+                        f"Window{family_label}{quality_label}OakMuntinV_{mullion_index}",
+                        (0.030, frame_depth * 0.70, height - 2.0 * frame_width),
+                        (x, -0.012, height / 2.0), frame_material, group, bevel=0.004,
+                    ))
+                for muntin_index, z in enumerate((0.43, 1.22)):
+                    frame_parts.append(_box(
+                        f"Window{family_label}{quality_label}OakMuntinH_{muntin_index}",
+                        (2.19 - 2.0 * frame_width, frame_depth * 0.70, 0.030),
+                        (0.0, -0.012, z), frame_material, group, bevel=0.004,
+                    ))
+                frame_parts.append(A.cylinder(
+                    f"Window{family_label}{quality_label}Latch",
+                    0.028 + quality_level * 0.002, 0.055,
+                    (0.0, -frame_depth * 0.62, rail_z), p["restrained_brass"],
+                    vertices=14, rotation=(math.pi / 2.0, 0.0, 0.0), parent=group, bevel=0.004,
+                ))
+            _join_meshes(
+                f"Window{family_label}{quality_label}FrameAssembly",
+                frame_parts, parent=group, properties={**props, "frame_profile": profile}, hide_render=True,
+            )
+            glass_margin = frame_width + 0.010
+            glass = _box(
+                f"Window{family_label}{quality_label}Glass",
+                (2.19 - 2.0 * glass_margin, 0.012, height - 2.0 * glass_margin),
+                (0.0, 0.032, height / 2.0), m["clear_glass"], group, bevel=0.002,
+                properties={**props, "glazing": True, "clear_view": True},
+            )
+            glass.hide_render = True
     for name in ("WindowStandard", "WindowNarrow", "WindowWide", "WindowArched"):
         _marker(name, root, variant=name.removeprefix("Window").lower())
     collision = _group("LOD0_WindowCollision", root)
@@ -1138,13 +1643,38 @@ def build_55() -> bpy.types.Object:
 
 
 def build_56() -> bpy.types.Object:
+    construction_wall_families = [
+        ("drywall", "Drywall", "drywall", "CFC4AA"),
+        ("paint", "Paint", "paint", "78866A"),
+        ("wood_panels", "WoodPanels", "wood_panels", "68422B"),
+        ("stone", "Stone", "stone", "77746B"),
+        ("luxury_trim", "LuxuryTrim", "luxury_trim", "AE8B61"),
+        ("luxury_moulding", "LuxuryMoulding", "luxury_moulding", "573522"),
+    ]
+    construction_qualities = [
+        ("municipal", "Municipal", 1, 0.94),
+        ("standard", "Standard", 2, 0.82),
+        ("premium", "Premium", 3, 0.69),
+        ("high_end", "HighEnd", 4, 0.56),
+        ("luxury", "Luxury", 5, 0.44),
+    ]
+    construction_wall_ids = [
+        f"construction_{family_id}_{quality_id}"
+        for family_id, _family_label, _profile, _hex_color in construction_wall_families
+        for quality_id, _quality_label, _quality_level, _roughness in construction_qualities
+    ]
+    legacy_variant_ids = ["straight", "inside_corner", "outside_corner", "door_connector", "window_connector"]
     root, p = _root(
         56,
         modular_panel_kit=True,
-        mesh_budget=36,
-        triangle_budget=40000,
+        mesh_budget=64,
+        triangle_budget=90000,
         variant_selection_contract="adapter selects one top-level variant_id group",
-        variant_ids_json=json.dumps(["straight", "inside_corner", "outside_corner", "door_connector", "window_connector"]),
+        variant_ids_json=json.dumps(legacy_variant_ids + construction_wall_ids),
+        construction_wall_family_count=len(construction_wall_families),
+        construction_quality_level_count=len(construction_qualities),
+        construction_wall_variant_count=len(construction_wall_ids),
+        construction_reference="Designs/ClubHouse — five-grade municipal-to-luxury wall board",
     )
     m = _custom_materials(p)
     walnut = _surface_materials("architectural_walnut")["architectural_walnut"]
@@ -1292,6 +1822,143 @@ def build_56() -> bpy.types.Object:
         hide_render=True,
     )
 
+    # Thirty one-piece material carriers preserve the established 1.20 x 1.15 m
+    # wainscot grid. Relief projects toward negative Y, the room-facing side of
+    # this wall kit, while the analytic shell remains collision authority.
+    construction_variant_index = len(legacy_variant_ids)
+    for family_id, family_label, profile, hex_color in construction_wall_families:
+        base_color = A.hex_to_linear_rgba(hex_color)[:3]
+        for quality_id, quality_label, quality_level, roughness in construction_qualities:
+            variant_id = f"construction_{family_id}_{quality_id}"
+            tint = 0.84 + quality_level * 0.042
+            color = tuple(min(0.96, channel * tint) for channel in base_color)
+            material = A.material(
+                f"S06_Wall_{family_label}_{quality_label}",
+                (*color, 1.0),
+                roughness=roughness,
+                coat=max(0.0, (quality_level - 3) * 0.045),
+            )
+            props = {
+                **_variant_properties(variant_id),
+                "construction_category": "walls",
+                "construction_finish_family": family_id,
+                "construction_quality": quality_id,
+                "construction_quality_level": quality_level,
+                "variant_index": construction_variant_index,
+                "material_carrier": True,
+                "authored_dimensions_m": "1.20 x 1.15 x 0.075",
+                "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+            }
+            construction_variant_index += 1
+            group = _group(f"LOD0_Wall{family_label}{quality_label}", root, **props)
+            group.hide_render = True
+            pieces: list[bpy.types.Object] = [
+                _box(
+                    f"Wall{family_label}{quality_label}Field",
+                    (1.20, 0.035, 1.15), (0.0, 0.020, 0.575), material, group,
+                    bevel=0.0015 + quality_level * 0.0008,
+                    properties={"construction_profile": profile, "quiet_wall_field": True},
+                ),
+            ]
+            relief_depth = 0.007 + quality_level * 0.0022
+            face_y = -relief_depth / 2.0
+            if profile == "drywall":
+                seam_width = max(0.010, 0.032 - quality_level * 0.004)
+                for seam_index, x in enumerate((-0.59, 0.59)):
+                    pieces.append(_box(
+                        f"Wall{family_label}{quality_label}Joint_{seam_index}",
+                        (seam_width, relief_depth * 0.45, 1.15),
+                        (x, -relief_depth * 0.225, 0.575), material, group, bevel=0.0004,
+                    ))
+                if quality_level <= 2:
+                    for fastener_index, (x, z) in enumerate(((-0.42, 0.24), (0.42, 0.47), (-0.42, 0.79), (0.42, 0.98))):
+                        pieces.append(A.cylinder(
+                            f"Wall{family_label}{quality_label}Fastener_{fastener_index}",
+                            0.009, 0.003, (x, -0.0015, z), material,
+                            vertices=10, rotation=(math.pi / 2.0, 0.0, 0.0), parent=group, bevel=0.0004,
+                        ))
+            elif profile == "paint":
+                if quality_level >= 3:
+                    pieces.append(_box(
+                        f"Wall{family_label}{quality_label}ShadowReveal",
+                        (1.16, relief_depth * 0.35, 0.018),
+                        (0.0, -relief_depth * 0.175, 1.105), material, group, bevel=0.0015,
+                    ))
+            elif profile == "wood_panels":
+                stile_count = 2 + quality_level
+                for stile_index in range(stile_count + 1):
+                    x = -0.57 + 1.14 * stile_index / stile_count
+                    pieces.append(_box(
+                        f"Wall{family_label}{quality_label}Stile_{stile_index}",
+                        (0.040 - quality_level * 0.0025, relief_depth, 1.05),
+                        (x, face_y, 0.545), material, group, bevel=0.002 + quality_level * 0.0006,
+                    ))
+                for rail_index, z in enumerate((0.06, 0.57, 1.06)):
+                    pieces.append(_box(
+                        f"Wall{family_label}{quality_label}Rail_{rail_index}",
+                        (1.16, relief_depth, 0.050 - quality_level * 0.002),
+                        (0.0, face_y, z), material, group, bevel=0.002 + quality_level * 0.0006,
+                    ))
+            elif profile == "stone":
+                rows = 3 + (1 if quality_level >= 4 else 0)
+                course_h = 1.06 / rows
+                for row in range(rows):
+                    columns = 4 + ((row + quality_level) % 2)
+                    course_w = 1.14 / columns
+                    offset = course_w * 0.16 if row % 2 else 0.0
+                    for column in range(columns):
+                        x = -0.57 + course_w * (column + 0.5) + offset
+                        if x + course_w * 0.46 > 0.59:
+                            x -= course_w * 0.30
+                        pieces.append(_box(
+                            f"Wall{family_label}{quality_label}Stone_{row}_{column}",
+                            (course_w * 0.90, relief_depth, course_h * 0.84),
+                            (x, face_y, 0.045 + course_h * (row + 0.5)), material, group,
+                            bevel=0.006 + quality_level * 0.0012,
+                        ))
+            elif profile == "luxury_trim":
+                stile_count = 2 + (1 if quality_level >= 3 else 0)
+                pieces.extend([
+                    _box(f"Wall{family_label}{quality_label}Base", (1.18, relief_depth, 0.095), (0.0, face_y, 0.055), material, group, bevel=0.004 + quality_level * 0.0008),
+                    _box(f"Wall{family_label}{quality_label}Cap", (1.20, relief_depth * 1.18, 0.075), (0.0, -relief_depth * 0.59, 1.075), material, group, bevel=0.005 + quality_level * 0.001),
+                ])
+                for stile_index in range(stile_count + 1):
+                    x = -0.56 + 1.12 * stile_index / stile_count
+                    pieces.append(_box(
+                        f"Wall{family_label}{quality_label}TrimStile_{stile_index}",
+                        (0.050, relief_depth, 0.92), (x, face_y, 0.57), material, group,
+                        bevel=0.004 + quality_level * 0.0008,
+                    ))
+            elif profile == "luxury_moulding":
+                frame_depth = relief_depth * 1.18
+                for bay_index, center_x in enumerate((-0.30, 0.30)):
+                    half_w = 0.245
+                    for edge_index, (dims, loc) in enumerate((
+                        ((0.038, frame_depth, 0.78), (center_x - half_w, -frame_depth / 2.0, 0.54)),
+                        ((0.038, frame_depth, 0.78), (center_x + half_w, -frame_depth / 2.0, 0.54)),
+                        ((0.51, frame_depth, 0.038), (center_x, -frame_depth / 2.0, 0.15)),
+                        ((0.51, frame_depth, 0.038), (center_x, -frame_depth / 2.0, 0.93)),
+                    )):
+                        pieces.append(_box(
+                            f"Wall{family_label}{quality_label}Frame_{bay_index}_{edge_index}",
+                            dims, loc, material, group, bevel=0.004 + quality_level * 0.0009,
+                        ))
+                pieces.extend([
+                    _box(f"Wall{family_label}{quality_label}MouldedBase", (1.18, relief_depth, 0.10), (0.0, face_y, 0.055), material, group, bevel=0.006),
+                    _box(f"Wall{family_label}{quality_label}MouldedCap", (1.20, frame_depth, 0.085), (0.0, -frame_depth / 2.0, 1.075), material, group, bevel=0.007),
+                ])
+            joined = _join_meshes(
+                f"Wall{family_label}{quality_label}Carrier",
+                pieces,
+                parent=group,
+                properties=props,
+                hide_render=True,
+            )
+            for polygon in joined.data.polygons:
+                polygon.use_smooth = False
+            joined.data.update()
+            joined["flat_wall_normals"] = True
+
     for variant_id, label, x in (
         ("inside_corner", "InsideCorner", -0.505),
         ("outside_corner", "OutsideCorner", 0.505),
@@ -1364,13 +2031,51 @@ def build_57() -> bpy.types.Object:
 
 
 def build_58() -> bpy.types.Object:
+    construction_ceiling_families = [
+        ("drop_ceiling", "DropCeiling", "drop", "B7B3A6"),
+        ("commercial", "Commercial", "commercial", "59615D"),
+        ("wood_beams", "WoodBeams", "beams", "704934"),
+        ("vaulted", "Vaulted", "vaulted", "D8D0BB"),
+        ("luxury_coffered", "LuxuryCoffered", "coffered", "E8DFC9"),
+    ]
+    construction_qualities = [
+        ("municipal", "Municipal", 1, 0.94),
+        ("standard", "Standard", 2, 0.82),
+        ("premium", "Premium", 3, 0.69),
+        ("high_end", "HighEnd", 4, 0.56),
+        ("luxury", "Luxury", 5, 0.44),
+    ]
+    construction_lighting_families = [
+        ("led_panels", "LedPanels", "ceiling", "D9D5C8"),
+        ("track_lighting", "TrackLighting", "ceiling", "343836"),
+        ("pendant_lighting", "PendantLighting", "ceiling", "6F5945"),
+        ("luxury_chandeliers", "LuxuryChandeliers", "ceiling", "A88452"),
+        ("wall_sconces", "WallSconces", "wall", "8C6B45"),
+    ]
+    construction_ceiling_ids = [
+        f"construction_{family_id}_{quality_id}"
+        for family_id, _family_label, _kind, _hex_color in construction_ceiling_families
+        for quality_id, _quality_label, _quality_level, _roughness in construction_qualities
+    ]
+    construction_lighting_ids = [
+        f"construction_{family_id}_{quality_id}"
+        for family_id, _family_label, _mount_kind, _hex_color in construction_lighting_families
+        for quality_id, _quality_label, _quality_level, _roughness in construction_qualities
+    ]
+    legacy_variant_ids = ["straight", "half", "cross_connector", "end_cap", "ceiling_panel", "light_mount", "wall_light_mount"]
     root, p = _root(
         58,
         modular_ceiling_kit=True,
-        mesh_budget=36,
-        triangle_budget=32000,
+        mesh_budget=96,
+        triangle_budget=120000,
         variant_selection_contract="adapter selects one top-level variant_id group",
-        variant_ids_json=json.dumps(["straight", "half", "cross_connector", "end_cap", "ceiling_panel", "light_mount"]),
+        variant_ids_json=json.dumps(legacy_variant_ids + construction_ceiling_ids + construction_lighting_ids),
+        construction_ceiling_family_count=len(construction_ceiling_families),
+        construction_quality_level_count=len(construction_qualities),
+        construction_ceiling_variant_count=len(construction_ceiling_ids),
+        construction_lighting_family_count=len(construction_lighting_families),
+        construction_lighting_variant_count=len(construction_lighting_ids),
+        construction_reference="Designs/ClubHouse — five-grade municipal-to-luxury ceiling board",
     )
     m = _custom_materials(p)
     walnut = _surface_materials("architectural_walnut")["architectural_walnut"]
@@ -1419,10 +2124,213 @@ def build_58() -> bpy.types.Object:
     light_group = _group("LOD0_RecessedLightMount", root, **light_props)
     light_group.hide_render = True
     light_parts = [
+        A.cylinder("RecessedLightInsulator", 0.10, 0.012, (0.0, 0.0, 0.044), p["warm_charcoal"], vertices=20, parent=light_group, bevel=0.003),
         A.cylinder("RecessedLightMount", 0.09, 0.045, (0.0, 0.0, 0.0225), p["restrained_brass"], vertices=20, parent=light_group, bevel=0.006),
         A.cylinder("WarmLampLens", 0.065, 0.02, (0.0, 0.0, 0.01), m["lamp"], vertices=20, parent=light_group, bevel=0.004),
     ]
     _join_meshes("RecessedLightMountAssembly", light_parts, parent=light_group, properties=light_props, hide_render=True)
+
+    wall_light_props = _variant_properties("wall_light_mount")
+    wall_light_group = _group("LOD0_WallLightMount", root, **wall_light_props)
+    wall_light_group.hide_render = True
+    wall_light_parts = [
+        _box("WallLightMountBackplate", (0.14, 0.045, 0.36), (0.0, -0.0225, 0.26), p["warm_charcoal"], wall_light_group, bevel=0.012),
+        _box("WallLightMountBrassReveal", (0.16, 0.018, 0.045), (0.0, -0.054, 0.43), p["restrained_brass"], wall_light_group, bevel=0.008),
+        _box("WallLightWarmLens", (0.10, 0.08, 0.22), (0.0, -0.085, 0.29), m["lamp"], wall_light_group, bevel=0.018),
+    ]
+    _join_meshes("WallLightMountAssembly", wall_light_parts, parent=wall_light_group, properties=wall_light_props, hide_render=True)
+
+    # Twenty-five ceiling carriers share the legacy panel's exact 1.80 x 0.20 m
+    # modular frame. The runtime tiles that frame over the full room and swaps
+    # one authored source without replacing the analytic ceiling collider.
+    construction_variant_index = len(legacy_variant_ids)
+    for family_id, family_label, profile, hex_color in construction_ceiling_families:
+        base_color = A.hex_to_linear_rgba(hex_color)[:3]
+        for quality_id, quality_label, quality_level, roughness in construction_qualities:
+            variant_id = f"construction_{family_id}_{quality_id}"
+            tint = 0.86 + quality_level * 0.04
+            color = tuple(min(0.94, channel * tint) for channel in base_color)
+            material = A.material(
+                f"S06_Ceiling_{family_label}_{quality_label}",
+                (*color, 1.0),
+                roughness=roughness,
+                coat=max(0.0, (quality_level - 3) * 0.04),
+            )
+            props = {
+                **_variant_properties(variant_id),
+                "construction_category": "ceilings",
+                "construction_finish_family": family_id,
+                "construction_quality": quality_id,
+                "construction_quality_level": quality_level,
+                "variant_index": construction_variant_index,
+                "material_carrier": True,
+                "authored_dimensions_m": "1.80 x 0.20 x 0.08",
+                "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+            }
+            construction_variant_index += 1
+            group = _group(f"LOD0_Ceiling{family_label}{quality_label}", root, **props)
+            group.hide_render = True
+            pieces: list[bpy.types.Object] = []
+            relief = 0.010 + quality_level * 0.002
+            rail = max(0.008, 0.020 - quality_level * 0.0018)
+            field_base = 0.045
+            pieces.append(_box(
+                f"Ceiling{family_label}{quality_label}Field",
+                (1.80, 0.20, 0.050), (0.0, 0.0, field_base + 0.025), material, group,
+                bevel=0.0,
+                properties={"quiet_ceiling_field": True, "construction_profile": profile},
+            ))
+            # Blender Z becomes Three.js Y. The player sees these carriers from
+            # below, so every finish-specific profile projects toward lower Z
+            # from the field underside. A 45 mm root offset keeps the complete
+            # kit inside its established non-negative validation bounds.
+            if profile == "drop":
+                pieces.extend([
+                    _box(f"Ceiling{family_label}{quality_label}TeeNorth", (1.80, rail, relief), (0.0, -0.10 + rail / 2.0, field_base - relief / 2.0), material, group, bevel=0.0008),
+                    _box(f"Ceiling{family_label}{quality_label}TeeSouth", (1.80, rail, relief), (0.0, 0.10 - rail / 2.0, field_base - relief / 2.0), material, group, bevel=0.0008),
+                    _box(f"Ceiling{family_label}{quality_label}CrossTee", (rail, 0.20, relief), (0.0, 0.0, field_base - relief / 2.0), material, group, bevel=0.0008),
+                ])
+            elif profile == "commercial":
+                for channel_index, y in enumerate((-0.066, 0.0, 0.066)):
+                    pieces.append(_box(
+                        f"Ceiling{family_label}{quality_label}LinearChannel_{channel_index}",
+                        (1.80, rail * 0.75, relief), (0.0, y, field_base - relief / 2.0), material, group, bevel=0.0005,
+                    ))
+            elif profile == "beams":
+                for beam_index, x in enumerate((-0.60, 0.0, 0.60)):
+                    beam_drop = 0.018 + quality_level * 0.002
+                    pieces.append(_box(
+                        f"Ceiling{family_label}{quality_label}Beam_{beam_index}",
+                        (0.11 - quality_level * 0.004, 0.20, beam_drop),
+                        (x, 0.0, field_base - beam_drop / 2.0), material, group, bevel=0.0015 + quality_level * 0.0004,
+                    ))
+            elif profile == "vaulted":
+                pitch = math.radians(0.5 + quality_level * 0.25)
+                pieces.extend([
+                    _box(f"Ceiling{family_label}{quality_label}VaultWest", (0.92, 0.20, 0.030), (-0.44, 0.0, field_base - 0.016), material, group, rotation=(0.0, -pitch, 0.0), bevel=0.001),
+                    _box(f"Ceiling{family_label}{quality_label}VaultEast", (0.92, 0.20, 0.030), (0.44, 0.0, field_base - 0.016), material, group, rotation=(0.0, pitch, 0.0), bevel=0.001),
+                ])
+            elif profile == "coffered":
+                edge = 0.012 + quality_level * 0.0015
+                pieces.extend([
+                    _box(f"Ceiling{family_label}{quality_label}FrameNorth", (1.80, edge, relief), (0.0, -0.10 + edge / 2.0, field_base - relief / 2.0), material, group, bevel=0.0015),
+                    _box(f"Ceiling{family_label}{quality_label}FrameSouth", (1.80, edge, relief), (0.0, 0.10 - edge / 2.0, field_base - relief / 2.0), material, group, bevel=0.0015),
+                    _box(f"Ceiling{family_label}{quality_label}FrameWest", (edge, 0.20, relief), (-0.90 + edge / 2.0, 0.0, field_base - relief / 2.0), material, group, bevel=0.0015),
+                    _box(f"Ceiling{family_label}{quality_label}FrameEast", (edge, 0.20, relief), (0.90 - edge / 2.0, 0.0, field_base - relief / 2.0), material, group, bevel=0.0015),
+                ])
+            joined = _join_meshes(
+                f"Ceiling{family_label}{quality_label}Carrier",
+                pieces,
+                parent=group,
+                properties=props,
+                hide_render=True,
+            )
+            for polygon in joined.data.polygons:
+                polygon.use_smooth = False
+            joined.data.update()
+            joined["flat_ceiling_normals"] = True
+
+    # Twenty-five indoor fixture variants use two stable mounting grids: the
+    # ceiling grid for panels, tracks, pendants and chandeliers, and a perimeter
+    # wall grid for sconces. Ceiling fixtures all share a 1.05 m authored
+    # mounting datum so their top plates stay flush when styles change live.
+    lighting_variant_index = len(legacy_variant_ids) + len(construction_ceiling_ids)
+    for family_id, family_label, mount_kind, hex_color in construction_lighting_families:
+        base_color = A.hex_to_linear_rgba(hex_color)[:3]
+        for quality_id, quality_label, quality_level, roughness in construction_qualities:
+            variant_id = f"construction_{family_id}_{quality_id}"
+            tint = 0.82 + quality_level * 0.043
+            color = tuple(min(0.94, channel * tint) for channel in base_color)
+            housing = A.material(
+                f"S06_Lighting_{family_label}_{quality_label}", (*color, 1.0),
+                roughness=roughness,
+                metallic=0.58 if family_id in {"track_lighting", "luxury_chandeliers"} else 0.12,
+                coat=max(0.0, (quality_level - 3) * 0.05),
+            )
+            props = {
+                **_variant_properties(variant_id),
+                "construction_category": "lighting",
+                "construction_finish_family": family_id,
+                "construction_quality": quality_id,
+                "construction_quality_level": quality_level,
+                "lighting_mount_kind": mount_kind,
+                "variant_index": lighting_variant_index,
+                "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+            }
+            lighting_variant_index += 1
+            group = _group(f"LOD0_Lighting{family_label}{quality_label}", root, **props)
+            group.hide_render = True
+            pieces: list[bpy.types.Object] = []
+            if family_id == "led_panels":
+                panel_w = 0.90 + quality_level * 0.070
+                panel_d = 0.45 + quality_level * 0.040
+                pieces.extend([
+                    _box(f"Lighting{family_label}{quality_label}Frame", (panel_w + 0.045, panel_d + 0.045, 0.045), (0.0, 0.0, 1.0125), housing, group, bevel=0.006 + quality_level * 0.001),
+                    _box(f"Lighting{family_label}{quality_label}Diffuser", (panel_w, panel_d, 0.018), (0.0, 0.0, 0.982), m["lamp"], group, bevel=0.006 + quality_level * 0.001),
+                ])
+                if quality_level >= 4:
+                    pieces.append(_box(
+                        f"Lighting{family_label}{quality_label}BrassReveal",
+                        (panel_w + 0.020, panel_d + 0.020, 0.008), (0.0, 0.0, 0.968),
+                        p["restrained_brass"], group, bevel=0.003,
+                    ))
+            elif family_id == "track_lighting":
+                track_length = 0.72 + quality_level * 0.09
+                pieces.extend([
+                    _box(f"Lighting{family_label}{quality_label}Canopy", (0.22, 0.14, 0.045), (0.0, 0.0, 1.0275), housing, group, bevel=0.008),
+                    _box(f"Lighting{family_label}{quality_label}Track", (track_length, 0.055, 0.055), (0.0, 0.0, 0.965), housing, group, bevel=0.008),
+                ])
+                head_count = 2 + quality_level
+                for head_index in range(head_count):
+                    x = -track_length * 0.42 + track_length * 0.84 * head_index / max(1, head_count - 1)
+                    pieces.extend([
+                        A.cylinder(f"Lighting{family_label}{quality_label}Head_{head_index}", 0.060 - quality_level * 0.002, 0.16, (x, 0.0, 0.82), housing, vertices=14 + quality_level * 2, parent=group, bevel=0.006),
+                        A.cylinder(f"Lighting{family_label}{quality_label}Lens_{head_index}", 0.047, 0.018, (x, 0.0, 0.731), m["lamp"], vertices=14 + quality_level * 2, parent=group, bevel=0.003),
+                    ])
+            elif family_id == "pendant_lighting":
+                shade_radius = 0.16 + quality_level * 0.018
+                pieces.extend([
+                    A.cylinder(f"Lighting{family_label}{quality_label}Canopy", 0.11 + quality_level * 0.008, 0.055, (0.0, 0.0, 1.0225), housing, vertices=18, parent=group, bevel=0.008),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Drop", 0.012 + quality_level * 0.0015, 0.48 + quality_level * 0.035, (0.0, 0.0, 0.75), housing, vertices=12, parent=group, bevel=0.002),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Shade", shade_radius, 0.19 + quality_level * 0.012, (0.0, 0.0, 0.41), housing, vertices=20 + quality_level * 2, parent=group, bevel=0.012),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Lamp", shade_radius * 0.66, 0.045, (0.0, 0.0, 0.29), m["lamp"], vertices=20, parent=group, bevel=0.008),
+                ])
+                if quality_level >= 4:
+                    pieces.append(A.cylinder(
+                        f"Lighting{family_label}{quality_label}BrassCollar", shade_radius * 0.48, 0.035,
+                        (0.0, 0.0, 0.525), p["restrained_brass"], vertices=20, parent=group, bevel=0.006,
+                    ))
+            elif family_id == "luxury_chandeliers":
+                arm_count = 4 + quality_level
+                pieces.extend([
+                    A.cylinder(f"Lighting{family_label}{quality_label}Canopy", 0.14 + quality_level * 0.010, 0.06, (0.0, 0.0, 1.02), housing, vertices=20, parent=group, bevel=0.009),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Stem", 0.025 + quality_level * 0.002, 0.58, (0.0, 0.0, 0.72), p["restrained_brass"], vertices=16, parent=group, bevel=0.004),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Hub", 0.10 + quality_level * 0.008, 0.12, (0.0, 0.0, 0.42), housing, vertices=20, parent=group, bevel=0.010),
+                ])
+                arm_length = 0.28 + quality_level * 0.035
+                for arm_index in range(arm_count):
+                    angle = math.tau * arm_index / arm_count
+                    x = math.cos(angle) * arm_length * 0.50
+                    y = math.sin(angle) * arm_length * 0.50
+                    lamp_x = math.cos(angle) * arm_length
+                    lamp_y = math.sin(angle) * arm_length
+                    pieces.extend([
+                        _box(f"Lighting{family_label}{quality_label}Arm_{arm_index}", (arm_length, 0.035, 0.035), (x, y, 0.42), p["restrained_brass"], group, rotation=(0.0, 0.0, angle), bevel=0.009),
+                        A.cylinder(f"Lighting{family_label}{quality_label}Candle_{arm_index}", 0.032, 0.18, (lamp_x, lamp_y, 0.48), housing, vertices=14, parent=group, bevel=0.005),
+                        A.cylinder(f"Lighting{family_label}{quality_label}Flame_{arm_index}", 0.025, 0.055, (lamp_x, lamp_y, 0.5975), m["lamp"], vertices=14, parent=group, bevel=0.006),
+                    ])
+            elif family_id == "wall_sconces":
+                backplate_h = 0.38 + quality_level * 0.040
+                pieces.extend([
+                    _box(f"Lighting{family_label}{quality_label}Backplate", (0.19 + quality_level * 0.014, 0.050, backplate_h), (0.0, -0.025, 0.30), housing, group, bevel=0.012 + quality_level * 0.0015),
+                    _box(f"Lighting{family_label}{quality_label}Arm", (0.045, 0.16 + quality_level * 0.012, 0.045), (0.0, -0.11, 0.31), p["restrained_brass"] if quality_level >= 4 else housing, group, bevel=0.010),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Shade", 0.105 + quality_level * 0.008, 0.22 + quality_level * 0.012, (0.0, -0.20, 0.37), housing, vertices=18 + quality_level * 2, parent=group, bevel=0.010),
+                    A.cylinder(f"Lighting{family_label}{quality_label}Lamp", 0.068 + quality_level * 0.004, 0.035, (0.0, -0.20, 0.2375), m["lamp"], vertices=18, parent=group, bevel=0.006),
+                ])
+            _join_meshes(
+                f"Lighting{family_label}{quality_label}Assembly", pieces,
+                parent=group, properties=props, hide_render=True,
+            )
     for name, loc in (("BeamNext", (1.80, 0.0, 0.12)), ("BeamCross", (0.0, 0.0, 0.12)), ("BeamEnd", (-1.80, 0.0, 0.12)), ("RecessedLight", (0.0, 0.0, 0.0))):
         _marker(name, root, loc)
     A.collision_box("BeamOverhead", (3.60, 0.20, 0.24), (0.0, 0.0, 0.12), parent=root, purpose="overhead-blocking")
@@ -1430,20 +2338,47 @@ def build_58() -> bpy.types.Object:
 
 
 def build_59() -> bpy.types.Object:
-    finish_ids = ["oak", "walnut", "dark_wood", "sage_carpet", "gray_carpet", "cream_tile", "stone_tile"]
+    legacy_finish_ids = ["oak", "walnut", "dark_wood", "sage_carpet", "gray_carpet", "cream_tile", "stone_tile"]
+    construction_families = [
+        ("concrete", "Concrete", "slab", A.hex_to_linear_rgba("77736A")[:3]),
+        ("vinyl", "Vinyl", "plank", A.hex_to_linear_rgba("758069")[:3]),
+        ("laminate", "Laminate", "plank", A.hex_to_linear_rgba("9A7048")[:3]),
+        ("hardwood", "Hardwood", "plank", A.hex_to_linear_rgba("98613A")[:3]),
+        ("luxury_hardwood", "LuxuryHardwood", "wide_plank", A.hex_to_linear_rgba("58351F")[:3]),
+        ("stone_tile", "StoneTile", "tile", A.hex_to_linear_rgba("70736E")[:3]),
+        ("marble", "Marble", "large_tile", A.hex_to_linear_rgba("C9C3B7")[:3]),
+        ("herringbone", "Herringbone", "herringbone", A.hex_to_linear_rgba("513523")[:3]),
+    ]
+    construction_qualities = [
+        ("municipal", "Municipal", 1, 0.94),
+        ("standard", "Standard", 2, 0.82),
+        ("premium", "Premium", 3, 0.69),
+        ("high_end", "HighEnd", 4, 0.56),
+        ("luxury", "Luxury", 5, 0.44),
+    ]
+    construction_finish_ids = [
+        f"construction_{family_id}_{quality_id}"
+        for family_id, _family_label, _kind, _color in construction_families
+        for quality_id, _quality_label, _quality_level, _roughness in construction_qualities
+    ]
+    finish_ids = legacy_finish_ids + construction_finish_ids
     root, _p = _root(
         59,
         material_carrier=True,
         modular_flooring=True,
-        mesh_budget=20,
-        triangle_budget=24000,
+        mesh_budget=64,
+        triangle_budget=90000,
         variant_selection_contract="adapter selects one top-level variant_id/finish_variant group; hide_render is preview-only",
         variant_ids_json=json.dumps(finish_ids),
         finish_variant_ids_json=json.dumps(finish_ids),
         default_finish_variant="oak",
+        construction_finish_family_count=len(construction_families),
+        construction_quality_level_count=len(construction_qualities),
+        construction_finish_variant_count=len(construction_finish_ids),
+        construction_reference="Designs/ClubHouse — five-grade municipal-to-luxury finish board",
         oak_finish_contract="quiet natural-oak planks; modeled 2 mm longitudinal joints; flush one-metre module ends; exactly tileable grain",
     )
-    surface = _surface_materials(*(finish_id for finish_id in finish_ids if finish_id != "oak"))
+    surface = _surface_materials(*(finish_id for finish_id in legacy_finish_ids if finish_id != "oak"))
     surface["oak"] = _texture_material("floor_oak", roughness=0.90)
     _placement(root)
 
@@ -1543,6 +2478,113 @@ def build_59() -> bpy.types.Object:
             joined_finish.data.update()
             joined_finish["flat_floor_normals"] = True
             joined_finish["normal_contract"] = "all oak flooring polygons explicitly flat after join"
+
+    # Forty production carriers: eight requested floor families at each of the
+    # five reference grades. All remain exact 1 x 1 x 0.018 m swaps over the
+    # unchanged analytic walk plane. Grade differences are authored in joint
+    # precision, board/tile rhythm, bevel restraint, color depth and roughness.
+    construction_variant_index = len(variants)
+    for family_id, family_label, surface_kind, base_color in construction_families:
+        for quality_id, quality_label, quality_level, roughness in construction_qualities:
+            variant_id = f"construction_{family_id}_{quality_id}"
+            tint = 0.84 + quality_level * 0.045
+            # Grade progression changes polish and board/tile precision without
+            # washing dark woods toward grey. A prior per-channel additive lift
+            # made luxury walnut read as salmon under the bright retail rig.
+            color = tuple(min(0.92, channel * tint) for channel in base_color)
+            material = A.material(f"S06_Floor_{family_label}_{quality_label}", (*color, 1.0), roughness=roughness)
+            props = {
+                **_variant_properties(variant_id),
+                "finish_variant": variant_id,
+                "finish_family": family_id,
+                "construction_quality": quality_id,
+                "construction_quality_level": quality_level,
+                "material_carrier": True,
+                "variant_index": construction_variant_index,
+                "reference_progression": "municipal_standard_premium_high_end_luxury_country_club",
+                "authored_dimensions_m": "1.0 x 1.0 x 0.018",
+            }
+            construction_variant_index += 1
+            group = _group(f"LOD0_Floor{family_label}{quality_label}", root, **props)
+            group.hide_render = True
+            pieces: list[bpy.types.Object] = []
+            joint = max(0.0012, 0.0065 - quality_level * 0.00105)
+            bevel = 0.00035 + quality_level * 0.00018
+            bed_height = 0.0172 if surface_kind == "herringbone" else 0.004
+            pieces.append(_box(
+                f"Floor{family_label}{quality_label}FinishBed", (1.0, 1.0, bed_height),
+                (0.0, 0.0, bed_height / 2.0), material, group,
+                bevel=0.0 if surface_kind == "herringbone" else 0.0002,
+                properties={"joint_bed": True, "walk_plane_owner": False, **props},
+            ))
+            if surface_kind in {"plank", "wide_plank"}:
+                plank_count = (5 if surface_kind == "wide_plank" else 7) + (1 if quality_level == 1 else 0)
+                plank_width = (1.0 - joint * (plank_count - 1)) / plank_count
+                for plank_index in range(plank_count):
+                    x = -0.5 + plank_width / 2.0 + plank_index * (plank_width + joint)
+                    pieces.append(_box(
+                        f"Floor{family_label}{quality_label}Plank_{plank_index}",
+                        (plank_width, 1.0, 0.014), (x, 0.0, 0.011), material, group, bevel=bevel,
+                        properties={"plank_index": plank_index, "grain_axis": "Y", "plank_joint_m": joint, "board_selection_grade": quality_level},
+                    ))
+                mesh_name = f"Floor{family_label}{quality_label}PlankField"
+            elif surface_kind in {"tile", "large_tile"}:
+                tile_count = 2 if surface_kind == "large_tile" else (3 if quality_level >= 4 else 4)
+                tile_width = (1.0 - joint * (tile_count - 1)) / tile_count
+                for row in range(tile_count):
+                    for column in range(tile_count):
+                        x = -0.5 + tile_width / 2.0 + column * (tile_width + joint)
+                        y = -0.5 + tile_width / 2.0 + row * (tile_width + joint)
+                        pieces.append(_box(
+                            f"Floor{family_label}{quality_label}Tile_{row}_{column}",
+                            (tile_width, tile_width, 0.014), (x, y, 0.011), material, group, bevel=bevel * 1.5,
+                            properties={"tile_row": row, "tile_column": column, "calibration_grade": quality_level},
+                        ))
+                mesh_name = f"Floor{family_label}{quality_label}TileField"
+            elif surface_kind == "herringbone":
+                # Keep the carrier fully supported and nearly coplanar. The old
+                # version placed sparse 14 mm-tall parquet pieces over a 4 mm bed,
+                # which read in game as salmon fragments floating over charcoal.
+                # These repeated right-angle V pairs produce a legible parquet
+                # rhythm while a 0.8 mm relief supplies restrained joint shadow.
+                plank_length = 0.20 + quality_level * 0.008
+                plank_width = 0.074 + quality_level * 0.0015
+                half_axis = plank_length * math.sqrt(0.5) / 2.0
+                pair_origins = [
+                    (x, y)
+                    for y in (-0.30, -0.10, 0.10, 0.30)
+                    for x in (-0.30, -0.10, 0.10, 0.30)
+                ]
+                for pair_index, (x, y) in enumerate(pair_origins):
+                    for side, angle in enumerate((math.radians(45), math.radians(-45))):
+                        center_x = x + (-half_axis if side == 0 else half_axis)
+                        center_y = y + half_axis
+                        pieces.append(_box(
+                            f"Floor{family_label}{quality_label}Parquet_{pair_index}_{side}",
+                            (plank_width, plank_length, 0.0008),
+                            (center_x, center_y, 0.0176), material, group,
+                            rotation=(0.0, 0.0, angle), bevel=min(bevel, 0.00035),
+                            properties={
+                                "parquet_pair": pair_index,
+                                "parquet_side": side,
+                                "pattern": "right_angle_herringbone",
+                                "relief_m": 0.0008,
+                            },
+                        ))
+                mesh_name = f"Floor{family_label}{quality_label}HerringboneField"
+            else:
+                pieces.append(_box(
+                    f"Floor{family_label}{quality_label}SlabField", (0.998, 0.998, 0.014),
+                    (0.0, 0.0, 0.011), material, group, bevel=bevel,
+                    properties={"slab_field": True, "polish_grade": quality_level},
+                ))
+                mesh_name = f"Floor{family_label}{quality_label}SlabField"
+            joined = _join_meshes(mesh_name, pieces, parent=group, properties=props, hide_render=True)
+            for polygon in joined.data.polygons:
+                polygon.use_smooth = False
+            joined.data.update()
+            joined["flat_floor_normals"] = True
+            joined["normal_contract"] = "all construction finish polygons explicitly flat after join"
     _marker("FloorOrigin", root)
     _marker("FloorTransition", root, (0.50, 0.0, 0.009))
     A.collision_box("FloorWalkable", (1.0, 1.0, 0.018), (0.0, 0.0, 0.009), parent=root, purpose="walkable")

@@ -4,6 +4,10 @@ import {
   ARCHITECTURE_DEFAULTS,
   ARCHITECTURE_FINISH_OPTIONS,
 } from '../../sim/clubhouseRestoration.js';
+import {
+  CONSTRUCTION_CATEGORY_BY_ID,
+  constructionFinishVariant,
+} from '../../data/constructionFinishes.js';
 
 const KIT_NUMBERS = Object.freeze([55, 56, 57, 58, 59, 60]);
 const COLLISION_NAME = /^(?:COL(?:_|$)|.*Collision(?:_|$))/i;
@@ -22,6 +26,148 @@ export const SHEET06_DAMAGE_VARIANTS = Object.freeze({
   'muted-sage-carpet': 'damaged_carpet',
   'warm-cream-tile': 'damaged_tile',
 });
+
+const FLOOR_FAMILY_RUNTIME_ID = Object.freeze({
+  concrete: 'concrete', vinyl: 'vinyl', laminate: 'laminate', hardwood: 'hardwood',
+  'luxury-hardwood': 'luxury_hardwood', 'stone-tile': 'stone_tile', marble: 'marble',
+  herringbone: 'herringbone',
+});
+const FLOOR_QUALITY_RUNTIME_ID = Object.freeze({
+  municipal: 'municipal', standard: 'standard', premium: 'premium',
+  'high-end': 'high_end', luxury: 'luxury',
+});
+
+const CEILING_FAMILY_RUNTIME_ID = Object.freeze({
+  'drop-ceiling': 'drop_ceiling', commercial: 'commercial', 'wood-beams': 'wood_beams',
+  vaulted: 'vaulted', 'luxury-coffered': 'luxury_coffered',
+});
+
+const WALL_FAMILY_RUNTIME_ID = Object.freeze({
+  drywall: 'drywall',
+  paint: 'paint',
+  'wood-panels': 'wood_panels',
+  stone: 'stone',
+  'luxury-trim': 'luxury_trim',
+  'luxury-moulding': 'luxury_moulding',
+});
+
+const WINDOW_FAMILY_RUNTIME_ID = Object.freeze({
+  'cheap-aluminum': 'cheap_aluminum',
+  commercial: 'commercial',
+  'premium-black': 'premium_black',
+  'luxury-country-club': 'luxury_country_club',
+});
+
+const DOOR_FAMILY_RUNTIME_ID = Object.freeze({
+  'hollow-core': 'hollow_core',
+  solid: 'solid',
+  glass: 'glass',
+  'luxury-wood': 'luxury_wood',
+  'double-entry': 'double_entry',
+});
+
+const GARAGE_FAMILY_RUNTIME_ID = Object.freeze({
+  'garage-door': 'garage_door',
+});
+
+const LIGHTING_FAMILY_RUNTIME_ID = Object.freeze({
+  'led-panels': 'led_panels',
+  'track-lighting': 'track_lighting',
+  'pendant-lighting': 'pendant_lighting',
+  'luxury-chandeliers': 'luxury_chandeliers',
+  'wall-sconces': 'wall_sconces',
+  'landscape-lighting': 'landscape_lighting',
+});
+
+export function sheet06ConstructionFloorVariantId(finishId, qualityId) {
+  const family = FLOOR_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export function sheet06ConstructionFloorDamageVariant(finishId) {
+  if (['concrete', 'stone-tile', 'marble'].includes(finishId)) return 'damaged_tile';
+  if (finishId === 'vinyl') return 'damaged_carpet';
+  return FLOOR_FAMILY_RUNTIME_ID[finishId] ? 'damaged_wood' : null;
+}
+
+export function sheet06ConstructionCeilingVariantId(finishId, qualityId) {
+  const family = CEILING_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export function sheet06ConstructionWallVariantId(finishId, qualityId) {
+  const family = WALL_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export function sheet06ConstructionWindowVariantId(finishId, qualityId) {
+  const family = WINDOW_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export function sheet06ConstructionDoorVariantId(finishId, qualityId) {
+  const family = DOOR_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export function sheet06ConstructionGarageVariantId(finishId, qualityId) {
+  const family = GARAGE_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export function sheet06ConstructionLightingVariantId(finishId, qualityId) {
+  const family = LIGHTING_FAMILY_RUNTIME_ID[finishId];
+  const quality = FLOOR_QUALITY_RUNTIME_ID[qualityId];
+  return family && quality ? `construction_${family}_${quality}` : null;
+}
+
+export const SHEET06_CONSTRUCTION_FLOOR_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID.flooring.finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionFloorVariantId(finishId, qualityId))
+  )),
+);
+
+export const SHEET06_CONSTRUCTION_CEILING_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID.ceilings.finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionCeilingVariantId(finishId, qualityId))
+  )),
+);
+
+export const SHEET06_CONSTRUCTION_WALL_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID.walls.finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionWallVariantId(finishId, qualityId))
+  )),
+);
+
+export const SHEET06_CONSTRUCTION_WINDOW_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID.windows.finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionWindowVariantId(finishId, qualityId))
+  )),
+);
+
+export const SHEET06_CONSTRUCTION_DOOR_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID.doors.finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionDoorVariantId(finishId, qualityId))
+  )),
+);
+
+export const SHEET06_CONSTRUCTION_GARAGE_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID['garage-doors'].finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionGarageVariantId(finishId, qualityId))
+  )),
+);
+
+export const SHEET06_CONSTRUCTION_LIGHTING_VARIANTS = Object.freeze(
+  CONSTRUCTION_CATEGORY_BY_ID.lighting.finishes.flatMap(({ id: finishId }) => (
+    Object.keys(FLOOR_QUALITY_RUNTIME_ID).map((qualityId) => sheet06ConstructionLightingVariantId(finishId, qualityId))
+  )),
+);
 
 const REQUIRED_FLOOR_VARIANTS = Object.freeze(Object.values(SHEET06_FLOOR_FINISH_VARIANTS));
 const REQUIRED_DAMAGE_VARIANTS = Object.freeze([...new Set(Object.values(SHEET06_DAMAGE_VARIANTS))]);
@@ -406,6 +552,7 @@ function createRepeatedKit({
   mount.add(root);
   return {
     root,
+    template,
     instanceCount: placements.length,
     variants: [...variants].sort(),
   };
@@ -489,6 +636,7 @@ function createInstancedRepeatedKit({
   rootData.sheet06Batching = 'INSTANCED_BY_VARIANT_SOURCE_MESH';
 
   const ownedInstancedMeshes = [];
+  const batchesByVariant = new Map();
   try {
     for (const [variantId, variantPlacements] of placementsByVariant) {
       for (const descriptor of descriptorsByVariant.get(variantId)) {
@@ -542,6 +690,8 @@ function createInstancedRepeatedKit({
         batch.instanceMatrix.needsUpdate = true;
         root.add(batch);
         ownedInstancedMeshes.push(batch);
+        if (!batchesByVariant.has(variantId)) batchesByVariant.set(variantId, []);
+        batchesByVariant.get(variantId).push({ batch, placements: descriptorPlacements });
       }
     }
     mount.add(root);
@@ -553,10 +703,93 @@ function createInstancedRepeatedKit({
 
   return {
     root,
+    template,
+    batchesByVariant,
     ownedInstancedMeshes,
     instanceCount: placements.length,
     variants: [...placementsByVariant.keys()].sort(),
   };
+}
+
+function swapRepeatedClonedVariant(record, targetVariant, assetNumber) {
+  if (record.selectedVariant === targetVariant) return targetVariant;
+  const source = findVariant(record.template, targetVariant, assetNumber);
+  for (const instance of record.root.children) {
+    const metricFrame = instance.children.find(
+      (child) => child.userData?.sheet06ScaleApplications === 1,
+    );
+    if (!metricFrame) {
+      fail('TEMPLATE_MALFORMED', `Asset ${assetNumber} production instance '${instance.name}' has no metric frame.`);
+    }
+    const nextClone = cloneVariant(source, assetNumber, targetVariant);
+    for (const child of [...metricFrame.children]) metricFrame.remove(child);
+    metricFrame.add(nextClone);
+    const data = userData(instance);
+    data.sheet06SelectedVariant = targetVariant;
+    data.constructionFinishAuthority = 'state.shop.reno.constructionFinishes';
+  }
+  record.selectedVariant = targetVariant;
+  record.variants = [targetVariant];
+  return targetVariant;
+}
+
+function swapInstancedRepeatedVariant(record, placementVariant, targetVariant, assetNumber) {
+  const entries = record?.batchesByVariant?.get(placementVariant);
+  if (!entries?.length) {
+    fail('STATE_VARIANT_MISSING', `Asset ${assetNumber} has no '${placementVariant}' production batch to replace.`);
+  }
+  const visibleEntries = entries.filter(({ batch }) => batch.visible !== false);
+  if (visibleEntries.length > 0 && visibleEntries.every(
+    ({ batch }) => batch.userData?.sheet06SelectedVariant === targetVariant,
+  )) {
+    return targetVariant;
+  }
+  const source = findVariant(record.template, targetVariant, assetNumber);
+  const descriptors = meshDescriptorsInMetricFrame(source, assetNumber, targetVariant);
+  if (descriptors.length > entries.length) {
+    fail(
+      'STATE_VARIANT_MALFORMED',
+      `Asset ${assetNumber} variant '${targetVariant}' has ${descriptors.length} render resources; the '${placementVariant}' production batch can host at most ${entries.length}.`,
+    );
+  }
+  const matrix = new THREE.Matrix4();
+  const targetEntries = descriptors.length === entries.length
+    ? entries
+    : [...entries].sort((a, b) => {
+      const aDamage = a.batch.userData?.damage_overlay === true ? 1 : 0;
+      const bDamage = b.batch.userData?.damage_overlay === true ? 1 : 0;
+      return aDamage - bDamage || b.placements.length - a.placements.length;
+    });
+  for (const { batch } of entries) {
+    batch.visible = false;
+    delete userData(batch).sheet06SelectedVariant;
+  }
+  descriptors.forEach((descriptor, descriptorIndex) => {
+    const entry = targetEntries[descriptorIndex];
+    entry.batch.visible = true;
+    const sourceMesh = descriptor.mesh;
+    entry.batch.geometry = sourceMesh.geometry;
+    entry.batch.material = sourceMesh.material;
+    entry.batch.castShadow = sourceMesh.castShadow;
+    entry.batch.receiveShadow = sourceMesh.receiveShadow;
+    entry.batch.frustumCulled = sourceMesh.frustumCulled;
+    entry.batch.renderOrder = sourceMesh.renderOrder;
+    entry.placements.forEach((placement, index) => {
+      entry.batch.setMatrixAt(
+        index,
+        instanceMatrixForPlacement(record.template, placement, descriptor.relative, matrix),
+      );
+    });
+    entry.batch.instanceMatrix.needsUpdate = true;
+    const data = userData(entry.batch);
+    data.sheet06SelectedVariant = targetVariant;
+    data.constructionFinishAuthority = 'state.shop.reno.constructionFinishes';
+  });
+  record.variants = [
+    ...record.variants.filter((variant) => variant !== placementVariant && !variant.startsWith('construction_')),
+    targetVariant,
+  ].sort();
+  return targetVariant;
 }
 
 function boundsForVariant(variant) {
@@ -677,13 +910,39 @@ function sameFloorFootprint(resources) {
   return true;
 }
 
+function updateFloorInstanceTransforms(record, resource) {
+  const { mesh, cells, floorY, templateScale } = record;
+  const center = resource.bounds.getCenter(new THREE.Vector3());
+  const align = new THREE.Matrix4().makeTranslation(-center.x, -resource.bounds.min.y, -center.z);
+  const matrix = new THREE.Matrix4();
+  const translate = new THREE.Matrix4();
+  const scale = new THREE.Matrix4();
+  cells.forEach((cell, index) => {
+    translate.makeTranslation(cell.x, floorY, cell.z);
+    scale.makeScale(
+      cell.width / resource.size.x,
+      templateScale.y,
+      cell.depth / resource.size.z,
+    );
+    matrix.copy(translate).multiply(scale).multiply(align).multiply(resource.relative);
+    mesh.setMatrixAt(index, matrix);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
 function createFloorKit({ template, mount, layout, stateView }) {
   const resources = new Map();
   for (const variant of REQUIRED_FLOOR_VARIANTS) resources.set(variant, floorResource(template, variant));
+  const availableVariants = new Set(variantChildren(template).map((node) => slug(declaredVariant(node))));
+  for (const variant of SHEET06_CONSTRUCTION_FLOOR_VARIANTS) {
+    if (availableVariants.has(slug(variant))) resources.set(variant, floorResource(template, variant));
+  }
   if (!sameFloorFootprint(resources)) {
     fail('FLOOR_RESOURCE_INVALID', 'Asset 59 save-selectable variants must share one metric footprint.');
   }
-  const selectedVariant = SHEET06_FLOOR_FINISH_VARIANTS[stateView.components.floor.finish];
+  const selectedVariant = resources.has(stateView.constructionFloorVariant)
+    ? stateView.constructionFloorVariant
+    : SHEET06_FLOOR_FINISH_VARIANTS[stateView.components.floor.finish];
   const selected = resources.get(selectedVariant);
   const nominalTile = Math.max(selected.size.x * template.scale.x, selected.size.z * template.scale.z);
   const cells = floorCells(layout, nominalTile);
@@ -695,18 +954,13 @@ function createFloorKit({ template, mount, layout, stateView }) {
   mesh.receiveShadow = true;
   mesh.frustumCulled = true;
   const floorY = finite(layout?.floorY, 0);
-  const center = selected.bounds.getCenter(new THREE.Vector3());
-  const align = new THREE.Matrix4().makeTranslation(-center.x, -selected.bounds.min.y, -center.z);
-  const matrix = new THREE.Matrix4();
-  const translate = new THREE.Matrix4();
-  const scale = new THREE.Matrix4();
-  cells.forEach((cell, index) => {
-    translate.makeTranslation(cell.x, floorY, cell.z);
-    scale.makeScale(cell.width / selected.size.x, template.scale.y, cell.depth / selected.size.z);
-    matrix.copy(translate).multiply(scale).multiply(align).multiply(selected.relative);
-    mesh.setMatrixAt(index, matrix);
-  });
-  mesh.instanceMatrix.needsUpdate = true;
+  const transformRecord = {
+    mesh,
+    cells,
+    floorY,
+    templateScale: { x: template.scale.x, y: template.scale.y, z: template.scale.z },
+  };
+  updateFloorInstanceTransforms(transformRecord, selected);
   const meshData = userData(mesh);
   meshData.sheet06AssetNumber = 59;
   meshData.sheet06ScaleApplications = 1;
@@ -727,6 +981,8 @@ function createFloorKit({ template, mount, layout, stateView }) {
     ownedInstancedMeshes: [mesh],
     resources,
     cells,
+    floorY,
+    templateScale: transformRecord.templateScale,
     surfaceY,
     selectedVariant,
     instanceCount: cells.length,
@@ -836,8 +1092,51 @@ function architectureStateView(state) {
       finish: allowed.includes(candidate?.finish) ? candidate.finish : defaults.finish,
     });
   }
+  const constructionSelection = state?.shop?.reno?.constructionFinishes?.installed?.flooring;
+  const constructionVariant = constructionFinishVariant(
+    'flooring', constructionSelection?.finishId, constructionSelection?.qualityId,
+  );
+  const constructionCeilingSelection = state?.shop?.reno?.constructionFinishes?.installed?.ceilings;
+  const constructionCeilingVariant = constructionFinishVariant(
+    'ceilings', constructionCeilingSelection?.finishId, constructionCeilingSelection?.qualityId,
+  );
+  const constructionWallSelection = state?.shop?.reno?.constructionFinishes?.installed?.walls;
+  const constructionWallVariant = constructionFinishVariant(
+    'walls', constructionWallSelection?.finishId, constructionWallSelection?.qualityId,
+  );
+  const constructionWindowSelection = state?.shop?.reno?.constructionFinishes?.installed?.windows;
+  const constructionWindowVariant = constructionFinishVariant(
+    'windows', constructionWindowSelection?.finishId, constructionWindowSelection?.qualityId,
+  );
+  const constructionLightingSelection = state?.shop?.reno?.constructionFinishes?.installed?.lighting;
+  const constructionLightingVariant = constructionFinishVariant(
+    'lighting',
+    constructionLightingSelection?.finishId || 'led-panels',
+    constructionLightingSelection?.qualityId || 'municipal',
+  );
   return Object.freeze({
     components: Object.freeze(components),
+    constructionFloorVariant: constructionVariant
+      ? sheet06ConstructionFloorVariantId(constructionVariant.finishId, constructionVariant.qualityId)
+      : null,
+    constructionFloorDamageVariant: constructionVariant
+      ? sheet06ConstructionFloorDamageVariant(constructionVariant.finishId)
+      : null,
+    constructionCeilingVariant: constructionCeilingVariant
+      ? sheet06ConstructionCeilingVariantId(constructionCeilingVariant.finishId, constructionCeilingVariant.qualityId)
+      : null,
+    constructionCeilingFinishId: constructionCeilingVariant?.finishId || null,
+    constructionWallVariant: constructionWallVariant
+      ? sheet06ConstructionWallVariantId(constructionWallVariant.finishId, constructionWallVariant.qualityId)
+      : null,
+    constructionWallFinishId: constructionWallVariant?.finishId || null,
+    constructionWindowVariant: constructionWindowVariant
+      ? sheet06ConstructionWindowVariantId(constructionWindowVariant.finishId, constructionWindowVariant.qualityId)
+      : null,
+    constructionLightingVariant: constructionLightingVariant
+      ? sheet06ConstructionLightingVariantId(constructionLightingVariant.finishId, constructionLightingVariant.qualityId)
+      : null,
+    constructionLightingFinishId: constructionLightingVariant?.finishId || null,
     windowFilm: Array.isArray(state?.shop?.reno?.windows) ? state.shop.reno.windows : null,
     floorGrime: Array.isArray(state?.shop?.reno?.grime) ? state.shop.reno.grime : null,
   });
@@ -863,6 +1162,12 @@ function updateKitMetadata(record, component, stateView) {
 
 function updateWindows(record, stateView) {
   updateKitMetadata(record, 'windows', stateView);
+  if (stateView.constructionWindowVariant) {
+    swapRepeatedClonedVariant(record, stateView.constructionWindowVariant, 55);
+    const rootData = userData(record.root);
+    rootData.sheet06SelectedVariant = stateView.constructionWindowVariant;
+    rootData.constructionFinishAuthority = 'state.shop.reno.constructionFinishes.installed.windows';
+  }
   for (const [index, instance] of record.root.children.entries()) {
     const data = userData(instance);
     data.sheet06WindowIndex = index;
@@ -875,22 +1180,111 @@ function updateWindows(record, stateView) {
 function updateFloor(record, stateView) {
   updateKitMetadata(record, 'floor', stateView);
   const finish = stateView.components.floor.finish;
-  const variant = SHEET06_FLOOR_FINISH_VARIANTS[finish];
+  const variant = record.resources.has(stateView.constructionFloorVariant)
+    ? stateView.constructionFloorVariant
+    : SHEET06_FLOOR_FINISH_VARIANTS[finish];
   const resource = record.resources.get(variant);
   if (!resource) fail('STATE_VARIANT_MISSING', `Asset 59 cannot select floor finish '${finish}'.`);
-  record.mesh.geometry = resource.mesh.geometry;
-  record.mesh.material = resource.mesh.material;
+  if (record.selectedVariant !== variant
+    || record.mesh.geometry !== resource.mesh.geometry
+    || record.mesh.material !== resource.mesh.material) {
+    record.mesh.geometry = resource.mesh.geometry;
+    record.mesh.material = resource.mesh.material;
+    record.mesh.castShadow = resource.mesh.castShadow;
+    updateFloorInstanceTransforms(record, resource);
+    record.surfaceY = record.floorY + resource.size.y * record.templateScale.y;
+  }
   record.selectedVariant = variant;
   record.variants = [variant];
   const data = userData(record.mesh);
   data.sheet06SelectedVariant = variant;
+  data.constructionFinishAuthority = stateView.constructionFloorVariant === variant
+    ? 'state.shop.reno.constructionFinishes.installed.flooring'
+    : null;
   data.sheet06FloorGrimeAuthority = 'state.shop.reno.grime';
   data.sheet06FloorGrimeCellCount = stateView.floorGrime?.length ?? 0;
 }
 
+function updateCeiling(record, stateView) {
+  updateKitMetadata(record, 'ceiling', stateView);
+  const targetVariant = stateView.constructionCeilingVariant;
+  if (!targetVariant) return;
+  swapInstancedRepeatedVariant(record, 'ceiling_panel', targetVariant, 58);
+  record.selectedVariant = targetVariant;
+  const showArchitecturalBeams = ['wood-beams', 'luxury-coffered'].includes(
+    stateView.constructionCeilingFinishId,
+  );
+  for (const [placementVariant, entries] of record.batchesByVariant || []) {
+    if (!['straight', 'half', 'cross_connector', 'end_cap'].includes(placementVariant)) continue;
+    for (const { batch } of entries) batch.visible = showArchitecturalBeams;
+  }
+  const data = userData(record.root);
+  data.sheet06SelectedVariant = record.selectedVariant || 'ceiling_panel';
+  data.constructionFinishAuthority = 'state.shop.reno.constructionFinishes.installed.ceilings';
+  data.sheet06ArchitecturalBeamsVisible = showArchitecturalBeams;
+}
+
+function updateLighting(record, stateView) {
+  const targetVariant = stateView.constructionLightingVariant;
+  const finishId = stateView.constructionLightingFinishId;
+  if (!targetVariant || !finishId) return;
+  const ceilingEntries = record.batchesByVariant?.get('light_mount') || [];
+  const wallEntries = record.batchesByVariant?.get('wall_light_mount') || [];
+  for (const { batch, placements } of [...ceilingEntries, ...wallEntries]) {
+    batch.count = placements.length;
+  }
+  if (finishId === 'landscape-lighting') {
+    for (const { batch } of [...ceilingEntries, ...wallEntries]) batch.visible = false;
+    record.lightingMountKind = 'landscape';
+  } else if (finishId === 'wall-sconces') {
+    swapInstancedRepeatedVariant(record, 'wall_light_mount', targetVariant, 58);
+    for (const { batch } of ceilingEntries) batch.visible = false;
+    record.lightingMountKind = 'wall';
+  } else {
+    swapInstancedRepeatedVariant(record, 'light_mount', targetVariant, 58);
+    for (const { batch } of wallEntries) batch.visible = false;
+    if (finishId === 'luxury-chandeliers') {
+      for (const { batch, placements } of ceilingEntries) batch.count = Math.min(2, placements.length);
+    }
+    record.lightingMountKind = 'ceiling';
+  }
+  record.lightingFixtureCount = finishId === 'landscape-lighting'
+    ? 24
+    : Math.max(0, ...[...ceilingEntries, ...wallEntries]
+      .filter(({ batch }) => batch.visible)
+      .map(({ batch }) => batch.count));
+  record.lightingSelectedVariant = targetVariant;
+  const data = userData(record.root);
+  data.sheet06SelectedLightingVariant = targetVariant;
+  data.sheet06LightingMountKind = record.lightingMountKind;
+  data.constructionLightingAuthority = 'state.shop.reno.constructionFinishes.installed.lighting';
+}
+
+function updateWallPanels(record, stateView) {
+  updateKitMetadata(record, 'panels', stateView);
+  const targetVariant = stateView.constructionWallVariant;
+  if (targetVariant) {
+    swapInstancedRepeatedVariant(record, 'straight', targetVariant, 56);
+    record.selectedVariant = targetVariant;
+    const showWalnutJoinery = ['wood-panels', 'luxury-trim', 'luxury-moulding'].includes(
+      stateView.constructionWallFinishId,
+    );
+    for (const [placementVariant, entries] of record.batchesByVariant || []) {
+      if (!['inside_corner', 'outside_corner', 'door_connector', 'window_connector'].includes(placementVariant)) continue;
+      for (const { batch } of entries) batch.visible = showWalnutJoinery;
+    }
+    const data = userData(record.root);
+    data.sheet06SelectedVariant = targetVariant;
+    data.constructionFinishAuthority = 'state.shop.reno.constructionFinishes.installed.walls';
+    data.sheet06WalnutJoineryVisible = showWalnutJoinery;
+  }
+  setDamageOverlayVisibility(record.root, !stateView.components.panels.restored);
+}
+
 function updateDamage(record, stateView) {
   updateKitMetadata(record, 'floor', stateView);
-  const variant = SHEET06_DAMAGE_VARIANTS[stateView.components.floor.finish];
+  const variant = stateView.constructionFloorDamageVariant
+    || SHEET06_DAMAGE_VARIANTS[stateView.components.floor.finish];
   if (!variant) fail('STATE_VARIANT_MISSING', `Asset 60 has no damage family for '${stateView.components.floor.finish}'.`);
   for (const site of record.sites) {
     for (const [candidate, object] of site.variants) object.visible = candidate === variant;
@@ -1059,6 +1453,9 @@ export function createSheet06ProductionAssembly({
       }),
     ];
     const placements = [...beamPlacements, ...ceilingPanels];
+    placements.push(...explicitPlacements(layout.wallLightPlacements, {
+      label: 'wall-light', defaultY: finite(layout?.wallLightY, 1.55), defaultVariant: 'wall_light_mount',
+    }));
     return createInstancedRepeatedKit({
       assetNumber: 58,
       template,
@@ -1097,12 +1494,12 @@ export function createSheet06ProductionAssembly({
       if (record?.status !== 'assembled') continue;
       try {
         if (number === 55) updateWindows(record, stateView);
-        if (number === 56) {
-          updateKitMetadata(record, 'panels', stateView);
-          setDamageOverlayVisibility(record.root, !stateView.components.panels.restored);
-        }
+        if (number === 56) updateWallPanels(record, stateView);
         if (number === 57) updateKitMetadata(record, 'trim', stateView);
-        if (number === 58) updateKitMetadata(record, 'ceiling', stateView);
+        if (number === 58) {
+          updateCeiling(record, stateView);
+          updateLighting(record, stateView);
+        }
         if (number === 59) updateFloor(record, stateView);
         if (number === 60) updateDamage(record, stateView);
         record.stateError = null;
@@ -1134,6 +1531,9 @@ export function createSheet06ProductionAssembly({
       });
     });
     const successful = kits.filter((kit) => kit.status === 'assembled');
+    const windows = records.get(55);
+    const walls = records.get(56);
+    const ceiling = records.get(58);
     const floor = records.get(59);
     const damage = records.get(60);
     return Object.freeze({
@@ -1146,6 +1546,25 @@ export function createSheet06ProductionAssembly({
       parkedTemplateSamples: 0,
       glbCollisionObjectsActivated: 0,
       scalePolicy: 'ONE_METERS_TO_GAME_UNITS_FRAME_PER_DERIVED_INSTANCE',
+      windows: Object.freeze({
+        selectedVariant: windows?.selectedVariant || null,
+        instanceCount: windows?.instanceCount || 0,
+      }),
+      walls: Object.freeze({
+        selectedVariant: walls?.selectedVariant || null,
+        walnutJoineryVisible: walls?.root?.userData?.sheet06WalnutJoineryVisible ?? null,
+      }),
+      ceiling: Object.freeze({
+        selectedVariant: ceiling?.selectedVariant || null,
+        architecturalBeamsVisible: ceiling?.root?.userData?.sheet06ArchitecturalBeamsVisible ?? null,
+      }),
+      lighting: Object.freeze({
+        selectedVariant: ceiling?.lightingSelectedVariant || null,
+        mountKind: ceiling?.lightingMountKind || null,
+        ceilingFixtureCount: (ceiling?.batchesByVariant?.get('light_mount')?.[0]?.placements?.length) || 0,
+        wallFixtureCount: (ceiling?.batchesByVariant?.get('wall_light_mount')?.[0]?.placements?.length) || 0,
+        activeFixtureCount: ceiling?.lightingFixtureCount ?? 0,
+      }),
       floor: Object.freeze({
         instanceCount: floor?.instanceCount || 0,
         selectedVariant: floor?.selectedVariant || null,

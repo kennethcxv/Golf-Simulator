@@ -74,6 +74,8 @@ function templatesFixture() {
     { id: 'narrow', dimensions: [1, 1.7, 0.12] },
     { id: 'wide', dimensions: [2, 1.3, 0.12] },
     { id: 'arched', dimensions: [1.5, 1.7, 0.12] },
+    { id: 'construction_cheap_aluminum_municipal', dimensions: [2.19, 1.74, 0.23] },
+    { id: 'construction_luxury_country_club_luxury', dimensions: [2.19, 1.74, 0.23] },
   ], fixture));
   fixture.templates.set(56, template(56, [
     { id: 'straight', dimensions: [1.2, 1.15, 0.08] },
@@ -81,6 +83,8 @@ function templatesFixture() {
     { id: 'outside_corner', dimensions: [0.12, 1.15, 0.12] },
     { id: 'door_connector', dimensions: [0.12, 1.15, 0.08] },
     { id: 'window_connector', dimensions: [0.12, 1.15, 0.08] },
+    { id: 'construction_drywall_municipal', dimensions: [1.2, 1.15, 0.075] },
+    { id: 'construction_luxury_moulding_luxury', dimensions: [1.2, 1.15, 0.075] },
   ], fixture));
   // Give the straight panel an independently refreshable damage overlay.
   const panelStraight = fixture.templates.get(56).children.find((child) => child.userData.variant_id === 'straight');
@@ -113,7 +117,13 @@ function templatesFixture() {
     { id: 'cross_connector', dimensions: [0.6, 0.24, 0.6] },
     { id: 'end_cap', dimensions: [0.12, 0.24, 0.2] },
     { id: 'ceiling_panel', dimensions: [1.8, 0.08, 0.2] },
+    { id: 'construction_drop_ceiling_municipal', dimensions: [1.8, 0.08, 0.2] },
+    { id: 'construction_luxury_coffered_luxury', dimensions: [1.8, 0.08, 0.2] },
     { id: 'light_mount', dimensions: [0.18, 0.05, 0.18] },
+    { id: 'wall_light_mount', dimensions: [0.18, 0.5, 0.12] },
+    { id: 'construction_led_panels_municipal', dimensions: [0.7, 0.08, 0.4] },
+    { id: 'construction_luxury_chandeliers_luxury', dimensions: [0.9, 1.05, 0.9] },
+    { id: 'construction_wall_sconces_luxury', dimensions: [0.24, 0.6, 0.32] },
   ], fixture));
   fixture.templates.set(59, template(59, [
     { id: 'oak', dimensions: [1, 0.02, 1], finish: true },
@@ -134,8 +144,16 @@ function state({
   floorRestored = false,
   panelsRestored = false,
   windowsRestored = false,
+  ceilingFinish = null,
+  ceilingQuality = null,
+  wallFinish = null,
+  wallQuality = null,
+  windowFinish = null,
+  windowQuality = null,
+  lightingFinish = null,
+  lightingQuality = null,
 } = {}) {
-  return {
+  const result = {
     shop: {
       reno: {
         windows: [0.9, 0.7, 0.5, 0.3],
@@ -154,6 +172,35 @@ function state({
       },
     },
   };
+  if ((ceilingFinish && ceilingQuality)
+    || (wallFinish && wallQuality)
+    || (windowFinish && windowQuality)
+    || (lightingFinish && lightingQuality)) {
+    result.shop.reno.constructionFinishes = {
+      installed: {},
+    };
+    if (ceilingFinish && ceilingQuality) {
+      result.shop.reno.constructionFinishes.installed.ceilings = {
+        finishId: ceilingFinish, qualityId: ceilingQuality,
+      };
+    }
+    if (wallFinish && wallQuality) {
+      result.shop.reno.constructionFinishes.installed.walls = {
+        finishId: wallFinish, qualityId: wallQuality,
+      };
+    }
+    if (windowFinish && windowQuality) {
+      result.shop.reno.constructionFinishes.installed.windows = {
+        finishId: windowFinish, qualityId: windowQuality,
+      };
+    }
+    if (lightingFinish && lightingQuality) {
+      result.shop.reno.constructionFinishes.installed.lighting = {
+        finishId: lightingFinish, qualityId: lightingQuality,
+      };
+    }
+  }
+  return result;
 }
 
 function layoutFixture() {
@@ -174,6 +221,12 @@ function layoutFixture() {
     ceilingY: 3.2,
     beamRuns: [
       { id: 'beam-run', start: [-3.6, 3.2, 0], end: [3.6, 3.2, 0] },
+    ],
+    beamPlacements: [
+      { id: 'ceiling-light', position: [0, 2.05, 0.6], variant: 'light_mount' },
+    ],
+    wallLightPlacements: [
+      { id: 'wall-light', position: [0, 1.45, -1.9], rotationY: 0, variant: 'wall_light_mount' },
     ],
     ceilingPanelRuns: [
       {
@@ -229,12 +282,12 @@ function closeTo(actual, expected, epsilon = 1e-6) {
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} should be within ${epsilon} of ${expected}`);
 }
 
-function createCompleteAssembly() {
+function createCompleteAssembly({ mutateFixture, initialState = state() } = {}) {
   const fixture = templatesFixture();
+  mutateFixture?.(fixture);
   const exterior = new THREE.Group();
   const interior = new THREE.Group();
   const fallbacks = fallbacksFixture();
-  const initialState = state();
   const assembly = createSheet06ProductionAssembly({
     templates: fixture.templates,
     exterior,
@@ -252,17 +305,17 @@ test('production assembly instantiates every stable window and all modular kits 
   const diagnostics = assembly.diagnostics();
   assert.equal(diagnostics.assembledKitCount, 6);
   assert.equal(diagnostics.fallbackKitCount, 0);
-  assert.equal(diagnostics.instanceCount, 28);
+  assert.equal(diagnostics.instanceCount, 30);
   assert.equal(diagnostics.parkedTemplateSamples, 0);
   assert.equal(diagnostics.glbCollisionObjectsActivated, 0);
   assert.deepEqual(diagnostics.kits.map(({ assetNumber, instanceCount }) => [assetNumber, instanceCount]), [
-    [55, 4], [56, 3], [57, 2], [58, 3], [59, 14], [60, 2],
+    [55, 4], [56, 3], [57, 2], [58, 5], [59, 14], [60, 2],
   ]);
   assert.deepEqual(diagnostics.kits.map(({ variants }) => [...variants]), [
     ['arched', 'narrow', 'standard', 'wide'],
     ['inside_corner', 'straight'],
     ['baseboard'],
-    ['ceiling_panel', 'straight'],
+    ['ceiling_panel', 'construction_led_panels_municipal', 'straight', 'wall_light_mount'],
     ['oak'],
     ['damaged_wood'],
   ]);
@@ -322,12 +375,12 @@ test('production assembly instantiates every stable window and all modular kits 
   assert.equal(trim.children[0].count, 2);
 
   const ceiling = assembly.getRoot(58);
-  assert.equal(ceiling.children.length, 2, 'beam and ceiling-panel variants each use one source-mesh batch');
+  assert.equal(ceiling.children.length, 4, 'beam, ceiling, ceiling-light and wall-light variants each reserve one batch');
   assert.equal(ceiling.children.every((child) => child.isInstancedMesh), true);
   assert.deepEqual(ceiling.children.map((child) => child.userData.sheet06Variant), [
-    'straight', 'ceiling_panel',
+    'straight', 'light_mount', 'ceiling_panel', 'wall_light_mount',
   ]);
-  assert.deepEqual(ceiling.children.map((child) => child.count), [2, 1]);
+  assert.deepEqual(ceiling.children.map((child) => child.count), [2, 1, 1, 1]);
 
   const floorRoot = assembly.getRoot(59);
   const floorMesh = floorRoot.children[0];
@@ -436,12 +489,21 @@ test('batch matrices preserve source hierarchy transforms while cancelling the p
 test('state refresh is read-only, switches borrowed floor resources without rebuild, and independently hides repaired damage', () => {
   const {
     fixture, exterior, interior, fallbacks, initialState, assembly,
-  } = createCompleteAssembly();
+  } = createCompleteAssembly({
+    mutateFixture: (nextFixture) => {
+      // A finish carrier is allowed to have its own authored mesh transform.
+      // Runtime finish swaps must rebuild instance matrices from that carrier,
+      // not retain the initially selected oak transform.
+      nextFixture.sourceMeshes.get(59).get('sage_carpet').rotation.y = Math.PI;
+    },
+  });
   const initialJson = JSON.stringify(initialState);
   const windowsRoot = assembly.getRoot(55);
   const panelsRoot = assembly.getRoot(56);
   const floorRoot = assembly.getRoot(59);
   const floorMesh = floorRoot.children[0];
+  const floorMatrixBefore = new THREE.Matrix4();
+  floorMesh.getMatrixAt(0, floorMatrixBefore);
   const damageRoot = assembly.getRoot(60);
   const nextState = state({
     floorFinish: 'muted-sage-carpet',
@@ -463,6 +525,10 @@ test('state refresh is read-only, switches borrowed floor resources without rebu
   assert.equal(floorMesh.count, 14);
   assert.equal(floorMesh.geometry, fixture.sourceMeshes.get(59).get('sage_carpet').geometry);
   assert.equal(floorMesh.material, fixture.sourceMeshes.get(59).get('sage_carpet').material);
+  const floorMatrixAfter = new THREE.Matrix4();
+  floorMesh.getMatrixAt(0, floorMatrixAfter);
+  assert.ok(floorMatrixBefore.elements[0] > 0);
+  assert.ok(floorMatrixAfter.elements[0] < 0, 'finish swap applies the selected carrier transform');
   assert.equal(damageRoot.visible, false);
   for (const site of damageRoot.children) {
     const selected = site.children.filter((child) => child.visible);
@@ -481,7 +547,7 @@ test('state refresh is read-only, switches borrowed floor resources without rebu
   const ownedInstancedMeshes = [56, 57, 58, 59]
     .flatMap((number) => findMeshes(assembly.getRoot(number)))
     .filter((mesh) => mesh.isInstancedMesh);
-  assert.equal(ownedInstancedMeshes.length, 7);
+  assert.equal(ownedInstancedMeshes.length, 9);
   const disposeEvents = new Map(ownedInstancedMeshes.map((mesh) => [mesh, 0]));
   for (const mesh of ownedInstancedMeshes) {
     mesh.addEventListener('dispose', () => disposeEvents.set(mesh, disposeEvents.get(mesh) + 1));
@@ -489,7 +555,7 @@ test('state refresh is read-only, switches borrowed floor resources without rebu
 
   const first = assembly.dispose();
   assert.deepEqual(first, {
-    alreadyDisposed: false, removedRoots: 6, restoredFallbacks: 6, disposedResources: 7,
+    alreadyDisposed: false, removedRoots: 6, restoredFallbacks: 6, disposedResources: 9,
   });
   assert.equal(exterior.children.length, 0);
   assert.equal(interior.children.length, 0);
@@ -502,6 +568,197 @@ test('state refresh is read-only, switches borrowed floor resources without rebu
   });
   assert.equal([...disposeEvents.values()].every((count) => count === 1), true);
   assert.equal(fixture.resources.every(({ geometry, material }) => geometry === 0 && material === 0), true);
+});
+
+test('construction ceiling refresh swaps authored resources and transforms while toggling architectural beams', () => {
+  const municipalState = state({ ceilingFinish: 'drop-ceiling', ceilingQuality: 'municipal' });
+  const luxuryState = state({ ceilingFinish: 'luxury-coffered', ceilingQuality: 'luxury' });
+  const { fixture, assembly } = createCompleteAssembly({
+    initialState: municipalState,
+    mutateFixture: (nextFixture) => {
+      // A construction carrier may have its own authored hierarchy transform.
+      // Live swaps must recompute matrices from the selected carrier rather
+      // than retaining the initially installed drop-ceiling transform.
+      nextFixture.sourceMeshes.get(58).get('construction_luxury_coffered_luxury').rotation.y = Math.PI;
+    },
+  });
+  const ceilingRoot = assembly.getRoot(58);
+  const panelBatch = findMeshes(ceilingRoot).find(
+    (mesh) => mesh.isInstancedMesh && mesh.userData.sheet06Variant === 'ceiling_panel',
+  );
+  const beamBatches = findMeshes(ceilingRoot).filter(
+    (mesh) => mesh.isInstancedMesh && mesh.userData.sheet06Variant === 'straight',
+  );
+  assert.ok(panelBatch);
+  assert.ok(beamBatches.length > 0);
+  assert.equal(panelBatch.geometry,
+    fixture.sourceMeshes.get(58).get('construction_drop_ceiling_municipal').geometry);
+  assert.equal(beamBatches.every((mesh) => mesh.visible === false), true);
+  const municipalMatrix = new THREE.Matrix4();
+  panelBatch.getMatrixAt(0, municipalMatrix);
+
+  const result = assembly.refreshState(luxuryState);
+  assert.deepEqual(result, { applied: 6, failed: 0, disposed: false, rebuilt: 0 });
+  assert.equal(assembly.getRoot(58), ceilingRoot, 'live install reuses the production ceiling root');
+  assert.equal(panelBatch.geometry,
+    fixture.sourceMeshes.get(58).get('construction_luxury_coffered_luxury').geometry);
+  assert.equal(panelBatch.material,
+    fixture.sourceMeshes.get(58).get('construction_luxury_coffered_luxury').material);
+  const luxuryMatrix = new THREE.Matrix4();
+  panelBatch.getMatrixAt(0, luxuryMatrix);
+  assert.ok(municipalMatrix.elements[0] > 0);
+  assert.ok(luxuryMatrix.elements[0] < 0, 'live install applies the selected carrier transform');
+  assert.equal(beamBatches.every((mesh) => mesh.visible === true), true);
+  assert.deepEqual(assembly.diagnostics().ceiling, {
+    selectedVariant: 'construction_luxury_coffered_luxury',
+    architecturalBeamsVisible: true,
+  });
+  assembly.dispose();
+});
+
+test('construction lighting refresh switches stable ceiling, wall and landscape mounting modes', () => {
+  const ledState = state({ lightingFinish: 'led-panels', lightingQuality: 'municipal' });
+  const sconceState = state({ lightingFinish: 'wall-sconces', lightingQuality: 'luxury' });
+  const landscapeState = state({ lightingFinish: 'landscape-lighting', lightingQuality: 'luxury' });
+  const chandelierState = state({ lightingFinish: 'luxury-chandeliers', lightingQuality: 'luxury' });
+  const { fixture, assembly } = createCompleteAssembly({ initialState: ledState });
+  const ceilingRoot = assembly.getRoot(58);
+  const ceilingBatch = findMeshes(ceilingRoot).find(
+    (mesh) => mesh.isInstancedMesh && mesh.userData.sheet06Variant === 'light_mount',
+  );
+  const wallBatch = findMeshes(ceilingRoot).find(
+    (mesh) => mesh.isInstancedMesh && mesh.userData.sheet06Variant === 'wall_light_mount',
+  );
+  assert.ok(ceilingBatch);
+  assert.ok(wallBatch);
+  assert.equal(ceilingBatch.visible, true);
+  assert.equal(wallBatch.visible, false);
+  assert.equal(ceilingBatch.geometry,
+    fixture.sourceMeshes.get(58).get('construction_led_panels_municipal').geometry);
+  assert.deepEqual(assembly.diagnostics().lighting, {
+    selectedVariant: 'construction_led_panels_municipal',
+    mountKind: 'ceiling',
+    ceilingFixtureCount: 1,
+    wallFixtureCount: 1,
+    activeFixtureCount: 1,
+  });
+
+  assert.deepEqual(assembly.refreshState(sconceState), {
+    applied: 6, failed: 0, disposed: false, rebuilt: 0,
+  });
+  assert.equal(ceilingBatch.visible, false);
+  assert.equal(wallBatch.visible, true);
+  assert.equal(wallBatch.geometry,
+    fixture.sourceMeshes.get(58).get('construction_wall_sconces_luxury').geometry);
+  assert.equal(assembly.diagnostics().lighting.mountKind, 'wall');
+
+  assert.deepEqual(assembly.refreshState(landscapeState), {
+    applied: 6, failed: 0, disposed: false, rebuilt: 0,
+  });
+  assert.equal(ceilingBatch.visible, false);
+  assert.equal(wallBatch.visible, false);
+  assert.deepEqual(assembly.diagnostics().lighting, {
+    selectedVariant: 'construction_landscape_lighting_luxury',
+    mountKind: 'landscape',
+    ceilingFixtureCount: 1,
+    wallFixtureCount: 1,
+    activeFixtureCount: 24,
+  });
+
+  assert.deepEqual(assembly.refreshState(chandelierState), {
+    applied: 6, failed: 0, disposed: false, rebuilt: 0,
+  });
+  assert.equal(ceilingBatch.visible, true);
+  assert.equal(wallBatch.visible, false);
+  assert.equal(ceilingBatch.geometry,
+    fixture.sourceMeshes.get(58).get('construction_luxury_chandeliers_luxury').geometry);
+  assert.equal(assembly.diagnostics().lighting.mountKind, 'ceiling');
+  assembly.dispose();
+});
+
+test('construction wall refresh fits a one-piece carrier into the legacy panel batch and toggles joinery', () => {
+  const municipalState = state({
+    panelsRestored: true, wallFinish: 'drywall', wallQuality: 'municipal',
+  });
+  const luxuryState = state({
+    panelsRestored: true, wallFinish: 'luxury-moulding', wallQuality: 'luxury',
+  });
+  const { fixture, assembly } = createCompleteAssembly({
+    initialState: municipalState,
+    mutateFixture: (nextFixture) => {
+      nextFixture.sourceMeshes.get(56).get('construction_luxury_moulding_luxury').rotation.y = Math.PI;
+      const straight = nextFixture.templates.get(56).children.find(
+        (child) => child.userData.variant_id === 'straight',
+      );
+      straight.children.reverse();
+    },
+  });
+  const wallRoot = assembly.getRoot(56);
+  const straightBatches = findMeshes(wallRoot).filter(
+    (mesh) => mesh.isInstancedMesh && mesh.userData.sheet06Variant === 'straight',
+  );
+  const connectorBatches = findMeshes(wallRoot).filter(
+    (mesh) => mesh.isInstancedMesh && mesh.userData.sheet06Variant === 'inside_corner',
+  );
+  const activePanel = straightBatches.find((mesh) => (
+    mesh.geometry === fixture.sourceMeshes.get(56).get('construction_drywall_municipal').geometry
+  ));
+  assert.ok(activePanel);
+  assert.ok(straightBatches.length > 1, 'legacy multi-resource panel reserves its existing batches');
+  assert.equal(straightBatches.filter((mesh) => mesh.visible).length, 1,
+    'one-piece drywall hides unused legacy panel resources');
+  assert.ok(connectorBatches.length > 0);
+  assert.equal(connectorBatches.every((mesh) => mesh.visible === false), true);
+  const municipalMatrix = new THREE.Matrix4();
+  activePanel.getMatrixAt(0, municipalMatrix);
+
+  assert.deepEqual(assembly.refreshState(luxuryState), {
+    applied: 6, failed: 0, disposed: false, rebuilt: 0,
+  });
+  assert.equal(activePanel.geometry,
+    fixture.sourceMeshes.get(56).get('construction_luxury_moulding_luxury').geometry);
+  const luxuryMatrix = new THREE.Matrix4();
+  activePanel.getMatrixAt(0, luxuryMatrix);
+  assert.ok(municipalMatrix.elements[0] > 0);
+  assert.ok(luxuryMatrix.elements[0] < 0, 'live wall install applies the selected carrier transform');
+  assert.equal(connectorBatches.every((mesh) => mesh.visible === true), true);
+  assert.deepEqual(assembly.diagnostics().walls, {
+    selectedVariant: 'construction_luxury_moulding_luxury',
+    walnutJoineryVisible: true,
+  });
+  assembly.dispose();
+});
+
+test('construction window refresh preserves stable aperture instances while replacing cloned resources', () => {
+  const municipalState = state({
+    windowsRestored: true, windowFinish: 'cheap-aluminum', windowQuality: 'municipal',
+  });
+  const luxuryState = state({
+    windowsRestored: true, windowFinish: 'luxury-country-club', windowQuality: 'luxury',
+  });
+  const { fixture, assembly } = createCompleteAssembly({ initialState: municipalState });
+  const windowsRoot = assembly.getRoot(55);
+  const stableInstances = [...windowsRoot.children];
+  const municipalGeometry = fixture.sourceMeshes.get(55).get('construction_cheap_aluminum_municipal').geometry;
+  const luxuryGeometry = fixture.sourceMeshes.get(55).get('construction_luxury_country_club_luxury').geometry;
+  assert.equal(stableInstances.length, 4);
+  assert.equal(stableInstances.every((instance) => findMeshes(instance)[0].geometry === municipalGeometry), true);
+  assert.equal(stableInstances.every((instance) => instance.userData.sheet06WindowBroken === false), true);
+
+  assert.deepEqual(assembly.refreshState(luxuryState), {
+    applied: 6, failed: 0, disposed: false, rebuilt: 0,
+  });
+  assert.equal(assembly.getRoot(55), windowsRoot);
+  assert.equal(windowsRoot.children.every((instance, index) => instance === stableInstances[index]), true,
+    'stable aperture placement groups are not rebuilt');
+  assert.equal(stableInstances.every((instance) => findMeshes(instance)[0].geometry === luxuryGeometry), true);
+  assert.equal(stableInstances.every((instance) => (
+    instance.userData.sheet06SelectedVariant === 'construction_luxury_country_club_luxury'
+  )), true);
+  assert.deepEqual(assembly.diagnostics().windows, {
+    selectedVariant: 'construction_luxury_country_club_luxury', instanceCount: 4,
+  });
+  assembly.dispose();
 });
 
 test('missing and malformed templates keep only their own fallbacks visible and leave no partial derived roots', () => {
@@ -544,7 +801,7 @@ test('missing and malformed templates keep only their own fallbacks visible and 
 
   const disposed = assembly.dispose();
   assert.deepEqual(disposed, {
-    alreadyDisposed: false, removedRoots: 2, restoredFallbacks: 2, disposedResources: 3,
+    alreadyDisposed: false, removedRoots: 2, restoredFallbacks: 2, disposedResources: 5,
   });
   assert.equal([...fallbacks.values()].every((fallback) => fallback.visible), true);
   assert.equal(fixture.resources.every(({ geometry, material }) => geometry === 0 && material === 0), true);

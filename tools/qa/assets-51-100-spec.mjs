@@ -58,6 +58,19 @@ export const CATEGORY_BUDGETS = Object.freeze({
   }),
 });
 
+// Sheet-6 construction catalogs deliberately bundle every purchasable visual
+// grade into the asset that owns that architectural surface. Keep their limits
+// explicit and close to measured output instead of weakening the category-wide
+// ceilings used by the remaining Assets 61-100.
+export const ASSET_BUDGET_OVERRIDES = Object.freeze({
+  51: Object.freeze({ materialBudget: 24 }),
+  53: Object.freeze({ triangleBudget: 50000, meshBudget: 150, materialBudget: 32 }),
+  55: Object.freeze({ meshBudget: 64, materialBudget: 28 }),
+  56: Object.freeze({ meshBudget: 48, materialBudget: 40 }),
+  58: Object.freeze({ triangleBudget: 60000, meshBudget: 64, materialBudget: 64 }),
+  59: Object.freeze({ triangleBudget: 56000, meshBudget: 52, materialBudget: 52 }),
+});
+
 export const FIRST_PERSON_BUDGET = Object.freeze({
   triangleBudget: 18000,
   meshBudget: 20,
@@ -71,7 +84,7 @@ export const FIRST_PERSON_BUDGET = Object.freeze({
 const defs = [
   [51, 'FINISHED CLUBHOUSE EXTERIOR', 'finished_clubhouse_exterior', 'architecture-shell',
     'Complete restored clubhouse shell and exterior destination state',
-    { width: 19.20, height: 7.13, depth: 12.34 }, 'Permanent clubhouse footprint',
+    { width: 19.89, height: 7.13, depth: 13.46 }, 'Permanent clubhouse footprint plus receiving-door and landscape-light finish carriers',
     'Restoration-state destination; walkable exterior/interior transition',
     'Modular restored-state visibility transition; no monolithic building clip.', [],
     ['SOCKET_MainEntrance', 'SOCKET_Porch', 'SOCKET_ClubSign', 'SOCKET_ExteriorLight_W', 'SOCKET_ExteriorLight_E'],
@@ -153,7 +166,7 @@ const defs = [
     }],
   [58, 'CEILING AND BEAM KIT', 'ceiling_and_beam_kit', 'architecture-module',
     'Modular beams, intersections, caps, ceiling panels, trim and recessed-light mounts',
-    { moduleLength: 3.60, width: 0.20, height: 0.24 }, 'Clubhouse ceiling grid',
+    { moduleLength: 3.60, width: 0.96, height: 1.08 }, 'Clubhouse ceiling grid plus ceiling and wall fixture finish carriers',
     'Restoration-state ceiling dressing and fixture mounting',
     'Static modules; damaged/restored variants remain on the same structural grid.', [],
     ['SOCKET_BeamNext', 'SOCKET_BeamCross', 'SOCKET_BeamEnd', 'SOCKET_RecessedLight'],
@@ -706,7 +719,11 @@ export const ASSETS = Object.freeze(defs.map((definition) => {
     animationRequirements, requiredAnimations, requiredSockets,
     collisionRequirements, extra = {}] = definition;
   const referenceSheet = Math.ceil(assetNumber / 10);
-  const budget = CATEGORY_BUDGETS[category];
+  const categoryBudget = CATEGORY_BUDGETS[category];
+  const budget = Object.freeze({
+    ...categoryBudget,
+    ...(ASSET_BUDGET_OVERRIDES[assetNumber] || {}),
+  });
   const representations = [...(extra.representations || ['world'])];
   const plannedPaths = plannedPathsFor(assetNumber, stem, representations.includes('first-person'));
   const currentCandidates = freezeCandidates(extra.currentCandidates);

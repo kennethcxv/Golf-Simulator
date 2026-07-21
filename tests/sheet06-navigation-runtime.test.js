@@ -189,6 +189,13 @@ function rootFor(number) {
       root.add(child);
     }
   }
+  if (number === 52) {
+    for (const name of ['MESH_BoardedApertureDamage', 'MESH_BoardedApertureFasteners']) {
+      const child = new THREE.Group();
+      child.name = name;
+      root.add(child);
+    }
+  }
   return root;
 }
 
