@@ -10,6 +10,25 @@ import {
   resolveLifecycleConfig,
 } from '../tools/qa/simplified-register-lifecycle-stress.mjs';
 
+test('lifecycle runner brackets the exact browser route with immutable build snapshots', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/simplified-register-lifecycle-stress.js', import.meta.url),
+    'utf8',
+  );
+  const before = source.indexOf('writeCashierBuildSnapshotFile({ outputPath: buildBefore })');
+  const route = source.indexOf('runSimplifiedRegisterLifecycleStress(page');
+  const after = source.indexOf('writeCashierBuildSnapshotFile({ outputPath: buildAfter })');
+
+  assert.ok(before >= 0 && route > before && after > route,
+    'build-before must precede the browser route and build-after must follow it');
+  assert.match(source, /finally \{/,
+    'the after snapshot must survive a browser-route failure');
+  assert.match(source, /Lifecycle evidence root must be fresh; refusing to overwrite/,
+    'authoritative evidence must never silently replace an earlier run');
+  assert.match(source, /process\.env\.QA_RESULT_PATH = runnerResult/,
+    'the byte-identical runner result must be written into the bracketed root');
+});
+
 test('browser resource instrumentation is memory-neutral while preserving exact counters', () => {
   const source = fs.readFileSync(
     new URL('../tools/qa/simplified-register-lifecycle-stress.mjs', import.meta.url),
