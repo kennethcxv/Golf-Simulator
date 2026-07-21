@@ -11,7 +11,7 @@ export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
       title,
       ring,
       el('div', { class: 'tool-wheel-center' }, selectedName, selectedDetail,
-        el('div', { class: 'tool-wheel-help', text: 'Mouse, arrows, or number keys · Enter equips · Esc closes · Q swaps back' })),
+        el('div', { class: 'tool-wheel-help', text: 'Mouse or arrows · Enter equips · Esc closes · Q swaps back' })),
     ),
   );
   let entries = [];
@@ -127,8 +127,7 @@ export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
 
   function show(nextEntries, currentId = null) {
     entries = nextEntries.map((entry) => ({ available: true, ...entry }));
-    root.classList.toggle('is-dense', entries.length > 7);
-    root.dataset.toolCount = String(entries.length);
+    root.classList.toggle('is-dense', entries.length > 8);
     ring.replaceChildren(...entries.map((entry, index) => el('button', {
       type: 'button',
       class: `tool-wheel-item${entry.available === false ? ' is-disabled' : ''}`,

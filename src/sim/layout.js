@@ -7,7 +7,8 @@
 
 import {
   BACKDOOR_CLEARWAY, COUNTER, DOOR_CLEARWAY, FIXTURES, INTERIOR, LOUNGE, OFFICE,
-  PARTITIONS, PLAYER_DIAM, SHELL, STAFF_CORRIDOR_MIN, STOCKROOM, fixtureRect, queueSlot,
+  PARTITIONS, PLAYER_DIAM, SHELL, STAFF_CORRIDOR_MIN, STOCKROOM,
+  fixtureBrowsePoint, fixtureRect, queueSlot,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
 import {
@@ -15,6 +16,7 @@ import {
   STATIC_PLACEMENT_SURFACES, STATIC_PLACEMENT_SURFACE_BY_ID, WALL_OPENINGS,
   WALL_SURFACE_BY_ID, placeableById,
 } from '../data/placeableCatalog.js';
+import { fixtureIsInstalled } from './shopProgression.js';
 
 export const GRID = 0.25;
 export const FINE_GRID = 0.05;
@@ -28,7 +30,7 @@ const snap = (value, step = GRID) => Math.round(value / step) * step;
 const finite = (...values) => values.every(Number.isFinite);
 const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
-const rectsOverlap = (a, b, eps = EPS) =>
+export const rectsOverlap = (a, b, eps = EPS) =>
   a.maxX > b.minX + eps && a.minX < b.maxX - eps
   && a.maxZ > b.minZ + eps && a.minZ < b.maxZ - eps;
 
@@ -175,10 +177,11 @@ export function soldObjects(state) {
 }
 
 // Backwards-compatible fixture view used by stock, fixture builders and older QA.
-export function placedFixtures(state) {
+export function placedFixtures(state, { tierId = null } = {}) {
   const layout = ensureLayout(state);
   const result = [];
   for (const fixture of FIXTURES) {
+    if (!fixtureIsInstalled(state, fixture.id, tierId)) continue;
     const object = objectById(state, fixture.id);
     if (object && object.state === 'placed') result.push(object);
   }
@@ -473,6 +476,11 @@ function solidAt(x, z, rects) {
 
 export function routesIntact(state, override = null) {
   const rects = navigationRects(state, override);
+  const fixtures = placedFixtures(state).filter((fixture) => fixture.id !== override?.id);
+  if (override?.place) {
+    const fixture = fixtureMeta(override.id)?.fixture;
+    if (fixture) fixtures.push({ ...fixture, ...override.place });
+  }
   const start = { x: (DOOR_CLEARWAY.minX + DOOR_CLEARWAY.maxX) / 2, z: INTERIOR.d / 2 - 1.0 };
   const width = Math.ceil(INTERIOR.w / GRID);
   const height = Math.ceil(INTERIOR.d / GRID);
@@ -511,18 +519,19 @@ export function routesIntact(state, override = null) {
     }
     return false;
   };
-  if (!reached(queueSlot(0)) || !reached(COUNTER.staffStand)
-    || !reached(OFFICE.chair) || !reached(STOCKROOM.receivingInside)) return false;
-  for (const fixture of placedFixtures(state)) {
-    if (!fixture.skus?.length || fixture.id === override?.id) continue;
-    const rect = fixtureRect(fixture);
-    const points = [
-      { x: (rect.minX + rect.maxX) / 2, z: rect.maxZ + R + 0.1 },
-      { x: (rect.minX + rect.maxX) / 2, z: rect.minZ - R - 0.1 },
-      { x: rect.maxX + R + 0.1, z: (rect.minZ + rect.maxZ) / 2 },
-      { x: rect.minX - R - 0.1, z: (rect.minZ + rect.maxZ) / 2 },
-    ];
-    if (!points.some(reached)) return false;
+
+  // the places a shop only works if you can get to
+  if (!reached(queueSlot(0))) return false;
+  if (!reached(COUNTER.staffStand)) return false;
+  if (!reached(OFFICE.chair)) return false;
+  if (!reached(STOCKROOM.receivingInside)) return false;
+  // ...and every unit the customer is meant to browse
+  for (const f of fixtures) {
+    if (!f.skus || !f.skus.length) continue;
+    // Runtime customers approach the authored local +Z/front pose. Reaching a
+    // different side of the AABB is not sufficient: the merchandise and its
+    // interaction face do not move to that side.
+    if (!reached(fixtureBrowsePoint(f))) return false;
   }
   return true;
 }
@@ -882,6 +891,31 @@ export function restoreObject(state, id, candidateValue = null, options = {}) {
 export function restoreFixture(state, id) {
   const result = restoreObject(state, id, null, { skipValidation: true });
   return result.ok ? fixtureById(state, id) : null;
+}
+
+// Construction can reveal several authored fixtures at once. Validate the
+// complete future floor as one candidate before activation, including whatever
+// the player moved while the contractors were working. This is the same rule
+// set build mode uses, so expansion can never trap the player or create an
+// unreachable display behind their back.
+export function shopExpansionLayoutSafety(state, tierId) {
+  const candidate = {
+    ...state,
+    shop: {
+      ...state.shop,
+      progression: {
+        ...(state.shop?.progression || {}),
+        tier: tierId,
+        legacyFullLayout: false,
+      },
+    },
+  };
+  const reasons = [];
+  for (const fixture of placedFixtures(candidate)) {
+    const result = validatePlacement(candidate, fixture.id, fixture.x, fixture.z, fixture.ry || 0);
+    if (!result.ok) reasons.push(...result.reasons.map((reason) => `${fixture.title}: ${reason}`));
+  }
+  return { ok: reasons.length === 0, reasons: [...new Set(reasons)] };
 }
 
 export function sellObject(state, id, options = {}) {

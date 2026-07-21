@@ -1,0 +1,33 @@
+{
+ "id": "pf_fixture_checkout_counter_shop",
+ "kind": "fixtures",
+ "category": "checkout_counter_shop",
+ "dims_m": [
+  1.66,
+  0.8,
+  0.95
+ ],
+ "min_z": 0.0,
+ "tris": 336,
+ "textures": [
+  "CtrCrest:512x512",
+  "NRM_leather_0.35_512:512x512",
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSCharcoal:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "COUNTER_SLOT_01",
+  "COUNTER_SLOT_02",
+  "COUNTER_SLOT_03"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_checkout_counter_shop.glb",
+ "blend": "assets/pro_shop/source/fixtures/checkout_counter_shop/pf_fixture_checkout_counter_shop.blend",
+ "name": "Pf Checkout Counter Shop",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

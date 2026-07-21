@@ -1,0 +1,4 @@
+interface:
+  display_name: "Checkout Production"
+  short_description: "Complete and verify the full checkout interaction"
+  default_prompt: "Use $checkout-production to implement and validate the complete cash-register experience."

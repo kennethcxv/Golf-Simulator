@@ -18,6 +18,7 @@ const setup = () => {
   const s = newGame(1);
   s.cash = 50000;
   s.shop.unlockedTier = 3;
+  s.shop.progression.tier = 'luxury';
   return s;
 };
 
@@ -66,6 +67,23 @@ test('the van at the door cannot be turned away', () => {
   assert.match(res.reason, /too late|door/i);
   assert.equal(s.cash, cash, 'no refund');
   assert.equal(s.shop.orders.length, 1, 'and the order is still coming');
+});
+
+test('a blocked van can be turned away so paid stock cannot become a permanent soft-lock', () => {
+  const s = setup();
+  const cash0 = s.cash;
+  const p = placeOrder(s, 'bag1', 9);
+  assert.ok(p.ok, 'largest valid single manifest was paid for');
+  const o = s.shop.orders[0];
+  o.status = 'arriving';
+  o.blocked = true; // the driver explicitly unloaded nothing
+
+  const res = cancelOrder(s, o.id);
+
+  assert.equal(res.ok, true);
+  assert.equal(res.refund, p.cost);
+  assert.equal(s.cash, cash0, 'the exact paid amount was restored');
+  assert.equal(s.shop.orders.length, 0);
 });
 
 test('cancelling an order that never existed refuses quietly', () => {

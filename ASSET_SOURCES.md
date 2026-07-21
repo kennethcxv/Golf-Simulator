@@ -81,9 +81,9 @@ three r185 (qa/assets-inventory-sheet.png); single mesh + baked material each,
 unit-normalized (scene-side scaling applied per use).
 
 In use (vendor/models/ name ← Assets source):
-- tractor_red.glb ← red+tractor — the restored drivable tractor
-- tractor_broken.glb ← tractor — the broken starter (dressed down in code)
-- mower_deck.glb ← red+agricultural+machine — hitched behind the tractor
+- tractor_red.glb ← red+tractor — legacy fallback for the restored tractor
+- tractor_broken.glb ← tractor — retained legacy reference; superseded in-game
+- mower_deck.glb ← red+agricultural+machine — legacy mower fallback
 - shed.glb / workbench.glb / tool_chest.glb / gas_can.glb / belt.glb — the
   maintenance-yard repair sequence
 - leaves_pile.glb ← fallen+leaves+pile — yard junk chore + course litter piles
@@ -106,6 +106,31 @@ vendor/models/tractor.glb is an original bpy-scripted fallback (project-owned).
 The rigged-character GLB attempt failed at the Blender 5.1 → three r185 skin
 boundary and was deleted; characters are procedural three.js figures
 (src/render3d/characterAsset.js), no external assets.
+
+## Production grounds tractor (2026-07-19)
+
+The active tractor and rear finish mower are **original project-authored geometry**.
+No downloaded, third-party, Tripo, Meshy, or Imagegen geometry or textures are used.
+They are project-owned and reproducible with Blender 5.1 from:
+
+    "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+        --factory-startup --python tools/blender/build_tractor.py
+
+| File | Purpose | Runtime geometry |
+|---|---|---:|
+| `vendor/models/tractor_production.glb` | Compact open-station grounds tractor with named steering, wheel, hood, and hitch pivots | 12,068 tris / 59 meshes |
+| `vendor/models/mower_deck_production.glb` | Separate rear finish mower with deck and blade pivots | 1,268 tris / 15 meshes |
+| `Assets/Blender/tractor_production.blend` | Editable source scene with the implement mounted at its real hitch | source only |
+
+The tractor uses believable 2.02 × 3.47 × 2.22 m dimensions, a 1.85 m
+wheelbase, applied mesh transforms, explicit `COL_` simplified collision meshes,
+and the project's cream/green/sage/charcoal/walnut/brass material language. The
+Blender MCP bridge was used to inspect the generated source hierarchy and pivots;
+the repeatable script remains the authoritative build path.
+
+The low-profile pop-up sprinkler head introduced with grounds planning is original
+three.js geometry in `src/render3d/courseScene.js` (two instanced cylinders using the
+project charcoal/brass palette). It has no external source, texture, or license.
 
 ## Audio (2026-07-13 production pass)
 
@@ -157,6 +182,53 @@ in this environment (recorded as a blocker); the headless CLI is the better
 pipeline regardless, because the authoring scripts are committed rather than the
 binaries being unexplainable artefacts.
 
+## Pro-shop fixture pack (2026-07-19)
+
+Sixteen GLBs are authored from scratch in this repository by
+`tools/blender/build_shop_fixtures.py`. They are project-owned: no third-party
+downloads, external textures, generated assets, or generation credits were used.
+
+| Model | Role |
+|---|---|
+| `club_wall_bay.glb` | Two-row club bay with sole troughs and shaft/grip clips |
+| `pegboard_wall.glb` | Carded-accessory wall with an authored hook grid |
+| `apparel_wall.glb` | Folded-goods boards and a short outerwear rail |
+| `ball_wall.glb` | Three-board ball wall with authored product-lane dividers |
+| `hat_wall.glb` | Eight-facing wall bay that keeps headwear and shoppers off the same floor footprint |
+| `shoe_wall.glb` | Three-board shoe wall with an integrated shallow try-on ledge |
+| `basket_station.glb` | Open scorecard stand with two visible nested basket positions |
+| `demo_club_rack.glb` | Three-putter trial rack parked beside the walkable demo mat |
+| `feature_table.glb` | Low nested oak new-arrivals/apparel island |
+| `fitting_room.glb` | Three-sided fitting room, curtain, mirror, bench, and interior garment hooks |
+| `drinks_fridge.glb` | Glass-front compact cold case |
+| `snack_rack.glb` | Four-tier turn-snack rack |
+| `service_station.glb` | Scorecard and membership-information stand |
+| `premium_case.glb` | Brass-framed glass Tour Vault cabinet |
+| `putting_demo.glb` | Low felt demo mat, cup, aim marks, and backstop |
+| `bag_empty.glb` | Premium stand-bag body without a sightline-blocking club fan |
+
+Rebuild all sixteen with:
+
+    "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+        --factory-startup --python tools/blender/build_shop_fixtures.py
+
+Origins are floor-centre, transforms are applied on export, dimensions use the
+game's yard-scale convention, and named material slots are remapped onto the
+shared clubhouse palette by `src/render3d/clubhouse/merch.js`. Simplified
+collision remains in `src/data/shopLayout.js`, so visual detail never becomes a
+high-poly physics mesh.
+
+### Original refreshment label atlas
+
+`public/assets/textures/shop/turn-snacks-label-atlas.png` is original fictional
+packaging artwork generated for this project with the preinstalled OpenAI
+Imagegen tool on 2026-07-19. It contains the invented TURN CRISPS, NINTH HOLE
+BAR, and CADDIE CRACKERS fronts. Prompt constraints required a flat three-column
+atlas in the clubhouse cream/green/sage/walnut/charcoal/brass palette, verbatim
+fictional names, no real trademarks, and no watermark. It is used only as a
+front-label texture; package geometry is rendered in Three.js and the physical
+rack/fridge remain Blender-authored. No third-party source images were used.
+
 
 ## Register kit (2026-07-14)
 
@@ -165,7 +237,7 @@ assets, no generation credits spent.
 
 | Model | Notes |
 |---|---|
-| `cash_drawer.glb` | **REBUILT EMPTY.** Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.25, 0.10, 0.05], matching DENOMS. |
+| `cash_drawer.glb` | **REBUILT EMPTY.** Five bill wells for [50, 20, 10, 5, 1] and five coin cups for [0.50, 0.20, 0.10, 0.05, 0.01], matching DENOMS. |
 | `basket.glb` | Shop basket: flared slatted tub, trapezoid handle. |
 | `bag_open.glb` | The open carrier goods are dropped into (the closed one a customer walks out with is separate). |
 | `impulse_rack.glb` | Three-tier counter rack of markers and tee packets, facing the queue. |
@@ -212,20 +284,54 @@ workstream; this branch carries only the unchanged runtime GLBs needed by the ga
 (`M_charcoal`, `M_kraft`, …) remapped onto the shared clubhouse kit at load, so a new prop
 costs a draw call and not a material.
 
-## Course-maintenance equipment (2026-07-19)
+## Production checkout kit (2026-07-15)
 
-`tools/blender/build_course_maintenance.py` authors the walk-behind greens reel
-mower, rotary broadcast spreader, and handheld treatment sprayer from scratch. All are project-owned; no
-external geometry, textures, or generation service was used. Editable source is
-saved to `Assets/Source/course_maintenance_equipment.blend`, with game exports at
-`vendor/models/greens_mower.glb`, `vendor/models/rotary_spreader.glb`, and
-`vendor/models/treatment_sprayer.glb`.
+Six final checkout assets are authored entirely in this repository by the repeatable
+`tools/blender/build_checkout_assets.py` script. They are project-owned originals:
+no third-party downloads, marketplace models, generated geometry, or external texture
+sources are used. Blender 5.1.2 saves an editable source for each asset under
+`asset_sources/blender/cash_register/` and exports the shipped GLB beside the clubhouse
+models under `vendor/models/clubhouse/`.
 
-The shipped bounds measure 1.092 m W x 1.230 m L x 1.044 m H for the mower,
-0.790 m W x 1.070 m L x 0.993 m H for the spreader, and 0.560 m overall W
-x 0.220 m D x 0.658 m H for the sprayer. Wheels,
-reel/impeller, handles, and control
-levers are separate with physical pivots. Each GLB includes a simple named
-`COLLISION_*` proxy that the runtime hides. Materials use the Pinehollow deep
-green, muted sage, warm cream, warm charcoal, steel, rubber, and restrained
-brass palette.
+| Editable source / shipped export | Purpose |
+|---|---|
+| `checkout_counter.blend` / `checkout_counter.glb` | Walnut/oak cashier counter with customer, scanner, staging, bagging, drawer, and staff anchors |
+| `checkout_cash_drawer.blend` / `checkout_cash_drawer.glb` | Animated housing, slide, labeled bill/coin insert, retaining clips, interaction anchors, simplified collisions |
+| `checkout_scanner.blend` / `checkout_scanner.glb` | Recessed scanner glass and physical scan-volume anchors |
+| `checkout_card_reader.blend` / `checkout_card_reader.glb` | ISO ID-1 chip slot, contactless details, ready/inserted card-pose anchors |
+| `checkout_receipt_printer.blend` / `checkout_receipt_printer.glb` | Separate paper/roll parts with printing actions and collection anchor |
+| `checkout_shopping_bag.blend` / `checkout_shopping_bag.glb` | Open kraft bag, separate handles, two grip anchors, packed-content and handoff anchors |
+
+The companion `validate_checkout_assets.py` re-imports the shipped binaries and checks
+metre-scale dimensions, applied transforms, anchors, collisions, actions, materials,
+and triangle budgets. `render_checkout_assets.py` produces isolated, animated-state,
+and assembled previews. The retained final validation is
+`qa/cash-register-production/final/blender-validation.md`; previews are under
+`qa/cash-register-production/model-previews-final/`. Runtime-generated POS, currency,
+receipt, barcode, card, and brand graphics remain original canvas textures rather than
+external image assets.
+
+### Checkout product family library
+
+Eighteen checkout-scale product families are authored by
+`tools/blender/build_checkout_products.py`. Each run starts from Blender factory
+settings, creates original project-owned geometry and Pinehollow-named PBR materials,
+bakes Blender's smoothing modifier so the source stays self-contained, saves an
+editable `.blend` in `asset_sources/blender/cash_register/`, and exports the matching
+`.glb` to `vendor/models/clubhouse/`. No Tripo input, downloaded model, image texture,
+linked Blender library, or third-party asset is used.
+
+| Family IDs (each has matching `.blend` and `.glb`) | Retail purpose |
+|---|---|
+| `checkout_product_driver`, `checkout_product_iron_set`, `checkout_product_putter`, `checkout_product_wedge` | Full-size clubs and bundled iron set |
+| `checkout_product_ball_carton` | Tier-tintable dozen-ball carton |
+| `checkout_product_folded_polo`, `checkout_product_folded_jacket`, `checkout_product_cap`, `checkout_product_glove` | Folded apparel and wearable accessories |
+| `checkout_product_tee_pouch`, `checkout_product_towel_roll`, `checkout_product_marker_blister` | Compact golf accessories and retail packs |
+| `checkout_product_rangefinder`, `checkout_product_umbrella`, `checkout_product_stand_bag` | Equipment, including separate oversize handoff props |
+| `checkout_product_shoe_pair`, `checkout_product_sock_pair`, `checkout_product_headcover` | Footwear and future headcover family |
+
+Every family includes `ANCHOR_ProductBarcode`, `ANCHOR_ProductGripPrimary`, a simplified
+`COL_Product`, source/license metadata, and UVs; oversize families also include
+`ANCHOR_ProductGripSecondary`. The retained independent source/import/runtime audit,
+per-family previews, and contact sheet are under
+`qa/cash-register-production/final/catalog-assets/independent-review/`.

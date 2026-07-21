@@ -1,0 +1,196 @@
+{
+  "folder": "Designs/RefrenceImages/Purchaseable_Items",
+  "audited": "2026-07-16",
+  "image_count": 32,
+  "brand_system": {
+    "store": "Prime Fairways (Golf Empire)",
+    "marks": {
+      "pf_crest": "gold shield/monogram crest on black header panels (fixtures, counter)",
+      "pf_wordmark": "PRIME FAIRWAYS letterspaced serifless caps, gold or white",
+      "p_monogram": "P in a thin circle (tee boxes, small packaging)",
+      "arrow_mark": "stylized upward A-arrow (clubs, gloves, shoes, bags, grips)"
+    },
+    "sub_brands": {
+      "clubs_gloves_shoes_bags": ["AERO MAX", "FORGE (460/TOUR/PRO/360/4300/HYBRID)", "VANTAGE (PRO/XLT/HYBRID)", "ELEVATE (LITE/TOUR/MAX/HYBRID)", "VELOCITY LIGHT", "ASCENT DRAW", "AERO FORGED"],
+      "wedges": "NORVIK (GAP 50 / VERSA 54 / SAND 56 / LOB 60)",
+      "balls": ["PRIME TOUR (premium, black+gold crown; rebranded from reference's real-brand name)", "BIRDIE VALUE PACK (green 3-ball sleeve)", "RANGE PRACTICE (navy 12, neon balls)", "EAGLE SOFT FEEL (navy/teal 12)"],
+      "snacks": ["FAIRWAY FUEL granola (green/cream box)", "ELEVATE TRAIL MIX (blue stand-up pouch)", "GREEN DRIVE protein bar (green wrapper)", "BUNKER BITES chips (green pillow bag)"],
+      "course": "PRIME FAIRWAYS GOLF CLUB (scorecards, bottles; reference showed 'South Pines' + 'GOLF PRO SHOP' placeholders)"
+    },
+    "notes": "Reference ball box 'PINNACLE' is a real brand and stocked fixture shots show Titleist/Nike-like marks - NEVER copy; replace with the PF system above."
+  },
+  "palette_linear_srgb_hints": {
+    "cream": "#EDE7D6", "sage": "#9CA98C", "navy": "#2B3446", "charcoal": "#3A3D40",
+    "deep_green": "#123B26", "walnut": "warm medium brown (lib_props wood_image walnut)",
+    "oak": "lighter golden wood", "black_metal": "#1A1B1D", "brass": "#B08A3C", "kraft": "#A97B4F",
+    "white_board": "#F2F0EA"
+  },
+  "images": [
+    {"id": "R01", "file": "ChatGPT Image Jul 16, 2026, 12_31_44 AM (1).png", "type": "product-sheet", "category": "apparel_tops", "items": [
+      {"sku_base": "pf_polo_classic", "desc": "pique polo, 3-button placket, tipped collar+cuffs (green stripe), chest welt stripe; cream shown", "display": ["hanging", "folded"]},
+      {"sku_base": "pf_quarterzip_tour", "desc": "quarter-zip pullover, ribbed hem/cuffs, black zip, stand collar; sage shown", "display": ["hanging", "folded"]},
+      {"sku_base": "pf_hoodie_performance", "desc": "performance hoodie, raglan, drawstrings; navy shown", "display": ["hanging", "folded"]},
+      {"sku_base": "pf_jacket_shell", "desc": "lightweight hooded full-zip shell, green zip tape, chest+hand zips, velcro cuffs; charcoal shown", "display": ["hanging"]}
+    ], "colorways": ["cream", "sage", "navy", "charcoal"], "fixture": "apparel_wall / center_table"},
+    {"id": "R02", "file": "ChatGPT Image Jul 16, 2026, 12_31_44 AM (2).png", "type": "product-sheet", "category": "hats", "items": [
+      {"sku_base": "pf_hat_structured", "desc": "5-panel structured rope cap, contrast navy rope, stitched brim; cream"},
+      {"sku_base": "pf_hat_performance", "desc": "perforated performance cap, speckled rope, laser side perf; sage"},
+      {"sku_base": "pf_hat_visor", "desc": "visor, open crown, rear adjustable gap; navy"},
+      {"sku_base": "pf_hat_bucket", "desc": "bucket hat, sage band w/ white stripe, brass eyelets, stitched brim; cream"}
+    ], "colorways": ["cream", "sage", "navy", "charcoal"], "fixture": "hat_wall / center_table"},
+    {"id": "R03", "file": "ChatGPT Image Jul 16, 2026, 12_31_45 AM (3).png", "type": "product-sheet", "category": "rangefinders", "items": [
+      {"sku_base": "pf_rangefinder_stealth", "desc": "black textured body, green edge accents"},
+      {"sku_base": "pf_rangefinder_armor", "desc": "charcoal, ribbed rubber side armor panel"},
+      {"sku_base": "pf_rangefinder_tour", "desc": "white dimpled shell, black frame, green diagonal stripe"},
+      {"sku_base": "pf_rangefinder_field", "desc": "olive body, black grip inset"}
+    ], "shared": "two front lenses (small ocular above large objective), top power+green mode buttons, rear eyepiece wheel", "packaging": "retail box", "fixture": "rangefinder_display"},
+    {"id": "R04", "file": "ChatGPT Image Jul 16, 2026, 12_31_45 AM (4).png", "type": "product-sheet", "category": "golf_balls", "items": [
+      {"sku_base": "pf_ballbox_tour12", "desc": "PRIME TOUR premium 12: black, gold crown + chevron, feature icons, side wordmark"},
+      {"sku_base": "pf_ballsleeve_value3", "desc": "BIRDIE value 3-sleeve: green/white, tall, window showing 2 stacked balls"},
+      {"sku_base": "pf_ballbox_range12", "desc": "RANGE practice 12: navy, front window w/ 4 neon balls (yellow/orange/green/pink)"},
+      {"sku_base": "pf_ballbox_soft12", "desc": "EAGLE soft feel 12: navy/white sweep, eagle head mark, icon row"},
+      {"sku_base": "pf_ball_loose", "desc": "loose balls: white w/ brand + number; yellow range ball"}
+    ], "fixture": "ball_shelf"},
+    {"id": "R05", "file": "ChatGPT Image Jul 16, 2026, 12_31_45 AM (5).png", "type": "product-sheet", "category": "snacks", "items": [
+      {"sku_base": "pf_snack_granola_box", "desc": "FAIRWAY FUEL oats&honey 6 bars: upright box, cream/green, flag art, side icon rail"},
+      {"sku_base": "pf_snack_trailmix_pouch", "desc": "ELEVATE TRAIL MIX: blue/cream stand-up pouch, mountain art, clear window, icon row"},
+      {"sku_base": "pf_snack_protein_bar", "desc": "GREEN DRIVE chocolate chip 15g: flow-wrap bar, green/cream, golfer silhouette"},
+      {"sku_base": "pf_snack_chips_bag", "desc": "BUNKER BITES sour cream & chive: green pillow bag, bunker art"}
+    ], "fixture": "snack_drink_shelf"},
+    {"id": "R06", "file": "ChatGPT Image Jul 16, 2026, 12_31_45 AM (6).png", "type": "product-sheet", "category": "divot_tools", "items": [
+      {"sku_base": "pf_divot_classic", "desc": "brushed steel teardrop, green enamel marker, pyramid-knurl grip patch"},
+      {"sku_base": "pf_divot_folding_black", "desc": "black oval body, green+brass marker, brass release button, folding fork"},
+      {"sku_base": "pf_divot_slim", "desc": "steel slim w/ black matte marker, elongated cutout, groove lines"},
+      {"sku_base": "pf_divot_folding_sage", "desc": "sage/olive scales, brass pivot + button, steel fork"}
+    ], "packaging": "hang-card", "fixture": "accessory_slatwall / gondola"},
+    {"id": "R07", "file": "ChatGPT Image Jul 16, 2026, 12_31_46 AM (7).png", "type": "product-sheet-labeled", "category": "ball_markers", "items": [
+      {"sku_base": "pf_marker_coin", "desc": "plain brass coin, stepped rim"},
+      {"sku_base": "pf_marker_enamel", "desc": "silver rim, green enamel, embossed tee icon + ring"},
+      {"sku_base": "pf_marker_clip", "desc": "copper dimpled face + magnetic hat clip"},
+      {"sku_base": "pf_marker_engraved", "desc": "pewter oval, engraved flag/green/wreath scene"}
+    ], "packaging": "hang-card", "fixture": "accessory_slatwall / gondola"},
+    {"id": "R08", "file": "ChatGPT Image Jul 16, 2026, 12_31_47 AM (8).png", "type": "product-sheet", "category": "bottles", "items": [
+      {"sku_base": "pf_bottle_squeeze", "desc": "cream squeeze, navy cap ring + green push top, dimple grips, navy base"},
+      {"sku_base": "pf_bottle_insulated", "desc": "sage insulated flask, steel screw cap + black swing handle, steel base"},
+      {"sku_base": "pf_bottle_sport", "desc": "navy sport squeeze, green push top, waisted grip"},
+      {"sku_base": "pf_bottle_slim", "desc": "cream slim cola-shape steel, steel cap + base"}
+    ], "branding": "PF flag-on-mound crest + wordmark", "fixture": "snack_drink_shelf / accessory_slatwall lower shelf"},
+    {"id": "R09", "file": "ChatGPT Image Jul 16, 2026, 12_31_47 AM (9).png", "type": "product-sheet", "category": "scorecards", "items": [
+      {"sku_base": "pf_scorecard_course", "desc": "folded A5 landscape, cream/green frame, crossed-clubs crest; interior hole table + tree skyline"},
+      {"sku_base": "pf_scorecard_booklet", "desc": "navy premium booklet, gold frame + crest, brass corners"},
+      {"sku_base": "pf_scorecard_holeguide", "desc": "single hole-guide card: big number, PAR/HDCP, vertical hole map, tee distances, tip box"},
+      {"sku_base": "pf_scorecard_mini", "desc": "small writable card, green header row"},
+      {"sku_base": "pf_pencil", "desc": "green hex pencil, brass ferrule, pink eraser"}
+    ], "fixture": "scorecard/misc shelf (checkout + slatwall)"},
+    {"id": "R10", "file": "ChatGPT Image Jul 16, 2026, 12_31_47 AM (10).png", "type": "product-sheet", "category": "drivers", "items": [
+      {"sku": "pf_driver_aero_max", "loft": "10.5", "desc": "X-blade silver crown inlays"},
+      {"sku": "pf_driver_forge_460", "loft": "10.5", "desc": "carbon weave + silver V sweep"},
+      {"sku": "pf_driver_vantage_pro", "loft": "9.5", "desc": "Y-frame chevron crown"},
+      {"sku": "pf_driver_elevate_lite", "loft": "10.5", "desc": "silver wing crown"}
+    ], "shared": "black 460cc heads, green accent lines, address view, full shafts, black grips w/ arrow mark + green rings", "fixture": "club_rack"},
+    {"id": "R11", "file": "ChatGPT Image Jul 16, 2026, 12_34_34 AM.png", "type": "product-sheet", "category": "putters", "items": [
+      {"sku": "pf_putter_blade", "desc": "classic blade, plumber hosel, silver shaft"},
+      {"sku": "pf_putter_wide_blade", "desc": "wide-body half-mallet, white sightline"},
+      {"sku": "pf_putter_mallet_spider", "desc": "square mallet w/ twin rear fangs + white rails, black shaft"},
+      {"sku": "pf_putter_fang", "desc": "horseshoe fang mallet, white sightline"}
+    ], "shared": "charcoal heads, ELEVATE pistol grip w/ gold X, ~0.87m length", "fixture": "club_rack (putter zone)"},
+    {"id": "R12", "file": "ChatGPT Image Jul 16, 2026, 12_34_42 AM.png", "type": "product-sheet", "category": "gloves", "items": [
+      {"sku": "pf_glove_leather_white", "brand": "AERO MAX", "desc": "white cabretta leather, green-trim tab, perf fingers"},
+      {"sku": "pf_glove_leather_black", "brand": "VANTAGE PRO", "desc": "black leather, green accent line"},
+      {"sku": "pf_glove_mesh_navy", "brand": "FORGE 360", "desc": "navy w/ mesh knuckle band"},
+      {"sku": "pf_glove_perf_sage", "brand": "ELEVATE LITE", "desc": "sage performance, white piping"}
+    ], "packaging": "hang-card with glove mounted", "fixture": "accessory_slatwall / gondola"},
+    {"id": "R13", "file": "ChatGPT Image Jul 16, 2026, 12_34_47 AM.png", "type": "product-sheet", "category": "shoes", "items": [
+      {"sku": "pf_shoe_spiked_pro", "desc": "white BOA-dial spiked, green accents, grey heel counter"},
+      {"sku": "pf_shoe_knit_flex", "desc": "navy knit spikeless, white midsole, green nub outsole"},
+      {"sku": "pf_shoe_saddle_classic", "desc": "white/navy saddle brogue, spiked, stacked welt"},
+      {"sku": "pf_shoe_waterproof_trail", "desc": "charcoal leather WATERPROOF, grey midsole, green eyelets"}
+    ], "display": "single display shoe (toe angled out); pair for boxes later", "fixture": "shoe_display"},
+    {"id": "R14", "file": "ChatGPT Image Jul 16, 2026, 12_34_50 AM.png", "type": "product-sheet", "category": "golf_bags", "items": [
+      {"sku": "pf_bag_stand", "desc": "sage/white stand bag, deployed twin legs, double strap, 4-way top"},
+      {"sku": "pf_bag_cart", "desc": "charcoal cart bag, 14-way top, organizer pockets"},
+      {"sku": "pf_bag_staff", "desc": "navy/white staff bag, ELEVATE TOUR, big crest, ball pocket"},
+      {"sku": "pf_bag_sunday", "desc": "navy/white slim pencil bag, single strap, handle"}
+    ], "fixture": "bag_display"},
+    {"id": "R15", "file": "ChatGPT Image Jul 16, 2026, 12_34_52 AM.png", "type": "product-sheet", "category": "pants", "items": [
+      {"sku_base": "pf_pants_tailored", "colors": ["cream", "sage", "navy", "charcoal"], "desc": "slim tailored tech chino, extended tab, side pockets, crease on charcoal"}
+    ], "display": ["standing-form reference; retail = hanging on clip hanger + folded"], "fixture": "apparel_wall / center_table"},
+    {"id": "R16", "file": "ChatGPT Image Jul 16, 2026, 12_34_55 AM.png", "type": "product-sheet-labeled", "category": "shorts", "items": [
+      {"sku": "pf_shorts_tailored_cream", "label": "TAILORED FLAT-FRONT"},
+      {"sku": "pf_shorts_tech_sage", "label": "TECHNICAL PERFORMANCE (black zip pocket)"},
+      {"sku": "pf_shorts_casual_khaki", "label": "RELAXED CASUAL (drawstring elastic waist)"},
+      {"sku": "pf_shorts_stretch_navy", "label": "PREMIUM STRETCH"}
+    ], "fixture": "apparel_wall / center_table"},
+    {"id": "R17", "file": "ChatGPT Image Jul 16, 2026, 12_37_39 AM (1).png", "type": "product-sheet", "category": "tees", "items": [
+      {"sku": "pf_teebox_wood", "desc": "CLASSIC WOOD TEES kraft box, hang tab, open front window w/ 6 crowns, green band 2-3/4in 70MM 20 TEES"},
+      {"sku": "pf_teebox_performance", "desc": "PERFORMANCE white box, white tees w/ green stripes, green band"},
+      {"sku": "pf_teebox_bamboo", "desc": "ECO BAMBOO bamboo-print box, navy band, bamboo tees w/ navy stripes"},
+      {"sku": "pf_teebox_prolaunch", "desc": "PRO LAUNCH white/navy box, stepped-crown tees"},
+      {"sku": "pf_tee_loose", "desc": "loose tees per finish (wood/white/bamboo/stepped)"}
+    ], "fixture": "accessory_slatwall (hang) / gondola"},
+    {"id": "R18", "file": "ChatGPT Image Jul 16, 2026, 12_37_39 AM (2).png", "type": "product-sheet", "category": "drivers", "items": [
+      {"sku": "pf_driver_forge_tour", "loft": "9.0"}, {"sku": "pf_driver_velocity_light", "loft": "10.5", "desc": "silver steel shaft"}, {"sku": "pf_driver_ascent_draw", "loft": "10.5", "desc": "crown weight track"}
+    ], "note": "union with R10 = driver line; build 4 heads: aero_max, forge_tour, vantage_pro, elevate_lite"},
+    {"id": "R19", "file": "ChatGPT Image Jul 16, 2026, 12_37_39 AM (3).png", "type": "product-sheet-labeled", "category": "irons", "items": [
+      {"sku": "pf_iron_players_7", "brand": "AERO FORGED", "label": "PLAYERS COMPACT PROFILE"},
+      {"sku": "pf_iron_cavity_7", "brand": "VANTAGE", "label": "CAVITY-BACK TOUR BALANCED"},
+      {"sku": "pf_iron_gameimp_7", "brand": "FORGE 4300", "label": "GAME-IMPROVEMENT FORGIVING"},
+      {"sku": "pf_iron_distance_7", "brand": "ELEVATE MAX", "label": "DISTANCE MAX LAUNCH"}
+    ], "shared": "satin chrome heads, black shafts/grips, 7-iron shown", "fixture": "club_rack (iron zone)"},
+    {"id": "R20", "file": "ChatGPT Image Jul 16, 2026, 12_37_40 AM (4).png", "type": "product-sheet", "category": "wedges", "items": [
+      {"sku": "pf_wedge_gap_50", "brand": "NORVIK GAP 50"}, {"sku": "pf_wedge_versa_54", "brand": "NORVIK VERSA 54 (alt sole/grind)"},
+      {"sku": "pf_wedge_sand_56", "brand": "NORVIK SAND 56"}, {"sku": "pf_wedge_lob_60", "brand": "NORVIK LOB 60"}
+    ], "shared": "satin chrome, milled face, loft on hosel, black-green shafts", "fixture": "club_rack (wedge zone)"},
+    {"id": "R21", "file": "ChatGPT Image Jul 16, 2026, 12_37_40 AM (5).png", "type": "product-sheet", "category": "putters", "note": "same 4 putters as R11, cleaner sheet"},
+    {"id": "R22", "file": "ChatGPT Image Jul 16, 2026, 12_37_40 AM (6).png", "type": "product-sheet", "category": "fairway_woods", "items": [
+      {"sku": "pf_wood_aero_max_3", "loft": "15"}, {"sku": "pf_wood_forge_pro_5", "loft": "18"},
+      {"sku": "pf_wood_vantage_xlt_7", "loft": "21"}, {"sku": "pf_wood_elevate_tour_3", "loft": "13.5"}
+    ], "fixture": "club_rack (wood zone)"},
+    {"id": "R23", "file": "ChatGPT Image Jul 16, 2026, 12_37_40 AM (7).png", "type": "product-sheet", "category": "hybrids", "items": [
+      {"sku": "pf_hybrid_aero_2h", "loft": "17"}, {"sku": "pf_hybrid_vantage_3h", "loft": "19"},
+      {"sku": "pf_hybrid_forge_4h", "loft": "22"}, {"sku": "pf_hybrid_elevate_5h", "loft": "25"}
+    ], "fixture": "club_rack (wood zone)"},
+    {"id": "R24", "file": "ChatGPT Image Jul 16, 2026, 12_50_16 AM.png", "type": "fixture-contact-sheet", "fixtures": [
+      {"id": "apparel_wall", "empty": true, "stocked": true, "construction": "walnut slat back, black steel posts, PF black header, upper+lower hang rails (black steel), drawer base w/ brass pulls; stocked: polos on wood hangers (row 1), shorts/pants on clip hangers (row 2), folded stacks on base shelf"},
+      {"id": "hat_wall", "empty": true, "stocked": true, "construction": "4 walnut shelves + base drawers; stocked 4 caps/shelf front-facing"},
+      {"id": "accessory_slatwall", "empty": true, "stocked": true, "construction": "walnut slatwall, 3-4 rows black metal hooks, base shelf; stocked: tee/glove/marker hang-cards, bottles + boxes on base"},
+      {"id": "club_rack", "empty": true, "stocked": true, "construction": "wall unit, top head rail w/ downlights, notched shaft rail, green base band; stocked: woods row + irons row"},
+      {"id": "bag_display", "empty": true, "stocked": true, "construction": "big two-level walnut bay w/ downlights; stocked 4 bags/level"}
+    ], "warning": "stocked panels show real-brand-like logos on products - replace with PF system"},
+    {"id": "R25", "file": "02_hat_wall_display.png", "type": "fixture-crop", "fixture": "hat_wall", "detail": "charcoal steel frame, 4 walnut display shelves (slight forward tilt), black PF header w/ gold crest, plinth base; stocked: 4 caps per shelf + top row buckets"},
+    {"id": "R26", "file": "03_accessory_slatwall (1).png", "type": "fixture-crop", "fixture": "accessory_slatwall", "detail": "dark walnut horizontal slats, black steel frame + header w/ crest, two-step walnut base platform, ~7 hooks x 3 rows; stocked: neat hang-card rows (gloves/tees/markers/towels)"},
+    {"id": "R27", "file": "04_golf_club_rack.png", "type": "fixture-crop", "fixture": "club_rack", "detail": "FREESTANDING walnut rack: curved side cheeks, top head shelf w/ back rail, notched top rail, angled lower slat deck, charcoal plinth w/ white PF wordmark band; stocked ~16-18 clubs vertical, heads up"},
+    {"id": "R28", "file": "06_golf_ball_shelf.png", "type": "fixture-crop", "fixture": "ball_shelf", "detail": "tall charcoal unit, PF header, 4 walnut shelves + stepped base shelf, side cheeks; stocked: ball boxes front-facing, 5-6 per shelf x 2 deep"},
+    {"id": "R29", "file": "07_golf_shoe_display.png", "type": "fixture-crop", "fixture": "shoe_display", "detail": "3 angled walnut tiers + flat top tier, charcoal frame, small black PF header plate, plinth; stocked: 2-3 single shoes per tier, toes angled out"},
+    {"id": "R30", "file": "08_checkout_counter.png", "type": "fixture-crop", "fixture": "checkout_counter", "detail": "charcoal cabinet + walnut top, giant PF crest + wordmark front panel, POS monitor/keyboard/terminal on top; stocked adds kraft PF bag. NOTE: interactive checkout kit already exists (assets/checkout); build matching static shop counter shell"},
+    {"id": "R31", "file": "09_center_table_display.png", "type": "fixture-crop", "fixture": "center_table", "detail": "walnut top + lower shelf, square black steel legs; stocked: folded polo stacks + folded pants + caps on top, folded piles below"},
+    {"id": "R32", "file": "10_freestanding_display.png", "type": "fixture-crop", "fixture": "freestanding_gondola", "detail": "4-sided gondola: walnut slat faces, black steel posts + top rim, 2-3 hook rows per long face, angled shelf on one face, walnut mid shelf, charcoal plinth; stocked: headcovers, glove cards, folded stacks, towels"}
+  ],
+  "category_fixture_map": {
+    "apparel_tops": ["apparel_wall", "center_table"],
+    "pants": ["apparel_wall", "center_table"],
+    "shorts": ["apparel_wall", "center_table"],
+    "hats": ["hat_wall", "center_table"],
+    "rangefinders": ["rangefinder_display"],
+    "golf_balls": ["ball_shelf"],
+    "snacks": ["snack_drink_shelf"],
+    "bottles": ["snack_drink_shelf", "accessory_slatwall"],
+    "divot_tools": ["accessory_slatwall", "freestanding_gondola"],
+    "ball_markers": ["accessory_slatwall", "freestanding_gondola"],
+    "scorecards": ["rangefinder_display", "checkout_counter"],
+    "tees": ["accessory_slatwall", "freestanding_gondola"],
+    "gloves": ["accessory_slatwall", "freestanding_gondola"],
+    "shoes": ["shoe_display"],
+    "golf_bags": ["bag_display"],
+    "drivers": ["club_rack"], "fairway_woods": ["club_rack"], "hybrids": ["club_rack"],
+    "irons": ["club_rack"], "wedges": ["club_rack"], "putters": ["club_rack"],
+    "towels": ["accessory_slatwall", "freestanding_gondola"],
+    "headcovers": ["freestanding_gondola"],
+    "belts": ["accessory_slatwall"],
+    "umbrellas": ["freestanding_gondola"],
+    "sunglasses": ["rangefinder_display"],
+    "gift_cards": ["checkout_counter"]
+  },
+  "fixtures_not_in_min_list_but_shown": ["rangefinder_display and snack_drink_shelf share the ball-shelf construction family (charcoal frame + walnut shelves + PF header)"],
+  "additional_products_seen": ["towel hang-cards (slatwall/gondola)", "headcovers (gondola)", "pencil (scorecard sheet)", "loose balls/tees", "kraft PF shopping bag (checkout, exists in assets/checkout)"]
+}

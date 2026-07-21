@@ -15,10 +15,13 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "electron": "^33.2.0",
-    "playwright": "1.61.1"
+    "electron": "^39.8.10",
+    "playwright": "^1.61.1"
   },
   "dependencies": {
     "three": "^0.185.1"
+  },
+  "allowScripts": {
+    "electron@39.8.10": true
   }
 }

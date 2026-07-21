@@ -9,6 +9,7 @@ import { calendarOf, formatClock, formatDate } from '../sim/time.js';
 import { formatMoney } from '../core/utils.js';
 import { BALANCE } from '../sim/balance.js';
 import { skuById } from '../data/shopItems.js';
+import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 
 export function makeHud(app, handlers) {
   const cash = el('div', { class: 'hud-chip hud-cash', text: '' });
@@ -47,37 +48,11 @@ export function makeHud(app, handlers) {
       clock.textContent = line;
       clock.classList.toggle('paused', app.speedIdx === 0);
     }
-    const money = formatMoney(app.empire ? app.empire.cash : app.state.cash);
-    if (money !== lastCash) {
-      lastCash = money;
-      cash.textContent = money;
-    }
-
-    const walk = app.scene3d?.walk;
-    const tool = walk?.getTool?.();
-    const carrying = app.state.shop?.carry;
-    let title = '';
-    let detail = '';
-    let icon = '';
-    if (carrying?.qty) {
-      const sku = skuById(carrying.skuId);
-      icon = '□';
-      title = `Carrying ${sku?.name || carrying.skuId} ×${carrying.qty}`;
-      detail = 'Take it to its matching display';
-    } else if (tool) {
-      const names = { washer: 'Pressure washer', vacuum: 'Shop vacuum', hose: 'Watering hose', divot: 'Divot kit', rake: 'Bunker rake', boxcutter: 'Box cutter' };
-      icon = '◇';
-      title = names[tool] || tool;
-      const activation = handlers.getToolActivation?.() === 'toggle' ? 'Press LMB to toggle' : 'Hold LMB to use';
-      detail = tool === 'washer' ? `${activation} · RMB applies soap` : activation;
-    }
-    const signature = `${icon}|${title}|${detail}`;
-    if (signature !== lastContext) {
-      lastContext = signature;
-      context.style.display = title ? '' : 'none';
-      contextIcon.textContent = icon;
-      contextTitle.textContent = title;
-      contextDetail.textContent = detail;
+    // this runs every frame — only touch the DOM when the number actually moved
+    const cashLine = formatMoney(Number.isFinite(app.state?.cash) ? app.state.cash : app.empire?.cash || 0);
+    if (cashLine !== lastCash) {
+      lastCash = cashLine;
+      cash.textContent = cashLine;
     }
   }
 

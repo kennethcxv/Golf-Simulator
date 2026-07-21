@@ -1,0 +1,680 @@
+{
+  "pass": "natural-checkout-acceptance",
+  "timestamp": "2026-07-20T11:50:33.165Z",
+  "branch": "overnight/pro-shop-overhaul",
+  "baseUrl": "http://localhost:8457/",
+  "requested": [
+    "card",
+    "cash"
+  ],
+  "passed": true,
+  "attempts": [
+    {
+      "attempt": 1,
+      "method": "cash",
+      "passed": true,
+      "thrown": null
+    },
+    {
+      "attempt": 2,
+      "method": "card",
+      "passed": true,
+      "thrown": null
+    }
+  ],
+  "accepted": {
+    "cash": {
+      "attempt": 1,
+      "path": "qa/pro-shop-overhaul/natural-checkout-acceptance/cash",
+      "result": {
+        "passed": true,
+        "method": "cash",
+        "itemCount": 1,
+        "natural": {
+          "customer": {
+            "name": "Quinn B.",
+            "entered": true,
+            "queued": true,
+            "awaitingCheckout": true,
+            "queuedAt": 34.89370000000036,
+            "stopIdx": 4,
+            "stops": [
+              {
+                "kind": "walk",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "enter",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_acc",
+                "socketKey": "shelf_acc:browse:1",
+                "experience": null
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "table_polos",
+                "socketKey": "table_polos:browse:0",
+                "experience": null
+              },
+              {
+                "kind": "counter",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "exit",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "gone",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              }
+            ],
+            "cart": [
+              {
+                "uid": "u1",
+                "skuId": "tees1",
+                "price": 6
+              }
+            ],
+            "payMethodOverride": null,
+            "diagnosticInjected": false
+          },
+          "transactionItems": [
+            {
+              "uid": "u1",
+              "skuId": "tees1",
+              "price": 6
+            }
+          ],
+          "activeCustomers": 1
+        },
+        "before": {
+          "cash": 53354.4,
+          "salesUnits": 0,
+          "salesRevenue": 0,
+          "held": [],
+          "inventory": {
+            "balls1": {
+              "shelf": 10,
+              "back": 0
+            },
+            "glove1": {
+              "shelf": 4,
+              "back": 0
+            },
+            "cap1": {
+              "shelf": 5,
+              "back": 0
+            },
+            "tees1": {
+              "shelf": 14,
+              "back": 0
+            }
+          },
+          "tier": 2,
+          "clockMinutes": 429.6860000000002,
+          "speedIdx": 1
+        },
+        "after": {
+          "cash": 53360.4,
+          "salesUnits": 1,
+          "salesRevenue": 6,
+          "held": [],
+          "inventory": {
+            "balls1": {
+              "shelf": 10,
+              "back": 0
+            },
+            "glove1": {
+              "shelf": 4,
+              "back": 0
+            },
+            "cap1": {
+              "shelf": 5,
+              "back": 0
+            },
+            "tees1": {
+              "shelf": 13,
+              "back": 0
+            }
+          },
+          "tier": 2,
+          "clockMinutes": 536.3560000000019,
+          "speedIdx": 1
+        },
+        "finalRegister": {
+          "active": false,
+          "hasTx": false,
+          "customer": null
+        },
+        "normalControlRoute": [
+          {
+            "step": "fresh New Empire -> Property Market -> Buy",
+            "control": "visible UI",
+            "before": {
+              "cash": 53354.4,
+              "salesUnits": 0,
+              "salesRevenue": 0,
+              "held": [],
+              "inventory": {
+                "balls1": {
+                  "shelf": 10,
+                  "back": 0
+                },
+                "glove1": {
+                  "shelf": 4,
+                  "back": 0
+                },
+                "cap1": {
+                  "shelf": 5,
+                  "back": 0
+                },
+                "tees1": {
+                  "shelf": 14,
+                  "back": 0
+                }
+              },
+              "tier": 2,
+              "clockMinutes": 429.6860000000002,
+              "speedIdx": 1
+            },
+            "pose": {
+              "x": -8,
+              "z": 241.7,
+              "yaw": 3.935392653589793,
+              "pitch": -0.684,
+              "localX": 0,
+              "localZ": 13.699999999999989
+            }
+          },
+          {
+            "step": "walked up the porch steps",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -8.778224757424105,
+              "z": 235.67942697700212,
+              "yaw": 6.384302653589791,
+              "pitch": -0.684,
+              "localX": -0.7782247574241055,
+              "localZ": 7.679426977002123
+            },
+            "distanceToTarget": 0.131
+          },
+          {
+            "step": "opened the hinged pro-shop door",
+            "control": "E",
+            "pose": {
+              "x": -8.778224757424105,
+              "z": 235.67942697700212,
+              "yaw": 6.336992653589789,
+              "pitch": -0.684,
+              "localX": -0.7782247574241055,
+              "localZ": 7.679426977002123
+            }
+          },
+          {
+            "step": "crossed the threshold",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -8.821599285857266,
+              "z": 233.78193920244306,
+              "yaw": 6.242752653589784,
+              "pitch": -0.684,
+              "localX": -0.8215992858572658,
+              "localZ": 5.781939202443056
+            },
+            "distanceToTarget": 0.134
+          },
+          {
+            "step": "entered the staff-side approach",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -7.461911188507545,
+              "z": 233.3827507369768,
+              "yaw": 4.944672653589783,
+              "pitch": -0.684,
+              "localX": 0.5380888114924547,
+              "localZ": 5.382750736976789
+            },
+            "distanceToTarget": 0.214
+          },
+          {
+            "step": "reached the cashier stand",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -5.381006208537849,
+              "z": 233.1402010846265,
+              "yaw": 4.757332653589785,
+              "pitch": -0.684,
+              "localX": 2.6189937914621506,
+              "localZ": 5.140201084626511
+            },
+            "distanceToTarget": 0.162
+          },
+          {
+            "step": "faced the physical register",
+            "control": "ArrowLeft/ArrowRight",
+            "pose": {
+              "x": -5.381006208537849,
+              "z": 233.1402010846265,
+              "yaw": 6.198482653589785,
+              "pitch": -0.684,
+              "localX": 2.6189937914621506,
+              "localZ": 5.140201084626511
+            }
+          }
+        ],
+        "controlsUsed": [
+          "visible UI",
+          "ArrowLeft/ArrowRight + W",
+          "E",
+          "ArrowLeft/ArrowRight",
+          "Space",
+          "observation only",
+          "pointer drag across glass",
+          "T total key",
+          "pointer pickup",
+          "D",
+          "pointer drag into drawer",
+          "drawer clicks + palm click",
+          "clicked physical receipt",
+          "pointer drag into open carrier",
+          "clicked open palm"
+        ],
+        "forbiddenHooksUsed": false,
+        "stateWritesUsed": false,
+        "elapsedSeconds": 66.9
+      },
+      "consoleMessages": [
+        {
+          "type": "warning",
+          "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+        }
+      ],
+      "failedRequests": [
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/bucket_soil.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/clubhouse/kiosk.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/tractor_red.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/club_sign.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/workbench.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/shed.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/leaves_pile.glb"
+        }
+      ]
+    },
+    "card": {
+      "attempt": 2,
+      "path": "qa/pro-shop-overhaul/natural-checkout-acceptance/card",
+      "result": {
+        "passed": true,
+        "method": "card",
+        "itemCount": 1,
+        "natural": {
+          "customer": {
+            "name": "Alex R.",
+            "entered": true,
+            "queued": true,
+            "awaitingCheckout": true,
+            "queuedAt": 76.42480000000343,
+            "stopIdx": 3,
+            "stops": [
+              {
+                "kind": "walk",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "enter",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_small",
+                "socketKey": "shelf_small:browse:0",
+                "experience": null
+              },
+              {
+                "kind": "counter",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "exit",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              },
+              {
+                "kind": "gone",
+                "fixtureId": null,
+                "socketKey": null,
+                "experience": null
+              }
+            ],
+            "cart": [
+              {
+                "uid": "u1",
+                "skuId": "glove1",
+                "price": 19
+              }
+            ],
+            "payMethodOverride": null,
+            "diagnosticInjected": false
+          },
+          "transactionItems": [
+            {
+              "uid": "u1",
+              "skuId": "glove1",
+              "price": 19
+            }
+          ],
+          "activeCustomers": 1
+        },
+        "before": {
+          "cash": 54354.67,
+          "salesUnits": 0,
+          "salesRevenue": 0,
+          "held": [],
+          "inventory": {
+            "balls1": {
+              "shelf": 10,
+              "back": 0
+            },
+            "glove1": {
+              "shelf": 4,
+              "back": 0
+            },
+            "cap1": {
+              "shelf": 5,
+              "back": 0
+            },
+            "tees1": {
+              "shelf": 14,
+              "back": 0
+            }
+          },
+          "tier": 2,
+          "clockMinutes": 422.415999999999,
+          "speedIdx": 1
+        },
+        "after": {
+          "cash": 54373.67,
+          "salesUnits": 1,
+          "salesRevenue": 19,
+          "held": [],
+          "inventory": {
+            "balls1": {
+              "shelf": 10,
+              "back": 0
+            },
+            "glove1": {
+              "shelf": 3,
+              "back": 0
+            },
+            "cap1": {
+              "shelf": 5,
+              "back": 0
+            },
+            "tees1": {
+              "shelf": 14,
+              "back": 0
+            }
+          },
+          "tier": 2,
+          "clockMinutes": 543.1979999999963,
+          "speedIdx": 1
+        },
+        "finalRegister": {
+          "active": false,
+          "hasTx": false,
+          "customer": null
+        },
+        "normalControlRoute": [
+          {
+            "step": "fresh New Empire -> Property Market -> Buy",
+            "control": "visible UI",
+            "before": {
+              "cash": 54354.67,
+              "salesUnits": 0,
+              "salesRevenue": 0,
+              "held": [],
+              "inventory": {
+                "balls1": {
+                  "shelf": 10,
+                  "back": 0
+                },
+                "glove1": {
+                  "shelf": 4,
+                  "back": 0
+                },
+                "cap1": {
+                  "shelf": 5,
+                  "back": 0
+                },
+                "tees1": {
+                  "shelf": 14,
+                  "back": 0
+                }
+              },
+              "tier": 2,
+              "clockMinutes": 422.415999999999,
+              "speedIdx": 1
+            },
+            "pose": {
+              "x": -8,
+              "z": 241.7,
+              "yaw": 3.935392653589793,
+              "pitch": -0.4332,
+              "localX": 0,
+              "localZ": 13.699999999999989
+            }
+          },
+          {
+            "step": "walked up the porch steps",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -8.75689659891944,
+              "z": 235.68675894894832,
+              "yaw": 6.5380126535898,
+              "pitch": -0.4332,
+              "localX": -0.7568965989194396,
+              "localZ": 7.686758948948324
+            },
+            "distanceToTarget": 0.143
+          },
+          {
+            "step": "opened the hinged pro-shop door",
+            "control": "E",
+            "pose": {
+              "x": -8.75689659891944,
+              "z": 235.68675894894832,
+              "yaw": 6.332052653589799,
+              "pitch": -0.4332,
+              "localX": -0.7568965989194396,
+              "localZ": 7.686758948948324
+            }
+          },
+          {
+            "step": "crossed the threshold",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -8.809132656463001,
+              "z": 233.39507303609767,
+              "yaw": 6.2526326535898,
+              "pitch": -0.4332,
+              "localX": -0.8091326564630013,
+              "localZ": 5.395073036097671
+            },
+            "distanceToTarget": 0.255
+          },
+          {
+            "step": "entered the staff-side approach",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -7.452221815441764,
+              "z": 233.33554661326284,
+              "yaw": 4.668792653589794,
+              "pitch": -0.4332,
+              "localX": 0.5477781845582363,
+              "localZ": 5.335546613262835
+            },
+            "distanceToTarget": 0.203
+          },
+          {
+            "step": "reached the cashier stand",
+            "control": "ArrowLeft/ArrowRight + W",
+            "pose": {
+              "x": -5.3930116749122154,
+              "z": 233.1527187909046,
+              "yaw": 4.84340265358979,
+              "pitch": -0.4332,
+              "localX": 2.6069883250877846,
+              "localZ": 5.152718790904601
+            },
+            "distanceToTarget": 0.176
+          },
+          {
+            "step": "faced the physical register",
+            "control": "ArrowLeft/ArrowRight",
+            "pose": {
+              "x": -5.3930116749122154,
+              "z": 233.1527187909046,
+              "yaw": 6.173402653589785,
+              "pitch": -0.4332,
+              "localX": 2.6069883250877846,
+              "localZ": 5.152718790904601
+            }
+          }
+        ],
+        "controlsUsed": [
+          "visible UI",
+          "ArrowLeft/ArrowRight + W",
+          "E",
+          "ArrowLeft/ArrowRight",
+          "Space",
+          "observation only",
+          "pointer drag across glass",
+          "T total key",
+          "clicked physical terminal",
+          "clicked physical receipt",
+          "pointer drag into open carrier",
+          "clicked open palm"
+        ],
+        "forbiddenHooksUsed": false,
+        "stateWritesUsed": false,
+        "elapsedSeconds": 101.2
+      },
+      "consoleMessages": [],
+      "failedRequests": [
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/flagpole.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/hose_nozzle.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/clubhouse/armchair.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/clubhouse/kiosk.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/clubhouse/shoe_pro.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/tractor_red.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/club_sign.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/workbench.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/tool_chest.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/shed.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/belt.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/clubhouse_ext_opt.glb"
+        },
+        {
+          "error": "net::ERR_ABORTED",
+          "url": "http://localhost:8457/vendor/models/golf_cart.glb"
+        }
+      ]
+    }
+  },
+  "protocol": {
+    "boot": "fresh isolated browser context through normal New Empire UI",
+    "movement": "canvas focus plus ArrowLeft/ArrowRight, W, and E through the hinged entry",
+    "customer": "ambient spawn -> enter -> fixture browse -> shelf debit -> queue -> register.begin",
+    "checkout": "E, pointer drags/clicks, T, D, Space; no transaction or state mutation",
+    "forbiddenHooks": [
+      "prepareCheckoutQa",
+      "sendToCounter",
+      "debugSpawn"
+    ]
+  }
+}

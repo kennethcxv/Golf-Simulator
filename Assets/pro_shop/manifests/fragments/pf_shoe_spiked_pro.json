@@ -1,0 +1,35 @@
+{
+ "id": "pf_shoe_spiked_pro",
+ "kind": "products",
+ "category": "shoes",
+ "dims_m": [
+  0.1114,
+  0.3214,
+  0.1168
+ ],
+ "min_z": -0.0005,
+ "tris": 5648,
+ "textures": [
+  "DialKnurl:64x64",
+  "M_ShoeWhiteV2_alb:512x512",
+  "NRM_knurl_0.8_512:512x512",
+  "NRM_knurl_1.6_512:512x512",
+  "NRM_leather_0.5_512:512x512",
+  "RGH_leather_0.42:256x256",
+  "ShoeTab_pf_shoe_spiked_pro:128x64",
+  "SideLogo_pf_shoe_spiked_pro:96x96",
+  "SoleWhiteAlb:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_shoe_spiked_pro.glb",
+ "blend": "assets/pro_shop/source/products/shoes/pf_shoe_spiked_pro.blend",
+ "name": "PF Tour Spiked Shoe",
+ "variant": "white_dial",
+ "price": 179.99,
+ "fixture": "pf_fixture_shoe_display",
+ "slot_type": "shoe_tier",
+ "packaging": "display single"
+}

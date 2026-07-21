@@ -87,6 +87,16 @@ class Water extends Mesh {
 
 		const renderTarget = new WebGLRenderTarget( textureWidth, textureHeight, { type: HalfFloatType } );
 
+		// Golf Flipper rebuilds pond surfaces in the course editor. Expose the
+		// addon's otherwise private target so scene ownership can release it when
+		// a Water mesh is replaced instead of leaking a reflection framebuffer.
+		scope.renderTarget = renderTarget;
+		scope.dispose = function () {
+
+			renderTarget.dispose();
+
+		};
+
 		const mirrorShader = {
 
 			name: 'MirrorShader',

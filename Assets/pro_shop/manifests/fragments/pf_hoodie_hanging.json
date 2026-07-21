@@ -1,0 +1,33 @@
+{
+ "id": "pf_hoodie_hanging",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.5474,
+  0.1797,
+  0.6646
+ ],
+ "min_z": -0.6848,
+ "tris": 2968,
+ "textures": [
+  "Logo_pf_hoodie_hanging:128x128",
+  "M_HoodieNavyV2_alb:512x512",
+  "NRM_crinkle_0.12_512:512x512",
+  "NRM_fleece_0.5_512:512x512",
+  "PSSatinAlb:256x256",
+  "RGH_fleece_0.85:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hoodie_hanging.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_hoodie_hanging.blend",
+ "name": "Pf Hoodie Hanging",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

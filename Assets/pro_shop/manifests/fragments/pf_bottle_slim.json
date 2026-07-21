@@ -1,0 +1,28 @@
+{
+ "id": "pf_bottle_slim",
+ "kind": "products",
+ "category": "bottles",
+ "dims_m": [
+  0.0722,
+  0.0722,
+  0.261
+ ],
+ "min_z": 0.0,
+ "tris": 1168,
+ "textures": [
+  "LblSlim:1024x512"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_bottle_slim.glb",
+ "blend": "assets/pro_shop/source/products/bottles/pf_bottle_slim.blend",
+ "name": "PF Slim Steel Bottle",
+ "variant": "cream_steel",
+ "price": 24.99,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_bottle",
+ "packaging": "none",
+ "material": "stainless"
+}

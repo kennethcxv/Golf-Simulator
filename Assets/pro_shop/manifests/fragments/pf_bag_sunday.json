@@ -1,0 +1,31 @@
+{
+ "id": "pf_bag_sunday",
+ "kind": "products",
+ "category": "golf_bags",
+ "dims_m": [
+  0.1893,
+  0.2448,
+  0.898
+ ],
+ "min_z": 0.0,
+ "tris": 1432,
+ "textures": [
+  "BagPlate_pf_bag_sunday_SUND:256x96",
+  "M_BagNavyC_alb:512x512",
+  "M_BagWhiteC_alb:512x512",
+  "NRM_canvas_0.6_512:512x512",
+  "RGH_canvas_0.62:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_bag_sunday.glb",
+ "blend": "assets/pro_shop/source/products/golf_bags/pf_bag_sunday.blend",
+ "name": "PF Sunday Pencil Bag",
+ "variant": "navy_white",
+ "price": 119.99,
+ "fixture": "pf_fixture_bag_display",
+ "slot_type": "bag_slot",
+ "packaging": "none"
+}

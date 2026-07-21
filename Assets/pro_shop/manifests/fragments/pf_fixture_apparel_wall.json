@@ -1,0 +1,46 @@
+{
+ "id": "pf_fixture_apparel_wall",
+ "kind": "fixtures",
+ "category": "apparel_wall",
+ "dims_m": [
+  2.0,
+  0.639,
+  2.35
+ ],
+ "min_z": 0.0,
+ "tris": 4436,
+ "textures": [
+  "Header_pf_fixture_apparel_wall:512x128",
+  "NRM_leather_0.35_512:512x512",
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSCharcoal:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "APPAREL_FOLDED_SLOT_01",
+  "APPAREL_FOLDED_SLOT_02",
+  "APPAREL_FOLDED_SLOT_03",
+  "APPAREL_FOLDED_SLOT_04",
+  "APPAREL_HANGER_SLOT_01",
+  "APPAREL_HANGER_SLOT_02",
+  "APPAREL_HANGER_SLOT_03",
+  "APPAREL_HANGER_SLOT_04",
+  "APPAREL_HANGER_SLOT_05",
+  "APPAREL_HANGER_SLOT_06",
+  "APPAREL_HANGER_SLOT_07",
+  "APPAREL_HANGER_SLOT_08",
+  "APPAREL_HANGER_SLOT_09",
+  "APPAREL_HANGER_SLOT_10",
+  "APPAREL_HANGER_SLOT_11",
+  "APPAREL_HANGER_SLOT_12"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_apparel_wall.glb",
+ "blend": "assets/pro_shop/source/fixtures/apparel_wall/pf_fixture_apparel_wall.blend",
+ "name": "Pf Apparel Wall",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

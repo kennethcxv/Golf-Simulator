@@ -1,0 +1,32 @@
+{
+  "pass": "final",
+  "restored": true,
+  "out": "qa/steam-release-polish/steam-captures/restored-clubhouse-1920x1080-final-2",
+  "stock": {
+    "retailStocked": 25,
+    "decorGhostsParked": 7
+  },
+  "shots": [
+    "01-entrance",
+    "02-checkout",
+    "03-clubwall",
+    "04-ballwall",
+    "05-apparel",
+    "06-bagshoe",
+    "07-lounge",
+    "08-office",
+    "09-stockroom",
+    "10-exterior"
+  ],
+  "stats": {
+    "drawCallsPerFrame": 7360,
+    "trianglesDrawnPerFrame": 8452156,
+    "sceneMeshes": 1174,
+    "sceneTriangles": 2102015,
+    "uniqueMaterials": 258,
+    "uniqueTextures": 179,
+    "geometriesInMemory": 1020,
+    "texturesInMemory": 227
+  },
+  "runnerDiagnostics": []
+}

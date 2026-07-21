@@ -1,0 +1,27 @@
+{
+ "id": "pf_marker_engraved",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.035,
+  0.035,
+  0.0046
+ ],
+ "min_z": 0.0001,
+ "tris": 440,
+ "textures": [
+  "MarkerEngraved:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_engraved.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_engraved.blend",
+ "name": "Engraved Premium Marker",
+ "variant": "pewter",
+ "price": 14.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

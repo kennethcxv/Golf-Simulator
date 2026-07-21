@@ -1,0 +1,29 @@
+{
+ "id": "pf_marker_engraved_card",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.075,
+  0.009,
+  0.12
+ ],
+ "min_z": 0.0,
+ "tris": 568,
+ "textures": [
+  "Card_pf_marker_engraved_card:512x820",
+  "MarkerEngraved:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_engraved_card.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_engraved_card.blend",
+ "name": "Engraved Premium Marker (Card)",
+ "variant": "pewter",
+ "price": 14.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

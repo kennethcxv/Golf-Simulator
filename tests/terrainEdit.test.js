@@ -4,7 +4,7 @@ import { ZONE, HOLE_STATUS } from '../src/sim/constants.js';
 import { BALANCE } from '../src/sim/balance.js';
 import { makeCourse, setZone, getZone, addHole, labelSections } from '../src/sim/course.js';
 import {
-  makePlan, planPaintZone, planAdjustElev, planCost, planAffectedHoles,
+  makePlan, planPaintZone, planAdjustElev, planToggleIrrigation, planCost, planAffectedHoles,
   applyPlan, worksSetTee, worksSetPin, tickRenovationsDaily,
 } from '../src/sim/terrainEdit.js';
 
@@ -42,6 +42,29 @@ test('elevation edits accumulate and cancel to nothing', () => {
   assert.equal(plan.cells.size, 1);
   planAdjustElev(plan, st.course, 5, 5, 0, -1.0);
   assert.equal(plan.cells.size, 0, 'net-zero elevation edit should vanish from the plan');
+});
+
+test('irrigation heads are paid construction: inert in plan, persistent on confirm, removable', () => {
+  const st = makeState(10000);
+  const c = st.course;
+  setZone(c, 20, 20, ZONE.FAIRWAY);
+  const plan = makePlan();
+  assert.equal(planToggleIrrigation(plan, c, 20, 20, true).ok, true);
+  assert.equal((c.irrigationHeads || []).length, 0, 'planning does not build the head');
+  assert.equal(planCost(plan, c).total, BALANCE.irrigationHeadCost);
+  const placed = applyPlan(st, plan);
+  assert.equal(placed.ok, true);
+  assert.deepEqual(c.irrigationHeads, [{ x: 20, y: 20 }]);
+  assert.equal(placed.report.headsPlaced, 1);
+
+  const remove = makePlan();
+  assert.equal(planToggleIrrigation(remove, c, 20, 20, false).ok, true);
+  assert.equal(planCost(remove, c).total, BALANCE.irrigationHeadRemoveCost);
+  assert.equal(applyPlan(st, remove).report.headsRemoved, 1);
+  assert.deepEqual(c.irrigationHeads, []);
+
+  const invalid = makePlan();
+  assert.equal(planToggleIrrigation(invalid, c, 1, 1, true).ok, false, 'heads cannot be built into out-of-play ground');
 });
 
 test('planCost prices zone conversions and elevation by the book', () => {

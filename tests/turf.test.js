@@ -4,7 +4,8 @@ import { ZONE, MINUTES_PER_DAY } from '../src/sim/constants.js';
 import { newGame, update } from '../src/sim/state.js';
 import {
   DISEASE, sectionTurfSummary, sectionStatus, diagnoseSection, treatSection,
-  aerateSection, conditionRating, greenSpeedOf, diseasePressure,
+  aerateSection, treatSectionCost, aerateSectionCost,
+  conditionRating, greenSpeedOf, diseasePressure,
 } from '../src/sim/turf.js';
 
 function freshState(mode = 'realistic', seed = 42) {
@@ -23,6 +24,18 @@ function greenSections(state) {
 
 function avgHealthOf(state, section) {
   return sectionTurfSummary(state, section).health;
+}
+
+function unlock(state, id) {
+  state.progression.unlocks[id] = 0;
+}
+
+function coverZone(state, zone) {
+  for (let i = 0; i < state.course.zones.length; i++) {
+    if (state.course.zones[i] === zone) {
+      state.course.irrigationHeads.push({ x: i % state.course.w, y: Math.floor(i / state.course.w) });
+    }
+  }
 }
 
 const HOT_DRY = { tempHiF: 93, tempLoF: 70, rainIn: 0, humidity: 0.35 };
@@ -69,6 +82,8 @@ test('BRIEF CASE: unwatered turf in drought conditions degrades', () => {
 test('standard irrigation holds moisture and health through the same drought', () => {
   const st = freshState();
   lockWeather(st, HOT_DRY, 6);
+  unlock(st, 'smartIrrigation');
+  coverZone(st, ZONE.GREEN);
   st.maintenance.policies.green.irrigation = 'standard';
   const green = greenSections(st).find((g) => !sectionTurfSummary(st, g).disease);
   const before = sectionTurfSummary(st, green);
@@ -94,6 +109,8 @@ test('chronic overwatering in cool wet weather hurts turf', () => {
 test('BRIEF CASE: correct fertilization within tolerance improves health', () => {
   const st = freshState();
   lockWeather(st, { tempHiF: 72, tempLoF: 55, rainIn: 0.15, humidity: 0.55 });
+  unlock(st, 'sprayRig');
+  st.maintenance.crewUnits = 1;
   const green = greenSections(st).find((g) => !sectionTurfSummary(st, g).disease);
   // run it lean first so nutrients are depleted
   st.maintenance.policies.green.fertilizer = 'none';
@@ -183,13 +200,47 @@ test('aeration relieves wear for a fee', () => {
   assert.ok(after.wear < before.wear - 15 || after.wear === 0, `wear ${before.wear} → ${after.wear}`);
 });
 
+test('turf action previews exactly match the charged upgrade-aware costs', () => {
+  const st = freshState();
+  const tee = st.sections.find((section) => section.zone === ZONE.TEE);
+  const sick = greenSections(st).find((section) => sectionTurfSummary(st, section).disease);
+
+  const aerateFull = aerateSectionCost(st, tee);
+  st.progression.unlocks.aerator = 0;
+  const aerateDiscounted = aerateSectionCost(st, tee);
+  assert.equal(aerateDiscounted, Math.round(aerateFull * 0.5));
+  const aerateCash = st.cash;
+  const aerate = aerateSection(st, tee);
+  assert.equal(aerate.cost, aerateDiscounted);
+  assert.equal(aerateCash - st.cash, aerateDiscounted);
+
+  const treatFull = treatSectionCost(st, sick);
+  st.progression.unlocks.sprayRig = 0;
+  const treatDiscounted = treatSectionCost(st, sick);
+  assert.equal(treatDiscounted, Math.round(treatFull * 0.6));
+  const treatCash = st.cash;
+  const treated = treatSection(st, sick);
+  assert.equal(treated.cost, treatDiscounted);
+  assert.equal(treatCash - st.cash, treatDiscounted);
+});
+
 test('green speed reflects height and health, and condition affects play quality', () => {
   const st = freshState();
-  const greens = greenSections(st);
-  const healthy = greens.reduce((a, b) => (avgHealthOf(st, a) > avgHealthOf(st, b) ? a : b));
-  const sick = greens.reduce((a, b) => (avgHealthOf(st, a) < avgHealthOf(st, b) ? a : b));
-  const fast = greenSpeedOf(st, healthy);
-  const slow = greenSpeedOf(st, sick);
+  const green = greenSections(st)[0];
+  // hold height constant so the comparison isolates health + disease
+  for (const i of green.cells) {
+    st.turf.heightMm[i] = 4;
+    st.turf.health[i] = 82;
+    st.turf.disType[i] = 0;
+    st.turf.disSev[i] = 0;
+  }
+  const fast = greenSpeedOf(st, green);
+  for (const i of green.cells) {
+    st.turf.health[i] = 30;
+    st.turf.disType[i] = DISEASE.DOLLAR_SPOT;
+    st.turf.disSev[i] = 60;
+  }
+  const slow = greenSpeedOf(st, green);
   assert.ok(fast > slow, `healthy green ${fast} rolls faster than sick ${slow}`);
   assert.ok(fast >= 6 && fast <= 14, `stimp in range: ${fast}`);
 });
@@ -205,6 +256,9 @@ test('overall condition rating moves with care vs neglect', () => {
   }
   neglect.maintenance.crewUnits = 0;
   care.maintenance.crewUnits = 3;
+  unlock(care, 'smartIrrigation');
+  coverZone(care, ZONE.GREEN);
+  coverZone(care, ZONE.FAIRWAY);
   care.maintenance.policies.green.irrigation = 'standard';
   care.maintenance.policies.fairway.irrigation = 'light';
   const r0n = conditionRating(neglect);
@@ -237,6 +291,10 @@ test('status legibility: one word per section, sensible bands', () => {
 test('daily maintenance costs money (wages, water, fertilizer) through the books', () => {
   const st = freshState();
   lockWeather(st, { tempHiF: 75, tempLoF: 58, rainIn: 0, humidity: 0.5 });
+  st.maintenance.crewUnits = 1;
+  unlock(st, 'smartIrrigation');
+  coverZone(st, ZONE.GREEN);
+  st.maintenance.policies.green.irrigation = 'standard';
   update(st, MINUTES_PER_DAY + 6 * 60);
   const report = st.maintenance.lastReport;
   assert.ok(report.costs.wages > 0);

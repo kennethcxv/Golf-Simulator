@@ -1,0 +1,28 @@
+{
+ "id": "pf_snack_trailmix",
+ "kind": "products",
+ "category": "snacks",
+ "dims_m": [
+  0.155,
+  0.0931,
+  0.24
+ ],
+ "min_z": 0.0,
+ "tris": 120,
+ "textures": [
+  "SnackTrailmix:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_snack_trailmix.glb",
+ "blend": "assets/pro_shop/source/products/snacks/pf_snack_trailmix.blend",
+ "name": "Elevate Trail Mix",
+ "variant": "peak_blend",
+ "price": 6.99,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_pouch",
+ "packaging": "stand-up pouch"
+}

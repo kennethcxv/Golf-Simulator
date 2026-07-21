@@ -15,25 +15,38 @@
 // truth, and the two would disagree the first time anyone moved a line to a different wall.
 
 import { skuById, RETAIL_CATS } from '../data/shopItems.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import { FIXTURES } from '../data/shopLayout.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import {
-  INVENTORY_STAGE,
-  adoptExternalInventory,
-  allocationsForStage,
-  ensureInventoryLifecycle,
-  moveInventory,
-} from './inventoryLifecycle.js';
+  importLegacyStoredPlaceables,
+  storeDeliveredPlaceables,
+  withdrawStoredPlaceables,
+} from './propertyInventory.js';
 
 // how many of a thing you can hold at once. Not a number of items — a pair of arms.
-const ARMFUL_CAT = { clubs: 2, balls: 6, apparel: 6, accessories: 8, supplies: 1, decor: 1 };
+const ARMFUL_CAT = {
+  clubs: 2,
+  balls: 6,
+  // Two folded garments make the hero carton deplete through full, 3/4,
+  // half, low and empty states while remaining a believable two-hand bundle.
+  apparel: 2,
+  accessories: 8,
+  provisions: 8,
+  supplies: 1,
+  decor: 1,
+};
 const ARMFUL_ID = {
   bag1: 1,       // a stand bag IS the carry
+  bag3: 1,
   irons1: 1, irons2: 1,
   shoe1: 3,
+  shoe3: 3,
   range2: 4,
   umb1: 4,
   jacket2: 4,
+  water1: 6,
+  snack1: 12,
 };
 
 export function armfulOf(sku) {
@@ -175,7 +188,13 @@ export function storeInBack(state, units = 999) {
   const moved = Math.min(units, c.qty);
   const allocationSplit = splitAllocations(carryAllocations(state, c), moved);
   state.shop.inventory[c.skuId].back += moved;
-  setCarry(state, c.skuId, c.qty - moved, allocationSplit.used ? allocationSplit.left : null);
+  if (placeableSpecBySkuId(c.skuId)) {
+    const stored = storeDeliveredPlaceables(state, c.skuId, moved);
+    if (!stored.ok) {
+      importLegacyStoredPlaceables(state, c.skuId, state.shop.inventory[c.skuId].back);
+    }
+  }
+  setCarry(state, c.skuId, c.qty - moved);
   const left = carriedGoods(state);
   return { ok: true, moved, left: left ? left.qty : 0 };
 }
@@ -194,13 +213,11 @@ export function takeFromBack(state, skuId, want = 999) {
     };
   }
   const taken = Math.min(want, room, inv.back);
-  const allocation = allocationsForStage(state, {
-    stage: INVENTORY_STAGE.RESERVE,
-    skuId,
-    quantity: taken,
-    excludeAllocations: (carriedGoods(state) && carriedGoods(state).allocations) || [],
-  });
-  if (!allocation.ok) return allocation;
+  if (placeableSpecBySkuId(skuId)) {
+    importLegacyStoredPlaceables(state, skuId, inv.back);
+    const withdrawn = withdrawStoredPlaceables(state, skuId, taken);
+    if (!withdrawn.ok) return withdrawn;
+  }
   inv.back -= taken;
   const c = carriedGoods(state);
   setCarry(state, skuId, (c ? c.qty : 0) + taken, [

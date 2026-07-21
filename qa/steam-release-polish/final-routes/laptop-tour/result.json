@@ -1,0 +1,153 @@
+{
+  "log": [
+    {
+      "page": "Home",
+      "title": "Good morning — Willow Creek Municipal",
+      "navHighlighted": "🏠Home",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 93
+    },
+    {
+      "page": "Pro Shop",
+      "title": "Pro Shop",
+      "navHighlighted": "🏪Pro Shop",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 78
+    },
+    {
+      "page": "Supplier",
+      "title": "Supplier",
+      "navHighlighted": "🛒Supplier",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 32,
+      "nodes": 462
+    },
+    {
+      "page": "Orders",
+      "title": "Orders",
+      "navHighlighted": "📦Orders",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 3,
+      "nodes": 41
+    },
+    {
+      "page": "Deliveries",
+      "title": "Deliveries",
+      "navHighlighted": "🚚Deliveries",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 26
+    },
+    {
+      "page": "Inventory",
+      "title": "Inventory",
+      "navHighlighted": "📋Inventory",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 25,
+      "nodes": 395
+    },
+    {
+      "page": "Pricing",
+      "title": "Pricing",
+      "navHighlighted": "🏷Pricing",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 51
+    },
+    {
+      "page": "Reservations",
+      "title": "Reservations",
+      "navHighlighted": "📅Reservations",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 127
+    },
+    {
+      "page": "Course",
+      "title": "Course",
+      "navHighlighted": "⛳Course",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 113
+    },
+    {
+      "page": "Carts & rentals",
+      "title": "Carts & rentals",
+      "navHighlighted": "🛄Carts & rentals",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 37
+    },
+    {
+      "page": "Employees",
+      "title": "Employees",
+      "navHighlighted": "👥Employees",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 70
+    },
+    {
+      "page": "Finances",
+      "title": "Finances",
+      "navHighlighted": "💰Finances",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 95
+    },
+    {
+      "page": "Reviews",
+      "title": "Reviews",
+      "navHighlighted": "⭐Reviews",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 56
+    },
+    {
+      "page": "Analytics",
+      "title": "Analytics",
+      "navHighlighted": "📈Analytics",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 3,
+      "nodes": 92
+    },
+    {
+      "page": "Renovation",
+      "title": "Renovation",
+      "navHighlighted": "🔨Renovation",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 6,
+      "nodes": 64
+    },
+    {
+      "page": "Settings",
+      "title": "Settings",
+      "navHighlighted": "⚙Settings",
+      "clickLandedRight": true,
+      "crashed": false,
+      "thumbs": 0,
+      "nodes": 38
+    }
+  ],
+  "crashes": [],
+  "misclicks": [],
+  "errs": [],
+  "errCount": 0,
+  "runnerDiagnostics": []
+}

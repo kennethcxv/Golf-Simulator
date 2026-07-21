@@ -1,0 +1,216 @@
+{
+  "ok": true,
+  "checks": {
+    "walk, sprint, and keyboard look respond": {
+      "ok": true,
+      "detail": {
+        "walkDistance": 6.412740000000298,
+        "yawDelta": 0.6015400000000004
+      }
+    },
+    "Space pauses simulation": {
+      "ok": true,
+      "detail": null
+    },
+    "Esc pause menu preserves already-paused speed": {
+      "ok": true,
+      "detail": null
+    },
+    "accessibility settings apply and persist": {
+      "ok": true,
+      "detail": {
+        "settings": {
+          "renderScale": 1,
+          "ao": true,
+          "bloom": true,
+          "fov": 72,
+          "sens": 1.3,
+          "reducedMotion": true,
+          "toolSway": true,
+          "uiScale": 1.25,
+          "toolUse": "toggle"
+        },
+        "rootSize": "18.75px",
+        "reduced": "true",
+        "fov": 72,
+        "walkReduced": true,
+        "sway": true,
+        "sens": 1.3,
+        "clubNamePanel": "WILLOW CREEK MUNICIPAL",
+        "visibleSettingValues": {
+          "fov": "72°",
+          "sens": "1.3×"
+        }
+      }
+    },
+    "closing pause menu restores intentional zero speed": {
+      "ok": true,
+      "detail": null
+    },
+    "Space resumes simulation": {
+      "ok": true,
+      "detail": null
+    },
+    "toggle-use tool input starts and stops authoritatively": {
+      "ok": true,
+      "detail": {
+        "tool": "washer",
+        "toggledOn": true,
+        "toggledOff": true
+      }
+    },
+    "overview data view cycles": {
+      "ok": true,
+      "detail": null
+    },
+    "grounds desk opens from normal shortcut": {
+      "ok": true,
+      "detail": null
+    },
+    "club office opens from normal shortcut": {
+      "ok": true,
+      "detail": null
+    },
+    "empire panel opens from normal shortcut": {
+      "ok": true,
+      "detail": null
+    },
+    "course editor opens from normal shortcut": {
+      "ok": true,
+      "detail": null
+    },
+    "repaired tractor mounts and drives through E/W controls": {
+      "ok": true,
+      "detail": {
+        "tractorDistance": 5.33199999999994
+      }
+    },
+    "tractor parks through E": {
+      "ok": true,
+      "detail": null
+    },
+    "pause-menu save slot writes through normal controls": {
+      "ok": true,
+      "detail": null
+    },
+    "exit to menu autosaves and returns cleanly": {
+      "ok": true,
+      "detail": null
+    }
+  },
+  "log": [
+    {
+      "name": "walk, sprint, and keyboard look respond",
+      "ok": true,
+      "detail": {
+        "walkDistance": 6.412740000000298,
+        "yawDelta": 0.6015400000000004
+      }
+    },
+    {
+      "name": "Space pauses simulation",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "Esc pause menu preserves already-paused speed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "accessibility settings apply and persist",
+      "ok": true,
+      "detail": {
+        "settings": {
+          "renderScale": 1,
+          "ao": true,
+          "bloom": true,
+          "fov": 72,
+          "sens": 1.3,
+          "reducedMotion": true,
+          "toolSway": true,
+          "uiScale": 1.25,
+          "toolUse": "toggle"
+        },
+        "rootSize": "18.75px",
+        "reduced": "true",
+        "fov": 72,
+        "walkReduced": true,
+        "sway": true,
+        "sens": 1.3,
+        "clubNamePanel": "WILLOW CREEK MUNICIPAL",
+        "visibleSettingValues": {
+          "fov": "72°",
+          "sens": "1.3×"
+        }
+      }
+    },
+    {
+      "name": "closing pause menu restores intentional zero speed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "Space resumes simulation",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "toggle-use tool input starts and stops authoritatively",
+      "ok": true,
+      "detail": {
+        "tool": "washer",
+        "toggledOn": true,
+        "toggledOff": true
+      }
+    },
+    {
+      "name": "overview data view cycles",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "grounds desk opens from normal shortcut",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "club office opens from normal shortcut",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "empire panel opens from normal shortcut",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "course editor opens from normal shortcut",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "repaired tractor mounts and drives through E/W controls",
+      "ok": true,
+      "detail": {
+        "tractorDistance": 5.33199999999994
+      }
+    },
+    {
+      "name": "tractor parks through E",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "pause-menu save slot writes through normal controls",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "exit to menu autosaves and returns cleanly",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "runnerDiagnostics": []
+}

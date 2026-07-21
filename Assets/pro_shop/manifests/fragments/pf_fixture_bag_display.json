@@ -1,0 +1,36 @@
+{
+ "id": "pf_fixture_bag_display",
+ "kind": "fixtures",
+ "category": "bag_display",
+ "dims_m": [
+  2.0,
+  0.72,
+  2.35
+ ],
+ "min_z": 0.0,
+ "tris": 1200,
+ "textures": [
+  "Header_pf_fixture_bag_display:512x128",
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "BAG_SLOT_01",
+  "BAG_SLOT_02",
+  "BAG_SLOT_03",
+  "BAG_SLOT_04",
+  "BAG_SLOT_05",
+  "BAG_SLOT_06",
+  "BAG_SLOT_07",
+  "BAG_SLOT_08"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_bag_display.glb",
+ "blend": "assets/pro_shop/source/fixtures/bag_display/pf_fixture_bag_display.blend",
+ "name": "Pf Bag Display",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

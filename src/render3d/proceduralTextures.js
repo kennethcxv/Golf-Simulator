@@ -45,6 +45,27 @@ function finish(canvas) {
   return tex;
 }
 
+// Point primitives are square unless their material carries an alpha mask. A tiny generated
+// feathered disc keeps spray, dust and foam reading as droplets/motes without adding a binary
+// texture or a per-particle mesh. Callers own and dispose the returned texture with the material.
+export function makeSoftParticleTexture(size = 32) {
+  const canvas = makeCanvas(size);
+  const ctx = canvas.getContext('2d');
+  const half = size / 2;
+  const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.45, 'rgba(255,255,255,0.92)');
+  gradient.addColorStop(0.78, 'rgba(255,255,255,0.38)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
 export function makeGrassTexture({ seed = 1, base = '#5d9443', dark = '#4a7c34', light = '#72ab52', blades = 5200 } = {}) {
   const size = 512;
   const c = makeCanvas(size);
@@ -221,6 +242,34 @@ export function makePathTexture({ seed = 21 } = {}) {
     const y = r() * size;
     ctx.fillStyle = r() < 0.5 ? '#8a8172aa' : '#b0a79688';
     wrapped(ctx, size, () => ctx.fillRect(x, y, 1.4, 1.4));
+  }
+  return finish(c);
+}
+
+// cool neutral-gray asphalt for cart-path ribbons — aggregate speckle over a
+// light concrete base so the pavement reads as pavement, never warm dirt
+export function makeAsphaltTexture({ seed = 33 } = {}) {
+  const size = 256;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = '#bdbbb6';
+  ctx.fillRect(0, 0, size, size);
+  // broad tonal drift so long ribbons aren't a flat slab
+  for (let i = 0; i < 60; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    const rad = 12 + r() * 40;
+    ctx.fillStyle = r() < 0.5 ? 'rgba(156,153,148,0.28)' : 'rgba(210,207,201,0.24)';
+    wrapped(ctx, size, () => { ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill(); });
+  }
+  // fine aggregate — neutral grey, no colour cast
+  for (let i = 0; i < 5200; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    const g = 122 + Math.floor(r() * 90);
+    ctx.fillStyle = `rgba(${g + 4},${g + 2},${g},${0.35 + r() * 0.4})`;
+    wrapped(ctx, size, () => ctx.fillRect(x, y, 1.3, 1.3));
   }
   return finish(c);
 }

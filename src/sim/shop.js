@@ -8,9 +8,10 @@
 
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
-import { addRevenue, addExpense, addCostOfGoods, recordOutcome } from './economy.js';
+import { addRevenue, addExpense, unbill } from './economy.js';
 import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
-import { capacityOf } from '../data/fixtureSlots.js';
+import { planShipment } from '../data/boxes.js';
+import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
   arriveOrder, openAllBoxes, ensureDeliveries, receivingFree,
@@ -18,14 +19,21 @@ import {
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+import { notify } from './notifications.js';
+import { placedFixtures } from './layout.js';
+import { initShopProgression, shopCategoryUnlocked } from './shopProgression.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import {
-  INVENTORY_STAGE,
-  cancelPurchaseOrder,
-  moveInventory,
-  submitPurchaseOrders,
-  syncOrderTransitState,
-} from './inventoryLifecycle.js';
-import { applyReputationChange } from './reputation.js';
+  cancelPlaceablePurchase,
+  ensurePropertyInventory,
+  importLegacyStoredPlaceables,
+  moveOwnedPlacement,
+  placeOwnedItem,
+  placedPropertyItems,
+  registerPlaceablePurchase,
+  sellOwnedItem,
+  storeOwnedPlacement,
+} from './propertyInventory.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -33,6 +41,7 @@ import { applyReputationChange } from './reputation.js';
 // player orders and places. Condition 0-100 is DERIVED from that state, never
 // stored, so it can't drift: cleanliness carries 70 points, decor finish 30.
 export const RENO = {
+  clutterLayout: 2,           // v2 clears the register/queue sightline
   room: { w: INTERIOR.w, d: INTERIOR.d }, // the clubhouse plan's interior (shopLayout.js)
   grid: { w: 13, h: 8 },       // ~2-yd grime cells over the whole floor (stockroom included)
   startDirt: [0.58, 0.95],     // fresh-game dirt range per cell
@@ -144,6 +153,10 @@ export function ensureShopReno(state) {
   for (const sku of SHOP_CATALOG) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
   }
+  // Provisions joined the sellable catalog after launch. Preserve every
+  // existing category setting while giving older saves a valid base markup.
+  if (!state.shop.markup || typeof state.shop.markup !== 'object') state.shop.markup = {};
+  if (!Number.isFinite(state.shop.markup.provisions)) state.shop.markup.provisions = 1.0;
   ensureDeliveries(state); // physical-retail block (2026-07-13)
 
   // EXTERIOR NEGLECT (2026-07-14 stabilization P2): pre-exterior saves gain the
@@ -158,6 +171,7 @@ export function ensureShopReno(state) {
       siding: [1, 1, 1],
     };
   }
+  ensureCleaningToolState(state);
 }
 
 // --- exterior restoration: real verbs against real state ---------------------------
@@ -318,9 +332,69 @@ export function placeDecor(state, skuId, spot) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.back <= 0) return { ok: false, reason: 'None in the backroom — order it first.' };
   if (reno.decor.some((d) => d.skuId === skuId && d.spot === spot)) return { ok: false, reason: 'That spot is taken.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const authored = spots[spot];
+  const placed = placeOwnedItem(state, skuId, {
+    area: 'clubhouse',
+    mount: authored.mount,
+    x: authored.x,
+    z: authored.z,
+    ry: authored.ry,
+    surfaceId: `decor-anchor:${skuId}:${spot}`,
+    authoredSpot: spot,
+  });
+  if (!placed.ok) return placed;
   inv.back -= 1;
-  reno.decor.push({ skuId, spot });
-  return { ok: true };
+  reno.decor.push({ skuId, spot, placementId: placed.placement.id });
+  return { ok: true, placement: placed.placement };
+}
+
+// Free-placement counterpart to the authored renovation anchors. Ownership is
+// consumed only after the caller has validated the exact preview pose.
+export function placeDecorFree(state, skuId, pose) {
+  const reno = state.shop && state.shop.reno;
+  const sku = skuById(skuId);
+  const inv = state.shop?.inventory?.[skuId];
+  if (!reno || !sku || sku.cat !== 'decor') return { ok: false, reason: 'Not a decor item.' };
+  if (!inv || inv.back <= 0) return { ok: false, reason: 'None in property storage.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const placed = placeOwnedItem(state, skuId, pose);
+  if (!placed.ok) return placed;
+  inv.back -= 1;
+  reno.decor.push({ skuId, spot: null, placementId: placed.placement.id });
+  return { ok: true, placement: placed.placement };
+}
+
+export function moveDecorPlacement(state, placementId, pose) {
+  const reno = state.shop?.reno;
+  if (!reno?.decor?.some((entry) => entry.placementId === placementId)) {
+    return { ok: false, reason: 'That decor placement is not in this clubhouse.' };
+  }
+  return moveOwnedPlacement(state, placementId, pose);
+}
+
+export function removeDecorPlacement(state, placementId) {
+  const reno = state.shop?.reno;
+  if (!reno) return { ok: false, reason: 'No clubhouse renovation state.' };
+  const index = reno.decor.findIndex((entry) => entry.placementId === placementId);
+  if (index < 0) return { ok: false, reason: 'That decor placement is not in this clubhouse.' };
+  const decor = reno.decor[index];
+  const stored = storeOwnedPlacement(state, placementId);
+  if (!stored.ok) return stored;
+  reno.decor.splice(index, 1);
+  const inv = state.shop.inventory[decor.skuId];
+  if (inv) inv.back += 1;
+  return { ok: true, placement: stored.placement, skuId: decor.skuId };
+}
+
+export function sellStoredDecor(state, skuId, operationId = null) {
+  const inv = state.shop?.inventory?.[skuId];
+  if (!inv || inv.back < 1) return { ok: false, reason: 'None of that item is in storage.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const sold = sellOwnedItem(state, skuId, { quantity: 1, operationId });
+  if (!sold.ok || sold.replay) return sold;
+  inv.back -= 1;
+  return sold;
 }
 
 // pack a placed piece back up: the spot frees, the item returns to the backroom
@@ -329,10 +403,21 @@ export function removeDecor(state, skuId, spot) {
   if (!reno) return { ok: false };
   const idx = reno.decor.findIndex((d) => d.skuId === skuId && d.spot === spot);
   if (idx < 0) return { ok: false };
+  ensurePropertyInventory(state);
+  const decor = reno.decor[idx];
+  const placement = decor.placementId
+    ? placedPropertyItems(state).find((entry) => entry.id === decor.placementId)
+    : placedPropertyItems(state).find((entry) => (
+      entry.assetId === placeableSpecBySkuId(skuId)?.assetId
+        && entry.pose?.authoredSpot === spot
+    ));
+  if (!placement) return { ok: false, reason: 'That decor placement has no ownership record.' };
+  const stored = storeOwnedPlacement(state, placement.id);
+  if (!stored.ok) return stored;
   reno.decor.splice(idx, 1);
   const inv = state.shop.inventory[skuId];
   if (inv) inv.back += 1;
-  return { ok: true };
+  return { ok: true, placement: stored.placement };
 }
 
 export function initShop(state) {
@@ -344,26 +429,29 @@ export function initShop(state) {
   inventory.glove1.shelf = 4;
   inventory.cap1.shelf = 5;
   state.shop = {
-    unlockedTier: 2, // premium (tier 3) lines arrive with progression
+    unlockedTier: 1,
     inventory,
     orders: [],
     nextOrderId: 1,
-    nextTransactionId: 1,
-    nextCommandId: 1,
-    nextVisitorId: 1,
-    markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0 },
-    featureCategory: 'balls', // the front table the player merchandises
+    markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0, provisions: 1.0 },
+    // The entrance feature is the authored rangefinder display. Rangefinders
+    // are accessories, so its attention nudge must agree with what is visible.
+    featureCategory: 'accessories',
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
     deliveries: { boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [] },
+    held: [],            // individual customer-owned units reserved for checkout
     carry: null,         // WHAT IS IN YOUR HANDS: {skuId, qty} — see sim/stocking.js
     lostSalesYesterday: 0,
     lostSalesTotal: 0,
     salesYesterday: { units: 0, revenue: 0 },
     salesToday: {},      // per-SKU units sold since the last day close (both selling paths)
     salesWindow: [],     // the last seven closed days of the same — velocity reads this
+    transactionHistory: [], // completed physical-register tickets, newest first
+    nextTransactionNo: 1,
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };
+  initShopProgression(state);
   initShopReno(state);
 }
 
@@ -391,12 +479,91 @@ export function orderCost(sku, qty) {
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
+  if (RETAIL_CATS.has(sku.cat) && !shopCategoryUnlocked(state, sku.cat)) {
+    return { ok: false, reason: `${sku.cat === 'clubs' ? 'Club' : 'Provisions'} ordering opens with the STANDARD shop.` };
+  }
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
-  if (!Number.isInteger(qty) || qty <= 0) return { ok: false, reason: 'Quantity must be a positive whole number.' };
+  if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
   const purchase = submitPurchaseOrders(state, { lines: [{ skuId, quantity: qty }] });
   if (!purchase.ok) return { ok: false, reason: purchase.reason };
   const purchasedOrder = purchase.orders[0];
+  return {
+    ok: true,
+    cost: purchasedOrder.totalCost,
+    goods: purchasedOrder.goods,
+    fee: purchasedOrder.shippingCost,
+    order: purchasedOrder,
+    boxes: purchasedOrder.manifest.boxCount,
+    weight: purchasedOrder.manifest.weight,
+    supplier: purchasedOrder.supplier,
+  };
+
+  // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
+  // stands there — one object, read twice, so the two can never disagree.
+  const manifest = planShipment(sku, qty);
+  // One order has to fit on an EMPTY receiving pad. Several smaller orders may
+  // still queue and arrive as the player clears cartons, but a single manifest
+  // larger than the pad can never satisfy the atomic unloading contract below.
+  // Reject it before billing instead of creating paid stock that circles forever.
+  if (manifest.boxCount > PAD_CAPACITY) {
+    return {
+      ok: false,
+      reason: `This order needs ${manifest.boxCount} boxes, but the receiving pad holds ${PAD_CAPACITY}. Split it into smaller orders.`,
+      boxes: manifest.boxCount,
+      capacity: PAD_CAPACITY,
+    };
+  }
+  const goods = orderCost(sku, qty);
+  const fee = manifest.fee;
+  const starter = isStarterDelivery(state);
+  const id = state.shop.nextOrderId;
+  const eta = quoteDelivery(state, sku, qty, { service, orderId: id, starter, goods, freight: fee });
+  const expressFee = eta.expressFee;
+  const cost = Math.round((goods + fee + expressFee) * 100) / 100;
+  if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
+
+  state.shop.nextOrderId++;
+  if (starter && state.shop.starterOrderMin == null) state.shop.starterOrderMin = state.clock.minutes;
+  const order = {
+    id,
+    skuId,
+    qty,
+    cost,        // goods + freight: the number that left your account
+    goods,
+    fee,
+    expressFee,
+    service: eta.service,
+    pace: eta.pace,
+    supplier: manifest.supplier,
+    accountingClass: purchaseClass,
+    ledgerKeys,
+    manifest,
+    arrivesDay: eta.arrivesDay,
+    placedMin: state.clock.minutes,
+    window: eta.window,
+    deliveryMin: eta.deliveryMin,
+    timing: {
+      processingMinutes: eta.processingMinutes,
+      transitMinutes: eta.transitMinutes,
+      dispatchMin: eta.dispatchMin,
+      supplierSpeedModifier: eta.supplierSpeedModifier,
+      expressModifier: eta.expressModifier,
+    },
+    status: 'received',
+    notif: {},
+  };
+  if (placeableSpecBySkuId(skuId)) {
+    const ownership = registerPlaceablePurchase(state, skuId, qty, {
+      sourceId: `shop-order:${id}`,
+      purchasePrice: sku.cost,
+    });
+    if (!ownership.ok) {
+      unbill(state, 'shopOrders', cost);
+      return ownership;
+    }
+  }
+  state.shop.orders.push(order);
   return {
     ok: true,
     cost: purchasedOrder.totalCost,
@@ -420,10 +587,15 @@ export function placeOrder(state, skuId, qty) {
 export function orderStatusAt(o, nowMin) {
   if (nowMin >= o.deliveryMin) return 'delivered';
   if (nowMin >= o.deliveryMin - 30) return 'arriving';
-  if (nowMin >= o.deliveryMin - 120) return 'out';
+  const timing = deliveryTimingOf(o);
   const lead = Math.max(1, o.deliveryMin - o.placedMin);
+  // Even the short opening promise wears every truthful stage. Reserve at
+  // least fifteen game minutes for "shipped" before the local van is "out".
+  const outLead = Math.min(60, Math.max(45, lead * 0.2));
+  const outMin = Math.max(timing.dispatchMin + 1, Math.min(o.deliveryMin - 31, o.deliveryMin - outLead));
+  if (nowMin >= outMin) return 'out';
   const t = nowMin - o.placedMin;
-  if (t >= lead * 0.55) return 'shipped';
+  if (nowMin >= timing.dispatchMin) return 'shipped';
   if (t >= lead * 0.30) return 'packed';
   if (t >= lead * 0.08) return 'processing';
   return 'received';
@@ -487,10 +659,44 @@ export function cancelOrder(state, id) {
   if (i < 0) return { ok: false, reason: 'No such order.' };
   const o = orders[i];
   // once it is inside its delivery window the goods are on the pad any minute — too late.
-  if (o.status === 'arriving' || o.status === 'delivered') {
+  // A blocked van has explicitly unloaded nothing, so it can still be turned
+  // away. This also rescues legacy oversized paid manifests from permanent limbo.
+  if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
-  return cancelPurchaseOrder(state, id);
+  if (placeableSpecBySkuId(o.skuId)) {
+    const ownership = cancelPlaceablePurchase(state, `shop-order:${o.id}`);
+    if (!ownership.ok) return ownership;
+  }
+  orders.splice(i, 1);
+  if (o.ledgerKeys) {
+    if (o.goods > 0) {
+      unbill(state, 'shopOrders', o.goods, {
+        idempotencyKey: `cancel:${o.ledgerKeys.goods}`,
+        relatedId: o.id,
+        description: `Cancelled supplier order â€” goods refund`,
+        source: 'supplier-order',
+        accountingClass: o.accountingClass || 'inventory',
+      });
+    }
+    if (o.fee > 0) {
+      unbill(state, 'deliveryCosts', o.fee, {
+        idempotencyKey: `cancel:${o.ledgerKeys.delivery}`,
+        relatedId: o.id,
+        description: `Cancelled supplier order â€” delivery refund`,
+        source: 'supplier-order',
+        accountingClass: o.accountingClass || 'inventory',
+      });
+    }
+  } else {
+    // Pre-ledger-v2 orders were booked as a single merchandise expense.
+    unbill(state, 'shopOrders', o.cost, {
+      idempotencyKey: `legacy-order:${o.id}:cancel`,
+      relatedId: o.id,
+      source: 'supplier-order',
+    });
+  }
+  return { ok: true, refund: o.cost };
 }
 
 // minute-grained delivery tick: progresses statuses, fires each heads-up once,
@@ -524,7 +730,11 @@ export function tickDeliveries(state, nowMin) {
         syncOrderTransitState(state, o, 'arriving');
         if (!o.blocked) {
           o.blocked = true;
-          events.push({ kind: 'blocked', order: o, need, free });
+          events.push({ kind: 'blocked', order: o, need, free: PAD_CAPACITY - padCount(state) - reserved });
+          notify(state, {
+            kind: 'delivery',
+            text: `A van could not unload — the receiving pad is full. Order #${o.id} is circling until you clear cartons.`,
+          });
         }
         continue;
       }
@@ -535,12 +745,12 @@ export function tickDeliveries(state, nowMin) {
       continue;
     }
 
-    const morningMin = o.arrivesDay * 1440 + 6 * 60;
-    if (!o.notif.morning && nowMin >= morningMin && nowMin < o.window.open) {
-      o.notif.morning = true;
-      events.push({ kind: 'morning', order: o });
+    const timing = deliveryTimingOf(o);
+    if (!o.notif.dispatched && nowMin >= timing.dispatchMin && nowMin < o.deliveryMin) {
+      o.notif.dispatched = true;
+      events.push({ kind: 'dispatched', order: o });
     }
-    if (!o.notif.soon && nowMin >= o.window.open - 60 && nowMin < o.deliveryMin) {
+    if (!o.notif.soon && nowMin >= o.deliveryMin - 30 && nowMin < o.deliveryMin) {
       o.notif.soon = true;
       events.push({ kind: 'soon', order: o });
     }
@@ -570,25 +780,27 @@ export function deliverOrdersDue(state, dayAbs) {
   // windowed orders due TODAY belong to their window (tickDeliveries) — only
   // strictly-past days force-land here; legacy windowless orders keep day-of
   const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
-  const arrivals = [];
+  const arrived = [];
   let reserved = 0;
   for (const order of state.shop.orders) {
     if (!due(order)) continue;
-    const totalBoxes = (order.manifest && order.manifest.boxCount) || 1;
-    const receivedBoxes = Array.isArray(order.receivedManifestBoxIndexes) ? order.receivedManifestBoxIndexes.length : 0;
-    const need = Math.max(0, totalBoxes - receivedBoxes);
-    const free = Math.max(0, receivingFree(state) - reserved);
-    if (free <= 0) {
+    const need = (order.manifest && order.manifest.boxCount) || 1;
+    if (!padHasRoom(state, need + reserved)) {
       order.status = 'arriving';
-      syncOrderTransitState(state, order, 'arriving');
-      order.blocked = true;
+      if (!order.blocked) {
+        order.blocked = true;
+        notify(state, {
+          kind: 'delivery',
+          text: `A van could not unload — the receiving pad is full. Order #${order.id} is waiting until you clear cartons.`,
+        });
+      }
       continue;
     }
     order.blocked = false;
-    const unloading = Math.min(need, free);
-    reserved += unloading;
-    arrivals.push({ order, count: unloading });
+    reserved += need;
+    arrived.push(order);
   }
+  state.shop.orders = state.shop.orders.filter((order) => !arrived.includes(order));
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)
@@ -617,6 +829,22 @@ export function shelfCapacity(sku) {
   return slots > 0 ? slots : SHELF_CAP[sku.cat];
 }
 
+function placedFixtureIds(state) {
+  return new Set(placedFixtures(state).map((fixture) => fixture.id));
+}
+
+function skuDisplayIsInSet(skuId, fixtureIds) {
+  const fixture = homeFixture(skuId);
+  // Catalog lines without an authored fixture retain their legacy behavior.
+  // Authored lines, however, are sellable/shelfable only while that one real
+  // display is on the floor.
+  return !fixture || fixtureIds.has(fixture.id);
+}
+
+export function skuDisplayIsPlaced(state, skuId) {
+  return skuDisplayIsInSet(skuId, placedFixtureIds(state));
+}
+
 // does the shop own its vacuum yet? (equipment lives in .back, never on shelves)
 export function vacuumOwned(state) {
   const inv = state.shop.inventory.vac1;
@@ -627,6 +855,7 @@ export function vacuumOwned(state) {
 export function restockShelfFromBackroom(state, skuId) {
   const sku = skuById(skuId);
   if (!RETAIL_CATS.has(sku.cat)) return { ok: false, reason: 'Equipment stays in the back.' };
+  if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
   const inv = state.shop.inventory[skuId];
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
@@ -649,11 +878,13 @@ export function restockShelvesByStaff(state) {
   const skill = bestSkill(state, ROLE.PROSHOP);
   if (skill <= 0) return 0;
   openAllBoxes(state); // the crew unboxes the truck's drop before shelving
+  const floorFixtures = placedFixtureIds(state);
   let capacity = 30 + skill * 25; // units they can shelve in a morning
   let moved = 0;
   for (const sku of SHOP_CATALOG) {
     if (capacity <= 0) break;
     if (!RETAIL_CATS.has(sku.cat)) continue; // your vacuum is not for sale
+    if (!skuDisplayIsInSet(sku.id, floorFixtures)) continue;
     const inv = state.shop.inventory[sku.id];
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
@@ -684,13 +915,17 @@ export function demandWeight(cat, seasonIndex) {
     clubs: [1.0, 1.1, 0.8, 0.4],
     apparel: [0.9, 0.8, 1.05, 1.35],
     accessories: [1.0, 1.0, 0.95, 0.6],
+    provisions: [1.05, 1.35, 0.95, 0.55],
   };
   return table[cat][seasonIndex];
 }
 
 export function shopOpenStock(state) {
+  const floorFixtures = placedFixtureIds(state);
   let units = 0;
-  for (const inv of Object.values(state.shop.inventory)) units += inv.shelf;
+  for (const [skuId, inv] of Object.entries(state.shop.inventory)) {
+    if (skuDisplayIsInSet(skuId, floorFixtures)) units += inv.shelf;
+  }
   return units;
 }
 
@@ -711,6 +946,7 @@ export function shopDailyAccrual(state) {
 
   // staff shelve stock before the doors open
   restockShelvesByStaff(state);
+  const floorFixtures = placedFixtureIds(state);
 
   // shopper flow: players on the course + member drop-ins + reputation walk-ins
   const shoppers = Math.round(
@@ -729,6 +965,7 @@ export function shopDailyAccrual(state) {
   for (const sku of SHOP_CATALOG) {
     if (sku.tier > shop.unlockedTier) continue;
     if (!RETAIL_CATS.has(sku.cat)) continue; // supplies/decor never reach shoppers
+    if (!shopCategoryUnlocked(state, sku.cat)) continue;
     (catalogByCat[sku.cat] ||= []).push(sku);
   }
 
@@ -740,14 +977,16 @@ export function shopDailyAccrual(state) {
     // what did they come in wanting?
     const catRoll = rng.next();
     let cat;
-    const wBalls = 0.44 * demandWeight('balls', seasonIndex);
-    const wAcc = 0.2 * demandWeight('accessories', seasonIndex);
-    const wApp = 0.24 * demandWeight('apparel', seasonIndex);
-    const wClubs = 0.12 * demandWeight('clubs', seasonIndex);
-    const total = wBalls + wAcc + wApp + wClubs;
+    const wBalls = 0.38 * demandWeight('balls', seasonIndex);
+    const wAcc = 0.18 * demandWeight('accessories', seasonIndex);
+    const wApp = 0.20 * demandWeight('apparel', seasonIndex);
+    const wClubs = 0.11 * demandWeight('clubs', seasonIndex);
+    const wProvisions = 0.13 * demandWeight('provisions', seasonIndex);
+    const total = wBalls + wAcc + wApp + wClubs + wProvisions;
     if (catRoll < wBalls / total) cat = 'balls';
     else if (catRoll < (wBalls + wAcc) / total) cat = 'accessories';
     else if (catRoll < (wBalls + wAcc + wApp) / total) cat = 'apparel';
+    else if (catRoll < (wBalls + wAcc + wApp + wProvisions) / total) cat = 'provisions';
     else cat = 'clubs';
 
     // the feature table nudges attention toward what you merchandise
@@ -755,7 +994,7 @@ export function shopDailyAccrual(state) {
 
     const options = (catalogByCat[cat] || []).filter((s) => {
       if (s.coldSeason && (seasonIndex === 1)) return false; // no storm shells in July
-      return state.shop.inventory[s.id].shelf > 0;
+      return skuDisplayIsInSet(s.id, floorFixtures) && state.shop.inventory[s.id].shelf > 0;
     });
 
     if (!options.length) {
@@ -770,23 +1009,13 @@ export function shopDailyAccrual(state) {
     const pickIdx = clamp(Math.floor((wealth - 1 + rng.next()) / 4 * options.length), 0, options.length - 1);
     const sku = options[pickIdx];
 
-    let accept = priceAcceptance(shop.markup[cat], wealth, sku.tier);
+    const markup = Number.isFinite(shop.markup[cat]) ? shop.markup[cat] : 1.0;
+    let accept = priceAcceptance(markup, wealth, sku.tier);
     if (cat === 'clubs') accept *= proOnFloor ? 0.55 + floorSkill * 0.14 : 0.3; // big tickets need help
     else if (proOnFloor) accept *= 1 + floorSkill * 0.03;
 
     if (rng.chance(clamp(accept, 0, 0.97))) {
-      const price = priceFor(sku, shop.markup[cat], member ? member.memberTier : null);
-      const soldMove = moveInventory(state, {
-        from: INVENTORY_STAGE.SHELF,
-        to: INVENTORY_STAGE.SOLD,
-        skuId: sku.id,
-        quantity: 1,
-        reason: 'Simulated daily shop sale',
-      });
-      if (!soldMove.ok) {
-        lost++;
-        continue;
-      }
+      const price = priceFor(sku, markup, member ? member.memberTier : null);
       revenue += price;
       costOfGoods += sku.cost || 0;
       units++;
@@ -856,6 +1085,19 @@ export function shopDailyAccrual(state) {
       source: 'shop-simulation', sourceId: `shop-day-${dayAbs}`,
       reason: `${shoppers} shopper${shoppers === 1 ? '' : 's'} experienced clubhouse cleanliness at ${Math.round(cleanliness)}.`,
     });
+  }
+
+  // a line that sold down to nothing today is a fact worth filing — once per line per day
+  for (const sku of SHOP_CATALOG) {
+    if (!RETAIL_CATS.has(sku.cat) || sku.tier > shop.unlockedTier) continue;
+    const inv = shop.inventory[sku.id];
+    if (inv && inv.shelf === 0 && inv.back === 0 && velocity(state, sku.id) > 0) {
+      notify(state, {
+        kind: 'stock',
+        text: `Sold out: ${sku.name}. Nothing on the shelf, nothing in the back.`,
+        dedupeKey: `sellout:${sku.id}:${cal.dayAbs}`,
+      });
+    }
   }
 
   // --- rentals: guests without clubs -------------------------------------------

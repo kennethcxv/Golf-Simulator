@@ -1,0 +1,29 @@
+{
+ "id": "pf_marker_clip_card",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.075,
+  0.0226,
+  0.12
+ ],
+ "min_z": 0.0,
+ "tris": 548,
+ "textures": [
+  "Card_pf_marker_clip_card:512x820",
+  "MarkerClip:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_clip_card.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_clip_card.blend",
+ "name": "Magnetic Clip Marker (Card)",
+ "variant": "copper",
+ "price": 12.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

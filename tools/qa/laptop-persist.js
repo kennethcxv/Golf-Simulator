@@ -11,9 +11,9 @@ async (page) => {
 
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
-  const QA_ROOT = (process.env.GOLF_FLIPPER_QA_ROOT || `${process.cwd()}/qa`).replaceAll('\\', '/');
-  const OUT = `${QA_ROOT}/laptop/persist`;
-  const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://localhost:8457/';
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'laptop', 'persist',
+  );
   const log = [];
 
   const boot = async () => {

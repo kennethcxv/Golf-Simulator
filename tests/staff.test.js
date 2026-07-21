@@ -58,7 +58,7 @@ test('training costs money, sidelines the staffer, then raises skill', () => {
   assert.ok(st.cash < cashBefore);
   const emp = st.staff.employees[0];
   assert.ok(emp.trainingDays > 0);
-  assert.equal(groundsCrewHours(st), 8 * 1, 'trainee contributes nothing (only day-labor hour block remains)');
+  assert.equal(groundsCrewHours(st), 0, 'trainee contributes nothing and a fresh club has no free day-labor crew');
   update(st, 3 * MINUTES_PER_DAY);
   assert.equal(emp.trainingDays, 0);
   assert.ok(emp.skill >= 2.5, `skill rose: ${emp.skill}`);

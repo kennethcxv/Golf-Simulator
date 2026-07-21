@@ -11,7 +11,7 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { RENO, ensureShopReno } from '../src/sim/shop.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, DOOR_MAIN,
-  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, queueSlot, fixtureRect, FIXTURE_HALF,
+  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, CLUTTER_SPOTS, queueSlot, fixtureRect, FIXTURE_HALF,
 } from '../src/data/shopLayout.js';
 import { SHOP_CATALOG, DECOR_SPOTS, skuById, RETAIL_CATS, SHELF_CAP } from '../src/data/shopItems.js';
 import { placeOrder } from '../src/sim/shop.js';
@@ -29,6 +29,17 @@ test('the floor plan and the sim grime grid describe the same room', () => {
   assert.ok(cd >= 1.5 && cd <= 2.5, `grime cells stay vacuum-pass sized (${cd.toFixed(2)} yd deep)`);
   assert.ok(INTERIOR.w === SHELL.w - 2 * SHELL.wallT, 'interior width = shell minus two walls');
   assert.ok(INTERIOR.d === SHELL.d - 2 * SHELL.wallT, 'interior depth = shell minus two walls');
+});
+
+test('Asset 20 uses the same 1.20 by 0.45 metre footprint in layout and collision', () => {
+  assert.deepEqual(FIXTURE_HALF.rail, [0.60, 0.225]);
+  const rail = FIXTURES.find((fixture) => fixture.id === 'rail_outer');
+  const flat = fixtureRect({ ...rail, ry: 0 });
+  assert.ok(Math.abs((flat.maxX - flat.minX) - 1.20) < 1e-9);
+  assert.ok(Math.abs((flat.maxZ - flat.minZ) - 0.45) < 1e-9);
+  const turned = fixtureRect({ ...rail, ry: Math.PI / 2 });
+  assert.ok(Math.abs((turned.maxX - turned.minX) - 0.45) < 1e-9);
+  assert.ok(Math.abs((turned.maxZ - turned.minZ) - 1.20) < 1e-9);
 });
 
 test('every fixture stocks real catalog SKUs and sits inside the building', () => {
@@ -178,6 +189,8 @@ test('the required retail zones all exist in the plan', () => {
 
 test('the new catalog lines (bag, shoes, socks, umbrella) are orderable retail goods', () => {
   const state = newGame('relaxed', 42);
+  state.shop.progression.tier = 'standard';
+  state.shop.unlockedTier = 2;
   for (const id of ['bag1', 'shoe1', 'sock1', 'umb1']) {
     const sku = skuById(id);
     assert.ok(sku, `${id} exists`);
@@ -214,6 +227,7 @@ test('legacy 7×5 saves migrate: grime resamples to the new grid, dirt level pre
   assert.ok(Math.abs(newMean - oldMean) < 0.05,
     `cleaning progress carries over (old ${oldMean.toFixed(3)}, new ${newMean.toFixed(3)})`);
   assert.equal(reno.clutter.filter((c) => c.cleared).length, 2, 'hauled piles stay hauled by index');
+  assert.equal(reno.clutterLayout, RENO.clutterLayout, 'the checkout-safe clutter layout is stamped on migrated saves');
   for (const c of reno.clutter) {
     assert.ok(inInterior(c), 'every migrated pile sits inside the NEW room');
   }

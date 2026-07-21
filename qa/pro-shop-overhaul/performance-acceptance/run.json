@@ -1,0 +1,1173 @@
+{
+  "pass": "performance-acceptance",
+  "timestamp": "2026-07-20T14:50:45.485Z",
+  "baseUrl": "http://localhost:8457/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "clock": "2:00 PM pinned before every fixed-camera capture",
+  "warmupSeconds": 3,
+  "frameSampleSeconds": {
+    "idle": 6,
+    "walk": 4
+  },
+  "performanceSamples": 3,
+  "captureEnabled": false,
+  "captureStartEnabled": false,
+  "captureFullEnabled": false,
+  "performanceEnabled": true,
+  "renovated": true,
+  "hardwareAcceleration": true,
+  "startingState": {
+    "branch": "overnight/pro-shop-overhaul",
+    "course": "Willow Creek Municipal",
+    "tier": 2,
+    "fixtureLayout": {
+      "moved": {},
+      "stored": [],
+      "extra": []
+    }
+  },
+  "bootRoute": [
+    "New Empire — Relaxed",
+    "Property Market",
+    "Buy Willow Creek Municipal"
+  ],
+  "normalControlProof": {
+    "input": [
+      "canvas click",
+      "ArrowLeft",
+      "W"
+    ],
+    "before": {
+      "x": -8,
+      "z": 241.7,
+      "yaw": 3.141592653589793
+    },
+    "after": {
+      "x": -5.2131958967201175,
+      "z": 242.56815902917677,
+      "yaw": 4.410392653589798
+    },
+    "playerTravelYards": 2.92,
+    "yawDeltaRadians": 1.269
+  },
+  "clockControlProof": {
+    "input": [
+      "Space"
+    ],
+    "before": {
+      "speedIdx": 1,
+      "minutes": 433.16899999999885
+    },
+    "after": {
+      "speedIdx": 0,
+      "minutes": 433.16899999999885
+    },
+    "driftMinutes": 0
+  },
+  "visualIsolation": {
+    "method": "prepareCheckoutQa before fixed cameras; customer flow captured separately",
+    "removed": 0
+  },
+  "stock": {
+    "tier": 3,
+    "lines": 42,
+    "units": 289
+  },
+  "stockDiagnostics": [
+    {
+      "name": "rack_drivers:driver1",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_drivers:driver2",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_drivers:driver3",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:irons1",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:irons2",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:wedge1",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:wedge2",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter1",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter2",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter3",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls1",
+      "meshes": 2,
+      "vertices": 420,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls2",
+      "meshes": 2,
+      "vertices": 420,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls3",
+      "meshes": 2,
+      "vertices": 420,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:tees1",
+      "meshes": 2,
+      "vertices": 168,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:towel1",
+      "meshes": 1,
+      "vertices": 312,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:marker1",
+      "meshes": 2,
+      "vertices": 168,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:divot1",
+      "meshes": 2,
+      "vertices": 480,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:range2",
+      "meshes": 1,
+      "vertices": 36924,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:sunglasses2",
+      "meshes": 2,
+      "vertices": 1236,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:bottle1",
+      "meshes": 3,
+      "vertices": 1080,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:umb1",
+      "meshes": 2,
+      "vertices": 552,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:glove1",
+      "meshes": 1,
+      "vertices": 14442,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:glove2",
+      "meshes": 1,
+      "vertices": 14442,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:sock1",
+      "meshes": 1,
+      "vertices": 240,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:jacket2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "hatstand:cap1",
+      "meshes": 1,
+      "vertices": 24872,
+      "visible": true
+    },
+    {
+      "name": "hatstand:cap2",
+      "meshes": 1,
+      "vertices": 24872,
+      "visible": true
+    },
+    {
+      "name": "table_polos:polo1",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:polo2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:pants2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:shorts1",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "bagstand:bag1",
+      "meshes": 7,
+      "vertices": 4832,
+      "visible": true
+    },
+    {
+      "name": "bagstand:bag3",
+      "meshes": 7,
+      "vertices": 4832,
+      "visible": true
+    },
+    {
+      "name": "shoerack:shoe1",
+      "meshes": 1,
+      "vertices": 74160,
+      "visible": true
+    },
+    {
+      "name": "shoerack:shoe3",
+      "meshes": 1,
+      "vertices": 74160,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:water1",
+      "meshes": 3,
+      "vertices": 1440,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:sportdrink2",
+      "meshes": 3,
+      "vertices": 1440,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:soda1",
+      "meshes": 2,
+      "vertices": 1024,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:chips1",
+      "meshes": 3,
+      "vertices": 416,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:bar2",
+      "meshes": 3,
+      "vertices": 416,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:crackers1",
+      "meshes": 3,
+      "vertices": 416,
+      "visible": true
+    },
+    {
+      "name": "member_station:scorecard1",
+      "meshes": 1,
+      "vertices": 288,
+      "visible": true
+    },
+    {
+      "name": "tour_vault:premium",
+      "meshes": 7,
+      "vertices": 22434,
+      "visible": true
+    },
+    {
+      "name": "putting_demo_rack:demo-clubs",
+      "meshes": 3,
+      "vertices": 1644,
+      "visible": true
+    }
+  ],
+  "customerDiagnostics": {
+    "active": 10,
+    "minSeparationYards": 0.597,
+    "reservedSockets": [
+      "shelf_balls:browse:1",
+      "shelf_acc:browse:0",
+      "table_polos:browse:2",
+      "fittingroom:browse:0",
+      "table_polos:browse:0",
+      "shoerack:browse:1",
+      "shoerack:browse:0",
+      "hatstand:browse:0",
+      "member_station:browse:0",
+      "table_polos:browse:1",
+      "shelf_small:browse:1",
+      "shelf_balls:browse:0",
+      "rack_irons:browse:0",
+      "snack_rack:browse:0",
+      "rack_putters:browse:0",
+      "putting_demo:browse:0",
+      "shelf_acc:browse:1"
+    ],
+    "uniqueReservedSockets": 17
+  },
+  "customersSpawned": 40,
+  "cameras": [
+    {
+      "id": "01-entrance",
+      "at": [
+        -0.8,
+        5.2
+      ],
+      "to": [
+        -1.2,
+        -2
+      ],
+      "pitch": -0.05
+    },
+    {
+      "id": "02-checkout-customer",
+      "at": [
+        0.5,
+        2.3
+      ],
+      "to": [
+        2.9,
+        4.5
+      ],
+      "pitch": -0.1
+    },
+    {
+      "id": "03-checkout-employee",
+      "at": [
+        2.8,
+        5.1
+      ],
+      "to": [
+        2.7,
+        4
+      ],
+      "pitch": -0.18
+    },
+    {
+      "id": "04-center-aisle",
+      "at": [
+        -0.8,
+        2.4
+      ],
+      "to": [
+        -0.8,
+        -5.4
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "05-club-displays",
+      "at": [
+        -4.9,
+        -0.2
+      ],
+      "to": [
+        -9.9,
+        -0.4
+      ],
+      "pitch": 0.02
+    },
+    {
+      "id": "06-clothing",
+      "at": [
+        -3.2,
+        4
+      ],
+      "to": [
+        -5,
+        0.2
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "07-shoes",
+      "at": [
+        1.65,
+        0.55
+      ],
+      "to": [
+        5,
+        -0.65
+      ],
+      "pitch": -0.05
+    },
+    {
+      "id": "08-hats",
+      "at": [
+        -0.2,
+        -3.8
+      ],
+      "to": [
+        1.55,
+        -5.9
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "09-bags",
+      "at": [
+        -0.75,
+        -0.55
+      ],
+      "to": [
+        2.15,
+        -2.65
+      ],
+      "pitch": -0.05
+    },
+    {
+      "id": "10-accessories",
+      "at": [
+        -3.7,
+        -2.9
+      ],
+      "to": [
+        -3.7,
+        -6.15
+      ],
+      "pitch": 0.01
+    },
+    {
+      "id": "11-snacks-drinks",
+      "at": [
+        3.55,
+        3.72
+      ],
+      "to": [
+        4.6,
+        1.35
+      ],
+      "pitch": -0.07
+    },
+    {
+      "id": "12-office",
+      "at": [
+        7.2,
+        4.3
+      ],
+      "to": [
+        9.55,
+        4.5
+      ],
+      "pitch": -0.06
+    },
+    {
+      "id": "13-stockroom",
+      "at": [
+        7.4,
+        -2.3
+      ],
+      "to": [
+        8.1,
+        -5.9
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "14-fitting-area",
+      "at": [
+        0.75,
+        -0.1
+      ],
+      "to": [
+        4.45,
+        -2.05
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "15-lounge",
+      "at": [
+        1,
+        -3.8
+      ],
+      "to": [
+        4.9,
+        -5.2
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "16-exterior-window",
+      "world": true,
+      "at": [
+        -1.5,
+        243.5
+      ],
+      "to": [
+        -8.5,
+        231
+      ],
+      "pitch": 0.03
+    },
+    {
+      "id": "17-putting-studio",
+      "at": [
+        -3,
+        3.15
+      ],
+      "to": [
+        -6.5,
+        4.95
+      ],
+      "pitch": -0.13
+    },
+    {
+      "id": "18-tour-vault",
+      "at": [
+        1.75,
+        -3.6
+      ],
+      "to": [
+        5.15,
+        -5.15
+      ],
+      "pitch": -0.05
+    }
+  ],
+  "metrics": [
+    {
+      "label": "empty-basic-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 716,
+      "averageFps": 119.16,
+      "onePercentLowFps": 117.65,
+      "worstFrameMs": 16.7,
+      "drawCallsPerFrame": 1901.02,
+      "trianglesDrawnPerFrame": 5013853.04,
+      "visibleMeshes": 957,
+      "sceneTriangles": 1758407,
+      "uniqueMaterials": 213,
+      "uniqueTextures": 173,
+      "estimatedTextureMemoryMiB": 5808.12,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 871,
+      "texturesInMemory": 213,
+      "javascriptHeapMiB": 60.88,
+      "activeEventListeners": 81,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 1434,
+      "uiMutationFrequencyHz": 239,
+      "sample": 1,
+      "samplesRequested": 3
+    },
+    {
+      "label": "empty-basic-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 718,
+      "averageFps": 119.66,
+      "onePercentLowFps": 117.65,
+      "worstFrameMs": 16.7,
+      "drawCallsPerFrame": 1871,
+      "trianglesDrawnPerFrame": 5011738,
+      "visibleMeshes": 957,
+      "sceneTriangles": 1758407,
+      "uniqueMaterials": 213,
+      "uniqueTextures": 173,
+      "estimatedTextureMemoryMiB": 5808.12,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 871,
+      "texturesInMemory": 213,
+      "javascriptHeapMiB": 61.91,
+      "activeEventListeners": 81,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 1438,
+      "uiMutationFrequencyHz": 239.67,
+      "sample": 2,
+      "samplesRequested": 3
+    },
+    {
+      "label": "empty-basic-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 720,
+      "averageFps": 119.83,
+      "onePercentLowFps": 116.28,
+      "worstFrameMs": 16.7,
+      "drawCallsPerFrame": 1871,
+      "trianglesDrawnPerFrame": 5011738,
+      "visibleMeshes": 957,
+      "sceneTriangles": 1758407,
+      "uniqueMaterials": 213,
+      "uniqueTextures": 173,
+      "estimatedTextureMemoryMiB": 5808.12,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 871,
+      "texturesInMemory": 213,
+      "javascriptHeapMiB": 64.94,
+      "activeEventListeners": 81,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 1442,
+      "uiMutationFrequencyHz": 240.33,
+      "sample": 3,
+      "samplesRequested": 3
+    },
+    {
+      "label": "full-premium-ten-customers-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 183,
+      "averageFps": 30.54,
+      "onePercentLowFps": 10.92,
+      "worstFrameMs": 108.4,
+      "drawCallsPerFrame": 9479.65,
+      "trianglesDrawnPerFrame": 15912104.38,
+      "visibleMeshes": 1318,
+      "sceneTriangles": 2085424,
+      "uniqueMaterials": 303,
+      "uniqueTextures": 194,
+      "estimatedTextureMemoryMiB": 6091.66,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1320,
+      "texturesInMemory": 242,
+      "javascriptHeapMiB": 129.35,
+      "activeEventListeners": 80,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 368,
+      "uiMutationFrequencyHz": 61.33,
+      "sample": 1,
+      "samplesRequested": 3,
+      "activeCustomers": 10
+    },
+    {
+      "label": "full-premium-ten-customers-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 196,
+      "averageFps": 32.67,
+      "onePercentLowFps": 20,
+      "worstFrameMs": 50,
+      "drawCallsPerFrame": 9566.29,
+      "trianglesDrawnPerFrame": 15918253.94,
+      "visibleMeshes": 1313,
+      "sceneTriangles": 2085112,
+      "uniqueMaterials": 303,
+      "uniqueTextures": 194,
+      "estimatedTextureMemoryMiB": 6091.66,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1319,
+      "texturesInMemory": 242,
+      "javascriptHeapMiB": 112.55,
+      "activeEventListeners": 80,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 394,
+      "uiMutationFrequencyHz": 65.67,
+      "sample": 2,
+      "samplesRequested": 3,
+      "activeCustomers": 10
+    },
+    {
+      "label": "full-premium-ten-customers-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 202,
+      "averageFps": 33.71,
+      "onePercentLowFps": 23.98,
+      "worstFrameMs": 91.7,
+      "drawCallsPerFrame": 9842.32,
+      "trianglesDrawnPerFrame": 15939489.93,
+      "visibleMeshes": 1311,
+      "sceneTriangles": 2085136,
+      "uniqueMaterials": 303,
+      "uniqueTextures": 194,
+      "estimatedTextureMemoryMiB": 6091.66,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1317,
+      "texturesInMemory": 242,
+      "javascriptHeapMiB": 129.21,
+      "activeEventListeners": 80,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 406,
+      "uiMutationFrequencyHz": 67.67,
+      "sample": 3,
+      "samplesRequested": 3,
+      "activeCustomers": 10
+    },
+    {
+      "label": "full-premium-normal-control-walk",
+      "durationSeconds": 4,
+      "sampledFrames": 458,
+      "averageFps": 114.26,
+      "onePercentLowFps": 59.88,
+      "worstFrameMs": 66.6,
+      "drawCallsPerFrame": 2231.36,
+      "trianglesDrawnPerFrame": 6130301.74,
+      "visibleMeshes": 1315,
+      "sceneTriangles": 2085136,
+      "uniqueMaterials": 303,
+      "uniqueTextures": 194,
+      "estimatedTextureMemoryMiB": 6091.66,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1319,
+      "texturesInMemory": 241,
+      "javascriptHeapMiB": 106.37,
+      "activeEventListeners": 80,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 938,
+      "uiMutationFrequencyHz": 234.5,
+      "sample": 1,
+      "samplesRequested": 3,
+      "playerTravelYards": 10.66
+    },
+    {
+      "label": "full-premium-normal-control-walk",
+      "durationSeconds": 4,
+      "sampledFrames": 450,
+      "averageFps": 112.26,
+      "onePercentLowFps": 59.88,
+      "worstFrameMs": 66.6,
+      "drawCallsPerFrame": 2164.45,
+      "trianglesDrawnPerFrame": 6116941.21,
+      "visibleMeshes": 1315,
+      "sceneTriangles": 2085136,
+      "uniqueMaterials": 303,
+      "uniqueTextures": 194,
+      "estimatedTextureMemoryMiB": 6091.66,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1320,
+      "texturesInMemory": 241,
+      "javascriptHeapMiB": 164.48,
+      "activeEventListeners": 80,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 916,
+      "uiMutationFrequencyHz": 229,
+      "sample": 2,
+      "samplesRequested": 3,
+      "playerTravelYards": 10.66
+    },
+    {
+      "label": "full-premium-normal-control-walk",
+      "durationSeconds": 4,
+      "sampledFrames": 420,
+      "averageFps": 105,
+      "onePercentLowFps": 59.52,
+      "worstFrameMs": 66.7,
+      "drawCallsPerFrame": 2257.81,
+      "trianglesDrawnPerFrame": 6060163.46,
+      "visibleMeshes": 1355,
+      "sceneTriangles": 2085678,
+      "uniqueMaterials": 310,
+      "uniqueTextures": 203,
+      "estimatedTextureMemoryMiB": 6092.87,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1299,
+      "texturesInMemory": 241,
+      "javascriptHeapMiB": 145.16,
+      "activeEventListeners": 80,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 47,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 862,
+      "uiMutationFrequencyHz": 215.5,
+      "sample": 3,
+      "samplesRequested": 3,
+      "playerTravelYards": 10.66
+    }
+  ],
+  "laptopCycles": {
+    "cyclesRequested": 30,
+    "cyclesCompleted": 30,
+    "before": {
+      "roots": 1,
+      "visibleFrames": 0,
+      "listeners": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 49,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 2,
+        "webglcontextlost": 2,
+        "webglcontextrestored": 2,
+        "wheel": 1
+      },
+      "activeEventListeners": 85,
+      "javascriptHeapMiB": 83.92,
+      "fov": 60,
+      "near": 0.15,
+      "laptopOpen": false
+    },
+    "after": {
+      "roots": 1,
+      "visibleFrames": 0,
+      "listeners": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 49,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "input": 1,
+        "keydown": 3,
+        "keyup": 2,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 2,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 2,
+        "webglcontextlost": 2,
+        "webglcontextrestored": 2,
+        "wheel": 1
+      },
+      "activeEventListeners": 85,
+      "javascriptHeapMiB": 93.34,
+      "fov": 60,
+      "near": 0.15,
+      "laptopOpen": false
+    },
+    "listenerDelta": 0,
+    "heapDeltaMiB": 9.42,
+    "failures": [],
+    "checks": {
+      "allCyclesCompleted": true,
+      "oneRootOnly": true,
+      "noVisibleLeftovers": true,
+      "noListenerGrowth": true,
+      "heapBounded": true,
+      "lensRestored": true
+    }
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/shoe_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/cap_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/shed.glb"
+    }
+  ]
+}

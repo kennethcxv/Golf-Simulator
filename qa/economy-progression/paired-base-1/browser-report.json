@@ -1,0 +1,239 @@
+{
+  "phase": "paired-base-1",
+  "targetRevision": "0c5137e",
+  "performanceOnly": true,
+  "createdAt": "2026-07-20T01:27:37.905Z",
+  "launch": {
+    "command": "node tools/qa/economy-browser-qa.mjs --url=http://127.0.0.1:8462/ --phase=paired-base-1 --out=qa/economy-progression/paired-base-1 --duration-ms=8000 --performance-only --target-revision=0c5137e",
+    "baseUrl": "http://127.0.0.1:8462/",
+    "browser": "150.0.7871.127",
+    "playwrightModule": "C:\\Users\\Kenneth\\AppData\\Local\\npm-cache\\_npx\\9833c18b2d85bc59\\node_modules\\playwright",
+    "viewport": {
+      "width": 1600,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "headless": true
+  },
+  "fixture": {
+    "seed": 1089431369,
+    "dayAbs": 8,
+    "cash": 64062.37,
+    "ledgerDays": 8,
+    "camera": {
+      "x": 0.4499999999999993,
+      "z": 232.5,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    }
+  },
+  "fixedCamera": {
+    "name": "clubhouse-laptop-desk",
+    "position": {
+      "x": 0.4499999999999993,
+      "z": 232.5,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    },
+    "lighting": "simulation day 8, current deterministic weather/time"
+  },
+  "metrics": {
+    "idle": {
+      "label": "idle-fixed-clubhouse-camera",
+      "durationMs": 8009,
+      "frameCount": 1114,
+      "averageFps": 139.09,
+      "onePercentLowFps": 70.34,
+      "worstFrameMs": 19.5,
+      "drawCallsAverage": 1517.33,
+      "trianglesAverage": 6233555,
+      "materialCount": 319,
+      "textureCount": 171,
+      "textureMemoryApproxBytes": 6083003797,
+      "rendererTextureCount": 211,
+      "rendererGeometryCount": 1217,
+      "rendererProgramCount": 70,
+      "jsHeapUsedBytes": 90354420,
+      "activeListeners": {
+        "activeUpperBound": 92,
+        "adds": 136,
+        "removes": 34
+      },
+      "uiMutationCount": 0,
+      "uiMutationsPerSecond": 0
+    },
+    "interactive": {
+      "label": "laptop-repeated-navigation",
+      "durationMs": 8004,
+      "frameCount": 1010,
+      "averageFps": 126.19,
+      "onePercentLowFps": 22.62,
+      "worstFrameMs": 202.7,
+      "drawCallsAverage": 1404.43,
+      "trianglesAverage": 4586037,
+      "materialCount": 324,
+      "textureCount": 171,
+      "textureMemoryApproxBytes": 6083003797,
+      "rendererTextureCount": 211,
+      "rendererGeometryCount": 1231,
+      "rendererProgramCount": 70,
+      "jsHeapUsedBytes": 97715567,
+      "activeListeners": {
+        "activeUpperBound": 98,
+        "adds": 260,
+        "removes": 34
+      },
+      "uiMutationCount": 76,
+      "uiMutationsPerSecond": 9.5
+    }
+  },
+  "listenerGrowth": {
+    "before": {
+      "activeUpperBound": 101,
+      "adds": 147,
+      "removes": 34
+    },
+    "after": {
+      "activeUpperBound": 101,
+      "adds": 307,
+      "removes": 34
+    }
+  },
+  "overlayAudit": {
+    "laptopOpen": true,
+    "worldHudVisible": true,
+    "objectiveCardVisible": true
+  },
+  "pageAudit": [],
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/flagpole.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/tee_markers.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/bucket_soil.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/clubhouse/armchair.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/tool_chest.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/tractor_broken.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/clubhouse_ext_opt.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/golf_cart.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8462/vendor/models/tee_sign_broken.glb",
+      "reason": "net::ERR_ABORTED"
+    }
+  ],
+  "metricSources": {
+    "frameTiming": "requestAnimationFrame intervals over fixed-duration samples",
+    "drawCallsAndTriangles": "THREE.WebGLRenderer.info.render sampled every animation frame",
+    "materialsAndTextures": "unique scene traversal identities at sample end",
+    "textureMemory": "RGBA8 dimensions with 4/3 mip estimate; approximate, not GPU-driver allocation",
+    "heap": "Chromium performance.memory.usedJSHeapSize with --enable-precise-memory-info",
+    "listeners": "instrumented EventTarget registrations; active value is an upper bound because browser-internal once removal is not observable",
+    "uiUpdates": "MutationObserver records beneath .laptop-screen during the sample"
+  },
+  "video": "qa/economy-progression/paired-base-1/video/paired-base-1-normal-controls.webm"
+}

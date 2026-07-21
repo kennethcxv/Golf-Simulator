@@ -5,13 +5,8 @@
 
 import { clubRatings, memberCounts, AMENITIES } from './club.js';
 import { validateHole } from './course.js';
-import { appraiseStatsBreakdown, round500 } from './marketplace.js';
-import { propertyConditionBreakdown } from './propertyCondition.js';
-import { UPGRADES } from './progression.js';
-import { reputationOverall } from './reputation.js';
-import { financialSummary } from './economy.js';
-
-const r2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+import { appraiseStats, round500 } from './marketplace.js';
+import { shopPropertyImprovementValue } from './shopProgression.js';
 
 export function trailingMonthlyNet(state) {
   const history = state.ledger?.history;
@@ -113,21 +108,13 @@ export function appraisalBreakdown(state) {
     size,
     design: Math.round(ratings.design * 10) / 10,
     condition: Math.round(ratings.condition * 10) / 10,
-    propertyCondition: propertyCondition.overall,
-    conditionBreakdown: propertyCondition,
-    members,
-    reputation,
-    monthlyNet,
-    acquisitionCost,
-    restorationInvestment: restorationInvestment(state),
-    upgradeValue,
-    unresolvedDamage,
-    outstanding,
-    grossSaleValue: value,
-    estimatedSaleProceeds: Math.max(0, r2(value - outstanding)),
-    value,
-    contributions,
+    members: counts.weekday + counts.full + counts.premium,
+    reputation: Math.round(state.club.reputation * 10) / 10,
+    monthlyNet: trailingMonthlyNet(state),
+    shopImprovements: shopPropertyImprovementValue(state),
   };
+  parts.value = round500(appraiseStats(parts) + parts.shopImprovements);
+  return parts;
 }
 
 export function appraiseProperty(state) {

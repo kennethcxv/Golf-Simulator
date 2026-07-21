@@ -1,0 +1,29 @@
+{
+ "id": "pf_ball_loose_yellow",
+ "kind": "products",
+ "category": "golf_balls",
+ "dims_m": [
+  0.0427,
+  0.0427,
+  0.0427
+ ],
+ "min_z": 0.0,
+ "tris": 528,
+ "textures": [
+  "NRM_dimple_1.2_512:512x512",
+  "pf_ball_loose_yellow_tex:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_ball_loose_yellow.glb",
+ "blend": "assets/pro_shop/source/products/golf_balls/pf_ball_loose_yellow.blend",
+ "name": "Range Practice Ball",
+ "variant": "yellow",
+ "price": 1.99,
+ "fixture": "pf_fixture_ball_shelf",
+ "slot_type": "shelf_loose",
+ "packaging": "loose",
+ "material": "surlyn"
+}

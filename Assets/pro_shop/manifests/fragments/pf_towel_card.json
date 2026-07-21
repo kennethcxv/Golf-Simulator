@@ -1,0 +1,29 @@
+{
+ "id": "pf_towel_card",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.13,
+  0.0375,
+  0.32
+ ],
+ "min_z": 0.0,
+ "tris": 640,
+ "textures": [
+  "Card_pf_towel_card:512x590",
+  "TowelGreen:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_towel_card.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_towel_card.blend",
+ "name": "PF Tour Towel (Card)",
+ "variant": "green",
+ "price": 24.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

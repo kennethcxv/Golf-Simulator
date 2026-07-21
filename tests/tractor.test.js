@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import {
   TRACTOR_STEPS, tractorStep, repairTractor, tractorRemaining, ensureTractor,
+  setTractorLocation, recordTractorUse,
 } from '../src/sim/tractor.js';
 
 test('a fresh game starts with the tractor broken and all chores open', () => {
@@ -16,6 +17,9 @@ test('a fresh game starts with the tractor broken and all chores open', () => {
   assert.equal(state.tractor.repaired, false, 'starts broken');
   for (const s of TRACTOR_STEPS) assert.equal(state.tractor.steps[s], false, `${s} not done`);
   assert.equal(tractorRemaining(state).length, TRACTOR_STEPS.length, 'everything remains');
+  assert.equal(state.tractor.attachment, null);
+  assert.equal(state.tractor.location, null);
+  assert.ok(state.tractor.condition > 0 && state.tractor.condition < 0.5);
 });
 
 test('each chore completes once; junk names are refused', () => {
@@ -36,6 +40,8 @@ test('the repair needs every chore done, then flips exactly once', () => {
   const res = repairTractor(state);
   assert.ok(res.ok, 'all chores done — she runs');
   assert.equal(state.tractor.repaired, true);
+  assert.equal(state.tractor.attachment, 'mower');
+  assert.equal(state.tractor.fuel, 1);
   assert.equal(repairTractor(state).ok, false, 'cannot repair twice');
 });
 
@@ -61,4 +67,26 @@ test('ensureTractor is a no-op when state exists', () => {
   ensureTractor(state, { legacyRepaired: true });
   assert.equal(state.tractor, ref, 'existing progress untouched');
   assert.equal(state.tractor.repaired, false, 'legacy flag only applies when creating');
+});
+
+test('position, condition, fuel, attachment and engine hours survive save/load', () => {
+  const state = newGame('relaxed', 42);
+  for (const step of TRACTOR_STEPS) tractorStep(state, step);
+  repairTractor(state);
+  assert.ok(recordTractorUse(state, { x: 14.2349, z: -8.7654, yaw: 1.23456, seconds: 180, mowing: true }).ok);
+  const loaded = deserialize(serialize(state));
+  assert.deepEqual(loaded.tractor.location, { x: 14.235, z: -8.765, yaw: 1.2346 });
+  assert.equal(loaded.tractor.attachment, 'mower');
+  assert.ok(loaded.tractor.condition < 0.88);
+  assert.ok(loaded.tractor.fuel < 1);
+  assert.equal(loaded.tractor.engineHours, 0.05);
+});
+
+test('runtime transform rejects broken tractors and bad coordinates', () => {
+  const state = newGame('relaxed', 42);
+  assert.equal(setTractorLocation(state, 1, 2, 3).ok, false);
+  for (const step of TRACTOR_STEPS) tractorStep(state, step);
+  repairTractor(state);
+  assert.equal(setTractorLocation(state, NaN, 2, 3).ok, false);
+  assert.equal(setTractorLocation(state, 1, 2, 3).ok, true);
 });

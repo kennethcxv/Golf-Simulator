@@ -31,10 +31,9 @@ export function openMarketplace(app, handlers) {
       const rows = [
         el('section', { class: 'market-overview', 'aria-label': 'Market summary' },
           el('div', { class: 'market-stats' },
-            el('span', { class: 'status-chip', style: MOOD_STYLE[mood.key], title: mood.hint, text: `${mood.label}` }),
-            el('span', { class: 'status-chip', text: `Wallet ${formatMoney(wallet)}` }),
-            el('span', { class: 'status-chip', text: `${empire.market.length} listings` }),
-            el('span', { class: 'status-chip', text: `${progression.unlockedTierIds.length}/4 property tiers` }),
+          el('span', { class: 'status-chip', style: MOOD_STYLE[mood.key], title: mood.hint, text: `${mood.label}` }),
+          el('span', { class: 'status-chip', text: `Wallet ${formatMoney(wallet)}` }),
+          el('span', { class: 'status-chip', text: `${empire.market.length} listings` }),
           ),
           el('p', { class: 'market-advice', text: 'The asking price is the seller’s number. Judge the golf, the work, and the recovery.' }),
         ),
@@ -55,10 +54,10 @@ export function openMarketplace(app, handlers) {
             el('div', { class: 'listing-purchase' },
               el('span', { class: 'listing-price', text: formatMoney(p.askingPrice) }),
               el('button', {
-                class: affordable && unlocked ? 'primary' : '',
-                text: !unlocked ? 'Tier locked' : affordable ? 'Buy' : 'Not enough cash',
-                disabled: affordable && unlocked ? null : 'disabled',
-                title: !unlocked ? 'Complete the current property progression requirements first' : affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
+                class: affordable ? 'primary' : '',
+                text: affordable ? 'Buy' : 'Not enough cash',
+                disabled: affordable ? null : 'disabled',
+                title: affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
                 onclick: () => {
                   const res = handlers.buyFromMarket(p.id);
                   if (res && res.closeMarket) close();
@@ -98,5 +97,5 @@ export function openMarketplace(app, handlers) {
     };
     app.marketRefresh = liveRefresh;
     render();
-  });
+  }, { onClose: () => handlers.marketClosed?.() });
 }

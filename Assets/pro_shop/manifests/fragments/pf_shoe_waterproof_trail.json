@@ -1,0 +1,35 @@
+{
+ "id": "pf_shoe_waterproof_trail",
+ "kind": "products",
+ "category": "shoes",
+ "dims_m": [
+  0.1114,
+  0.3214,
+  0.1166
+ ],
+ "min_z": 0.001,
+ "tris": 7076,
+ "textures": [
+  "M_ShoeCharV2_alb:512x512",
+  "NRM_crinkle_0.12_512:512x512",
+  "NRM_knurl_1.0_512:512x512",
+  "NRM_leather_0.55_512:512x512",
+  "PSSatinAlb:256x256",
+  "RGH_leather_0.48:256x256",
+  "ShoeTab_pf_shoe_waterproof_trail:128x64",
+  "SideLogo_pf_shoe_waterproof_trail:96x96",
+  "SoleGreyAlb:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_shoe_waterproof_trail.glb",
+ "blend": "assets/pro_shop/source/products/shoes/pf_shoe_waterproof_trail.blend",
+ "name": "PF Waterproof Trail Shoe",
+ "variant": "charcoal",
+ "price": 149.99,
+ "fixture": "pf_fixture_shoe_display",
+ "slot_type": "shoe_tier",
+ "packaging": "display single"
+}

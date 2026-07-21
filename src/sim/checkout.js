@@ -5,16 +5,9 @@
 // happen in front of you. Counters here are session-flavor; the money is
 // real (addRevenue → ledger → closeBooks like everything else).
 
-import { addRevenue, addCostOfGoods, recordOutcome } from './economy.js';
-import { skuById, SHELF_CAP } from '../data/shopItems.js';
-import { capacityOf } from '../data/fixtureSlots.js';
-import {
-  INVENTORY_STAGE,
-  allocationsForHeldUnit,
-  forgetHeldAllocations,
-  moveInventory,
-  rememberHeldAllocations,
-} from './inventoryLifecycle.js';
+import { addRevenue } from './economy.js';
+import { skuById } from '../data/shopItems.js';
+import { shelfCapacity, skuDisplayIsPlaced } from './shop.js';
 
 // --- units in flight --------------------------------------------------------------
 // A unit a shopper is carrying is off the shelf but not yet sold. That in-between
@@ -36,20 +29,10 @@ export function heldUnits(state) {
 export function pickFromShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
-  state.shop.nextHeldId = Number.isSafeInteger(state.shop.nextHeldId) ? state.shop.nextHeldId : 1;
-  const heldUid = uid || `anonymous-${state.shop.nextHeldId++}`;
-  if (heldUnits(state).some((held) => held.uid === heldUid)) {
-    return { ok: false, reason: 'This product is already being held.' };
+  if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
+  if (uid && heldUnits(state).some((unit) => unit.uid === uid)) {
+    return { ok: false, reason: 'That held UID is already in use.' };
   }
-  const moved = moveInventory(state, {
-    from: INVENTORY_STAGE.SHELF,
-    to: INVENTORY_STAGE.CUSTOMER_HELD,
-    skuId,
-    quantity: 1,
-    referenceId: `customer-pick:${heldUid}`,
-    reason: `Customer ${heldUid} picked up product`,
-  });
-  if (!moved.ok) return moved;
   inv.shelf -= 1;
   heldUnits(state).push({ uid: heldUid, skuId });
   rememberHeldAllocations(state, heldUid, moved.allocations);
@@ -66,23 +49,22 @@ export function returnToShelf(state, skuId, uid = null) {
   if (i < 0) return { ok: false, reason: 'That product is not customer-held.' };
   const entry = held[i];
   const sku = skuById(skuId);
-  const cap = sku ? (capacityOf(skuId) || SHELF_CAP[sku.cat]) : 0;
-  const toShelf = inv.shelf < cap;
-  const moved = moveInventory(state, {
-    from: INVENTORY_STAGE.CUSTOMER_HELD,
-    to: toShelf ? INVENTORY_STAGE.SHELF : INVENTORY_STAGE.RESERVE,
-    skuId,
-    quantity: 1,
-    allocations: allocationsForHeldUnit(state, entry.uid),
-    referenceId: `customer-return:${entry.uid}`,
-    reason: `Customer ${entry.uid} abandoned purchase`,
-  });
-  if (!moved.ok) return moved;
-  if (toShelf) inv.shelf += 1;
-  else inv.back += 1;
-  held.splice(i, 1);
-  forgetHeldAllocations(state, entry.uid);
-  return { ok: true, location: toShelf ? 'shelf' : 'reserve' };
+  if (!sku) return { ok: false };
+  let heldIndex = -1;
+  if (uid) {
+    heldIndex = heldUnits(state).findIndex((h) => h.uid === uid && h.skuId === skuId);
+    if (heldIndex < 0) return { ok: false, reason: 'That held unit is no longer available.' };
+  }
+  const cap = shelfCapacity(sku);
+  // A held unit still belongs to the shop even when its display was refilled
+  // while the customer had it. Fill the real fixture first, then preserve the
+  // overflow in back stock instead of silently deleting it at the capacity cap.
+  const location = skuDisplayIsPlaced(state, skuId) && inv.shelf < cap ? 'shelf' : 'back';
+  inv[location] = (inv[location] || 0) + 1;
+  if (uid) {
+    heldUnits(state).splice(heldIndex, 1);
+  }
+  return { ok: true, location };
 }
 
 // the unit left the building in a paid-for bag: it is gone from the shelf and gone
@@ -109,6 +91,48 @@ export function consumeHeld(state, uid, skuId = null) {
   return true;
 }
 
+// Consume a finished basket as one checked operation. `completeSale` must never
+// bank first and then discover that one of its product UIDs was already returned,
+// duplicated in the basket, or belongs to another SKU. Validate the whole set
+// before removing anything, then splice from the end so indices stay stable.
+export function consumeHeldBatch(state, items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { ok: false, reason: 'The sale has no held products.' };
+  }
+
+  const held = heldUnits(state);
+  const seen = new Set();
+  const indices = [];
+  for (const item of items) {
+    if (!item || typeof item.uid !== 'string' || !item.uid) {
+      return { ok: false, reason: 'Every sold product needs a held UID.' };
+    }
+    if (seen.has(item.uid)) {
+      return { ok: false, reason: `Held UID ${item.uid} appears twice in the sale.` };
+    }
+    seen.add(item.uid);
+    const matches = [];
+    for (let i = 0; i < held.length; i += 1) {
+      if (held[i].uid === item.uid) matches.push(i);
+    }
+    if (matches.length === 0) {
+      return { ok: false, reason: `Held UID ${item.uid} is no longer available.` };
+    }
+    if (matches.length > 1) {
+      return { ok: false, reason: `Held UID ${item.uid} is ambiguous in inventory.` };
+    }
+    const index = matches[0];
+    if (held[index].skuId !== item.skuId) {
+      return { ok: false, reason: `Held UID ${item.uid} does not match ${item.skuId}.` };
+    }
+    indices.push(index);
+  }
+
+  indices.sort((a, b) => b - a);
+  for (const index of indices) held.splice(index, 1);
+  return { ok: true, consumed: indices.length };
+}
+
 // A reload lands here. Every customer in the building is gone — they live in the
 // renderer, not in `state` — so anything they were holding has to go back on the
 // shelf. No money moved, so none is unwound. Idempotent: loading twice does not
@@ -116,10 +140,17 @@ export function consumeHeld(state, uid, skuId = null) {
 export function recoverCheckout(state) {
   const held = heldUnits(state);
   if (!held.length) return { returned: 0 };
-  const n = held.length;
-  for (const h of held.slice()) returnToShelf(state, h.skuId, h.uid);
-  state.shop.held = [];
-  return { returned: n };
+  let returned = 0;
+  let shelf = 0;
+  let back = 0;
+  for (const h of held.slice()) {
+    const res = returnToShelf(state, h.skuId, h.uid);
+    if (!res.ok) continue;
+    returned += 1;
+    if (res.location === 'shelf') shelf += 1;
+    else back += 1;
+  }
+  return { returned, shelf, back, remaining: heldUnits(state).length };
 }
 
 export function liveSales(state) {

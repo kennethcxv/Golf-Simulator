@@ -1,0 +1,44 @@
+{
+  "builder": "tools/blender/build_inventory_delivery_assets.py",
+  "build_version": 1,
+  "external_assets": [],
+  "license": "Project-owned original",
+  "raw_tripo_sources_modified": false,
+  "assets": [
+    {
+      "asset": "delivery_worktable",
+      "nodes": 30,
+      "meshes": 27,
+      "triangles": 1364,
+      "materials": 6
+    },
+    {
+      "asset": "delivery_stock_shelf",
+      "nodes": 29,
+      "meshes": 16,
+      "triangles": 18176,
+      "materials": 5
+    },
+    {
+      "asset": "delivery_box_cutter",
+      "nodes": 9,
+      "meshes": 5,
+      "triangles": 540,
+      "materials": 4
+    },
+    {
+      "asset": "delivery_recycling_station",
+      "nodes": 13,
+      "meshes": 11,
+      "triangles": 7196,
+      "materials": 7
+    },
+    {
+      "asset": "delivery_van",
+      "nodes": 38,
+      "meshes": 33,
+      "triangles": 31268,
+      "materials": 10
+    }
+  ]
+}

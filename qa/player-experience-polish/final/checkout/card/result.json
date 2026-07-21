@@ -1,0 +1,228 @@
+{
+  "mode": "card",
+  "log": [
+    {
+      "step": "0. before",
+      "revenue": 0,
+      "units": 0,
+      "held": 0,
+      "shelfBalls": 10,
+      "shelfGlove": 10
+    },
+    {
+      "step": "1. customer at the counter",
+      "who": "Riley P.",
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 0,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "2. [E] register mode",
+      "active": true
+    },
+    {
+      "step": "3. dragged item 1 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "4. dragged the SAME item back over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "expect": "scanned still 1"
+    },
+    {
+      "step": "5. [T] with 1 unscanned",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "expect": "stage scanning, method null"
+    },
+    {
+      "step": "6. dragged item 2 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "7. [T] total",
+      "tx": {
+        "stage": "card-present",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue still 0"
+    },
+    {
+      "step": "8. clicked terminal — they present",
+      "tx": {
+        "stage": "card-ready",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "9. clicked terminal — running",
+      "tx": {
+        "stage": "card-busy",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    },
+    {
+      "step": "10. terminal answered",
+      "tx": {
+        "stage": "receipt",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 1,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0 — an approval banks nothing"
+    },
+    {
+      "step": "16. receipt printed",
+      "at": {
+        "x": 3.18,
+        "z": 4.44
+      }
+    },
+    {
+      "step": "17. took the receipt",
+      "tx": {
+        "stage": "bagging",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 1,
+        "cardsTried": 1,
+        "receiptPrinted": true,
+        "banked": false
+      }
+    },
+    {
+      "step": "18. bagged",
+      "tx": {
+        "stage": "bagging",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 2,
+        "of": 2,
+        "cardAttempts": 1,
+        "cardsTried": 1,
+        "receiptPrinted": true,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0"
+    },
+    {
+      "step": "19. HANDED IT OVER",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue banked NOW, held back to 0"
+    },
+    {
+      "step": "20. final",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    }
+  ],
+  "errors": [],
+  "errorCount": 0
+}

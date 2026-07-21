@@ -1,0 +1,29 @@
+{
+ "id": "pf_umbrella_closed",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.055,
+  0.073,
+  0.94
+ ],
+ "min_z": 0.0,
+ "tris": 764,
+ "textures": [
+  "PSBlackSteel:512x512",
+  "UmbCream:256x256",
+  "UmbGreen:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_umbrella_closed.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_umbrella_closed.blend",
+ "name": "PF Course Umbrella",
+ "variant": "green_cream",
+ "price": 54.99,
+ "fixture": "pf_fixture_freestanding_gondola",
+ "slot_type": "barrel",
+ "packaging": "none"
+}

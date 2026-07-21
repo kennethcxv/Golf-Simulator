@@ -1,0 +1,4 @@
+interface:
+  display_name: "Browser Game Visual QA"
+  short_description: "Iterate browser-game visuals with Playwright evidence"
+  default_prompt: "Use $browser-game-visual-qa to run functional and visual QA on the game."

@@ -1,0 +1,111 @@
+{
+  "ok": true,
+  "branch": "overnight/property-expansion-world-overhaul",
+  "startingCommit": "0c5137e5f0efac9627ce2309b9e66936f1eeb769",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "fixedCamera": {
+    "anchor": {
+      "bx": -8,
+      "bz": 228
+    },
+    "time": "14:00",
+    "weather": "save fixture"
+  },
+  "shots": [
+    "01-clubhouse-exterior",
+    "02-front-entrance",
+    "03-maintenance-yard",
+    "04-current-tractor",
+    "05-current-golf-cart",
+    "06-current-shed",
+    "07-current-sign",
+    "08-current-house",
+    "09-current-leaf-pile",
+    "10-current-character-and-hat",
+    "11-current-shop-and-register",
+    "12-current-vacuum",
+    "13-current-vacuum-active",
+    "14-current-pressure-washer",
+    "15-current-pressure-washer-active",
+    "16-course-and-tree-baseline",
+    "17-current-course-editor-no-tree-placement",
+    "18-current-delivery-eta"
+  ],
+  "performanceSamples": [
+    {
+      "durationMs": 5008.099999904633,
+      "frameCount": 446,
+      "averageFps": 89.05572971955293,
+      "onePercentLowFps": 71.42857142857143,
+      "worstFrameMs": 16.69999999999709,
+      "drawCalls": 1,
+      "renderedTriangles": 1,
+      "geometryCount": 1186,
+      "textureResourceCount": 227,
+      "jsHeapBytes": 122566623
+    },
+    {
+      "durationMs": 5005.499999928477,
+      "frameCount": 445,
+      "averageFps": 88.90220757294146,
+      "onePercentLowFps": 71.42857142857143,
+      "worstFrameMs": 61.30000000000291,
+      "drawCalls": 1,
+      "renderedTriangles": 1,
+      "geometryCount": 1301,
+      "textureResourceCount": 227,
+      "jsHeapBytes": 132966199
+    },
+    {
+      "durationMs": 5003.299999952316,
+      "frameCount": 452,
+      "averageFps": 90.3403753531285,
+      "onePercentLowFps": 60.24096385542697,
+      "worstFrameMs": 16.799999999995634,
+      "drawCalls": 1,
+      "renderedTriangles": 1,
+      "geometryCount": 1301,
+      "textureResourceCount": 227,
+      "jsHeapBytes": 158541011
+    }
+  ],
+  "sceneMetrics": {
+    "visibleMeshes": 1262,
+    "sceneTriangles": 2002447,
+    "materialCount": 269
+  },
+  "activeWindowEventListeners": 22,
+  "textureMemoryBytes": null,
+  "uiUpdateFrequencyHz": null,
+  "diagnostics": [
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "requestfailed: http://localhost:8467/vendor/models/hand_fork.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8467/vendor/models/hose_nozzle.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8467/vendor/models/bucket_soil.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8467/vendor/models/clubhouse/kiosk.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8467/vendor/models/tractor_broken.glb (net::ERR_ABORTED)",
+    "console:warning: THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ]
+}

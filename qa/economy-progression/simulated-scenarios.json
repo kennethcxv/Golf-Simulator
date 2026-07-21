@@ -1,0 +1,3016 @@
+{
+  "generatedAt": "2026-07-20T01:37:21.051Z",
+  "horizonDays": 24,
+  "assumptions": [
+    "Every scenario buys the same Willow Creek property in Relaxed mode and runs the real daily empire update for 24 closed days across five deterministic seed replicates.",
+    "Each strategy uses the same five-seed set, plus the real weather, customers, membership, turf, pricing, ledger, reputation, and valuation systems; tables report replicate means.",
+    "Accelerated stocked scenarios collapse unpacking lead time: replenishment enters the real inventory and posts merchandise plus 4% delivery cash entries before shelves are refilled.",
+    "Poor and understocked scenarios receive no replenishment. High/low strategies change every supported price control to its legal bound.",
+    "Restored fixtures mutate the same grime, clutter, wash masks, turf arrays, equipment, decor placements, and maintenance policies that normal gameplay changes; they do not write condition or value directly.",
+    "Upgrade attainability divides the cheapest $5,000 progression upgrade by observed accounting profit and excludes restoration capital from operating profit."
+  ],
+  "scenarios": [
+    {
+      "id": "poor-operation",
+      "label": "Poor operation",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "high",
+        "stock": "none",
+        "quality": "neglected",
+        "upgrades": []
+      },
+      "cash": {
+        "start": 54500,
+        "end": 55488.24,
+        "change": 988.24,
+        "minimum": 54500,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 5820.04,
+        "costOfGoodsSold": 0,
+        "operatingExpenses": 4741.8,
+        "net": 1078.24,
+        "averageDaily": 44.93,
+        "retailRevenue": 0,
+        "retailCostOfGoods": 0,
+        "retailGrossMargin": 0
+      },
+      "operations": {
+        "customersServed": 33.8,
+        "missedSales": 106.4,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 13.26,
+        "endCondition": 13.58,
+        "startValue": 36200,
+        "endValue": 26500,
+        "valueChange": -9700,
+        "unresolvedAreas": 11.2,
+        "saleEligible": false,
+        "saleEligibleRate": 0,
+        "offer": 26800,
+        "netProceeds": 25862,
+        "offerVsAcquisition": -19638
+      },
+      "reputation": {
+        "overall": 21.24,
+        "categories": {
+          "cleanliness": 18,
+          "retail": 3.6,
+          "course": 35.58,
+          "service": 24.32
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 195.09,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "average-operation",
+      "label": "Average operation",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "fair",
+        "stock": "basic",
+        "quality": "default",
+        "upgrades": []
+      },
+      "cash": {
+        "start": 49120.08,
+        "end": 70786.71,
+        "change": 21666.63,
+        "minimum": 49120.08,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 29031.6,
+        "costOfGoodsSold": 2465.1,
+        "operatingExpenses": 5028.98,
+        "net": 21537.52,
+        "averageDaily": 897.4,
+        "retailRevenue": 5121.84,
+        "retailCostOfGoods": 2465.1,
+        "retailGrossMargin": 2656.74
+      },
+      "operations": {
+        "customersServed": 572.4,
+        "missedSales": 104.2,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 38.86,
+        "endCondition": 28.06,
+        "startValue": 51700,
+        "endValue": 73100,
+        "valueChange": 21400,
+        "unresolvedAreas": 9.8,
+        "saleEligible": false,
+        "saleEligibleRate": 0,
+        "offer": 73900,
+        "netProceeds": 71313.5,
+        "offerVsAcquisition": 25813.5
+      },
+      "reputation": {
+        "overall": 36.18,
+        "categories": {
+          "cleanliness": 18,
+          "retail": 31.02,
+          "course": 50.84,
+          "service": 38.24
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 5.62,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "skilled-operation",
+      "label": "Skilled operation",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "fair",
+        "stock": "full",
+        "quality": "restored",
+        "upgrades": [
+          "greensMowerII",
+          "aerator"
+        ]
+      },
+      "cash": {
+        "start": 15814.6,
+        "end": 62111.42,
+        "change": 46296.82,
+        "minimum": 15814.6,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 65117.71,
+        "costOfGoodsSold": 8543.2,
+        "operatingExpenses": 10597.84,
+        "net": 45976.67,
+        "averageDaily": 1915.7,
+        "retailRevenue": 17077.41,
+        "retailCostOfGoods": 8543.2,
+        "retailGrossMargin": 8534.21
+      },
+      "operations": {
+        "customersServed": 1137,
+        "missedSales": 46.2,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 90.14,
+        "endCondition": 80.74,
+        "startValue": 70900,
+        "endValue": 138200,
+        "valueChange": 67300,
+        "unresolvedAreas": 1,
+        "saleEligible": true,
+        "saleEligibleRate": 1,
+        "offer": 140000,
+        "netProceeds": 135100,
+        "offerVsAcquisition": 89600
+      },
+      "reputation": {
+        "overall": 59.5,
+        "categories": {
+          "cleanliness": 40.02,
+          "retail": 41.2,
+          "course": 72.96,
+          "service": 77.24
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 2.66,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "high-price",
+      "label": "High-price strategy",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "high",
+        "stock": "full",
+        "quality": "default",
+        "upgrades": []
+      },
+      "cash": {
+        "start": 28814.6,
+        "end": 38417.03,
+        "change": 9602.43,
+        "minimum": 28814.6,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 16438.33,
+        "costOfGoodsSold": 1762.8,
+        "operatingExpenses": 5005.54,
+        "net": 9669.99,
+        "averageDaily": 402.92,
+        "retailRevenue": 5240.27,
+        "retailCostOfGoods": 1762.8,
+        "retailGrossMargin": 3477.47
+      },
+      "operations": {
+        "customersServed": 140.8,
+        "missedSales": 63.6,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 40.98,
+        "endCondition": 36.38,
+        "startValue": 51700,
+        "endValue": 50600,
+        "valueChange": -1100,
+        "unresolvedAreas": 7.8,
+        "saleEligible": true,
+        "saleEligibleRate": 1,
+        "offer": 51200,
+        "netProceeds": 49408,
+        "offerVsAcquisition": 3908
+      },
+      "reputation": {
+        "overall": 33.84,
+        "categories": {
+          "cleanliness": 18,
+          "retail": 26.44,
+          "course": 36.12,
+          "service": 51.24
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 12.96,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "low-price",
+      "label": "Low-price strategy",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "low",
+        "stock": "full",
+        "quality": "default",
+        "upgrades": []
+      },
+      "cash": {
+        "start": 28814.6,
+        "end": 38690.46,
+        "change": 9875.86,
+        "minimum": 28814.6,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 24403.27,
+        "costOfGoodsSold": 10049.2,
+        "operatingExpenses": 5066.81,
+        "net": 9287.27,
+        "averageDaily": 386.97,
+        "retailRevenue": 13891.44,
+        "retailCostOfGoods": 10049.2,
+        "retailGrossMargin": 3842.24
+      },
+      "operations": {
+        "customersServed": 1145.2,
+        "missedSales": 43.4,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 40.98,
+        "endCondition": 28.16,
+        "startValue": 51700,
+        "endValue": 58000,
+        "valueChange": 6300,
+        "unresolvedAreas": 9,
+        "saleEligible": false,
+        "saleEligibleRate": 0,
+        "offer": 58400,
+        "netProceeds": 56356,
+        "offerVsAcquisition": 10856
+      },
+      "reputation": {
+        "overall": 34.62,
+        "categories": {
+          "cleanliness": 18,
+          "retail": 41,
+          "course": 50.36,
+          "service": 22.72
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 13.3,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "understocked",
+      "label": "Understocked store",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "fair",
+        "stock": "none",
+        "quality": "default",
+        "upgrades": []
+      },
+      "cash": {
+        "start": 54500,
+        "end": 74381.62,
+        "change": 19881.62,
+        "minimum": 54500,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 25031.64,
+        "costOfGoodsSold": 0,
+        "operatingExpenses": 5051.15,
+        "net": 19980.49,
+        "averageDaily": 832.52,
+        "retailRevenue": 0,
+        "retailCostOfGoods": 0,
+        "retailGrossMargin": 0
+      },
+      "operations": {
+        "customersServed": 389.6,
+        "missedSales": 317.4,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 35.78,
+        "endCondition": 26.04,
+        "startValue": 51700,
+        "endValue": 70600,
+        "valueChange": 18900,
+        "unresolvedAreas": 9.8,
+        "saleEligible": false,
+        "saleEligibleRate": 0,
+        "offer": 71600,
+        "netProceeds": 69094,
+        "offerVsAcquisition": 23594
+      },
+      "reputation": {
+        "overall": 32.3,
+        "categories": {
+          "cleanliness": 18,
+          "retail": 3.6,
+          "course": 58.34,
+          "service": 41.16
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 6.04,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "neglected-course",
+      "label": "Neglected course",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "fair",
+        "stock": "full",
+        "quality": "neglected-course",
+        "upgrades": []
+      },
+      "cash": {
+        "start": 28814.6,
+        "end": 41057.84,
+        "change": 12243.24,
+        "minimum": 28814.6,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 21748.79,
+        "costOfGoodsSold": 4975.3,
+        "operatingExpenses": 4741.8,
+        "net": 12031.69,
+        "averageDaily": 501.32,
+        "retailRevenue": 9908.43,
+        "retailCostOfGoods": 4975.3,
+        "retailGrossMargin": 4933.13
+      },
+      "operations": {
+        "customersServed": 515,
+        "missedSales": 23.8,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 57.5,
+        "endCondition": 54.1,
+        "startValue": 39700,
+        "endValue": 49800,
+        "valueChange": 10100,
+        "unresolvedAreas": 6,
+        "saleEligible": true,
+        "saleEligibleRate": 1,
+        "offer": 50300,
+        "netProceeds": 48539.5,
+        "offerVsAcquisition": 3039.5
+      },
+      "reputation": {
+        "overall": 31.7,
+        "categories": {
+          "cleanliness": 41.98,
+          "retail": 40.16,
+          "course": 37.62,
+          "service": 8
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 10.04,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    },
+    {
+      "id": "fully-restored",
+      "label": "Fully restored property",
+      "days": 24,
+      "replicates": 5,
+      "assumptions": {
+        "price": "fair",
+        "stock": "full",
+        "quality": "restored",
+        "upgrades": [
+          "greensMowerII",
+          "aerator",
+          "smartIrrigation"
+        ]
+      },
+      "cash": {
+        "start": 3814.6,
+        "end": 50173.87,
+        "change": 46359.27,
+        "minimum": 3814.6,
+        "negativeDays": 0,
+        "negativeRunRate": 0
+      },
+      "profit": {
+        "grossRevenue": 65117.71,
+        "costOfGoodsSold": 8543.2,
+        "operatingExpenses": 10535.39,
+        "net": 46039.12,
+        "averageDaily": 1918.3,
+        "retailRevenue": 17077.41,
+        "retailCostOfGoods": 8543.2,
+        "retailGrossMargin": 8534.21
+      },
+      "operations": {
+        "customersServed": 1137,
+        "missedSales": 46.2,
+        "noShowImpact": 0,
+        "averageTeeUtilization": 0
+      },
+      "property": {
+        "acquisitionCost": 45500,
+        "startCondition": 92.34,
+        "endCondition": 82.94,
+        "startValue": 77400,
+        "endValue": 144700,
+        "valueChange": 67300,
+        "unresolvedAreas": 1,
+        "saleEligible": true,
+        "saleEligibleRate": 1,
+        "offer": 146500,
+        "netProceeds": 141372.5,
+        "offerVsAcquisition": 95872.5
+      },
+      "reputation": {
+        "overall": 59.5,
+        "categories": {
+          "cleanliness": 40.02,
+          "retail": 41.2,
+          "course": 72.96,
+          "service": 77.24
+        }
+      },
+      "progression": {
+        "daysToCheapestUpgrade": 2.65,
+        "nextTierEligibleBeforeRequiredSale": false
+      }
+    }
+  ],
+  "scenarioRuns": [
+    {
+      "id": "poor-operation",
+      "runs": [
+        {
+          "id": "poor-operation",
+          "label": "Poor operation",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "none",
+            "quality": "neglected",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 54000,
+            "end": 55223.33,
+            "change": 1223.33,
+            "minimum": 54000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 6071.33,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4758,
+            "net": 1313.33,
+            "averageDaily": 54.72,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 35,
+            "missedSales": 106,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 13.2,
+            "endCondition": 13.4,
+            "startValue": 36000,
+            "endValue": 26500,
+            "valueChange": -9500,
+            "unresolvedAreas": 11,
+            "saleEligible": false,
+            "offer": 28000,
+            "netProceeds": 27020,
+            "offerVsAcquisition": -18980
+          },
+          "reputation": {
+            "overall": 19.3,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 32.2,
+              "service": 20.7
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 91.37,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "poor-operation",
+          "label": "Poor operation",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "none",
+            "quality": "neglected",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 54000,
+            "end": 54497.56,
+            "change": 497.56,
+            "minimum": 54000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 5345.56,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4758,
+            "net": 587.56,
+            "averageDaily": 24.48,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 30,
+            "missedSales": 109,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 13.2,
+            "endCondition": 13.6,
+            "startValue": 36000,
+            "endValue": 25500,
+            "valueChange": -10500,
+            "unresolvedAreas": 11,
+            "saleEligible": false,
+            "offer": 26500,
+            "netProceeds": 25572.5,
+            "offerVsAcquisition": -20427.5
+          },
+          "reputation": {
+            "overall": 19.6,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 34.2,
+              "service": 19.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 204.25,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "poor-operation",
+          "label": "Poor operation",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "none",
+            "quality": "neglected",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 55000,
+            "end": 56352.41,
+            "change": 1352.41,
+            "minimum": 55000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 6167.41,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4725,
+            "net": 1442.41,
+            "averageDaily": 60.1,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 37,
+            "missedSales": 94,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 13.3,
+            "endCondition": 13.6,
+            "startValue": 36500,
+            "endValue": 27500,
+            "valueChange": -9000,
+            "unresolvedAreas": 11,
+            "saleEligible": false,
+            "offer": 25500,
+            "netProceeds": 24607.5,
+            "offerVsAcquisition": -20392.5
+          },
+          "reputation": {
+            "overall": 23.5,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 35.9,
+              "service": 32.9
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 83.19,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "poor-operation",
+          "label": "Poor operation",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "none",
+            "quality": "neglected",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 55500,
+            "end": 57231.81,
+            "change": 1731.81,
+            "minimum": 55500,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 6531.81,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4710,
+            "net": 1821.81,
+            "averageDaily": 75.91,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 39,
+            "missedSales": 115,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 13.4,
+            "endCondition": 13.7,
+            "startValue": 36500,
+            "endValue": 28000,
+            "valueChange": -8500,
+            "unresolvedAreas": 12,
+            "saleEligible": false,
+            "offer": 26000,
+            "netProceeds": 25090,
+            "offerVsAcquisition": -19410
+          },
+          "reputation": {
+            "overall": 21.8,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 36.7,
+              "service": 25.2
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 65.87,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "poor-operation",
+          "label": "Poor operation",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "none",
+            "quality": "neglected",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 54000,
+            "end": 54136.1,
+            "change": 136.1,
+            "minimum": 54000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 4984.1,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4758,
+            "net": 226.1,
+            "averageDaily": 9.42,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 28,
+            "missedSales": 108,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 13.2,
+            "endCondition": 13.6,
+            "startValue": 36000,
+            "endValue": 25000,
+            "valueChange": -11000,
+            "unresolvedAreas": 11,
+            "saleEligible": false,
+            "offer": 28000,
+            "netProceeds": 27020,
+            "offerVsAcquisition": -18980
+          },
+          "reputation": {
+            "overall": 22,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 38.9,
+              "service": 23.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 530.79,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "average-operation",
+      "runs": [
+        {
+          "id": "average-operation",
+          "label": "Average operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "basic",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 48620.08,
+            "end": 67730.17,
+            "change": 19110.09,
+            "minimum": 48620.08,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 26997.89,
+            "costOfGoodsSold": 2997.5,
+            "operatingExpenses": 5092.76,
+            "net": 18907.63,
+            "averageDaily": 787.82,
+            "retailRevenue": 6083.2,
+            "retailCostOfGoods": 2997.5,
+            "retailGrossMargin": 3085.7
+          },
+          "operations": {
+            "customersServed": 515,
+            "missedSales": 81,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 38.8,
+            "endCondition": 26.2,
+            "startValue": 51500,
+            "endValue": 65000,
+            "valueChange": 13500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 68000,
+            "netProceeds": 65620,
+            "offerVsAcquisition": 19620
+          },
+          "reputation": {
+            "overall": 32.9,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 32.3,
+              "course": 47.4,
+              "service": 28
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 6.35,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "average-operation",
+          "label": "Average operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "basic",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 48620.08,
+            "end": 72501.35,
+            "change": 23881.27,
+            "minimum": 48620.08,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 31477.03,
+            "costOfGoodsSold": 2513.5,
+            "operatingExpenses": 5089.84,
+            "net": 23873.69,
+            "averageDaily": 994.74,
+            "retailRevenue": 5246.45,
+            "retailCostOfGoods": 2513.5,
+            "retailGrossMargin": 2732.95
+          },
+          "operations": {
+            "customersServed": 613,
+            "missedSales": 117,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 38.8,
+            "endCondition": 28,
+            "startValue": 51500,
+            "endValue": 77000,
+            "valueChange": 25500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 80000,
+            "netProceeds": 77200,
+            "offerVsAcquisition": 31200
+          },
+          "reputation": {
+            "overall": 38.1,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 30.2,
+              "course": 52,
+              "service": 45.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 5.03,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "average-operation",
+          "label": "Average operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "basic",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 49620.08,
+            "end": 71138.59,
+            "change": 21518.51,
+            "minimum": 49620.08,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 29161.4,
+            "costOfGoodsSold": 2680,
+            "operatingExpenses": 5030.89,
+            "net": 21450.51,
+            "averageDaily": 893.77,
+            "retailRevenue": 5490.15,
+            "retailCostOfGoods": 2680,
+            "retailGrossMargin": 2810.15
+          },
+          "operations": {
+            "customersServed": 588,
+            "missedSales": 104,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 38.9,
+            "endCondition": 32.1,
+            "startValue": 52000,
+            "endValue": 76500,
+            "valueChange": 24500,
+            "unresolvedAreas": 9,
+            "saleEligible": false,
+            "offer": 70500,
+            "netProceeds": 68032.5,
+            "offerVsAcquisition": 23032.5
+          },
+          "reputation": {
+            "overall": 39.1,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 31.4,
+              "course": 54,
+              "service": 45.7
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 5.59,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "average-operation",
+          "label": "Average operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "basic",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 50120.08,
+            "end": 70147.58,
+            "change": 20027.5,
+            "minimum": 50120.08,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 26634.1,
+            "costOfGoodsSold": 1768.5,
+            "operatingExpenses": 4960.24,
+            "net": 19905.36,
+            "averageDaily": 829.39,
+            "retailRevenue": 3786.6,
+            "retailCostOfGoods": 1768.5,
+            "retailGrossMargin": 2018.1
+          },
+          "operations": {
+            "customersServed": 524,
+            "missedSales": 104,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 39,
+            "endCondition": 26.2,
+            "startValue": 52000,
+            "endValue": 69500,
+            "valueChange": 17500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 65000,
+            "netProceeds": 62725,
+            "offerVsAcquisition": 18225
+          },
+          "reputation": {
+            "overall": 33.6,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 30.6,
+              "course": 49.2,
+              "service": 30.2
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 6.03,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "average-operation",
+          "label": "Average operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "basic",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 48620.08,
+            "end": 72415.87,
+            "change": 23795.79,
+            "minimum": 48620.08,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 30887.57,
+            "costOfGoodsSold": 2366,
+            "operatingExpenses": 4971.18,
+            "net": 23550.39,
+            "averageDaily": 981.27,
+            "retailRevenue": 5002.8,
+            "retailCostOfGoods": 2366,
+            "retailGrossMargin": 2636.8
+          },
+          "operations": {
+            "customersServed": 622,
+            "missedSales": 115,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 38.8,
+            "endCondition": 27.8,
+            "startValue": 51500,
+            "endValue": 77500,
+            "valueChange": 26000,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 86000,
+            "netProceeds": 82990,
+            "offerVsAcquisition": 36990
+          },
+          "reputation": {
+            "overall": 37.2,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 30.6,
+              "course": 51.6,
+              "service": 41.9
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 5.1,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "skilled-operation",
+      "runs": [
+        {
+          "id": "skilled-operation",
+          "label": "Skilled operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator"
+            ]
+          },
+          "cash": {
+            "start": 15314.6,
+            "end": 64972.49,
+            "change": 49657.89,
+            "minimum": 15314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 68163.8,
+            "costOfGoodsSold": 9011,
+            "operatingExpenses": 10414.63,
+            "net": 48738.17,
+            "averageDaily": 2030.76,
+            "retailRevenue": 18084.3,
+            "retailCostOfGoods": 9011,
+            "retailGrossMargin": 9073.3
+          },
+          "operations": {
+            "customersServed": 1192,
+            "missedSales": 48,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 90.1,
+            "endCondition": 79.5,
+            "startValue": 70500,
+            "endValue": 135500,
+            "valueChange": 65000,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 142000,
+            "netProceeds": 137030,
+            "offerVsAcquisition": 91030
+          },
+          "reputation": {
+            "overall": 59.9,
+            "categories": {
+              "cleanliness": 39.7,
+              "retail": 41.4,
+              "course": 73.9,
+              "service": 77.7
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.46,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "skilled-operation",
+          "label": "Skilled operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator"
+            ]
+          },
+          "cash": {
+            "start": 15314.6,
+            "end": 57564.23,
+            "change": 42249.63,
+            "minimum": 15314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 60273.5,
+            "costOfGoodsSold": 8021.5,
+            "operatingExpenses": 10419.83,
+            "net": 41832.17,
+            "averageDaily": 1743.01,
+            "retailRevenue": 15999.5,
+            "retailCostOfGoods": 8021.5,
+            "retailGrossMargin": 7978
+          },
+          "operations": {
+            "customersServed": 1039,
+            "missedSales": 38,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 90.2,
+            "endCondition": 78.3,
+            "startValue": 71000,
+            "endValue": 132000,
+            "valueChange": 61000,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 137000,
+            "netProceeds": 132205,
+            "offerVsAcquisition": 86205
+          },
+          "reputation": {
+            "overall": 58.3,
+            "categories": {
+              "cleanliness": 40.5,
+              "retail": 41,
+              "course": 71.2,
+              "service": 74.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.87,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "skilled-operation",
+          "label": "Skilled operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator"
+            ]
+          },
+          "cash": {
+            "start": 16314.6,
+            "end": 61249.23,
+            "change": 44934.63,
+            "minimum": 16314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 64380.35,
+            "costOfGoodsSold": 9161,
+            "operatingExpenses": 10732,
+            "net": 44487.35,
+            "averageDaily": 1853.64,
+            "retailRevenue": 18253.85,
+            "retailCostOfGoods": 9161,
+            "retailGrossMargin": 9092.85
+          },
+          "operations": {
+            "customersServed": 1103,
+            "missedSales": 40,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 90.2,
+            "endCondition": 83.2,
+            "startValue": 71500,
+            "endValue": 142000,
+            "valueChange": 70500,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 131000,
+            "netProceeds": 126415,
+            "offerVsAcquisition": 81415
+          },
+          "reputation": {
+            "overall": 59.6,
+            "categories": {
+              "cleanliness": 40.4,
+              "retail": 41.4,
+              "course": 72.8,
+              "service": 77.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.7,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "skilled-operation",
+          "label": "Skilled operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator"
+            ]
+          },
+          "cash": {
+            "start": 16814.6,
+            "end": 55211.04,
+            "change": 38396.44,
+            "minimum": 16814.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 55102.8,
+            "costOfGoodsSold": 6411,
+            "operatingExpenses": 10360.2,
+            "net": 38331.6,
+            "averageDaily": 1597.15,
+            "retailRevenue": 12919.8,
+            "retailCostOfGoods": 6411,
+            "retailGrossMargin": 6508.8
+          },
+          "operations": {
+            "customersServed": 974,
+            "missedSales": 44,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 90.1,
+            "endCondition": 76.6,
+            "startValue": 71000,
+            "endValue": 130500,
+            "valueChange": 59500,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 122000,
+            "netProceeds": 117730,
+            "offerVsAcquisition": 73230
+          },
+          "reputation": {
+            "overall": 58.4,
+            "categories": {
+              "cleanliness": 40.3,
+              "retail": 41.2,
+              "course": 71.3,
+              "service": 74.5
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 3.13,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "skilled-operation",
+          "label": "Skilled operation",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator"
+            ]
+          },
+          "cash": {
+            "start": 15314.6,
+            "end": 71560.11,
+            "change": 56245.51,
+            "minimum": 15314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 77668.1,
+            "costOfGoodsSold": 10111.5,
+            "operatingExpenses": 11062.55,
+            "net": 56494.05,
+            "averageDaily": 2353.92,
+            "retailRevenue": 20129.6,
+            "retailCostOfGoods": 10111.5,
+            "retailGrossMargin": 10018.1
+          },
+          "operations": {
+            "customersServed": 1377,
+            "missedSales": 61,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 90.1,
+            "endCondition": 86.1,
+            "startValue": 70500,
+            "endValue": 151000,
+            "valueChange": 80500,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 168000,
+            "netProceeds": 162120,
+            "offerVsAcquisition": 116120
+          },
+          "reputation": {
+            "overall": 61.3,
+            "categories": {
+              "cleanliness": 39.2,
+              "retail": 41,
+              "course": 75.6,
+              "service": 82.2
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.12,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "high-price",
+      "runs": [
+        {
+          "id": "high-price",
+          "label": "High-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 35036.16,
+            "change": 6721.56,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 13137.29,
+            "costOfGoodsSold": 1232,
+            "operatingExpenses": 5064.11,
+            "net": 6841.18,
+            "averageDaily": 285.05,
+            "retailRevenue": 3723.14,
+            "retailCostOfGoods": 1232,
+            "retailGrossMargin": 2491.14
+          },
+          "operations": {
+            "customersServed": 126,
+            "missedSales": 56,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 40.9,
+            "endCondition": 35.8,
+            "startValue": 51500,
+            "endValue": 44000,
+            "valueChange": -7500,
+            "unresolvedAreas": 8,
+            "saleEligible": true,
+            "offer": 46000,
+            "netProceeds": 44390,
+            "offerVsAcquisition": -1610
+          },
+          "reputation": {
+            "overall": 32.3,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 27.3,
+              "course": 33.7,
+              "service": 47.2
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 17.54,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "high-price",
+          "label": "High-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 41279.68,
+            "change": 12965.08,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 20483.58,
+            "costOfGoodsSold": 2447,
+            "operatingExpenses": 5084.8,
+            "net": 12951.78,
+            "averageDaily": 539.66,
+            "retailRevenue": 7147.82,
+            "retailCostOfGoods": 2447,
+            "retailGrossMargin": 4700.82
+          },
+          "operations": {
+            "customersServed": 161,
+            "missedSales": 66,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 40.9,
+            "endCondition": 37.2,
+            "startValue": 51500,
+            "endValue": 57000,
+            "valueChange": 5500,
+            "unresolvedAreas": 7,
+            "saleEligible": true,
+            "offer": 59000,
+            "netProceeds": 56935,
+            "offerVsAcquisition": 10935
+          },
+          "reputation": {
+            "overall": 35.7,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 27.1,
+              "course": 38.9,
+              "service": 54.6
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 9.27,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "high-price",
+          "label": "High-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 29314.6,
+            "end": 38122.5,
+            "change": 8807.9,
+            "minimum": 29314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 15522.86,
+            "costOfGoodsSold": 1608.5,
+            "operatingExpenses": 4983.6,
+            "net": 8930.76,
+            "averageDaily": 372.12,
+            "retailRevenue": 4828.36,
+            "retailCostOfGoods": 1608.5,
+            "retailGrossMargin": 3219.86
+          },
+          "operations": {
+            "customersServed": 141,
+            "missedSales": 59,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 41,
+            "endCondition": 36,
+            "startValue": 52000,
+            "endValue": 49000,
+            "valueChange": -3000,
+            "unresolvedAreas": 8,
+            "saleEligible": true,
+            "offer": 45000,
+            "netProceeds": 43425,
+            "offerVsAcquisition": -1575
+          },
+          "reputation": {
+            "overall": 34.7,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 27.1,
+              "course": 37.2,
+              "service": 52.7
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 13.44,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "high-price",
+          "label": "High-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 29814.6,
+            "end": 38948.15,
+            "change": 9133.55,
+            "minimum": 29814.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 15847.23,
+            "costOfGoodsSold": 1732.5,
+            "operatingExpenses": 4924.54,
+            "net": 9190.19,
+            "averageDaily": 382.92,
+            "retailRevenue": 5114.21,
+            "retailCostOfGoods": 1732.5,
+            "retailGrossMargin": 3381.71
+          },
+          "operations": {
+            "customersServed": 132,
+            "missedSales": 67,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 41.2,
+            "endCondition": 36.1,
+            "startValue": 52000,
+            "endValue": 50000,
+            "valueChange": -2000,
+            "unresolvedAreas": 8,
+            "saleEligible": true,
+            "offer": 47000,
+            "netProceeds": 45355,
+            "offerVsAcquisition": 855
+          },
+          "reputation": {
+            "overall": 32.1,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 25.4,
+              "course": 33.3,
+              "service": 48.8
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 13.06,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "high-price",
+          "label": "High-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "high",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 38698.65,
+            "change": 10384.05,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 17200.69,
+            "costOfGoodsSold": 1794,
+            "operatingExpenses": 4970.64,
+            "net": 10436.05,
+            "averageDaily": 434.84,
+            "retailRevenue": 5387.81,
+            "retailCostOfGoods": 1794,
+            "retailGrossMargin": 3593.81
+          },
+          "operations": {
+            "customersServed": 144,
+            "missedSales": 70,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 40.9,
+            "endCondition": 36.8,
+            "startValue": 51500,
+            "endValue": 53000,
+            "valueChange": 1500,
+            "unresolvedAreas": 8,
+            "saleEligible": true,
+            "offer": 59000,
+            "netProceeds": 56935,
+            "offerVsAcquisition": 10935
+          },
+          "reputation": {
+            "overall": 34.4,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 25.3,
+              "course": 37.5,
+              "service": 52.9
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 11.5,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "low-price",
+      "runs": [
+        {
+          "id": "low-price",
+          "label": "Low-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "low",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 35526.21,
+            "change": 7211.61,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 21043.73,
+            "costOfGoodsSold": 8887.5,
+            "operatingExpenses": 4958.8,
+            "net": 7197.43,
+            "averageDaily": 299.89,
+            "retailRevenue": 12287.86,
+            "retailCostOfGoods": 8887.5,
+            "retailGrossMargin": 3400.36
+          },
+          "operations": {
+            "customersServed": 963,
+            "missedSales": 35,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 40.9,
+            "endCondition": 25.9,
+            "startValue": 51500,
+            "endValue": 46500,
+            "valueChange": -5000,
+            "unresolvedAreas": 9,
+            "saleEligible": false,
+            "offer": 49000,
+            "netProceeds": 47285,
+            "offerVsAcquisition": 1285
+          },
+          "reputation": {
+            "overall": 28.7,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 40.9,
+              "course": 49.4,
+              "service": 0.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 16.67,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "low-price",
+          "label": "Low-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "low",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 40195.36,
+            "change": 11880.76,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 28871.56,
+            "costOfGoodsSold": 11487.5,
+            "operatingExpenses": 5513.32,
+            "net": 11870.74,
+            "averageDaily": 494.61,
+            "retailRevenue": 15921.57,
+            "retailCostOfGoods": 11487.5,
+            "retailGrossMargin": 4434.07
+          },
+          "operations": {
+            "customersServed": 1409,
+            "missedSales": 60,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 40.9,
+            "endCondition": 30.8,
+            "startValue": 51500,
+            "endValue": 71000,
+            "valueChange": 19500,
+            "unresolvedAreas": 9,
+            "saleEligible": false,
+            "offer": 73500,
+            "netProceeds": 70927.5,
+            "offerVsAcquisition": 24927.5
+          },
+          "reputation": {
+            "overall": 43.4,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 40.5,
+              "course": 54.1,
+              "service": 53.9
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 10.11,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "low-price",
+          "label": "Low-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "low",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 29314.6,
+            "end": 40027.88,
+            "change": 10713.28,
+            "minimum": 29314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 24764.54,
+            "costOfGoodsSold": 10087,
+            "operatingExpenses": 5016.74,
+            "net": 9660.8,
+            "averageDaily": 402.53,
+            "retailRevenue": 14013.73,
+            "retailCostOfGoods": 10087,
+            "retailGrossMargin": 3926.73
+          },
+          "operations": {
+            "customersServed": 1200,
+            "missedSales": 46,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 41,
+            "endCondition": 31.3,
+            "startValue": 52000,
+            "endValue": 61000,
+            "valueChange": 9000,
+            "unresolvedAreas": 8,
+            "saleEligible": false,
+            "offer": 56500,
+            "netProceeds": 54522.5,
+            "offerVsAcquisition": 9522.5
+          },
+          "reputation": {
+            "overall": 35.3,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 40.8,
+              "course": 49.7,
+              "service": 26.5
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 12.42,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "low-price",
+          "label": "Low-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "low",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 29814.6,
+            "end": 40903.19,
+            "change": 11088.59,
+            "minimum": 29814.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 26124.44,
+            "costOfGoodsSold": 11606.5,
+            "operatingExpenses": 4898.93,
+            "net": 9619.01,
+            "averageDaily": 400.79,
+            "retailRevenue": 15856.08,
+            "retailCostOfGoods": 11606.5,
+            "retailGrossMargin": 4249.58
+          },
+          "operations": {
+            "customersServed": 1113,
+            "missedSales": 39,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 41.2,
+            "endCondition": 27.4,
+            "startValue": 52000,
+            "endValue": 60500,
+            "valueChange": 8500,
+            "unresolvedAreas": 9,
+            "saleEligible": false,
+            "offer": 56500,
+            "netProceeds": 54522.5,
+            "offerVsAcquisition": 10022.5
+          },
+          "reputation": {
+            "overall": 36.7,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 41.2,
+              "course": 49.2,
+              "service": 32.2
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 12.48,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "low-price",
+          "label": "Low-price strategy",
+          "days": 24,
+          "assumptions": {
+            "price": "low",
+            "stock": "full",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 36799.65,
+            "change": 8485.05,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 21212.1,
+            "costOfGoodsSold": 8177.5,
+            "operatingExpenses": 4946.25,
+            "net": 8088.35,
+            "averageDaily": 337.01,
+            "retailRevenue": 11377.94,
+            "retailCostOfGoods": 8177.5,
+            "retailGrossMargin": 3200.44
+          },
+          "operations": {
+            "customersServed": 1041,
+            "missedSales": 37,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 40.9,
+            "endCondition": 25.4,
+            "startValue": 51500,
+            "endValue": 51000,
+            "valueChange": -500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 56500,
+            "netProceeds": 54522.5,
+            "offerVsAcquisition": 8522.5
+          },
+          "reputation": {
+            "overall": 29,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 41.6,
+              "course": 49.4,
+              "service": 0.6
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 14.84,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "understocked",
+      "runs": [
+        {
+          "id": "understocked",
+          "label": "Understocked store",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "none",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 54000,
+            "end": 73703.43,
+            "change": 19703.43,
+            "minimum": 54000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 24754.46,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4961.03,
+            "net": 19793.43,
+            "averageDaily": 824.73,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 367,
+            "missedSales": 316,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 35.7,
+            "endCondition": 25.6,
+            "startValue": 51500,
+            "endValue": 73000,
+            "valueChange": 21500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 76500,
+            "netProceeds": 73822.5,
+            "offerVsAcquisition": 27822.5
+          },
+          "reputation": {
+            "overall": 35.1,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 59.1,
+              "service": 51.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 6.06,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "understocked",
+          "label": "Understocked store",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "none",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 54000,
+            "end": 75154.26,
+            "change": 21154.26,
+            "minimum": 54000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 26478.78,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 5234.52,
+            "net": 21244.26,
+            "averageDaily": 885.18,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 410,
+            "missedSales": 323,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 35.7,
+            "endCondition": 25.3,
+            "startValue": 51500,
+            "endValue": 72000,
+            "valueChange": 20500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 74500,
+            "netProceeds": 71892.5,
+            "offerVsAcquisition": 25892.5
+          },
+          "reputation": {
+            "overall": 30.9,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 57,
+              "service": 37.3
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 5.65,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "understocked",
+          "label": "Understocked store",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "none",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 55000,
+            "end": 73272.39,
+            "change": 18272.39,
+            "minimum": 55000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 23324.4,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4917.66,
+            "net": 18406.74,
+            "averageDaily": 766.95,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 389,
+            "missedSales": 312,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 35.8,
+            "endCondition": 26.7,
+            "startValue": 52000,
+            "endValue": 66500,
+            "valueChange": 14500,
+            "unresolvedAreas": 9,
+            "saleEligible": false,
+            "offer": 61500,
+            "netProceeds": 59347.5,
+            "offerVsAcquisition": 14347.5
+          },
+          "reputation": {
+            "overall": 31.2,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 58,
+              "service": 37.1
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 6.52,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "understocked",
+          "label": "Understocked store",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "none",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 55500,
+            "end": 73589.46,
+            "change": 18089.46,
+            "minimum": 55500,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 23078.47,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 4899.01,
+            "net": 18179.46,
+            "averageDaily": 757.48,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 363,
+            "missedSales": 298,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 36,
+            "endCondition": 27.1,
+            "startValue": 52000,
+            "endValue": 66500,
+            "valueChange": 14500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 62000,
+            "netProceeds": 59830,
+            "offerVsAcquisition": 15330
+          },
+          "reputation": {
+            "overall": 31.5,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 58.9,
+              "service": 37.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 6.6,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "understocked",
+          "label": "Understocked store",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "none",
+            "quality": "default",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 54000,
+            "end": 76188.56,
+            "change": 22188.56,
+            "minimum": 54000,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 27522.11,
+            "costOfGoodsSold": 0,
+            "operatingExpenses": 5243.55,
+            "net": 22278.56,
+            "averageDaily": 928.27,
+            "retailRevenue": 0,
+            "retailCostOfGoods": 0,
+            "retailGrossMargin": 0
+          },
+          "operations": {
+            "customersServed": 419,
+            "missedSales": 338,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 35.7,
+            "endCondition": 25.5,
+            "startValue": 51500,
+            "endValue": 75000,
+            "valueChange": 23500,
+            "unresolvedAreas": 10,
+            "saleEligible": false,
+            "offer": 83500,
+            "netProceeds": 80577.5,
+            "offerVsAcquisition": 34577.5
+          },
+          "reputation": {
+            "overall": 32.8,
+            "categories": {
+              "cleanliness": 18,
+              "retail": 3.6,
+              "course": 58.7,
+              "service": 42.6
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 5.39,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "neglected-course",
+      "runs": [
+        {
+          "id": "neglected-course",
+          "label": "Neglected course",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "neglected-course",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 39006.11,
+            "change": 10691.51,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 20787.87,
+            "costOfGoodsSold": 5304.5,
+            "operatingExpenses": 4758,
+            "net": 10725.37,
+            "averageDaily": 446.89,
+            "retailRevenue": 10549.9,
+            "retailCostOfGoods": 5304.5,
+            "retailGrossMargin": 5245.4
+          },
+          "operations": {
+            "customersServed": 442,
+            "missedSales": 21,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 57.5,
+            "endCondition": 54.4,
+            "startValue": 39500,
+            "endValue": 46500,
+            "valueChange": 7000,
+            "unresolvedAreas": 6,
+            "saleEligible": true,
+            "offer": 49000,
+            "netProceeds": 47285,
+            "offerVsAcquisition": 1285
+          },
+          "reputation": {
+            "overall": 31.2,
+            "categories": {
+              "cleanliness": 42,
+              "retail": 40.1,
+              "course": 38.6,
+              "service": 4.9
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 11.19,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "neglected-course",
+          "label": "Neglected course",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "neglected-course",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 41324.4,
+            "change": 13009.8,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 22499.3,
+            "costOfGoodsSold": 4713,
+            "operatingExpenses": 4758,
+            "net": 13028.3,
+            "averageDaily": 542.85,
+            "retailRevenue": 9449.1,
+            "retailCostOfGoods": 4713,
+            "retailGrossMargin": 4736.1
+          },
+          "operations": {
+            "customersServed": 573,
+            "missedSales": 24,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 57.5,
+            "endCondition": 54,
+            "startValue": 39500,
+            "endValue": 51000,
+            "valueChange": 11500,
+            "unresolvedAreas": 6,
+            "saleEligible": true,
+            "offer": 53000,
+            "netProceeds": 51145,
+            "offerVsAcquisition": 5145
+          },
+          "reputation": {
+            "overall": 31.2,
+            "categories": {
+              "cleanliness": 41.9,
+              "retail": 40.4,
+              "course": 34.8,
+              "service": 9.3
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 9.21,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "neglected-course",
+          "label": "Neglected course",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "neglected-course",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 29314.6,
+            "end": 42055.74,
+            "change": 12741.14,
+            "minimum": 29314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 22705,
+            "costOfGoodsSold": 5279.5,
+            "operatingExpenses": 4725,
+            "net": 12700.5,
+            "averageDaily": 529.19,
+            "retailRevenue": 10466.1,
+            "retailCostOfGoods": 5279.5,
+            "retailGrossMargin": 5186.6
+          },
+          "operations": {
+            "customersServed": 541,
+            "missedSales": 22,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 57.5,
+            "endCondition": 54,
+            "startValue": 40000,
+            "endValue": 52000,
+            "valueChange": 12000,
+            "unresolvedAreas": 6,
+            "saleEligible": true,
+            "offer": 48000,
+            "netProceeds": 46320,
+            "offerVsAcquisition": 1320
+          },
+          "reputation": {
+            "overall": 33.2,
+            "categories": {
+              "cleanliness": 42,
+              "retail": 40.6,
+              "course": 39.2,
+              "service": 11.7
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 9.45,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "neglected-course",
+          "label": "Neglected course",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "neglected-course",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 29814.6,
+            "end": 43287.11,
+            "change": 13472.51,
+            "minimum": 29814.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 23454.03,
+            "costOfGoodsSold": 6112,
+            "operatingExpenses": 4710,
+            "net": 12632.03,
+            "averageDaily": 526.33,
+            "retailRevenue": 11999.05,
+            "retailCostOfGoods": 6112,
+            "retailGrossMargin": 5887.05
+          },
+          "operations": {
+            "customersServed": 475,
+            "missedSales": 26,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 57.5,
+            "endCondition": 54.1,
+            "startValue": 40000,
+            "endValue": 51000,
+            "valueChange": 11000,
+            "unresolvedAreas": 6,
+            "saleEligible": true,
+            "offer": 47500,
+            "netProceeds": 45837.5,
+            "offerVsAcquisition": 1337.5
+          },
+          "reputation": {
+            "overall": 31.3,
+            "categories": {
+              "cleanliness": 42,
+              "retail": 39.9,
+              "course": 38.7,
+              "service": 5.1
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 9.5,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "neglected-course",
+          "label": "Neglected course",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "neglected-course",
+            "upgrades": []
+          },
+          "cash": {
+            "start": 28314.6,
+            "end": 39615.85,
+            "change": 11301.25,
+            "minimum": 28314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 19297.75,
+            "costOfGoodsSold": 3467.5,
+            "operatingExpenses": 4758,
+            "net": 11072.25,
+            "averageDaily": 461.34,
+            "retailRevenue": 7078,
+            "retailCostOfGoods": 3467.5,
+            "retailGrossMargin": 3610.5
+          },
+          "operations": {
+            "customersServed": 544,
+            "missedSales": 26,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 57.5,
+            "endCondition": 54,
+            "startValue": 39500,
+            "endValue": 48500,
+            "valueChange": 9000,
+            "unresolvedAreas": 6,
+            "saleEligible": true,
+            "offer": 54000,
+            "netProceeds": 52110,
+            "offerVsAcquisition": 6110
+          },
+          "reputation": {
+            "overall": 31.6,
+            "categories": {
+              "cleanliness": 42,
+              "retail": 39.8,
+              "course": 36.8,
+              "service": 9
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 10.84,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "fully-restored",
+      "runs": [
+        {
+          "id": "fully-restored",
+          "label": "Fully restored property",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator",
+              "smartIrrigation"
+            ]
+          },
+          "cash": {
+            "start": 3314.6,
+            "end": 52972.84,
+            "change": 49658.24,
+            "minimum": 3314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 68163.8,
+            "costOfGoodsSold": 9011,
+            "operatingExpenses": 10414.28,
+            "net": 48738.52,
+            "averageDaily": 2030.77,
+            "retailRevenue": 18084.3,
+            "retailCostOfGoods": 9011,
+            "retailGrossMargin": 9073.3
+          },
+          "operations": {
+            "customersServed": 1192,
+            "missedSales": 48,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 92.3,
+            "endCondition": 81.7,
+            "startValue": 77000,
+            "endValue": 142000,
+            "valueChange": 65000,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 149000,
+            "netProceeds": 143785,
+            "offerVsAcquisition": 97785
+          },
+          "reputation": {
+            "overall": 59.9,
+            "categories": {
+              "cleanliness": 39.7,
+              "retail": 41.4,
+              "course": 73.9,
+              "service": 77.7
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.46,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "fully-restored",
+          "label": "Fully restored property",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator",
+              "smartIrrigation"
+            ]
+          },
+          "cash": {
+            "start": 3314.6,
+            "end": 45564.58,
+            "change": 42249.98,
+            "minimum": 3314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 60273.5,
+            "costOfGoodsSold": 8021.5,
+            "operatingExpenses": 10419.48,
+            "net": 41832.52,
+            "averageDaily": 1743.02,
+            "retailRevenue": 15999.5,
+            "retailCostOfGoods": 8021.5,
+            "retailGrossMargin": 7978
+          },
+          "operations": {
+            "customersServed": 1039,
+            "missedSales": 38,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 92.4,
+            "endCondition": 80.5,
+            "startValue": 77500,
+            "endValue": 138500,
+            "valueChange": 61000,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 143500,
+            "netProceeds": 138477.5,
+            "offerVsAcquisition": 92477.5
+          },
+          "reputation": {
+            "overall": 58.3,
+            "categories": {
+              "cleanliness": 40.5,
+              "retail": 41,
+              "course": 71.2,
+              "service": 74.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.87,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "fully-restored",
+          "label": "Fully restored property",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator",
+              "smartIrrigation"
+            ]
+          },
+          "cash": {
+            "start": 4314.6,
+            "end": 49359.43,
+            "change": 45044.83,
+            "minimum": 4314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 64380.35,
+            "costOfGoodsSold": 9161,
+            "operatingExpenses": 10621.8,
+            "net": 44597.55,
+            "averageDaily": 1858.23,
+            "retailRevenue": 18253.85,
+            "retailCostOfGoods": 9161,
+            "retailGrossMargin": 9092.85
+          },
+          "operations": {
+            "customersServed": 1103,
+            "missedSales": 40,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 45000,
+            "startCondition": 92.4,
+            "endCondition": 85.4,
+            "startValue": 78000,
+            "endValue": 148500,
+            "valueChange": 70500,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 137000,
+            "netProceeds": 132205,
+            "offerVsAcquisition": 87205
+          },
+          "reputation": {
+            "overall": 59.6,
+            "categories": {
+              "cleanliness": 40.4,
+              "retail": 41.4,
+              "course": 72.8,
+              "service": 77.4
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.69,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "fully-restored",
+          "label": "Fully restored property",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator",
+              "smartIrrigation"
+            ]
+          },
+          "cash": {
+            "start": 4814.6,
+            "end": 43211.04,
+            "change": 38396.44,
+            "minimum": 4814.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 55102.8,
+            "costOfGoodsSold": 6411,
+            "operatingExpenses": 10360.2,
+            "net": 38331.6,
+            "averageDaily": 1597.15,
+            "retailRevenue": 12919.8,
+            "retailCostOfGoods": 6411,
+            "retailGrossMargin": 6508.8
+          },
+          "operations": {
+            "customersServed": 974,
+            "missedSales": 44,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 44500,
+            "startCondition": 92.3,
+            "endCondition": 78.8,
+            "startValue": 77500,
+            "endValue": 137000,
+            "valueChange": 59500,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 128000,
+            "netProceeds": 123520,
+            "offerVsAcquisition": 79020
+          },
+          "reputation": {
+            "overall": 58.4,
+            "categories": {
+              "cleanliness": 40.3,
+              "retail": 41.2,
+              "course": 71.3,
+              "service": 74.5
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 3.13,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        },
+        {
+          "id": "fully-restored",
+          "label": "Fully restored property",
+          "days": 24,
+          "assumptions": {
+            "price": "fair",
+            "stock": "full",
+            "quality": "restored",
+            "upgrades": [
+              "greensMowerII",
+              "aerator",
+              "smartIrrigation"
+            ]
+          },
+          "cash": {
+            "start": 3314.6,
+            "end": 59761.46,
+            "change": 56446.86,
+            "minimum": 3314.6,
+            "negativeDays": 0
+          },
+          "profit": {
+            "grossRevenue": 77668.1,
+            "costOfGoodsSold": 10111.5,
+            "operatingExpenses": 10861.2,
+            "net": 56695.4,
+            "averageDaily": 2362.31,
+            "retailRevenue": 20129.6,
+            "retailCostOfGoods": 10111.5,
+            "retailGrossMargin": 10018.1
+          },
+          "operations": {
+            "customersServed": 1377,
+            "missedSales": 61,
+            "noShowImpact": 0,
+            "averageTeeUtilization": 0
+          },
+          "property": {
+            "acquisitionCost": 46000,
+            "startCondition": 92.3,
+            "endCondition": 88.3,
+            "startValue": 77000,
+            "endValue": 157500,
+            "valueChange": 80500,
+            "unresolvedAreas": 1,
+            "saleEligible": true,
+            "offer": 175000,
+            "netProceeds": 168875,
+            "offerVsAcquisition": 122875
+          },
+          "reputation": {
+            "overall": 61.3,
+            "categories": {
+              "cleanliness": 39.2,
+              "retail": 41,
+              "course": 75.6,
+              "service": 82.2
+            }
+          },
+          "progression": {
+            "daysToCheapestUpgrade": 2.12,
+            "nextTierEligibleBeforeRequiredSale": false
+          }
+        }
+      ]
+    }
+  ],
+  "findings": {
+    "maxPriceAlwaysWins": false,
+    "lowPriceAlwaysWins": false,
+    "skilledBeatsAverage": true,
+    "understockingHurts": true,
+    "understockedNetProfitBelowAverage": true,
+    "neglectedCourseHurts": true,
+    "poorTutorialBankruptcy": false,
+    "averageInstantWealth": false,
+    "restoredSaleMeaningful": true,
+    "averageUpgradeDays": 5.62,
+    "skilledUpgradeDays": 2.66,
+    "immediateNextTierBypass": false
+  }
+}

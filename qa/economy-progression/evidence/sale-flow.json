@@ -1,0 +1,526 @@
+{
+  "appraisalId": "appraisal-1",
+  "explicitConfirmationRefusal": {
+    "ok": false,
+    "reason": "Explicit sale confirmation is required."
+  },
+  "holdingsAfterRefusal": 1,
+  "persistedOfferMatches": true,
+  "cashBeforeSale": 92996,
+  "accepted": {
+    "ok": true,
+    "payout": 76235,
+    "appraisal": {
+      "id": "appraisal-1",
+      "sequence": 1,
+      "propertyId": "willow-creek",
+      "propertyName": "Willow Creek Municipal",
+      "tierId": "neglectedPublic",
+      "createdDay": 8,
+      "expiresDay": 13,
+      "status": "accepted",
+      "eligible": true,
+      "offer": 79000,
+      "appraisedValue": 77500,
+      "marketModifier": 1.021,
+      "closingCosts": 2765,
+      "outstanding": 0,
+      "netProceeds": 76235,
+      "acquisitionCost": 46000,
+      "restorationInvestment": 7000,
+      "valuation": {
+        "size": 9,
+        "design": 85.9,
+        "condition": 57,
+        "propertyCondition": 72.9,
+        "conditionBreakdown": {
+          "overall": 72.9,
+          "categories": {
+            "clubhouseStructure": {
+              "id": "condition:clubhouseStructure",
+              "key": "clubhouseStructure",
+              "label": "Clubhouse structure",
+              "score": 100,
+              "reasons": [
+                "100% of exterior hand repairs complete",
+                "100% of washable surfaces restored"
+              ],
+              "sources": [
+                {
+                  "id": "exterior:hand-jobs",
+                  "value": 100
+                },
+                {
+                  "id": "exterior:wash-mask",
+                  "value": 100
+                }
+              ]
+            },
+            "clubhouseCleanliness": {
+              "id": "condition:clubhouseCleanliness",
+              "key": "clubhouseCleanliness",
+              "label": "Clubhouse cleanliness",
+              "score": 80.5,
+              "reasons": [
+                "Shop condition 70",
+                "100% of floor grime cleared",
+                "100% exterior washed"
+              ],
+              "sources": [
+                {
+                  "id": "clubhouse:shop-condition",
+                  "value": 70
+                },
+                {
+                  "id": "clubhouse:floor-grime",
+                  "value": 100
+                },
+                {
+                  "id": "exterior:wash-mask",
+                  "value": 100
+                }
+              ]
+            },
+            "clubhouseFurnishing": {
+              "id": "condition:clubhouseFurnishing",
+              "key": "clubhouseFurnishing",
+              "label": "Clubhouse furnishing",
+              "score": 0,
+              "reasons": [
+                "0 uniquely placed furnishings contribute 0/30 finish"
+              ],
+              "sources": [
+                {
+                  "id": "decor:none-placed",
+                  "value": 0
+                }
+              ]
+            },
+            "retailReadiness": {
+              "id": "condition:retailReadiness",
+              "key": "retailReadiness",
+              "label": "Retail readiness",
+              "score": 24.5,
+              "reasons": [
+                "0/22 unlocked retail lines stocked",
+                "Shop condition 70"
+              ],
+              "sources": [
+                {
+                  "id": "retail:stocked-lines",
+                  "value": 0
+                },
+                {
+                  "id": "clubhouse:shop-condition",
+                  "value": 70
+                }
+              ]
+            },
+            "safetyUtilityReadiness": {
+              "id": "condition:safetyUtilityReadiness",
+              "key": "safetyUtilityReadiness",
+              "label": "Safety & utility readiness",
+              "score": 100,
+              "reasons": [
+                "100% clutter cleared",
+                "Porch light operational",
+                "100% window film cleared"
+              ],
+              "sources": [
+                {
+                  "id": "clubhouse:clutter",
+                  "value": 100
+                },
+                {
+                  "id": "clubhouse:porch-light",
+                  "value": 100
+                },
+                {
+                  "id": "clubhouse:windows",
+                  "value": 100
+                }
+              ]
+            },
+            "courseTurf": {
+              "id": "condition:courseTurf",
+              "key": "courseTurf",
+              "label": "Course turf",
+              "score": 57,
+              "reasons": [
+                "Live turf condition 57"
+              ],
+              "sources": [
+                {
+                  "id": "course:turf-rating",
+                  "value": 57
+                }
+              ]
+            },
+            "greens": {
+              "id": "condition:greens",
+              "key": "greens",
+              "label": "Greens",
+              "score": 83.6,
+              "reasons": [
+                "Greens health, wear and disease score 84"
+              ],
+              "sources": [
+                {
+                  "id": "course:greens-live",
+                  "value": 83.6
+                }
+              ]
+            },
+            "fairways": {
+              "id": "condition:fairways",
+              "key": "fairways",
+              "label": "Fairways",
+              "score": 83.6,
+              "reasons": [
+                "Fairways health, wear and disease score 84"
+              ],
+              "sources": [
+                {
+                  "id": "course:fairways-live",
+                  "value": 83.6
+                }
+              ]
+            },
+            "bunkers": {
+              "id": "condition:bunkers",
+              "key": "bunkers",
+              "label": "Bunkers",
+              "score": 97,
+              "reasons": [
+                "Bunker wear and condition score 97"
+              ],
+              "sources": [
+                {
+                  "id": "course:bunkers-live",
+                  "value": 97
+                }
+              ]
+            },
+            "irrigation": {
+              "id": "condition:irrigation",
+              "key": "irrigation",
+              "label": "Irrigation",
+              "score": 75,
+              "reasons": [
+                "100% of turf policies actively irrigate",
+                "Manual controllers only"
+              ],
+              "sources": [
+                {
+                  "id": "course:irrigation-policies",
+                  "value": 100
+                },
+                {
+                  "id": "upgrade:smartIrrigation",
+                  "value": 0
+                }
+              ]
+            },
+            "equipment": {
+              "id": "condition:equipment",
+              "key": "equipment",
+              "label": "Equipment",
+              "score": 48,
+              "reasons": [
+                "Course tractor operational",
+                "1/5 core maintenance upgrades installed",
+                "Rented washer available"
+              ],
+              "sources": [
+                {
+                  "id": "equipment:tractor",
+                  "value": 100
+                },
+                {
+                  "id": "equipment:maintenance-upgrades",
+                  "value": 20
+                },
+                {
+                  "id": "equipment:washer:rental",
+                  "value": 0
+                }
+              ]
+            },
+            "landscaping": {
+              "id": "condition:landscaping",
+              "key": "landscaping",
+              "label": "Landscaping",
+              "score": 100,
+              "reasons": [
+                "100% exterior jobs complete",
+                "100% storm litter cleared"
+              ],
+              "sources": [
+                {
+                  "id": "landscaping:exterior-jobs",
+                  "value": 100
+                },
+                {
+                  "id": "landscaping:litter",
+                  "value": 100
+                },
+                {
+                  "id": "exterior:wash-mask",
+                  "value": 100
+                }
+              ]
+            },
+            "customerAccessibility": {
+              "id": "condition:customerAccessibility",
+              "key": "customerAccessibility",
+              "label": "Customer accessibility",
+              "score": 100,
+              "reasons": [
+                "9/9 holes open",
+                "Tee sign repaired"
+              ],
+              "sources": [
+                {
+                  "id": "access:open-holes",
+                  "value": 100
+                },
+                {
+                  "id": "access:tee-sign",
+                  "value": 100
+                },
+                {
+                  "id": "access:entrance",
+                  "value": 100
+                }
+              ]
+            }
+          },
+          "unresolved": [
+            {
+              "id": "problem:clubhouseFurnishing",
+              "label": "Clubhouse furnishing",
+              "score": 0,
+              "lossSeverity": 45
+            },
+            {
+              "id": "problem:retailReadiness",
+              "label": "Retail readiness",
+              "score": 24.5,
+              "lossSeverity": 20.5
+            }
+          ],
+          "contributionIds": [
+            "exterior:hand-jobs",
+            "exterior:wash-mask",
+            "clubhouse:shop-condition",
+            "clubhouse:floor-grime",
+            "exterior:wash-mask",
+            "decor:none-placed",
+            "retail:stocked-lines",
+            "clubhouse:shop-condition",
+            "clubhouse:clutter",
+            "clubhouse:porch-light",
+            "clubhouse:windows",
+            "course:turf-rating",
+            "course:greens-live",
+            "course:fairways-live",
+            "course:bunkers-live",
+            "course:irrigation-policies",
+            "upgrade:smartIrrigation",
+            "equipment:tractor",
+            "equipment:maintenance-upgrades",
+            "equipment:washer:rental",
+            "landscaping:exterior-jobs",
+            "landscaping:litter",
+            "exterior:wash-mask",
+            "access:open-holes",
+            "access:tee-sign",
+            "access:entrance"
+          ]
+        },
+        "members": 29,
+        "reputation": 36.4,
+        "monthlyNet": 7907,
+        "acquisitionCost": 46000,
+        "restorationInvestment": 7000,
+        "upgradeValue": 3500,
+        "unresolvedDamage": 500,
+        "outstanding": 0,
+        "grossSaleValue": 77500,
+        "estimatedSaleProceeds": 77500,
+        "value": 77500,
+        "contributions": [
+          {
+            "id": "base:land",
+            "label": "Land and fixed infrastructure",
+            "amount": 12000,
+            "reason": "9 real holes determine the acreage floor."
+          },
+          {
+            "id": "base:course-quality",
+            "label": "Course design and turf",
+            "amount": 33000,
+            "reason": "Design 86, course condition 57."
+          },
+          {
+            "id": "business:members",
+            "label": "Membership book",
+            "amount": 13000,
+            "reason": "29 active members."
+          },
+          {
+            "id": "business:reputation",
+            "label": "Reputation",
+            "amount": 3000,
+            "reason": "Overall reputation 36."
+          },
+          {
+            "id": "business:earnings",
+            "label": "Trailing operating profit",
+            "amount": 12500,
+            "reason": "+$7,907 over the last 24 closed days."
+          },
+          {
+            "id": "condition:whole-property",
+            "label": "Whole-property condition",
+            "amount": 1000,
+            "reason": "All thirteen real-state condition categories combine to 73."
+          },
+          {
+            "id": "upgrade:greensMowerII",
+            "label": "Triplex greens mowers",
+            "amount": 3500,
+            "reason": "Triplex mowing equipment is added to the maintenance operation and named in the morning crew report."
+          },
+          {
+            "id": "deduction:unresolved-damage",
+            "label": "Unresolved problems",
+            "amount": -500,
+            "reason": "2 condition categories remain below 45."
+          }
+        ]
+      },
+      "readiness": {
+        "closedDays": 8,
+        "condition": 72.9,
+        "reputation": 36.4,
+        "monthlyNet": 7907,
+        "saleRequirements": [
+          {
+            "id": "operating-history",
+            "label": "Operate for 3 closed days",
+            "met": true,
+            "value": 8,
+            "target": 3
+          },
+          {
+            "id": "safe-condition",
+            "label": "Reach property condition 35",
+            "met": true,
+            "value": 72.9,
+            "target": 35
+          },
+          {
+            "id": "settle-arrears",
+            "label": "Clear severe property arrears",
+            "met": true,
+            "value": 0,
+            "target": 0
+          }
+        ],
+        "saleEligible": true,
+        "nextTier": {
+          "id": "establishedLocal",
+          "level": 2,
+          "name": "Established local course",
+          "purchasePrice": [
+            80000,
+            220000
+          ],
+          "startingCondition": [
+            30,
+            68
+          ],
+          "holeCount": [
+            9,
+            18
+          ],
+          "customerDemand": 1,
+          "maintenanceComplexity": "Moderate",
+          "clubhouseScale": "Full local club",
+          "upgradeCapacity": 10,
+          "reputationExpectation": 50,
+          "operatingCostMultiplier": 1.1,
+          "potentialValue": [
+            180000,
+            420000
+          ],
+          "unlock": {
+            "soldProperties": 1,
+            "propertyCondition": 48,
+            "reputation": 42,
+            "monthlyNet": 2500
+          }
+        },
+        "nextRequirements": [
+          {
+            "id": "sold-properties",
+            "label": "Complete 1 property sale",
+            "met": false,
+            "value": 0,
+            "target": 1
+          },
+          {
+            "id": "condition",
+            "label": "Property condition 48",
+            "met": true,
+            "value": 72.9,
+            "target": 48
+          },
+          {
+            "id": "reputation",
+            "label": "Reputation 42",
+            "met": false,
+            "value": 36.4,
+            "target": 42
+          },
+          {
+            "id": "profit",
+            "label": "24-day profit $2,500",
+            "met": true,
+            "value": 7907,
+            "target": 2500
+          }
+        ],
+        "nextTierEligible": false
+      },
+      "closedDay": 8
+    },
+    "completed": {
+      "id": "sale:appraisal-1",
+      "appraisalId": "appraisal-1",
+      "propertyId": "willow-creek",
+      "propertyName": "Willow Creek Municipal",
+      "tierId": "neglectedPublic",
+      "day": 8,
+      "acquisitionCost": 46000,
+      "restorationInvestment": 7000,
+      "grossOffer": 79000,
+      "closingCosts": 2765,
+      "outstanding": 0,
+      "netProceeds": 76235,
+      "profit": 30235
+    },
+    "unlockedTier": null
+  },
+  "cashAfterSale": 169231,
+  "exactPayout": 76235,
+  "duplicateAttempt": {
+    "ok": false,
+    "duplicate": true,
+    "reason": "That sale has already closed.",
+    "payout": 76235
+  },
+  "recoveryBackupCount": 1,
+  "reloadDoesNotResurrectProperty": true
+}

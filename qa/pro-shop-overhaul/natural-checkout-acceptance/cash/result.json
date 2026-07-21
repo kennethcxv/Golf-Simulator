@@ -1,0 +1,1031 @@
+{
+  "attempt": 1,
+  "timestamp": "2026-07-20T11:48:51.074Z",
+  "branch": "overnight/pro-shop-overhaul",
+  "baseUrl": "http://localhost:8457/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "bootRoute": [
+    "New Empire — Relaxed",
+    "Property Market",
+    "Buy Willow Creek Municipal"
+  ],
+  "normalControlsOnly": true,
+  "naturalCustomerOnly": true,
+  "steps": [
+    {
+      "step": "fresh New Empire -> Property Market -> Buy",
+      "control": "visible UI",
+      "before": {
+        "cash": 53354.4,
+        "salesUnits": 0,
+        "salesRevenue": 0,
+        "held": [],
+        "inventory": {
+          "balls1": {
+            "shelf": 10,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 5,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 14,
+            "back": 0
+          }
+        },
+        "tier": 2,
+        "clockMinutes": 429.6860000000002,
+        "speedIdx": 1
+      },
+      "pose": {
+        "x": -8,
+        "z": 241.7,
+        "yaw": 3.935392653589793,
+        "pitch": -0.684,
+        "localX": 0,
+        "localZ": 13.699999999999989
+      }
+    },
+    {
+      "step": "walked up the porch steps",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.778224757424105,
+        "z": 235.67942697700212,
+        "yaw": 6.384302653589791,
+        "pitch": -0.684,
+        "localX": -0.7782247574241055,
+        "localZ": 7.679426977002123
+      },
+      "distanceToTarget": 0.131
+    },
+    {
+      "step": "opened the hinged pro-shop door",
+      "control": "E",
+      "pose": {
+        "x": -8.778224757424105,
+        "z": 235.67942697700212,
+        "yaw": 6.336992653589789,
+        "pitch": -0.684,
+        "localX": -0.7782247574241055,
+        "localZ": 7.679426977002123
+      }
+    },
+    {
+      "step": "crossed the threshold",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.821599285857266,
+        "z": 233.78193920244306,
+        "yaw": 6.242752653589784,
+        "pitch": -0.684,
+        "localX": -0.8215992858572658,
+        "localZ": 5.781939202443056
+      },
+      "distanceToTarget": 0.134
+    },
+    {
+      "step": "entered the staff-side approach",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.461911188507545,
+        "z": 233.3827507369768,
+        "yaw": 4.944672653589783,
+        "pitch": -0.684,
+        "localX": 0.5380888114924547,
+        "localZ": 5.382750736976789
+      },
+      "distanceToTarget": 0.214
+    },
+    {
+      "step": "reached the cashier stand",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.381006208537849,
+        "z": 233.1402010846265,
+        "yaw": 4.757332653589785,
+        "pitch": -0.684,
+        "localX": 2.6189937914621506,
+        "localZ": 5.140201084626511
+      },
+      "distanceToTarget": 0.162
+    },
+    {
+      "step": "faced the physical register",
+      "control": "ArrowLeft/ArrowRight",
+      "pose": {
+        "x": -5.381006208537849,
+        "z": 233.1402010846265,
+        "yaw": 6.198482653589785,
+        "pitch": -0.684,
+        "localX": 2.6189937914621506,
+        "localZ": 5.140201084626511
+      }
+    },
+    {
+      "step": "waited for ordinary store traffic during a normally paused open hour",
+      "control": "Space",
+      "traffic": [
+        {
+          "realSeconds": 27.8,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "enter",
+              "entered": false,
+              "cart": []
+            }
+          ]
+        },
+        {
+          "realSeconds": 29.9,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": []
+            }
+          ]
+        },
+        {
+          "realSeconds": 32,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": []
+            }
+          ]
+        },
+        {
+          "realSeconds": 34.1,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": []
+            }
+          ]
+        },
+        {
+          "realSeconds": 36.3,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": []
+            }
+          ]
+        },
+        {
+          "realSeconds": 38.3,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": []
+            }
+          ]
+        },
+        {
+          "realSeconds": 40.5,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 42.6,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 44.7,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 46.8,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 48.9,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 51,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "fixture",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 53.1,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "counter",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 55.3,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "counter",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 57.4,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "counter",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        },
+        {
+          "realSeconds": 58,
+          "clockMinutes": 521.6879999999983,
+          "speedIdx": 0,
+          "hasTx": true,
+          "customers": [
+            {
+              "name": "Quinn B.",
+              "stop": "counter",
+              "entered": true,
+              "cart": [
+                "tees1"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "natural shopper laid shelf-debited goods on the counter",
+      "control": "observation only",
+      "natural": {
+        "customer": {
+          "name": "Quinn B.",
+          "entered": true,
+          "queued": true,
+          "awaitingCheckout": true,
+          "queuedAt": 34.89370000000036,
+          "stopIdx": 4,
+          "stops": [
+            {
+              "kind": "walk",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "enter",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "fixture",
+              "fixtureId": "shelf_acc",
+              "socketKey": "shelf_acc:browse:1",
+              "experience": null
+            },
+            {
+              "kind": "fixture",
+              "fixtureId": "table_polos",
+              "socketKey": "table_polos:browse:0",
+              "experience": null
+            },
+            {
+              "kind": "counter",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "exit",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "gone",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            }
+          ],
+          "cart": [
+            {
+              "uid": "u1",
+              "skuId": "tees1",
+              "price": 6
+            }
+          ],
+          "payMethodOverride": null,
+          "diagnosticInjected": false
+        },
+        "transactionItems": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "price": 6
+          }
+        ],
+        "activeCustomers": 1
+      }
+    },
+    {
+      "step": "entered the cashier pose",
+      "control": "E",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": false,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 0,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 0,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "scanned physical item 1/1",
+      "control": "pointer drag across glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 0,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "customer chose cash",
+      "control": "T total key",
+      "tx": {
+        "stage": "cash-tender",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "accepted customer cash from counter",
+      "control": "pointer pickup",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "opened physical drawer",
+      "control": "D",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": true,
+        "deposited": false,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "deposited each tender piece",
+      "control": "pointer drag into drawer",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "counted and handed over exact change",
+      "control": "drawer clicks + palm click",
+      "change": {
+        "1": 4
+      },
+      "tx": {
+        "stage": "receipt",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "took printed receipt",
+      "control": "clicked physical receipt",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": false,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": true,
+        "drawerOpen": false,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "bagged physical item 1/1",
+      "control": "pointer drag into open carrier",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "name": "Tee bag (50)",
+            "scanned": true,
+            "bagged": true,
+            "price": 6
+          }
+        ],
+        "scanned": 1,
+        "bagged": 1,
+        "receiptPrinted": true,
+        "drawerOpen": false,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "handed the bag to the customer",
+      "control": "clicked open palm"
+    }
+  ],
+  "result": {
+    "passed": true,
+    "method": "cash",
+    "itemCount": 1,
+    "natural": {
+      "customer": {
+        "name": "Quinn B.",
+        "entered": true,
+        "queued": true,
+        "awaitingCheckout": true,
+        "queuedAt": 34.89370000000036,
+        "stopIdx": 4,
+        "stops": [
+          {
+            "kind": "walk",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "enter",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "fixture",
+            "fixtureId": "shelf_acc",
+            "socketKey": "shelf_acc:browse:1",
+            "experience": null
+          },
+          {
+            "kind": "fixture",
+            "fixtureId": "table_polos",
+            "socketKey": "table_polos:browse:0",
+            "experience": null
+          },
+          {
+            "kind": "counter",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "exit",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "gone",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          }
+        ],
+        "cart": [
+          {
+            "uid": "u1",
+            "skuId": "tees1",
+            "price": 6
+          }
+        ],
+        "payMethodOverride": null,
+        "diagnosticInjected": false
+      },
+      "transactionItems": [
+        {
+          "uid": "u1",
+          "skuId": "tees1",
+          "price": 6
+        }
+      ],
+      "activeCustomers": 1
+    },
+    "before": {
+      "cash": 53354.4,
+      "salesUnits": 0,
+      "salesRevenue": 0,
+      "held": [],
+      "inventory": {
+        "balls1": {
+          "shelf": 10,
+          "back": 0
+        },
+        "glove1": {
+          "shelf": 4,
+          "back": 0
+        },
+        "cap1": {
+          "shelf": 5,
+          "back": 0
+        },
+        "tees1": {
+          "shelf": 14,
+          "back": 0
+        }
+      },
+      "tier": 2,
+      "clockMinutes": 429.6860000000002,
+      "speedIdx": 1
+    },
+    "after": {
+      "cash": 53360.4,
+      "salesUnits": 1,
+      "salesRevenue": 6,
+      "held": [],
+      "inventory": {
+        "balls1": {
+          "shelf": 10,
+          "back": 0
+        },
+        "glove1": {
+          "shelf": 4,
+          "back": 0
+        },
+        "cap1": {
+          "shelf": 5,
+          "back": 0
+        },
+        "tees1": {
+          "shelf": 13,
+          "back": 0
+        }
+      },
+      "tier": 2,
+      "clockMinutes": 536.3560000000019,
+      "speedIdx": 1
+    },
+    "finalRegister": {
+      "active": false,
+      "hasTx": false,
+      "customer": null
+    },
+    "normalControlRoute": [
+      {
+        "step": "fresh New Empire -> Property Market -> Buy",
+        "control": "visible UI",
+        "before": {
+          "cash": 53354.4,
+          "salesUnits": 0,
+          "salesRevenue": 0,
+          "held": [],
+          "inventory": {
+            "balls1": {
+              "shelf": 10,
+              "back": 0
+            },
+            "glove1": {
+              "shelf": 4,
+              "back": 0
+            },
+            "cap1": {
+              "shelf": 5,
+              "back": 0
+            },
+            "tees1": {
+              "shelf": 14,
+              "back": 0
+            }
+          },
+          "tier": 2,
+          "clockMinutes": 429.6860000000002,
+          "speedIdx": 1
+        },
+        "pose": {
+          "x": -8,
+          "z": 241.7,
+          "yaw": 3.935392653589793,
+          "pitch": -0.684,
+          "localX": 0,
+          "localZ": 13.699999999999989
+        }
+      },
+      {
+        "step": "walked up the porch steps",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -8.778224757424105,
+          "z": 235.67942697700212,
+          "yaw": 6.384302653589791,
+          "pitch": -0.684,
+          "localX": -0.7782247574241055,
+          "localZ": 7.679426977002123
+        },
+        "distanceToTarget": 0.131
+      },
+      {
+        "step": "opened the hinged pro-shop door",
+        "control": "E",
+        "pose": {
+          "x": -8.778224757424105,
+          "z": 235.67942697700212,
+          "yaw": 6.336992653589789,
+          "pitch": -0.684,
+          "localX": -0.7782247574241055,
+          "localZ": 7.679426977002123
+        }
+      },
+      {
+        "step": "crossed the threshold",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -8.821599285857266,
+          "z": 233.78193920244306,
+          "yaw": 6.242752653589784,
+          "pitch": -0.684,
+          "localX": -0.8215992858572658,
+          "localZ": 5.781939202443056
+        },
+        "distanceToTarget": 0.134
+      },
+      {
+        "step": "entered the staff-side approach",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -7.461911188507545,
+          "z": 233.3827507369768,
+          "yaw": 4.944672653589783,
+          "pitch": -0.684,
+          "localX": 0.5380888114924547,
+          "localZ": 5.382750736976789
+        },
+        "distanceToTarget": 0.214
+      },
+      {
+        "step": "reached the cashier stand",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -5.381006208537849,
+          "z": 233.1402010846265,
+          "yaw": 4.757332653589785,
+          "pitch": -0.684,
+          "localX": 2.6189937914621506,
+          "localZ": 5.140201084626511
+        },
+        "distanceToTarget": 0.162
+      },
+      {
+        "step": "faced the physical register",
+        "control": "ArrowLeft/ArrowRight",
+        "pose": {
+          "x": -5.381006208537849,
+          "z": 233.1402010846265,
+          "yaw": 6.198482653589785,
+          "pitch": -0.684,
+          "localX": 2.6189937914621506,
+          "localZ": 5.140201084626511
+        }
+      }
+    ],
+    "controlsUsed": [
+      "visible UI",
+      "ArrowLeft/ArrowRight + W",
+      "E",
+      "ArrowLeft/ArrowRight",
+      "Space",
+      "observation only",
+      "pointer drag across glass",
+      "T total key",
+      "pointer pickup",
+      "D",
+      "pointer drag into drawer",
+      "drawer clicks + palm click",
+      "clicked physical receipt",
+      "pointer drag into open carrier",
+      "clicked open palm"
+    ],
+    "forbiddenHooksUsed": false,
+    "stateWritesUsed": false,
+    "elapsedSeconds": 66.9
+  },
+  "thrown": null,
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/kiosk.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tractor_red.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/club_sign.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/workbench.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/shed.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/leaves_pile.glb"
+    }
+  ]
+}

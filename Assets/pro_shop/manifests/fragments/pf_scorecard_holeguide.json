@@ -1,0 +1,27 @@
+{
+ "id": "pf_scorecard_holeguide",
+ "kind": "products",
+ "category": "scorecards",
+ "dims_m": [
+  0.09,
+  0.0016,
+  0.14
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "HoleGuide:512x1024"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_scorecard_holeguide.glb",
+ "blend": "assets/pro_shop/source/products/scorecards/pf_scorecard_holeguide.blend",
+ "name": "Hole Guide Card",
+ "variant": "hole7",
+ "price": 1.99,
+ "fixture": "pf_fixture_rangefinder_display",
+ "slot_type": "shelf_card",
+ "packaging": "card"
+}
