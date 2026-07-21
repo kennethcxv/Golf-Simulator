@@ -27,7 +27,11 @@ async (page) => {
   if (inheritedSha256 !== expectedInheritedSha256) {
     throw new Error(`Frozen Sheet 6 performance fixture hash mismatch: ${inheritedSha256}`);
   }
-  const inheritedRun = Function(`"use strict"; return (${inheritedSource});`)();
+  const inheritedRuntimeSource = inheritedSource.replace(
+    'http://localhost:8457/',
+    process.env.QA_BASE_URL || 'http://localhost:8457/',
+  );
+  const inheritedRun = Function(`"use strict"; return (${inheritedRuntimeSource});`)();
   const httpDiagnostics = [];
   page.on('response', (response) => {
     if (response.status() < 400) return;
@@ -284,6 +288,7 @@ async (page) => {
     sheet06ProductionReadiness,
     methodology: {
       ...baseline.methodology,
+      runtimeOrigin: process.env.QA_BASE_URL || 'http://localhost:8457/',
       frozenIdleFixture: `Embedded 13-camera/Math.max(12) source ${inheritedSha256}; strict Sheet 6 activation assertion after the inherited sample.`,
       extraFixedCameras: 'Seven architecture/furniture cameras plus current vacuum and pressure-washer viewmodel cameras.',
       stressScenarios: 'Five-second fixed-route samples with the current vacuum and pressure washer actively running after 0.8-second warm-up.',

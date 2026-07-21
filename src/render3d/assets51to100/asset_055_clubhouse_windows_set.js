@@ -11,7 +11,13 @@ export const ASSET_055_CLUBHOUSE_WINDOWS_SET = defineSheet06Binding({
   stem: 'clubhouse_windows_set',
   name: 'CLUBHOUSE WINDOWS SET',
   referenceImagePath: 'Designs/RefrenceImages/51-60_refrence_images/ChatGPT Image Jul 17, 2026, 11_23_56 PM.png',
-  intendedUse: 'Reusable rectangular, narrow, wide and arched window family with repair states',
+  intendedUse: 'Reusable aperture family plus twenty purchasable aluminum, commercial, black and country-club window grades',
+  constructionFinishes: {
+    category: 'windows',
+    families: ['cheap-aluminum', 'commercial', 'premium-black', 'luxury-country-club'],
+    qualities: ['municipal', 'standard', 'premium', 'high-end', 'luxury'],
+    variantCount: 20,
+  },
   paths: {
     source: 'asset_sources/blender/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.blend',
     canonicalGlb: 'Assets/assets_51_100/glb/sheet_06/asset_055_clubhouse_windows_set.glb',
@@ -45,6 +51,7 @@ export const ASSET_055_CLUBHOUSE_WINDOWS_SET = defineSheet06Binding({
     stableWindowIdsRequired: true,
     existingFilmValuesAreAuthoritative: true,
     variants: ['standard', 'narrow', 'wide', 'arched'],
+    constructionVariantCount: 20,
   },
 });
 

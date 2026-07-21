@@ -15,7 +15,12 @@ import {
   SHEET06_WINDOW_DATUMS,
   createSheet06ClubhouseAdapter,
 } from './sheet06ClubhouseAdapter.js';
-import { createSheet06ProductionAssembly } from './sheet06ProductionAssembly.js';
+import {
+  createSheet06ProductionAssembly,
+  sheet06ConstructionDoorVariantId,
+  sheet06ConstructionGarageVariantId,
+  sheet06ConstructionLightingVariantId,
+} from './sheet06ProductionAssembly.js';
 import { METERS_TO_YARDS } from './units.js';
 
 const ASSET_NUMBERS = Object.freeze([51, 52, 53, 54, 55, 56, 57, 58, 59, 60]);
@@ -39,6 +44,11 @@ const ASSET_52_SUPPRESSIONS = Object.freeze([
   'MESH_AlignedWestWeatherSkin',
   'MESH_FoundationDampBandFront',
   'MESH_FoundationDampBandBack',
+]);
+
+const ASSET_52_APERTURE_BOARDING = Object.freeze([
+  'MESH_BoardedApertureDamage',
+  'MESH_BoardedApertureFasteners',
 ]);
 
 const FALLBACK_BINDINGS = Object.freeze([
@@ -242,13 +252,14 @@ export function createSheet06ProductionLayout() {
   const halfD = INTERIOR.d / 2;
   const beamY = SHELL.h - 0.24 * METERS_TO_YARDS;
   const panelY = SHELL.h - 0.08 * METERS_TO_YARDS;
-  const lightY = SHELL.h - 0.045 * METERS_TO_YARDS;
+  const lightY = SHELL.h - 1.05 * METERS_TO_YARDS;
+  const wallLightY = 1.35 * METERS_TO_YARDS;
   // A three-by-three beam rhythm follows the Sheet-6 coffer reference without
-  // turning the retail ceiling into a dense glossy lattice. One quiet cream
-  // carrier spans beneath that rhythm: the source explicitly permits
-  // perpendicular runtime scaling, and keeping it whole prevents broad tonal
-  // bands and beveled module ends from showing across the room. The exact
-  // 3.60 x 0.20 x 0.24 m source contract stays untouched.
+  // turning the retail ceiling into a dense glossy lattice. Finish carriers
+  // repeat in approximately 1.7 x 1.2 m bays beneath that structure. This is
+  // large enough to remain restrained from the player camera while preserving
+  // the authored drop-grid, linear-channel and coffer relief instead of
+  // stretching one source strip over the entire 20.5 x 13 yd interior.
   const cofferX = [-5.25, 0, 5.25];
   const cofferZ = [-3.4, 0, 3.4];
   const beamRuns = [
@@ -256,19 +267,39 @@ export function createSheet06ProductionLayout() {
     ...cofferX.map((x, index) => ({ id: `coffer-z-${index}`, start: { x, y: beamY, z: -halfD }, end: { x, y: beamY, z: halfD }, variant: 'straight', singleModule: true })),
   ];
   const panelDepthMeters = 0.20;
-  const ceilingPanelRuns = [{
-    id: 'ceiling-panel-continuous-field',
-    start: { x: -halfW, y: panelY, z: 0 },
-    end: { x: halfW, y: panelY, z: 0 },
-    variant: 'ceiling_panel',
-    scaleAcross: (halfD * 2) / (panelDepthMeters * METERS_TO_YARDS),
-    singleModule: true,
-  }];
+  const targetBayDepthMeters = 1.20;
+  const ceilingRowCount = Math.max(
+    1,
+    Math.ceil((halfD * 2) / (targetBayDepthMeters * METERS_TO_YARDS)),
+  );
+  const ceilingRowDepth = (halfD * 2) / ceilingRowCount;
+  const ceilingPanelRuns = Array.from({ length: ceilingRowCount }, (_, index) => {
+    const z = -halfD + ceilingRowDepth * (index + 0.5);
+    return {
+      id: `ceiling-panel-row-${index}`,
+      start: { x: -halfW, y: panelY, z },
+      end: { x: halfW, y: panelY, z },
+      variant: 'ceiling_panel',
+      scaleAcross: ceilingRowDepth / (panelDepthMeters * METERS_TO_YARDS),
+    };
+  });
   const lightPositions = [
+    [-3.4, -1.7], [3.4, 1.7],
     [-7.9, -5.05], [-7.9, 1.7],
-    [-2.6, -1.7], [-2.6, 5.05],
-    [2.6, -5.05], [2.6, 1.7],
+    [-2.6, 5.05], [2.6, -5.05],
     [7.9, -1.7], [7.9, 5.05],
+  ];
+  const wallLightPlacements = [
+    ...[-7.2, -4.2, 3.1, 7.2].map((x, index) => ({
+      id: `wall-sconce-south-${index}`, position: [x, wallLightY, halfD - 0.08], rotationY: Math.PI, variant: 'wall_light_mount',
+    })),
+    ...[-5.2, 0, 5.2].map((x, index) => ({
+      id: `wall-sconce-north-${index}`, position: [x, wallLightY, -halfD + 0.08], rotationY: 0, variant: 'wall_light_mount',
+    })),
+    ...[-2.4, 2.4].map((z, index) => ({
+      id: `wall-sconce-west-${index}`, position: [-halfW + 0.08, wallLightY, z], rotationY: Math.PI / 2, variant: 'wall_light_mount',
+    })),
+    { id: 'wall-sconce-east-0', position: [halfW - 0.08, wallLightY, -1.0], rotationY: -Math.PI / 2, variant: 'wall_light_mount' },
   ];
   const wallCenterX = SHELL.w / 2 - SHELL.wallT / 2;
   const wallCenterZ = SHELL.d / 2 - SHELL.wallT / 2;
@@ -304,6 +335,8 @@ export function createSheet06ProductionLayout() {
       rotationY: 0,
       variant: 'light_mount',
     })),
+    wallLightY,
+    wallLightPlacements,
     damageSites: [
       { id: 'damage-west-north', x: -8.35, z: -4.75, rotationY: 0 },
       // Asset 59 installs every wood plank on the same local Y grain axis.
@@ -338,6 +371,30 @@ function restoreNodeRecords(records) {
   for (const record of records) record.node.visible = record.visible;
 }
 
+function detachTemplateRecords(records) {
+  for (const record of records) {
+    record.parent = record.node.parent || null;
+    record.index = record.parent?.children?.indexOf(record.node) ?? -1;
+    record.node.visible = false;
+    record.parent?.remove?.(record.node);
+  }
+}
+
+function restoreTemplateRecords(records) {
+  for (const record of records) {
+    if (record.parent && record.node.parent !== record.parent) {
+      record.parent.add?.(record.node);
+      const children = record.parent.children;
+      const currentIndex = children?.indexOf(record.node) ?? -1;
+      if (currentIndex >= 0 && record.index >= 0 && record.index < currentIndex) {
+        children.splice(currentIndex, 1);
+        children.splice(record.index, 0, record.node);
+      }
+    }
+    record.node.visible = record.visible;
+  }
+}
+
 function normalizedError(error) {
   return Object.freeze({
     code: String(error?.code || 'ACTIVATION_FAILED'),
@@ -351,6 +408,158 @@ function validateMount(root, label) {
   }
 }
 
+function adapterArchitectureSignature(state) {
+  const architecture = state?.shop?.reno?.architecture;
+  if (!architecture || typeof architecture !== 'object') return null;
+  return JSON.stringify(architecture);
+}
+
+function assemblyVisualSignature(state) {
+  const reno = state?.shop?.reno;
+  if (!reno || typeof reno !== 'object') return null;
+  return JSON.stringify({
+    architecture: reno.architecture || null,
+    constructionInstalled: reno.constructionFinishes?.installed || null,
+    windowFilm: reno.windows || null,
+  });
+}
+
+function directConstructionSignature(state) {
+  const installed = state?.shop?.reno?.constructionFinishes?.installed;
+  if (!installed || typeof installed !== 'object') return null;
+  return JSON.stringify({
+    doors: installed.doors || null,
+    garageDoors: installed['garage-doors'] || null,
+    lighting: installed.lighting || null,
+  });
+}
+
+function applyConstructionDoorFinish(root, state) {
+  const selection = state?.shop?.reno?.constructionFinishes?.installed?.doors;
+  const targetVariant = sheet06ConstructionDoorVariantId(selection?.finishId, selection?.qualityId);
+  if (!root || !targetVariant) return null;
+  if (root.userData.sheet06SelectedConstructionDoorVariant === targetVariant
+    && root.userData.sheet06ConstructionDoorDiagnostics) {
+    return root.userData.sheet06ConstructionDoorDiagnostics;
+  }
+  let taggedNodeCount = 0;
+  let visibleTaggedNodeCount = 0;
+  let legacyMeshCount = 0;
+  traverse(root, (node) => {
+    const variant = node?.userData?.construction_door_variant;
+    if (variant) {
+      node.visible = variant === targetVariant;
+      taggedNodeCount += 1;
+      if (node.visible) visibleTaggedNodeCount += 1;
+    }
+    if (node?.userData?.construction_door_legacy_visual === true) {
+      node.visible = false;
+      legacyMeshCount += 1;
+    }
+  });
+  root.userData.sheet06SelectedConstructionDoorVariant = targetVariant;
+  root.userData.constructionFinishAuthority = 'state.shop.reno.constructionFinishes.installed.doors';
+  const result = Object.freeze({
+    selectedVariant: targetVariant,
+    taggedNodeCount,
+    visibleTaggedNodeCount,
+    legacyMeshCount,
+  });
+  root.userData.sheet06ConstructionDoorDiagnostics = result;
+  return result;
+}
+
+function applyConstructionGarageFinish(root, state) {
+  const selection = state?.shop?.reno?.constructionFinishes?.installed?.['garage-doors'];
+  const targetVariant = sheet06ConstructionGarageVariantId(selection?.finishId, selection?.qualityId);
+  if (!root || !targetVariant) return null;
+  if (root.userData.sheet06SelectedConstructionGarageVariant === targetVariant
+    && root.userData.sheet06ConstructionGarageDiagnostics) {
+    return root.userData.sheet06ConstructionGarageDiagnostics;
+  }
+  let taggedNodeCount = 0;
+  let visibleTaggedNodeCount = 0;
+  traverse(root, (node) => {
+    const variant = node?.userData?.construction_garage_variant;
+    if (!variant) return;
+    node.visible = variant === targetVariant;
+    taggedNodeCount += 1;
+    if (node.visible) visibleTaggedNodeCount += 1;
+  });
+  root.userData.sheet06SelectedConstructionGarageVariant = targetVariant;
+  root.userData.constructionFinishAuthority = 'state.shop.reno.constructionFinishes.installed.garage-doors';
+  const result = Object.freeze({
+    selectedVariant: targetVariant,
+    taggedNodeCount,
+    visibleTaggedNodeCount,
+  });
+  root.userData.sheet06ConstructionGarageDiagnostics = result;
+  return result;
+}
+
+function applyConstructionLandscapeLightingFinish(root, state) {
+  const selection = state?.shop?.reno?.constructionFinishes?.installed?.lighting;
+  const targetVariant = selection?.finishId === 'landscape-lighting'
+    ? sheet06ConstructionLightingVariantId(selection.finishId, selection.qualityId)
+    : null;
+  if (!root) return null;
+  let lightGroup = root.getObjectByName?.('SHEET06_CONSTRUCTION_LANDSCAPE_LIGHT_SOURCES');
+  if (!lightGroup) {
+    lightGroup = new THREE.Group();
+    lightGroup.name = 'SHEET06_CONSTRUCTION_LANDSCAPE_LIGHT_SOURCES';
+    lightGroup.userData.constructionLandscapeLightRig = true;
+    for (const [index, [x, z]] of [[-6.2, 7.15], [-0.8, 7.15], [4.6, 7.15]].entries()) {
+      const light = new THREE.PointLight(0xffdca6, 0, 4.2, 2.0);
+      light.name = `SHEET06_LANDSCAPE_LIGHT_${index}`;
+      light.position.set(x, 0.62, z);
+      light.castShadow = false;
+      lightGroup.add(light);
+    }
+    root.add(lightGroup);
+  }
+  if (root.userData.sheet06SelectedConstructionLandscapeLightingVariant === targetVariant
+    && root.userData.sheet06ConstructionLandscapeLightingDiagnostics) {
+    return root.userData.sheet06ConstructionLandscapeLightingDiagnostics;
+  }
+  const qualityIntensity = {
+    municipal: 1.8, standard: 2.3, premium: 3.0, 'high-end': 3.7, luxury: 4.5,
+  };
+  const lightIntensity = targetVariant ? qualityIntensity[selection?.qualityId] || 2.0 : 0;
+  lightGroup.visible = Boolean(targetVariant);
+  for (const light of lightGroup.children) light.intensity = lightIntensity;
+  let taggedNodeCount = 0;
+  let visibleTaggedNodeCount = 0;
+  traverse(root, (node) => {
+    const variant = node?.userData?.construction_lighting_variant;
+    if (!variant) return;
+    node.visible = Boolean(targetVariant) && variant === targetVariant;
+    taggedNodeCount += 1;
+    if (node.visible) visibleTaggedNodeCount += 1;
+  });
+  root.userData.sheet06SelectedConstructionLandscapeLightingVariant = targetVariant;
+  root.userData.constructionLightingAuthority = 'state.shop.reno.constructionFinishes.installed.lighting';
+  const result = Object.freeze({
+    selectedVariant: targetVariant,
+    active: Boolean(targetVariant),
+    taggedNodeCount,
+    visibleTaggedNodeCount,
+    lightSourceCount: lightGroup.children.length,
+    lightSourcesActive: lightGroup.visible && lightIntensity > 0,
+  });
+  root.userData.sheet06ConstructionLandscapeLightingDiagnostics = result;
+  return result;
+}
+
+function applyApertureBoardingVisibility(records, state) {
+  const door = state?.shop?.reno?.constructionFinishes?.installed?.doors;
+  const upgradedDoor = Boolean(door)
+    && (door.finishId !== 'hollow-core' || door.qualityId !== 'municipal');
+  const windowsRestored = state?.shop?.reno?.architecture?.components?.windows?.restored === true;
+  const hideBoarding = upgradedDoor || windowsRestored;
+  for (const record of records) record.node.visible = record.visible && !hideBoarding;
+  return hideBoarding;
+}
+
 /**
  * Coordinates the direct Sheet-6 GLBs, the six modular production assemblies,
  * the analytic double-door controller, and the procedural visual fallbacks.
@@ -362,6 +571,7 @@ export function createSheet06ProductionRuntime({
   shellFallbacks = null,
   doorApi = null,
   navigationApi = null,
+  lightingApi = null,
   adapterFactory = createSheet06ClubhouseAdapter,
   assemblyFactory = createSheet06ProductionAssembly,
   adapterOptions = {},
@@ -395,12 +605,20 @@ export function createSheet06ProductionRuntime({
   let assembly = null;
   let doorBound = false;
   let navigationBound = false;
+  let legacyLightingVisualsHidden = false;
+  let constructionDoorDiagnostics = null;
+  let constructionGarageDiagnostics = null;
+  let constructionLandscapeLightingDiagnostics = null;
   let suppressionRecords = [];
+  let apertureBoardRecords = [];
   let templateRecords = [];
   let fallbackLeases = [];
   let interiorShadowMeshCount = 0;
   let stateApplications = 0;
   let currentState = state;
+  let lastAdapterArchitectureSignature = adapterArchitectureSignature(state);
+  let lastAssemblyVisualSignature = assemblyVisualSignature(state);
+  let lastDirectConstructionSignature = directConstructionSignature(state);
 
   let adapter;
   try {
@@ -488,6 +706,15 @@ export function createSheet06ProductionRuntime({
     navigationBound = false;
   }
 
+  function setLegacyLightingVisualsHidden(hidden) {
+    if (!lightingApi) return;
+    if (typeof lightingApi.setLegacyFixtureVisualsVisible !== 'function') {
+      fail('LIGHTING_API_MISSING', 'Sheet-6 lighting integration requires setLegacyFixtureVisualsVisible().');
+    }
+    lightingApi.setLegacyFixtureVisualsVisible(!hidden);
+    legacyLightingVisualsHidden = Boolean(hidden);
+  }
+
   function rollbackActivation() {
     exteriorStaging.visible = false;
     interiorStaging.visible = false;
@@ -496,10 +723,13 @@ export function createSheet06ProductionRuntime({
     restoreFallbacks();
     unbindNavigation();
     unbindDoor();
-    restoreNodeRecords(templateRecords);
+    if (legacyLightingVisualsHidden) setLegacyLightingVisualsHidden(false);
+    restoreTemplateRecords(templateRecords);
     templateRecords = [];
     restoreNodeRecords(suppressionRecords);
     suppressionRecords = [];
+    restoreNodeRecords(apertureBoardRecords);
+    apertureBoardRecords = [];
     assembly?.dispose?.();
   }
 
@@ -548,12 +778,25 @@ export function createSheet06ProductionRuntime({
       ];
       for (const record of nextSuppressions) record.node.visible = false;
       suppressionRecords = nextSuppressions;
+      apertureBoardRecords = requiredNamedNodes(
+        roots.get(52), ASSET_52_APERTURE_BOARDING, 52,
+      );
+      applyApertureBoardingVisibility(apertureBoardRecords, currentState);
 
       templateRecords = KIT_NUMBERS.map((number) => ({
         node: roots.get(number),
         visible: roots.get(number).visible,
       }));
-      for (const record of templateRecords) record.node.visible = false;
+      // The assembly borrows cache-owned geometry and materials directly, so
+      // its source libraries do not need to remain in the render scene. Fully
+      // detaching them avoids traversing hundreds of inactive finish nodes on
+      // every frame while preserving instant state swaps through adapter refs.
+      detachTemplateRecords(templateRecords);
+
+      constructionDoorDiagnostics = applyConstructionDoorFinish(roots.get(53), currentState);
+      constructionGarageDiagnostics = applyConstructionGarageFinish(roots.get(51), currentState);
+      constructionLandscapeLightingDiagnostics = applyConstructionLandscapeLightingFinish(roots.get(51), currentState);
+      setLegacyLightingVisualsHidden(true);
 
       if (typeof doorApi?.bindMainEntranceVisual !== 'function') {
         fail('DOOR_API_MISSING', 'Sheet-6 production activation requires bindMainEntranceVisual().');
@@ -617,8 +860,13 @@ export function createSheet06ProductionRuntime({
       glbCollisionObjectsActivated: assemblyDiagnostics?.glbCollisionObjectsActivated ?? null,
       stateApplications,
       suppressionCount: suppressionRecords.length,
-      hiddenTemplateCount: templateRecords.filter((record) => record.node.visible === false).length,
+      apertureBoardingHidden: apertureBoardRecords.length > 0
+        && apertureBoardRecords.every((record) => record.node.visible === false),
+      hiddenTemplateCount: templateRecords.filter(
+        (record) => record.node.visible === false && record.node.parent == null,
+      ).length,
       hiddenFallbackCount: fallbackLeases.filter((lease) => lease.handle.hiddenByLease).length,
+      legacyLightingVisualsHidden,
       interiorShadowMeshCount,
       staging: Object.freeze({
         exteriorVisible: exteriorStaging.visible,
@@ -633,11 +881,17 @@ export function createSheet06ProductionRuntime({
         beamRunCount: layout.beamRuns.length,
         ceilingPanelRunCount: layout.ceilingPanelRuns.length,
         lightMountCount: layout.beamPlacements.length,
+        wallLightMountCount: layout.wallLightPlacements.length,
         damageSiteCount: layout.damageSites.length,
       }),
       adapter: adapterDiagnostics,
       assembly: assemblyDiagnostics,
-      door: doorApi?.mainEntranceDiagnostics?.() || null,
+      door: Object.freeze({
+        ...(doorApi?.mainEntranceDiagnostics?.() || {}),
+        construction: constructionDoorDiagnostics,
+      }),
+      garageDoor: constructionGarageDiagnostics,
+      landscapeLighting: constructionLandscapeLightingDiagnostics,
       navigation: navigationApi?.diagnostics?.() || null,
     });
   }
@@ -657,10 +911,33 @@ export function createSheet06ProductionRuntime({
     await ready;
     if (disposed) return Object.freeze({ disposed: true, active: false });
     stateApplications += 1;
-    const adapterResult = await (adapter.applyState?.(nextState) ?? null);
-    const assemblyResult = await (assembly?.applyState?.(nextState) ?? null);
+    const nextAdapterArchitectureSignature = adapterArchitectureSignature(nextState);
+    const canSkipAdapter = nextAdapterArchitectureSignature !== null
+      && nextAdapterArchitectureSignature === lastAdapterArchitectureSignature;
+    const adapterResult = canSkipAdapter
+      ? Object.freeze({ applied: 0, failed: 0, skippedUnchangedArchitecture: true })
+      : await (adapter.applyState?.(nextState) ?? null);
+    if (!canSkipAdapter) lastAdapterArchitectureSignature = nextAdapterArchitectureSignature;
+    const nextAssemblyVisualSignature = assemblyVisualSignature(nextState);
+    const canSkipAssembly = nextAssemblyVisualSignature !== null
+      && nextAssemblyVisualSignature === lastAssemblyVisualSignature;
+    const assemblyResult = canSkipAssembly
+      ? Object.freeze({ applied: false, skippedUnchangedVisualState: true })
+      : await (assembly?.applyState?.(nextState) ?? null);
+    if (!canSkipAssembly) lastAssemblyVisualSignature = nextAssemblyVisualSignature;
+
+    const nextDirectConstructionSignature = directConstructionSignature(nextState);
+    const canSkipDirectConstruction = nextDirectConstructionSignature !== null
+      && nextDirectConstructionSignature === lastDirectConstructionSignature;
+    if (!canSkipDirectConstruction) {
+      constructionDoorDiagnostics = applyConstructionDoorFinish(adapter.getRoot?.(53), nextState);
+      constructionGarageDiagnostics = applyConstructionGarageFinish(adapter.getRoot?.(51), nextState);
+      constructionLandscapeLightingDiagnostics = applyConstructionLandscapeLightingFinish(adapter.getRoot?.(51), nextState);
+      lastDirectConstructionSignature = nextDirectConstructionSignature;
+    }
+    if (!canSkipAdapter) applyApertureBoardingVisibility(apertureBoardRecords, nextState);
     let doorResult = null;
-    if (doorBound) {
+    if (doorBound && !canSkipAdapter) {
       try {
         doorResult = reassertDoorControllerState(nextState);
       } catch (error) {
@@ -670,7 +947,7 @@ export function createSheet06ProductionRuntime({
         rollbackActivation();
       }
     }
-    normalizeInteriorShadows();
+    if (!canSkipAssembly) normalizeInteriorShadows();
     return Object.freeze({
       disposed: false,
       active,
@@ -690,12 +967,15 @@ export function createSheet06ProductionRuntime({
     const assemblyResult = assembly?.dispose?.() || null;
     unbindDoor();
     unbindNavigation();
+    restoreNodeRecords(apertureBoardRecords);
+    apertureBoardRecords = [];
+    restoreTemplateRecords(templateRecords);
     const adapterResult = adapter.dispose?.() || null;
-    restoreNodeRecords(templateRecords);
     restoreNodeRecords(suppressionRecords);
     templateRecords = [];
     suppressionRecords = [];
     restoreFallbacks();
+    if (legacyLightingVisualsHidden) setLegacyLightingVisualsHidden(false);
     exteriorStaging.visible = false;
     interiorStaging.visible = false;
     exteriorLive.visible = false;

@@ -62,6 +62,14 @@ import { ZONE, HOLE_STATUS } from '../sim/constants.js';
 import {
   SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
 } from './laptopWidgets.js';
+import {
+  CONSTRUCTION_CATEGORY_BY_ID, CONSTRUCTION_FINISH_CATEGORIES,
+  CONSTRUCTION_QUALITY_BY_ID, CONSTRUCTION_QUALITY_LEVELS, constructionFinishVariant,
+} from '../data/constructionFinishes.js';
+import {
+  ensureConstructionFinishes, installedConstructionFinish,
+  ownsConstructionFinish, purchaseConstructionFinish,
+} from '../sim/constructionFinishes.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -1585,7 +1593,53 @@ export function makeLaptop(app, opts) {
           },
         }));
     };
+    const finishUi = ts('construction-finishes', { category: 'flooring', quality: 'municipal' });
+    ensureConstructionFinishes(st);
+    const category = CONSTRUCTION_CATEGORY_BY_ID[finishUi.category] || CONSTRUCTION_FINISH_CATEGORIES[0];
+    const quality = CONSTRUCTION_QUALITY_BY_ID[finishUi.quality] || CONSTRUCTION_QUALITY_LEVELS[0];
+    const installed = installedConstructionFinish(st, category.id);
+    const categoryTabs = el('div', { class: 'lt-tabs' }, ...CONSTRUCTION_FINISH_CATEGORIES.map((entry) => el('button', {
+      class: `lt-tab ${category.id === entry.id ? 'on' : ''}`, text: entry.label,
+      onclick: () => { finishUi.category = entry.id; click(); render(); },
+    })));
+    const qualityTabs = el('div', { class: 'lt-tabs' }, ...CONSTRUCTION_QUALITY_LEVELS.map((entry) => el('button', {
+      class: `lt-tab ${quality.id === entry.id ? 'on' : ''}`, text: entry.label,
+      title: `${entry.craftsmanship}; ${entry.warrantyYears}-year warranty`,
+      onclick: () => { finishUi.quality = entry.id; click(); render(); },
+    })));
+    const finishRow = (family) => {
+      const variant = constructionFinishVariant(category.id, family.id, quality.id);
+      const owned = ownsConstructionFinish(st, category.id, family.id, quality.id);
+      const isInstalled = installed?.id === variant.id;
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: quality.level >= 5 ? '✦' : quality.level >= 3 ? '◆' : '▦' }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: family.label }),
+          el('div', { class: 'lt-prodmeta', text: `${variant.description} ${variant.rate.toFixed(2)} / ${variant.unit} · ${variant.warrantyYears}-year warranty.` })),
+        isInstalled ? chip('Installed', 'gold') : el('button', {
+          class: owned ? 'lt-mini' : 'lt-primary',
+          text: owned ? 'Install' : `Buy — ${formatMoney(variant.cost)}`,
+          disabled: !owned && cashOf() < variant.cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(
+            owned
+              ? `Install the ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} package? The owned package can be refitted at no charge.`
+              : `Purchase and install ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} for ${formatMoney(variant.cost)}?`,
+            owned ? 'Install it' : 'Purchase finish',
+            () => {
+              const res = purchaseConstructionFinish(st, category.id, family.id, quality.id);
+              if (res.ok) { app.scene3d?.clubhouse?.()?.rebuildReno?.(); click(); render(); }
+              toast(res.ok ? `${variant.finishLabel} — ${variant.qualityLabel} installed.` : res.reason, res.ok ? '' : 'warn');
+            },
+          ),
+        }));
+    };
     return [
+      sect('Construction finishes — municipal to luxury country club'),
+      note('Choose a construction family and one of five material grades. Every package is permanent once purchased; owned packages can be refitted without paying twice.'),
+      categoryTabs,
+      qualityTabs,
+      row(meta(`Installed ${category.label.toLowerCase()}: ${installed?.finishLabel || 'None'} — ${installed?.qualityLabel || 'Unknown'}. Viewing ${quality.label.toLowerCase()} workmanship: ${quality.visual}.`)),
+      el('div', { class: 'lt-orderlist' }, ...category.finishes.map(finishRow)),
       sect('Amenities'),
       el('div', { class: 'lt-orderlist' }, ...Object.keys(AMENITIES).map(amenityRow)),
       sect('Decor & fixtures — order here, place them in the room'),

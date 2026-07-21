@@ -592,6 +592,7 @@ export function makeClubhouse(ctx) {
     shellFallbacks: shell.productionVisualFallbacks,
     doorApi: doorsApi,
     navigationApi: sheet06Navigation,
+    lightingApi: shell.lighting,
   });
   // Assets 71-100: thirty finished props that nothing was loading. Static dressing, so they skip
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own

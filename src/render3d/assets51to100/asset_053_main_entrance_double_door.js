@@ -11,7 +11,14 @@ export const ASSET_053_MAIN_ENTRANCE_DOUBLE_DOOR = defineSheet06Binding({
   stem: 'main_entrance_double_door',
   name: 'MAIN ENTRANCE DOUBLE-DOOR ASSEMBLY',
   referenceImagePath: 'Designs/RefrenceImages/51-60_refrence_images/ChatGPT Image Jul 17, 2026, 11_23_56 PM.png',
-  intendedUse: 'Operable glazed front entrance for players and customers',
+  intendedUse: 'Operable two-pivot entrance carrying twenty-five purchasable hollow-core through double-entry finish grades',
+  constructionFinishes: {
+    category: 'doors',
+    families: ['hollow-core', 'solid', 'glass', 'luxury-wood', 'double-entry'],
+    qualities: ['municipal', 'standard', 'premium', 'high-end', 'luxury'],
+    variantCount: 25,
+    pivotContract: 'All finish meshes remain children of PIVOT_DoorLeft/PIVOT_DoorRight.',
+  },
   paths: {
     source: 'asset_sources/blender/assets_51_100/sheet_06/asset_053_main_entrance_double_door.blend',
     canonicalGlb: 'Assets/assets_51_100/glb/sheet_06/asset_053_main_entrance_double_door.glb',

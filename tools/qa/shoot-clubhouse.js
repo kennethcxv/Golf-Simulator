@@ -1,4 +1,6 @@
 async (page) => {
+  const fs = process.getBuiltinModule('node:fs');
+  const path = process.getBuiltinModule('node:path');
   // CLUBHOUSE ASSET-PASS HARNESS — reload, stock the retail displays, shoot the
   // same 10 poses every pass, and measure. Before/after are directly comparable
   // because nothing here varies between runs except the code under test.
@@ -9,10 +11,13 @@ async (page) => {
   // It deliberately zeroes `decor`/`supplies`: a decor SKU in inventory makes the
   // shop spawn translucent green PLACEMENT GHOSTS that would fill the room with
   // fake blobs. Final gameplay proof does not use this file.
-  const PASS = 'final';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/assets/' + PASS;
+  const PASS = process.env.CLUBHOUSE_QA_PASS || 'final';
+  const OUT = process.env.CLUBHOUSE_QA_OUT
+    ? path.resolve(process.env.CLUBHOUSE_QA_OUT, PASS)
+    : path.join(process.cwd(), 'qa', 'assets', PASS);
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  fs.mkdirSync(OUT, { recursive: true });
 
-  const L2W = (x, z) => ({ x: x - 8, z: z + 228 });
   const SHOTS = [
     { id: '01-entrance',  at: [-0.8, 5.2],  to: [-1.2, -2.0], pitch: -0.05 },
     { id: '02-checkout',  at: [0.5, 2.3],   to: [2.9, 4.5],   pitch: -0.10 },
@@ -24,10 +29,10 @@ async (page) => {
     { id: '08-office',    at: [7.2, 4.3],   to: [9.6, 4.6],   pitch: -0.06 },
     { id: '09-stockroom', at: [7.4, -2.3],  to: [8.1, -5.9],  pitch: -0.04 },
   ];
-  const EXT = { id: '10-exterior', atW: [-1.5, 243.5], toW: [-8.5, 231.0], pitch: 0.03 };
+  const EXT = { id: '10-exterior', at: [6.5, 15.5], to: [-0.5, 3.0], pitch: 0.03 };
 
   // --- fresh boot so leftover in-memory edits can't leak between passes -------
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
@@ -64,12 +69,17 @@ async (page) => {
   await page.waitForTimeout(800); // decorSignature() drives the ghost teardown on the next tick
 
   // --- shoot ------------------------------------------------------------------
-  const shots = SHOTS.map((s) => {
-    const a = L2W(s.at[0], s.at[1]);
-    const t = L2W(s.to[0], s.to[1]);
-    return { id: s.id, ax: a.x, az: a.z, tx: t.x, tz: t.z, pitch: s.pitch };
-  });
-  shots.push({ id: EXT.id, ax: EXT.atW[0], az: EXT.atW[1], tx: EXT.toW[0], tz: EXT.toW[1], pitch: EXT.pitch });
+  // Keep camera poses in clubhouse-local coordinates. The clubhouse origin varies
+  // between map revisions; resolving it at runtime keeps this harness useful on
+  // every branch and prevents a valid-looking set of course screenshots.
+  const shots = [...SHOTS, EXT].map((s) => ({
+    id: s.id,
+    ax: s.at[0],
+    az: s.at[1],
+    tx: s.to[0],
+    tz: s.to[1],
+    pitch: s.pitch,
+  }));
 
   const done = [];
   for (const s of shots) {
@@ -86,11 +96,17 @@ async (page) => {
 
       const w = app.scene3d.walk;
       const st = w.state;
+      const clubhouse = app.scene3d.clubhouse();
+      const origin = clubhouse.interior.position;
+      const ax = origin.x + shot.ax;
+      const az = origin.z + shot.az;
+      const tx = origin.x + shot.tx;
+      const tz = origin.z + shot.tz;
       w.clearKeys();
-      st.x = shot.ax;
-      st.z = shot.az;
-      const dx = shot.tx - shot.ax;
-      const dz = shot.tz - shot.az;
+      st.x = ax;
+      st.z = az;
+      const dx = tx - ax;
+      const dz = tz - az;
       const d = Math.hypot(dx, dz) || 1;
       st.yaw = Math.atan2(-dx / d, -dz / d); // forward = (-sin yaw, -cos yaw)
       st.pitch = shot.pitch;

@@ -42,7 +42,9 @@ export const ASSET_059_RENOVATED_FLOORING_SET = defineSheet06Binding({
   stateContract: {
     finishSelectionRequired: true,
     existingGrimeGridIsAuthoritative: true,
-    supportedFinishes: ['oak', 'alternate_oak', 'carpet', 'tile'],
+    supportedFinishes: ['oak', 'alternate_oak', 'carpet', 'tile', 'concrete', 'vinyl', 'laminate', 'hardwood', 'luxury_hardwood', 'stone_tile', 'marble', 'herringbone'],
+    constructionQualityLevels: ['municipal', 'standard', 'premium', 'high_end', 'luxury'],
+    constructionVariantCount: 40,
   },
 });
 

@@ -116,7 +116,7 @@ class AssetContract:
 
 
 CONTRACTS = (
-    AssetContract(51, "finished_clubhouse_exterior", (19.20, 12.34, 7.13),
+    AssetContract(51, "finished_clubhouse_exterior", (19.89, 13.46, 7.13),
                   EXTERIOR_MARKERS, (), ("blocking", "walkable")),
     AssetContract(52, "dilapidated_clubhouse_exterior", (19.20, 12.34, 7.13),
                   EXTERIOR_MARKERS, (), ("raycast-only",)),
@@ -141,7 +141,7 @@ CONTRACTS = (
                   ("SOCKET_EndCap", "SOCKET_InsideCorner", "SOCKET_Junction",
                    "SOCKET_OutsideCorner", "SOCKET_PLACEMENT", "SOCKET_TrimNext"),
                   (), ("raycast-only",)),
-    AssetContract(58, "ceiling_and_beam_kit", (3.60, 0.20, 0.24),
+    AssetContract(58, "ceiling_and_beam_kit", (3.60, 0.96, 1.08),
                   ("SOCKET_BeamCross", "SOCKET_BeamEnd", "SOCKET_BeamNext",
                    "SOCKET_PLACEMENT", "SOCKET_RecessedLight"),
                   (), ("overhead-blocking",)),
@@ -576,6 +576,91 @@ def _asset_specific_check(
         if not provenance_ok:
             issues.append(f"Asset {contract.number} numbered-module provenance is not exact")
         measurements["numberedModuleIdentityAndProvenance"] = provenance_ok
+
+    construction_contracts = {
+        51: (10, 2),
+        53: (25, 5),
+        55: (20, 4),
+        56: (30, 6),
+        58: (50, 10),
+        59: (40, 8),
+    }
+    if contract.number in construction_contracts:
+        expected_variant_count, expected_family_count = construction_contracts[contract.number]
+        try:
+            declared_ids = {
+                value for value in json.loads(str(extras.get("variant_ids_json")))
+                if isinstance(value, str) and value.startswith("construction_")
+            }
+        except (TypeError, ValueError, json.JSONDecodeError):
+            declared_ids = set()
+            issues.append(f"Asset {contract.number} construction variant manifest is not valid JSON")
+
+        tagged_records: dict[str, set[tuple[str, str, int]]] = {}
+        for obj in objects:
+            props = _custom_properties(obj)
+            variant_ids = {
+                value for value in props.values()
+                if isinstance(value, str) and value.startswith("construction_")
+            }
+            for variant_id in variant_ids:
+                family = props.get("construction_finish_family", props.get("finish_family"))
+                quality = props.get("construction_quality")
+                level = props.get("construction_quality_level")
+                if isinstance(family, str) and isinstance(quality, str) and isinstance(level, int):
+                    tagged_records.setdefault(variant_id, set()).add((family, quality, level))
+                else:
+                    tagged_records.setdefault(variant_id, set())
+
+        tagged_ids = set(tagged_records)
+        if len(declared_ids) != expected_variant_count:
+            issues.append(
+                f"Asset {contract.number} declares {len(declared_ids)} construction variants, "
+                f"expected {expected_variant_count}"
+            )
+        if tagged_ids != declared_ids:
+            missing = sorted(declared_ids - tagged_ids)
+            undeclared = sorted(tagged_ids - declared_ids)
+            issues.append(
+                f"Asset {contract.number} construction tags do not match its manifest; "
+                f"missing={missing}, undeclared={undeclared}"
+            )
+        malformed = sorted(variant_id for variant_id, records in tagged_records.items() if not records)
+        if malformed:
+            issues.append(
+                f"Asset {contract.number} construction variants lack family/quality/level tags: {malformed}"
+            )
+        families = {
+            family
+            for records in tagged_records.values()
+            for family, _quality, _level in records
+        }
+        qualities = {
+            (quality, level)
+            for records in tagged_records.values()
+            for _family, quality, level in records
+        }
+        expected_qualities = {
+            ("municipal", 1), ("standard", 2), ("premium", 3),
+            ("high_end", 4), ("luxury", 5),
+        }
+        if len(families) != expected_family_count:
+            issues.append(
+                f"Asset {contract.number} has {len(families)} construction families, "
+                f"expected {expected_family_count}"
+            )
+        if qualities != expected_qualities:
+            issues.append(
+                f"Asset {contract.number} construction quality ladder is {sorted(qualities)}, "
+                f"expected {sorted(expected_qualities)}"
+            )
+        measurements["constructionFinishLibrary"] = {
+            "declaredVariantCount": len(declared_ids),
+            "taggedVariantCount": len(tagged_ids),
+            "familyCount": len(families),
+            "qualities": sorted(qualities),
+            "variantIds": sorted(tagged_ids),
+        }
 
     return _check(not issues, issues, **measurements)
 

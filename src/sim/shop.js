@@ -21,6 +21,7 @@ import { TIERS } from './club.js';
 import { members } from './golfers.js';
 import { notify } from './notifications.js';
 import { placedFixtures } from './layout.js';
+import { ensureConstructionFinishes } from './constructionFinishes.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -62,12 +63,14 @@ export function initShopReno(state) {
     cleared: false,
   }));
   state.shop.reno = { grime, clutter, decor: [], windows: startWindows(rng) };
+  ensureConstructionFinishes(state);
 }
 
 export function ensureShopReno(state) {
   if (!state.shop) return;
   if (!state.shop.reno) initShopReno(state);
   const reno = state.shop.reno;
+  ensureConstructionFinishes(state);
 
   // FLOOR-PLAN MIGRATION (2026-07-13): saves from the 14×10 room carry a 7×5
   // grime grid and 5 clutter piles. Resample the dirt onto the new grid by

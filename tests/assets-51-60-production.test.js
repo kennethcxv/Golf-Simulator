@@ -17,7 +17,6 @@ import {
 
 import {
   ASSETS,
-  CATEGORY_BUDGETS,
 } from '../tools/qa/assets-51-100-spec.mjs';
 import { auditGlbFile } from '../tools/qa/glb-structure-audit.mjs';
 
@@ -28,14 +27,14 @@ const MATRIX_EPSILON = 1e-6;
 const APPROVED_NODE_PREFIX = /^(?:A_|MESH_|COL_|SOCKET_|PIVOT_|LOD[012]_)/u;
 
 const TARGET_DIMENSIONS_XYZ = Object.freeze({
-  51: Object.freeze([19.20, 12.34, 7.13]),
+  51: Object.freeze([19.89, 13.46, 7.13]),
   52: Object.freeze([19.20, 12.34, 7.13]),
   53: Object.freeze([1.80, 0.24, 2.45]),
   54: Object.freeze([11.52, 3.29, 4.02]),
   55: Object.freeze([2.19, 0.23, 1.74]),
   56: Object.freeze([1.20, 0.075, 1.15]),
   57: Object.freeze([2.40, 0.025, 0.14]),
-  58: Object.freeze([3.60, 0.20, 0.24]),
+  58: Object.freeze([3.60, 0.96, 1.08]),
   59: Object.freeze([1.00, 1.00, 0.018]),
   60: Object.freeze([1.00, 1.00, 0.035]),
 });
@@ -57,10 +56,29 @@ const TOP_LEVEL_VARIANTS = Object.freeze({
   55: Object.freeze(['arched', 'narrow', 'standard', 'wide']),
   56: Object.freeze(['door_connector', 'inside_corner', 'outside_corner', 'straight', 'window_connector']),
   57: Object.freeze(['baseboard', 'chair_rail', 'crown', 'door_casing', 'end_cap', 'inside_corner', 'junction', 'outside_corner']),
-  58: Object.freeze(['ceiling_panel', 'cross_connector', 'end_cap', 'half', 'light_mount', 'straight']),
+  58: Object.freeze(['ceiling_panel', 'cross_connector', 'end_cap', 'half', 'light_mount', 'straight', 'wall_light_mount']),
   59: Object.freeze(['cream_tile', 'dark_wood', 'gray_carpet', 'oak', 'sage_carpet', 'stone_tile', 'walnut']),
   60: Object.freeze(['damaged_carpet', 'damaged_tile', 'damaged_wood']),
 });
+
+const TOP_LEVEL_CONSTRUCTION_VARIANT_COUNTS = Object.freeze({
+  55: 20,
+  56: 30,
+  57: 0,
+  58: 50,
+  59: 40,
+  60: 0,
+});
+
+function productionBudget(asset) {
+  return Object.freeze({
+    triangleBudget: asset.triangleBudget,
+    meshBudget: asset.meshBudget,
+    materialBudget: asset.materialBudget,
+    textureBudget: asset.textureBudget,
+    maxTextureSize: Math.max(...asset.maxTextureSize),
+  });
+}
 
 const parsedCache = new Map();
 const auditCache = new Map();
@@ -123,7 +141,7 @@ function parseGlb(repoPath) {
 function audit(asset, glbPath) {
   const cacheKey = `${asset.assetNumber}:${glbPath}`;
   if (auditCache.has(cacheKey)) return auditCache.get(cacheKey);
-  const budget = CATEGORY_BUDGETS[asset.category];
+  const budget = productionBudget(asset);
   const result = auditGlbFile({
     root: REPO_ROOT,
     glbPath,
@@ -133,11 +151,7 @@ function audit(asset, glbPath) {
     requiredSockets: asset.requiredSockets,
     requiredAnimations: asset.requiredAnimations,
     budgets: {
-      triangleBudget: budget.triangleBudget,
-      meshBudget: budget.meshBudget,
-      materialBudget: budget.materialBudget,
-      textureBudget: budget.textureBudget,
-      maxTextureSize: Math.max(...budget.maxTextureSize),
+      ...budget,
     },
   });
   auditCache.set(cacheKey, result);
@@ -381,7 +395,7 @@ function assertCollisionContract(asset, json, report, representation) {
 }
 
 function assertCleanAudit(asset, report, representation) {
-  const budget = CATEGORY_BUDGETS[asset.category];
+  const budget = asset;
   assert.equal(report.exists, true, `Asset ${asset.assetNumber} ${representation} GLB exists`);
   assert.equal(report.sourceExists, true, `Asset ${asset.assetNumber} Blender source exists`);
   assert.equal(report.error, null, `Asset ${asset.assetNumber} ${representation} parses cleanly`);
@@ -595,15 +609,27 @@ test('Assets 55-60 export separable top-level runtime variants with exactly one 
       const variants = (root.children || [])
         .map((index) => json.nodes?.[index])
         .filter((node) => node && !Number.isInteger(node.mesh) && node.extras?.runtime_variant === true);
-      assert.deepEqual(sorted(variants.map((node) => node.extras.variant_id)), TOP_LEVEL_VARIANTS[asset.assetNumber],
+      const legacyVariants = variants.filter((node) => !node.extras.variant_id.startsWith('construction_'));
+      const constructionVariants = variants.filter((node) => node.extras.variant_id.startsWith('construction_'));
+      assert.deepEqual(sorted(legacyVariants.map((node) => node.extras.variant_id)), TOP_LEVEL_VARIANTS[asset.assetNumber],
         `Asset ${asset.assetNumber} ${representation} top-level variant contract`);
+      assert.equal(constructionVariants.length, TOP_LEVEL_CONSTRUCTION_VARIANT_COUNTS[asset.assetNumber],
+        `Asset ${asset.assetNumber} ${representation} construction variant count`);
       assert.equal(variants.filter((node) => node.extras.variant_default === true).length, 1,
         `Asset ${asset.assetNumber} ${representation} must identify exactly one default variant`);
+      assert.ok(constructionVariants.every((node) => node.extras.variant_default === false),
+        `Asset ${asset.assetNumber} ${representation} construction variants never replace the legacy default implicitly`);
       for (const variant of variants) {
         assert.equal(typeof variant.extras.runtime_visibility_contract, 'string',
           `Asset ${asset.assetNumber} ${representation} ${variant.extras.variant_id} visibility contract`);
         assert.ok((variant.children || []).some((index) => Number.isInteger(json.nodes?.[index]?.mesh)),
           `Asset ${asset.assetNumber} ${representation} ${variant.extras.variant_id} needs renderable geometry`);
+      }
+      for (const variant of constructionVariants) {
+        assert.match(variant.extras.construction_quality || '', /^(?:municipal|standard|premium|high_end|luxury)$/u,
+          `Asset ${asset.assetNumber} ${representation} ${variant.extras.variant_id} quality tag`);
+        assert.equal(typeof (variant.extras.construction_finish_family || variant.extras.finish_family), 'string',
+          `Asset ${asset.assetNumber} ${representation} ${variant.extras.variant_id} family tag`);
       }
     }
   }

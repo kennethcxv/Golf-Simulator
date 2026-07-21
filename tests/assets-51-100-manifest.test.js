@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import {
   ASSETS,
+  ASSET_BUDGET_OVERRIDES,
   CATEGORY_BUDGETS,
   FIRST_PERSON_BUDGET,
   FIRST_PERSON_REFERENCES,
@@ -123,11 +124,15 @@ test('every record carries meter dimensions, category budgets, and interaction c
 
     const categoryBudget = CATEGORY_BUDGETS[asset.category];
     assert.ok(categoryBudget, `${label} uses a declared budget category`);
+    const expectedBudget = {
+      ...categoryBudget,
+      ...(ASSET_BUDGET_OVERRIDES[asset.assetNumber] || {}),
+    };
     for (const field of positiveBudgetFields) {
-      assert.equal(asset[field], categoryBudget[field], `${label} ${field} matches category`);
+      assert.equal(asset[field], expectedBudget[field], `${label} ${field} matches its declared limit`);
       assert.ok(Number.isInteger(asset[field]) && asset[field] > 0, `${label} ${field} is positive`);
     }
-    assert.deepEqual(asset.maxTextureSize, categoryBudget.maxTextureSize);
+    assert.deepEqual(asset.maxTextureSize, expectedBudget.maxTextureSize);
     assert.equal(asset.maxTextureSize.length, 2);
     assert.ok(asset.maxTextureSize.every((value) => Number.isInteger(value) && value >= 1024));
 
