@@ -3369,6 +3369,7 @@ export function makeCourseScene(canvas, state) {
   const customerCartVisuals = new Map();
   let customerCartModel = null;
   let customerGolfBagModel = null;
+  let golferIronModel = null;
   let customerFleetStationModel = null;
   let customerFleetStationVisual = null;
   let customerFleetStationCollider = null;
@@ -3378,6 +3379,18 @@ export function makeCourseScene(canvas, state) {
   const POLO_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0xf0ede2, 0x3f7a34];
   const KHAKI_COLORS = [0xc2b190, 0xb9a67e, 0x9a8f78];
   const CAP_COLORS = [0xf2efe4, 0x2c3e66, 0x2f5c38, 0xe9e2cc];
+
+  function equipGolferCharacter(char) {
+    if (!char || !golferIronModel || char.equipment?.kind === 'golf-club') return false;
+    const club = cloneShared(golferIronModel);
+    club.name = 'GolferIronEquipment';
+    club.scale.setScalar(METERS_TO_YARDS);
+    club.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+    });
+    char.attachEquipment(club, { side: 'R', kind: 'golf-club' });
+    return true;
+  }
 
   function golferHoleCorridor(course2) {
     const open = course2.holes.filter((h) => h.status === HOLE_STATUS.OPEN && h.tee && h.pin);
@@ -3394,6 +3407,7 @@ export function makeCourseScene(canvas, state) {
     const khaki = KHAKI_COLORS[Math.floor(Math.random() * KHAKI_COLORS.length)];
     const capC = CAP_COLORS[Math.floor(Math.random() * CAP_COLORS.length)];
     const char = makeCharacter({ polo, khaki, cap: capC });
+    equipGolferCharacter(char);
     char.setMode('Walk');
     char.root.userData.char = char;
     golferGroup.add(char.root);
@@ -3939,6 +3953,8 @@ export function makeCourseScene(canvas, state) {
       khaki: KHAKI_COLORS[(index + 1) % KHAKI_COLORS.length],
       cap: CAP_COLORS[(index + 2) % CAP_COLORS.length],
     });
+    equipGolferCharacter(char);
+    equipGolferCharacter(passenger);
     passenger.root.name = `RentalCartPassenger_${cartRecord.id}`;
     passenger.root.visible = false;
     customerCartGroup.add(root, char.root, passenger.root);
@@ -6718,6 +6734,7 @@ export function makeCourseScene(canvas, state) {
       cachedObjectResources,
       collectSceneResources(flagstickModel),
       collectSceneResources(cupModel),
+      collectSceneResources(golferIronModel),
       ...[...sharedPutModelRoots].map((root) => collectSceneResources(root)),
       { textures: explicitTextures, renderTargets: explicitTargets },
     );
@@ -6809,6 +6826,17 @@ export function makeCourseScene(canvas, state) {
       customerGolfBagModel.name = 'CustomerRentalBagSharedModel';
     }),
     undefined, () => {});
+  new GLTFLoader().load('vendor/models/world/golfer_iron.glb',
+    (g) => adoptLoadedGltf(g, (loaded) => {
+      golferIronModel = loaded.scene;
+      golferIronModel.name = 'GolferIronSharedModel';
+      for (const walker of golfers) equipGolferCharacter(walker.mesh?.userData?.char);
+      for (const visual of customerCartVisuals.values()) {
+        equipGolferCharacter(visual.char);
+        equipGolferCharacter(visual.passenger);
+      }
+    }),
+    undefined, () => {});
   new GLTFLoader().load('vendor/models/vehicles/cart_fleet_station.glb',
     (g) => adoptLoadedGltf(g, (loaded) => {
       customerFleetStationModel = loaded.scene;
@@ -6870,6 +6898,34 @@ export function makeCourseScene(canvas, state) {
     // the entrance sign and flags; the east side earns you the tractor
     const yard = { x: bx + 14.5, z: bz + 18.5, yaw: 0.7 };
     const t = state.tractor;
+
+    // One batched, project-owned Blender asset turns the former open field into
+    // a legible service yard. Its true-scale pad seats the existing shed,
+    // workbench, tool chest, repair chores, and parked tractor; named convex
+    // proxies become the same walk blockers the rest of the course consumes.
+    putModel(
+      'vendor/models/world/maintenance_yard_dressing.glb',
+      METERS_TO_YARDS,
+      bx + 17.0,
+      bz + 16.9,
+      0,
+      (model) => {
+        model.name = 'MaintenanceYardDressing';
+        model.updateMatrixWorld(true);
+        model.traverse((object) => {
+          if (!object.name.startsWith('COL_')) return;
+          const bounds = new THREE.Box3().setFromObject(object);
+          object.visible = false;
+          if (bounds.isEmpty()) return;
+          propColliders.push({
+            minX: bounds.min.x,
+            maxX: bounds.max.x,
+            minZ: bounds.min.z,
+            maxZ: bounds.max.z,
+          });
+        });
+      },
+    );
 
     putModel('vendor/models/shed.glb', 5.2, bx + 20.5, bz + 13, -1.9);
     propColliders.push({ minX: bx + 17.8, maxX: bx + 23.2, minZ: bz + 10.3, maxZ: bz + 15.7 });
@@ -7338,6 +7394,20 @@ export function makeCourseScene(canvas, state) {
       return removed;
     },
     golferCount: () => golfers.length,
+    golferVisualState: () => golfers.map((entry) => {
+      const char = entry.mesh?.userData?.char;
+      const equipment = char?.equipment?.object || null;
+      return {
+        x: entry.mesh.position.x,
+        y: entry.mesh.position.y,
+        z: entry.mesh.position.z,
+        yaw: entry.mesh.rotation.y,
+        mode: char?.mode || null,
+        idleVariant: char?.idleVariant ?? null,
+        equipment: char?.equipment?.kind || null,
+        equipmentVisible: equipment?.visible === true,
+      };
+    }),
     setGolfersVisible: (v) => { golferGroup.visible = !!v; },
     customerCartCount: () => customerCartVisuals.size,
     customerFleetStationReady: () => Boolean(customerFleetStationVisual?.root?.visible),
