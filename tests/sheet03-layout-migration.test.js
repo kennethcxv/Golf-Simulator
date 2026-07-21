@@ -14,17 +14,17 @@ import {
 
 const fixtureById = (id) => FIXTURES.find((fixture) => fixture.id === id);
 
-test('apparel table render and placement share the authored 1.60 by 0.90 footprint', () => {
-  assert.deepEqual(FIXTURE_HALF.table, [0.80, 0.45]);
+test('apparel table render and placement share the authored 2.40 by 1.44 footprint', () => {
+  assert.deepEqual(FIXTURE_HALF.table, [1.20, 0.72]);
 
   const table = fixtureById('table_polos');
   const flat = fixtureRect({ ...table, ry: 0 });
-  assert.ok(Math.abs((flat.maxX - flat.minX) - 1.60) < 1e-9);
-  assert.ok(Math.abs((flat.maxZ - flat.minZ) - 0.90) < 1e-9);
+  assert.ok(Math.abs((flat.maxX - flat.minX) - 2.40) < 1e-9);
+  assert.ok(Math.abs((flat.maxZ - flat.minZ) - 1.44) < 1e-9);
 
   const turned = fixtureRect({ ...table, ry: Math.PI / 2 });
-  assert.ok(Math.abs((turned.maxX - turned.minX) - 0.90) < 1e-9);
-  assert.ok(Math.abs((turned.maxZ - turned.minZ) - 1.60) < 1e-9);
+  assert.ok(Math.abs((turned.maxX - turned.minX) - 1.44) < 1e-9);
+  assert.ok(Math.abs((turned.maxZ - turned.minZ) - 2.40) < 1e-9);
 
   const source = readFileSync(
     new URL('../src/render3d/clubhouse/fixtures.js', import.meta.url),
@@ -59,16 +59,16 @@ test('pre-current saves restore only invalid moved poses under repaired footprin
   delete raw.shop.progression;
   raw.version = FIXTURE_FOOTPRINT_SAVE_VERSION - 1;
   raw.shop.layout.moved.table_polos = validTablePose;
-  // The old symmetric shoerack half-box fit here. Its repaired asymmetric
-  // footprint extends through the west wall, so v10 must fall back to default.
-  raw.shop.layout.moved.shoerack = { x: -9.4, z: 4.5, ry: -Math.PI / 2 };
+  // A corrupt legacy override intersects the west wall, so migration must
+  // retain the valid table move while restoring this fixture to its default.
+  raw.shop.layout.moved.shoerack = { x: -10, z: 4.5, ry: 0 };
   assert.equal(
     validatePlacement(
       { ...state, shop: { ...state.shop, layout: structuredClone(raw.shop.layout) } },
       'shoerack',
-      -9.4,
+      -10,
       4.5,
-      -Math.PI / 2,
+      0,
     ).ok,
     false,
     'the repaired shoe-wall footprint rejects the legacy wall overlap',

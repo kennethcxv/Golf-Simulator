@@ -3,38 +3,28 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { FIXTURES } from '../src/data/shopLayout.js';
-import { SNACKRACK_AUTHORED_SLOTS, slotsFor } from '../src/data/fixtureSlots.js';
-import { MOVABLE_FIXTURE_CORE_MODELS } from '../src/render3d/clubhouse/fixtureCoreBatching.js';
+import { capacityOf, homeFixture, slotsFor } from '../src/data/fixtureSlots.js';
 
 const fixtureSource = fs.readFileSync(new URL('../src/render3d/clubhouse/fixtures.js', import.meta.url), 'utf8');
 const clubhouseSource = fs.readFileSync(new URL('../src/render3d/clubhouse.js', import.meta.url), 'utf8');
 const merchSource = fs.readFileSync(new URL('../src/render3d/clubhouse/merch.js', import.meta.url), 'utf8');
 
-test('one movable grab-and-go fixture owns every exact authored shelf socket', () => {
-  const racks = FIXTURES.filter((fixture) => fixture.kind === 'snackrack');
-  assert.equal(racks.length, 1, 'the shop contains no duplicate static snack shelf');
-  assert.equal(racks[0].id, 'snackrack');
-  assert.deepEqual(racks[0].skus, ['water1', 'snack1']);
-
-  assert.equal(SNACKRACK_AUTHORED_SLOTS.water1.length, 14);
-  assert.equal(SNACKRACK_AUTHORED_SLOTS.snack1.length, 10);
-  assert.deepEqual(slotsFor('water1'), SNACKRACK_AUTHORED_SLOTS.water1);
-  assert.deepEqual(slotsFor('snack1'), SNACKRACK_AUTHORED_SLOTS.snack1);
-  assert.deepEqual(
-    SNACKRACK_AUTHORED_SLOTS.water1.map((slot) => slot.socket),
-    Array.from({ length: 14 }, (_, index) => `DRINK_SLOT_${String(index + 1).padStart(2, '0')}`),
-  );
-  assert.deepEqual(
-    SNACKRACK_AUTHORED_SLOTS.snack1.map((slot) => slot.socket),
-    Array.from({ length: 10 }, (_, index) => `SNACK_SLOT_${String(index + 1).padStart(2, '0')}`),
-  );
+test('the production refreshment fixtures own separate exact physical facings', () => {
+  const fixtures = FIXTURES.filter((fixture) => ['cold_drinks', 'snack_rack'].includes(fixture.id));
+  assert.deepEqual(fixtures.map((fixture) => fixture.id), ['cold_drinks', 'snack_rack']);
+  assert.equal(homeFixture('water1').id, 'cold_drinks');
+  assert.equal(homeFixture('snack1').id, 'snack_rack');
+  assert.equal(capacityOf('water1'), 8);
+  assert.equal(capacityOf('snack1'), 8);
+  assert.equal(new Set(slotsFor('water1').map(({ x, y, z }) => `${x}:${y}:${z}`)).size, 8);
+  assert.equal(new Set(slotsFor('snack1').map(({ x, y, z }) => `${x}:${y}:${z}`)).size, 8);
 });
 
-test('the authored snack shelf is instantiated once through the re-layable fixture builder', () => {
-  assert.match(fixtureSource, /function snackrackUnit\(f\)/);
-  assert.match(fixtureSource, /snackrack: snackrackUnit/);
-  assert.equal((fixtureSource.match(/model: 'snack_shelf'/g) || []).length, 1);
-  assert.ok(MOVABLE_FIXTURE_CORE_MODELS.includes('snack_shelf'));
+test('the authored fridge and snack rack are instantiated through the re-layable fixture builder', () => {
+  assert.match(fixtureSource, /function fridgeUnit\(f\)/);
+  assert.match(fixtureSource, /fridge: fridgeUnit/);
+  assert.match(fixtureSource, /assetUnit\(f, 'drinks_fridge'/);
+  assert.match(fixtureSource, /assetUnit\(f, 'snack_rack'/);
   assert.doesNotMatch(fixtureSource, /snack\.position\.set\(-6\.6/);
 });
 

@@ -93,6 +93,7 @@ export function initShopReno(state) {
   }));
   state.shop.reno = {
     layoutVersion: RENO_LAYOUT_VERSION,
+    clutterLayout: RENO.clutterLayout,
     grime,
     clutter,
     decor: [],
@@ -143,6 +144,7 @@ export function ensureShopReno(state) {
   const outsideRoom = (c) => Math.abs(c.x) > RENO.room.w / 2 || Math.abs(c.z) > RENO.room.d / 2;
   if (
     reno.layoutVersion !== RENO_LAYOUT_VERSION
+    || reno.clutterLayout !== RENO.clutterLayout
     || reno.clutter.length !== CLUTTER_SPOTS.length
     || reno.clutter.some(outsideRoom)
   ) {
@@ -156,6 +158,7 @@ export function ensureShopReno(state) {
       cleared: i < flags.length ? flags[i] : allCleared,
     }));
     reno.layoutVersion = RENO_LAYOUT_VERSION;
+    reno.clutterLayout = RENO.clutterLayout;
   }
 
   // WINDOW FILM (production dirt pass): saves older than the window-grime

@@ -1242,7 +1242,20 @@ function normalizeShopState(state, rawShop, defaults, report) {
   const reno = shop.reno;
   const defaultReno = defaults.reno;
   const cells = CLEANING_FIELD.w * CLEANING_FIELD.h;
-  reno.grime = normalizeNumericArray(reno.grime, defaultReno.grime, Array, report, '$.shop.reno.grime', (number) => Math.min(1, Math.max(0, number)));
+  const savedGrime = Array.isArray(rawShop?.reno?.grime) ? rawShop.reno.grime : null;
+  if (savedGrime && savedGrime.length > 0 && savedGrime.length !== defaultReno.grime.length) {
+    // Preserve a finite legacy grid long enough for ensureShopReno to resample
+    // it spatially. Normalizing it to the current length here would replace
+    // most cells with new-game dirt and erase the player's cleaning progress.
+    reno.grime = savedGrime.slice(0, 10_000).map((value, index) => {
+      const number = Number(value);
+      if (Number.isFinite(number)) return Math.min(1, Math.max(0, number));
+      noteRepair(report, `$.shop.reno.grime[${index}]`, 'invalid legacy grime value cleared');
+      return 0;
+    });
+  } else {
+    reno.grime = normalizeNumericArray(reno.grime, defaultReno.grime, Array, report, '$.shop.reno.grime', (number) => Math.min(1, Math.max(0, number)));
+  }
   reno.windows = normalizeNumericArray(reno.windows, defaultReno.windows, Array, report, '$.shop.reno.windows', (number) => Math.min(1, Math.max(0, number)));
   reno.wet = normalizeNumericArray(reno.wet, new Array(cells).fill(0), Array, report, '$.shop.reno.wet', (number) => Math.min(1, Math.max(0, number)));
   reno.solution = normalizeNumericArray(reno.solution, new Array(cells).fill(0), Array, report, '$.shop.reno.solution', (number) => Math.min(1, Math.max(0, number)));
@@ -1257,6 +1270,12 @@ function normalizeShopState(state, rawShop, defaults, report) {
   reno.debris = recordsOnly(reno.debris, report, '$.shop.reno.debris', { max: 96 });
   reno.pan = finiteSave(reno.pan, 0, { min: 0, max: 1_000_000 }, report, '$.shop.reno.pan');
   reno.bag = finiteSave(reno.bag, 0, { min: 0, max: 1_000_000 }, report, '$.shop.reno.bag');
+  if (isRecord(rawShop?.reno) && !Object.hasOwn(rawShop.reno, 'layoutVersion')) {
+    delete reno.layoutVersion;
+  }
+  if (isRecord(rawShop?.reno) && !Object.hasOwn(rawShop.reno, 'clutterLayout')) {
+    delete reno.clutterLayout;
+  }
   if (isRecord(rawShop?.reno) && !Object.hasOwn(rawShop.reno, 'architecture')) {
     delete reno.architecture;
   }

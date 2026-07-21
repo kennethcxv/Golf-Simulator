@@ -60,9 +60,9 @@ function localSurfacePoint(surface, point) {
 }
 
 // A carried fixture's ghost is the exact local-space footprint that drives
-// fixtureRect(), not a second kind-only approximation. In particular, the shoe
-// wall's authored footprint is offset 0.5 yd toward local +Z; centring its ghost
-// at the fixture origin made the preview disagree with placement/collision.
+// fixtureRect(), not a second kind-only approximation. Explicit asymmetric
+// footprints retain their authored local offset; kind-based production fixtures
+// use the shared FIXTURE_HALF authority.
 export function fixtureGhostProfile(f) {
   if (f.footprint) {
     const { minX, maxX, minZ, maxZ } = f.footprint;

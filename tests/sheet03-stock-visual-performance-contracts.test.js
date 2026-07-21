@@ -77,7 +77,9 @@ test('Sheet 3 ball stock uses cached bodies plus label planes, not material arra
     'function ballBoxMat(sku)',
     'function cartonMat(sku)',
   );
-  assert.match(ballMaterialFactory, /ballBoxMats\.set\(sku\.id, plain\)/);
+  assert.match(ballMaterialFactory, /ballBoxMats\.set\(sku\.id, new THREE\.MeshStandardMaterial/);
+  assert.doesNotMatch(ballMaterialFactory, /\[[^\]]*MeshStandardMaterial/,
+    'ball cartons use one cached body material rather than a six-face array');
   assert.equal(
     (ballMaterialFactory.match(/ballBoxMats\.set/g) || []).length,
     1,

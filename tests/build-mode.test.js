@@ -99,10 +99,10 @@ test('a fixture may not be dropped in the till workspace', () => {
 test('a moved fixture is rejected when its authored local-front browse target leaves the shop', () => {
   const st = fresh();
   st.shop.progression.tier = 'premium';
-  const feature = FIXTURES.find((fixture) => fixture.id === 'feature');
-  const candidate = { ...feature, x: 2, z: -5.5, ry: Math.PI };
+  const feature = FIXTURES.find((fixture) => fixture.id === 'rack_drivers');
+  const candidate = { ...feature, x: 6.5, z: 5.5, ry: 0 };
   const target = fixtureBrowsePoint(candidate);
-  assert.ok(target.z < -INTERIOR.d / 2, 'the runtime local +Z browse pose is beyond the north wall');
+  assert.ok(target.z > INTERIOR.d / 2, 'the runtime local +Z browse pose is beyond the south wall');
 
   const result = validatePlacement(st, candidate.id, candidate.x, candidate.z, candidate.ry);
   assert.equal(result.ok, false);

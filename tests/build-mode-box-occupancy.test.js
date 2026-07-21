@@ -84,7 +84,10 @@ test('build mode hides separate fixture stock while carrying and restores it on 
 });
 
 test('build-mode ghost exactly matches an asymmetric custom footprint through rotation', () => {
-  const fixture = FIXTURES.find((entry) => entry.id === 'shoerack');
+  const fixture = {
+    ...FIXTURES.find((entry) => entry.id === 'shoerack'),
+    footprint: { minX: -1.23, maxX: 1.23, minZ: -0.18, maxZ: 1.18 },
+  };
   const candidate = { ...fixture, x: 1.75, z: -2.25, ry: Math.PI / 2 };
   const profile = fixtureGhostProfile(candidate);
   assert.ok(Math.abs(profile.width - 2.46) < 1e-9);
@@ -219,13 +222,13 @@ test('public build diagnostics prove asymmetric ghost pose, validation, and disa
   assert.equal(diagnostics.ghost.visible, true);
   assert.deepEqual(
     diagnostics.ghost.position,
-    { x: 5, y: 0, z: -0.5 },
+    { x: 5.25, y: 0, z: -0.25 },
     'diagnostics expose the same quarter-yard snapped local pose the ghost renders',
   );
   assert.equal(diagnostics.ghost.rotationY, fixture.ry);
-  assert.ok(Math.abs(diagnostics.ghost.profile.width - 2.46) < 1e-9);
-  assert.ok(Math.abs(diagnostics.ghost.profile.depth - 1.36) < 1e-9);
-  assert.ok(Math.abs(diagnostics.ghost.profile.offsetZ - 0.5) < 1e-9);
+  assert.ok(Math.abs(diagnostics.ghost.profile.width - 2.6) < 1e-9);
+  assert.ok(Math.abs(diagnostics.ghost.profile.depth - 0.8) < 1e-9);
+  assert.ok(Math.abs(diagnostics.ghost.profile.offsetZ) < 1e-9);
   assert.equal(diagnostics.validation.ok, true);
   assert.deepEqual(diagnostics.validation.reasons, []);
   assert.equal(diagnostics.colliderActive, false);
@@ -270,9 +273,9 @@ test('stocked fixtures can be lifted and moved but cannot be stored in the back'
 
 test('a customer-held unit prevents stowing its now-empty home fixture', () => {
   const { mode, fixture, state, toasts } = modeHarness(undefined, {
-    fixtureId: 'feature',
+    fixtureId: 'shelf_acc',
   });
-  state.shop.inventory.range2.shelf = 0;
+  for (const skuId of fixture.skus) state.shop.inventory[skuId].shelf = 0;
   state.shop.held = [{ uid: 'qa-rangefinder-1', skuId: 'range2' }];
 
   mode.enter();

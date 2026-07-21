@@ -8,7 +8,7 @@ import {
 import { SUPPLIERS, supplierFor } from '../src/data/suppliers.js';
 import { FIXTURES, FIXTURE_HALF } from '../src/data/shopLayout.js';
 import {
-  SNACKRACK_AUTHORED_SLOTS, slotsFor, capacityOf, homeFixture,
+  slotsFor, capacityOf, homeFixture,
 } from '../src/data/fixtureSlots.js';
 import { productPackagingFor } from '../src/data/productPackaging.js';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
@@ -42,7 +42,10 @@ test('Fairway Spring and Bunker Bites are coherent tier-one retail provisions', 
     assert.equal(packaging.catalogCategory, sku.cat);
     assert.equal(packaging.unitWeightLb, sku.lb);
     assert.equal(packaging.retail, true);
-    assert.deepEqual(packaging.allowedStocking.fixtureIds, ['snackrack']);
+    assert.deepEqual(
+      packaging.allowedStocking.fixtureIds,
+      [sku.id === 'water1' ? 'cold_drinks' : 'snack_rack'],
+    );
   }
 });
 
@@ -51,14 +54,13 @@ test('provisions explicitly ship from Fairway Supply', () => {
   for (const id of PROVISION_IDS) assert.strictEqual(supplierFor(skuById(id)), SUPPLIERS.fairway);
 });
 
-test('one movable logical snack rack owns both SKUs and every retail line has exactly one fixture', () => {
-  const racks = FIXTURES.filter((fixture) => fixture.id === 'snackrack');
-  assert.equal(racks.length, 1);
-  assert.deepEqual(racks[0], {
-    id: 'snackrack', kind: 'snackrack', x: -6.6, z: 6.02, ry: Math.PI,
-    skus: PROVISION_IDS, title: 'Grab & Go', zone: 'provisions',
-  });
-  assert.deepEqual(FIXTURE_HALF.snackrack, [0.53, 0.25]);
+test('production drinks and snacks have separate movable homes and every retail line has one fixture', () => {
+  const drinks = FIXTURES.find((fixture) => fixture.id === 'cold_drinks');
+  const snacks = FIXTURES.find((fixture) => fixture.id === 'snack_rack');
+  assert.ok(drinks.skus.includes('water1'));
+  assert.ok(snacks.skus.includes('snack1'));
+  assert.deepEqual(FIXTURE_HALF.fridge, [0.48, 0.48]);
+  assert.deepEqual(FIXTURE_HALF.snackrack, [0.75, 0.38]);
 
   const fixtureCount = new Map();
   for (const fixture of FIXTURES) {
@@ -69,33 +71,19 @@ test('one movable logical snack rack owns both SKUs and every retail line has ex
   }
 });
 
-function expectedSockets(prefix, xs, ys, z) {
-  return ys.flatMap((y, row) => xs.map((x, col) => ({
-    socket: `${prefix}_${String(row * xs.length + col + 1).padStart(2, '0')}`,
-    socketName: `${prefix}_${String(row * xs.length + col + 1).padStart(2, '0')}`,
-    x, y, z, ry: 0,
-  })));
-}
-
-test('provisions capacity is the exact authored DRINK_SLOT and SNACK_SLOT mapping', () => {
-  const water = expectedSockets(
-    'DRINK_SLOT', [-0.39, -0.26, -0.13, 0, 0.13, 0.26, 0.39], [0.174, 0.574], 0.055,
-  );
-  const snack = expectedSockets(
-    'SNACK_SLOT', [-0.35, -0.175, 0, 0.175, 0.35], [0.954, 1.284], 0.03,
-  );
-
-  assert.deepEqual(slotsFor('water1'), water);
-  assert.deepEqual(slotsFor('snack1'), snack);
-  assert.strictEqual(slotsFor('water1'), SNACKRACK_AUTHORED_SLOTS.water1);
-  assert.strictEqual(slotsFor('snack1'), SNACKRACK_AUTHORED_SLOTS.snack1);
-  assert.equal(Object.isFrozen(SNACKRACK_AUTHORED_SLOTS.water1), true);
-  assert.equal(Object.isFrozen(SNACKRACK_AUTHORED_SLOTS.snack1), true);
-  assert.equal(capacityOf('water1'), 14);
-  assert.equal(capacityOf('snack1'), 10);
-  assert.equal(shelfCapacity(skuById('water1')), 14);
-  assert.equal(shelfCapacity(skuById('snack1')), 10);
-  for (const id of PROVISION_IDS) assert.equal(homeFixture(id).id, 'snackrack');
+test('provisions capacity is the exact production facing mapping', () => {
+  const water = slotsFor('water1');
+  const snack = slotsFor('snack1');
+  assert.equal(water.length, 8);
+  assert.equal(snack.length, 8);
+  assert.deepEqual([...new Set(water.map((slot) => slot.y))], [0.35, 0.7, 1.05, 1.4]);
+  assert.deepEqual([...new Set(snack.map((slot) => slot.y))], [0.28, 0.55, 0.82, 1.09]);
+  assert.equal(capacityOf('water1'), 8);
+  assert.equal(capacityOf('snack1'), 8);
+  assert.equal(shelfCapacity(skuById('water1')), 8);
+  assert.equal(shelfCapacity(skuById('snack1')), 8);
+  assert.equal(homeFixture('water1').id, 'cold_drinks');
+  assert.equal(homeFixture('snack1').id, 'snack_rack');
 });
 
 test('fresh games and old saves gain provisions without disturbing existing shop values', () => {
@@ -124,8 +112,9 @@ test('fresh games and old saves gain provisions without disturbing existing shop
   assert.deepEqual(twice.shop.markup, migrated.shop.markup);
 });
 
-test('provisions armfuls stock only the snack rack, respect capacity, and retain leftovers', () => {
+test('provisions armfuls stock only their refreshment fixtures, respect capacity, and retain leftovers', () => {
   const state = newGame('relaxed', 1802);
+  state.shop.progression.tier = 'standard';
   assert.equal(armfulOf(skuById('water1')), 6);
   assert.equal(armfulOf(skuById('snack1')), 12);
 
@@ -134,30 +123,31 @@ test('provisions armfuls stock only the snack rack, respect capacity, and retain
   const wrong = stockFixture(state, 'shelf_balls', 99);
   assert.equal(wrong.ok, false);
   assert.equal(wrong.invalid, true);
-  assert.deepEqual(carriedGoods(state), { skuId: 'water1', qty: 6 });
-  assert.equal(stockFixture(state, 'snackrack', 99).moved, 6);
+  assert.deepEqual(
+    { skuId: carriedGoods(state).skuId, qty: carriedGoods(state).qty },
+    { skuId: 'water1', qty: 6 },
+  );
+  assert.equal(stockFixture(state, 'cold_drinks', 99).moved, 6);
 
   assert.equal(takeFromBack(state, 'water1').taken, 6);
-  assert.equal(stockFixture(state, 'snackrack', 99).moved, 6);
-  assert.equal(takeFromBack(state, 'water1').taken, 6);
-  const waterFull = stockFixture(state, 'snackrack', 99);
+  const waterFull = stockFixture(state, 'cold_drinks', 99);
   assert.deepEqual(
     { moved: waterFull.moved, onShelf: waterFull.onShelf, capacity: waterFull.capacity, left: waterFull.left },
-    { moved: 2, onShelf: 14, capacity: 14, left: 4 },
+    { moved: 2, onShelf: 8, capacity: 8, left: 4 },
   );
   assert.equal(state.shop.inventory.water1.shelf + state.shop.inventory.water1.back + carriedGoods(state).qty, 20);
 
   state.shop.carry = null;
   state.shop.inventory.snack1.back = 12;
   assert.equal(takeFromBack(state, 'snack1').taken, 12);
-  const snackFull = stockFixture(state, 'snackrack', 99);
+  const snackFull = stockFixture(state, 'snack_rack', 99);
   assert.deepEqual(
     { moved: snackFull.moved, onShelf: snackFull.onShelf, capacity: snackFull.capacity, left: snackFull.left },
-    { moved: 10, onShelf: 10, capacity: 10, left: 2 },
+    { moved: 8, onShelf: 8, capacity: 8, left: 4 },
   );
 });
 
-test('provisions orders use one-day Fairway delivery and exact twelve-unit carton layouts', () => {
+test('provisions orders use the live Fairway ETA and exact twelve-unit carton layouts', () => {
   const state = newGame('relaxed', 1803);
   state.shop.progression.tier = 'standard';
   state.shop.unlockedTier = 2;
@@ -169,7 +159,9 @@ test('provisions orders use one-day Fairway delivery and exact twelve-unit carto
     const result = placeOrder(state, id, 12);
     assert.equal(result.ok, true);
     assert.equal(result.supplier, 'Fairway Supply Co.');
-    assert.equal(result.order.arrivesDay, day + 1);
+    assert.equal(result.order.arrivesDay, calendarOf(result.order.deliveryMin).dayAbs);
+    assert.ok(result.order.arrivesDay >= day);
+    assert.equal(result.order.pace, 'starter');
     assert.equal(result.order.manifest.supplierId, 'fairway');
     assert.equal(result.order.manifest.boxCount, 1);
     assert.deepEqual(result.order.manifest.boxes.map((box) => ({

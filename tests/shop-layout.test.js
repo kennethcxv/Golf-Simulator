@@ -33,15 +33,15 @@ test('the floor plan and the sim grime grid describe the same room', () => {
   assert.ok(INTERIOR.d === SHELL.d - 2 * SHELL.wallT, 'interior depth = shell minus two walls');
 });
 
-test('Asset 20 uses the same 1.20 by 0.45 metre footprint in layout and collision', () => {
-  assert.deepEqual(FIXTURE_HALF.rail, [0.60, 0.225]);
-  const rail = FIXTURES.find((fixture) => fixture.id === 'rail_outer');
+test('Asset 20 uses the same 3.20 by 0.70 metre footprint in layout and collision', () => {
+  assert.deepEqual(FIXTURE_HALF.apparelwall, [1.60, 0.35]);
+  const rail = FIXTURES.find((fixture) => fixture.id === 'shelf_small');
   const flat = fixtureRect({ ...rail, ry: 0 });
-  assert.ok(Math.abs((flat.maxX - flat.minX) - 1.20) < 1e-9);
-  assert.ok(Math.abs((flat.maxZ - flat.minZ) - 0.45) < 1e-9);
+  assert.ok(Math.abs((flat.maxX - flat.minX) - 3.20) < 1e-9);
+  assert.ok(Math.abs((flat.maxZ - flat.minZ) - 0.70) < 1e-9);
   const turned = fixtureRect({ ...rail, ry: Math.PI / 2 });
-  assert.ok(Math.abs((turned.maxX - turned.minX) - 0.45) < 1e-9);
-  assert.ok(Math.abs((turned.maxZ - turned.minZ) - 1.20) < 1e-9);
+  assert.ok(Math.abs((turned.maxX - turned.minX) - 0.70) < 1e-9);
+  assert.ok(Math.abs((turned.maxZ - turned.minZ) - 3.20) < 1e-9);
 });
 
 test('every fixture stocks real catalog SKUs and sits inside the building', () => {

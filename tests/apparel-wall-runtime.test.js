@@ -9,6 +9,7 @@ import { MOVABLE_FIXTURE_CORE_MODELS } from '../src/render3d/clubhouse/fixtureCo
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { commitPlacement, placedFixtures } from '../src/sim/layout.js';
 import { pickFromShelf } from '../src/sim/checkout.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
 
 const fixtureSource = readFileSync(new URL('../src/render3d/clubhouse/fixtures.js', import.meta.url), 'utf8');
 const clubhouseSource = readFileSync(new URL('../src/render3d/clubhouse.js', import.meta.url), 'utf8');
@@ -121,18 +122,22 @@ test('Asset 20 inventory and moved fixture identity survive save/load recovery',
   state.shop.unlockedTier = 3;
   state.shop.inventory.jacket2.shelf = 8;
   state.shop.inventory.jacket2.back = 3;
-  commitPlacement(state, 'rail_outer', -2.15, 1.35, Math.PI / 2);
-  const moved = structuredClone(state.shop.layout.moved.rail_outer);
-  assert.deepEqual(pickFromShelf(state, 'jacket2', 'asset20-held'), { ok: true });
+  commitPlacement(state, 'shelf_small', -0.4, -6.15, 0);
+  const moved = structuredClone(state.shop.layout.moved.shelf_small);
+  assert.deepEqual(pickFromShelf(state, 'jacket2', 'asset20-held'), {
+    ok: true, uid: 'asset20-held',
+  });
   assert.equal(state.shop.inventory.jacket2.shelf, 7);
 
   const loaded = deserialize(serialize(state));
-  assert.equal(loaded.shop.inventory.jacket2.shelf, 8, 'held unit returns to its display');
-  assert.equal(loaded.shop.inventory.jacket2.back, 3);
+  assert.equal(loaded.shop.inventory.jacket2.shelf, capacityOf('jacket2'),
+    'held unit returns before visible stock is capped to physical positions');
+  assert.equal(loaded.shop.inventory.jacket2.shelf + loaded.shop.inventory.jacket2.back, 11,
+    'visible-capacity repair conserves the held unit and all owned stock');
   assert.deepEqual(loaded.shop.held, []);
-  assert.deepEqual(loaded.shop.layout.moved.rail_outer, moved);
-  const rail = placedFixtures(loaded).find((fixture) => fixture.id === 'rail_outer');
-  assert.equal(rail.kind, 'rail');
-  assert.deepEqual(rail.skus, ['jacket2']);
-  assert.deepEqual({ x: rail.x, z: rail.z, ry: rail.ry }, moved);
+  assert.deepEqual(loaded.shop.layout.moved.shelf_small, moved);
+  const wall = placedFixtures(loaded).find((fixture) => fixture.id === 'shelf_small');
+  assert.equal(wall.kind, 'apparelwall');
+  assert.ok(wall.skus.includes('jacket2'));
+  assert.deepEqual({ x: wall.x, z: wall.z, ry: wall.ry }, moved);
 });

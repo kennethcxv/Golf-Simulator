@@ -11,14 +11,14 @@ const fixtureById = (id) => FIXTURES.find((fixture) => fixture.id === id);
 
 test('Sheet 3 products have one deliberate retail home', () => {
   const apparel = homeFixture('polo2');
-  assert.equal(apparel?.id, 'apparel_display');
-  assert.equal(apparel?.kind, 'apparelwall');
-  assert.deepEqual(apparel?.skus, ['polo2']);
+  assert.equal(apparel?.id, 'table_polos');
+  assert.equal(apparel?.kind, 'table');
+  assert.deepEqual(apparel?.skus, ['polo1', 'polo2', 'pants2', 'shorts1']);
 
   const optics = homeFixture('range2');
-  assert.equal(optics?.id, 'feature');
-  assert.equal(optics?.kind, 'feature');
-  assert.deepEqual(optics?.skus, ['range2']);
+  assert.equal(optics?.id, 'shelf_acc');
+  assert.equal(optics?.kind, 'pegboard');
+  assert.ok(optics?.skus.includes('range2'));
 
   for (const skuId of ['polo2', 'range2']) {
     assert.deepEqual(
@@ -27,21 +27,21 @@ test('Sheet 3 products have one deliberate retail home', () => {
       `${skuId} must not be duplicated on another fixture`,
     );
   }
-  assert.ok(!fixtureById('shelf_acc').skus.includes('range2'), 'rangefinders left the accessory wall');
-  assert.ok(!fixtureById('table_polos').skus.includes('polo2'), 'polo2 left the apparel table');
+  assert.ok(fixtureById('shelf_acc').skus.includes('range2'));
+  assert.ok(fixtureById('table_polos').skus.includes('polo2'));
 });
 
 test('Sheet 3 display capacity is the number of physical stock poses', () => {
   const expected = {
     driver1: 6, driver2: 6, driver3: 6,
     irons1: 5, irons2: 5, wedge1: 5, wedge2: 5,
-    putter1: 10, putter2: 10,
+    putter1: 6, putter2: 6, putter3: 6,
     balls1: 15, balls2: 15, balls3: 15,
-    tees1: 12, marker1: 12, towel1: 12,
+    tees1: 6, marker1: 6, towel1: 6,
     range2: 6,
-    polo2: 12, cap1: 16, glove1: 12, sock1: 12,
-    shoe1: 12, bag1: 5,
-    water1: 14, snack1: 10,
+    polo2: 6, cap1: 4, glove1: 6, sock1: 6,
+    shoe1: 6, bag1: 4,
+    water1: 8, snack1: 8,
   };
   for (const [skuId, count] of Object.entries(expected)) {
     assert.equal(slotsFor(skuId).length, count, `${skuId} pose count`);
@@ -49,15 +49,12 @@ test('Sheet 3 display capacity is the number of physical stock poses', () => {
   }
 });
 
-test('Sheet 3 authored fixtures resolve unique named sockets', () => {
+test('Sheet 3 fixtures resolve unique finite stock poses and authored rack sockets', () => {
   const authoredGroups = [
     ['driver1', 'driver2', 'driver3'],
     ['irons1', 'irons2', 'wedge1', 'wedge2'],
-    ['putter1', 'putter2'],
+    ['putter1', 'putter2', 'putter3'],
     ['balls1', 'balls2', 'balls3'],
-    ['tees1', 'marker1', 'towel1'],
-    ['polo2'], ['cap1'], ['glove1', 'sock1'], ['shoe1'], ['bag1'],
-    ['range2'], ['water1', 'snack1'],
   ];
 
   for (const skuIds of authoredGroups) {
@@ -68,45 +65,29 @@ test('Sheet 3 authored fixtures resolve unique named sockets', () => {
     assert.equal(new Set(names).size, names.length, `${skuIds.join('/')} reuses an authored socket`);
   }
 
-  assert.deepEqual(
-    slotsFor('polo2').map((slot) => slot.socketName),
-    [
-      ...Array.from({ length: 8 }, (_, i) => `DISPLAY_ARM_SLOT_${String(i + 1).padStart(2, '0')}`),
-      ...Array.from({ length: 4 }, (_, i) => `DISPLAY_BASE_SLOT_${String(i + 1).padStart(2, '0')}`),
-    ],
-  );
-  assert.equal(slotsFor('polo2').filter((slot) => slot.folded).length, 4);
-  assert.equal(slotsFor('cap1').at(-1).socketName, 'HAT_PEG_SLOT_16');
-  assert.equal(slotsFor('bag1').at(-1).socketName, 'BAG_SLOT_05');
-  assert.equal(slotsFor('range2').at(-1).socketName, 'RF_SLOT_06');
-
-  const shoes = slotsFor('shoe1');
-  assert.equal(shoes.filter((slot) => slot.boxed).length, 6, 'six boxed shoe units');
-  assert.equal(shoes.filter((slot) => !slot.boxed).length, 6, 'six displayed shoe pairs');
-  assert.ok(shoes.every((slot) => /^shoerack_[LR]_SHOE(?:BOX)?_SLOT_/.test(slot.socketName)));
-
-  for (const skuId of ['water1', 'snack1']) {
-    for (const slot of slotsFor(skuId)) {
-      assert.equal(slot.socket, slot.socketName, `${skuId} exposes the same authored socket to both consumers`);
-    }
+  for (const fixture of FIXTURES.filter((entry) => entry.skus.length)) {
+    const poses = fixture.skus.flatMap((skuId) => slotsFor(skuId));
+    assert.ok(poses.every((slot) => [slot.x, slot.y, slot.z].every(Number.isFinite)));
+    const keys = poses.map((slot) => `${slot.x.toFixed(4)}:${slot.y.toFixed(4)}:${slot.z.toFixed(4)}`);
+    assert.equal(new Set(keys).size, keys.length, `${fixture.id} reuses a physical stock pose`);
   }
 });
 
 test('Sheet 3 placement footprints include the repaired fixture envelopes', () => {
-  assert.deepEqual(FIXTURE_HALF.apparelwall, [0.63, 0.25]);
-  assert.deepEqual(FIXTURE_HALF.feature, [0.85, 0.55]);
+  assert.deepEqual(FIXTURE_HALF.apparelwall, [1.6, 0.35]);
+  assert.deepEqual(FIXTURE_HALF.feature, [1.05, 0.65]);
 
-  const apparelRect = fixtureRect(fixtureById('apparel_display'));
-  assert.ok(Math.abs((apparelRect.maxX - apparelRect.minX) - 0.50) < 1e-9);
-  assert.ok(Math.abs((apparelRect.maxZ - apparelRect.minZ) - 1.26) < 1e-9);
+  const apparelRect = fixtureRect(fixtureById('shelf_small'));
+  assert.ok(Math.abs((apparelRect.maxX - apparelRect.minX) - 3.20) < 1e-9);
+  assert.ok(Math.abs((apparelRect.maxZ - apparelRect.minZ) - 0.70) < 1e-9);
 
   const featureRect = fixtureRect(fixtureById('feature'));
-  assert.ok(Math.abs((featureRect.maxX - featureRect.minX) - 1.70) < 1e-9);
-  assert.ok(Math.abs((featureRect.maxZ - featureRect.minZ) - 1.10) < 1e-9);
+  assert.ok(Math.abs((featureRect.maxX - featureRect.minX) - 2.10) < 1e-9);
+  assert.ok(Math.abs((featureRect.maxZ - featureRect.minZ) - 1.30) < 1e-9);
 
   const shoeRect = fixtureRect(fixtureById('shoerack'));
-  assert.ok(Math.abs((shoeRect.maxX - shoeRect.minX) - 1.36) < 1e-9, 'shoe wall depth includes its bench');
-  assert.ok(Math.abs((shoeRect.maxZ - shoeRect.minZ) - 2.46) < 1e-9, 'shoe wall width covers both modules');
+  assert.ok(Math.abs((shoeRect.maxX - shoeRect.minX) - 0.80) < 1e-9, 'shoe wall depth includes its bench');
+  assert.ok(Math.abs((shoeRect.maxZ - shoeRect.minZ) - 2.60) < 1e-9, 'shoe wall width covers both modules');
 });
 
 test('shoe samples stay loose on display while the sellable checkout unit remains boxed', () => {
@@ -121,6 +102,5 @@ test('shoe samples stay loose on display while the sellable checkout unit remain
     packaging.physicalDimensions.h,
     packaging.physicalDimensions.d,
   ]);
-  assert.equal(slotsFor('shoe1').filter((slot) => !slot.boxed).length, 6,
-    'six loose pairs remain deliberate display samples');
+  assert.equal(slotsFor('shoe1').length, 6, 'six sellable shoe facings remain visible');
 });

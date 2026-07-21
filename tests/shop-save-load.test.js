@@ -21,6 +21,7 @@ test('premium layout, tier, sockets and partial shelf states round-trip exactly'
   const state = newGame('relaxed', 909);
   ensureLayout(state);
   state.shop.unlockedTier = 3;
+  state.shop.progression.tier = 'premium';
 
   const movedId = 'hatstand';
   const move = legalMove(state, movedId);

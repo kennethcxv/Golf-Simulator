@@ -142,6 +142,10 @@ export function ensureLayout(state) {
   return layout;
 }
 
+function objectMeta(state, id) {
+  return fixtureMeta(id) || extraMeta(state, id) || placeableById(id);
+}
+
 const FIXTURE_PRICE_BY_KIND = Object.freeze({
   shelf: 950, rack: 1250, table: 650, rail: 725, hatstand: 475,
   bagstand: 625, shoerack: 875, apparelwall: 1100, feature: 780,
@@ -259,7 +263,7 @@ function rawRecord(state, id) {
 }
 
 export function objectRecord(state, id) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return null;
   const direct = rawRecord(state, id);
   if (direct) return clone(direct);
@@ -302,7 +306,7 @@ function resolvedObject(meta, record) {
 }
 
 export function objectById(state, id) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return null;
   return resolvedObject(meta, objectRecord(state, id));
 }
@@ -435,7 +439,7 @@ function obbAabb(obb) {
 }
 
 export function placementBounds(state, id, transformValue = null) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return null;
   const value = transformValue || objectById(state, id)?.transform || meta.defaultTransform;
   const boxes = volumesFor(meta, value).map(obbAabb);
@@ -647,7 +651,7 @@ function navigationRects(state, override = null) {
     if (extra.id !== override?.id) result.push(fixtureRect(extra));
   }
   if (override?.place) {
-    const meta = placeableById(override.id) || extraMeta(state, override.id);
+    const meta = objectMeta(state, override.id);
     if (meta?.collision?.blocksCustomers !== false) {
       for (const volume of volumesFor(meta, override.place.transform || override.place)) result.push(obbAabb(volume));
     }
@@ -905,7 +909,7 @@ function validateFloor(state, meta, candidate, result, options) {
 }
 
 export function validateObjectPlacement(state, id, candidateValue, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   const result = { ok: false, reasons: [], codes: [], candidate: null };
   if (!meta) {
     addReason(result, 'missing-object', 'No such placeable object.');
@@ -977,7 +981,7 @@ function setRawRecord(state, id, record) {
   const layout = ensureLayout(state);
   if (record == null) delete layout.objects[id];
   else layout.objects[id] = clone(record);
-  const resolved = record || defaultRecord(fixtureMeta(id) || extraMeta(state, id));
+  const resolved = record || defaultRecord(objectMeta(state, id));
   syncLegacyFixture(layout, id, resolved);
 }
 
@@ -997,7 +1001,7 @@ function commitRecord(state, id, nextRecord, { history = true, kind = 'placement
 }
 
 export function commitObjectPlacement(state, id, candidateValue, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   const validation = options.skipValidation
     ? { ok: true, candidate: normalizedCandidate(meta, candidateValue, options) }
@@ -1028,7 +1032,7 @@ export function commitPlacement(state, id, x, z, ry = 0) {
 }
 
 export function storeObject(state, id, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   if (meta.storageBehavior === 'recovery-only' && !options.recovery) {
     return { ok: false, required: true, reason: `${meta.label} is required. Use recovery to return it to its safe position.` };
@@ -1045,7 +1049,7 @@ export function storeFixture(state, id) {
 }
 
 function nearestLegalFloor(state, id, origin) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta?.surfaceRules.allowed.includes('floor')) return null;
   for (let ring = 0; ring <= 36; ring++) {
     const radius = ring * GRID;
@@ -1068,7 +1072,7 @@ function nearestLegalFloor(state, id, origin) {
 }
 
 export function recoverObject(state, id, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   let candidate = clone(meta.defaultTransform);
   let validation = validateObjectPlacement(state, id, candidate, { grid: false, rotationSnap: false });
@@ -1085,7 +1089,7 @@ export function recoverObject(state, id, options = {}) {
 }
 
 export function restoreObject(state, id, candidateValue = null, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   const current = objectRecord(state, id);
   if (current.state === 'sold') return { ok: false, reason: `${meta.label} was sold and is no longer in storage.` };
@@ -1126,7 +1130,7 @@ export function shopExpansionLayoutSafety(state, tierId) {
 }
 
 export function sellObject(state, id, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   if (meta.fixture) {
     const operationId = options.operationId
@@ -1197,7 +1201,7 @@ export function setRoomStyle(state, patch, options = {}) {
 }
 
 export function setObjectVariant(state, id, variant, options = {}) {
-  const meta = fixtureMeta(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   if (!meta.variants?.includes(variant)) return { ok: false, reason: `${meta.label} does not support that finish.` };
   const current = objectRecord(state, id);

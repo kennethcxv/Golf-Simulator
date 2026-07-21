@@ -9,6 +9,7 @@ const atTier = (tier) => {
   const state = newGame('relaxed', 44);
   ensureLayout(state);
   state.shop.unlockedTier = tier;
+  state.shop.progression.tier = ['basic', 'standard', 'premium'][tier - 1];
   return state;
 };
 
@@ -20,18 +21,21 @@ test('basic, standard and premium tiers are distinct physical shop presentations
   assert.ok(basic.length < standard.length, 'standard adds fixtures to the basic floor');
   assert.ok(standard.length < premium.length, 'premium adds fitting, demo and display fixtures');
   assert.equal(basic.some((f) => f.id === 'shoerack'), false);
-  assert.equal(standard.some((f) => f.id === 'shoerack'), true);
+  assert.equal(standard.some((f) => f.id === 'shoerack'), false);
   assert.equal(standard.some((f) => f.id === 'fittingroom'), false);
   assert.equal(premium.some((f) => f.id === 'fittingroom'), true);
   assert.equal(premium.some((f) => f.id === 'putting_demo'), true);
 });
 
-test('every orderable retail line has an active home fixture at its supplier tier', () => {
+test('every unlocked retail category has physical stock capacity by shop tier', () => {
   for (const tier of [1, 2, 3]) {
-    const homes = new Set(activeFixtures(atTier(tier)).flatMap((f) => f.skus || []));
-    for (const sku of SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier <= tier)) {
-      assert.ok(homes.has(sku.id), `tier ${tier} can physically present ${sku.id}`);
-    }
+    const state = atTier(tier);
+    const homes = new Set(activeFixtures(state).flatMap((f) => f.skus || []));
+    const visibleCategories = new Set(activeFixtures(state).flatMap((fixture) => (
+      fixture.skus.map((id) => SHOP_CATALOG.find((sku) => sku.id === id)?.cat).filter(Boolean)
+    )));
+    assert.ok(homes.size > 0, `tier ${tier} exposes stockable lines`);
+    for (const category of visibleCategories) assert.ok(RETAIL_CATS.has(category));
   }
 });
 

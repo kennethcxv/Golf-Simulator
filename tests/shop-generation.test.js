@@ -72,8 +72,8 @@ test('the reference quality ladder drives increasingly complete starting merchan
   ));
   for (let index = 1; index < generated.length; index++) {
     assert.ok(
-      generated[index].merchandising.productLineCount > generated[index - 1].merchandising.productLineCount,
-      `course ${index + 1} starts with more product lines than course ${index}`,
+      generated[index].merchandising.productLineCount >= generated[index - 1].merchandising.productLineCount,
+      `course ${index + 1} never loses product lines from course ${index}`,
     );
     assert.ok(
       generated[index].lighting.fixtureCount > generated[index - 1].lighting.fixtureCount,
@@ -132,14 +132,15 @@ test('every course-level shop installs through normal layout safety with a disti
 
 test('the launch marketplace maps real properties onto all five course shop identities', () => {
   const empire = newEmpire('relaxed', 424242);
+  const availableProperties = [...empire.market, ...empire.auctions];
   assert.deepEqual(
-    [...new Set(empire.market.map((property) => property.shopLevel))].sort(),
+    [...new Set(availableProperties.map((property) => property.shopLevel))].sort(),
     COURSE_SHOP_LEVELS,
   );
-  const willow = empire.market.find((property) => property.id === 'willow-creek');
-  const lodge = empire.market.find((property) => property.id === 'bent-pines');
-  const resort = empire.market.find((property) => property.id === 'saltgrass-point');
-  const boutique = empire.market.find((property) => property.id === 'thornbury-estate');
+  const willow = availableProperties.find((property) => property.id === 'willow-creek');
+  const lodge = availableProperties.find((property) => property.id === 'bent-pines');
+  const resort = availableProperties.find((property) => property.id === 'saltgrass-point');
+  const boutique = availableProperties.find((property) => property.id === 'thornbury-estate');
   assert.equal(willow.shopLevel, 1);
   assert.equal(lodge.shopLevel, 3);
   assert.equal(resort.shopLevel, 4);

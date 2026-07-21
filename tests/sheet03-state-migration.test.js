@@ -14,24 +14,24 @@ const SHEET03_CAPACITIES = Object.freeze({
   irons2: 5,
   wedge1: 5,
   wedge2: 5,
-  putter1: 10,
-  putter2: 10,
+  putter1: 6,
+  putter2: 6,
   balls1: 15,
   balls2: 15,
   balls3: 15,
-  polo2: 12,
-  cap1: 16,
-  glove1: 12,
-  sock1: 12,
-  shoe1: 12,
-  tees1: 12,
-  marker1: 12,
-  towel1: 12,
+  polo2: 6,
+  cap1: 4,
+  glove1: 6,
+  sock1: 6,
+  shoe1: 6,
+  tees1: 6,
+  marker1: 6,
+  towel1: 6,
   range2: 6,
-  umb1: 8,
-  bag1: 5,
-  water1: 14,
-  snack1: 10,
+  umb1: 6,
+  bag1: 4,
+  water1: 8,
+  snack1: 8,
 });
 
 test('fresh Sheet-03 inventory obeys authored capacities without losing starter stock', () => {
@@ -42,8 +42,8 @@ test('fresh Sheet-03 inventory obeys authored capacities without losing starter 
     assert.ok(state.shop.inventory[skuId].shelf <= expected, `${skuId} does not overfill its display`);
   }
 
-  assert.deepEqual(state.shop.inventory.tees1, { shelf: 12, back: 2 },
-    'the two starter tee bags beyond the twelve-slot fixture move to back stock');
+  assert.deepEqual(state.shop.inventory.tees1, { shelf: 6, back: 8 },
+    'starter tee bags beyond the six physical positions move to back stock');
   assert.equal(state.shop.inventory.tees1.shelf + state.shop.inventory.tees1.back, 14,
     'all fourteen starter tee bags remain owned');
 });
@@ -91,9 +91,9 @@ test('v7 stored feature migrates back to range2 visibility while v8 intentional 
 
   const migrated = deserialize(JSON.stringify(legacyRaw));
   assert.equal(migrated.version, SAVE_VERSION);
-  assert.equal(homeFixture('range2')?.id, 'feature', 'range2 has one authored home');
+  assert.equal(homeFixture('range2')?.id, 'shelf_acc', 'range2 has one authored home');
   assert.ok(placedFixtures(migrated).some((fixture) => fixture.id === 'feature'),
-    'the legacy decorative stow is healed so rangefinders remain visible');
+    'the legacy decorative feature is restored');
   assert.ok(!migrated.shop.layout.stored.includes('feature'));
   assert.ok(migrated.shop.layout.stored.includes('table_polos'),
     'the migration does not restore unrelated fixtures');
@@ -101,6 +101,8 @@ test('v7 stored feature migrates back to range2 visibility while v8 intentional 
     'restoring the legacy fixture neither mints nor loses rangefinders');
 
   const current = newGame('relaxed', 30304);
+  current.shop.progression.tier = 'premium';
+  current.shop.unlockedTier = 3;
   current.shop.layout = { moved: {}, stored: ['feature'], extra: [] };
   current.shop.inventory.range2 = { shelf: 0, back: 3 };
   const intentionallyStored = deserialize(serialize(current));

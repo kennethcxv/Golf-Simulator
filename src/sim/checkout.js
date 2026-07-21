@@ -196,7 +196,22 @@ export function recoverCheckout(state) {
   let back = 0;
   for (const h of held.slice()) {
     if (persistedCustomerUids.has(h.uid)) continue;
-    const res = returnToShelf(state, h.skuId, h.uid);
+    let res = returnToShelf(state, h.skuId, h.uid);
+    if (!res.ok && !allocationsForHeldUnit(state, h.uid)?.length) {
+      // A pre-lifecycle or hand-repaired save can contain the durable held-unit
+      // ledger without its later provenance sidecar. Adopt that one visible
+      // unit into CUSTOMER_HELD, then run the normal conservative return path.
+      const adopted = adoptExternalInventory(state, {
+        skuId: h.skuId,
+        quantity: 1,
+        stage: INVENTORY_STAGE.CUSTOMER_HELD,
+        note: `Recovered legacy held checkout unit ${h.uid}`,
+      });
+      if (adopted.ok) {
+        rememberHeldAllocations(state, h.uid, adopted.allocations);
+        res = returnToShelf(state, h.skuId, h.uid);
+      }
+    }
     if (!res.ok) continue;
     returned += 1;
     if (res.location === 'shelf') shelf += 1;

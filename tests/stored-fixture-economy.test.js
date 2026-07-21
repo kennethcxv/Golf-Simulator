@@ -15,11 +15,8 @@ import {
 import { ROLE } from '../src/sim/staff.js';
 import { SAVE_VERSION, deserialize, newGame, serialize } from '../src/sim/state.js';
 
-function stowFeatureThroughBuildMode(state) {
-  // This suite exercises the installed premium rangefinder display. BASIC
-  // progression coverage lives in shop-progression.test.js.
-  state.shop.progression.tier = 'premium';
-  const fixture = FIXTURES.find((entry) => entry.id === 'feature');
+function stowRangefinderHomeThroughBuildMode(state) {
+  const fixture = FIXTURES.find((entry) => entry.id === 'shelf_acc');
   const mode = buildBuildMode({
     interior: new THREE.Group(),
     state,
@@ -68,7 +65,7 @@ test('staff never restock an intentionally stored empty display from back stock'
     trainingDays: 0,
   });
 
-  stowFeatureThroughBuildMode(state);
+  stowRangefinderHomeThroughBuildMode(state);
   const moved = restockShelvesByStaff(state);
 
   assert.equal(moved, 0);
@@ -87,7 +84,7 @@ test('daily passive demand cannot sell shelf counts whose authored display is ab
   state.club.lastRounds = 180;
   state.club.reputation = 100;
   state.shop.rentalFleet.sets = 0;
-  stowFeatureThroughBuildMode(state);
+  stowRangefinderHomeThroughBuildMode(state);
   // A malformed/interrupted in-memory state must still never turn an absent
   // physical display into statistical sales.
   state.shop.inventory.range2.shelf = 6;
@@ -104,7 +101,7 @@ test('load recovery sends hidden shelf and held units to back stock exactly once
   const state = newGame('relaxed', 30333);
   clearInventory(state);
   state.shop.inventory.range2.back = 3;
-  stowFeatureThroughBuildMode(state);
+  stowRangefinderHomeThroughBuildMode(state);
 
   // Model an interrupted/crafted save written with two invisible shelf units
   // and one customer-held unit. All six units are still owned.
@@ -112,14 +109,14 @@ test('load recovery sends hidden shelf and held units to back stock exactly once
   state.shop.held = [{ uid: 'stored-feature-held-rangefinder', skuId: 'range2' }];
   const loaded = deserialize(serialize(state));
 
-  assert.ok(loaded.shop.layout.stored.includes('feature'), 'the modern intentional stow survives');
+  assert.ok(loaded.shop.layout.stored.includes('shelf_acc'), 'the modern intentional stow survives');
   assert.deepEqual(loaded.shop.held, [], 'the departed shopper ledger is fully recovered');
   assert.deepEqual(loaded.shop.inventory.range2, { shelf: 0, back: 6 });
 
   const loadedAgain = deserialize(serialize(loaded));
   assert.deepEqual(loadedAgain.shop.inventory.range2, { shelf: 0, back: 6 },
     'a second round trip neither mints nor loses inventory');
-  assert.ok(loadedAgain.shop.layout.stored.includes('feature'));
+  assert.ok(loadedAgain.shop.layout.stored.includes('shelf_acc'));
 });
 
 test('rangefinder merchandising migrates the old balls default without clobbering future choices', () => {
