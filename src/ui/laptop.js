@@ -34,6 +34,10 @@ import {
   markReservationNoShow,
 } from '../sim/reservations.js';
 import {
+  CART_INFRASTRUCTURE, cartReservationQuote, fleetSummary, purchaseFleetCart,
+  serviceFleetCart, upgradeFleetInfrastructure,
+} from '../sim/cartFleet.js';
+import {
   createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
 } from '../sim/customerIdentity.js';
 import { reviewSummary } from '../sim/reviews.js';
@@ -323,6 +327,8 @@ export function bookLaptopReservation(state, {
   partySize = 1,
   customerId = null,
   fullName = null,
+  transport = 'walking',
+  holes = 18,
 } = {}) {
   const size = Number(partySize);
   const availability = slotAvailability(state, dayAbs, minute, size);
@@ -343,12 +349,19 @@ export function bookLaptopReservation(state, {
     `laptop-reservation:${state.reservations?.nextId ?? directory.nextOrdinal}`,
   );
   const bookingName = selectedIdentity?.fullName || String(fullName || '').trim() || generated.fullName;
+  const cartQuote = transport === 'cart'
+    ? cartReservationQuote(state, { dayAbs, minute, partySize: size, holes })
+    : { ok: true, fee: 0 };
+  if (!cartQuote.ok) return { ok: false, reason: cartQuote.reason, cartQuote };
   const result = bookSlot(state, dayAbs, minute, {
     name: bookingName,
     fullName: bookingName,
     partySize: size,
     customerId: selectedIdentity?.customerId,
     customerIdentity: selectedIdentity || undefined,
+    transport,
+    holes,
+    totalFee: (Number(state.club?.greenFee) || 0) * size + cartQuote.fee,
   });
   if (result.ok) identityForReservation(state, result.res);
   return result;
@@ -360,6 +373,8 @@ export function makeLaptop(app, opts) {
   let cart = new Map();    // order basket: skuId -> qty
   let teeDay = 0;
   let teePartySize = 1;
+  let teeTransport = 'walking';
+  let teeHoles = 18;
   let scale = 1;
   let pending = null;      // the live confirmation, if one is open
   let modal = null;        // the open detail modal, if any — () => element
@@ -764,7 +779,12 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-minihead', text: m.entry.fullName }),
         row(el('span', { class: 'lt-mulabel', text: 'Tee time' }), el('span', { style: 'font-size:0.84em', text: `${fmtSlot(m.slot.minute)}, ${teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `in ${teeDay} days`}` })),
         row(el('span', { class: 'lt-mulabel', text: 'Party' }), el('span', { style: 'font-size:0.84em', text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` })),
-        row(el('span', { class: 'lt-mulabel', text: 'Green fee' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.fee || 0) }), deposit ? meta(`deposit ${formatMoney(deposit)} paid`) : null),
+        row(el('span', { class: 'lt-mulabel', text: 'Round' }), el('span', { style: 'font-size:0.84em', text: `${m.r.holes || 18} holes · ${m.r.transport === 'cart' ? `${m.r.cartsRequested} cart${m.r.cartsRequested === 1 ? '' : 's'}` : 'walking'}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Green fees' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.greenFeeSubtotal ?? m.r.fee ?? 0) })),
+        m.r.transport === 'cart'
+          ? row(el('span', { class: 'lt-mulabel', text: 'Cart rental' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.cartRentalFee || 0) }))
+          : null,
+        deposit ? row(el('span', { class: 'lt-mulabel', text: 'Deposit paid' }), word(formatMoney(deposit), 'ok')) : null,
         row(el('span', { class: 'lt-mulabel', text: 'Due at desk' }), chip(due > 0 ? formatMoney(due) : 'Paid', due > 0 ? 'warn' : 'ok')),
         row(el('span', { class: 'lt-mulabel', text: 'Status' }), chip(statusText(m.r), statusTone(m.r))),
         m.r.status === 'noShow' && m.r.noShowFeeStatus
@@ -806,6 +826,7 @@ export function makeLaptop(app, opts) {
       el('td', {}, el('span', { class: 'lt-slottime', text: fmtSlot(m.slot.minute) })),
       el('td', {}, el('span', { style: 'font-weight:600', text: m.entry.fullName })),
       el('td', { text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` }),
+      el('td', { text: m.r.transport === 'cart' ? `${m.r.cartsRequested} cart${m.r.cartsRequested === 1 ? '' : 's'}` : 'Walking' }),
       el('td', {}, word(statusText(m.r), statusTone(m.r))),
       el('td', { class: 'lt-num' },
         el('button', { class: 'lt-mini', text: 'View', onclick: () => viewReservation(m) })));
@@ -813,7 +834,10 @@ export function makeLaptop(app, opts) {
     // the walk-in adder: pick a time with room, pick a party size, done. A walk-in is
     // standing at the desk NOW — today's already-passed times are not on offer.
     const openSlots = model.slots.filter((s) => s.remainingCapacity >= teePartySize
-      && (teeDay > 0 || s.minute >= cal.minuteOfDay - 10));
+      && (teeDay > 0 || s.minute >= cal.minuteOfDay - 10)
+      && (teeTransport !== 'cart' || cartReservationQuote(st, {
+        dayAbs, minute: s.minute, partySize: teePartySize, holes: teeHoles,
+      }).ok));
     const timeSel = el('select', { class: 'lt-select' },
       ...openSlots.map((s) => el('option', { value: String(s.minute), text: `${fmtSlot(s.minute)} (${s.remainingCapacity} open)` })));
     const partySel = el('select', {
@@ -821,11 +845,25 @@ export function makeLaptop(app, opts) {
       onchange: (e) => { teePartySize = Number(e.target.value) || 1; click(); render(); },
     }, ...Array.from({ length: Math.max(1, Math.min(16, Number(st.reservations.config?.maxGroupSize) || TEE_SHEET.maxGroupSize)) }, (_, i) => i + 1)
       .map((size) => el('option', { value: String(size), text: `${size} player${size === 1 ? '' : 's'}`, selected: size === teePartySize ? 'selected' : undefined })));
+    const transportSel = el('select', {
+      class: 'lt-select',
+      onchange: (e) => { teeTransport = e.target.value === 'cart' ? 'cart' : 'walking'; click(); render(); },
+    },
+    el('option', { value: 'walking', text: 'Walking', selected: teeTransport === 'walking' ? 'selected' : undefined }),
+    el('option', { value: 'cart', text: 'Rental cart', selected: teeTransport === 'cart' ? 'selected' : undefined }));
+    const holesSel = el('select', {
+      class: 'lt-select',
+      onchange: (e) => { teeHoles = Number(e.target.value) === 9 ? 9 : 18; click(); render(); },
+    },
+    el('option', { value: '9', text: '9 holes', selected: teeHoles === 9 ? 'selected' : undefined }),
+    el('option', { value: '18', text: '18 holes', selected: teeHoles === 18 ? 'selected' : undefined }));
     const addCard = rs.adding
       ? card(
         el('div', { class: 'lt-minihead', text: 'Add a walk-in' }),
         row(el('span', { class: 'lt-mulabel', text: 'Time' }), timeSel),
         row(el('span', { class: 'lt-mulabel', text: 'Party' }), partySel),
+        row(el('span', { class: 'lt-mulabel', text: 'Round' }), holesSel),
+        row(el('span', { class: 'lt-mulabel', text: 'Transport' }), transportSel),
         row(
           el('button', { class: 'lt-mini', text: 'Never mind', onclick: () => { rs.adding = false; click(); render(); } }),
           el('button', {
@@ -834,7 +872,9 @@ export function makeLaptop(app, opts) {
             disabled: openSlots.length ? undefined : 'disabled',
             onclick: () => {
               const minute = Number(timeSel.value);
-              const result = bookLaptopReservation(st, { dayAbs, minute, partySize: teePartySize });
+              const result = bookLaptopReservation(st, {
+                dayAbs, minute, partySize: teePartySize, transport: teeTransport, holes: teeHoles,
+              });
               if (!result.ok) toast(result.reason, 'warn');
               else {
                 toast(`${result.res.fullName} booked for ${fmtSlot(minute)}.`);
@@ -845,7 +885,12 @@ export function makeLaptop(app, opts) {
             },
           }),
         ),
-        openSlots.length ? null : meta('No slot this day fits that party size.'),
+        teeTransport === 'cart' && openSlots.length
+          ? meta(`${cartReservationQuote(st, { dayAbs, minute: Number(timeSel.value), partySize: teePartySize, holes: teeHoles }).requested} cart${teePartySize > 2 ? 's' : ''} · ${formatMoney(cartReservationQuote(st, { dayAbs, minute: Number(timeSel.value), partySize: teePartySize, holes: teeHoles }).fee)} added`)
+          : null,
+        openSlots.length ? null : meta(teeTransport === 'cart'
+          ? 'No tee time this day has both player and rental-cart capacity.'
+          : 'No slot this day fits that party size.'),
       )
       : null;
 
@@ -870,7 +915,7 @@ export function makeLaptop(app, opts) {
         ? card(el('table', { class: 'lt-table' },
           el('thead', {}, el('tr', {},
             el('th', { text: 'Time' }), el('th', { text: 'Customer' }), el('th', { text: 'Party' }),
-            el('th', { text: 'Status' }), el('th', {}))),
+            el('th', { text: 'Transport' }), el('th', { text: 'Status' }), el('th', {}))),
           el('tbody', {}, ...shown.map(rowOf))))
         : empty(flat.length ? 'Nothing under that filter.' : 'Nothing booked this day — walk-ins welcome.'),
     );
@@ -1723,9 +1768,70 @@ export function makeLaptop(app, opts) {
 
   function upgradesEquipmentTab(st) {
     const f = st.shop.rentalFleet;
+    const carts = fleetSummary(st);
+    const cartPurchaseCost = 4500 + Math.max(0, carts.carts - 4) * 900;
     const tractorFixed = st.tractor && st.tractor.repaired;
     const tractorMissing = st.tractor ? TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]) : [];
+    const service = (cart, action, label) => {
+      const result = serviceFleetCart(st, cart.id, action);
+      toast(result.ok ? `${cart.id.replace('fleet-cart-', 'Cart ')} ${label}.` : result.reason, result.ok ? '' : 'warn');
+    };
+    const infraCard = (kind, capacityText) => {
+      const spec = CART_INFRASTRUCTURE[kind];
+      const level = st.cartFleet.infrastructure[kind];
+      const maxed = level >= spec.maxLevel;
+      const cost = maxed ? 0 : spec.costs[level];
+      return card(
+        el('div', { class: 'lt-minihead', text: spec.label }),
+        row(chip(`Level ${level}`, level > 0 ? 'ok' : ''), meta(capacityText)),
+        el('div', { class: 'lt-cardfoot' }, el('button', {
+          class: 'lt-mini',
+          text: maxed ? 'Fully upgraded' : `Upgrade — ${formatMoney(cost)}`,
+          disabled: maxed || cashOf() < cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(`Upgrade ${spec.label.toLowerCase()} for ${formatMoney(cost)}?`, 'Build it', () => {
+            const result = upgradeFleetInfrastructure(st, kind);
+            toast(result.ok ? `${spec.label} is now level ${result.level}.` : result.reason, result.ok ? '' : 'warn');
+          }),
+        })),
+      );
+    };
     return [
+      card(
+        row(
+          el('div', {},
+            el('div', { class: 'lt-minihead', text: 'Customer rental carts' }),
+            meta('Golfers reserve these with their tee time, load their bags, play every hole, and return the keys.')),
+          el('span', { style: 'flex:1' }),
+          el('button', {
+            class: 'lt-primary',
+            text: `Buy cart — ${formatMoney(cartPurchaseCost)}`,
+            disabled: cashOf() < cartPurchaseCost || carts.carts >= carts.capacity.total ? 'disabled' : undefined,
+            onclick: () => askConfirm(`Add one customer rental cart for ${formatMoney(cartPurchaseCost)}?`, 'Buy the cart', () => {
+              const result = purchaseFleetCart(st);
+              toast(result.ok ? `${result.cart.id.replace('fleet-cart-', 'Cart ')} joins the rental row.` : result.reason, result.ok ? '' : 'warn');
+            }),
+          })),
+        el('div', { class: 'lt-stats lt-stats4' },
+          stat('Fleet', String(carts.carts), `${carts.capacity.total} parking capacity`, carts.overflowUsed ? 'warn' : ''),
+          stat('Ready', String(carts.counts.available || 0), `${carts.activeTrips} active trip${carts.activeTrips === 1 ? '' : 's'}`, (carts.counts.available || 0) ? 'ok' : 'bad'),
+          stat('Average charge', `${Math.round(carts.averageCharge)}%`, `${carts.capacity.chargers} charging point${carts.capacity.chargers === 1 ? '' : 's'}`, carts.averageCharge < 35 ? 'bad' : carts.averageCharge < 65 ? 'warn' : 'ok'),
+          stat('Condition', `${Math.round(carts.averageCondition)}%`, `${Math.round(carts.averageCleanliness)}% clean`, carts.averageCondition < 55 ? 'bad' : carts.averageCondition < 75 ? 'warn' : 'ok')),
+      ),
+      sect('Fleet infrastructure'),
+      el('div', { class: 'lt-cols' },
+        infraCard('parking', `${carts.capacity.parking} bays + ${carts.capacity.overflow} overflow`),
+        infraCard('charging', `${carts.capacity.chargers} overnight points`),
+        infraCard('service', `${carts.capacity.serviceBays} service bay${carts.capacity.serviceBays === 1 ? '' : 's'}`)),
+      sect('Individual carts'),
+      el('div', { class: 'lt-orderlist' }, ...st.cartFleet.carts.map((cart) => el('div', { class: 'lt-order' },
+        el('div', { class: 'lt-avatar', text: cart.id.replace('fleet-cart-', '') }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: cart.id.replace('fleet-cart-', 'Rental cart ') }),
+          el('div', { class: 'lt-prodmeta', text: `${Math.round(cart.charge)}% charge · ${Math.round(cart.cleanliness)}% clean · ${Math.round(cart.condition)}% condition · ${cart.rounds} rounds` })),
+        chip(cart.status.replace(/-/g, ' ').replace(/^./, (letter) => letter.toUpperCase()), cart.status === 'available' ? 'ok' : cart.assignedTripId ? 'warn' : ''),
+        el('button', { class: 'lt-mini', text: 'Charge', disabled: cart.assignedTripId || cart.charge >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'charge', 'charged') }),
+        el('button', { class: 'lt-mini', text: 'Clean', disabled: cart.assignedTripId || cart.cleanliness >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'clean', 'cleaned') }),
+        el('button', { class: 'lt-mini', text: 'Repair', disabled: cart.assignedTripId || cart.condition >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'repair', 'repaired') })))),
       card(
         el('div', { class: 'lt-minihead', text: 'Rental club sets' }),
         row(el('span', { class: 'lt-mulabel', text: 'Fleet' }),

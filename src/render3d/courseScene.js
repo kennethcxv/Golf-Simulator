@@ -2451,7 +2451,11 @@ export function makeCourseScene(canvas, state) {
   const _gc = new THREE.Color();
 
   let grassStructureBounds = new Float64Array(0);
+  let customerFleetGrassBounds = null;
   function insideStructure(wx, wz) {
+    if (customerFleetGrassBounds
+      && wx >= customerFleetGrassBounds.minX && wx <= customerFleetGrassBounds.maxX
+      && wz >= customerFleetGrassBounds.minZ && wz <= customerFleetGrassBounds.maxZ) return true;
     return pointInsideGrassStructureBounds(grassStructureBounds, wx, wz);
   }
 
@@ -3359,6 +3363,16 @@ export function makeCourseScene(canvas, state) {
   const golferGroup = new THREE.Group();
   scene.add(golferGroup);
   const golfers = [];
+  const customerCartGroup = new THREE.Group();
+  customerCartGroup.name = 'CustomerRentalCartFleet';
+  scene.add(customerCartGroup);
+  const customerCartVisuals = new Map();
+  let customerCartModel = null;
+  let customerGolfBagModel = null;
+  let customerFleetStationModel = null;
+  let customerFleetStationVisual = null;
+  let customerFleetStationCollider = null;
+  let customerFleetBayBuilt = false;
   // STYLE GUIDE §5: one saturated polo per figure over khaki — the references'
   // golfer wardrobe (blue/navy/pink/orange/white/green)
   const POLO_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0xf0ede2, 0x3f7a34];
@@ -3502,6 +3516,9 @@ export function makeCourseScene(canvas, state) {
       for (const vehicle of vehicleActors) {
         if (vehicleAvailable(vehicle)) pushFrom(vehicle.x, vehicle.z, vehicle.radius + 1.35);
       }
+      for (const rental of customerCartVisuals.values()) {
+        if (rental.root.visible) pushFrom(rental.root.position.x, rental.root.position.z, 2.45);
+      }
       const avMag = Math.hypot(w.avoidX, w.avoidZ);
       if (avMag > 2.5) {
         w.avoidX *= 2.5 / avMag;
@@ -3594,6 +3611,13 @@ export function makeCourseScene(canvas, state) {
         const rr = vehicle.radius + r;
         if (dx * dx + dz * dz < rr * rr) return true;
       }
+      for (const rental of customerCartVisuals.values()) {
+        if (!rental.root.visible) continue;
+        const dx = nx - rental.root.position.x;
+        const dz = nz - rental.root.position.z;
+        const rr = 1.35 + r;
+        if (dx * dx + dz * dz < rr * rr) return true;
+      }
     }
     // ponds: you stop at the water's edge (sample the toe of the step)
     for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
@@ -3628,6 +3652,9 @@ export function makeCourseScene(canvas, state) {
       if (vehicleAvailable(vehicle) && !vehicle.mounted) {
         cartCol.push({ x: vehicle.x, z: vehicle.z, r: vehicle.radius });
       }
+    }
+    for (const rental of customerCartVisuals.values()) {
+      if (rental.root.visible) cartCol.push({ x: rental.root.position.x, z: rental.root.position.z, r: 1.35 });
     }
     return [structColliders, propColliders, treeColliders, cartCol];
   }
@@ -3796,6 +3823,366 @@ export function makeCourseScene(canvas, state) {
     walk.yaw = cart.yaw;
     if (walkHooks.engine) walkHooks.engine(true, cart.type);
     return true;
+  }
+
+  function rentalCartParkingPose(homeSlot = 0) {
+    const spawn = walkDefaultSpawn();
+    const slot = Math.max(0, Math.floor(Number(homeSlot) || 0));
+    const column = slot % 3;
+    const row = Math.floor(slot / 3);
+    return {
+      x: spawn.x - 11.3 + column * 3.25,
+      z: spawn.z + 2.4 + row * 4.25,
+      yaw: Math.PI,
+    };
+  }
+
+  function buildCustomerFleetBay() {
+    if (customerFleetBayBuilt) return;
+    customerFleetBayBuilt = true;
+    const apronTexture = texAsphalt.clone();
+    apronTexture.repeat.set(4, 4);
+    apronTexture.needsUpdate = true;
+    const asphalt = new THREE.MeshStandardMaterial({ map: apronTexture, color: 0x66645f, roughness: 0.96 });
+    const stripe = new THREE.MeshStandardMaterial({ color: 0xd7cba7, roughness: 0.82 });
+    const backLeft = rentalCartParkingPose(3);
+    const frontRight = rentalCartParkingPose(2);
+    customerFleetGrassBounds = {
+      minX: backLeft.x - 1.8,
+      maxX: frontRight.x + 1.8,
+      minZ: frontRight.z - 2.25,
+      maxZ: backLeft.z + 2.25,
+    };
+    const apronX = (customerFleetGrassBounds.minX + customerFleetGrassBounds.maxX) / 2;
+    const apronZ = (customerFleetGrassBounds.minZ + customerFleetGrassBounds.maxZ) / 2;
+    const apronWidth = customerFleetGrassBounds.maxX - customerFleetGrassBounds.minX;
+    const apronDepth = customerFleetGrassBounds.maxZ - customerFleetGrassBounds.minZ;
+    const radius = 0.65;
+    const apronShape = new THREE.Shape();
+    apronShape.moveTo(-apronWidth / 2 + radius, -apronDepth / 2);
+    apronShape.lineTo(apronWidth / 2 - radius, -apronDepth / 2);
+    apronShape.quadraticCurveTo(apronWidth / 2, -apronDepth / 2, apronWidth / 2, -apronDepth / 2 + radius);
+    apronShape.lineTo(apronWidth / 2, apronDepth / 2 - radius);
+    apronShape.quadraticCurveTo(apronWidth / 2, apronDepth / 2, apronWidth / 2 - radius, apronDepth / 2);
+    apronShape.lineTo(-apronWidth / 2 + radius, apronDepth / 2);
+    apronShape.quadraticCurveTo(-apronWidth / 2, apronDepth / 2, -apronWidth / 2, apronDepth / 2 - radius);
+    apronShape.lineTo(-apronWidth / 2, -apronDepth / 2 + radius);
+    apronShape.quadraticCurveTo(-apronWidth / 2, -apronDepth / 2, -apronWidth / 2 + radius, -apronDepth / 2);
+    const apronY = heightAt(apronX, apronZ) + 0.014;
+    const apron = new THREE.Mesh(new THREE.ShapeGeometry(apronShape, 8), asphalt);
+    apron.rotation.x = -Math.PI / 2;
+    apron.position.set(apronX, apronY, apronZ);
+    apron.receiveShadow = true;
+    apron.name = 'RentalCartParkingApron';
+    customerCartGroup.add(apron);
+    for (let slot = 0; slot < 6; slot += 1) {
+      const pose = rentalCartParkingPose(slot);
+      for (const side of [-1, 1]) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.025, 3.75), stripe);
+        line.position.set(pose.x + side * 1.34, apronY + 0.02, pose.z);
+        line.name = `RentalCartBayLine_${slot + 1}_${side < 0 ? 'L' : 'R'}`;
+        customerCartGroup.add(line);
+      }
+    }
+    const first = rentalCartParkingPose(0);
+    const sign = textSprite('RENTAL CARTS', {
+      w: 512, fontPx: 58, scaleW: 3.9,
+      fg: '#f3ead6', bg: 'rgba(31,66,43,0.94)', border: '#b89c5c',
+    });
+    const signX = first.x + 3.25;
+    const signZ = first.z - 2.05;
+    const groundY = heightAt(signX, signZ);
+    sign.position.set(signX, groundY + 2.18, signZ);
+    sign.name = 'RentalCartBaySign';
+    customerCartGroup.add(sign);
+    const postMaterial = new THREE.MeshStandardMaterial({ color: 0x244c35, roughness: 0.78, metalness: 0.05 });
+    for (const x of [-1.65, 1.65]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 2.05, 10), postMaterial);
+      post.position.set(signX + x, groundY + 1.03, signZ + 0.015);
+      post.castShadow = true;
+      post.name = `RentalCartSignPost_${x < 0 ? 'L' : 'R'}`;
+      customerCartGroup.add(post);
+    }
+    grassAnchor.set(1e9, 1e9);
+  }
+
+  function makeCustomerCartVisual(cartRecord, index) {
+    if (!customerCartModel) return null;
+    const root = new THREE.Group();
+    root.name = `CustomerRentalCart_${cartRecord.id}`;
+    root.userData.customerFleetCart = cartRecord.id;
+    const model = cloneShared(customerCartModel);
+    model.scale.setScalar(METERS_TO_YARDS);
+    model.rotation.y = Math.PI;
+    let lod0 = null;
+    let lod1 = null;
+    const wheels = [];
+    model.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+      if (object.name === 'LOD0_Detail') lod0 = object;
+      if (object.name === 'LOD1_Silhouette') lod1 = object;
+      if (object.name.startsWith('PIVOT_Wheel_')) wheels.push(object);
+    });
+    if (lod0) lod0.visible = true;
+    if (lod1) lod1.visible = false;
+    root.add(model);
+
+    const char = makeCharacter({
+      polo: POLO_COLORS[index % POLO_COLORS.length],
+      khaki: KHAKI_COLORS[index % KHAKI_COLORS.length],
+      cap: CAP_COLORS[index % CAP_COLORS.length],
+    });
+    char.root.name = `RentalCartGolfer_${cartRecord.id}`;
+    char.root.visible = false;
+    const passenger = makeCharacter({
+      polo: POLO_COLORS[(index + 3) % POLO_COLORS.length],
+      khaki: KHAKI_COLORS[(index + 1) % KHAKI_COLORS.length],
+      cap: CAP_COLORS[(index + 2) % CAP_COLORS.length],
+    });
+    passenger.root.name = `RentalCartPassenger_${cartRecord.id}`;
+    passenger.root.visible = false;
+    customerCartGroup.add(root, char.root, passenger.root);
+    const visual = {
+      id: cartRecord.id, root, model, char, passenger, lod0, lod1, wheels, bags: [], initialized: false,
+    };
+    customerCartVisuals.set(cartRecord.id, visual);
+    return visual;
+  }
+
+  function ensureCustomerFleetStation() {
+    if (!customerFleetStationModel || customerFleetStationVisual) return customerFleetStationVisual;
+    const root = new THREE.Group();
+    root.name = 'CustomerFleetChargingAndServiceStation';
+    root.userData.customerFleetInfrastructure = true;
+    const model = cloneShared(customerFleetStationModel);
+    model.scale.setScalar(METERS_TO_YARDS);
+    model.rotation.y = Math.PI;
+    let lod0 = null;
+    let lod1 = null;
+    model.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+      if (object.name === 'LOD0_Detail') lod0 = object;
+      if (object.name === 'LOD1_Silhouette') lod1 = object;
+    });
+    if (lod0) lod0.visible = true;
+    if (lod1) lod1.visible = false;
+    root.add(model);
+    const rightBay = rentalCartParkingPose(2);
+    root.position.set(rightBay.x + 2.85, playHeightAt(rightBay.x + 2.85, rightBay.z + 2.1), rightBay.z + 2.1);
+    root.rotation.y = -Math.PI / 2;
+    customerCartGroup.add(root);
+    // Keep the player out of the authored charger/locker shell. The station is
+    // rotated 90 degrees in the world, so its shallow model depth lies on X.
+    customerFleetStationCollider = {
+      minX: root.position.x - 0.45,
+      maxX: root.position.x + 0.45,
+      minZ: root.position.z - 1.45,
+      maxZ: root.position.z + 1.45,
+    };
+    propColliders.push(customerFleetStationCollider);
+    customerFleetStationVisual = { root, lod0, lod1 };
+    return customerFleetStationVisual;
+  }
+
+  function ensureCustomerCartBags(visual) {
+    if (!customerGolfBagModel || visual.bags.length) return;
+    for (const x of [-0.34, 0.34]) {
+      const bag = cloneShared(customerGolfBagModel);
+      bag.name = `LoadedGolfBag_${visual.id}_${x < 0 ? 'L' : 'R'}`;
+      bag.scale.setScalar(METERS_TO_YARDS);
+      bag.position.set(x, 0.12, 1.02);
+      bag.rotation.set(-0.17, Math.PI, 0);
+      bag.visible = false;
+      visual.root.add(bag);
+      visual.bags.push(bag);
+    }
+  }
+
+  function activeTripForCart(st, cartId) {
+    return (st.cartFleet?.trips || []).find((trip) => trip.phase !== 'complete' && trip.cartIds?.includes(cartId)) || null;
+  }
+
+  function rentalCartCoursePose(st, cartRecord, trip) {
+    const parked = rentalCartParkingPose(cartRecord.homeSlot);
+    if (!trip || ['waiting-cart', 'walk-to-cart', 'loading', 'returning-key'].includes(trip.phase)) return parked;
+    const holeId = trip.holeIds?.[Math.min(trip.holeIndex, Math.max(0, trip.holeIds.length - 1))];
+    const hole = course.holes.find((entry) => entry.id === holeId) || course.holes[Math.min(trip.holeIndex, course.holes.length - 1)];
+    if (!hole?.tee) return parked;
+    const cartIndex = Math.max(0, trip.cartIds.indexOf(cartRecord.id));
+    const tee = { x: worldX(hole.tee.x), z: worldZ(hole.tee.y) };
+    const pin = hole.pin ? { x: worldX(hole.pin.x), z: worldZ(hole.pin.y) } : tee;
+    const dx = pin.x - tee.x;
+    const dz = pin.z - tee.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const side = (cartIndex - (trip.cartIds.length - 1) / 2) * 3.0 + 6.2;
+    const atTee = {
+      x: tee.x + (-dz / len) * side - (dx / len) * 3.4,
+      z: tee.z + (dx / len) * side - (dz / len) * 3.4,
+      yaw: Math.atan2(dx, dz),
+    };
+    if (trip.phase === 'parked-at-hole') return atTee;
+
+    let from = parked;
+    if (trip.holeIndex > 0) {
+      const previousId = trip.holeIds?.[trip.holeIndex - 1];
+      const previous = course.holes.find((entry) => entry.id === previousId);
+      if (previous?.tee && previous?.pin) {
+        const pdx = worldX(previous.pin.x) - worldX(previous.tee.x);
+        const pdz = worldZ(previous.pin.y) - worldZ(previous.tee.y);
+        const plen = Math.hypot(pdx, pdz) || 1;
+        from = {
+          x: worldX(previous.tee.x) + (-pdz / plen) * side - (pdx / plen) * 3.4,
+          z: worldZ(previous.tee.y) + (pdx / plen) * side - (pdz / plen) * 3.4,
+          yaw: Math.atan2(pdx, pdz),
+        };
+      }
+    }
+    const duration = trip.phase === 'returning' ? 3 : 1.5;
+    const destination = trip.phase === 'returning' ? parked : atTee;
+    if (trip.phase === 'returning') from = atTee;
+    const transitionStart = Number(trip.nextTransitionAt) - duration;
+    const progress = clamp(((st.clock?.minutes || 0) - transitionStart) / duration, 0, 1);
+    const x = from.x + (destination.x - from.x) * progress;
+    const z = from.z + (destination.z - from.z) * progress;
+    return { x, z, yaw: Math.atan2(destination.x - from.x, destination.z - from.z) };
+  }
+
+  function syncCustomerCartFleet(dt, st) {
+    if (!customerCartModel || !st.cartFleet?.carts) return;
+    buildCustomerFleetBay();
+    const station = ensureCustomerFleetStation();
+    if (station) {
+      const stationDistance = Math.hypot(
+        camera.position.x - station.root.position.x,
+        camera.position.z - station.root.position.z,
+      );
+      station.root.visible = stationDistance < 360;
+      if (station.lod0) station.lod0.visible = stationDistance < 70;
+      if (station.lod1) station.lod1.visible = stationDistance >= 70;
+    }
+    const liveIds = new Set(st.cartFleet.carts.map((entry) => entry.id));
+    for (const [id, visual] of customerCartVisuals) {
+      if (liveIds.has(id)) continue;
+      customerCartGroup.remove(visual.root, visual.char.root, visual.passenger.root);
+      visual.char.dispose();
+      visual.passenger.dispose();
+      customerCartVisuals.delete(id);
+    }
+    st.cartFleet.carts.forEach((cartRecord, index) => {
+      const visual = customerCartVisuals.get(cartRecord.id) || makeCustomerCartVisual(cartRecord, index);
+      if (!visual) return;
+      ensureCustomerCartBags(visual);
+      const trip = activeTripForCart(st, cartRecord.id);
+      const pose = rentalCartCoursePose(st, cartRecord, trip);
+      const y = playHeightAt(pose.x, pose.z);
+      const previousX = visual.root.position.x;
+      const previousZ = visual.root.position.z;
+      if (!visual.initialized) {
+        visual.root.position.set(pose.x, y, pose.z);
+        visual.root.rotation.y = pose.yaw;
+        visual.initialized = true;
+      } else {
+        const ease = Math.min(1, dt * 4.5);
+        visual.root.position.x += (pose.x - visual.root.position.x) * ease;
+        visual.root.position.z += (pose.z - visual.root.position.z) * ease;
+        visual.root.position.y = playHeightAt(visual.root.position.x, visual.root.position.z);
+        const deltaYaw = Math.atan2(Math.sin(pose.yaw - visual.root.rotation.y), Math.cos(pose.yaw - visual.root.rotation.y));
+        visual.root.rotation.y += deltaYaw * ease;
+        const travel = Math.hypot(visual.root.position.x - previousX, visual.root.position.z - previousZ);
+        if (travel > 0.0001) {
+          for (const wheel of visual.wheels) wheel.rotation.x -= travel / 0.33;
+        }
+      }
+      const distance = Math.hypot(camera.position.x - visual.root.position.x, camera.position.z - visual.root.position.z);
+      visual.root.visible = distance < 520;
+      if (visual.lod0) visual.lod0.visible = distance < 72;
+      if (visual.lod1) visual.lod1.visible = distance >= 72;
+      const transitionAt = Number(trip?.nextTransitionAt);
+      const phaseDuration = trip?.phase === 'loading' ? 2
+        : trip?.phase === 'parked-at-hole' ? 6
+          : trip?.phase === 'returning-key' ? 1 : 0;
+      const phaseProgress = phaseDuration && Number.isFinite(transitionAt)
+        ? clamp(((st.clock?.minutes || 0) - (transitionAt - phaseDuration)) / phaseDuration, 0, 1) : 0;
+      const bagsLoaded = trip && trip.phase !== 'returning-key'
+        && (trip.equipmentLoaded || (trip.phase === 'loading' && phaseProgress >= 0.35));
+      for (const bag of visual.bags) bag.visible = Boolean(bagsLoaded);
+
+      const driving = trip && ['driving-to-hole', 'returning'].includes(trip.phase);
+      const onFoot = trip && ['walk-to-cart', 'loading', 'parked-at-hole', 'returning-key'].includes(trip.phase);
+      const tripGolfers = [visual.char, visual.passenger];
+      const cartPartyIndex = trip ? Math.max(0, trip.cartIds.indexOf(cartRecord.id)) : 0;
+      for (const [golferIndex, golfer] of tripGolfers.entries()) {
+        golfer.root.visible = Boolean(driving || onFoot) && distance < 180;
+        if (!golfer.root.visible) continue;
+        const seatSide = golferIndex === 0 ? -0.34 : 0.34;
+        if (driving) {
+          golfer.setMode('Drive');
+          const localZ = -0.03;
+          const sin = Math.sin(visual.root.rotation.y);
+          const cos = Math.cos(visual.root.rotation.y);
+          golfer.root.position.set(
+            visual.root.position.x + seatSide * cos + localZ * sin,
+            visual.root.position.y + 0.08,
+            visual.root.position.z - seatSide * sin + localZ * cos,
+          );
+          golfer.root.rotation.y = visual.root.rotation.y + Math.PI;
+        } else if (trip.phase === 'walk-to-cart') {
+          golfer.setMode('Walk');
+          const spawn = walkDefaultSpawn();
+          const started = Number(trip.nextTransitionAt) - 2;
+          const progress = clamp(((st.clock?.minutes || 0) - started) / 2, 0, 1);
+          const x = spawn.x + (visual.root.position.x - spawn.x) * progress
+            + seatSide + cartPartyIndex * 0.9;
+          const z = spawn.z + (visual.root.position.z - spawn.z) * progress
+            + golferIndex * 0.45 + cartPartyIndex * 0.35;
+          golfer.root.position.set(x, playHeightAt(x, z), z);
+          golfer.root.rotation.y = Math.atan2(visual.root.position.x - spawn.x, visual.root.position.z - spawn.z);
+        } else if (trip.phase === 'parked-at-hole') {
+          const holeId = trip.holeIds?.[Math.min(trip.holeIndex, Math.max(0, trip.holeIds.length - 1))];
+          const hole = course.holes.find((entry) => entry.id === holeId) || course.holes[trip.holeIndex];
+          if (hole?.tee && hole?.pin) {
+            const teeX = worldX(hole.tee.x);
+            const teeZ = worldZ(hole.tee.y);
+            const pinX = worldX(hole.pin.x);
+            const pinZ = worldZ(hole.pin.y);
+            const along = Math.min(0.06, phaseProgress * 0.08) + golferIndex * 0.008;
+            const dirX = pinX - teeX;
+            const dirZ = pinZ - teeZ;
+            const len = Math.hypot(dirX, dirZ) || 1;
+            const partyOrdinal = cartPartyIndex * 2 + golferIndex;
+            const partyCount = Math.max(2, trip.cartIds.length * 2);
+            const lateral = (partyOrdinal - (partyCount - 1) / 2) * 1.15;
+            const x = teeX + dirX * along + (-dirZ / len) * lateral;
+            const z = teeZ + dirZ * along + (dirX / len) * lateral;
+            golfer.setMode(golferIndex === 0 && phaseProgress >= 0.1 && phaseProgress <= 0.62 ? 'Swing' : phaseProgress > 0.85 ? 'Idle' : 'Walk');
+            golfer.root.position.set(x, playHeightAt(x, z), z);
+            golfer.root.rotation.y = Math.atan2(dirX, dirZ);
+          }
+        } else if (trip.phase === 'returning-key') {
+          golfer.setMode('Walk');
+          const spawn = walkDefaultSpawn();
+          const startX = visual.root.position.x + Math.sin(visual.root.rotation.y) * 1.9 + seatSide;
+          const startZ = visual.root.position.z + Math.cos(visual.root.rotation.y) * 1.9 + golferIndex * 0.45;
+          const partyOrdinal = cartPartyIndex * 2 + golferIndex;
+          const targetX = spawn.x + (partyOrdinal - (trip.cartIds.length * 2 - 1) / 2) * 0.58;
+          const targetZ = spawn.z + cartPartyIndex * 0.32;
+          const x = startX + (targetX - startX) * phaseProgress;
+          const z = startZ + (targetZ - startZ) * phaseProgress;
+          golfer.root.position.set(x, playHeightAt(x, z), z);
+          golfer.root.rotation.y = Math.atan2(targetX - startX, targetZ - startZ);
+        } else {
+          golfer.setMode(trip.phase === 'loading' ? 'Browse' : 'WalkBag');
+          const rear = trip.phase === 'loading' ? 2.2 : 2.35;
+          golfer.root.position.set(
+            visual.root.position.x + Math.sin(visual.root.rotation.y) * rear + Math.cos(visual.root.rotation.y) * seatSide * 1.5,
+            visual.root.position.y,
+            visual.root.position.z + Math.cos(visual.root.rotation.y) * rear - Math.sin(visual.root.rotation.y) * seatSide * 1.5,
+          );
+          golfer.root.rotation.y = visual.root.rotation.y + Math.PI;
+        }
+        golfer.update(dt);
+      }
+    });
   }
 
   function dismountCart() {
@@ -6174,6 +6561,7 @@ export function makeCourseScene(canvas, state) {
       if (grassUniforms) grassUniforms.uGrassTime.value = time;
     }
     if (st) updateGolfers(dtMs / 1000, st);
+    if (st) syncCustomerCartFleet(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);
     for (const vehicle of vehicleActors) {
       if (vehicle.driver?.root.visible) vehicle.driver.update(dtMs / 1000);
@@ -6293,6 +6681,15 @@ export function makeCourseScene(canvas, state) {
     if (walk.active) walkExit();
     const clubhouse = clubhouseApi?.dispose ? clubhouseApi.dispose() : null;
     while (golfers.length) removeGolfer(golfers.length - 1);
+    for (const visual of customerCartVisuals.values()) {
+      // Character resources are owned per figure, unlike the shared cart/bag
+      // clones. Detach them before their explicit disposer runs so the scene
+      // sweep below cannot dispose the same geometries and materials twice.
+      customerCartGroup.remove(visual.char.root, visual.passenger.root);
+      visual.char.dispose();
+      visual.passenger.dispose();
+    }
+    customerCartVisuals.clear();
 
     const cachedObjectResources = mergeSceneResources();
     for (const cached of objectGlbCache.values()) {
@@ -6390,7 +6787,11 @@ export function makeCourseScene(canvas, state) {
     if (golfCartModelRequested || sceneDisposed) return;
     golfCartModelRequested = true;
     new GLTFLoader().load(golfCartSpec.model,
-      (g) => adoptLoadedGltf(g, (loaded) => adoptVehicle(golfCartVehicle, loaded.scene)),
+      (g) => adoptLoadedGltf(g, (loaded) => {
+        customerCartModel = loaded.scene.clone(true);
+        customerCartModel.name = 'CustomerRentalCartSharedModel';
+        adoptVehicle(golfCartVehicle, loaded.scene);
+      }),
       undefined, () => {});
   }
   // New properties begin with the broken machine in the yard. Keep the 48 MiB
@@ -6402,6 +6803,18 @@ export function makeCourseScene(canvas, state) {
     attachMower();
   }
   ensureGolfCartModel();
+  new GLTFLoader().load('vendor/models/clubhouse/golf_bag.glb',
+    (g) => adoptLoadedGltf(g, (loaded) => {
+      customerGolfBagModel = loaded.scene;
+      customerGolfBagModel.name = 'CustomerRentalBagSharedModel';
+    }),
+    undefined, () => {});
+  new GLTFLoader().load('vendor/models/vehicles/cart_fleet_station.glb',
+    (g) => adoptLoadedGltf(g, (loaded) => {
+      customerFleetStationModel = loaded.scene;
+      customerFleetStationModel.name = 'CustomerFleetStationSharedModel';
+    }),
+    undefined, () => {});
 
   // shared prop loader for the yard/entrance dressing
   const SHARED_PUT_MODELS = new Set(['vendor/models/leaves_pile.glb']);
@@ -6926,6 +7339,24 @@ export function makeCourseScene(canvas, state) {
     },
     golferCount: () => golfers.length,
     setGolfersVisible: (v) => { golferGroup.visible = !!v; },
+    customerCartCount: () => customerCartVisuals.size,
+    customerFleetStationReady: () => Boolean(customerFleetStationVisual?.root?.visible),
+    customerFleetStationCollisionReady: () => Boolean(customerFleetStationCollider),
+    customerCartVisualState: () => [...customerCartVisuals.values()].map((visual) => ({
+      id: visual.id,
+      visible: visual.root.visible,
+      x: visual.root.position.x,
+      y: visual.root.position.y,
+      z: visual.root.position.z,
+      golferVisible: visual.char.root.visible || visual.passenger.root.visible,
+      golferCount: [visual.char, visual.passenger].filter((golfer) => golfer.root.visible).length,
+      golferMode: visual.char.mode,
+      golferX: visual.char.root.position.x,
+      golferY: visual.char.root.position.y,
+      golferZ: visual.char.root.position.z,
+      bagsVisible: visual.bags.filter((bag) => bag.visible).length,
+      phase: activeTripForCart(state, visual.id)?.phase || 'parked',
+    })),
     setEditorShadowFocus,
     assetBarrier: (timeoutMs = 12000) => ({
       idle: !assetsInFlight,

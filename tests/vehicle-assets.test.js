@@ -21,6 +21,8 @@ test('the repeatable vehicle builder always preserves the operational hierarchy'
     const source = fs.statSync(new URL(`../asset_sources/blender/vehicles/${id}.blend`, import.meta.url));
     assert.ok(source.size > 100_000, `${id} retains its editable Blender source`);
   }
+  const station = fs.statSync(new URL('../asset_sources/blender/vehicles/cart_fleet_station.blend', import.meta.url));
+  assert.ok(station.size > 100_000, 'cart fleet station retains its editable Blender source');
 });
 
 async function load(id) {
@@ -71,4 +73,22 @@ test('only the restored tractor carries the separated mower implement', async ()
   assert.ok(restored.scene.getObjectByName('MowerDeck'));
   assert.ok(broken.scene.getObjectByName('PIVOT_MowerDeck'));
   assert.equal(broken.scene.getObjectByName('MowerDeck'), undefined);
+});
+
+test('the customer fleet station ships two charging points, service storage, collision, and LODs', async () => {
+  const station = await load('cart_fleet_station');
+  const names = new Set();
+  let triangles = 0;
+  station.scene.traverse((object) => {
+    if (object.name) names.add(object.name);
+    if (object.isMesh) triangles += object.geometry.index
+      ? object.geometry.index.count / 3 : object.geometry.attributes.position.count / 3;
+  });
+  for (const name of ['LOD0_Detail', 'LOD1_Silhouette', 'LOD0_StaticBody', 'LOD1_StaticBody', 'COL_Station']) {
+    assert.ok(names.has(name), `cart fleet station exports ${name}`);
+  }
+  const size = new THREE.Box3().setFromObject(station.scene).getSize(new THREE.Vector3());
+  assert.ok(size.x >= 2.4 && size.y >= 1.45 && size.z >= 0.55,
+    `station dimensions are believable: ${size.toArray().map((value) => value.toFixed(2)).join(' x ')}`);
+  assert.ok(triangles < 10000, `station stays under its 10k fixture budget (${triangles})`);
 });

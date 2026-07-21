@@ -1,8 +1,8 @@
 """Production vehicle kit for Golf Flipper.
 
-Builds original, project-owned grounds tractor and fleet golf-cart GLBs with
-runtime-addressable wheel/steering pivots, light meshes, storage sockets,
-collision proxies, and explicit near/far LOD groups.
+Builds original, project-owned grounds tractor, fleet golf-cart, and cart-care
+station GLBs with runtime-addressable hierarchy, collision proxies, and explicit
+near/far LOD groups.
 
 Run all assets (the authored hierarchy is always preserved):
   "<blender>" --background --factory-startup --python tools/blender/build_vehicles.py
@@ -354,10 +354,65 @@ def build_fleet_golf_cart(M):
     return _batch_vehicle(root)
 
 
+def build_cart_fleet_station(M):
+    """Two-point charging bank plus the starter fleet service locker."""
+    M = vehicle_mats(M)
+    root = L.asset_root("cart_fleet_station", (2.48, 0.62, 1.52))
+    root["fixture_type"] = "cart_fleet_charging_and_service"
+    root["charging_points"] = 2
+    root["service_bays"] = 1
+    near = L.empty("LOD0_Detail", parent=root, props={"lod": 0})
+    far = L.empty("LOD1_Silhouette", parent=root, props={"lod": 1})
+
+    L.rounded_box("StationPlinth", (2.48, 0.62, 0.12), (0, 0, 0.06),
+                  M["vehicle_charcoal"], corner=0.07, segments=4, bevel=0.012, parent=near)
+    L.rounded_box("ServiceLocker", (0.76, 0.48, 1.34), (0.82, 0.03, 0.74),
+                  M["vehicle_green"], corner=0.08, segments=5, bevel=0.014, parent=near)
+    L.box("ServiceLockerDoor", (0.62, 0.035, 1.08), (0.82, -0.225, 0.76),
+          M["vehicle_sage"], bevel=0.025, parent=near)
+    for z in (0.42, 0.72, 1.02):
+        L.box(f"LockerVent_{z:.2f}", (0.42, 0.025, 0.025), (0.82, -0.25, z),
+              M["vehicle_charcoal"], bevel=0.008, parent=near)
+    L.box("LockerHandle", (0.035, 0.045, 0.22), (1.06, -0.27, 0.76),
+          M["brass"], bevel=0.012, parent=near)
+
+    for index, x in enumerate((-0.72, 0.02), start=1):
+        L.rounded_box(f"Charger_{index}", (0.52, 0.42, 1.22), (x, 0.02, 0.68),
+                      M["vehicle_green"], corner=0.09, segments=5, bevel=0.014, parent=near)
+        L.rounded_box(f"ChargerDisplay_{index}", (0.31, 0.028, 0.22), (x, -0.215, 0.93),
+                      M["vehicle_glass"], corner=0.045, segments=5, bevel=0.006, parent=near)
+        L.box(f"ChargeReadyLamp_{index}", (0.12, 0.022, 0.045), (x, -0.238, 0.78),
+              M["vehicle_light"], bevel=0.018, parent=near,
+              props={"vehicle_light": "charge_ready"})
+        L.torus(f"ChargeCableCoil_{index}", 0.145, 0.018, (x, -0.245, 0.48),
+                M["vehicle_charcoal"], rot=(math.radians(90), 0, 0), parent=near, mj=18, mn=6)
+        L.rounded_box(f"ChargeConnector_{index}", (0.08, 0.055, 0.20), (x + 0.17, -0.255, 0.51),
+                      M["vehicle_charcoal"], corner=0.025, segments=4, bevel=0.006, parent=near,
+                      rot=(0, 0, math.radians(-12)))
+        L.box(f"BrassBand_{index}", (0.38, 0.03, 0.035), (x, -0.23, 1.16),
+              M["brass_dk"], bevel=0.012, parent=near)
+
+    L.box("StationHeader", (2.12, 0.16, 0.20), (-0.15, 0.02, 1.42),
+          M["vehicle_cream"], bevel=0.055, parent=near)
+    L.box("StationHeaderInset", (1.72, 0.035, 0.08), (-0.15, -0.078, 1.42),
+          M["brass"], bevel=0.026, parent=near)
+    for x in (-1.08, 1.08):
+        L.box(f"StationBollard_{'L' if x < 0 else 'R'}", (0.12, 0.12, 0.66), (x, -0.18, 0.39),
+              M["vehicle_charcoal"], bevel=0.035, parent=near)
+
+    L.rounded_box("LOD1_Station", (2.44, 0.58, 1.42), (0, 0.02, 0.73),
+                  M["vehicle_green"], corner=0.09, segments=3, bevel=0.018, parent=far)
+    L.box("LOD1_Header", (2.12, 0.16, 0.20), (-0.15, 0.02, 1.42),
+          M["vehicle_cream"], bevel=0.05, parent=far)
+    L.collision_box("COL_Station", (2.48, 0.62, 1.52), (0, 0, 0.76), M, parent=root)
+    return _batch_vehicle(root)
+
+
 BUILDERS = {
     "grounds_tractor": build_grounds_tractor,
     "grounds_tractor_broken": build_grounds_tractor_broken,
     "fleet_golf_cart": build_fleet_golf_cart,
+    "cart_fleet_station": build_cart_fleet_station,
 }
 
 

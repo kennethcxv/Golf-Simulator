@@ -933,6 +933,7 @@ export function completeServicePayment(state, tx, {
   type,
   referenceId,
   revenueKey = 'greenFees',
+  revenueSplit = null,
   expectedTotal,
   customer = 'A customer',
   details = {},
@@ -963,6 +964,21 @@ export function completeServicePayment(state, tx, {
   const amount = round2(Number(expectedTotal));
   if (!Number.isFinite(amount) || amount < 0) {
     return { ok: false, reason: 'The service amount is invalid.' };
+  }
+  const split = revenueSplit && typeof revenueSplit === 'object'
+    ? Object.fromEntries(Object.entries(revenueSplit)
+      .filter(([key]) => key === 'greenFees' || key === 'rentals')
+      .map(([key, value]) => [key, round2(Number(value))]))
+    : { [revenueKey]: amount };
+  const splitTotal = round2(Object.values(split).reduce((sum, value) => sum + value, 0));
+  const serviceSplit = service.revenueSplit && typeof service.revenueSplit === 'object'
+    ? Object.fromEntries(Object.entries(service.revenueSplit)
+      .filter(([key]) => key === 'greenFees' || key === 'rentals')
+      .map(([key, value]) => [key, round2(Number(value))]))
+    : { [revenueKey]: amount };
+  if (Object.values(split).some((value) => !Number.isFinite(value) || value < 0)
+    || splitTotal !== amount || JSON.stringify(serviceSplit) !== JSON.stringify(split)) {
+    return { ok: false, reason: 'The service revenue split does not match this payment.' };
   }
   if (
     service.type !== type
@@ -1017,6 +1033,7 @@ export function completeServicePayment(state, tx, {
     cash: drawerCommit.cash,
     lost: tx.lost || 0,
     revenueKey,
+    revenueSplit: { ...split },
     items: tx.items.map((item) => ({
       uid: item.uid,
       skuId: item.skuId,
@@ -1030,7 +1047,7 @@ export function completeServicePayment(state, tx, {
   // Commit as one synchronous checkpoint.  The fallible validations are above;
   // these operations only replace the verified drawer journal and append books.
   commitDrawer(state, drawerCommit.contents);
-  addRevenue(state, revenueKey, amount);
+  for (const [key, value] of Object.entries(split)) addRevenue(state, key, value);
   if (tx.lost > 0) addExpense(state, 'cashOverShort', tx.lost);
   else if (tx.lost < 0) addRevenue(state, 'cashOverShort', -tx.lost);
 

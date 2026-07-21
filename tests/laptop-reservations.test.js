@@ -74,6 +74,22 @@ test('laptop can book exactly the remaining players with a generated believable 
     'a refused booking does not manufacture an orphan customer');
 });
 
+test('laptop cart bookings quote the fleet and preserve one honest combined fee', () => {
+  const state = newGame('relaxed', 8112);
+  const dayAbs = tomorrow(state);
+  const result = bookLaptopReservation(state, {
+    dayAbs, minute: 570, partySize: 4, holes: 9, transport: 'cart',
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.res.transport, 'cart');
+  assert.equal(result.res.holes, 9);
+  assert.equal(result.res.cartsRequested, 2);
+  assert.equal(result.res.greenFeeSubtotal, state.club.greenFee * 4);
+  assert.equal(result.res.cartRentalFee, 36);
+  assert.equal(result.res.fee, state.club.greenFee * 4 + 36);
+  assert.equal(laptopReservationSheet(state, dayAbs).expectedRevenue, result.res.fee);
+});
+
 test('selecting a returning directory customer preserves the same identity', () => {
   const state = newGame('relaxed', 8103);
   const dayAbs = tomorrow(state);

@@ -11,6 +11,9 @@ import { makeRng, rngOf } from '../core/utils.js';
 import { allocateCustomerIdentity, recordCustomerVisit } from './customerIdentity.js';
 import { drawPaymentMethod } from './paymentBag.js';
 import { bankServiceCharge, serviceTicketByReference } from './register.js';
+import {
+  beginCartTrip, cartReservationQuote, cartsRequiredForParty,
+} from './cartFleet.js';
 
 const MINUTES_PER_DAY = 24 * 60;
 const ACTIVE_CAPACITY_STATUSES = new Set(['booked', 'played']);
@@ -162,6 +165,19 @@ function migrateReservation(record, config, sourceVersion = 1) {
   r.source ??= 'legacy';
   r.holes = r.holes === 9 ? 9 : 18;
   r.transport = r.transport === 'cart' ? 'cart' : 'walking';
+  r.requestedTransport = r.requestedTransport === 'cart' ? 'cart' : r.transport;
+  r.cartBookingOutcome ??= r.requestedTransport === 'cart' && r.transport !== 'cart'
+    ? 'unavailable' : r.transport === 'cart' ? 'accepted' : 'not-requested';
+  r.cartsRequested = r.transport === 'cart'
+    ? Math.max(1, integer(r.cartsRequested, cartsRequiredForParty(r.groupSize))) : 0;
+  // Legacy bookings retain their exact price. New cart bookings persist an
+  // explicit split so the physical check-in can book cart revenue honestly.
+  r.cartRentalFee = round2(clamp(finite(r.cartRentalFee, 0), 0, r.fee));
+  r.greenFeeSubtotal = round2(clamp(
+    finite(r.greenFeeSubtotal, r.fee - r.cartRentalFee), 0, r.fee,
+  ));
+  if (r.cartService != null && typeof r.cartService !== 'object') r.cartService = null;
+  r.cartTripId ??= null;
   if (!Array.isArray(r.rentalRequirements)) r.rentalRequirements = [];
   r.patience = clamp(finite(r.patience, 0.65), 0, 1);
   r.punctuality = clamp(finite(r.punctuality, 0.5), 0, 1);
@@ -375,8 +391,18 @@ export function bookReservation(state, details = {}) {
   const valid = bookingValidation(state, dayAbs, minute, name, partySize);
   if (!valid.ok) return valid;
 
+  const transport = details.transport === 'cart' ? 'cart' : 'walking';
+  const holes = details.holes === 9 ? 9 : 18;
+  const cartQuote = transport === 'cart'
+    ? cartReservationQuote(state, { dayAbs, minute, partySize, holes })
+    : { ok: true, requested: 0, fee: 0 };
+  if (!cartQuote.ok) return { ok: false, reason: cartQuote.reason, cartQuote };
   const feePerGolfer = round2(finite(details.feePerGolfer, state.club ? state.club.greenFee : 0));
-  const fee = round2(finite(details.totalFee ?? details.fee, feePerGolfer * partySize));
+  const greenFeeSubtotal = round2(feePerGolfer * partySize);
+  const quotedRental = transport === 'cart'
+    ? round2(Math.max(0, finite(details.cartRentalFee, cartQuote.fee))) : 0;
+  const fee = round2(finite(details.totalFee ?? details.fee, greenFeeSubtotal + quotedRental));
+  const cartRentalFee = round2(Math.min(fee, quotedRental));
   const requestedDeposit = round2(clamp(finite(details.deposit, 0), 0, fee));
   const id = book.nextId++;
   const legacyCustomerId = details.customerId == null || String(details.customerId).trim() === ''
@@ -421,8 +447,16 @@ export function bookReservation(state, details = {}) {
     minute,
     teeTime: minute,
     teeTimeAbs: absoluteTeeTime(dayAbs, minute),
-    holes: details.holes === 9 ? 9 : 18,
-    transport: details.transport === 'cart' ? 'cart' : 'walking',
+    holes,
+    transport,
+    requestedTransport: details.requestedTransport === 'cart' ? 'cart' : transport,
+    cartBookingOutcome: details.cartBookingOutcome
+      || (transport === 'cart' ? 'accepted' : 'not-requested'),
+    cartsRequested: transport === 'cart' ? cartQuote.requested : 0,
+    greenFeeSubtotal: round2(Math.max(0, fee - cartRentalFee)),
+    cartRentalFee,
+    cartTripId: null,
+    cartService: null,
     rentalRequirements: Array.isArray(details.rentalRequirements) ? [...details.rentalRequirements] : [],
     fee,
     depositRequested: requestedDeposit,
@@ -756,9 +790,17 @@ export function generateOnlineReservations(state, {
     // every complete batch; the preference sticks to the reservation for life.
     const paymentPreference = drawPaymentMethod(state, () => random.range(0, 1));
     const holes = random.chance(0.78) ? 18 : 9;
-    const transport = random.chance(0.52) ? 'cart' : 'walking';
+    const requestedTransport = random.chance(0.52) ? 'cart' : 'walking';
+    const requestedCartQuote = requestedTransport === 'cart'
+      ? cartReservationQuote(state, { dayAbs, minute, partySize, holes })
+      : { ok: true, fee: 0 };
+    // Online demand may exceed a small property's fleet. Keep the tee sheet
+    // full by offering that group a walking round, while persisting the denied
+    // cart request so availability remains visible to service analytics.
+    const transport = requestedCartQuote.ok ? requestedTransport : 'walking';
     const rentalRequirements = random.chance(0.16) ? ['clubs'] : [];
-    const totalFee = round2((state.club ? state.club.greenFee : 0) * partySize);
+    const quote = transport === 'cart' ? requestedCartQuote : { fee: 0 };
+    const totalFee = round2((state.club ? state.club.greenFee : 0) * partySize + quote.fee);
     const deposit = round2(totalFee * 0.25);
     const result = bookReservation(state, {
       dayAbs,
@@ -769,6 +811,8 @@ export function generateOnlineReservations(state, {
       deposit,
       holes,
       transport,
+      requestedTransport,
+      cartBookingOutcome: requestedCartQuote.ok ? 'accepted' : 'unavailable',
       rentalRequirements,
       paymentPreference,
       source: 'online',
@@ -936,8 +980,25 @@ export function checkInReservation(state, id) {
   res.paidAmount = round2(Number.isFinite(res.balanceDue) ? res.balanceDue
     : (Number.isFinite(res.fee) ? res.fee : 0));
   res.balanceDue = 0;
-  addRevenue(state, 'greenFees', res.paidAmount);
-  return { ok: true, fee: res.paidAmount, res };
+  const revenueSplit = reservationPaymentRevenueSplit(res, res.paidAmount);
+  addRevenue(state, 'greenFees', revenueSplit.greenFees);
+  addRevenue(state, 'rentals', revenueSplit.rentals);
+  const cart = beginCartTrip(state, res, { at: res.checkedInAt });
+  return { ok: true, fee: res.paidAmount, revenueSplit, cart, res };
+}
+
+export function reservationPaymentRevenueSplit(reservation, amount = null) {
+  const total = round2(Math.max(0, finite(amount,
+    Number.isFinite(reservation?.balanceDue) ? reservation.balanceDue : reservation?.fee)));
+  const greenTotal = round2(Math.max(0, finite(
+    reservation?.greenFeeSubtotal,
+    finite(reservation?.fee, 0) - finite(reservation?.cartRentalFee, 0),
+  )));
+  // Deposits pay the green-fee portion first. The remaining physical payment
+  // therefore retains the cart line until its own amount has actually settled.
+  const greenOutstanding = Math.max(0, greenTotal - Math.max(0, finite(reservation?.depositPaid, 0)));
+  const greenFees = round2(Math.min(total, greenOutstanding));
+  return { greenFees, rentals: round2(total - greenFees), total };
 }
 
 export function markReservationNoShow(state, id, {

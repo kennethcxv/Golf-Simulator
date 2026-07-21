@@ -29,6 +29,7 @@ import {
 } from './customerIdentity.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { initVehicles, ensureVehicles } from './vehicles.js';
+import { initCartFleet, ensureCartFleet, advanceCartFleet, fleetDailyTick } from './cartFleet.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
@@ -70,7 +71,9 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // existing full fixture floor until they purchase their next tier.
 // v13: property-scoped vehicles persist stable identity, legal parking pose,
 // lights, operating state, condition, energy, odometer, and stored equipment.
-export const SAVE_VERSION = 13;
+// v14: rentable customer carts persist capacity, assignments, round progress,
+// return/charging/service state, infrastructure, and exact-once trip identity.
+export const SAVE_VERSION = 14;
 
 export const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
@@ -229,6 +232,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initCustomerDirectory(state);
   initTractor(state);
   initVehicles(state);
+  initCartFleet(state);
   initCourseProps(state);
   initLedger(state);
   initProgression(state);
@@ -269,6 +273,7 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.cartFleet) fleetDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) {
     const todayAbs = calendarOf(state.clock.minutes).dayAbs;
     if (state.reservations.lastOnlineGenerationDayAbs !== todayAbs) {
@@ -328,6 +333,7 @@ export function update(state, gameMinutes) {
   }
   state.clock.minutes = target;
   if (state.reservations) processReservationTimeline(state, { at: target, chargeFees: true });
+  if (state.cartFleet) advanceCartFleet(state, { at: target });
   return { daysPassed };
 }
 
@@ -405,6 +411,7 @@ export function snapshot(state) {
     customerDirectory: state.customerDirectory,
     tractor: state.tractor,
     vehicles: state.vehicles,
+    cartFleet: state.cartFleet,
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
@@ -607,6 +614,9 @@ export function deserialize(json) {
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   if (raw.vehicles) state.vehicles = raw.vehicles;
   ensureVehicles(state, { recoverActive: true }); // v13 adds stable property-scoped identity; loading parks active input safely
+  if (raw.cartFleet) state.cartFleet = raw.cartFleet;
+  ensureCartFleet(state); // v14 adds the property rental fleet without disturbing the player's utility cart
+  advanceCartFleet(state, { at: state.clock.minutes }); // resume, or safely catch up, a persisted customer round
   if (raw.props) state.props = raw.props;
   ensureCourseProps(state); // old saves gain the litter/sign restoration props
   if (raw.progression) state.progression = raw.progression;
