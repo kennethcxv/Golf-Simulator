@@ -5716,6 +5716,13 @@ export function createRegisterMode(B) {
   }
   const presentedCashScreenPoint = () => meshScreenPoint(tenderHandful);
   const presentedCardScreenPoint = () => meshScreenPoint(cardMesh);
+  const cardTerminalScreenPoint = () => meshScreenPoint(termObject);
+  const swipeAt = () => ({
+    top: { x: swipeTop.x, y: swipeTop.y, z: swipeTop.z },
+    bot: { x: swipeBottom.x, y: swipeBottom.y, z: swipeBottom.z },
+    u: cardU,
+    armed: cardSwipeArmed,
+  });
   const scanPresentation = () => {
     const choreography = scanMotion ? scanChoreographyAt(scanMotion.elapsed) : null;
     return {

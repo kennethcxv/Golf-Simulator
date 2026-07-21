@@ -108,6 +108,60 @@ export function fixtureRect(f) {
   return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
 }
 
+// A fixture footprint reserves placement space, while experience fixtures can
+// contain intentionally walkable space. Keep their physical proxies separate
+// so player collision, customer routing, and build-mode validation agree.
+export function fixtureCollisionRects(f) {
+  const proxies = f.kind === 'fittingroom'
+    ? [
+      { x: 0, z: -0.72, w: 2.2, d: 0.12 },
+      { x: -1.02, z: 0, w: 0.12, d: 1.56 },
+      { x: 1.02, z: 0, w: 0.12, d: 1.56 },
+    ]
+    : f.kind === 'demo'
+      ? [{ x: -1.87, z: 0, w: 0.18, d: 1.12 }]
+      : null;
+  if (!proxies) return [fixtureRect(f)];
+  const c = Math.cos(f.ry || 0);
+  const s = Math.sin(f.ry || 0);
+  return proxies.map((proxy) => {
+    const x = f.x + proxy.x * c + proxy.z * s;
+    const z = f.z - proxy.x * s + proxy.z * c;
+    const swap = Math.abs(s) > 0.5;
+    const w = swap ? proxy.d : proxy.w;
+    const d = swap ? proxy.w : proxy.d;
+    return { minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 };
+  });
+}
+
+export function fixtureAvailableAtTier(f, tier = 1) {
+  return (!f.minTier || tier >= f.minTier) && (!f.maxTier || tier <= f.maxTier);
+}
+
+export const SHOP_LIGHTING_TIERS = Object.freeze({
+  1: Object.freeze({ key: 'basic', practicalScale: 0.86, displayScale: 0.78, premiumAccent: 0 }),
+  2: Object.freeze({ key: 'standard', practicalScale: 1, displayScale: 1, premiumAccent: 0 }),
+  3: Object.freeze({ key: 'premium', practicalScale: 1.08, displayScale: 1.16, premiumAccent: 1 }),
+});
+
+export function shopLightingTier(tier = 1) {
+  const level = Math.max(1, Math.min(3, Math.floor(Number(tier) || 1)));
+  return SHOP_LIGHTING_TIERS[level];
+}
+
+export function fixtureSockets(f, type = 'browse') {
+  const sockets = type === 'stock' ? (f.stock || []) : (f.browse || []);
+  const c = Math.cos(f.ry || 0);
+  const s = Math.sin(f.ry || 0);
+  return sockets.map((point, index) => ({
+    x: f.x + point.x * c + point.z * s,
+    z: f.z - point.x * s + point.z * c,
+    ry: f.ry || 0,
+    index,
+    key: `${f.id}:${type}:${index}`,
+  }));
+}
+
 // Customer fixture stops are authored in fixture-local space. `+z` is the
 // presentation/front side of every movable display, including asymmetric
 // footprints such as the shoe wall. Keeping the transform here means the

@@ -80,6 +80,8 @@ export function buildShell(B) {
     productionFallbackNodes[key].push(node);
     return node;
   };
+  let businessSignOpen = true;
+  let repaintBusinessSign = () => {};
   let retailSlab = null;
   const luxuryFloorMaterial = mats.oakFloor.clone();
   luxuryFloorMaterial.color.setHex(generatedPalette?.floor || 0xf1d8ad);

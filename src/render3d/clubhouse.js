@@ -24,7 +24,7 @@ import {
 import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
+  MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
   resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import {
@@ -106,7 +106,7 @@ import {
   deliveryBoxCarryCollisionRadius,
   deliveryBoxCarryProfile,
 } from './clubhouse/deliveryCarryProfile.js';
-import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
+import { slotsFor, visibleSlotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
 import { buildShopGenerationVisuals } from './clubhouse/shopGenerationVisuals.js';
@@ -117,11 +117,15 @@ import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } fro
 import { shopCustomerCapacity, shopTierIndex } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
+import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createCourse1MunicipalEnvironment } from './course1MunicipalEnvironment.js';
 import { buildProps } from './assets51to100/propPlacement.js';
+import { createSheet07CampaignRuntime } from './assets51to100/sheet07CampaignRuntime.js';
+import { buildCampaignWorld } from './clubhouse/campaignWorld.js';
 import { RUNTIME_ASSET_MANIFEST_BY_NUMBER } from './assets51to100/runtimeManifest.js';
 import {
   ensureDebris, debrisState, seedDebris, sweepAt, collectAt, suckAt, totalDebris,
@@ -144,7 +148,9 @@ import {
 import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
-import { placedFixtures, ensureLayout, recoverInvalidObjects, roomStyle } from '../sim/layout.js';
+import {
+  activeFixtures, placedFixtures, ensureLayout, recoverInvalidObjects, roomStyle,
+} from '../sim/layout.js';
 import { installedFurnitureByFamily } from '../sim/furnitureCatalog.js';
 import {
   boxPlacementCapabilities,
@@ -169,6 +175,8 @@ import {
   createCheckoutFlow, transitionCheckout, enterCheckoutRecovery, checkoutStateTimedOut,
   recoverTimedOutCheckout, resumeCheckout,
 } from '../sim/registerFlow.js';
+
+const clamp = THREE.MathUtils.clamp;
 
 const CAT_COLORS = {
   balls: 0xf3f0e4,
@@ -917,10 +925,23 @@ export function makeClubhouse(ctx) {
   }
   setFittingCurtainOpen(state.shop?.assetRuntime?.asset_063?.open === true);
 
+  const campaignPropFacility = (number) => {
+    if (number === 61 || number === 62 || number === 89 || number === 90) return 'frontCounter';
+    if (number === 64 || number === 88) return 'stockroomShelves';
+    if (number === 66 || (number >= 82 && number <= 87)) return 'officeDesk';
+    if (number === 81) return 'officeChair';
+    if (number >= 91 && number <= 98) return 'safety';
+    return null;
+  };
+
   props61to100 = buildProps({
     interior,
     loader: new GLTFLoader(),
     state,
+    visibilityForAsset: (number) => {
+      const facility = campaignPropFacility(number);
+      return !facility || facilityInstalled(state, facility);
+    },
     addProp,
     removeProp,
     L2W,
@@ -1125,6 +1146,22 @@ export function makeClubhouse(ctx) {
 
   const checkout = buildCheckout(B);
   const drawRegister = checkout.drawRegister;
+  const course1MunicipalEnvironment = createCourse1MunicipalEnvironment({
+    group,
+    interior,
+    shell,
+    doorApi: doorsApi,
+    sheet06Production,
+    addCollider: addCol,
+    removeCollider: removeCol,
+    addProp,
+    registeredColliders: registeredCols,
+    registeredProps,
+    removeProp,
+    hooks,
+    fixtureAnchors,
+    defaultFixtureIds: new Set(FIXTURES.map((fixture) => fixture.id)),
+  });
 
   function refreshCheckoutAvailability() {
     const counterReady = facilityInstalled(state, 'frontCounter');
@@ -3087,7 +3124,7 @@ export function makeClubhouse(ctx) {
 
   // --- live stock silhouettes -------------------------------------------------------------
   const stockGroup = new THREE.Group();
-  stockGroup.name = 'shop-stock';
+  stockGroup.name = 'Course1MunicipalCustomFixtureStock';
   interior.add(stockGroup);
   const stockMeshes = new Map();
   // Stock displays are rebuilt whenever inventory changes. The baked output owns
@@ -3669,6 +3706,7 @@ export function makeClubhouse(ctx) {
         // ball boxes was 15 draw calls; a rack of 12 clubs was 36. This happens on restock, not
         // per frame.
         const baked = bakeStockGroup(g);
+        baked.userData.fixtureLayoutId = f.id;
         baked.position.copy(anchor.position);
         baked.rotation.copy(anchor.rotation);
         baked.visible = !hiddenFixtureStock.has(f.id);
@@ -3732,6 +3770,7 @@ export function makeClubhouse(ctx) {
         g.add(sign);
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
+        g.userData.fixtureLayoutId = f.id;
         g.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':feature', g);
@@ -3839,6 +3878,7 @@ export function makeClubhouse(ctx) {
         }
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
+        g.userData.fixtureLayoutId = f.id;
         g.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':back', g);
@@ -8678,6 +8718,7 @@ export function makeClubhouse(ctx) {
     sheet06Production.update(dt);
     props61to100.update(dt);
     updateDoors(dt, now);
+    course1MunicipalEnvironment.update(dt);
     if (deliveryEquipment) {
       deliveryEquipment.update(dt);
       syncEquipmentBoxViews();
@@ -8797,6 +8838,7 @@ export function makeClubhouse(ctx) {
     register.leave({ restorePointer: false });
     props61to100.stopAnimations();
     const sheet06ProductionDisposal = sheet06Production.dispose();
+    const course1MunicipalDisposal = course1MunicipalEnvironment.dispose();
     // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
     // rule for loader clones is that the cache which produced them owns freeing them — the same
     // boundary createMerch and the Sheet-6 isolated cache sit behind. Freeing them from this side
@@ -8884,6 +8926,7 @@ export function makeClubhouse(ctx) {
       boxPlacement: boxPlacementDisposal,
       sheet06Production: sheet06ProductionDisposal,
       storeDisplays: storeDisplaysDisposal,
+      course1Municipal: course1MunicipalDisposal,
     });
     return disposalSummary;
   }
@@ -8911,6 +8954,10 @@ export function makeClubhouse(ctx) {
       world: campaignWorld.diagnostics(),
       sheet07: sheet07Production.diagnostics(),
       businessOpen: campaignAllowsBusiness(state),
+    }),
+    course1Municipal: Object.freeze({
+      ready: course1MunicipalEnvironment.ready,
+      diagnostics: () => course1MunicipalEnvironment.diagnostics(),
     }),
     boxPlacement: Object.freeze({
       isActive: () => !!boxPlacementMode?.isActive(),

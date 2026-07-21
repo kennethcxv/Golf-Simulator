@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import {
   FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, SHELL, LOGO_RUG, REGISTER, COUNTER_TOP,
-  fixtureRect,
+  fixtureCollisionRects, fixtureRect,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
@@ -212,6 +212,7 @@ export function buildFixtures(B) {
     return rawAddCol(c);
   };
   const addProp = (p) => {
+    if (tracking) p.fixtureLayoutId = activeFixtureId;
     const made = rawAddProp(p);
     if (tracking) laidProps.push(made || p);
     return made;
@@ -1755,7 +1756,7 @@ export function buildCheckout(B) {
   // duplicate shell or z-fighting surfaces.
   const legacyCounter = new THREE.Group();
   legacyCounter.name = 'LegacyCheckoutCounter';
-  interior.add(legacyCounter);
+  counterVisualRoot.add(legacyCounter);
   const body = new THREE.Mesh(roundedBox(COUNTER.len, 0.96, COUNTER.depth - 0.16, 0.02), mats.walnut);
   body.position.set(COUNTER.x, 0.5, COUNTER.z);
   body.castShadow = true;
@@ -1818,7 +1819,7 @@ export function buildCheckout(B) {
       if (object.isMesh) object.receiveShadow = false;
     });
     if (!interior.getObjectByName('AssetRuntime_61_front_desk_counter_shell')) {
-      interior.add(counterVisual);
+      counterVisualRoot.add(counterVisual);
     }
 
     const taskSurfaceRoot = new THREE.Group();
@@ -1856,7 +1857,7 @@ export function buildCheckout(B) {
     checkoutTaskSurfaceVisual.traverse((object) => {
       if (object.isMesh) object.receiveShadow = false;
     });
-    interior.add(checkoutTaskSurfaceVisual);
+    hardwareVisualRoot.add(checkoutTaskSurfaceVisual);
     releaseReplacedFixture(legacyCounter, mats, merch);
   });
 
@@ -1888,7 +1889,7 @@ export function buildCheckout(B) {
       if (!authored) return placeKit(fallbackKit, spec, { ry, scale });
       authored.position.set(spec.x, COUNTER_TOP, spec.z);
       authored.rotation.y = ry;
-      interior.add(authored);
+      hardwareVisualRoot.add(authored);
       return authored;
     };
     // The checkout kit is authored at believable real-world dimensions. Keep
@@ -1931,5 +1932,14 @@ export function buildCheckout(B) {
     }
   }
 
-  return { drawRegister };
+  return {
+    drawRegister,
+    counterVisualRoot,
+    hardwareVisualRoot,
+    setAvailability({ counter = true, hardware = true } = {}) {
+      counterVisualRoot.visible = !!counter;
+      hardwareVisualRoot.visible = !!hardware;
+      setCounterColliderActive(!!counter);
+    },
+  };
 }

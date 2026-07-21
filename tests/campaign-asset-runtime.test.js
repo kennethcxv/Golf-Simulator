@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import { newGame } from '../src/sim/state.js';
 import { ensureCampaignFacilities } from '../src/sim/campaign.js';
 import { COUNTER, OFFICE } from '../src/data/shopLayout.js';
-import { buildProps } from '../src/render3d/assets51to100/propPlacement.js';
+import {
+  buildProps, PLACED_ASSET_NUMBERS,
+} from '../src/render3d/assets51to100/propPlacement.js';
 import {
   SHEET07_CAMPAIGN_PLACEMENTS,
   createSheet07CampaignRuntime,
@@ -70,7 +72,7 @@ test('Sheet 7 campaign runtime lands the authored counter and desk sockets on es
   }
 });
 
-test('Assets 71-100 can refresh campaign visibility without reloading or duplicating roots', async () => {
+test('Assets 61-100 can refresh campaign visibility without reloading or duplicating roots', async () => {
   const interior = new THREE.Group();
   const visible = new Set([71, 100]);
   const props = buildProps({
@@ -79,7 +81,7 @@ test('Assets 71-100 can refresh campaign visibility without reloading or duplica
     visibilityForAsset: (number) => visible.has(number),
   });
   await props.ready;
-  assert.equal(props.diagnostics().placed, 30);
+  assert.equal(props.diagnostics().placed, PLACED_ASSET_NUMBERS.length);
   assert.equal(props.getRoot(71).visible, true);
   assert.equal(props.getRoot(81).visible, false);
   assert.equal(props.getRoot(100).visible, true);
@@ -87,5 +89,6 @@ test('Assets 71-100 can refresh campaign visibility without reloading or duplica
   visible.add(81);
   props.refreshVisibility();
   assert.equal(props.getRoot(81).visible, true);
-  assert.equal(props.diagnostics().placed, 30, 'refreshing does not instantiate a second prop set');
+  assert.equal(props.diagnostics().placed, PLACED_ASSET_NUMBERS.length,
+    'refreshing does not instantiate a second prop set');
 });

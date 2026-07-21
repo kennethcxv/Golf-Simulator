@@ -294,7 +294,8 @@ function batchPlacedStaticVisuals(parent, entries, merch) {
   for (const entry of entries) {
     // Persisted movable fixtures must carry their visual with their anchor. Everything else in
     // this runtime has a fixed clubhouse-local pose, including nested worktable pickups.
-    if (entry.fixtureId || entry.dynamicPlacement || !entry.staticBatch?.visual) continue;
+    if (entry.fixtureId || entry.dynamicPlacement || entry.visibilityControlled
+      || !entry.staticBatch?.visual) continue;
     entry.staticBatch.visual.traverseVisible((object) => {
       if (object.isMesh && object.layers.mask !== 0 && object.geometry && object.material
         && !Array.isArray(object.material)) {
@@ -592,6 +593,7 @@ export function buildProps({
   interior,
   loader,
   state = null,
+  visibilityForAsset = () => true,
   addProp = null,
   removeProp = null,
   L2W = (x, z) => ({ x, z }),
@@ -616,6 +618,10 @@ export function buildProps({
   let placedStaticBatch = null;
   let disposed = false;
   let detailedVisible = true;
+
+  const assetVisible = (entry) => !entry.placement.hidden
+    && visibilityForAsset(entry.n) !== false
+    && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(entry.n));
 
   function anchorFor(fixtureId) {
     return typeof getFixtureAnchor === 'function' ? getFixtureAnchor(fixtureId) : null;
@@ -647,7 +653,7 @@ export function buildProps({
     entry.root.rotation.set(0, entry.placement.ry || 0, 0);
     entry.root.position.set(0, 0, 0);
     placeSocketAt(entry.root, new THREE.Vector3(0, 0, 0));
-    entry.root.visible = true;
+    entry.root.visible = assetVisible(entry);
     hideFixtureFallbacks(entry);
     return true;
   }
@@ -670,7 +676,7 @@ export function buildProps({
     entry.root.rotation.set(0, entry.placement.ry || 0, 0);
     entry.root.position.set(0, 0, 0);
     placeSocketAt(entry.root, new THREE.Vector3(0, 0, 0));
-    entry.root.visible = true;
+    entry.root.visible = assetVisible(entry);
     return true;
   }
 
@@ -686,8 +692,7 @@ export function buildProps({
       failed.push({ n: entry.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
       entry.missingPlacementSocketReported = true;
     }
-    entry.root.visible = !placement.hidden
-      && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(entry.n));
+    entry.root.visible = assetVisible(entry);
     return socketAligned;
   }
 
@@ -792,6 +797,7 @@ export function buildProps({
       placement,
       authoredPlacement,
       dynamicPlacement: DYNAMIC_GENERATED_ASSET_NUMBERS.has(placement.n),
+      visibilityControlled: visibilityForAsset(placement.n) === false,
       fixtureId,
       stateRecord,
       walkProps: [],
@@ -962,13 +968,24 @@ export function buildProps({
       let total = 0;
       for (const [number, entries] of placedByNumber) {
         for (const entry of entries) {
-          entry.root.visible = !entry.placement.hidden
-            && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(number));
+          entry.root.visible = assetVisible(entry);
           if (entry.root.visible) visible += 1;
           total += 1;
         }
       }
       return { detailedVisible, visible, total };
+    },
+    refreshVisibility() {
+      let visible = 0;
+      let total = 0;
+      for (const entries of placedByNumber.values()) {
+        for (const entry of entries) {
+          entry.root.visible = assetVisible(entry);
+          if (entry.root.visible) visible += 1;
+          total += 1;
+        }
+      }
+      return { visible, total };
     },
     refreshGeneratedFurnishings() {
       let refreshed = 0;

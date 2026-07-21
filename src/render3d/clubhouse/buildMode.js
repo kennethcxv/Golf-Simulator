@@ -245,7 +245,9 @@ export function buildBuildMode(B, deps) {
   const overlayRoot = B.ctx?.scene || interior.parent;
 
   const previewLayer = new THREE.Group();
-  previewLayer.name = 'FurniturePlacementPreview';
+  // The municipal environment leases legacy interior visuals off, but keeps
+  // this live placement layer available for player-authored furnishings.
+  previewLayer.name = 'Course1MunicipalFixtureBuildGhost';
   interior.add(previewLayer);
 
   const grid = new THREE.GridHelper(20, 80, 0x6ba97c, 0x3e6047);
@@ -260,7 +262,7 @@ export function buildBuildMode(B, deps) {
     new THREE.RingGeometry(0.11, 0.17, 32),
     new THREE.MeshBasicMaterial({ color: OK, transparent: true, opacity: 0.94, side: THREE.DoubleSide, depthTest: false }),
   );
-  marker.name = 'FurnitureTargetMarker';
+  marker.name = 'Course1MunicipalFixtureBuildHalo';
   marker.renderOrder = 998;
   marker.visible = false;
   previewLayer.add(marker);
