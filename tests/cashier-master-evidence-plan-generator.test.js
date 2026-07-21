@@ -233,7 +233,9 @@ function makeFixture(t) {
         {
           screenshot: posix(path.relative(workspaceRoot, captureFiles[31])),
           state: {
-            active: true, tx: { number: 1 }, owner: { role: 'first' },
+            active: false,
+            tx: { number: 1, checkoutFlowState: 'WaitingForCashier' },
+            owner: { role: 'first' },
             txHolders: [{ role: 'first' }], queueRoles: ['first', 'second'],
             queue: [{ customerId: 'first' }, { customerId: 'second' }],
           },

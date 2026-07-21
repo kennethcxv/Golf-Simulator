@@ -383,12 +383,16 @@ function validateQueueContract(record, file, contract, errors, captureNumber) {
         'Register reset must use the active empty-monitor checkpoint with no held stock, transaction, owner, queue, transaction holder, or seeded customer.');
     }
   } else if (contract === 'two-customers') {
-    if (!checkpoint || state?.active !== true || state?.tx == null
+    // This capture is deliberately taken before the cashier presses E. It proves
+    // two customers are visibly queued while the first exclusively owns the
+    // waiting transaction; active register mode begins in the following step.
+    if (!checkpoint || state?.active !== false || state?.tx == null
+        || state.tx.checkoutFlowState !== 'WaitingForCashier'
         || state?.queue?.length !== 2 || state?.owner?.role !== 'first'
         || state?.txHolders?.length !== 1 || state.txHolders[0]?.role !== 'first'
         || JSON.stringify(state?.queueRoles) !== JSON.stringify(['first', 'second'])) {
       addError(errors, `capture.${captureNumber}.queueContract`,
-        'Multiple-customer queue must show two queued customers and one exclusive first owner.');
+        'Multiple-customer queue must show two queued customers and one exclusive first owner before cashier entry.');
     }
   }
 }
@@ -409,7 +413,10 @@ export function validateFinalCashierEvidenceInputs(inputs, options = {}) {
     repositoryRoot: workspaceRoot,
     files: productionFiles,
   });
-  const expectedPaths = current.files.map((entry) => entry.path);
+  // normalizedHashMap uses localeCompare so Windows paths with mixed-case asset
+  // names have one deterministic order. Comparing against current.files' native
+  // sort order rejected equal 489-entry maps even though every path/hash matched.
+  const expectedPaths = Object.keys(normalizedHashMap(current.productionBuildHashes));
   const records = {};
   for (const [role, definition] of Object.entries(FINAL_RESULT_INPUTS)) {
     const record = resolveInputResult(workspaceRoot, inputs?.[role], definition, errors, role);
