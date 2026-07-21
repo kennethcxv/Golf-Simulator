@@ -26,6 +26,7 @@ import { closeTextureImages } from './resourceLifecycle.js';
 import {
   CLUBHOUSE_SHARED_TEXTURE_FAMILIES, createSharedTexturePool,
 } from './sharedTexturePool.js';
+import { PRO_SHOP_EQUIPMENT_FAMILIES } from '../../data/proShopEquipment.js';
 
 const FILES = [
   // goods
@@ -139,7 +140,7 @@ const TINTABLE = {
   M_SKUAccent: 'merchPlastic',
 };
 
-export function createMerch(mats) {
+export function createMerch(mats, { equipmentTier = null, equipmentFamilies = null } = {}) {
   const protos = new Map();
   const clips = new Map();
   const tints = new Map();     // 'fabric|0x3f7a34' -> Material, built once, reused forever
@@ -155,6 +156,9 @@ export function createMerch(mats) {
   let disposed = false;
   let disposalSummary = null;
   const waiting = [];
+  const equipmentTierId = ['municipal', 'public', 'premium', 'high_end', 'country_club'].includes(equipmentTier)
+    ? equipmentTier
+    : null;
 
   function resourcesIn(root) {
     const geometries = new Set();
@@ -411,6 +415,22 @@ export function createMerch(mats) {
     return obj;
   }
 
+  function instantiateEquipment(familyId, { scale = 1 } = {}) {
+    if (disposed || !equipmentTierId) return null;
+    const proto = protos.get(`equipment:${familyId}`);
+    if (!proto) return null;
+    const obj = proto.clone(true);
+    obj.name = `ProShopEquipment_${familyId}_${equipmentTierId}`;
+    obj.userData.equipmentFamily = familyId;
+    obj.userData.equipmentTier = equipmentTierId;
+    obj.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+      if (o.userData?.collision_proxy || o.name.startsWith('COL_')) o.visible = false;
+    });
+    if (scale !== 1) obj.scale.setScalar(scale);
+    return obj;
+  }
+
   const sharedImageSourceCache = new Map();
   const loader = new GLTFLoader();
   if (typeof loader.setSharedImageCache === 'function') {
@@ -419,7 +439,12 @@ export function createMerch(mats) {
       (source) => CLUBHOUSE_SHARED_TEXTURE_FAMILIES[source?.name] || null,
     );
   }
-  let pending = FILES.length + RAW.length + KIT.length;
+  const knownEquipmentFamilies = new Set(PRO_SHOP_EQUIPMENT_FAMILIES.map((family) => family.id));
+  const requestedEquipmentFamilies = Array.isArray(equipmentFamilies)
+    ? equipmentFamilies.filter((familyId) => knownEquipmentFamilies.has(familyId))
+    : [...knownEquipmentFamilies];
+  const EQUIPMENT = equipmentTierId ? [...new Set(requestedEquipmentFamilies)] : [];
+  let pending = FILES.length + RAW.length + KIT.length + EQUIPMENT.length;
   const done = () => {
     if (disposed) return;
     if (--pending > 0) return;
@@ -489,6 +514,30 @@ export function createMerch(mats) {
       () => done(),
     );
   }
+  for (const familyId of EQUIPMENT) {
+    const assetId = `${familyId}_${equipmentTierId}`;
+    loader.load(
+      `vendor/models/pro_shop_equipment/${assetId}.glb`,
+      (g) => {
+        const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
+        root.traverse((o) => {
+          if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+          if (o.userData?.collision_proxy || o.name.startsWith('COL_')) o.visible = false;
+        });
+        sharedTexturePool.intern(root);
+        rememberPrototype(root);
+        protos.set(`equipment:${familyId}`, root);
+        clips.set(`equipment:${familyId}`, g.animations || []);
+        done();
+      },
+      undefined,
+      () => done(),
+    );
+  }
 
   function dispose() {
     if (disposed) return { ...disposalSummary, alreadyDisposed: true };
@@ -543,6 +592,7 @@ export function createMerch(mats) {
     instantiate,
     instantiateRaw,
     instantiateKit,
+    instantiateEquipment,
     slotMesh,
     bake,
     disposeBaked,
@@ -552,6 +602,8 @@ export function createMerch(mats) {
     isReady: () => ready && !disposed,
     has: (n) => !disposed && protos.has(n),
     hasKit: (n) => !disposed && protos.has(`kit:${n}`),
+    hasEquipment: (familyId) => !disposed && protos.has(`equipment:${familyId}`),
+    equipmentTier: () => equipmentTierId,
     animations: (n) => (disposed ? [] : clips.get(n) || []),
     // the models arrive after the shop is built; the caller restocks on ready
     onReady(fn) {

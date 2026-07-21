@@ -129,7 +129,7 @@ const DRAWER_COINS = [0.01, 0.05, 0.1, 0.2, 0.5];
 // A till opening in roughly 0.31 s was over before the player could read the physical motion (and
 // before a single full-resolution evidence frame could be retained). Give the opening stroke one
 // deliberate second; closing can remain brisk after the handoff is complete.
-const DRAWER_OPEN_SPEED = 1;
+const DRAWER_OPEN_SPEED = 0.65;
 const DRAWER_CLOSE_SPEED = 2.4;
 const SLOT = {};
 const SLOT_META = {};
@@ -2439,17 +2439,31 @@ export function createRegisterMode(B) {
         // labelled bill wells + five coin cups, and a CashDrawer_Tray that slides
         // toward the staff side. Origin is the housing's back-bottom-centre.
         const kitScale = 1.0;
-        const kit = merch.instantiateKit && merch.instantiateKit('cash_drawer', { scale: kitScale });
-        const model = kit || merch.instantiate('checkout_cash_drawer') || merch.instantiate('cash_drawer');
+        const equipment = merch.instantiateEquipment
+          && merch.instantiateEquipment('cash_drawer', { scale: kitScale });
+        const kit = !equipment && merch.instantiateKit
+          ? merch.instantiateKit('cash_drawer', { scale: kitScale })
+          : null;
+        const model = equipment || kit || merch.instantiate('checkout_cash_drawer') || merch.instantiate('cash_drawer');
         if (!model) return;
         fallback.visible = false;
         suppressInteriorSunShadows(model);
-        if (kit) {
+        if (kit || equipment) {
           // seat the housing under the countertop with its face flush to the
           // counter's staff side (drawerGroup sits at that face)
-          model.position.set(0, -0.045, 0.10 - 0.41 * kitScale);
+          if (kit) model.position.set(0, -0.045, 0.10 - 0.41 * kitScale);
           drawerGroup.add(model);
-          drawerAssetSlide = model.getObjectByName('CashDrawer_Tray');
+          if (equipment) {
+            // The portable library contract calls the moving node DrawerSlide;
+            // checkout tracks that same transform as CashDrawer_Tray. Rename
+            // only this runtime clone so the complete authored insert moves.
+            drawerAssetSlide = model.getObjectByName('DrawerSlide');
+            const insert = drawerAssetSlide?.getObjectByName('CashDrawer_Tray');
+            if (insert) insert.name = 'CashDrawer_Insert';
+            if (drawerAssetSlide) drawerAssetSlide.name = 'CashDrawer_Tray';
+          } else {
+            drawerAssetSlide = model.getObjectByName('CashDrawer_Tray');
+          }
           if (drawerAssetSlide) {
             drawerAssetSlideBaseZ = drawerAssetSlide.position.z;
             drawerGroup.updateMatrixWorld(true);
@@ -2498,7 +2512,7 @@ export function createRegisterMode(B) {
             }
             remapped += 1;
           }
-          // apply whatever the kit authored; a denomination the tray predates (an older
+          // Apply whatever the asset authored; a denomination the tray predates (an older
           // GLB without the $100 well) keeps its fallback slot instead of dragging every
           // OTHER well back to fallbacks with it
           if (remapped > 0) buildSlotFurniture();

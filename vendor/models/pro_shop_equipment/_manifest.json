@@ -1,0 +1,4914 @@
+{
+  "version": 1,
+  "generatedBy": "tools/blender/build_pro_shop_equipment.py",
+  "assets": [
+    {
+      "id": "bag_drop_station_country_club",
+      "familyId": "bag_drop_station",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_drop_station.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_drop_station_country_club.glb",
+      "targetDimensionsM": [
+        2.35,
+        0.98,
+        2.32
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.175,
+          -0.4696,
+          0.0
+        ],
+        "max": [
+          1.175,
+          0.4508,
+          2.3084
+        ],
+        "size": [
+          2.35,
+          0.9204,
+          2.3084
+        ]
+      },
+      "triangles": 1636,
+      "nodes": 18,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagDropCanopy",
+        "COL_BagDropCounter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_drop_station_high_end",
+      "familyId": "bag_drop_station",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_drop_station.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_drop_station_high_end.glb",
+      "targetDimensionsM": [
+        2.12,
+        0.9,
+        2.15
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.06,
+          -0.414,
+          0.0
+        ],
+        "max": [
+          1.06,
+          0.414,
+          2.13925
+        ],
+        "size": [
+          2.12,
+          0.828,
+          2.13925
+        ]
+      },
+      "triangles": 1528,
+      "nodes": 17,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagDropCanopy",
+        "COL_BagDropCounter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_drop_station_municipal",
+      "familyId": "bag_drop_station",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_drop_station.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_drop_station_municipal.glb",
+      "targetDimensionsM": [
+        1.5,
+        0.72,
+        1.25
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.66,
+          -0.2592,
+          0.0
+        ],
+        "max": [
+          0.66,
+          0.2592,
+          1.25
+        ],
+        "size": [
+          1.32,
+          0.5184,
+          1.25
+        ]
+      },
+      "triangles": 656,
+      "nodes": 8,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagDropCanopy",
+        "COL_BagDropCounter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_drop_station_premium",
+      "familyId": "bag_drop_station",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_drop_station.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_drop_station_premium.glb",
+      "targetDimensionsM": [
+        1.92,
+        0.84,
+        1.95
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.96,
+          -0.3864,
+          0.0
+        ],
+        "max": [
+          0.96,
+          0.3864,
+          1.94025
+        ],
+        "size": [
+          1.92,
+          0.7728,
+          1.94025
+        ]
+      },
+      "triangles": 1312,
+      "nodes": 14,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagDropCanopy",
+        "COL_BagDropCounter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_drop_station_public",
+      "familyId": "bag_drop_station",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_drop_station.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_drop_station_public.glb",
+      "targetDimensionsM": [
+        1.7,
+        0.78,
+        1.55
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.85,
+          -0.3588,
+          0.0
+        ],
+        "max": [
+          0.85,
+          0.3588,
+          1.54225
+        ],
+        "size": [
+          1.7,
+          0.7176,
+          1.54225
+        ]
+      },
+      "triangles": 1096,
+      "nodes": 11,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagDropCanopy",
+        "COL_BagDropCounter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_stand_country_club",
+      "familyId": "bag_stand",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_stand.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_stand_country_club.glb",
+      "targetDimensionsM": [
+        0.78,
+        0.62,
+        0.88
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.4382,
+          -0.2573,
+          0.0
+        ],
+        "max": [
+          0.4382,
+          0.1922,
+          0.7744
+        ],
+        "size": [
+          0.8764,
+          0.4495,
+          0.7744
+        ]
+      },
+      "triangles": 1908,
+      "nodes": 17,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagStand"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_stand_high_end",
+      "familyId": "bag_stand",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_stand.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_stand_high_end.glb",
+      "targetDimensionsM": [
+        0.72,
+        0.58,
+        0.82
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.4148,
+          -0.2407,
+          0.0
+        ],
+        "max": [
+          0.4148,
+          0.1798,
+          0.7175
+        ],
+        "size": [
+          0.8296,
+          0.4205,
+          0.7175
+        ]
+      },
+      "triangles": 1800,
+      "nodes": 16,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagStand"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_stand_municipal",
+      "familyId": "bag_stand",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_stand.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_stand_municipal.glb",
+      "targetDimensionsM": [
+        0.58,
+        0.48,
+        0.7
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.29,
+          -0.1992,
+          0.0
+        ],
+        "max": [
+          0.29,
+          0.1488,
+          0.6125
+        ],
+        "size": [
+          0.58,
+          0.348,
+          0.6125
+        ]
+      },
+      "triangles": 828,
+      "nodes": 9,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagStand"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_stand_premium",
+      "familyId": "bag_stand",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_stand.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_stand_premium.glb",
+      "targetDimensionsM": [
+        0.68,
+        0.54,
+        0.78
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.3992,
+          -0.2241,
+          0.0
+        ],
+        "max": [
+          0.3992,
+          0.1674,
+          0.6825
+        ],
+        "size": [
+          0.7984,
+          0.3915,
+          0.6825
+        ]
+      },
+      "triangles": 1404,
+      "nodes": 13,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagStand"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bag_stand_public",
+      "familyId": "bag_stand",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/bag_stand.blend",
+      "glb": "vendor/models/pro_shop_equipment/bag_stand_public.glb",
+      "targetDimensionsM": [
+        0.62,
+        0.5,
+        0.74
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.3758,
+          -0.2075,
+          0.0
+        ],
+        "max": [
+          0.3758,
+          0.155,
+          0.6475
+        ],
+        "size": [
+          0.7516,
+          0.3625,
+          0.6475
+        ]
+      },
+      "triangles": 1116,
+      "nodes": 11,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BagStand"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "ball_washer_country_club",
+      "familyId": "ball_washer",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/ball_washer.blend",
+      "glb": "vendor/models/pro_shop_equipment/ball_washer_country_club.glb",
+      "targetDimensionsM": [
+        0.46,
+        0.36,
+        1.31
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2024,
+          -0.198,
+          0.0
+        ],
+        "max": [
+          0.252,
+          0.1476,
+          1.31655
+        ],
+        "size": [
+          0.4544,
+          0.3456,
+          1.31655
+        ]
+      },
+      "triangles": 3268,
+      "nodes": 20,
+      "movingParts": [
+        "BallWasher_CrankPivot"
+      ],
+      "collisionNodes": [
+        "COL_BallWasher"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "ball_washer_high_end",
+      "familyId": "ball_washer",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/ball_washer.blend",
+      "glb": "vendor/models/pro_shop_equipment/ball_washer_high_end.glb",
+      "targetDimensionsM": [
+        0.43,
+        0.34,
+        1.27
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1806,
+          -0.187,
+          0.0
+        ],
+        "max": [
+          0.237,
+          0.1394,
+          1.27635
+        ],
+        "size": [
+          0.4176,
+          0.3264,
+          1.27635
+        ]
+      },
+      "triangles": 2676,
+      "nodes": 16,
+      "movingParts": [
+        "BallWasher_CrankPivot"
+      ],
+      "collisionNodes": [
+        "COL_BallWasher"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "ball_washer_municipal",
+      "familyId": "ball_washer",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/ball_washer.blend",
+      "glb": "vendor/models/pro_shop_equipment/ball_washer_municipal.glb",
+      "targetDimensionsM": [
+        0.34,
+        0.28,
+        1.16
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1428,
+          -0.154,
+          0.0
+        ],
+        "max": [
+          0.192,
+          0.1148,
+          0.9815
+        ],
+        "size": [
+          0.3348,
+          0.2688,
+          0.9815
+        ]
+      },
+      "triangles": 1272,
+      "nodes": 10,
+      "movingParts": [
+        "BallWasher_CrankPivot"
+      ],
+      "collisionNodes": [
+        "COL_BallWasher"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "ball_washer_premium",
+      "familyId": "ball_washer",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/ball_washer.blend",
+      "glb": "vendor/models/pro_shop_equipment/ball_washer_premium.glb",
+      "targetDimensionsM": [
+        0.4,
+        0.32,
+        1.24
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.168,
+          -0.176,
+          0.0
+        ],
+        "max": [
+          0.222,
+          0.1312,
+          1.0512
+        ],
+        "size": [
+          0.39,
+          0.3072,
+          1.0512
+        ]
+      },
+      "triangles": 2236,
+      "nodes": 14,
+      "movingParts": [
+        "BallWasher_CrankPivot"
+      ],
+      "collisionNodes": [
+        "COL_BallWasher"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "ball_washer_public",
+      "familyId": "ball_washer",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/ball_washer.blend",
+      "glb": "vendor/models/pro_shop_equipment/ball_washer_public.glb",
+      "targetDimensionsM": [
+        0.36,
+        0.3,
+        1.2
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1512,
+          -0.165,
+          0.0
+        ],
+        "max": [
+          0.202,
+          0.123,
+          1.0158
+        ],
+        "size": [
+          0.3532,
+          0.288,
+          1.0158
+        ]
+      },
+      "triangles": 1672,
+      "nodes": 11,
+      "movingParts": [
+        "BallWasher_CrankPivot"
+      ],
+      "collisionNodes": [
+        "COL_BallWasher"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bench_country_club",
+      "familyId": "bench",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/bench.blend",
+      "glb": "vendor/models/pro_shop_equipment/bench_country_club.glb",
+      "targetDimensionsM": [
+        2.0,
+        0.68,
+        0.98
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.05,
+          -0.2652,
+          0.0
+        ],
+        "max": [
+          1.05,
+          0.2655,
+          1.1123
+        ],
+        "size": [
+          2.1,
+          0.5307,
+          1.1123
+        ]
+      },
+      "triangles": 3040,
+      "nodes": 30,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BenchBack",
+        "COL_BenchSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bench_high_end",
+      "familyId": "bench",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/bench.blend",
+      "glb": "vendor/models/pro_shop_equipment/bench_high_end.glb",
+      "targetDimensionsM": [
+        1.86,
+        0.64,
+        0.94
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.9765,
+          -0.2496,
+          0.0
+        ],
+        "max": [
+          0.9765,
+          0.2501,
+          0.9823
+        ],
+        "size": [
+          1.953,
+          0.4997,
+          0.9823
+        ]
+      },
+      "triangles": 2376,
+      "nodes": 26,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BenchBack",
+        "COL_BenchSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bench_municipal",
+      "familyId": "bench",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/bench.blend",
+      "glb": "vendor/models/pro_shop_equipment/bench_municipal.glb",
+      "targetDimensionsM": [
+        1.55,
+        0.52,
+        0.82
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.775,
+          -0.2028,
+          0.0
+        ],
+        "max": [
+          0.775,
+          0.2028,
+          0.39975
+        ],
+        "size": [
+          1.55,
+          0.4056,
+          0.39975
+        ]
+      },
+      "triangles": 864,
+      "nodes": 12,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BenchBack",
+        "COL_BenchSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bench_premium",
+      "familyId": "bench",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/bench.blend",
+      "glb": "vendor/models/pro_shop_equipment/bench_premium.glb",
+      "targetDimensionsM": [
+        1.75,
+        0.6,
+        0.9
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.91875,
+          -0.234,
+          0.0
+        ],
+        "max": [
+          0.91875,
+          0.2365,
+          0.8595
+        ],
+        "size": [
+          1.8375,
+          0.4705,
+          0.8595
+        ]
+      },
+      "triangles": 2052,
+      "nodes": 23,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BenchBack",
+        "COL_BenchSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "bench_public",
+      "familyId": "bench",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/bench.blend",
+      "glb": "vendor/models/pro_shop_equipment/bench_public.glb",
+      "targetDimensionsM": [
+        1.65,
+        0.56,
+        0.86
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.825,
+          -0.2184,
+          0.0
+        ],
+        "max": [
+          0.825,
+          0.2229,
+          0.817
+        ],
+        "size": [
+          1.65,
+          0.4413,
+          0.817
+        ]
+      },
+      "triangles": 1620,
+      "nodes": 19,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_BenchBack",
+        "COL_BenchSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "card_reader_country_club",
+      "familyId": "card_reader",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/card_reader.blend",
+      "glb": "vendor/models/pro_shop_equipment/card_reader_country_club.glb",
+      "targetDimensionsM": [
+        0.112,
+        0.18,
+        0.22
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.05712,
+          -0.06127,
+          0.0
+        ],
+        "max": [
+          0.05712,
+          0.0756,
+          0.22426
+        ],
+        "size": [
+          0.11424,
+          0.13687,
+          0.22426
+        ]
+      },
+      "triangles": 2988,
+      "nodes": 33,
+      "movingParts": [
+        "Reader_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_CardReader"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "card_reader_high_end",
+      "familyId": "card_reader",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/card_reader.blend",
+      "glb": "vendor/models/pro_shop_equipment/card_reader_high_end.glb",
+      "targetDimensionsM": [
+        0.104,
+        0.17,
+        0.2
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.052,
+          -0.05719,
+          0.0
+        ],
+        "max": [
+          0.052,
+          0.0714,
+          0.20395
+        ],
+        "size": [
+          0.104,
+          0.12859,
+          0.20395
+        ]
+      },
+      "triangles": 2772,
+      "nodes": 31,
+      "movingParts": [
+        "Reader_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_CardReader"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "card_reader_municipal",
+      "familyId": "card_reader",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/card_reader.blend",
+      "glb": "vendor/models/pro_shop_equipment/card_reader_municipal.glb",
+      "targetDimensionsM": [
+        0.084,
+        0.14,
+        0.17
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.042,
+          -0.0478,
+          0.0
+        ],
+        "max": [
+          0.042,
+          0.0588,
+          0.17274
+        ],
+        "size": [
+          0.084,
+          0.1066,
+          0.17274
+        ]
+      },
+      "triangles": 2160,
+      "nodes": 26,
+      "movingParts": [
+        "Reader_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_CardReader"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "card_reader_premium",
+      "familyId": "card_reader",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/card_reader.blend",
+      "glb": "vendor/models/pro_shop_equipment/card_reader_premium.glb",
+      "targetDimensionsM": [
+        0.096,
+        0.16,
+        0.19
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.048,
+          -0.05406,
+          0.0
+        ],
+        "max": [
+          0.048,
+          0.0672,
+          0.19355
+        ],
+        "size": [
+          0.096,
+          0.12126,
+          0.19355
+        ]
+      },
+      "triangles": 2736,
+      "nodes": 30,
+      "movingParts": [
+        "Reader_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_CardReader"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "card_reader_public",
+      "familyId": "card_reader",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/card_reader.blend",
+      "glb": "vendor/models/pro_shop_equipment/card_reader_public.glb",
+      "targetDimensionsM": [
+        0.09,
+        0.15,
+        0.18
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.045,
+          -0.05093,
+          0.0
+        ],
+        "max": [
+          0.045,
+          0.063,
+          0.18315
+        ],
+        "size": [
+          0.09,
+          0.11393,
+          0.18315
+        ]
+      },
+      "triangles": 2160,
+      "nodes": 26,
+      "movingParts": [
+        "Reader_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_CardReader"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "cash_drawer_country_club",
+      "familyId": "cash_drawer",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/cash_drawer.blend",
+      "glb": "vendor/models/pro_shop_equipment/cash_drawer_country_club.glb",
+      "targetDimensionsM": [
+        0.48,
+        0.46,
+        0.14
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.24,
+          -0.255,
+          0.0
+        ],
+        "max": [
+          0.24,
+          0.23,
+          0.14
+        ],
+        "size": [
+          0.48,
+          0.485,
+          0.14
+        ]
+      },
+      "triangles": 2484,
+      "nodes": 42,
+      "movingParts": [
+        "BillClipPivot_1",
+        "BillClipPivot_10",
+        "BillClipPivot_20",
+        "BillClipPivot_5",
+        "BillClipPivot_50",
+        "DrawerSlide"
+      ],
+      "collisionNodes": [
+        "COL_CashDrawerHousing"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "cash_drawer_high_end",
+      "familyId": "cash_drawer",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/cash_drawer.blend",
+      "glb": "vendor/models/pro_shop_equipment/cash_drawer_high_end.glb",
+      "targetDimensionsM": [
+        0.45,
+        0.44,
+        0.13
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.225,
+          -0.2445,
+          0.0
+        ],
+        "max": [
+          0.225,
+          0.22,
+          0.13
+        ],
+        "size": [
+          0.45,
+          0.4645,
+          0.13
+        ]
+      },
+      "triangles": 2376,
+      "nodes": 41,
+      "movingParts": [
+        "BillClipPivot_1",
+        "BillClipPivot_10",
+        "BillClipPivot_20",
+        "BillClipPivot_5",
+        "BillClipPivot_50",
+        "DrawerSlide"
+      ],
+      "collisionNodes": [
+        "COL_CashDrawerHousing"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "cash_drawer_municipal",
+      "familyId": "cash_drawer",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/cash_drawer.blend",
+      "glb": "vendor/models/pro_shop_equipment/cash_drawer_municipal.glb",
+      "targetDimensionsM": [
+        0.36,
+        0.38,
+        0.1
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.18,
+          -0.214,
+          0.0
+        ],
+        "max": [
+          0.18,
+          0.19,
+          0.1
+        ],
+        "size": [
+          0.36,
+          0.404,
+          0.1
+        ]
+      },
+      "triangles": 1728,
+      "nodes": 30,
+      "movingParts": [
+        "DrawerSlide"
+      ],
+      "collisionNodes": [
+        "COL_CashDrawerHousing"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "cash_drawer_premium",
+      "familyId": "cash_drawer",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/cash_drawer.blend",
+      "glb": "vendor/models/pro_shop_equipment/cash_drawer_premium.glb",
+      "targetDimensionsM": [
+        0.42,
+        0.42,
+        0.12
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.21,
+          -0.234,
+          0.0
+        ],
+        "max": [
+          0.21,
+          0.21,
+          0.12
+        ],
+        "size": [
+          0.42,
+          0.444,
+          0.12
+        ]
+      },
+      "triangles": 2268,
+      "nodes": 40,
+      "movingParts": [
+        "BillClipPivot_1",
+        "BillClipPivot_10",
+        "BillClipPivot_20",
+        "BillClipPivot_5",
+        "BillClipPivot_50",
+        "DrawerSlide"
+      ],
+      "collisionNodes": [
+        "COL_CashDrawerHousing"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "cash_drawer_public",
+      "familyId": "cash_drawer",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/cash_drawer.blend",
+      "glb": "vendor/models/pro_shop_equipment/cash_drawer_public.glb",
+      "targetDimensionsM": [
+        0.39,
+        0.4,
+        0.11
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.195,
+          -0.224,
+          0.0
+        ],
+        "max": [
+          0.195,
+          0.2,
+          0.11
+        ],
+        "size": [
+          0.39,
+          0.424,
+          0.11
+        ]
+      },
+      "triangles": 1728,
+      "nodes": 30,
+      "movingParts": [
+        "DrawerSlide"
+      ],
+      "collisionNodes": [
+        "COL_CashDrawerHousing"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "club_cleaner_country_club",
+      "familyId": "club_cleaner",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/club_cleaner.blend",
+      "glb": "vendor/models/pro_shop_equipment/club_cleaner_country_club.glb",
+      "targetDimensionsM": [
+        0.56,
+        0.46,
+        1.14
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.28,
+          -0.2484,
+          0.0
+        ],
+        "max": [
+          0.28,
+          0.23,
+          0.9747
+        ],
+        "size": [
+          0.56,
+          0.4784,
+          0.9747
+        ]
+      },
+      "triangles": 2148,
+      "nodes": 17,
+      "movingParts": [
+        "ClubCleaner_BrushPivot_1",
+        "ClubCleaner_BrushPivot_2",
+        "ClubCleaner_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_ClubCleaner"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "club_cleaner_high_end",
+      "familyId": "club_cleaner",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/club_cleaner.blend",
+      "glb": "vendor/models/pro_shop_equipment/club_cleaner_high_end.glb",
+      "targetDimensionsM": [
+        0.52,
+        0.43,
+        1.1
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.26,
+          -0.2322,
+          0.0
+        ],
+        "max": [
+          0.26,
+          0.215,
+          0.9405
+        ],
+        "size": [
+          0.52,
+          0.4472,
+          0.9405
+        ]
+      },
+      "triangles": 1824,
+      "nodes": 14,
+      "movingParts": [
+        "ClubCleaner_BrushPivot_1",
+        "ClubCleaner_BrushPivot_2",
+        "ClubCleaner_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_ClubCleaner"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "club_cleaner_municipal",
+      "familyId": "club_cleaner",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/club_cleaner.blend",
+      "glb": "vendor/models/pro_shop_equipment/club_cleaner_municipal.glb",
+      "targetDimensionsM": [
+        0.42,
+        0.36,
+        0.98
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.21,
+          -0.1944,
+          0.0
+        ],
+        "max": [
+          0.21,
+          0.18,
+          0.5684
+        ],
+        "size": [
+          0.42,
+          0.3744,
+          0.5684
+        ]
+      },
+      "triangles": 1008,
+      "nodes": 8,
+      "movingParts": [
+        "ClubCleaner_BrushPivot_1"
+      ],
+      "collisionNodes": [
+        "COL_ClubCleaner"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "club_cleaner_premium",
+      "familyId": "club_cleaner",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/club_cleaner.blend",
+      "glb": "vendor/models/pro_shop_equipment/club_cleaner_premium.glb",
+      "targetDimensionsM": [
+        0.48,
+        0.4,
+        1.06
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.24,
+          -0.216,
+          0.0
+        ],
+        "max": [
+          0.24,
+          0.2,
+          0.6943
+        ],
+        "size": [
+          0.48,
+          0.416,
+          0.6943
+        ]
+      },
+      "triangles": 1576,
+      "nodes": 12,
+      "movingParts": [
+        "ClubCleaner_BrushPivot_1",
+        "ClubCleaner_BrushPivot_2",
+        "ClubCleaner_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_ClubCleaner"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "club_cleaner_public",
+      "familyId": "club_cleaner",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/club_cleaner.blend",
+      "glb": "vendor/models/pro_shop_equipment/club_cleaner_public.glb",
+      "targetDimensionsM": [
+        0.45,
+        0.38,
+        1.02
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.225,
+          -0.2052,
+          0.0
+        ],
+        "max": [
+          0.225,
+          0.19,
+          0.6681
+        ],
+        "size": [
+          0.45,
+          0.3952,
+          0.6681
+        ]
+      },
+      "triangles": 1340,
+      "nodes": 10,
+      "movingParts": [
+        "ClubCleaner_BrushPivot_1",
+        "ClubCleaner_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_ClubCleaner"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "computer_country_club",
+      "familyId": "computer",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/computer.blend",
+      "glb": "vendor/models/pro_shop_equipment/computer_country_club.glb",
+      "targetDimensionsM": [
+        0.74,
+        0.34,
+        0.6
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.3404,
+          -0.1428,
+          0.0003
+        ],
+        "max": [
+          0.3404,
+          0.1462,
+          0.582
+        ],
+        "size": [
+          0.6808,
+          0.289,
+          0.5817
+        ]
+      },
+      "triangles": 1196,
+      "nodes": 15,
+      "movingParts": [
+        "Computer_Monitor_1_TiltPivot",
+        "Computer_Monitor_2_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_Computer"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "computer_high_end",
+      "familyId": "computer",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/computer.blend",
+      "glb": "vendor/models/pro_shop_equipment/computer_high_end.glb",
+      "targetDimensionsM": [
+        0.68,
+        0.32,
+        0.58
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.3128,
+          -0.1344,
+          0.00029
+        ],
+        "max": [
+          0.3128,
+          0.1376,
+          0.5626
+        ],
+        "size": [
+          0.6256,
+          0.272,
+          0.56231
+        ]
+      },
+      "triangles": 1088,
+      "nodes": 14,
+      "movingParts": [
+        "Computer_Monitor_1_TiltPivot",
+        "Computer_Monitor_2_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_Computer"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "computer_municipal",
+      "familyId": "computer",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/computer.blend",
+      "glb": "vendor/models/pro_shop_equipment/computer_municipal.glb",
+      "targetDimensionsM": [
+        0.5,
+        0.3,
+        0.52
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.21,
+          -0.126,
+          0.0
+        ],
+        "max": [
+          0.24,
+          0.129,
+          0.5044
+        ],
+        "size": [
+          0.45,
+          0.255,
+          0.5044
+        ]
+      },
+      "triangles": 1236,
+      "nodes": 11,
+      "movingParts": [
+        "Computer_Monitor_1_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_Computer"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "computer_premium",
+      "familyId": "computer",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/computer.blend",
+      "glb": "vendor/models/pro_shop_equipment/computer_premium.glb",
+      "targetDimensionsM": [
+        0.62,
+        0.31,
+        0.56
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2604,
+          -0.1302,
+          0.00028
+        ],
+        "max": [
+          0.2604,
+          0.1333,
+          0.5432
+        ],
+        "size": [
+          0.5208,
+          0.2635,
+          0.54292
+        ]
+      },
+      "triangles": 764,
+      "nodes": 9,
+      "movingParts": [
+        "Computer_Monitor_1_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_Computer"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "computer_public",
+      "familyId": "computer",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/computer.blend",
+      "glb": "vendor/models/pro_shop_equipment/computer_public.glb",
+      "targetDimensionsM": [
+        0.56,
+        0.3,
+        0.54
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2352,
+          -0.126,
+          0.0
+        ],
+        "max": [
+          0.2688,
+          0.129,
+          0.5238
+        ],
+        "size": [
+          0.504,
+          0.255,
+          0.5238
+        ]
+      },
+      "triangles": 1236,
+      "nodes": 11,
+      "movingParts": [
+        "Computer_Monitor_1_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_Computer"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "display_tv_country_club",
+      "familyId": "display_tv",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/display_tv.blend",
+      "glb": "vendor/models/pro_shop_equipment/display_tv_country_club.glb",
+      "targetDimensionsM": [
+        1.88,
+        0.08,
+        1.08
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.94,
+          -0.0418,
+          0.0
+        ],
+        "max": [
+          0.94,
+          0.0368,
+          1.08
+        ],
+        "size": [
+          1.88,
+          0.0786,
+          1.08
+        ]
+      },
+      "triangles": 872,
+      "nodes": 11,
+      "movingParts": [
+        "DisplayTV_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_DisplayTV"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "display_tv_high_end",
+      "familyId": "display_tv",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/display_tv.blend",
+      "glb": "vendor/models/pro_shop_equipment/display_tv_high_end.glb",
+      "targetDimensionsM": [
+        1.58,
+        0.08,
+        0.92
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.79,
+          -0.0418,
+          0.0
+        ],
+        "max": [
+          0.79,
+          0.0368,
+          0.92
+        ],
+        "size": [
+          1.58,
+          0.0786,
+          0.92
+        ]
+      },
+      "triangles": 656,
+      "nodes": 9,
+      "movingParts": [
+        "DisplayTV_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_DisplayTV"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "display_tv_municipal",
+      "familyId": "display_tv",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/display_tv.blend",
+      "glb": "vendor/models/pro_shop_equipment/display_tv_municipal.glb",
+      "targetDimensionsM": [
+        0.82,
+        0.1,
+        0.52
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.41,
+          -0.049,
+          0.0
+        ],
+        "max": [
+          0.41,
+          0.036,
+          0.52
+        ],
+        "size": [
+          0.82,
+          0.085,
+          0.52
+        ]
+      },
+      "triangles": 980,
+      "nodes": 12,
+      "movingParts": [
+        "DisplayTV_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_DisplayTV"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "display_tv_premium",
+      "familyId": "display_tv",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/display_tv.blend",
+      "glb": "vendor/models/pro_shop_equipment/display_tv_premium.glb",
+      "targetDimensionsM": [
+        1.28,
+        0.09,
+        0.76
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.64,
+          -0.0454,
+          0.0
+        ],
+        "max": [
+          0.64,
+          0.0324,
+          0.76
+        ],
+        "size": [
+          1.28,
+          0.0778,
+          0.76
+        ]
+      },
+      "triangles": 548,
+      "nodes": 8,
+      "movingParts": [
+        "DisplayTV_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_DisplayTV"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "display_tv_public",
+      "familyId": "display_tv",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/display_tv.blend",
+      "glb": "vendor/models/pro_shop_equipment/display_tv_public.glb",
+      "targetDimensionsM": [
+        1.05,
+        0.1,
+        0.64
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.525,
+          -0.049,
+          0.0
+        ],
+        "max": [
+          0.525,
+          0.036,
+          0.64
+        ],
+        "size": [
+          1.05,
+          0.085,
+          0.64
+        ]
+      },
+      "triangles": 548,
+      "nodes": 8,
+      "movingParts": [
+        "DisplayTV_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_DisplayTV"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_cart_country_club",
+      "familyId": "golf_cart",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_cart_country_club.glb",
+      "targetDimensionsM": [
+        3.35,
+        1.32,
+        1.95
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.78387,
+          -0.6254,
+          0.0
+        ],
+        "max": [
+          1.42175,
+          0.6254,
+          1.95487
+        ],
+        "size": [
+          3.20563,
+          1.2508,
+          1.95487
+        ]
+      },
+      "triangles": 5440,
+      "nodes": 35,
+      "movingParts": [
+        "CartWheel_Front_L_Pivot",
+        "CartWheel_Front_R_Pivot",
+        "CartWheel_Rear_L_Pivot",
+        "CartWheel_Rear_R_Pivot",
+        "GolfCart_StorageDoorPivot"
+      ],
+      "collisionNodes": [
+        "COL_GolfCartBody",
+        "COL_GolfCartCabin"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_cart_high_end",
+      "familyId": "golf_cart",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_cart_high_end.glb",
+      "targetDimensionsM": [
+        2.76,
+        1.28,
+        1.92
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.3041,
+          -0.6066,
+          0.0
+        ],
+        "max": [
+          1.2168,
+          0.6066,
+          1.9248
+        ],
+        "size": [
+          2.5209,
+          1.2132,
+          1.9248
+        ]
+      },
+      "triangles": 4668,
+      "nodes": 31,
+      "movingParts": [
+        "CartWheel_Front_L_Pivot",
+        "CartWheel_Front_R_Pivot",
+        "CartWheel_Rear_L_Pivot",
+        "CartWheel_Rear_R_Pivot",
+        "GolfCart_StorageDoorPivot"
+      ],
+      "collisionNodes": [
+        "COL_GolfCartBody",
+        "COL_GolfCartCabin"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_cart_municipal",
+      "familyId": "golf_cart",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_cart_municipal.glb",
+      "targetDimensionsM": [
+        2.4,
+        1.2,
+        1.78
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.0741,
+          -0.569,
+          0.0
+        ],
+        "max": [
+          1.0741,
+          0.569,
+          1.6999
+        ],
+        "size": [
+          2.1482,
+          1.138,
+          1.6999
+        ]
+      },
+      "triangles": 3348,
+      "nodes": 24,
+      "movingParts": [
+        "CartWheel_Front_L_Pivot",
+        "CartWheel_Front_R_Pivot",
+        "CartWheel_Rear_L_Pivot",
+        "CartWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_GolfCartBody",
+        "COL_GolfCartCabin"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_cart_premium",
+      "familyId": "golf_cart",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_cart_premium.glb",
+      "targetDimensionsM": [
+        2.72,
+        1.25,
+        1.88
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.2852,
+          -0.5925,
+          0.0
+        ],
+        "max": [
+          1.1974,
+          0.5925,
+          1.8847
+        ],
+        "size": [
+          2.4826,
+          1.185,
+          1.8847
+        ]
+      },
+      "triangles": 4560,
+      "nodes": 29,
+      "movingParts": [
+        "CartWheel_Front_L_Pivot",
+        "CartWheel_Front_R_Pivot",
+        "CartWheel_Rear_L_Pivot",
+        "CartWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_GolfCartBody",
+        "COL_GolfCartCabin"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_cart_public",
+      "familyId": "golf_cart",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_cart_public.glb",
+      "targetDimensionsM": [
+        2.45,
+        1.22,
+        1.82
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.0969,
+          -0.5784,
+          0.0
+        ],
+        "max": [
+          1.0969,
+          0.5784,
+          1.82455
+        ],
+        "size": [
+          2.1938,
+          1.1568,
+          1.82455
+        ]
+      },
+      "triangles": 3788,
+      "nodes": 26,
+      "movingParts": [
+        "CartWheel_Front_L_Pivot",
+        "CartWheel_Front_R_Pivot",
+        "CartWheel_Rear_L_Pivot",
+        "CartWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_GolfCartBody",
+        "COL_GolfCartCabin"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_club_storage_country_club",
+      "familyId": "golf_club_storage",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_club_storage_country_club.glb",
+      "targetDimensionsM": [
+        2.1,
+        0.66,
+        2.18
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.05,
+          -0.33,
+          0.0
+        ],
+        "max": [
+          1.05,
+          0.33,
+          2.18
+        ],
+        "size": [
+          2.1,
+          0.66,
+          2.18
+        ]
+      },
+      "triangles": 4640,
+      "nodes": 56,
+      "movingParts": [
+        "ClubStorage_DoorPivot_L",
+        "ClubStorage_DoorPivot_R"
+      ],
+      "collisionNodes": [
+        "COL_golf_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_club_storage_high_end",
+      "familyId": "golf_club_storage",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_club_storage_high_end.glb",
+      "targetDimensionsM": [
+        1.88,
+        0.6,
+        2.1
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.94,
+          -0.3,
+          0.0
+        ],
+        "max": [
+          0.94,
+          0.3,
+          2.1
+        ],
+        "size": [
+          1.88,
+          0.6,
+          2.1
+        ]
+      },
+      "triangles": 3760,
+      "nodes": 46,
+      "movingParts": [
+        "ClubStorage_DoorPivot_L",
+        "ClubStorage_DoorPivot_R"
+      ],
+      "collisionNodes": [
+        "COL_golf_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_club_storage_municipal",
+      "familyId": "golf_club_storage",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_club_storage_municipal.glb",
+      "targetDimensionsM": [
+        1.35,
+        0.48,
+        1.85
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.675,
+          -0.24,
+          0.0
+        ],
+        "max": [
+          0.675,
+          0.24,
+          1.85
+        ],
+        "size": [
+          1.35,
+          0.48,
+          1.85
+        ]
+      },
+      "triangles": 1876,
+      "nodes": 21,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_golf_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_club_storage_premium",
+      "familyId": "golf_club_storage",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_club_storage_premium.glb",
+      "targetDimensionsM": [
+        1.68,
+        0.56,
+        2.02
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.84,
+          -0.28,
+          0.0
+        ],
+        "max": [
+          0.84,
+          0.28,
+          2.02
+        ],
+        "size": [
+          1.68,
+          0.56,
+          2.02
+        ]
+      },
+      "triangles": 2880,
+      "nodes": 34,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_golf_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "golf_club_storage_public",
+      "familyId": "golf_club_storage",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/golf_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/golf_club_storage_public.glb",
+      "targetDimensionsM": [
+        1.5,
+        0.52,
+        1.94
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.75,
+          -0.26,
+          0.0
+        ],
+        "max": [
+          0.75,
+          0.26,
+          1.94
+        ],
+        "size": [
+          1.5,
+          0.52,
+          1.94
+        ]
+      },
+      "triangles": 2324,
+      "nodes": 27,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_golf_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "laptop_country_club",
+      "familyId": "laptop",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/laptop.blend",
+      "glb": "vendor/models/pro_shop_equipment/laptop_country_club.glb",
+      "targetDimensionsM": [
+        0.4,
+        0.27,
+        0.26
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2,
+          -0.135,
+          0.0
+        ],
+        "max": [
+          0.2,
+          0.135,
+          0.25106
+        ],
+        "size": [
+          0.4,
+          0.27,
+          0.25106
+        ]
+      },
+      "triangles": 1204,
+      "nodes": 11,
+      "movingParts": [
+        "Laptop_ScreenHinge"
+      ],
+      "collisionNodes": [
+        "COL_Laptop"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "laptop_high_end",
+      "familyId": "laptop",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/laptop.blend",
+      "glb": "vendor/models/pro_shop_equipment/laptop_high_end.glb",
+      "targetDimensionsM": [
+        0.38,
+        0.26,
+        0.25
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1824,
+          -0.13,
+          0.0125
+        ],
+        "max": [
+          0.1824,
+          0.13,
+          0.2239
+        ],
+        "size": [
+          0.3648,
+          0.26,
+          0.2114
+        ]
+      },
+      "triangles": 764,
+      "nodes": 9,
+      "movingParts": [
+        "Laptop_ScreenHinge"
+      ],
+      "collisionNodes": [
+        "COL_Laptop"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "laptop_municipal",
+      "familyId": "laptop",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/laptop.blend",
+      "glb": "vendor/models/pro_shop_equipment/laptop_municipal.glb",
+      "targetDimensionsM": [
+        0.32,
+        0.23,
+        0.22
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1536,
+          -0.115,
+          0.011
+        ],
+        "max": [
+          0.1536,
+          0.115,
+          0.19703
+        ],
+        "size": [
+          0.3072,
+          0.23,
+          0.18603
+        ]
+      },
+      "triangles": 764,
+      "nodes": 9,
+      "movingParts": [
+        "Laptop_ScreenHinge"
+      ],
+      "collisionNodes": [
+        "COL_Laptop"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "laptop_premium",
+      "familyId": "laptop",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/laptop.blend",
+      "glb": "vendor/models/pro_shop_equipment/laptop_premium.glb",
+      "targetDimensionsM": [
+        0.36,
+        0.25,
+        0.24
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1728,
+          -0.125,
+          0.012
+        ],
+        "max": [
+          0.1728,
+          0.125,
+          0.21494
+        ],
+        "size": [
+          0.3456,
+          0.25,
+          0.20294
+        ]
+      },
+      "triangles": 764,
+      "nodes": 9,
+      "movingParts": [
+        "Laptop_ScreenHinge"
+      ],
+      "collisionNodes": [
+        "COL_Laptop"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "laptop_public",
+      "familyId": "laptop",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/laptop.blend",
+      "glb": "vendor/models/pro_shop_equipment/laptop_public.glb",
+      "targetDimensionsM": [
+        0.34,
+        0.24,
+        0.23
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1632,
+          -0.12,
+          0.0115
+        ],
+        "max": [
+          0.1632,
+          0.12,
+          0.20599
+        ],
+        "size": [
+          0.3264,
+          0.24,
+          0.19449
+        ]
+      },
+      "triangles": 764,
+      "nodes": 9,
+      "movingParts": [
+        "Laptop_ScreenHinge"
+      ],
+      "collisionNodes": [
+        "COL_Laptop"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "maintenance_cart_country_club",
+      "familyId": "maintenance_cart",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/maintenance_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/maintenance_cart_country_club.glb",
+      "targetDimensionsM": [
+        3.0,
+        1.44,
+        1.98
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.485,
+          -0.6818,
+          0.0
+        ],
+        "max": [
+          1.3272,
+          0.6818,
+          1.98495
+        ],
+        "size": [
+          2.8122,
+          1.3636,
+          1.98495
+        ]
+      },
+      "triangles": 6260,
+      "nodes": 48,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceCart_DoorPivot_L",
+        "ServiceCart_DoorPivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_maintenance_cart_Body",
+        "COL_maintenance_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "maintenance_cart_high_end",
+      "familyId": "maintenance_cart",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/maintenance_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/maintenance_cart_high_end.glb",
+      "targetDimensionsM": [
+        2.9,
+        1.4,
+        1.94
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.4355,
+          -0.663,
+          0.0
+        ],
+        "max": [
+          1.2866,
+          0.663,
+          1.94485
+        ],
+        "size": [
+          2.7221,
+          1.326,
+          1.94485
+        ]
+      },
+      "triangles": 5884,
+      "nodes": 45,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceCart_DoorPivot_L",
+        "ServiceCart_DoorPivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_maintenance_cart_Body",
+        "COL_maintenance_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "maintenance_cart_municipal",
+      "familyId": "maintenance_cart",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/maintenance_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/maintenance_cart_municipal.glb",
+      "targetDimensionsM": [
+        2.62,
+        1.3,
+        1.82
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.2707,
+          -0.616,
+          0.0
+        ],
+        "max": [
+          1.1718,
+          0.616,
+          1.7472
+        ],
+        "size": [
+          2.4425,
+          1.232,
+          1.7472
+        ]
+      },
+      "triangles": 3856,
+      "nodes": 30,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_maintenance_cart_Body",
+        "COL_maintenance_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "maintenance_cart_premium",
+      "familyId": "maintenance_cart",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/maintenance_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/maintenance_cart_premium.glb",
+      "targetDimensionsM": [
+        2.8,
+        1.38,
+        1.9
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.386,
+          -0.6536,
+          0.0
+        ],
+        "max": [
+          1.246,
+          0.6536,
+          1.90475
+        ],
+        "size": [
+          2.632,
+          1.3072,
+          1.90475
+        ]
+      },
+      "triangles": 5528,
+      "nodes": 40,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_maintenance_cart_Body",
+        "COL_maintenance_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "maintenance_cart_public",
+      "familyId": "maintenance_cart",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/maintenance_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/maintenance_cart_public.glb",
+      "targetDimensionsM": [
+        2.7,
+        1.34,
+        1.86
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.3365,
+          -0.6348,
+          0.0
+        ],
+        "max": [
+          1.2054,
+          0.6348,
+          1.86465
+        ],
+        "size": [
+          2.5419,
+          1.2696,
+          1.86465
+        ]
+      },
+      "triangles": 4760,
+      "nodes": 36,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_maintenance_cart_Body",
+        "COL_maintenance_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "office_chair_country_club",
+      "familyId": "office_chair",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/office_chair.blend",
+      "glb": "vendor/models/pro_shop_equipment/office_chair_country_club.glb",
+      "targetDimensionsM": [
+        0.68,
+        0.68,
+        1.2
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2924,
+          -0.2652,
+          0.0276
+        ],
+        "max": [
+          0.2924,
+          0.2632,
+          1.194
+        ],
+        "size": [
+          0.5848,
+          0.5284,
+          1.1664
+        ]
+      },
+      "triangles": 4144,
+      "nodes": 29,
+      "movingParts": [
+        "OfficeChair_SwivelPivot"
+      ],
+      "collisionNodes": [
+        "COL_OfficeChairBack",
+        "COL_OfficeChairSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "office_chair_high_end",
+      "familyId": "office_chair",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/office_chair.blend",
+      "glb": "vendor/models/pro_shop_equipment/office_chair_high_end.glb",
+      "targetDimensionsM": [
+        0.64,
+        0.64,
+        1.14
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2752,
+          -0.2496,
+          0.02622
+        ],
+        "max": [
+          0.2752,
+          0.2483,
+          1.1343
+        ],
+        "size": [
+          0.5504,
+          0.4979,
+          1.10808
+        ]
+      },
+      "triangles": 3424,
+      "nodes": 23,
+      "movingParts": [
+        "OfficeChair_SwivelPivot"
+      ],
+      "collisionNodes": [
+        "COL_OfficeChairBack",
+        "COL_OfficeChairSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "office_chair_municipal",
+      "familyId": "office_chair",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/office_chair.blend",
+      "glb": "vendor/models/pro_shop_equipment/office_chair_municipal.glb",
+      "targetDimensionsM": [
+        0.56,
+        0.56,
+        0.96
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2128,
+          -0.2184,
+          0.02208
+        ],
+        "max": [
+          0.23155,
+          0.2152,
+          0.81792
+        ],
+        "size": [
+          0.44435,
+          0.4336,
+          0.79584
+        ]
+      },
+      "triangles": 2212,
+      "nodes": 18,
+      "movingParts": [
+        "OfficeChair_SwivelPivot"
+      ],
+      "collisionNodes": [
+        "COL_OfficeChairBack",
+        "COL_OfficeChairSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "office_chair_premium",
+      "familyId": "office_chair",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/office_chair.blend",
+      "glb": "vendor/models/pro_shop_equipment/office_chair_premium.glb",
+      "targetDimensionsM": [
+        0.61,
+        0.61,
+        1.08
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2623,
+          -0.2379,
+          0.02484
+        ],
+        "max": [
+          0.2623,
+          0.2363,
+          0.99047
+        ],
+        "size": [
+          0.5246,
+          0.4742,
+          0.96563
+        ]
+      },
+      "triangles": 3092,
+      "nodes": 22,
+      "movingParts": [
+        "OfficeChair_SwivelPivot"
+      ],
+      "collisionNodes": [
+        "COL_OfficeChairBack",
+        "COL_OfficeChairSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "office_chair_public",
+      "familyId": "office_chair",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/office_chair.blend",
+      "glb": "vendor/models/pro_shop_equipment/office_chair_public.glb",
+      "targetDimensionsM": [
+        0.58,
+        0.58,
+        1.02
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2494,
+          -0.2262,
+          0.02346
+        ],
+        "max": [
+          0.2494,
+          0.2243,
+          0.90224
+        ],
+        "size": [
+          0.4988,
+          0.4505,
+          0.87878
+        ]
+      },
+      "triangles": 3092,
+      "nodes": 22,
+      "movingParts": [
+        "OfficeChair_SwivelPivot"
+      ],
+      "collisionNodes": [
+        "COL_OfficeChairBack",
+        "COL_OfficeChairSeat"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "pos_terminal_country_club",
+      "familyId": "pos_terminal",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/pos_terminal.blend",
+      "glb": "vendor/models/pro_shop_equipment/pos_terminal_country_club.glb",
+      "targetDimensionsM": [
+        0.45,
+        0.28,
+        0.42
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2115,
+          -0.0778,
+          0.0
+        ],
+        "max": [
+          0.2115,
+          0.1278,
+          0.46392
+        ],
+        "size": [
+          0.423,
+          0.2056,
+          0.46392
+        ]
+      },
+      "triangles": 1508,
+      "nodes": 19,
+      "movingParts": [
+        "POS_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_POS_Base",
+        "COL_POS_Display"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "pos_terminal_high_end",
+      "familyId": "pos_terminal",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/pos_terminal.blend",
+      "glb": "vendor/models/pro_shop_equipment/pos_terminal_high_end.glb",
+      "targetDimensionsM": [
+        0.41,
+        0.26,
+        0.39
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1927,
+          -0.0706,
+          0.0
+        ],
+        "max": [
+          0.1927,
+          0.1206,
+          0.42615
+        ],
+        "size": [
+          0.3854,
+          0.1912,
+          0.42615
+        ]
+      },
+      "triangles": 1292,
+      "nodes": 17,
+      "movingParts": [
+        "POS_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_POS_Base",
+        "COL_POS_Display"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "pos_terminal_municipal",
+      "familyId": "pos_terminal",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/pos_terminal.blend",
+      "glb": "vendor/models/pro_shop_equipment/pos_terminal_municipal.glb",
+      "targetDimensionsM": [
+        0.3,
+        0.23,
+        0.31
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.132,
+          -0.0598,
+          0.0
+        ],
+        "max": [
+          0.132,
+          0.1098,
+          0.32757
+        ],
+        "size": [
+          0.264,
+          0.1696,
+          0.32757
+        ]
+      },
+      "triangles": 1512,
+      "nodes": 20,
+      "movingParts": [
+        "POS_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_POS_Base",
+        "COL_POS_Display"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "pos_terminal_premium",
+      "familyId": "pos_terminal",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/pos_terminal.blend",
+      "glb": "vendor/models/pro_shop_equipment/pos_terminal_premium.glb",
+      "targetDimensionsM": [
+        0.38,
+        0.25,
+        0.37
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1786,
+          -0.067,
+          0.0
+        ],
+        "max": [
+          0.1786,
+          0.117,
+          0.39981
+        ],
+        "size": [
+          0.3572,
+          0.184,
+          0.39981
+        ]
+      },
+      "triangles": 1184,
+      "nodes": 16,
+      "movingParts": [
+        "POS_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_POS_Base",
+        "COL_POS_Display"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "pos_terminal_public",
+      "familyId": "pos_terminal",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/pos_terminal.blend",
+      "glb": "vendor/models/pro_shop_equipment/pos_terminal_public.glb",
+      "targetDimensionsM": [
+        0.34,
+        0.24,
+        0.34
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1496,
+          -0.0634,
+          0.0
+        ],
+        "max": [
+          0.1496,
+          0.1134,
+          0.36334
+        ],
+        "size": [
+          0.2992,
+          0.1768,
+          0.36334
+        ]
+      },
+      "triangles": 972,
+      "nodes": 15,
+      "movingParts": [
+        "POS_TiltPivot"
+      ],
+      "collisionNodes": [
+        "COL_POS_Base",
+        "COL_POS_Display"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "practice_basket_country_club",
+      "familyId": "practice_basket",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/practice_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/practice_basket_country_club.glb",
+      "targetDimensionsM": [
+        0.66,
+        0.66,
+        0.88
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2706,
+          -0.2706,
+          0.0
+        ],
+        "max": [
+          0.2706,
+          0.2706,
+          0.8316
+        ],
+        "size": [
+          0.5412,
+          0.5412,
+          0.8316
+        ]
+      },
+      "triangles": 6320,
+      "nodes": 28,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_PracticeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "practice_basket_high_end",
+      "familyId": "practice_basket",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/practice_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/practice_basket_high_end.glb",
+      "targetDimensionsM": [
+        0.6,
+        0.6,
+        0.8
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.246,
+          -0.246,
+          0.0
+        ],
+        "max": [
+          0.246,
+          0.246,
+          0.756
+        ],
+        "size": [
+          0.492,
+          0.492,
+          0.756
+        ]
+      },
+      "triangles": 5432,
+      "nodes": 25,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_PracticeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "practice_basket_municipal",
+      "familyId": "practice_basket",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/practice_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/practice_basket_municipal.glb",
+      "targetDimensionsM": [
+        0.48,
+        0.48,
+        0.62
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1868,
+          -0.1776,
+          0.0
+        ],
+        "max": [
+          0.1868,
+          0.1776,
+          0.5084
+        ],
+        "size": [
+          0.3736,
+          0.3552,
+          0.5084
+        ]
+      },
+      "triangles": 3448,
+      "nodes": 16,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_PracticeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "practice_basket_premium",
+      "familyId": "practice_basket",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/practice_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/practice_basket_premium.glb",
+      "targetDimensionsM": [
+        0.56,
+        0.56,
+        0.74
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2156,
+          -0.2072,
+          0.0
+        ],
+        "max": [
+          0.224,
+          0.2072,
+          0.6993
+        ],
+        "size": [
+          0.4396,
+          0.4144,
+          0.6993
+        ]
+      },
+      "triangles": 4884,
+      "nodes": 22,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_PracticeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "practice_basket_public",
+      "familyId": "practice_basket",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/practice_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/practice_basket_public.glb",
+      "targetDimensionsM": [
+        0.52,
+        0.52,
+        0.68
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2012,
+          -0.1924,
+          0.0
+        ],
+        "max": [
+          0.208,
+          0.1924,
+          0.6426
+        ],
+        "size": [
+          0.4092,
+          0.3848,
+          0.6426
+        ]
+      },
+      "triangles": 3996,
+      "nodes": 19,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_PracticeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "push_cart_country_club",
+      "familyId": "push_cart",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/push_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/push_cart_country_club.glb",
+      "targetDimensionsM": [
+        1.34,
+        0.76,
+        1.14
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.7102,
+          -0.3432,
+          0.0
+        ],
+        "max": [
+          0.59194,
+          0.3432,
+          1.1169
+        ],
+        "size": [
+          1.30214,
+          0.6864,
+          1.1169
+        ]
+      },
+      "triangles": 3432,
+      "nodes": 27,
+      "movingParts": [
+        "PushCart_Front_L_Pivot",
+        "PushCart_Front_Pivot",
+        "PushCart_Front_R_Pivot",
+        "PushCart_Rear_L_Pivot",
+        "PushCart_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_PushCart"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "push_cart_high_end",
+      "familyId": "push_cart",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/push_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/push_cart_high_end.glb",
+      "targetDimensionsM": [
+        1.3,
+        0.74,
+        1.12
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.689,
+          -0.3343,
+          0.0
+        ],
+        "max": [
+          0.57476,
+          0.3343,
+          1.0977
+        ],
+        "size": [
+          1.26376,
+          0.6686,
+          1.0977
+        ]
+      },
+      "triangles": 3324,
+      "nodes": 26,
+      "movingParts": [
+        "PushCart_Front_L_Pivot",
+        "PushCart_Front_Pivot",
+        "PushCart_Front_R_Pivot",
+        "PushCart_Rear_L_Pivot",
+        "PushCart_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_PushCart"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "push_cart_municipal",
+      "familyId": "push_cart",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/push_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/push_cart_municipal.glb",
+      "targetDimensionsM": [
+        1.18,
+        0.66,
+        1.05
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.6254,
+          -0.2987,
+          0.0
+        ],
+        "max": [
+          0.38349,
+          0.2987,
+          1.0305
+        ],
+        "size": [
+          1.00889,
+          0.5974,
+          1.0305
+        ]
+      },
+      "triangles": 1388,
+      "nodes": 14,
+      "movingParts": [
+        "PushCart_Rear_L_Pivot",
+        "PushCart_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_PushCart"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "push_cart_premium",
+      "familyId": "push_cart",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/push_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/push_cart_premium.glb",
+      "targetDimensionsM": [
+        1.28,
+        0.72,
+        1.1
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.6784,
+          -0.3254,
+          0.0
+        ],
+        "max": [
+          0.56437,
+          0.3254,
+          1.0785
+        ],
+        "size": [
+          1.24277,
+          0.6508,
+          1.0785
+        ]
+      },
+      "triangles": 2992,
+      "nodes": 24,
+      "movingParts": [
+        "PushCart_Front_L_Pivot",
+        "PushCart_Front_Pivot",
+        "PushCart_Front_R_Pivot",
+        "PushCart_Rear_L_Pivot",
+        "PushCart_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_PushCart"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "push_cart_public",
+      "familyId": "push_cart",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/push_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/push_cart_public.glb",
+      "targetDimensionsM": [
+        1.22,
+        0.69,
+        1.08
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.6466,
+          -0.31205,
+          0.0
+        ],
+        "max": [
+          0.53859,
+          0.31205,
+          1.0593
+        ],
+        "size": [
+          1.18519,
+          0.6241,
+          1.0593
+        ]
+      },
+      "triangles": 1812,
+      "nodes": 17,
+      "movingParts": [
+        "PushCart_Front_Pivot",
+        "PushCart_Rear_L_Pivot",
+        "PushCart_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_PushCart"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "range_basket_country_club",
+      "familyId": "range_basket",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/range_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/range_basket_country_club.glb",
+      "targetDimensionsM": [
+        0.42,
+        0.42,
+        0.34
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1894,
+          -0.1894,
+          0.0152
+        ],
+        "max": [
+          0.1894,
+          0.1894,
+          0.3112
+        ],
+        "size": [
+          0.3788,
+          0.3788,
+          0.296
+        ]
+      },
+      "triangles": 4780,
+      "nodes": 24,
+      "movingParts": [
+        "RangeBasket_HandlePivot"
+      ],
+      "collisionNodes": [
+        "COL_RangeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "range_basket_high_end",
+      "familyId": "range_basket",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/range_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/range_basket_high_end.glb",
+      "targetDimensionsM": [
+        0.4,
+        0.4,
+        0.32
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.181,
+          -0.181,
+          0.0136
+        ],
+        "max": [
+          0.181,
+          0.181,
+          0.2936
+        ],
+        "size": [
+          0.362,
+          0.362,
+          0.28
+        ]
+      },
+      "triangles": 4340,
+      "nodes": 22,
+      "movingParts": [
+        "RangeBasket_HandlePivot"
+      ],
+      "collisionNodes": [
+        "COL_RangeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "range_basket_municipal",
+      "familyId": "range_basket",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/range_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/range_basket_municipal.glb",
+      "targetDimensionsM": [
+        0.34,
+        0.34,
+        0.26
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1558,
+          -0.1558,
+          0.0088
+        ],
+        "max": [
+          0.1558,
+          0.1558,
+          0.2408
+        ],
+        "size": [
+          0.3116,
+          0.3116,
+          0.232
+        ]
+      },
+      "triangles": 2912,
+      "nodes": 15,
+      "movingParts": [
+        "RangeBasket_HandlePivot"
+      ],
+      "collisionNodes": [
+        "COL_RangeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "range_basket_premium",
+      "familyId": "range_basket",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/range_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/range_basket_premium.glb",
+      "targetDimensionsM": [
+        0.38,
+        0.38,
+        0.3
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.171,
+          -0.171,
+          0.0
+        ],
+        "max": [
+          0.171,
+          0.171,
+          0.276
+        ],
+        "size": [
+          0.342,
+          0.342,
+          0.276
+        ]
+      },
+      "triangles": 716,
+      "nodes": 6,
+      "movingParts": [
+        "RangeBasket_HandlePivot"
+      ],
+      "collisionNodes": [
+        "COL_RangeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "range_basket_public",
+      "familyId": "range_basket",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/range_basket.blend",
+      "glb": "vendor/models/pro_shop_equipment/range_basket_public.glb",
+      "targetDimensionsM": [
+        0.36,
+        0.36,
+        0.28
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1642,
+          -0.1642,
+          0.0104
+        ],
+        "max": [
+          0.1642,
+          0.1642,
+          0.2584
+        ],
+        "size": [
+          0.3284,
+          0.3284,
+          0.248
+        ]
+      },
+      "triangles": 3352,
+      "nodes": 17,
+      "movingParts": [
+        "RangeBasket_HandlePivot"
+      ],
+      "collisionNodes": [
+        "COL_RangeBasket"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "receipt_printer_country_club",
+      "familyId": "receipt_printer",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/receipt_printer.blend",
+      "glb": "vendor/models/pro_shop_equipment/receipt_printer_country_club.glb",
+      "targetDimensionsM": [
+        0.22,
+        0.24,
+        0.17
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.11,
+          -0.135,
+          0.0
+        ],
+        "max": [
+          0.11,
+          0.12,
+          0.1683
+        ],
+        "size": [
+          0.22,
+          0.255,
+          0.1683
+        ]
+      },
+      "triangles": 1296,
+      "nodes": 20,
+      "movingParts": [
+        "Printer_LidPivot",
+        "ReceiptPaperFeed"
+      ],
+      "collisionNodes": [
+        "COL_ReceiptPrinter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "receipt_printer_high_end",
+      "familyId": "receipt_printer",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/receipt_printer.blend",
+      "glb": "vendor/models/pro_shop_equipment/receipt_printer_high_end.glb",
+      "targetDimensionsM": [
+        0.2,
+        0.22,
+        0.15
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1,
+          -0.124,
+          0.0
+        ],
+        "max": [
+          0.1,
+          0.11,
+          0.1485
+        ],
+        "size": [
+          0.2,
+          0.234,
+          0.1485
+        ]
+      },
+      "triangles": 972,
+      "nodes": 17,
+      "movingParts": [
+        "Printer_LidPivot",
+        "ReceiptPaperFeed"
+      ],
+      "collisionNodes": [
+        "COL_ReceiptPrinter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "receipt_printer_municipal",
+      "familyId": "receipt_printer",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/receipt_printer.blend",
+      "glb": "vendor/models/pro_shop_equipment/receipt_printer_municipal.glb",
+      "targetDimensionsM": [
+        0.15,
+        0.18,
+        0.12
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.075,
+          -0.103,
+          0.0
+        ],
+        "max": [
+          0.075,
+          0.09,
+          0.1192
+        ],
+        "size": [
+          0.15,
+          0.193,
+          0.1192
+        ]
+      },
+      "triangles": 576,
+      "nodes": 12,
+      "movingParts": [
+        "Printer_LidPivot",
+        "ReceiptPaperFeed"
+      ],
+      "collisionNodes": [
+        "COL_ReceiptPrinter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "receipt_printer_premium",
+      "familyId": "receipt_printer",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/receipt_printer.blend",
+      "glb": "vendor/models/pro_shop_equipment/receipt_printer_premium.glb",
+      "targetDimensionsM": [
+        0.18,
+        0.2,
+        0.14
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.09,
+          -0.114,
+          0.0
+        ],
+        "max": [
+          0.09,
+          0.1,
+          0.1386
+        ],
+        "size": [
+          0.18,
+          0.214,
+          0.1386
+        ]
+      },
+      "triangles": 864,
+      "nodes": 16,
+      "movingParts": [
+        "Printer_LidPivot",
+        "ReceiptPaperFeed"
+      ],
+      "collisionNodes": [
+        "COL_ReceiptPrinter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "receipt_printer_public",
+      "familyId": "receipt_printer",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/receipt_printer.blend",
+      "glb": "vendor/models/pro_shop_equipment/receipt_printer_public.glb",
+      "targetDimensionsM": [
+        0.17,
+        0.19,
+        0.13
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.085,
+          -0.108,
+          0.0
+        ],
+        "max": [
+          0.085,
+          0.095,
+          0.1288
+        ],
+        "size": [
+          0.17,
+          0.203,
+          0.1288
+        ]
+      },
+      "triangles": 720,
+      "nodes": 14,
+      "movingParts": [
+        "Printer_LidPivot",
+        "ReceiptPaperFeed"
+      ],
+      "collisionNodes": [
+        "COL_ReceiptPrinter"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "rental_club_storage_country_club",
+      "familyId": "rental_club_storage",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/rental_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/rental_club_storage_country_club.glb",
+      "targetDimensionsM": [
+        2.35,
+        0.76,
+        2.22
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.175,
+          -0.38,
+          0.0
+        ],
+        "max": [
+          1.175,
+          0.38,
+          2.22
+        ],
+        "size": [
+          2.35,
+          0.76,
+          2.22
+        ]
+      },
+      "triangles": 6360,
+      "nodes": 77,
+      "movingParts": [
+        "ClubStorage_DoorPivot_L",
+        "ClubStorage_DoorPivot_R",
+        "RentalStorage_Caster_L_Pivot",
+        "RentalStorage_Caster_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_rental_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "rental_club_storage_high_end",
+      "familyId": "rental_club_storage",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/rental_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/rental_club_storage_high_end.glb",
+      "targetDimensionsM": [
+        2.1,
+        0.7,
+        2.12
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.05,
+          -0.35,
+          0.0
+        ],
+        "max": [
+          1.05,
+          0.35,
+          2.12
+        ],
+        "size": [
+          2.1,
+          0.7,
+          2.12
+        ]
+      },
+      "triangles": 5372,
+      "nodes": 65,
+      "movingParts": [
+        "ClubStorage_DoorPivot_L",
+        "ClubStorage_DoorPivot_R",
+        "RentalStorage_Caster_L_Pivot",
+        "RentalStorage_Caster_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_rental_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "rental_club_storage_municipal",
+      "familyId": "rental_club_storage",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/rental_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/rental_club_storage_municipal.glb",
+      "targetDimensionsM": [
+        1.5,
+        0.58,
+        1.82
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.75,
+          -0.29,
+          0.0
+        ],
+        "max": [
+          0.75,
+          0.29,
+          1.82
+        ],
+        "size": [
+          1.5,
+          0.58,
+          1.82
+        ]
+      },
+      "triangles": 2316,
+      "nodes": 28,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_rental_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "rental_club_storage_premium",
+      "familyId": "rental_club_storage",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/rental_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/rental_club_storage_premium.glb",
+      "targetDimensionsM": [
+        1.88,
+        0.66,
+        2.02
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.94,
+          -0.33,
+          0.0
+        ],
+        "max": [
+          0.94,
+          0.33,
+          2.02
+        ],
+        "size": [
+          1.88,
+          0.66,
+          2.02
+        ]
+      },
+      "triangles": 4384,
+      "nodes": 51,
+      "movingParts": [
+        "RentalStorage_Caster_L_Pivot",
+        "RentalStorage_Caster_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_rental_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "rental_club_storage_public",
+      "familyId": "rental_club_storage",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/rental_club_storage.blend",
+      "glb": "vendor/models/pro_shop_equipment/rental_club_storage_public.glb",
+      "targetDimensionsM": [
+        1.68,
+        0.62,
+        1.92
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.84,
+          -0.31,
+          0.0
+        ],
+        "max": [
+          0.84,
+          0.31,
+          1.92
+        ],
+        "size": [
+          1.68,
+          0.62,
+          1.92
+        ]
+      },
+      "triangles": 3720,
+      "nodes": 42,
+      "movingParts": [
+        "RentalStorage_Caster_L_Pivot",
+        "RentalStorage_Caster_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_rental_club_storage"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "scorecard_holder_country_club",
+      "familyId": "scorecard_holder",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/scorecard_holder.blend",
+      "glb": "vendor/models/pro_shop_equipment/scorecard_holder_country_club.glb",
+      "targetDimensionsM": [
+        0.38,
+        0.27,
+        0.34
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.19,
+          -0.1086,
+          0.0
+        ],
+        "max": [
+          0.19,
+          0.1296,
+          0.34
+        ],
+        "size": [
+          0.38,
+          0.2382,
+          0.34
+        ]
+      },
+      "triangles": 1508,
+      "nodes": 24,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_ScorecardHolder"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "scorecard_holder_high_end",
+      "familyId": "scorecard_holder",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/scorecard_holder.blend",
+      "glb": "vendor/models/pro_shop_equipment/scorecard_holder_high_end.glb",
+      "targetDimensionsM": [
+        0.35,
+        0.25,
+        0.31
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.175,
+          -0.0925,
+          0.0
+        ],
+        "max": [
+          0.175,
+          0.12,
+          0.31
+        ],
+        "size": [
+          0.35,
+          0.2125,
+          0.31
+        ]
+      },
+      "triangles": 1292,
+      "nodes": 21,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_ScorecardHolder"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "scorecard_holder_municipal",
+      "familyId": "scorecard_holder",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/scorecard_holder.blend",
+      "glb": "vendor/models/pro_shop_equipment/scorecard_holder_municipal.glb",
+      "targetDimensionsM": [
+        0.28,
+        0.2,
+        0.25
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.14,
+          -0.074,
+          0.0
+        ],
+        "max": [
+          0.14,
+          0.096,
+          0.25
+        ],
+        "size": [
+          0.28,
+          0.17,
+          0.25
+        ]
+      },
+      "triangles": 324,
+      "nodes": 6,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_ScorecardHolder"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "scorecard_holder_premium",
+      "familyId": "scorecard_holder",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/scorecard_holder.blend",
+      "glb": "vendor/models/pro_shop_equipment/scorecard_holder_premium.glb",
+      "targetDimensionsM": [
+        0.33,
+        0.23,
+        0.29
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.165,
+          -0.0851,
+          0.0
+        ],
+        "max": [
+          0.165,
+          0.1104,
+          0.29
+        ],
+        "size": [
+          0.33,
+          0.1955,
+          0.29
+        ]
+      },
+      "triangles": 972,
+      "nodes": 18,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_ScorecardHolder"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "scorecard_holder_public",
+      "familyId": "scorecard_holder",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/scorecard_holder.blend",
+      "glb": "vendor/models/pro_shop_equipment/scorecard_holder_public.glb",
+      "targetDimensionsM": [
+        0.3,
+        0.22,
+        0.27
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.15,
+          -0.0814,
+          0.0
+        ],
+        "max": [
+          0.15,
+          0.1056,
+          0.27
+        ],
+        "size": [
+          0.3,
+          0.187,
+          0.27
+        ]
+      },
+      "triangles": 648,
+      "nodes": 12,
+      "movingParts": [],
+      "collisionNodes": [
+        "COL_ScorecardHolder"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "trash_can_country_club",
+      "familyId": "trash_can",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/trash_can.blend",
+      "glb": "vendor/models/pro_shop_equipment/trash_can_country_club.glb",
+      "targetDimensionsM": [
+        0.66,
+        0.66,
+        1.06
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.33,
+          -0.33,
+          0.0
+        ],
+        "max": [
+          0.33,
+          0.33,
+          1.0619
+        ],
+        "size": [
+          0.66,
+          0.66,
+          1.0619
+        ]
+      },
+      "triangles": 2176,
+      "nodes": 21,
+      "movingParts": [
+        "TrashCan_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_TrashCan"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "trash_can_high_end",
+      "familyId": "trash_can",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/trash_can.blend",
+      "glb": "vendor/models/pro_shop_equipment/trash_can_high_end.glb",
+      "targetDimensionsM": [
+        0.6,
+        0.6,
+        0.96
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.3,
+          -0.3,
+          0.0
+        ],
+        "max": [
+          0.3,
+          0.3,
+          0.9629
+        ],
+        "size": [
+          0.6,
+          0.6,
+          0.9629
+        ]
+      },
+      "triangles": 1960,
+      "nodes": 19,
+      "movingParts": [
+        "TrashCan_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_TrashCan"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "trash_can_municipal",
+      "familyId": "trash_can",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/trash_can.blend",
+      "glb": "vendor/models/pro_shop_equipment/trash_can_municipal.glb",
+      "targetDimensionsM": [
+        0.48,
+        0.48,
+        0.76
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.24,
+          -0.24,
+          0.0
+        ],
+        "max": [
+          0.24,
+          0.24,
+          0.7649
+        ],
+        "size": [
+          0.48,
+          0.48,
+          0.7649
+        ]
+      },
+      "triangles": 724,
+      "nodes": 7,
+      "movingParts": [
+        "TrashCan_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_TrashCan"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "trash_can_premium",
+      "familyId": "trash_can",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/trash_can.blend",
+      "glb": "vendor/models/pro_shop_equipment/trash_can_premium.glb",
+      "targetDimensionsM": [
+        0.56,
+        0.56,
+        0.88
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.28,
+          -0.28,
+          0.0
+        ],
+        "max": [
+          0.28,
+          0.28,
+          0.8837
+        ],
+        "size": [
+          0.56,
+          0.56,
+          0.8837
+        ]
+      },
+      "triangles": 1744,
+      "nodes": 16,
+      "movingParts": [
+        "TrashCan_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_TrashCan"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "trash_can_public",
+      "familyId": "trash_can",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/trash_can.blend",
+      "glb": "vendor/models/pro_shop_equipment/trash_can_public.glb",
+      "targetDimensionsM": [
+        0.52,
+        0.52,
+        0.82
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.26,
+          -0.26,
+          0.0
+        ],
+        "max": [
+          0.26,
+          0.26,
+          0.8243
+        ],
+        "size": [
+          0.52,
+          0.52,
+          0.8243
+        ]
+      },
+      "triangles": 724,
+      "nodes": 7,
+      "movingParts": [
+        "TrashCan_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_TrashCan"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "utility_cart_country_club",
+      "familyId": "utility_cart",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/utility_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/utility_cart_country_club.glb",
+      "targetDimensionsM": [
+        2.92,
+        1.38,
+        1.92
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.4454,
+          -0.6536,
+          0.0
+        ],
+        "max": [
+          1.2908,
+          0.6536,
+          1.9248
+        ],
+        "size": [
+          2.7362,
+          1.3072,
+          1.9248
+        ]
+      },
+      "triangles": 4976,
+      "nodes": 40,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceCart_DoorPivot_L",
+        "ServiceCart_DoorPivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_utility_cart_Body",
+        "COL_utility_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "utility_cart_high_end",
+      "familyId": "utility_cart",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/utility_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/utility_cart_high_end.glb",
+      "targetDimensionsM": [
+        2.82,
+        1.35,
+        1.88
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.3959,
+          -0.6395,
+          0.0
+        ],
+        "max": [
+          1.2502,
+          0.6395,
+          1.8847
+        ],
+        "size": [
+          2.6461,
+          1.279,
+          1.8847
+        ]
+      },
+      "triangles": 4760,
+      "nodes": 38,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceCart_DoorPivot_L",
+        "ServiceCart_DoorPivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_utility_cart_Body",
+        "COL_utility_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "utility_cart_municipal",
+      "familyId": "utility_cart",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/utility_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/utility_cart_municipal.glb",
+      "targetDimensionsM": [
+        2.55,
+        1.26,
+        1.76
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.23675,
+          -0.5972,
+          0.0
+        ],
+        "max": [
+          1.1389,
+          0.5972,
+          1.6896
+        ],
+        "size": [
+          2.37565,
+          1.1944,
+          1.6896
+        ]
+      },
+      "triangles": 3340,
+      "nodes": 27,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_utility_cart_Body",
+        "COL_utility_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "utility_cart_premium",
+      "familyId": "utility_cart",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/utility_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/utility_cart_premium.glb",
+      "targetDimensionsM": [
+        2.72,
+        1.32,
+        1.84
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.3464,
+          -0.6254,
+          0.0
+        ],
+        "max": [
+          1.2096,
+          0.6254,
+          1.8446
+        ],
+        "size": [
+          2.556,
+          1.2508,
+          1.8446
+        ]
+      },
+      "triangles": 4544,
+      "nodes": 34,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_utility_cart_Body",
+        "COL_utility_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "utility_cart_public",
+      "familyId": "utility_cart",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/utility_cart.blend",
+      "glb": "vendor/models/pro_shop_equipment/utility_cart_public.glb",
+      "targetDimensionsM": [
+        2.62,
+        1.28,
+        1.8
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -1.2969,
+          -0.6066,
+          0.0
+        ],
+        "max": [
+          1.169,
+          0.6066,
+          1.8045
+        ],
+        "size": [
+          2.4659,
+          1.2132,
+          1.8045
+        ]
+      },
+      "triangles": 4104,
+      "nodes": 32,
+      "movingParts": [
+        "ServiceCart_BedSidePivot_L",
+        "ServiceCart_BedSidePivot_R",
+        "ServiceWheel_Front_L_Pivot",
+        "ServiceWheel_Front_R_Pivot",
+        "ServiceWheel_Rear_L_Pivot",
+        "ServiceWheel_Rear_R_Pivot"
+      ],
+      "collisionNodes": [
+        "COL_utility_cart_Body",
+        "COL_utility_cart_Cab"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "water_cooler_country_club",
+      "familyId": "water_cooler",
+      "tierId": "country_club",
+      "qualityLevel": 5,
+      "source": "asset_sources/blender/pro_shop_equipment/water_cooler.blend",
+      "glb": "vendor/models/pro_shop_equipment/water_cooler_country_club.glb",
+      "targetDimensionsM": [
+        0.62,
+        0.62,
+        1.44
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2604,
+          -0.3472,
+          0.0
+        ],
+        "max": [
+          0.2821,
+          0.2542,
+          1.6668
+        ],
+        "size": [
+          0.5425,
+          0.6014,
+          1.6668
+        ]
+      },
+      "triangles": 1576,
+      "nodes": 12,
+      "movingParts": [
+        "WaterCooler_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_WaterCooler"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "water_cooler_high_end",
+      "familyId": "water_cooler",
+      "tierId": "high_end",
+      "qualityLevel": 4,
+      "source": "asset_sources/blender/pro_shop_equipment/water_cooler.blend",
+      "glb": "vendor/models/pro_shop_equipment/water_cooler_high_end.glb",
+      "targetDimensionsM": [
+        0.56,
+        0.56,
+        1.36
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2352,
+          -0.3136,
+          0.0
+        ],
+        "max": [
+          0.2548,
+          0.2296,
+          1.5742
+        ],
+        "size": [
+          0.49,
+          0.5432,
+          1.5742
+        ]
+      },
+      "triangles": 1468,
+      "nodes": 11,
+      "movingParts": [
+        "WaterCooler_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_WaterCooler"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "water_cooler_municipal",
+      "familyId": "water_cooler",
+      "tierId": "municipal",
+      "qualityLevel": 1,
+      "source": "asset_sources/blender/pro_shop_equipment/water_cooler.blend",
+      "glb": "vendor/models/pro_shop_equipment/water_cooler_municipal.glb",
+      "targetDimensionsM": [
+        0.46,
+        0.46,
+        1.18
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.1932,
+          -0.2576,
+          0.0
+        ],
+        "max": [
+          0.1932,
+          0.1886,
+          1.08265
+        ],
+        "size": [
+          0.3864,
+          0.4462,
+          1.08265
+        ]
+      },
+      "triangles": 1064,
+      "nodes": 8,
+      "movingParts": [
+        "WaterCooler_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_WaterCooler"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "water_cooler_premium",
+      "familyId": "water_cooler",
+      "tierId": "premium",
+      "qualityLevel": 3,
+      "source": "asset_sources/blender/pro_shop_equipment/water_cooler.blend",
+      "glb": "vendor/models/pro_shop_equipment/water_cooler_premium.glb",
+      "targetDimensionsM": [
+        0.52,
+        0.52,
+        1.3
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2184,
+          -0.2912,
+          0.0
+        ],
+        "max": [
+          0.2366,
+          0.2132,
+          1.50475
+        ],
+        "size": [
+          0.455,
+          0.5044,
+          1.50475
+        ]
+      },
+      "triangles": 1360,
+      "nodes": 10,
+      "movingParts": [
+        "WaterCooler_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_WaterCooler"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    },
+    {
+      "id": "water_cooler_public",
+      "familyId": "water_cooler",
+      "tierId": "public",
+      "qualityLevel": 2,
+      "source": "asset_sources/blender/pro_shop_equipment/water_cooler.blend",
+      "glb": "vendor/models/pro_shop_equipment/water_cooler_public.glb",
+      "targetDimensionsM": [
+        0.48,
+        0.48,
+        1.24
+      ],
+      "measuredBoundsM": {
+        "min": [
+          -0.2016,
+          -0.2688,
+          0.0
+        ],
+        "max": [
+          0.2184,
+          0.1968,
+          1.1377
+        ],
+        "size": [
+          0.42,
+          0.4656,
+          1.1377
+        ]
+      },
+      "triangles": 1252,
+      "nodes": 9,
+      "movingParts": [
+        "WaterCooler_LidPivot"
+      ],
+      "collisionNodes": [
+        "COL_WaterCooler"
+      ],
+      "license": "Project-owned / UNLICENSED"
+    }
+  ],
+  "available": [
+    "bag_drop_station_country_club",
+    "bag_drop_station_high_end",
+    "bag_drop_station_municipal",
+    "bag_drop_station_premium",
+    "bag_drop_station_public",
+    "bag_stand_country_club",
+    "bag_stand_high_end",
+    "bag_stand_municipal",
+    "bag_stand_premium",
+    "bag_stand_public",
+    "ball_washer_country_club",
+    "ball_washer_high_end",
+    "ball_washer_municipal",
+    "ball_washer_premium",
+    "ball_washer_public",
+    "bench_country_club",
+    "bench_high_end",
+    "bench_municipal",
+    "bench_premium",
+    "bench_public",
+    "card_reader_country_club",
+    "card_reader_high_end",
+    "card_reader_municipal",
+    "card_reader_premium",
+    "card_reader_public",
+    "cash_drawer_country_club",
+    "cash_drawer_high_end",
+    "cash_drawer_municipal",
+    "cash_drawer_premium",
+    "cash_drawer_public",
+    "club_cleaner_country_club",
+    "club_cleaner_high_end",
+    "club_cleaner_municipal",
+    "club_cleaner_premium",
+    "club_cleaner_public",
+    "computer_country_club",
+    "computer_high_end",
+    "computer_municipal",
+    "computer_premium",
+    "computer_public",
+    "display_tv_country_club",
+    "display_tv_high_end",
+    "display_tv_municipal",
+    "display_tv_premium",
+    "display_tv_public",
+    "golf_cart_country_club",
+    "golf_cart_high_end",
+    "golf_cart_municipal",
+    "golf_cart_premium",
+    "golf_cart_public",
+    "golf_club_storage_country_club",
+    "golf_club_storage_high_end",
+    "golf_club_storage_municipal",
+    "golf_club_storage_premium",
+    "golf_club_storage_public",
+    "laptop_country_club",
+    "laptop_high_end",
+    "laptop_municipal",
+    "laptop_premium",
+    "laptop_public",
+    "maintenance_cart_country_club",
+    "maintenance_cart_high_end",
+    "maintenance_cart_municipal",
+    "maintenance_cart_premium",
+    "maintenance_cart_public",
+    "office_chair_country_club",
+    "office_chair_high_end",
+    "office_chair_municipal",
+    "office_chair_premium",
+    "office_chair_public",
+    "pos_terminal_country_club",
+    "pos_terminal_high_end",
+    "pos_terminal_municipal",
+    "pos_terminal_premium",
+    "pos_terminal_public",
+    "practice_basket_country_club",
+    "practice_basket_high_end",
+    "practice_basket_municipal",
+    "practice_basket_premium",
+    "practice_basket_public",
+    "push_cart_country_club",
+    "push_cart_high_end",
+    "push_cart_municipal",
+    "push_cart_premium",
+    "push_cart_public",
+    "range_basket_country_club",
+    "range_basket_high_end",
+    "range_basket_municipal",
+    "range_basket_premium",
+    "range_basket_public",
+    "receipt_printer_country_club",
+    "receipt_printer_high_end",
+    "receipt_printer_municipal",
+    "receipt_printer_premium",
+    "receipt_printer_public",
+    "rental_club_storage_country_club",
+    "rental_club_storage_high_end",
+    "rental_club_storage_municipal",
+    "rental_club_storage_premium",
+    "rental_club_storage_public",
+    "scorecard_holder_country_club",
+    "scorecard_holder_high_end",
+    "scorecard_holder_municipal",
+    "scorecard_holder_premium",
+    "scorecard_holder_public",
+    "trash_can_country_club",
+    "trash_can_high_end",
+    "trash_can_municipal",
+    "trash_can_premium",
+    "trash_can_public",
+    "utility_cart_country_club",
+    "utility_cart_high_end",
+    "utility_cart_municipal",
+    "utility_cart_premium",
+    "utility_cart_public",
+    "water_cooler_country_club",
+    "water_cooler_high_end",
+    "water_cooler_municipal",
+    "water_cooler_premium",
+    "water_cooler_public"
+  ]
+}
