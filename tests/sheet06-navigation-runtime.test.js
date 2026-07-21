@@ -151,7 +151,7 @@ test('navigation contract registers two blockers idempotently and removes exact 
 test('lounge damage remains visible with a player-width route through the live furniture layout', () => {
   const site = createSheet06ProductionLayout().damageSites
     .find(({ id }) => id === 'damage-lounge');
-  assert.deepEqual(site, { id: 'damage-lounge', x: 2.25, z: -3.45, rotationY: Math.PI });
+  assert.deepEqual(site, { id: 'damage-lounge', x: 1.35, z: -3.45, rotationY: Math.PI });
   const playerRadius = 0.34;
   const furniture = [
     { id: 'sofa', ...LOUNGE.chairA, w: 2.4, d: 1.15 },

@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { createMerch } from '../src/render3d/clubhouse/merch.js';
+import { CachedGLTFLoader } from '../src/render3d/gltfCache.js';
 
 function withLoaderStub(load, run) {
-  const original = GLTFLoader.prototype.load;
-  GLTFLoader.prototype.load = load;
+  const original = CachedGLTFLoader.prototype.load;
+  CachedGLTFLoader.prototype.load = load;
   try {
     return run();
   } finally {
-    GLTFLoader.prototype.load = original;
+    CachedGLTFLoader.prototype.load = original;
   }
 }
 

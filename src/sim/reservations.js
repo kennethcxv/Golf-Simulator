@@ -795,6 +795,8 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     source: options.source || (options.walkIn ? 'walk-in' : 'player'),
     _legacyExact: !!options.legacyExact,
     notes: Array.isArray(options.notes) ? [...options.notes] : (options.notes ? [String(options.notes)] : []),
+    paymentPreference: options.paymentPreference === 'cash' || options.paymentPreference === 'card'
+      ? options.paymentPreference : null,
     payment: paymentShape(total, options),
     arrival: {
       status: options.arrived ? (arrivalOffset > 0 ? 'late' : 'arrived') : 'scheduled',
@@ -838,6 +840,9 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     cartRentalFee,
     cartTripId: null,
     cartService: null,
+    rentalRequirements: Array.isArray(options.rentalRequirements)
+      ? options.rentalRequirements.map((item) => String(item).trim()).filter(Boolean)
+      : [],
   };
   if (options.customerIdentity || options.customerId) {
     reservation.customerId = options.customerIdentity?.customerId || String(options.customerId);
@@ -1776,6 +1781,7 @@ export function bookReservation(state, details = {}) {
     walkIn: details.customerType === 'walk-in' || details.walkIn,
     holes,
     transport,
+    rentalRequirements: details.rentalRequirements,
   });
   if (!result.ok) return result;
   const reservation = result.res;

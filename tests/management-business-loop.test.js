@@ -15,7 +15,7 @@ import { createReservationCheckInTx, finalizeReservationCheckIn } from '../src/s
 import { pickFromShelf, heldUnits } from '../src/sim/checkout.js';
 import {
   createTx, scanItem, requestPayment, presentCard, insertCard, submitCardAmount, runCard,
-  printReceipt, takeReceipt, packReceipt, bagItem, handOverGoods, completeSale,
+  enterCardDigit, totalOf, printReceipt, takeReceipt, packReceipt, bagItem, handOverGoods, completeSale,
 } from '../src/sim/register.js';
 import { reviewFor, postReview, reviewSummary } from '../src/sim/reviews.js';
 import { hireStaff } from '../src/sim/staff.js';
@@ -26,6 +26,9 @@ const approvedCard = (tx) => {
   assert.equal(requestPayment(tx).ok, true);
   assert.equal(presentCard(tx).ok, true);
   assert.equal(insertCard(tx).ok, true);
+  for (const digit of String(Math.round(totalOf(tx) * 100))) {
+    assert.equal(enterCardDigit(tx, Number(digit)).ok, true);
+  }
   assert.equal(submitCardAmount(tx).ok, true);
   assert.equal(runCard(tx).result, 'approved');
 };
@@ -116,7 +119,8 @@ test('one persisted club connects supplier, stocking, guests, sales, books, staf
   assert.equal(checkedIn.ok, true);
   assert.equal(booked.res.status, 'played');
   assert.equal(booked.res.totalPaid, 128);
-  assert.equal(state.ledger.today.revenue.greenFees, 128);
+  assert.equal(state.ledger.today.revenue.greenFees + state.ledger.today.revenue.rentals, 128,
+    'green fee and cart rental reconcile to the paid booking total');
 
   // Stocked unit -> physical scan/card/receipt/bag/handoff -> sale and finance ticket.
   const sku = skuById('balls1');
@@ -158,7 +162,8 @@ test('one persisted club connects supplier, stocking, guests, sales, books, staf
   assert.equal(state.ledger.yesterday.expense.utilities, UTILITIES_PER_DAY);
   assert.equal(state.ledger.yesterday.expense.wagesStaff, hired.employee.wage);
   assert.ok(state.ledger.yesterday.revenue.dues > 0, 'the active member roll generated dues');
-  assert.ok(state.ledger.yesterday.revenue.greenFees >= 128, 'physical check-in and daily play share green-fee books');
+  assert.ok(state.ledger.yesterday.revenue.greenFees + state.ledger.yesterday.revenue.rentals >= 128,
+    'physical check-in and daily play share categorized booking books');
   assert.ok(state.ledger.yesterday.revenue.shopSales >= salePrice, 'physical and simulated shop sales share one ledger line');
   assert.equal(state.ledger.yesterday.expense.shopOrders, ordered.cost);
   assert.ok(state.ledger.yesterday.expense.works >= 8000, 'range renovation and supplier unlock closed into capital works');

@@ -254,6 +254,7 @@ export function makeFpHands() {
       if (!tool) return;
       const g = GRIPS[tool];
       root.scale.setScalar(g.handScale || 1);
+      left.group.visible = !!g.support;
       // The cutter travels onto a world-space seam. Its normal camera-local
       // forearm is replaced there by the bent arm bridge in courseScene.
       right.forearm.visible = tool !== 'boxcutter';
@@ -277,7 +278,7 @@ export function makeFpHands() {
     update(dt, using) {
       const want = tool ? 1 : 0;
       show += (want - show) * Math.min(1, dt * 9);
-      root.visible = show > 0.01 && !!tool;
+      root.visible = show > 0.01;
 
       if (using) recoil = Math.min(1, recoil + dt * 7);
       else recoil = Math.max(0, recoil - dt * 5);

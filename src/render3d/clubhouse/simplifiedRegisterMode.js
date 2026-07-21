@@ -5312,9 +5312,10 @@ export function createRegisterMode(B) {
           if (checkoutFlowState() === 'CardInserting') {
             flowTo('CardInsertReady', 'card-insert-domain-rejected');
           }
-          toast(inserted.reason, 'warn');
+          cardValidationWarning(inserted.reason);
           sfx('thunk');
         } else {
+          clearCardValidationToast();
           insertMessage = '';
           if (checkoutFlowState() === 'CardInserting') {
             flowTo('CardAmountEntry', 'card-reached-chip-slot-stop');

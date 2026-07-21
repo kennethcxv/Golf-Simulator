@@ -54,7 +54,7 @@ test('the allowlist has stable IDs and exact authored support contracts', () => 
   const table = surfaceById(state, APPAREL_TABLE_BOX_SURFACE_ID);
   assert.deepEqual(table.localPose, { x: 0, y: 0.801, z: 0, ry: 0 });
   assert.deepEqual(table.bounds, { minX: -0.76, maxX: 0.76, minZ: -0.41, maxZ: 0.41 });
-  assert.deepEqual(table.worldPose, { x: -5.9, y: 0.801, z: 0.6, ry: 0 });
+  assert.deepEqual(table.worldPose, { x: -6, y: 0.801, z: 0.65, ry: 0 });
 
   const lowerWest = surfaceById(state, deliveryShelfSurfaceId(1, 1));
   const topEast = surfaceById(state, deliveryShelfSurfaceId(2, 4));

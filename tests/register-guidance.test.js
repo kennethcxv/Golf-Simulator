@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createTx, scanItem } from '../src/sim/register.js';
 import { registerGuidance } from '../src/ui/registerGuidance.js';
 
-const registerModeSource = fs.readFileSync(new URL('../src/render3d/clubhouse/registerMode.js', import.meta.url), 'utf8');
+const registerModeSource = fs.readFileSync(new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url), 'utf8');
 
 const txFor = () => createTx({
   items: [
@@ -14,8 +14,9 @@ const txFor = () => createTx({
 });
 const keys = (guidance) => guidance.controls.map((control) => control.key);
 
-test('an accepted card swipe clears superseded checkout warnings', () => {
-  assert.match(registerModeSource, /if \(result\.ok\)[\s\S]*hooks\.clearToasts\('checkout'\)/);
+test('an accepted card insertion clears superseded validation warnings', () => {
+  assert.match(registerModeSource,
+    /const inserted = insertCard\(tx\);[\s\S]*cardValidationWarning\(inserted\.reason\);[\s\S]*clearCardValidationToast\(\);/);
 });
 
 test('scanning guidance shows one relevant gesture, not future-stage keys', () => {

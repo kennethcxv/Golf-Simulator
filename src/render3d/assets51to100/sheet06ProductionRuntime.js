@@ -348,7 +348,7 @@ export function createSheet06ProductionLayout() {
       // full player-width north/south inspection lane between the authored
       // sofa/table group and the sales floor. The former x=3.65 point itself
       // was clear, but every route across it terminated in live furniture.
-      { id: 'damage-lounge', x: 2.25, z: -3.45, rotationY: Math.PI },
+      { id: 'damage-lounge', x: 1.35, z: -3.45, rotationY: Math.PI },
       { id: 'damage-office', x: 8.15, z: 4.45, rotationY: 0 },
     ],
   });
