@@ -9,6 +9,7 @@ import {
   BACKDOOR_CLEARWAY, COUNTER, COUNTER_TOP, DOOR_BACK, DOOR_MAIN, DOOR_STOCK,
   FIXTURES, FIXTURE_HALF, INTERIOR, OFFICE, REGISTER, SHELL, STOCKROOM, WINDOW_DIM, WINDOWS,
 } from './shopLayout.js';
+import { FURNITURE_CATEGORIES, furnitureById } from './furnitureCatalog.js';
 
 export const METERS_TO_YARDS = 1.0936133;
 
@@ -62,8 +63,19 @@ const fixtureProfile = {
 const fixtureRecords = FIXTURES.map((fixture) => {
   const profile = fixtureProfile[fixture.kind] || fixtureProfile.table;
   const half = FIXTURE_HALF[fixture.kind] || [1, 1];
-  const width = (fixture.short ? 0.85 : half[0]) * 2;
-  const depth = half[1] * 2;
+  const authoredFootprint = fixture.footprint || null;
+  const width = authoredFootprint
+    ? authoredFootprint.maxX - authoredFootprint.minX
+    : (fixture.short ? 0.85 : half[0]) * 2;
+  const depth = authoredFootprint
+    ? authoredFootprint.maxZ - authoredFootprint.minZ
+    : half[1] * 2;
+  const volumes = authoredFootprint ? [{
+    x: (authoredFootprint.minX + authoredFootprint.maxX) / 2,
+    z: (authoredFootprint.minZ + authoredFootprint.maxZ) / 2,
+    width,
+    depth,
+  }] : null;
   return {
     id: fixture.id,
     assetId: `fixture:${fixture.kind}`,
@@ -75,7 +87,10 @@ const fixtureRecords = FIXTURES.map((fixture) => {
     surfaceRules: surfaceRules(['floor']),
     rotation: profile.rotation,
     snapPoints: ['SOCKET_PLACEMENT'],
-    bounds: bounds(width, profile.height, depth),
+    // Some authored fixtures have asymmetric or refined collision footprints
+    // (notably the shoe wall and tightly joined club racks). Reusing that exact
+    // local-space contract keeps placement validation identical to runtime.
+    bounds: bounds(width, profile.height, depth, volumes),
     collision: { mode: 'analytic', blocksPlayer: true, blocksCustomers: true },
     requiredClearance: 0.04,
     navigationClearance: 0.34,
@@ -265,8 +280,152 @@ export const PLACEABLES = deepFreeze([
 ]);
 export const PLACEABLE_BY_ID = Object.freeze(Object.fromEntries(PLACEABLES.map((entry) => [entry.id, entry])));
 
+const FURNITURE_INSTANCE_PATTERN = /^furniture::(.+)::(\d+)$/;
+const furniturePlaceableCache = new Map();
+
+// Authored model envelopes in metres. Families not listed here inherit their
+// category envelope; the Blender catalog generator uses the same proportions.
+const FURNITURE_CATEGORY_DIMS_M = Object.freeze({
+  'retail-displays': [1.35, 1.85, 0.58],
+  'counters-desks': [1.80, 0.98, 0.78],
+  seating: [0.82, 0.92, 0.84],
+  tables: [1.20, 0.76, 0.72],
+  storage: [1.05, 1.85, 0.52],
+  lighting: [0.55, 0.48, 0.55],
+  architectural: [1.00, 0.08, 1.00],
+  decor: [0.72, 1.05, 0.20],
+  'guest-facilities': [1.05, 1.20, 0.62],
+  operations: [1.55, 1.25, 1.10],
+});
+
+const FURNITURE_MODEL_DIMS_M = Object.freeze({
+  'display-table': [1.45, 0.88, 0.82],
+  'wall-display': [2.10, 2.25, 0.48],
+  mannequin: [0.62, 1.88, 0.56],
+  'checkout-counter': [2.45, 1.02, 0.88],
+  'reception-desk': [2.20, 1.10, 0.82],
+  'office-desk': [1.65, 0.78, 0.78],
+  'back-counter': [2.10, 1.05, 0.62],
+  'office-chair': [0.68, 1.08, 0.68],
+  'lounge-armchair': [0.88, 0.94, 0.88],
+  'lounge-sofa': [2.05, 0.92, 0.92],
+  bench: [1.55, 0.82, 0.52],
+  'dining-chair': [0.52, 0.94, 0.55],
+  'bar-stool': [0.48, 1.05, 0.48],
+  'coffee-table': [1.10, 0.46, 0.65],
+  'side-table': [0.52, 0.62, 0.52],
+  'dining-table': [1.65, 0.78, 0.92],
+  'conference-table': [2.35, 0.78, 1.05],
+  'member-locker': [1.20, 2.05, 0.55],
+  'ceiling-flush': [0.48, 0.18, 0.48],
+  'recessed-light': [0.18, 0.10, 0.18],
+  'track-light': [1.20, 0.30, 0.25],
+  'pendant-light': [0.45, 0.78, 0.45],
+  chandelier: [1.15, 1.25, 1.15],
+  'picture-light': [0.60, 0.18, 0.22],
+  'wall-sconce': [0.28, 0.42, 0.22],
+  'floor-lamp': [0.48, 1.58, 0.48],
+  'desk-lamp': [0.34, 0.48, 0.34],
+  flooring: [2.40, 0.04, 2.40],
+  'ceiling-treatment': [2.40, 0.10, 2.40],
+  'interior-door': [1.00, 2.10, 0.14],
+  'exterior-door': [1.05, 2.15, 0.18],
+  'window-treatment': [1.80, 2.10, 0.16],
+  'wall-paneling': [2.40, 2.40, 0.12],
+  'area-rug': [2.20, 0.025, 1.55],
+  'wall-art': [0.92, 0.70, 0.055],
+  'trophy-case': [1.25, 2.05, 0.42],
+  plant: [0.68, 1.35, 0.68],
+  mirror: [0.78, 1.35, 0.055],
+  clock: [0.42, 0.42, 0.075],
+  signage: [0.72, 0.38, 0.06],
+  'golf-cart': [1.25, 1.85, 2.45],
+  'cart-storage': [3.20, 2.35, 3.40],
+  'patio-set': [2.10, 1.00, 1.55],
+  'porch-bench': [1.65, 0.92, 0.62],
+});
+
+function furnitureMount(item) {
+  if (item.placementMode === 'wall') return { allowed: ['wall'], socket: 'SOCKET_WallMount' };
+  if (item.placementMode === 'ceiling') return { allowed: ['ceiling'], socket: 'SOCKET_CeilingMount' };
+  if (item.placementMode === 'surface') return { allowed: ['counter', 'shelf'], socket: 'SOCKET_PLACEMENT' };
+  return { allowed: ['floor'], socket: item.modelFamily === 'area-rug' ? 'SOCKET_FloorPlacement' : 'SOCKET_PLACEMENT' };
+}
+
+function dynamicFurniturePlaceable(id) {
+  if (furniturePlaceableCache.has(id)) return furniturePlaceableCache.get(id);
+  const match = FURNITURE_INSTANCE_PATTERN.exec(String(id || ''));
+  const item = match ? furnitureById(match[1]) : null;
+  if (!item) return null;
+  const dimsM = FURNITURE_MODEL_DIMS_M[item.modelFamily]
+    || FURNITURE_CATEGORY_DIMS_M[item.category]
+    || [1, 1, 1];
+  const [width, height, depth] = dimsM.map((value) => value * METERS_TO_YARDS);
+  const mount = furnitureMount(item);
+  const wallOrCeiling = ['wall', 'ceiling'].includes(item.placementMode);
+  const installation = item.placementMode === 'installation';
+  const vehicle = item.placementMode === 'vehicle';
+  const meta = deepFreeze({
+    id,
+    assetId: `furniture:${item.id}`,
+    catalogSku: item.id,
+    label: item.name,
+    placementCategory: item.category,
+    source: 'project-owned-furniture-catalog',
+    render: {
+      kind: 'glb',
+      path: `vendor/models/furniture/catalog/${item.modelFamily}_${item.progressionTier}.glb`,
+      scale: METERS_TO_YARDS,
+      mountSocket: mount.socket,
+    },
+    surfaceRules: surfaceRules(mount.allowed, item.placementMode === 'wall'
+      ? { wall: { minHeight: Math.min(0.45, height), maxHeight: SHELL.h - 0.06 } }
+      : {}),
+    rotation: wallOrCeiling ? rotation(0, false, true) : rotation(15, true, true),
+    snapPoints: [mount.socket],
+    bounds: bounds(width, height, depth),
+    collision: {
+      mode: 'analytic',
+      blocksPlayer: !wallOrCeiling && !installation,
+      blocksCustomers: !wallOrCeiling && !installation,
+    },
+    requiredClearance: wallOrCeiling ? 0.018 : 0.05,
+    navigationClearance: wallOrCeiling || installation ? 0 : (vehicle ? 0.48 : 0.34),
+    doorClearance: wallOrCeiling ? 0.06 : 0.16,
+    interactionClearance: installation ? 0 : 0.42,
+    sellValue: Math.max(1, Math.round(item.purchaseCost * 0.45)),
+    storageBehavior: 'allowed',
+    requiredObject: false,
+    placementRestrictions: installation ? ['catalog-installation-only'] : [],
+    variants: [item.progressionTier],
+    defaultVariant: item.progressionTier,
+    defaultState: 'stored',
+    defaultTransform: transform(0, 0, 0, 0, mount.allowed[0], null, 'storage'),
+    price: item.price,
+    priceUnit: item.priceUnit,
+    packageQuantity: item.packageQuantity,
+    purchaseCost: item.purchaseCost,
+    quality: item.quality,
+    brandTier: item.brandTier,
+    description: item.description,
+    thumbnail: item.thumbnail,
+    category: item.category,
+    categoryLabel: FURNITURE_CATEGORIES[item.category]?.label || item.category,
+    unlockLevel: item.unlockLevel,
+    requiredReputation: item.requiredReputation,
+    maintenanceValue: item.maintenanceValue,
+    comfortValue: item.comfortValue,
+    prestigeValue: item.prestigeValue,
+    progressionTier: item.progressionTier,
+    progression: item.progression,
+    placementMode: item.placementMode,
+  });
+  furniturePlaceableCache.set(id, meta);
+  return meta;
+}
+
 export function placeableById(id) {
-  return PLACEABLE_BY_ID[id] || null;
+  return PLACEABLE_BY_ID[id] || dynamicFurniturePlaceable(id);
 }
 
 export const FURNITURE_ASSET_NUMBERS = Object.freeze(assetRecords.map((entry) => entry.assetNumber));

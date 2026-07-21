@@ -5,31 +5,22 @@
 // state; confirmation commits the exact validated transform once.
 
 import * as THREE from 'three';
-import { fixtureRect, FIXTURE_HALF } from '../../data/shopLayout.js';
-import { placeableSpec, placeableSpecBySkuId } from '../../data/placeableItems.js';
 import {
   ROOM_STYLE_OPTIONS, WALL_SURFACES, placeableById,
 } from '../../data/placeableCatalog.js';
-import { SHELL } from '../../data/shopLayout.js';
+import { FIXTURE_HALF, SHELL } from '../../data/shopLayout.js';
 import {
-  FINE_GRID, GRID, commitObjectPlacement, ensureLayout, objectById, placedObjects,
+  FINE_GRID, GRID, commitObjectPlacement, commitPlacement, ensureLayout, objectById, placedFixtures, placedObjects,
   placementSurfaces, recoverObject, redoPlacement, roomStyle, sellObject,
-  setObjectVariant, setRoomStyle, soldObjects, storeObject, storedObjects,
-  undoPlacement, validateObjectPlacement,
+  setObjectVariant, setRoomStyle, soldObjects, storeFixture, storeObject, storedObjects,
+  undoPlacement, validateObjectPlacement, validatePlacement,
 } from '../../sim/layout.js';
-import { ownedPlaceableItems } from '../../sim/propertyInventory.js';
 import {
-  placeableFootprint,
-  placedPlaceableAt,
-  snapPlaceablePose,
-  validatePlaceablePlacement,
-} from '../../sim/propertyPlacement.js';
-import {
-  moveDecorPlacement,
-  placeDecorFree,
-  removeDecorPlacement,
-  sellStoredDecor,
-} from '../../sim/shop.js';
+  ensureFurnitureCatalogState, furnitureCatalogAvailability, furnitureEffects,
+  installFurniture, purchaseFurniture, purchasedFurnitureInstances, uninstallFurniture,
+} from '../../sim/furnitureCatalog.js';
+import { makeBuildPanel } from '../../ui/buildPanel.js';
+import { applyPlaceableTransform } from './placeables.js';
 
 const GOLD = 0xe7ca76;
 const OK = 0x62d48c;
@@ -82,35 +73,169 @@ export function fixtureGhostProfile(f) {
   };
 }
 
+// Older checkout and fixture-economy harnesses intentionally exercise the
+// fixture-only controller without a browser camera or DOM. Keep that compact
+// compatibility surface so current delivery/stock invariants remain proven,
+// while normal gameplay uses the authored-model controller below.
+function buildLegacyFixtureMode(B, deps) {
+  const { state, hooks = {}, walk, W2L, FLOOR_TOP = 0 } = B;
+  const {
+    rebuildLayout = () => {}, fixtureAnchors = new Map(), fixtureMoveBlocker = () => null,
+    setFixtureStockVisible = () => {}, setFixtureCollidersActive = () => {},
+    fixtureColliderDiagnostics = () => null,
+  } = deps;
+  let active = false;
+  let carrying = null;
+  let ry = 0;
+  let lastCheck = { ok: false, reasons: [] };
+  const ghost = { visible: false, position: { x: 0, y: FLOOR_TOP, z: 0 }, rotationY: 0, profile: null };
+  const snap = (value) => Math.round(value / GRID) * GRID;
+  const aimLocal = () => {
+    const point = W2L(walk.x, walk.z);
+    return { x: snap(point.x), z: snap(point.z) };
+  };
+  const focusedFixture = () => placedFixtures(state).find((fixture) => fixtureAnchors.has(fixture.id)) || null;
+  const blockerCopy = (blocker, fallback) => typeof blocker === 'string' ? blocker : (blocker?.reason || fallback);
+  const shelfUnits = (id) => {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    if (!fixture?.skus || !state.shop?.inventory) return 0;
+    return fixture.skus.reduce((total, skuId) => total + Math.max(0, Number(state.shop.inventory[skuId]?.shelf) || 0), 0);
+  };
+  const heldUnits = (id) => {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    if (!fixture?.skus || !Array.isArray(state.shop?.held)) return 0;
+    const skus = new Set(fixture.skus);
+    return state.shop.held.reduce((total, unit) => total + (skus.has(unit?.skuId) ? 1 : 0), 0);
+  };
+  const restoreFixture = (id) => {
+    fixtureAnchors.get(id) && (fixtureAnchors.get(id).visible = true);
+    setFixtureCollidersActive(id, true);
+    setFixtureStockVisible(id, true);
+  };
+  const api = {
+    isActive: () => active,
+    isCarrying: () => carrying,
+    isCatalogOpen: () => false,
+    enter() { active = true; },
+    exit() { if (carrying) api.cancel(); active = false; },
+    interact() {
+      if (!active) return false;
+      if (carrying) {
+        const id = carrying;
+        const point = aimLocal();
+        lastCheck = validatePlacement(state, id, point.x, point.z, ry);
+        if (!lastCheck.ok) { hooks.toast?.(lastCheck.reasons[0], 'warn'); return true; }
+        commitPlacement(state, id, point.x, point.z, ry);
+        carrying = null;
+        ghost.visible = false;
+        rebuildLayout();
+        restoreFixture(id);
+        hooks.sfx?.('thunk');
+        return true;
+      }
+      const fixture = focusedFixture();
+      if (!fixture) return false;
+      const blocker = fixtureMoveBlocker(fixture.id);
+      if (blocker) { hooks.toast?.(blockerCopy(blocker, 'Move the carton off this fixture first.'), 'warn'); return true; }
+      carrying = fixture.id;
+      ry = fixture.ry || 0;
+      const point = aimLocal();
+      ghost.visible = true;
+      ghost.position = { x: point.x, y: FLOOR_TOP, z: point.z };
+      ghost.rotationY = ry;
+      ghost.profile = fixtureGhostProfile(fixture);
+      lastCheck = validatePlacement(state, fixture.id, point.x, point.z, ry);
+      const anchor = fixtureAnchors.get(fixture.id);
+      if (anchor) anchor.visible = false;
+      setFixtureCollidersActive(fixture.id, false);
+      setFixtureStockVisible(fixture.id, false);
+      return true;
+    },
+    stow() {
+      if (!active || !carrying) return false;
+      const id = carrying;
+      const blocker = fixtureMoveBlocker(id);
+      if (blocker) { hooks.toast?.(blockerCopy(blocker, 'Move the carton off this fixture first.'), 'warn'); return true; }
+      const onShelf = shelfUnits(id);
+      if (onShelf) { hooks.toast?.(`Empty this fixture before storing it - ${onShelf} shelf item${onShelf === 1 ? '' : 's'} are still on display.`, 'warn'); return true; }
+      const held = heldUnits(id);
+      if (held) { hooks.toast?.(`Wait for ${held === 1 ? 'the held item' : `${held} held items`} to be sold or returned before storing this fixture.`, 'warn'); return true; }
+      storeFixture(state, id);
+      carrying = null;
+      ghost.visible = false;
+      rebuildLayout();
+      restoreFixture(id);
+      return true;
+    },
+    cancel() {
+      if (!carrying) return false;
+      const id = carrying;
+      carrying = null;
+      ghost.visible = false;
+      restoreFixture(id);
+      return true;
+    },
+    rotate(direction = 1) { if (!carrying) return false; ry += Math.PI / 2 * direction; return true; },
+    update() {
+      if (!active || !carrying) return;
+      const point = aimLocal();
+      ghost.position = { x: point.x, y: FLOOR_TOP, z: point.z };
+      ghost.rotationY = ry;
+      lastCheck = validatePlacement(state, carrying, point.x, point.z, ry);
+    },
+    diagnostics() {
+      const colliders = carrying ? fixtureColliderDiagnostics(carrying) : null;
+      return Object.freeze({
+        active, carrying,
+        ghost: Object.freeze({ visible: ghost.visible, position: Object.freeze({ ...ghost.position }), rotationY: ghost.rotationY, profile: ghost.profile ? Object.freeze({ ...ghost.profile }) : null }),
+        validation: Object.freeze({ ok: !!lastCheck.ok, reasons: Object.freeze([...(lastCheck.reasons || [])]) }),
+        colliderActive: colliders?.active ?? null,
+        colliders,
+      });
+    },
+    label: () => active ? (carrying ? '[E] set down · [R] turn · [X] into the back' : 'Build mode — look at a fixture') : null,
+    toggleCatalog: () => false,
+    toggleGrid: () => true,
+    toggleRotationSnap: () => true,
+    dispose() { if (carrying) api.cancel(); active = false; },
+  };
+  return api;
+}
+
 export function buildBuildMode(B, deps) {
-  const { interior, state, hooks, walk, W2L, L2W, FLOOR_TOP } = B;
+  const { camera, interior, state, hooks, walk, W2L } = B;
+  if (!camera || !deps.placeables) return buildLegacyFixtureMode(B, deps);
   const {
     rebuildLayout,
-    rebuildDecor = () => {},
     fixtureAnchors,
+    placeables,
+    refreshRoomStyle,
     fixtureMoveBlocker = () => null,
     setFixtureStockVisible = () => {},
     setFixtureCollidersActive = () => {},
     fixtureColliderDiagnostics = () => null,
-    createPlaceablePreview = () => null,
-    setDecorPlacementVisible = () => {},
   } = deps;
 
   let active = false;
-  let carrying = null; // fixture id
-  let decorCarry = null; // { itemId, skuId, placementId?, originalPose?, ry }
-  let inventoryOpen = false;
-  let inventoryIndex = 0;
-  let sellConfirmation = null;
-  const history = [];
-  let ry = 0;
-  let lastCheck = { ok: false, reasons: [] };
+  let carrying = null;
+  let original = null;
+  let originalState = null;
+  let preview = null;
+  let previewGeneration = 0;
+  let rotation = 0;
+  let manualOffset = { x: 0, y: 0, z: 0 };
+  let gridEnabled = true;
+  let rotationSnapEnabled = true;
+  let originalMode = false;
+  let lastCheck = { ok: false, reasons: ['Aim at a compatible surface.'], codes: ['no-target'], candidate: null };
+  let checkedSignature = '';
+  let appliedCandidate = null;
+  let focusedId = null;
+  let focusClock = 0;
+  let pendingSale = null;
 
   const raycaster = new THREE.Raycaster();
   raycaster.far = MAX_REACH;
-  // Existing fixture anchors remain on layer 0. Batched GLB props keep their
-  // authored selection geometry on a camera-invisible layer.
-  raycaster.layers.enable(PLACEABLE_SELECTION_LAYER);
   const originWorld = new THREE.Vector3();
   const directionWorld = new THREE.Vector3();
   const endWorld = new THREE.Vector3();
@@ -118,142 +243,46 @@ export function buildBuildMode(B, deps) {
   const rayDirection = new THREE.Vector3();
   const overlayRoot = B.ctx?.scene || interior.parent;
 
-  const ghostMat = new THREE.MeshBasicMaterial({
-    color: GHOST_OK, transparent: true, opacity: 0.22, depthWrite: false,
-  });
-  const edgeMat = new THREE.LineBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.72 });
-  let ghostBox = null;
-  let ghostEdges = null;
-  let placeableGhost = null;
-  let placeableEdges = null;
-  let currentGhostProfile = null;
+  const previewLayer = new THREE.Group();
+  previewLayer.name = 'FurniturePlacementPreview';
+  interior.add(previewLayer);
 
-  function disposeMaterial(material) {
-    for (const mat of Array.isArray(material) ? material : [material]) {
-      if (!mat || mat === ghostMat || mat === edgeMat) continue;
-      for (const value of Object.values(mat)) {
-        if (value?.isTexture && typeof value.dispose === 'function') value.dispose();
-      }
-      if (typeof mat.dispose === 'function') mat.dispose();
-    }
-  }
+  const grid = new THREE.GridHelper(20, 80, 0x6ba97c, 0x3e6047);
+  grid.name = 'FurniturePlacementGrid';
+  grid.material.transparent = true;
+  grid.material.opacity = 0.23;
+  grid.position.y = 0.012;
+  grid.visible = false;
+  previewLayer.add(grid);
 
-  function clearPlaceableGhost() {
-    if (placeableGhost) {
-      placeableGhost.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
-        disposeMaterial(object.material);
-      });
-      ghost.remove(placeableGhost);
-      placeableGhost = null;
-    }
-    if (placeableEdges) {
-      placeableEdges.geometry.dispose();
-      ghost.remove(placeableEdges);
-      placeableEdges = null;
-    }
-  }
-
-  function clearFixtureGhost() {
-    if (!ghostBox) return;
-    ghost.remove(ghostBox, ghostEdges);
-    ghostBox.geometry.dispose();
-    ghostEdges.geometry.dispose();
-    ghostBox = null;
-    ghostEdges = null;
-  }
-
-  // the highlight ring under whatever fixture you are looking at
-  const halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.1, 0.107, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffd479, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthTest: false }),
+  const marker = new THREE.Mesh(
+    new THREE.RingGeometry(0.11, 0.17, 32),
+    new THREE.MeshBasicMaterial({ color: OK, transparent: true, opacity: 0.94, side: THREE.DoubleSide, depthTest: false }),
   );
   marker.name = 'FurnitureTargetMarker';
   marker.renderOrder = 998;
   marker.visible = false;
   previewLayer.add(marker);
 
-  function makeGhost(f) {
-    clearPlaceableGhost();
-    clearFixtureGhost();
-    const profile = fixtureGhostProfile(f);
-    currentGhostProfile = { ...profile };
-    const h = f.kind === 'table' || f.kind === 'feature' ? 0.9 : f.kind === 'hatstand' ? 1.8 : 2.2;
-    const geo = new THREE.BoxGeometry(profile.width, h, profile.depth);
-    ghostBox = new THREE.Mesh(geo, ghostMat);
-    ghostBox.position.set(profile.offsetX, h / 2, profile.offsetZ);
-    ghostEdges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
-    ghostEdges.position.copy(ghostBox.position);
-    ghost.add(ghostBox, ghostEdges);
+  let previewBox = null;
+  let focusBox = null;
+
+  function clearBox(box) {
+    if (!box) return null;
+    box.geometry?.dispose();
+    box.material?.dispose();
+    box.removeFromParent();
+    return null;
   }
 
-  function makePlaceableGhost(skuId) {
-    clearFixtureGhost();
-    clearPlaceableGhost();
-    const spec = placeableSpecBySkuId(skuId);
-    const profile = spec?.placementProfile;
-    if (!profile) return false;
-    currentGhostProfile = {
-      width: profile.width,
-      depth: profile.depth,
-      offsetX: profile.offsetX || 0,
-      offsetZ: profile.offsetZ || 0,
-      mount: profile.mount,
-    };
-    placeableGhost = createPlaceablePreview(skuId);
-    if (!placeableGhost) {
-      placeableGhost = new THREE.Group();
-      const fallback = new THREE.Mesh(
-        new THREE.BoxGeometry(profile.width, Math.max(0.04, profile.height), profile.depth),
-        ghostMat,
-      );
-      fallback.position.set(
-        profile.offsetX || 0,
-        profile.mount === 'ceiling' ? 2.7 : Math.max(0.04, profile.height) / 2,
-        profile.offsetZ || 0,
-      );
-      placeableGhost.add(fallback);
-    } else {
-      placeableGhost.traverse((object) => {
-        if (!object.isMesh) return;
-        disposeMaterial(object.material);
-        object.material = ghostMat;
-        object.castShadow = false;
-        object.receiveShadow = false;
-      });
-    }
-    const outlineGeometry = new THREE.BoxGeometry(
-      profile.width,
-      Math.max(0.035, profile.mount === 'floor' ? 0.035 : profile.height),
-      profile.depth,
-    );
-    placeableEdges = new THREE.LineSegments(new THREE.EdgesGeometry(outlineGeometry), edgeMat);
-    outlineGeometry.dispose();
-    placeableEdges.position.set(
-      profile.offsetX || 0,
-      profile.mount === 'ceiling'
-        ? 2.72
-        : (profile.mount === 'wall' ? 1.82 : Math.max(0.035, profile.height) / 2),
-      profile.offsetZ || 0,
-    );
-    ghost.add(placeableGhost, placeableEdges);
-    return true;
-  }
-
-  // where on the floor is the player pointing? (interior-local yards)
-  function aimLocal() {
-    const eye = { x: walk.x, y: FLOOR_TOP + walk.eye, z: walk.z };
-    const cp = Math.cos(walk.pitch);
-    const dir = {
-      x: -Math.sin(walk.yaw) * cp,
-      y: Math.sin(walk.pitch),
-      z: -Math.cos(walk.yaw) * cp,
-    };
-    // where does the view ray meet the floor? if it points up, fall back to a spot ahead.
-    let t = dir.y < -0.02 ? (FLOOR_TOP - eye.y) / dir.y : 3.0;
-    t = Math.max(1.0, Math.min(6.0, t));
-    const p = W2L(eye.x + dir.x * t, eye.z + dir.z * t);
-    return { x: Math.round(p.x / GRID) * GRID, z: Math.round(p.z / GRID) * GRID };
+  function makeBox(object, color) {
+    const box = new THREE.BoxHelper(object, color);
+    box.material.transparent = true;
+    box.material.opacity = 0.9;
+    box.material.depthTest = false;
+    box.renderOrder = 999;
+    overlayRoot.add(box);
+    return box;
   }
 
   function localViewRay() {
@@ -349,179 +378,6 @@ export function buildBuildMode(B, deps) {
     return hits;
   }
 
-  function placeableEntries() {
-    return ownedPlaceableItems(state)
-      .filter((item) => item.quantityOwned > 0)
-      .sort((a, b) => a.category.localeCompare(b.category) || a.displayName.localeCompare(b.displayName));
-  }
-
-  function selectedPlaceable() {
-    const entries = placeableEntries();
-    if (!entries.length) return null;
-    inventoryIndex = ((inventoryIndex % entries.length) + entries.length) % entries.length;
-    return entries[inventoryIndex];
-  }
-
-  function decorUnderAim() {
-    const point = aimLocal();
-    return placedPlaceableAt(state, point.x, point.z);
-  }
-
-  function decorPose() {
-    if (!decorCarry) return null;
-    const spec = placeableSpecBySkuId(decorCarry.skuId);
-    return snapPlaceablePose(spec, aimLocal(), decorCarry.ry || 0);
-  }
-
-  function remember(command) {
-    history.push(command);
-    if (history.length > 20) history.shift();
-  }
-
-  function finishDecorCarry({ restore = false } = {}) {
-    if (restore && decorCarry?.placementId) setDecorPlacementVisible(decorCarry.placementId, true);
-    decorCarry = null;
-    ghost.visible = false;
-    clearPlaceableGhost();
-    lastCheck = { ok: false, reasons: [] };
-  }
-
-  function beginStoredPlaceable() {
-    const item = selectedPlaceable();
-    if (!item) {
-      if (hooks.toast) hooks.toast('Property storage is empty.', 'warn');
-      return true;
-    }
-    if (item.quantityStored < 1) {
-      if (hooks.toast) hooks.toast(
-        `${item.displayName} has ${item.quantityPlaced} placed and ${item.quantityInTransit} in transit, but none stored.`,
-        'warn',
-      );
-      return true;
-    }
-    decorCarry = {
-      itemId: item.id,
-      skuId: item.skuId,
-      placementId: null,
-      originalPose: null,
-      ry: 0,
-    };
-    inventoryOpen = false;
-    sellConfirmation = null;
-    makePlaceableGhost(item.skuId);
-    ghost.visible = true;
-    if (hooks.toast) hooks.toast(`${item.displayName} - [E] place · [R] rotate · [RMB] cancel`);
-    return true;
-  }
-
-  function beginPlacedDecor(entry) {
-    const placement = entry?.placement;
-    const spec = entry?.spec;
-    if (!placement || !spec) return false;
-    decorCarry = {
-      itemId: placement.itemId,
-      skuId: spec.skuId,
-      placementId: placement.id,
-      originalPose: structuredClone(placement.pose),
-      ry: placement.pose?.ry || 0,
-    };
-    makePlaceableGhost(spec.skuId);
-    ghost.visible = true;
-    setDecorPlacementVisible(placement.id, false);
-    if (hooks.toast) hooks.toast(`${spec.displayName} - [E] set down · [R] rotate · [X] store · [RMB] cancel`);
-    return true;
-  }
-
-  function commitDecor() {
-    if (!decorCarry) return false;
-    const pose = decorPose();
-    const checked = validatePlaceablePlacement(state, decorCarry.skuId, pose, {
-      exceptPlacementId: decorCarry.placementId,
-    });
-    lastCheck = checked;
-    if (!checked.ok) {
-      if (hooks.toast) hooks.toast(checked.reasons[0], 'warn');
-      return true;
-    }
-    if (decorCarry.placementId) {
-      const placementId = decorCarry.placementId;
-      const before = decorCarry.originalPose;
-      const moved = moveDecorPlacement(state, placementId, pose);
-      if (!moved.ok) {
-        if (hooks.toast) hooks.toast(moved.reason || 'Could not move that item.', 'warn');
-        return true;
-      }
-      remember({ kind: 'move', placementId, before, after: structuredClone(pose) });
-    } else {
-      const placed = placeDecorFree(state, decorCarry.skuId, pose);
-      if (!placed.ok) {
-        if (hooks.toast) hooks.toast(placed.reason || 'Could not place that item.', 'warn');
-        return true;
-      }
-      remember({ kind: 'place', placementId: placed.placement.id, skuId: decorCarry.skuId });
-    }
-    const name = placeableSpecBySkuId(decorCarry.skuId)?.displayName || 'Property item';
-    finishDecorCarry();
-    rebuildDecor();
-    if (hooks.sfx) hooks.sfx('thunk');
-    if (hooks.toast) hooks.toast(`${name} placed. [Z] undo`);
-    return true;
-  }
-
-  function undoLast() {
-    if (carrying || decorCarry) {
-      if (hooks.toast) hooks.toast('Set down or cancel the item in your hands first.', 'warn');
-      return true;
-    }
-    const command = history.pop();
-    if (!command) {
-      if (hooks.toast) hooks.toast('Nothing to undo.', 'warn');
-      return true;
-    }
-    let result = null;
-    if (command.kind === 'place') result = removeDecorPlacement(state, command.placementId);
-    else if (command.kind === 'move') result = moveDecorPlacement(state, command.placementId, command.before);
-    else if (command.kind === 'store') result = placeDecorFree(state, command.skuId, command.before);
-    if (!result?.ok) {
-      history.push(command);
-      if (hooks.toast) hooks.toast(result?.reason || 'That change can no longer be undone.', 'warn');
-      return true;
-    }
-    rebuildDecor();
-    if (hooks.sfx) hooks.sfx('thunk');
-    if (hooks.toast) hooks.toast('Last property placement undone.');
-    return true;
-  }
-
-  function sellSelected() {
-    const item = selectedPlaceable();
-    if (!inventoryOpen || !item) return false;
-    if (item.quantityStored < 1) {
-      if (hooks.toast) hooks.toast('Only stored items can be sold.', 'warn');
-      return true;
-    }
-    const now = performance.now();
-    if (!sellConfirmation || sellConfirmation.itemId !== item.id || sellConfirmation.expiresAt < now) {
-      sellConfirmation = { itemId: item.id, expiresAt: now + 3000 };
-      if (hooks.toast) hooks.toast(
-        `Press [Delete] again to sell ${item.displayName} for $${item.sellValue.toFixed(2)}.`,
-        'warn',
-      );
-      return true;
-    }
-    const operationId = `property-build-sale:${item.id}:${Math.floor(now)}`;
-    const sold = sellStoredDecor(state, item.skuId, operationId);
-    sellConfirmation = null;
-    if (!sold.ok) {
-      if (hooks.toast) hooks.toast(sold.reason || 'Could not sell that item.', 'warn');
-      return true;
-    }
-    rebuildDecor();
-    if (hooks.sfx) hooks.sfx('coin');
-    if (hooks.toast) hooks.toast(`${item.displayName} sold for $${sold.payout.toFixed(2)}.`);
-    return true;
-  }
-
   function rawCandidate() {
     if (!carrying) return null;
     const meta = placeableById(carrying);
@@ -557,25 +413,439 @@ export function buildBuildMode(B, deps) {
     return held.reduce((total, unit) => total + (skus.has(unit?.skuId) ? 1 : 0), 0);
   }
 
-  return {
+  function validationSignature(candidate) {
+    if (!candidate) return `none:${gridEnabled}:${rotationSnapEnabled}`;
+    return [candidate.x.toFixed(4), candidate.y.toFixed(4), candidate.z.toFixed(4), candidate.ry.toFixed(4),
+      candidate.surface, candidate.attachment?.wallId || '', candidate.attachment?.parentId || '',
+      gridEnabled, rotationSnapEnabled].join(':');
+  }
+
+  function applyMarker(candidate, ok) {
+    if (!candidate) {
+      marker.visible = false;
+      return;
+    }
+    marker.visible = true;
+    marker.material.color.setHex(ok ? OK : BAD);
+    marker.position.set(candidate.x, candidate.y + 0.012, candidate.z);
+    marker.rotation.set(-Math.PI / 2, 0, 0);
+    if (candidate.surface === 'wall') {
+      marker.position.y = candidate.y;
+      marker.rotation.set(0, candidate.ry, 0);
+    } else if (candidate.surface === 'ceiling') {
+      marker.position.y = candidate.y - 0.012;
+      marker.rotation.set(Math.PI / 2, 0, 0);
+    }
+  }
+
+  function statusCopy() {
+    if (!active) return { copy: '', kind: '' };
+    if (carrying) {
+      const object = objectById(state, carrying);
+      if (!preview) return { copy: `Loading ${object?.label || 'furniture'} preview…`, kind: 'warn' };
+      if (!lastCheck.ok) return { copy: `${object?.label || 'Furniture'} · ${lastCheck.reasons[0]}`, kind: 'invalid' };
+      const surface = lastCheck.candidate?.surface || 'surface';
+      return {
+        copy: `${object?.label || 'Furniture'} · valid ${surface} placement · E to set down`,
+        kind: '',
+      };
+    }
+    const object = focusedId && objectById(state, focusedId);
+    return object
+      ? { copy: `${object.label} · ${object.placementCategory.replaceAll('-', ' ')} · E to move`, kind: '' }
+      : { copy: 'Aim at furniture, or press I for the collection', kind: 'warn' };
+  }
+
+  function syncStatus() {
+    const { copy, kind } = statusCopy();
+    panel.setStatus(copy, kind, carrying
+      ? 'E place · R rotate · Arrows nudge · Esc cancel'
+      : 'I collection · Ctrl+Z undo · B finish');
+  }
+
+  function clearPreview() {
+    previewGeneration += 1;
+    previewBox = clearBox(previewBox);
+    if (preview) placeables.releasePreview(preview);
+    preview = null;
+    marker.visible = false;
+    grid.visible = false;
+    appliedCandidate = null;
+    checkedSignature = '';
+  }
+
+  function finishCarry({ revealOriginal = false } = {}) {
+    const id = carrying;
+    clearPreview();
+    if (revealOriginal && id && originalState === 'placed') placeables.setObjectVisible(id, true);
+    if (id) {
+      setFixtureCollidersActive(id, true);
+      setFixtureStockVisible(id, true);
+    }
+    carrying = null;
+    original = null;
+    originalState = null;
+    originalMode = false;
+    manualOffset = { x: 0, y: 0, z: 0 };
+    pendingSale = null;
+    syncStatus();
+  }
+
+  async function beginObject(id) {
+    if (!active || carrying) return false;
+    const object = objectById(state, id);
+    if (!object || object.state === 'sold') {
+      hooks.toast?.('That object is no longer available.', 'warn');
+      return false;
+    }
+    if (object.render?.kind === 'existing') {
+      hooks.toast?.(`${object.label} is protected equipment. Use recovery if its relationship is ever invalid.`, 'warn');
+      return false;
+    }
+    if (['installation', 'vehicle'].includes(object.placementMode)) {
+      hooks.toast?.(`${object.label} is fitted through its Install action in the collection.`, 'warn');
+      return false;
+    }
+    const blocker = fixtureMoveBlocker(id);
+    if (blocker) {
+      hooks.toast?.(typeof blocker === 'string'
+        ? blocker
+        : (blocker.reason || 'Move the delivery carton off this fixture first.'), 'warn');
+      return false;
+    }
+    carrying = id;
+    original = clone(object.transform);
+    originalState = object.state;
+    rotation = object.ry || 0;
+    manualOffset = { x: 0, y: 0, z: 0 };
+    originalMode = false;
+    lastCheck = { ok: false, reasons: ['Loading the authored preview.'], codes: ['loading-preview'], candidate: null };
+    checkedSignature = '';
+    placeables.setObjectVisible(id, false);
+    setFixtureCollidersActive(id, false);
+    setFixtureStockVisible(id, false);
+    focusBox = clearBox(focusBox);
+    focusedId = null;
+    grid.visible = gridEnabled;
+    syncStatus();
+    const generation = ++previewGeneration;
+    const made = await placeables.previewFor(id);
+    if (!made || generation !== previewGeneration || carrying !== id || !active) {
+      if (made) placeables.releasePreview(made);
+      return false;
+    }
+    preview = made;
+    preview.visible = true;
+    previewLayer.add(preview);
+    previewBox = makeBox(preview, OK);
+    checkedSignature = '';
+    return true;
+  }
+
+  function objectUnderAim() {
+    raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+    const hits = raycaster.intersectObjects(placeables.selectableRoots(), true);
+    for (const hit of hits) {
+      if (hit.distance > MAX_REACH) break;
+      let node = hit.object;
+      while (node && !node.userData.placeableId) node = node.parent;
+      const id = node?.userData?.placeableId || hit.object.userData.placeableId;
+      const object = id && objectById(state, id);
+      if (object?.state === 'placed' && object.render?.kind !== 'existing') return object;
+    }
+    return null;
+  }
+
+  function refreshFocus(force = false) {
+    if (!active || carrying || panel.isOpen()) {
+      focusedId = null;
+      focusBox = clearBox(focusBox);
+      return;
+    }
+    if (!force && focusClock < 0.08) return;
+    focusClock = 0;
+    const object = objectUnderAim();
+    const nextId = object?.id || null;
+    if (nextId === focusedId) {
+      focusBox?.update();
+      // The catalog clears `focusedId` while its cursor is open. If the player
+      // then closes it while aiming at empty space, the identity remains null but
+      // the visible status copy still needs to return to the neutral instruction.
+      syncStatus();
+      return;
+    }
+    focusedId = nextId;
+    focusBox = clearBox(focusBox);
+    const root = focusedId && placeables.rootForObject(focusedId);
+    if (root) focusBox = makeBox(root, GOLD);
+    syncStatus();
+  }
+
+  function confirmPlacement() {
+    if (!carrying) return false;
+    if (!preview || !lastCheck.ok || !lastCheck.candidate) {
+      hooks.toast?.(lastCheck.reasons[0] || 'Aim at a compatible surface.', 'warn');
+      return true;
+    }
+    const actor = W2L(walk.x, walk.z);
+    const result = commitObjectPlacement(state, carrying, lastCheck.candidate, {
+      grid: false, rotationSnap: false, actorPosition: actor,
+    });
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return true;
+    }
+    const label = result.object.label;
+    finishCarry();
+    rebuildLayout();
+    hooks.sfx?.('thunk');
+    hooks.toast?.(`${label} set exactly where previewed. Navigation refreshed.`);
+    panel.refresh();
+    return true;
+  }
+
+  function interact() {
+    if (!active || panel.isOpen()) return false;
+    if (carrying) return confirmPlacement();
+    const object = objectUnderAim();
+    if (!object) return false;
+    beginObject(object.id);
+    return true;
+  }
+
+  function rotate(direction = 1) {
+    if (!active || !carrying) return false;
+    const meta = placeableById(carrying);
+    if (!meta) return false;
+    if (lastCheck.candidate?.surface === 'wall' || !meta.rotation?.free && !(meta.rotation?.increment > 0)) {
+      hooks.toast?.('That mount follows the wall normal.', 'warn');
+      return true;
+    }
+    const step = rotationSnapEnabled && meta.rotation?.increment > 0
+      ? meta.rotation.increment
+      : (meta.rotation?.free ? Math.PI / 36 : meta.rotation?.increment || Math.PI / 2);
+    rotation = wrap(rotation + step * direction);
+    originalMode = false;
+    checkedSignature = '';
+    return true;
+  }
+
+  function nudge(direction, coarse = false) {
+    if (!active || !carrying) return false;
+    const step = coarse ? GRID : FINE_GRID;
+    const surface = lastCheck.candidate?.surface;
+    if (surface === 'wall') {
+      const wall = WALL_SURFACES.find((entry) => entry.id === lastCheck.candidate.attachment?.wallId);
+      if (direction === 'up') manualOffset.y += step;
+      else if (direction === 'down') manualOffset.y -= step;
+      else if (wall?.coordinate === 'x') manualOffset.x += direction === 'right' ? step : -step;
+      else manualOffset.z += direction === 'right' ? step : -step;
+    } else {
+      const forward = { x: -Math.sin(walk.yaw), z: -Math.cos(walk.yaw) };
+      const right = { x: -Math.cos(walk.yaw), z: Math.sin(walk.yaw) };
+      const vector = direction === 'up' ? forward : direction === 'down'
+        ? { x: -forward.x, z: -forward.z } : direction === 'right' ? right : { x: -right.x, z: -right.z };
+      manualOffset.x += vector.x * step;
+      manualOffset.z += vector.z * step;
+    }
+    originalMode = false;
+    checkedSignature = '';
+    return true;
+  }
+
+  function cancel() {
+    if (!carrying) return false;
+    finishCarry({ revealOriginal: true });
+    // Cancellation is deliberately quiet: the original reappears immediately and
+    // another transient toast would cover the next object's preview.
+    return true;
+  }
+
+  function returnOriginal() {
+    if (!carrying || !original) return false;
+    originalMode = true;
+    rotation = original.ry || 0;
+    manualOffset = { x: 0, y: 0, z: 0 };
+    checkedSignature = '';
+    hooks.toast?.('Preview returned to the original saved transform.');
+    return true;
+  }
+
+  function storeById(id = carrying) {
+    if (!id) return false;
+    const blocker = fixtureMoveBlocker(id);
+    if (blocker) {
+      hooks.toast?.(typeof blocker === 'string'
+        ? blocker
+        : (blocker.reason || 'Move the delivery carton off this fixture first.'), 'warn');
+      return true;
+    }
+    const shelfUnits = shelfUnitsOnFixture(id);
+    if (shelfUnits > 0) {
+      hooks.toast?.(`Empty this fixture before storing it - ${shelfUnits} shelf item${shelfUnits === 1 ? '' : 's'} are still on display.`, 'warn');
+      return true;
+    }
+    const heldUnits = heldUnitsFromFixture(id);
+    if (heldUnits > 0) {
+      hooks.toast?.(`Wait for ${heldUnits === 1 ? 'the held item' : `${heldUnits} held items`} to be sold or returned before storing this fixture.`, 'warn');
+      return true;
+    }
+    const result = storeObject(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return true;
+    }
+    const label = objectById(state, id)?.label || 'Furniture';
+    if (carrying === id) finishCarry();
+    rebuildLayout();
+    hooks.toast?.(`${label} returned to storage. Its collision and navigation obstacle were removed.`);
+    panel.refresh();
+    return true;
+  }
+
+  function sellById(id = carrying) {
+    if (!id) return false;
+    const object = objectById(state, id);
+    if (!object) return false;
+    if (object.requiredObject) {
+      const denied = sellObject(state, id);
+      hooks.toast?.(denied.reason, 'warn');
+      return true;
+    }
+    const now = performance.now();
+    if (!pendingSale || pendingSale.id !== id || pendingSale.until < now) {
+      pendingSale = { id, until: now + 4500 };
+      hooks.toast?.(`Sell ${object.label} for $${object.sellValue}? Press Delete or Sell again to confirm.`, 'warn');
+      return true;
+    }
+    pendingSale = null;
+    const result = sellObject(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return true;
+    }
+    if (carrying === id) finishCarry();
+    if (object.state === 'installed') refreshRoomStyle();
+    rebuildLayout();
+    hooks.sfx?.('cash');
+    hooks.toast?.(`${object.label} sold for $${result.value}. This object can only be credited once.`);
+    panel.refresh();
+    return true;
+  }
+
+  function recoverById(id) {
+    const result = recoverObject(state, id);
+    if (!result.ok) hooks.toast?.(result.reason, 'warn');
+    else {
+      rebuildLayout();
+      hooks.toast?.(`${result.object.label} recovered to its verified safe relationship.`);
+    }
+    panel.refresh();
+    return result.ok;
+  }
+
+  function undo() {
+    if (carrying) cancel();
+    const result = undoPlacement(state);
+    if (!result.ok) hooks.toast?.(result.reason, 'warn');
+    else {
+      rebuildLayout();
+      refreshRoomStyle();
+      hooks.toast?.('Last customization undone.');
+    }
+    panel.refresh();
+    return result.ok;
+  }
+
+  function redo() {
+    if (carrying) cancel();
+    const result = redoPlacement(state);
+    if (!result.ok) hooks.toast?.(result.reason, 'warn');
+    else {
+      rebuildLayout();
+      refreshRoomStyle();
+      hooks.toast?.('Customization redone.');
+    }
+    panel.refresh();
+    return result.ok;
+  }
+
+  function setStyle(kind, id) {
+    if (!ROOM_STYLE_OPTIONS[kind]?.some((option) => option.id === id)) return false;
+    const result = setRoomStyle(state, { [kind]: id });
+    refreshRoomStyle();
+    hooks.sfx?.('paint');
+    hooks.toast?.(`${kind[0].toUpperCase() + kind.slice(1)} changed. Dirt and restoration masks are preserved.`);
+    panel.refresh();
+    return result.ok;
+  }
+
+  function cycleVariant(id) {
+    const object = objectById(state, id);
+    if (!object?.variants?.length || object.variants.length < 2) return false;
+    const index = object.variants.indexOf(object.variant);
+    const next = object.variants[(index + 1) % object.variants.length];
+    const result = setObjectVariant(state, id, next);
+    if (result.ok) {
+      rebuildLayout();
+      hooks.toast?.(`${object.label}: ${next.replaceAll('-', ' ')} finish.`);
+      panel.refresh();
+    }
+    return result.ok;
+  }
+
+  function purchaseSku(skuId) {
+    const result = purchaseFurniture(state, skuId);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    hooks.sfx?.('cash');
+    const levelCopy = result.levelsGained.length
+      ? ` Renovation level ${result.level} unlocked.` : '';
+    hooks.toast?.(`${result.item.name} delivered to the collection for $${result.total}.${levelCopy}`);
+    panel.refresh();
+    return result;
+  }
+
+  function installById(id) {
+    const result = installFurniture(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    refreshRoomStyle();
+    rebuildLayout();
+    hooks.sfx?.('thunk');
+    hooks.toast?.(`${result.item.name} installed. Clubhouse values updated.`);
+    panel.refresh();
+    return result;
+  }
+
+  function uninstallById(id) {
+    const object = objectById(state, id);
+    const result = uninstallFurniture(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    refreshRoomStyle();
+    rebuildLayout();
+    hooks.toast?.(`${object?.label || 'Installation'} returned to storage.`);
+    panel.refresh();
+    return result;
+  }
+
+  const api = {
     isActive: () => active,
-    isCarrying: () => carrying || decorCarry?.placementId || decorCarry?.skuId || null,
-    isInventoryOpen: () => inventoryOpen,
+    isCarrying: () => carrying,
+    isCatalogOpen: () => panel.isOpen(),
     diagnostics() {
       const colliders = carrying ? fixtureColliderDiagnostics(carrying) : null;
       return Object.freeze({
         active,
         carrying,
-        decorCarry: decorCarry ? Object.freeze({ ...decorCarry }) : null,
-        inventoryOpen,
-        inventoryIndex,
-        undoDepth: history.length,
-        ghost: Object.freeze({
-          visible: ghost.visible,
-          position: Object.freeze({ x: ghost.position.x, y: ghost.position.y, z: ghost.position.z }),
-          rotationY: ghost.rotation.y,
-          profile: currentGhostProfile ? Object.freeze({ ...currentGhostProfile }) : null,
-        }),
+        previewVisible: !!preview?.visible,
         validation: Object.freeze({
           ok: !!lastCheck.ok,
           reasons: Object.freeze([...(lastCheck.reasons || [])]),
@@ -584,263 +854,82 @@ export function buildBuildMode(B, deps) {
         colliders,
       });
     },
-
     enter() {
       if (active) return;
       active = true;
-      if (hooks.toast) hooks.toast('Build mode - [I] property inventory · look at placed items and [E] to move · [B] stop.');
+      panel.enter();
+      refreshFocus(true);
+      syncStatus();
     },
     exit() {
-      if (carrying || decorCarry) this.cancel();
+      if (carrying) cancel();
       active = false;
-      inventoryOpen = false;
-      ghost.visible = false;
-      halo.visible = false;
+      focusedId = null;
+      focusBox = clearBox(focusBox);
+      marker.visible = false;
+      grid.visible = false;
+      panel.exit();
     },
-
-    toggleInventory() {
-      if (!active || carrying || decorCarry) return false;
-      inventoryOpen = !inventoryOpen;
-      sellConfirmation = null;
+    interact,
+    beginObject,
+    rotate,
+    nudge,
+    cancel,
+    returnOriginal,
+    stow: () => storeById(),
+    storeById,
+    sellById,
+    recoverById,
+    undo,
+    redo,
+    toggleCatalog: () => panel.toggle(),
+    toggleGrid() {
+      gridEnabled = !gridEnabled;
+      grid.visible = !!carrying && gridEnabled;
+      checkedSignature = '';
+      hooks.toast?.(`Position grid ${gridEnabled ? 'on' : 'off'}.`);
       return true;
     },
-
-    cycleInventory(direction) {
-      if (!active || !inventoryOpen) return false;
-      const entries = placeableEntries();
-      if (!entries.length) return true;
-      inventoryIndex = (inventoryIndex + Math.sign(direction || 1) + entries.length) % entries.length;
-      sellConfirmation = null;
+    toggleRotationSnap() {
+      rotationSnapEnabled = !rotationSnapEnabled;
+      checkedSignature = '';
+      hooks.toast?.(`Rotation snapping ${rotationSnapEnabled ? 'on' : 'off'}.`);
       return true;
     },
-
-    inventoryText() {
-      if (!active || !inventoryOpen) return '';
-      const entries = placeableEntries();
-      if (!entries.length) {
-        return 'PROPERTY STORAGE\nNo owned placeable items\n\nOrder furnishings from the supplier laptop.\n[I] close';
-      }
-      const selected = selectedPlaceable();
-      const lines = entries.map((item) => {
-        const marker = item.id === selected.id ? '›' : ' ';
-        const variant = item.variant && item.variant !== 'standard' ? ` · ${item.variant}` : '';
-        return `${marker} ${item.displayName}${variant}\n   ${item.category} · Stored ${item.quantityStored} · Placed ${item.quantityPlaced} · Transit ${item.quantityInTransit} · Sell $${item.sellValue.toFixed(2)}`;
-      });
-      return `PROPERTY STORAGE  ${inventoryIndex + 1}/${entries.length}\n${lines.join('\n')}\n\n[↑/↓] select · [E] place · [Delete] sell stored · [I] close`;
-    },
-
-    sellSelected,
-    undo: undoLast,
-
-    // E: pick up what you are looking at, or put down what you are holding
-    interact() {
-      if (!active) return false;
-      if (decorCarry) return commitDecor();
-      if (inventoryOpen) return beginStoredPlaceable();
-      if (carrying) {
-        const id = carrying;
-        const p = aimLocal();
-        const v = validatePlacement(state, id, p.x, p.z, ry);
-        if (!v.ok) {
-          if (hooks.toast) hooks.toast(v.reasons[0], 'warn');
-          return true;
-        }
-        commitPlacement(state, id, p.x, p.z, ry);
-        carrying = null;
-        ghost.visible = false;
-        active = false;
-        halo.visible = false;
-        rebuildLayout();
-        setFixtureCollidersActive(id, true);
-        setFixtureStockVisible(id, true);
-        if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.tutorial) hooks.tutorial('fixturePlaced');
-        if (hooks.toast) hooks.toast('Fixture placed — customer routes are clear.', 'good');
-        return true;
-      }
-      const decor = decorUnderAim();
-      if (decor) return beginPlacedDecor(decor);
-      const f = fixtureUnderAim();
-      if (!f) return false;
-      const blocker = fixtureMoveBlocker(f.id);
-      if (blocker) {
-        if (hooks.toast) hooks.toast(
-          typeof blocker === 'string'
-            ? blocker
-            : (blocker.reason || 'Move the carton off this fixture first.'),
-          'warn',
-        );
-        return true;
-      }
-      carrying = f.id;
-      ry = f.ry || 0;
-      makeGhost(f);
-      ghost.visible = true;
-      halo.visible = false;
-      // lift it off the floor so the room reads as it will without it
-      const anchor = fixtureAnchors.get(f.id);
-      if (anchor) anchor.visible = false;
-      setFixtureCollidersActive(f.id, false);
-      setFixtureStockVisible(f.id, false);
-      if (hooks.toast) hooks.toast(`${f.title || f.kind} — [E] set down · [R] turn · [X] into the back · [RMB] cancel`);
-      return true;
-    },
-
-    rotate(fine = false) {
-      if (!active) return false;
-      if (decorCarry) {
-        const profile = placeableSpecBySkuId(decorCarry.skuId)?.placementProfile;
-        if (!profile || profile.mount === 'wall') return true;
-        const step = fine ? Math.PI / 36 : (profile.rotationStep || Math.PI / 12);
-        decorCarry.ry = (decorCarry.ry + step) % (Math.PI * 2);
-        return true;
-      }
-      if (!carrying) return false;
-      ry = (ry + Math.PI / 2) % (Math.PI * 2);
-      return true;
-    },
-
-    // X: take it off the floor entirely
-    stow() {
-      if (!active) return false;
-      if (decorCarry) {
-        if (!decorCarry.placementId) return this.cancel();
-        const placementId = decorCarry.placementId;
-        const skuId = decorCarry.skuId;
-        const before = decorCarry.originalPose;
-        const stored = removeDecorPlacement(state, placementId);
-        if (!stored.ok) {
-          if (hooks.toast) hooks.toast(stored.reason || 'Could not store that item.', 'warn');
-          return true;
-        }
-        remember({ kind: 'store', skuId, before });
-        finishDecorCarry();
-        rebuildDecor();
-        if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Returned to property storage. [Z] undo');
-        return true;
-      }
-      if (!carrying) return false;
-      const id = carrying;
-      const blocker = fixtureMoveBlocker(id);
-      if (blocker) {
-        if (hooks.toast) hooks.toast(
-          typeof blocker === 'string'
-            ? blocker
-            : (blocker.reason || 'Move the carton off this fixture first.'),
-          'warn',
-        );
-        return true;
-      }
-      const shelfUnits = shelfUnitsOnFixture(id);
-      if (shelfUnits > 0) {
-        if (hooks.toast) hooks.toast(
-          `Empty this fixture before storing it - ${shelfUnits} shelf item${shelfUnits === 1 ? '' : 's'} are still on display.`,
-          'warn',
-        );
-        return true;
-      }
-      const heldUnits = heldUnitsFromFixture(id);
-      if (heldUnits > 0) {
-        if (hooks.toast) hooks.toast(
-          `Wait for ${heldUnits === 1 ? 'the held item' : `${heldUnits} held items`} to be sold or returned before storing this fixture.`,
-          'warn',
-        );
-        return true;
-      }
-      storeFixture(state, id);
-      carrying = null;
-      ghost.visible = false;
-      rebuildLayout();
-      setFixtureCollidersActive(id, true);
-      setFixtureStockVisible(id, true);
-      if (hooks.toast) hooks.toast('Into the back it goes.');
-      return true;
-    },
-
-    cancel() {
-      if (inventoryOpen) {
-        inventoryOpen = false;
-        sellConfirmation = null;
-        return true;
-      }
-      if (decorCarry) {
-        finishDecorCarry({ restore: true });
-        return true;
-      }
-      if (!carrying) return false;
-      const id = carrying;
-      const anchor = fixtureAnchors.get(id);
-      if (anchor) anchor.visible = true;
-      setFixtureCollidersActive(id, true);
-      setFixtureStockVisible(id, true);
-      carrying = null;
-      ghost.visible = false;
-      return true;
-    },
-
+    cycleVariant,
+    setStyle,
+    purchaseSku,
+    installById,
+    uninstallById,
+    uiModel: () => ({
+      placed: placedObjects(state), stored: storedObjects(state), sold: soldObjects(state),
+      installed: purchasedFurnitureInstances(state, { states: ['installed'] })
+        .map((instance) => objectById(state, instance.id)).filter(Boolean),
+      catalog: furnitureCatalogAvailability(state),
+      furniture: { ...ensureFurnitureCatalogState(state), effects: furnitureEffects(state) },
+      cash: state.cash,
+      reputation: Math.max(0, Number(state.club?.reputation) || 0),
+      style: roomStyle(state), revision: ensureLayout(state).revision,
+      undoCount: ensureLayout(state).history.undo.length,
+      redoCount: ensureLayout(state).history.redo.length,
+      gridEnabled, rotationSnapEnabled, carrying,
+    }),
     label() {
-      if (!active) return null;
-      if (inventoryOpen) return 'Property inventory - [↑/↓] select · [E] place · [Delete] sell · [I] close';
-      if (decorCarry) {
-        return lastCheck.ok
-          ? '[E] place · [R] rotate · [X] store · [RMB] cancel · [Z] undo after placing'
-          : `Can't go there - ${lastCheck.reasons[0] || 'choose another surface'}`;
-      }
+      if (!active || panel.isOpen()) return null;
       if (carrying) {
         return lastCheck.ok
-          ? '[E] set it down · [R] turn · [X] into the back'
-          : `Can't go there - ${lastCheck.reasons[0]}`;
+          ? '[E/LMB] place · [R] rotate · [Arrows] nudge · [G] grid · [T] angle snap'
+          : 'Adjust placement · [R] rotate · [Arrows] nudge · [Esc/RMB] cancel';
       }
-      const decor = decorUnderAim();
-      if (decor) return `${decor.spec.displayName} - [E] move · [I] inventory · [Z] undo`;
-      const f = fixtureUnderAim();
-      return f
-        ? `${f.title || f.kind} - [E] pick it up · [I] inventory`
-        : 'Build mode - [I] property inventory · look at an item to move · [Z] undo · [B] stop';
+      const object = focusedId && objectById(state, focusedId);
+      return object ? `${object.label} · [E/LMB] pick up` : null;
     },
     update(dtMs = 16.7) {
       if (!active) return;
-      if (inventoryOpen) {
-        ghost.visible = false;
-        halo.visible = false;
-      } else if (decorCarry) {
-        const pose = decorPose();
-        lastCheck = validatePlaceablePlacement(state, decorCarry.skuId, pose, {
-          exceptPlacementId: decorCarry.placementId,
-        });
-        ghost.position.set(pose.x, 0, pose.z);
-        ghost.rotation.y = pose.ry;
-        ghost.visible = true;
-        setGhostColour(lastCheck.ok);
-        halo.visible = false;
-      } else if (carrying) {
-        const p = aimLocal();
-        lastCheck = validatePlacement(state, carrying, p.x, p.z, ry);
-        ghost.position.set(p.x, 0, p.z);
-        ghost.rotation.y = ry;
-        setGhostColour(lastCheck.ok);
-        halo.visible = false;
-      } else {
-        const decor = decorUnderAim();
-        if (decor) {
-          const r = placeableFootprint(decor.spec, decor.placement.pose);
-          halo.visible = true;
-          halo.position.set((r.minX + r.maxX) / 2, 0.03, (r.minZ + r.maxZ) / 2);
-          const rad = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 0.2;
-          halo.scale.setScalar(rad / 0.12);
-          return;
-        }
-        const f = fixtureUnderAim();
-        if (f) {
-          const r = fixtureRect(f);
-          halo.visible = true;
-          halo.position.set((r.minX + r.maxX) / 2, 0.03, (r.minZ + r.maxZ) / 2);
-          const rad = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 0.18;
-          halo.scale.setScalar(rad);
-        } else {
-          halo.visible = false;
-        }
+      focusClock += Math.min(0.1, dtMs / 1000);
+      if (!carrying) {
+        refreshFocus();
+        return;
       }
       if (!preview) return;
       const raw = rawCandidate();

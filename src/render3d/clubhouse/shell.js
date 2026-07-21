@@ -627,6 +627,7 @@ export function buildShell(B) {
 
   // --- floors: honey oak retail + office, sealed concrete stockroom -----------------
   {
+    retailFloorMaterial = mats.oakFloor;
     const slab = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, FLOOR_TOP, INTERIOR.d), mats.oakFloor);
     slab.position.set(0, FLOOR_TOP / 2, 0);
     slab.receiveShadow = true;
@@ -1002,6 +1003,7 @@ export function buildShell(B) {
     lighting,
     sidingMat,
     roofMat,
+    styleSurfaces: { walls: mats.plaster, trim: trimMat, floor: retailFloorMaterial, ceiling: mats.ceiling },
     productionVisualFallbacks,
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     productionVisualFallbackCounts,

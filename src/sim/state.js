@@ -6,7 +6,7 @@
 import { makeRng, rngOf } from '../core/utils.js';
 import { labelSections, ensureCourseShape } from './course.js';
 import { buildStartingCourse } from './startingCourse.js';
-import { GRID_W, GRID_H, HOLE_STATUS, ZONE, ZONE_MAX_ID } from './constants.js';
+import { GRID_W, GRID_H, ZONE, ZONE_MAX_ID } from './constants.js';
 import { plantVegetation } from './courseShaping.js';
 import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
@@ -15,8 +15,10 @@ import { initTurf, turfHourlyTick, turfDailyTick, runMorningMaintenance, default
 import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
+import { initReputation, ensureReputation } from './reputation.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno, RENO } from './shop.js';
 import { recoverCheckout } from './checkout.js';
+import { ensureInventoryLifecycle } from './inventoryLifecycle.js';
 import { migrateDrawer, newDrawer } from './register.js';
 import { ensurePaymentBag, paymentBagStats } from './paymentBag.js';
 import { ensureWash } from './washing.js';
@@ -30,6 +32,9 @@ import {
   generateOnlineReservations, processReservationTimeline,
 } from './reservations.js';
 import {
+  initCustomerSimulation, planCustomerArrivals, recoverCustomerSimulation,
+} from './customerSimulation.js';
+import {
   initCustomerDirectory, ensureCustomerDirectory, reconcileReservationCustomerIdentities,
 } from './customerIdentity.js';
 import { initTractor, ensureTractor } from './tractor.js';
@@ -41,7 +46,8 @@ import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initCampaign, ensureCampaign } from './campaign.js';
-import { initLedger, addExpense, closeBooks } from './economy.js';
+import { initLedger, ensureLedger, beginLedgerClose, addExpense, closeBooks } from './economy.js';
+import { initBusiness, ensureBusiness, closeDayIndicators } from './business.js';
 import { initNotifications, ensureNotifications } from './notifications.js';
 import { BALANCE } from './balance.js';
 import { SHOP_CATALOG } from '../data/shopItems.js';
@@ -50,9 +56,29 @@ import {
   placedFixtures, routesIntact, validatePlacement, shopExpansionLayoutSafety,
 } from './layout.js';
 import { bindPropertyInventory, ensurePropertyInventory } from './propertyInventory.js';
+import { ensureShopProgression, tickShopProgressionDaily } from './shopProgression.js';
+import { ensureFurnitureCatalogState } from './furnitureCatalog.js';
 import {
-  ensureShopProgression, tickShopProgressionDaily,
-} from './shopProgression.js';
+  courseMaintenanceDailyTick,
+  courseMaintenanceHourlyTick,
+  initCourseMaintenance,
+  restoreCourseMaintenance,
+  snapshotCourseMaintenance,
+} from './courseMaintenance.js';
+import {
+  SaveCompatibilityError,
+  cloneSaveValue,
+  createSaveReport,
+  dedupeRecords,
+  finishSaveReport,
+  finiteNumber,
+  isRecord,
+  mergeSaveDefaults,
+  noteMigration,
+  noteRepair,
+  parseSaveInput,
+  recordsOnly,
+} from './saveValidation.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
@@ -69,13 +95,31 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // v10: fixture poses written against older approximate envelopes are checked
 // once against the authored footprints. Only unsafe moved overrides fall back
 // to the designed plan; valid player moves and all inventory remain untouched.
-// v11: durable property placeables gain their own property-scoped ownership,
-// delivery, storage, and placement authority. Existing decor/backroom counts
-// migrate conservatively without changing retail merchandise stock.
-// v12: the pro shop begins as a compact BASIC operation and expands through
-// constructed STANDARD, PREMIUM, and LUXURY tiers. Legacy saves retain their
-// existing full fixture floor until they purchase their next tier.
-export const SAVE_VERSION = 12;
+// v11: every persisted domain passes one validation/migration boundary before
+// feature-owned healers run. Wetness/solution and all cleaning loads now survive
+// an interrupted cleaning save, duplicate authorities are reconciled once, and
+// future schemas are refused instead of being silently downgraded.
+// v12 adds property-scoped placeable ownership and tiered pro-shop expansion.
+// v13 joins the authored furniture catalog to that ownership/layout boundary.
+export const SAVE_VERSION = 13;
+
+export const MIN_SUPPORTED_SAVE_VERSION = 1;
+export const SAVE_MIGRATIONS = Object.freeze([
+  Object.freeze({ version: 2, name: 'turf-and-maintenance' }),
+  Object.freeze({ version: 3, name: 'club-and-shop' }),
+  Object.freeze({ version: 4, name: 'customer-and-reservations' }),
+  Object.freeze({ version: 5, name: 'course-editor-objects' }),
+  Object.freeze({ version: 6, name: 'course-vector-and-paint' }),
+  Object.freeze({ version: 7, name: 'non-destructive-legacy-course' }),
+  Object.freeze({ version: 8, name: 'authored-fixture-capacity' }),
+  Object.freeze({ version: 9, name: 'rangefinder-feature-category' }),
+  Object.freeze({ version: 10, name: 'authored-fixture-footprints' }),
+  Object.freeze({ version: 11, name: 'validated-lifecycle-state' }),
+  Object.freeze({ version: 12, name: 'property-inventory-and-shop-progression' }),
+  Object.freeze({ version: 13, name: 'authored-furniture-catalog' }),
+]);
+
+const CLEANING_FIELD = wetGridForRoom(RENO.room);
 
 export const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
@@ -113,27 +157,24 @@ function migrateFeatureCategory(shop, persistedVersion) {
 }
 
 // Fixture envelopes became more exact over several retail passes (notably the
-// asymmetric shoe wall and the authored apparel table), and hand-edited saves
-// can carry the same impossible overlaps at any schema version. Validate every
-// persisted override and delete only unsafe poses: the sparse layout then
-// resolves that fixture to its known-safe authored default without changing
-// inventory, stored state, or valid player moves.
-function reconcileMovedFixturePoses(state, report) {
+// asymmetric shoe wall and the authored apparel table). A moved pose that was
+// legal against an old approximate box can therefore load inside a wall or on
+// another unit. Validate only legacy overrides and delete only the unsafe pose:
+// the sparse layout then resolves that fixture to its known-safe authored
+// default without changing inventory, stored state, or valid player moves.
+function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
+  if (persistedVersion >= FIXTURE_FOOTPRINT_SAVE_VERSION) return;
   const moved = state.shop?.layout?.moved;
   if (!moved || typeof moved !== 'object' || Array.isArray(moved)) return;
 
   const ids = Object.keys(moved);
-  let repairedRotation = false;
   for (const id of ids) {
     const pose = moved[id];
     if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.z)) {
       delete moved[id];
       continue;
     }
-    if (!Number.isFinite(pose.ry)) {
-      pose.ry = 0;
-      repairedRotation = true;
-    }
+    if (!Number.isFinite(pose.ry)) pose.ry = 0;
   }
 
   // A route-only failure can be caused by a different corrupt legacy pose.
@@ -182,13 +223,6 @@ function reconcileMovedFixturePoses(state, report) {
       if (validatePlacement(state, id, pose.x, pose.z, pose.ry).ok) moved[id] = pose;
     }
   }
-  const removed = ids.filter((id) => !moved[id]);
-  if (removed.length) {
-    noteRepair(report, '$.shop.layout.moved', `${removed.length} unsafe fixture pose(s) removed`);
-  }
-  if (repairedRotation) {
-    noteRepair(report, '$.shop.layout.moved', 'invalid fixture rotations normalized');
-  }
 }
 
 // A stored authored fixture has no shelf in the world. Crafted/interrupted
@@ -233,17 +267,20 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
   initTurf(state);
   ensureMaintenanceOrders(state);
+  ensureSurfaceDamage(state);
   initGolfers(state);
   initStaff(state);
   initClub(state);
   initReputation(state);
   initShop(state);
+  ensureInventoryLifecycle(state);
+  ensureFurnitureCatalogState(state);
   reconcileShelfCapacity(state.shop);
-  // Persisted register authorities exist from the first save, not only after
-  // the renderer happens to construct the clubhouse or register. Fixture
-  // layout stays lazy because read-only placement queries must remain pure.
+  // Persisted interaction authorities exist from the first save, not only
+  // after the renderer happens to construct the clubhouse or register.
   state.shop.drawer = newDrawer();
   ensurePaymentBag(state);
+  ensureLayout(state);
   ensureShopReno(state);
   ensureClubhouseArchitecture(state);
   ensureDebris(state);
@@ -254,14 +291,19 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureProperty(state); // ...and a landlord
   bindPropertyInventory(state, opts.propertyId || `property:${seed}`);
   initReservations(state);
+  initCustomerSimulation(state);
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   initCustomerDirectory(state);
   initTractor(state);
   initCourseProps(state);
+  initCourseMaintenance(state);
   initLedger(state);
+  initBusiness(state);
   initProgression(state);
   initTutorial(state);
   initNotifications(state);
   state.uiPrefs = {};
+  if (opts.campaign) initCampaign(state, { fresh: true });
   if (!Array.isArray(state.club.reviews)) state.club.reviews = [];
   return state;
 }
@@ -271,25 +313,17 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
 export function dailyTick(state) {
   const todayAbs = calendarOf(state.clock.minutes).dayAbs;
   const closingDay = todayAbs - 1;
-  // Midnight has advanced the clock already, but the newly exposed horizon and
-  // all settlement work still belong to the operating day being closed.
-  if (state.ledger) beginLedgerClose(state, closingDay);
-  // Open the newly visible far edge of the tee sheet before closing the books.
-  // Its advance card payments belong to the operating day that accepted them,
-  // keeping the main ledger and wallet exactly reconciled at midnight.
-  if (state.reservations) {
-    ensureReservationHorizon(state, { todayAbs });
-  }
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
-    const todayAbs = calendarOf(state.clock.minutes).dayAbs;
-    const closingDay = todayAbs - 1;
     beginLedgerClose(state, closingDay);
-    accrueDaily(state);
-    if (state.shop) shopDailyAccrual(state);
-    if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
+    if (!state.campaign?.enabled || state.campaign.businessOpen) accrueDaily(state);
+    if (state.shop && (!state.campaign?.enabled || state.campaign.businessOpen)) {
+      shopDailyAccrual(state);
+    }
+    if (state.golfers && (!state.campaign?.enabled || state.campaign.businessOpen)) {
+      simulateDayRounds(state, state.club.lastRounds || 0);
+    }
     if (state.progression) resolveTournamentIfDue(state, closingDay);
-    if (state.reservations) reservationsDailyTick(state, todayAbs);
     // the rent falls due whether or not it was a good week; it is announced two days out
     state.lastPropertyEvent = tickProperty(state, todayAbs);
     const indicators = closeDayIndicators(state, closingDay);
@@ -313,9 +347,8 @@ export function dailyTick(state) {
   }
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
-  if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.reservations) reservationsDailyTick(state, todayAbs);
   if (state.reservations && (!state.campaign?.enabled || state.campaign.businessOpen)) {
-    const todayAbs = calendarOf(state.clock.minutes).dayAbs;
     if (state.reservations.lastOnlineGenerationDayAbs !== todayAbs) {
       state.reservations.lastOnlineGenerationDayAbs = todayAbs;
       generateOnlineReservations(state, {
@@ -345,13 +378,19 @@ export function hourlyTick(state, hourOfDay) {
     if (report) {
       if (state.ledger) {
         if (report.costs.wages > 0) addExpense(state, 'wagesDayLabor', report.costs.wages, {
-          idempotencyKey: `maintenance:${report.dayAbs}:day-labour`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+          idempotencyKey: `maintenance:${report.dayAbs}:day-labour`,
+          relatedId: `maintenance-${report.dayAbs}`,
+          source: 'morning-maintenance',
         });
         if (report.costs.water > 0) addExpense(state, 'water', report.costs.water, {
-          idempotencyKey: `maintenance:${report.dayAbs}:water`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+          idempotencyKey: `maintenance:${report.dayAbs}:water`,
+          relatedId: `maintenance-${report.dayAbs}`,
+          source: 'morning-maintenance',
         });
         if (report.costs.fertilizer > 0) addExpense(state, 'fertilizer', report.costs.fertilizer, {
-          idempotencyKey: `maintenance:${report.dayAbs}:fertilizer`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+          idempotencyKey: `maintenance:${report.dayAbs}:fertilizer`,
+          relatedId: `maintenance-${report.dayAbs}`,
+          source: 'morning-maintenance',
         });
       } else {
         state.cash -= Math.round(report.costs.wages + report.costs.water + report.costs.fertilizer);
@@ -359,7 +398,6 @@ export function hourlyTick(state, hourOfDay) {
     }
   }
   turfHourlyTick(state, hourOfDay);
-  if (state.reservations) golfOperationsTick(state, state.clock.minutes);
   courseMaintenanceHourlyTick(state, { coarseAdvanced: true });
 }
 
@@ -418,7 +456,6 @@ export function snapshot(state) {
     clubName: state.clubName,
     pendingMorning: state.pendingMorning,
     course: {
-      ...course,
       w: course.w,
       h: course.h,
       zones: Array.from(course.zones),
@@ -446,18 +483,14 @@ export function snapshot(state) {
       paint: course.paint && course.paint.some((v) => v !== 255) ? Array.from(course.paint) : null,
     },
     weather: {
-      ...state.weather,
       today: state.weather.today,
       droughtDays: state.weather.droughtDays,
       bias: state.weather.bias,
     },
     maintenance: state.maintenance,
-    courseMaintenance: snapshotCourseMaintenance(state.courseMaintenance),
     golfers: state.golfers,
     staff: state.staff,
     club: state.club,
-    reputation: state.reputation,
-    business: state.business,
     ledger: state.ledger,
     shop: shopForSave(state.shop),
     reservations: state.reservations,
@@ -466,16 +499,13 @@ export function snapshot(state) {
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
-    campaign: state.campaign || null,
     notifications: state.notifications, // unread warnings survive the reload
     uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday
-    propertyInventory: state.propertyInventory,
     debtDays: state.debtDays || 0,
     failed: state.failed || null,
     turf: turf
       ? {
-          ...turf,
           health: Array.from(turf.health, round1),
           moisture: Array.from(turf.moisture, round1),
           nutrients: Array.from(turf.nutrients, round1),
@@ -484,10 +514,15 @@ export function snapshot(state) {
           disType: Array.from(turf.disType),
           disSev: Array.from(turf.disSev, round1),
           treated: Array.from(turf.treated),
-          divots: Array.from(turf.divots || [] , round1),
+          divots: Array.from(turf.divots || [], round1),
           ballMarks: Array.from(turf.ballMarks || [], round1),
         }
       : null,
+    courseMaintenance: snapshotCourseMaintenance(state.courseMaintenance),
+    reputation: state.reputation,
+    business: state.business,
+    campaign: state.campaign,
+    propertyInventory: state.propertyInventory,
   });
 }
 
@@ -510,7 +545,6 @@ function healLedger(ledger) {
   healLines(ledger.today);
   healLines(ledger.yesterday);
   if (Array.isArray(ledger.history)) ledger.history.forEach((entry) => healLines(entry));
-  // the transaction log: keep only well-formed rows, heal their money numbers
   if (!Array.isArray(ledger.txLog)) ledger.txLog = [];
   ledger.txLog = ledger.txLog
     .filter((t) => t && typeof t === 'object' && typeof t.key === 'string')
@@ -528,9 +562,6 @@ export function serialize(state) {
   return JSON.stringify(snapshot(state));
 }
 
-// Preserve a valid persisted allocator even when it intentionally leaves gaps,
-// but repair missing/stale counters so the next editor operation cannot reuse
-// an existing id. Existing records are never removed or renumbered.
 function safeNextId(items, persisted) {
   const highest = (items || []).reduce((max, item) => {
     const id = Number(item && item.id);
@@ -629,197 +660,27 @@ function normalizeIds(value, report, path, {
   return normalized;
 }
 
-function normalizePoint(value, report = null, path = '$') {
+function normalizePoint(value) {
   if (!isRecord(value) || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return null;
-  const x = finiteNumber(value.x, 0, { min: -10_000, max: 10_000 });
-  const y = finiteNumber(value.y, 0, { min: -10_000, max: 10_000 });
-  if (!Object.is(x, value.x) || !Object.is(y, value.y)) {
-    noteRepair(report, path, 'out-of-range point coordinates normalized');
-  }
-  return { ...value, x, y };
-}
-
-function normalizePointArray(value, minimum, report, path, { max = 20_000 } = {}) {
-  if (!Array.isArray(value)) {
-    noteRepair(report, path, 'missing or invalid point array removed');
-    return null;
-  }
-  const points = [];
-  let coordinatesRepaired = false;
-  for (let index = 0; index < Math.min(value.length, max); index += 1) {
-    const source = value[index];
-    const point = normalizePoint(source, report, `${path}[${index}]`);
-    if (!point) continue;
-    if (!Object.is(point.x, source.x) || !Object.is(point.y, source.y)) coordinatesRepaired = true;
-    points.push(point);
-  }
-  if (points.length !== value.length) noteRepair(report, path, 'invalid or excess points removed');
-  if (coordinatesRepaired) noteRepair(report, path, 'out-of-range point coordinates normalized');
-  if (points.length < minimum) {
-    noteRepair(report, path, `feature requires at least ${minimum} valid point(s)`);
-    return null;
-  }
-  return points;
-}
-
-function normalizeVecHole(hole, report, path) {
-  const line = normalizePointArray(hole.line, 2, report, `${path}.line`);
-  if (!line) return null;
-  hole.line = line;
-  hole.name = typeof hole.name === 'string' ? hole.name.slice(0, 200) : '';
-  hole.par = finiteSave(hole.par, 4, { integer: true, min: 3, max: 5 }, report, `${path}.par`);
-  hole.hcp = finiteSave(hole.hcp, 1, { integer: true, min: 1, max: 18 }, report, `${path}.hcp`);
-  hole.roughW = finiteSave(hole.roughW, 26, { min: 1, max: 200 }, report, `${path}.roughW`);
-
-  if (Array.isArray(hole.width)) {
-    const width = [];
-    let repaired = hole.width.length > 1000;
-    for (const stop of hole.width.slice(0, 1000)) {
-      if (!isRecord(stop) || !Number.isFinite(stop.t) || !Number.isFinite(stop.w)) {
-        repaired = true;
-        continue;
-      }
-      const normalized = {
-        ...stop,
-        t: finiteNumber(stop.t, 0, { min: 0, max: 1 }),
-        w: finiteNumber(stop.w, 8, { min: 0.1, max: 500 }),
-      };
-      if (!Object.is(normalized.t, stop.t) || !Object.is(normalized.w, stop.w)) repaired = true;
-      width.push(normalized);
-    }
-    const originalOrder = width.map((stop) => stop.t);
-    width.sort((a, b) => a.t - b.t);
-    if (width.some((stop, index) => !Object.is(stop.t, originalOrder[index]))) repaired = true;
-    if (repaired) noteRepair(report, `${path}.width`, 'invalid or unordered width stops normalized');
-    if (width.length) hole.width = width;
-    else delete hole.width;
-  } else if (hole.width != null) {
-    delete hole.width;
-    noteRepair(report, `${path}.width`, 'invalid width profile removed');
-  }
-
-  if (Array.isArray(hole.tees)) {
-    const tees = [];
-    let repaired = hole.tees.length > 100;
-    for (let index = 0; index < Math.min(hole.tees.length, 100); index += 1) {
-      const tee = hole.tees[index];
-      const point = normalizePoint(tee, report, `${path}.tees[${index}]`);
-      if (!point) continue;
-      const normalized = {
-        ...point,
-        rot: finiteNumber(tee.rot, 0, { min: -Math.PI * 8, max: Math.PI * 8 }),
-        tier: typeof tee.tier === 'string' ? tee.tier.slice(0, 40) : 'back',
-        w: finiteNumber(tee.w, 8, { min: 0.1, max: 500 }),
-        d: finiteNumber(tee.d, 10, { min: 0.1, max: 500 }),
-        ...(Number.isFinite(tee.raise)
-          ? { raise: finiteNumber(tee.raise, 0, { min: -100, max: 100 }) }
-          : {}),
-      };
-      if (!Object.is(normalized.rot, tee.rot) || normalized.tier !== tee.tier
-          || !Object.is(normalized.w, tee.w) || !Object.is(normalized.d, tee.d)
-          || (Number.isFinite(tee.raise) && !Object.is(normalized.raise, tee.raise))) repaired = true;
-      tees.push(normalized);
-    }
-    if (tees.length !== hole.tees.length) repaired = true;
-    if (repaired) noteRepair(report, `${path}.tees`, 'invalid tee records normalized');
-    hole.tees = tees;
-  } else if (hole.tees != null) {
-    hole.tees = [];
-    noteRepair(report, `${path}.tees`, 'invalid tee array defaulted');
-  }
-
-  if (hole.green != null) {
-    if (!isRecord(hole.green)) {
-      hole.green = null;
-      noteRepair(report, `${path}.green`, 'invalid green removed');
-    } else {
-      const pts = normalizePointArray(hole.green.pts, 3, report, `${path}.green.pts`);
-      if (!pts) {
-        hole.green = null;
-      } else {
-        const cx = pts.reduce((sum, point) => sum + point.x, 0) / pts.length;
-        const cy = pts.reduce((sum, point) => sum + point.y, 0) / pts.length;
-        const pinsWereArray = Array.isArray(hole.green.pins);
-        const pins = pinsWereArray
-          ? normalizePointArray(hole.green.pins, 0, report, `${path}.green.pins`, { max: 100 }) || []
-          : [];
-        hole.green = {
-          ...hole.green,
-          pts,
-          cx: finiteSave(hole.green.cx, cx, { min: -10_000, max: 10_000 }, report, `${path}.green.cx`),
-          cy: finiteSave(hole.green.cy, cy, { min: -10_000, max: 10_000 }, report, `${path}.green.cy`),
-          fringe: finiteSave(hole.green.fringe, 1, { min: 0, max: 100 }, report, `${path}.green.fringe`),
-          raise: finiteSave(hole.green.raise, 0, { min: -100, max: 100 }, report, `${path}.green.raise`),
-          pins,
-        };
-        if (!pinsWereArray) {
-          noteRepair(report, `${path}.green.pins`, 'invalid pin array defaulted');
-        }
-      }
-    }
-  }
-
-  const bunkers = [];
-  if (Array.isArray(hole.bunkers)) {
-    for (let index = 0; index < Math.min(hole.bunkers.length, 1000); index += 1) {
-      const bunker = hole.bunkers[index];
-      if (!isRecord(bunker)) continue;
-      const pts = normalizePointArray(
-        bunker.pts, 3, report, `${path}.bunkers[${index}].pts`, { max: 2000 },
-      );
-      if (!pts) continue;
-      bunkers.push({
-        ...bunker,
-        pts,
-        depth: finiteSave(bunker.depth, 2.4, { min: 0, max: 100 }, report, `${path}.bunkers[${index}].depth`),
-        lip: finiteSave(bunker.lip, 0.9, { min: 0, max: 100 }, report, `${path}.bunkers[${index}].lip`),
-      });
-    }
-  }
-  if (!Array.isArray(hole.bunkers) || bunkers.length !== hole.bunkers.length) {
-    noteRepair(report, `${path}.bunkers`, 'invalid bunker records removed');
-  }
-  hole.bunkers = bunkers;
-  return hole;
+  return {
+    ...value,
+    x: finiteNumber(value.x, 0, { min: -10_000, max: 10_000 }),
+    y: finiteNumber(value.y, 0, { min: -10_000, max: 10_000 }),
+  };
 }
 
 function normalizeHole(hole, report, path) {
   for (const key of ['tee', 'pin']) {
     if (hole[key] == null) continue;
-    const point = normalizePoint(hole[key], report, `${path}.${key}`);
+    const point = normalizePoint(hole[key]);
     if (!point) noteRepair(report, `${path}.${key}`, 'invalid point cleared');
     hole[key] = point;
   }
   for (const [containerKey, names] of [['tees', ['back', 'middle', 'forward']], ['pins', ['A', 'B', 'C']]]) {
     if (!isRecord(hole[containerKey])) continue;
     const normalized = {};
-    for (const name of names) {
-      const source = hole[containerKey][name];
-      normalized[name] = normalizePoint(
-        source, report, `${path}.${containerKey}.${name}`,
-      );
-      if (source != null && !normalized[name]) {
-        noteRepair(report, `${path}.${containerKey}.${name}`, 'invalid point cleared');
-      }
-    }
+    for (const name of names) normalized[name] = normalizePoint(hole[containerKey][name]);
     hole[containerKey] = normalized;
-  }
-  const validStatuses = new Set(Object.values(HOLE_STATUS));
-  if (!validStatuses.has(hole.status)) {
-    hole.status = HOLE_STATUS.UNBUILT;
-    noteRepair(report, `${path}.status`, 'invalid hole status normalized');
-  }
-  hole.daysLeft = finiteSave(hole.daysLeft, 0, {
-    integer: true, min: 0, max: 1_000_000,
-  }, report, `${path}.daysLeft`);
-  if (typeof hole.everOpen !== 'boolean') {
-    hole.everOpen = !!hole.everOpen;
-    noteRepair(report, `${path}.everOpen`, 'invalid open-history flag normalized');
-  }
-  if (hole.parOverride != null) {
-    hole.parOverride = finiteSave(hole.parOverride, 4, {
-      integer: true, min: 3, max: 5,
-    }, report, `${path}.parOverride`);
   }
   return hole;
 }
@@ -828,98 +689,10 @@ function normalizeCourseVector(value, seed, report) {
   if (!isRecord(value)) return null;
   const vector = cloneSaveValue(value, null);
   if (!vector) return null;
-  vector.v = finiteSave(vector.v, 1, {
-    integer: true, min: 1, max: 1000,
-  }, report, '$.course.vec.v');
-  vector.seed = finiteSave(vector.seed, seed, {
-    integer: true, min: 1, max: 2147483647,
-  }, report, '$.course.vec.seed');
-  vector.holes = normalizeIds(vector.holes, report, '$.course.vec.holes', {
-    max: 1000,
-    accept: (hole) => !!normalizeVecHole(hole, report, '$.course.vec.holes[]'),
-  });
-  const polygonFeatures = (key, minimum, max) => normalizeIds(
-    vector[key], report, `$.course.vec.${key}`, {
-      max,
-      accept: (feature) => {
-        const pts = normalizePointArray(
-          feature.pts, minimum, report, `$.course.vec.${key}[].pts`, { max: 20_000 },
-        );
-        if (!pts) return false;
-        feature.pts = pts;
-        if (key === 'waters') {
-          feature.depth = finiteSave(feature.depth, 4.5, {
-            min: 0, max: 1000,
-          }, report, '$.course.vec.waters[].depth');
-          const kind = typeof feature.kind === 'string' && feature.kind.trim()
-            ? feature.kind.slice(0, 80)
-            : 'pond';
-          if (kind !== feature.kind) {
-            noteRepair(report, '$.course.vec.waters[].kind', 'invalid water kind normalized');
-          }
-          feature.kind = kind;
-        } else if (key === 'streams') {
-          feature.w = finiteSave(feature.w, 4, {
-            min: 0.1, max: 500,
-          }, report, '$.course.vec.streams[].w');
-          feature.depth = finiteSave(feature.depth, 2, {
-            min: 0, max: 1000,
-          }, report, '$.course.vec.streams[].depth');
-        }
-        return true;
-      },
-    },
-  );
-  vector.waters = polygonFeatures('waters', 3, 10_000);
-  vector.streams = polygonFeatures('streams', 2, 10_000);
-  vector.beds = polygonFeatures('beds', 3, 10_000);
-  vector.mounds = normalizeIds(vector.mounds, report, '$.course.vec.mounds', {
-    max: 10_000,
-    accept: (mound) => {
-      if (!Number.isFinite(mound.x) || !Number.isFinite(mound.y)
-          || !Number.isFinite(mound.r) || mound.r <= 0) return false;
-      mound.x = finiteSave(mound.x, 0, {
-        min: -10_000, max: 10_000,
-      }, report, '$.course.vec.mounds[].x');
-      mound.y = finiteSave(mound.y, 0, {
-        min: -10_000, max: 10_000,
-      }, report, '$.course.vec.mounds[].y');
-      mound.r = finiteSave(mound.r, 1, {
-        min: 0.01, max: 1000,
-      }, report, '$.course.vec.mounds[].r');
-      mound.h = finiteSave(mound.h, 0, {
-        min: -1000, max: 1000,
-      }, report, '$.course.vec.mounds[].h');
-      return true;
-    },
-  });
-  const rawLawns = recordsOnly(vector.lawns, report, '$.course.vec.lawns', { max: 10_000 });
-  vector.lawns = [];
-  for (const lawn of rawLawns) {
-    if (!Number.isFinite(lawn.x) || !Number.isFinite(lawn.y)
-        || !Number.isFinite(lawn.w) || lawn.w <= 0
-        || !Number.isFinite(lawn.d) || lawn.d <= 0) continue;
-    vector.lawns.push({
-      ...lawn,
-      x: finiteSave(lawn.x, 0, {
-        min: -10_000, max: 10_000,
-      }, report, '$.course.vec.lawns[].x'),
-      y: finiteSave(lawn.y, 0, {
-        min: -10_000, max: 10_000,
-      }, report, '$.course.vec.lawns[].y'),
-      w: finiteSave(lawn.w, 1, {
-        min: 0.01, max: 1000,
-      }, report, '$.course.vec.lawns[].w'),
-      d: finiteSave(lawn.d, 1, {
-        min: 0.01, max: 1000,
-      }, report, '$.course.vec.lawns[].d'),
-      rot: finiteSave(lawn.rot, 0, {
-        min: -Math.PI * 8, max: Math.PI * 8,
-      }, report, '$.course.vec.lawns[].rot'),
-    });
-  }
-  if (vector.lawns.length !== rawLawns.length) {
-    noteRepair(report, '$.course.vec.lawns', 'invalid lawn records removed');
+  vector.v = finiteNumber(vector.v, 1, { integer: true, min: 1, max: 1000 });
+  vector.seed = finiteNumber(vector.seed, seed, { integer: true, min: 1, max: 2147483647 });
+  for (const key of ['holes', 'waters', 'streams', 'beds', 'mounds', 'lawns']) {
+    vector[key] = recordsOnly(vector[key], report, `$.course.vec.${key}`, { max: 10_000 });
   }
   const all = ['holes', 'waters', 'streams', 'beds', 'mounds', 'lawns']
     .flatMap((key) => Array.isArray(vector[key]) ? vector[key] : []);
@@ -967,81 +740,21 @@ function normalizeCourse(savedCourse, seed, persistedVersion, report) {
   );
   const holes = normalizeIds(savedCourse.holes, report, '$.course.holes', { max: 1000 })
     .map((hole, index) => normalizeHole(hole, report, `$.course.holes[${index}]`));
-  const rawStructures = recordsOnly(
-    savedCourse.structures, report, '$.course.structures', { max: 10_000 },
-  );
-  const structures = [];
-  for (let index = 0; index < rawStructures.length; index += 1) {
-    const structure = rawStructures[index];
-    if (typeof structure.type !== 'string' || !structure.type.trim()
-        || !Number.isFinite(structure.x) || !Number.isFinite(structure.y)
-        || !Number.isFinite(structure.w) || structure.w <= 0
-        || !Number.isFinite(structure.h) || structure.h <= 0) continue;
-    structures.push({
-      ...structure,
-      type: structure.type.trim().slice(0, 100),
-      x: finiteSave(structure.x, 0, {
-        min: -10_000, max: 10_000,
-      }, report, `$.course.structures[${index}].x`),
-      y: finiteSave(structure.y, 0, {
-        min: -10_000, max: 10_000,
-      }, report, `$.course.structures[${index}].y`),
-      w: finiteSave(structure.w, 1, {
-        min: 0.01, max: 10_000,
-      }, report, `$.course.structures[${index}].w`),
-      h: finiteSave(structure.h, 1, {
-        min: 0.01, max: 10_000,
-      }, report, `$.course.structures[${index}].h`),
-    });
-  }
-  if (structures.length !== rawStructures.length) {
-    noteRepair(report, '$.course.structures', 'invalid structure records removed');
-  }
+  const structures = recordsOnly(savedCourse.structures, report, '$.course.structures', { max: 10_000 });
   const hadPersistedObjects = Array.isArray(savedCourse.objects);
   const objects = hadPersistedObjects
     ? normalizeIds(savedCourse.objects, report, '$.course.objects', {
       max: 100_000,
-      accept: (object) => {
-        if (typeof object.type !== 'string' || !object.type.trim()
-            || !Number.isFinite(object.x) || !Number.isFinite(object.y)) return false;
-        const originalType = object.type;
-        object.type = object.type.trim().slice(0, 100);
-        object.x = finiteSave(object.x, 0, {
-          min: -10_000, max: 10_000,
-        }, report, '$.course.objects[].x');
-        object.y = finiteSave(object.y, 0, {
-          min: -10_000, max: 10_000,
-        }, report, '$.course.objects[].y');
-        object.rot = finiteSave(object.rot, 0, {
-          min: -Math.PI * 100, max: Math.PI * 100,
-        }, report, '$.course.objects[].rot');
-        object.scale = finiteSave(object.scale, 1, {
-          min: 0.01, max: 100,
-        }, report, '$.course.objects[].scale');
-        if (object.type !== originalType) {
-          noteRepair(report, '$.course.objects[].type', 'invalid object type normalized');
-        }
-        return true;
-      },
+      accept: (object) => typeof object.type === 'string'
+        && Number.isFinite(object.x) && Number.isFinite(object.y),
     })
     : [];
   const paths = normalizeIds(savedCourse.paths, report, '$.course.paths', {
     max: 10_000,
     accept: (path) => {
-      const pts = normalizePointArray(path.pts, 2, report, '$.course.paths[].pts', { max: 4096 });
-      if (!pts) return false;
-      path.pts = pts;
-      path.width = finiteSave(path.width, 3.2, {
-        min: 0.1, max: 500,
-      }, report, '$.course.paths[].width');
-      const material = typeof path.material === 'string' && path.material.trim()
-        ? path.material.slice(0, 100)
-        : 'asphalt';
-      if (material !== path.material) {
-        noteRepair(report, '$.course.paths[].material', 'invalid path material normalized');
-      }
-      path.material = material;
-      return true;
+      if (!Array.isArray(path.pts)) return false;
+      path.pts = path.pts.map(normalizePoint).filter(Boolean);
+      return path.pts.length >= 2;
     },
   });
   const course = {
@@ -1082,27 +795,26 @@ function normalizeCourse(savedCourse, seed, persistedVersion, report) {
     course.nextObjectId = safeNextId(course.objects, 1);
     if (persistedVersion >= 5) noteRepair(report, '$.course.objects', 'missing object field restored deterministically');
   }
-  course.nextObjectId = safeNextId(course.objects, course.nextObjectId);
-  ensureCourseShape(course);
-  const state = {
-    version: SAVE_VERSION,
-    mode: raw.mode,
-    seed: raw.seed,
-    rngState: raw.rngState,
-    clock: { minutes: raw.clock.minutes },
-    // a NaN balance serializes to JSON null; heal it or every register sale
-    // refuses to bank ("The club books are not available") forever after
-    cash: Number.isFinite(raw.cash) ? raw.cash : 0,
-    clubName: raw.clubName || 'Willow Creek Golf Club',
-    pendingMorning: raw.pendingMorning ?? true,
-    course,
-    sections: labelSections(course),
-    weather: raw.weather
-      ? { ...raw.weather, today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
-      : newWeather(),
-    maintenance: raw.maintenance || null,
-    property: cloneSaveValue(raw.property) || null,
-    propertyInventory: cloneSaveValue(raw.propertyInventory) || null,
+  return ensureCourseShape(course);
+}
+
+function normalizeTurf(rawTurf, defaults, report) {
+  if (!isRecord(rawTurf)) {
+    if (rawTurf !== undefined && rawTurf !== null) noteRepair(report, '$.turf', 'invalid turf block defaulted');
+    return defaults;
+  }
+  const pct = (number) => Math.min(100, Math.max(0, number));
+  return {
+    health: normalizeNumericArray(rawTurf.health, defaults.health, Float32Array, report, '$.turf.health', pct),
+    moisture: normalizeNumericArray(rawTurf.moisture, defaults.moisture, Float32Array, report, '$.turf.moisture', pct),
+    nutrients: normalizeNumericArray(rawTurf.nutrients, defaults.nutrients, Float32Array, report, '$.turf.nutrients', pct),
+    heightMm: normalizeNumericArray(rawTurf.heightMm, defaults.heightMm, Float32Array, report, '$.turf.heightMm', (number) => Math.min(250, Math.max(0, number))),
+    wear: normalizeNumericArray(rawTurf.wear, defaults.wear, Float32Array, report, '$.turf.wear', pct),
+    disType: normalizeNumericArray(rawTurf.disType, defaults.disType, Uint8Array, report, '$.turf.disType', (number) => Math.min(255, Math.max(0, Math.trunc(number)))),
+    disSev: normalizeNumericArray(rawTurf.disSev, defaults.disSev, Float32Array, report, '$.turf.disSev', pct),
+    treated: normalizeNumericArray(rawTurf.treated, defaults.treated, Uint8Array, report, '$.turf.treated', (number) => Math.min(255, Math.max(0, Math.trunc(number)))),
+    divots: normalizeNumericArray(rawTurf.divots, defaults.divots, Float32Array, report, '$.turf.divots', pct),
+    ballMarks: normalizeNumericArray(rawTurf.ballMarks, defaults.ballMarks, Float32Array, report, '$.turf.ballMarks', pct),
   };
 }
 
@@ -1122,44 +834,295 @@ function normalizeShopState(state, rawShop, defaults, report) {
       }, report, `$.shop.inventory.${sku.id}.back`),
     };
   }
-  ensureMaintenanceOrders(state);
-  // pre-v3 saves: bootstrap the club layer fresh
-  if (raw.golfers) state.golfers = raw.golfers;
-  else initGolfers(state);
-  if (raw.staff) state.staff = raw.staff;
-  else initStaff(state);
-  if (raw.club) state.club = raw.club;
-  else initClub(state);
-  if (raw.ledger) state.ledger = healLedger(raw.ledger);
-  else initLedger(state);
+  shop.orders = normalizeIds(shop.orders, report, '$.shop.orders', {
+    max: 10_000,
+    duplicate: 'drop',
+    accept: (order) => typeof order.skuId === 'string' && !!shop.inventory[order.skuId],
+  });
+  shop.nextOrderId = safeNextId(shop.orders, shop.nextOrderId);
+  shop.transactionHistory = dedupeRecords(
+    recordsOnly(shop.transactionHistory, report, '$.shop.transactionHistory', { max: 100 }),
+    (ticket) => Number.isSafeInteger(ticket.number) && ticket.number > 0 ? ticket.number : null,
+    report,
+    '$.shop.transactionHistory',
+  );
+  shop.nextTransactionNo = safeNextId(
+    shop.transactionHistory.map((ticket) => ({ id: ticket.number })),
+    shop.nextTransactionNo,
+  );
+  const held = recordsOnly(shop.held, report, '$.shop.held', { max: 10_000 })
+    .filter((unit) => typeof unit.uid === 'string' && unit.uid && typeof unit.skuId === 'string'
+      && !!shop.inventory[unit.skuId]);
+  shop.held = dedupeRecords(held, (unit) => unit.uid, report, '$.shop.held');
+  if (shop.carry !== null && !isRecord(shop.carry)) {
+    shop.carry = null;
+    noteRepair(report, '$.shop.carry', 'invalid carried-goods state cleared');
+  }
+  const bag = shop.paymentBag;
+  const cashInBag = Array.isArray(bag) ? bag.filter((method) => method === 'cash').length : 0;
+  const cardInBag = Array.isArray(bag) ? bag.filter((method) => method === 'card').length : 0;
+  if (!Array.isArray(bag)
+      || bag.some((method) => method !== 'cash' && method !== 'card')
+      || bag.length > 10
+      || cashInBag > 5
+      || cardInBag > 5) {
+    noteRepair(report, '$.shop.paymentBag', 'invalid payment-method bag reset');
+  }
+  ensurePaymentBag(state);
+
+  ensureLayout(state);
+  const layout = shop.layout;
+  if (!isRecord(layout.moved)) layout.moved = {};
+  for (const [id, pose] of Object.entries(layout.moved)) {
+    if (!isRecord(pose) || !Number.isFinite(pose.x) || !Number.isFinite(pose.z)) {
+      delete layout.moved[id];
+      noteRepair(report, `$.shop.layout.moved.${id}`, 'invalid fixture pose removed');
+      continue;
+    }
+    pose.ry = Number.isFinite(pose.ry) ? pose.ry : 0;
+  }
+  layout.stored = [...new Set((Array.isArray(layout.stored) ? layout.stored : [])
+    .filter((id) => typeof id === 'string' && id))];
+  layout.extra = dedupeRecords(
+    recordsOnly(layout.extra, report, '$.shop.layout.extra', { max: 1000 })
+      .filter((fixture) => typeof fixture.id === 'string' && fixture.id
+        && Number.isFinite(fixture.x) && Number.isFinite(fixture.z)),
+    (fixture) => fixture.id,
+    report,
+    '$.shop.layout.extra',
+  );
+
+  if (!isRecord(shop.deliveries)) shop.deliveries = {};
+  const deliveries = shop.deliveries;
+  deliveries.boxes = dedupeRecords(
+    recordsOnly(deliveries.boxes, report, '$.shop.deliveries.boxes', { max: 10_000 })
+      .filter((box) => Number.isSafeInteger(box.id) && box.id > 0
+        && typeof box.skuId === 'string' && !!shop.inventory[box.skuId]),
+    (box) => box.id,
+    report,
+    '$.shop.deliveries.boxes',
+  );
+  deliveries.shipments = dedupeRecords(
+    recordsOnly(deliveries.shipments, report, '$.shop.deliveries.shipments', { max: 10_000 })
+      .filter((shipment) => shipment.orderId !== null && shipment.orderId !== undefined),
+    (shipment) => shipment.orderId,
+    report,
+    '$.shop.deliveries.shipments',
+  );
+  deliveries.arrivedOrderIds = [...new Set((Array.isArray(deliveries.arrivedOrderIds)
+    ? deliveries.arrivedOrderIds : []).filter((id) => id !== null && id !== undefined))];
+  if (isRecord(rawShop?.deliveries) && !Object.hasOwn(rawShop.deliveries, 'schemaVersion')) {
+    delete deliveries.schemaVersion;
+  }
+
+  if (!isRecord(shop.reno)) shop.reno = cloneSaveValue(defaults.reno, {});
+  const reno = shop.reno;
+  const defaultReno = defaults.reno;
+  const cells = CLEANING_FIELD.w * CLEANING_FIELD.h;
+  reno.grime = normalizeNumericArray(reno.grime, defaultReno.grime, Array, report, '$.shop.reno.grime', (number) => Math.min(1, Math.max(0, number)));
+  reno.windows = normalizeNumericArray(reno.windows, defaultReno.windows, Array, report, '$.shop.reno.windows', (number) => Math.min(1, Math.max(0, number)));
+  reno.wet = normalizeNumericArray(reno.wet, new Array(cells).fill(0), Array, report, '$.shop.reno.wet', (number) => Math.min(1, Math.max(0, number)));
+  reno.solution = normalizeNumericArray(reno.solution, new Array(cells).fill(0), Array, report, '$.shop.reno.solution', (number) => Math.min(1, Math.max(0, number)));
+  reno.clutter = recordsOnly(reno.clutter, report, '$.shop.reno.clutter', { max: 1000 });
+  reno.decor = dedupeRecords(
+    recordsOnly(reno.decor, report, '$.shop.reno.decor', { max: 1000 })
+      .filter((decor) => typeof decor.skuId === 'string' && Number.isFinite(decor.spot)),
+    (decor) => `${decor.skuId}:${decor.spot}`,
+    report,
+    '$.shop.reno.decor',
+  );
+  reno.debris = recordsOnly(reno.debris, report, '$.shop.reno.debris', { max: 96 });
+  reno.pan = finiteSave(reno.pan, 0, { min: 0, max: 1_000_000 }, report, '$.shop.reno.pan');
+  reno.bag = finiteSave(reno.bag, 0, { min: 0, max: 1_000_000 }, report, '$.shop.reno.bag');
+  if (isRecord(rawShop?.reno) && !Object.hasOwn(rawShop.reno, 'architecture')) {
+    delete reno.architecture;
+  }
+}
+
+function normalizeCollections(state, report) {
+  if (isRecord(state.golfers)) {
+    state.golfers.pool = normalizeIds(state.golfers.pool, report, '$.golfers.pool', {
+      max: 100_000,
+      duplicate: 'drop',
+    });
+    state.golfers.nextId = safeNextId(state.golfers.pool, state.golfers.nextId);
+  }
+  if (isRecord(state.staff)) {
+    state.staff.employees = normalizeIds(state.staff.employees, report, '$.staff.employees', {
+      max: 10_000,
+      duplicate: 'drop',
+    });
+    state.staff.market = normalizeIds(state.staff.market, report, '$.staff.market', {
+      max: 10_000,
+      duplicate: 'drop',
+    });
+    const employeeIds = new Set(state.staff.employees.map((employee) => employee.id));
+    const marketBefore = state.staff.market.length;
+    state.staff.market = state.staff.market.filter((candidate) => !employeeIds.has(candidate.id));
+    if (state.staff.market.length !== marketBefore) {
+      noteRepair(report, '$.staff.market', 'hired employee identities removed from the candidate market');
+    }
+    state.staff.nextId = safeNextId([...state.staff.employees, ...state.staff.market], state.staff.nextId);
+  }
+  state.club.feed = recordsOnly(state.club.feed, report, '$.club.feed', { max: 100 });
+  const championIds = Array.isArray(state.club.champions) ? state.club.champions : [];
+  state.club.champions = [...new Set(championIds.filter(
+    (id) => Number.isSafeInteger(id) && id > 0,
+  ))].slice(0, 1000);
+  if (state.club.champions.length !== championIds.length) {
+    noteRepair(report, '$.club.champions', 'invalid or duplicate golfer ids removed');
+  }
+  state.club.reviews = recordsOnly(state.club.reviews, report, '$.club.reviews', { max: 60 })
+    .filter((review) => typeof review.text === 'string' && Number.isFinite(review.stars))
+    .map((review) => ({
+      ...review,
+      stars: finiteNumber(review.stars, 1, { integer: true, min: 1, max: 5 }),
+      day: finiteNumber(review.day, 0, { integer: true, min: 0 }),
+      cited: Array.isArray(review.cited) ? review.cited.filter((id) => typeof id === 'string') : [],
+    }));
+  state.ledger = healLedger(state.ledger);
+  if (isRecord(state.reservations)) {
+    state.reservations.booked = normalizeIds(state.reservations.booked, report, '$.reservations.booked', {
+      max: 100_000,
+      duplicate: 'drop',
+    });
+  }
+  if (isRecord(state.notifications)) {
+    state.notifications.items = dedupeRecords(
+      recordsOnly(state.notifications.items, report, '$.notifications.items', { max: 60 }),
+      (item) => Number.isFinite(Number(item.id)) ? Number(item.id) : null,
+      report,
+      '$.notifications.items',
+    );
+  }
+}
+
+function persistedVersionOf(raw) {
+  return Number.isSafeInteger(raw.version) && raw.version >= 0 ? raw.version : 0;
+}
+
+export function deserializeWithReport(json) {
+  const raw = parseSaveInput(json, { kind: 'game save' });
+  const persistedVersion = persistedVersionOf(raw);
+  if (persistedVersion > SAVE_VERSION) {
+    throw new SaveCompatibilityError(
+      `This save uses game schema ${persistedVersion}, but this build supports through ${SAVE_VERSION}.`,
+      { path: '$.version' },
+    );
+  }
+  const report = createSaveReport('game', persistedVersion, SAVE_VERSION);
+  for (const migration of SAVE_MIGRATIONS) {
+    if (migration.version > persistedVersion) noteMigration(report, migration.version, migration.name);
+  }
+  const mode = normalizeMode(raw.mode);
+  const seed = normalizeSeed(raw.seed);
+  if (raw.mode !== mode) noteRepair(report, '$.mode', 'unknown mode defaulted to relaxed');
+  if (typeof raw.seed !== 'number' || raw.seed !== seed) noteRepair(report, '$.seed', 'invalid seed normalized');
+  const course = normalizeCourse(raw.course, seed, persistedVersion, report);
+  const clubName = typeof raw.clubName === 'string' && raw.clubName.trim()
+    ? raw.clubName.slice(0, 200)
+    : 'Willow Creek Golf Club';
+  if (clubName !== raw.clubName) noteRepair(report, '$.clubName', 'missing or oversized club name normalized');
+  const state = newGame(mode, seed, { course, clubName });
+  const generatedRngState = state.rngState;
+  const shopDefaults = cloneSaveValue(state.shop, {});
+  const persistedDrawer = isRecord(raw.shop?.drawer)
+    ? cloneSaveValue(raw.shop.drawer, {})
+    : null;
+
+  state.version = SAVE_VERSION;
+  state.mode = mode;
+  state.seed = seed;
+  state.clock.minutes = finiteSave(
+    raw.clock?.minutes,
+    state.clock.minutes,
+    { min: 0, max: Number.MAX_SAFE_INTEGER },
+    report,
+    '$.clock.minutes',
+  );
+  state.cash = finiteSave(
+    raw.cash,
+    0,
+    { min: -1_000_000_000_000, max: 1_000_000_000_000 },
+    report,
+    '$.cash',
+  );
+  state.clubName = clubName;
+  state.pendingMorning = typeof raw.pendingMorning === 'boolean' ? raw.pendingMorning : true;
+  if (typeof raw.pendingMorning !== 'boolean') noteRepair(report, '$.pendingMorning', 'invalid flag defaulted');
+  state.course = course;
+  state.sections = labelSections(course);
+
+  const domains = [
+    'weather', 'maintenance', 'golfers', 'staff', 'club', 'reputation', 'business',
+    'ledger', 'shop',
+    'reservations', 'customerDirectory', 'tractor', 'props', 'progression',
+    'tutorial', 'notifications', 'uiPrefs', 'property', 'propertyInventory',
+  ];
+  for (const key of domains) {
+    state[key] = mergeSaveDefaults(state[key], raw[key], report, `$.${key}`);
+  }
+  state.turf = normalizeTurf(raw.turf, state.turf, report);
+  state.debtDays = finiteSave(
+    raw.debtDays,
+    0,
+    { integer: true, min: 0, max: 1_000_000 },
+    report,
+    '$.debtDays',
+  );
+  state.failed = isRecord(raw.failed) ? cloneSaveValue(raw.failed) : null;
+  if (raw.failed != null && !isRecord(raw.failed)) noteRepair(report, '$.failed', 'invalid failure state cleared');
+
+  normalizeShopState(state, raw.shop, shopDefaults, report);
+  normalizeCollections(state, report);
   ensureLedger(state);
-  const hadCustomerSimulation = !!raw.shop?.customerSimulation;
-  if (raw.shop) state.shop = raw.shop;
-  else initShop(state);
+  ensureInventoryLifecycle(state);
+  if (persistedVersion < 12 && !isRecord(raw.shop?.progression)) {
+    delete state.shop.progression;
+  }
   ensureShopProgression(state, { legacy: persistedVersion < 12 });
-  if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
+  // A drawer is a counted-value authority, not a preferences object. Deeply
+  // filling absent denomination keys from the opening float would mint cash in
+  // sparse or legacy drawers, so migrate only the persisted stack itself.
+  state.shop.drawer = migrateDrawer(persistedDrawer || state.shop.drawer || newDrawer());
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   paymentBagStats(state);
+  ensureShopReno(state); // pre-restoration saves gain the rundown shop state
   ensureLayout(state);
+  ensureFurnitureCatalogState(state);
   ensureClubhouseArchitecture(state);
   ensureDebris(state);
   ensureWet(state, CLEANING_FIELD.w, CLEANING_FIELD.h);
   ensureWash(state);
   migrateLegacyRetailLayout(state.shop, persistedVersion);
   migrateFeatureCategory(state.shop, persistedVersion);
-  reconcileMovedFixturePoses(state, report);
+  reconcileLegacyMovedFixturePoses(state, persistedVersion);
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   reconcileShelfCapacity(state.shop); // authored shelf slots win; overflow remains owned in back stock
   reconcileUnavailableFixtureStock(state); // absent fixtures cannot retain invisible shelf inventory
-  ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
-  ensurePropertyInventory(state); // v11 owns placeables per property; legacy decor migrates once
-  if (raw.reservations) state.reservations = raw.reservations;
+  ensurePropertyInventory(state);
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
   ensureCustomerDirectory(state); // pre-v4 saves gain stable full-name customer authority
   reconcileReservationCustomerIdentities(state); // enroll legacy bookings once, then repair their references
+  recoverCustomerSimulation(state);
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   ensureCourseProps(state); // old saves gain the litter/sign restoration props
+  ensureMaintenanceOrders(state);
+  ensureSurfaceDamage(state);
+  restoreCourseMaintenance(state, raw.courseMaintenance);
+  ensureReputation(state);
+  ensureBusiness(state);
+  if (isRecord(raw.campaign)) {
+    state.campaign = cloneSaveValue(raw.campaign);
+    ensureCampaign(state);
+  } else if (raw.tutorial && !raw.tutorial.complete && persistedVersion < 11) {
+    // Preserve every lived-in world change while upgrading an unfinished
+    // legacy guide. Existing furniture is treated as already installed.
+    initCampaign(state, { fresh: false });
+  } else {
+    state.campaign = null;
+  }
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
   ensureNotifications(state); // pre-feed saves gain an empty, well-formed inbox
   state.uiPrefs = isRecord(state.uiPrefs) ? state.uiPrefs : {};

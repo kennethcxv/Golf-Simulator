@@ -337,6 +337,69 @@ export function makeOakFloorTexture({ seed = 71 } = {}) {
   return finish(c);
 }
 
+// Country-club herringbone: paired oak blocks with alternating grain direction.
+// The repeat is deterministic and deliberately broad enough to read at standing
+// eye height rather than collapsing into noisy micro-detail.
+export function makeHerringboneFloorTexture({ seed = 73 } = {}) {
+  const size = 512;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  const tones = ['#a87342', '#b7824d', '#c0935d', '#98643a', '#bd8950', '#aa7441'];
+  ctx.fillStyle = '#a97849';
+  ctx.fillRect(0, 0, size, size);
+  // One 512px tile maps to one authored Asset 59 floor cell. A 128px run
+  // therefore gives believable ~35 cm boards without UV discontinuities at
+  // the production kit's instanced-cell boundaries.
+  const run = 128;
+  const plankWidth = 42;
+  const drawPlank = (x0, y0, x1, y1, tone) => {
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = '#55351f';
+    ctx.lineWidth = plankWidth + 4;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.strokeStyle = tone;
+    ctx.lineWidth = plankWidth;
+    ctx.stroke();
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const length = Math.hypot(dx, dy) || 1;
+    const nx = -dy / length;
+    const ny = dx / length;
+    for (const offset of [-11, -4, 5, 12]) {
+      ctx.strokeStyle = offset < 0 ? '#edc58c24' : '#65402528';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x0 + nx * offset + dx * 0.05, y0 + ny * offset + dy * 0.05);
+      ctx.bezierCurveTo(
+        x0 + nx * (offset + (r() - 0.5) * 2) + dx * 0.36,
+        y0 + ny * (offset + (r() - 0.5) * 2) + dy * 0.36,
+        x0 + nx * (offset + (r() - 0.5) * 2) + dx * 0.68,
+        y0 + ny * (offset + (r() - 0.5) * 2) + dy * 0.68,
+        x1 + nx * offset - dx * 0.05,
+        y1 + ny * offset - dy * 0.05,
+      );
+      ctx.stroke();
+    }
+  };
+  // Interlocking parquet runs are intentionally broad and sparse. The complete
+  // 512px motif repeats exactly once per production floor cell, eliminating
+  // the clipped diagonal bands and micro-detail visible in the earlier pass.
+  for (let row = -3; row <= 10; row += 1) {
+    const cy = row * (run / 2);
+    const stagger = (row & 1) ? run : 0;
+    for (let column = -2; column <= 3; column += 1) {
+      const cx = column * run * 2 + stagger;
+      drawPlank(cx - run, cy - run, cx, cy, tones[Math.floor(r() * tones.length)]);
+      drawPlank(cx, cy, cx + run, cy - run, tones[Math.floor(r() * tones.length)]);
+    }
+  }
+  return finish(c);
+}
+
 // Clapboard siding color: soft horizontal lap lines so the exterior reads at
 // distance (the normal map alone vanishes past a few yards).
 export function makeSidingTexture({ seed = 47, base = '#e9e2cc' } = {}) {
@@ -614,6 +677,7 @@ export function makeClubhouseMaterials(clubName) {
   const walnutC = makeWalnutTexture({}).image;
   const walnutDarkC = makeWalnutTexture({ seed: 62, base: '#3c2a1c', hi: '#4c3826', lo: '#2d2014' }).image;
   const oakC = makeOakFloorTexture({}).image;
+  const herringboneC = makeHerringboneFloorTexture({}).image;
   const plasterC = makePlasterCreamTexture({}).image;
   const concreteC = makeConcreteTexture({}).image;
   const leatherC = makeLeatherTexture({}).image;
@@ -666,6 +730,11 @@ export function makeClubhouseMaterials(clubName) {
       map: t(oakC), normalMap: n(oakC, 1, 1, 2.6),
       normalScale: new THREE.Vector2(0.7, 0.7),
       roughnessMap: r(oakC, 0.30, 0.66), roughness: 1,   // the plank seams sit dull
+    }),
+    herringboneFloor: new THREE.MeshStandardMaterial({
+      map: t(herringboneC), normalMap: n(herringboneC, 1, 1, 0.9),
+      normalScale: new THREE.Vector2(0.22, 0.22),
+      roughnessMap: r(herringboneC, 0.48, 0.70), roughness: 1,
     }),
     concrete: new THREE.MeshStandardMaterial({
       map: t(concreteC, 3, 3), normalMap: n(concreteC, 3, 3, 1.6),

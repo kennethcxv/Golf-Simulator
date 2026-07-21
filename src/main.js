@@ -1962,7 +1962,8 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // build mode owns the verbs while it is on: E places, R turns, X stows
+    // Renovation mode owns customization keys while leaving WASD as the familiar
+    // first-person movement scheme. A preview is state-free until E/LMB confirms.
     const bld = buildApi();
     if (bld && bld.isActive()) {
       if (e.ctrlKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
@@ -1987,46 +1988,26 @@ window.addEventListener('keydown', (e) => {
         return;
       }
       switch (e.key) {
-        case 'e': case 'E':
-          e.preventDefault();
-          if (!e.repeat) bld.interact();
-          return;
-        case 'r': case 'R':
-          e.preventDefault();
-          if (!e.repeat) bld.rotate(e.shiftKey);
-          return;
-        case 'x': case 'X':
-          e.preventDefault();
-          if (!e.repeat) bld.stow();
-          return;
-        case 'i': case 'I':
-          e.preventDefault();
-          if (!e.repeat) bld.toggleInventory();
-          return;
-        case 'ArrowUp': case 'ArrowLeft':
-          e.preventDefault();
-          if (!e.repeat) bld.cycleInventory(-1);
-          return;
-        case 'ArrowDown': case 'ArrowRight':
-          e.preventDefault();
-          if (!e.repeat) bld.cycleInventory(1);
-          return;
-        case 'Delete': case 'Backspace':
-          e.preventDefault();
-          if (!e.repeat) bld.sellSelected();
-          return;
-        case 'z': case 'Z':
-          e.preventDefault();
-          if (!e.repeat) bld.undo();
-          return;
-        case 'b': case 'B':
-          e.preventDefault();
-          bld.exit();
-          toast('Back to work.');
-          return;
+        case 'e': case 'E': e.preventDefault(); if (!e.repeat) bld.interact(); return;
+        case 'r': case 'R': e.preventDefault(); if (!e.repeat) bld.rotate(e.shiftKey ? -1 : 1); return;
+        case 'x': case 'X': e.preventDefault(); if (!e.repeat) bld.stow(); return;
+        case 'Delete': case 'Backspace': e.preventDefault(); if (!e.repeat) bld.sellById(); return;
+        case 'g': case 'G': e.preventDefault(); if (!e.repeat) bld.toggleGrid(); return;
+        case 't': case 'T': e.preventDefault(); if (!e.repeat) bld.toggleRotationSnap(); return;
+        case 'i': case 'I': e.preventDefault(); if (!e.repeat) bld.toggleCatalog(); return;
+        case 'o': case 'O': e.preventDefault(); if (!e.repeat) bld.returnOriginal(); return;
+        // The walk controller also offers arrow-key look as an accessibility
+        // fallback. In renovation mode these keystrokes belong exclusively to
+        // furniture nudging; letting the same event reach that second window
+        // listener rotates the camera and moves the view ray against the nudge.
+        case 'ArrowUp': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('up', e.shiftKey); return;
+        case 'ArrowDown': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('down', e.shiftKey); return;
+        case 'ArrowLeft': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('left', e.shiftKey); return;
+        case 'ArrowRight': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('right', e.shiftKey); return;
+        case 'b': case 'B': e.preventDefault(); bld.exit(); toast('Renovation mode finished.'); return;
         case 'Escape':
           e.preventDefault();
-          if (bld.isInventoryOpen() || bld.isCarrying()) bld.cancel();
+          if (bld.isCarrying()) bld.cancel();
           else bld.exit();
           return;
         default: break; // WASD still walks: you carry the fixture with you
@@ -2765,10 +2746,10 @@ function boot() {
   walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · tap/hold F tools · P pause' });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
-    el('div', { class: 'shop-prompt', text: '' }),
+    walkPrompt,
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · tap/hold F tools · J course editor · Tab overview · P pause' }),
+    walkCondition,
+    walkLockHint,
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the

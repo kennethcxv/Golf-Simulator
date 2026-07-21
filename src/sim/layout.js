@@ -103,19 +103,6 @@ export function ensureLayout(state) {
   if (!Number.isFinite(layout.revision)) layout.revision = 0;
   layout.version = LAYOUT_VERSION;
 
-  // One-way compatibility bridge for v1 fixture saves. Keep moved/stored in sync
-  // for old callers, but make the v2 record authoritative from here on.
-  for (const fixture of FIXTURES) {
-    if (layout.objects[fixture.id]) continue;
-    const moved = layout.moved[fixture.id];
-    const stored = layout.stored.includes(fixture.id);
-    if (!moved && !stored) continue;
-    const meta = fixtureMeta(fixture.id);
-    const record = defaultRecord(meta);
-    if (moved) record.transform = { ...record.transform, ...clone(moved), surface: 'floor' };
-    if (stored) record.state = 'stored';
-    layout.objects[fixture.id] = record;
-  }
   return layout;
 }
 
@@ -126,7 +113,16 @@ function rawRecord(state, id) {
 export function objectRecord(state, id) {
   const meta = placeableById(id) || extraMeta(state, id);
   if (!meta) return null;
-  return clone(rawRecord(state, id) || defaultRecord(meta));
+  const direct = rawRecord(state, id);
+  if (direct) return clone(direct);
+  const record = defaultRecord(meta);
+  if (meta.fixture) {
+    const layout = ensureLayout(state);
+    const moved = layout.moved[id];
+    if (moved) record.transform = { ...record.transform, ...clone(moved), surface: 'floor' };
+    if (layout.stored.includes(id)) record.state = 'stored';
+  }
+  return clone(record);
 }
 
 function resolvedObject(meta, record) {
@@ -154,10 +150,21 @@ export function objectById(state, id) {
   return resolvedObject(meta, objectRecord(state, id));
 }
 
+function allPlaceableMetas(state) {
+  const layout = ensureLayout(state);
+  const result = [...PLACEABLES];
+  for (const id of Object.keys(layout.objects)) {
+    if (PLACEABLE_BY_ID[id]) continue;
+    const meta = placeableById(id);
+    if (meta) result.push(meta);
+  }
+  return result;
+}
+
 export function placedObjects(state) {
   ensureLayout(state);
   const result = [];
-  for (const meta of PLACEABLES) {
+  for (const meta of allPlaceableMetas(state)) {
     const object = resolvedObject(meta, objectRecord(state, meta.id));
     if (object.state === 'placed') result.push(object);
   }
@@ -166,13 +173,13 @@ export function placedObjects(state) {
 
 export function storedObjects(state) {
   ensureLayout(state);
-  return PLACEABLES.map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
+  return allPlaceableMetas(state).map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
     .filter((object) => object.state === 'stored');
 }
 
 export function soldObjects(state) {
   ensureLayout(state);
-  return PLACEABLES.map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
+  return allPlaceableMetas(state).map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
     .filter((object) => object.state === 'sold');
 }
 
@@ -183,10 +190,26 @@ export function placedFixtures(state, { tierId = null } = {}) {
   for (const fixture of FIXTURES) {
     if (!fixtureIsInstalled(state, fixture.id, tierId)) continue;
     const object = objectById(state, fixture.id);
-    if (object && object.state === 'placed') result.push(object);
+    if (!object || object.state !== 'placed') continue;
+    const moved = Math.abs(object.x - fixture.x) > EPS
+      || Math.abs(object.z - fixture.z) > EPS
+      || Math.abs(angleDelta(object.ry, fixture.ry)) > EPS;
+    // Preserve the compact fixture contract used by stock, rendering and old
+    // saves. Rich v2 placement metadata belongs to placedObjects/objectById;
+    // exposing it here breaks identity-shaped legacy callers for no benefit.
+    result.push(moved
+      ? { ...fixture, x: object.x, z: object.z, ry: object.ry }
+      : fixture);
   }
   for (const extra of layout.extra) result.push(extra);
   return result;
+}
+
+// Runtime-facing fixture set. `placedFixtures` already applies the canonical
+// pro-shop progression gate, so renderer and interaction callers share exactly
+// the same physical floor.
+export function activeFixtures(state) {
+  return placedFixtures(state);
 }
 
 export const fixtureById = (state, id) => placedFixtures(state).find((fixture) => fixture.id === id);
@@ -476,11 +499,6 @@ function solidAt(x, z, rects) {
 
 export function routesIntact(state, override = null) {
   const rects = navigationRects(state, override);
-  const fixtures = placedFixtures(state).filter((fixture) => fixture.id !== override?.id);
-  if (override?.place) {
-    const fixture = fixtureMeta(override.id)?.fixture;
-    if (fixture) fixtures.push({ ...fixture, ...override.place });
-  }
   const start = { x: (DOOR_CLEARWAY.minX + DOOR_CLEARWAY.maxX) / 2, z: INTERIOR.d / 2 - 1.0 };
   const width = Math.ceil(INTERIOR.w / GRID);
   const height = Math.ceil(INTERIOR.d / GRID);
@@ -519,19 +537,17 @@ export function routesIntact(state, override = null) {
     }
     return false;
   };
-
-  // the places a shop only works if you can get to
-  if (!reached(queueSlot(0))) return false;
-  if (!reached(COUNTER.staffStand)) return false;
-  if (!reached(OFFICE.chair)) return false;
-  if (!reached(STOCKROOM.receivingInside)) return false;
-  // ...and every unit the customer is meant to browse
-  for (const f of fixtures) {
-    if (!f.skus || !f.skus.length) continue;
-    // Runtime customers approach the authored local +Z/front pose. Reaching a
-    // different side of the AABB is not sufficient: the merchandise and its
-    // interaction face do not move to that side.
-    if (!reached(fixtureBrowsePoint(f))) return false;
+  if (!reached(queueSlot(0)) || !reached(COUNTER.staffStand)
+    || !reached(OFFICE.chair) || !reached(STOCKROOM.receivingInside)) return false;
+  // Customers browse from each fixture's authored front, so a reachable side
+  // or back edge cannot validate a display whose merchandise faces a wall.
+  const fixtures = placedFixtures(state).filter((fixture) => fixture.id !== override?.id);
+  if (override?.place) {
+    const original = placedFixtures(state).find((fixture) => fixture.id === override.id);
+    if (original) fixtures.push({ ...original, ...(override.place.transform || override.place) });
+  }
+  for (const fixture of fixtures) {
+    if (fixture.skus?.length && !reached(fixtureBrowsePoint(fixture))) return false;
   }
   return true;
 }
@@ -679,9 +695,12 @@ function validateObjectOverlap(state, meta, candidate, result) {
 function validateFloor(state, meta, candidate, result, options) {
   const rect = placementBounds(state, meta.id, candidate);
   const tuck = 0.15;
-  if (rect.minX < -INTERIOR.w / 2 - tuck || rect.maxX > INTERIOR.w / 2 + tuck
+  const authoredExisting = meta.render?.kind === 'fixture-anchor'
+    && Math.hypot(candidate.x - meta.defaultTransform.x, candidate.z - meta.defaultTransform.z) <= EPS
+    && Math.abs(angleDelta(candidate.ry, meta.defaultTransform.ry)) <= EPS;
+  if (!authoredExisting && (rect.minX < -INTERIOR.w / 2 - tuck || rect.maxX > INTERIOR.w / 2 + tuck
     || rect.minZ < -INTERIOR.d / 2 - tuck || rect.maxZ > INTERIOR.d / 2 + tuck
-    || crossesPartition(rect)) {
+    || crossesPartition(rect))) {
     addReason(result, 'wall-collision', 'That would go into a wall.');
   }
   if (Math.abs(candidate.y) > 0.055) addReason(result, 'floating', 'Floor objects must sit with their feet on the floor.');
@@ -815,10 +834,14 @@ export function commitObjectPlacement(state, id, candidateValue, options = {}) {
 }
 
 export function commitPlacement(state, id, x, z, ry = 0) {
-  const result = commitObjectPlacement(state, id, {
-    x: snap(x), y: 0, z: snap(z), ry, surface: 'floor', attachment: null,
-  }, { skipValidation: true, grid: false, rotationSnap: false });
-  return result.ok ? fixtureById(state, id) : null;
+  const meta = fixtureMeta(id);
+  if (!meta) return null;
+  const layout = ensureLayout(state);
+  layout.moved[id] = { x: snap(x), z: snap(z), ry };
+  layout.stored = layout.stored.filter((storedId) => storedId !== id);
+  delete layout.objects[id];
+  layout.revision += 1;
+  return fixtureById(state, id);
 }
 
 export function storeObject(state, id, options = {}) {

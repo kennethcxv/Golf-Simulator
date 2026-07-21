@@ -8,13 +8,15 @@
 
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
-import { addRevenue, addExpense, unbill } from './economy.js';
+import {
+  addRevenue, addExpense, addCostOfGoods, recordOutcome, unbill,
+} from './economy.js';
 import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { planShipment } from '../data/boxes.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
-  arriveOrder, openAllBoxes, ensureDeliveries, receivingFree,
+  PAD_CAPACITY, arriveOrder, openAllBoxes, ensureDeliveries, padCount, receivingFree,
 } from './deliveries.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
@@ -22,6 +24,14 @@ import { members } from './golfers.js';
 import { notify } from './notifications.js';
 import { placedFixtures } from './layout.js';
 import { initShopProgression, shopCategoryUnlocked } from './shopProgression.js';
+import {
+  INVENTORY_STAGE,
+  cancelPurchaseOrder,
+  moveInventory,
+  submitPurchaseOrders,
+  syncOrderTransitState,
+} from './inventoryLifecycle.js';
+import { applyReputationChange } from './reputation.js';
 import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import {
   cancelPlaceablePurchase,
@@ -35,6 +45,7 @@ import {
   storeOwnedPlacement,
 } from './propertyInventory.js';
 import { ensureConstructionFinishes } from './constructionFinishes.js';
+import { ensureCleaningToolState } from './cleaningToolState.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -488,9 +499,49 @@ export function placeOrder(state, skuId, qty) {
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
   if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
+  const packed = planShipment(sku, qty);
+  if (packed.boxCount > PAD_CAPACITY) {
+    return {
+      ok: false,
+      reason: `This order needs ${packed.boxCount} boxes, but the receiving pad holds ${PAD_CAPACITY}. Split it into smaller orders.`,
+      boxes: packed.boxCount,
+      capacity: PAD_CAPACITY,
+    };
+  }
   const purchase = submitPurchaseOrders(state, { lines: [{ skuId, quantity: qty }] });
   if (!purchase.ok) return { ok: false, reason: purchase.reason };
   const purchasedOrder = purchase.orders[0];
+
+  if (placeableSpecBySkuId(skuId)) {
+    const ownership = registerPlaceablePurchase(state, skuId, qty, {
+      sourceId: `shop-order:${purchasedOrder.id}`,
+      purchasePrice: sku.cost,
+    });
+    if (!ownership.ok) {
+      cancelPurchaseOrder(state, purchasedOrder.id);
+      return ownership;
+    }
+  }
+
+  const campaignExpedite = !!state.campaign?.enabled && !state.campaign.businessOpen;
+  if (campaignExpedite) {
+    const deliveryMin = Math.ceil(state.clock.minutes + 10 + ((purchasedOrder.id * 7) % 13));
+    purchasedOrder.deliveryMin = deliveryMin;
+    purchasedOrder.deliveryEtaMin = deliveryMin;
+    purchasedOrder.arrivesDay = Math.floor(deliveryMin / 1440);
+    purchasedOrder.window = {
+      open: Math.max(state.clock.minutes + 3, deliveryMin - 6),
+      close: deliveryMin + 24,
+    };
+    if (sku.campaign) {
+      state.campaign.purchased ||= {};
+      state.campaign.purchased[skuId] = Math.max(
+        0,
+        Math.floor(Number(state.campaign.purchased[skuId]) || 0),
+      ) + qty;
+      purchasedOrder.campaignTrackedQty = qty;
+    }
+  }
   return {
     ok: true,
     cost: purchasedOrder.totalCost,
@@ -667,11 +718,29 @@ export function cancelOrder(state, id) {
   if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
+  if (Array.isArray(o.lines) && o.charged) {
+    const cancelled = cancelPurchaseOrder(state, o.id);
+    if (!cancelled.ok) return cancelled;
+    if (placeableSpecBySkuId(o.skuId)) cancelPlaceablePurchase(state, `shop-order:${o.id}`);
+    if (o.campaignTrackedQty && state.campaign?.purchased) {
+      state.campaign.purchased[o.skuId] = Math.max(
+        0,
+        Math.floor(Number(state.campaign.purchased[o.skuId]) || 0) - Math.floor(o.campaignTrackedQty),
+      );
+    }
+    return cancelled;
+  }
   if (placeableSpecBySkuId(o.skuId)) {
     const ownership = cancelPlaceablePurchase(state, `shop-order:${o.id}`);
     if (!ownership.ok) return ownership;
   }
   orders.splice(i, 1);
+  if (o.campaignTrackedQty && state.campaign?.purchased) {
+    state.campaign.purchased[o.skuId] = Math.max(
+      0,
+      Math.floor(Number(state.campaign.purchased[o.skuId]) || 0) - Math.floor(o.campaignTrackedQty),
+    );
+  }
   if (o.ledgerKeys) {
     if (o.goods > 0) {
       unbill(state, 'shopOrders', o.goods, {
@@ -783,12 +852,16 @@ export function deliverOrdersDue(state, dayAbs) {
   // windowed orders due TODAY belong to their window (tickDeliveries) — only
   // strictly-past days force-land here; legacy windowless orders keep day-of
   const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
-  const arrived = [];
+  const arrivals = [];
   let reserved = 0;
   for (const order of state.shop.orders) {
     if (!due(order)) continue;
-    const need = (order.manifest && order.manifest.boxCount) || 1;
-    if (!padHasRoom(state, need + reserved)) {
+    const totalBoxes = (order.manifest && order.manifest.boxCount) || 1;
+    const receivedBoxes = Array.isArray(order.receivedManifestBoxIndexes)
+      ? order.receivedManifestBoxIndexes.length : 0;
+    const need = Math.max(0, totalBoxes - receivedBoxes);
+    const free = Math.max(0, receivingFree(state) - reserved);
+    if (free <= 0) {
       order.status = 'arriving';
       if (!order.blocked) {
         order.blocked = true;
@@ -800,10 +873,10 @@ export function deliverOrdersDue(state, dayAbs) {
       continue;
     }
     order.blocked = false;
-    reserved += need;
-    arrived.push(order);
+    const unloading = Math.min(need, free);
+    reserved += unloading;
+    arrivals.push({ order, count: unloading });
   }
-  state.shop.orders = state.shop.orders.filter((order) => !arrived.includes(order));
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)

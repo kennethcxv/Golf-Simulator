@@ -142,7 +142,8 @@ import {
 import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
-import { placedFixtures, ensureLayout } from '../sim/layout.js';
+import { placedFixtures, ensureLayout, recoverInvalidObjects, roomStyle } from '../sim/layout.js';
+import { installedFurnitureByFamily } from '../sim/furnitureCatalog.js';
 import {
   boxPlacementCapabilities,
   boxPlacementDimensions,
@@ -159,6 +160,8 @@ import {
   raycastBoxPlacementSurface,
   surfaceWorldPlane,
 } from './clubhouse/boxPlacementCoordinates.js';
+import { buildPlaceables } from './clubhouse/placeables.js';
+import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
 import {
   createCheckoutFlow, transitionCheckout, enterCheckoutRecovery, checkoutStateTimedOut,
@@ -172,6 +175,53 @@ const CAT_COLORS = {
   clubs: 0x9a8265,
   provisions: 0x78957e,
 };
+
+const FURNITURE_FINISH_PALETTE = Object.freeze({
+  basic: Object.freeze({ floor: 0xffffff, walls: 0xe3dac8, ceiling: 0xded8ca, trim: 0x53514c, roughness: 0.90 }),
+  commercial: Object.freeze({ floor: 0xf1eee8, walls: 0xd5d5c5, ceiling: 0xe5ddcd, trim: 0x8c693f, roughness: 0.74 }),
+  retail: Object.freeze({ floor: 0xd8d4cc, walls: 0xd8e0d0, ceiling: 0xe9e1d2, trim: 0x86613b, roughness: 0.62 }),
+  boutique: Object.freeze({ floor: 0xd2ad91, walls: 0xffffff, ceiling: 0xeee5d4, trim: 0xb08a65, roughness: 0.52 }),
+  luxury: Object.freeze({ floor: 0xffffff, walls: 0xffffff, ceiling: 0xf0e7d4, trim: 0xc6aa68, roughness: 0.44, floorRoughness: 0.58 }),
+});
+
+const FURNITURE_FINISH_LOOK = Object.freeze({
+  floor: Object.freeze({ basic: 'concrete', commercial: 'concrete', retail: 'concrete', boutique: 'walnut', luxury: 'herringbone' }),
+  walls: Object.freeze({ basic: 'plaster', commercial: 'plaster', retail: 'sage', boutique: 'walnut', luxury: 'green' }),
+  ceiling: Object.freeze({ basic: 'ceiling', commercial: 'ceiling', retail: 'trim', boutique: 'walnut', luxury: 'ceiling' }),
+  trim: Object.freeze({ basic: 'trim', commercial: 'oak', retail: 'oak', boutique: 'walnut', luxury: 'brass' }),
+});
+
+const MATERIAL_MAP_CHANNELS = Object.freeze([
+  'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'bumpMap', 'alphaMap',
+]);
+
+function captureMaterialLook(material) {
+  return Object.freeze({
+    maps: Object.freeze(Object.fromEntries(MATERIAL_MAP_CHANNELS.map((key) => [key, material[key] || null]))),
+    color: material.color?.clone() || null,
+    emissive: material.emissive?.clone() || null,
+    normalScale: material.normalScale?.clone() || null,
+    roughness: material.roughness,
+    metalness: material.metalness,
+    emissiveIntensity: material.emissiveIntensity,
+    opacity: material.opacity,
+    transparent: material.transparent,
+  });
+}
+
+function applyMaterialLook(material, look) {
+  if (!material || !look) return;
+  for (const key of MATERIAL_MAP_CHANNELS) material[key] = look.maps[key];
+  if (material.color && look.color) material.color.copy(look.color);
+  if (material.emissive && look.emissive) material.emissive.copy(look.emissive);
+  if (material.normalScale && look.normalScale) material.normalScale.copy(look.normalScale);
+  material.roughness = look.roughness;
+  material.metalness = look.metalness;
+  material.emissiveIntensity = look.emissiveIntensity;
+  material.opacity = look.opacity;
+  material.transparent = look.transparent;
+  material.needsUpdate = true;
+}
 
 function carriedGoodsProfile(sku, descriptor) {
   if (sku.cat === 'clubs') return 'long-clubs';
@@ -477,6 +527,13 @@ export function makeClubhouse(ctx) {
   const {
     scene, camera, renderer, state, center, heightAt, walkProps, propColliders, walk, hooks,
   } = ctx;
+  const layoutRecovery = recoverInvalidObjects(state);
+  if (layoutRecovery.recovered.length) {
+    queueMicrotask(() => hooks.toast?.(
+      `${layoutRecovery.recovered.length} invalid clubhouse object${layoutRecovery.recovered.length === 1 ? '' : 's'} recovered to safe placement.`,
+      'warn',
+    ));
+  }
   // Course resources already resident when this clubhouse is built can be
   // referenced by its Object3D tree, but remain owned by the course. Everything
   // new beneath the clubhouse roots is released on a structure rebuild.
@@ -632,6 +689,75 @@ export function makeClubhouse(ctx) {
     enabled: equipmentShowcaseEnabled,
   });
   const shell = buildShell(B);
+  const defaultSurfaceLooks = Object.freeze(Object.fromEntries(
+    Object.entries(shell.styleSurfaces || {}).map(([kind, material]) => [kind, captureMaterialLook(material)]),
+  ));
+  const installationLooks = Object.freeze({
+    concrete: captureMaterialLook(mats.concrete),
+    plaster: captureMaterialLook(mats.plaster),
+    ceiling: captureMaterialLook(mats.ceiling),
+    trim: captureMaterialLook(mats.trimPaint),
+    sage: captureMaterialLook(mats.sagePaint),
+    green: captureMaterialLook(mats.greenPaint),
+    walnut: captureMaterialLook(mats.walnut),
+    oak: captureMaterialLook(mats.oakFloor),
+    herringbone: captureMaterialLook(mats.herringboneFloor),
+    brass: captureMaterialLook(mats.brass),
+  });
+  let sheet06Production = null;
+  let installedFinishDiagnostics = Object.freeze({});
+
+  function refreshRoomStyle() {
+    const selected = roomStyle(state);
+    for (const [kind, material] of Object.entries(shell.styleSurfaces || {})) {
+      applyMaterialLook(material, defaultSurfaceLooks[kind]);
+    }
+    for (const kind of ['floor', 'walls', 'trim']) {
+      const material = shell.styleSurfaces?.[kind];
+      const option = ROOM_STYLE_OPTIONS[kind]?.find((entry) => entry.id === selected[kind]);
+      if (!material || !option) continue;
+      material.color.setHex(option.color);
+      if (Number.isFinite(option.roughness)) material.roughness = option.roughness;
+      material.needsUpdate = true;
+    }
+
+    const installed = installedFurnitureByFamily(state);
+    const activeFinishes = {};
+    const applyInstallation = (surface, item, channel) => {
+      const material = shell.styleSurfaces?.[surface];
+      const finish = item && FURNITURE_FINISH_PALETTE[item.progressionTier];
+      if (!material || !finish) return;
+      const lookName = FURNITURE_FINISH_LOOK[surface]?.[item.progressionTier];
+      applyMaterialLook(material, installationLooks[lookName]);
+      material.color.setHex(finish[channel]);
+      material.roughness = surface === 'floor' && Number.isFinite(finish.floorRoughness)
+        ? finish.floorRoughness : finish.roughness;
+      material.needsUpdate = true;
+      activeFinishes[surface] = Object.freeze({
+        skuId: item.id,
+        tier: item.progressionTier,
+        look: lookName,
+        color: `#${material.color.getHexString()}`,
+        roughness: material.roughness,
+      });
+    };
+    applyInstallation('floor', installed.flooring, 'floor');
+    applyInstallation('walls', installed['wall-paneling'], 'walls');
+    applyInstallation('ceiling', installed['ceiling-treatment'], 'ceiling');
+    const trimInstallation = [installed['window-treatment'], installed['interior-door'], installed['exterior-door']]
+      .filter(Boolean).sort((a, b) => a.progressionIndex - b.progressionIndex).at(-1);
+    applyInstallation('trim', trimInstallation, 'trim');
+    // The production flooring kit replaces (and hides) the procedural fallback
+    // slab once Asset 59 loads. Keep its authored geometry, but bind the same
+    // player-selected surface material so room styles and catalog installations
+    // remain visible on the actual live floor instead of a hidden fallback.
+    const productionFloor = sheet06Production?.getAssemblyRoot?.(59);
+    productionFloor?.traverse?.((node) => {
+      if (node?.isMesh) node.material = shell.styleSurfaces.floor;
+    });
+    installedFinishDiagnostics = Object.freeze(activeFinishes);
+  }
+  refreshRoomStyle();
 
   function refreshRoomStyle() {
     const selected = roomStyle(state);
@@ -652,10 +778,8 @@ export function makeClubhouse(ctx) {
   const repaintGrime = dirt.repaintGrime;
   B.onWindowDirt();
 
-  // Welcome mat inside the door.
-  //
-  // A canvas stand-in. Asset 100 is the authored version of this exact object, so the prop
-  // placement table disposes this once it lands — two mats on one threshold z-fight.
+  // welcome mat inside the door (kept as a load-failure fallback for Asset 100)
+  let fallbackWelcomeMat = null;
   {
     const matCv = document.createElement('canvas');
     matCv.width = 128; matCv.height = 64;
@@ -673,7 +797,7 @@ export function makeClubhouse(ctx) {
     matMesh.rotation.x = -Math.PI / 2;
     matMesh.position.set(MAT.x, 0.016, MAT.z);
     matMesh.renderOrder = 1;
-    matMesh.name = 'LegacyWelcomeMat';
+    matMesh.name = 'LegacyWelcomeMatFallback';
     interior.add(matMesh);
     fallbackWelcomeMat = matMesh;
   }
@@ -682,7 +806,7 @@ export function makeClubhouse(ctx) {
   const doorsApi = buildDoors(B);
   const doors = doorsApi.doors;
   const updateDoors = doorsApi.updateDoors;
-  const sheet06Production = createSheet06ProductionRuntime({
+  sheet06Production = createSheet06ProductionRuntime({
     group,
     interior,
     state,
@@ -691,6 +815,7 @@ export function makeClubhouse(ctx) {
     navigationApi: sheet06Navigation,
     lightingApi: shell.lighting,
   });
+  void sheet06Production.ready.then(() => refreshRoomStyle(), () => {});
   // Assets 71-100: thirty finished props that nothing was loading. Static dressing, so they skip
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
   // SOCKET_PLACEMENT rather than by its authoring origin.
@@ -876,6 +1001,7 @@ export function makeClubhouse(ctx) {
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
+    placeableVisuals?.rebuild();
   }
 
   function fixtureMoveBlocker(fixtureId) {
@@ -903,10 +1029,13 @@ export function makeClubhouse(ctx) {
       if (flight.fixtureId === fixtureId) flight.ghost.visible = visible;
     }
   };
+  placeableVisuals = buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat });
   builder = buildBuildMode(B, {
     rebuildLayout,
     rebuildDecor: () => rebuildDecor(),
     fixtureAnchors,
+    placeables: placeableVisuals,
+    refreshRoomStyle,
     fixtureMoveBlocker,
     setFixtureStockVisible,
     setFixtureCollidersActive,
@@ -3813,6 +3942,7 @@ export function makeClubhouse(ctx) {
   const debrisGeo = new THREE.DodecahedronGeometry(0.070, 0);
   const debrisMat = new THREE.MeshStandardMaterial({ color: 0x6b5a3c, roughness: 0.95 });
   const debrisMesh = new THREE.InstancedMesh(debrisGeo, debrisMat, DEBRIS_CAP);
+  debrisMesh.name = 'CleaningDebrisInstances';
   debrisMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   debrisMesh.castShadow = false;
   debrisMesh.receiveShadow = false;
@@ -8615,6 +8745,8 @@ export function makeClubhouse(ctx) {
   function dispose() {
     if (disposing) return disposalSummary;
     disposing = true;
+    builder.dispose();
+    placeableVisuals.dispose();
     register.leave({ restorePointer: false });
     props61to100.stopAnimations();
     const sheet06ProductionDisposal = sheet06Production.dispose();
@@ -8933,6 +9065,7 @@ export function makeClubhouse(ctx) {
       visuals: placeableVisuals.diagnostics(),
       layoutRevision: ensureLayout(state).revision,
     }),
+    furnitureFinishDiagnostics: () => installedFinishDiagnostics,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back
     washAim: (origin, dir) => washing.aim(origin, dir),
     washApply: (hit, mode, radius, power, dt, now) => {

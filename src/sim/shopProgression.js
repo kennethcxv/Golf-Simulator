@@ -94,6 +94,13 @@ export function fixtureUnlockedForTier(fixtureId, tierId) {
 
 export function fixtureIsInstalled(state, fixtureId, tierId = null) {
   const progression = state?.shop?.progression;
+  if (!tierId && state?.campaign?.enabled) {
+    const facilities = state.shop?.reno?.facilities || {};
+    if (facilities.displayShelves
+      && ['shelf_balls', 'shelf_acc', 'shelf_small'].includes(fixtureId)) return true;
+    if (facilities.stockroomShelves
+      && ['backshelf_n', 'backshelf_e', 'backshelf_e2'].includes(fixtureId)) return true;
+  }
   // Pre-v12 saves keep the exact floor they were already using until they buy
   // their next tier. This is explicit migration compatibility, not a second
   // runtime authority for new games.

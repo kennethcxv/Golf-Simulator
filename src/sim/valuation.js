@@ -5,8 +5,14 @@
 
 import { clubRatings, memberCounts, AMENITIES } from './club.js';
 import { validateHole } from './course.js';
-import { appraiseStats, round500 } from './marketplace.js';
+import { appraiseStatsBreakdown, round500 } from './marketplace.js';
+import { propertyConditionBreakdown } from './propertyCondition.js';
+import { UPGRADES } from './progression.js';
+import { reputationOverall } from './reputation.js';
+import { financialSummary } from './economy.js';
 import { shopPropertyImprovementValue } from './shopProgression.js';
+
+const r2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 export function trailingMonthlyNet(state) {
   const history = state.ledger?.history;
@@ -78,7 +84,8 @@ export function appraisalBreakdown(state) {
     .reduce((sum, problem) => sum + problem.lossSeverity * 6 * sizeFactor, 0)));
   const upgradeRows = upgradeContributions(state);
   const upgradeValue = upgradeRows.reduce((sum, contribution) => sum + contribution.amount, 0);
-  const rawValue = base.value + conditionAdjustment - unresolvedDamage + upgradeValue;
+  const shopImprovements = shopPropertyImprovementValue(state);
+  const rawValue = base.value + conditionAdjustment - unresolvedDamage + upgradeValue + shopImprovements;
   const value = Math.max(round500(rawValue), round500(base.land * 0.5));
   const acquisitionCost = r2(state.property?.acquisitionCost ?? state.club?.acquisitionCost ?? 0);
   const outstanding = r2(Math.max(0, state.property?.arrears || 0) + Math.max(0, state.property?.loanBalance || 0));
@@ -91,6 +98,7 @@ export function appraisalBreakdown(state) {
     { id: 'business:earnings', label: 'Trailing operating profit', amount: round500(base.earnings), reason: `${monthlyNet >= 0 ? '+' : ''}$${Math.round(monthlyNet).toLocaleString('en-US')} over the last 24 closed days.` },
     { id: 'condition:whole-property', label: 'Whole-property condition', amount: conditionAdjustment, reason: `All thirteen real-state condition categories combine to ${Math.round(propertyCondition.overall)}.` },
     ...upgradeRows,
+    { id: 'shop:fit-out', label: 'Pro-shop fit-out', amount: shopImprovements, reason: 'The installed retail tier adds durable value to the clubhouse.' },
     { id: 'deduction:unresolved-damage', label: 'Unresolved problems', amount: -unresolvedDamage, reason: `${propertyCondition.unresolved.length} condition categories remain below 45.` },
   ];
   const explained = contributions.reduce((sum, contribution) => sum + contribution.amount, 0);
@@ -108,13 +116,22 @@ export function appraisalBreakdown(state) {
     size,
     design: Math.round(ratings.design * 10) / 10,
     condition: Math.round(ratings.condition * 10) / 10,
-    members: counts.weekday + counts.full + counts.premium,
-    reputation: Math.round(state.club.reputation * 10) / 10,
-    monthlyNet: trailingMonthlyNet(state),
-    shopImprovements: shopPropertyImprovementValue(state),
+    propertyCondition: propertyCondition.overall,
+    conditionBreakdown: propertyCondition,
+    members,
+    reputation,
+    monthlyNet,
+    acquisitionCost,
+    restorationInvestment: restorationInvestment(state),
+    upgradeValue,
+    shopImprovements,
+    unresolvedDamage,
+    outstanding,
+    grossSaleValue: value,
+    estimatedSaleProceeds: Math.max(0, r2(value - outstanding)),
+    value,
+    contributions,
   };
-  parts.value = round500(appraiseStats(parts) + parts.shopImprovements);
-  return parts;
 }
 
 export function appraiseProperty(state) {
