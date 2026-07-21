@@ -357,31 +357,35 @@ export function buildDoors(B) {
   mainDoor.openFor = () => setMainAssemblyOpen(true);
   mainDoorRight.openFor = mainDoor.openFor;
 
-  addProp({
+  function toggleMainEntrance() {
+    if (mainDoor.open) {
+      const blocker = mainDoorBlockedBy();
+      if (blocker) {
+        if (hooks.toast) {
+          hooks.toast(blocker === 'customer'
+            ? 'Someone is still in the doorway.'
+            : blocker === 'player'
+              ? 'Step clear of the doorway first.'
+              : 'A box is in the way of the door.', 'warn');
+        }
+        return false;
+      }
+      setMainAssemblyOpen(false);
+    } else {
+      setMainAssemblyOpen(true);
+      tutorialFlag(state, 'doorOpened');
+      if (hooks.sfx) hooks.sfx('doorbell');
+    }
+    if (hooks.sfx) hooks.sfx(mainDoor.open ? 'doorSwing' : 'doorShut');
+    return true;
+  }
+
+  const mainInteraction = {
     x: mainWorld.x, z: mainWorld.z, r: 2.1,
     label: () => `Shop door — [E] ${mainDoor.open ? 'close' : 'open'}`,
-    action: () => {
-      if (mainDoor.open) {
-        const blocker = mainDoorBlockedBy();
-        if (blocker) {
-          if (hooks.toast) {
-            hooks.toast(blocker === 'customer'
-              ? 'Someone is still in the doorway.'
-              : blocker === 'player'
-                ? 'Step clear of the doorway first.'
-                : 'A box is in the way of the door.', 'warn');
-          }
-          return;
-        }
-        setMainAssemblyOpen(false);
-      } else {
-        setMainAssemblyOpen(true);
-        tutorialFlag(state, 'doorOpened');
-        if (hooks.sfx) hooks.sfx('doorbell');
-      }
-      if (hooks.sfx) hooks.sfx(mainDoor.open ? 'doorSwing' : 'doorShut');
-    },
-  });
+    action: toggleMainEntrance,
+  };
+  addProp(mainInteraction);
   makeDoor({
     cx: DOOR_STOCK.x, cz: DOOR_STOCK.z, along: 'x', w: DOOR_STOCK.w, h: DOOR_STOCK.h,
     name: 'Stockroom door', style: 'service',
@@ -552,13 +556,33 @@ export function buildDoors(B) {
 
   function bindMainEntranceVisual(root) {
     if (!root) return Object.freeze({ ok: false, reason: 'missing-root' });
-    const left = findNamed(root, 'PIVOT_DoorLeft');
-    const right = findNamed(root, 'PIVOT_DoorRight');
+    const left = findNamed(root, 'PIVOT_DoorLeft') || findNamed(root, 'DOOR_MAIN_LEFT');
+    const right = findNamed(root, 'PIVOT_DoorRight') || findNamed(root, 'DOOR_MAIN_RIGHT');
     if (!left || !right || left === right) {
       return Object.freeze({ ok: false, reason: 'missing-double-leaf-pivots' });
     }
     authoredMainEntranceRoot = root;
     authoredMainEntrancePivots = { left, right };
+    // Rebase the analytic door contract onto the authored municipal hinges.
+    // This shell is intentionally smaller than the legacy retail plan, while
+    // checkout/save coordinates must remain untouched for migration safety.
+    root.updateWorldMatrix?.(true, true);
+    group.updateWorldMatrix?.(true, false);
+    const leftLocal = group.worldToLocal(left.getWorldPosition(new THREE.Vector3()));
+    const rightLocal = group.worldToLocal(right.getWorldPosition(new THREE.Vector3()));
+    const centreX = (leftLocal.x + rightLocal.x) / 2;
+    const centreZ = (leftLocal.z + rightLocal.z) / 2;
+    mainDoor.lx = leftLocal.x;
+    mainDoor.lz = leftLocal.z;
+    mainDoorRight.lx = rightLocal.x;
+    mainDoorRight.lz = rightLocal.z;
+    mainDoor.slabW = Math.hypot(rightLocal.x - leftLocal.x, rightLocal.z - leftLocal.z) / 2;
+    mainDoorRight.slabW = mainDoor.slabW;
+    const authoredWorld = L2W(centreX, centreZ);
+    mainDoor.world = authoredWorld;
+    mainDoorRight.world = authoredWorld;
+    mainInteraction.x = authoredWorld.x;
+    mainInteraction.z = authoredWorld.z;
     mainDoor.authoredPivot = left;
     mainDoorRight.authoredPivot = right;
     applyDoorVisualRotation(mainDoor);
@@ -607,6 +631,8 @@ export function buildDoors(B) {
       rightAngle: mainDoorRight.angle,
       leftState: mainDoor.desiredOpen ? 'open' : 'closed',
       rightState: mainDoorRight.desiredOpen ? 'open' : 'closed',
+      interactionX: mainInteraction.x,
+      interactionZ: mainInteraction.z,
     });
   }
 
@@ -618,6 +644,8 @@ export function buildDoors(B) {
     bindMainEntranceVisual,
     unbindMainEntranceVisual,
     syncMainEntranceFromState,
+    toggleMainEntrance,
+    mainEntranceIsOpen: () => Boolean(mainDoor.open),
     mainEntranceDiagnostics,
   };
 }

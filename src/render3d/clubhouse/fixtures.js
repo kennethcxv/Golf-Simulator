@@ -112,6 +112,7 @@ export function buildFixtures(B) {
     return rawAddCol(c);
   };
   const addProp = (p) => {
+    if (tracking) p.fixtureLayoutId = activeFixtureId;
     const made = rawAddProp(p);
     if (tracking) laidProps.push(made || p);
     return made;

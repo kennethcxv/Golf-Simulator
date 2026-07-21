@@ -95,6 +95,7 @@ import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createCourse1MunicipalEnvironment } from './course1MunicipalEnvironment.js';
 import { buildProps } from './assets51to100/propPlacement.js';
 import {
   ensureDebris, debrisState, seedDebris, sweepAt, collectAt, suckAt, totalDebris,
@@ -749,6 +750,22 @@ export function makeClubhouse(ctx) {
 
   const checkout = buildCheckout(B);
   const drawRegister = checkout.drawRegister;
+  const course1MunicipalEnvironment = createCourse1MunicipalEnvironment({
+    group,
+    interior,
+    shell,
+    doorApi: doorsApi,
+    sheet06Production,
+    addCollider: addCol,
+    removeCollider: removeCol,
+    addProp,
+    registeredColliders: registeredCols,
+    registeredProps,
+    removeProp,
+    hooks,
+    fixtureAnchors,
+    defaultFixtureIds: new Set(FIXTURES.map((fixture) => fixture.id)),
+  });
 
   const regWp = L2W(REGISTER.scanner.x, COUNTER.z);
 
@@ -2403,6 +2420,7 @@ export function makeClubhouse(ctx) {
 
   // --- live stock silhouettes -------------------------------------------------------------
   const stockGroup = new THREE.Group();
+  stockGroup.name = 'Course1MunicipalCustomFixtureStock';
   interior.add(stockGroup);
   const stockMeshes = new Map();
   // Stock displays are rebuilt whenever inventory changes. The baked output owns
@@ -2811,6 +2829,7 @@ export function makeClubhouse(ctx) {
         // ball boxes was 15 draw calls; a rack of 12 clubs was 36. This happens on restock, not
         // per frame.
         const baked = bakeStockGroup(g);
+        baked.userData.fixtureLayoutId = f.id;
         baked.position.copy(anchor.position);
         baked.rotation.copy(anchor.rotation);
         baked.visible = !hiddenFixtureStock.has(f.id);
@@ -2855,6 +2874,7 @@ export function makeClubhouse(ctx) {
         g.add(sign);
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
+        g.userData.fixtureLayoutId = f.id;
         g.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':feature', g);
@@ -2886,6 +2906,7 @@ export function makeClubhouse(ctx) {
         }
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
+        g.userData.fixtureLayoutId = f.id;
         g.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':back', g);
@@ -6898,6 +6919,7 @@ export function makeClubhouse(ctx) {
     }
     sheet06Production.update(dt);
     updateDoors(dt, now);
+    course1MunicipalEnvironment.update(dt);
     if (deliveryEquipment) {
       deliveryEquipment.update(dt);
       syncEquipmentBoxViews();
@@ -7014,6 +7036,7 @@ export function makeClubhouse(ctx) {
     disposing = true;
     register.leave({ restorePointer: false });
     const sheet06ProductionDisposal = sheet06Production.dispose();
+    const course1MunicipalDisposal = course1MunicipalEnvironment.dispose();
     // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
     // rule for loader clones is that the cache which produced them owns freeing them — the same
     // boundary createMerch and the Sheet-6 isolated cache sit behind. Freeing them from this side
@@ -7099,6 +7122,7 @@ export function makeClubhouse(ctx) {
       deliveryEquipment: deliveryEquipmentDisposal,
       boxPlacement: boxPlacementDisposal,
       sheet06Production: sheet06ProductionDisposal,
+      course1Municipal: course1MunicipalDisposal,
     });
     return disposalSummary;
   }
@@ -7109,6 +7133,10 @@ export function makeClubhouse(ctx) {
     rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,
     sheet06Production: sheet06ProductionPublic,
     sheet06ProductionReady: () => sheet06Production.ready,
+    course1Municipal: Object.freeze({
+      ready: course1MunicipalEnvironment.ready,
+      diagnostics: () => course1MunicipalEnvironment.diagnostics(),
+    }),
     boxPlacement: Object.freeze({
       isActive: () => !!boxPlacementMode?.isActive(),
       hasCarriedBox: () => !!carriedBox(state),

@@ -57,6 +57,7 @@ export function buildBuildMode(B, deps) {
   let lastCheck = { ok: false, reasons: [] };
 
   const ghost = new THREE.Group();
+  ghost.name = 'Course1MunicipalFixtureBuildGhost';
   ghost.visible = false;
   interior.add(ghost);
 
@@ -73,6 +74,7 @@ export function buildBuildMode(B, deps) {
     new THREE.RingGeometry(0.1, 0.14, 24),
     new THREE.MeshBasicMaterial({ color: 0xffd479, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false }),
   );
+  halo.name = 'Course1MunicipalFixtureBuildHalo';
   halo.rotation.x = -Math.PI / 2;
   halo.renderOrder = 998;
   halo.visible = false;
