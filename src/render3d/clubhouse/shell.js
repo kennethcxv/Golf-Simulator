@@ -66,6 +66,11 @@ function productionVisualHandle(name, sourceNodes) {
 
 export function buildShell(B) {
   const { group, interior, mats, merch, addCol, colBoxAt, FLOOR_TOP, state } = B;
+  const generatedPalette = state?.shop?.generation?.palette || null;
+  const generatedLighting = state?.shop?.generation?.lighting || null;
+  const generatedLightColor = generatedLighting?.temperatureK < 2850
+    ? 0xffe0b8
+    : generatedLighting?.temperatureK < 3300 ? 0xffead3 : 0xfff3df;
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
   const productionFallbackNodes = Object.fromEntries(
@@ -77,7 +82,7 @@ export function buildShell(B) {
   };
   let retailSlab = null;
   const luxuryFloorMaterial = mats.oakFloor.clone();
-  luxuryFloorMaterial.color.setHex(0xf1d8ad);
+  luxuryFloorMaterial.color.setHex(generatedPalette?.floor || 0xf1d8ad);
 
   // --- exterior finishes (normal-mapped siding + roof, kept from the yard kit) ---
   const texLoader = new THREE.TextureLoader();
@@ -741,7 +746,7 @@ export function buildShell(B) {
     trackProductionFallback('ceilingVisuals', ring);
     const disc = new THREE.Mesh(
       new THREE.CircleGeometry(0.145, 12),
-      new THREE.MeshStandardMaterial({ color: 0xfff4dd, emissive: 0xffe2b0, emissiveIntensity: 1.4 }),
+      new THREE.MeshStandardMaterial({ color: generatedLightColor, emissive: generatedLightColor, emissiveIntensity: 1.4 }),
     );
     disc.rotation.x = Math.PI / 2;
     disc.position.set(lx, CEIL_Y - 0.056, lz);
@@ -749,7 +754,7 @@ export function buildShell(B) {
     trackProductionFallback('ceilingVisuals', disc);
     let light = null;
     if (real) {
-      light = new THREE.PointLight(0xffe2b0, intensity, 8.5, 1.8);
+      light = new THREE.PointLight(generatedLightColor, intensity, 8.5, 1.8);
       light.position.set(lx, CEIL_Y - 0.35, lz);
       interior.add(light);
     }
@@ -763,12 +768,12 @@ export function buildShell(B) {
     // cap, four tapered posts, glass — with the glow driven from its glass slot.
     // The old build stays as the fallback until the GLB lands (the light itself
     // must not wait, or the shop opens dark).
-    const light = new THREE.PointLight(0xffdfa4, 13, 9.5, 1.7);
+    const light = new THREE.PointLight(generatedLightColor, 13, 9.5, 1.7);
     light.position.set(lx, CEIL_Y - 0.85, lz);
     interior.add(light);
 
     const glassMat = new THREE.MeshStandardMaterial({
-      color: 0xfff2d8, emissive: 0xffdfa4, emissiveIntensity: 1.5,
+      color: generatedLightColor, emissive: generatedLightColor, emissiveIntensity: 1.5,
     });
     const entry = { light, glow: { material: glassMat }, base: 13 };
     practicals.push(entry);
@@ -854,10 +859,12 @@ export function buildShell(B) {
 
   function applyPracticalLevels() {
     // practicals stay on all day (retail) but carry the room after dark
-    const finishScale = [0.60, 0.80, 1.0, 1.14][shopTierNow] || 0.60;
+    const finishScale = ([0.60, 0.80, 1.0, 1.14][shopTierNow] || 0.60)
+      * (generatedLighting?.intensityScale || 1);
     const scale = (0.72 + 0.55 * (1 - moodDayF)) * finishScale;
     practicals.forEach((p, i) => {
       let on = 1;
+      if (generatedLighting?.disabledPracticalIndices?.includes(i)) on = 0;
       if (shopTierNow === 0 && [1, 2, 4, 5, 6].includes(i)) on = 0;
       if (shopTierNow === 1 && [2, 5].includes(i)) on = 0;
       if (conditionNow < 45 && i === 4) on = 0;              // a dead can in the neglect years

@@ -97,6 +97,40 @@ export function buildFixtures(B) {
     colBoxAt, L2W, state, hooks,
   } = B;
   const fixtureCoreBatcher = createMovableFixtureCoreBatcher(merch);
+  const generatedFixtureQuality = state.shop?.generation?.fixtureQuality || null;
+
+  function applyGeneratedFixtureFinish(core) {
+    if (!core?.visual || generatedFixtureQuality !== 'old-utility') return core;
+    const materialClones = new Map();
+    const refinish = (sourceMaterial) => {
+      if (!sourceMaterial) return sourceMaterial;
+      let material = materialClones.get(sourceMaterial);
+      if (!material) {
+        material = sourceMaterial.clone();
+        const source = sourceMaterial.color || new THREE.Color(0xffffff);
+        const high = Math.max(source.r, source.g, source.b);
+        const brassLike = source.r > source.b * 1.35 && source.g > source.b * 1.15;
+        material.color = new THREE.Color(
+          brassLike ? 0x857b62 : high > 0.52 ? 0xc3bdab : 0x626a65,
+        );
+        material.roughness = Math.max(0.90, Number(material.roughness) || 0);
+        material.metalness = Math.min(0.18, Number(material.metalness) || 0);
+        if (material.emissive) material.emissive.multiplyScalar(0.22);
+        if (Number.isFinite(material.emissiveIntensity)) material.emissiveIntensity *= 0.35;
+        material.userData = { ...(material.userData || {}), generatedFixtureFinish: 'old-utility' };
+        materialClones.set(sourceMaterial, material);
+      }
+      return material;
+    };
+    core.visual.traverse((object) => {
+      if (!object.isMesh || !object.material) return;
+      object.material = Array.isArray(object.material)
+        ? object.material.map(refinish)
+        : refinish(object.material);
+    });
+    core.visual.userData.generatedFixtureFinish = 'old-utility';
+    return core;
+  }
 
   // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
   // architecture, not furniture the player pushes around.
@@ -280,6 +314,7 @@ export function buildFixtures(B) {
         { name: `${f.id}FixtureCore` },
       );
       if (!core) return;
+      applyGeneratedFixtureFinish(core);
       core.structure.children.forEach((module, index) => {
         qualifyKitSockets(module, f.id, ['L', 'C', 'R'][index]);
       });
@@ -396,6 +431,7 @@ export function buildFixtures(B) {
         { name: `${f.id}FixtureCore` },
       );
       if (!core) return;
+      applyGeneratedFixtureFinish(core);
       disposeReplacedFixture(legacy);
     });
     addFixtureCollider(f);
@@ -494,6 +530,7 @@ export function buildFixtures(B) {
         { name: `${f.id}FixtureCore` },
       );
       if (!core) return;
+      applyGeneratedFixtureFinish(core);
       disposeReplacedFixture(legacy);
     });
     addFixtureCollider(f);
@@ -670,25 +707,29 @@ export function buildFixtures(B) {
   // ------------------------------------------------------- back counter -----
   function backcounterUnit(f) {
     const g = new THREE.Group();
+    const utility = generatedFixtureQuality === 'old-utility';
+    const cabinetMat = utility ? mats.rawWood : mats.walnut;
+    const cabinetDarkMat = utility ? mats.iron : mats.walnutDark;
+    const hardwareMat = utility ? mats.dark : mats.brass;
     // lower cabinets with doors + brass pulls
-    const cab = new THREE.Mesh(roundedBox(3.2, 0.95, 0.5, 0.02), mats.walnut);
+    const cab = new THREE.Mesh(roundedBox(3.2, 0.95, 0.5, 0.02), cabinetMat);
     cab.position.set(0, 0.48, 0);
     cab.castShadow = true;
     g.add(cab);
-    const cabTop = new THREE.Mesh(roundedBox(3.3, 0.06, 0.56, 0.02), mats.walnutDark);
+    const cabTop = new THREE.Mesh(roundedBox(3.3, 0.06, 0.56, 0.02), cabinetDarkMat);
     cabTop.position.set(0, 0.98, 0);
     g.add(cabTop);
     for (let i = 0; i < 4; i++) {
-      const door = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.02), mats.walnutDark);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.02), cabinetDarkMat);
       door.position.set(-1.2 + i * 0.8, 0.46, 0.26);
       g.add(door);
-      const pull = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), mats.brass);
+      const pull = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), hardwareMat);
       pull.position.set(-1.2 + i * 0.8 + 0.26, 0.52, 0.27);
       g.add(pull);
     }
     // hutch shelves above for branded bags + boxes
     for (const y of [1.5, 1.95]) {
-      const board = new THREE.Mesh(roundedBox(3.0, 0.045, 0.32, 0.015), mats.walnut);
+      const board = new THREE.Mesh(roundedBox(3.0, 0.045, 0.32, 0.015), cabinetMat);
       board.position.set(0, y, -0.08);
       g.add(board);
       const strip = lightStrip(mats, 2.85);
@@ -696,7 +737,7 @@ export function buildFixtures(B) {
       g.add(strip);
     }
     for (const sx of [-1.55, 1.55]) {
-      const cheek = new THREE.Mesh(roundedBox(0.07, 1.35, 0.36, 0.02), mats.walnut);
+      const cheek = new THREE.Mesh(roundedBox(0.07, 1.35, 0.36, 0.02), cabinetMat);
       cheek.position.set(sx, 1.6, -0.08);
       g.add(cheek);
     }
@@ -920,7 +961,10 @@ export function buildFixtures(B) {
   const gondolaCollider = colBoxAt(0.4, -0.9, 1.3, 0.7);
   let gondolaColliderActive = false;
   function refreshTierDressing() {
-    const active = shopTierIndex(state) >= 2;
+    // The asset has no production stock slots yet. Generated shops already
+    // receive a seeded, owned fixture plan, so an unstockable empty gondola is
+    // visual noise and a circulation blocker rather than useful dressing.
+    const active = !state.shop?.generation && shopTierIndex(state) >= 2;
     gondolaRoot.visible = active;
     if (active && !gondolaColliderActive) {
       rawAddCol(gondolaCollider);
@@ -933,9 +977,22 @@ export function buildFixtures(B) {
   refreshTierDressing();
 
   // permanent club logo rug on the entry axis
+  const generatedLevel = state.shop?.generation?.courseLevel || 0;
+  const generatedRugPalette = generatedLevel === 1
+    ? { field: '#526158', weaveDark: '#39453f44', weaveLight: '#68756b33', accent: '#c9c0a4' }
+    : generatedLevel === 3
+      ? { field: '#4a3528', weaveDark: '#30221944', weaveLight: '#6a4b3533', accent: '#d9c7a4' }
+      : generatedLevel === 4
+        ? { field: '#3f4743', weaveDark: '#29302d44', weaveLight: '#59625d33', accent: '#efe5d2' }
+        : generatedLevel === 5
+          ? { field: '#e6ddcb', weaveDark: '#b7aa9544', weaveLight: '#f4ecdd66', accent: '#264a35' }
+          : {};
   const rug = new THREE.Mesh(
     new THREE.PlaneGeometry(LOGO_RUG.w, LOGO_RUG.d),
-    new THREE.MeshStandardMaterial({ map: makeRugTexture((state && state.clubName) || 'The Club'), roughness: 0.98 }),
+    new THREE.MeshStandardMaterial({
+      map: makeRugTexture((state && state.clubName) || 'The Club', generatedRugPalette),
+      roughness: 0.98,
+    }),
   );
   rug.rotation.x = -Math.PI / 2;
   rug.position.set(LOGO_RUG.x, 0.02, LOGO_RUG.z);

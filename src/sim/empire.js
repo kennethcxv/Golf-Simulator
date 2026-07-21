@@ -29,6 +29,7 @@ import { deliverOrdersDue, tickDeliveries } from './shop.js';
 import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
 import { bindPropertyInventory } from './propertyInventory.js';
+import { initializeGeneratedShop } from './shopGeneration.js';
 
 export const EMPIRE_VERSION = 2;
 
@@ -202,6 +203,7 @@ export function initPropertyState(property, mode) {
   state.club.valuation = property.askingPrice;
   // the golf world has roughly heard of it to the extent the locals like it
   state.progression.prestige = clamp(8 + property.startingReputation * 0.3, 5, 30);
+  initializeGeneratedShop(state, property);
   return state;
 }
 

@@ -152,7 +152,12 @@ export function shopCustomerCapacity(state) {
 }
 
 export function shopPropertyImprovementValue(state) {
-  return shopTier(state).propertyValue;
+  const currentValue = shopTier(state).propertyValue;
+  const conveyedTier = state?.shop?.generation?.startingTier;
+  const conveyedValue = SHOP_TIERS[conveyedTier]?.propertyValue || 0;
+  // The generated fit-out is part of the property at purchase time. Resale
+  // value should increase only for tiers the player builds above that baseline.
+  return Math.max(0, currentValue - conveyedValue);
 }
 
 export function installedShopFixtures(state, tierId = null) {

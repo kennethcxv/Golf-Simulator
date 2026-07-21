@@ -20,7 +20,10 @@
 // The assets themselves are authored in METRES, so they are scaled on the way in.
 
 import * as THREE from 'three';
-import { INTERIOR, DOOR_MAIN, DOOR_CLEARWAY, STOCKROOM, OFFICE, COUNTER, COUNTER_TOP } from '../../data/shopLayout.js';
+import {
+  INTERIOR, DOOR_MAIN, DOOR_CLEARWAY, STOCKROOM, OFFICE, COUNTER, COUNTER_TOP,
+  resolvedOfficeLayout,
+} from '../../data/shopLayout.js';
 
 const M_TO_YD = 1.0936133;
 
@@ -156,7 +159,17 @@ const runtimeUrl = (p) => `vendor/models/assets_51_100/${p.sheet}/${p.stem}.glb`
  * Failures are reported, never thrown: one missing prop must not take the clubhouse down with it.
  * @returns {{group: THREE.Group, ready: Promise, diagnostics: function, dispose: function}}
  */
-export function buildProps({ interior, loader }) {
+function runtimePlacement(authored, state) {
+  const office = resolvedOfficeLayout(state);
+  if (authored.n === 81) return { ...authored, x: office.chair.x, z: office.chair.z, ry: office.chair.ry };
+  if (authored.n === 82) return { ...authored, x: office.filing.x, z: office.filing.z, ry: office.filing.ry };
+  if (authored.n === 83 && office.lamp) return { ...authored, ...office.lamp };
+  if (authored.n === 84 && office.printer) return { ...authored, ...office.printer };
+  if (authored.n === 85 && office.phone) return { ...authored, ...office.phone };
+  return authored;
+}
+
+export function buildProps({ interior, loader, state = null }) {
   const group = new THREE.Group();
   group.name = 'Assets71to100Props';
   interior.add(group);
@@ -164,7 +177,8 @@ export function buildProps({ interior, loader }) {
   const placed = [];
   const failed = [];
 
-  const jobs = PROP_PLACEMENTS.map((p) => new Promise((resolve) => {
+  const jobs = PROP_PLACEMENTS.map((authored) => new Promise((resolve) => {
+    const p = runtimePlacement(authored, state);
     loader.load(runtimeUrl(p), (gltf) => {
       try {
         const root = gltf.scene;

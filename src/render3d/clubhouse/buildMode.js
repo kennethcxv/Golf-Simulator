@@ -9,10 +9,11 @@
 // hands: a raycast to the floor, a snapped ghost, and a colour.
 
 import * as THREE from 'three';
-import { fixtureRect, FIXTURE_HALF } from '../../data/shopLayout.js';
+import { fixtureRect, FIXTURE_HALF, FIXTURES } from '../../data/shopLayout.js';
 import { placeableSpec, placeableSpecBySkuId } from '../../data/placeableItems.js';
 import {
   placedFixtures, validatePlacement, commitPlacement, storeFixture, GRID,
+  fixtureOwnershipEntries, sellStoredFixture, buyFixtureReplacement,
 } from '../../sim/layout.js';
 import { ownedPlaceableItems } from '../../sim/propertyInventory.js';
 import {
@@ -246,8 +247,21 @@ export function buildBuildMode(B, deps) {
       .sort((a, b) => a.category.localeCompare(b.category) || a.displayName.localeCompare(b.displayName));
   }
 
-  function selectedPlaceable() {
-    const entries = placeableEntries();
+  function inventoryEntries() {
+    return [
+      ...placeableEntries().map((item) => ({
+        kind: 'decor', id: item.id, title: item.displayName, item,
+      })),
+      ...fixtureOwnershipEntries(state)
+        .filter((entry) => entry.status !== 'placed')
+        .map((fixture) => ({
+          kind: 'fixture', id: fixture.id, title: fixture.title, fixture,
+        })),
+    ];
+  }
+
+  function selectedInventoryEntry() {
+    const entries = inventoryEntries();
     if (!entries.length) return null;
     inventoryIndex = ((inventoryIndex % entries.length) + entries.length) % entries.length;
     return entries[inventoryIndex];
@@ -277,12 +291,39 @@ export function buildBuildMode(B, deps) {
     lastCheck = { ok: false, reasons: [] };
   }
 
-  function beginStoredPlaceable() {
-    const item = selectedPlaceable();
-    if (!item) {
+  function beginInventoryItem() {
+    const selected = selectedInventoryEntry();
+    if (!selected) {
       if (hooks.toast) hooks.toast('Property storage is empty.', 'warn');
       return true;
     }
+    if (selected.kind === 'fixture') {
+      let fixtureEntry = selected.fixture;
+      if (fixtureEntry.status === 'sold') {
+        const bought = buyFixtureReplacement(
+          state,
+          fixtureEntry.id,
+          `fixture-replacement:${fixtureEntry.id}:${Math.floor(performance.now())}`,
+        );
+        if (!bought.ok) {
+          if (hooks.toast) hooks.toast(bought.reason || 'Could not buy that replacement.', 'warn');
+          return true;
+        }
+        fixtureEntry = fixtureOwnershipEntries(state).find((entry) => entry.id === fixtureEntry.id);
+        if (hooks.sfx) hooks.sfx('coin');
+      }
+      const fixture = FIXTURES.find((entry) => entry.id === fixtureEntry.id);
+      if (!fixture) return true;
+      carrying = fixture.id;
+      ry = fixture.ry || 0;
+      inventoryOpen = false;
+      sellConfirmation = null;
+      makeGhost(fixture);
+      ghost.visible = true;
+      if (hooks.toast) hooks.toast(`${fixture.title || fixture.kind} - [E] place · [R] turn · [RMB] cancel`);
+      return true;
+    }
+    const item = selected.item;
     if (item.quantityStored < 1) {
       if (hooks.toast) hooks.toast(
         `${item.displayName} has ${item.quantityPlaced} placed and ${item.quantityInTransit} in transit, but none stored.`,
@@ -385,8 +426,36 @@ export function buildBuildMode(B, deps) {
   }
 
   function sellSelected() {
-    const item = selectedPlaceable();
-    if (!inventoryOpen || !item) return false;
+    const selected = selectedInventoryEntry();
+    if (!inventoryOpen || !selected) return false;
+    if (selected.kind === 'fixture') {
+      const fixture = selected.fixture;
+      if (fixture.status !== 'stored') {
+        if (hooks.toast) hooks.toast('Select that entry with [E] to buy a replacement.', 'warn');
+        return true;
+      }
+      const now = performance.now();
+      const confirmationId = `fixture:${fixture.id}`;
+      if (!sellConfirmation || sellConfirmation.itemId !== confirmationId || sellConfirmation.expiresAt < now) {
+        sellConfirmation = { itemId: confirmationId, expiresAt: now + 3000 };
+        if (hooks.toast) hooks.toast(
+          `Press [Delete] again to sell ${fixture.title} for $${fixture.sellValue.toFixed(2)}.`,
+          'warn',
+        );
+        return true;
+      }
+      const sold = sellStoredFixture(state, fixture.id, `fixture-build-sale:${fixture.id}:${Math.floor(now)}`);
+      sellConfirmation = null;
+      if (!sold.ok) {
+        if (hooks.toast) hooks.toast(sold.reason || 'Could not sell that fixture.', 'warn');
+        return true;
+      }
+      rebuildLayout();
+      if (hooks.sfx) hooks.sfx('coin');
+      if (hooks.toast) hooks.toast(`${fixture.title} sold for $${sold.payout.toFixed(2)}. Select it again to buy a replacement.`);
+      return true;
+    }
+    const item = selected.item;
     if (item.quantityStored < 1) {
       if (hooks.toast) hooks.toast('Only stored items can be sold.', 'warn');
       return true;
@@ -486,7 +555,7 @@ export function buildBuildMode(B, deps) {
 
     cycleInventory(direction) {
       if (!active || !inventoryOpen) return false;
-      const entries = placeableEntries();
+      const entries = inventoryEntries();
       if (!entries.length) return true;
       inventoryIndex = (inventoryIndex + Math.sign(direction || 1) + entries.length) % entries.length;
       sellConfirmation = null;
@@ -495,17 +564,24 @@ export function buildBuildMode(B, deps) {
 
     inventoryText() {
       if (!active || !inventoryOpen) return '';
-      const entries = placeableEntries();
+      const entries = inventoryEntries();
       if (!entries.length) {
         return 'PROPERTY STORAGE\nNo owned placeable items\n\nOrder furnishings from the supplier laptop.\n[I] close';
       }
-      const selected = selectedPlaceable();
-      const lines = entries.map((item) => {
-        const marker = item.id === selected.id ? '›' : ' ';
+      const selected = selectedInventoryEntry();
+      const lines = entries.map((entry) => {
+        const marker = entry.kind === selected.kind && entry.id === selected.id ? '›' : ' ';
+        if (entry.kind === 'fixture') {
+          const fixture = entry.fixture;
+          return fixture.status === 'sold'
+            ? `${marker} ${fixture.title}\n   Shop fixture · Sold · Replace $${fixture.purchasePrice.toFixed(2)}`
+            : `${marker} ${fixture.title}\n   Shop fixture · Stored · Sell $${fixture.sellValue.toFixed(2)}`;
+        }
+        const item = entry.item;
         const variant = item.variant && item.variant !== 'standard' ? ` · ${item.variant}` : '';
         return `${marker} ${item.displayName}${variant}\n   ${item.category} · Stored ${item.quantityStored} · Placed ${item.quantityPlaced} · Transit ${item.quantityInTransit} · Sell $${item.sellValue.toFixed(2)}`;
       });
-      return `PROPERTY STORAGE  ${inventoryIndex + 1}/${entries.length}\n${lines.join('\n')}\n\n[↑/↓] select · [E] place · [Delete] sell stored · [I] close`;
+      return `PROPERTY STORAGE  ${inventoryIndex + 1}/${entries.length}\n${lines.join('\n')}\n\n[↑/↓] select · [E] place/replace · [Delete] sell stored · [I] close`;
     },
 
     sellSelected,
@@ -515,7 +591,7 @@ export function buildBuildMode(B, deps) {
     interact() {
       if (!active) return false;
       if (decorCarry) return commitDecor();
-      if (inventoryOpen) return beginStoredPlaceable();
+      if (inventoryOpen) return beginInventoryItem();
       if (carrying) {
         const id = carrying;
         const p = aimLocal();

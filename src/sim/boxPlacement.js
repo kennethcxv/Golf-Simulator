@@ -17,13 +17,13 @@ import {
   FIXTURES,
   INTERIOR,
   LOUNGE,
-  OFFICE,
   PARTITIONS,
   PLAYER_DIAM,
   STAFF_CORRIDOR_MIN,
   STOCKROOM,
   fixtureRect,
   queueSlot,
+  resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import { slotsFor } from '../data/fixtureSlots.js';
 import {
@@ -830,6 +830,7 @@ function activeRenovationBlockers(state) {
 }
 
 function fixedFloorBlockers(state, options) {
+  const office = resolvedOfficeLayout(state);
   const blockers = [
     // Exact baseline collider footprints from the clubhouse builders. These
     // objects are not movable FIXTURES, so placedFixturesReadOnly cannot see
@@ -852,13 +853,16 @@ function fixedFloorBlockers(state, options) {
     ),
     fixedBlocker(
       'office-desk', 'office desk',
-      OFFICE.desk.x, OFFICE.desk.z, 1.10, 2.00,
+      office.desk.x, office.desk.z, 2.00, 1.10, office.desk.ry,
     ),
     fixedBlocker(
       'office-chair', 'office chair',
-      OFFICE.chair.x, OFFICE.chair.z, 0.85, 0.85,
+      office.chair.x, office.chair.z, 0.85, 0.85, office.chair.ry,
     ),
-    fixedBlocker('office-filing-cabinet', 'office filing cabinet', 9.92, 3.40, 0.75, 0.60),
+    fixedBlocker(
+      'office-filing-cabinet', 'office filing cabinet',
+      office.filing.x, office.filing.z, 0.75, 0.60, office.filing.ry,
+    ),
     fixedBlocker(
       'lounge-chair-a', 'lounge chair',
       LOUNGE.chairA.x, LOUNGE.chairA.z, 0.95, 0.95,
@@ -979,7 +983,7 @@ function floorRouteIntact(state, candidateRect, selfId, options) {
     [COUNTER.staffStand, 2],
     // The saved chair coordinate is its physical centre. Reachability means a
     // person can stand beside it, not inside its newly-authoritative footprint.
-    [OFFICE.chair, 4],
+    [resolvedOfficeLayout(state).chair, 4],
     // receivingInside is explicitly the authored set-down stack coordinate;
     // the route must reach a lifting stance beside its carton, not its centre.
     [STOCKROOM.receivingInside, 4],

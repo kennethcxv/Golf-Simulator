@@ -89,17 +89,18 @@ async function runUnlocked() {
     if (process.argv.includes('--bootstrap')) {
       await page.goto(QA_BASE_URL);
       await page.waitForFunction(() => document.readyState === 'complete');
-      await page.evaluate(async () => {
+      const requestedPropertyId = String(process.env.QA_BOOTSTRAP_PROPERTY_ID || 'willow-creek');
+      await page.evaluate(async (propertyId) => {
         const E = await import('/src/sim/empire.js');
         const empire = E.newEmpire('relaxed', 424242);
         empire.cash = 10_000_000;
-        const first = empire.market.find((listing) => listing.id === 'willow-creek') || empire.market[0];
+        const first = empire.market.find((listing) => listing.id === propertyId) || empire.market[0];
         const bought = E.buyProperty(empire, first.id);
         if (!bought.ok) throw new Error(`QA property bootstrap failed: ${bought.reason}`);
         bought.state.tutorial.complete = true;
         bought.state.tutorial.hidden = true;
         localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
-      });
+      }, requestedPropertyId);
     }
     const result = await run(page);
     const resultJson = `${JSON.stringify(result, null, 2)}\n`;

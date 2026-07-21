@@ -19,6 +19,7 @@ import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
   MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
+  resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -87,6 +88,7 @@ import { deliveryBoxCarryProfile } from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
+import { buildShopGenerationVisuals } from './clubhouse/shopGenerationVisuals.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
 import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
@@ -450,6 +452,7 @@ export function makeClubhouse(ctx) {
   const {
     scene, camera, renderer, state, center, heightAt, walkProps, propColliders, walk, hooks,
   } = ctx;
+  const officePlan = resolvedOfficeLayout(state);
   // Course resources already resident when this clubhouse is built can be
   // referenced by its Object3D tree, but remain owned by the course. Everything
   // new beneath the clubhouse roots is released on a structure rebuild.
@@ -537,6 +540,20 @@ export function makeClubhouse(ctx) {
 
   // --- materials + the building shell (clubhouse/materials.js + clubhouse/shell.js) ------
   const mats = makeClubhouseMaterials((state && state.clubName) || 'The Club');
+  const generatedPalette = state?.shop?.generation?.palette;
+  if (generatedPalette) {
+    // Texture detail remains authored; the generator supplies a restrained
+    // property-specific tint so shops stop sharing one universal finish.
+    mats.plaster.color.setHex(generatedPalette.wall);
+    mats.ceiling.color.setHex(generatedPalette.trim);
+    mats.trimPaint.color.setHex(generatedPalette.trim);
+    mats.greenPaint.color.setHex(generatedPalette.accent);
+    mats.sagePaint.color.setHex(generatedPalette.wall);
+    mats.walnut.color.setHex(generatedPalette.wood);
+    mats.walnutDark.color.setHex(generatedPalette.wood).offsetHSL(0, 0, -0.16);
+    mats.rawWood.color.setHex(generatedPalette.wood).offsetHSL(0, -0.08, 0.12);
+    mats.oakFloor.color.setHex(generatedPalette.floor);
+  }
   const materialKitResources = collectMaterialResources(mats);
   function disposeClubhouseFallback(root) {
     if (!root) return;
@@ -573,6 +590,7 @@ export function makeClubhouse(ctx) {
     getCustomers: () => customers,
   };
   const shell = buildShell(B);
+  const shopGenerationVisuals = buildShopGenerationVisuals(B);
 
   // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
   B.onWindowDirt = () => shell.lighting.setWindowDirt(windowDirtAvg(state));
@@ -620,7 +638,7 @@ export function makeClubhouse(ctx) {
   // Assets 71-100: thirty finished props that nothing was loading. Static dressing, so they skip
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
   // SOCKET_PLACEMENT rather than by its authoring origin.
-  const props71to100 = buildProps({ interior, loader: new GLTFLoader() });
+  const props71to100 = buildProps({ interior, loader: new GLTFLoader(), state });
 
   const sheet06ProductionPublic = Object.freeze({
     ready: sheet06Production.ready,
@@ -1162,15 +1180,21 @@ export function makeClubhouse(ctx) {
     const drawers = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.8), darkMat);
     drawers.position.set(0.6, 0.35, 0);
     desk.add(drawers);
-    desk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
-    desk.rotation.y = OFFICE.desk.ry;
+    desk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
+    desk.rotation.y = officePlan.desk.ry;
     interior.add(desk);
-    addCol(colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0));
+    const deskQuarterTurn = Math.abs(Math.sin(officePlan.desk.ry || 0)) > 0.5;
+    addCol(colBoxAt(
+      officePlan.desk.x,
+      officePlan.desk.z,
+      deskQuarterTurn ? 1.1 : 2.0,
+      deskQuarterTurn ? 2.0 : 1.1,
+    ));
     merch.onReady(() => {
       const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
       if (!kitDesk) return;
-      kitDesk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
-      kitDesk.rotation.y = -Math.PI / 2;
+      kitDesk.position.set(officePlan.desk.x, 0, officePlan.desk.z);
+      kitDesk.rotation.y = officePlan.desk.ry - Math.PI;
       interior.add(kitDesk);
       disposeClubhouseFallback(desk);
     });
@@ -1181,8 +1205,8 @@ export function makeClubhouse(ctx) {
       const kitChair = merch.instantiateKit && merch.instantiateKit('office_chair');
       const chair = kitChair || merch.instantiateRaw('office_chair');
       if (!chair) return;
-      chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
-      chair.rotation.y = kitChair ? Math.PI / 2 : -Math.PI / 2;
+      chair.position.set(officePlan.chair.x, 0, officePlan.chair.z);
+      chair.rotation.y = officePlan.chair.ry ?? (kitChair ? Math.PI / 2 : -Math.PI / 2);
       // Asset 81 is the Sheet-09 office chair, authored for this same spot. Named so the prop
       // placement table can retire this one when that lands — otherwise the office has two
       // chairs a centimetre apart, which is worse than either alone.
@@ -1195,11 +1219,11 @@ export function makeClubhouse(ctx) {
     merch.onReady(() => {
       const filing = merch.instantiateKit && merch.instantiateKit('filing_cabinet');
       if (!filing) return;
-      filing.position.set(9.92, 0, 3.4);
-      filing.rotation.y = -Math.PI / 2;
+      filing.position.set(officePlan.filing.x, 0, officePlan.filing.z);
+      filing.rotation.y = officePlan.filing.ry;
       interior.add(filing);
     });
-    addCol(colBoxAt(9.92, 3.4, 0.75, 0.6));
+    addCol(colBoxAt(officePlan.filing.x, officePlan.filing.z, 0.75, 0.6));
 
     // wall course map — a real framed board, flush on the office's south wall:
     // backing panel with thickness, mitered frame lip, map face proud of the
@@ -1390,8 +1414,8 @@ export function makeClubhouse(ctx) {
     // 0.752 = the Sheet-04 kit desk's top (0.75) + clearance. The whole sit
     // rig (seat pose, screen corners) derives from the laptop's live world
     // matrix, so lowering the laptop reseats everything with it.
-    laptop.position.set(OFFICE.laptop.x - 0.10, 0.752, OFFICE.laptop.z);
-    laptop.rotation.y = OFFICE.laptop.ry;
+    laptop.position.set(officePlan.laptop.x - 0.10, 0.752, officePlan.laptop.z);
+    laptop.rotation.y = officePlan.laptop.ry;
     interior.add(laptop);
 
     // SCREEN STATE: 'off' → 'boot' → 'live' (the DOM is on the glass) | 'desk' (nobody sitting)
@@ -1523,7 +1547,7 @@ export function makeClubhouse(ctx) {
     office.lidOpenAngle = LID_OPEN;
     office.laptopObject = laptop;
 
-    const compWp = L2W(OFFICE.laptop.x, OFFICE.laptop.z);
+    const compWp = L2W(officePlan.laptop.x, officePlan.laptop.z);
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
       label: () => 'Laptop — [E] open GOLF SIMULATOR',
@@ -7482,6 +7506,7 @@ export function makeClubhouse(ctx) {
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     refreshShopProgression,
     shopProgressionDiagnostics: () => shopProgressionVisuals.diagnostics(),
+    shopGenerationDiagnostics: () => shopGenerationVisuals.diagnostics(),
     // build mode: the shop is the player's to arrange
     build: builder,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back

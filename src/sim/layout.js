@@ -12,10 +12,12 @@
 
 import {
   FIXTURES, INTERIOR, PARTITIONS, COUNTER, DOOR_CLEARWAY, BACKDOOR_CLEARWAY,
-  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureBrowsePoint, queueSlot,
+  STOCKROOM, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureBrowsePoint, queueSlot,
+  resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
 import { fixtureIsInstalled } from './shopProgression.js';
+import { addRevenue, spend } from './economy.js';
 
 export const GRID = 0.25; // placement snaps to this, in yards
 const R = PLAYER_DIAM / 2; // the body that has to get through the gaps
@@ -37,19 +39,114 @@ export function ensureLayout(state) {
   const L = state.shop.layout;
   if (!L.moved) L.moved = {}; // id -> {x, z, ry}
   if (!L.stored) L.stored = []; // ids taken off the floor
+  if (!L.sold) L.sold = []; // owned fixtures sold out of property storage
   if (!L.extra) L.extra = []; // whole fixtures added (tests + future purchases)
+  if (!L.fixtureOperations) L.fixtureOperations = {}; // idempotent sell/buy receipts
   return L;
+}
+
+const FIXTURE_PRICE_BY_KIND = Object.freeze({
+  shelf: 950,
+  rack: 1250,
+  table: 650,
+  rail: 725,
+  hatstand: 475,
+  bagstand: 625,
+  shoerack: 875,
+  apparelwall: 1100,
+  feature: 780,
+  backcounter: 1350,
+  backshelf: 925,
+  snackrack: 525,
+});
+
+const QUALITY_MULTIPLIER = Object.freeze([0, 0.65, 1.0, 1.35, 1.75, 2.25]);
+
+export function fixtureOwnershipEntries(state) {
+  const layout = ensureLayout(state);
+  const level = Math.max(1, Math.min(5, state.shop?.generation?.courseLevel || 1));
+  return FIXTURES
+    .filter((fixture) => fixtureIsInstalled(state, fixture.id) || layout.stored.includes(fixture.id) || layout.sold.includes(fixture.id))
+    .map((fixture) => {
+      const purchasePrice = Math.round((FIXTURE_PRICE_BY_KIND[fixture.kind] || 700) * QUALITY_MULTIPLIER[level]);
+      return Object.freeze({
+        id: fixture.id,
+        title: fixture.title || fixture.kind,
+        kind: fixture.kind,
+        status: layout.sold.includes(fixture.id) ? 'sold' : layout.stored.includes(fixture.id) ? 'stored' : 'placed',
+        purchasePrice,
+        sellValue: Math.round(purchasePrice * 0.45),
+        fixture,
+      });
+    });
+}
+
+function fixtureOperationReplay(layout, operationId) {
+  if (!operationId) return null;
+  return layout.fixtureOperations[operationId] || null;
+}
+
+function rememberFixtureOperation(layout, operationId, result) {
+  if (!operationId) return;
+  layout.fixtureOperations[operationId] = { ...result };
+  const ids = Object.keys(layout.fixtureOperations);
+  if (ids.length > 40) delete layout.fixtureOperations[ids[0]];
+}
+
+export function sellStoredFixture(state, id, operationId = null) {
+  const layout = ensureLayout(state);
+  const replay = fixtureOperationReplay(layout, operationId);
+  if (replay) return { ...replay, replay: true };
+  const entry = fixtureOwnershipEntries(state).find((candidate) => candidate.id === id);
+  if (!entry) return { ok: false, reason: 'No such owned shop fixture.' };
+  if (entry.status !== 'stored') return { ok: false, reason: 'Store and empty that fixture before selling it.' };
+  const shelfUnits = (entry.fixture.skus || []).reduce(
+    (sum, skuId) => sum + Math.max(0, Number(state.shop?.inventory?.[skuId]?.shelf) || 0),
+    0,
+  );
+  if (shelfUnits > 0) return { ok: false, reason: 'Empty that fixture before selling it.' };
+  const heldUnits = (state.shop?.held || []).filter((unit) => entry.fixture.skus?.includes(unit?.skuId)).length;
+  if (heldUnits > 0) return { ok: false, reason: 'Finish the active sale before selling that fixture.' };
+
+  layout.stored = layout.stored.filter((fixtureId) => fixtureId !== id);
+  if (!layout.sold.includes(id)) layout.sold.push(id);
+  if (state.ledger) addRevenue(state, 'assetSales', entry.sellValue);
+  else state.cash = Math.round(((state.cash || 0) + entry.sellValue) * 100) / 100;
+  const result = { ok: true, fixtureId: id, payout: entry.sellValue };
+  rememberFixtureOperation(layout, operationId, result);
+  return result;
+}
+
+export function buyFixtureReplacement(state, id, operationId = null) {
+  const layout = ensureLayout(state);
+  const replay = fixtureOperationReplay(layout, operationId);
+  if (replay) return { ...replay, replay: true };
+  const entry = fixtureOwnershipEntries(state).find((candidate) => candidate.id === id);
+  if (!entry || entry.status !== 'sold') return { ok: false, reason: 'That fixture does not need replacing.' };
+  if ((state.cash || 0) < entry.purchasePrice) return { ok: false, reason: 'Not enough cash for that replacement fixture.' };
+  spend(state, 'shopOrders', entry.purchasePrice);
+  layout.sold = layout.sold.filter((fixtureId) => fixtureId !== id);
+  if (!layout.stored.includes(id)) layout.stored.push(id);
+  const result = { ok: true, fixtureId: id, cost: entry.purchasePrice };
+  rememberFixtureOperation(layout, operationId, result);
+  return result;
 }
 
 // the shop as it actually stands
 export function placedFixtures(state, { tierId = null } = {}) {
   const L = ensureLayout(state);
+  const generated = state.shop?.generation?.fixturePoses || {};
   const out = [];
   for (const f of FIXTURES) {
     if (!fixtureIsInstalled(state, f.id, tierId)) continue;
     if (L.stored.includes(f.id)) continue;
+    if (L.sold.includes(f.id)) continue;
     const mv = L.moved[f.id];
-    out.push(mv ? { ...f, x: mv.x, z: mv.z, ry: mv.ry } : f);
+    const conveyed = generated[f.id];
+    const base = conveyed && Number.isFinite(conveyed.x) && Number.isFinite(conveyed.z)
+      ? { ...f, x: conveyed.x, z: conveyed.z, ry: Number.isFinite(conveyed.ry) ? conveyed.ry : f.ry }
+      : f;
+    out.push(mv ? { ...base, x: mv.x, z: mv.z, ry: mv.ry } : base);
   }
   for (const e of L.extra) out.push(e);
   return out;
@@ -146,7 +243,7 @@ export function routesIntact(state, override) {
   // the places a shop only works if you can get to
   if (!reached(queueSlot(0))) return false;
   if (!reached(COUNTER.staffStand)) return false;
-  if (!reached(OFFICE.chair)) return false;
+  if (!reached(resolvedOfficeLayout(state).chair)) return false;
   if (!reached(STOCKROOM.receivingInside)) return false;
   // ...and every unit the customer is meant to browse
   for (const f of fixtures) {
@@ -219,6 +316,7 @@ export function storeFixture(state, id) {
 
 export function restoreFixture(state, id) {
   const L = ensureLayout(state);
+  if (L.sold.includes(id)) return null;
   L.stored = L.stored.filter((s) => s !== id);
   return fixtureById(state, id);
 }

@@ -156,6 +156,29 @@ export const OFFICE = {
   calendar: { x: 7.1, z: 2.15, ry: Math.PI },    // on partition B's office face
 };
 
+export function resolvedOfficeLayout(state) {
+  const generated = state?.shop?.generation?.rooms?.office?.pose;
+  const fallback = {
+    ...OFFICE,
+    filing: { x: 9.92, z: 3.40, ry: -Math.PI / 2 },
+    lamp: null,
+    phone: null,
+    printer: null,
+  };
+  if (!generated || typeof generated !== 'object') return fallback;
+  const mergePose = (key) => ({ ...OFFICE[key], ...(generated[key] || {}) });
+  return {
+    ...fallback,
+    desk: mergePose('desk'),
+    chair: mergePose('chair'),
+    laptop: mergePose('laptop'),
+    filing: { x: 9.92, z: 3.40, ry: -Math.PI / 2, ...(generated.filing || {}) },
+    lamp: generated.lamp ? { ...generated.lamp } : null,
+    phone: generated.phone ? { ...generated.phone } : null,
+    printer: generated.printer ? { ...generated.printer } : null,
+  };
+}
+
 // The lounge is furnished from day one (dirty) — refs 1/2/8. The set below is
 // base dressing; the lounge1 decor upgrade replaces it with the premium suite.
 export const LOUNGE = {
