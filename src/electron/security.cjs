@@ -4,7 +4,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const SAVE_KEYS = new Set([
-  'autosave',
+  'autosave', 'autosave-meta',
   'slot1', 'slot2', 'slot3',
   'slot1-meta', 'slot2-meta', 'slot3-meta',
 ]);

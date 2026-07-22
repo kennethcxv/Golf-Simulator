@@ -21,7 +21,10 @@ test('Electron IPC accepts only the top-level packaged index frame', () => {
 });
 
 test('native persistence exposes only the game save slots', () => {
-  for (const key of ['autosave', 'slot1', 'slot2', 'slot3', 'slot1-meta', 'slot2-meta', 'slot3-meta']) {
+  for (const key of [
+    'autosave', 'autosave-meta',
+    'slot1', 'slot2', 'slot3', 'slot1-meta', 'slot2-meta', 'slot3-meta',
+  ]) {
     assert.equal(validateSaveKey(key), key);
   }
   assert.throws(() => validateSaveKey('../../outside'), /Unsupported save key/);
