@@ -1748,8 +1748,10 @@ export function buildCheckout(B) {
   // reveal the physical counter and its hardware without duplicating either.
   const counterVisualRoot = new THREE.Group();
   counterVisualRoot.name = 'CheckoutCounterVisualRoot';
+  counterVisualRoot.userData.preserveInMunicipal = true;
   const hardwareVisualRoot = new THREE.Group();
   hardwareVisualRoot.name = 'CheckoutHardwareVisualRoot';
+  hardwareVisualRoot.userData.preserveInMunicipal = true;
   interior.add(counterVisualRoot, hardwareVisualRoot);
 
   // paneled island: walnut body, panel insets, wood top, brass foot rail

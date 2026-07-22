@@ -14,7 +14,6 @@ const REQUIRE_OVERSIZE_HANDOFF = process.env.REGISTER_QA_REQUIRE_OVERSIZE_HANDOF
 const COUNTER_TOP = 1.055;
 const CARRY_Y = COUNTER_TOP + 0.115;
 const BAG = { x: 3.50, y: CARRY_Y, z: 4.44 };
-const CARD_TERMINAL = { x: 2.05, y: COUNTER_TOP + 0.06, z: 3.88 };
 
 function roundedPoint(point) {
   if (!point) return null;
@@ -416,7 +415,7 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
     await installReadOnlyProbe(page, SKUS);
 
     currentStep = 'deterministic register setup';
-    beforeBooks = await page.evaluate((skuIds) => {
+    beforeBooks = await page.evaluate(async (skuIds) => {
       const app = window.__fw;
       const shop = app.state.shop;
       // Silence organic walk-ins for the scripted run and empty the floor first: they spawn
@@ -425,6 +424,16 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
       // The checkout under test is unaffected — only the ambient RNG crowd is cleared, and
       // every held cart it was carrying goes back on the shelf before the baseline is read.
       const chFixture = app.scene3d.clubhouse();
+      // The production booking horizon is now physically reconciled into this
+      // same front-desk queue. Retire those unrelated presentation actors and
+      // reverse the generated golf fixture before measuring a retail checkout;
+      // otherwise an advancing tee sheet can keep the isolated transaction's
+      // browser context alive long after its customer has left.
+      for (const reservation of app.state.reservations?.booked || []) {
+        chFixture?.completeReservationCustomer?.(reservation.id);
+      }
+      const reservations = await import('/src/sim/reservations.js');
+      reservations.resetGolfOperationsQA(app.state);
       if (chFixture && typeof chFixture.setOrganicWalkins === 'function') chFixture.setOrganicWalkins(false);
       if (chFixture && typeof chFixture.clearWalkins === 'function') chFixture.clearWalkins();
       const books = {
@@ -509,16 +518,6 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
 
     currentStep = 'scan and stage three physical products';
     const initialTx = await txState();
-    const stageTargets = await page.evaluate(async (count) => {
-      const { REGISTER } = await import('/src/data/shopLayout.js');
-      const zone = REGISTER.scannedStaging;
-      return Array.from({ length: count }, (_, index) => ({
-        x: zone.minX + 0.05 + (zone.maxX - zone.minX - 0.10)
-          * (count === 1 ? 0.5 : index / (count - 1)),
-        y: 1.055 + 0.115,
-        z: (zone.minZ + zone.maxZ) / 2,
-      }));
-    }, initialTx.items.length);
     for (let index = 0; index < initialTx.items.length; index++) {
       const uid = initialTx.items[index].uid;
       const info = await page.evaluate((id) => window.__qaRegister.item(id), uid);
@@ -526,78 +525,37 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
       const from = await project({ x: info.x, y: info.y, z: info.z });
       assert(from.inView, `Physical product ${uid} projected outside the cashier camera.`);
       screenPoints[`item-${index + 1}`] = roundedPoint(from);
-      await page.mouse.move(from.x, from.y);
-      await page.mouse.down();
-      const scannerAlignment = await page.evaluate(() => (
-        window.__fw.scene3d.clubhouse().register.scanAlignment()
-      ));
-      let rotated = null;
-      let barcodeFacing = null;
-      for (let turn = 0; turn < 4; turn++) {
-        // Products and scanner models may be authored at different rotations. Probe
-        // the rendered normal against the scanner's actual ray after each real wheel
-        // event rather than assuming a particular world-up convention.
-        await page.mouse.wheel(0, 120);
-        await page.waitForTimeout(70);
-        rotated = await page.evaluate((id) => window.__qaRegister.item(id), uid);
-        if (rotated?.barcodeNormal) {
-          barcodeFacing = rotated.barcodeNormal.x * scannerAlignment.direction[0]
-            + rotated.barcodeNormal.y * scannerAlignment.direction[1]
-            + rotated.barcodeNormal.z * scannerAlignment.direction[2];
-        }
-        if (barcodeFacing != null && barcodeFacing <= -0.35) break;
+      // The production register owns a forgiving one-click physical scan. The
+      // click starts a visible pickup, barcode alignment, scanner sweep, commit,
+      // and bag/set-aside choreography. Exercise that shipped control directly;
+      // the retired wheel-and-drag QA path could race the automatic movement and
+      // falsely report an already-scanned product as missing.
+      await page.mouse.click(from.x, from.y);
+      await page.waitForFunction((id) => {
+        const reg = window.__fw.scene3d.clubhouse().register;
+        const tx = reg.getTx();
+        const item = tx?.items.find((entry) => entry.uid === id);
+        return !!item && (item.scanned
+          || ['ProductHeld', 'ProductScanning', 'ProductScanned'].includes(reg.getFlow()?.state));
+      }, uid, { timeout: 3000 });
+      if (index === 0) {
+        await page.waitForTimeout(120);
+        await shot('first-product-barcode-sweep');
       }
-      assert(rotated && barcodeFacing != null && barcodeFacing <= -0.35,
-        `Mouse wheel did not rotate ${uid}'s barcode toward the scanner (dot ${barcodeFacing}).`);
-      if (index === 0) await shot('first-product-barcode-visible');
-
-      // Drag the product origin so its authored barcode anchor—not a generic box
-      // centre—crosses the physical scan glass. This matters for clubs, umbrellas,
-      // and bags whose tag can be several tenths of a metre from the object origin.
-      assert(rotated.origin && rotated.barcode,
-        `Physical product ${uid} did not expose its authored origin/barcode anchor.`);
-      let cursor = from;
-      const barcodeOffset = {
-        x: rotated.barcode.x - rotated.origin.x,
-        y: rotated.barcode.y - rotated.origin.y,
-        z: rotated.barcode.z - rotated.origin.z,
-      };
-      const carriedBarcodeY = CARRY_Y + barcodeOffset.y;
-      const rayDistance = Math.abs(scannerAlignment.direction[1]) > 1e-5
-        ? Math.min(0.20, Math.max(0.04,
-          (carriedBarcodeY - scannerAlignment.origin[1]) / scannerAlignment.direction[1]))
-        : 0.12;
-      const scannerTarget = {
-        x: scannerAlignment.origin[0] + scannerAlignment.direction[0] * rayDistance,
-        z: scannerAlignment.origin[2] + scannerAlignment.direction[2] * rayDistance,
-      };
-      const scanOrigin = {
-        x: scannerTarget.x - barcodeOffset.x,
-        y: CARRY_Y,
-        z: scannerTarget.z - barcodeOffset.z,
-      };
-      const scannerPx = await project(scanOrigin);
-      assert(scannerPx.inView,
-        `The cursor position needed to carry ${uid}'s barcode over the scanner was off camera.`);
-      screenPoints.scanner = roundedPoint(scannerPx);
-      cursor = await interpolateMouse(page, cursor, scannerPx, 16, 13);
       await waitItem(uid, 'scanned', true, 5000);
       if (index === 0) await shot('first-product-scan-light');
-
-      // ProductScanned restores the wide camera while the mouse still owns the
-      // prop. Wait for that physical lean to settle before projecting the mat;
-      // otherwise the moving camera can carry the world point out from under the
-      // cursor halfway through a perfectly normal drag.
-      await waitForCameraStable(page);
-      const stagePx = await project(stageTargets[index]);
-      assert(stagePx.inView,
-        `Bagging-mat staging point ${index + 1} was outside the cashier camera at ${Math.round(stagePx.x)},${Math.round(stagePx.y)}.`);
-      screenPoints[`staging-${index + 1}`] = roundedPoint(stagePx);
-      await interpolateMouse(page, cursor, stagePx, 14, 13);
-      await page.mouse.up();
       await waitItem(uid, 'staged', true, 5000);
-      log.push({ action: `product ${index + 1} rotated, scanned, and staged`, uid,
-        barcodeFacing });
+      await page.waitForFunction(([isLast, id]) => {
+        const reg = window.__fw.scene3d.clubhouse().register;
+        const tx = reg.getTx();
+        const item = tx?.items.find((entry) => entry.uid === id);
+        const state = reg.getFlow()?.state;
+        return !!item?.staged && (isLast
+          ? state === 'AllProductsScanned'
+          : state === 'WaitingForScan');
+      }, [index === initialTx.items.length - 1, uid], { timeout: 5000 });
+      await waitForCameraStable(page);
+      log.push({ action: `product ${index + 1} clicked, physically scanned, and staged`, uid });
     }
     // Let the final placement hand retract and the scan-focus camera return to its
     // settled wide pose before judging the staged-product composition.
@@ -635,79 +593,100 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
       await waitForCameraStable(page);
       await shot('card-swipe-ready');
 
-      let attempts = 0;
-      while (attempts++ < 5) {
-        currentStep = `mouse card swipe attempt ${attempts}`;
-        let top = null;
-        let bottom = null;
-        let started = false;
-        // Browser compositing can leave a toast above the channel for a frame after a
-        // declined-card retry. Re-project and make a fresh normal mouse press if the
-        // flow does not confirm that the physical channel actually caught the card.
-        for (let startTry = 0; startTry < 3 && !started; startTry++) {
-          const channel = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.swipeAt());
-          top = await project(channel.top);
-          bottom = await project(channel.bot);
-          screenPoints.swipeChannelAttempt = {
-            local: channel,
-            top,
-            bottom,
-          };
-          assert(top.inView && bottom.inView, 'The swipe channel endpoints were outside the swipe camera.');
-          await page.mouse.move(top.x, top.y);
-          await page.mouse.down();
-          started = await page.waitForFunction(() => {
-            const flow = window.__fw.scene3d.clubhouse().register.getFlow();
-            return !!flow && flow.state === 'CardSwiping';
-          }, null, { timeout: 900 }).then(() => true).catch(() => false);
-          if (!started) {
-            await page.mouse.up();
-            await page.waitForTimeout(80);
-          }
-        }
-        assert(started, `Card reader did not catch a top-of-channel mouse press at ${Math.round(top.x)},${Math.round(top.y)}.`);
-        screenPoints.swipeTop = roundedPoint(top);
-        screenPoints.swipeBottom = roundedPoint(bottom);
-        let cursor = top;
-        for (let segment = 1; segment <= 16; segment++) {
-          const t = segment / 16;
-          const next = {
-            x: top.x + (bottom.x - top.x) * t,
-            y: top.y + (bottom.y - top.y) * t,
-          };
-          await page.mouse.move(next.x, next.y);
-          await page.waitForTimeout(10);
-          cursor = next;
-          if (attempts === 1 && segment === 8) await shot('physical-card-mid-swipe');
-        }
-        await page.mouse.up();
-        log.push({ action: 'physical top-to-bottom swipe', attempt: attempts,
-          from: roundedPoint(top), to: roundedPoint(cursor) });
-        // A swipe judged too fast/slow/short leaves the flow at card-ready with a fumble
-        // message instead of declining. Canvas/video capture overhead can nudge a clean
-        // swipe into the slow band, so treat "still ready" as a retry — exactly what a real
-        // player does when the terminal says "swipe again" — rather than a hard timeout.
-        const swipeLanded = await page.waitForFunction(() => {
-          const tx = window.__fw.scene3d.clubhouse().register.getTx();
-          return !!tx && ['card-busy', 'receipt', 'card-declined'].includes(tx.stage);
-        }, null, { timeout: 6000 }).then(() => true).catch(() => false);
-        if (!swipeLanded) {
-          log.push({ action: 'swipe fumbled (terminal still ready) — swiping again', attempt: attempts });
-          await waitStage('card-ready', 3000).catch(() => {});
-          continue;
-        }
-        if ((await txState()).stage === 'card-busy') await shot('card-processing');
-        await waitStage(['receipt', 'card-declined'], 12000);
-        const result = await txState();
-        if (result.stage === 'receipt') break;
-        await shot(`card-declined-attempt-${attempts}`);
-        const retryTerminal = await project(CARD_TERMINAL);
-        screenPoints[`retryTerminal-${attempts}`] = roundedPoint(retryTerminal);
-        await page.mouse.click(retryTerminal.x, retryTerminal.y);
+      // The accepted reader is chip-and-keypad based. Seed only the transaction's
+      // ordinary authorization RNG so this run deterministically proves a real
+      // decline followed by a replacement-card approval; every player action
+      // remains a visible click on the card, keypad, or monitor.
+      await page.evaluate(() => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        const values = [0, 0.99];
+        tx.__qaCardRngTrace = [];
+        tx.rng = () => {
+          const value = values.length ? values.shift() : 0.99;
+          tx.__qaCardRngTrace.push(value);
+          return value;
+        };
+      });
+      const clickCardKey = async (label) => {
+        const point = await page.evaluate((key) => (
+          window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+        ), label);
+        assert(point?.inView, `Card keypad key ${label} was outside the terminal camera.`);
+        await page.mouse.click(point.x, point.y);
+        await page.waitForTimeout(90);
+      };
+      const insertAndAuthorize = async (attempt) => {
+        currentStep = `physical card insertion and keyed amount attempt ${attempt}`;
         await waitStage('card-ready');
         await waitForCameraStable(page);
-      }
-      assert((await txState()).stage === 'receipt', 'Five physical card swipes were declined.');
+        const cardPoint = await page.evaluate(() => (
+          window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint()
+        ));
+        assert(cardPoint?.inView, 'The presented payment card was outside the handoff camera.');
+        screenPoints[`presentedCard-${attempt}`] = roundedPoint(cardPoint);
+        await page.mouse.click(cardPoint.x, cardPoint.y);
+        if (attempt === 1) {
+          await page.waitForFunction(() => {
+            const reg = window.__fw.scene3d.clubhouse().register;
+            return reg.getFlow()?.state === 'CardInserting' && reg.insertAt().u > 0;
+          }, null, { timeout: 2500 });
+          await shot('physical-card-inserting');
+        }
+        await waitStage('card-entry', 6000);
+        const amount = await page.evaluate(async () => {
+          const tx = window.__fw.scene3d.clubhouse().register.getTx();
+          const { totalOf } = await import('/src/sim/register.js');
+          return Math.round(totalOf(tx) * 100);
+        });
+        if (attempt === 1) {
+          await clickCardKey('OK');
+          await page.waitForFunction(() => {
+            const tx = window.__fw.scene3d.clubhouse().register.getTx();
+            return tx?.stage === 'card-entry' && tx.cardEntryError === 'ENTER AMOUNT';
+          }, null, { timeout: 2500 });
+          await shot('card-empty-amount-rejected');
+        }
+        for (const digit of String(amount)) await clickCardKey(digit);
+        await page.waitForFunction((expected) => {
+          const tx = window.__fw.scene3d.clubhouse().register.getTx();
+          return tx?.stage === 'card-entry' && tx.cardEntryCents === expected;
+        }, amount, { timeout: 2500 });
+        await shot(`card-amount-entered-attempt-${attempt}`);
+        await clickCardKey('OK');
+        await waitStage('card-busy', 5000);
+        await shot(`card-processing-attempt-${attempt}`);
+        await waitStage(['receipt', 'card-declined'], 12000);
+        return txState();
+      };
+
+      const declined = await insertAndAuthorize(1);
+      assert(declined.stage === 'card-declined',
+        `The deterministic first physical card did not decline (${declined.stage}).`);
+      await shot('card-declined-attempt-1');
+      await page.waitForFunction(() => {
+        const reg = window.__fw.scene3d.clubhouse().register;
+        return reg.workspace() === 'monitor'
+          && reg.monitorScreenPoint('retry-card')?.inView;
+      }, null, { timeout: 6000 });
+      await waitForCameraStable(page);
+      const retryPoint = await page.evaluate(() => (
+        window.__fw.scene3d.clubhouse().register.monitorScreenPoint('retry-card')
+      ));
+      assert(retryPoint?.inView, 'The declined-card monitor did not expose Try Another Card.');
+      screenPoints.retryCard = roundedPoint(retryPoint);
+      await page.mouse.click(retryPoint.x, retryPoint.y);
+      const approved = await insertAndAuthorize(2);
+      assert(approved.stage === 'receipt',
+        `The deterministic replacement card did not approve (${approved.stage}).`);
+      const authorization = await page.evaluate(() => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return { attempts: tx.cardAttempts, cardsTried: tx.cardsTried,
+          trace: [...(tx.__qaCardRngTrace || [])] };
+      });
+      assert(authorization.attempts === 2 && authorization.cardsTried === 2
+        && JSON.stringify(authorization.trace) === JSON.stringify([0, 0.99]),
+      `Card decline/retry did not consume exactly two normal authorizations: ${JSON.stringify(authorization)}.`);
+      log.push({ action: 'physical chip-card decline and replacement approval', authorization });
       currentStep = 'card approved';
       // Approval changes both the task state and the physical focus camera. Retain
       // the settled receipt/POS composition, not an arbitrary frame mid-lean.
@@ -800,26 +779,36 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
       await waitForCameraStable(page);
       await shot('correct-change-selected');
 
-      currentStep = 'hand change to customer palm';
+      currentStep = 'confirm exact change on the visible register monitor';
       await waitForCameraStable(page);
-      const palm = await page.evaluate(() => window.__qaRegister.kind('palm'));
-      assert(palm && palm.visible, 'Correct change was selected but the customer palm was not visible.');
-      const palmPx = await project({ x: palm.x, y: palm.y, z: palm.z });
-      assert(palmPx.inView, `Customer palm left the change-handoff camera (${Math.round(palmPx.x)},${Math.round(palmPx.y)}).`);
-      screenPoints.changePalm = roundedPoint(palmPx);
-      await page.mouse.click(palmPx.x, palmPx.y);
+      const donePoint = await page.evaluate(() => (
+        window.__fw.scene3d.clubhouse().register.monitorScreenPoint('confirm-change')
+      ));
+      assert(donePoint?.inView,
+        'Exact change was selected but the visible Done action was outside the cash workspace.');
+      screenPoints.confirmChange = roundedPoint(donePoint);
+      await page.mouse.click(donePoint.x, donePoint.y);
       await page.waitForFunction(() => {
         const register = window.__fw.scene3d.clubhouse().register;
         const flow = register.getFlow ? register.getFlow() : null;
         return !!flow && flow.state === 'GivingChange';
       }, null, { timeout: 4000 });
       await page.waitForTimeout(250);
-      await shot('change-cash-in-motion-to-customer');
+      const changePresentation = await page.evaluate(() => (
+        window.__fw.scene3d.clubhouse().register.cashHandoffPresentation()
+      ));
+      assert(changePresentation.active,
+        'Done advanced the transaction but did not start the physical cashier-to-customer change motion.');
+      await shot('automatic-change-in-motion-to-customer');
       await waitStage('receipt', 8000);
       await page.waitForTimeout(260);
       await shot('change-handed-drawer-closing');
     }
 
+    const automaticFulfillment = await page.evaluate(() => (
+      typeof window.__fw.scene3d.clubhouse().register.deliveryPresentation === 'function'
+    ));
+    if (!automaticFulfillment) {
     currentStep = 'receipt emerges from the physical printer';
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -982,6 +971,23 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
     // interaction the player actually judges.
     await page.waitForTimeout(320);
     await shot('filled-bag-offered-to-customer');
+    } else {
+      currentStep = 'observe automatic physical receipt and bag delivery';
+      await page.waitForFunction(() => {
+        const reg = window.__fw.scene3d.clubhouse().register;
+        const phase = reg.deliveryPresentation().phase;
+        return !reg.hasTx() || ['receipt-print', 'receipt-ready', 'receipt-deliver',
+          'receipt-customer-hold', 'bag-deliver', 'bag-customer-hold', 'released'].includes(phase);
+      }, null, { timeout: 8000 });
+      await shot('automatic-receipt-print-and-handoff');
+      await page.waitForFunction(() => {
+        const reg = window.__fw.scene3d.clubhouse().register;
+        const phase = reg.deliveryPresentation().phase;
+        return !reg.hasTx() || ['bag-deliver', 'bag-customer-hold', 'released'].includes(phase);
+      }, null, { timeout: 8000 });
+      await shot('automatic-bag-handoff');
+      log.push({ action: 'automatic physical receipt and bag choreography observed' });
+    }
 
     currentStep = 'transaction banks exactly once';
     await page.waitForFunction(([units, history]) => {

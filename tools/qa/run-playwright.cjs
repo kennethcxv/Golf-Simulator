@@ -120,9 +120,18 @@ async function runUnlocked() {
         const E = await import('/src/sim/empire.js');
         const empire = E.newEmpire('relaxed', 424242);
         empire.cash = 10_000_000;
-        const first = empire.market.find((listing) => listing.id === propertyId) || empire.market[0];
-        const bought = E.buyProperty(empire, first.id);
+        let target = empire.market.find((listing) => listing.id === propertyId) || empire.market[0];
+        if (!E.propertyAccess(empire, target).unlocked) {
+          const starter = empire.market.find((listing) => E.propertyAccess(empire, listing).unlocked);
+          if (!starter) throw new Error(`QA bootstrap could not unlock ${target.id}.`);
+          const starterPurchase = E.buyProperty(empire, starter.id);
+          if (!starterPurchase.ok) throw new Error(`QA starter-property bootstrap failed: ${starterPurchase.reason}`);
+          target = empire.market.find((listing) => listing.id === propertyId) || target;
+        }
+        const bought = E.buyProperty(empire, target.id);
         if (!bought.ok) throw new Error(`QA property bootstrap failed: ${bought.reason}`);
+        const switched = E.switchProperty(empire, bought.property.id);
+        if (!switched.ok) throw new Error(`QA property activation failed: ${switched.reason}`);
         bought.state.tutorial.complete = true;
         bought.state.tutorial.hidden = true;
         if (makeOperational) {
@@ -139,8 +148,10 @@ async function runUnlocked() {
           for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small', 'backcounter']) {
             L.restoreFixture(bought.state, id);
           }
-          bought.state.campaign.businessOpen = true;
-          bought.state.campaign.openedAt = bought.state.clock.minutes;
+          if (bought.state.campaign) {
+            bought.state.campaign.businessOpen = true;
+            bought.state.campaign.openedAt = bought.state.clock.minutes;
+          }
         }
         localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
       }, { propertyId: requestedPropertyId, operationalShop });

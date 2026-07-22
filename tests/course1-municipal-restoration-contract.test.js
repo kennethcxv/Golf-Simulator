@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as THREE from 'three';
 
 import { createCourse1MunicipalEnvironment } from '../src/render3d/course1MunicipalEnvironment.js';
@@ -51,4 +52,28 @@ test('municipal environment preserves explicitly leased restoration interactions
   assert.equal(removedVisual.visible, false);
 
   environment.dispose();
+});
+
+test('the physical register remains reachable in the municipal clubhouse', () => {
+  const source = fs.readFileSync(new URL('../src/render3d/clubhouse.js', import.meta.url), 'utf8');
+  const modeSource = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  );
+  const fixturesSource = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/fixtures.js', import.meta.url),
+    'utf8',
+  );
+  const registerInteraction = source.slice(
+    source.indexOf('addProp({', source.indexOf('const regWp')),
+    source.indexOf('// [R] is gone as a checkout verb'),
+  );
+
+  assert.match(registerInteraction, /preserveInMunicipal:\s*true/);
+  assert.match(registerInteraction, /register\.enter\(\)/);
+  assert.match(source, /function boxPropFor[\s\S]+?preserveInMunicipal:\s*true/);
+  assert.match(source, /const carryProp = addProp\(\{[\s\S]+?preserveInMunicipal:\s*true/);
+  assert.match(modeSource, /root\.name = 'SimplifiedFrontDeskRegister';[\s\S]{0,500}root\.userData\.preserveInMunicipal = true;/);
+  assert.match(fixturesSource, /counterVisualRoot\.userData\.preserveInMunicipal = true/);
+  assert.match(fixturesSource, /hardwareVisualRoot\.userData\.preserveInMunicipal = true/);
 });

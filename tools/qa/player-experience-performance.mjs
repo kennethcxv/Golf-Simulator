@@ -357,7 +357,7 @@ try {
         pass: regressionPercent <= tolerancePercent,
       };
     });
-    const listenerLeakPass = performanceReport.activeEventListenerDelta === 0;
+    const listenerLeakPass = performanceReport.activeEventListenerDelta <= 0;
     comparison = {
       comparedWith: path.relative(ROOT, COMPARE_PATH).replaceAll('\\', '/'),
       scenarioMatch: baseline.scenario === performanceReport.scenario,
@@ -367,7 +367,7 @@ try {
       metrics,
       listenerLeakPass,
       pass: metrics.every((metric) => metric.pass) && listenerLeakPass,
-      toleranceNote: 'Noise guardrails: 5% for steady render counts/FPS, 10% for 1% lows and UI mutations, 20% worst-frame, 25% final heap. Listener growth must be exactly zero within the final sample.',
+      toleranceNote: 'Noise guardrails: 5% for steady render counts/FPS, 10% for 1% lows and UI mutations, 20% worst-frame, 25% final heap. Active listener count may not increase within the final sample.',
     };
     await fs.writeFile(path.join(OUT, 'comparison.json'), `${JSON.stringify(comparison, null, 2)}\n`);
     const format = (value) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : 'n/a';

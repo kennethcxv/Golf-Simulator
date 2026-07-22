@@ -1097,12 +1097,16 @@ export function completeSale(state, tx, who = 'A customer') {
   commitDrawer(state, drawerCommit.contents);
 
   const total = dueOf(tx);
+  const customerName = typeof who === 'object' && who
+    ? (who.fullName || who.name || 'A customer')
+    : who;
+  const customerId = typeof who === 'object' && who ? (who.customerId || null) : null;
   const saleKey = `checkout:${tx.id}:sale`;
   const bank = addRevenue(state, 'shopSales', total, {
     idempotencyKey: saleKey,
     relatedId: tx.id,
     category: 'shopSales',
-    description: `Register sale — ${who}`,
+    description: `Register sale — ${customerName}`,
     source: 'checkout',
     units: tx.items.length,
     customerCount: 1,
@@ -1123,7 +1127,7 @@ export function completeSale(state, tx, who = 'A customer') {
     addCostOfGoods(state, goodsCost, {
       idempotencyKey: `checkout:${tx.id}:cogs`,
       relatedId: tx.id,
-      description: `Cost of goods — ${who}`,
+      description: `Cost of goods — ${customerName}`,
       source: 'checkout',
       units: tx.items.length,
       metadata: { skuIds: tx.items.map((item) => item.skuId) },
@@ -1151,10 +1155,6 @@ export function completeSale(state, tx, who = 'A customer') {
   tx.drawerStart = null;
   tx.drawerPending = null;
 
-  const customerName = typeof who === 'object' && who
-    ? (who.fullName || who.name || 'A customer')
-    : who;
-  const customerId = typeof who === 'object' && who ? (who.customerId || null) : null;
   const names = tx.items.map((i) => i.name);
   state.shop.log.unshift(`${customerName} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();

@@ -196,6 +196,20 @@ test('the production booking horizon fills deterministically, rolls forward, and
   assert.ok(a.reservations.generator.generatedDays.includes(day + a.reservations.config.horizonDays));
 });
 
+test('generated reservation identities exist before autosave and snapshot without live drift', () => {
+  const state = newGame('relaxed', 90511);
+  ensureReservationHorizon(state, { occupancy: 0.9, seed: 77661 });
+  const beforeDirectory = JSON.stringify(state.customerDirectory);
+
+  assert.ok(state.reservations.booked.length > 0);
+  assert.ok(state.reservations.booked.every((reservation) => (
+    state.customerDirectory.customers.some((customer) => customer.customerId === reservation.customerId)
+  )));
+  serialize(state);
+  assert.equal(JSON.stringify(state.customerDirectory), beforeDirectory,
+    'serializing an established tee sheet must not allocate customer identities');
+});
+
 test('the deterministic browser fixture reset reverses production booking cash and ledger lines', () => {
   const state = newGame('relaxed', 9052);
   const cashBefore = state.cash;

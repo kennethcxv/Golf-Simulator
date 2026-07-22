@@ -14,6 +14,9 @@ const ROUTE = process.env.QA_ROUTE || 'probe';
 const ITERATION = process.env.QA_ITERATION || 'normal-controls';
 const OUT = path.resolve(process.env.QA_OUT || `qa/golf-gameplay-loop/${ITERATION}`);
 const VIEWPORT = { width: 1600, height: 900 };
+const BOOTSTRAP_PROPERTY_ID = String(process.env.QA_BOOTSTRAP_PROPERTY_ID || '').trim();
+const BOOTSTRAP_CLOCK = Number(process.env.QA_BOOTSTRAP_CLOCK || 0);
+const ROUTE_E_PARTY_COUNT = Math.max(1, Number(process.env.QA_ROUTE_E_PARTY_COUNT || 12));
 
 const inputs = [];
 const observations = [];
@@ -49,6 +52,35 @@ async function readWorld(page) {
       focus: app?.scene3d?.walk?.getFocusLabel?.() || null,
       laptopOpen: !!app?.laptopOpen,
       frontDeskOpen: !!app?.frontDeskOpen,
+      campaign: app?.state?.campaign ? {
+        businessOpen: app.state.campaign.businessOpen,
+        phase: app.state.campaign.phase,
+      } : null,
+      reservationCustomers: ch && app?.state?.reservations?.booked
+        ? app.state.reservations.booked
+          .map((entry) => ch.reservationCustomer?.(entry.id))
+          .filter(Boolean)
+        : [],
+      reservationCustomerDiagnostics: (typeof ch?.customers === 'function'
+        ? ch.customers()
+        : (Array.isArray(ch?.customers) ? ch.customers : []))
+        ?.filter((customer) => customer.reservationId != null)
+        .map((customer) => ({
+          reservationId: customer.reservationId,
+          phase: customer.checkoutPhase,
+          position: {
+            x: customer.mesh?.position?.x,
+            z: customer.mesh?.position?.z,
+          },
+          stopIdx: customer.stopIdx,
+          stop: customer.stops?.[customer.stopIdx] || null,
+          pathGoal: customer.pathGoal || null,
+          pathLength: customer.path?.length || 0,
+          pathHead: customer.path?.[0] || null,
+          stuckT: customer.stuckT || 0,
+          repathed: !!customer.repathed,
+          queued: !!customer.queued,
+        })) || [],
       bookings: (app?.state?.reservations?.booked || []).map((entry) => ({
         id: entry.id,
         holder: entry.reservationHolder,
@@ -308,10 +340,19 @@ async function enterClubhouse(page) {
   const world = await readPose(page);
   const door = world.clubhouse.door;
   await walkNavigated(page, { x: door.x, z: door.z + 1.55, label: 'clubhouse front door' }, 0.58);
+  await walkTo(page, { x: door.x, z: door.z + 0.65, label: 'clubhouse door handle reach' }, 0.24);
   await facePoint(page, { x: door.x, z: door.z, label: 'front door' });
-  const focused = await readPose(page);
-  if (/door/i.test(focused.focus || '')) await keyPress(page, 'e', 'open clubhouse front door');
-  await page.waitForTimeout(480);
+  // Focus settles one render beat after the final accessibility turn. A
+  // single immediate read can miss the closed door and leave the walking
+  // driver repeatedly pushing into its collider.
+  const focused = await waitForFocus(page, /door/i, 3000);
+  if (/open/i.test(focused)) {
+    await keyPress(page, 'e', 'open clubhouse front door');
+    // The hinged door auto-closes; do not spend its open interval waiting for
+    // a focus-label transition that disappears while the leaf is moving.
+    await page.waitForTimeout(320);
+  }
+  await page.waitForTimeout(180);
   await walkTo(page, { x: door.x, z: door.z - 1.65, label: 'inside welcome mat' }, 0.58);
   const inside = await readPose(page);
   if (!inside.clubhouse.inside) throw new Error('Normal movement did not enter the clubhouse.');
@@ -325,10 +366,34 @@ async function goToLaptop(page) {
   // The office has a clear south-side aisle from the welcome mat. These are
   // waypoints, not teleports; all travel is Shift+W plus arrow-key looking.
   await walkTo(page, { x: origin.x + 4.9, z: origin.z + 5.25, label: 'office approach aisle' }, 0.72);
-  // Stop close enough that the laptop wins the normal nearest-facing focus
-  // contest over the large course-map interaction radius on the south wall.
-  await walkTo(page, { x: origin.x + 8.55, z: origin.z + 4.5, label: 'laptop chair' }, 0.30);
-  await facePoint(page, { x: origin.x + 9.55, z: origin.z + 4.5, label: 'physical laptop' });
+  const office = await page.evaluate(async () => {
+    const { resolvedOfficeLayout } = await import('/src/data/shopLayout.js');
+    const app = window.__fw;
+    const local = resolvedOfficeLayout(app.state);
+    const root = app.scene3d.clubhouse().interior.position;
+    return {
+      access: {
+        x: root.x + (local.access?.x ?? local.chair.x),
+        z: root.z + (local.access?.z ?? local.chair.z),
+      },
+      laptop: { x: root.x + local.laptop.x, z: root.z + local.laptop.z },
+    };
+  });
+  // Stop at the generated office's validated access pose so moved desk/chair
+  // layouts retain the same normal-control route as the legacy office. The
+  // chair itself is intentionally solid, so stop as soon as the laptop owns
+  // normal focus instead of requiring the controller to reach its centre.
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const current = await readPose(page);
+    if (/Laptop/i.test(current.focus || '')) break;
+    await facePoint(page, { ...office.access, label: 'laptop access' }, 0.12);
+    await page.keyboard.down('Shift');
+    await holdKey(page, 'w', 150, 'approach physical laptop');
+    await page.keyboard.up('Shift');
+  }
+  if (!/Laptop/i.test((await readPose(page)).focus || '')) {
+    await facePoint(page, { ...office.laptop, label: 'physical laptop' });
+  }
   await waitForFocus(page, /Laptop/i);
 }
 
@@ -351,10 +416,11 @@ async function clickCenter(page, locator, label) {
 }
 
 async function clickLaptopNav(page, label) {
-  const locator = page.locator('.lt-navbtn').filter({ hasText: label }).first();
-  await clickCenter(page, locator, `laptop ${label} navigation`);
+  const visibleLabel = label === 'Reservations' ? 'Bookings' : label;
+  const locator = page.locator('.lt-navbtn').filter({ hasText: visibleLabel }).first();
+  await clickCenter(page, locator, `laptop ${visibleLabel} navigation`);
   await page.waitForFunction((name) => [...document.querySelectorAll('.lt-navbtn.on')]
-    .some((entry) => entry.textContent.includes(name)), label);
+    .some((entry) => entry.textContent.includes(name)), visibleLabel);
   await page.waitForTimeout(260);
 }
 
@@ -378,6 +444,51 @@ async function setProjectedSelect(page, locator, value, label) {
 }
 
 async function bookParty(page, spec) {
+  if (await page.getByRole('button', { name: '+ Add Walk-In', exact: true }).count()) {
+    const beforeIds = await page.evaluate(() => window.__fw.state.reservations.booked.map((entry) => entry.id));
+    await clickCenter(page, page.getByRole('button', { name: '+ Add Walk-In', exact: true }), 'add walk-in booking');
+    const partyRow = page.locator('.lt-row').filter({ hasText: 'Party' }).first();
+    const transportRow = page.locator('.lt-row').filter({ hasText: 'Transport' }).first();
+    const timeRow = page.locator('.lt-row').filter({ hasText: 'Time' }).first();
+    // One player is the production default. Avoid reopening that native select
+    // for solo walk-ins; Chromium's projected select popup can temporarily
+    // expose an empty option list while it owns keyboard focus.
+    if (spec.partySize !== 1) {
+      await setProjectedSelect(page, partyRow.locator('select').first(), String(spec.partySize), 'party size');
+    }
+    await setProjectedSelect(
+      page,
+      transportRow.locator('select').first(),
+      spec.transport === 'ride' || spec.transport === 'cart' ? 'cart' : 'walking',
+      'course transport',
+    );
+    const timeSelect = timeRow.locator('select').first();
+    const options = await timeSelect.locator('option').evaluateAll((entries) => entries.map((entry) => ({
+      value: entry.value,
+      text: entry.textContent,
+    })));
+    const selected = spec.sameSlotAs
+      ? options.find((entry) => entry.text.includes(spec.sameSlotAs))
+      : options[Math.min(spec.availableSlotIndex || 0, Math.max(0, options.length - 1))];
+    if (!selected) throw new Error(`No current tee time is available for ${spec.holder}.`);
+    await setProjectedSelect(page, timeSelect, selected.value, 'tee time');
+    await clickCenter(page, page.getByRole('button', { name: 'Book it', exact: true }), `book ${spec.holder}`);
+    await page.waitForFunction((ids) => window.__fw.state.reservations.booked.some((entry) => !ids.includes(entry.id)), beforeIds);
+    const reservation = await page.evaluate((ids) => {
+      const entry = window.__fw.state.reservations.booked.find((item) => !ids.includes(item.id));
+      return {
+        id: entry.id,
+        holder: entry.reservationHolder,
+        minute: entry.minute,
+        dayAbs: entry.dayAbs,
+        transport: entry.transport,
+        partySize: entry.partySize,
+      };
+    }, beforeIds);
+    noteObservation('party-booked', { requestedLabel: spec.holder, ...reservation });
+    return reservation;
+  }
+
   if (!(await page.locator('input[placeholder="Reservation holder"]').count())) await clickLaptopNav(page, 'Reservations');
   const holder = page.locator('input[placeholder="Reservation holder"]');
   const guests = page.locator('input[placeholder^="Other player names"]');
@@ -426,7 +537,7 @@ async function goToFrontDesk(page) {
   await walkTo(page, { x: origin.x + 5.15, z: origin.z + 5.2, label: 'south aisle from office' }, 0.78);
   await walkTo(page, { x: origin.x + 2.8, z: origin.z + 5.1, label: 'tee-desk staff position' }, 0.52);
   await facePoint(page, { x: origin.x + 2.7, z: origin.z + 4.22, label: 'tee desk register' });
-  await waitForFocus(page, /tee desk|register|checkout/i);
+  await waitForFocus(page, /front desk|tee desk|register|checkout/i);
 }
 
 async function goToOutdoorStarterDesk(page) {
@@ -436,11 +547,17 @@ async function goToOutdoorStarterDesk(page) {
   const observer = await observerPoint(page, target, 1.75);
   observer.label = 'outdoor starter desk';
   await walkNavigated(page, observer, 0.36);
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 14; attempt++) {
     await facePoint(page, { ...target, label: 'outdoor starter desk' }, 0.04);
     const world = await readPose(page);
     if (/starter desk/i.test(world.focus || '')) return;
-    await holdKey(page, attempt % 2 ? 'a' : 'd', 120 + attempt * 35, 'reacquire outdoor starter desk focus');
+    // The generated starter sign is offset from the interaction origin. Move
+    // toward the actual stand until its 3.1-yard player reach owns focus;
+    // lateral-only corrections could remain aimed at the sign outside reach.
+    await holdKey(page, 'w', 150, 'approach outdoor starter desk interaction');
+    if (attempt && attempt % 4 === 0) {
+      await holdKey(page, attempt % 8 ? 'a' : 'd', 120, 'clear starter desk collider edge');
+    }
   }
   await waitForFocus(page, /starter desk/i, 3000);
 }
@@ -472,6 +589,208 @@ async function openFrontDesk(page) {
   await page.waitForFunction(() => window.__fw?.frontDeskOpen === true, null, { timeout: 10000 });
   await page.locator('.front-desk').waitFor({ state: 'visible' });
   noteObservation('front-desk-open', { via: 'physical E interaction' });
+}
+
+async function waitRegisterCamera(page, workspace, timeout = 12000) {
+  await page.evaluate(() => { window.__golfQaCameraProbe = null; });
+  await page.waitForFunction((wanted) => {
+    const app = window.__fw;
+    const register = app?.scene3d?.clubhouse?.()?.register;
+    if (!register || register.workspace() !== wanted) return false;
+    const camera = app.scene3d.camera;
+    const now = {
+      x: camera.position.x, y: camera.position.y, z: camera.position.z,
+      qx: camera.quaternion.x, qy: camera.quaternion.y,
+      qz: camera.quaternion.z, qw: camera.quaternion.w, fov: camera.fov,
+    };
+    const old = window.__golfQaCameraProbe;
+    if (!old) {
+      window.__golfQaCameraProbe = { ...now, stable: 0 };
+      return false;
+    }
+    const delta = Math.max(...Object.keys(now).map((key) => Math.abs(now[key] - old[key])));
+    window.__golfQaCameraProbe = { ...now, stable: delta < 0.0008 ? old.stable + 1 : 0 };
+    return window.__golfQaCameraProbe.stable >= 4;
+  }, workspace, { timeout, polling: 80 });
+}
+
+async function monitorActions(page) {
+  return page.evaluate(() => window.__fw.scene3d.clubhouse().register
+    .monitorHotspots().map((entry) => entry.id));
+}
+
+async function monitorClick(page, action, workspaces = ['monitor']) {
+  await page.waitForFunction(({ id, allowedWorkspaces }) => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const point = register.monitorScreenPoint(id);
+    return allowedWorkspaces.includes(register.workspace()) && point?.inView;
+  }, { id: action, allowedWorkspaces: workspaces }, { timeout: 60000 });
+  const point = await page.evaluate((id) => (
+    window.__fw.scene3d.clubhouse().register.monitorScreenPoint(id)
+  ), action);
+  noteInput('click', `shared front-desk monitor action ${action}`);
+  await page.mouse.click(point.x, point.y);
+  await page.waitForTimeout(220);
+}
+
+async function projectRegisterObject(page, predicate) {
+  return page.evaluate(async (query) => {
+    const THREE = await import('/vendor/three.module.js');
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    let found = null;
+    clubhouse.interior.traverse((object) => {
+      if (found || !object.visible || !object.userData) return;
+      const data = object.userData;
+      if (query.kind && data.kind !== query.kind) return;
+      if (query.from && data.from !== query.from) return;
+      if (query.denom !== undefined && Number(data.denom) !== Number(query.denom)) return;
+      found = object;
+    });
+    if (!found) return null;
+    const bounds = new THREE.Box3().setFromObject(found);
+    const world = bounds.isEmpty()
+      ? found.getWorldPosition(new THREE.Vector3())
+      : bounds.getCenter(new THREE.Vector3());
+    world.project(app.scene3d.camera);
+    const rect = document.querySelector('canvas').getBoundingClientRect();
+    return {
+      x: rect.left + ((world.x + 1) / 2) * rect.width,
+      y: rect.top + ((-world.y + 1) / 2) * rect.height,
+      inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+    };
+  }, predicate);
+}
+
+async function openPhysicalFrontDesk(page) {
+  await goToFrontDesk(page);
+  await keyPress(page, 'e', 'enter shared physical front desk');
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null,
+    { timeout: 10000 });
+  await waitRegisterCamera(page, 'monitor');
+  noteObservation('physical-front-desk-open', { via: 'normal E interaction' });
+}
+
+async function closePhysicalFrontDesk(page) {
+  for (let step = 0; step < 5; step++) {
+    if (!await page.evaluate(() => window.__fw.scene3d.clubhouse().register.isActive())) return;
+    await keyPress(page, 'Escape', 'back out of shared physical front desk');
+    await page.waitForTimeout(180);
+  }
+  if (await page.evaluate(() => window.__fw.scene3d.clubhouse().register.isActive())) {
+    throw new Error('Shared physical front desk remained active after normal Escape hierarchy.');
+  }
+}
+
+async function completePhysicalCashService(page) {
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.kind === 'service' && tx.method === 'cash' && tx.stage === 'cash-tender';
+  }, null, { timeout: 10000 });
+  const handful = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
+  ));
+  if (!handful?.inView) throw new Error('Presented reservation cash is outside the production camera.');
+  noteInput('click', 'accept presented reservation cash');
+  await page.mouse.click(handful.x, handful.y);
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.deposited,
+    null, { timeout: 10000 });
+  await waitRegisterCamera(page, 'cash');
+  const plan = await page.evaluate(async () => {
+    const register = await import('/src/sim/register.js');
+    const app = window.__fw;
+    const tx = app.scene3d.clubhouse().register.getTx();
+    return register.makeChangeFrom(
+      register.drawerContents(tx, app.state.shop.drawer),
+      register.changeDue(tx),
+    );
+  });
+  if (!plan) throw new Error('Shared reservation drawer cannot make exact change.');
+  for (const [rawDenom, count] of Object.entries(plan)) {
+    const denom = Number(rawDenom);
+    for (let index = 0; index < count; index++) {
+      const slot = await projectRegisterObject(page, { kind: 'money', from: 'drawer', denom })
+        || await projectRegisterObject(page, { kind: 'drawer-slot', denom });
+      if (!slot?.inView) throw new Error(`Reservation change denomination ${denom} is outside the cash camera.`);
+      noteInput('click', `select reservation change denomination ${denom}`);
+      await page.mouse.click(slot.x, slot.y);
+      await page.waitForTimeout(140);
+    }
+  }
+  // The current production flow confirms the counted total with the visible
+  // monitor Done action; the character handoff then animates automatically.
+  // Clicking a projected palm here was a stale pre-integration gesture and
+  // could accidentally work only when its screen point overlapped Done.
+  await monitorClick(page, 'confirm-change', ['cash']);
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'GivingChange'
+  ), null, { timeout: 5000 });
+}
+
+async function completePhysicalCardService(page) {
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'card-ready',
+    null, { timeout: 10000 });
+  await waitRegisterCamera(page, 'card');
+  const card = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint()
+  ));
+  if (!card?.inView) throw new Error('Presented reservation card is outside the production camera.');
+  noteInput('click', 'take and insert presented reservation card');
+  await page.mouse.click(card.x, card.y);
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
+  }, null, { timeout: 7000 });
+  const digits = await page.evaluate(async () => {
+    const { totalOf } = await import('/src/sim/register.js');
+    return String(Math.round(totalOf(window.__fw.scene3d.clubhouse().register.getTx()) * 100));
+  });
+  noteInput('type', `reservation card amount ${digits}`);
+  await page.keyboard.type(digits, { delay: 40 });
+  await keyPress(page, 'Enter', 'submit reservation card amount');
+  const outcome = await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    if (!tx) return 'complete';
+    if (tx.stage === 'card-declined') return 'declined';
+    if (['receipt', 'bagging', 'done'].includes(tx.stage)) return 'approved';
+    return false;
+  }, null, { timeout: 12000 }).then((handle) => handle.jsonValue());
+  if (outcome === 'declined') {
+    await waitRegisterCamera(page, 'monitor');
+    await monitorClick(page, 'card-to-cash');
+    await completePhysicalCashService(page);
+    return 'cash';
+  }
+  return 'card';
+}
+
+async function checkInPhysicalParty(page, reservation) {
+  // Arrival state is authoritative immediately, while the visible golfer still
+  // walks from parking/lobby to the head of the physical counter queue. Wait
+  // for that normal presentation phase before selecting the monitor row.
+  await page.waitForFunction((id) => {
+    const customer = window.__fw.scene3d.clubhouse().reservationCustomer(id);
+    return customer?.queued && customer.queueIndex === 0
+      && customer.phase === 'reservation-waiting';
+  }, reservation.id, { timeout: 60000 });
+  if (!(await monitorActions(page)).includes('tab-check-in')) {
+    await keyPress(page, 'Escape', 'return shared monitor to home');
+    await waitRegisterCamera(page, 'monitor');
+  }
+  await monitorClick(page, 'tab-check-in');
+  await monitorClick(page, `select-reservation:${reservation.id}`);
+  await monitorClick(page, 'reservation-check-in');
+  let method = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx()?.method);
+  if (method === 'cash') await completePhysicalCashService(page);
+  else if (method === 'card') method = await completePhysicalCardService(page);
+  else throw new Error(`Reservation ${reservation.id} entered unsupported payment method ${method || 'none'}.`);
+  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
+    { timeout: 18000 });
+  await page.waitForFunction((id) => {
+    const entry = window.__fw.state.reservations.booked.find((item) => String(item.id) === String(id));
+    return entry?.checkIn?.status === 'checked-in' || entry?.status === 'played';
+  }, reservation.id, { timeout: 5000 });
+  noteObservation('party-checked-in-physical', { holder: reservation.holder, id: reservation.id, method });
 }
 
 async function waitForArrivals(page, holders, timeoutMs = 70000, speed = 3) {
@@ -816,6 +1135,20 @@ async function checkInPrepaidParty(page, holder) {
     noteInput('click', `confirm ${holder} reservation`);
     await confirm.click({ timeout: 12000 });
   }
+  const payCash = page.getByRole('button', { name: 'Pay cash', exact: true });
+  if (await payCash.count()) {
+    noteInput('click', `pay ${holder} balance in cash`);
+    await payCash.click({ timeout: 12000 });
+    noteInput('click', `open cash drawer for ${holder}`);
+    await page.getByRole('button', { name: 'Open drawer', exact: true }).click({ timeout: 12000 });
+    noteInput('click', `accept cash and print ${holder} receipt`);
+    await page.getByRole('button', { name: /Accept .* & print/ }).click({ timeout: 12000 });
+    const takeReceipt = page.getByRole('button', { name: 'Take receipt', exact: true });
+    if (await takeReceipt.count()) {
+      noteInput('click', `take ${holder} receipt`);
+      await takeReceipt.click({ timeout: 12000 });
+    }
+  }
   const checkIn = page.getByRole('button', { name: 'Check in party', exact: true });
   noteInput('click', `check in ${holder}`);
   await checkIn.click({ timeout: 12000 });
@@ -828,16 +1161,84 @@ async function checkInPrepaidParty(page, holder) {
 
 async function bootFreshProperty(page) {
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
-  noteInput('click', 'New Empire');
-  await page.locator('button').filter({ hasText: 'New Empire' }).first().click();
-  noteInput('click', 'Buy property');
-  await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+  if (BOOTSTRAP_PROPERTY_ID) {
+    // Fixture boundary only: Willow's restoration start intentionally has no
+    // office laptop. Seed an owned, active non-municipal property before the
+    // scene mounts, then keep every measured route mutation on normal input.
+    await page.evaluate(async ({ propertyId, bootstrapClock }) => {
+      const E = await import('/src/sim/empire.js');
+      const empire = E.newEmpire('relaxed', 424242);
+      empire.cash = 10_000_000;
+      const starter = E.buyProperty(empire, 'willow-creek');
+      if (!starter.ok) throw new Error(`Golf QA starter purchase failed: ${starter.reason}`);
+      let bought = starter;
+      if (propertyId !== 'willow-creek') {
+        bought = E.buyProperty(empire, propertyId);
+        if (!bought.ok) throw new Error(`Golf QA property purchase failed: ${bought.reason}`);
+        const switched = E.switchProperty(empire, propertyId);
+        if (!switched.ok) throw new Error(`Golf QA property activation failed: ${switched.reason}`);
+      }
+      const state = E.activeState(empire);
+      const C = await import('/src/sim/campaign.js');
+      const L = await import('/src/sim/layout.js');
+      C.disableCampaign(state);
+      const facilities = C.ensureCampaignFacilities(state);
+      facilities.displayShelves = true;
+      facilities.frontCounter = true;
+      facilities.registerHardware = true;
+      for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small', 'backcounter']) {
+        L.restoreFixture(state, id);
+      }
+      state.campaign.businessOpen = true;
+      state.campaign.openedAt = state.clock.minutes;
+      if (Number.isFinite(bootstrapClock) && bootstrapClock > 0) state.clock.minutes = bootstrapClock;
+      state.tutorial.complete = true;
+      state.tutorial.hidden = true;
+      localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
+    }, { propertyId: BOOTSTRAP_PROPERTY_ID, bootstrapClock: BOOTSTRAP_CLOCK });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    noteInput('click', `Continue ${BOOTSTRAP_PROPERTY_ID} QA fixture`);
+    await page.getByText('Continue', { exact: true }).first().click();
+  } else {
+    noteInput('click', 'New game');
+    await page.getByText('New game', { exact: true }).first().click();
+    await page.getByText('Relaxed', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+    noteInput('click', 'Relaxed mode');
+    await page.getByText('Relaxed', { exact: true }).click();
+    await page.getByText('Property market', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+    noteInput('click', 'Buy property');
+    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+  }
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
+  if (ROUTE === 'route-e') {
+    await page.evaluate(async () => {
+      // main.js establishes the rolling production booking horizon after load,
+      // so isolate the measured tee sheet at this live fixture boundary. Retire
+      // any actor already reconciled during scene warmup, then use the supported
+      // reset to reverse deposits and cancel scheduled customer arrivals.
+      const app = window.__fw;
+      const clubhouse = app.scene3d.clubhouse();
+      for (const reservation of app.state.reservations.booked) {
+        clubhouse.completeReservationCustomer?.(reservation.id);
+      }
+      const R = await import('/src/sim/reservations.js');
+      R.resetGolfOperationsQA(app.state);
+      clubhouse.setOrganicWalkins(false);
+      clubhouse.clearWalkins();
+      app.autosave?.();
+    });
+  }
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 60000 });
   await page.waitForTimeout(900);
+  if (ROUTE === 'route-e') {
+    noteObservation('route-e-fixture-isolation', {
+      organicRetailWalkins: false,
+      reason: 'reserve the physical queue for the twelve measured golf groups',
+    });
+  }
   noteObservation('fresh-property', await readWorld(page));
   const hideGuide = page.locator('.objectives-card button[title="Hide the guide"]');
   if (await hideGuide.isVisible().catch(() => false)) {
@@ -1413,20 +1814,23 @@ async function runRouteE(page) {
   await openLaptop(page);
   await clickLaptopNav(page, 'Reservations');
   const parties = [];
-  for (let index = 0; index < 12; index++) {
+  for (let index = 0; index < ROUTE_E_PARTY_COUNT; index++) {
     const number = String(index + 1).padStart(2, '0');
     parties.push(await bookParty(page, {
       holder: `Load Test ${number}`,
       guests: [],
       partySize: 1,
       payment: 'prepaid',
-      transport: index % 2 ? 'walk' : 'ride',
+      // This route measures maximum concurrent group/render load. Walking
+      // avoids intentionally limited cart inventory spreading the test sheet
+      // across later hours; cart service has its own lifecycle route.
+      transport: 'walk',
       // Reusing the first still-open button naturally fills each canonical
       // four-player slot before moving to the next tee time.
       availableSlotIndex: 0,
     }));
   }
-  await screenshot(page, '01-route-e-full-tee-sheet.png', 'twelve normal laptop bookings packed into the first available tee times');
+  await screenshot(page, '01-route-e-full-tee-sheet.png', `${ROUTE_E_PARTY_COUNT} normal laptop bookings packed into the first available tee times`);
   await closeLaptop(page);
   await goToFrontDesk(page);
 
@@ -1443,9 +1847,8 @@ async function runRouteE(page) {
       const reservation = window.__fw.state.reservations.booked.find((entry) => entry.reservationHolder === name);
       return reservation?.checkIn?.status !== 'checked-in'
         && ['arrived', 'late'].includes(reservation?.arrival?.status);
-    }), pending, { timeout: 70000 });
+    }), pending, { timeout: 100000 });
     await setSpeed(page, 0, 'pause for the arriving performance-test parties');
-    await openFrontDesk(page);
     const ready = await page.evaluate((names) => names.filter((name) => {
       const reservation = window.__fw.state.reservations.booked.find((entry) => entry.reservationHolder === name);
       return reservation?.checkIn?.status !== 'checked-in'
@@ -1453,9 +1856,64 @@ async function runRouteE(page) {
         && !['cancelled', 'noShow'].includes(reservation?.status);
     }), pending);
     if (!ready.length) throw new Error('An arrival wave produced no check-in-ready performance party.');
-    for (const name of ready) await checkInPrepaidParty(page, name);
+    await setSpeed(page, 1, 'let arrived golfers walk into the physical counter queue');
+    await page.waitForFunction((names) => names.some((name) => {
+      const reservation = window.__fw.state.reservations.booked
+        .find((entry) => entry.reservationHolder === name);
+      const customer = reservation
+        ? window.__fw.scene3d.clubhouse().reservationCustomer(reservation.id)
+        : null;
+      return customer?.queued && customer.queueIndex === 0
+        && customer.phase === 'reservation-waiting';
+    }), ready, { timeout: 60000 });
+    await setSpeed(page, 0, 'pause with the arrival wave reaching the visible counter queue');
+    await openPhysicalFrontDesk(page);
+    const wavePending = new Set(ready);
+    while (wavePending.size) {
+      const remaining = [...wavePending];
+      await page.waitForFunction((names) => names.some((name) => {
+        const reservation = window.__fw.state.reservations.booked
+          .find((entry) => entry.reservationHolder === name);
+        const customer = reservation
+          ? window.__fw.scene3d.clubhouse().reservationCustomer(reservation.id)
+          : null;
+        return customer?.queued && customer.queueIndex === 0
+          && customer.phase === 'reservation-waiting';
+      }), remaining, { timeout: 60000 });
+      const name = await page.evaluate((names) => names.find((holder) => {
+        const reservation = window.__fw.state.reservations.booked
+          .find((entry) => entry.reservationHolder === holder);
+        const customer = reservation
+          ? window.__fw.scene3d.clubhouse().reservationCustomer(reservation.id)
+          : null;
+        return customer?.queued && customer.queueIndex === 0
+          && customer.phase === 'reservation-waiting';
+      }), remaining);
+      const reservation = parties.find((entry) => entry.holder === name);
+      await checkInPhysicalParty(page, reservation);
+      wavePending.delete(name);
+      if (wavePending.size) {
+        // Release the focused cashier camera between golfers. This mirrors the
+        // player's visible cadence and lets the next actor finish its door and
+        // queue locomotion before the register takes focus again.
+        await closePhysicalFrontDesk(page);
+        await setSpeed(page, 1, 'advance the next visible golfer to the counter head');
+        const remainingNames = [...wavePending];
+        await page.waitForFunction((names) => names.some((holder) => {
+          const entry = window.__fw.state.reservations.booked
+            .find((candidate) => candidate.reservationHolder === holder);
+          const customer = entry
+            ? window.__fw.scene3d.clubhouse().reservationCustomer(entry.id)
+            : null;
+          return customer?.queued && customer.queueIndex === 0
+            && customer.phase === 'reservation-waiting';
+        }), remainingNames, { timeout: 60000 });
+        await setSpeed(page, 0, 'pause on the next visible counter customer');
+        await openPhysicalFrontDesk(page);
+      }
+    }
     checkInBatches++;
-    await closeFrontDesk(page);
+    await closePhysicalFrontDesk(page);
   }
 
   await leaveClubhouse(page);
@@ -1512,7 +1970,13 @@ async function runRouteE(page) {
     return names.every((name) => window.__fw.state.golfDay.completed.some((round) => round.partyName === name))
       && window.__fw.state.golfDay.parties.filter((party) => wanted.has(party.partyName)).length === 0
       && window.__fw.state.golfDay.carts.every((cart) => cart.status === 'available');
-  }, holders, { timeout: 120000 });
+  }, holders, {
+    // A loaded walking sheet intentionally models several hours of golf. At
+    // the shipped maximum time control that is roughly eight real minutes;
+    // two minutes only proves the opening holes and mislabels normal pace as
+    // a lifecycle failure.
+    timeout: 720000,
+  });
   await setSpeed(page, 0, 'pause after full-sheet completion and cart service');
   const settledMemory = await memorySnapshot(page, 'settled after twelve completed rounds');
   const settledPerformance = await samplePerformance(page, 5000);
@@ -1536,8 +2000,9 @@ async function runRouteE(page) {
   const heapGrowth = settledMemory.jsHeapUsedBytes == null || baselineMemory.jsHeapUsedBytes == null
     ? null : settledMemory.jsHeapUsedBytes - baselineMemory.jsHeapUsedBytes;
   const checks = {
-    twelveRoundsExactlyOnce: completion.rounds.length === 12 && new Set(completion.rounds.map((round) => round.id)).size === 12,
-    twelveReviewsExactlyOnce: completion.matchingReviews === 12,
+    twelveRoundsExactlyOnce: completion.rounds.length === ROUTE_E_PARTY_COUNT
+      && new Set(completion.rounds.map((round) => round.id)).size === ROUTE_E_PARTY_COUNT,
+    twelveReviewsExactlyOnce: completion.matchingReviews === ROUTE_E_PARTY_COUNT,
     targetBecameNear: targetAfter?.simulationTier === 'near',
     tierMixObserved: (tiersBefore.near || 0) > 0 && ((tiersBefore.mid || 0) + (tiersBefore.far || 0)) > 0,
     resourcesBounded: completion.partyPool <= 16 && completion.ballCapacity <= 24
@@ -1613,7 +2078,9 @@ async function main() {
     iteration: ITERATION,
     url: URL,
     viewport: VIEWPORT,
-    mutationPolicy: 'No direct game-state, clock, camera, route, or simulation writes. window.__fw was read only.',
+    mutationPolicy: BOOTSTRAP_PROPERTY_ID
+      ? `A deterministic ${BOOTSTRAP_PROPERTY_ID} save was created before scene boot; all measured gameplay, clock, camera, booking, check-in, route, and simulation changes used normal controls. window.__fw was read only after boot.`
+      : 'No direct game-state, clock, camera, route, or simulation writes. window.__fw was read only.',
     inputs,
     observations,
     result,

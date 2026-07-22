@@ -134,6 +134,12 @@ test('card check-in banks one typed green-fee ticket without touching merchandis
     },
   );
   assert.equal(reservation.status, 'played');
+  assert.equal(reservation.checkIn.status, 'checked-in');
+  assert.equal(reservation.checkInStatus, 'checked-in');
+  assert.equal(reservation.courseAccess.status, 'granted');
+  assert.ok(Number.isFinite(reservation.courseAccess.departurePlannedAtMinute));
+  assert.equal(reservation.payment.status, 'paid');
+  assert.equal(reservation.payment.amountDue, 0);
   assert.equal(reservation.checkInTransactionNumber, state.shop.transactionHistory[0].number);
   assert.equal(reservation.paymentMethod, 'card');
   assert.equal(reservation.paidAmount, reservation.fee);

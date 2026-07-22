@@ -187,7 +187,13 @@ async (page) => {
   };
 
   const panelButton = async (name, index = 0) => {
-    const button = toolPanel().getByRole('button', { name, exact: true }).nth(index);
+    // Catalog choices append price/detail text to their accessible names
+    // (for example "Bench $90"). Match the visible title at the start while
+    // retaining exact token boundaries for ordinary controls.
+    const escapedName = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const button = toolPanel().getByRole('button', {
+      name: new RegExp(`^${escapedName}(?:\\s|$)`),
+    }).nth(index);
     await button.waitFor({ state: 'visible', timeout: 5000 });
     await button.click();
     await settle(3);
@@ -692,11 +698,16 @@ async (page) => {
     expectedNavigation = true;
     if (navigate) await page.goto(baseUrl);
     await page.waitForFunction(() => document.readyState === 'complete');
-    const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+    // The production menu button includes the active property/day as its
+    // accessible subtitle, so its complete accessible name is no longer the
+    // single word "Continue". Anchor on the exact visible title instead.
+    const continueTitle = page.getByText('Continue', { exact: true }).first();
+    const continueButton = continueTitle.locator('xpath=ancestor::button[1]');
     await continueButton.waitFor({ state: 'visible', timeout: 30000 });
     await page.waitForFunction(() => {
       const button = [...document.querySelectorAll('button')]
-        .find((candidate) => candidate.textContent.trim() === 'Continue');
+        .find((candidate) => [...candidate.querySelectorAll('*')]
+          .some((child) => child.textContent.trim() === 'Continue'));
       return !!button && !button.disabled;
     }, null, { timeout: 90000 });
     await continueButton.click();

@@ -474,11 +474,6 @@ async function createFixture(page, skuIds, payment) {
     shop.markup.accessories = 1.15;
     shop.markup.apparel = 1.15;
     app.speedIdx = 0;
-    app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 14 * 60;
-    app.state.weather.today = {
-      tempHiF: 72, tempLoF: 54, rainIn: 0, humidity: 0.48, windMph: 5,
-    };
-    app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
     clubhouse.rebuildStock();
     const off = clubhouse.interior.position;
     const walk = app.scene3d.walk.state;
@@ -517,8 +512,16 @@ async function prepareFixture(page, skuIds, payment) {
     const shop = app.state.shop;
     const { capacityOf } = await import('/src/data/fixtureSlots.js');
     const register = await import('/src/sim/register.js');
+    const { processReservationTimeline } = await import('/src/sim/reservations.js');
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
+    app.speedIdx = 0;
+    app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 14 * 60;
+    processReservationTimeline(app.state, { at: app.state.clock.minutes, chargeFees: true });
+    app.state.weather.today = {
+      tempHiF: 72, tempLoF: 54, rainIn: 0, humidity: 0.48, windMph: 5,
+    };
+    app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
     if (!shop.drawer) shop.drawer = register.newDrawer();
     for (const id of ids) {
       const inventory = shop.inventory[id];
@@ -821,7 +824,7 @@ function assertCleanRollback(fixture, reloaded, label) {
   assert(reloaded.workspace === 'monitor' && reloaded.deliveryPhase === null,
     `${label} restored a stale checkout workspace or delivery timer.`);
   assert(reloaded.pointerLock === null && reloaded.camera.distanceToWalkXZ < 0.35
-      && Math.abs(reloaded.camera.fov - 60) < 0.01,
+      && Math.abs(reloaded.camera.fov - fixture.baseline.camera.fov) < 0.01,
   `${label} left pointer lock or a checkout camera pose active: ${JSON.stringify(reloaded.camera)}.`);
   assert(reloaded.props.items === 0 && reloaded.props.paymentCards === 0
       && reloaded.props.tenderOrChange === 0 && reloaded.props.receipts === 0,
@@ -1086,9 +1089,12 @@ function assertCompletedReconciliation(fixture, completed, method, label) {
   assert(round2(afterRevenue - beforeRevenue) === total,
     `${label} did not reconcile the shopSales ledger line.`);
   const beforeTxLog = fixture.waiting.persistent.ledger?.txLog?.length || 0;
-  const afterTxLog = completed.persistent.ledger?.txLog?.length || 0;
-  assert(afterTxLog === beforeTxLog + 1,
-    `${label} did not append exactly one ledger transaction row.`);
+  const txLog = completed.persistent.ledger?.txLog || [];
+  const appendedTxLog = txLog.slice(0, txLog.length - beforeTxLog);
+  assert(appendedTxLog.length === 2
+      && appendedTxLog.some((entry) => entry.kind === 'rev' && entry.key === 'shopSales')
+      && appendedTxLog.some((entry) => entry.kind === 'exp' && entry.key === 'costOfGoods'),
+  `${label} did not append exactly one revenue and one cost-of-goods ledger row.`);
 
   const beforeReviews = fixture.waiting.persistent.reviews;
   const afterReviews = completed.persistent.reviews;
@@ -1128,12 +1134,12 @@ function assertCompletedReconciliation(fixture, completed, method, label) {
   }
 }
 
-function assertCleanCompletedReload(completed, reloaded, label) {
+function assertCleanCompletedReload(fixture, completed, reloaded, label) {
   assert(!reloaded.active && !reloaded.tx && !reloaded.registerClass
       && reloaded.workspace === 'monitor' && reloaded.deliveryPhase === null,
   `${label} restored stale completed-checkout UI or state.`);
   assert(reloaded.pointerLock === null && reloaded.camera.distanceToWalkXZ < 0.35
-      && Math.abs(reloaded.camera.fov - 60) < 0.01,
+      && Math.abs(reloaded.camera.fov - fixture.baseline.camera.fov) < 0.01,
   `${label} left pointer lock or a checkout camera pose active: ${JSON.stringify(reloaded.camera)}.`);
   assert(reloaded.props.items === 0 && reloaded.props.paymentCards === 0
       && reloaded.props.tenderOrChange === 0 && reloaded.props.receipts === 0,
@@ -1302,12 +1308,12 @@ async function runCompletedMatrixCase(page, definition, shot) {
 
   await reloadExactCheckpoint(page);
   const firstReload = await checkoutSnapshot(page, fixture.skuIds);
-  assertCleanCompletedReload(completed, firstReload, `${definition.id} first reload`);
+  assertCleanCompletedReload(fixture, completed, firstReload, `${definition.id} first reload`);
   const firstReloadShot = await shot(definition.evidenceDir, `${definition.id}-first-reload-exact`);
 
   await reloadExactCheckpoint(page);
   const secondReload = await checkoutSnapshot(page, fixture.skuIds);
-  assertCleanCompletedReload(completed, secondReload, `${definition.id} second reload`);
+  assertCleanCompletedReload(fixture, completed, secondReload, `${definition.id} second reload`);
   assertIdempotentRecovery(firstReload, secondReload, definition.id);
   const secondReloadShot = await shot(definition.evidenceDir, `${definition.id}-second-reload-idempotent`);
 

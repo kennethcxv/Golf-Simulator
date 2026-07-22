@@ -140,10 +140,14 @@ test('REVENUE moves only when the sale completes — not when it is scanned or p
   bagItem(tx, 'a');
   handOverGoods(tx);
 
-  const res = completeSale(st, tx, 'A customer');
+  const res = completeSale(st, tx, { fullName: 'A customer', customerId: 'customer-1' });
   assert.equal(res.ok, true);
   assert.equal(res.total, 47);
   assert.equal(st.shop.salesLive.revenue, before + 47, 'banked exactly once, at the end');
+  const checkoutEntries = st.ledger.entries.filter((entry) => entry.source === 'checkout');
+  assert.equal(checkoutEntries.length, 2, 'sale revenue and cost of goods are distinct ledger rows');
+  assert.ok(checkoutEntries.every((entry) => entry.description.includes('A customer')));
+  assert.ok(checkoutEntries.every((entry) => !entry.description.includes('[object Object]')));
 });
 
 test('a sale cannot be completed twice', () => {

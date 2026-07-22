@@ -9,6 +9,15 @@ async (page) => {
     || 'qa/property-expansion-world-overhaul/property-operations/iteration-1');
   fs.mkdirSync(out, { recursive: true });
   const diagnostics = [];
+  const continueFromTitle = async () => {
+    // The current title card gives the button a property subtitle, so its full
+    // accessible name is no longer the single word "Continue". Anchor on the
+    // visible title span and use its owning button, as a player does.
+    const title = page.getByText('Continue', { exact: true }).first();
+    const button = title.locator('xpath=ancestor::button[1]');
+    await button.waitFor({ state: 'visible', timeout: 30000 });
+    await button.click();
+  };
   page.on('console', (message) => {
     if (message.type() === 'error') diagnostics.push(`console:${message.text()}`);
   });
@@ -24,6 +33,10 @@ async (page) => {
     empire.cash = 1_000_000;
     E.buyProperty(empire, 'willow-creek');
     E.buyProperty(empire, 'bent-pines');
+    const operatingProperty = E.buyProperty(empire, 'flatiron-meadows');
+    if (!operatingProperty.ok) throw new Error(`Property QA operating purchase failed: ${operatingProperty.reason}`);
+    const activated = E.switchProperty(empire, 'flatiron-meadows');
+    if (!activated.ok) throw new Error(`Property QA operating activation failed: ${activated.reason}`);
     const state = E.activeState(empire);
     state.tutorial.complete = true;
     state.tutorial.hidden = true;
@@ -36,7 +49,7 @@ async (page) => {
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await continueFromTitle();
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.state, null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
@@ -54,13 +67,17 @@ async (page) => {
   diagnostics.length = 0;
 
   const openPhysicalLaptop = async () => {
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       const app = window.__fw;
+      const { resolvedOfficeLayout } = await import('/src/data/shopLayout.js');
+      const office = resolvedOfficeLayout(app.state);
       const origin = app.scene3d.clubhouse().interior.position;
       const walk = app.scene3d.walk.state;
-      walk.x = origin.x + 8.55;
-      walk.z = origin.z + 4.5;
-      walk.yaw = -Math.PI / 2;
+      walk.x = origin.x + (office.access?.x ?? office.chair.x);
+      walk.z = origin.z + (office.access?.z ?? office.chair.z);
+      const laptopX = origin.x + office.laptop.x;
+      const laptopZ = origin.z + office.laptop.z;
+      walk.yaw = Math.atan2(-(laptopX - walk.x), -(laptopZ - walk.z));
       walk.pitch = -0.05;
     });
     await page.keyboard.press('e');
@@ -136,7 +153,7 @@ async (page) => {
 
   await page.waitForTimeout(600); // autosave from the manager and bid callbacks
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await continueFromTitle();
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.state, null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

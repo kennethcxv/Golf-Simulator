@@ -8,6 +8,7 @@ import {
   reservationPaymentRevenueSplit,
   RESERVATION_DEPOSIT_TYPE,
   reservationDepositReference,
+  finalizeReservationCheckInState,
 } from './reservations.js';
 import { recordCustomerVisit } from './customerIdentity.js';
 import {
@@ -227,16 +228,19 @@ export function finalizeReservationCheckIn(
   });
   if (!banked.ok) return banked;
 
-  // Keep `played` for compatibility with the existing tee-sheet and legacy
-  // checkInReservation() behavior, while adding durable payment provenance.
-  reservation.status = 'played';
-  reservation.checkedInAt = state.clock ? state.clock.minutes : null;
+  const checkedInAt = state.clock ? state.clock.minutes : null;
   reservation.checkInTransactionNumber = banked.ticket.number;
   reservation.checkInReferenceId = referenceId;
   reservation.paymentMethod = tx.method;
   reservation.paidAmount = snapshottedFee;
   reservation.totalPaid = round2((reservation.depositPaid || 0) + snapshottedFee);
   reservation.paymentStatus = 'paid';
+  reservation.payment ||= {};
+  reservation.payment.total = round2(reservation.fee ?? reservation.totalPaid);
+  reservation.payment.amountPaid = reservation.totalPaid;
+  reservation.payment.amountDue = 0;
+  reservation.payment.status = 'paid';
+  reservation.payment.method = tx.method;
   // A pre-production compatibility path allowed callers to attach an
   // untracked deposit/balance directly to a legacy booking. Preserve that
   // observable balance for old tests/saves; ticketed deposits use the durable
@@ -245,10 +249,10 @@ export function finalizeReservationCheckIn(
     reservation.balanceDue = 0;
     reservation.remainingBalance = 0;
   }
-  reservation.currentDestination = 'course';
   reservation.arrivalStatus = 'arrived';
-  reservation.checkInStatus = 'checked-in';
-  const cart = beginCartTrip(state, reservation, { at: reservation.checkedInAt });
+  const checkedIn = finalizeReservationCheckInState(state, reservation, { atMinute: checkedInAt });
+  if (!checkedIn.ok) return checkedIn;
+  const cart = beginCartTrip(state, reservation, { at: checkedInAt });
   if (!reservation.visitHistoryRecorded && reservation.customerId) {
     const recorded = recordCustomerVisit(state, reservation.customerId, {
       dayAbs: reservation.dayAbs,

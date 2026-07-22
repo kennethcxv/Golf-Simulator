@@ -198,11 +198,14 @@ async (page) => {
 
   // Normal pause-menu autosave route, then normal Continue boot.
   await page.keyboard.press('b');
-  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().build.isActive());
+  await page.locator('canvas').click({ position: { x: 800, y: 450 } });
+  await page.keyboard.press('p');
   const pause = page.locator('.pause-veil-ui');
   await pause.waitFor({ state: 'visible' });
-  await pause.getByRole('button', { name: 'Office', exact: true }).click();
-  await pause.getByRole('button', { name: /Exit to main menu \(autosaves\)/ }).click();
+  await pause.getByRole('button', { name: 'Session', exact: true }).click();
+  await pause.getByRole('button', { name: 'Return to main menu', exact: true }).click();
+  await page.getByRole('button', { name: 'Save and return', exact: true }).click();
   await page.getByText('Continue', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText('Continue', { exact: true }).click();
   await waitForGame();

@@ -505,6 +505,11 @@ export function createRegisterMode(B) {
 
   const root = new THREE.Group();
   root.name = 'SimplifiedFrontDeskRegister';
+  // The municipal clubhouse leases away obsolete procedural interior children,
+  // but this root owns the live checkout station, transaction products, cash,
+  // receipt, and cashier hands. It must remain visible whenever the restored
+  // register facility is operational.
+  root.userData.preserveInMunicipal = true;
   interior.add(root);
   const cashierHands = makeCashierHands(root);
   suppressInteriorSunShadows(cashierHands.root);

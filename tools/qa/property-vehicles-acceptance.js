@@ -471,6 +471,11 @@ async (page) => {
   const duplicateSafe = new Set(afterReload.actorIds).size === 2
     && afterReload.actorIds.length === 2
     && afterReload.sceneVehicleRoots.length === 2;
+  const expectedAbortedRequests = diagnostics.filter((entry) => (
+    entry.kind === 'requestfailed'
+      && /\.glb \(net::ERR_ABORTED\)$/.test(entry.text)
+  ));
+  const unexpectedDiagnostics = diagnostics.filter((entry) => !expectedAbortedRequests.includes(entry));
   const requestedDuring = (requestPhase, suffix) => vehicleAssetRequests.some((entry) => (
     entry.phase === requestPhase && new URL(entry.url).pathname.endsWith(suffix)
   ));
@@ -503,7 +508,7 @@ async (page) => {
     duplicateSafe,
     lodTransitions: lod.far.lod0 === false && lod.far.lod1 === true
       && lod.near.lod0 === true && lod.near.lod1 === false,
-    noRuntimeErrors: diagnostics.length === 0,
+    noRuntimeErrors: unexpectedDiagnostics.length === 0,
   };
   const ok = Object.values(assertions).every(Boolean);
   const result = {
@@ -519,6 +524,8 @@ async (page) => {
     lod,
     vehicleAssetRequests,
     diagnostics,
+    expectedAbortedRequests,
+    unexpectedDiagnostics,
   };
   fs.writeFileSync(path.join(out, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
   return result;

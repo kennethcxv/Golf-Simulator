@@ -1432,7 +1432,7 @@ export function makeClubhouse(ctx) {
   }
 
   addProp({
-    x: regWp.x, z: regWp.z, r: 2.2,
+    x: regWp.x, z: regWp.z, r: 2.2, preserveInMunicipal: true,
     label: () => {
       if (!facilityInstalled(state, 'frontCounter')) return null;
       if (!facilityInstalled(state, 'registerHardware')) {
@@ -3236,6 +3236,8 @@ export function makeClubhouse(ctx) {
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
   const skuMats = new Map();
   const ballBoxMats = new Map();
+  const snackLabelMats = new Map();
+  const drinkMats = new Map();
   const reserveLabelGeo = new THREE.PlaneGeometry(0.48, 0.11);
   const reserveLabelCache = new Map();
   let reserveLabelGeneration = 0;
@@ -3279,6 +3281,28 @@ export function makeClubhouse(ctx) {
       skuMats.set(sku.id, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
     }
     return skuMats.get(sku.id);
+  }
+
+  // One original fictional-brand atlas supplies the front labels for the
+  // physical snack packages. Cache per SKU so rebuilding stock does not create
+  // a new texture/material pair for every individual unit.
+  const snackAtlasColumns = { chips1: 0, bar2: 1, crackers1: 2 };
+  function snackLabelMat(sku) {
+    if (!snackLabelMats.has(sku.id)) {
+      const col = snackAtlasColumns[sku.id] || 0;
+      const tex = new THREE.TextureLoader().load(
+        'public/assets/textures/shop/turn-snacks-label-atlas.png',
+      );
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(0.30, 0.735);
+      tex.offset.set(0.035 + col * 0.318, 0.132);
+      tex.anisotropy = 4;
+      snackLabelMats.set(sku.id, new THREE.MeshStandardMaterial({
+        map: tex, color: 0xffffff, roughness: 0.82, metalness: 0,
+      }));
+    }
+    return snackLabelMats.get(sku.id);
   }
 
   function ballBoxMat(sku) {
@@ -6259,7 +6283,7 @@ export function makeClubhouse(ctx) {
       }
     };
     const prop = addProp({
-      x: 0, z: 0, r: 1.9,
+      x: 0, z: 0, r: 1.9, preserveInMunicipal: true,
       // When a carton sits on a cart or hand truck its parent equipment prop
       // occupies almost the same XZ point. The aimed 3D carton receives a
       // modest score advantage, while looking toward the handle still selects
@@ -6437,7 +6461,7 @@ export function makeClubhouse(ctx) {
   }
 
   const carryProp = addProp({
-    x: 0, z: 0, r: 2.5,
+    x: 0, z: 0, r: 2.5, preserveInMunicipal: true,
     label: () => {
       const cb = carriedBox(state);
       if (cb) return boxPlacementLabel();
@@ -8227,6 +8251,17 @@ export function makeClubhouse(ctx) {
       phase: c.checkoutPhase,
       released: !!c.reservationReleased,
       exitReason: c.reservationExitReason,
+      // Kept on the diagnostics snapshot (never rendered in player UI) so a
+      // stuck physical arrival can be diagnosed from browser evidence without
+      // exposing or mutating the live actor object.
+      position: { x: c.mesh.position.x, z: c.mesh.position.z },
+      stopIdx: c.stopIdx,
+      stop: c.stops[c.stopIdx] ? { ...c.stops[c.stopIdx] } : null,
+      pathGoal: c.pathGoal ? { ...c.pathGoal } : null,
+      pathHead: c.path?.[0] ? { ...c.path[0] } : null,
+      pathLength: c.path?.length || 0,
+      stuckT: c.stuckT || 0,
+      repathed: !!c.repathed,
     };
   }
 
@@ -8371,6 +8406,7 @@ export function makeClubhouse(ctx) {
     if (!state || !state.reservations) return;
     if (!campaignAllowsBusiness(state)) return;
     const at = state.clock.minutes;
+    let spawnedReservationCustomer = false;
     for (const reservation of dueForArrivals(state, { at })) {
       markReservationEnRoute(state, reservation.id, at);
     }
@@ -8387,7 +8423,13 @@ export function makeClubhouse(ctx) {
       }
       if (reservation.arrivalStatus !== 'arrived') continue;
       if (customers.some((customer) => sameReservationId(customer.reservationId, reservation.id))) continue;
+      // Same-slot groups can become due together. Spawning every character at
+      // the identical exterior point in one frame creates a zero-distance
+      // overlap that the directional separation solver cannot resolve. Pace
+      // presentation only; the authoritative arrival records remain current.
+      if (spawnedReservationCustomer) continue;
       spawnCustomer(true, reservation);
+      spawnedReservationCustomer = true;
     }
   }
 
@@ -8402,6 +8444,10 @@ export function makeClubhouse(ctx) {
   function resolveCustomer(c, nx, nz) {
     const r = 0.3;
     for (const col of custCols) {
+      // Door panels open automatically for customer walkers and are already
+      // excluded from the navigation bake below. Applying their closed-panel
+      // collider again here pins every otherwise-valid path at the threshold.
+      if (col.door) continue;
       if (nx + r > col.minX && nx - r < col.maxX && nz + r > col.minZ && nz - r < col.maxZ) {
         const pushLeft = nx + r - col.minX;
         const pushRight = col.maxX - (nx - r);
@@ -8421,8 +8467,15 @@ export function makeClubhouse(ctx) {
         nz = walk.z + ((nz - walk.z) / pd) * 0.72;
       }
     }
+    const cEntering = c.stops?.[c.stopIdx]?.kind === 'enter';
     for (const o of customers) {
       if (o === c) continue;
+      // The exterior door is a single-character choke point. Separation here
+      // fans simultaneous arrivals into a shoulder-to-shoulder wall across the
+      // threshold, so nobody can advance. Let actors already committed to the
+      // entrance lane pass through one another briefly; normal spacing resumes
+      // at the next stop and the counter owns the visible queue formation.
+      if (cEntering || o.stops?.[o.stopIdx]?.kind === 'enter') continue;
       const dx = nx - o.mesh.position.x;
       const dz = nz - o.mesh.position.z;
       const d = Math.hypot(dx, dz);
@@ -8880,6 +8933,11 @@ export function makeClubhouse(ctx) {
     poll += dt;
     if (poll > 1.1) {
       poll = 0;
+      // Reservation time advances in the simulation layer, but the physical
+      // golfer who walks through the clubhouse is owned here. Reconcile the
+      // two at the existing low-frequency shop poll so an arrived booking
+      // becomes a real lounge/counter customer without adding per-frame work.
+      updateArrivals();
       if (boxSignature() !== boxSig) rebuildBoxes(); // the truck came, or staff unboxed
       if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();

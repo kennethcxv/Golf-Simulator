@@ -10,7 +10,7 @@ import { calendarOf } from './time.js';
 import { amenityScore, clubRatings, demandMultiplier, fairGreenFee } from './club.js';
 import { addExpense, addRevenue, postLedgerEntry, recordOutcome, unbill } from './economy.js';
 import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
-import { allocateCustomerIdentity } from './customerIdentity.js';
+import { allocateCustomerIdentity, identityForReservation } from './customerIdentity.js';
 import { bankServiceCharge, serviceTicketByReference } from './register.js';
 import { beginCartTrip, cartReservationQuote, cartsRequiredForParty } from './cartFleet.js';
 
@@ -1286,6 +1286,52 @@ export function dueForCheckIn(state) {
     .sort((a, b) => (a.arrival.arrivedAtMinute - b.arrival.arrivedAtMinute) || (a.minute - b.minute));
 }
 
+// One durable state transition shared by the front-desk UI and the physical
+// register adapter. Payment remains owned by each caller, but both must grant
+// the same canonical course access, compatibility fields, events, and outcome.
+export function finalizeReservationCheckInState(state, reservation, options = {}) {
+  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+  const atMinute = Math.floor(options.atMinute ?? nowOf(state));
+  reservation.checkIn ||= { status: 'unconfirmed', confirmedAtMinute: null, checkedInAtMinute: null };
+  reservation.courseAccess ||= {
+    status: 'none', assignedCourse: 'main', startingHole: 1,
+    grantedAtMinute: null, departurePlannedAtMinute: null, departedAtMinute: null,
+  };
+  const already = reservation.checkIn.status === 'checked-in'
+    && ['granted', 'departed'].includes(reservation.courseAccess.status);
+
+  reservation.status = 'played';
+  reservation.reservationStatus = 'played';
+  reservation.checkIn.status = 'checked-in';
+  reservation.checkIn.checkedInAtMinute = atMinute;
+  reservation.checkInStatus = 'checked-in';
+  reservation.checkedInAt = atMinute;
+  reservation.currentDestination = 'course';
+  for (const member of reservation.party?.members || []) member.checkedIn = true;
+  reservation.courseAccess.status = 'granted';
+  reservation.courseAccess.grantedAtMinute = atMinute;
+  reservation.courseAccess.departurePlannedAtMinute = atMinute + bookOf(state).policy.autoDepartMinutesAfterCheckIn;
+
+  if (!already) {
+    emitOperationEvent(state, reservation, 'party-checked-in', atMinute, { partySize: reservation.partySize });
+    emitOperationEvent(state, reservation, 'party-ready-for-course', atMinute, {
+      assignedCourse: reservation.courseAccess.assignedCourse,
+      startingHole: reservation.courseAccess.startingHole,
+    });
+    recordOutcome(state, {
+      idempotencyKey: `golf-operations:${reservation.id}:checked-in`,
+      type: 'teeCheckIn',
+      count: reservation.partySize,
+      amount: reservation.payment?.total ?? reservation.fee ?? 0,
+      relatedId: reservation.id,
+      reason: `${reservation.reservationHolder}'s party checked in for its tee time.`,
+      day: calendarOf(atMinute).dayAbs,
+      metadata: { partySize: reservation.partySize, walkIn: reservation.walkIn },
+    });
+  }
+  return { ok: true, already, reservation, courseAccess: reservation.courseAccess };
+}
+
 export function checkInReservation(state, id, options = {}) {
   const reservation = reservationById(state, id);
   if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No open booking under that name.' };
@@ -1303,7 +1349,6 @@ export function checkInReservation(state, id, options = {}) {
     }) : { ok: true };
     if (!posted.ok) return posted;
     const atMinute = Math.floor(options.atMinute ?? nowOf(state));
-    reservation.status = 'played';
     reservation.payment.total = r2(reservation.fee ?? fee);
     reservation.payment.amountPaid = reservation.payment.total;
     reservation.payment.amountDue = 0;
@@ -1311,15 +1356,7 @@ export function checkInReservation(state, id, options = {}) {
     reservation.payment.method ||= 'legacy';
     reservation.paymentStatus = 'paid';
     reservation.paidAmount = fee;
-    reservation.checkIn.status = 'checked-in';
-    reservation.checkIn.checkedInAtMinute = atMinute;
-    reservation.checkInStatus = 'checked-in';
-    reservation.checkedInAt = atMinute;
-    reservation.currentDestination = 'course';
-    reservation.courseAccess.status = 'granted';
-    reservation.courseAccess.grantedAtMinute = atMinute;
-    reservation.courseAccess.departurePlannedAtMinute = atMinute + bookOf(state).policy.autoDepartMinutesAfterCheckIn;
-    for (const member of reservation.party.members) member.checkedIn = true;
+    finalizeReservationCheckInState(state, reservation, { atMinute });
     const cart = beginCartTrip(state, reservation, { at: atMinute });
     return { ok: true, reservation, res: reservation, fee, amountDue: 0, courseAccess: reservation.courseAccess, cart };
   }
@@ -1330,28 +1367,7 @@ export function checkInReservation(state, id, options = {}) {
     return { ok: false, reason: `$${reservation.payment.amountDue.toFixed(2)} is still due.`, amountDue: reservation.payment.amountDue };
   }
   const atMinute = Math.floor(options.atMinute ?? nowOf(state));
-  reservation.status = 'played';
-  reservation.checkIn.status = 'checked-in';
-  reservation.checkIn.checkedInAtMinute = atMinute;
-  for (const member of reservation.party.members) member.checkedIn = true;
-  reservation.courseAccess.status = 'granted';
-  reservation.courseAccess.grantedAtMinute = atMinute;
-  reservation.courseAccess.departurePlannedAtMinute = atMinute + bookOf(state).policy.autoDepartMinutesAfterCheckIn;
-  emitOperationEvent(state, reservation, 'party-checked-in', atMinute, { partySize: reservation.partySize });
-  emitOperationEvent(state, reservation, 'party-ready-for-course', atMinute, {
-    assignedCourse: reservation.courseAccess.assignedCourse,
-    startingHole: reservation.courseAccess.startingHole,
-  });
-  recordOutcome(state, {
-    idempotencyKey: `golf-operations:${reservation.id}:checked-in`,
-    type: 'teeCheckIn',
-    count: reservation.partySize,
-    amount: reservation.payment.total,
-    relatedId: reservation.id,
-    reason: `${reservation.reservationHolder}'s party checked in for its tee time.`,
-    day: calendarOf(atMinute).dayAbs,
-    metadata: { partySize: reservation.partySize, walkIn: reservation.walkIn },
-  });
+  finalizeReservationCheckInState(state, reservation, { atMinute });
   return {
     ok: true,
     reservation,
@@ -1630,6 +1646,11 @@ export function generateReservations(state, dayAbs, options = {}) {
       source: 'generated',
     });
     if (!result.ok) continue;
+    // Generated online bookings are production reservations, not anonymous
+    // statistical rows. Enrol the contact and party members immediately so a
+    // later autosave is a pure snapshot instead of creating hundreds of live
+    // customer identities as a side effect.
+    identityForReservation(state, result.res);
     if (rng.next() < 0.06) {
       const slotAbs = absoluteMinute(dayAbs, slot.minute);
       const advancePlan = slotAbs - (24 + rng.int(48)) * 60;
