@@ -126,7 +126,7 @@ test('receipt feed owns a fixed camera only until the customer handoff begins', 
     'mouse look cannot pan the printer out of frame while paper feeds');
 });
 
-test('declined-card cash fallback presents tender before opening the drawer camera', () => {
+test('declined-card cash fallback presents tender before accepting it into the drawer choreography', () => {
   const switchToCash = functionBody(registerSource, 'switchDeclinedCardToCash');
   const createTender = switchToCash.indexOf('createTender()');
   const presentationWorkspace = switchToCash.indexOf("setWorkspace('monitor')");
@@ -142,15 +142,15 @@ test('declined-card cash fallback presents tender before opening the drawer came
   );
 
   const acceptCash = functionBody(registerSource, 'acceptPresentedCash');
-  const layoutTender = acceptCash.indexOf('layoutAcceptedTender()');
+  const sortTender = acceptCash.indexOf('sortReceivedCash()');
   const drawerWorkspace = acceptCash.indexOf("setWorkspace('cash')");
-  assert.ok(layoutTender >= 0, 'accepting the tender lays every piece within reach');
+  assert.ok(sortTender >= 0, 'accepting the visible handful starts the physical deposit choreography');
   assert.ok(
-    layoutTender < drawerWorkspace,
-    'the cash workspace opens only after the unsorted tender is reachable',
+    sortTender < drawerWorkspace,
+    'the cash workspace opens only after the tender begins moving into the authored drawer',
   );
-  assert.doesNotMatch(acceptCash, /depositPiece|sortReceivedCash|openDrawer|drawerWant\s*=\s*1/,
-    'acceptance cannot sort money or open the drawer for the player');
+  assert.doesNotMatch(acceptCash, /depositPiece|openDrawer|drawerWant\s*=\s*1/,
+    'the acceptance edge delegates the choreography instead of duplicating its low-level mutations');
   assert.doesNotMatch(
     acceptCash,
     /setWorkspace\('monitor'\)/,

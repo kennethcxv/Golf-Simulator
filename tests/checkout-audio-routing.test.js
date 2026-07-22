@@ -206,8 +206,8 @@ test('bagging and automatic receipt cues remain transition-local one-shots', () 
   assert.equal(cueCalls(updateScanMotion, 'bagItem').length, 1,
     'a compact product landing in the bag owns one physical bag impact/rustle cue');
   assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1);
-  assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 2,
-    'retail and reservation fulfillment each own one mutually exclusive tear edge');
+  assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 1,
+    'retail and reservation fulfillment share one transition-local tear edge');
   assert.equal(cueCalls(updateDelivery, 'bagHandoff').length, 1,
     'the authored bag-handle ownership transfer owns one handoff cue');
 });

@@ -20,6 +20,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const FILES = [
+  'src/main.js',
+  'src/render3d/courseScene.js',
+  'src/render3d/clubhouse/simplifiedRegisterMode.js',
   'src/ui/courseEditor.js',
   'src/ui/courseCameraState.js',
   'src/sim/courseEditor.js',
@@ -106,6 +109,15 @@ function declaredNames(code) {
 
   for (const m of code.matchAll(/\b(?:function|class)\s*\*?\s*([A-Za-z_$][\w$]*)/g)) add(m[1]);
   for (const m of code.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) add(m[1]);
+  // Variable destructuring can sit inside a function body whose surrounding
+  // braces make the generic object-pattern scan below too conservative.
+  for (const m of code.matchAll(/\b(?:const|let|var)\s*\{([^{}]+)\}\s*=/g)) {
+    for (const part of m[1].split(',')) {
+      const binding = part.split(':').pop().split('=')[0].trim();
+      if (/^[A-Za-z_$][\w$]*$/.test(binding)) add(binding);
+    }
+  }
+  for (const m of code.matchAll(/\b(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g)) add(m[1]);
   // import { a, b as c } from '...'  /  import d from '...'  /  import * as ns
   for (const m of code.matchAll(/\bimport\s+([^;]+?)\s+from\b/g)) {
     for (const part of m[1].split(/[,{}]/)) {
@@ -153,6 +165,11 @@ function calledNames(code) {
     for (const m of lines[ln].matchAll(/(^|[^.\w$?])([A-Za-z_$][\w$]*)\s*\(/g)) {
       const name = m[2];
       if (KEYWORDS.has(name)) continue;
+      const rest = lines[ln].slice(m.index + m[0].length);
+      const close = rest.indexOf(')');
+      // Object/class method shorthand is a declaration, even though its
+      // `name(...) {` surface otherwise looks like a bare call to this guard.
+      if (close >= 0 && rest.slice(close + 1).trimStart().startsWith('{')) continue;
       if (!calls.has(name)) calls.set(name, ln + 1);
     }
   }

@@ -1147,22 +1147,33 @@ export function makeClubhouse(ctx) {
 
   const checkout = buildCheckout(B);
   const drawRegister = checkout.drawRegister;
-  const course1MunicipalEnvironment = createCourse1MunicipalEnvironment({
-    group,
-    interior,
-    shell,
-    doorApi: doorsApi,
-    sheet06Production,
-    addCollider: addCol,
-    removeCollider: removeCol,
-    addProp,
-    registeredColliders: registeredCols,
-    registeredProps,
-    removeProp,
-    hooks,
-    fixtureAnchors,
-    defaultFixtureIds: new Set(FIXTURES.map((fixture) => fixture.id)),
-  });
+  // The municipal replacement is the authored Course 1 property, not a global
+  // clubhouse skin. Applying its compact empty service spine to every holding
+  // suppresses the complete pro shop and puts an employee-room door through the
+  // checkout workstation on non-municipal properties.
+  const course1MunicipalEnvironment = state.property?.id === 'willow-creek'
+    ? createCourse1MunicipalEnvironment({
+      group,
+      interior,
+      shell,
+      doorApi: doorsApi,
+      sheet06Production,
+      addCollider: addCol,
+      removeCollider: removeCol,
+      addProp,
+      registeredColliders: registeredCols,
+      registeredProps,
+      removeProp,
+      hooks,
+      fixtureAnchors,
+      defaultFixtureIds: new Set(FIXTURES.map((fixture) => fixture.id)),
+    })
+    : Object.freeze({
+      ready: Promise.resolve(null),
+      update() {},
+      diagnostics: () => Object.freeze({ applicable: false, propertyId: state.property?.id || null }),
+      dispose: () => Object.freeze({ applicable: false, propertyId: state.property?.id || null }),
+    });
 
   function refreshCheckoutAvailability() {
     const counterReady = facilityInstalled(state, 'frontCounter');
@@ -9137,13 +9148,14 @@ export function makeClubhouse(ctx) {
       ),
       deliveryPhase: () => register.deliveryPhase(),
       hint: () => register.hint(),
+      insertAt: () => register.insertAt(),
       monitorActionPoint: (id) => register.monitorActionPoint(id),
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
+      cardKeyScreenPoint: (label) => register.cardKeyScreenPoint(label),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
       presentedCardScreenPoint: () => register.presentedCardScreenPoint(),
       cardTerminalScreenPoint: () => register.cardTerminalScreenPoint(),
-      swipeAt: () => register.swipeAt(),
       cardTerminalLocked: () => register.cardTerminalLocked(),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),

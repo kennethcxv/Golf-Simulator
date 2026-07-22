@@ -33,6 +33,9 @@ import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
+import { patchPoissonDenoiseMaterial } from './shaderPatches.js';
+import { makeCourseMaintenanceTextureState } from './courseMaintenanceVisuals.js';
+import { prepareFrameShadows, shouldRefreshPlanarReflection } from './renderBudget.js';
 import { clubhouseInteriorGtaoExcludedAt, makeClubhouse } from './clubhouse.js';
 import {
   makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture,
@@ -79,7 +82,7 @@ import {
   floraLodNeedsRefresh,
 } from './floraLod.js';
 import { floraWindEligible, floraWindStrength } from './floraWind.js';
-import { socketWorld } from './toolSockets.js';
+import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 import { DOOR_MAIN } from '../data/shopLayout.js';
@@ -5837,6 +5840,48 @@ export function makeCourseScene(canvas, state) {
     now: heldAssetNow,
   });
 
+  const courseEquipmentMaterials = new Map();
+  const optimizeCourseEquipment = (root) => {
+    // Preserve authored pivots while batching static siblings and sharing the
+    // small equipment material set across every loaded maintenance model.
+    root.traverse((object) => {
+      if (!object.isMesh || !object.material) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      const shared = materials.map((material) => {
+        const key = material.name || material.uuid;
+        if (!courseEquipmentMaterials.has(key)) courseEquipmentMaterials.set(key, material);
+        return courseEquipmentMaterials.get(key);
+      });
+      object.material = Array.isArray(object.material) ? shared : shared[0];
+    });
+    const batches = new Map();
+    root.traverse((object) => {
+      if (!object.isMesh || object.isSkinnedMesh || Array.isArray(object.material)) return;
+      if (object.name.startsWith('COLLISION_') || object.name.includes('_Pivot')) return;
+      const key = `${object.parent?.uuid || 'root'}:${object.material.uuid}`;
+      if (!batches.has(key)) batches.set(key, []);
+      batches.get(key).push(object);
+    });
+    for (const siblings of batches.values()) {
+      if (siblings.length < 2) continue;
+      const parent = siblings[0].parent;
+      if (!parent || siblings.some((object) => object.parent !== parent)) continue;
+      const geometries = siblings.map((object) => {
+        object.updateMatrix();
+        return object.geometry.clone().applyMatrix4(object.matrix);
+      });
+      const geometry = BufferGeometryUtils.mergeGeometries(geometries, false);
+      for (const item of geometries) item.dispose();
+      if (!geometry) continue;
+      const merged = new THREE.Mesh(geometry, siblings[0].material);
+      merged.name = `BATCH_${parent.name || 'Equipment'}_${siblings[0].material.name || 'Material'}`;
+      merged.castShadow = siblings.some((object) => object.castShadow);
+      merged.receiveShadow = siblings.some((object) => object.receiveShadow);
+      for (const object of siblings) parent.remove(object);
+      parent.add(merged);
+    }
+  };
+
   const TOOL_SPRAY = {
     hose: { color: 0xbfe2ff, size: 0.020 },
     divot: { color: 0x9a7c4e, size: 0.025 }, // soil from the repair mix
@@ -6303,6 +6348,7 @@ export function makeCourseScene(canvas, state) {
     }
     // placed props (repair yard, tools, signs): nearest one you're facing
     let bestProp = null;
+    let bestLabel = null;
     let bestScore = 1e9;
     for (const p of walkProps) {
       // Most props keep their stable XZ interaction origin. Authored moving
@@ -6346,8 +6392,10 @@ export function makeCourseScene(canvas, state) {
         focusDistance -= focusBias;
       }
       if (focusDistance >= bestScore) continue;
-      if (facing > 0.3 && p.label()) { // a falsy label = the prop is dormant right now
+      const label = facing > 0.3 ? p.label() : null;
+      if (label) { // a falsy label = the prop is dormant right now
         bestProp = p;
+        bestLabel = label;
         bestScore = focusDistance;
       }
     }
@@ -6751,11 +6799,6 @@ export function makeCourseScene(canvas, state) {
 
   function walkKeyDown(e) {
     const key = e.key.toLowerCase();
-    if (key === 'e' && !walkHeld.has(key)) {
-      holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold
-        ? walkFocus.prop
-        : null;
-    }
     walkHeld.add(key);
   }
   function walkKeyUp(e) {

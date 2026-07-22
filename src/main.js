@@ -6,7 +6,7 @@
 import { BALANCE } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
-  EMPIRE_VERSION, newEmpire, buyProperty, sellProperty, switchProperty, activeState,
+  EMPIRE_VERSION, newEmpire, buyProperty, sellProperty, confirmPropertySale, switchProperty, activeState,
   empireUpdate, empireSnapshot, deserializeEmpireWithReport,
 } from './sim/empire.js';
 import { SAVE_VERSION } from './sim/state.js';
@@ -14,6 +14,7 @@ import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
 import { calendarOf } from './sim/time.js';
+import { ensureReservationHorizon } from './sim/reservations.js';
 import {
   clearNotifications, clearToasts, confirmDialog, containFocus, el, modal, notify, setPromptText, toast,
 } from './ui/ui.js';
@@ -26,6 +27,7 @@ import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeCourseMaintenancePanel } from './ui/courseMaintenancePanel.js';
+import { makeGolfDayPanel } from './ui/golfDayPanel.js';
 import { makeLaptop } from './ui/laptop.js';
 import { makeSettingsPanel } from './ui/settingsPanel.js';
 import { makeToolWheel } from './ui/toolWheel.js';
@@ -34,6 +36,9 @@ import { makeAudio } from './core/audio.js';
 import {
   tickTutorial, tutorialFlag, skipTutorial, replayTutorial, triggerContextTutorial,
 } from './sim/tutorial.js';
+import { campaignView } from './sim/campaign.js';
+import { recordManualWork } from './sim/maintenanceOrders.js';
+import { liveGolfSummary, setGolfSimulationFocus } from './sim/golfDay.js';
 import { makeMenu } from './screens/menu.js';
 import {
   inspectData, loadDataWithStatus, saveData, summarizeSave,
@@ -47,6 +52,7 @@ import {
   unscannedCount as registerUnscannedCount,
 } from './sim/register.js';
 import { ownedWasher } from './sim/washing.js';
+import { deliveryEtaText } from './sim/deliveryEta.js';
 import { BELT_ORDER, CLEANING_TOOLS } from './data/cleaningTools.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
@@ -128,6 +134,7 @@ let laptopUi = null;
 let frontDeskUi = null;
 let objectivesPanel = null;
 let maintenancePanel = null;
+let golfDayPanel = null;
 let menu = null;
 let gameUi = null;
 let toolWheel = null;
@@ -444,6 +451,37 @@ function closeLeftPanels(except) {
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
+}
+
+const MAINTENANCE_EQUIPMENT_FOR_TOOL = {
+  hose: 'hose',
+  divot: 'divotKit',
+  ballmark: 'ballMarkFork',
+  rake: 'bunkerRake',
+  debris: 'debrisBag',
+  fungicide: 'hose',
+  spreader: 'spreader',
+  greensMower: 'greensMower',
+};
+
+function setMaintenanceVisible(next) {
+  if (!maintenancePanel || !app.state?.courseMaintenance) return;
+  toggleCourseInspection(app.state, !!next);
+  maintenancePanel.setVisible(!!next);
+  if (app.scene3d) app.scene3d.updateCourseMaintenance(app.state, true);
+  if (next && document.pointerLockElement) document.exitPointerLock();
+}
+
+function selectMaintenanceTool(tool) {
+  const walk = app.scene3d?.walk;
+  if (!walk || walk.cart.mounted) return;
+  walk.setTool(tool);
+  const equipmentId = MAINTENANCE_EQUIPMENT_FOR_TOOL[tool];
+  if (equipmentId && walk.hooks.selectMaintenanceEquipment) {
+    walk.hooks.selectMaintenanceEquipment(equipmentId);
+  }
+  if (audio.ready) audio.equipTick();
+  if (maintenancePanel) maintenancePanel.refresh(true);
 }
 
 function showFirstDaySummary() {
@@ -1724,6 +1762,14 @@ function endToolKey() {
   toolHoldOpened = false;
 }
 
+function cancelToolKey() {
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolKeyStarted = 0;
+  toolHoldOpened = false;
+  stopToolUse();
+}
+
 function stopToolUse() {
   if (!app.scene3d?.walk) return;
   app.scene3d.walk.setSpraying(false);
@@ -2071,6 +2117,7 @@ window.addEventListener('keydown', (e) => {
       }
       case 'i': case 'I':
         setMaintenanceVisible(!maintenancePanel?.isVisible());
+        break;
       case 'l': case 'L':
         if (!e.repeat && app.scene3d.walk.toggleVehicleLights) app.scene3d.walk.toggleVehicleLights();
         break;
@@ -2742,6 +2789,12 @@ function boot() {
   clubPanel = makeClubPanel(app, recomputeRating);
   empirePanel = makeEmpirePanel(app, handlers);
   objectivesPanel = makeObjectivesPanel(app, { getContext: presentationMode });
+  golfDayPanel = makeGolfDayPanel(app);
+  maintenancePanel = makeCourseMaintenancePanel(app, {
+    setVisible: setMaintenanceVisible,
+    toggleInspection: () => setMaintenanceVisible(!app.state?.courseMaintenance?.inspection.active),
+    selectTool: selectMaintenanceTool,
+  });
   toolWheel = makeToolWheel({
     audio,
     onSelect: selectWalkTool,
@@ -2787,7 +2840,7 @@ function boot() {
   viewButtons[0].classList.add('active-tool');
   const viewToggle = el('div', { class: 'view-toggle', style: 'display:none' }, ...viewButtons);
 
-  gameUi.append(hud.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root,
+  gameUi.append(hud.root, golfDayPanel.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, maintenancePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root,
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);

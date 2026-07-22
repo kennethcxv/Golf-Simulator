@@ -803,7 +803,36 @@ async function cashRoute(page, shot) {
       // adjacent angled bill after a stack has been depleted.
       const slot = await projectObject(page, { kind: 'money', from: 'drawer', denom })
         || await projectObject(page, { kind: 'drawer-slot', denom });
-      assert(slot && slot.inView, `Change slot ${denom} is not visible.`);
+      if (!slot || !slot.inView) {
+        const diagnostic = await page.evaluate(async (wanted) => {
+          const THREE = await import('/vendor/three.module.js');
+          const app = window.__fw;
+          const matches = [];
+          app.scene3d.clubhouse().interior.traverse((object) => {
+            if (!object.userData || Number(object.userData.denom) !== Number(wanted)) return;
+            if (object.userData.kind !== 'drawer-slot' && object.userData.from !== 'drawer') return;
+            const world = object.getWorldPosition(new THREE.Vector3());
+            const projected = world.clone().project(app.scene3d.camera);
+            matches.push({
+              name: object.name || '(unnamed)',
+              kind: object.userData.kind,
+              from: object.userData.from,
+              visible: object.visible,
+              parent: object.parent?.name || null,
+              world: world.toArray(),
+              projected: projected.toArray(),
+            });
+          });
+          const tx = app.scene3d.clubhouse().register.getTx();
+          const register = await import('/src/sim/register.js');
+          return {
+            matches,
+            drawer: register.drawerContents(tx, app.state.shop.drawer),
+            hand: tx?.hand,
+          };
+        }, denom);
+        throw new Error(`Change slot ${denom} is not visible: ${JSON.stringify(diagnostic)}.`);
+      }
       // A depleted bill well exposes more of the neighbouring angled stack.
       // Resolve a point that the production raycaster currently identifies as
       // this denomination, then still exercise it through a real mouse click.
@@ -837,7 +866,13 @@ async function cashRoute(page, shot) {
         return Math.round(Object.entries(tx?.hand || {}).reduce(
           (sum, [value, quantity]) => sum + Number(value) * Number(quantity), 0,
         ) * 100) === expected;
-      }, expectedCents, { timeout: 8000 });
+      }, expectedCents, { timeout: 8000 }).catch(async (error) => {
+        const after = await givingFacts();
+        const picked = await page.evaluate(({ x, y }) => (
+          window.__fw.scene3d.clubhouse().register.debugPickAt(x, y)
+        ), target);
+        throw new Error(`${error.message}; denom=${denom}; before=${JSON.stringify(before)}; after=${JSON.stringify(after)}; target=${JSON.stringify(target)}; pickedAfter=${JSON.stringify(picked)}`);
+      });
       await page.waitForTimeout(130);
     }
   };
@@ -967,6 +1002,12 @@ async function cashRoute(page, shot) {
     window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
   ), null, { timeout: 10000 });
   await waitCamera(page, 'monitor');
+  const cashReceiptVisibilityEvidence = await projectObject(page, { kind: 'receipt' });
+  assert(cashReceiptVisibilityEvidence?.inView && cashReceiptVisibilityEvidence.fullyInView,
+    'The cash receipt did not remain fully visible during printer focus.');
+  assert(cashReceiptVisibilityEvidence.screenBounds.width >= 45
+      && cashReceiptVisibilityEvidence.screenBounds.height >= 80,
+  `The cash receipt printed too small to read (${Math.round(cashReceiptVisibilityEvidence.screenBounds.width)}x${Math.round(cashReceiptVisibilityEvidence.screenBounds.height)} px).`);
   await shot('12b-receipt-printing.png');
   await shot('12-exact-change-confirmed.png');
   return {
@@ -974,6 +1015,7 @@ async function cashRoute(page, shot) {
     midpoint: drawerTravelMidpoint,
     cashHandoff,
     receiptPrintCaptured: true,
+    receiptVisibilityEvidence: cashReceiptVisibilityEvidence,
   };
 }
 
@@ -1133,17 +1175,21 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   let receiptVisibilityEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-  ), null, { timeout: 10000 });
-  await waitCamera(page, 'monitor');
-  receiptVisibilityEvidence = await projectObject(page, { kind: 'receipt' });
-  assert(receiptVisibilityEvidence?.inView && receiptVisibilityEvidence.fullyInView,
-    'The physical receipt did not remain fully visible during printer focus.');
-  assert(receiptVisibilityEvidence.screenBounds.width >= 45
-      && receiptVisibilityEvidence.screenBounds.height >= 80,
-  `The physical receipt printed too small to read (${Math.round(receiptVisibilityEvidence.screenBounds.width)}x${Math.round(receiptVisibilityEvidence.screenBounds.height)} px).`);
-  await shot('12b-receipt-printing.png');
+  if (cashDrawerTravelEvidence?.receiptPrintCaptured) {
+    receiptVisibilityEvidence = cashDrawerTravelEvidence.receiptVisibilityEvidence;
+  } else {
+    await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+    ), null, { timeout: 10000 });
+    await waitCamera(page, 'monitor');
+    receiptVisibilityEvidence = await projectObject(page, { kind: 'receipt' });
+    assert(receiptVisibilityEvidence?.inView && receiptVisibilityEvidence.fullyInView,
+      'The physical receipt did not remain fully visible during printer focus.');
+    assert(receiptVisibilityEvidence.screenBounds.width >= 45
+        && receiptVisibilityEvidence.screenBounds.height >= 80,
+    `The physical receipt printed too small to read (${Math.round(receiptVisibilityEvidence.screenBounds.width)}x${Math.round(receiptVisibilityEvidence.screenBounds.height)} px).`);
+    await shot('12b-receipt-printing.png');
+  }
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';

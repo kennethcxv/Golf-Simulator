@@ -115,7 +115,8 @@ async function runUnlocked() {
       await page.goto(QA_BASE_URL);
       await page.waitForFunction(() => document.readyState === 'complete');
       const requestedPropertyId = String(process.env.QA_BOOTSTRAP_PROPERTY_ID || 'willow-creek');
-      await page.evaluate(async (propertyId) => {
+      const operationalShop = process.env.QA_BOOTSTRAP_OPERATIONAL_SHOP === '1';
+      await page.evaluate(async ({ propertyId, operationalShop: makeOperational }) => {
         const E = await import('/src/sim/empire.js');
         const empire = E.newEmpire('relaxed', 424242);
         empire.cash = 10_000_000;
@@ -124,8 +125,25 @@ async function runUnlocked() {
         if (!bought.ok) throw new Error(`QA property bootstrap failed: ${bought.reason}`);
         bought.state.tutorial.complete = true;
         bought.state.tutorial.hidden = true;
+        if (makeOperational) {
+          // Campaign properties deliberately start closed and stripped for the
+          // restoration arc. Register QA needs the equally real post-install
+          // state before the scene mounts, so activate only the facilities the
+          // physical checkout route owns and restore their authored fixtures.
+          const C = await import('/src/sim/campaign.js');
+          const L = await import('/src/sim/layout.js');
+          const facilities = C.ensureCampaignFacilities(bought.state);
+          facilities.displayShelves = true;
+          facilities.frontCounter = true;
+          facilities.registerHardware = true;
+          for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small', 'backcounter']) {
+            L.restoreFixture(bought.state, id);
+          }
+          bought.state.campaign.businessOpen = true;
+          bought.state.campaign.openedAt = bought.state.clock.minutes;
+        }
         localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
-      }, requestedPropertyId);
+      }, { propertyId: requestedPropertyId, operationalShop });
     }
     const result = await run(page);
     const resultJson = `${JSON.stringify(result, null, 2)}\n`;
