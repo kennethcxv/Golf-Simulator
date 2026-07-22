@@ -20,7 +20,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHOP_CATALOG, skuById, RETAIL_CATS } from '../src/data/shopItems.js';
 import { FIXTURES, FIXTURE_HALF } from '../src/data/shopLayout.js';
-import { slotsFor, capacityOf, homeFixture, laneOf } from '../src/data/fixtureSlots.js';
+import {
+  slotsFor, capacityOf, homeFixture, laneOf, stockPresentationState, visibleSlotsFor,
+} from '../src/data/fixtureSlots.js';
 import { shelfCapacity } from '../src/sim/shop.js';
 
 const onSale = SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat));
@@ -50,6 +52,15 @@ test('a golf-bag platform holds four bags, not twenty-four', () => {
   assert.equal(shelfCapacity(skuById('bag1')), 4);
   // and the category default it used to inherit is nothing to do with it
   assert.notEqual(capacityOf('bag1'), capacityOf('tees1'));
+});
+
+test('outerwear has one lane on the shared apparel wall', () => {
+  const wall = homeFixture('jacket2');
+  assert.equal(wall.id, 'shelf_small');
+  assert.equal(wall.kind, 'apparelwall');
+  assert.ok(wall.skus.includes('jacket2'));
+  assert.equal(capacityOf('jacket2'), 6);
+  assert.ok(slotsFor('jacket2').every((slot) => slot.folded && slot.wall));
 });
 
 test('no two items on a fixture stand in the same place', () => {
@@ -106,4 +117,16 @@ test('slots are ordered so a part-full shelf fills from the bottom, not from thi
   assert.ok(s[0].y <= s[s.length - 1].y, 'the first slots are the low ones');
   const firstBoard = s.slice(0, 5).map((p) => p.y);
   assert.ok(Math.max(...firstBoard) - Math.min(...firstBoard) < 0.01, 'and the first five share a board');
+});
+
+test('empty, partial and full visual states show exactly the saved quantity', () => {
+  for (const sku of onSale) {
+    const cap = capacityOf(sku.id);
+    const partial = Math.max(1, Math.floor(cap / 2));
+    assert.deepEqual(stockPresentationState(sku.id, 0), { count: 0, capacity: cap, state: 'empty' });
+    assert.deepEqual(stockPresentationState(sku.id, partial), { count: partial, capacity: cap, state: 'partial' });
+    assert.deepEqual(stockPresentationState(sku.id, cap), { count: cap, capacity: cap, state: 'full' });
+    assert.equal(visibleSlotsFor(sku.id, cap + 99).length, cap, `${sku.id} cannot render phantom overflow`);
+    assert.equal(visibleSlotsFor(sku.id, -5).length, 0, `${sku.id} cannot render negative stock`);
+  }
 });

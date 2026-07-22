@@ -12,22 +12,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
-import { FIXTURES, INTERIOR, COUNTER, DOOR_CLEARWAY, fixtureRect } from '../src/data/shopLayout.js';
 import {
-  ensureLayout, placedFixtures, fixtureById, validatePlacement, commitPlacement,
+  FIXTURES, INTERIOR, COUNTER, DOOR_CLEARWAY, fixtureRect, fixtureBrowsePoint,
+} from '../src/data/shopLayout.js';
+import {
+  ensureLayout, placedFixtures, activeFixtures, fixtureById, validatePlacement, commitPlacement,
   storeFixture, storedFixtures, restoreFixture, routesIntact, GRID,
 } from '../src/sim/layout.js';
 
 const fresh = () => {
   const st = newGame('relaxed', 6);
+  st.shop.progression.tier = 'luxury';
   ensureLayout(st);
   return st;
 };
+const LEGACY_FIXTURES = FIXTURES.filter((fixture) => !fixture.generatedOnly);
 
 test('an untouched shop is exactly the designed floor plan', () => {
   const st = fresh();
   const placed = placedFixtures(st);
-  assert.equal(placed.length, FIXTURES.length);
+  assert.equal(placed.length, LEGACY_FIXTURES.length);
   for (const f of placed) {
     const orig = FIXTURES.find((o) => o.id === f.id);
     assert.equal(f.x, orig.x);
@@ -36,9 +40,22 @@ test('an untouched shop is exactly the designed floor plan', () => {
   assert.equal(routesIntact(st), true, 'and it is, of course, a shop you can walk around');
 });
 
+test('supplier tiers change the physical fixture set without phantom colliders', () => {
+  const st = fresh();
+  st.shop.progression.tier = 'standard';
+  assert.equal(activeFixtures(st).some((f) => f.id === 'rack_putters'), false);
+  assert.equal(activeFixtures(st).some((f) => f.id === 'feature'), false);
+  assert.equal(routesIntact(st), true, 'the standard floor routes without hidden premium solids');
+
+  st.shop.progression.tier = 'premium';
+  assert.equal(activeFixtures(st).some((f) => f.id === 'rack_putters'), true);
+  assert.equal(activeFixtures(st).some((f) => f.id === 'feature'), true);
+  assert.equal(routesIntact(st), true, 'premium fixtures and their experience sockets remain reachable');
+});
+
 test('the default plan validates: every fixture is legal where it already is', () => {
   const st = fresh();
-  for (const f of FIXTURES) {
+  for (const f of LEGACY_FIXTURES) {
     const r = validatePlacement(st, f.id, f.x, f.z, f.ry || 0);
     assert.equal(r.ok, true, `${f.id} is legal where the designer put it: ${r.reasons.join(', ')}`);
   }
@@ -79,9 +96,25 @@ test('a fixture may not be dropped in the till workspace', () => {
   assert.ok(r.reasons.some((x) => /checkout|till|counter/i.test(x)), `says why: ${r.reasons.join(', ')}`);
 });
 
+test('a moved fixture is rejected when its authored local-front browse target leaves the shop', () => {
+  const st = fresh();
+  st.shop.progression.tier = 'premium';
+  const feature = FIXTURES.find((fixture) => fixture.id === 'rack_drivers');
+  const candidate = { ...feature, x: 6.5, z: 5.5, ry: 0 };
+  const target = fixtureBrowsePoint(candidate);
+  assert.ok(target.z > INTERIOR.d / 2, 'the runtime local +Z browse pose is beyond the south wall');
+
+  const result = validatePlacement(st, candidate.id, candidate.x, candidate.z, candidate.ry);
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasons.some((reason) => /customers could not (?:get around|reach a required area)/i.test(reason)),
+    `the authored customer target is part of candidate routing: ${result.reasons.join(', ')}`,
+  );
+});
+
 test('a legal move sticks, and moves the fixture', () => {
   const st = fresh();
-  const f = FIXTURES.find((x) => x.kind === 'hatstand');
+  const f = FIXTURES.find((x) => x.kind === 'hatwall' || x.kind === 'hatstand');
 
   // find somewhere the game itself says is legal, rather than guessing at a gap in the plan
   let spot = null;

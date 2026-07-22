@@ -1,0 +1,27 @@
+{
+ "id": "pf_marker_enamel",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.032,
+  0.032,
+  0.0042
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "MarkerEnamel:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_enamel.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_enamel.blend",
+ "name": "Enamel Tee Marker",
+ "variant": "green",
+ "price": 9.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

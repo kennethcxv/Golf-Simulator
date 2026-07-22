@@ -1,0 +1,90 @@
+{
+ "id": "pf_display_accessory_rack_t3",
+ "kind": "fixtures",
+ "category": "store_displays/accessory_rack",
+ "dims_m": [
+  1.5,
+  0.5,
+  2.02
+ ],
+ "min_z": 0.0,
+ "tris": 6884,
+ "textures": [
+  "NRM_wood_0.6_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSOak:1024x512"
+ ],
+ "sockets": [
+  "ACCESSORY_HOOK_SLOT_01",
+  "ACCESSORY_HOOK_SLOT_02",
+  "ACCESSORY_HOOK_SLOT_03",
+  "ACCESSORY_HOOK_SLOT_04",
+  "ACCESSORY_HOOK_SLOT_05",
+  "ACCESSORY_HOOK_SLOT_06",
+  "ACCESSORY_HOOK_SLOT_07",
+  "ACCESSORY_HOOK_SLOT_08",
+  "ACCESSORY_HOOK_SLOT_09",
+  "ACCESSORY_HOOK_SLOT_10",
+  "ACCESSORY_HOOK_SLOT_11",
+  "ACCESSORY_HOOK_SLOT_12",
+  "ACCESSORY_HOOK_SLOT_13",
+  "ACCESSORY_HOOK_SLOT_14",
+  "ACCESSORY_HOOK_SLOT_15",
+  "ACCESSORY_HOOK_SLOT_16",
+  "ACCESSORY_HOOK_SLOT_17",
+  "ACCESSORY_HOOK_SLOT_18",
+  "ACCESSORY_HOOK_SLOT_19",
+  "ACCESSORY_HOOK_SLOT_20",
+  "ACCESSORY_HOOK_SLOT_21",
+  "ACCESSORY_HOOK_SLOT_22",
+  "ACCESSORY_HOOK_SLOT_23",
+  "ACCESSORY_HOOK_SLOT_24",
+  "ACCESSORY_HOOK_SLOT_25",
+  "ACCESSORY_HOOK_SLOT_26",
+  "ACCESSORY_HOOK_SLOT_27",
+  "ACCESSORY_HOOK_SLOT_28",
+  "ACCESSORY_HOOK_SLOT_29",
+  "ACCESSORY_HOOK_SLOT_30"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_accessory_rack_t3.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/accessory_rack/pf_display_accessory_rack_t3.blend",
+ "name": "Accessory Rack - Tier 3 Premium",
+ "variant": "lodge_crafted",
+ "tier": 3,
+ "quality": "Premium",
+ "price_band": 3,
+ "material_story": "thick charcoal frame, crafted oak, restrained brass",
+ "size_grade": 3,
+ "material_grade": 3,
+ "custom_woodwork_level": 2,
+ "fixture_complexity_grade": 3,
+ "integrated_light_count": 2,
+ "target_dimensions_m": [
+  1.5,
+  0.5,
+  2.02
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}

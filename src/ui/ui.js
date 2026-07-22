@@ -6,9 +6,12 @@ export function el(tag, attrs = {}, ...children) {
   for (const [key, value] of Object.entries(attrs)) {
     if (key === 'class') node.className = value;
     else if (key === 'text') node.textContent = value;
-    else if (key === 'html') node.innerHTML = value;
     else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2), value);
-    else if (value !== undefined && value !== null && value !== false) node.setAttribute(key, value === true ? '' : value);
+    // Boolean attributes (disabled, checked, ...) are present/absent, not "true"/"false":
+    // setAttribute('disabled', false) yields disabled="false", which still disables the node.
+    else if (value === true) node.setAttribute(key, '');
+    else if (value === false) node.removeAttribute(key);
+    else if (value !== undefined && value !== null) node.setAttribute(key, value);
   }
   for (const child of children) {
     if (child == null) continue;
@@ -148,7 +151,7 @@ export function dismissNotification(id) {
   if (activeIndex >= 0) {
     const [item] = visibleNotifications.splice(activeIndex, 1);
     clearTimeout(item.timer);
-    item.node?.classList.add('is-leaving');
+    item.node?.classList.toggle('is-leaving', true);
     setTimeout(() => item.node?.remove(), 180);
     setTimeout(showNextNotification, 190);
     return true;
@@ -212,6 +215,12 @@ export function clearNotifications(predicate = () => true) {
   }
 }
 
+// Compatibility name used by the course editor while the rest of the game
+// moves to the categorized notification center.
+export function clearToasts() {
+  clearNotifications();
+}
+
 function inferCategory(message, kind) {
   const text = String(message).toLowerCase();
   if (kind === 'warn' || kind === 'danger') return 'invalid';
@@ -231,7 +240,6 @@ export function toast(message, kind = '', options = {}) {
 }
 
 export function modal(title, buildBody, options = {}) {
-  if (typeof options === 'function') options = { onClose: options };
   const titleId = `dialog-title-${Math.random().toString(36).slice(2)}`;
   const backdrop = el('div', { class: `modal-backdrop${options.backdropClass ? ` ${options.backdropClass}` : ''}` });
   const box = el('div', {

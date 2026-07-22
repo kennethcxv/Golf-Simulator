@@ -17,7 +17,14 @@ export function chooseSwingAngle(door, openerLx, openerLz) {
 export function hingeBearing(door, lx, lz) {
   const dx = lx - door.lx;
   const dz = lz - door.lz;
-  return door.along === 'x' ? Math.atan2(-dz, dx) : Math.atan2(dx, dz);
+  // Most legacy doors extend from their low-coordinate hinge (`closedSign=1`).
+  // A double door's opposite leaf extends from the high-coordinate hinge, so
+  // measure that leaf in its mirrored closed frame without changing the shared
+  // swept-volume rule.
+  const closedSign = door.closedSign === -1 ? -1 : 1;
+  return door.along === 'x'
+    ? Math.atan2(-closedSign * dz, closedSign * dx)
+    : Math.atan2(closedSign * dx, closedSign * dz);
 }
 
 // Would closing this door sweep the slab through an actor standing at (lx, lz)?

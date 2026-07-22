@@ -1,0 +1,30 @@
+{
+ "id": "pf_hat_performance",
+ "kind": "products",
+ "category": "hats",
+ "dims_m": [
+  0.2626,
+  0.2732,
+  0.138
+ ],
+ "min_z": -0.0068,
+ "tris": 3464,
+ "textures": [
+  "HatRopeSpeck:128x32",
+  "HatSagePerfV2:512x512",
+  "NRM_knit_1.0_512:512x512",
+  "RGH_knit_0.62:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hat_performance.glb",
+ "blend": "assets/pro_shop/source/products/hats/pf_hat_performance.blend",
+ "name": "PF Performance Perf Cap",
+ "variant": "sage",
+ "price": 32.99,
+ "fixture": "pf_fixture_hat_wall",
+ "slot_type": "hat_shelf",
+ "packaging": "none"
+}

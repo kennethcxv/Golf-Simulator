@@ -1,0 +1,29 @@
+{
+ "id": "pf_hanger_clip",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.34,
+  0.0397,
+  0.1515
+ ],
+ "min_z": -0.138,
+ "tris": 848,
+ "textures": [
+  "NRM_wood_0.6_512:512x512",
+  "PSOak:1024x512"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hanger_clip.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_hanger_clip.blend",
+ "name": "Pf Hanger Clip",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

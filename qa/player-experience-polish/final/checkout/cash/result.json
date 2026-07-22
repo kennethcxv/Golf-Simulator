@@ -1,0 +1,21 @@
+{
+  "failed": true,
+  "error": "page.waitForFunction: Timeout 15000ms exceeded.\n    at untilStage (<anonymous>:58:51)\n    at eval (<anonymous>:322:11)\n    at async file:///C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-player-experience-polish/tools/qa/player-experience-checkout-baseline.mjs:79:21",
+  "errorCount": 1,
+  "diagnostic": {
+    "registerActive": true,
+    "transaction": {
+      "stage": "cash-drawer",
+      "method": "cash",
+      "scanned": 2,
+      "bagged": 0,
+      "items": 2,
+      "tenderedTotal": 80,
+      "drawerOpen": true,
+      "receiptPrinted": false,
+      "banked": false
+    },
+    "visibleText": "Select exactly $14.00 change · holding $9.00 · hand it to the customer · Esc step back"
+  },
+  "log": []
+}

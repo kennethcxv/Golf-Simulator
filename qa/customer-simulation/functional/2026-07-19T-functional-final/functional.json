@@ -1,0 +1,230 @@
+{
+  "stamp": "2026-07-19T-functional-final",
+  "url": "http://127.0.0.1:8464/",
+  "protocol": "normal E front-desk controls, real patience timing, physical half-scan, game autosave, real reload",
+  "frontDesk": [
+    {
+      "id": "early-reservation",
+      "kind": "reservation",
+      "nowMinute": 600,
+      "slotMinute": 630,
+      "expectSuccess": true,
+      "setup": {
+        "actorId": "customer-1",
+        "reservationId": 1,
+        "fee": 32,
+        "cashBefore": 54500
+      },
+      "result": {
+        "state": "Check-in",
+        "checkInSuccess": 1,
+        "reason": "reservation confirmed",
+        "reservationStatus": "played",
+        "cashDelta": 32,
+        "serviceQueue": [
+          "customer-1"
+        ]
+      },
+      "screenshots": [
+        "screenshots/early-reservation-before-service.png",
+        "screenshots/early-reservation-after-service.png"
+      ],
+      "passed": true
+    },
+    {
+      "id": "on-time-reservation",
+      "kind": "reservation",
+      "nowMinute": 600,
+      "slotMinute": 600,
+      "expectSuccess": true,
+      "setup": {
+        "actorId": "customer-2",
+        "reservationId": 2,
+        "fee": 32,
+        "cashBefore": 54532
+      },
+      "result": {
+        "state": "Check-in",
+        "checkInSuccess": 1,
+        "reason": "reservation confirmed",
+        "reservationStatus": "played",
+        "cashDelta": 32,
+        "serviceQueue": [
+          "customer-2"
+        ]
+      },
+      "screenshots": [
+        "screenshots/on-time-reservation-before-service.png",
+        "screenshots/on-time-reservation-after-service.png"
+      ],
+      "passed": true
+    },
+    {
+      "id": "late-reservation",
+      "kind": "reservation",
+      "nowMinute": 630,
+      "slotMinute": 600,
+      "expectSuccess": true,
+      "setup": {
+        "actorId": "customer-3",
+        "reservationId": 3,
+        "fee": 32,
+        "cashBefore": 54564
+      },
+      "result": {
+        "state": "Check-in",
+        "checkInSuccess": 1,
+        "reason": "reservation confirmed",
+        "reservationStatus": "played",
+        "cashDelta": 32,
+        "serviceQueue": [
+          "customer-3"
+        ]
+      },
+      "screenshots": [
+        "screenshots/late-reservation-before-service.png",
+        "screenshots/late-reservation-after-service.png"
+      ],
+      "passed": true
+    },
+    {
+      "id": "missed-window",
+      "kind": "reservation",
+      "nowMinute": 660,
+      "slotMinute": 600,
+      "expectSuccess": false,
+      "setup": {
+        "actorId": "customer-4",
+        "reservationId": 4,
+        "fee": 32,
+        "cashBefore": 54596
+      },
+      "result": {
+        "state": "Leaving",
+        "checkInSuccess": 0,
+        "reason": "late-arrival policy declined check-in",
+        "reservationStatus": "booked",
+        "cashDelta": 0,
+        "serviceQueue": []
+      },
+      "screenshots": [
+        "screenshots/missed-window-before-service.png",
+        "screenshots/missed-window-after-service.png"
+      ],
+      "passed": true
+    },
+    {
+      "id": "walk-in",
+      "kind": "walk-in",
+      "nowMinute": 660,
+      "slotMinute": null,
+      "expectSuccess": true,
+      "setup": {
+        "actorId": "customer-5",
+        "reservationId": null,
+        "fee": 32,
+        "cashBefore": 54596
+      },
+      "result": {
+        "state": "Check-in",
+        "checkInSuccess": 1,
+        "reason": "walk-in tee time confirmed",
+        "reservationStatus": null,
+        "cashDelta": 32,
+        "serviceQueue": [
+          "customer-5"
+        ]
+      },
+      "screenshots": [
+        "screenshots/walk-in-before-service.png",
+        "screenshots/walk-in-after-service.png"
+      ],
+      "passed": true
+    }
+  ],
+  "abandonment": {
+    "setup": {
+      "firstId": "customer-6",
+      "secondId": "customer-7",
+      "secondUid": "customer-unit-2",
+      "shelfBeforeWait": 2,
+      "lostSalesBefore": 0
+    },
+    "result": {
+      "state": "Leaving",
+      "reason": "the service wait exceeded their patience",
+      "cartCount": 0,
+      "heldUidCount": 0,
+      "shelfAfterWait": 3,
+      "lostSales": 1
+    },
+    "screenshot": "screenshots/patience-abandonment.png",
+    "passed": true
+  },
+  "saveReload": {
+    "setup": {
+      "id": "customer-1",
+      "name": "Dot Holt",
+      "uids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ]
+    },
+    "preSave": {
+      "bytes": 333817,
+      "state": "Waiting for cashier",
+      "cartUids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ],
+      "heldUids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ],
+      "scanned": 1,
+      "revenue": 0
+    },
+    "firstReload": {
+      "matchingCustomers": 1,
+      "state": "Waiting for cashier",
+      "cartUids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ],
+      "heldUids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ],
+      "queueCount": 1,
+      "transactionRelationship": null,
+      "revenue": 0,
+      "units": 0
+    },
+    "secondReload": {
+      "matchingCustomers": 1,
+      "state": "Waiting for cashier",
+      "cartUids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ],
+      "heldUids": [
+        "customer-unit-1",
+        "customer-unit-2"
+      ],
+      "queueCount": 1,
+      "transactionRelationship": null,
+      "revenue": 0,
+      "units": 0
+    },
+    "screenshots": [
+      "screenshots/save-half-scanned.png",
+      "screenshots/save-first-reload.png",
+      "screenshots/save-second-reload.png"
+    ],
+    "passed": true
+  },
+  "errors": [],
+  "errorCount": 0,
+  "videoPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\functional\\2026-07-19T-functional-final\\video\\page@58593a106947466d1af2416d8baf850b.webm",
+  "passed": true
+}

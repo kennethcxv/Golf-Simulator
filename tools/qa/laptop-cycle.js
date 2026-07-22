@@ -16,6 +16,12 @@ async (page) => {
   // wrapping addEventListener BEFORE the first entry.
 
   const errs = [];
+  const fs = process.getBuiltinModule('node:fs');
+  const path = process.getBuiltinModule('node:path');
+  const out = path.join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'laptop', 'cycle',
+  );
+  fs.mkdirSync(out, { recursive: true });
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
   const QA_ROOT = (process.env.GOLF_FLIPPER_QA_ROOT || `${process.cwd()}/qa`).replaceAll('\\', '/');
@@ -109,6 +115,23 @@ async (page) => {
     const app = window.__fw;
     const cam = app.scene3d.camera;
     const walk = app.scene3d.walk;
+    const ch = app.scene3d.clubhouse();
+    // The chair and the laptop must still be in the scene AND visible after the
+    // last exit — the reported bug was one of them vanishing after laptop mode.
+    let chair = null; let laptop = null;
+    ch.interior.traverse((o) => {
+      const n = (o.name || '').toLowerCase();
+      if (!chair && n.includes('chair') && o.parent) chair = o;
+      if (!laptop && n.includes('laptop') && o.parent) laptop = o;
+    });
+    const shownInWorld = (obj) => {
+      if (!obj) return false;
+      for (let p = obj; p; p = p.parent) if (p.visible === false) return false;
+      return true;
+    };
+    const info = app.scene3d.renderer ? app.scene3d.renderer.info : null;
+    let nodes = 0;
+    ch.interior.traverse(() => { nodes += 1; });
     return {
       roots: document.querySelectorAll('.laptop-screen').length,
       visible: [...document.querySelectorAll('.laptop-screen')].filter((r) => r.style.display !== 'none').length,
@@ -123,8 +146,18 @@ async (page) => {
       walkOverlayVisible: (() => { const o = document.querySelector('.walk-overlay'); return o ? o.style.display !== 'none' : null; })(),
       viewToggleVisible: (() => { const v = document.querySelector('.view-toggle'); return v ? v.style.display !== 'none' : null; })(),
       pointerLocked: !!document.pointerLockElement,
+      // furniture persistence + resource counts (leak detection)
+      chairPresent: !!chair,
+      chairVisible: shownInWorld(chair),
+      laptopPresent: !!laptop,
+      laptopVisible: shownInWorld(laptop),
+      interiorNodes: nodes,
+      geometries: info ? info.memory.geometries : null,
+      textures: info ? info.memory.textures : null,
     };
   });
+  if (!after.chairPresent || !after.chairVisible) failures.push('the chair vanished after laptop mode');
+  if (!after.laptopPresent || !after.laptopVisible) failures.push('the laptop vanished after laptop mode');
 
   // Can the player actually walk away? REAL key events — a synthetic KeyboardEvent dispatched at
   // `window` is not what the game listens to, and "the player cannot move" would have been my
@@ -141,7 +174,7 @@ async (page) => {
   const moved = { dist: +Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(3) };
   moved.moved = moved.dist > 0.05;
 
-  await page.screenshot({ path: `${QA_ROOT}/laptop/cycle/after-30.png` });
+  await page.screenshot({ path: path.join(out, 'after-30.png') });
 
   return {
     cycles: N,

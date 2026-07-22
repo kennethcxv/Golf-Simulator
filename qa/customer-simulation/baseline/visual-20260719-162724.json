@@ -1,0 +1,213 @@
+{
+  "phase": "baseline",
+  "stamp": "20260719-162724",
+  "url": "http://127.0.0.1:8463/",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "fixedTime": "10:00 AM",
+  "normalControls": [
+    "canvas click",
+    "W 350ms",
+    "A 250ms",
+    "Escape"
+  ],
+  "cameras": [
+    {
+      "id": "01-exterior-approach",
+      "atW": [
+        -1.5,
+        243.5
+      ],
+      "toW": [
+        -8.8,
+        234.4
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "02-entry-door",
+      "at": [
+        -0.8,
+        3.9
+      ],
+      "to": [
+        -0.8,
+        6.1
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "03-browsing-floor",
+      "at": [
+        -3.6,
+        2.8
+      ],
+      "to": [
+        -5.5,
+        -0.2
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "04-register-queue",
+      "at": [
+        0.2,
+        1.7
+      ],
+      "to": [
+        2.8,
+        4.6
+      ],
+      "pitch": -0.07
+    },
+    {
+      "id": "05-lounge",
+      "at": [
+        1.2,
+        -3.1
+      ],
+      "to": [
+        4.2,
+        -5.2
+      ],
+      "pitch": -0.04
+    }
+  ],
+  "fixture": {
+    "customers": 6,
+    "clock": 600
+  },
+  "screenshots": [
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\baseline\\screenshots\\20260719-162724\\01-exterior-approach.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\baseline\\screenshots\\20260719-162724\\02-entry-door.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\baseline\\screenshots\\20260719-162724\\03-browsing-floor.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\baseline\\screenshots\\20260719-162724\\04-register-queue.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\baseline\\screenshots\\20260719-162724\\05-lounge.png"
+  ],
+  "videoPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\baseline\\video\\20260719-162724\\page@2fd4f4ddf05ec30d4afdb08dd0a7b9cf.webm",
+  "errors": [],
+  "warnings": [
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+  ],
+  "failedRequests": [
+    "http://127.0.0.1:8463/vendor/models/hand_fork.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8463/vendor/models/hose_nozzle.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8463/vendor/models/bucket_soil.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8463/vendor/models/clubhouse/rangefinder.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8463/vendor/models/shed.glb :: net::ERR_ABORTED"
+  ],
+  "probe": {
+    "customers": [
+      {
+        "name": "Drew H.",
+        "currentStop": "walk",
+        "queued": false,
+        "cart": 0,
+        "awaitingCheckout": false,
+        "stuckSec": 0
+      },
+      {
+        "name": "Sam T.",
+        "currentStop": "walk",
+        "queued": false,
+        "cart": 0,
+        "awaitingCheckout": false,
+        "stuckSec": 0
+      },
+      {
+        "name": "Sam T.",
+        "currentStop": "walk",
+        "queued": false,
+        "cart": 0,
+        "awaitingCheckout": false,
+        "stuckSec": 0
+      },
+      {
+        "name": "Morgan W.",
+        "currentStop": "walk",
+        "queued": false,
+        "cart": 0,
+        "awaitingCheckout": false,
+        "stuckSec": 0
+      },
+      {
+        "name": "Riley P.",
+        "currentStop": "walk",
+        "queued": false,
+        "cart": 0,
+        "awaitingCheckout": false,
+        "stuckSec": 0
+      },
+      {
+        "name": "Riley P.",
+        "currentStop": "counter",
+        "queued": true,
+        "cart": 1,
+        "awaitingCheckout": true,
+        "stuckSec": 0
+      }
+    ],
+    "listenerStats": {
+      "adds": 136,
+      "removes": 34,
+      "active": 102,
+      "byType": {
+        "pointerdown": 5,
+        "keydown": 4,
+        "click": 65,
+        "pointermove": 1,
+        "pointerup": 3,
+        "wheel": 1,
+        "contextmenu": 2,
+        "keyup": 2,
+        "blur": 2,
+        "pointerlockchange": 1,
+        "resize": 1,
+        "input": 1,
+        "change": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "webglcontextcreationerror": 1,
+        "load": 0,
+        "error": 0,
+        "mousemove": 2,
+        "__playwright_global_listeners_check__": 1,
+        "touchstart": 1,
+        "touchend": 1,
+        "touchcancel": 1,
+        "mousedown": 1,
+        "mouseup": 1,
+        "auxclick": 1,
+        "dblclick": 1
+      }
+    },
+    "uiMutations": 310,
+    "renderer": {
+      "drawCalls": 1,
+      "triangles": 1,
+      "geometries": 1144,
+      "textures": 221
+    }
+  }
+}

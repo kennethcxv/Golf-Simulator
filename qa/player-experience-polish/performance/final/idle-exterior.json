@@ -1,0 +1,453 @@
+{
+  "scenario": "Fixed exterior player camera at 2:00 PM after a 5 s warm-up; three runs of 600 consecutive requestAnimationFrame intervals with 1.5 s between runs.",
+  "browser": "Google Chrome headless, Playwright, 1440x900 CSS px, DPR 1",
+  "summary": {
+    "averageFpsMean": 116.45407617596777,
+    "averageFpsMedian": 116.62034247507236,
+    "onePercentLowFpsMean": 80.20990133326633,
+    "onePercentLowFpsMedian": 85.1063829787278,
+    "worstFrameTimeMs": 16.69999999999709,
+    "javascriptHeapUsedBytesFinal": 91701912,
+    "uiMutationRecordsPerFrameMean": 0.09166666666666667,
+    "drawCallsPerFrameMedian": 3781,
+    "renderedTrianglesPerFrameMedian": 5279896,
+    "materialCountMedian": 229,
+    "textureCountMedian": 163,
+    "rendererTextureObjectsMedian": 208,
+    "textureMemoryEstimatedBytesMedian": 6169904488
+  },
+  "runs": [
+    {
+      "run": 1,
+      "frameMetrics": {
+        "samples": 600,
+        "durationMs": 5134.9000000119195,
+        "averageFps": 116.81105811350142,
+        "onePercentLowFps": 85.1063829787278,
+        "worstFrameTimeMs": 13.899999999997817,
+        "averageFrameTimeMs": 8.560833333333333,
+        "javascriptHeapUsedBytes": 88335720,
+        "javascriptHeapLimitBytes": 4395630592,
+        "uiMutationRecords": 57,
+        "uiMutationRecordsPerSecond": 11.100508286406296,
+        "uiMutationRecordsPerFrame": 0.095,
+        "uiMutationByRoot": {
+          "hud-min#0": 53,
+          "shop-overlay#1": 0,
+          "objectives-card#2": 4,
+          "notification-center#3": 0
+        },
+        "uiMetricNote": "MutationObserver records for HUD, interaction overlay, objective card, notifications, and pause UI during the sampled interval."
+      },
+      "renderMetrics": {
+        "drawCallsPerFrame": 3781,
+        "renderedTrianglesPerFrame": 5279896,
+        "visibleMeshes": 1107,
+        "sceneTriangles": 1777895,
+        "materialCount": 229,
+        "textureCount": 163,
+        "textureMemoryEstimatedBytes": 6169904488,
+        "textureMemoryNote": "RGBA8-equivalent estimate from loaded image dimensions, including a 4/3 mip factor when mipmaps are enabled; exact browser GPU allocation is unavailable.",
+        "largestTextureEstimates": [
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_1",
+            "type": "image"
+          }
+        ],
+        "rendererTextureObjects": 208,
+        "rendererGeometryObjects": 1047
+      }
+    },
+    {
+      "run": 2,
+      "frameMetrics": {
+        "samples": 600,
+        "durationMs": 5173.800000011921,
+        "averageFps": 115.93082793932955,
+        "onePercentLowFps": 85.83690987123838,
+        "worstFrameTimeMs": 13.900000000001455,
+        "averageFrameTimeMs": 8.625833333333333,
+        "javascriptHeapUsedBytes": 86760662,
+        "javascriptHeapLimitBytes": 4395630592,
+        "uiMutationRecords": 56,
+        "uiMutationRecordsPerSecond": 10.823765897381222,
+        "uiMutationRecordsPerFrame": 0.09333333333333334,
+        "uiMutationByRoot": {
+          "hud-min#0": 52,
+          "shop-overlay#1": 0,
+          "objectives-card#2": 4,
+          "notification-center#3": 0
+        },
+        "uiMetricNote": "MutationObserver records for HUD, interaction overlay, objective card, notifications, and pause UI during the sampled interval."
+      },
+      "renderMetrics": {
+        "drawCallsPerFrame": 3781,
+        "renderedTrianglesPerFrame": 5279896,
+        "visibleMeshes": 1107,
+        "sceneTriangles": 1777895,
+        "materialCount": 229,
+        "textureCount": 163,
+        "textureMemoryEstimatedBytes": 6169904488,
+        "textureMemoryNote": "RGBA8-equivalent estimate from loaded image dimensions, including a 4/3 mip factor when mipmaps are enabled; exact browser GPU allocation is unavailable.",
+        "largestTextureEstimates": [
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_1",
+            "type": "image"
+          }
+        ],
+        "rendererTextureObjects": 208,
+        "rendererGeometryObjects": 1047
+      }
+    },
+    {
+      "run": 3,
+      "frameMetrics": {
+        "samples": 600,
+        "durationMs": 5142.199999988079,
+        "averageFps": 116.62034247507236,
+        "onePercentLowFps": 69.68641114983285,
+        "worstFrameTimeMs": 16.69999999999709,
+        "averageFrameTimeMs": 8.574833333333336,
+        "javascriptHeapUsedBytes": 91701912,
+        "javascriptHeapLimitBytes": 4395630592,
+        "uiMutationRecords": 52,
+        "uiMutationRecordsPerSecond": 10.112403251550028,
+        "uiMutationRecordsPerFrame": 0.08666666666666667,
+        "uiMutationByRoot": {
+          "hud-min#0": 52,
+          "shop-overlay#1": 0,
+          "objectives-card#2": 0,
+          "notification-center#3": 0
+        },
+        "uiMetricNote": "MutationObserver records for HUD, interaction overlay, objective card, notifications, and pause UI during the sampled interval."
+      },
+      "renderMetrics": {
+        "drawCallsPerFrame": 3783,
+        "renderedTrianglesPerFrame": 5268800,
+        "visibleMeshes": 1108,
+        "sceneTriangles": 1775127,
+        "materialCount": 230,
+        "textureCount": 163,
+        "textureMemoryEstimatedBytes": 6169904488,
+        "textureMemoryNote": "RGBA8-equivalent estimate from loaded image dimensions, including a 4/3 mip factor when mipmaps are enabled; exact browser GPU allocation is unavailable.",
+        "largestTextureEstimates": [
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_09400d7b-a250-4317-be6e-f87d4862bfc3_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_973344ea-5b98-4040-bfde-7b2f0f72c6b6_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_063ff2a5-5064-4c83-9853-752fb8de8177_1",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_0",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_2",
+            "type": "image"
+          },
+          {
+            "bytes": 89478485,
+            "width": 4096,
+            "height": 4096,
+            "name": "tripo_image_cfa8f5f0-7431-4782-8e56-4c4d243a7692_1",
+            "type": "image"
+          }
+        ],
+        "rendererTextureObjects": 208,
+        "rendererGeometryObjects": 1070
+      }
+    }
+  ],
+  "activeEventListenersBefore": {
+    "count": 89,
+    "targets": 229,
+    "byType": {
+      "pointerdown": 3,
+      "keydown": 6,
+      "pointerup": 3,
+      "mousemove": 2,
+      "touchstart": 1,
+      "touchend": 1,
+      "touchcancel": 1,
+      "mousedown": 1,
+      "mouseup": 1,
+      "click": 50,
+      "auxclick": 1,
+      "dblclick": 1,
+      "contextmenu": 2,
+      "pagehide": 1,
+      "keyup": 2,
+      "blur": 2,
+      "resize": 1,
+      "__playwright_global_listeners_check__": 1,
+      "visibilitychange": 1,
+      "pointerlockchange": 1,
+      "pointermove": 1,
+      "wheel": 1,
+      "webglcontextlost": 1,
+      "webglcontextrestored": 1,
+      "webglcontextcreationerror": 1,
+      "input": 1,
+      "change": 1
+    },
+    "note": "Exact CDP count across window, document, and every connected DOM node; detached targets are excluded."
+  },
+  "activeEventListenersAfter": {
+    "count": 89,
+    "targets": 229,
+    "byType": {
+      "pointerdown": 3,
+      "keydown": 6,
+      "pointerup": 3,
+      "mousemove": 2,
+      "touchstart": 1,
+      "touchend": 1,
+      "touchcancel": 1,
+      "mousedown": 1,
+      "mouseup": 1,
+      "click": 50,
+      "auxclick": 1,
+      "dblclick": 1,
+      "contextmenu": 2,
+      "pagehide": 1,
+      "keyup": 2,
+      "blur": 2,
+      "resize": 1,
+      "__playwright_global_listeners_check__": 1,
+      "visibilitychange": 1,
+      "pointerlockchange": 1,
+      "pointermove": 1,
+      "wheel": 1,
+      "webglcontextlost": 1,
+      "webglcontextrestored": 1,
+      "webglcontextcreationerror": 1,
+      "input": 1,
+      "change": 1
+    },
+    "note": "Exact CDP count across window, document, and every connected DOM node; detached targets are excluded."
+  },
+  "activeEventListenerDelta": 0
+}

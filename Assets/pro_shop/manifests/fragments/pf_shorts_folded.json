@@ -1,0 +1,29 @@
+{
+ "id": "pf_shorts_folded",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.2834,
+  0.32,
+  0.0305
+ ],
+ "min_z": 0.0,
+ "tris": 1088,
+ "textures": [
+  "M_pf_shorts_foldedV2_alb:512x512",
+  "NRM_twill_0.35_512:512x512",
+  "RGH_twill_0.72:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_shorts_folded.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_shorts_folded.blend",
+ "name": "Pf Shorts Folded",
+ "variant": "base",
+ "price": 64.99,
+ "fixture": "pf_fixture_center_table",
+ "slot_type": "folded_slot",
+ "packaging": "none"
+}

@@ -22,6 +22,8 @@ import os
 import math
 import mathutils
 
+from optimize_runtime_textures import resize_scene_images
+
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 SRC = os.path.join(ROOT, 'Assets')
 OUT = os.path.join(ROOT, 'vendor', 'models', 'clubhouse')
@@ -122,6 +124,11 @@ def process(spec):
         m.ratio = spec['decimate']
         bpy.ops.object.modifier_apply(modifier=m.name)
 
+    # A 4096px baked atlas decodes to roughly 85 MiB with mipmaps regardless of
+    # the prop's tiny on-screen footprint. The release texture budget caps these
+    # derived runtime images while the untouched originals remain in Assets/.
+    resize_scene_images(1024)
+
     obj.name = spec['out']
     for o in bpy.context.scene.objects:
         o.select_set(o is obj)
@@ -129,7 +136,8 @@ def process(spec):
     bpy.ops.export_scene.gltf(
         filepath=out, export_format='GLB', use_selection=True,
         export_apply=True, export_yup=True, export_normals=True,
-        export_texcoords=True, export_materials='EXPORT')
+        export_texcoords=True, export_materials='EXPORT',
+        export_image_format='JPEG', export_jpeg_quality=82)
 
     dim, ctr, minz = bbox(obj)
     obj.data.calc_loop_triangles()

@@ -350,7 +350,7 @@ def build_shoe(M):
 
 
 # ====================================================================== BAG ===
-def build_bag(M):
+def build_bag(M, clubs=True):
     """Stand bag, ~0.90 m body. Pivot at the base, centred.
 
     The first two attempts read as a thermos flask, and the reason was not the
@@ -423,6 +423,9 @@ def build_bag(M):
                   rot=(0.24, 0, 0), verts=8)
         assign(leg, M['steel'])
         parts.append(leg)
+
+    if not clubs:
+        return finish(parts, 'bag_empty')
 
     # THE CLUBS — a fan of shafts with real heads. This is the silhouette.
     fan = [(-0.055, -0.030, -0.16, 0.10), (-0.020, 0.030, -0.07, 0.05),

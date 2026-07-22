@@ -1,0 +1,5619 @@
+{
+  "route": "route-b-service",
+  "iteration": "route-b-service-accepted-3",
+  "url": "http://127.0.0.1:8501/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "mutationPolicy": "No direct game-state, clock, camera, route, or simulation writes. window.__fw was read only.",
+  "inputs": [
+    {
+      "at": "2026-07-20T12:47:00.978Z",
+      "kind": "click",
+      "detail": "New Empire"
+    },
+    {
+      "at": "2026-07-20T12:47:01.256Z",
+      "kind": "click",
+      "detail": "Buy property"
+    },
+    {
+      "at": "2026-07-20T12:47:13.434Z",
+      "kind": "click",
+      "detail": "hide optional getting-started guide"
+    },
+    {
+      "at": "2026-07-20T12:47:13.579Z",
+      "kind": "key",
+      "detail": "pause simulation during physical setup"
+    },
+    {
+      "at": "2026-07-20T12:47:13.952Z",
+      "kind": "hold",
+      "detail": "turn toward clubhouse front door waypoint 1 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:14.564Z",
+      "kind": "hold",
+      "detail": "turn toward clubhouse front door waypoint 1 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:15.166Z",
+      "kind": "hold",
+      "detail": "turn toward clubhouse front door waypoint 1 420ms"
+    },
+    {
+      "at": "2026-07-20T12:47:15.685Z",
+      "kind": "hold",
+      "detail": "run to clubhouse front door waypoint 1 595ms"
+    },
+    {
+      "at": "2026-07-20T12:47:16.435Z",
+      "kind": "hold",
+      "detail": "turn toward clubhouse front door waypoint 1 105ms"
+    },
+    {
+      "at": "2026-07-20T12:47:16.630Z",
+      "kind": "hold",
+      "detail": "run to clubhouse front door waypoint 1 173ms"
+    },
+    {
+      "at": "2026-07-20T12:47:16.965Z",
+      "kind": "hold",
+      "detail": "turn toward front door 71ms"
+    },
+    {
+      "at": "2026-07-20T12:47:17.627Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 404ms"
+    },
+    {
+      "at": "2026-07-20T12:47:18.137Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 57ms"
+    },
+    {
+      "at": "2026-07-20T12:47:18.384Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:18.867Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:19.330Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:19.706Z",
+      "kind": "hold",
+      "detail": "sidestep around obstruction near inside welcome mat 420ms"
+    },
+    {
+      "at": "2026-07-20T12:47:20.265Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 125ms"
+    },
+    {
+      "at": "2026-07-20T12:47:20.578Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 245ms"
+    },
+    {
+      "at": "2026-07-20T12:47:21.032Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 161ms"
+    },
+    {
+      "at": "2026-07-20T12:47:21.277Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:21.604Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 67ms"
+    },
+    {
+      "at": "2026-07-20T12:47:21.785Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:22.198Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 53ms"
+    },
+    {
+      "at": "2026-07-20T12:47:22.357Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:22.692Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 72ms"
+    },
+    {
+      "at": "2026-07-20T12:47:22.861Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:23.315Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:23.787Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:24.217Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 75ms"
+    },
+    {
+      "at": "2026-07-20T12:47:24.377Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:24.704Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 62ms"
+    },
+    {
+      "at": "2026-07-20T12:47:24.864Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:25.312Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:25.794Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 238ms"
+    },
+    {
+      "at": "2026-07-20T12:47:26.144Z",
+      "kind": "hold",
+      "detail": "sidestep around obstruction near inside welcome mat 420ms"
+    },
+    {
+      "at": "2026-07-20T12:47:26.700Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 119ms"
+    },
+    {
+      "at": "2026-07-20T12:47:26.896Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 243ms"
+    },
+    {
+      "at": "2026-07-20T12:47:27.231Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 144ms"
+    },
+    {
+      "at": "2026-07-20T12:47:27.530Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 237ms"
+    },
+    {
+      "at": "2026-07-20T12:47:28.029Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 237ms"
+    },
+    {
+      "at": "2026-07-20T12:47:28.507Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 237ms"
+    },
+    {
+      "at": "2026-07-20T12:47:28.868Z",
+      "kind": "hold",
+      "detail": "sidestep around obstruction near inside welcome mat 420ms"
+    },
+    {
+      "at": "2026-07-20T12:47:29.439Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 130ms"
+    },
+    {
+      "at": "2026-07-20T12:47:29.673Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 243ms"
+    },
+    {
+      "at": "2026-07-20T12:47:29.998Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 158ms"
+    },
+    {
+      "at": "2026-07-20T12:47:30.247Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 236ms"
+    },
+    {
+      "at": "2026-07-20T12:47:30.688Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 236ms"
+    },
+    {
+      "at": "2026-07-20T12:47:31.044Z",
+      "kind": "hold",
+      "detail": "sidestep around obstruction near inside welcome mat 420ms"
+    },
+    {
+      "at": "2026-07-20T12:47:31.593Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 139ms"
+    },
+    {
+      "at": "2026-07-20T12:47:31.850Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 247ms"
+    },
+    {
+      "at": "2026-07-20T12:47:32.289Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 152ms"
+    },
+    {
+      "at": "2026-07-20T12:47:32.529Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:32.842Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 64ms"
+    },
+    {
+      "at": "2026-07-20T12:47:32.986Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 240ms"
+    },
+    {
+      "at": "2026-07-20T12:47:33.471Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:33.938Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:34.416Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 240ms"
+    },
+    {
+      "at": "2026-07-20T12:47:34.875Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 61ms"
+    },
+    {
+      "at": "2026-07-20T12:47:35.014Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 240ms"
+    },
+    {
+      "at": "2026-07-20T12:47:35.345Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 80ms"
+    },
+    {
+      "at": "2026-07-20T12:47:35.558Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 239ms"
+    },
+    {
+      "at": "2026-07-20T12:47:35.973Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:36.583Z",
+      "kind": "hold",
+      "detail": "turn toward inside welcome mat 63ms"
+    },
+    {
+      "at": "2026-07-20T12:47:36.690Z",
+      "kind": "hold",
+      "detail": "run to inside welcome mat 99ms"
+    },
+    {
+      "at": "2026-07-20T12:47:36.913Z",
+      "kind": "hold",
+      "detail": "turn toward office approach aisle 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:37.515Z",
+      "kind": "hold",
+      "detail": "turn toward office approach aisle 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:38.127Z",
+      "kind": "hold",
+      "detail": "turn toward office approach aisle 323ms"
+    },
+    {
+      "at": "2026-07-20T12:47:38.518Z",
+      "kind": "hold",
+      "detail": "run to office approach aisle 616ms"
+    },
+    {
+      "at": "2026-07-20T12:47:39.282Z",
+      "kind": "hold",
+      "detail": "turn toward office approach aisle 62ms"
+    },
+    {
+      "at": "2026-07-20T12:47:39.407Z",
+      "kind": "hold",
+      "detail": "run to office approach aisle 181ms"
+    },
+    {
+      "at": "2026-07-20T12:47:39.703Z",
+      "kind": "hold",
+      "detail": "turn toward laptop chair 56ms"
+    },
+    {
+      "at": "2026-07-20T12:47:39.816Z",
+      "kind": "hold",
+      "detail": "run to laptop chair 463ms"
+    },
+    {
+      "at": "2026-07-20T12:47:40.376Z",
+      "kind": "hold",
+      "detail": "turn toward laptop chair 59ms"
+    },
+    {
+      "at": "2026-07-20T12:47:40.480Z",
+      "kind": "hold",
+      "detail": "run to laptop chair 141ms"
+    },
+    {
+      "at": "2026-07-20T12:47:40.692Z",
+      "kind": "hold",
+      "detail": "turn toward laptop chair 65ms"
+    },
+    {
+      "at": "2026-07-20T12:47:40.813Z",
+      "kind": "hold",
+      "detail": "run to laptop chair 90ms"
+    },
+    {
+      "at": "2026-07-20T12:47:40.960Z",
+      "kind": "hold",
+      "detail": "turn toward physical laptop 162ms"
+    },
+    {
+      "at": "2026-07-20T12:47:41.167Z",
+      "kind": "key",
+      "detail": "open physical laptop"
+    },
+    {
+      "at": "2026-07-20T12:47:43.449Z",
+      "kind": "click",
+      "detail": "laptop Reservations navigation"
+    },
+    {
+      "at": "2026-07-20T12:47:43.944Z",
+      "kind": "click",
+      "detail": "reservation holder"
+    },
+    {
+      "at": "2026-07-20T12:47:44.302Z",
+      "kind": "type",
+      "detail": "reservation holder: Service Proof"
+    },
+    {
+      "at": "2026-07-20T12:47:44.455Z",
+      "kind": "click",
+      "detail": "party size"
+    },
+    {
+      "at": "2026-07-20T12:47:44.566Z",
+      "kind": "select",
+      "detail": "party size: 2"
+    },
+    {
+      "at": "2026-07-20T12:47:44.902Z",
+      "kind": "click",
+      "detail": "guest names"
+    },
+    {
+      "at": "2026-07-20T12:47:45.217Z",
+      "kind": "type",
+      "detail": "guest names: Casey Service"
+    },
+    {
+      "at": "2026-07-20T12:47:45.399Z",
+      "kind": "click",
+      "detail": "payment plan"
+    },
+    {
+      "at": "2026-07-20T12:47:45.513Z",
+      "kind": "select",
+      "detail": "payment plan: prepaid"
+    },
+    {
+      "at": "2026-07-20T12:47:45.912Z",
+      "kind": "click",
+      "detail": "course transport"
+    },
+    {
+      "at": "2026-07-20T12:47:46.027Z",
+      "kind": "select",
+      "detail": "course transport: ride"
+    },
+    {
+      "at": "2026-07-20T12:47:46.394Z",
+      "kind": "click",
+      "detail": "book Service Proof"
+    },
+    {
+      "at": "2026-07-20T12:47:46.446Z",
+      "kind": "key",
+      "detail": "stand up from laptop"
+    },
+    {
+      "at": "2026-07-20T12:47:47.090Z",
+      "kind": "hold",
+      "detail": "turn toward south aisle from office 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:47.686Z",
+      "kind": "hold",
+      "detail": "turn toward south aisle from office 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:48.273Z",
+      "kind": "hold",
+      "detail": "turn toward south aisle from office 345ms"
+    },
+    {
+      "at": "2026-07-20T12:47:48.677Z",
+      "kind": "hold",
+      "detail": "run to south aisle from office 398ms"
+    },
+    {
+      "at": "2026-07-20T12:47:49.162Z",
+      "kind": "hold",
+      "detail": "turn toward south aisle from office 72ms"
+    },
+    {
+      "at": "2026-07-20T12:47:49.286Z",
+      "kind": "hold",
+      "detail": "run to south aisle from office 110ms"
+    },
+    {
+      "at": "2026-07-20T12:47:49.553Z",
+      "kind": "hold",
+      "detail": "turn toward tee-desk staff position 76ms"
+    },
+    {
+      "at": "2026-07-20T12:47:49.709Z",
+      "kind": "hold",
+      "detail": "run to tee-desk staff position 280ms"
+    },
+    {
+      "at": "2026-07-20T12:47:50.073Z",
+      "kind": "hold",
+      "detail": "run to tee-desk staff position 90ms"
+    },
+    {
+      "at": "2026-07-20T12:47:50.239Z",
+      "kind": "hold",
+      "detail": "turn toward tee desk register 560ms"
+    },
+    {
+      "at": "2026-07-20T12:47:50.835Z",
+      "kind": "hold",
+      "detail": "turn toward tee desk register 71ms"
+    },
+    {
+      "at": "2026-07-20T12:47:50.980Z",
+      "kind": "key",
+      "detail": "advance day at normal speed"
+    },
+    {
+      "at": "2026-07-20T12:48:02.147Z",
+      "kind": "key",
+      "detail": "pause when the requested arrivals reach the desk"
+    },
+    {
+      "at": "2026-07-20T12:48:02.282Z",
+      "kind": "hold",
+      "detail": "turn toward south aisle from office 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:02.906Z",
+      "kind": "hold",
+      "detail": "turn toward south aisle from office 360ms"
+    },
+    {
+      "at": "2026-07-20T12:48:03.323Z",
+      "kind": "hold",
+      "detail": "run to south aisle from office 246ms"
+    },
+    {
+      "at": "2026-07-20T12:48:03.672Z",
+      "kind": "hold",
+      "detail": "turn toward tee-desk staff position 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:04.301Z",
+      "kind": "hold",
+      "detail": "turn toward tee-desk staff position 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:04.925Z",
+      "kind": "hold",
+      "detail": "turn toward tee-desk staff position 500ms"
+    },
+    {
+      "at": "2026-07-20T12:48:05.481Z",
+      "kind": "hold",
+      "detail": "run to tee-desk staff position 185ms"
+    },
+    {
+      "at": "2026-07-20T12:48:05.767Z",
+      "kind": "hold",
+      "detail": "turn toward tee desk register 552ms"
+    },
+    {
+      "at": "2026-07-20T12:48:06.380Z",
+      "kind": "key",
+      "detail": "open physical tee desk"
+    },
+    {
+      "at": "2026-07-20T12:48:07.459Z",
+      "kind": "click",
+      "detail": "select Service Proof at tee desk"
+    },
+    {
+      "at": "2026-07-20T12:48:07.744Z",
+      "kind": "click",
+      "detail": "confirm Service Proof reservation"
+    },
+    {
+      "at": "2026-07-20T12:48:07.926Z",
+      "kind": "click",
+      "detail": "check in Service Proof"
+    },
+    {
+      "at": "2026-07-20T12:48:08.150Z",
+      "kind": "key",
+      "detail": "step away from tee desk"
+    },
+    {
+      "at": "2026-07-20T12:48:08.768Z",
+      "kind": "hold",
+      "detail": "turn toward inside clubhouse door 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:09.412Z",
+      "kind": "hold",
+      "detail": "run to inside clubhouse door 443ms"
+    },
+    {
+      "at": "2026-07-20T12:48:09.983Z",
+      "kind": "hold",
+      "detail": "run to inside clubhouse door 126ms"
+    },
+    {
+      "at": "2026-07-20T12:48:10.184Z",
+      "kind": "hold",
+      "detail": "turn toward shop door 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:10.786Z",
+      "kind": "hold",
+      "detail": "turn toward shop door 157ms"
+    },
+    {
+      "at": "2026-07-20T12:48:11.412Z",
+      "kind": "hold",
+      "detail": "turn toward clubhouse porch 81ms"
+    },
+    {
+      "at": "2026-07-20T12:48:11.548Z",
+      "kind": "hold",
+      "detail": "run to clubhouse porch 417ms"
+    },
+    {
+      "at": "2026-07-20T12:48:12.037Z",
+      "kind": "hold",
+      "detail": "run to clubhouse porch 111ms"
+    },
+    {
+      "at": "2026-07-20T12:48:12.221Z",
+      "kind": "key",
+      "detail": "begin final cart presentation proof"
+    },
+    {
+      "at": "2026-07-20T12:48:12.466Z",
+      "kind": "key",
+      "detail": "hold final cart entry presentation"
+    },
+    {
+      "at": "2026-07-20T12:48:12.561Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 1 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:13.147Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 1 244ms"
+    },
+    {
+      "at": "2026-07-20T12:48:13.451Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:14.159Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:14.853Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:15.546Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 1 448ms"
+    },
+    {
+      "at": "2026-07-20T12:48:16.065Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 1 136ms"
+    },
+    {
+      "at": "2026-07-20T12:48:16.262Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 2 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:16.881Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 2 267ms"
+    },
+    {
+      "at": "2026-07-20T12:48:17.264Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:18.104Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:18.907Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:19.684Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:20.522Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:21.360Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:22.142Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:22.939Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:23.699Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 2 58ms"
+    },
+    {
+      "at": "2026-07-20T12:48:23.843Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:24.621Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:25.445Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:26.224Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:27.023Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:27.790Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 2 99ms"
+    },
+    {
+      "at": "2026-07-20T12:48:27.956Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 442ms"
+    },
+    {
+      "at": "2026-07-20T12:48:28.465Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof observer position waypoint 2 119ms"
+    },
+    {
+      "at": "2026-07-20T12:48:28.681Z",
+      "kind": "hold",
+      "detail": "run to final cart entry proof observer position waypoint 2 127ms"
+    },
+    {
+      "at": "2026-07-20T12:48:28.976Z",
+      "kind": "hold",
+      "detail": "turn toward final cart entry proof 476ms"
+    },
+    {
+      "at": "2026-07-20T12:48:29.505Z",
+      "kind": "hold",
+      "detail": "level first-person camera 62ms"
+    },
+    {
+      "at": "2026-07-20T12:48:29.603Z",
+      "kind": "hold",
+      "detail": "level first-person camera 24ms"
+    },
+    {
+      "at": "2026-07-20T12:48:30.193Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 1 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:30.805Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 1 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:31.414Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 1 142ms"
+    },
+    {
+      "at": "2026-07-20T12:48:31.594Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:32.243Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:32.927Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:33.602Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:34.269Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:34.911Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:35.592Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:36.245Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 1 54ms"
+    },
+    {
+      "at": "2026-07-20T12:48:36.337Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:37.004Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:37.660Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:38.346Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:39.011Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:39.693Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 318ms"
+    },
+    {
+      "at": "2026-07-20T12:48:40.043Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 1 111ms"
+    },
+    {
+      "at": "2026-07-20T12:48:40.185Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 1 92ms"
+    },
+    {
+      "at": "2026-07-20T12:48:40.352Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 2 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:40.934Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 2 157ms"
+    },
+    {
+      "at": "2026-07-20T12:48:41.119Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:41.776Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:42.409Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:43.050Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:43.685Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:44.343Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:44.983Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:45.621Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:46.285Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:46.918Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:47.559Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:48.194Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:48.842Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:49.478Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:50.119Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:50.768Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:51.410Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer observer position waypoint 2 55ms"
+    },
+    {
+      "at": "2026-07-20T12:48:51.476Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:52.127Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 620ms"
+    },
+    {
+      "at": "2026-07-20T12:48:52.778Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 551ms"
+    },
+    {
+      "at": "2026-07-20T12:48:53.375Z",
+      "kind": "hold",
+      "detail": "run to final cart service observer observer position waypoint 2 172ms"
+    },
+    {
+      "at": "2026-07-20T12:48:53.569Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:54.135Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer 560ms"
+    },
+    {
+      "at": "2026-07-20T12:48:54.714Z",
+      "kind": "hold",
+      "detail": "turn toward final cart service observer 199ms"
+    },
+    {
+      "at": "2026-07-20T12:48:54.990Z",
+      "kind": "key",
+      "detail": "advance final cart proof to hole eight"
+    },
+    {
+      "at": "2026-07-20T12:48:55.744Z",
+      "kind": "key",
+      "detail": "hold hole-eight boundary for the final cart proof"
+    },
+    {
+      "at": "2026-07-20T12:48:55.816Z",
+      "kind": "key",
+      "detail": "advance final cart proof into hole nine"
+    },
+    {
+      "at": "2026-07-20T12:48:55.900Z",
+      "kind": "key",
+      "detail": "hold final service return boundary"
+    },
+    {
+      "at": "2026-07-20T12:48:55.980Z",
+      "kind": "key",
+      "detail": "complete final hole and observe cart return"
+    },
+    {
+      "at": "2026-07-20T12:48:56.263Z",
+      "kind": "key",
+      "detail": "hold final service presentation"
+    },
+    {
+      "at": "2026-07-20T12:48:56.870Z",
+      "kind": "key",
+      "detail": "complete final charging lifecycle"
+    },
+    {
+      "at": "2026-07-20T12:48:57.012Z",
+      "kind": "key",
+      "detail": "hold final available state"
+    }
+  ],
+  "observations": [
+    {
+      "at": "2026-07-20T12:47:13.212Z",
+      "kind": "fresh-property",
+      "detail": {
+        "screen": "game",
+        "courseMode": "walk",
+        "speedIdx": 1,
+        "clock": 409.91799999999904,
+        "minuteOfDay": 409.917999999999,
+        "pose": {
+          "x": -8,
+          "z": 241.7,
+          "yaw": 3.141592653589793,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        },
+        "clubhouse": {
+          "origin": {
+            "x": -8,
+            "z": 228
+          },
+          "door": {
+            "x": -8.8,
+            "z": 234.625
+          },
+          "inside": false
+        },
+        "focus": "Weeds — [E] pull them",
+        "laptopOpen": false,
+        "frontDeskOpen": false,
+        "bookings": [
+          {
+            "id": 1,
+            "holder": "Sonny Slate",
+            "dayAbs": 0,
+            "minute": 510,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 2,
+            "holder": "Nadia Fontaine",
+            "dayAbs": 0,
+            "minute": 570,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 3,
+            "holder": "Lloyd Marsh",
+            "dayAbs": 0,
+            "minute": 630,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 4,
+            "holder": "Nia Mercer",
+            "dayAbs": 0,
+            "minute": 780,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 5,
+            "holder": "Chip Lindqvist",
+            "dayAbs": 0,
+            "minute": 870,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 6,
+            "holder": "Phil Reed",
+            "dayAbs": 0,
+            "minute": 930,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 7,
+            "holder": "Sonny Slate",
+            "dayAbs": 1,
+            "minute": 510,
+            "partySize": 2,
+            "status": "cancelled",
+            "arrival": "cancelled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 8,
+            "holder": "Nadia Fontaine",
+            "dayAbs": 1,
+            "minute": 540,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 9,
+            "holder": "Fern Ainsley",
+            "dayAbs": 1,
+            "minute": 570,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 10,
+            "holder": "Fern Tanaka",
+            "dayAbs": 1,
+            "minute": 600,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 11,
+            "holder": "Phil Reed",
+            "dayAbs": 1,
+            "minute": 660,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 12,
+            "holder": "Nia Hong",
+            "dayAbs": 1,
+            "minute": 750,
+            "partySize": 2,
+            "status": "cancelled",
+            "arrival": "cancelled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 13,
+            "holder": "Lloyd Segura",
+            "dayAbs": 1,
+            "minute": 900,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 14,
+            "holder": "Phil Slate",
+            "dayAbs": 1,
+            "minute": 930,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 15,
+            "holder": "Nia Pike",
+            "dayAbs": 1,
+            "minute": 960,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 16,
+            "holder": "Sonny Slate",
+            "dayAbs": 2,
+            "minute": 600,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 17,
+            "holder": "Lloyd Marsh",
+            "dayAbs": 2,
+            "minute": 810,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 18,
+            "holder": "Fern Tanaka",
+            "dayAbs": 2,
+            "minute": 900,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 19,
+            "holder": "Phil Reed",
+            "dayAbs": 2,
+            "minute": 930,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 20,
+            "holder": "Rita Hux",
+            "dayAbs": 2,
+            "minute": 990,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 21,
+            "holder": "Sonny Slate",
+            "dayAbs": 3,
+            "minute": 420,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 22,
+            "holder": "Nadia Fontaine",
+            "dayAbs": 3,
+            "minute": 510,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 23,
+            "holder": "Lloyd Marsh",
+            "dayAbs": 3,
+            "minute": 570,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 24,
+            "holder": "Nia Mercer",
+            "dayAbs": 3,
+            "minute": 660,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 25,
+            "holder": "Sonny Slate",
+            "dayAbs": 4,
+            "minute": 660,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 26,
+            "holder": "Nadia Fontaine",
+            "dayAbs": 4,
+            "minute": 780,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 27,
+            "holder": "Lloyd Marsh",
+            "dayAbs": 4,
+            "minute": 810,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 28,
+            "holder": "Nia Mercer",
+            "dayAbs": 4,
+            "minute": 900,
+            "partySize": 1,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 29,
+            "holder": "Fern Tanaka",
+            "dayAbs": 4,
+            "minute": 960,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 30,
+            "holder": "Sonny Slate",
+            "dayAbs": 5,
+            "minute": 450,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 31,
+            "holder": "Lloyd Marsh",
+            "dayAbs": 5,
+            "minute": 540,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 32,
+            "holder": "Fern Tanaka",
+            "dayAbs": 5,
+            "minute": 690,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 33,
+            "holder": "Phil Reed",
+            "dayAbs": 5,
+            "minute": 750,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 34,
+            "holder": "Nia Hong",
+            "dayAbs": 5,
+            "minute": 780,
+            "partySize": 1,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 35,
+            "holder": "Rita Hux",
+            "dayAbs": 5,
+            "minute": 810,
+            "partySize": 1,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 36,
+            "holder": "Lloyd Segura",
+            "dayAbs": 5,
+            "minute": 840,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 37,
+            "holder": "Yolanda Segura",
+            "dayAbs": 5,
+            "minute": 900,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 38,
+            "holder": "Gordon Iversen",
+            "dayAbs": 5,
+            "minute": 930,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 39,
+            "holder": "Sonny Slate",
+            "dayAbs": 6,
+            "minute": 480,
+            "partySize": 1,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 40,
+            "holder": "Marcus Tanaka",
+            "dayAbs": 6,
+            "minute": 540,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 41,
+            "holder": "Ivy Vance",
+            "dayAbs": 6,
+            "minute": 570,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 42,
+            "holder": "Nia Mercer",
+            "dayAbs": 6,
+            "minute": 600,
+            "partySize": 4,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 43,
+            "holder": "Phil Reed",
+            "dayAbs": 6,
+            "minute": 660,
+            "partySize": 1,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 44,
+            "holder": "Phil Cruz",
+            "dayAbs": 6,
+            "minute": 870,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 45,
+            "holder": "Rita Hux",
+            "dayAbs": 6,
+            "minute": 900,
+            "partySize": 2,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          },
+          {
+            "id": 46,
+            "holder": "Moe Barnes",
+            "dayAbs": 6,
+            "minute": 930,
+            "partySize": 3,
+            "status": "booked",
+            "arrival": "scheduled",
+            "checkIn": "unconfirmed",
+            "transport": null
+          }
+        ],
+        "golf": [],
+        "completed": []
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:13.279Z",
+      "kind": "getting-started-guide-hit-test",
+      "detail": {
+        "box": {
+          "x": 220.203125,
+          "y": 745.390625,
+          "width": 28.796875,
+          "height": 19
+        },
+        "hit": {
+          "tag": "BUTTON",
+          "id": "",
+          "className": ""
+        },
+        "chain": [
+          {
+            "tag": "BUTTON",
+            "className": "",
+            "pointerEvents": "auto",
+            "zIndex": "1",
+            "position": "relative"
+          },
+          {
+            "tag": "DIV",
+            "className": "row",
+            "pointerEvents": "auto",
+            "zIndex": "auto",
+            "position": "static"
+          },
+          {
+            "tag": "DIV",
+            "className": "panel objectives-card",
+            "pointerEvents": "auto",
+            "zIndex": "45",
+            "position": "absolute"
+          },
+          {
+            "tag": "BODY",
+            "className": "",
+            "pointerEvents": "auto",
+            "zIndex": "auto",
+            "position": "static"
+          },
+          {
+            "tag": "HTML",
+            "className": "",
+            "pointerEvents": "auto",
+            "zIndex": "auto",
+            "position": "static"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:13.578Z",
+      "kind": "getting-started-guide-hidden",
+      "detail": true
+    },
+    {
+      "at": "2026-07-20T12:47:13.917Z",
+      "kind": "collision-aware-walk-route",
+      "detail": {
+        "label": "clubhouse front door",
+        "waypoints": [
+          {
+            "x": -8.600000000000001,
+            "z": 236.375
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:16.928Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "clubhouse front door waypoint 1",
+        "distance": 0.231,
+        "pose": {
+          "x": -8.549927433128776,
+          "z": 236.600477967389,
+          "yaw": 0.26062265358979403,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:36.853Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "inside welcome mat",
+        "distance": 0.179,
+        "pose": {
+          "x": -8.64132163486828,
+          "z": 233.05882210153493,
+          "yaw": 1.194852653589806,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:39.677Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "office approach aisle",
+        "distance": 0.455,
+        "pose": {
+          "x": -3.5546396792920527,
+          "z": 233.24332293555867,
+          "yaw": -1.4972573464101973,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:40.950Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "laptop chair",
+        "distance": 0.119,
+        "pose": {
+          "x": 0.6464395146221308,
+          "z": 232.43013622013967,
+          "yaw": -1.3393673464101998,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:43.267Z",
+      "kind": "laptop-open",
+      "detail": {
+        "via": "physical E interaction"
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:46.446Z",
+      "kind": "party-booked",
+      "detail": {
+        "id": 47,
+        "holder": "Service Proof",
+        "minute": 540,
+        "dayAbs": 0,
+        "transport": "ride",
+        "partySize": 2
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:49.504Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "south aisle from office",
+        "distance": 0.171,
+        "pose": {
+          "x": -2.68074729397144,
+          "z": 233.1769340772442,
+          "yaw": -4.599387346410201,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:47:50.226Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "tee-desk staff position",
+        "distance": 0.143,
+        "pose": {
+          "x": -5.063943433122127,
+          "z": 233.14396817179167,
+          "yaw": -4.820547346410204,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:02.230Z",
+      "kind": "arrivals-ready",
+      "detail": {
+        "holders": [
+          "Service Proof"
+        ],
+        "world": {
+          "screen": "game",
+          "courseMode": "walk",
+          "speedIdx": 0,
+          "clock": 525.4199999999971,
+          "minuteOfDay": 525.4199999999971,
+          "pose": {
+            "x": -5.063943433122127,
+            "z": 233.14396817179167,
+            "yaw": -6.071697346410201,
+            "pitch": 0,
+            "speed": 3.4,
+            "runMult": 1.8
+          },
+          "clubhouse": {
+            "origin": {
+              "x": -8,
+              "z": 228
+            },
+            "door": {
+              "x": -8.8,
+              "z": 234.625
+            },
+            "inside": true
+          },
+          "focus": "Tee desk — [E] serve Sonny Slate (2 players · 8:30 AM) · 1 more waiting",
+          "laptopOpen": false,
+          "frontDeskOpen": false,
+          "bookings": [
+            {
+              "id": 1,
+              "holder": "Sonny Slate",
+              "dayAbs": 0,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "arrived",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 2,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 0,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 3,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 0,
+              "minute": 630,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 4,
+              "holder": "Nia Mercer",
+              "dayAbs": 0,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 5,
+              "holder": "Chip Lindqvist",
+              "dayAbs": 0,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 6,
+              "holder": "Phil Reed",
+              "dayAbs": 0,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 7,
+              "holder": "Sonny Slate",
+              "dayAbs": 1,
+              "minute": 510,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 8,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 1,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 9,
+              "holder": "Fern Ainsley",
+              "dayAbs": 1,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 10,
+              "holder": "Fern Tanaka",
+              "dayAbs": 1,
+              "minute": 600,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 11,
+              "holder": "Phil Reed",
+              "dayAbs": 1,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 12,
+              "holder": "Nia Hong",
+              "dayAbs": 1,
+              "minute": 750,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 13,
+              "holder": "Lloyd Segura",
+              "dayAbs": 1,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 14,
+              "holder": "Phil Slate",
+              "dayAbs": 1,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 15,
+              "holder": "Nia Pike",
+              "dayAbs": 1,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 16,
+              "holder": "Sonny Slate",
+              "dayAbs": 2,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 17,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 2,
+              "minute": 810,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 18,
+              "holder": "Fern Tanaka",
+              "dayAbs": 2,
+              "minute": 900,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 19,
+              "holder": "Phil Reed",
+              "dayAbs": 2,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 20,
+              "holder": "Rita Hux",
+              "dayAbs": 2,
+              "minute": 990,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 21,
+              "holder": "Sonny Slate",
+              "dayAbs": 3,
+              "minute": 420,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 22,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 3,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 23,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 3,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 24,
+              "holder": "Nia Mercer",
+              "dayAbs": 3,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 25,
+              "holder": "Sonny Slate",
+              "dayAbs": 4,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 26,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 4,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 27,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 4,
+              "minute": 810,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 28,
+              "holder": "Nia Mercer",
+              "dayAbs": 4,
+              "minute": 900,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 29,
+              "holder": "Fern Tanaka",
+              "dayAbs": 4,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 30,
+              "holder": "Sonny Slate",
+              "dayAbs": 5,
+              "minute": 450,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 31,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 5,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 32,
+              "holder": "Fern Tanaka",
+              "dayAbs": 5,
+              "minute": 690,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 33,
+              "holder": "Phil Reed",
+              "dayAbs": 5,
+              "minute": 750,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 34,
+              "holder": "Nia Hong",
+              "dayAbs": 5,
+              "minute": 780,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 35,
+              "holder": "Rita Hux",
+              "dayAbs": 5,
+              "minute": 810,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 36,
+              "holder": "Lloyd Segura",
+              "dayAbs": 5,
+              "minute": 840,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 37,
+              "holder": "Yolanda Segura",
+              "dayAbs": 5,
+              "minute": 900,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 38,
+              "holder": "Gordon Iversen",
+              "dayAbs": 5,
+              "minute": 930,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 39,
+              "holder": "Sonny Slate",
+              "dayAbs": 6,
+              "minute": 480,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 40,
+              "holder": "Marcus Tanaka",
+              "dayAbs": 6,
+              "minute": 540,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 41,
+              "holder": "Ivy Vance",
+              "dayAbs": 6,
+              "minute": 570,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 42,
+              "holder": "Nia Mercer",
+              "dayAbs": 6,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 43,
+              "holder": "Phil Reed",
+              "dayAbs": 6,
+              "minute": 660,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 44,
+              "holder": "Phil Cruz",
+              "dayAbs": 6,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 45,
+              "holder": "Rita Hux",
+              "dayAbs": 6,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 46,
+              "holder": "Moe Barnes",
+              "dayAbs": 6,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 47,
+              "holder": "Service Proof",
+              "dayAbs": 0,
+              "minute": 540,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "arrived",
+              "checkIn": "unconfirmed",
+              "transport": "ride"
+            }
+          ],
+          "golf": [],
+          "completed": []
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:03.642Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "south aisle from office",
+        "distance": 0.686,
+        "pose": {
+          "x": -3.535615350051177,
+          "z": 233.227552650259,
+          "yaw": -7.9086173464102005,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:05.749Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "tee-desk staff position",
+        "distance": 0.396,
+        "pose": {
+          "x": -4.809716774240801,
+          "z": 233.1698367309473,
+          "yaw": -4.757657346410216,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:07.458Z",
+      "kind": "front-desk-open",
+      "detail": {
+        "via": "physical E interaction"
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:08.140Z",
+      "kind": "party-checked-in",
+      "detail": {
+        "holder": "Service Proof",
+        "world": {
+          "screen": "game",
+          "courseMode": "walk",
+          "speedIdx": 0,
+          "clock": 525.4199999999971,
+          "minuteOfDay": 525.4199999999971,
+          "pose": {
+            "x": -4.809716774240801,
+            "z": 233.1698367309473,
+            "yaw": -5.834387346410223,
+            "pitch": 0,
+            "speed": 3.4,
+            "runMult": 1.8
+          },
+          "clubhouse": {
+            "origin": {
+              "x": -8,
+              "z": 228
+            },
+            "door": {
+              "x": -8.8,
+              "z": 234.625
+            },
+            "inside": true
+          },
+          "focus": null,
+          "laptopOpen": false,
+          "frontDeskOpen": true,
+          "bookings": [
+            {
+              "id": 1,
+              "holder": "Sonny Slate",
+              "dayAbs": 0,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "arrived",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 2,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 0,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 3,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 0,
+              "minute": 630,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 4,
+              "holder": "Nia Mercer",
+              "dayAbs": 0,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 5,
+              "holder": "Chip Lindqvist",
+              "dayAbs": 0,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 6,
+              "holder": "Phil Reed",
+              "dayAbs": 0,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 7,
+              "holder": "Sonny Slate",
+              "dayAbs": 1,
+              "minute": 510,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 8,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 1,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 9,
+              "holder": "Fern Ainsley",
+              "dayAbs": 1,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 10,
+              "holder": "Fern Tanaka",
+              "dayAbs": 1,
+              "minute": 600,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 11,
+              "holder": "Phil Reed",
+              "dayAbs": 1,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 12,
+              "holder": "Nia Hong",
+              "dayAbs": 1,
+              "minute": 750,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 13,
+              "holder": "Lloyd Segura",
+              "dayAbs": 1,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 14,
+              "holder": "Phil Slate",
+              "dayAbs": 1,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 15,
+              "holder": "Nia Pike",
+              "dayAbs": 1,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 16,
+              "holder": "Sonny Slate",
+              "dayAbs": 2,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 17,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 2,
+              "minute": 810,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 18,
+              "holder": "Fern Tanaka",
+              "dayAbs": 2,
+              "minute": 900,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 19,
+              "holder": "Phil Reed",
+              "dayAbs": 2,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 20,
+              "holder": "Rita Hux",
+              "dayAbs": 2,
+              "minute": 990,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 21,
+              "holder": "Sonny Slate",
+              "dayAbs": 3,
+              "minute": 420,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 22,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 3,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 23,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 3,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 24,
+              "holder": "Nia Mercer",
+              "dayAbs": 3,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 25,
+              "holder": "Sonny Slate",
+              "dayAbs": 4,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 26,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 4,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 27,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 4,
+              "minute": 810,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 28,
+              "holder": "Nia Mercer",
+              "dayAbs": 4,
+              "minute": 900,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 29,
+              "holder": "Fern Tanaka",
+              "dayAbs": 4,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 30,
+              "holder": "Sonny Slate",
+              "dayAbs": 5,
+              "minute": 450,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 31,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 5,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 32,
+              "holder": "Fern Tanaka",
+              "dayAbs": 5,
+              "minute": 690,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 33,
+              "holder": "Phil Reed",
+              "dayAbs": 5,
+              "minute": 750,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 34,
+              "holder": "Nia Hong",
+              "dayAbs": 5,
+              "minute": 780,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 35,
+              "holder": "Rita Hux",
+              "dayAbs": 5,
+              "minute": 810,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 36,
+              "holder": "Lloyd Segura",
+              "dayAbs": 5,
+              "minute": 840,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 37,
+              "holder": "Yolanda Segura",
+              "dayAbs": 5,
+              "minute": 900,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 38,
+              "holder": "Gordon Iversen",
+              "dayAbs": 5,
+              "minute": 930,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 39,
+              "holder": "Sonny Slate",
+              "dayAbs": 6,
+              "minute": 480,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 40,
+              "holder": "Marcus Tanaka",
+              "dayAbs": 6,
+              "minute": 540,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 41,
+              "holder": "Ivy Vance",
+              "dayAbs": 6,
+              "minute": 570,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 42,
+              "holder": "Nia Mercer",
+              "dayAbs": 6,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 43,
+              "holder": "Phil Reed",
+              "dayAbs": 6,
+              "minute": 660,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 44,
+              "holder": "Phil Cruz",
+              "dayAbs": 6,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 45,
+              "holder": "Rita Hux",
+              "dayAbs": 6,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 46,
+              "holder": "Moe Barnes",
+              "dayAbs": 6,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 47,
+              "holder": "Service Proof",
+              "dayAbs": 0,
+              "minute": 540,
+              "partySize": 2,
+              "status": "played",
+              "arrival": "arrived",
+              "checkIn": "checked-in",
+              "transport": "ride"
+            }
+          ],
+          "golf": [],
+          "completed": []
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:10.171Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "inside clubhouse door",
+        "distance": 0.272,
+        "pose": {
+          "x": -8.532190491608072,
+          "z": 233.122188978266,
+          "yaw": -4.725547346410213,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:12.177Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "clubhouse porch",
+        "distance": 0.198,
+        "pose": {
+          "x": -8.476316102135872,
+          "z": 236.6909356039673,
+          "yaw": -3.1259373464101947,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:12.543Z",
+      "kind": "collision-aware-walk-route",
+      "detail": {
+        "label": "final cart entry proof observer position",
+        "waypoints": [
+          {
+            "x": 7.123683897864122,
+            "z": 237.1842420661983
+          },
+          {
+            "x": 7.123683897864122,
+            "z": 182.5842420661983
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:16.248Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "final cart entry proof observer position waypoint 1",
+        "distance": 0.36,
+        "pose": {
+          "x": 6.764999489812995,
+          "z": 237.21805343689962,
+          "yaw": -1.6053673464101823,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:28.918Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "final cart entry proof observer position waypoint 2",
+        "distance": 0.276,
+        "pose": {
+          "x": 7.1261804263696265,
+          "z": 182.8606257687182,
+          "yaw": -0.10151734641015375,
+          "pitch": 0,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:29.661Z",
+      "kind": "framed-target",
+      "detail": {
+        "label": "final cart entry proof",
+        "target": {
+          "x": -0.6485521258057894,
+          "z": 175.3514478741942
+        },
+        "observer": {
+          "x": 7.1261804263696265,
+          "z": 182.8606257687182,
+          "yaw": 0.8644426535898351,
+          "pitch": -0.06513000000000757,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:30.125Z",
+      "kind": "screenshot",
+      "detail": {
+        "filename": "01-route-b-final-cart-entry.png",
+        "subject": "final rider spacing and cart entry at player scale",
+        "world": {
+          "screen": "game",
+          "courseMode": "walk",
+          "speedIdx": 0,
+          "clock": 527.8349999999972,
+          "minuteOfDay": 527.8349999999973,
+          "pose": {
+            "x": 7.1261804263696265,
+            "z": 182.8606257687182,
+            "yaw": 0.8644426535898351,
+            "pitch": -0.06513000000000757,
+            "speed": 3.4,
+            "runMult": 1.8
+          },
+          "clubhouse": {
+            "origin": {
+              "x": -8,
+              "z": 228
+            },
+            "door": {
+              "x": -8.8,
+              "z": 234.625
+            },
+            "inside": false
+          },
+          "focus": "Fairway 7 · a — Stressed — [E] inspect",
+          "laptopOpen": false,
+          "frontDeskOpen": false,
+          "bookings": [
+            {
+              "id": 1,
+              "holder": "Sonny Slate",
+              "dayAbs": 0,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "arrived",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 2,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 0,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 3,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 0,
+              "minute": 630,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 4,
+              "holder": "Nia Mercer",
+              "dayAbs": 0,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 5,
+              "holder": "Chip Lindqvist",
+              "dayAbs": 0,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 6,
+              "holder": "Phil Reed",
+              "dayAbs": 0,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 7,
+              "holder": "Sonny Slate",
+              "dayAbs": 1,
+              "minute": 510,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 8,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 1,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 9,
+              "holder": "Fern Ainsley",
+              "dayAbs": 1,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 10,
+              "holder": "Fern Tanaka",
+              "dayAbs": 1,
+              "minute": 600,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 11,
+              "holder": "Phil Reed",
+              "dayAbs": 1,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 12,
+              "holder": "Nia Hong",
+              "dayAbs": 1,
+              "minute": 750,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 13,
+              "holder": "Lloyd Segura",
+              "dayAbs": 1,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 14,
+              "holder": "Phil Slate",
+              "dayAbs": 1,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 15,
+              "holder": "Nia Pike",
+              "dayAbs": 1,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 16,
+              "holder": "Sonny Slate",
+              "dayAbs": 2,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 17,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 2,
+              "minute": 810,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 18,
+              "holder": "Fern Tanaka",
+              "dayAbs": 2,
+              "minute": 900,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 19,
+              "holder": "Phil Reed",
+              "dayAbs": 2,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 20,
+              "holder": "Rita Hux",
+              "dayAbs": 2,
+              "minute": 990,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 21,
+              "holder": "Sonny Slate",
+              "dayAbs": 3,
+              "minute": 420,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 22,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 3,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 23,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 3,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 24,
+              "holder": "Nia Mercer",
+              "dayAbs": 3,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 25,
+              "holder": "Sonny Slate",
+              "dayAbs": 4,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 26,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 4,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 27,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 4,
+              "minute": 810,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 28,
+              "holder": "Nia Mercer",
+              "dayAbs": 4,
+              "minute": 900,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 29,
+              "holder": "Fern Tanaka",
+              "dayAbs": 4,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 30,
+              "holder": "Sonny Slate",
+              "dayAbs": 5,
+              "minute": 450,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 31,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 5,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 32,
+              "holder": "Fern Tanaka",
+              "dayAbs": 5,
+              "minute": 690,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 33,
+              "holder": "Phil Reed",
+              "dayAbs": 5,
+              "minute": 750,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 34,
+              "holder": "Nia Hong",
+              "dayAbs": 5,
+              "minute": 780,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 35,
+              "holder": "Rita Hux",
+              "dayAbs": 5,
+              "minute": 810,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 36,
+              "holder": "Lloyd Segura",
+              "dayAbs": 5,
+              "minute": 840,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 37,
+              "holder": "Yolanda Segura",
+              "dayAbs": 5,
+              "minute": 900,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 38,
+              "holder": "Gordon Iversen",
+              "dayAbs": 5,
+              "minute": 930,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 39,
+              "holder": "Sonny Slate",
+              "dayAbs": 6,
+              "minute": 480,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 40,
+              "holder": "Marcus Tanaka",
+              "dayAbs": 6,
+              "minute": 540,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 41,
+              "holder": "Ivy Vance",
+              "dayAbs": 6,
+              "minute": 570,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 42,
+              "holder": "Nia Mercer",
+              "dayAbs": 6,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 43,
+              "holder": "Phil Reed",
+              "dayAbs": 6,
+              "minute": 660,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 44,
+              "holder": "Phil Cruz",
+              "dayAbs": 6,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 45,
+              "holder": "Rita Hux",
+              "dayAbs": 6,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 46,
+              "holder": "Moe Barnes",
+              "dayAbs": 6,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 47,
+              "holder": "Service Proof",
+              "dayAbs": 0,
+              "minute": 540,
+              "partySize": 2,
+              "status": "played",
+              "arrival": "arrived",
+              "checkIn": "checked-in",
+              "transport": "ride"
+            }
+          ],
+          "golf": [
+            {
+              "id": "round-47",
+              "name": "Service Proof",
+              "reservationId": 47,
+              "state": "traveling-to-practice",
+              "practice": null,
+              "transport": "ride",
+              "cartId": "cart-1",
+              "holeIndex": 0,
+              "tier": "near",
+              "position": {
+                "x": -0.6485521258057894,
+                "z": 175.3514478741942
+              },
+              "waitReason": null,
+              "congestion": "clear",
+              "waitingMinutes": 0,
+              "behindMinutes": 0,
+              "practiceShots": 0,
+              "cartLoaded": true,
+              "cartReturned": false
+            }
+          ],
+          "completed": []
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:30.174Z",
+      "kind": "collision-aware-walk-route",
+      "detail": {
+        "label": "final cart service observer observer position",
+        "waypoints": [
+          {
+            "x": 56.32618042636962,
+            "z": 183.06062576871818
+          },
+          {
+            "x": 56.32618042636962,
+            "z": 257.26062576871817
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:40.332Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "final cart service observer observer position waypoint 1",
+        "distance": 0.219,
+        "pose": {
+          "x": 56.10818333941353,
+          "z": 183.04409985751352,
+          "yaw": -1.7480573464101652,
+          "pitch": -0.06513000000000757,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:53.561Z",
+      "kind": "walked-to",
+      "detail": {
+        "label": "final cart service observer observer position waypoint 2",
+        "distance": 0.478,
+        "pose": {
+          "x": 56.35461672086883,
+          "z": 256.7835920454196,
+          "yaw": -3.045757346410172,
+          "pitch": -0.06513000000000757,
+          "speed": 3.4,
+          "runMult": 1.8
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:54.978Z",
+      "kind": "framed-target",
+      "detail": {
+        "label": "final cart service observer",
+        "target": {
+          "x": 52,
+          "z": 252
+        },
+        "observer": {
+          "x": 56.35461672086883,
+          "z": 256.7835920454196,
+          "yaw": -5.563257346410203,
+          "pitch": -0.06513000000000757,
+          "speed": 3.4,
+          "runMult": 1.8
+        },
+        "collisionAware": true
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:56.382Z",
+      "kind": "route-b-cleaning-camera-window-passed",
+      "detail": {
+        "cart": {
+          "id": "cart-1",
+          "status": "charging",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1,
+          "serviceReadyMinute": 663.39,
+          "lastReturnedMinute": 659.75
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:56.854Z",
+      "kind": "screenshot",
+      "detail": {
+        "filename": "03-route-b-final-charging.png",
+        "subject": "charging cart and separated service labels remain visible",
+        "world": {
+          "screen": "game",
+          "courseMode": "walk",
+          "speedIdx": 0,
+          "clock": 662.5189999999984,
+          "minuteOfDay": 662.5189999999984,
+          "pose": {
+            "x": 56.35461672086883,
+            "z": 256.7835920454196,
+            "yaw": -5.563257346410203,
+            "pitch": -0.06513000000000757,
+            "speed": 3.4,
+            "runMult": 1.8
+          },
+          "clubhouse": {
+            "origin": {
+              "x": -8,
+              "z": 228
+            },
+            "door": {
+              "x": -8.8,
+              "z": 234.625
+            },
+            "inside": false
+          },
+          "focus": null,
+          "laptopOpen": false,
+          "frontDeskOpen": false,
+          "bookings": [
+            {
+              "id": 1,
+              "holder": "Sonny Slate",
+              "dayAbs": 0,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "arrived",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 2,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 0,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "arrived",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 3,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 0,
+              "minute": 630,
+              "partySize": 2,
+              "status": "noShow",
+              "arrival": "no-show",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 4,
+              "holder": "Nia Mercer",
+              "dayAbs": 0,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 5,
+              "holder": "Chip Lindqvist",
+              "dayAbs": 0,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 6,
+              "holder": "Phil Reed",
+              "dayAbs": 0,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 7,
+              "holder": "Sonny Slate",
+              "dayAbs": 1,
+              "minute": 510,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 8,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 1,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 9,
+              "holder": "Fern Ainsley",
+              "dayAbs": 1,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 10,
+              "holder": "Fern Tanaka",
+              "dayAbs": 1,
+              "minute": 600,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 11,
+              "holder": "Phil Reed",
+              "dayAbs": 1,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 12,
+              "holder": "Nia Hong",
+              "dayAbs": 1,
+              "minute": 750,
+              "partySize": 2,
+              "status": "cancelled",
+              "arrival": "cancelled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 13,
+              "holder": "Lloyd Segura",
+              "dayAbs": 1,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 14,
+              "holder": "Phil Slate",
+              "dayAbs": 1,
+              "minute": 930,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 15,
+              "holder": "Nia Pike",
+              "dayAbs": 1,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 16,
+              "holder": "Sonny Slate",
+              "dayAbs": 2,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 17,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 2,
+              "minute": 810,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 18,
+              "holder": "Fern Tanaka",
+              "dayAbs": 2,
+              "minute": 900,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 19,
+              "holder": "Phil Reed",
+              "dayAbs": 2,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 20,
+              "holder": "Rita Hux",
+              "dayAbs": 2,
+              "minute": 990,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 21,
+              "holder": "Sonny Slate",
+              "dayAbs": 3,
+              "minute": 420,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 22,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 3,
+              "minute": 510,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 23,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 3,
+              "minute": 570,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 24,
+              "holder": "Nia Mercer",
+              "dayAbs": 3,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 25,
+              "holder": "Sonny Slate",
+              "dayAbs": 4,
+              "minute": 660,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 26,
+              "holder": "Nadia Fontaine",
+              "dayAbs": 4,
+              "minute": 780,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 27,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 4,
+              "minute": 810,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 28,
+              "holder": "Nia Mercer",
+              "dayAbs": 4,
+              "minute": 900,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 29,
+              "holder": "Fern Tanaka",
+              "dayAbs": 4,
+              "minute": 960,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 30,
+              "holder": "Sonny Slate",
+              "dayAbs": 5,
+              "minute": 450,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 31,
+              "holder": "Lloyd Marsh",
+              "dayAbs": 5,
+              "minute": 540,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 32,
+              "holder": "Fern Tanaka",
+              "dayAbs": 5,
+              "minute": 690,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 33,
+              "holder": "Phil Reed",
+              "dayAbs": 5,
+              "minute": 750,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 34,
+              "holder": "Nia Hong",
+              "dayAbs": 5,
+              "minute": 780,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 35,
+              "holder": "Rita Hux",
+              "dayAbs": 5,
+              "minute": 810,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 36,
+              "holder": "Lloyd Segura",
+              "dayAbs": 5,
+              "minute": 840,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 37,
+              "holder": "Yolanda Segura",
+              "dayAbs": 5,
+              "minute": 900,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 38,
+              "holder": "Gordon Iversen",
+              "dayAbs": 5,
+              "minute": 930,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 39,
+              "holder": "Sonny Slate",
+              "dayAbs": 6,
+              "minute": 480,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 40,
+              "holder": "Marcus Tanaka",
+              "dayAbs": 6,
+              "minute": 540,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 41,
+              "holder": "Ivy Vance",
+              "dayAbs": 6,
+              "minute": 570,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 42,
+              "holder": "Nia Mercer",
+              "dayAbs": 6,
+              "minute": 600,
+              "partySize": 4,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 43,
+              "holder": "Phil Reed",
+              "dayAbs": 6,
+              "minute": 660,
+              "partySize": 1,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 44,
+              "holder": "Phil Cruz",
+              "dayAbs": 6,
+              "minute": 870,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 45,
+              "holder": "Rita Hux",
+              "dayAbs": 6,
+              "minute": 900,
+              "partySize": 2,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 46,
+              "holder": "Moe Barnes",
+              "dayAbs": 6,
+              "minute": 930,
+              "partySize": 3,
+              "status": "booked",
+              "arrival": "scheduled",
+              "checkIn": "unconfirmed",
+              "transport": null
+            },
+            {
+              "id": 47,
+              "holder": "Service Proof",
+              "dayAbs": 0,
+              "minute": 540,
+              "partySize": 2,
+              "status": "played",
+              "arrival": "arrived",
+              "checkIn": "checked-in",
+              "transport": "ride"
+            }
+          ],
+          "golf": [
+            {
+              "id": "round-47",
+              "name": "Service Proof",
+              "reservationId": 47,
+              "state": "review-generated",
+              "practice": "range",
+              "transport": "ride",
+              "cartId": "cart-1",
+              "holeIndex": 8,
+              "tier": "near",
+              "position": {
+                "x": -4,
+                "z": 276
+              },
+              "waitReason": null,
+              "congestion": "clear",
+              "waitingMinutes": 0,
+              "behindMinutes": 0,
+              "practiceShots": 6,
+              "cartLoaded": true,
+              "cartReturned": true
+            }
+          ],
+          "completed": [
+            {
+              "partyName": "Service Proof",
+              "transport": "ride",
+              "durationMinutes": 116.7,
+              "rating": 81.8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "at": "2026-07-20T12:48:57.083Z",
+      "kind": "route-b-final-service-complete",
+      "detail": {
+        "riding": {
+          "id": 47,
+          "holder": "Service Proof",
+          "minute": 540,
+          "dayAbs": 0,
+          "transport": "ride",
+          "partySize": 2
+        },
+        "cartId": "cart-1",
+        "cleaningCart": null,
+        "chargingCart": {
+          "id": "cart-1",
+          "status": "charging",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1,
+          "serviceReadyMinute": 663.39,
+          "lastReturnedMinute": 659.75
+        },
+        "availableCart": {
+          "id": "cart-1",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1,
+          "serviceReadyMinute": null,
+          "lastReturnedMinute": 659.75
+        }
+      }
+    }
+  ],
+  "result": {
+    "riding": {
+      "id": 47,
+      "holder": "Service Proof",
+      "minute": 540,
+      "dayAbs": 0,
+      "transport": "ride",
+      "partySize": 2
+    },
+    "cartId": "cart-1",
+    "cleaningCart": null,
+    "chargingCart": {
+      "id": "cart-1",
+      "status": "charging",
+      "assignedPartyId": null,
+      "condition": 82,
+      "position": {
+        "x": 52,
+        "z": 252
+      },
+      "trips": 1,
+      "serviceReadyMinute": 663.39,
+      "lastReturnedMinute": 659.75
+    },
+    "availableCart": {
+      "id": "cart-1",
+      "status": "available",
+      "assignedPartyId": null,
+      "condition": 82,
+      "position": {
+        "x": 52,
+        "z": 252
+      },
+      "trips": 1,
+      "serviceReadyMinute": null,
+      "lastReturnedMinute": 659.75
+    },
+    "world": {
+      "screen": "game",
+      "courseMode": "walk",
+      "speedIdx": 0,
+      "clock": 664.0189999999983,
+      "minuteOfDay": 664.0189999999984,
+      "pose": {
+        "x": 56.35461672086883,
+        "z": 256.7835920454196,
+        "yaw": -5.563257346410203,
+        "pitch": -0.06513000000000757,
+        "speed": 3.4,
+        "runMult": 1.8
+      },
+      "clubhouse": {
+        "origin": {
+          "x": -8,
+          "z": 228
+        },
+        "door": {
+          "x": -8.8,
+          "z": 234.625
+        },
+        "inside": false
+      },
+      "focus": null,
+      "laptopOpen": false,
+      "frontDeskOpen": false,
+      "bookings": [
+        {
+          "id": 1,
+          "holder": "Sonny Slate",
+          "dayAbs": 0,
+          "minute": 510,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "arrived",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 2,
+          "holder": "Nadia Fontaine",
+          "dayAbs": 0,
+          "minute": 570,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "arrived",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 3,
+          "holder": "Lloyd Marsh",
+          "dayAbs": 0,
+          "minute": 630,
+          "partySize": 2,
+          "status": "noShow",
+          "arrival": "no-show",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 4,
+          "holder": "Nia Mercer",
+          "dayAbs": 0,
+          "minute": 780,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 5,
+          "holder": "Chip Lindqvist",
+          "dayAbs": 0,
+          "minute": 870,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 6,
+          "holder": "Phil Reed",
+          "dayAbs": 0,
+          "minute": 930,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 7,
+          "holder": "Sonny Slate",
+          "dayAbs": 1,
+          "minute": 510,
+          "partySize": 2,
+          "status": "cancelled",
+          "arrival": "cancelled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 8,
+          "holder": "Nadia Fontaine",
+          "dayAbs": 1,
+          "minute": 540,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 9,
+          "holder": "Fern Ainsley",
+          "dayAbs": 1,
+          "minute": 570,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 10,
+          "holder": "Fern Tanaka",
+          "dayAbs": 1,
+          "minute": 600,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 11,
+          "holder": "Phil Reed",
+          "dayAbs": 1,
+          "minute": 660,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 12,
+          "holder": "Nia Hong",
+          "dayAbs": 1,
+          "minute": 750,
+          "partySize": 2,
+          "status": "cancelled",
+          "arrival": "cancelled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 13,
+          "holder": "Lloyd Segura",
+          "dayAbs": 1,
+          "minute": 900,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 14,
+          "holder": "Phil Slate",
+          "dayAbs": 1,
+          "minute": 930,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 15,
+          "holder": "Nia Pike",
+          "dayAbs": 1,
+          "minute": 960,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 16,
+          "holder": "Sonny Slate",
+          "dayAbs": 2,
+          "minute": 600,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 17,
+          "holder": "Lloyd Marsh",
+          "dayAbs": 2,
+          "minute": 810,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 18,
+          "holder": "Fern Tanaka",
+          "dayAbs": 2,
+          "minute": 900,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 19,
+          "holder": "Phil Reed",
+          "dayAbs": 2,
+          "minute": 930,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 20,
+          "holder": "Rita Hux",
+          "dayAbs": 2,
+          "minute": 990,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 21,
+          "holder": "Sonny Slate",
+          "dayAbs": 3,
+          "minute": 420,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 22,
+          "holder": "Nadia Fontaine",
+          "dayAbs": 3,
+          "minute": 510,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 23,
+          "holder": "Lloyd Marsh",
+          "dayAbs": 3,
+          "minute": 570,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 24,
+          "holder": "Nia Mercer",
+          "dayAbs": 3,
+          "minute": 660,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 25,
+          "holder": "Sonny Slate",
+          "dayAbs": 4,
+          "minute": 660,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 26,
+          "holder": "Nadia Fontaine",
+          "dayAbs": 4,
+          "minute": 780,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 27,
+          "holder": "Lloyd Marsh",
+          "dayAbs": 4,
+          "minute": 810,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 28,
+          "holder": "Nia Mercer",
+          "dayAbs": 4,
+          "minute": 900,
+          "partySize": 1,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 29,
+          "holder": "Fern Tanaka",
+          "dayAbs": 4,
+          "minute": 960,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 30,
+          "holder": "Sonny Slate",
+          "dayAbs": 5,
+          "minute": 450,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 31,
+          "holder": "Lloyd Marsh",
+          "dayAbs": 5,
+          "minute": 540,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 32,
+          "holder": "Fern Tanaka",
+          "dayAbs": 5,
+          "minute": 690,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 33,
+          "holder": "Phil Reed",
+          "dayAbs": 5,
+          "minute": 750,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 34,
+          "holder": "Nia Hong",
+          "dayAbs": 5,
+          "minute": 780,
+          "partySize": 1,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 35,
+          "holder": "Rita Hux",
+          "dayAbs": 5,
+          "minute": 810,
+          "partySize": 1,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 36,
+          "holder": "Lloyd Segura",
+          "dayAbs": 5,
+          "minute": 840,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 37,
+          "holder": "Yolanda Segura",
+          "dayAbs": 5,
+          "minute": 900,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 38,
+          "holder": "Gordon Iversen",
+          "dayAbs": 5,
+          "minute": 930,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 39,
+          "holder": "Sonny Slate",
+          "dayAbs": 6,
+          "minute": 480,
+          "partySize": 1,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 40,
+          "holder": "Marcus Tanaka",
+          "dayAbs": 6,
+          "minute": 540,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 41,
+          "holder": "Ivy Vance",
+          "dayAbs": 6,
+          "minute": 570,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 42,
+          "holder": "Nia Mercer",
+          "dayAbs": 6,
+          "minute": 600,
+          "partySize": 4,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 43,
+          "holder": "Phil Reed",
+          "dayAbs": 6,
+          "minute": 660,
+          "partySize": 1,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 44,
+          "holder": "Phil Cruz",
+          "dayAbs": 6,
+          "minute": 870,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 45,
+          "holder": "Rita Hux",
+          "dayAbs": 6,
+          "minute": 900,
+          "partySize": 2,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 46,
+          "holder": "Moe Barnes",
+          "dayAbs": 6,
+          "minute": 930,
+          "partySize": 3,
+          "status": "booked",
+          "arrival": "scheduled",
+          "checkIn": "unconfirmed",
+          "transport": null
+        },
+        {
+          "id": 47,
+          "holder": "Service Proof",
+          "dayAbs": 0,
+          "minute": 540,
+          "partySize": 2,
+          "status": "played",
+          "arrival": "arrived",
+          "checkIn": "checked-in",
+          "transport": "ride"
+        }
+      ],
+      "golf": [],
+      "completed": [
+        {
+          "partyName": "Service Proof",
+          "transport": "ride",
+          "durationMinutes": 116.7,
+          "rating": 81.8
+        }
+      ]
+    },
+    "performance": {
+      "durationMs": 5000,
+      "frames": 363,
+      "averageFps": 72.6,
+      "onePercentLowFps": 39.56,
+      "p95FrameMs": 16.8,
+      "p99FrameMs": 25.2,
+      "hitchesOver33Ms": 0,
+      "hitchesOver50Ms": 0,
+      "worstFrameMs": 25.3,
+      "drawCalls": 4418,
+      "renderedTriangles": 6081400,
+      "geometries": 1088,
+      "textures": 204,
+      "tiers": {
+        "near": 0,
+        "mid": 0,
+        "far": 0
+      },
+      "resources": null,
+      "rendererTelemetry": {
+        "drawCalls": 4418,
+        "triangles": 6081400,
+        "geometries": 1088,
+        "textures": 204
+      },
+      "jsHeapUsedBytes": 229096321
+    }
+  },
+  "finalWorld": {
+    "screen": "game",
+    "courseMode": "walk",
+    "speedIdx": 0,
+    "clock": 664.0189999999983,
+    "minuteOfDay": 664.0189999999984,
+    "pose": {
+      "x": 56.35461672086883,
+      "z": 256.7835920454196,
+      "yaw": -5.563257346410203,
+      "pitch": -0.06513000000000757,
+      "speed": 3.4,
+      "runMult": 1.8
+    },
+    "clubhouse": {
+      "origin": {
+        "x": -8,
+        "z": 228
+      },
+      "door": {
+        "x": -8.8,
+        "z": 234.625
+      },
+      "inside": false
+    },
+    "focus": null,
+    "laptopOpen": false,
+    "frontDeskOpen": false,
+    "bookings": [
+      {
+        "id": 1,
+        "holder": "Sonny Slate",
+        "dayAbs": 0,
+        "minute": 510,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "arrived",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 2,
+        "holder": "Nadia Fontaine",
+        "dayAbs": 0,
+        "minute": 570,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "arrived",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 3,
+        "holder": "Lloyd Marsh",
+        "dayAbs": 0,
+        "minute": 630,
+        "partySize": 2,
+        "status": "noShow",
+        "arrival": "no-show",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 4,
+        "holder": "Nia Mercer",
+        "dayAbs": 0,
+        "minute": 780,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 5,
+        "holder": "Chip Lindqvist",
+        "dayAbs": 0,
+        "minute": 870,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 6,
+        "holder": "Phil Reed",
+        "dayAbs": 0,
+        "minute": 930,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 7,
+        "holder": "Sonny Slate",
+        "dayAbs": 1,
+        "minute": 510,
+        "partySize": 2,
+        "status": "cancelled",
+        "arrival": "cancelled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 8,
+        "holder": "Nadia Fontaine",
+        "dayAbs": 1,
+        "minute": 540,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 9,
+        "holder": "Fern Ainsley",
+        "dayAbs": 1,
+        "minute": 570,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 10,
+        "holder": "Fern Tanaka",
+        "dayAbs": 1,
+        "minute": 600,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 11,
+        "holder": "Phil Reed",
+        "dayAbs": 1,
+        "minute": 660,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 12,
+        "holder": "Nia Hong",
+        "dayAbs": 1,
+        "minute": 750,
+        "partySize": 2,
+        "status": "cancelled",
+        "arrival": "cancelled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 13,
+        "holder": "Lloyd Segura",
+        "dayAbs": 1,
+        "minute": 900,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 14,
+        "holder": "Phil Slate",
+        "dayAbs": 1,
+        "minute": 930,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 15,
+        "holder": "Nia Pike",
+        "dayAbs": 1,
+        "minute": 960,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 16,
+        "holder": "Sonny Slate",
+        "dayAbs": 2,
+        "minute": 600,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 17,
+        "holder": "Lloyd Marsh",
+        "dayAbs": 2,
+        "minute": 810,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 18,
+        "holder": "Fern Tanaka",
+        "dayAbs": 2,
+        "minute": 900,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 19,
+        "holder": "Phil Reed",
+        "dayAbs": 2,
+        "minute": 930,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 20,
+        "holder": "Rita Hux",
+        "dayAbs": 2,
+        "minute": 990,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 21,
+        "holder": "Sonny Slate",
+        "dayAbs": 3,
+        "minute": 420,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 22,
+        "holder": "Nadia Fontaine",
+        "dayAbs": 3,
+        "minute": 510,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 23,
+        "holder": "Lloyd Marsh",
+        "dayAbs": 3,
+        "minute": 570,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 24,
+        "holder": "Nia Mercer",
+        "dayAbs": 3,
+        "minute": 660,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 25,
+        "holder": "Sonny Slate",
+        "dayAbs": 4,
+        "minute": 660,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 26,
+        "holder": "Nadia Fontaine",
+        "dayAbs": 4,
+        "minute": 780,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 27,
+        "holder": "Lloyd Marsh",
+        "dayAbs": 4,
+        "minute": 810,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 28,
+        "holder": "Nia Mercer",
+        "dayAbs": 4,
+        "minute": 900,
+        "partySize": 1,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 29,
+        "holder": "Fern Tanaka",
+        "dayAbs": 4,
+        "minute": 960,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 30,
+        "holder": "Sonny Slate",
+        "dayAbs": 5,
+        "minute": 450,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 31,
+        "holder": "Lloyd Marsh",
+        "dayAbs": 5,
+        "minute": 540,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 32,
+        "holder": "Fern Tanaka",
+        "dayAbs": 5,
+        "minute": 690,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 33,
+        "holder": "Phil Reed",
+        "dayAbs": 5,
+        "minute": 750,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 34,
+        "holder": "Nia Hong",
+        "dayAbs": 5,
+        "minute": 780,
+        "partySize": 1,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 35,
+        "holder": "Rita Hux",
+        "dayAbs": 5,
+        "minute": 810,
+        "partySize": 1,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 36,
+        "holder": "Lloyd Segura",
+        "dayAbs": 5,
+        "minute": 840,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 37,
+        "holder": "Yolanda Segura",
+        "dayAbs": 5,
+        "minute": 900,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 38,
+        "holder": "Gordon Iversen",
+        "dayAbs": 5,
+        "minute": 930,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 39,
+        "holder": "Sonny Slate",
+        "dayAbs": 6,
+        "minute": 480,
+        "partySize": 1,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 40,
+        "holder": "Marcus Tanaka",
+        "dayAbs": 6,
+        "minute": 540,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 41,
+        "holder": "Ivy Vance",
+        "dayAbs": 6,
+        "minute": 570,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 42,
+        "holder": "Nia Mercer",
+        "dayAbs": 6,
+        "minute": 600,
+        "partySize": 4,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 43,
+        "holder": "Phil Reed",
+        "dayAbs": 6,
+        "minute": 660,
+        "partySize": 1,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 44,
+        "holder": "Phil Cruz",
+        "dayAbs": 6,
+        "minute": 870,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 45,
+        "holder": "Rita Hux",
+        "dayAbs": 6,
+        "minute": 900,
+        "partySize": 2,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 46,
+        "holder": "Moe Barnes",
+        "dayAbs": 6,
+        "minute": 930,
+        "partySize": 3,
+        "status": "booked",
+        "arrival": "scheduled",
+        "checkIn": "unconfirmed",
+        "transport": null
+      },
+      {
+        "id": 47,
+        "holder": "Service Proof",
+        "dayAbs": 0,
+        "minute": 540,
+        "partySize": 2,
+        "status": "played",
+        "arrival": "arrived",
+        "checkIn": "checked-in",
+        "transport": "ride"
+      }
+    ],
+    "golf": [],
+    "completed": [
+      {
+        "partyName": "Service Proof",
+        "transport": "ride",
+        "durationMinutes": 116.7,
+        "rating": 81.8
+      }
+    ]
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [],
+  "videoPath": "video\\page@3c0f9d060f75ba70cdb8356929e1010b.webm",
+  "failure": null
+}

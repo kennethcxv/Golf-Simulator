@@ -1,0 +1,35 @@
+{
+ "id": "pf_hybrid_forge_4h",
+ "kind": "products",
+ "category": "clubs",
+ "dims_m": [
+  0.0775,
+  0.077,
+  1.0359
+ ],
+ "min_z": -0.0,
+ "tris": 1616,
+ "textures": [
+  "ClubGripTex:128x256",
+  "Decal_pf_hybrid_forge_4h:256x96",
+  "FaceSteelAlb:128x128",
+  "HeadGlossAlb:256x256",
+  "NRM_knurl_1.0_512:512x512",
+  "NRM_rib_1.2_512:512x512"
+ ],
+ "sockets": [
+  "CLUB_BUTT",
+  "CLUB_HEAD_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hybrid_forge_4h.glb",
+ "blend": "assets/pro_shop/source/products/clubs/pf_hybrid_forge_4h.blend",
+ "name": "Forge 4H Hybrid",
+ "variant": "v",
+ "price": 279.99,
+ "fixture": "pf_fixture_club_rack",
+ "slot_type": "club_slot",
+ "packaging": "none",
+ "length_m": 1.015
+}

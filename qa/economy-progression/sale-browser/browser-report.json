@@ -1,0 +1,413 @@
+{
+  "createdAt": "2026-07-20T00:57:00.774Z",
+  "baseUrl": "http://127.0.0.1:8461/",
+  "browserModule": "C:\\Users\\Kenneth\\AppData\\Local\\npm-cache\\_npx\\9833c18b2d85bc59\\node_modules\\playwright",
+  "normalControls": [
+    "New Empire button",
+    "Buy button",
+    "E interaction",
+    "projected Property navigation",
+    "Request appraisal",
+    "Keep operating",
+    "Accept offer",
+    "Confirm permanent sale"
+  ],
+  "fixture": {
+    "condition": 74,
+    "readiness": {
+      "closedDays": 4,
+      "condition": 74,
+      "reputation": 33.8,
+      "monthlyNet": 2835,
+      "saleRequirements": [
+        {
+          "id": "operating-history",
+          "label": "Operate for 3 closed days",
+          "met": true,
+          "value": 4,
+          "target": 3
+        },
+        {
+          "id": "safe-condition",
+          "label": "Reach property condition 35",
+          "met": true,
+          "value": 74,
+          "target": 35
+        },
+        {
+          "id": "settle-arrears",
+          "label": "Clear severe property arrears",
+          "met": true,
+          "value": 0,
+          "target": 0
+        }
+      ],
+      "saleEligible": true,
+      "nextTier": {
+        "id": "establishedLocal",
+        "level": 2,
+        "name": "Established local course",
+        "purchasePrice": [
+          80000,
+          220000
+        ],
+        "startingCondition": [
+          30,
+          68
+        ],
+        "holeCount": [
+          9,
+          18
+        ],
+        "customerDemand": 1,
+        "maintenanceComplexity": "Moderate",
+        "clubhouseScale": "Full local club",
+        "upgradeCapacity": 10,
+        "reputationExpectation": 50,
+        "operatingCostMultiplier": 1.1,
+        "potentialValue": [
+          180000,
+          420000
+        ],
+        "unlock": {
+          "soldProperties": 1,
+          "propertyCondition": 48,
+          "reputation": 42,
+          "monthlyNet": 2500
+        }
+      },
+      "nextRequirements": [
+        {
+          "id": "sold-properties",
+          "label": "Complete 1 property sale",
+          "met": false,
+          "value": 0,
+          "target": 1
+        },
+        {
+          "id": "condition",
+          "label": "Property condition 48",
+          "met": true,
+          "value": 74,
+          "target": 48
+        },
+        {
+          "id": "reputation",
+          "label": "Reputation 42",
+          "met": false,
+          "value": 33.8,
+          "target": 42
+        },
+        {
+          "id": "profit",
+          "label": "24-day profit $2,500",
+          "met": true,
+          "value": 2835,
+          "target": 2500
+        }
+      ],
+      "nextTierEligible": false
+    },
+    "cash": 56883.25,
+    "holdings": 1
+  },
+  "firstOffer": {
+    "id": "appraisal-1",
+    "sequence": 1,
+    "propertyId": "willow-creek",
+    "propertyName": "Willow Creek Municipal",
+    "tierId": "neglectedPublic",
+    "createdDay": 4,
+    "expiresDay": 9,
+    "status": "offered",
+    "eligible": true,
+    "offer": 66500,
+    "appraisedValue": 66500,
+    "marketModifier": 0.999,
+    "closingCosts": 2327.5,
+    "outstanding": 0,
+    "netProceeds": 64172.5,
+    "acquisitionCost": 46000,
+    "restorationInvestment": 0,
+    "readiness": {
+      "closedDays": 4,
+      "condition": 74,
+      "reputation": 33.8,
+      "monthlyNet": 2835,
+      "saleRequirements": [
+        {
+          "id": "operating-history",
+          "label": "Operate for 3 closed days",
+          "met": true,
+          "value": 4,
+          "target": 3
+        },
+        {
+          "id": "safe-condition",
+          "label": "Reach property condition 35",
+          "met": true,
+          "value": 74,
+          "target": 35
+        },
+        {
+          "id": "settle-arrears",
+          "label": "Clear severe property arrears",
+          "met": true,
+          "value": 0,
+          "target": 0
+        }
+      ],
+      "saleEligible": true,
+      "nextTier": {
+        "id": "establishedLocal",
+        "level": 2,
+        "name": "Established local course",
+        "purchasePrice": [
+          80000,
+          220000
+        ],
+        "startingCondition": [
+          30,
+          68
+        ],
+        "holeCount": [
+          9,
+          18
+        ],
+        "customerDemand": 1,
+        "maintenanceComplexity": "Moderate",
+        "clubhouseScale": "Full local club",
+        "upgradeCapacity": 10,
+        "reputationExpectation": 50,
+        "operatingCostMultiplier": 1.1,
+        "potentialValue": [
+          180000,
+          420000
+        ],
+        "unlock": {
+          "soldProperties": 1,
+          "propertyCondition": 48,
+          "reputation": 42,
+          "monthlyNet": 2500
+        }
+      },
+      "nextRequirements": [
+        {
+          "id": "sold-properties",
+          "label": "Complete 1 property sale",
+          "met": false,
+          "value": 0,
+          "target": 1
+        },
+        {
+          "id": "condition",
+          "label": "Property condition 48",
+          "met": true,
+          "value": 74,
+          "target": 48
+        },
+        {
+          "id": "reputation",
+          "label": "Reputation 42",
+          "met": false,
+          "value": 33.8,
+          "target": 42
+        },
+        {
+          "id": "profit",
+          "label": "24-day profit $2,500",
+          "met": true,
+          "value": 2835,
+          "target": 2500
+        }
+      ],
+      "nextTierEligible": false
+    }
+  },
+  "afterKeep": {
+    "holdings": 1,
+    "cash": 56883.25,
+    "latestStatus": "kept"
+  },
+  "beforeConfirmation": {
+    "holdings": 1,
+    "cash": 56883.25,
+    "confirmationVisible": true
+  },
+  "afterSale": {
+    "holdings": 0,
+    "cash": 121055.75,
+    "completedSales": [
+      {
+        "id": "sale:appraisal-2",
+        "appraisalId": "appraisal-2",
+        "propertyId": "willow-creek",
+        "propertyName": "Willow Creek Municipal",
+        "tierId": "neglectedPublic",
+        "day": 4,
+        "acquisitionCost": 46000,
+        "restorationInvestment": 0,
+        "grossOffer": 66500,
+        "closingCosts": 2327.5,
+        "outstanding": 0,
+        "netProceeds": 64172.5,
+        "profit": 18172.5
+      }
+    ],
+    "backupCount": 1,
+    "unlockedTierIds": [
+      "neglectedPublic"
+    ],
+    "marketVisible": true
+  },
+  "checks": {
+    "keepPreservesProperty": true,
+    "acceptAloneDoesNotSell": true,
+    "explicitConfirmationSells": true,
+    "payoutMatchesDisplayedNet": true,
+    "recoveryBackupWritten": true,
+    "nextMarketShown": true
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/flagpole.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/tee_markers.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/hose_nozzle.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/hand_fork.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/bucket_soil.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse/kiosk.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse/office_chair.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/tractor_red.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/club_sign.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/tool_chest.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/workbench.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/shed.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/leaves_pile.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/belt.glb",
+      "reason": "net::ERR_ABORTED"
+    }
+  ],
+  "video": "qa/economy-progression/sale-browser/video/sale-flow-normal-controls.webm"
+}

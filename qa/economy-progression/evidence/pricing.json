@@ -1,0 +1,514 @@
+{
+  "controls": {
+    "products": {
+      "min": 0.7,
+      "max": 1.5
+    },
+    "teeTime": {
+      "min": 10,
+      "max": 150
+    },
+    "membership": {
+      "min": 100,
+      "max": 2000
+    },
+    "rentals": {
+      "min": 5,
+      "max": 60
+    }
+  },
+  "products": [
+    {
+      "category": "clubs",
+      "low": {
+        "type": "product",
+        "category": "clubs",
+        "value": 0.7,
+        "fairValue": 1,
+        "ratio": 0.7,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 1.5,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1.05,
+        "averageMargin": 0.25
+      },
+      "fair": {
+        "type": "product",
+        "category": "clubs",
+        "value": 1,
+        "fairValue": 1,
+        "ratio": 1,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1,
+        "averageMargin": 0.47
+      },
+      "maximum": {
+        "type": "product",
+        "category": "clubs",
+        "value": 1.5,
+        "fairValue": 1,
+        "ratio": 1.5,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.39,
+        "salesLikelihoodPercent": 39,
+        "revenueIndex": 0.58,
+        "averageMargin": 0.65
+      }
+    },
+    {
+      "category": "balls",
+      "low": {
+        "type": "product",
+        "category": "balls",
+        "value": 0.7,
+        "fairValue": 1,
+        "ratio": 0.7,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 1.5,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1.05,
+        "averageMargin": 0.31
+      },
+      "fair": {
+        "type": "product",
+        "category": "balls",
+        "value": 1,
+        "fairValue": 1,
+        "ratio": 1,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1,
+        "averageMargin": 0.52
+      },
+      "maximum": {
+        "type": "product",
+        "category": "balls",
+        "value": 1.5,
+        "fairValue": 1,
+        "ratio": 1.5,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.39,
+        "salesLikelihoodPercent": 39,
+        "revenueIndex": 0.58,
+        "averageMargin": 0.68
+      }
+    },
+    {
+      "category": "apparel",
+      "low": {
+        "type": "product",
+        "category": "apparel",
+        "value": 0.7,
+        "fairValue": 1,
+        "ratio": 0.7,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 1.5,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1.05,
+        "averageMargin": 0.37
+      },
+      "fair": {
+        "type": "product",
+        "category": "apparel",
+        "value": 1,
+        "fairValue": 1,
+        "ratio": 1,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1,
+        "averageMargin": 0.56
+      },
+      "maximum": {
+        "type": "product",
+        "category": "apparel",
+        "value": 1.5,
+        "fairValue": 1,
+        "ratio": 1.5,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.39,
+        "salesLikelihoodPercent": 39,
+        "revenueIndex": 0.58,
+        "averageMargin": 0.7
+      }
+    },
+    {
+      "category": "accessories",
+      "low": {
+        "type": "product",
+        "category": "accessories",
+        "value": 0.7,
+        "fairValue": 1,
+        "ratio": 0.7,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 1.5,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1.05,
+        "averageMargin": 0.38
+      },
+      "fair": {
+        "type": "product",
+        "category": "accessories",
+        "value": 1,
+        "fairValue": 1,
+        "ratio": 1,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 1,
+        "averageMargin": 0.57
+      },
+      "maximum": {
+        "type": "product",
+        "category": "accessories",
+        "value": 1.5,
+        "fairValue": 1,
+        "ratio": 1.5,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.39,
+        "salesLikelihoodPercent": 39,
+        "revenueIndex": 0.58,
+        "averageMargin": 0.71
+      }
+    }
+  ],
+  "teeTime": {
+    "low": {
+      "type": "teeTime",
+      "value": 10,
+      "fairValue": 37.72,
+      "ratio": 0.27,
+      "band": {
+        "id": "value",
+        "label": "Value-led",
+        "tone": "warn",
+        "satisfaction": "Customers love the value, but margin is thin.",
+        "reputationEffect": "positive"
+      },
+      "demandFactor": 1.8,
+      "salesLikelihoodPercent": 100,
+      "revenueIndex": 0.48
+    },
+    "fair": {
+      "type": "teeTime",
+      "value": 37.72,
+      "fairValue": 37.72,
+      "ratio": 1,
+      "band": {
+        "id": "fair",
+        "label": "Fair",
+        "tone": "ok",
+        "satisfaction": "Price and quality are in balance.",
+        "reputationEffect": "stable"
+      },
+      "demandFactor": 1,
+      "salesLikelihoodPercent": 56,
+      "revenueIndex": 1
+    },
+    "maximum": {
+      "type": "teeTime",
+      "value": 150,
+      "fairValue": 37.72,
+      "ratio": 3.98,
+      "band": {
+        "id": "punishing",
+        "label": "Punishing",
+        "tone": "bad",
+        "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+        "reputationEffect": "strongly negative"
+      },
+      "demandFactor": 0.17,
+      "salesLikelihoodPercent": 9,
+      "revenueIndex": 0.66
+    }
+  },
+  "membership": [
+    {
+      "tier": "weekday",
+      "low": {
+        "type": "membership",
+        "tier": "weekday",
+        "value": 100,
+        "fairValue": 260.44,
+        "ratio": 0.38,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 2.2,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 0.84
+      },
+      "current": {
+        "type": "membership",
+        "tier": "weekday",
+        "value": 240,
+        "fairValue": 260.44,
+        "ratio": 0.92,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1.18,
+        "salesLikelihoodPercent": 54,
+        "revenueIndex": 1.09
+      },
+      "maximum": {
+        "type": "membership",
+        "tier": "weekday",
+        "value": 2000,
+        "fairValue": 260.44,
+        "ratio": 7.68,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.03,
+        "salesLikelihoodPercent": 1,
+        "revenueIndex": 0.23
+      }
+    },
+    {
+      "tier": "full",
+      "low": {
+        "type": "membership",
+        "tier": "full",
+        "value": 100,
+        "fairValue": 455.77,
+        "ratio": 0.22,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 2.2,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 0.48
+      },
+      "current": {
+        "type": "membership",
+        "tier": "full",
+        "value": 420,
+        "fairValue": 455.77,
+        "ratio": 0.92,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1.18,
+        "salesLikelihoodPercent": 54,
+        "revenueIndex": 1.09
+      },
+      "maximum": {
+        "type": "membership",
+        "tier": "full",
+        "value": 2000,
+        "fairValue": 455.77,
+        "ratio": 4.39,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.05,
+        "salesLikelihoodPercent": 2,
+        "revenueIndex": 0.23
+      }
+    },
+    {
+      "tier": "premium",
+      "low": {
+        "type": "membership",
+        "tier": "premium",
+        "value": 100,
+        "fairValue": 846.43,
+        "ratio": 0.12,
+        "band": {
+          "id": "value",
+          "label": "Value-led",
+          "tone": "warn",
+          "satisfaction": "Customers love the value, but margin is thin.",
+          "reputationEffect": "positive"
+        },
+        "demandFactor": 2.2,
+        "salesLikelihoodPercent": 100,
+        "revenueIndex": 0.26
+      },
+      "current": {
+        "type": "membership",
+        "tier": "premium",
+        "value": 780,
+        "fairValue": 846.43,
+        "ratio": 0.92,
+        "band": {
+          "id": "fair",
+          "label": "Fair",
+          "tone": "ok",
+          "satisfaction": "Price and quality are in balance.",
+          "reputationEffect": "stable"
+        },
+        "demandFactor": 1.18,
+        "salesLikelihoodPercent": 54,
+        "revenueIndex": 1.09
+      },
+      "maximum": {
+        "type": "membership",
+        "tier": "premium",
+        "value": 2000,
+        "fairValue": 846.43,
+        "ratio": 2.36,
+        "band": {
+          "id": "punishing",
+          "label": "Punishing",
+          "tone": "bad",
+          "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+          "reputationEffect": "strongly negative"
+        },
+        "demandFactor": 0.18,
+        "salesLikelihoodPercent": 8,
+        "revenueIndex": 0.42
+      }
+    }
+  ],
+  "rentals": {
+    "low": {
+      "type": "rental",
+      "value": 5,
+      "fairValue": 16.16,
+      "ratio": 0.31,
+      "band": {
+        "id": "value",
+        "label": "Value-led",
+        "tone": "warn",
+        "satisfaction": "Customers love the value, but margin is thin.",
+        "reputationEffect": "positive"
+      },
+      "demandFactor": 1.6,
+      "salesLikelihoodPercent": 100,
+      "revenueIndex": 0.5
+    },
+    "current": {
+      "type": "rental",
+      "value": 18,
+      "fairValue": 16.16,
+      "ratio": 1.11,
+      "band": {
+        "id": "premium",
+        "label": "Premium",
+        "tone": "warn",
+        "satisfaction": "Some demand falls away; quality must justify it.",
+        "reputationEffect": "at risk"
+      },
+      "demandFactor": 0.83,
+      "salesLikelihoodPercent": 52,
+      "revenueIndex": 0.93
+    },
+    "maximum": {
+      "type": "rental",
+      "value": 60,
+      "fairValue": 16.16,
+      "ratio": 3.71,
+      "band": {
+        "id": "punishing",
+        "label": "Punishing",
+        "tone": "bad",
+        "satisfaction": "Margin per sale is high, but sales and reputation collapse.",
+        "reputationEffect": "strongly negative"
+      },
+      "demandFactor": 0.11,
+      "salesLikelihoodPercent": 7,
+      "revenueIndex": 0.4
+    }
+  }
+}

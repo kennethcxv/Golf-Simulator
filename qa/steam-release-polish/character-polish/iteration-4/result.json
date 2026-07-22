@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "views": [
+    {
+      "name": "01-staff-counter",
+      "x": 2.8,
+      "z": 5.1,
+      "yaw": 0,
+      "pitch": -0.12
+    },
+    {
+      "name": "02-shopper-reverse",
+      "x": 2.8,
+      "z": 0.9,
+      "yaw": 3.141592653589793,
+      "pitch": -0.04
+    },
+    {
+      "name": "03-shopper-profile",
+      "x": -0.2,
+      "z": 3.35,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    }
+  ],
+  "inspection": {
+    "assetKind": "blender",
+    "assetStatus": {
+      "state": "ready",
+      "ready": true
+    },
+    "meshInstances": 16,
+    "uniqueGeometries": 11,
+    "renderedTriangles": 5216,
+    "rootScale": [
+      0.8846579239424318,
+      0.8846579239424318,
+      0.8846579239424318
+    ],
+    "transactionStage": "scanning",
+    "registerActive": true
+  },
+  "runnerDiagnostics": [
+    "console:warning: THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "menu": {
+    "title": "GOLF EMPIRE",
+    "tagline": "Buy them broken. Bring them back. Keep the gems — flip the rest.",
+    "footnote": "Working build — placeholder art. You start in the property market: judge the listings, buy a distressed course, bring it back.",
+    "buttons": [
+      {
+        "text": "Continue",
+        "disabled": true
+      },
+      {
+        "text": "New Empire — Relaxed",
+        "disabled": false
+      },
+      {
+        "text": "New Empire — Realistic",
+        "disabled": false
+      }
+    ]
+  },
+  "newGame": {
+    "screen": "menu",
+    "visibleHeading": "GOLF EMPIRE"
+  },
+  "findings": [
+    {
+      "severity": "Blocker",
+      "issue": "The public main menu explicitly calls the game a working build with placeholder art."
+    }
+  ],
+  "runnerDiagnostics": []
+}

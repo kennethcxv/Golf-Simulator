@@ -1,0 +1,48 @@
+{
+ "id": "pf_fixture_hat_wall",
+ "kind": "fixtures",
+ "category": "hat_wall",
+ "dims_m": [
+  1.35,
+  0.552,
+  2.35
+ ],
+ "min_z": 0.0,
+ "tris": 4108,
+ "textures": [
+  "Header_pf_fixture_hat_wall:512x128",
+  "NRM_leather_0.35_512:512x512",
+  "NRM_wood_0.6_512:512x512",
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSCharcoal:512x512",
+  "PSOak:1024x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "HAT_SLOT_01",
+  "HAT_SLOT_02",
+  "HAT_SLOT_03",
+  "HAT_SLOT_04",
+  "HAT_SLOT_05",
+  "HAT_SLOT_06",
+  "HAT_SLOT_07",
+  "HAT_SLOT_08",
+  "HAT_SLOT_09",
+  "HAT_SLOT_10",
+  "HAT_SLOT_11",
+  "HAT_SLOT_12",
+  "HAT_SLOT_13",
+  "HAT_SLOT_14",
+  "HAT_SLOT_15",
+  "HAT_SLOT_16"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_hat_wall.glb",
+ "blend": "assets/pro_shop/source/fixtures/hat_wall/pf_fixture_hat_wall.blend",
+ "name": "Pf Hat Wall",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

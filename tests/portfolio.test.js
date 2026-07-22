@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { MINUTES_PER_DAY } from '../src/sim/constants.js';
 import { conditionRating } from '../src/sim/turf.js';
 import { memberCounts } from '../src/sim/club.js';
-import { newGame, serialize } from '../src/sim/state.js';
+import { SAVE_VERSION, newGame, serialize } from '../src/sim/state.js';
 import { appraiseStats } from '../src/sim/marketplace.js';
 import {
   newEmpire, buyProperty, sellProperty, activeState, activeHolding,
@@ -69,7 +69,7 @@ test('unknown future empire and holding data survives an integrated round trip',
   assert.deepEqual(migrated.holdings[0].futureHolding, raw.holdings[0].futureHolding);
   assert.deepEqual(migrated.holdings[0].state.futureClubSystem, raw.holdings[0].state.futureClubSystem);
   assert.equal(migrated.empireVersion, 3, 'the integrated wrapper schema remains authoritative');
-  assert.equal(migrated.holdings[0].state.version, 6);
+  assert.equal(migrated.holdings[0].state.version, SAVE_VERSION);
 });
 
 test('only the active property advances; parked ones tick a summary, not a sim', () => {

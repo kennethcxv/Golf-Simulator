@@ -1,0 +1,35 @@
+{
+ "id": "pf_wood_vantage_xlt_7",
+ "kind": "products",
+ "category": "clubs",
+ "dims_m": [
+  0.0975,
+  0.0905,
+  1.0794
+ ],
+ "min_z": -0.0,
+ "tris": 1804,
+ "textures": [
+  "ClubGripTex:128x256",
+  "Decal_pf_wood_vantage_xlt_7:256x96",
+  "FaceSteelAlb:128x128",
+  "HeadGlossAlb:256x256",
+  "NRM_knurl_1.0_512:512x512",
+  "NRM_rib_1.2_512:512x512"
+ ],
+ "sockets": [
+  "CLUB_BUTT",
+  "CLUB_HEAD_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_wood_vantage_xlt_7.glb",
+ "blend": "assets/pro_shop/source/products/clubs/pf_wood_vantage_xlt_7.blend",
+ "name": "Vantage Xlt 7 Fairway",
+ "variant": "y",
+ "price": 329.99,
+ "fixture": "pf_fixture_club_rack",
+ "slot_type": "club_slot",
+ "packaging": "none",
+ "length_m": 1.05
+}

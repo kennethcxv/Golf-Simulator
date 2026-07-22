@@ -13,23 +13,36 @@ async (page) => {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
-  const QA_ROOT = (process.env.GOLF_FLIPPER_QA_ROOT || `${process.cwd()}/qa`).replaceAll('\\', '/');
-  const OUT = `${QA_ROOT}/register/recover`;
-  const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://localhost:8457/';
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'register', 'recover',
+  );
   const log = [];
 
   const boot = async () => {
     await page.goto(BASE_URL);
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.waitForTimeout(1200);
-    await page.getByText('Continue', { exact: true }).click().catch(() => {});
+    const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+    if (await continueButton.isEnabled().catch(() => false)) {
+      await continueButton.click();
+    } else {
+      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+      await page.getByRole('heading', { name: 'PROPERTY MARKET' }).waitFor();
+      await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+    }
     await page.waitForFunction(() => window.__fw && window.__fw.scene3d
       && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
+    // Freeze the economy before waiting on visual readiness. A reload previously
+    // spent several simulated hours behind the veil, then blamed legitimate
+    // running costs on persistence.
+    await page.evaluate(() => { window.__fw.speedIdx = 0; });
     await page.waitForFunction(() => {
       const v = document.querySelector('.load-veil');
       return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
     }, null, { timeout: 40000 });
     await page.waitForTimeout(2200);
+    await page.getByRole('button', { name: 'Hide the guide' }).click().catch(() => {});
+    await page.evaluate(() => window.__fw.scene3d.clubhouse().prepareCheckoutQa());
   };
   // WAIT FOR THE CAMERA TO ACTUALLY ARRIVE. isActive() flips true the instant [E] is
   // pressed, but the cashier pose BLENDS in over 0.4s — and headless rAF is throttled,
@@ -188,7 +201,7 @@ async (page) => {
       // ACROSS THE SAVE, not across the whole test. The game's economy keeps ticking
       // while the harness runs — the first cut compared cash at step 1 with cash after
       // the reload, saw a legitimate $90 of running costs, and called it a failure.
-      noMoneyInvented: after.cash === preSave.cash
+      noMoneyInvented: Math.abs(after.cash - preSave.cash) < 0.005
         ? 'OK — cash identical across the save/reload'
         : `FAIL — ${preSave.cash} -> ${after.cash} across the reload`,
     },
@@ -204,5 +217,21 @@ async (page) => {
     check: !stuck.registerLocked && !stuck.ghostTx ? 'OK — register mode is not locked and no ghost sale survives' : 'FAIL',
   });
 
-  return { log, errors: errors.slice(0, 8), errorCount: errors.length };
+  const ok = scanned === 1
+    && saved.heldInSave === 2
+    && after.shelfBalls === before.shelfBalls
+    && after.shelfGlove === before.shelfGlove
+    && after.held === 0
+    && after.revenue === 0
+    && Math.abs(after.cash - preSave.cash) < 0.005
+    && !stuck.registerLocked
+    && !stuck.ghostTx
+    && errors.length === 0;
+  return {
+    ok,
+    blocker: ok ? null : { message: 'mid-sale save/reload did not conserve stock, cash, and register state' },
+    log,
+    errors: errors.slice(0, 8),
+    errorCount: errors.length,
+  };
 }

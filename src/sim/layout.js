@@ -7,7 +7,8 @@
 
 import {
   BACKDOOR_CLEARWAY, COUNTER, DOOR_CLEARWAY, FIXTURES, INTERIOR, LOUNGE, OFFICE,
-  PARTITIONS, PLAYER_DIAM, SHELL, STAFF_CORRIDOR_MIN, STOCKROOM, fixtureRect, queueSlot,
+  PARTITIONS, PLAYER_DIAM, SHELL, STAFF_CORRIDOR_MIN, STOCKROOM,
+  fixtureBrowsePoint, fixtureRect, queueSlot, resolvedOfficeLayout,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
 import {
@@ -15,6 +16,8 @@ import {
   STATIC_PLACEMENT_SURFACES, STATIC_PLACEMENT_SURFACE_BY_ID, WALL_OPENINGS,
   WALL_SURFACE_BY_ID, placeableById,
 } from '../data/placeableCatalog.js';
+import { fixtureIsInstalled } from './shopProgression.js';
+import { addRevenue, spend } from './economy.js';
 
 export const GRID = 0.25;
 export const FINE_GRID = 0.05;
@@ -28,7 +31,7 @@ const snap = (value, step = GRID) => Math.round(value / step) * step;
 const finite = (...values) => values.every(Number.isFinite);
 const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
-const rectsOverlap = (a, b, eps = EPS) =>
+export const rectsOverlap = (a, b, eps = EPS) =>
   a.maxX > b.minX + eps && a.minX < b.maxX - eps
   && a.maxZ > b.minZ + eps && a.minZ < b.maxZ - eps;
 
@@ -49,7 +52,40 @@ function defaultRecord(meta) {
 }
 
 function fixtureMeta(id) {
-  return PLACEABLE_BY_ID[id] || null;
+  const authored = PLACEABLE_BY_ID[id];
+  if (authored) return authored;
+  const fixture = FIXTURES.find((entry) => entry.id === id);
+  if (!fixture) return null;
+  const rect = fixtureRect(fixture);
+  return {
+    id,
+    assetId: `generated-fixture:${id}`,
+    label: fixture.title || fixture.kind || id,
+    placementCategory: 'retail-fixture',
+    surfaceRules: { allowed: ['floor'] },
+    rotation: { increment: Math.PI / 2, free: false, snapDefault: true },
+    bounds: {
+      width: rect.maxX - rect.minX,
+      height: fixture.kind === 'officeChair' ? 1.1 : 2.2,
+      depth: rect.maxZ - rect.minZ,
+      volumes: [{ x: 0, z: 0, width: rect.maxX - rect.minX, depth: rect.maxZ - rect.minZ }],
+    },
+    collision: { blocksPlayer: true, blocksCustomers: true },
+    requiredClearance: 0.04,
+    navigationClearance: R,
+    doorClearance: 0.16,
+    interactionClearance: 0.4,
+    sellValue: 0,
+    storageBehavior: 'allowed',
+    requiredObject: false,
+    defaultState: 'placed',
+    defaultVariant: 'original',
+    defaultTransform: {
+      x: fixture.x, y: fixture.y || 0, z: fixture.z, ry: fixture.ry || 0,
+      surface: 'floor', attachment: null, room: fixture.zone || 'sales',
+    },
+    fixture,
+  };
 }
 
 function extraMeta(state, id) {
@@ -92,6 +128,8 @@ export function ensureLayout(state) {
   if (!layout.moved) layout.moved = {};
   if (!layout.stored) layout.stored = [];
   if (!layout.extra) layout.extra = [];
+  if (!layout.sold) layout.sold = [];
+  if (!layout.fixtureOperations) layout.fixtureOperations = {};
   if (!layout.objects) layout.objects = {};
   if (!layout.soldCredits) layout.soldCredits = {};
   if (!layout.history) layout.history = { undo: [], redo: [] };
@@ -101,20 +139,123 @@ export function ensureLayout(state) {
   if (!Number.isFinite(layout.revision)) layout.revision = 0;
   layout.version = LAYOUT_VERSION;
 
-  // One-way compatibility bridge for v1 fixture saves. Keep moved/stored in sync
-  // for old callers, but make the v2 record authoritative from here on.
-  for (const fixture of FIXTURES) {
-    if (layout.objects[fixture.id]) continue;
-    const moved = layout.moved[fixture.id];
-    const stored = layout.stored.includes(fixture.id);
-    if (!moved && !stored) continue;
-    const meta = fixtureMeta(fixture.id);
-    const record = defaultRecord(meta);
-    if (moved) record.transform = { ...record.transform, ...clone(moved), surface: 'floor' };
-    if (stored) record.state = 'stored';
-    layout.objects[fixture.id] = record;
-  }
   return layout;
+}
+
+function objectMeta(state, id) {
+  return fixtureMeta(id) || extraMeta(state, id) || placeableById(id);
+}
+
+const FIXTURE_PRICE_BY_KIND = Object.freeze({
+  shelf: 950, rack: 1250, table: 650, rail: 725, hatstand: 475,
+  bagstand: 625, shoerack: 875, apparelwall: 1100, feature: 780,
+  backcounter: 1350, backshelf: 925, snackrack: 525, officeDesk: 1200,
+  officeChair: 625, officeFiling: 575, packingbench: 850,
+});
+const QUALITY_MULTIPLIER = Object.freeze([0, 0.65, 1, 1.35, 1.75, 2.25]);
+
+export function fixtureOwnershipEntries(state) {
+  const layout = ensureLayout(state);
+  const level = Math.max(1, Math.min(5, state.shop?.generation?.courseLevel || 1));
+  return FIXTURES
+    .filter((fixture) => fixtureIsInstalled(state, fixture.id)
+      || layout.stored.includes(fixture.id) || layout.sold.includes(fixture.id))
+    .map((fixture) => {
+      const purchasePrice = Math.round(
+        (FIXTURE_PRICE_BY_KIND[fixture.kind] || 700) * QUALITY_MULTIPLIER[level],
+      );
+      return Object.freeze({
+        id: fixture.id,
+        title: fixture.title || fixture.kind,
+        kind: fixture.kind,
+        status: layout.sold.includes(fixture.id) ? 'sold'
+          : layout.stored.includes(fixture.id) ? 'stored' : 'placed',
+        purchasePrice,
+        sellValue: Math.round(purchasePrice * 0.45),
+        fixture,
+      });
+    });
+}
+
+function fixtureOperationReplay(layout, operationId) {
+  return operationId ? layout.fixtureOperations[operationId] || null : null;
+}
+
+function rememberFixtureOperation(layout, operationId, result) {
+  if (!operationId) return;
+  layout.fixtureOperations[operationId] = { ...result };
+  const ids = Object.keys(layout.fixtureOperations);
+  if (ids.length > 40) delete layout.fixtureOperations[ids[0]];
+}
+
+export function sellStoredFixture(state, id, operationId = null) {
+  const layout = ensureLayout(state);
+  const replay = fixtureOperationReplay(layout, operationId);
+  if (replay) return { ...replay, replay: true };
+  const entry = fixtureOwnershipEntries(state).find((candidate) => candidate.id === id);
+  if (!entry) return { ok: false, reason: 'No such owned shop fixture.' };
+  if (entry.status !== 'stored') return { ok: false, reason: 'Store and empty that fixture before selling it.' };
+  const shelfUnits = (entry.fixture.skus || []).reduce(
+    (sum, skuId) => sum + Math.max(0, Number(state.shop?.inventory?.[skuId]?.shelf) || 0),
+    0,
+  );
+  if (shelfUnits > 0) return { ok: false, reason: 'Empty that fixture before selling it.' };
+  const heldUnits = (state.shop?.held || [])
+    .filter((unit) => entry.fixture.skus?.includes(unit?.skuId)).length;
+  if (heldUnits > 0) return { ok: false, reason: 'Finish the active sale before selling that fixture.' };
+
+  layout.stored = layout.stored.filter((fixtureId) => fixtureId !== id);
+  if (!layout.sold.includes(id)) layout.sold.push(id);
+  const current = objectRecord(state, id);
+  setRawRecord(state, id, { ...current, state: 'sold' });
+  layout.revision += 1;
+  if (state.ledger) addRevenue(state, 'assetSales', entry.sellValue, {
+    idempotencyKey: operationId || `fixture-sale:${id}:${layout.revision}`,
+    relatedId: id,
+    source: 'fixture-sale',
+  });
+  else state.cash = Math.round(((state.cash || 0) + entry.sellValue) * 100) / 100;
+  const result = {
+    ok: true,
+    id,
+    fixtureId: id,
+    payout: entry.sellValue,
+    value: entry.sellValue,
+    cash: state.cash,
+    revision: layout.revision,
+  };
+  rememberFixtureOperation(layout, operationId, result);
+  return result;
+}
+
+export function buyFixtureReplacement(state, id, operationId = null) {
+  const layout = ensureLayout(state);
+  const replay = fixtureOperationReplay(layout, operationId);
+  if (replay) return { ...replay, replay: true };
+  const entry = fixtureOwnershipEntries(state).find((candidate) => candidate.id === id);
+  if (!entry || entry.status !== 'sold') return { ok: false, reason: 'That fixture does not need replacing.' };
+  if ((state.cash || 0) < entry.purchasePrice) return { ok: false, reason: 'Not enough cash for that replacement fixture.' };
+  spend(state, 'shopOrders', entry.purchasePrice, {
+    idempotencyKey: operationId || `fixture-buy:${id}:${layout.revision}`,
+    relatedId: id,
+    source: 'fixture-replacement',
+    accountingClass: 'capital',
+  });
+  layout.sold = layout.sold.filter((fixtureId) => fixtureId !== id);
+  if (!layout.stored.includes(id)) layout.stored.push(id);
+  const current = objectRecord(state, id);
+  setRawRecord(state, id, { ...current, state: 'stored' });
+  layout.revision += 1;
+  const result = {
+    ok: true,
+    id,
+    fixtureId: id,
+    cost: entry.purchasePrice,
+    cash: state.cash,
+    revision: layout.revision,
+  };
+  rememberFixtureOperation(layout, operationId, result);
+  return result;
 }
 
 function rawRecord(state, id) {
@@ -122,9 +263,27 @@ function rawRecord(state, id) {
 }
 
 export function objectRecord(state, id) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return null;
-  return clone(rawRecord(state, id) || defaultRecord(meta));
+  const direct = rawRecord(state, id);
+  if (direct) return clone(direct);
+  const record = defaultRecord(meta);
+  if (meta.fixture) {
+    const layout = ensureLayout(state);
+    const generated = state.shop?.generation?.fixturePoses?.[id];
+    if (generated && Number.isFinite(generated.x) && Number.isFinite(generated.z)) {
+      record.transform = {
+        ...record.transform,
+        x: generated.x,
+        z: generated.z,
+        ry: Number.isFinite(generated.ry) ? generated.ry : record.transform.ry,
+      };
+    }
+    const moved = layout.moved[id];
+    if (moved) record.transform = { ...record.transform, ...clone(moved), surface: 'floor' };
+    if (layout.stored.includes(id)) record.state = 'stored';
+  }
+  return clone(record);
 }
 
 function resolvedObject(meta, record) {
@@ -147,15 +306,41 @@ function resolvedObject(meta, record) {
 }
 
 export function objectById(state, id) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return null;
   return resolvedObject(meta, objectRecord(state, id));
+}
+
+function allPlaceableMetas(state) {
+  const layout = ensureLayout(state);
+  const result = PLACEABLES.filter((meta) => !meta.fixture
+    || fixtureIsInstalled(state, meta.id)
+    || layout.stored.includes(meta.id)
+    || layout.sold.includes(meta.id));
+  const known = new Set(result.map((meta) => meta.id));
+  for (const fixture of FIXTURES) {
+    if (known.has(fixture.id)) continue;
+    if (!fixtureIsInstalled(state, fixture.id)
+      && !layout.stored.includes(fixture.id)
+      && !layout.sold.includes(fixture.id)) continue;
+    const meta = fixtureMeta(fixture.id);
+    if (meta) {
+      result.push(meta);
+      known.add(fixture.id);
+    }
+  }
+  for (const id of Object.keys(layout.objects)) {
+    if (PLACEABLE_BY_ID[id]) continue;
+    const meta = placeableById(id);
+    if (meta) result.push(meta);
+  }
+  return result;
 }
 
 export function placedObjects(state) {
   ensureLayout(state);
   const result = [];
-  for (const meta of PLACEABLES) {
+  for (const meta of allPlaceableMetas(state)) {
     const object = resolvedObject(meta, objectRecord(state, meta.id));
     if (object.state === 'placed') result.push(object);
   }
@@ -164,26 +349,44 @@ export function placedObjects(state) {
 
 export function storedObjects(state) {
   ensureLayout(state);
-  return PLACEABLES.map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
+  return allPlaceableMetas(state).map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
     .filter((object) => object.state === 'stored');
 }
 
 export function soldObjects(state) {
   ensureLayout(state);
-  return PLACEABLES.map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
+  return allPlaceableMetas(state).map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
     .filter((object) => object.state === 'sold');
 }
 
 // Backwards-compatible fixture view used by stock, fixture builders and older QA.
-export function placedFixtures(state) {
+export function placedFixtures(state, { tierId = null } = {}) {
   const layout = ensureLayout(state);
   const result = [];
   for (const fixture of FIXTURES) {
+    if (!fixtureIsInstalled(state, fixture.id, tierId)) continue;
+    if (layout.sold.includes(fixture.id)) continue;
     const object = objectById(state, fixture.id);
-    if (object && object.state === 'placed') result.push(object);
+    if (!object || object.state !== 'placed') continue;
+    const moved = Math.abs(object.x - fixture.x) > EPS
+      || Math.abs(object.z - fixture.z) > EPS
+      || Math.abs(angleDelta(object.ry, fixture.ry)) > EPS;
+    // Preserve the compact fixture contract used by stock, rendering and old
+    // saves. Rich v2 placement metadata belongs to placedObjects/objectById;
+    // exposing it here breaks identity-shaped legacy callers for no benefit.
+    result.push(moved
+      ? { ...fixture, x: object.x, z: object.z, ry: object.ry }
+      : fixture);
   }
   for (const extra of layout.extra) result.push(extra);
   return result;
+}
+
+// Runtime-facing fixture set. `placedFixtures` already applies the canonical
+// pro-shop progression gate, so renderer and interaction callers share exactly
+// the same physical floor.
+export function activeFixtures(state) {
+  return placedFixtures(state);
 }
 
 export const fixtureById = (state, id) => placedFixtures(state).find((fixture) => fixture.id === id);
@@ -236,7 +439,7 @@ function obbAabb(obb) {
 }
 
 export function placementBounds(state, id, transformValue = null) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return null;
   const value = transformValue || objectById(state, id)?.transform || meta.defaultTransform;
   const boxes = volumesFor(meta, value).map(obbAabb);
@@ -284,6 +487,8 @@ function collisionEntries(state, excludeId = null) {
     });
   }
   for (const obstacle of STATIC_OBSTACLES) {
+    if (state.shop?.generation
+      && ['office-desk-legacy', 'office-chair-legacy', 'packing-table-legacy'].includes(obstacle.id)) continue;
     entries.push({
       id: obstacle.id, label: obstacle.label,
       range: { minY: 0, maxY: obstacle.height },
@@ -446,7 +651,7 @@ function navigationRects(state, override = null) {
     if (extra.id !== override?.id) result.push(fixtureRect(extra));
   }
   if (override?.place) {
-    const meta = placeableById(override.id) || extraMeta(state, override.id);
+    const meta = objectMeta(state, override.id);
     if (meta?.collision?.blocksCustomers !== false) {
       for (const volume of volumesFor(meta, override.place.transform || override.place)) result.push(obbAabb(volume));
     }
@@ -511,18 +716,20 @@ export function routesIntact(state, override = null) {
     }
     return false;
   };
+  const office = resolvedOfficeLayout(state);
+  const officeAccess = office.access || office.chair;
   if (!reached(queueSlot(0)) || !reached(COUNTER.staffStand)
-    || !reached(OFFICE.chair) || !reached(STOCKROOM.receivingInside)) return false;
-  for (const fixture of placedFixtures(state)) {
-    if (!fixture.skus?.length || fixture.id === override?.id) continue;
-    const rect = fixtureRect(fixture);
-    const points = [
-      { x: (rect.minX + rect.maxX) / 2, z: rect.maxZ + R + 0.1 },
-      { x: (rect.minX + rect.maxX) / 2, z: rect.minZ - R - 0.1 },
-      { x: rect.maxX + R + 0.1, z: (rect.minZ + rect.maxZ) / 2 },
-      { x: rect.minX - R - 0.1, z: (rect.minZ + rect.maxZ) / 2 },
-    ];
-    if (!points.some(reached)) return false;
+    || (officeAccess?.available !== false && !reached(officeAccess))
+    || !reached(STOCKROOM.receivingInside)) return false;
+  // Customers browse from each fixture's authored front, so a reachable side
+  // or back edge cannot validate a display whose merchandise faces a wall.
+  const fixtures = placedFixtures(state).filter((fixture) => fixture.id !== override?.id);
+  if (override?.place) {
+    const original = placedFixtures(state).find((fixture) => fixture.id === override.id);
+    if (original) fixtures.push({ ...original, ...(override.place.transform || override.place) });
+  }
+  for (const fixture of fixtures) {
+    if (fixture.skus?.length && !reached(fixtureBrowsePoint(fixture))) return false;
   }
   return true;
 }
@@ -670,9 +877,12 @@ function validateObjectOverlap(state, meta, candidate, result) {
 function validateFloor(state, meta, candidate, result, options) {
   const rect = placementBounds(state, meta.id, candidate);
   const tuck = 0.15;
-  if (rect.minX < -INTERIOR.w / 2 - tuck || rect.maxX > INTERIOR.w / 2 + tuck
+  const authoredExisting = meta.render?.kind === 'fixture-anchor'
+    && Math.hypot(candidate.x - meta.defaultTransform.x, candidate.z - meta.defaultTransform.z) <= EPS
+    && Math.abs(angleDelta(candidate.ry, meta.defaultTransform.ry)) <= EPS;
+  if (!authoredExisting && (rect.minX < -INTERIOR.w / 2 - tuck || rect.maxX > INTERIOR.w / 2 + tuck
     || rect.minZ < -INTERIOR.d / 2 - tuck || rect.maxZ > INTERIOR.d / 2 + tuck
-    || crossesPartition(rect)) {
+    || crossesPartition(rect))) {
     addReason(result, 'wall-collision', 'That would go into a wall.');
   }
   if (Math.abs(candidate.y) > 0.055) addReason(result, 'floating', 'Floor objects must sit with their feet on the floor.');
@@ -699,7 +909,7 @@ function validateFloor(state, meta, candidate, result, options) {
 }
 
 export function validateObjectPlacement(state, id, candidateValue, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   const result = { ok: false, reasons: [], codes: [], candidate: null };
   if (!meta) {
     addReason(result, 'missing-object', 'No such placeable object.');
@@ -750,10 +960,15 @@ export function validatePlacement(state, id, x, z, ry = 0) {
 function syncLegacyFixture(layout, id, record) {
   const meta = fixtureMeta(id);
   if (!meta?.fixture) return;
-  if (record.state === 'stored' || record.state === 'sold') {
+  if (record.state === 'stored') {
     if (!layout.stored.includes(id)) layout.stored.push(id);
+    layout.sold = layout.sold.filter((soldId) => soldId !== id);
+  } else if (record.state === 'sold') {
+    layout.stored = layout.stored.filter((storedId) => storedId !== id);
+    if (!layout.sold.includes(id)) layout.sold.push(id);
   } else {
     layout.stored = layout.stored.filter((storedId) => storedId !== id);
+    layout.sold = layout.sold.filter((soldId) => soldId !== id);
   }
   const base = meta.defaultTransform;
   const value = record.transform;
@@ -766,7 +981,7 @@ function setRawRecord(state, id, record) {
   const layout = ensureLayout(state);
   if (record == null) delete layout.objects[id];
   else layout.objects[id] = clone(record);
-  const resolved = record || defaultRecord(placeableById(id) || extraMeta(state, id));
+  const resolved = record || defaultRecord(objectMeta(state, id));
   syncLegacyFixture(layout, id, resolved);
 }
 
@@ -786,7 +1001,7 @@ function commitRecord(state, id, nextRecord, { history = true, kind = 'placement
 }
 
 export function commitObjectPlacement(state, id, candidateValue, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   const validation = options.skipValidation
     ? { ok: true, candidate: normalizedCandidate(meta, candidateValue, options) }
@@ -806,14 +1021,18 @@ export function commitObjectPlacement(state, id, candidateValue, options = {}) {
 }
 
 export function commitPlacement(state, id, x, z, ry = 0) {
-  const result = commitObjectPlacement(state, id, {
-    x: snap(x), y: 0, z: snap(z), ry, surface: 'floor', attachment: null,
-  }, { skipValidation: true, grid: false, rotationSnap: false });
-  return result.ok ? fixtureById(state, id) : null;
+  const meta = fixtureMeta(id);
+  if (!meta) return null;
+  const layout = ensureLayout(state);
+  layout.moved[id] = { x: snap(x), z: snap(z), ry };
+  layout.stored = layout.stored.filter((storedId) => storedId !== id);
+  delete layout.objects[id];
+  layout.revision += 1;
+  return fixtureById(state, id);
 }
 
 export function storeObject(state, id, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   if (meta.storageBehavior === 'recovery-only' && !options.recovery) {
     return { ok: false, required: true, reason: `${meta.label} is required. Use recovery to return it to its safe position.` };
@@ -830,7 +1049,7 @@ export function storeFixture(state, id) {
 }
 
 function nearestLegalFloor(state, id, origin) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta?.surfaceRules.allowed.includes('floor')) return null;
   for (let ring = 0; ring <= 36; ring++) {
     const radius = ring * GRID;
@@ -853,7 +1072,7 @@ function nearestLegalFloor(state, id, origin) {
 }
 
 export function recoverObject(state, id, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   let candidate = clone(meta.defaultTransform);
   let validation = validateObjectPlacement(state, id, candidate, { grid: false, rotationSnap: false });
@@ -870,7 +1089,7 @@ export function recoverObject(state, id, options = {}) {
 }
 
 export function restoreObject(state, id, candidateValue = null, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   const current = objectRecord(state, id);
   if (current.state === 'sold') return { ok: false, reason: `${meta.label} was sold and is no longer in storage.` };
@@ -880,13 +1099,44 @@ export function restoreObject(state, id, candidateValue = null, options = {}) {
 }
 
 export function restoreFixture(state, id) {
+  if (ensureLayout(state).sold.includes(id)) return null;
   const result = restoreObject(state, id, null, { skipValidation: true });
   return result.ok ? fixtureById(state, id) : null;
 }
 
+// Construction can reveal several authored fixtures at once. Validate the
+// complete future floor as one candidate before activation, including whatever
+// the player moved while the contractors were working. This is the same rule
+// set build mode uses, so expansion can never trap the player or create an
+// unreachable display behind their back.
+export function shopExpansionLayoutSafety(state, tierId) {
+  const candidate = {
+    ...state,
+    shop: {
+      ...state.shop,
+      progression: {
+        ...(state.shop?.progression || {}),
+        tier: tierId,
+        legacyFullLayout: false,
+      },
+    },
+  };
+  const reasons = [];
+  for (const fixture of placedFixtures(candidate)) {
+    const result = validatePlacement(candidate, fixture.id, fixture.x, fixture.z, fixture.ry || 0);
+    if (!result.ok) reasons.push(...result.reasons.map((reason) => `${fixture.title}: ${reason}`));
+  }
+  return { ok: reasons.length === 0, reasons: [...new Set(reasons)] };
+}
+
 export function sellObject(state, id, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
+  if (meta.fixture) {
+    const operationId = options.operationId
+      || `fixture-build-sale:${id}:${ensureLayout(state).revision}`;
+    return sellStoredFixture(state, id, operationId);
+  }
   const layout = ensureLayout(state);
   const current = objectRecord(state, id);
   if (current.state === 'sold' || layout.soldCredits[id]) {
@@ -951,7 +1201,7 @@ export function setRoomStyle(state, patch, options = {}) {
 }
 
 export function setObjectVariant(state, id, variant, options = {}) {
-  const meta = placeableById(id) || extraMeta(state, id);
+  const meta = objectMeta(state, id);
   if (!meta) return { ok: false, reason: 'No such placeable object.' };
   if (!meta.variants?.includes(variant)) return { ok: false, reason: `${meta.label} does not support that finish.` };
   const current = objectRecord(state, id);

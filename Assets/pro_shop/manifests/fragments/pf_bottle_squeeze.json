@@ -1,0 +1,28 @@
+{
+ "id": "pf_bottle_squeeze",
+ "kind": "products",
+ "category": "bottles",
+ "dims_m": [
+  0.0777,
+  0.0742,
+  0.251
+ ],
+ "min_z": 0.0,
+ "tris": 3672,
+ "textures": [
+  "LblSqueeze:1024x512"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_bottle_squeeze.glb",
+ "blend": "assets/pro_shop/source/products/bottles/pf_bottle_squeeze.blend",
+ "name": "PF Squeeze Bottle",
+ "variant": "cream_navy",
+ "price": 12.99,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_bottle",
+ "packaging": "none",
+ "material": "HDPE"
+}

@@ -1,0 +1,31 @@
+{
+ "id": "pf_shoe_knit_flex",
+ "kind": "products",
+ "category": "shoes",
+ "dims_m": [
+  0.1114,
+  0.3214,
+  0.108
+ ],
+ "min_z": 0.001,
+ "tris": 5232,
+ "textures": [
+  "M_ShoeKnitV2_alb:512x512",
+  "NRM_knit_1.2_512:512x512",
+  "RGH_knit_0.8:256x256",
+  "ShoeTab_pf_shoe_knit_flex:128x64",
+  "SideLogo_pf_shoe_knit_flex:96x96"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_shoe_knit_flex.glb",
+ "blend": "assets/pro_shop/source/products/shoes/pf_shoe_knit_flex.blend",
+ "name": "PF Knit Flex Spikeless",
+ "variant": "navy_knit",
+ "price": 129.99,
+ "fixture": "pf_fixture_shoe_display",
+ "slot_type": "shoe_tier",
+ "packaging": "display single"
+}

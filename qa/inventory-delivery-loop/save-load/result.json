@@ -1,0 +1,248 @@
+{
+  "ok": true,
+  "fixture": {
+    "orderId": 1,
+    "boxIds": [
+      1,
+      2
+    ]
+  },
+  "exact": true,
+  "before": {
+    "orders": [
+      {
+        "id": 1,
+        "state": "Partially unpacked",
+        "processingState": "Submitted",
+        "dispatchState": "Pending",
+        "receivingState": "Received",
+        "completionState": "Partially unpacked",
+        "boxIds": [
+          1,
+          2
+        ],
+        "remainingUnreceivedQuantity": 0,
+        "lines": [
+          {
+            "id": "1-line-1",
+            "skuId": "balls2",
+            "quantity": 24,
+            "unitCost": 14,
+            "goodsCost": 336,
+            "receivedQuantity": 24,
+            "unpackedQuantity": 6
+          }
+        ]
+      }
+    ],
+    "boxes": [
+      {
+        "id": 1,
+        "persistentId": "box-1",
+        "parentOrderId": 1,
+        "skuId": "balls2",
+        "initialQuantity": 12,
+        "qty": 12,
+        "remainingQuantity": 12,
+        "loc": "world",
+        "currentLocation": "world",
+        "surface": "worktable",
+        "surfaceSlot": 0,
+        "x": 6.9,
+        "y": 0.925,
+        "z": -0.9,
+        "ry": 0,
+        "tape": 0.55,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false,
+        "contents": [
+          {
+            "lineId": "1-line-1",
+            "lotId": "lot-5",
+            "skuId": "balls2",
+            "quantity": 12,
+            "remainingQuantity": 12
+          }
+        ],
+        "allocations": []
+      },
+      {
+        "id": 2,
+        "persistentId": "box-2",
+        "parentOrderId": 1,
+        "skuId": "balls2",
+        "initialQuantity": 12,
+        "qty": 6,
+        "remainingQuantity": 6,
+        "loc": "world",
+        "currentLocation": "world",
+        "surface": null,
+        "surfaceSlot": null,
+        "x": 7.45,
+        "y": 0,
+        "z": -4.95,
+        "ry": 0.12,
+        "tape": 1,
+        "flaps": [
+          1,
+          1
+        ],
+        "flat": false,
+        "contents": [
+          {
+            "lineId": "1-line-1",
+            "lotId": "lot-5",
+            "skuId": "balls2",
+            "quantity": 12,
+            "remainingQuantity": 6
+          }
+        ],
+        "allocations": []
+      }
+    ],
+    "carry": {
+      "skuId": "balls2",
+      "qty": 6,
+      "allocations": [
+        {
+          "lotId": "lot-5",
+          "quantity": 6
+        }
+      ]
+    },
+    "totals": {
+      "inTransit": 0,
+      "deliveredUnopened": 12,
+      "openedBox": 6,
+      "reserve": 6,
+      "shelf": 33,
+      "customerHeld": 0,
+      "sold": 0,
+      "disposedLost": 0
+    },
+    "reconciled": true,
+    "discrepancies": []
+  },
+  "after": {
+    "orders": [
+      {
+        "id": 1,
+        "state": "Partially unpacked",
+        "processingState": "Submitted",
+        "dispatchState": "Pending",
+        "receivingState": "Received",
+        "completionState": "Partially unpacked",
+        "boxIds": [
+          1,
+          2
+        ],
+        "remainingUnreceivedQuantity": 0,
+        "lines": [
+          {
+            "id": "1-line-1",
+            "skuId": "balls2",
+            "quantity": 24,
+            "unitCost": 14,
+            "goodsCost": 336,
+            "receivedQuantity": 24,
+            "unpackedQuantity": 6
+          }
+        ]
+      }
+    ],
+    "boxes": [
+      {
+        "id": 1,
+        "persistentId": "box-1",
+        "parentOrderId": 1,
+        "skuId": "balls2",
+        "initialQuantity": 12,
+        "qty": 12,
+        "remainingQuantity": 12,
+        "loc": "world",
+        "currentLocation": "world",
+        "surface": "worktable",
+        "surfaceSlot": 0,
+        "x": 6.9,
+        "y": 0.925,
+        "z": -0.9,
+        "ry": 0,
+        "tape": 0.55,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false,
+        "contents": [
+          {
+            "lineId": "1-line-1",
+            "lotId": "lot-5",
+            "skuId": "balls2",
+            "quantity": 12,
+            "remainingQuantity": 12
+          }
+        ],
+        "allocations": []
+      },
+      {
+        "id": 2,
+        "persistentId": "box-2",
+        "parentOrderId": 1,
+        "skuId": "balls2",
+        "initialQuantity": 12,
+        "qty": 6,
+        "remainingQuantity": 6,
+        "loc": "world",
+        "currentLocation": "world",
+        "surface": null,
+        "surfaceSlot": null,
+        "x": 7.45,
+        "y": 0,
+        "z": -4.95,
+        "ry": 0.12,
+        "tape": 1,
+        "flaps": [
+          1,
+          1
+        ],
+        "flat": false,
+        "contents": [
+          {
+            "lineId": "1-line-1",
+            "lotId": "lot-5",
+            "skuId": "balls2",
+            "quantity": 12,
+            "remainingQuantity": 6
+          }
+        ],
+        "allocations": []
+      }
+    ],
+    "carry": {
+      "skuId": "balls2",
+      "qty": 6,
+      "allocations": [
+        {
+          "lotId": "lot-5",
+          "quantity": 6
+        }
+      ]
+    },
+    "totals": {
+      "inTransit": 0,
+      "deliveredUnopened": 12,
+      "openedBox": 6,
+      "reserve": 6,
+      "shelf": 33,
+      "customerHeld": 0,
+      "sold": 0,
+      "disposedLost": 0
+    },
+    "reconciled": true,
+    "discrepancies": []
+  },
+  "errors": []
+}

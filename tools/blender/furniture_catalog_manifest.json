@@ -1,0 +1,3380 @@
+{
+  "schema": 1,
+  "generatedFrom": "src/data/furnitureCatalog.js + src/data/placeableCatalog.js",
+  "source": "Original deterministic Blender Python geometry; project-owned / UNLICENSED",
+  "units": "meters",
+  "axes": "Blender X width, Y depth, Z height; front -Y; glTF Y-up",
+  "references": [
+    "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+    "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+    "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png"
+  ],
+  "palette": {
+    "warmCream": "#E6D7B8",
+    "deepGolfGreen": "#173D2A",
+    "mutedSage": "#8FA287",
+    "mediumWalnut": "#68412B",
+    "naturalOak": "#B88750",
+    "warmCharcoal": "#3E403B",
+    "restrainedBrass": "#A88743"
+  },
+  "tierOrder": [
+    "basic",
+    "commercial",
+    "retail",
+    "boutique",
+    "luxury"
+  ],
+  "familyCount": 62,
+  "objectCount": 310,
+  "families": [
+    {
+      "familyIndex": 0,
+      "familyId": "apparel-rack",
+      "modelFamily": "apparel-rack",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "apparel-rack-basic",
+          "name": "Basic Rolling rack",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/apparel-rack_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/apparel-rack_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "apparel-rack-commercial",
+          "name": "Commercial Pipe rack",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/apparel-rack_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/apparel-rack_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "apparel-rack-retail",
+          "name": "Retail Apparel bay",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/apparel-rack_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/apparel-rack_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "apparel-rack-boutique",
+          "name": "Boutique Wardrobe display",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/apparel-rack_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/apparel-rack_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "apparel-rack-luxury",
+          "name": "Luxury Built-in wardrobe",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/apparel-rack_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/apparel-rack_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 1,
+      "familyId": "folded-apparel-table",
+      "modelFamily": "display-table",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.45,
+        "height": 0.88,
+        "depth": 0.82
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "folded-apparel-table-basic",
+          "name": "Basic Laminate fold table",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/display-table_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/display-table_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "folded-apparel-table-commercial",
+          "name": "Commercial Oak-edged fold table",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/display-table_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/display-table_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "folded-apparel-table-retail",
+          "name": "Retail Merchandising table",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/display-table_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/display-table_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "folded-apparel-table-boutique",
+          "name": "Boutique Tailored display table",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/display-table_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/display-table_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "folded-apparel-table-luxury",
+          "name": "Luxury Haberdashery island",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/display-table_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/display-table_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 2,
+      "familyId": "shoe-display",
+      "modelFamily": "shoe-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "shoe-display-basic",
+          "name": "Basic Wire shoe rack",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/shoe-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/shoe-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "shoe-display-commercial",
+          "name": "Commercial Boarded shoe rack",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/shoe-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/shoe-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "shoe-display-retail",
+          "name": "Retail Fitting display",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/shoe-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/shoe-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "shoe-display-boutique",
+          "name": "Boutique Backlit shoe wall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/shoe-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/shoe-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "shoe-display-luxury",
+          "name": "Luxury Bespoke fitting gallery",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/shoe-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/shoe-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 3,
+      "familyId": "cap-display",
+      "modelFamily": "cap-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "cap-display-basic",
+          "name": "Basic Peg cap stand",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/cap-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cap-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "cap-display-commercial",
+          "name": "Commercial Slat cap panel",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/cap-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cap-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "cap-display-retail",
+          "name": "Retail Retail cap tower",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/cap-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cap-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "cap-display-boutique",
+          "name": "Boutique Millinery wall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/cap-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cap-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "cap-display-luxury",
+          "name": "Luxury Club crest hat gallery",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/cap-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cap-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 4,
+      "familyId": "club-rack",
+      "modelFamily": "club-rack",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "club-rack-basic",
+          "name": "Basic Utility club rack",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/club-rack_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/club-rack_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "club-rack-commercial",
+          "name": "Commercial Commercial club rack",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/club-rack_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/club-rack_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "club-rack-retail",
+          "name": "Retail Fitting rack",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/club-rack_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/club-rack_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "club-rack-boutique",
+          "name": "Boutique Boutique club wall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/club-rack_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/club-rack_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "club-rack-luxury",
+          "name": "Luxury Luxury built-in club gallery",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/club-rack_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/club-rack_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 5,
+      "familyId": "putter-display",
+      "modelFamily": "putter-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "putter-display-basic",
+          "name": "Basic Putter barrel",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/putter-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/putter-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "putter-display-commercial",
+          "name": "Commercial Putter rail",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/putter-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/putter-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "putter-display-retail",
+          "name": "Retail Practice putter bay",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/putter-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/putter-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "putter-display-boutique",
+          "name": "Boutique Boutique putting wall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/putter-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/putter-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "putter-display-luxury",
+          "name": "Luxury Master fitter putter studio",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/putter-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/putter-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 6,
+      "familyId": "ball-display",
+      "modelFamily": "ball-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "ball-display-basic",
+          "name": "Basic Case stacker",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/ball-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ball-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "ball-display-commercial",
+          "name": "Commercial Commercial ball shelf",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/ball-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ball-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "ball-display-retail",
+          "name": "Retail Brand ball wall",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/ball-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ball-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "ball-display-boutique",
+          "name": "Boutique Illuminated ball library",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/ball-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ball-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "ball-display-luxury",
+          "name": "Luxury Member ball concierge wall",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/ball-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ball-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 7,
+      "familyId": "accessory-display",
+      "modelFamily": "accessory-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "accessory-display-basic",
+          "name": "Basic Pegboard panel",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/accessory-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/accessory-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "accessory-display-commercial",
+          "name": "Commercial Slatwall bay",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/accessory-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/accessory-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "accessory-display-retail",
+          "name": "Retail Accessory gondola",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/accessory-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/accessory-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "accessory-display-boutique",
+          "name": "Boutique Boutique accessory cabinet",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/accessory-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/accessory-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "accessory-display-luxury",
+          "name": "Luxury Curated essentials gallery",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/accessory-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/accessory-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 8,
+      "familyId": "bag-display",
+      "modelFamily": "bag-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "bag-display-basic",
+          "name": "Basic Bag floor stand",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/bag-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bag-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "bag-display-commercial",
+          "name": "Commercial Commercial bag rail",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/bag-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bag-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "bag-display-retail",
+          "name": "Retail Bag fitting platform",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/bag-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bag-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "bag-display-boutique",
+          "name": "Boutique Boutique bag podium",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/bag-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bag-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "bag-display-luxury",
+          "name": "Luxury Caddie-room bag gallery",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/bag-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bag-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 9,
+      "familyId": "feature-gondola",
+      "modelFamily": "feature-gondola",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.35,
+        "height": 1.85,
+        "depth": 0.58
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "feature-gondola-basic",
+          "name": "Basic Wire gondola",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/feature-gondola_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/feature-gondola_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "feature-gondola-commercial",
+          "name": "Commercial Boarded gondola",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/feature-gondola_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/feature-gondola_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "feature-gondola-retail",
+          "name": "Retail Retail feature island",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/feature-gondola_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/feature-gondola_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "feature-gondola-boutique",
+          "name": "Boutique Boutique launch island",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/feature-gondola_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/feature-gondola_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "feature-gondola-luxury",
+          "name": "Luxury Seasonal collection pavilion",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/feature-gondola_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/feature-gondola_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 10,
+      "familyId": "wall-display",
+      "modelFamily": "wall-display",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.1,
+        "height": 2.25,
+        "depth": 0.48
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "wall-display-basic",
+          "name": "Basic Open wall shelf",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/wall-display_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-display_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "wall-display-commercial",
+          "name": "Commercial Commercial wall run",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/wall-display_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-display_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "wall-display-retail",
+          "name": "Retail Retail display wall",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/wall-display_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-display_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "wall-display-boutique",
+          "name": "Boutique Boutique cabinetry wall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/wall-display_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-display_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "wall-display-luxury",
+          "name": "Luxury Luxury full-height display",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/wall-display_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-display_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 11,
+      "familyId": "mannequin",
+      "modelFamily": "mannequin",
+      "category": "retail-displays",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.62,
+        "height": 1.88,
+        "depth": 0.56
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "mannequin-basic",
+          "name": "Basic Torso form",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/mannequin_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mannequin_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "mannequin-commercial",
+          "name": "Commercial Commercial dress form",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/mannequin_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mannequin_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "mannequin-retail",
+          "name": "Retail Sport mannequin",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/mannequin_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mannequin_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "mannequin-boutique",
+          "name": "Boutique Boutique athlete mannequin",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/mannequin_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mannequin_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "mannequin-luxury",
+          "name": "Luxury Sculpted club ambassador",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/mannequin_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mannequin_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 12,
+      "familyId": "checkout-counter",
+      "modelFamily": "checkout-counter",
+      "category": "counters-desks",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.45,
+        "height": 1.02,
+        "depth": 0.88
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "checkout-counter-basic",
+          "name": "Basic Laminate checkout",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/checkout-counter_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/checkout-counter_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "checkout-counter-commercial",
+          "name": "Commercial Commercial checkout",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/checkout-counter_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/checkout-counter_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "checkout-counter-retail",
+          "name": "Retail Retail service counter",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/checkout-counter_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/checkout-counter_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "checkout-counter-boutique",
+          "name": "Boutique Boutique walnut counter",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/checkout-counter_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/checkout-counter_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "checkout-counter-luxury",
+          "name": "Luxury Handcrafted member-services counter",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/checkout-counter_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/checkout-counter_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 13,
+      "familyId": "reception-desk",
+      "modelFamily": "reception-desk",
+      "category": "counters-desks",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.2,
+        "height": 1.1,
+        "depth": 0.82
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "reception-desk-basic",
+          "name": "Basic Utility reception desk",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/reception-desk_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/reception-desk_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "reception-desk-commercial",
+          "name": "Commercial Commercial reception desk",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/reception-desk_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/reception-desk_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "reception-desk-retail",
+          "name": "Retail Golf reception station",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/reception-desk_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/reception-desk_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "reception-desk-boutique",
+          "name": "Boutique Boutique welcome desk",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/reception-desk_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/reception-desk_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "reception-desk-luxury",
+          "name": "Luxury Concierge reception suite",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/reception-desk_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/reception-desk_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 14,
+      "familyId": "office-desk",
+      "modelFamily": "office-desk",
+      "category": "counters-desks",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.65,
+        "height": 0.78,
+        "depth": 0.78
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "office-desk-basic",
+          "name": "Basic Laminate office desk",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/office-desk_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-desk_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "office-desk-commercial",
+          "name": "Commercial Commercial pedestal desk",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/office-desk_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-desk_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "office-desk-retail",
+          "name": "Retail Manager workstation",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/office-desk_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-desk_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "office-desk-boutique",
+          "name": "Boutique Executive walnut desk",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/office-desk_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-desk_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "office-desk-luxury",
+          "name": "Luxury Club secretary partners desk",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/office-desk_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-desk_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 15,
+      "familyId": "back-counter",
+      "modelFamily": "back-counter",
+      "category": "counters-desks",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.1,
+        "height": 1.05,
+        "depth": 0.62
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "back-counter-basic",
+          "name": "Basic Utility back counter",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/back-counter_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/back-counter_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "back-counter-commercial",
+          "name": "Commercial Commercial storage counter",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/back-counter_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/back-counter_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "back-counter-retail",
+          "name": "Retail Service work counter",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/back-counter_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/back-counter_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "back-counter-boutique",
+          "name": "Boutique Boutique fitted counter",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/back-counter_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/back-counter_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "back-counter-luxury",
+          "name": "Luxury Full-height service cabinetry",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/back-counter_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/back-counter_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 16,
+      "familyId": "office-chair",
+      "modelFamily": "office-chair",
+      "category": "seating",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.68,
+        "height": 1.08,
+        "depth": 0.68
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "office-chair-basic",
+          "name": "Basic Task chair",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/office-chair_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-chair_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "office-chair-commercial",
+          "name": "Commercial Commercial task chair",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/office-chair_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-chair_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "office-chair-retail",
+          "name": "Retail Ergonomic manager chair",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/office-chair_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-chair_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "office-chair-boutique",
+          "name": "Boutique Leather executive chair",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/office-chair_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-chair_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "office-chair-luxury",
+          "name": "Luxury Hand-tufted club chair",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/office-chair_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/office-chair_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 17,
+      "familyId": "lounge-armchair",
+      "modelFamily": "lounge-armchair",
+      "category": "seating",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.88,
+        "height": 0.94,
+        "depth": 0.88
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "lounge-armchair-basic",
+          "name": "Basic Vinyl lounge chair",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/lounge-armchair_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-armchair_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "lounge-armchair-commercial",
+          "name": "Commercial Commercial lounge chair",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/lounge-armchair_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-armchair_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "lounge-armchair-retail",
+          "name": "Retail Upholstered club chair",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/lounge-armchair_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-armchair_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "lounge-armchair-boutique",
+          "name": "Boutique Buttoned leather armchair",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/lounge-armchair_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-armchair_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "lounge-armchair-luxury",
+          "name": "Luxury Hand-tufted reading chair",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/lounge-armchair_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-armchair_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 18,
+      "familyId": "lounge-sofa",
+      "modelFamily": "lounge-sofa",
+      "category": "seating",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.05,
+        "height": 0.92,
+        "depth": 0.92
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "lounge-sofa-basic",
+          "name": "Basic Vinyl settee",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/lounge-sofa_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-sofa_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "lounge-sofa-commercial",
+          "name": "Commercial Commercial sofa",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/lounge-sofa_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-sofa_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "lounge-sofa-retail",
+          "name": "Retail Upholstered lounge sofa",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/lounge-sofa_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-sofa_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "lounge-sofa-boutique",
+          "name": "Boutique Buttoned leather sofa",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/lounge-sofa_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-sofa_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "lounge-sofa-luxury",
+          "name": "Luxury Bespoke Chesterfield sofa",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/lounge-sofa_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/lounge-sofa_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 19,
+      "familyId": "waiting-bench",
+      "modelFamily": "bench",
+      "category": "seating",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.55,
+        "height": 0.82,
+        "depth": 0.52
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "waiting-bench-basic",
+          "name": "Basic Utility bench",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/bench_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bench_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "waiting-bench-commercial",
+          "name": "Commercial Commercial oak bench",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/bench_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bench_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "waiting-bench-retail",
+          "name": "Retail Cushioned waiting bench",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/bench_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bench_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "waiting-bench-boutique",
+          "name": "Boutique Boutique hall bench",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/bench_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bench_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "waiting-bench-luxury",
+          "name": "Luxury Carved member bench",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/bench_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bench_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 20,
+      "familyId": "dining-chair",
+      "modelFamily": "dining-chair",
+      "category": "seating",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.52,
+        "height": 0.94,
+        "depth": 0.55
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "dining-chair-basic",
+          "name": "Basic Stacking chair",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/dining-chair_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-chair_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "dining-chair-commercial",
+          "name": "Commercial Commercial dining chair",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/dining-chair_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-chair_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "dining-chair-retail",
+          "name": "Retail Upholstered dining chair",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/dining-chair_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-chair_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "dining-chair-boutique",
+          "name": "Boutique Boutique spindle chair",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/dining-chair_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-chair_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "dining-chair-luxury",
+          "name": "Luxury Crested member dining chair",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/dining-chair_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-chair_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 21,
+      "familyId": "bar-stool",
+      "modelFamily": "bar-stool",
+      "category": "seating",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.48,
+        "height": 1.05,
+        "depth": 0.48
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "bar-stool-basic",
+          "name": "Basic Steel stool",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/bar-stool_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bar-stool_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "bar-stool-commercial",
+          "name": "Commercial Commercial counter stool",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/bar-stool_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bar-stool_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "bar-stool-retail",
+          "name": "Retail Upholstered bar stool",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/bar-stool_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bar-stool_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "bar-stool-boutique",
+          "name": "Boutique Walnut club stool",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/bar-stool_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bar-stool_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "bar-stool-luxury",
+          "name": "Luxury Brass-footed member stool",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/bar-stool_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/bar-stool_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 22,
+      "familyId": "coffee-table",
+      "modelFamily": "coffee-table",
+      "category": "tables",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.1,
+        "height": 0.46,
+        "depth": 0.65
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "coffee-table-basic",
+          "name": "Basic Laminate coffee table",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/coffee-table_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/coffee-table_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "coffee-table-commercial",
+          "name": "Commercial Commercial oak table",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/coffee-table_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/coffee-table_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "coffee-table-retail",
+          "name": "Retail Walnut lounge table",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/coffee-table_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/coffee-table_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "coffee-table-boutique",
+          "name": "Boutique Boutique brass-inlay table",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/coffee-table_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/coffee-table_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "coffee-table-luxury",
+          "name": "Luxury Marquetry member lounge table",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/coffee-table_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/coffee-table_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 23,
+      "familyId": "side-table",
+      "modelFamily": "side-table",
+      "category": "tables",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.52,
+        "height": 0.62,
+        "depth": 0.52
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "side-table-basic",
+          "name": "Basic Utility side table",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/side-table_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/side-table_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "side-table-commercial",
+          "name": "Commercial Commercial end table",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/side-table_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/side-table_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "side-table-retail",
+          "name": "Retail Walnut lamp table",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/side-table_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/side-table_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "side-table-boutique",
+          "name": "Boutique Boutique pedestal table",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/side-table_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/side-table_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "side-table-luxury",
+          "name": "Luxury Hand-inlaid drinks table",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/side-table_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/side-table_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 24,
+      "familyId": "dining-table",
+      "modelFamily": "dining-table",
+      "category": "tables",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.65,
+        "height": 0.78,
+        "depth": 0.92
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "dining-table-basic",
+          "name": "Basic Folding table",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/dining-table_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-table_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "dining-table-commercial",
+          "name": "Commercial Commercial dining table",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/dining-table_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-table_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "dining-table-retail",
+          "name": "Retail Oak hospitality table",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/dining-table_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-table_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "dining-table-boutique",
+          "name": "Boutique Boutique refectory table",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/dining-table_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-table_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "dining-table-luxury",
+          "name": "Luxury Grand member dining table",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/dining-table_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/dining-table_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 25,
+      "familyId": "conference-table",
+      "modelFamily": "conference-table",
+      "category": "tables",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.35,
+        "height": 0.78,
+        "depth": 1.05
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "conference-table-basic",
+          "name": "Basic Utility meeting table",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/conference-table_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/conference-table_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "conference-table-commercial",
+          "name": "Commercial Commercial meeting table",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/conference-table_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/conference-table_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "conference-table-retail",
+          "name": "Retail Boardroom table",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/conference-table_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/conference-table_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "conference-table-boutique",
+          "name": "Boutique Executive walnut table",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/conference-table_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/conference-table_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "conference-table-luxury",
+          "name": "Luxury Club governors table",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/conference-table_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/conference-table_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 26,
+      "familyId": "stock-shelving",
+      "modelFamily": "stock-shelving",
+      "category": "storage",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.85,
+        "depth": 0.52
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "stock-shelving-basic",
+          "name": "Basic Wire utility shelf",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/stock-shelving_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/stock-shelving_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "stock-shelving-commercial",
+          "name": "Commercial Boarded metal shelf",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/stock-shelving_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/stock-shelving_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "stock-shelving-retail",
+          "name": "Retail Retail stock system",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/stock-shelving_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/stock-shelving_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "stock-shelving-boutique",
+          "name": "Boutique Fitted stock cabinetry",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/stock-shelving_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/stock-shelving_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "stock-shelving-luxury",
+          "name": "Luxury Inventory archive wall",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/stock-shelving_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/stock-shelving_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 27,
+      "familyId": "storage-cabinet",
+      "modelFamily": "storage-cabinet",
+      "category": "storage",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.85,
+        "depth": 0.52
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "storage-cabinet-basic",
+          "name": "Basic Utility cabinet",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/storage-cabinet_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-cabinet_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "storage-cabinet-commercial",
+          "name": "Commercial Commercial steel cabinet",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/storage-cabinet_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-cabinet_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "storage-cabinet-retail",
+          "name": "Retail Oak service cabinet",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/storage-cabinet_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-cabinet_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "storage-cabinet-boutique",
+          "name": "Boutique Boutique fitted cabinet",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/storage-cabinet_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-cabinet_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "storage-cabinet-luxury",
+          "name": "Luxury Full-height walnut storage",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/storage-cabinet_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-cabinet_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 28,
+      "familyId": "member-locker",
+      "modelFamily": "member-locker",
+      "category": "storage",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.2,
+        "height": 2.05,
+        "depth": 0.55
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "member-locker-basic",
+          "name": "Basic Steel locker",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/member-locker_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/member-locker_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "member-locker-commercial",
+          "name": "Commercial Commercial locker",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/member-locker_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/member-locker_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "member-locker-retail",
+          "name": "Retail Ventilated oak locker",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/member-locker_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/member-locker_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "member-locker-boutique",
+          "name": "Boutique Boutique club locker",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/member-locker_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/member-locker_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "member-locker-luxury",
+          "name": "Luxury Named walnut member locker",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/member-locker_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/member-locker_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 29,
+      "familyId": "filing-cabinet",
+      "modelFamily": "filing-cabinet",
+      "category": "storage",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.85,
+        "depth": 0.52
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "filing-cabinet-basic",
+          "name": "Basic Two-drawer file",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/filing-cabinet_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/filing-cabinet_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "filing-cabinet-commercial",
+          "name": "Commercial Commercial file cabinet",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/filing-cabinet_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/filing-cabinet_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "filing-cabinet-retail",
+          "name": "Retail Manager filing credenza",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/filing-cabinet_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/filing-cabinet_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "filing-cabinet-boutique",
+          "name": "Boutique Boutique document cabinet",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/filing-cabinet_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/filing-cabinet_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "filing-cabinet-luxury",
+          "name": "Luxury Club archive cabinet",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/filing-cabinet_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/filing-cabinet_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 30,
+      "familyId": "storage-bench",
+      "modelFamily": "storage-bench",
+      "category": "storage",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.85,
+        "depth": 0.52
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "storage-bench-basic",
+          "name": "Basic Utility storage bench",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/storage-bench_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-bench_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "storage-bench-commercial",
+          "name": "Commercial Commercial boot bench",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/storage-bench_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-bench_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "storage-bench-retail",
+          "name": "Retail Cushioned locker bench",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/storage-bench_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-bench_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "storage-bench-boutique",
+          "name": "Boutique Boutique changing bench",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/storage-bench_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-bench_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "storage-bench-luxury",
+          "name": "Luxury Crested member storage bench",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/storage-bench_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/storage-bench_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 31,
+      "familyId": "ceiling-flush",
+      "modelFamily": "ceiling-flush",
+      "category": "lighting",
+      "placementMode": "ceiling",
+      "dimensionsM": {
+        "width": 0.48,
+        "height": 0.18,
+        "depth": 0.48
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "ceiling-flush-basic",
+          "name": "Basic Strip light",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/ceiling-flush_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-flush_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "ceiling-flush-commercial",
+          "name": "Commercial Commercial panel light",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/ceiling-flush_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-flush_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "ceiling-flush-retail",
+          "name": "Retail Recessed light set",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/ceiling-flush_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-flush_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "ceiling-flush-boutique",
+          "name": "Boutique Architectural ceiling light",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/ceiling-flush_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-flush_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "ceiling-flush-luxury",
+          "name": "Luxury Coffered ambient light",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/ceiling-flush_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-flush_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 32,
+      "familyId": "recessed-light",
+      "modelFamily": "recessed-light",
+      "category": "lighting",
+      "placementMode": "ceiling",
+      "dimensionsM": {
+        "width": 0.18,
+        "height": 0.1,
+        "depth": 0.18
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "recessed-light-basic",
+          "name": "Basic Single downlight",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/recessed-light_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/recessed-light_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "recessed-light-commercial",
+          "name": "Commercial Commercial downlight set",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/recessed-light_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/recessed-light_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "recessed-light-retail",
+          "name": "Retail Retail recessed grid",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/recessed-light_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/recessed-light_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "recessed-light-boutique",
+          "name": "Boutique Boutique warm downlights",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/recessed-light_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/recessed-light_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "recessed-light-luxury",
+          "name": "Luxury Gallery-grade pin lighting",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/recessed-light_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/recessed-light_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 33,
+      "familyId": "track-light",
+      "modelFamily": "track-light",
+      "category": "lighting",
+      "placementMode": "ceiling",
+      "dimensionsM": {
+        "width": 1.2,
+        "height": 0.3,
+        "depth": 0.25
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "track-light-basic",
+          "name": "Basic Utility track",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/track-light_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/track-light_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "track-light-commercial",
+          "name": "Commercial Commercial track",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/track-light_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/track-light_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "track-light-retail",
+          "name": "Retail Retail accent track",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/track-light_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/track-light_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "track-light-boutique",
+          "name": "Boutique Boutique adjustable track",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/track-light_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/track-light_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "track-light-luxury",
+          "name": "Luxury Museum-grade display track",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/track-light_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/track-light_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 34,
+      "familyId": "pendant-light",
+      "modelFamily": "pendant-light",
+      "category": "lighting",
+      "placementMode": "ceiling",
+      "dimensionsM": {
+        "width": 0.45,
+        "height": 0.78,
+        "depth": 0.45
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "pendant-light-basic",
+          "name": "Basic Enamel pendant",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/pendant-light_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/pendant-light_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "pendant-light-commercial",
+          "name": "Commercial Commercial dome pendant",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/pendant-light_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/pendant-light_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "pendant-light-retail",
+          "name": "Retail Brass retail pendant",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/pendant-light_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/pendant-light_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "pendant-light-boutique",
+          "name": "Boutique Linen drum pendant",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/pendant-light_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/pendant-light_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "pendant-light-luxury",
+          "name": "Luxury Cut-glass club pendant",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/pendant-light_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/pendant-light_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 35,
+      "familyId": "chandelier",
+      "modelFamily": "chandelier",
+      "category": "lighting",
+      "placementMode": "ceiling",
+      "dimensionsM": {
+        "width": 1.15,
+        "height": 1.25,
+        "depth": 1.15
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "chandelier-basic",
+          "name": "Basic Simple branched light",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/chandelier_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/chandelier_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "chandelier-commercial",
+          "name": "Commercial Commercial ring light",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/chandelier_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/chandelier_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "chandelier-retail",
+          "name": "Retail Brass chandelier",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/chandelier_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/chandelier_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "chandelier-boutique",
+          "name": "Boutique Crystal club chandelier",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/chandelier_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/chandelier_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "chandelier-luxury",
+          "name": "Luxury Grand heritage chandelier",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/chandelier_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/chandelier_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 36,
+      "familyId": "wall-sconce",
+      "modelFamily": "wall-sconce",
+      "category": "lighting",
+      "placementMode": "wall",
+      "dimensionsM": {
+        "width": 0.28,
+        "height": 0.42,
+        "depth": 0.22
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "wall-sconce-basic",
+          "name": "Basic Utility wall light",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/wall-sconce_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-sconce_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "wall-sconce-commercial",
+          "name": "Commercial Commercial sconce",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/wall-sconce_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-sconce_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "wall-sconce-retail",
+          "name": "Retail Brass cup sconce",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/wall-sconce_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-sconce_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "wall-sconce-boutique",
+          "name": "Boutique Boutique shade sconce",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/wall-sconce_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-sconce_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "wall-sconce-luxury",
+          "name": "Luxury Heritage library sconce",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/wall-sconce_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-sconce_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 37,
+      "familyId": "picture-light",
+      "modelFamily": "picture-light",
+      "category": "lighting",
+      "placementMode": "wall",
+      "dimensionsM": {
+        "width": 0.6,
+        "height": 0.18,
+        "depth": 0.22
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "picture-light-basic",
+          "name": "Basic Clip picture light",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/picture-light_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/picture-light_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "picture-light-commercial",
+          "name": "Commercial Commercial display light",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/picture-light_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/picture-light_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "picture-light-retail",
+          "name": "Retail Brass picture light",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/picture-light_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/picture-light_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "picture-light-boutique",
+          "name": "Boutique Boutique gallery light",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/picture-light_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/picture-light_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "picture-light-luxury",
+          "name": "Luxury Conservator art light",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/picture-light_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/picture-light_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 38,
+      "familyId": "floor-lamp",
+      "modelFamily": "floor-lamp",
+      "category": "lighting",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.48,
+        "height": 1.58,
+        "depth": 0.48
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "floor-lamp-basic",
+          "name": "Basic Utility floor lamp",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/floor-lamp_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/floor-lamp_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "floor-lamp-commercial",
+          "name": "Commercial Commercial reading lamp",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/floor-lamp_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/floor-lamp_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "floor-lamp-retail",
+          "name": "Retail Brass lounge lamp",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/floor-lamp_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/floor-lamp_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "floor-lamp-boutique",
+          "name": "Boutique Boutique linen-shade lamp",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/floor-lamp_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/floor-lamp_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "floor-lamp-luxury",
+          "name": "Luxury Sculpted member lounge lamp",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/floor-lamp_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/floor-lamp_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 39,
+      "familyId": "desk-lamp",
+      "modelFamily": "desk-lamp",
+      "category": "lighting",
+      "placementMode": "surface",
+      "dimensionsM": {
+        "width": 0.34,
+        "height": 0.48,
+        "depth": 0.34
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "desk-lamp-basic",
+          "name": "Basic Clamp lamp",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/desk-lamp_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/desk-lamp_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "desk-lamp-commercial",
+          "name": "Commercial Commercial task lamp",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/desk-lamp_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/desk-lamp_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "desk-lamp-retail",
+          "name": "Retail Bankers desk lamp",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/desk-lamp_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/desk-lamp_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "desk-lamp-boutique",
+          "name": "Boutique Boutique brass task lamp",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/desk-lamp_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/desk-lamp_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "desk-lamp-luxury",
+          "name": "Luxury Hand-finished library lamp",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/desk-lamp_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/desk-lamp_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 40,
+      "familyId": "flooring",
+      "modelFamily": "flooring",
+      "category": "architectural",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 2.4,
+        "height": 0.04,
+        "depth": 2.4
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "flooring-basic",
+          "name": "Basic Sealed concrete",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/flooring_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/flooring_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "flooring-commercial",
+          "name": "Commercial Commercial tile",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/flooring_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/flooring_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "flooring-retail",
+          "name": "Retail Large-format stone tile",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/flooring_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/flooring_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "flooring-boutique",
+          "name": "Boutique Walnut plank floor",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/flooring_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/flooring_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "flooring-luxury",
+          "name": "Luxury Interlocking parquet hardwood floor",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/flooring_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/flooring_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 41,
+      "familyId": "ceiling-treatment",
+      "modelFamily": "ceiling-treatment",
+      "category": "architectural",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 2.4,
+        "height": 0.1,
+        "depth": 2.4
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "ceiling-treatment-basic",
+          "name": "Basic Acoustic tile",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/ceiling-treatment_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-treatment_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "ceiling-treatment-commercial",
+          "name": "Commercial Smooth commercial ceiling",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/ceiling-treatment_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-treatment_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "ceiling-treatment-retail",
+          "name": "Retail Coffered ceiling",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/ceiling-treatment_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-treatment_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "ceiling-treatment-boutique",
+          "name": "Boutique Timber beam ceiling",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/ceiling-treatment_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-treatment_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "ceiling-treatment-luxury",
+          "name": "Luxury Ornamental club ceiling",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/ceiling-treatment_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/ceiling-treatment_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 42,
+      "familyId": "interior-door",
+      "modelFamily": "interior-door",
+      "category": "architectural",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 1,
+        "height": 2.1,
+        "depth": 0.14
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "interior-door-basic",
+          "name": "Basic Hollow-core door",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/interior-door_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/interior-door_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "interior-door-commercial",
+          "name": "Commercial Commercial panel door",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/interior-door_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/interior-door_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "interior-door-retail",
+          "name": "Retail Solid oak door",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/interior-door_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/interior-door_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "interior-door-boutique",
+          "name": "Boutique Glazed arched door",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/interior-door_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/interior-door_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "interior-door-luxury",
+          "name": "Luxury Handcrafted member door",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/interior-door_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/interior-door_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 43,
+      "familyId": "exterior-door",
+      "modelFamily": "exterior-door",
+      "category": "architectural",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 2.15,
+        "depth": 0.18
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "exterior-door-basic",
+          "name": "Basic Painted entry door",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/exterior-door_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/exterior-door_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "exterior-door-commercial",
+          "name": "Commercial Commercial entry set",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/exterior-door_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/exterior-door_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "exterior-door-retail",
+          "name": "Retail Solid oak entry",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/exterior-door_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/exterior-door_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "exterior-door-boutique",
+          "name": "Boutique Glazed club entry",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/exterior-door_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/exterior-door_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "exterior-door-luxury",
+          "name": "Luxury Grand double member entry",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/exterior-door_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/exterior-door_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 44,
+      "familyId": "window-treatment",
+      "modelFamily": "window-treatment",
+      "category": "architectural",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 1.8,
+        "height": 2.1,
+        "depth": 0.16
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "window-treatment-basic",
+          "name": "Basic Roller blind",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/window-treatment_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/window-treatment_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "window-treatment-commercial",
+          "name": "Commercial Commercial solar shade",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/window-treatment_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/window-treatment_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "window-treatment-retail",
+          "name": "Retail Lined drapery",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/window-treatment_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/window-treatment_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "window-treatment-boutique",
+          "name": "Boutique Boutique timber blind",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/window-treatment_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/window-treatment_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "window-treatment-luxury",
+          "name": "Luxury Tailored club drapery",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/window-treatment_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/window-treatment_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 45,
+      "familyId": "wall-paneling",
+      "modelFamily": "wall-paneling",
+      "category": "architectural",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 2.4,
+        "height": 2.4,
+        "depth": 0.12
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "wall-paneling-basic",
+          "name": "Basic Painted wall finish",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/wall-paneling_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-paneling_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "wall-paneling-commercial",
+          "name": "Commercial Commercial wall protection",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/wall-paneling_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-paneling_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "wall-paneling-retail",
+          "name": "Retail Oak wainscot",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/wall-paneling_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-paneling_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "wall-paneling-boutique",
+          "name": "Boutique Boutique paneled wall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/wall-paneling_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-paneling_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "wall-paneling-luxury",
+          "name": "Luxury Full-height heritage paneling",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/wall-paneling_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-paneling_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 46,
+      "familyId": "area-rug",
+      "modelFamily": "area-rug",
+      "category": "decor",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.2,
+        "height": 0.025,
+        "depth": 1.55
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "area-rug-basic",
+          "name": "Basic Utility mat",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/area-rug_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/area-rug_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "area-rug-commercial",
+          "name": "Commercial Commercial woven rug",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/area-rug_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/area-rug_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "area-rug-retail",
+          "name": "Retail Golf motif rug",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/area-rug_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/area-rug_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "area-rug-boutique",
+          "name": "Boutique Boutique wool rug",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/area-rug_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/area-rug_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "area-rug-luxury",
+          "name": "Luxury Hand-knotted club crest rug",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/area-rug_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/area-rug_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 47,
+      "familyId": "wall-art",
+      "modelFamily": "wall-art",
+      "category": "decor",
+      "placementMode": "wall",
+      "dimensionsM": {
+        "width": 0.92,
+        "height": 0.7,
+        "depth": 0.055
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "wall-art-basic",
+          "name": "Basic Course print",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/wall-art_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-art_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "wall-art-commercial",
+          "name": "Commercial Framed course map",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/wall-art_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-art_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "wall-art-retail",
+          "name": "Retail Golf photography set",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/wall-art_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-art_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "wall-art-boutique",
+          "name": "Boutique Commissioned landscape",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/wall-art_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-art_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "wall-art-luxury",
+          "name": "Luxury Club heritage painting",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/wall-art_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/wall-art_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 48,
+      "familyId": "trophy-case",
+      "modelFamily": "trophy-case",
+      "category": "decor",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.25,
+        "height": 2.05,
+        "depth": 0.42
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "trophy-case-basic",
+          "name": "Basic Open trophy shelf",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/trophy-case_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/trophy-case_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "trophy-case-commercial",
+          "name": "Commercial Commercial trophy case",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/trophy-case_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/trophy-case_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "trophy-case-retail",
+          "name": "Retail Lit honors cabinet",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/trophy-case_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/trophy-case_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "trophy-case-boutique",
+          "name": "Boutique Boutique trophy gallery",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/trophy-case_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/trophy-case_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "trophy-case-luxury",
+          "name": "Luxury Grand champions wall",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/trophy-case_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/trophy-case_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 49,
+      "familyId": "plant",
+      "modelFamily": "plant",
+      "category": "decor",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 0.68,
+        "height": 1.35,
+        "depth": 0.68
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "plant-basic",
+          "name": "Basic Potted hardy plant",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/plant_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/plant_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "plant-commercial",
+          "name": "Commercial Commercial planter",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/plant_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/plant_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "plant-retail",
+          "name": "Retail Sculptural indoor tree",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/plant_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/plant_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "plant-boutique",
+          "name": "Boutique Boutique planting group",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/plant_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/plant_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "plant-luxury",
+          "name": "Luxury Conservatory specimen",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/plant_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/plant_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 50,
+      "familyId": "mirror",
+      "modelFamily": "mirror",
+      "category": "decor",
+      "placementMode": "wall",
+      "dimensionsM": {
+        "width": 0.78,
+        "height": 1.35,
+        "depth": 0.055
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "mirror-basic",
+          "name": "Basic Utility mirror",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/mirror_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mirror_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "mirror-commercial",
+          "name": "Commercial Commercial fitting mirror",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/mirror_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mirror_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "mirror-retail",
+          "name": "Retail Oak framed mirror",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/mirror_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mirror_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "mirror-boutique",
+          "name": "Boutique Boutique brass mirror",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/mirror_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mirror_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "mirror-luxury",
+          "name": "Luxury Full-height member mirror",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/mirror_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/mirror_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 51,
+      "familyId": "clock",
+      "modelFamily": "clock",
+      "category": "decor",
+      "placementMode": "wall",
+      "dimensionsM": {
+        "width": 0.42,
+        "height": 0.42,
+        "depth": 0.075
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "clock-basic",
+          "name": "Basic Utility wall clock",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/clock_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/clock_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "clock-commercial",
+          "name": "Commercial Commercial station clock",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/clock_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/clock_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "clock-retail",
+          "name": "Retail Brass club clock",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/clock_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/clock_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "clock-boutique",
+          "name": "Boutique Boutique regulator clock",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/clock_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/clock_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "clock-luxury",
+          "name": "Luxury Handmade heritage clock",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/clock_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/clock_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 52,
+      "familyId": "signage",
+      "modelFamily": "signage",
+      "category": "decor",
+      "placementMode": "wall",
+      "dimensionsM": {
+        "width": 0.72,
+        "height": 0.38,
+        "depth": 0.06
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "signage-basic",
+          "name": "Basic Printed sign set",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/signage_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/signage_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "signage-commercial",
+          "name": "Commercial Commercial wayfinding",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/signage_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/signage_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "signage-retail",
+          "name": "Retail Oak room plaques",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/signage_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/signage_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "signage-boutique",
+          "name": "Boutique Boutique brass signs",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/signage_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/signage_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "signage-luxury",
+          "name": "Luxury Engraved heritage sign system",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/signage_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/signage_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 53,
+      "familyId": "restroom-vanity",
+      "modelFamily": "restroom-vanity",
+      "category": "guest-facilities",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.2,
+        "depth": 0.62
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "restroom-vanity-basic",
+          "name": "Basic Utility sink stand",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/restroom-vanity_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-vanity_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "restroom-vanity-commercial",
+          "name": "Commercial Commercial vanity",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/restroom-vanity_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-vanity_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "restroom-vanity-retail",
+          "name": "Retail Solid-surface vanity",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/restroom-vanity_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-vanity_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "restroom-vanity-boutique",
+          "name": "Boutique Boutique oak vanity",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/restroom-vanity_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-vanity_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "restroom-vanity-luxury",
+          "name": "Luxury Stone member washstand",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/restroom-vanity_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-vanity_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 54,
+      "familyId": "restroom-stall",
+      "modelFamily": "restroom-stall",
+      "category": "guest-facilities",
+      "placementMode": "installation",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.2,
+        "depth": 0.62
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "restroom-stall-basic",
+          "name": "Basic Painted partition",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/restroom-stall_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-stall_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "restroom-stall-commercial",
+          "name": "Commercial Commercial laminate stall",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/restroom-stall_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-stall_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "restroom-stall-retail",
+          "name": "Retail Solid compact stall",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/restroom-stall_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-stall_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "restroom-stall-boutique",
+          "name": "Boutique Boutique paneled stall",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/restroom-stall_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-stall_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "restroom-stall-luxury",
+          "name": "Luxury Private member washroom partition",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/restroom-stall_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/restroom-stall_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 55,
+      "familyId": "towel-station",
+      "modelFamily": "towel-station",
+      "category": "guest-facilities",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.2,
+        "depth": 0.62
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "towel-station-basic",
+          "name": "Basic Wire towel basket",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/towel-station_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/towel-station_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "towel-station-commercial",
+          "name": "Commercial Commercial towel shelf",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/towel-station_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/towel-station_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "towel-station-retail",
+          "name": "Retail Fitted towel cabinet",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/towel-station_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/towel-station_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "towel-station-boutique",
+          "name": "Boutique Boutique linen station",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/towel-station_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/towel-station_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "towel-station-luxury",
+          "name": "Luxury Attendant towel console",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/towel-station_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/towel-station_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 56,
+      "familyId": "hydration-station",
+      "modelFamily": "hydration-station",
+      "category": "guest-facilities",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.05,
+        "height": 1.2,
+        "depth": 0.62
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "hydration-station-basic",
+          "name": "Basic Water jug stand",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/hydration-station_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/hydration-station_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "hydration-station-commercial",
+          "name": "Commercial Commercial cooler",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/hydration-station_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/hydration-station_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "hydration-station-retail",
+          "name": "Retail Bottle refill station",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/hydration-station_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/hydration-station_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "hydration-station-boutique",
+          "name": "Boutique Boutique refreshment console",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/hydration-station_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/hydration-station_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "hydration-station-luxury",
+          "name": "Luxury Member hydration bar",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/hydration-station_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/hydration-station_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 57,
+      "familyId": "golf-cart",
+      "modelFamily": "golf-cart",
+      "category": "operations",
+      "placementMode": "vehicle",
+      "dimensionsM": {
+        "width": 1.25,
+        "height": 1.85,
+        "depth": 2.45
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "golf-cart-basic",
+          "name": "Basic Two-seat utility cart",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/golf-cart_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/golf-cart_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "golf-cart-commercial",
+          "name": "Commercial Canopy cart",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/golf-cart_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/golf-cart_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "golf-cart-retail",
+          "name": "Retail Four-seat windshield cart",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/golf-cart_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/golf-cart_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "golf-cart-boutique",
+          "name": "Boutique Lithium hospitality cart",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/golf-cart_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/golf-cart_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "golf-cart-luxury",
+          "name": "Luxury Six-seat enclosed club cart",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/golf-cart_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/golf-cart_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 58,
+      "familyId": "cart-storage",
+      "modelFamily": "cart-storage",
+      "category": "operations",
+      "placementMode": "vehicle",
+      "dimensionsM": {
+        "width": 3.2,
+        "height": 2.35,
+        "depth": 3.4
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "cart-storage-basic",
+          "name": "Basic Outdoor cart rail",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/cart-storage_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cart-storage_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "cart-storage-commercial",
+          "name": "Commercial Commercial cart shelter",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/cart-storage_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cart-storage_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "cart-storage-retail",
+          "name": "Retail Charging cart bay",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/cart-storage_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cart-storage_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "cart-storage-boutique",
+          "name": "Boutique Boutique cart pavilion",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/cart-storage_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cart-storage_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "cart-storage-luxury",
+          "name": "Luxury Enclosed fleet house",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/cart-storage_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/cart-storage_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 59,
+      "familyId": "patio-set",
+      "modelFamily": "patio-set",
+      "category": "operations",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 2.1,
+        "height": 1,
+        "depth": 1.55
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "patio-set-basic",
+          "name": "Basic Folding patio set",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/patio-set_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/patio-set_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "patio-set-commercial",
+          "name": "Commercial Commercial patio set",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/patio-set_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/patio-set_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "patio-set-retail",
+          "name": "Retail Cushioned terrace set",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/patio-set_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/patio-set_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "patio-set-boutique",
+          "name": "Boutique Boutique teak terrace",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/patio-set_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/patio-set_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "patio-set-luxury",
+          "name": "Luxury Member veranda collection",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/patio-set_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/patio-set_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 60,
+      "familyId": "porch-bench",
+      "modelFamily": "porch-bench",
+      "category": "operations",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.65,
+        "height": 0.92,
+        "depth": 0.62
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "porch-bench-basic",
+          "name": "Basic Utility porch bench",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/porch-bench_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/porch-bench_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "porch-bench-commercial",
+          "name": "Commercial Commercial slat bench",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/porch-bench_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/porch-bench_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "porch-bench-retail",
+          "name": "Retail Cushioned arrival bench",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/porch-bench_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/porch-bench_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "porch-bench-boutique",
+          "name": "Boutique Boutique oak settle",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/porch-bench_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/porch-bench_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "porch-bench-luxury",
+          "name": "Luxury Crested country-club bench",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/porch-bench_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/porch-bench_luxury.png"
+        }
+      ]
+    },
+    {
+      "familyIndex": 61,
+      "familyId": "waste-station",
+      "modelFamily": "waste-station",
+      "category": "operations",
+      "placementMode": "floor",
+      "dimensionsM": {
+        "width": 1.55,
+        "height": 1.25,
+        "depth": 1.1
+      },
+      "tiers": [
+        {
+          "id": "basic",
+          "skuId": "waste-station-basic",
+          "name": "Basic Utility bin",
+          "quality": 20,
+          "glb": "vendor/models/furniture/catalog/waste-station_basic.glb",
+          "thumbnail": "vendor/images/furniture/catalog/waste-station_basic.png"
+        },
+        {
+          "id": "commercial",
+          "skuId": "waste-station-commercial",
+          "name": "Commercial Commercial sorting station",
+          "quality": 40,
+          "glb": "vendor/models/furniture/catalog/waste-station_commercial.glb",
+          "thumbnail": "vendor/images/furniture/catalog/waste-station_commercial.png"
+        },
+        {
+          "id": "retail",
+          "skuId": "waste-station-retail",
+          "name": "Retail Concealed waste cabinet",
+          "quality": 60,
+          "glb": "vendor/models/furniture/catalog/waste-station_retail.glb",
+          "thumbnail": "vendor/images/furniture/catalog/waste-station_retail.png"
+        },
+        {
+          "id": "boutique",
+          "skuId": "waste-station-boutique",
+          "name": "Boutique Boutique service station",
+          "quality": 80,
+          "glb": "vendor/models/furniture/catalog/waste-station_boutique.glb",
+          "thumbnail": "vendor/images/furniture/catalog/waste-station_boutique.png"
+        },
+        {
+          "id": "luxury",
+          "skuId": "waste-station-luxury",
+          "name": "Luxury Integrated clubhouse recycling wall",
+          "quality": 96,
+          "glb": "vendor/models/furniture/catalog/waste-station_luxury.glb",
+          "thumbnail": "vendor/images/furniture/catalog/waste-station_luxury.png"
+        }
+      ]
+    }
+  ]
+}

@@ -8,7 +8,7 @@
 //
 // They exist now:
 //
-//   cut the tape (progressive)  ->  open one flap  ->  open the other  ->  take an armful into
+//   cut the tape (progressive)  ->  front main flap  ->  back main flap  ->  side flaps  ->  take an armful into
 //   YOUR HANDS  ->  walk it to a fixture  ->  hold to stock it, one at a time, until the shelf is
 //   full  ->  keep whatever would not fit  ->  flatten the empty  ->  carry it to the bin  ->
 //   recycle it.
@@ -21,6 +21,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { skuById } from '../src/data/shopItems.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
+import { FLOOR_BOX_SURFACE_ID } from '../src/data/boxPlacementSurfaces.js';
 import {
   boxesOf, arriveOrder, pickUpBox, putDownBox, carriedBox,
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
@@ -31,6 +33,10 @@ import {
   carriedGoods, armfulOf, stockFixture, storeInBack, takeFromBack,
   homeOf, carrySpeedFactor,
 } from '../src/sim/stocking.js';
+
+const floorTarget = (x, z, ry = 0) => ({
+  kind: 'surface', surfaceId: FLOOR_BOX_SURFACE_ID, x, z, ry,
+});
 
 // The fixer-upper opens with a sad little spread already on the shelves (10 dozen range rocks, 14
 // tee bags, 4 gloves, 5 caps). Every test here is about MOVEMENT, so start from a bare shop and
@@ -45,6 +51,12 @@ function landed(skuId = 'balls2', qty = 12) {
   const st = bareShop();
   arriveOrder(st, { id: 1, skuId, qty });
   return st;
+}
+
+function openAllFlaps(st, id) {
+  let result = null;
+  for (let phase = 0; phase < 3; phase += 1) result = openFlap(st, id);
+  return result;
 }
 
 // every unit of a line, wherever it is
@@ -94,10 +106,10 @@ test('cutting the tape is a cut, not a switch — half-cut is a real state you c
 test('you cannot cut a box you are holding — you need both hands', () => {
   const st = landed();
   const b = boxesOf(st)[0];
-  pickUpBox(st, b.id);
+  assert.ok(pickUpBox(st, b.id).ok);
   assert.equal(cutTape(st, b.id, 1).ok, false);
   assert.match(cutTape(st, b.id, 1).reason, /down|hands/i);
-  putDownBox(st, b.id, { x: 7.2, z: -5.3, ry: 0 });
+  assert.ok(putDownBox(st, b.id, floorTarget(7.2, -5.3)).ok);
   assert.ok(cutTape(st, b.id, 1).ok);
 });
 
@@ -119,9 +131,16 @@ test('the flaps open one at a time, and only once the tape is gone', () => {
   const two = openFlap(st, b.id);
   assert.ok(two.ok);
   assert.equal(two.flap, 1);
-  assert.ok(two.done);
+  assert.equal(two.done, false, 'both main flaps still leave the side pair closed');
+  assert.ok(!flapsOpen(b));
+
+  const three = openFlap(st, b.id);
+  assert.ok(three.ok);
+  assert.equal(three.flap, 2);
+  assert.deepEqual(three.physicalFlaps, [2, 3]);
+  assert.ok(three.done);
   assert.ok(flapsOpen(b));
-  assert.equal(openFlap(st, b.id).ok, false, 'there are only two');
+  assert.equal(openFlap(st, b.id).ok, false, 'all four physical flaps are already open');
 });
 
 // --- the contents come out into your hands ----------------------------------------------------
@@ -130,7 +149,7 @@ test('contents come out into YOUR HANDS — they do not teleport into the backro
   const st = landed('balls2', 12);
   const b = boxesOf(st)[0];
   const before = unitsOf(st, 'balls2');
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
 
   const t = takeFromBox(st, b.id);
   assert.ok(t.ok);
@@ -148,7 +167,7 @@ test('contents come out into YOUR HANDS — they do not teleport into the backro
 test('an armful is an armful: a big case takes more than one trip', () => {
   const st = landed('balls2', 12);
   const b = boxesOf(st)[0];
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   const arm = armfulOf(skuById('balls2'));
   assert.ok(arm < 12, 'twelve dozen boxes is not one armful');
 
@@ -169,7 +188,7 @@ test('you cannot carry a box and an armful at the same time, or two different li
   arriveOrder(st, { id: 2, skuId: 'glove1', qty: 8 });
   const [ballBox, gloveBox] = boxesOf(st);
   for (const b of [ballBox, gloveBox]) {
-    cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+    cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   }
   takeFromBox(st, ballBox.id);
   assert.equal(pickUpBox(st, gloveBox.id).ok, false, 'not with your arms full of golf balls');
@@ -182,7 +201,7 @@ test('you cannot carry a box and an armful at the same time, or two different li
 test('an empty box stays in the world as an empty box — it does not vanish when you take the last one', () => {
   const st = landed('glove1', 8);
   const b = boxesOf(st)[0];
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   let guard = 20;
   while (b.qty > 0 && guard-- > 0) {
     takeFromBox(st, b.id);
@@ -200,20 +219,22 @@ test('an empty box stays in the world as an empty box — it does not vanish whe
 test('a fixture takes what belongs on it, and tells you where the rest goes', () => {
   const st = landed('cap1', 8);
   const b = boxesOf(st)[0];
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   takeFromBox(st, b.id);
 
   const wrong = stockFixture(st, 'shelf_balls');
   assert.equal(wrong.ok, false, 'caps do not go on the ball wall');
   assert.ok(wrong.invalid);
-  assert.match(wrong.reason, /hat tree/i, 'and it says where they DO go');
+  assert.match(wrong.reason, /hat (wall|tree)/i, 'and it says where they DO go');
   assert.equal(st.shop.inventory.cap1.shelf, 0, 'nothing moved');
   assert.equal(carriedGoods(st).qty, armfulOf(skuById('cap1')), 'you are still holding them all');
 
   const right = stockFixture(st, 'hatstand', 99);
   assert.ok(right.ok);
-  assert.equal(right.moved, armfulOf(skuById('cap1')));
+  assert.equal(right.moved, Math.min(armfulOf(skuById('cap1')), capacityOf('cap1')));
   assert.equal(st.shop.inventory.cap1.shelf, right.moved);
+  assert.equal(carriedGoods(st)?.qty || 0, armfulOf(skuById('cap1')) - right.moved,
+    'any authored overflow remains in your hands');
   assert.equal(homeOf('cap1').id, 'hatstand');
 });
 
@@ -292,7 +313,7 @@ test('flatten only when empty; recycle only when flat; and a flattened box is st
   const b = boxesOf(st)[0];
   assert.equal(flattenBox(st, b.id).ok, false, 'you cannot flatten a full carton');
 
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   let guard = 20;
   while (b.qty > 0 && guard-- > 0) { takeFromBox(st, b.id); storeInBack(st); }
   assert.ok(isEmpty(b));
@@ -306,7 +327,7 @@ test('flatten only when empty; recycle only when flat; and a flattened box is st
   // and you can carry the flat one to the bin
   assert.ok(pickUpBox(st, b.id).ok);
   assert.equal(carriedBox(st).id, b.id);
-  putDownBox(st, b.id, { x: 9.85, z: 1.3, ry: 0 });
+  assert.ok(putDownBox(st, b.id, floorTarget(7.2, -5.3)).ok);
 
   assert.ok(recycleBox(st, b.id).ok);
   assert.equal(boxesOf(st).length, 0, 'now it is gone');
@@ -355,12 +376,12 @@ test('a heavy box slows you down, and a flattened one does not', () => {
 
   assert.equal(carrySpeedFactor(st), 1, 'empty-handed you walk at your own pace');
 
-  pickUpBox(st, crate.id);
+  assert.ok(pickUpBox(st, crate.id).ok);
   const heavy = carrySpeedFactor(st);
   assert.ok(heavy < 0.6, `the lounge suite is a genuine burden (${heavy.toFixed(2)})`);
-  putDownBox(st, crate.id, { x: 7, z: -5, ry: 0 });
+  assert.ok(putDownBox(st, crate.id, floorTarget(0, 2)).ok);
 
-  pickUpBox(st, carton.id);
+  assert.ok(pickUpBox(st, carton.id).ok);
   const light = carrySpeedFactor(st);
   assert.ok(light > heavy, 'a box of tees is not');
   assert.ok(light > 0.9, `and barely slows you at all (${light.toFixed(2)})`);
@@ -375,16 +396,15 @@ test('THE LOOP: pad -> stockroom -> cut -> flaps -> hands -> shelf, and not one 
 
   for (const b of [...boxesOf(st)]) {
     assert.equal(b.loc, 'pad');
-    pickUpBox(st, b.id);
+    assert.ok(pickUpBox(st, b.id).ok);
     assert.equal(unitsOf(st, 'balls1'), total, 'carrying a box does not change the count');
-    putDownBox(st, b.id, { x: 7.2, z: -5.3, ry: 0 });   // into the stockroom
+    assert.ok(putDownBox(st, b.id, floorTarget(7.2, -5.3)).ok);   // into the stockroom
     assert.equal(b.loc, 'world');
 
     cutTape(st, b.id, 0.5);
     assert.equal(unitsOf(st, 'balls1'), total);
     cutTape(st, b.id, 0.5);
-    openFlap(st, b.id);
-    openFlap(st, b.id);
+    openAllFlaps(st, b.id);
 
     let guard = 30;
     while (b.qty > 0 && guard-- > 0) {

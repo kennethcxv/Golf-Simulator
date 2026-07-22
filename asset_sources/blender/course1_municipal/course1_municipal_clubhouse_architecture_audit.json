@@ -1,0 +1,70 @@
+{
+  "asset": "course1_municipal_clubhouse_architecture.glb",
+  "blender_version": "5.1.2",
+  "footprint_m": [
+    12.8,
+    9.75
+  ],
+  "floor_area_m2": 124.80000000000001,
+  "floor_area_sq_ft": 1343.3360200041602,
+  "ceiling_height_m": 2.65,
+  "eave_height_m": 3.05,
+  "ridge_height_m": 5.183333333333334,
+  "production_objects": 704,
+  "render_meshes": 693,
+  "collision_meshes": 25,
+  "materials": 30,
+  "missing_uv": [],
+  "unapplied_scale": [],
+  "nonfinite": [],
+  "doors": [
+    {
+      "name": "DOOR_MAIN_LEFT",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_MAIN_RIGHT",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_SERVICE_EAST",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_MAINTENANCE_BACK",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_INTERIOR_EMPLOYEE",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_INTERIOR_OFFICE",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_INTERIOR_RESTROOM",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    },
+    {
+      "name": "DOOR_INTERIOR_STORAGE",
+      "pivot": "physical_hinge_axis",
+      "axis": "local_z",
+      "swing_degrees": 100.0
+    }
+  ]
+}

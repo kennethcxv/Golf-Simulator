@@ -1,0 +1,397 @@
+{
+  "phase": "baseline",
+  "createdAt": "2026-07-19T23:27:13.542Z",
+  "launch": {
+    "command": "node tools/qa/economy-browser-qa.mjs --url=http://127.0.0.1:8461/ --phase=baseline --out=qa/economy-progression/baseline",
+    "baseUrl": "http://127.0.0.1:8461/",
+    "browser": "150.0.7871.127",
+    "playwrightModule": "C:\\Users\\Kenneth\\AppData\\Local\\npm-cache\\_npx\\9833c18b2d85bc59\\node_modules\\playwright",
+    "viewport": {
+      "width": 1600,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "headless": true
+  },
+  "fixture": {
+    "seed": 1089431369,
+    "dayAbs": 8,
+    "cash": 64382.100000000006,
+    "ledgerDays": 8,
+    "camera": {
+      "x": 0.4499999999999993,
+      "z": 232.5,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    }
+  },
+  "fixedCamera": {
+    "name": "clubhouse-laptop-desk",
+    "position": {
+      "x": 0.4499999999999993,
+      "z": 232.5,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    },
+    "lighting": "simulation day 8, current deterministic weather/time"
+  },
+  "metrics": {
+    "idle": {
+      "label": "idle-fixed-clubhouse-camera",
+      "durationMs": 8048,
+      "frameCount": 882,
+      "averageFps": 109.59,
+      "onePercentLowFps": 14.21,
+      "worstFrameMs": 116.6,
+      "drawCallsAverage": 1215.23,
+      "trianglesAverage": 6007195,
+      "materialCount": 266,
+      "textureCount": 170,
+      "textureMemoryApproxBytes": 6081256171,
+      "rendererTextureCount": 208,
+      "rendererGeometryCount": 1074,
+      "rendererProgramCount": 68,
+      "jsHeapUsedBytes": 77128085,
+      "activeListeners": {
+        "activeUpperBound": 82,
+        "adds": 126,
+        "removes": 34
+      },
+      "uiMutationCount": 0,
+      "uiMutationsPerSecond": 0
+    },
+    "interactive": {
+      "label": "laptop-repeated-navigation",
+      "durationMs": 8001,
+      "frameCount": 2463,
+      "averageFps": 307.84,
+      "onePercentLowFps": 131.1,
+      "worstFrameMs": 13.8,
+      "drawCallsAverage": 1282.52,
+      "trianglesAverage": 4568686,
+      "materialCount": 286,
+      "textureCount": 170,
+      "textureMemoryApproxBytes": 6081256171,
+      "rendererTextureCount": 208,
+      "rendererGeometryCount": 1130,
+      "rendererProgramCount": 68,
+      "jsHeapUsedBytes": 82179604,
+      "activeListeners": {
+        "activeUpperBound": 85,
+        "adds": 457,
+        "removes": 34
+      },
+      "uiMutationCount": 84,
+      "uiMutationsPerSecond": 10.5
+    }
+  },
+  "listenerGrowth": {
+    "before": {
+      "activeUpperBound": 91,
+      "adds": 334,
+      "removes": 34
+    },
+    "after": {
+      "activeUpperBound": 91,
+      "adds": 492,
+      "removes": 34
+    }
+  },
+  "pageAudit": [
+    {
+      "expected": "Home",
+      "title": "Good morning — Willow Creek Municipal",
+      "active": "🏠Home",
+      "crash": false,
+      "nodeCount": 91,
+      "scrollHeight": 673,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Pro Shop",
+      "title": "Pro Shop",
+      "active": "🏪Pro Shop",
+      "crash": false,
+      "nodeCount": 78,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Supplier",
+      "title": "Supplier",
+      "active": "🛒Supplier",
+      "crash": false,
+      "nodeCount": 453,
+      "scrollHeight": 1811,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Orders",
+      "title": "Orders",
+      "active": "📦Orders",
+      "crash": false,
+      "nodeCount": 13,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Deliveries",
+      "title": "Deliveries",
+      "active": "🚚Deliveries",
+      "crash": false,
+      "nodeCount": 16,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Inventory",
+      "title": "Inventory",
+      "active": "📋Inventory",
+      "crash": false,
+      "nodeCount": 361,
+      "scrollHeight": 1016,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Pricing",
+      "title": "Pricing",
+      "active": "🏷Pricing",
+      "crash": false,
+      "nodeCount": 51,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Reservations",
+      "title": "Reservations",
+      "active": "📅Reservations",
+      "crash": false,
+      "nodeCount": 118,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Course",
+      "title": "Course",
+      "active": "⛳Course",
+      "crash": false,
+      "nodeCount": 116,
+      "scrollHeight": 709,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Carts & rentals",
+      "title": "Carts & rentals",
+      "active": "🛄Carts & rentals",
+      "crash": false,
+      "nodeCount": 37,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Employees",
+      "title": "Employees",
+      "active": "👥Employees",
+      "crash": false,
+      "nodeCount": 70,
+      "scrollHeight": 606,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Finances",
+      "title": "Finances",
+      "active": "💰Finances",
+      "crash": false,
+      "nodeCount": 86,
+      "scrollHeight": 685,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Reviews",
+      "title": "Reviews",
+      "active": "⭐Reviews",
+      "crash": false,
+      "nodeCount": 56,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Analytics",
+      "title": "Analytics",
+      "active": "📈Analytics",
+      "crash": false,
+      "nodeCount": 176,
+      "scrollHeight": 1415,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Renovation",
+      "title": "Renovation",
+      "active": "🔨Renovation",
+      "crash": false,
+      "nodeCount": 64,
+      "scrollHeight": 684,
+      "clientHeight": 605
+    },
+    {
+      "expected": "Settings",
+      "title": "Settings",
+      "active": "⚙Settings",
+      "crash": false,
+      "nodeCount": 38,
+      "scrollHeight": 605,
+      "clientHeight": 605
+    }
+  ],
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/flagpole.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/tee_markers.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/hand_fork.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/bucket_soil.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/hose_nozzle.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse/office_chair.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse/cap_pro.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/tractor_red.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse/shoe_pro.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse/rangefinder.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/workbench.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/clubhouse_ext_opt.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/tractor_broken.glb",
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8461/vendor/models/golf_cart.glb",
+      "reason": "net::ERR_ABORTED"
+    }
+  ],
+  "metricSources": {
+    "frameTiming": "requestAnimationFrame intervals over fixed-duration samples",
+    "drawCallsAndTriangles": "THREE.WebGLRenderer.info.render sampled every animation frame",
+    "materialsAndTextures": "unique scene traversal identities at sample end",
+    "textureMemory": "RGBA8 dimensions with 4/3 mip estimate; approximate, not GPU-driver allocation",
+    "heap": "Chromium performance.memory.usedJSHeapSize with --enable-precise-memory-info",
+    "listeners": "instrumented EventTarget registrations; active value is an upper bound because browser-internal once removal is not observable",
+    "uiUpdates": "MutationObserver records beneath .laptop-screen during the sample"
+  },
+  "video": "qa/economy-progression/baseline/video/baseline-normal-controls.webm"
+}

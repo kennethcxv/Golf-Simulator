@@ -1,0 +1,402 @@
+{
+  "pass": "fitting-hook-validation",
+  "timestamp": "2026-07-20T15:01:26.324Z",
+  "baseUrl": "http://localhost:8457/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "clock": "2:00 PM pinned before every fixed-camera capture",
+  "warmupSeconds": 3,
+  "frameSampleSeconds": {
+    "idle": 6,
+    "walk": 4
+  },
+  "performanceSamples": 1,
+  "captureEnabled": true,
+  "captureStartEnabled": false,
+  "captureFullEnabled": true,
+  "performanceEnabled": false,
+  "renovated": true,
+  "hardwareAcceleration": true,
+  "startingState": {
+    "branch": "overnight/pro-shop-overhaul",
+    "course": "Willow Creek Municipal",
+    "tier": 2,
+    "fixtureLayout": {
+      "moved": {},
+      "stored": [],
+      "extra": []
+    }
+  },
+  "bootRoute": [
+    "New Empire — Relaxed",
+    "Property Market",
+    "Buy Willow Creek Municipal"
+  ],
+  "normalControlProof": {
+    "input": [
+      "canvas click",
+      "ArrowLeft",
+      "W"
+    ],
+    "before": {
+      "x": -8,
+      "z": 241.7,
+      "yaw": 3.141592653589793
+    },
+    "after": {
+      "x": -5.254362882422946,
+      "z": 242.60307371470066,
+      "yaw": 4.394622653589796
+    },
+    "playerTravelYards": 2.89,
+    "yawDeltaRadians": 1.253
+  },
+  "clockControlProof": {
+    "input": [
+      "Space"
+    ],
+    "before": {
+      "speedIdx": 1,
+      "minutes": 438.33799999999815
+    },
+    "after": {
+      "speedIdx": 0,
+      "minutes": 438.41999999999814
+    },
+    "driftMinutes": 0.082
+  },
+  "visualIsolation": {
+    "method": "prepareCheckoutQa before fixed cameras; customer flow captured separately",
+    "removed": 1
+  },
+  "stock": {
+    "tier": 3,
+    "lines": 42,
+    "units": 289
+  },
+  "stockDiagnostics": [
+    {
+      "name": "rack_drivers:driver1",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_drivers:driver2",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_drivers:driver3",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:irons1",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:irons2",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:wedge1",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:wedge2",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter1",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter2",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter3",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls1",
+      "meshes": 2,
+      "vertices": 420,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls2",
+      "meshes": 2,
+      "vertices": 420,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls3",
+      "meshes": 2,
+      "vertices": 420,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:tees1",
+      "meshes": 2,
+      "vertices": 168,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:towel1",
+      "meshes": 1,
+      "vertices": 312,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:marker1",
+      "meshes": 2,
+      "vertices": 168,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:divot1",
+      "meshes": 2,
+      "vertices": 480,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:range2",
+      "meshes": 1,
+      "vertices": 36924,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:sunglasses2",
+      "meshes": 2,
+      "vertices": 1236,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:bottle1",
+      "meshes": 3,
+      "vertices": 1080,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:umb1",
+      "meshes": 2,
+      "vertices": 552,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:glove1",
+      "meshes": 1,
+      "vertices": 14442,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:glove2",
+      "meshes": 1,
+      "vertices": 14442,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:sock1",
+      "meshes": 1,
+      "vertices": 240,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:jacket2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "hatstand:cap1",
+      "meshes": 1,
+      "vertices": 24872,
+      "visible": true
+    },
+    {
+      "name": "hatstand:cap2",
+      "meshes": 1,
+      "vertices": 24872,
+      "visible": true
+    },
+    {
+      "name": "table_polos:polo1",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:polo2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:pants2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:shorts1",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "bagstand:bag1",
+      "meshes": 7,
+      "vertices": 4832,
+      "visible": true
+    },
+    {
+      "name": "bagstand:bag3",
+      "meshes": 7,
+      "vertices": 4832,
+      "visible": true
+    },
+    {
+      "name": "shoerack:shoe1",
+      "meshes": 1,
+      "vertices": 74160,
+      "visible": true
+    },
+    {
+      "name": "shoerack:shoe3",
+      "meshes": 1,
+      "vertices": 74160,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:water1",
+      "meshes": 3,
+      "vertices": 1440,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:sportdrink2",
+      "meshes": 3,
+      "vertices": 1440,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:soda1",
+      "meshes": 2,
+      "vertices": 1024,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:chips1",
+      "meshes": 3,
+      "vertices": 416,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:bar2",
+      "meshes": 3,
+      "vertices": 416,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:crackers1",
+      "meshes": 3,
+      "vertices": 416,
+      "visible": true
+    },
+    {
+      "name": "member_station:scorecard1",
+      "meshes": 1,
+      "vertices": 288,
+      "visible": true
+    },
+    {
+      "name": "tour_vault:premium",
+      "meshes": 7,
+      "vertices": 22434,
+      "visible": true
+    },
+    {
+      "name": "putting_demo_rack:demo-clubs",
+      "meshes": 3,
+      "vertices": 1644,
+      "visible": true
+    }
+  ],
+  "customerDiagnostics": {
+    "active": 0,
+    "minSeparationYards": null,
+    "reservedSockets": [],
+    "uniqueReservedSockets": 0
+  },
+  "customersSpawned": 0,
+  "cameras": [
+    {
+      "id": "14-fitting-area",
+      "at": [
+        0.75,
+        -0.1
+      ],
+      "to": [
+        4.45,
+        -2.05
+      ],
+      "pitch": -0.04
+    }
+  ],
+  "metrics": [],
+  "laptopCycles": null,
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hose_nozzle.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/kiosk.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/rangefinder.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/shed.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/belt.glb"
+    }
+  ]
+}

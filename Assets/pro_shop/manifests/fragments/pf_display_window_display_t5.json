@@ -1,0 +1,66 @@
+{
+ "id": "pf_display_window_display_t5",
+ "kind": "fixtures",
+ "category": "store_displays/window_display",
+ "dims_m": [
+  3.1,
+  1.015,
+  2.62
+ ],
+ "min_z": 0.0,
+ "tris": 3740,
+ "textures": [
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "WINDOW_DISPLAY_SLOT_01",
+  "WINDOW_DISPLAY_SLOT_02",
+  "WINDOW_DISPLAY_SLOT_03",
+  "WINDOW_DISPLAY_SLOT_04",
+  "WINDOW_DISPLAY_SLOT_05",
+  "WINDOW_DISPLAY_SLOT_06"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_window_display_t5.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/window_display/pf_display_window_display_t5.blend",
+ "name": "Window Display - Tier 5 Luxury",
+ "variant": "private_club_luxury",
+ "tier": 5,
+ "quality": "Luxury",
+ "price_band": 5,
+ "material_story": "built-in walnut millwork, warm cream, brass, glass",
+ "size_grade": 5,
+ "material_grade": 5,
+ "custom_woodwork_level": 4,
+ "fixture_complexity_grade": 5,
+ "integrated_light_count": 5,
+ "target_dimensions_m": [
+  3.1,
+  1.0,
+  2.62
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}

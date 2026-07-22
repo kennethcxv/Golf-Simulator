@@ -1,0 +1,360 @@
+{
+  "capturedAt": "2026-07-20T07:52:38.569Z",
+  "label": "after-live",
+  "commit": null,
+  "url": "http://127.0.0.1:8469/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "quality": "repository defaults",
+  "fixture": {
+    "seed": 1919492412,
+    "mode": "relaxed",
+    "clubName": "Willow Creek Municipal",
+    "day": 0,
+    "minuteOfDay": 560,
+    "camera": {
+      "x": -44.24346305891301,
+      "z": 166.78056534254478,
+      "targetX": -95.45220811744574,
+      "targetZ": 157.7437279792743,
+      "yaw": 1.396124127786657,
+      "pitch": -0.045
+    },
+    "idle": {
+      "lastRounds": 0,
+      "golfersFrozen": true
+    },
+    "ambient": {
+      "canonicalLivePlay": {
+        "minuteOfDay": 700,
+        "visualMinuteOfDay": 560,
+        "parties": 4,
+        "golfers": 9,
+        "carts": 2
+      },
+      "minimumLiveGolferVisuals": 9
+    },
+    "warmupMs": 8000,
+    "sampleCount": 3,
+    "sampleDurationMs": 5000
+  },
+  "raw": {
+    "idle": [
+      {
+        "label": "idle-1",
+        "durationMs": 5000,
+        "samples": 501,
+        "validFrameSample": true,
+        "averageFps": 100.2,
+        "onePercentLowFps": 15.33,
+        "worstFrameMs": 108.3,
+        "drawCalls": 2698,
+        "renderedTriangles": 9957304,
+        "sceneTriangles": 1739088,
+        "materials": 235,
+        "textures": 160,
+        "estimatedTextureMemoryBytes": 5901469077,
+        "rendererTextures": 205,
+        "rendererGeometries": 1044,
+        "jsHeapBytes": 84168964,
+        "activeListeners": 96,
+        "listenerRegistrations": 130,
+        "uiMutationCallbacks": 502,
+        "uiMutationCallbacksPerSecond": 100.4,
+        "courseCharacters": 0
+      },
+      {
+        "label": "idle-2",
+        "durationMs": 5000,
+        "samples": 392,
+        "validFrameSample": true,
+        "averageFps": 78.39,
+        "onePercentLowFps": 6.86,
+        "worstFrameMs": 208.6,
+        "drawCalls": 2698,
+        "renderedTriangles": 9957304,
+        "sceneTriangles": 1739088,
+        "materials": 235,
+        "textures": 160,
+        "estimatedTextureMemoryBytes": 5901469077,
+        "rendererTextures": 205,
+        "rendererGeometries": 1044,
+        "jsHeapBytes": 88705348,
+        "activeListeners": 96,
+        "listenerRegistrations": 130,
+        "uiMutationCallbacks": 393,
+        "uiMutationCallbacksPerSecond": 78.6,
+        "courseCharacters": 0
+      },
+      {
+        "label": "idle-3",
+        "durationMs": 5000,
+        "samples": 318,
+        "validFrameSample": true,
+        "averageFps": 63.6,
+        "onePercentLowFps": 4.75,
+        "worstFrameMs": 300,
+        "drawCalls": 2698,
+        "renderedTriangles": 9957304,
+        "sceneTriangles": 1739088,
+        "materials": 235,
+        "textures": 160,
+        "estimatedTextureMemoryBytes": 5901469077,
+        "rendererTextures": 205,
+        "rendererGeometries": 1044,
+        "jsHeapBytes": 91290792,
+        "activeListeners": 96,
+        "listenerRegistrations": 130,
+        "uiMutationCallbacks": 319,
+        "uiMutationCallbacksPerSecond": 63.8,
+        "courseCharacters": 0
+      }
+    ],
+    "ambient": [
+      {
+        "label": "ambient-1",
+        "durationMs": 5000,
+        "samples": 256,
+        "validFrameSample": true,
+        "averageFps": 51.2,
+        "onePercentLowFps": 2.88,
+        "worstFrameMs": 450.1,
+        "drawCalls": 3366,
+        "renderedTriangles": 10597156,
+        "sceneTriangles": 1847846,
+        "materials": 281,
+        "textures": 163,
+        "estimatedTextureMemoryBytes": 6169904533,
+        "rendererTextures": 208,
+        "rendererGeometries": 1105,
+        "jsHeapBytes": 97233911,
+        "activeListeners": 96,
+        "listenerRegistrations": 130,
+        "uiMutationCallbacks": 257,
+        "uiMutationCallbacksPerSecond": 51.4,
+        "courseCharacters": 5
+      },
+      {
+        "label": "ambient-2",
+        "durationMs": 5000,
+        "samples": 323,
+        "validFrameSample": true,
+        "averageFps": 64.28,
+        "onePercentLowFps": 4.66,
+        "worstFrameMs": 516.6,
+        "drawCalls": 3366,
+        "renderedTriangles": 10597156,
+        "sceneTriangles": 1847846,
+        "materials": 281,
+        "textures": 163,
+        "estimatedTextureMemoryBytes": 6169904533,
+        "rendererTextures": 208,
+        "rendererGeometries": 1105,
+        "jsHeapBytes": 98897383,
+        "activeListeners": 96,
+        "listenerRegistrations": 130,
+        "uiMutationCallbacks": 324,
+        "uiMutationCallbacksPerSecond": 64.8,
+        "courseCharacters": 5
+      },
+      {
+        "label": "ambient-3",
+        "durationMs": 5000,
+        "samples": 434,
+        "validFrameSample": true,
+        "averageFps": 86.51,
+        "onePercentLowFps": 14.62,
+        "worstFrameMs": 108.5,
+        "drawCalls": 3342,
+        "renderedTriangles": 10597108,
+        "sceneTriangles": 1847846,
+        "materials": 282,
+        "textures": 163,
+        "estimatedTextureMemoryBytes": 6169904533,
+        "rendererTextures": 208,
+        "rendererGeometries": 1109,
+        "jsHeapBytes": 86967650,
+        "activeListeners": 96,
+        "listenerRegistrations": 130,
+        "uiMutationCallbacks": 435,
+        "uiMutationCallbacksPerSecond": 87,
+        "courseCharacters": 5
+      }
+    ]
+  },
+  "summary": {
+    "idle": {
+      "validRuns": 3,
+      "totalRuns": 3,
+      "statisticallyUsable": true,
+      "medianAverageFps": 78.39,
+      "medianOnePercentLowFps": 6.86,
+      "medianWorstFrameMs": 208.6,
+      "medianDrawCalls": 2698,
+      "medianRenderedTriangles": 9957304,
+      "medianSceneTriangles": 1739088,
+      "medianMaterials": 235,
+      "medianTextures": 160,
+      "medianEstimatedTextureMemoryBytes": 5901469077,
+      "medianRendererGeometries": 1044,
+      "medianHeapBytes": 88705348,
+      "medianUiMutationCallbacksPerSecond": 78.6,
+      "medianCourseCharacters": 0
+    },
+    "ambient": {
+      "validRuns": 3,
+      "totalRuns": 3,
+      "statisticallyUsable": true,
+      "medianAverageFps": 64.28,
+      "medianOnePercentLowFps": 4.66,
+      "medianWorstFrameMs": 450.1,
+      "medianDrawCalls": 3366,
+      "medianRenderedTriangles": 10597156,
+      "medianSceneTriangles": 1847846,
+      "medianMaterials": 281,
+      "medianTextures": 163,
+      "medianEstimatedTextureMemoryBytes": 6169904533,
+      "medianRendererGeometries": 1105,
+      "medianHeapBytes": 97233911,
+      "medianUiMutationCallbacksPerSecond": 64.8,
+      "medianCourseCharacters": 5
+    }
+  },
+  "listeners": {
+    "before": {
+      "active": 96,
+      "registrations": 130
+    },
+    "after": {
+      "active": 96,
+      "registrations": 130
+    },
+    "activeDelta": 0,
+    "registrationDelta": 0
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/golf_cart.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/bucket_soil.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/hand_fork.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/office_chair.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/shoe_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/club_sign.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/workbench.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/shed.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tractor_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}

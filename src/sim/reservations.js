@@ -10,6 +10,9 @@ import { calendarOf } from './time.js';
 import { amenityScore, clubRatings, demandMultiplier, fairGreenFee } from './club.js';
 import { addExpense, addRevenue, postLedgerEntry, recordOutcome, unbill } from './economy.js';
 import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
+import { allocateCustomerIdentity, identityForReservation } from './customerIdentity.js';
+import { bankServiceCharge, serviceTicketByReference } from './register.js';
+import { beginCartTrip, cartReservationQuote, cartsRequiredForParty } from './cartFleet.js';
 
 export const TEE_SHEET = Object.freeze({
   openMin: 7 * 60,
@@ -36,6 +39,20 @@ export const DEFAULT_OPERATIONS_POLICY = Object.freeze({
   autoDepartMinutesAfterCheckIn: 2,
   supportsMemberAccounts: false,
 });
+
+// Stable service-payment identities shared with the physical register adapter.
+export const RESERVATION_DEPOSIT_TYPE = 'reservation-deposit';
+export const RESERVATION_NO_SHOW_FEE_TYPE = 'reservation-no-show-fee';
+export const RESERVATION_DEPOSIT_SKU = 'service:reservation-deposit';
+export const RESERVATION_NO_SHOW_FEE_SKU = 'service:reservation-no-show-fee';
+
+export function reservationDepositReference(reservationId) {
+  return `reservation:${String(reservationId)}:deposit`;
+}
+
+export function reservationNoShowFeeReference(reservationId) {
+  return `reservation:${String(reservationId)}:no-show-fee`;
+}
 
 const OPERATIONS_VERSION = 2;
 const EVENT_LIMIT = 400;
@@ -149,7 +166,75 @@ function refreshPayment(reservation) {
   return payment;
 }
 
-function migrateReservation(state, book, reservation, index) {
+function syncReservationCompatibility(state, reservation, force = false) {
+  if (reservation._compatSynced && !force) return reservation;
+  const total = r2(reservation.payment?.total ?? reservation.fee ?? 0);
+  const amountPaid = r2(reservation.payment?.amountPaid ?? reservation.depositPaid ?? 0);
+  const depositPaid = r2(reservation.payment?.depositPaid ?? reservation.depositPaid ?? 0);
+  const amountDue = r2(reservation.payment?.amountDue ?? Math.max(0, total - amountPaid));
+  reservation.reservationId ??= reservation.id;
+  reservation.customerId ??= `reservation-customer-${String(reservation.id)}`;
+  reservation.fullName ??= reservation.reservationHolder || reservation.name;
+  reservation.groupSize = reservation.partySize;
+  reservation.groupMembers ??= reservation.party?.members?.map((member, index) => ({
+    customerId: index === 0 ? reservation.customerId : `${reservation.customerId}:member:${index + 1}`,
+    fullName: member.name,
+    name: member.name,
+    role: index === 0 ? 'booking-contact' : 'golfer',
+  })) || [];
+  reservation.teeTime = reservation.minute;
+  reservation.teeTimeAbs = absoluteMinute(reservation.dayAbs, reservation.minute);
+  reservation.fee = total;
+  reservation.depositRequested ??= depositPaid;
+  reservation.deposit = depositPaid;
+  reservation.depositPaid = depositPaid;
+  reservation.depositStatus ??= depositPaid > EPSILON ? 'legacy-untracked' : 'none';
+  reservation.depositReferenceId ??= null;
+  reservation.depositTransactionNumber ??= null;
+  reservation.depositPaidAt ??= null;
+  reservation.depositPaymentMethod ??= null;
+  reservation.balanceDue = amountDue;
+  reservation.remainingBalance = amountDue;
+  reservation.paymentStatus = amountDue <= EPSILON ? 'paid' : amountPaid > EPSILON ? 'deposit-paid' : 'unpaid';
+  reservation.paymentPreference ??= reservation.payment?.method === 'cash' || reservation.payment?.method === 'card'
+    ? reservation.payment.method : null;
+  reservation.reservationStatus = reservation.status;
+  reservation.checkInStatus = reservation.checkIn?.status === 'checked-in' ? 'checked-in'
+    : reservation.checkIn?.status === 'confirmed' ? 'waiting'
+      : reservation.status === 'noShow' ? 'missed' : reservation.status === 'cancelled' ? 'cancelled' : 'pending';
+  reservation.customerType ??= reservation.walkIn ? 'walk-in' : 'reservation';
+  reservation.holes = reservation.holes === 9 ? 9 : 18;
+  reservation.transport = reservation.transport === 'cart' ? 'cart' : 'walking';
+  reservation.requestedTransport ??= reservation.transport;
+  reservation.cartBookingOutcome ??= reservation.transport === 'cart' ? 'accepted' : 'not-requested';
+  reservation.cartsRequested ??= reservation.transport === 'cart'
+    ? cartsRequiredForParty(reservation.partySize) : 0;
+  reservation.greenFeeSubtotal ??= r2(Math.max(0, total - Number(reservation.cartRentalFee || 0)));
+  reservation.cartRentalFee = r2(reservation.cartRentalFee || 0);
+  reservation.cartTripId ??= null;
+  reservation.cartService ??= null;
+  reservation.rentalRequirements ??= [];
+  reservation.arrivalStatus = reservation.arrival?.status === 'late' ? 'arrived' : (reservation.arrival?.status || 'scheduled');
+  reservation.plannedArrival = reservation.arrival?.plannedMinute ?? reservation.teeTimeAbs - TEE_SHEET.dueLeadMin;
+  reservation.arrivalWindow ??= { start: reservation.plannedArrival, end: reservation.plannedArrival };
+  reservation.arrivalTime = reservation.arrival?.arrivedAtMinute ?? null;
+  reservation.arrivedAt = reservation.arrivalTime;
+  reservation.checkedInAt = reservation.checkIn?.checkedInAtMinute ?? reservation.checkedInAt ?? null;
+  reservation.createdAt ??= reservation.createdAtMinute ?? nowOf(state);
+  reservation.cancelledAt = reservation.cancellation?.cancelledAtMinute ?? reservation.cancelledAt ?? null;
+  reservation.noShowAt = reservation.noShow?.markedAtMinute ?? reservation.noShowAt ?? null;
+  reservation.noShowFee ??= r2(reservation.noShow?.feeApplied || 0);
+  reservation.noShowFeeStatus ??= reservation.status === 'noShow'
+    ? (reservation.noShowFee > 0 ? 'charged' : 'waived') : 'not-due';
+  reservation.currentDestination = reservation.status === 'played' ? 'course'
+    : reservation.status === 'cancelled' || reservation.status === 'noShow' ? 'departed'
+      : reservation.arrivalStatus === 'arrived' ? 'front-desk' : 'offsite';
+  reservation._compatSynced = true;
+  return reservation;
+}
+
+function migrateReservation(state, book, reservation, index, legacyCapacityDefault = false) {
+  if (reservation._compatSynced) return reservation;
   if (reservation.id == null) reservation.id = index + 1;
   reservation.name = String(reservation.name || reservation.reservationHolder || `Reservation ${reservation.id}`).trim();
   reservation.reservationHolder ||= reservation.name;
@@ -164,7 +249,7 @@ function migrateReservation(state, book, reservation, index) {
 
   if (!reservation.party) {
     const names = reservation.customerNames || [reservation.name];
-    const size = Math.max(1, Number(reservation.partySize || names.length || 1));
+    const size = Math.max(1, Number(reservation.partySize || (legacyCapacityDefault ? book.config.slotCapacity : names.length) || 1));
     reservation.party = makeParty(
       state,
       book,
@@ -232,7 +317,7 @@ function migrateReservation(state, book, reservation, index) {
   reservation.actualStartMinute ??= reservation.status === 'played' ? slotAbs : null;
   reservation.createdAtMinute ??= nowOf(state);
   reservation.source ||= reservation.walkIn ? 'walk-in' : 'player';
-  return reservation;
+  return syncReservationCompatibility(state, reservation);
 }
 
 export function initReservations(state, options = {}) {
@@ -262,6 +347,7 @@ export function initReservations(state, options = {}) {
 export function ensureReservations(state) {
   if (!state.reservations) return initReservations(state);
   const book = state.reservations;
+  const legacyCapacityDefault = book.version == null;
   book.version = OPERATIONS_VERSION;
   book.nextId = Number.isInteger(book.nextId) ? book.nextId : 1;
   book.nextPartyId = Number.isInteger(book.nextPartyId) ? book.nextPartyId : 1;
@@ -281,7 +367,7 @@ export function ensureReservations(state) {
   book.generator ||= { lastSeed: null, generatedDays: [] };
   book.lastProcessedMinute ??= nowOf(state);
 
-  for (let i = 0; i < book.booked.length; i++) migrateReservation(state, book, book.booked[i], i);
+  for (let i = 0; i < book.booked.length; i++) migrateReservation(state, book, book.booked[i], i, legacyCapacityDefault);
   const numericIds = book.booked.map((reservation) => Number(reservation.id)).filter(Number.isFinite);
   if (numericIds.length) book.nextId = Math.max(book.nextId, ...numericIds.map((id) => id + 1));
 
@@ -489,6 +575,8 @@ export function daySheet(state, dayAbs) {
       res: openReservations[0] || visible[0] || null,
       reservedSeats: capacityUsed,
       availableSeats: Math.max(0, slot.capacity - capacityUsed),
+      bookedPlayers: capacityUsed,
+      remainingCapacity: Math.max(0, slot.capacity - capacityUsed),
       available: !day.closed && !slot.closed && capacityUsed < slot.capacity,
     };
   });
@@ -540,7 +628,7 @@ function validateBooking(state, dayAbs, minute, partySize, options = {}, exceptI
 
 function bookingOptions(nameOrOptions, maybeOptions) {
   if (nameOrOptions && typeof nameOrOptions === 'object') return { ...nameOrOptions };
-  return { ...(maybeOptions || {}), holder: nameOrOptions };
+  return { ...(maybeOptions || {}), holder: nameOrOptions, legacyExact: true };
 }
 
 function emitOperationEvent(state, reservation, type, atMinute, details = {}, uniqueSuffix = '') {
@@ -657,7 +745,8 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
   const options = bookingOptions(nameOrOptions, maybeOptions);
   const holder = String(options.holder || options.name || '').trim();
   if (!holder) return { ok: false, reason: 'A booking needs a reservation holder.' };
-  const partySize = Math.floor(Number(options.partySize || options.customerNames?.length || 1));
+  const partySize = Math.floor(Number(options.partySize || options.customerNames?.length
+    || (options.legacyExact ? configOf(state).slotCapacity : 1)));
   const validation = validateBooking(state, Math.floor(dayAbs), Math.floor(minute), partySize, options);
   if (!validation.ok) return validation;
 
@@ -671,7 +760,18 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     options.membershipStatus,
   );
   const feePerPlayer = r2(options.feePerPlayer ?? state.club?.greenFee ?? 0);
-  const total = options.totalAmount != null ? r2(options.totalAmount) : r2(feePerPlayer * party.size);
+  const holes = options.holes === 9 ? 9 : 18;
+  const transport = options.transport === 'cart' || options.transport === 'ride' ? 'cart' : 'walking';
+  const cartQuote = transport === 'cart'
+    ? cartReservationQuote(state, { dayAbs, minute, partySize, holes })
+    : { ok: true, requested: 0, fee: 0 };
+  if (!cartQuote.ok) return { ok: false, reason: cartQuote.reason, cartQuote };
+  const greenFeeSubtotal = r2(feePerPlayer * party.size);
+  const cartRentalFee = transport === 'cart' ? r2(options.cartRentalFee ?? cartQuote.fee) : 0;
+  const quotedTotal = options.totalAmount ?? options.totalFee;
+  const total = quotedTotal != null ? r2(quotedTotal)
+    : options.legacyExact ? r2(feePerPlayer + cartRentalFee)
+      : r2(greenFeeSubtotal + cartRentalFee);
   const slotAbs = absoluteMinute(dayAbs, minute);
   const arrivalOffset = Number.isFinite(options.arrivalOffsetMin)
     ? Math.floor(options.arrivalOffsetMin)
@@ -693,7 +793,10 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     status: 'booked',
     walkIn: !!options.walkIn,
     source: options.source || (options.walkIn ? 'walk-in' : 'player'),
+    _legacyExact: !!options.legacyExact,
     notes: Array.isArray(options.notes) ? [...options.notes] : (options.notes ? [String(options.notes)] : []),
+    paymentPreference: options.paymentPreference === 'cash' || options.paymentPreference === 'card'
+      ? options.paymentPreference : null,
     payment: paymentShape(total, options),
     arrival: {
       status: options.arrived ? (arrivalOffset > 0 ? 'late' : 'arrived') : 'scheduled',
@@ -728,7 +831,23 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     },
     actualStartMinute: null,
     createdAtMinute: nowOf(state),
+    holes,
+    transport,
+    requestedTransport: options.requestedTransport === 'cart' || options.requestedTransport === 'ride' ? 'cart' : transport,
+    cartBookingOutcome: options.cartBookingOutcome || (transport === 'cart' ? 'accepted' : 'not-requested'),
+    cartsRequested: transport === 'cart' ? cartQuote.requested : 0,
+    greenFeeSubtotal: r2(Math.max(0, total - cartRentalFee)),
+    cartRentalFee,
+    cartTripId: null,
+    cartService: null,
+    rentalRequirements: Array.isArray(options.rentalRequirements)
+      ? options.rentalRequirements.map((item) => String(item).trim()).filter(Boolean)
+      : [],
   };
+  if (options.customerIdentity || options.customerId) {
+    reservation.customerId = options.customerIdentity?.customerId || String(options.customerId);
+    reservation.fullName = options.customerIdentity?.fullName || options.fullName || holder;
+  }
   book.booked.push(reservation);
   validation.slot.reservationIds.push(reservation.id);
   if (reservation.walkIn) validation.slot.walkInAssignmentIds.push(reservation.id);
@@ -761,6 +880,8 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     });
   }
 
+  syncReservationCompatibility(state, reservation, true);
+  if (reservation._legacyExact) delete reservation.balanceDue;
   scheduleReservationCustomer(state, reservation);
 
   return { ok: true, res: reservation, reservation, slot: validation.slot };
@@ -904,7 +1025,7 @@ export function retryReservationCard(state, id, transactionId = null) {
 export function markReservationArrived(state, id, atMinute = nowOf(state)) {
   const reservation = reservationById(state, id);
   if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No active booking under that name.' };
-  if (['arrived', 'late'].includes(reservation.arrival.status)) return { ok: true, idempotent: true, reservation };
+  if (['arrived', 'late'].includes(reservation.arrival.status)) return { ok: true, already: true, idempotent: true, reservation, res: reservation };
   const slotAbs = absoluteMinute(reservation.dayAbs, reservation.minute);
   const late = atMinute > slotAbs;
   reservation.arrival.status = late ? 'late' : 'arrived';
@@ -912,7 +1033,11 @@ export function markReservationArrived(state, id, atMinute = nowOf(state)) {
   if (late) reservation.arrival.lateMarkedAtMinute = Math.floor(atMinute);
   emitOperationEvent(state, reservation, 'party-arrived', atMinute, { late });
   if (late) emitOperationEvent(state, reservation, 'party-late', atMinute, { minutesLate: Math.floor(atMinute - slotAbs) });
-  return { ok: true, reservation, late };
+  reservation.arrivalStatus = 'arrived';
+  reservation.arrivalTime = Math.floor(atMinute);
+  reservation.arrivedAt = Math.floor(atMinute);
+  reservation.currentDestination = 'front-desk';
+  return { ok: true, reservation, res: reservation, late };
 }
 
 export function markReservationLate(state, id, atMinute = nowOf(state)) {
@@ -1078,7 +1203,7 @@ export function cancelReservation(state, id, options = {}) {
   return { ok: true, reservation, ...terms };
 }
 
-function applyNoShowFee(state, reservation, atMinute, options = {}) {
+function applyOperationsNoShowFee(state, reservation, atMinute, options = {}) {
   const policy = bookOf(state).policy;
   const target = r2(Math.max(0, options.fee ?? policy.noShowFee));
   if (target <= EPSILON) return { feeApplied: 0, entryIds: [] };
@@ -1125,7 +1250,7 @@ export function handleNoShow(state, id, options = {}) {
   const atMinute = Math.floor(options.atMinute ?? nowOf(state));
   const graceEnd = absoluteMinute(reservation.dayAbs, reservation.minute) + configOf(state).gracePeriodMin;
   if (!options.force && atMinute < graceEnd) return { ok: false, reason: 'The grace period is still open.' };
-  const fee = applyNoShowFee(state, reservation, atMinute, options);
+  const fee = applyOperationsNoShowFee(state, reservation, atMinute, options);
   reservation.status = 'noShow';
   reservation.arrival.status = 'no-show';
   reservation.payment.pending = null;
@@ -1154,15 +1279,87 @@ export function dueForCheckIn(state) {
     .filter((reservation) => (
       reservation.status === 'booked'
       && reservation.dayAbs === cal.dayAbs
-      && ['arrived', 'late'].includes(reservation.arrival.status)
+      && (['arrived', 'late'].includes(reservation.arrival.status)
+        || (reservation._legacyExact && !reservation.willNoShow && nowOf(state) >= reservation.plannedArrival))
       && reservation.checkIn.status !== 'checked-in'
     ))
     .sort((a, b) => (a.arrival.arrivedAtMinute - b.arrival.arrivedAtMinute) || (a.minute - b.minute));
 }
 
+// One durable state transition shared by the front-desk UI and the physical
+// register adapter. Payment remains owned by each caller, but both must grant
+// the same canonical course access, compatibility fields, events, and outcome.
+export function finalizeReservationCheckInState(state, reservation, options = {}) {
+  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+  const atMinute = Math.floor(options.atMinute ?? nowOf(state));
+  reservation.checkIn ||= { status: 'unconfirmed', confirmedAtMinute: null, checkedInAtMinute: null };
+  reservation.courseAccess ||= {
+    status: 'none', assignedCourse: 'main', startingHole: 1,
+    grantedAtMinute: null, departurePlannedAtMinute: null, departedAtMinute: null,
+  };
+  const already = reservation.checkIn.status === 'checked-in'
+    && ['granted', 'departed'].includes(reservation.courseAccess.status);
+
+  reservation.status = 'played';
+  reservation.reservationStatus = 'played';
+  reservation.checkIn.status = 'checked-in';
+  reservation.checkIn.checkedInAtMinute = atMinute;
+  reservation.checkInStatus = 'checked-in';
+  reservation.checkedInAt = atMinute;
+  reservation.currentDestination = 'course';
+  for (const member of reservation.party?.members || []) member.checkedIn = true;
+  reservation.courseAccess.status = 'granted';
+  reservation.courseAccess.grantedAtMinute = atMinute;
+  reservation.courseAccess.departurePlannedAtMinute = atMinute + bookOf(state).policy.autoDepartMinutesAfterCheckIn;
+
+  if (!already) {
+    emitOperationEvent(state, reservation, 'party-checked-in', atMinute, { partySize: reservation.partySize });
+    emitOperationEvent(state, reservation, 'party-ready-for-course', atMinute, {
+      assignedCourse: reservation.courseAccess.assignedCourse,
+      startingHole: reservation.courseAccess.startingHole,
+    });
+    recordOutcome(state, {
+      idempotencyKey: `golf-operations:${reservation.id}:checked-in`,
+      type: 'teeCheckIn',
+      count: reservation.partySize,
+      amount: reservation.payment?.total ?? reservation.fee ?? 0,
+      relatedId: reservation.id,
+      reason: `${reservation.reservationHolder}'s party checked in for its tee time.`,
+      day: calendarOf(atMinute).dayAbs,
+      metadata: { partySize: reservation.partySize, walkIn: reservation.walkIn },
+    });
+  }
+  return { ok: true, already, reservation, courseAccess: reservation.courseAccess };
+}
+
 export function checkInReservation(state, id, options = {}) {
   const reservation = reservationById(state, id);
   if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No open booking under that name.' };
+  const legacyDirect = reservation._compatEngine || (reservation._legacyExact && (
+    reservation.arrivalStatus === 'arrived'
+    || reservation.dayAbs > calendarOf(nowOf(state)).dayAbs
+  ));
+  if (legacyDirect && reservation.checkIn.status !== 'confirmed') {
+    const fee = Number.isFinite(reservation.balanceDue) ? r2(Math.max(0, reservation.balanceDue))
+      : Number.isFinite(reservation.fee) ? r2(Math.max(0, reservation.fee)) : 0;
+    const posted = fee > EPSILON ? addRevenue(state, 'greenFees', fee, {
+      idempotencyKey: `reservation-legacy-check-in:${reservation.id}`,
+      relatedId: reservation.id,
+      source: 'reservation-check-in',
+    }) : { ok: true };
+    if (!posted.ok) return posted;
+    const atMinute = Math.floor(options.atMinute ?? nowOf(state));
+    reservation.payment.total = r2(reservation.fee ?? fee);
+    reservation.payment.amountPaid = reservation.payment.total;
+    reservation.payment.amountDue = 0;
+    reservation.payment.status = 'paid';
+    reservation.payment.method ||= 'legacy';
+    reservation.paymentStatus = 'paid';
+    reservation.paidAmount = fee;
+    finalizeReservationCheckInState(state, reservation, { atMinute });
+    const cart = beginCartTrip(state, reservation, { at: atMinute });
+    return { ok: true, reservation, res: reservation, fee, amountDue: 0, courseAccess: reservation.courseAccess, cart };
+  }
   if (!['arrived', 'late'].includes(reservation.arrival.status)) return { ok: false, reason: 'The party has not arrived.' };
   if (reservation.checkIn.status !== 'confirmed') return { ok: false, reason: 'Confirm the reservation first.' };
   refreshPayment(reservation);
@@ -1170,28 +1367,7 @@ export function checkInReservation(state, id, options = {}) {
     return { ok: false, reason: `$${reservation.payment.amountDue.toFixed(2)} is still due.`, amountDue: reservation.payment.amountDue };
   }
   const atMinute = Math.floor(options.atMinute ?? nowOf(state));
-  reservation.status = 'played';
-  reservation.checkIn.status = 'checked-in';
-  reservation.checkIn.checkedInAtMinute = atMinute;
-  for (const member of reservation.party.members) member.checkedIn = true;
-  reservation.courseAccess.status = 'granted';
-  reservation.courseAccess.grantedAtMinute = atMinute;
-  reservation.courseAccess.departurePlannedAtMinute = atMinute + bookOf(state).policy.autoDepartMinutesAfterCheckIn;
-  emitOperationEvent(state, reservation, 'party-checked-in', atMinute, { partySize: reservation.partySize });
-  emitOperationEvent(state, reservation, 'party-ready-for-course', atMinute, {
-    assignedCourse: reservation.courseAccess.assignedCourse,
-    startingHole: reservation.courseAccess.startingHole,
-  });
-  recordOutcome(state, {
-    idempotencyKey: `golf-operations:${reservation.id}:checked-in`,
-    type: 'teeCheckIn',
-    count: reservation.partySize,
-    amount: reservation.payment.total,
-    relatedId: reservation.id,
-    reason: `${reservation.reservationHolder}'s party checked in for its tee time.`,
-    day: calendarOf(atMinute).dayAbs,
-    metadata: { partySize: reservation.partySize, walkIn: reservation.walkIn },
-  });
+  finalizeReservationCheckInState(state, reservation, { atMinute });
   return {
     ok: true,
     reservation,
@@ -1266,6 +1442,17 @@ export function createWalkInBooking(state, input = {}) {
 
 export function operationEventsSince(state, sequence = 0) {
   return bookOf(state).events.filter((event) => event.sequence > sequence);
+}
+
+export function reservationPaymentRevenueSplit(reservation, amount = null) {
+  const total = r2(Math.max(0, Number(amount ?? reservation?.balanceDue ?? reservation?.payment?.amountDue ?? reservation?.fee ?? 0)));
+  const greenTotal = r2(Math.max(0, Number(
+    reservation?.greenFeeSubtotal ?? ((reservation?.fee ?? 0) - (reservation?.cartRentalFee ?? 0)),
+  )));
+  const depositPaid = Math.max(0, Number(reservation?.depositPaid ?? reservation?.payment?.depositPaid ?? 0));
+  const greenOutstanding = Math.max(0, greenTotal - depositPaid);
+  const greenFees = r2(Math.min(total, greenOutstanding));
+  return { greenFees, rentals: r2(total - greenFees), total };
 }
 
 export function operationFinanceSummary(state, dayAbs = null) {
@@ -1459,6 +1646,11 @@ export function generateReservations(state, dayAbs, options = {}) {
       source: 'generated',
     });
     if (!result.ok) continue;
+    // Generated online bookings are production reservations, not anonymous
+    // statistical rows. Enrol the contact and party members immediately so a
+    // later autosave is a pure snapshot instead of creating hundreds of live
+    // customer identities as a side effect.
+    identityForReservation(state, result.res);
     if (rng.next() < 0.06) {
       const slotAbs = absoluteMinute(dayAbs, slot.minute);
       const advancePlan = slotAbs - (24 + rng.int(48)) * 60;
@@ -1492,6 +1684,396 @@ export function ensureReservationHorizon(state, options = {}) {
     generatedDays: results.length,
     created: results.flatMap((result) => result.created),
   };
+}
+
+// Capacity-engine compatibility -------------------------------------------------
+// The checkout/front-desk branch exposed a smaller API over the same tee sheet.
+// These adapters keep those callers on the richer operations records.
+
+export function reservationConfig(state) {
+  const config = configOf(state);
+  return {
+    ...config,
+    maxGroupSize: config.maxPartySize,
+    arrivalLeadMin: config.arrivalLeadMin ?? 15,
+    arrivalWindowMin: config.arrivalWindowMin ?? 4,
+    noShowGraceMin: config.noShowGraceMin ?? config.gracePeriodMin,
+    noShowFeeRate: config.noShowFeeRate ?? 0.25,
+  };
+}
+
+export function configureReservations(state, patch = {}) {
+  const translated = {
+    ...patch,
+    maxPartySize: patch.maxPartySize ?? patch.maxGroupSize,
+    gracePeriodMin: patch.gracePeriodMin ?? patch.noShowGraceMin,
+  };
+  delete translated.maxGroupSize;
+  delete translated.noShowGraceMin;
+  const result = configureTeeSheet(state, translated);
+  return result.ok ? reservationConfig(state) : result;
+}
+
+export function slotLoad(state, dayAbs, minute) {
+  const slot = daySheet(state, dayAbs).find((entry) => entry.minute === minute);
+  const capacity = slot?.capacity ?? configOf(state).slotCapacity;
+  const bookedPlayers = slot?.reservedSeats ?? 0;
+  return {
+    dayAbs,
+    minute,
+    capacity,
+    bookedPlayers,
+    remainingCapacity: Math.max(0, capacity - bookedPlayers),
+    reservations: slot?.reservations || [],
+  };
+}
+
+export function slotAvailability(state, dayAbs, minute, partySize = 1) {
+  const load = slotLoad(state, dayAbs, minute);
+  const size = Math.floor(Number(partySize || 1));
+  const validTime = slotTimes(state).includes(minute);
+  const validParty = size > 0 && size <= configOf(state).maxPartySize;
+  const day = ensureScheduleDay(state, dayAbs);
+  return {
+    ...load,
+    partySize: size,
+    validTime,
+    validParty,
+    available: !day.closed && validTime && validParty && load.remainingCapacity >= size,
+  };
+}
+
+export function planReservationArrival(reservation, options = {}) {
+  const random = options.rng || makeRng((Number(reservation.id) || 1) * 2654435761);
+  const range = (min, max) => typeof random.range === 'function'
+    ? random.range(min, max) : min + (max - min) * (typeof random.next === 'function' ? random.next() : 0.5);
+  const lead = Number(options.arrivalLeadMin ?? 15);
+  const travel = Number(options.travelVariationMin ?? range(-5, 6));
+  const weather = Number(options.weatherDelayMin ?? Math.max(0, Number(options.weatherSeverity || 0)) * 6);
+  const parking = Number(options.parkingDelayMin ?? (1 - Math.max(0, Math.min(1, Number(options.parkingAvailability ?? 1)))) * 6);
+  const punctuality = Math.max(0, Math.min(1, Number(options.punctuality ?? reservation.punctuality ?? 0.5)));
+  const personality = options.personality ?? reservation.arrivalPersonality ?? 'punctual';
+  const personalityOffset = personality === 'early' ? -5 : personality === 'relaxed' ? 3 : personality === 'rushed' ? 7 : -1;
+  const teeTimeAbs = absoluteMinute(reservation.dayAbs, reservation.minute);
+  const plannedArrival = Math.max(teeTimeAbs - 30, Math.min(teeTimeAbs + 10, Math.round(
+    teeTimeAbs - lead + travel + weather + parking + personalityOffset + (0.5 - punctuality) * 10 + range(-1.5, 1.5),
+  )));
+  const halfWindow = Math.ceil(Number(options.arrivalWindowMin ?? 4) / 2);
+  return {
+    plannedArrival,
+    arrivalWindow: { start: plannedArrival - halfWindow, end: plannedArrival + halfWindow },
+    factors: { targetLeadMin: lead, travelVariationMin: travel, weatherDelayMin: r2(weather), parkingDelayMin: r2(parking), personality, punctuality },
+  };
+}
+
+export function bookReservation(state, details = {}) {
+  const dayAbs = Math.floor(Number(details.dayAbs));
+  const minute = Math.floor(Number(details.minute ?? details.teeTime));
+  const requestedName = String(details.fullName ?? details.name ?? '').trim();
+  if (!requestedName) return { ok: false, reason: 'A booking needs a name.' };
+  const identity = details.customerIdentity || allocateCustomerIdentity(state, {
+    sourceId: `reservation:${bookOf(state).nextId}`,
+    legacy: { ...(details.customer || {}), ...(details.customerId ? { customerId: String(details.customerId) } : {}), name: requestedName },
+  });
+  const partySize = Math.floor(Number(details.groupSize ?? details.partySize ?? 1));
+  const transport = details.transport === 'cart' ? 'cart' : 'walking';
+  const holes = details.holes === 9 ? 9 : 18;
+  const quote = transport === 'cart'
+    ? cartReservationQuote(state, { dayAbs, minute, partySize, holes })
+    : { ok: true, requested: 0, fee: 0 };
+  if (!quote.ok) return { ok: false, reason: quote.reason, cartQuote: quote };
+  const feePerPlayer = r2(details.feePerGolfer ?? details.feePerPlayer ?? state.club?.greenFee ?? 0);
+  const greenFeeSubtotal = r2(feePerPlayer * partySize);
+  const cartRentalFee = transport === 'cart' ? r2(details.cartRentalFee ?? quote.fee) : 0;
+  const total = r2(details.totalFee ?? details.fee ?? greenFeeSubtotal + cartRentalFee);
+  const names = Array.isArray(details.groupMembers) && details.groupMembers.length
+    ? details.groupMembers.map((member) => member.fullName || member.name)
+    : [identity.fullName];
+  const result = bookSlot(state, dayAbs, minute, {
+    holder: identity.fullName,
+    customerNames: names,
+    partySize,
+    feePerPlayer,
+    totalAmount: total,
+    arrived: details.arrivalStatus === 'arrived' || details.arrived === true,
+    arrivalOffsetMin: Number.isFinite(details.arrivalOffsetMin) ? details.arrivalOffsetMin : -15,
+    intendedOutcome: details.willNoShow ? 'no-show' : (details.intendedOutcome || 'arrive'),
+    source: details.source || 'manual',
+    walkIn: details.customerType === 'walk-in' || details.walkIn,
+    holes,
+    transport,
+    rentalRequirements: details.rentalRequirements,
+  });
+  if (!result.ok) return result;
+  const reservation = result.res;
+  reservation._compatEngine = true;
+  reservation.customerId = identity.customerId;
+  reservation.fullName = identity.fullName;
+  reservation.name = identity.fullName;
+  reservation.reservationHolder = identity.fullName;
+  const memberIdentities = [identity];
+  for (let index = 1; index < partySize; index += 1) {
+    const supplied = Array.isArray(details.groupMembers) ? details.groupMembers[index] : null;
+    memberIdentities.push(allocateCustomerIdentity(state, {
+      sourceId: `reservation:${reservation.id}:member:${index}`,
+      legacy: supplied || undefined,
+    }));
+  }
+  reservation.party.members = memberIdentities.map((member, index) => ({
+    id: `${reservation.party.id}:member:${index + 1}`,
+    name: member.fullName,
+    memberStatus: details.membershipStatus || 'guest',
+    checkedIn: false,
+  }));
+  reservation.party.size = partySize;
+  reservation.customerNames = memberIdentities.map((member) => member.fullName);
+  reservation.groupMembers = memberIdentities.map((member, index) => ({
+    customerId: member.customerId,
+    fullName: member.fullName,
+    name: member.fullName,
+    role: index === 0 ? 'booking-contact' : 'golfer',
+  }));
+  reservation.personality = identity.personality;
+  reservation.patience = Number(details.patience ?? identity.patience);
+  reservation.punctuality = Number(details.punctuality ?? identity.punctuality);
+  reservation.arrivalPersonality = details.arrivalPersonality || 'punctual';
+  reservation.paymentPreference = details.paymentPreference === 'cash' || details.paymentPreference === 'card'
+    ? details.paymentPreference : identity.paymentPreference;
+  reservation.holes = holes;
+  reservation.transport = transport;
+  reservation.requestedTransport = details.requestedTransport === 'cart' ? 'cart' : transport;
+  reservation.cartBookingOutcome = details.cartBookingOutcome || (transport === 'cart' ? 'accepted' : 'not-requested');
+  reservation.cartsRequested = transport === 'cart' ? quote.requested : 0;
+  reservation.greenFeeSubtotal = r2(Math.max(0, total - cartRentalFee));
+  reservation.cartRentalFee = cartRentalFee;
+  reservation.noShowFee = r2(Math.max(0, Number(details.noShowFee ?? total * reservationConfig(state).noShowFeeRate)));
+  reservation.noShowFeeStatus = 'not-due';
+  reservation.willNoShow = Boolean(details.willNoShow);
+  if (details.plannedArrival != null) reservation.arrival.plannedMinute = Number(details.plannedArrival);
+  reservation.plannedArrival = reservation.arrival.plannedMinute;
+  reservation.arrivalWindow = details.arrivalWindow || { start: reservation.plannedArrival - 2, end: reservation.plannedArrival + 2 };
+  reservation.depositRequested = r2(Math.max(0, Number(details.deposit ?? 0)));
+  reservation.depositStatus = reservation.depositRequested > 0 ? 'pending' : 'none';
+  syncReservationCompatibility(state, reservation, true);
+  if (reservation.depositRequested > 0 && details.bankDeposit !== false && calendarOf(nowOf(state)).minuteOfDay !== 0) {
+    const depositResult = bankReservationDeposit(state, reservation.id, {
+      amount: reservation.depositRequested,
+      method: details.depositPaymentMethod || 'online-card',
+      at: details.depositPaidAt ?? nowOf(state),
+    });
+    if (!depositResult.ok) return { ok: false, reason: depositResult.reason, depositResult };
+    return { ...result, depositResult };
+  }
+  return result;
+}
+
+export function bankReservationDeposit(state, id, { amount = null, method = 'online-card', at = nowOf(state) } = {}) {
+  const reservation = reservationById(state, id);
+  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+  const referenceId = reservationDepositReference(id);
+  const existing = serviceTicketByReference(state, RESERVATION_DEPOSIT_TYPE, referenceId);
+  if (reservation.depositStatus === 'paid' || reservation.depositReferenceId) {
+    return { ok: true, already: true, amount: reservation.depositPaid || 0, res: reservation, ticket: existing };
+  }
+  const depositAmount = r2(Math.max(0, Math.min(reservation.fee, Number(amount ?? reservation.depositRequested ?? 0))));
+  if (depositAmount <= EPSILON) return { ok: true, amount: 0, res: reservation, ticket: null };
+  const banked = bankServiceCharge(state, {
+    type: RESERVATION_DEPOSIT_TYPE,
+    referenceId,
+    revenueKey: 'greenFees',
+    amount: depositAmount,
+    customer: reservation.fullName || reservation.name,
+    customerId: reservation.customerId,
+    method,
+    skuId: RESERVATION_DEPOSIT_SKU,
+    itemName: 'Reservation Deposit',
+    minute: at,
+    details: { reservationId: id, customerId: reservation.customerId, dayAbs: reservation.dayAbs, minute: reservation.minute, totalFee: reservation.fee },
+  });
+  if (!banked.ok) return banked;
+  reservation.payment.amountPaid = r2(reservation.payment.amountPaid + depositAmount);
+  reservation.payment.depositPaid = depositAmount;
+  refreshPayment(reservation);
+  reservation.depositRequested = depositAmount;
+  reservation.depositPaid = depositAmount;
+  reservation.deposit = depositAmount;
+  reservation.depositStatus = 'paid';
+  reservation.depositReferenceId = referenceId;
+  reservation.depositTransactionNumber = banked.ticket.number;
+  reservation.depositPaidAt = banked.ticket.minute ?? at;
+  reservation.depositPaymentMethod = method;
+  syncReservationCompatibility(state, reservation, true);
+  return { ok: true, already: !!banked.already, amount: depositAmount, res: reservation, ticket: banked.ticket };
+}
+
+export function generateOnlineReservations(state, options = {}) {
+  const dayAbs = Math.floor(options.dayAbs ?? calendarOf(nowOf(state)).dayAbs + 1);
+  const count = Math.max(0, Math.floor(options.count ?? 3));
+  const minSize = Math.max(1, Math.floor(options.minGroupSize ?? 1));
+  const maxSize = Math.min(configOf(state).maxPartySize, Math.floor(options.maxGroupSize ?? configOf(state).maxPartySize));
+  const random = makeRng(Number(options.seed ?? state.seed ?? 1) + dayAbs * 7919);
+  const created = [];
+  let attempts = 0;
+  while (created.length < count && attempts < count * 30 + 30) {
+    attempts += 1;
+    const partySize = minSize + random.int(Math.max(1, maxSize - minSize + 1));
+    const candidates = availableSlots(state, dayAbs, { partySize });
+    if (!candidates.length) break;
+    const slot = candidates[random.int(candidates.length)];
+    const willNoShow = random.next() < Number(options.noShowChance ?? 0.08);
+    const result = bookReservation(state, {
+      dayAbs,
+      minute: slot.minute,
+      name: `Online Golfer ${created.length + 1}`,
+      partySize,
+      holes: random.next() < 0.78 ? 18 : 9,
+      transport: random.next() < 0.52 ? 'cart' : 'walking',
+      paymentPreference: random.next() < 0.5 ? 'cash' : 'card',
+      willNoShow,
+      source: 'online',
+      bankDeposit: calendarOf(nowOf(state)).minuteOfDay !== 0,
+      deposit: r2((state.club?.greenFee || 0) * partySize * 0.25),
+      arrivalOffsetMin: -20 + random.int(31),
+    });
+    if (result.ok) created.push(result.res);
+  }
+  return { created, attempts };
+}
+
+export function dueForArrivals(state, { at = nowOf(state) } = {}) {
+  return bookOf(state).booked
+    .filter((reservation) => reservation.status === 'booked'
+      && reservation.arrivalStatus === 'scheduled'
+      && at >= reservation.arrivalWindow.start)
+    .sort((a, b) => a.arrivalWindow.start - b.arrivalWindow.start || a.id - b.id);
+}
+
+export function markReservationEnRoute(state, id, at = nowOf(state)) {
+  const reservation = reservationById(state, id);
+  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'Reservation not found.' };
+  if (reservation.arrivalStatus === 'en-route') return { ok: true, already: true, res: reservation };
+  if (reservation.arrivalStatus !== 'scheduled' || at < reservation.arrivalWindow.start) {
+    return { ok: false, reason: 'That arrival window has not started.' };
+  }
+  reservation.arrivalStatus = 'en-route';
+  reservation.currentDestination = 'property';
+  return { ok: true, res: reservation };
+}
+
+export function deskReservationList(state, presentReservationIds = []) {
+  const present = new Set(presentReservationIds.map(String));
+  const due = new Set(dueForCheckIn(state).map((reservation) => String(reservation.id)));
+  return bookOf(state).booked
+    .filter((reservation) => reservation.status === 'booked'
+      && (due.has(String(reservation.id)) || present.has(String(reservation.id))))
+    .sort((a, b) => a.teeTimeAbs - b.teeTimeAbs || a.id - b.id);
+}
+
+export function walkInAvailability(state, { dayAbs = calendarOf(nowOf(state)).dayAbs, partySize = 1, afterMinute = null } = {}) {
+  const nowMinute = calendarOf(nowOf(state)).minuteOfDay;
+  return availableSlots(state, dayAbs, { partySize, walkIn: true })
+    .filter((slot) => slot.minute >= (afterMinute ?? nowMinute));
+}
+
+export function selectWalkInSlot(state, details = {}) {
+  const dayAbs = Math.floor(details.dayAbs ?? calendarOf(nowOf(state)).dayAbs);
+  const partySize = Math.floor(details.partySize ?? details.groupSize ?? 1);
+  const minute = details.minute ?? walkInAvailability(state, { dayAbs, partySize })[0]?.minute;
+  if (minute == null) return { ok: false, reason: 'No tee time is available.' };
+  if (!walkInAvailability(state, { dayAbs, partySize, afterMinute: minute }).some((slot) => slot.minute === minute)) {
+    return { ok: false, reason: 'That walk-in slot is not available.' };
+  }
+  return bookReservation(state, {
+    ...details,
+    dayAbs,
+    minute,
+    partySize,
+    customerType: 'walk-in',
+    walkIn: true,
+    source: 'walk-in',
+    arrivalStatus: 'arrived',
+  });
+}
+
+export const bookWalkInSlot = selectWalkInSlot;
+
+export function markReservationNoShow(state, id, { at = nowOf(state), reason = 'missed-tee-time', feeAmount = null } = {}) {
+  const reservation = reservationById(state, id);
+  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+  if (reservation.status === 'noShow') return { ok: true, already: true, res: reservation };
+  if (reservation.status !== 'booked') return { ok: false, reason: 'Only open bookings can become no-shows.' };
+  reservation.status = 'noShow';
+  reservation.arrival.status = 'no-show';
+  reservation.arrivalStatus = 'no-show';
+  reservation.noShow.markedAtMinute = at;
+  reservation.noShowAt = at;
+  reservation.noShowReason = reason;
+  reservation.noShowFee = r2(Math.max(0, Number(feeAmount ?? reservation.noShowFee ?? 0)));
+  reservation.noShowFeeStatus = reservation.noShowFee > 0 ? 'pending' : 'waived';
+  reservation.noShowDepositCredit = r2(Math.min(reservation.depositPaid || 0, reservation.noShowFee));
+  reservation.currentDestination = 'departed';
+  return { ok: true, res: reservation };
+}
+
+export function chargeNoShowFee(state, id, { at = nowOf(state), amount = null, method = 'card-on-file' } = {}) {
+  const reservation = reservationById(state, id);
+  if (!reservation || reservation.status !== 'noShow') return { ok: false, reason: 'Only a no-show can be charged.' };
+  const referenceId = reservationNoShowFeeReference(id);
+  const existing = serviceTicketByReference(state, RESERVATION_NO_SHOW_FEE_TYPE, referenceId);
+  if (reservation.noShowFeeReferenceId || ['charged', 'covered-by-deposit', 'waived'].includes(reservation.noShowFeeStatus)) {
+    return { ok: true, already: true, amount: reservation.noShowFeeChargedAmount || 0, grossFee: reservation.noShowFee || 0, depositCredit: reservation.noShowDepositCredit || 0, res: reservation, ticket: existing };
+  }
+  const grossFee = r2(Math.max(0, Number(amount ?? reservation.noShowFee ?? 0)));
+  const depositCredit = r2(Math.min(reservation.depositPaid || 0, grossFee));
+  const amountToBank = r2(Math.max(0, grossFee - depositCredit));
+  const banked = bankServiceCharge(state, {
+    type: RESERVATION_NO_SHOW_FEE_TYPE,
+    referenceId,
+    revenueKey: 'greenFees',
+    amount: amountToBank,
+    customer: reservation.fullName || reservation.name,
+    customerId: reservation.customerId,
+    method,
+    skuId: RESERVATION_NO_SHOW_FEE_SKU,
+    itemName: 'Reservation No-Show Fee',
+    minute: at,
+    details: { reservationId: id, customerId: reservation.customerId, dayAbs: reservation.dayAbs, minute: reservation.minute, grossFee, depositCredit },
+  });
+  if (!banked.ok) return banked;
+  reservation.noShowFee = grossFee;
+  reservation.noShowDepositCredit = depositCredit;
+  reservation.noShowFeeChargedAmount = amountToBank;
+  reservation.noShowFeeReferenceId = referenceId;
+  reservation.noShowFeeChargeKey = referenceId;
+  reservation.noShowFeeTransactionNumber = banked.ticket.number;
+  reservation.noShowFeeChargedAt = banked.ticket.minute ?? at;
+  reservation.noShowFeeStatus = amountToBank > 0 ? 'charged' : 'covered-by-deposit';
+  return { ok: true, already: !!banked.already, amount: amountToBank, grossFee, depositCredit, res: reservation, ticket: banked.ticket };
+}
+
+export const applyNoShowFee = chargeNoShowFee;
+
+export function processReservationTimeline(state, { at = nowOf(state), chargeFees = false } = {}) {
+  const deposits = [];
+  const noShows = [];
+  for (const reservation of bookOf(state).booked) {
+    if (!reservation._compatEngine || reservation.status !== 'booked') continue;
+    if (reservation.depositStatus === 'pending' && reservation.depositRequested > 0 && calendarOf(at).minuteOfDay !== 0) {
+      const banked = bankReservationDeposit(state, reservation.id, { at });
+      if (banked.ok && !banked.already) deposits.push(reservation);
+    }
+    if (reservation.arrivalStatus !== 'arrived'
+      && reservation.checkInStatus !== 'waiting'
+      && at > reservation.teeTimeAbs + reservationConfig(state).noShowGraceMin) {
+      const marked = markReservationNoShow(state, reservation.id, { at });
+      if (marked.ok && !marked.already) {
+        noShows.push(reservation);
+        if (chargeFees) chargeNoShowFee(state, reservation.id, { at });
+      }
+    }
+  }
+  golfOperationsTick(state, at);
+  return { deposits, noShows };
 }
 
 export function resetGolfOperationsQA(state, options = {}) {

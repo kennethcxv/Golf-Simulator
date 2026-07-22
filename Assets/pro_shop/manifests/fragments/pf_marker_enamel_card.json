@@ -1,0 +1,29 @@
+{
+ "id": "pf_marker_enamel_card",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.075,
+  0.0085,
+  0.12
+ ],
+ "min_z": 0.0,
+ "tris": 236,
+ "textures": [
+  "Card_pf_marker_enamel_card:512x820",
+  "MarkerEnamel:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_enamel_card.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_enamel_card.blend",
+ "name": "Enamel Tee Marker (Card)",
+ "variant": "green",
+ "price": 9.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

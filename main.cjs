@@ -6,7 +6,13 @@
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const fsp = fs.promises;
+const { createNativeSaveStore } = require('./src/core/nativeSaveStore.cjs');
+const {
+  assertTrustedIpcEvent,
+  serializeSave,
+  trustedRendererUrl,
+  validateSaveKey,
+} = require('./src/electron/security.cjs');
 
 const DEV = process.argv.includes('--dev');
 if (DEV) {
@@ -15,6 +21,8 @@ if (DEV) {
 }
 
 let win = null;
+let store = null;
+const TRUSTED_RENDERER_URL = trustedRendererUrl(__dirname);
 
 function saveDir() {
   const dir = path.join(app.getPath('userData'), 'saves');
@@ -22,13 +30,16 @@ function saveDir() {
   return dir;
 }
 
-function keyToFile(key) {
-  const safe = String(key).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
-  return path.join(saveDir(), safe + '.json');
+function saveStore() {
+  if (!store) store = createNativeSaveStore({ dir: saveDir() });
+  return store;
 }
 
-function keyToBackupFile(key) {
-  return keyToFile(key) + '.bak';
+function handleTrusted(channel, handler) {
+  ipcMain.handle(channel, (event, ...args) => {
+    assertTrustedIpcEvent(event, TRUSTED_RENDERER_URL);
+    return handler(...args);
+  });
 }
 
 function createWindow() {
@@ -39,6 +50,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#141d12',
     title: 'GOLF EMPIRE',
+    show: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -47,11 +59,17 @@ function createWindow() {
       sandbox: true,
     },
   });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== TRUSTED_RENDERER_URL) event.preventDefault();
+  });
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.setMenuBarVisibility(false);
   win.loadFile('index.html');
+  win.once('ready-to-show', () => win && win.show());
   if (DEV) {
     win.webContents.openDevTools({ mode: 'detach' });
-    win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
       if (level >= 2) console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`);
     });
   }
@@ -60,60 +78,41 @@ function createWindow() {
 
 // --- persistence IPC ---------------------------------------------------
 
-ipcMain.handle('fw:save', async (_e, key, json) => {
-  const file = keyToFile(key);
-  const backup = keyToBackupFile(key);
-  const temp = file + '.tmp';
-  try { await fsp.copyFile(file, backup); } catch {}
-  await fsp.writeFile(temp, JSON.stringify(json), 'utf8');
-  try { await fsp.unlink(file); } catch {}
-  await fsp.rename(temp, file);
-  return true;
+handleTrusted('fw:save', async (key, value) => {
+  const saveKey = validateSaveKey(key);
+  serializeSave(value); // Enforce the renderer payload limit before touching disk.
+  return saveStore().save(saveKey, value);
 });
 
-ipcMain.handle('fw:load', async (_e, key) => {
-  const record = await loadRecord(key);
-  return record.status === 'ok' || record.status === 'recovered' ? record.data : null;
-});
+handleTrusted('fw:load', async (key) => saveStore().load(validateSaveKey(key)));
 
-async function loadRecord(key) {
-  const file = keyToFile(key);
-  try {
-    return { status: 'ok', data: JSON.parse(await fsp.readFile(file, 'utf8')) };
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return { status: 'missing', data: null };
-    try {
-      return {
-        status: 'recovered',
-        data: JSON.parse(await fsp.readFile(keyToBackupFile(key), 'utf8')),
-        error: 'The latest save was damaged; the previous backup is available.',
-      };
-    } catch {
-      return { status: 'corrupt', data: null, error: 'This save could not be read.' };
-    }
+handleTrusted('fw:load-status', async (key, options) => saveStore().loadStatus(
+  validateSaveKey(key),
+  options && typeof options === 'object' ? options : undefined,
+));
+
+// Player-facing save browsers need a compact, read-only status contract. Keep
+// the crash-safe native store authoritative and adapt its richer result rather
+// than introducing a second persistence implementation.
+handleTrusted('fw:load-record', async (key) => {
+  const result = await saveStore().loadStatus(validateSaveKey(key), { repair: false });
+  if (result.value != null) {
+    return {
+      status: result.recovered ? 'recovered' : 'ok',
+      data: result.value,
+      error: result.recovered ? 'The latest save was damaged; the previous backup is available.' : null,
+    };
   }
-}
-
-ipcMain.handle('fw:load-record', async (_e, key) => loadRecord(key));
-
-ipcMain.handle('fw:delete', async (_e, key) => {
-  try { await fsp.unlink(keyToFile(key)); } catch {}
-  try { await fsp.unlink(keyToBackupFile(key)); } catch {}
-  return true;
+  if (result.missing) return { status: 'missing', data: null };
+  return { status: 'corrupt', data: null, error: 'This save could not be read.' };
 });
 
-ipcMain.handle('fw:list', async () => {
-  try {
-    const files = await fsp.readdir(saveDir());
-    return files.filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
-  } catch {
-    return [];
-  }
-});
+handleTrusted('fw:delete', async (key) => saveStore().del(validateSaveKey(key)));
+handleTrusted('fw:list', async () => saveStore().list());
 
 // Native-only presentation controls. Browser QA intentionally omits these
 // rather than displaying toggles that cannot work there.
-ipcMain.handle('fw:display-info', () => {
+handleTrusted('fw:display-info', () => {
   if (!win) throw new Error('The game window is not ready.');
   const display = screen.getDisplayMatching(win.getBounds());
   const current = win.getContentBounds();
@@ -132,25 +131,27 @@ ipcMain.handle('fw:display-info', () => {
   };
 });
 
-ipcMain.handle('fw:set-window-mode', (_e, mode) => {
+handleTrusted('fw:set-window-mode', (mode) => {
   if (!win) throw new Error('The game window is not ready.');
   if (!['windowed', 'fullscreen'].includes(mode)) throw new Error('Unsupported window mode.');
   win.setFullScreen(mode === 'fullscreen');
   return true;
 });
 
-ipcMain.handle('fw:set-resolution', (_e, width, height) => {
+handleTrusted('fw:set-resolution', (width, height) => {
   if (!win || win.isFullScreen()) throw new Error('Window size can only change in windowed mode.');
   const w = Math.max(1100, Math.round(Number(width) || 0));
   const h = Math.max(680, Math.round(Number(height) || 0));
   const display = screen.getDisplayMatching(win.getBounds());
-  if (w > display.workAreaSize.width || h > display.workAreaSize.height) throw new Error('Resolution does not fit the active display.');
+  if (w > display.workAreaSize.width || h > display.workAreaSize.height) {
+    throw new Error('Resolution does not fit the active display.');
+  }
   win.setContentSize(w, h, true);
   win.center();
   return true;
 });
 
-ipcMain.handle('fw:quit', () => {
+handleTrusted('fw:quit', () => {
   app.quit();
   return true;
 });

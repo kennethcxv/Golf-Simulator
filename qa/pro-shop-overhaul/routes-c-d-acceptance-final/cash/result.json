@@ -1,0 +1,3322 @@
+{
+  "attempt": 2,
+  "timestamp": "2026-07-20T14:26:01.454Z",
+  "branch": "overnight/pro-shop-overhaul",
+  "baseUrl": "http://localhost:8457/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "bootRoute": [
+    "New Empire — Relaxed",
+    "Property Market",
+    "Buy Willow Creek Municipal"
+  ],
+  "normalControlsOnly": false,
+  "normalGameplayControls": true,
+  "naturalCustomerOnly": false,
+  "documentedStressFixture": true,
+  "steps": [
+    {
+      "step": "fresh New Empire -> Property Market -> Buy",
+      "control": "visible UI",
+      "before": {
+        "cash": 53000,
+        "salesUnits": 0,
+        "salesRevenue": 0,
+        "held": [],
+        "inventory": {
+          "balls1": {
+            "shelf": 10,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 5,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 14,
+            "back": 0
+          }
+        },
+        "tier": 2,
+        "clockMinutes": 413.7370000000028,
+        "speedIdx": 1
+      },
+      "pose": {
+        "x": -8,
+        "z": 241.7,
+        "yaw": 3.935392653589793,
+        "pitch": -0.684,
+        "localX": 0,
+        "localZ": 13.699999999999989
+      }
+    },
+    {
+      "step": "walked up the porch steps",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.752029802814679,
+        "z": 235.71530342312872,
+        "yaw": 6.50115265358982,
+        "pitch": -0.684,
+        "localX": -0.752029802814679,
+        "localZ": 7.7153034231287165
+      },
+      "distanceToTarget": 0.172
+    },
+    {
+      "step": "opened the hinged pro-shop door",
+      "control": "E",
+      "pose": {
+        "x": -8.752029802814679,
+        "z": 235.71530342312872,
+        "yaw": 6.342692653589814,
+        "pitch": -0.684,
+        "localX": -0.752029802814679,
+        "localZ": 7.7153034231287165
+      }
+    },
+    {
+      "step": "crossed the threshold",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.813840018331923,
+        "z": 233.81759567757007,
+        "yaw": 6.295192653589813,
+        "pitch": -0.684,
+        "localX": -0.8138400183319234,
+        "localZ": 5.817595677570068
+      },
+      "distanceToTarget": 0.168
+    },
+    {
+      "step": "entered the staff-side approach",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.492007074473537,
+        "z": 233.3974958922252,
+        "yaw": 4.980202653589798,
+        "pitch": -0.684,
+        "localX": 0.5079929255264632,
+        "localZ": 5.3974958922252085
+      },
+      "distanceToTarget": 0.247
+    },
+    {
+      "step": "reached the cashier stand",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.272365537451056,
+        "z": 233.14215048014233,
+        "yaw": 4.821932653589795,
+        "pitch": -0.684,
+        "localX": 2.727634462548944,
+        "localZ": 5.142150480142334
+      },
+      "distanceToTarget": 0.057
+    },
+    {
+      "step": "faced the physical register",
+      "control": "ArrowLeft/ArrowRight",
+      "pose": {
+        "x": -5.272365537451056,
+        "z": 233.14215048014233,
+        "yaw": 6.311152653589819,
+        "pitch": -0.684,
+        "localX": 2.727634462548944,
+        "localZ": 5.142150480142334
+      }
+    },
+    {
+      "step": "established the documented full-Premium ten-shopper stress fixture",
+      "control": "documented QA setup only; subsequent gameplay uses normal controls",
+      "fixture": {
+        "kind": "documented full-premium/ten-customer fixture",
+        "tier": 3,
+        "stockedLines": 42,
+        "stockedUnits": 289,
+        "preexistingCustomersRemoved": 1,
+        "spawned": 10,
+        "assignments": [
+          {
+            "name": "Morgan W.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "table_polos",
+                "socketKey": "table_polos:browse:0",
+                "skus": [
+                  "polo1",
+                  "polo2",
+                  "pants2",
+                  "shorts1"
+                ]
+              },
+              {
+                "kind": "experience",
+                "fixtureId": "fittingroom",
+                "socketKey": "fittingroom:browse:0",
+                "skus": []
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "bagstand",
+                "socketKey": "bagstand:browse:0",
+                "skus": [
+                  "bag1",
+                  "bag3"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Robin K.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "cold_drinks",
+                "socketKey": "cold_drinks:browse:0",
+                "skus": [
+                  "water1",
+                  "sportdrink2",
+                  "soda1"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Jordan M.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_acc",
+                "socketKey": "shelf_acc:browse:1",
+                "skus": [
+                  "tees1",
+                  "towel1",
+                  "marker1",
+                  "divot1",
+                  "range2",
+                  "sunglasses2",
+                  "bottle1",
+                  "umb1"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Casey L.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_small",
+                "socketKey": "shelf_small:browse:0",
+                "skus": [
+                  "glove1",
+                  "glove2",
+                  "sock1",
+                  "jacket2"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Morgan W.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shoerack",
+                "socketKey": "shoerack:browse:1",
+                "skus": [
+                  "shoe1",
+                  "shoe3"
+                ]
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "rack_putters",
+                "socketKey": "rack_putters:browse:1",
+                "skus": [
+                  "putter1",
+                  "putter2",
+                  "putter3"
+                ]
+              },
+              {
+                "kind": "experience",
+                "fixtureId": "putting_demo",
+                "socketKey": "putting_demo:browse:0",
+                "skus": []
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Riley P.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_acc",
+                "socketKey": "shelf_acc:browse:0",
+                "skus": [
+                  "tees1",
+                  "towel1",
+                  "marker1",
+                  "divot1",
+                  "range2",
+                  "sunglasses2",
+                  "bottle1",
+                  "umb1"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Jamie F.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "bagstand",
+                "socketKey": "bagstand:browse:1",
+                "skus": [
+                  "bag1",
+                  "bag3"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Drew H.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "snack_rack",
+                "socketKey": "snack_rack:browse:0",
+                "skus": [
+                  "chips1",
+                  "bar2",
+                  "crackers1"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Drew H.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_balls",
+                "socketKey": "shelf_balls:browse:1",
+                "skus": [
+                  "balls1",
+                  "balls2",
+                  "balls3"
+                ]
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "rack_irons",
+                "socketKey": "rack_irons:browse:1",
+                "skus": [
+                  "irons1",
+                  "irons2",
+                  "wedge1",
+                  "wedge2"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Robin K.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "rack_drivers",
+                "socketKey": "rack_drivers:browse:0",
+                "skus": [
+                  "driver1",
+                  "driver2",
+                  "driver3"
+                ]
+              },
+              {
+                "kind": "experience",
+                "fixtureId": "tour_vault",
+                "socketKey": "tour_vault:browse:0",
+                "skus": []
+              }
+            ],
+            "willQueue": false
+          }
+        ]
+      }
+    },
+    {
+      "step": "waited for ordinary store traffic during a normally paused open hour",
+      "control": "Space",
+      "traffic": [
+        {
+          "realSeconds": 17.3,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 19.3,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 21.4,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 23.5,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 25.6,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 27.7,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "table_polos",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "fixture",
+              "fixtureId": "bagstand",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "snack_rack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 29.7,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "table_polos",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "fixture",
+              "fixtureId": "bagstand",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "snack_rack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "rack_drivers",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 31.8,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "table_polos",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "fixture",
+              "fixtureId": "shelf_small",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "shoerack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "fixture",
+              "fixtureId": "bagstand",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "snack_rack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "walk",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "rack_drivers",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 33.9,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "table_polos",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "fixture",
+              "fixtureId": "shelf_small",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "shoerack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "enter",
+              "fixtureId": null,
+              "entered": false,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "rack_drivers",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 36,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "experience",
+              "fixtureId": "fittingroom",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "cold_drinks",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "fixture",
+              "fixtureId": "shelf_small",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "shoerack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "shelf_balls",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "rack_drivers",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 38.1,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "experience",
+              "fixtureId": "fittingroom",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "cold_drinks",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "fixture",
+              "fixtureId": "shelf_small",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "shoerack",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Riley P.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "shelf_balls",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "rack_drivers",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 40.2,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "experience",
+              "fixtureId": "fittingroom",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "cold_drinks",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "fixture",
+              "fixtureId": "shelf_acc",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "fixture",
+              "fixtureId": "shelf_small",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "rack_putters",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "shoe1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Riley P.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [
+                "umb1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "shelf_balls",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "rack_drivers",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 42.2,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "experience",
+              "fixtureId": "fittingroom",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "cold_drinks",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "fixture",
+              "fixtureId": "shelf_small",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "rack_putters",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "shoe1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Riley P.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [
+                "umb1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "gone",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "shelf_balls",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "experience",
+              "fixtureId": "tour_vault",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "driver2"
+              ],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 44.3,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": false,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "experience",
+              "fixtureId": "fittingroom",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "cold_drinks",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "rack_putters",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "shoe1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Riley P.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [
+                "umb1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "gone",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "shelf_balls",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "experience",
+              "fixtureId": "tour_vault",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "driver2"
+              ],
+              "basketVisible": false
+            }
+          ]
+        },
+        {
+          "realSeconds": 45.1,
+          "clockMinutes": 507.65899999999937,
+          "speedIdx": 0,
+          "hasTx": true,
+          "customers": [
+            {
+              "name": "Morgan W.",
+              "stop": "experience",
+              "fixtureId": "fittingroom",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "fixture",
+              "fixtureId": "cold_drinks",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Jordan M.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Casey L.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Morgan W.",
+              "stop": "fixture",
+              "fixtureId": "rack_putters",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "shoe1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Riley P.",
+              "stop": "counter",
+              "fixtureId": null,
+              "entered": true,
+              "queued": true,
+              "awaitingCheckout": true,
+              "cart": [
+                "umb1"
+              ],
+              "basketVisible": true
+            },
+            {
+              "name": "Jamie F.",
+              "stop": "gone",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "exit",
+              "fixtureId": null,
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Drew H.",
+              "stop": "fixture",
+              "fixtureId": "shelf_balls",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [],
+              "basketVisible": false
+            },
+            {
+              "name": "Robin K.",
+              "stop": "experience",
+              "fixtureId": "tour_vault",
+              "entered": true,
+              "queued": false,
+              "awaitingCheckout": false,
+              "cart": [
+                "driver2"
+              ],
+              "basketVisible": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "natural shopper laid shelf-debited goods on the counter",
+      "control": "observation only",
+      "natural": {
+        "customer": {
+          "name": "Riley P.",
+          "entered": true,
+          "queued": true,
+          "awaitingCheckout": true,
+          "queuedAt": 32.52619999999956,
+          "stopIdx": 3,
+          "stops": [
+            {
+              "kind": "walk",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "enter",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "fixture",
+              "fixtureId": "shelf_acc",
+              "socketKey": "shelf_acc:browse:0",
+              "experience": null
+            },
+            {
+              "kind": "counter",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "exit",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            },
+            {
+              "kind": "gone",
+              "fixtureId": null,
+              "socketKey": null,
+              "experience": null
+            }
+          ],
+          "cart": [
+            {
+              "uid": "u2",
+              "skuId": "umb1",
+              "price": 26
+            }
+          ],
+          "payMethodOverride": null,
+          "diagnosticInjected": false
+        },
+        "transactionItems": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "price": 26
+          }
+        ],
+        "activeCustomers": 10
+      }
+    },
+    {
+      "step": "entered the cashier pose",
+      "control": "E",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": false,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 0,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 0,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "scanned physical item 1/1",
+      "control": "pointer drag across glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 0,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "customer chose cash",
+      "control": "T total key",
+      "tx": {
+        "stage": "cash-tender",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "accepted customer cash from counter",
+      "control": "pointer pickup",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "opened physical drawer",
+      "control": "D",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": true,
+        "deposited": false,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "deposited each tender piece",
+      "control": "pointer drag into drawer",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "counted and handed over exact change",
+      "control": "drawer clicks + palm click",
+      "change": {
+        "1": 4
+      },
+      "tx": {
+        "stage": "receipt",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": false,
+        "drawerOpen": false,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "took printed receipt",
+      "control": "clicked physical receipt",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": false,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 0,
+        "receiptPrinted": true,
+        "drawerOpen": false,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "bagged physical item 1/1",
+      "control": "pointer drag into open carrier",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "prefer": null,
+        "items": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "name": "Fairway Supply umbrella",
+            "scanned": true,
+            "bagged": true,
+            "price": 26
+          }
+        ],
+        "scanned": 1,
+        "bagged": 1,
+        "receiptPrinted": true,
+        "drawerOpen": false,
+        "deposited": true,
+        "changeDue": 4,
+        "handTotal": 0,
+        "cardAttempts": 0,
+        "cardsTried": 0
+      }
+    },
+    {
+      "step": "handed the bag to the customer",
+      "control": "clicked open palm"
+    },
+    {
+      "step": "left the full-store checkout counter",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.16631179904245,
+        "z": 233.2320512338093,
+        "yaw": 8.024322653589765,
+        "pitch": -0.9253,
+        "localX": 0.8336882009575497,
+        "localZ": 5.232051233809301
+      },
+      "distanceToTarget": 0.086
+    },
+    {
+      "step": "walked behind the full-store checkout clearway",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -3.341433885883508,
+        "z": 233.26840186321846,
+        "yaw": 11.01739265358978,
+        "pitch": -0.9253,
+        "localX": 4.658566114116492,
+        "localZ": 5.2684018632184575
+      },
+      "distanceToTarget": 0.242
+    },
+    {
+      "step": "entered the full-store office side",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -1.5288655613401771,
+        "z": 233.28415436463166,
+        "yaw": 10.922202653589784,
+        "pitch": -0.9253,
+        "localX": 6.471134438659822,
+        "localZ": 5.284154364631661
+      },
+      "distanceToTarget": 0.13
+    },
+    {
+      "step": "reached the full-store laptop chair",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.3275421388212715,
+        "z": 232.58989289805643,
+        "yaw": 11.460662653589784,
+        "pitch": -0.9253,
+        "localX": 8.327542138821272,
+        "localZ": 4.5898928980564335
+      },
+      "distanceToTarget": 0.194
+    },
+    {
+      "step": "opened Inventory on the physical laptop and closed it normally",
+      "control": "E, pointer, Escape",
+      "stressLaptop": {
+        "open": true,
+        "roots": 1,
+        "visibleFrames": 1,
+        "closedNormally": true
+      }
+    },
+    {
+      "step": "observed the remaining mixed shoppers after checkout and laptop use",
+      "control": "read-only 100 ms route trace",
+      "trace": {
+        "visitedFixtures": [
+          "table_polos",
+          "bagstand",
+          "snack_rack",
+          "shelf_acc",
+          "rack_drivers",
+          "shoerack",
+          "shelf_small",
+          "shelf_balls",
+          "fittingroom",
+          "cold_drinks",
+          "rack_putters",
+          "tour_vault",
+          "rack_irons",
+          "putting_demo"
+        ],
+        "basketUsers": [
+          "Morgan W.",
+          "Riley P.",
+          "Robin K.",
+          "Drew H."
+        ],
+        "queuedUsers": [
+          "Drew H.",
+          "Riley P.",
+          "Jordan M.",
+          "Robin K.",
+          "Morgan W."
+        ],
+        "maxActive": 10,
+        "maxQueued": 5
+      },
+      "customers": [
+        {
+          "name": "Morgan W.",
+          "fixtureId": null,
+          "queued": true,
+          "awaitingCheckout": false,
+          "cart": [
+            "bag1"
+          ],
+          "basketVisible": false
+        },
+        {
+          "name": "Robin K.",
+          "fixtureId": null,
+          "queued": true,
+          "awaitingCheckout": true,
+          "cart": [
+            "water1"
+          ],
+          "basketVisible": true
+        },
+        {
+          "name": "Jordan M.",
+          "fixtureId": null,
+          "queued": false,
+          "awaitingCheckout": false,
+          "cart": [],
+          "basketVisible": false
+        },
+        {
+          "name": "Casey L.",
+          "fixtureId": null,
+          "queued": false,
+          "awaitingCheckout": false,
+          "cart": [],
+          "basketVisible": false
+        },
+        {
+          "name": "Morgan W.",
+          "fixtureId": null,
+          "queued": true,
+          "awaitingCheckout": false,
+          "cart": [
+            "shoe1"
+          ],
+          "basketVisible": true
+        },
+        {
+          "name": "Riley P.",
+          "fixtureId": null,
+          "queued": false,
+          "awaitingCheckout": false,
+          "cart": [],
+          "basketVisible": false
+        },
+        {
+          "name": "Drew H.",
+          "fixtureId": null,
+          "queued": true,
+          "awaitingCheckout": false,
+          "cart": [
+            "balls2"
+          ],
+          "basketVisible": true
+        },
+        {
+          "name": "Robin K.",
+          "fixtureId": "tour_vault",
+          "queued": false,
+          "awaitingCheckout": false,
+          "cart": [
+            "driver2"
+          ],
+          "basketVisible": false
+        }
+      ]
+    }
+  ],
+  "result": {
+    "passed": true,
+    "method": "cash",
+    "itemCount": 1,
+    "natural": {
+      "customer": {
+        "name": "Riley P.",
+        "entered": true,
+        "queued": true,
+        "awaitingCheckout": true,
+        "queuedAt": 32.52619999999956,
+        "stopIdx": 3,
+        "stops": [
+          {
+            "kind": "walk",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "enter",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "fixture",
+            "fixtureId": "shelf_acc",
+            "socketKey": "shelf_acc:browse:0",
+            "experience": null
+          },
+          {
+            "kind": "counter",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "exit",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          },
+          {
+            "kind": "gone",
+            "fixtureId": null,
+            "socketKey": null,
+            "experience": null
+          }
+        ],
+        "cart": [
+          {
+            "uid": "u2",
+            "skuId": "umb1",
+            "price": 26
+          }
+        ],
+        "payMethodOverride": null,
+        "diagnosticInjected": false
+      },
+      "transactionItems": [
+        {
+          "uid": "u2",
+          "skuId": "umb1",
+          "price": 26
+        }
+      ],
+      "activeCustomers": 10
+    },
+    "before": {
+      "cash": 53000,
+      "salesUnits": 0,
+      "salesRevenue": 0,
+      "held": [],
+      "inventory": {
+        "balls1": {
+          "shelf": 10,
+          "back": 0
+        },
+        "glove1": {
+          "shelf": 4,
+          "back": 0
+        },
+        "cap1": {
+          "shelf": 5,
+          "back": 0
+        },
+        "tees1": {
+          "shelf": 14,
+          "back": 0
+        }
+      },
+      "tier": 2,
+      "clockMinutes": 413.7370000000028,
+      "speedIdx": 1
+    },
+    "after": {
+      "cash": 52891.9,
+      "salesUnits": 1,
+      "salesRevenue": 26,
+      "held": [
+        {
+          "uid": "u1",
+          "skuId": "shoe1"
+        },
+        {
+          "uid": "u3",
+          "skuId": "driver2"
+        },
+        {
+          "uid": "u4",
+          "skuId": "water1"
+        },
+        {
+          "uid": "u5",
+          "skuId": "balls2"
+        },
+        {
+          "uid": "u6",
+          "skuId": "bag1"
+        }
+      ],
+      "inventory": {
+        "driver1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "driver2": {
+          "shelf": 5,
+          "back": 0
+        },
+        "driver3": {
+          "shelf": 6,
+          "back": 0
+        },
+        "irons1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "irons2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "putter1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "putter2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "putter3": {
+          "shelf": 6,
+          "back": 0
+        },
+        "wedge1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "wedge2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "balls1": {
+          "shelf": 15,
+          "back": 0
+        },
+        "balls2": {
+          "shelf": 14,
+          "back": 0
+        },
+        "balls3": {
+          "shelf": 15,
+          "back": 0
+        },
+        "glove1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "glove2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "polo1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "polo2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "pants2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "shorts1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "cap1": {
+          "shelf": 4,
+          "back": 0
+        },
+        "cap2": {
+          "shelf": 4,
+          "back": 0
+        },
+        "jacket2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "tees1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "towel1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "marker1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "divot1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "range2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "sunglasses2": {
+          "shelf": 6,
+          "back": 0
+        },
+        "bottle1": {
+          "shelf": 6,
+          "back": 0
+        },
+        "umb1": {
+          "shelf": 5,
+          "back": 0
+        },
+        "scorecard1": {
+          "shelf": 12,
+          "back": 0
+        },
+        "water1": {
+          "shelf": 7,
+          "back": 0
+        },
+        "sportdrink2": {
+          "shelf": 8,
+          "back": 0
+        },
+        "soda1": {
+          "shelf": 8,
+          "back": 0
+        },
+        "chips1": {
+          "shelf": 8,
+          "back": 0
+        },
+        "bar2": {
+          "shelf": 8,
+          "back": 0
+        },
+        "crackers1": {
+          "shelf": 8,
+          "back": 0
+        },
+        "bag1": {
+          "shelf": 3,
+          "back": 0
+        },
+        "bag3": {
+          "shelf": 4,
+          "back": 0
+        },
+        "shoe1": {
+          "shelf": 5,
+          "back": 0
+        },
+        "shoe3": {
+          "shelf": 6,
+          "back": 0
+        },
+        "sock1": {
+          "shelf": 6,
+          "back": 0
+        }
+      },
+      "tier": 3,
+      "clockMinutes": 521.9920000000029,
+      "speedIdx": 1
+    },
+    "finalRegister": {
+      "active": false,
+      "hasTx": false,
+      "customer": null
+    },
+    "completedItemsReleased": true,
+    "stress": {
+      "fixture": {
+        "kind": "documented full-premium/ten-customer fixture",
+        "tier": 3,
+        "stockedLines": 42,
+        "stockedUnits": 289,
+        "preexistingCustomersRemoved": 1,
+        "spawned": 10,
+        "assignments": [
+          {
+            "name": "Morgan W.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "table_polos",
+                "socketKey": "table_polos:browse:0",
+                "skus": [
+                  "polo1",
+                  "polo2",
+                  "pants2",
+                  "shorts1"
+                ]
+              },
+              {
+                "kind": "experience",
+                "fixtureId": "fittingroom",
+                "socketKey": "fittingroom:browse:0",
+                "skus": []
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "bagstand",
+                "socketKey": "bagstand:browse:0",
+                "skus": [
+                  "bag1",
+                  "bag3"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Robin K.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "cold_drinks",
+                "socketKey": "cold_drinks:browse:0",
+                "skus": [
+                  "water1",
+                  "sportdrink2",
+                  "soda1"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Jordan M.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_acc",
+                "socketKey": "shelf_acc:browse:1",
+                "skus": [
+                  "tees1",
+                  "towel1",
+                  "marker1",
+                  "divot1",
+                  "range2",
+                  "sunglasses2",
+                  "bottle1",
+                  "umb1"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Casey L.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_small",
+                "socketKey": "shelf_small:browse:0",
+                "skus": [
+                  "glove1",
+                  "glove2",
+                  "sock1",
+                  "jacket2"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Morgan W.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shoerack",
+                "socketKey": "shoerack:browse:1",
+                "skus": [
+                  "shoe1",
+                  "shoe3"
+                ]
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "rack_putters",
+                "socketKey": "rack_putters:browse:1",
+                "skus": [
+                  "putter1",
+                  "putter2",
+                  "putter3"
+                ]
+              },
+              {
+                "kind": "experience",
+                "fixtureId": "putting_demo",
+                "socketKey": "putting_demo:browse:0",
+                "skus": []
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Riley P.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_acc",
+                "socketKey": "shelf_acc:browse:0",
+                "skus": [
+                  "tees1",
+                  "towel1",
+                  "marker1",
+                  "divot1",
+                  "range2",
+                  "sunglasses2",
+                  "bottle1",
+                  "umb1"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Jamie F.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "bagstand",
+                "socketKey": "bagstand:browse:1",
+                "skus": [
+                  "bag1",
+                  "bag3"
+                ]
+              }
+            ],
+            "willQueue": false
+          },
+          {
+            "name": "Drew H.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "snack_rack",
+                "socketKey": "snack_rack:browse:0",
+                "skus": [
+                  "chips1",
+                  "bar2",
+                  "crackers1"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Drew H.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "shelf_balls",
+                "socketKey": "shelf_balls:browse:1",
+                "skus": [
+                  "balls1",
+                  "balls2",
+                  "balls3"
+                ]
+              },
+              {
+                "kind": "fixture",
+                "fixtureId": "rack_irons",
+                "socketKey": "rack_irons:browse:1",
+                "skus": [
+                  "irons1",
+                  "irons2",
+                  "wedge1",
+                  "wedge2"
+                ]
+              }
+            ],
+            "willQueue": true
+          },
+          {
+            "name": "Robin K.",
+            "fixtures": [
+              {
+                "kind": "fixture",
+                "fixtureId": "rack_drivers",
+                "socketKey": "rack_drivers:browse:0",
+                "skus": [
+                  "driver1",
+                  "driver2",
+                  "driver3"
+                ]
+              },
+              {
+                "kind": "experience",
+                "fixtureId": "tour_vault",
+                "socketKey": "tour_vault:browse:0",
+                "skus": []
+              }
+            ],
+            "willQueue": false
+          }
+        ]
+      },
+      "assignedFixtures": [
+        "table_polos",
+        "fittingroom",
+        "bagstand",
+        "cold_drinks",
+        "shelf_acc",
+        "shelf_small",
+        "shoerack",
+        "rack_putters",
+        "putting_demo",
+        "snack_rack",
+        "shelf_balls",
+        "rack_irons",
+        "rack_drivers",
+        "tour_vault"
+      ],
+      "visitedFixtures": [
+        "table_polos",
+        "bagstand",
+        "snack_rack",
+        "shelf_acc",
+        "rack_drivers",
+        "shoerack",
+        "shelf_small",
+        "shelf_balls",
+        "fittingroom",
+        "cold_drinks",
+        "rack_putters",
+        "tour_vault",
+        "rack_irons",
+        "putting_demo"
+      ],
+      "basketUsers": [
+        "Morgan W.",
+        "Riley P.",
+        "Robin K.",
+        "Drew H."
+      ],
+      "queuedUsers": [
+        "Drew H.",
+        "Riley P.",
+        "Jordan M.",
+        "Robin K.",
+        "Morgan W."
+      ],
+      "maxActive": 10,
+      "maxQueued": 5,
+      "laptop": {
+        "open": true,
+        "roots": 1,
+        "visibleFrames": 1,
+        "closedNormally": true
+      },
+      "checks": {
+        "tenCustomersRan": true,
+        "clubBrowsingAssigned": true,
+        "apparelBrowsingAssigned": true,
+        "shoeBrowsingAssigned": true,
+        "clubBrowsingObserved": true,
+        "apparelBrowsingObserved": true,
+        "shoeBrowsingObserved": true,
+        "basketUseObserved": true,
+        "queueObserved": true,
+        "laptopUsed": true
+      }
+    },
+    "normalControlRoute": [
+      {
+        "step": "fresh New Empire -> Property Market -> Buy",
+        "control": "visible UI",
+        "before": {
+          "cash": 53000,
+          "salesUnits": 0,
+          "salesRevenue": 0,
+          "held": [],
+          "inventory": {
+            "balls1": {
+              "shelf": 10,
+              "back": 0
+            },
+            "glove1": {
+              "shelf": 4,
+              "back": 0
+            },
+            "cap1": {
+              "shelf": 5,
+              "back": 0
+            },
+            "tees1": {
+              "shelf": 14,
+              "back": 0
+            }
+          },
+          "tier": 2,
+          "clockMinutes": 413.7370000000028,
+          "speedIdx": 1
+        },
+        "pose": {
+          "x": -8,
+          "z": 241.7,
+          "yaw": 3.935392653589793,
+          "pitch": -0.684,
+          "localX": 0,
+          "localZ": 13.699999999999989
+        }
+      },
+      {
+        "step": "walked up the porch steps",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -8.752029802814679,
+          "z": 235.71530342312872,
+          "yaw": 6.50115265358982,
+          "pitch": -0.684,
+          "localX": -0.752029802814679,
+          "localZ": 7.7153034231287165
+        },
+        "distanceToTarget": 0.172
+      },
+      {
+        "step": "opened the hinged pro-shop door",
+        "control": "E",
+        "pose": {
+          "x": -8.752029802814679,
+          "z": 235.71530342312872,
+          "yaw": 6.342692653589814,
+          "pitch": -0.684,
+          "localX": -0.752029802814679,
+          "localZ": 7.7153034231287165
+        }
+      },
+      {
+        "step": "crossed the threshold",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -8.813840018331923,
+          "z": 233.81759567757007,
+          "yaw": 6.295192653589813,
+          "pitch": -0.684,
+          "localX": -0.8138400183319234,
+          "localZ": 5.817595677570068
+        },
+        "distanceToTarget": 0.168
+      },
+      {
+        "step": "entered the staff-side approach",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -7.492007074473537,
+          "z": 233.3974958922252,
+          "yaw": 4.980202653589798,
+          "pitch": -0.684,
+          "localX": 0.5079929255264632,
+          "localZ": 5.3974958922252085
+        },
+        "distanceToTarget": 0.247
+      },
+      {
+        "step": "reached the cashier stand",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -5.272365537451056,
+          "z": 233.14215048014233,
+          "yaw": 4.821932653589795,
+          "pitch": -0.684,
+          "localX": 2.727634462548944,
+          "localZ": 5.142150480142334
+        },
+        "distanceToTarget": 0.057
+      },
+      {
+        "step": "faced the physical register",
+        "control": "ArrowLeft/ArrowRight",
+        "pose": {
+          "x": -5.272365537451056,
+          "z": 233.14215048014233,
+          "yaw": 6.311152653589819,
+          "pitch": -0.684,
+          "localX": 2.727634462548944,
+          "localZ": 5.142150480142334
+        }
+      },
+      {
+        "step": "left the full-store checkout counter",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -7.16631179904245,
+          "z": 233.2320512338093,
+          "yaw": 8.024322653589765,
+          "pitch": -0.9253,
+          "localX": 0.8336882009575497,
+          "localZ": 5.232051233809301
+        },
+        "distanceToTarget": 0.086
+      },
+      {
+        "step": "walked behind the full-store checkout clearway",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -3.341433885883508,
+          "z": 233.26840186321846,
+          "yaw": 11.01739265358978,
+          "pitch": -0.9253,
+          "localX": 4.658566114116492,
+          "localZ": 5.2684018632184575
+        },
+        "distanceToTarget": 0.242
+      },
+      {
+        "step": "entered the full-store office side",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": -1.5288655613401771,
+          "z": 233.28415436463166,
+          "yaw": 10.922202653589784,
+          "pitch": -0.9253,
+          "localX": 6.471134438659822,
+          "localZ": 5.284154364631661
+        },
+        "distanceToTarget": 0.13
+      },
+      {
+        "step": "reached the full-store laptop chair",
+        "control": "ArrowLeft/ArrowRight + W",
+        "pose": {
+          "x": 0.3275421388212715,
+          "z": 232.58989289805643,
+          "yaw": 11.460662653589784,
+          "pitch": -0.9253,
+          "localX": 8.327542138821272,
+          "localZ": 4.5898928980564335
+        },
+        "distanceToTarget": 0.194
+      }
+    ],
+    "controlsUsed": [
+      "visible UI",
+      "ArrowLeft/ArrowRight + W",
+      "E",
+      "ArrowLeft/ArrowRight",
+      "documented QA setup only; subsequent gameplay uses normal controls",
+      "Space",
+      "observation only",
+      "pointer drag across glass",
+      "T total key",
+      "pointer pickup",
+      "D",
+      "pointer drag into drawer",
+      "drawer clicks + palm click",
+      "clicked physical receipt",
+      "pointer drag into open carrier",
+      "clicked open palm",
+      "E, pointer, Escape",
+      "read-only 100 ms route trace"
+    ],
+    "forbiddenHooksUsed": false,
+    "setupHooksUsed": [
+      "prepareCheckoutQa",
+      "debugSpawn"
+    ],
+    "stateWritesUsed": true,
+    "documentedFixtureUsed": true,
+    "elapsedSeconds": 64.3
+  },
+  "thrown": null,
+  "consoleMessages": [],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/rangefinder.glb"
+    }
+  ]
+}

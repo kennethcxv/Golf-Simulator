@@ -6957,7 +6957,10 @@ class ImageUtils {
 			canvas.width = image.width;
 			canvas.height = image.height;
 
-			const context = canvas.getContext( '2d' );
+			// This conversion immediately reads the full canvas back. Supplying the
+			// browser hint avoids repeated-readback warnings for every sRGB checkout
+			// texture while preserving Three's byte-for-byte conversion path.
+			const context = canvas.getContext( '2d', { willReadFrequently: true } );
 			context.drawImage( image, 0, 0, image.width, image.height );
 
 			const imageData = context.getImageData( 0, 0, image.width, image.height );

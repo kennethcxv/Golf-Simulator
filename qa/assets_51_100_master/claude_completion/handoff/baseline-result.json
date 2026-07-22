@@ -1,0 +1,464 @@
+{
+  "ok": true,
+  "capturedAt": "2026-07-18T16:24:26.335Z",
+  "launch": "node tools/qa/run-playwright.cjs tools/qa/assets-51-100-baseline.js --bootstrap",
+  "methodology": {
+    "viewport": {
+      "width": 1600,
+      "height": 900
+    },
+    "deviceScaleFactor": 1,
+    "warmup": "shader veil cleared, all declared clubhouse/delivery assets ready, then 1.2 seconds",
+    "frameSampling": "three consecutive 2.5 second requestAnimationFrame samples at fixed camera 13",
+    "textureMemory": "unmeasured; renderer exposes count but not byte size",
+    "cameraEstablishment": "documented deterministic fixture; normal-control acceptance is separate",
+    "extraFixedCameras": "Seven architecture/furniture cameras plus current vacuum and pressure-washer viewmodel cameras.",
+    "stressScenarios": "Five-second fixed-route samples with the current vacuum and pressure washer actively running after 0.8-second warm-up.",
+    "uiUpdateFrequency": "MutationObserver record count under the HUD/UI root during each five-second stress sample."
+  },
+  "fixture": {
+    "description": "Willow Creek bootstrap, paused at 2 PM, clear weather, clean/clutter-free shop, fully stocked retail inventory, organic customers disabled",
+    "interiorOffset": [
+      -360,
+      -1.9873497009277343,
+      4
+    ],
+    "inventoryEntries": 34,
+    "parkedNonRetail": [
+      "vac1",
+      "rug1",
+      "plant1",
+      "poster1",
+      "board1",
+      "light1",
+      "lounge1"
+    ],
+    "deliveryEquipment": {
+      "disposed": false,
+      "ready": true,
+      "missingAssets": [],
+      "activeArrival": null,
+      "queuedArrivals": [],
+      "pendingOrderIds": [],
+      "pendingOrderCounts": {},
+      "handTruck": {
+        "available": true,
+        "active": false,
+        "phase": "idle",
+        "progress": 0,
+        "cycles": 0,
+        "runtimeTiltAxis": "+X"
+      },
+      "palletJack": {
+        "available": true,
+        "active": false,
+        "phase": "idle",
+        "progress": 0,
+        "liftProgress": 0,
+        "raised": false,
+        "targetRaised": false,
+        "cycles": 0,
+        "runtimeHandleAxis": "-Z",
+        "runtimeLiftAxis": "+Y",
+        "liftOffset": 0,
+        "coupledPalletIndex": 2,
+        "channelAlignmentDot": 1,
+        "channelAligned": true,
+        "socketHorizontalError": 0,
+        "coupling": {
+          "coupledPalletIndex": 2,
+          "palletEntryNode": "PALLET_JACK_ENTRY",
+          "palletCouplingSocket": "PALLET_COUPLING_SOCKET",
+          "authoredForkDirection": "-X",
+          "channelDirection": "-Z",
+          "channelAlignmentDot": 1,
+          "channelAlignmentErrorDegrees": 0,
+          "channelAligned": true,
+          "socketHorizontalError": 0,
+          "rootGroundY": -2.1011909656673673,
+          "surfaceY": -2.1011909656673673,
+          "liftOffset": 0,
+          "baseY": -2.1011909656673673,
+          "visualY": -2.1011909656673673,
+          "controlPalletIndex": 0,
+          "controlVisualY": -2.1011909656673673,
+          "colliderMinY": -2.1011909656673673,
+          "colliderMaxY": -1.9611909656673672,
+          "coupledBoxIds": []
+        }
+      },
+      "callbackErrors": [],
+      "beatHistory": [],
+      "boxPresentation": {
+        "quantityAuthority": "state.shop.deliveries.boxes",
+        "capacity": 9,
+        "cargoPlanner": "dimension-aware-ref41-volume-v1",
+        "transferDurationSeconds": 1.35,
+        "cargoOrderId": null,
+        "cargoArrivalId": null,
+        "cargoLoadId": null,
+        "cargoLoadIndex": null,
+        "cargoLoadCount": 0,
+        "pending": [],
+        "cargo": [],
+        "overflowBoxIds": [],
+        "transfers": [],
+        "recentTransfers": []
+      }
+    }
+  },
+  "cameras": [
+    {
+      "id": "01-checkout-overview",
+      "x": 0.5,
+      "z": 2.3,
+      "tx": 2.9,
+      "tz": 4.5,
+      "pitch": -0.1
+    },
+    {
+      "id": "02-checkout-customer-side",
+      "x": 4.5,
+      "z": 5.4,
+      "tx": 2.7,
+      "tz": 4.4,
+      "pitch": -0.1
+    },
+    {
+      "id": "03-club-and-putter-racks",
+      "x": -6.3,
+      "z": -0.2,
+      "tx": -9.9,
+      "tz": -0.4,
+      "pitch": 0.02
+    },
+    {
+      "id": "04-ball-and-accessory-walls",
+      "x": -6.9,
+      "z": -3.5,
+      "tx": -6.9,
+      "tz": -6.2,
+      "pitch": 0.05
+    },
+    {
+      "id": "05-apparel-and-tables",
+      "x": -4,
+      "z": 3.4,
+      "tx": -5.4,
+      "tz": 0,
+      "pitch": -0.02
+    },
+    {
+      "id": "06-bag-and-shoe-displays",
+      "x": 2.3,
+      "z": 1.7,
+      "tx": 3.7,
+      "tz": -1.9,
+      "pitch": -0.02
+    },
+    {
+      "id": "07-lounge",
+      "x": 1.3,
+      "z": -3.3,
+      "tx": 4.3,
+      "tz": -5.3,
+      "pitch": -0.03
+    },
+    {
+      "id": "08-office",
+      "x": 7.2,
+      "z": 4.3,
+      "tx": 9.6,
+      "tz": 4.6,
+      "pitch": -0.06
+    },
+    {
+      "id": "09-stockroom",
+      "x": 7.4,
+      "z": -2.3,
+      "tx": 8.1,
+      "tz": -5.9,
+      "pitch": -0.04
+    },
+    {
+      "id": "10-receiving-and-pallets",
+      "x": 16.3,
+      "z": 4.9,
+      "yaw": 0.52,
+      "pitch": -0.25
+    },
+    {
+      "id": "11-delivery-service-bay",
+      "x": 25.2,
+      "z": 9.2,
+      "yaw": 1,
+      "pitch": -0.14
+    },
+    {
+      "id": "12-stockroom-equipment-close",
+      "x": 8.8,
+      "z": -1.8,
+      "yaw": 0.74,
+      "pitch": -0.2
+    },
+    {
+      "id": "13-exterior",
+      "x": 6.5,
+      "z": 15.5,
+      "tx": -0.5,
+      "tz": 3,
+      "pitch": 0.03
+    },
+    {
+      "id": "14-asset20-front",
+      "x": 0,
+      "z": 0.9,
+      "tx": -2.4,
+      "tz": 0.9,
+      "pitch": -0.08
+    },
+    {
+      "id": "15-asset20-three-quarter",
+      "x": -0.2,
+      "z": 2.2,
+      "tx": -2.4,
+      "tz": 0.9,
+      "pitch": -0.07
+    },
+    {
+      "id": "16-asset20-rear",
+      "x": -4.4,
+      "z": 1,
+      "tx": -2.4,
+      "tz": 0.9,
+      "pitch": -0.07
+    },
+    {
+      "id": "14-entry-porch-and-double-doors",
+      "x": -4.8,
+      "z": 11.6,
+      "tx": -0.8,
+      "tz": 6.4,
+      "pitch": -0.02
+    },
+    {
+      "id": "15-south-windows-and-siding",
+      "x": -8,
+      "z": 12.8,
+      "tx": -6.4,
+      "tz": 6.5,
+      "pitch": 0.02
+    },
+    {
+      "id": "16-interior-wall-floor-ceiling",
+      "x": -1,
+      "z": 1.4,
+      "tx": -7.5,
+      "tz": -3.8,
+      "pitch": 0.13
+    },
+    {
+      "id": "17-front-and-back-counter-context",
+      "x": 0.2,
+      "z": 2,
+      "tx": 3.2,
+      "tz": 4.6,
+      "pitch": -0.08
+    },
+    {
+      "id": "18-lounge-furniture-context",
+      "x": 1,
+      "z": -2.6,
+      "tx": 4,
+      "tz": -5,
+      "pitch": -0.05
+    },
+    {
+      "id": "19-office-desk-chair-and-props",
+      "x": 7,
+      "z": 3.6,
+      "tx": 9.3,
+      "tz": 4.6,
+      "pitch": -0.04
+    },
+    {
+      "id": "20-stockroom-shelving-and-cleaning-corner",
+      "x": 7.1,
+      "z": -2,
+      "tx": 6.1,
+      "tz": 1.45,
+      "pitch": -0.07
+    },
+    {
+      "id": "21-current-vacuum-viewmodel",
+      "x": -0.2,
+      "z": 1.8,
+      "tx": -0.2,
+      "tz": -0.2,
+      "pitch": -0.3
+    },
+    {
+      "id": "22-current-pressure-washer-viewmodel",
+      "x": -1,
+      "z": 11.5,
+      "tx": -1,
+      "tz": 6.4,
+      "pitch": -0.02
+    }
+  ],
+  "captures": [
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\01-checkout-overview.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\02-checkout-customer-side.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\03-club-and-putter-racks.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\04-ball-and-accessory-walls.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\05-apparel-and-tables.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\06-bag-and-shoe-displays.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\07-lounge.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\08-office.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\09-stockroom.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\10-receiving-and-pallets.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\11-delivery-service-bay.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\12-stockroom-equipment-close.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\13-exterior.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\14-asset20-front.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\15-asset20-three-quarter.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\16-asset20-rear.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\14-entry-porch-and-double-doors.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\15-south-windows-and-siding.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\16-interior-wall-floor-ceiling.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\17-front-and-back-counter-context.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\18-lounge-furniture-context.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\19-office-desk-chair-and-props.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\20-stockroom-shelving-and-cleaning-corner.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\21-current-vacuum-viewmodel.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\qa\\assets_51_100_master\\claude_completion\\handoff\\22-current-pressure-washer-viewmodel.png"
+  ],
+  "performance": {
+    "frameCount": 428,
+    "averageFps": 56.87556476904265,
+    "onePercentLowFps": 29.976019184651754,
+    "worstFrameMs": 33.400000000001455,
+    "renderer": {
+      "drawCalls": 7586,
+      "renderedTriangles": 21043570,
+      "sceneTriangles": 3215920,
+      "sceneNodes": 4209,
+      "visibleMeshes": 2566,
+      "materialCount": 526,
+      "textureCount": 202,
+      "textureMemoryBytes": null,
+      "shadowCasters": 447,
+      "geometriesInMemory": 1423,
+      "texturesInMemory": 266
+    },
+    "browser": {
+      "jsHeapUsedBytes": 94299660,
+      "jsHeapTotalBytes": 148774912,
+      "eventListeners": 90,
+      "nodes": 666,
+      "documents": 3
+    }
+  },
+  "diagnostics": [
+    {
+      "kind": "console:warning",
+      "message": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "inheritedBaselineScript": {
+    "path": "tools/qa/assets-01-50-baseline.js",
+    "sha256": "d120a639820283f0c6b78172359e8cce9bb0f277bec473130015b1bbf9bf28b5"
+  },
+  "performanceScenarios": {
+    "inheritedIdleExterior": {
+      "frameCount": 428,
+      "averageFps": 56.87556476904265,
+      "onePercentLowFps": 29.976019184651754,
+      "worstFrameMs": 33.400000000001455,
+      "renderer": {
+        "drawCalls": 7586,
+        "renderedTriangles": 21043570,
+        "sceneTriangles": 3215920,
+        "sceneNodes": 4209,
+        "visibleMeshes": 2566,
+        "materialCount": 526,
+        "textureCount": 202,
+        "textureMemoryBytes": null,
+        "shadowCasters": 447,
+        "geometriesInMemory": 1423,
+        "texturesInMemory": 266
+      },
+      "browser": {
+        "jsHeapUsedBytes": 94299660,
+        "jsHeapTotalBytes": 148774912,
+        "eventListeners": 90,
+        "nodes": 666,
+        "documents": 3
+      }
+    },
+    "vacuumActive": {
+      "name": "vacuum-active-dirty-shop-floor",
+      "tool": "vacuum",
+      "usingTool": true,
+      "durationMs": 5008.299999952316,
+      "frameCount": 600,
+      "averageFps": 119.99760004799907,
+      "onePercentLowFps": 117.6470588235294,
+      "worstFrameMs": 8.5,
+      "uiMutationCount": 42,
+      "uiMutationsPerSecond": 8.386079108759434,
+      "renderer": {
+        "drawCalls": 1386,
+        "renderedTriangles": 9431504,
+        "sceneTriangles": 3216296,
+        "sceneNodes": 4222,
+        "visibleMeshes": 2576,
+        "materialCount": 530,
+        "textureCount": 202,
+        "textureMemoryBytes": null,
+        "textureMemoryReason": "Three.js renderer exposes texture count but not allocated byte size.",
+        "geometriesInMemory": 1434,
+        "texturesInMemory": 266
+      },
+      "browser": {
+        "jsHeapUsedBytes": 60138904,
+        "jsHeapTotalBytes": 159260672,
+        "eventListeners": 90,
+        "nodes": 716,
+        "documents": 1
+      }
+    },
+    "pressureWasherActive": {
+      "name": "pressure-washer-active-south-siding",
+      "tool": "washer",
+      "usingTool": true,
+      "durationMs": 5015.300000011921,
+      "frameCount": 428,
+      "averageFps": 85.45643319223701,
+      "onePercentLowFps": 39.936102236422656,
+      "worstFrameMs": 25.099999999998545,
+      "uiMutationCount": 0,
+      "uiMutationsPerSecond": 0,
+      "renderer": {
+        "drawCalls": 6316,
+        "renderedTriangles": 16213604,
+        "sceneTriangles": 3221112,
+        "sceneNodes": 4222,
+        "visibleMeshes": 2577,
+        "materialCount": 531,
+        "textureCount": 202,
+        "textureMemoryBytes": null,
+        "textureMemoryReason": "Three.js renderer exposes texture count but not allocated byte size.",
+        "geometriesInMemory": 1434,
+        "texturesInMemory": 266
+      },
+      "browser": {
+        "jsHeapUsedBytes": 78495228,
+        "jsHeapTotalBytes": 159260672,
+        "eventListeners": 90,
+        "nodes": 716,
+        "documents": 1
+      }
+    }
+  }
+}

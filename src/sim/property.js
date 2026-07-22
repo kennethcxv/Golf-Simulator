@@ -10,6 +10,7 @@
 // paid it does not quietly evaporate — it sits there and grows.
 
 import { spend } from './economy.js';
+import { notify } from './notifications.js';
 
 export const RENT_RATE = 0.011; // of valuation, per week
 export const CYCLE_DAYS = 7;
@@ -70,6 +71,7 @@ export function tickProperty(state, dayAbs) {
       ? `Property bill of $${due} due in ${WARN_DAYS} days — plus $${owed} you already owe.`
       : `Property bill of $${due} due in ${WARN_DAYS} days.`;
     out.message = out.warning;
+    notify(state, { kind: 'money', text: out.warning, dedupeKey: `rentwarn:${p.nextDueDay}` });
     return out;
   }
 
@@ -109,6 +111,7 @@ export function tickProperty(state, dayAbs) {
   out.message = out.severe
     ? `You are ${p.missedTotal} weeks behind on the property. $${out.arrears} in arrears — the bank is asking questions.`
     : `Could not cover the property bill. $${out.arrears} now owed, and it is accruing interest.`;
+  notify(state, { kind: 'money', text: out.message, dedupeKey: `rentmiss:${dayAbs}` });
   return out;
 }
 

@@ -1,0 +1,26 @@
+{
+ "id": "pf_hanger_metal",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.426,
+  0.0397,
+  0.2012
+ ],
+ "min_z": -0.1877,
+ "tris": 916,
+ "textures": [],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hanger_metal.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_hanger_metal.blend",
+ "name": "Pf Hanger Metal",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

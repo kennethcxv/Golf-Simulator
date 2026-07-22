@@ -8,6 +8,7 @@
 
 export const LEDGER_VERSION = 2;
 export const LEDGER_HISTORY_DAYS = 60;
+export const TX_LOG_CAP = 80;
 
 export const LEDGER_LABELS = {
   greenFees: 'Green fees',
@@ -71,13 +72,27 @@ export function emptyLines() {
       upkeep: 0, utilities: 0, works: 0, severance: 0, training: 0,
       shopOrders: 0, deliveryCosts: 0, rentalFleet: 0, equipment: 0,
       cleaningSupplies: 0, propertyExpenses: 0, events: 0, rent: 0,
-      checkoutShortage: 0, bookingRefunds: 0,
+      checkoutShortage: 0, bookingRefunds: 0, propertyServices: 0,
     },
   };
 }
 
 const r2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const dayOf = (state) => Math.floor((state.clock?.minutes || 0) / 1440);
+
+function logTx(state, kind, key, amount) {
+  const ledger = state.ledger;
+  if (!ledger) return;
+  if (!Array.isArray(ledger.txLog)) ledger.txLog = [];
+  ledger.txLog.unshift({
+    m: Number.isFinite(state.clock?.minutes) ? Math.floor(state.clock.minutes) : 0,
+    kind,
+    key,
+    amt: r2(amount),
+    bal: r2(state.cash),
+  });
+  if (ledger.txLog.length > TX_LOG_CAP) ledger.txLog.length = TX_LOG_CAP;
+}
 function safe(value) {
   const raw = String(value ?? 'unknown');
   const normalized = raw.replace(/[^a-zA-Z0-9:_-]+/g, '-');
@@ -112,6 +127,7 @@ export function initLedger(state) {
     entries: [],
     outcomes: [],
     dailySummaries: [],
+    txLog: [],
     processedIds: {},
     processedOutcomeIds: {},
     nextSequence: 1,
@@ -136,6 +152,18 @@ export function ensureLedger(state) {
   ledger.entries ||= [];
   ledger.outcomes ||= [];
   ledger.dailySummaries ||= [];
+  ledger.txLog = Array.isArray(ledger.txLog)
+    ? ledger.txLog
+      .filter((entry) => entry && typeof entry === 'object' && typeof entry.key === 'string')
+      .slice(0, TX_LOG_CAP)
+      .map((entry) => ({
+        m: Number.isFinite(entry.m) ? Math.floor(entry.m) : 0,
+        kind: ['rev', 'exp', 'refund'].includes(entry.kind) ? entry.kind : 'exp',
+        key: entry.key,
+        amt: Number.isFinite(entry.amt) ? r2(entry.amt) : 0,
+        bal: Number.isFinite(entry.bal) ? r2(entry.bal) : 0,
+      }))
+    : [];
   ledger.processedIds ||= {};
   ledger.processedOutcomeIds ||= {};
   for (const entry of ledger.entries) {
@@ -172,6 +200,9 @@ function aggregateCashLine(ledger, side, key, amount) {
 export function postLedgerEntry(state, spec = {}) {
   const ledger = ensureLedger(state);
   const direction = spec.direction === 'expense' ? 'expense' : spec.direction === 'reversal' ? 'reversal' : 'revenue';
+  if (!Number.isFinite(Number(spec.amount))) {
+    return { ok: false, reason: 'Ledger amounts must be finite.' };
+  }
   const amount = r2(Math.abs(spec.amount));
   if (!(amount > 0)) return { ok: false, reason: 'Ledger amounts must be positive.' };
 
@@ -222,6 +253,7 @@ export function postLedgerEntry(state, spec = {}) {
   ledger.entries.push(entry);
   ledger.processedIds[idempotencyKey] = entry.id;
   state.cash = r2((state.cash || 0) + cashImpact);
+  logTx(state, direction === 'revenue' ? 'rev' : direction === 'reversal' ? 'refund' : 'exp', lineKey, amount);
 
   const aggregate = Object.prototype.hasOwnProperty.call(spec, 'aggregate')
     ? spec.aggregate

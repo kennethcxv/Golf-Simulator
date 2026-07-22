@@ -1,0 +1,442 @@
+{
+  "snapshot": {
+    "overall": 36.4,
+    "categories": {
+      "cleanliness": 26,
+      "retail": 24.7,
+      "course": 45.4,
+      "service": 45.8
+    }
+  },
+  "recentReasonedChanges": [
+    {
+      "id": "club-day:8:quality-reputation",
+      "day": 8,
+      "timestamp": 11520,
+      "source": "daily-club",
+      "sourceId": "club-day-8",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 0.9,
+      "before": 35.5,
+      "after": 36.4
+    },
+    {
+      "id": "shop-simulation:7:cleanliness-reputation",
+      "day": 8,
+      "timestamp": 11520,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-7",
+      "reason": "20 shoppers experienced clubhouse cleanliness at 16.",
+      "categoryDeltas": {
+        "cleanliness": -0.5
+      },
+      "overallDelta": -0.1,
+      "before": 35.6,
+      "after": 35.5
+    },
+    {
+      "id": "shop-simulation:7:retail-reputation",
+      "day": 8,
+      "timestamp": 11520,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-7",
+      "reason": "0 purchases completed; 20 stockout and 0 price rejections hurt conversion.",
+      "categoryDeltas": {
+        "retail": -1.1
+      },
+      "overallDelta": -0.2,
+      "before": 35.8,
+      "after": 35.6
+    },
+    {
+      "id": "club-day:7:green-fee-reputation",
+      "day": 8,
+      "timestamp": 11520,
+      "source": "daily-club",
+      "sourceId": "club-day-7",
+      "reason": "28 golfers found the green fee fair for the course delivered.",
+      "categoryDeltas": {
+        "course": 0.1
+      },
+      "overallDelta": 0,
+      "before": 35.8,
+      "after": 35.8
+    },
+    {
+      "id": "club-day:7:quality-reputation",
+      "day": 7,
+      "timestamp": 10080,
+      "source": "daily-club",
+      "sourceId": "club-day-7",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 1,
+      "before": 34.8,
+      "after": 35.8
+    },
+    {
+      "id": "shop-simulation:6:cleanliness-reputation",
+      "day": 7,
+      "timestamp": 10080,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-6",
+      "reason": "18 shoppers experienced clubhouse cleanliness at 16.",
+      "categoryDeltas": {
+        "cleanliness": -0.5
+      },
+      "overallDelta": -0.1,
+      "before": 34.9,
+      "after": 34.8
+    },
+    {
+      "id": "shop-simulation:6:retail-reputation",
+      "day": 7,
+      "timestamp": 10080,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-6",
+      "reason": "0 purchases completed; 18 stockout and 0 price rejections hurt conversion.",
+      "categoryDeltas": {
+        "retail": -1.1
+      },
+      "overallDelta": -0.3,
+      "before": 35.2,
+      "after": 34.9
+    },
+    {
+      "id": "club-day:6:green-fee-reputation",
+      "day": 7,
+      "timestamp": 10080,
+      "source": "daily-club",
+      "sourceId": "club-day-6",
+      "reason": "29 golfers found the green fee fair for the course delivered.",
+      "categoryDeltas": {
+        "course": 0.1
+      },
+      "overallDelta": 0,
+      "before": 35.2,
+      "after": 35.2
+    },
+    {
+      "id": "club-day:6:quality-reputation",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "daily-club",
+      "sourceId": "club-day-6",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 1,
+      "before": 34.2,
+      "after": 35.2
+    },
+    {
+      "id": "member:106:joined:6",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "membership",
+      "sourceId": "106",
+      "reason": "Sadie Pratt joined as a Club Member.",
+      "categoryDeltas": {
+        "service": 0.2
+      },
+      "overallDelta": 0.1,
+      "before": 34.1,
+      "after": 34.2
+    },
+    {
+      "id": "member:73:joined:6",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "membership",
+      "sourceId": "73",
+      "reason": "Yolanda Vance joined as a Fairway Card.",
+      "categoryDeltas": {
+        "service": 0.2
+      },
+      "overallDelta": 0,
+      "before": 34.1,
+      "after": 34.1
+    },
+    {
+      "id": "member:51:joined:6",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "membership",
+      "sourceId": "51",
+      "reason": "Chip Pike joined as a Club Member.",
+      "categoryDeltas": {
+        "service": 0.2
+      },
+      "overallDelta": 0.1,
+      "before": 34,
+      "after": 34.1
+    },
+    {
+      "id": "shop-simulation:5:cleanliness-reputation",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-5",
+      "reason": "9 shoppers experienced clubhouse cleanliness at 16.",
+      "categoryDeltas": {
+        "cleanliness": -0.5
+      },
+      "overallDelta": -0.1,
+      "before": 34.1,
+      "after": 34
+    },
+    {
+      "id": "shop-simulation:5:retail-reputation",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-5",
+      "reason": "0 purchases completed; 9 stockout and 0 price rejections hurt conversion.",
+      "categoryDeltas": {
+        "retail": -1.1
+      },
+      "overallDelta": -0.3,
+      "before": 34.4,
+      "after": 34.1
+    },
+    {
+      "id": "club-day:5:green-fee-reputation",
+      "day": 6,
+      "timestamp": 8640,
+      "source": "daily-club",
+      "sourceId": "club-day-5",
+      "reason": "6 golfers found the green fee fair for the course delivered.",
+      "categoryDeltas": {
+        "course": 0.1
+      },
+      "overallDelta": 0,
+      "before": 34.4,
+      "after": 34.4
+    },
+    {
+      "id": "club-day:5:quality-reputation",
+      "day": 5,
+      "timestamp": 7200,
+      "source": "daily-club",
+      "sourceId": "club-day-5",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 1,
+      "before": 33.4,
+      "after": 34.4
+    },
+    {
+      "id": "member:134:joined:5",
+      "day": 5,
+      "timestamp": 7200,
+      "source": "membership",
+      "sourceId": "134",
+      "reason": "Reggie Grady joined as a Club Member.",
+      "categoryDeltas": {
+        "service": 0.2
+      },
+      "overallDelta": 0.1,
+      "before": 33.3,
+      "after": 33.4
+    },
+    {
+      "id": "shop-simulation:4:cleanliness-reputation",
+      "day": 5,
+      "timestamp": 7200,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-4",
+      "reason": "19 shoppers experienced clubhouse cleanliness at 16.",
+      "categoryDeltas": {
+        "cleanliness": -0.5
+      },
+      "overallDelta": -0.1,
+      "before": 33.4,
+      "after": 33.3
+    },
+    {
+      "id": "shop-simulation:4:retail-reputation",
+      "day": 5,
+      "timestamp": 7200,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-4",
+      "reason": "3 purchases completed; 16 stockout and 0 price rejections hurt conversion.",
+      "categoryDeltas": {
+        "retail": -0.8
+      },
+      "overallDelta": -0.2,
+      "before": 33.6,
+      "after": 33.4
+    },
+    {
+      "id": "club-day:4:green-fee-reputation",
+      "day": 5,
+      "timestamp": 7200,
+      "source": "daily-club",
+      "sourceId": "club-day-4",
+      "reason": "31 golfers found the green fee fair for the course delivered.",
+      "categoryDeltas": {
+        "course": 0.1
+      },
+      "overallDelta": 0,
+      "before": 33.6,
+      "after": 33.6
+    },
+    {
+      "id": "club-day:4:quality-reputation",
+      "day": 4,
+      "timestamp": 5760,
+      "source": "daily-club",
+      "sourceId": "club-day-4",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 1,
+      "before": 32.6,
+      "after": 33.6
+    },
+    {
+      "id": "member:79:joined:4",
+      "day": 4,
+      "timestamp": 5760,
+      "source": "membership",
+      "sourceId": "79",
+      "reason": "June Dunlap joined as a Fairway Card.",
+      "categoryDeltas": {
+        "service": 0.2
+      },
+      "overallDelta": 0,
+      "before": 32.6,
+      "after": 32.6
+    },
+    {
+      "id": "shop-simulation:3:cleanliness-reputation",
+      "day": 4,
+      "timestamp": 5760,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-3",
+      "reason": "20 shoppers experienced clubhouse cleanliness at 16.",
+      "categoryDeltas": {
+        "cleanliness": -0.5
+      },
+      "overallDelta": -0.1,
+      "before": 32.7,
+      "after": 32.6
+    },
+    {
+      "id": "shop-simulation:3:retail-reputation",
+      "day": 4,
+      "timestamp": 5760,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-3",
+      "reason": "5 purchases completed; 15 stockout and 0 price rejections hurt conversion.",
+      "categoryDeltas": {
+        "retail": -0.7
+      },
+      "overallDelta": -0.1,
+      "before": 32.8,
+      "after": 32.7
+    },
+    {
+      "id": "club-day:3:green-fee-reputation",
+      "day": 4,
+      "timestamp": 5760,
+      "source": "daily-club",
+      "sourceId": "club-day-3",
+      "reason": "30 golfers found the green fee fair for the course delivered.",
+      "categoryDeltas": {
+        "course": 0.1
+      },
+      "overallDelta": 0,
+      "before": 32.8,
+      "after": 32.8
+    },
+    {
+      "id": "club-day:3:quality-reputation",
+      "day": 3,
+      "timestamp": 4320,
+      "source": "daily-club",
+      "sourceId": "club-day-3",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 1,
+      "before": 31.8,
+      "after": 32.8
+    },
+    {
+      "id": "shop-simulation:2:cleanliness-reputation",
+      "day": 3,
+      "timestamp": 4320,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-2",
+      "reason": "20 shoppers experienced clubhouse cleanliness at 16.",
+      "categoryDeltas": {
+        "cleanliness": -0.5
+      },
+      "overallDelta": -0.1,
+      "before": 31.9,
+      "after": 31.8
+    },
+    {
+      "id": "shop-simulation:2:retail-reputation",
+      "day": 3,
+      "timestamp": 4320,
+      "source": "shop-simulation",
+      "sourceId": "shop-day-2",
+      "reason": "5 purchases completed; 15 stockout and 0 price rejections hurt conversion.",
+      "categoryDeltas": {
+        "retail": -0.7
+      },
+      "overallDelta": -0.2,
+      "before": 32.1,
+      "after": 31.9
+    },
+    {
+      "id": "club-day:2:green-fee-reputation",
+      "day": 3,
+      "timestamp": 4320,
+      "source": "daily-club",
+      "sourceId": "club-day-2",
+      "reason": "30 golfers found the green fee fair for the course delivered.",
+      "categoryDeltas": {
+        "course": 0.1
+      },
+      "overallDelta": 0,
+      "before": 32.1,
+      "after": 32.1
+    },
+    {
+      "id": "club-day:2:quality-reputation",
+      "day": 2,
+      "timestamp": 2880,
+      "source": "daily-club",
+      "sourceId": "club-day-2",
+      "reason": "Course quality and member satisfaction supported the club's standing.",
+      "categoryDeltas": {
+        "course": 1.8,
+        "service": 1.8
+      },
+      "overallDelta": 1,
+      "before": 31.1,
+      "after": 32.1
+    }
+  ],
+  "allChangesHaveReasons": true,
+  "reviewEvidence": []
+}

@@ -95,7 +95,8 @@ test('hero selection is data-driven and the one-yard region represents every req
   const selection = selectHeroHole(state);
 
   assert.equal(selection.hole.id, model.heroHoleId);
-  assert.equal(model.heroHoleNumber, 4);
+  assert.equal(model.heroHoleNumber,
+    state.course.holes.findIndex((hole) => hole.id === selection.hole.id) + 1);
   assert.equal(model.resolutionYd, MAINTENANCE_RESOLUTION_YD);
   assert.equal(model.resolutionYd, 1);
   for (const surface of [

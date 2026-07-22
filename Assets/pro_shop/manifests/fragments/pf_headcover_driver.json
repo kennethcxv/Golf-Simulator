@@ -1,0 +1,34 @@
+{
+ "id": "pf_headcover_driver",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.124,
+  0.118,
+  0.374
+ ],
+ "min_z": 0.0,
+ "tris": 1178,
+ "textures": [
+  "HCKnit_pf_headcover_driver:128x128",
+  "HCNum_pf_headcover_driver:128x128",
+  "HC_pf_headcover_driver:256x256",
+  "M_HCPom_alb:512x512",
+  "NRM_fleece_1.4_512:512x512",
+  "NRM_rib_2.0_512:512x512",
+  "RGH_fleece_0.9:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_headcover_driver.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_headcover_driver.blend",
+ "name": "PF Driver Headcover",
+ "variant": "navy",
+ "price": 39.99,
+ "fixture": "pf_fixture_freestanding_gondola",
+ "slot_type": "hook_soft",
+ "packaging": "none"
+}

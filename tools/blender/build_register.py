@@ -20,7 +20,7 @@
 # which means the drawer you look at is the drawer you are holding — take three
 # ones out and there are three fewer ones in the well.
 #
-# Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.25, 0.10, 0.05],
+# Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.20, 0.10, 0.05],
 # matching DENOMS exactly. The old model had five and FOUR, so a cup would have sat
 # permanently empty with no denomination to hold.
 #
@@ -117,7 +117,7 @@ def assign(o, material):
     return o
 
 
-def finish(objs, name):
+def finish(objs, name, pivot=None):
     for o in bpy.context.scene.objects:
         o.select_set(False)
     for o in objs:
@@ -128,6 +128,12 @@ def finish(objs, name):
     o = bpy.context.object
     o.name = name
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    if pivot is not None:
+        # Moving props need an intentional grip pivot.  The closed carrier is held
+        # by its handle, so its node origin belongs there rather than at whichever
+        # wall happened to be the active object when the meshes were joined.
+        bpy.context.scene.cursor.location = pivot
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.02)
@@ -194,7 +200,7 @@ def build_cash_drawer(M):
         assign(clip, M['steel'])
         parts.append(clip)
 
-    # THREE coin cups behind them: [0.25, 0.10, 0.05]. The old drawer had five wells
+    # THREE coin cups behind them: [0.20, 0.10, 0.05]. The old drawer had five wells
     # and FOUR cups, so one cup sat permanently empty with no denomination to hold.
     for i in range(3):
         x = -0.11 + i * 0.11
@@ -337,6 +343,70 @@ def build_bag_open(M):
     return finish(parts, 'bag_open')
 
 
+def build_bag_closed(M):
+    """A filled paper carrier for the customer's walk out.
+
+    Real dimensions are 26 x 13 x 38 cm in game units.  The slight taper, folded
+    gussets, rolled lip, centre seal and twisted-paper handle keep it in the same
+    stylised PBR language as the open bag without reading as a coloured box.  Its
+    pivot is the middle of the handle: registerMode can transfer it directly into
+    the articulated customer's hand with no compensating offset.
+    """
+    parts = []
+    W, D, H = 0.13, 0.065, 0.38
+
+    # A subtly tapered body.  Separate faces preserve the paper-fold silhouette
+    # after joining while still exporting as a single cheap static mesh.
+    front = cube('body_front', (W * 2, 0.006, H), loc=(0, -D, H / 2), rot=(-0.025, 0, 0))
+    bevel(front, 0.004, 2)
+    assign(front, M['kraft'])
+    parts.append(front)
+    back = cube('body_back', (W * 2, 0.006, H), loc=(0, D, H / 2), rot=(0.025, 0, 0))
+    bevel(back, 0.004, 2)
+    assign(back, M['kraft'])
+    parts.append(back)
+
+    for sx in (-1, 1):
+        side = cube('gusset', (0.007, D * 2, H - 0.012), loc=(sx * W, 0, H / 2 - 0.004))
+        bevel(side, 0.003, 2)
+        assign(side, M['kraft'])
+        parts.append(side)
+        # Restrained fold line down each gusset catches a highlight in motion.
+        seam = cube('gusset_fold', (0.004, 0.008, H - 0.035), loc=(sx * (W + 0.004), 0, H / 2))
+        assign(seam, M['darkwood'])
+        parts.append(seam)
+
+    floor = cube('folded_base', (W * 2 - 0.012, D * 2 - 0.006, 0.012), loc=(0, 0, 0.006))
+    bevel(floor, 0.003, 1)
+    assign(floor, M['kraft'])
+    parts.append(floor)
+
+    # Rolled shut top and a small deep-green house mark (fictional branding).
+    lip = cube('rolled_lip', (W * 2 + 0.010, D * 2 + 0.008, 0.018), loc=(0, 0, H - 0.006))
+    bevel(lip, 0.006, 2)
+    assign(lip, M['kraft'])
+    parts.append(lip)
+    mark = cube('house_mark', (0.080, 0.006, 0.058), loc=(0, -(D + 0.005), H * 0.55))
+    bevel(mark, 0.008, 3)
+    assign(mark, M['fabric'])
+    parts.append(mark)
+
+    # One handle on each face.  The grip centre at z=H+0.074 is the export pivot.
+    grip_z = H + 0.074
+    for sy in (-1, 1):
+        for sx in (-1, 1):
+            rise = cyl('handle_rise', 0.0055, 0.075,
+                       loc=(sx * 0.060, sy * D, H + 0.032), verts=8)
+            assign(rise, M['kraft'])
+            parts.append(rise)
+        span = cyl('handle_grip', 0.0055, 0.120,
+                   loc=(0, sy * D, grip_z), rot=(0, math.pi / 2, 0), verts=8)
+        assign(span, M['kraft'])
+        parts.append(span)
+
+    return finish(parts, 'bag_closed', pivot=(0, 0, grip_z))
+
+
 # ============================================================ IMPULSE RACK ====
 def build_impulse_rack(M):
     """The little tiered rack of ball markers and tee packets that sits on the
@@ -408,6 +478,7 @@ if __name__ == '__main__':
         build_cash_drawer,   # REBUILT — empty, so the money can be real
         build_basket,
         build_bag_open,
+        build_bag_closed,
         build_impulse_rack,
         build_divider,
     ]

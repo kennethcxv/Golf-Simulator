@@ -1,0 +1,1478 @@
+{
+  "phase": "final-visual",
+  "stamp": "2026-07-19T-final-visual-4",
+  "url": "http://127.0.0.1:8464/",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "fixedTime": "10:00 AM",
+  "renderer": "Chrome hardware/default WebGL",
+  "normalControls": [
+    "canvas click",
+    "W 350ms",
+    "A 250ms",
+    "Escape"
+  ],
+  "cameras": [
+    {
+      "id": "01-exterior-approach",
+      "atW": [
+        -9.43750940811448,
+        245.72345278818574
+      ],
+      "toW": [
+        -12.53750940811448,
+        241.47345278818574
+      ],
+      "pitch": -0.035
+    },
+    {
+      "id": "02-browsing-floor",
+      "at": [
+        -2.7,
+        -2.5
+      ],
+      "to": [
+        -5.6,
+        -5.7
+      ],
+      "pitch": -0.06,
+      "settleMs": 220
+    },
+    {
+      "id": "03-lounge",
+      "at": [
+        3.85,
+        -1.75
+      ],
+      "to": [
+        3.85,
+        -4.8
+      ],
+      "pitch": -0.09
+    },
+    {
+      "id": "04-entry-door",
+      "atW": [
+        -13.873865691290185,
+        237.27700113651377
+      ],
+      "toW": [
+        -10.781988594845275,
+        236.82945670242995
+      ],
+      "pitch": -0.04,
+      "settleMs": 140
+    },
+    {
+      "id": "05-register-queue",
+      "at": [
+        -1.7,
+        4.85
+      ],
+      "to": [
+        0.7,
+        2.85
+      ],
+      "pitch": -0.07
+    }
+  ],
+  "fixture": {
+    "customers": 7,
+    "clock": 600,
+    "cast": {
+      "exterior": "customer-3",
+      "browser": "customer-4",
+      "specific": "customer-5",
+      "loungeA": "customer-6",
+      "loungeB": "customer-7",
+      "register": "Stan Hux",
+      "queued": "Opal Whitaker"
+    },
+    "diagnostics": {
+      "active": 7,
+      "scheduled": 0,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Approaching property": 1,
+        "Choosing activity": 2,
+        "Lounge use": 2,
+        "Waiting in queue": 2
+      },
+      "byIntent": {
+        "pro-shop-shopper": 3,
+        "browser": 1,
+        "specific-item": 1,
+        "lounge-visitor": 2
+      },
+      "socketClaims": {
+        "exterior-spawn": {
+          "exterior-spawn-path": "customer-3"
+        },
+        "exterior-arrival": {
+          "exterior-arrival-west": "customer-3"
+        },
+        "ambient": {
+          "lounge-chair-a": "customer-6",
+          "lounge-chair-b": "customer-7"
+        }
+      },
+      "metrics": {
+        "spawned": 7,
+        "completed": 0,
+        "abandoned": 0,
+        "noShows": 0,
+        "recovered": 0,
+        "emergencyRepositions": 0,
+        "maxActiveObserved": 7,
+        "maxQueueObserved": 2
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Choosing activity",
+          "reason": "visual QA cast position"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Choosing activity",
+          "reason": "visual QA cast position"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Lounge use",
+          "reason": "visual QA cast position"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Lounge use",
+          "reason": "visual QA cast position"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Waiting in queue",
+          "reason": "QA fixture: accounted shopper at service line"
+        },
+        {
+          "customerId": "customer-9",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-9",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Waiting in queue",
+          "reason": "QA fixture: accounted shopper at service line"
+        }
+      ],
+      "actors": [
+        {
+          "id": "customer-3",
+          "name": "Avery Approach",
+          "state": "Approaching property",
+          "intent": "pro-shop-shopper",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 87,
+          "animation": "Walk",
+          "occupancy": null,
+          "position": {
+            "x": -13.2,
+            "z": 243
+          }
+        },
+        {
+          "id": "customer-4",
+          "name": "Blake Browser",
+          "state": "Choosing activity",
+          "intent": "browser",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 100,
+          "animation": "Walk",
+          "occupancy": null,
+          "position": {
+            "x": -9.1,
+            "z": 228.1
+          }
+        },
+        {
+          "id": "customer-5",
+          "name": "Sasha Shopper",
+          "state": "Choosing activity",
+          "intent": "specific-item",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 113,
+          "animation": "Idle",
+          "occupancy": null,
+          "position": {
+            "x": -11.4,
+            "z": 226
+          }
+        },
+        {
+          "id": "customer-6",
+          "name": "Lee Lounge",
+          "state": "Lounge use",
+          "intent": "lounge-visitor",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 81,
+          "animation": "Idle",
+          "occupancy": "lounge-chair-a",
+          "position": {
+            "x": -6,
+            "z": 224.5
+          }
+        },
+        {
+          "id": "customer-7",
+          "name": "Morgan Member",
+          "state": "Lounge use",
+          "intent": "lounge-visitor",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 94,
+          "animation": "Idle",
+          "occupancy": "lounge-chair-b",
+          "position": {
+            "x": -3.3,
+            "z": 224.5
+          }
+        },
+        {
+          "id": "customer-8",
+          "name": "Stan Hux",
+          "state": "Waiting in queue",
+          "intent": "pro-shop-shopper",
+          "queuePosition": 0,
+          "cart": [
+            {
+              "uid": "customer-unit-1",
+              "skuId": "balls1"
+            }
+          ],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 107,
+          "animation": "Idle",
+          "occupancy": null,
+          "position": {
+            "x": -6.4,
+            "z": 231.05
+          }
+        },
+        {
+          "id": "customer-9",
+          "name": "Opal Whitaker",
+          "state": "Waiting in queue",
+          "intent": "pro-shop-shopper",
+          "queuePosition": 1,
+          "cart": [
+            {
+              "uid": "customer-unit-2",
+              "skuId": "glove1"
+            },
+            {
+              "uid": "customer-unit-3",
+              "skuId": "balls2"
+            }
+          ],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 32,
+          "animation": "Idle",
+          "occupancy": null,
+          "position": {
+            "x": -7.2,
+            "z": 230.6
+          }
+        }
+      ],
+      "runtimeSeconds": 2.4834999999999936,
+      "pool": {
+        "active": 7,
+        "available": 0,
+        "created": 7
+      }
+    }
+  },
+  "timeline": [
+    {
+      "at": 600,
+      "active": 7,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Entering": 1,
+        "Inspecting product": 1,
+        "Carrying product": 1,
+        "Lounge use": 2,
+        "Waiting for cashier": 1,
+        "Waiting in queue": 1
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Walking to entrance",
+          "to": "Waiting for door",
+          "reason": "queued at an entrance approach slot"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Waiting for door",
+          "to": "Entering",
+          "reason": "entrance passage became available"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        }
+      ]
+    },
+    {
+      "at": 600,
+      "active": 7,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Entering": 1,
+        "Selecting product": 1,
+        "Carrying product": 1,
+        "Lounge use": 2,
+        "Waiting for cashier": 1,
+        "Waiting in queue": 1
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Walking to entrance",
+          "to": "Waiting for door",
+          "reason": "queued at an entrance approach slot"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Waiting for door",
+          "to": "Entering",
+          "reason": "entrance passage became available"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        }
+      ]
+    },
+    {
+      "at": 600,
+      "active": 7,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Entering": 1,
+        "Browsing": 1,
+        "Carrying product": 1,
+        "Lounge use": 2,
+        "Waiting for cashier": 1,
+        "Waiting in queue": 1
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Walking to entrance",
+          "to": "Waiting for door",
+          "reason": "queued at an entrance approach slot"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Waiting for door",
+          "to": "Entering",
+          "reason": "entrance passage became available"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        }
+      ]
+    },
+    {
+      "at": 600,
+      "active": 7,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Entering": 1,
+        "Browsing": 1,
+        "Carrying product": 1,
+        "Lounge use": 2,
+        "Waiting for cashier": 1,
+        "Waiting in queue": 1
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Walking to entrance",
+          "to": "Waiting for door",
+          "reason": "queued at an entrance approach slot"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Waiting for door",
+          "to": "Entering",
+          "reason": "entrance passage became available"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        }
+      ]
+    },
+    {
+      "at": 600,
+      "active": 7,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Entering": 1,
+        "Browsing": 1,
+        "Carrying product": 1,
+        "Lounge use": 2,
+        "Waiting for cashier": 1,
+        "Waiting in queue": 1
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Walking to entrance",
+          "to": "Waiting for door",
+          "reason": "queued at an entrance approach slot"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Waiting for door",
+          "to": "Entering",
+          "reason": "entrance passage became available"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\final-visual\\screenshots\\2026-07-19T-final-visual-4\\01-exterior-approach.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\final-visual\\screenshots\\2026-07-19T-final-visual-4\\02-browsing-floor.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\final-visual\\screenshots\\2026-07-19T-final-visual-4\\03-lounge.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\final-visual\\screenshots\\2026-07-19T-final-visual-4\\04-entry-door.png",
+    "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\final-visual\\screenshots\\2026-07-19T-final-visual-4\\05-register-queue.png"
+  ],
+  "videoPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-customer-simulation\\qa\\customer-simulation\\final-visual\\video\\2026-07-19T-final-visual-4\\page@ce041102bf55ae94bec40f0b294fec9a.webm",
+  "errors": [],
+  "warnings": [
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ],
+  "failedRequests": [
+    "http://127.0.0.1:8464/vendor/models/hose_nozzle.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8464/vendor/models/bucket_soil.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8464/vendor/models/hand_fork.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8464/vendor/models/clubhouse/cap_pro.glb :: net::ERR_ABORTED",
+    "http://127.0.0.1:8464/vendor/models/clubhouse/rangefinder.glb :: net::ERR_ABORTED"
+  ],
+  "probe": {
+    "customerDiagnostics": {
+      "active": 7,
+      "scheduled": 0,
+      "queue": [
+        "customer-8",
+        "customer-9"
+      ],
+      "byState": {
+        "Entering": 1,
+        "Browsing": 1,
+        "Carrying product": 1,
+        "Lounge use": 2,
+        "Waiting for cashier": 1,
+        "Waiting in queue": 1
+      },
+      "byIntent": {
+        "pro-shop-shopper": 3,
+        "browser": 1,
+        "specific-item": 1,
+        "lounge-visitor": 2
+      },
+      "socketClaims": {
+        "exterior-spawn": {},
+        "exterior-arrival": {},
+        "ambient": {
+          "lounge-talk-b": "customer-6",
+          "lounge-chair-a": "customer-7"
+        },
+        "browse": {
+          "browse-hatstand-east-0": "customer-4"
+        },
+        "door-approach": {
+          "door-approach-far-west": "customer-3"
+        },
+        "door-passage": {
+          "main-door": "customer-3"
+        }
+      },
+      "metrics": {
+        "spawned": 7,
+        "completed": 0,
+        "abandoned": 0,
+        "noShows": 0,
+        "recovered": 0,
+        "emergencyRepositions": 0,
+        "maxActiveObserved": 7,
+        "maxQueueObserved": 2
+      },
+      "recentTransitions": [
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Lounge use",
+          "reason": "visual QA cast position"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Waiting in queue",
+          "reason": "QA fixture: accounted shopper at service line"
+        },
+        {
+          "customerId": "customer-9",
+          "at": 600,
+          "from": "Awaiting arrival",
+          "to": "Approaching property",
+          "reason": "arrival released"
+        },
+        {
+          "customerId": "customer-9",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Waiting in queue",
+          "reason": "QA fixture: accounted shopper at service line"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Waiting in queue",
+          "to": "Moving to register",
+          "reason": "reached the head of the service queue"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Moving to register",
+          "to": "Staging products",
+          "reason": "placed products at the register"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-8",
+          "at": 600,
+          "from": "Staging products",
+          "to": "Waiting for cashier",
+          "reason": "physical products staged for the cashier"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Approaching property",
+          "to": "Parking or exterior arrival",
+          "reason": "reached the clubhouse approach"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Parking or exterior arrival",
+          "to": "Walking to entrance",
+          "reason": "continued to the entrance"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-5",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Carrying product",
+          "reason": "reserved real shelf unit customer-unit-4"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-6",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Walking to entrance",
+          "to": "Waiting for door",
+          "reason": "queued at an entrance approach slot"
+        },
+        {
+          "customerId": "customer-3",
+          "at": 600,
+          "from": "Waiting for door",
+          "to": "Entering",
+          "reason": "entrance passage became available"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Browsing",
+          "to": "Inspecting product",
+          "reason": "noticed a product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Inspecting product",
+          "to": "Selecting product",
+          "reason": "finished inspecting the product"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Selecting product",
+          "to": "Choosing activity",
+          "reason": "continued browsing"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Moving to display",
+          "reason": "selected an available display socket"
+        },
+        {
+          "customerId": "customer-4",
+          "at": 600,
+          "from": "Moving to display",
+          "to": "Browsing",
+          "reason": "arrived beside the display"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Lounge use",
+          "to": "Choosing activity",
+          "reason": "finished the lounge activity"
+        },
+        {
+          "customerId": "customer-7",
+          "at": 600,
+          "from": "Choosing activity",
+          "to": "Lounge use",
+          "reason": "chose a clubhouse lounge activity"
+        }
+      ],
+      "actors": [
+        {
+          "id": "customer-3",
+          "name": "Avery Approach",
+          "state": "Entering",
+          "intent": "pro-shop-shopper",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 87,
+          "animation": "Door",
+          "occupancy": null,
+          "position": {
+            "x": -10.228311662762822,
+            "z": 236.18235618601372
+          }
+        },
+        {
+          "id": "customer-4",
+          "name": "Blake Browser",
+          "state": "Browsing",
+          "intent": "browser",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 100,
+          "animation": "Browse",
+          "occupancy": null,
+          "position": {
+            "x": -10.365097940066466,
+            "z": 226.30202747305702
+          }
+        },
+        {
+          "id": "customer-5",
+          "name": "Sasha Shopper",
+          "state": "Carrying product",
+          "intent": "specific-item",
+          "queuePosition": -1,
+          "cart": [
+            {
+              "uid": "customer-unit-4",
+              "skuId": "balls1"
+            }
+          ],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 113,
+          "animation": "Carry",
+          "occupancy": null,
+          "position": {
+            "x": -14.275395999097439,
+            "z": 222.7061410352723
+          }
+        },
+        {
+          "id": "customer-6",
+          "name": "Lee Lounge",
+          "state": "Lounge use",
+          "intent": "lounge-visitor",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 81,
+          "animation": "Talk",
+          "occupancy": "lounge-talk-b",
+          "position": {
+            "x": -4.650000000000002,
+            "z": 224.15
+          }
+        },
+        {
+          "id": "customer-7",
+          "name": "Morgan Member",
+          "state": "Lounge use",
+          "intent": "lounge-visitor",
+          "queuePosition": -1,
+          "cart": [],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 0,
+          "patienceSec": 94,
+          "animation": "Walk",
+          "occupancy": "lounge-chair-a",
+          "position": {
+            "x": -3.5630103225232608,
+            "z": 225.20141320083374
+          }
+        },
+        {
+          "id": "customer-8",
+          "name": "Stan Hux",
+          "state": "Waiting for cashier",
+          "intent": "pro-shop-shopper",
+          "queuePosition": 0,
+          "cart": [
+            {
+              "uid": "customer-unit-1",
+              "skuId": "balls1"
+            }
+          ],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 19.563000000000066,
+          "patienceSec": 107,
+          "animation": "Stage",
+          "occupancy": null,
+          "position": {
+            "x": -6.4,
+            "z": 231.05
+          }
+        },
+        {
+          "id": "customer-9",
+          "name": "Opal Whitaker",
+          "state": "Waiting in queue",
+          "intent": "pro-shop-shopper",
+          "queuePosition": 1,
+          "cart": [
+            {
+              "uid": "customer-unit-2",
+              "skuId": "glove1"
+            },
+            {
+              "uid": "customer-unit-3",
+              "skuId": "balls2"
+            }
+          ],
+          "blockedDuration": 0,
+          "recoveryAttempts": 0,
+          "waitTimeSec": 19.563000000000066,
+          "patienceSec": 32,
+          "animation": "Carry",
+          "occupancy": null,
+          "position": {
+            "x": -7.2,
+            "z": 230.6
+          }
+        }
+      ],
+      "runtimeSeconds": 22.046500000000126,
+      "pool": {
+        "active": 7,
+        "available": 0,
+        "created": 7
+      }
+    },
+    "heldUnits": [
+      {
+        "uid": "customer-unit-1",
+        "skuId": "balls1"
+      },
+      {
+        "uid": "customer-unit-2",
+        "skuId": "glove1"
+      },
+      {
+        "uid": "customer-unit-3",
+        "skuId": "balls2"
+      },
+      {
+        "uid": "customer-unit-4",
+        "skuId": "balls1"
+      }
+    ],
+    "mainDoor": {
+      "open": true,
+      "angle": 1.9199999999999993
+    },
+    "checkoutStage": "scanning",
+    "listenerStats": {
+      "adds": 136,
+      "removes": 34,
+      "active": 102,
+      "byType": {
+        "pointerdown": 5,
+        "keydown": 4,
+        "click": 65,
+        "pointermove": 1,
+        "pointerup": 3,
+        "wheel": 1,
+        "contextmenu": 2,
+        "keyup": 2,
+        "blur": 2,
+        "pointerlockchange": 1,
+        "resize": 1,
+        "input": 1,
+        "change": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "webglcontextcreationerror": 1,
+        "load": 0,
+        "error": 0,
+        "mousemove": 2,
+        "__playwright_global_listeners_check__": 1,
+        "touchstart": 1,
+        "touchend": 1,
+        "touchcancel": 1,
+        "mousedown": 1,
+        "mouseup": 1,
+        "auxclick": 1,
+        "dblclick": 1
+      }
+    },
+    "uiMutations": 4846,
+    "renderer": {
+      "drawCalls": 1,
+      "triangles": 1,
+      "geometries": 1063,
+      "textures": 221
+    }
+  }
+}

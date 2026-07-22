@@ -10,6 +10,7 @@ import { propertyConditionBreakdown } from './propertyCondition.js';
 import { UPGRADES } from './progression.js';
 import { reputationOverall } from './reputation.js';
 import { financialSummary } from './economy.js';
+import { shopPropertyImprovementValue } from './shopProgression.js';
 
 const r2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -83,7 +84,8 @@ export function appraisalBreakdown(state) {
     .reduce((sum, problem) => sum + problem.lossSeverity * 6 * sizeFactor, 0)));
   const upgradeRows = upgradeContributions(state);
   const upgradeValue = upgradeRows.reduce((sum, contribution) => sum + contribution.amount, 0);
-  const rawValue = base.value + conditionAdjustment - unresolvedDamage + upgradeValue;
+  const shopImprovements = shopPropertyImprovementValue(state);
+  const rawValue = base.value + conditionAdjustment - unresolvedDamage + upgradeValue + shopImprovements;
   const value = Math.max(round500(rawValue), round500(base.land * 0.5));
   const acquisitionCost = r2(state.property?.acquisitionCost ?? state.club?.acquisitionCost ?? 0);
   const outstanding = r2(Math.max(0, state.property?.arrears || 0) + Math.max(0, state.property?.loanBalance || 0));
@@ -96,6 +98,7 @@ export function appraisalBreakdown(state) {
     { id: 'business:earnings', label: 'Trailing operating profit', amount: round500(base.earnings), reason: `${monthlyNet >= 0 ? '+' : ''}$${Math.round(monthlyNet).toLocaleString('en-US')} over the last 24 closed days.` },
     { id: 'condition:whole-property', label: 'Whole-property condition', amount: conditionAdjustment, reason: `All thirteen real-state condition categories combine to ${Math.round(propertyCondition.overall)}.` },
     ...upgradeRows,
+    { id: 'shop:fit-out', label: 'Pro-shop fit-out', amount: shopImprovements, reason: 'The installed retail tier adds durable value to the clubhouse.' },
     { id: 'deduction:unresolved-damage', label: 'Unresolved problems', amount: -unresolvedDamage, reason: `${propertyCondition.unresolved.length} condition categories remain below 45.` },
   ];
   const explained = contributions.reduce((sum, contribution) => sum + contribution.amount, 0);
@@ -121,6 +124,7 @@ export function appraisalBreakdown(state) {
     acquisitionCost,
     restorationInvestment: restorationInvestment(state),
     upgradeValue,
+    shopImprovements,
     unresolvedDamage,
     outstanding,
     grossSaleValue: value,

@@ -1,0 +1,55 @@
+async (page) => {
+  const base = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  const out = process.env.QA_OUTPUT_DIR || 'qa/steam-release-polish/baseline/menu';
+  const findings = [];
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(base);
+  await page.waitForFunction(() => document.readyState === 'complete');
+  await page.screenshot({ path: `${out}/01-main-menu.png` });
+  const menu = await page.evaluate(() => ({
+    title: document.querySelector('.menu-screen h1')?.textContent?.trim() || '',
+    tagline: document.querySelector('.tagline')?.textContent?.trim() || '',
+    footnote: document.querySelector('.footnote')?.textContent?.trim() || '',
+    buttons: [...document.querySelectorAll('.menu-buttons button')].map((button) => ({
+      text: button.textContent.trim(),
+      disabled: button.disabled,
+    })),
+  }));
+  if (/working build|placeholder art/i.test(menu.footnote)) {
+    findings.push({ severity: 'Blocker', issue: 'The public main menu explicitly calls the game a working build with placeholder art.' });
+  }
+
+  await page.getByText('New Empire — Relaxed', { exact: true }).click();
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: `${out}/02-new-game-route.png` });
+  const newGame = await page.evaluate(() => ({
+    screen: window.__fw?.screen || null,
+    menuVisible: (() => {
+      const node = document.querySelector('.menu-screen');
+      return !!node && getComputedStyle(node).display !== 'none';
+    })(),
+    visibleHeading: [...document.querySelectorAll('h1,h2,h3')]
+      .find((node) => getComputedStyle(node).display !== 'none')?.textContent?.trim() || null,
+  }));
+  if (newGame.screen !== 'market' || newGame.menuVisible) {
+    findings.push({
+      severity: 'Low',
+      issue: 'New-game market did not own a distinct screen state or left the menu visible underneath.',
+    });
+  }
+
+  await page.getByText('Close', { exact: true }).click();
+  await page.waitForFunction(() => window.__fw?.screen === 'menu');
+  await page.screenshot({ path: `${out}/03-market-close-returns-menu.png` });
+  const returned = await page.evaluate(() => ({
+    screen: window.__fw?.screen || null,
+    menuVisible: getComputedStyle(document.querySelector('.menu-screen')).display !== 'none',
+    marketOpen: !!document.querySelector('.modal-backdrop'),
+  }));
+  if (returned.screen !== 'menu' || !returned.menuVisible || returned.marketOpen) {
+    findings.push({ severity: 'High', issue: 'Closing the first property market did not restore the menu cleanly.' });
+  }
+
+  return { menu, newGame, returned, findings };
+}

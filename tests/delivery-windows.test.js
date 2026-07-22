@@ -1,5 +1,5 @@
-// Orders ship with a real delivery window — a two-hour span on the arrival
-// day — and the truck lands at a specific minute inside it. Statuses progress
+// Orders ship with a deterministic, pace-sized delivery window and the truck
+// lands at its promised minute. Statuses progress
 // (received → processing → out for delivery → arriving), notifications fire
 // exactly once, and the parked-property reconcile still force-delivers.
 
@@ -15,11 +15,12 @@ function orderUp(state) {
   return state.shop.orders[state.shop.orders.length - 1];
 }
 
-test('a placed order carries a two-hour window on its arrival day', () => {
+test('a placed order carries a useful window around its promised arrival', () => {
   const state = newGame('relaxed', 7);
   const o = orderUp(state);
   assert.ok(o.window, 'window exists');
-  assert.equal(o.window.close - o.window.open, 120, 'two hours wide');
+  assert.ok(o.window.close - o.window.open >= 30, 'wide enough to be an honest window');
+  assert.ok(o.window.close - o.window.open <= 90, 'not so wide that it is useless');
   const day = Math.floor(o.window.open / 1440);
   assert.equal(day, o.arrivesDay, 'window sits on the arrival day');
   assert.ok(o.deliveryMin >= o.window.open && o.deliveryMin < o.window.close, 'truck minute inside the window');
@@ -41,24 +42,28 @@ test('the truck lands at its minute — not before, exactly once', () => {
   assert.ok(!again.some((e) => e.kind === 'arrived'), 'no double arrival');
 });
 
-test('morning and one-hour heads-up fire exactly once, statuses progress', () => {
+test('dispatch, morning, and arriving-soon updates fire exactly once as statuses progress', () => {
   const state = newGame('relaxed', 7);
   const o = orderUp(state);
+  const dispatched = o.timing.dispatchMin;
+  const e1 = tickDeliveries(state, dispatched);
+  assert.ok(e1.some((e) => e.kind === 'dispatched' && e.order.id === o.id), 'dispatch update');
+  assert.ok(!tickDeliveries(state, dispatched + 10).some((e) => e.kind === 'dispatched'), 'dispatch fires once');
   const morning = o.arrivesDay * 1440 + 6 * 60 + 5;
-  const e1 = tickDeliveries(state, morning);
-  assert.ok(e1.some((e) => e.kind === 'morning' && e.order.id === o.id), 'morning heads-up');
+  const morningEvents = tickDeliveries(state, morning);
+  assert.ok(morningEvents.some((e) => e.kind === 'morning' && e.order.id === o.id), 'morning heads-up');
   assert.ok(!tickDeliveries(state, morning + 10).some((e) => e.kind === 'morning'), 'morning fires once');
-  const soonAt = o.window.open - 45;
-  const e2 = tickDeliveries(state, soonAt);
-  assert.ok(e2.some((e) => e.kind === 'soon' && e.order.id === o.id), 'one-hour warning');
+  const soonAt = o.deliveryMin - 45;
+  const soonEvents = tickDeliveries(state, soonAt);
+  assert.ok(soonEvents.some((e) => e.kind === 'soon' && e.order.id === o.id), 'one-hour warning');
   assert.ok(['out', 'arriving'].includes(o.status), 'truck is out');
 
-  // "Arriving soon" now means SOON — the last half hour — not "somewhere in the next two hours".
-  // The window opens at 8 and the van lands at 8:37; the old rule flipped the order to "Arriving
-  // now" at 8:00 and then left it saying that for thirty-seven minutes, which is a status telling
-  // you to go and stand at a pad where nothing is happening.
-  tickDeliveries(state, o.window.open + 1);
-  assert.equal(o.status, 'out', 'inside the window but half an hour out: still on the van');
+  // "Arriving soon" still means the final half hour, not the whole estimate.
+  tickDeliveries(state, o.deliveryMin - 40);
+  assert.equal(o.status, 'out', 'forty minutes out: still on the van');
+  const finalApproach = tickDeliveries(state, o.deliveryMin - 25);
+  assert.ok(!finalApproach.some((e) => e.kind === 'soon'), 'one-hour warning does not repeat');
+  assert.equal(o.status, 'arriving', 'inside half an hour: arriving soon');
   tickDeliveries(state, o.deliveryMin - 10);
   assert.equal(o.status, 'arriving', 'ten minutes out: now it is arriving');
   tickDeliveries(state, o.deliveryMin + 1);

@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { shopCondition } from '../src/sim/shop.js';
 import {
-  REVIEW_FACTORS, readFactors, reviewFor, postReview, reviewSummary, explainVisitors,
+  REVIEW_FACTORS, readFactors, reviewFor, reviewForCompletedRound, postReview, reviewSummary, explainVisitors,
 } from '../src/sim/reviews.js';
 
 const visit = (over = {}) => ({ waitedSec: 0, queueLen: 0, bought: true, foundWhatTheyWanted: true, played: true, ...over });
@@ -149,4 +149,42 @@ test('analytics says WHY the visitors moved, not just that they did', () => {
 
   const flat = explainVisitors(st, { today: 30, yesterday: 30, rainedToday: false });
   assert.ok(flat.length > 0, 'a steady day still gets a sentence');
+});
+
+test('completed-round reviews only cite conditions that party actually experienced', () => {
+  const state = newGame('relaxed', 8801);
+  const round = {
+    id: 'round-truth', golferId: 8, golferName: 'Truth Tester', score: 44, par: 36,
+    durationMinutes: 155, waitingMinutes: 0, conditionRating: 82,
+    practiceKind: 'putting', cartRequested: true, transport: 'walk',
+    cartCondition: null, cartUnavailable: true, marshalVisits: 0,
+    checkInMinutes: 2, startDelayMinutes: 1,
+    greenQuality: 91, bunkerQuality: 76, roughDifficulty: 25,
+    designRating: 86, sceneryRating: 84, valueRating: 80, serviceRating: 88,
+  };
+  const review = reviewForCompletedRound(state, round, 4);
+  const ids = new Set(review.factors.map((factor) => factor.id));
+  assert.ok(ids.has('roundCartAvailability'));
+  assert.ok(!ids.has('roundCart'), 'an unavailable cart cannot also receive a condition score');
+  assert.ok(!ids.has('roundWait'), 'zero waiting produces no wait opinion');
+  for (const id of ['roundGreens', 'roundBunkers', 'roundRough', 'roundDesign', 'roundScenery', 'roundValue', 'roundService']) {
+    assert.ok(ids.has(id), `${id} is based on supplied round evidence`);
+  }
+  assert.ok(review.cited.every((factor) => ids.has(factor.id)));
+});
+
+test('poor real pace and turf cannot produce praise for either factor', () => {
+  const state = newGame('relaxed', 8802);
+  const round = {
+    id: 'round-poor', golferId: 9, golferName: 'Delayed Player', score: 55, par: 36,
+    durationMinutes: 240, waitingMinutes: 32, conditionRating: 28,
+    cartRequested: false, transport: 'walk', marshalVisits: 0,
+    checkInMinutes: 11, startDelayMinutes: 24,
+    greenQuality: 22, bunkerQuality: 30, roughDifficulty: 94,
+    designRating: 45, sceneryRating: 38, valueRating: 26, serviceRating: 30,
+  };
+  for (let seed = 0; seed < 30; seed++) {
+    const review = reviewForCompletedRound(state, round, seed);
+    assert.ok(!/smooth|on time|moved along|fair for the day|cared for/i.test(review.text), review.text);
+  }
 });

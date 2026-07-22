@@ -11,7 +11,7 @@
 // migration of saves that predate this schema.
 
 import { SHOP_CATALOG, skuById, LEAD_DAYS } from '../data/shopItems.js';
-import { planShipment } from '../data/boxes.js';
+import { SHIPMENT_PACKAGING_SCHEMA_VERSION, planShipment } from '../data/boxes.js';
 import { SUPPLIERS, supplierFor, shipFee } from '../data/suppliers.js';
 import { calendarOf } from './time.js';
 import { addExpense, unbill } from './economy.js';
@@ -450,6 +450,8 @@ export function adoptExternalInventory(state, {
   skuId,
   quantity,
   stage,
+  orderId = null,
+  lineId = null,
   note = 'External inventory intake',
 } = {}) {
   const lifecycle = ensureInventoryLifecycle(state);
@@ -457,7 +459,7 @@ export function adoptExternalInventory(state, {
     return { ok: false, reason: 'Invalid external inventory intake.' };
   }
   const lot = makeLot(lifecycle, {
-    source: 'external', skuId, quantity, stage,
+    source: 'external', skuId, quantity, stage, orderId, lineId,
     createdMin: nowOf(state), note,
   });
   lifecycleEvent(state, 'external-inventory-intake', {
@@ -733,6 +735,7 @@ function buildOrderDraft(state, supplier, inputs, id) {
     deliveryMin,
     window: { open, close },
     manifest: {
+      packagingSchemaVersion: SHIPMENT_PACKAGING_SCHEMA_VERSION,
       supplierId: supplier.id,
       supplier: supplier.name,
       boxes,
@@ -1153,7 +1156,25 @@ export function receiveBoxInventory(state, orderId, boxId, entries) {
 
 export function openBoxInventory(state, box) {
   ensureInventoryLifecycle(state);
-  if (!box || !Array.isArray(box.contents)) return { ok: false, reason: 'Box contents are unavailable.' };
+  if (!box) return { ok: false, reason: 'Box contents are unavailable.' };
+  if (!Array.isArray(box.contents)) {
+    const quantity = Math.max(0, Math.floor(Number(box.qty) || 0));
+    const adopted = quantity > 0 ? adoptExternalInventory(state, {
+      skuId: box.skuId,
+      quantity,
+      stage: INVENTORY_STAGE.DELIVERED_UNOPENED,
+      orderId: box.orderId,
+      note: `Migrated legacy shipping box ${box.id}`,
+    }) : { ok: true, allocations: [] };
+    if (!adopted.ok) return adopted;
+    box.contents = adopted.allocations.map((allocation) => ({
+      lineId: null,
+      lotId: allocation.lotId,
+      skuId: box.skuId,
+      quantity: allocation.quantity,
+      remainingQuantity: allocation.quantity,
+    }));
+  }
   if (box.inventoryOpened) return { ok: false, reason: 'Box inventory is already open.', done: true };
   const allocations = box.contents
     .filter((content) => (content.remainingQuantity || 0) > 0)

@@ -1,0 +1,29 @@
+{
+ "id": "pf_divot_slim",
+ "kind": "products",
+ "category": "divot_tools",
+ "dims_m": [
+  0.019,
+  0.0798,
+  0.0048
+ ],
+ "min_z": 0.0004,
+ "tris": 568,
+ "textures": [
+  "NRM_crinkle_0.12_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSSatinAlb:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_divot_slim.glb",
+ "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_slim.blend",
+ "name": "Slim Tour Divot Tool",
+ "variant": "steel",
+ "price": 13.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

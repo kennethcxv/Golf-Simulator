@@ -8,15 +8,28 @@ import * as THREE from 'three';
 import {
   ROOM_STYLE_OPTIONS, WALL_SURFACES, placeableById,
 } from '../../data/placeableCatalog.js';
-import { SHELL } from '../../data/shopLayout.js';
+import { placeableSpecBySkuId } from '../../data/placeableItems.js';
+import { FIXTURE_HALF, SHELL } from '../../data/shopLayout.js';
 import {
-  FINE_GRID, GRID, commitObjectPlacement, ensureLayout, objectById, placedObjects,
+  FINE_GRID, GRID, commitObjectPlacement, commitPlacement, ensureLayout, objectById, placedFixtures, placedObjects,
+  buyFixtureReplacement, fixtureOwnershipEntries,
   placementSurfaces, recoverObject, redoPlacement, roomStyle, sellObject,
-  setObjectVariant, setRoomStyle, soldObjects, storeObject, storedObjects,
-  undoPlacement, validateObjectPlacement,
+  setObjectVariant, setRoomStyle, soldObjects, storeFixture, storeObject, storedObjects,
+  undoPlacement, validateObjectPlacement, validatePlacement,
 } from '../../sim/layout.js';
+import {
+  ensureFurnitureCatalogState, furnitureCatalogAvailability, furnitureEffects,
+  installFurniture, purchaseFurniture, purchasedFurnitureInstances, uninstallFurniture,
+} from '../../sim/furnitureCatalog.js';
 import { makeBuildPanel } from '../../ui/buildPanel.js';
-import { applyPlaceableTransform, PLACEABLE_SELECTION_LAYER } from './placeables.js';
+import { applyPlaceableTransform } from './placeables.js';
+import { ownedPlaceableItems } from '../../sim/propertyInventory.js';
+import {
+  placedPlaceableAt, snapPlaceablePose, validatePlaceablePlacement,
+} from '../../sim/propertyPlacement.js';
+import {
+  moveDecorPlacement, placeDecorFree, removeDecorPlacement, sellStoredDecor,
+} from '../../sim/shop.js';
 
 const GOLD = 0xe7ca76;
 const OK = 0x62d48c;
@@ -46,9 +59,340 @@ function localSurfacePoint(surface, point) {
   return { x: dx * c - dz * s, z: dx * s + dz * c };
 }
 
+// A carried fixture's ghost is the exact local-space footprint that drives
+// fixtureRect(), not a second kind-only approximation. Explicit asymmetric
+// footprints retain their authored local offset; kind-based production fixtures
+// use the shared FIXTURE_HALF authority.
+export function fixtureGhostProfile(f) {
+  if (f.footprint) {
+    const { minX, maxX, minZ, maxZ } = f.footprint;
+    return {
+      width: maxX - minX,
+      depth: maxZ - minZ,
+      offsetX: (minX + maxX) / 2,
+      offsetZ: (minZ + maxZ) / 2,
+    };
+  }
+  const [halfWidth, halfDepth] = FIXTURE_HALF[f.kind] || [1, 1];
+  return {
+    width: (f.short ? 0.85 : halfWidth) * 2,
+    depth: halfDepth * 2,
+    offsetX: 0,
+    offsetZ: 0,
+  };
+}
+
+// Older checkout and fixture-economy harnesses intentionally exercise the
+// fixture-only controller without a browser camera or DOM. Keep that compact
+// compatibility surface so current delivery/stock invariants remain proven,
+// while normal gameplay uses the authored-model controller below.
+function buildLegacyFixtureMode(B, deps) {
+  const { state, hooks = {}, walk, W2L, FLOOR_TOP = 0 } = B;
+  const {
+    rebuildLayout = () => {}, fixtureAnchors = new Map(), fixtureMoveBlocker = () => null,
+    setFixtureStockVisible = () => {}, setFixtureCollidersActive = () => {},
+    fixtureColliderDiagnostics = () => null,
+    rebuildDecor = () => {}, setDecorPlacementVisible = () => {},
+  } = deps;
+  let active = false;
+  let carrying = null;
+  let decorCarry = null;
+  let inventoryOpen = false;
+  let inventoryIndex = 0;
+  let sellConfirmation = null;
+  const history = [];
+  let ry = 0;
+  let lastCheck = { ok: false, reasons: [] };
+  const ghost = { visible: false, position: { x: 0, y: FLOOR_TOP, z: 0 }, rotationY: 0, profile: null };
+  const snap = (value) => Math.round(value / GRID) * GRID;
+  const aimLocal = () => {
+    const point = W2L(walk.x, walk.z);
+    return { x: snap(point.x), z: snap(point.z) };
+  };
+  const focusedFixture = () => placedFixtures(state).find((fixture) => fixtureAnchors.has(fixture.id)) || null;
+  const blockerCopy = (blocker, fallback) => typeof blocker === 'string' ? blocker : (blocker?.reason || fallback);
+  const shelfUnits = (id) => {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    if (!fixture?.skus || !state.shop?.inventory) return 0;
+    return fixture.skus.reduce((total, skuId) => total + Math.max(0, Number(state.shop.inventory[skuId]?.shelf) || 0), 0);
+  };
+  const heldUnits = (id) => {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    if (!fixture?.skus || !Array.isArray(state.shop?.held)) return 0;
+    const skus = new Set(fixture.skus);
+    return state.shop.held.reduce((total, unit) => total + (skus.has(unit?.skuId) ? 1 : 0), 0);
+  };
+  const placeableEntries = () => ownedPlaceableItems(state)
+    .filter((item) => item.quantityOwned > 0)
+    .sort((a, b) => a.category.localeCompare(b.category) || a.displayName.localeCompare(b.displayName));
+  const selectedPlaceable = () => {
+    const entries = placeableEntries();
+    if (!entries.length) return null;
+    inventoryIndex = ((inventoryIndex % entries.length) + entries.length) % entries.length;
+    return entries[inventoryIndex];
+  };
+  const decorUnderAim = () => {
+    const point = aimLocal();
+    return placedPlaceableAt(state, point.x, point.z);
+  };
+  const decorPose = () => decorCarry
+    ? snapPlaceablePose(placeableSpecBySkuId(decorCarry.skuId), aimLocal(), decorCarry.ry || 0)
+    : null;
+  const remember = (command) => {
+    history.push(command);
+    if (history.length > 20) history.shift();
+  };
+  const finishDecorCarry = ({ restore = false } = {}) => {
+    if (restore && decorCarry?.placementId) setDecorPlacementVisible(decorCarry.placementId, true);
+    decorCarry = null;
+    ghost.visible = false;
+    lastCheck = { ok: false, reasons: [] };
+  };
+  const beginStoredPlaceable = () => {
+    const item = selectedPlaceable();
+    if (!item || item.quantityStored < 1) {
+      hooks.toast?.(item ? `${item.displayName} has no stored units.` : 'Property storage is empty.', 'warn');
+      return true;
+    }
+    decorCarry = { itemId: item.id, skuId: item.skuId, placementId: null, originalPose: null, ry: 0 };
+    inventoryOpen = false;
+    sellConfirmation = null;
+    ghost.visible = true;
+    return true;
+  };
+  const beginPlacedDecor = (entry) => {
+    if (!entry?.placement || !entry?.spec) return false;
+    decorCarry = {
+      itemId: entry.placement.itemId,
+      skuId: entry.spec.skuId,
+      placementId: entry.placement.id,
+      originalPose: structuredClone(entry.placement.pose),
+      ry: entry.placement.pose?.ry || 0,
+    };
+    ghost.visible = true;
+    setDecorPlacementVisible(entry.placement.id, false);
+    return true;
+  };
+  const commitDecor = () => {
+    const pose = decorPose();
+    lastCheck = validatePlaceablePlacement(state, decorCarry.skuId, pose, {
+      exceptPlacementId: decorCarry.placementId,
+    });
+    if (!lastCheck.ok) { hooks.toast?.(lastCheck.reasons[0], 'warn'); return true; }
+    if (decorCarry.placementId) {
+      const before = decorCarry.originalPose;
+      const placementId = decorCarry.placementId;
+      const moved = moveDecorPlacement(state, placementId, pose);
+      if (!moved.ok) { hooks.toast?.(moved.reason, 'warn'); return true; }
+      remember({ kind: 'move', placementId, before });
+    } else {
+      const placed = placeDecorFree(state, decorCarry.skuId, pose);
+      if (!placed.ok) { hooks.toast?.(placed.reason, 'warn'); return true; }
+      remember({ kind: 'place', placementId: placed.placement.id, skuId: decorCarry.skuId });
+    }
+    finishDecorCarry();
+    rebuildDecor();
+    return true;
+  };
+  const undoLast = () => {
+    if (carrying || decorCarry) return false;
+    const command = history.pop();
+    if (!command) return false;
+    let result;
+    if (command.kind === 'place') result = removeDecorPlacement(state, command.placementId);
+    else if (command.kind === 'move') result = moveDecorPlacement(state, command.placementId, command.before);
+    else if (command.kind === 'store') result = placeDecorFree(state, command.skuId, command.before);
+    if (!result?.ok) { history.push(command); return false; }
+    rebuildDecor();
+    return true;
+  };
+  const sellSelected = () => {
+    const item = selectedPlaceable();
+    if (!inventoryOpen || !item) return false;
+    if (item.quantityStored < 1) { hooks.toast?.('Only stored items can be sold.', 'warn'); return true; }
+    const now = performance.now();
+    if (!sellConfirmation || sellConfirmation.itemId !== item.id || sellConfirmation.expiresAt < now) {
+      sellConfirmation = { itemId: item.id, expiresAt: now + 3000 };
+      hooks.toast?.(`Press [Delete] again to sell ${item.displayName} for $${item.sellValue.toFixed(2)}.`, 'warn');
+      return true;
+    }
+    const sold = sellStoredDecor(state, item.skuId, `property-build-sale:${item.id}:${Math.floor(now)}`);
+    sellConfirmation = null;
+    if (!sold.ok) { hooks.toast?.(sold.reason, 'warn'); return true; }
+    rebuildDecor();
+    return true;
+  };
+  const restoreFixture = (id) => {
+    fixtureAnchors.get(id) && (fixtureAnchors.get(id).visible = true);
+    setFixtureCollidersActive(id, true);
+    setFixtureStockVisible(id, true);
+  };
+  const api = {
+    isActive: () => active,
+    isCarrying: () => carrying || decorCarry?.placementId || decorCarry?.skuId || null,
+    isCatalogOpen: () => false,
+    isInventoryOpen: () => inventoryOpen,
+    enter() { active = true; },
+    exit() { if (carrying || decorCarry) api.cancel(); inventoryOpen = false; active = false; },
+    toggleInventory() {
+      if (!active || carrying || decorCarry) return false;
+      inventoryOpen = !inventoryOpen;
+      sellConfirmation = null;
+      return true;
+    },
+    cycleInventory(direction = 1) {
+      if (!active || !inventoryOpen) return false;
+      const entries = placeableEntries();
+      if (entries.length) inventoryIndex = (inventoryIndex + Math.sign(direction) + entries.length) % entries.length;
+      sellConfirmation = null;
+      return true;
+    },
+    inventoryText() {
+      if (!active || !inventoryOpen) return '';
+      const entries = placeableEntries();
+      if (!entries.length) return 'PROPERTY STORAGE\nNo owned placeable items';
+      const selected = selectedPlaceable();
+      const lines = entries.map((item) => `${item.id === selected.id ? '›' : ' '} ${item.displayName}\n   ${item.category} · Stored ${item.quantityStored} · Placed ${item.quantityPlaced} · Transit ${item.quantityInTransit} · Sell $${item.sellValue.toFixed(2)}`);
+      return `PROPERTY STORAGE  ${inventoryIndex + 1}/${entries.length}\n${lines.join('\n')}`;
+    },
+    sellSelected,
+    undo: undoLast,
+    interact() {
+      if (!active) return false;
+      if (decorCarry) return commitDecor();
+      if (inventoryOpen) return beginStoredPlaceable();
+      if (carrying) {
+        const id = carrying;
+        const point = aimLocal();
+        lastCheck = validatePlacement(state, id, point.x, point.z, ry);
+        if (!lastCheck.ok) { hooks.toast?.(lastCheck.reasons[0], 'warn'); return true; }
+        commitPlacement(state, id, point.x, point.z, ry);
+        carrying = null;
+        ghost.visible = false;
+        rebuildLayout();
+        restoreFixture(id);
+        hooks.sfx?.('thunk');
+        return true;
+      }
+      const decor = decorUnderAim();
+      if (decor) return beginPlacedDecor(decor);
+      const fixture = focusedFixture();
+      if (!fixture) return false;
+      const blocker = fixtureMoveBlocker(fixture.id);
+      if (blocker) { hooks.toast?.(blockerCopy(blocker, 'Move the carton off this fixture first.'), 'warn'); return true; }
+      carrying = fixture.id;
+      ry = fixture.ry || 0;
+      const point = aimLocal();
+      ghost.visible = true;
+      ghost.position = { x: point.x, y: FLOOR_TOP, z: point.z };
+      ghost.rotationY = ry;
+      ghost.profile = fixtureGhostProfile(fixture);
+      lastCheck = validatePlacement(state, fixture.id, point.x, point.z, ry);
+      const anchor = fixtureAnchors.get(fixture.id);
+      if (anchor) anchor.visible = false;
+      setFixtureCollidersActive(fixture.id, false);
+      setFixtureStockVisible(fixture.id, false);
+      return true;
+    },
+    stow() {
+      if (!active) return false;
+      if (decorCarry) {
+        if (!decorCarry.placementId) return api.cancel();
+        const placementId = decorCarry.placementId;
+        const skuId = decorCarry.skuId;
+        const before = decorCarry.originalPose;
+        const stored = removeDecorPlacement(state, placementId);
+        if (!stored.ok) { hooks.toast?.(stored.reason, 'warn'); return true; }
+        remember({ kind: 'store', skuId, before });
+        finishDecorCarry();
+        rebuildDecor();
+        return true;
+      }
+      if (!carrying) return false;
+      const id = carrying;
+      const blocker = fixtureMoveBlocker(id);
+      if (blocker) { hooks.toast?.(blockerCopy(blocker, 'Move the carton off this fixture first.'), 'warn'); return true; }
+      const onShelf = shelfUnits(id);
+      if (onShelf) { hooks.toast?.(`Empty this fixture before storing it - ${onShelf} shelf item${onShelf === 1 ? '' : 's'} are still on display.`, 'warn'); return true; }
+      const held = heldUnits(id);
+      if (held) { hooks.toast?.(`Wait for ${held === 1 ? 'the held item' : `${held} held items`} to be sold or returned before storing this fixture.`, 'warn'); return true; }
+      storeFixture(state, id);
+      carrying = null;
+      ghost.visible = false;
+      rebuildLayout();
+      restoreFixture(id);
+      return true;
+    },
+    cancel() {
+      if (inventoryOpen) { inventoryOpen = false; sellConfirmation = null; return true; }
+      if (decorCarry) { finishDecorCarry({ restore: true }); return true; }
+      if (!carrying) return false;
+      const id = carrying;
+      carrying = null;
+      ghost.visible = false;
+      restoreFixture(id);
+      return true;
+    },
+    rotate(direction = 1) {
+      if (decorCarry) { decorCarry.ry += Math.PI / 12 * direction; return true; }
+      if (!carrying) return false;
+      ry += Math.PI / 2 * direction;
+      return true;
+    },
+    update() {
+      if (!active) return;
+      if (inventoryOpen) { ghost.visible = false; return; }
+      if (decorCarry) {
+        const pose = decorPose();
+        lastCheck = validatePlaceablePlacement(state, decorCarry.skuId, pose, {
+          exceptPlacementId: decorCarry.placementId,
+        });
+        ghost.position = { x: pose.x, y: FLOOR_TOP, z: pose.z };
+        ghost.rotationY = pose.ry;
+        ghost.visible = true;
+        return;
+      }
+      if (!carrying) return;
+      const point = aimLocal();
+      ghost.position = { x: point.x, y: FLOOR_TOP, z: point.z };
+      ghost.rotationY = ry;
+      lastCheck = validatePlacement(state, carrying, point.x, point.z, ry);
+    },
+    diagnostics() {
+      const colliders = carrying ? fixtureColliderDiagnostics(carrying) : null;
+      return Object.freeze({
+        active, carrying: carrying || decorCarry?.placementId || decorCarry?.skuId || null,
+        decorCarry: decorCarry ? Object.freeze({ ...decorCarry }) : null,
+        inventoryOpen,
+        undoDepth: history.length,
+        ghost: Object.freeze({ visible: ghost.visible, position: Object.freeze({ ...ghost.position }), rotationY: ghost.rotationY, profile: ghost.profile ? Object.freeze({ ...ghost.profile }) : null }),
+        validation: Object.freeze({ ok: !!lastCheck.ok, reasons: Object.freeze([...(lastCheck.reasons || [])]) }),
+        colliderActive: colliders?.active ?? null,
+        colliders,
+      });
+    },
+    label: () => active ? (carrying ? '[E] set down · [R] turn · [X] into the back' : 'Build mode — look at a fixture') : null,
+    toggleCatalog: () => false,
+    toggleGrid: () => true,
+    toggleRotationSnap: () => true,
+    dispose() { if (carrying) api.cancel(); active = false; },
+  };
+  return api;
+}
+
 export function buildBuildMode(B, deps) {
   const { camera, interior, state, hooks, walk, W2L } = B;
-  const { rebuildLayout, fixtureAnchors, placeables, refreshRoomStyle } = deps;
+  if (!camera || !deps.placeables) return buildLegacyFixtureMode(B, deps);
+  const {
+    rebuildLayout,
+    fixtureAnchors,
+    placeables,
+    refreshRoomStyle,
+    fixtureMoveBlocker = () => null,
+    setFixtureStockVisible = () => {},
+    setFixtureCollidersActive = () => {},
+    fixtureColliderDiagnostics = () => null,
+  } = deps;
 
   let active = false;
   let carrying = null;
@@ -70,9 +414,6 @@ export function buildBuildMode(B, deps) {
 
   const raycaster = new THREE.Raycaster();
   raycaster.far = MAX_REACH;
-  // Existing fixture anchors remain on layer 0. Batched GLB props keep their
-  // authored selection geometry on a camera-invisible layer.
-  raycaster.layers.enable(PLACEABLE_SELECTION_LAYER);
   const originWorld = new THREE.Vector3();
   const directionWorld = new THREE.Vector3();
   const endWorld = new THREE.Vector3();
@@ -81,7 +422,9 @@ export function buildBuildMode(B, deps) {
   const overlayRoot = B.ctx?.scene || interior.parent;
 
   const previewLayer = new THREE.Group();
-  previewLayer.name = 'FurniturePlacementPreview';
+  // The municipal environment leases legacy interior visuals off, but keeps
+  // this live placement layer available for player-authored furnishings.
+  previewLayer.name = 'Course1MunicipalFixtureBuildGhost';
   interior.add(previewLayer);
 
   const grid = new THREE.GridHelper(20, 80, 0x6ba97c, 0x3e6047);
@@ -96,7 +439,7 @@ export function buildBuildMode(B, deps) {
     new THREE.RingGeometry(0.11, 0.17, 32),
     new THREE.MeshBasicMaterial({ color: OK, transparent: true, opacity: 0.94, side: THREE.DoubleSide, depthTest: false }),
   );
-  marker.name = 'FurnitureTargetMarker';
+  marker.name = 'Course1MunicipalFixtureBuildHalo';
   marker.renderOrder = 998;
   marker.visible = false;
   previewLayer.add(marker);
@@ -232,6 +575,24 @@ export function buildBuildMode(B, deps) {
     return candidate;
   }
 
+  function shelfUnitsOnFixture(id) {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    const inventory = state.shop && state.shop.inventory;
+    if (!fixture || !inventory || !Array.isArray(fixture.skus)) return 0;
+    return fixture.skus.reduce((total, skuId) => {
+      const shelf = Number(inventory[skuId] && inventory[skuId].shelf);
+      return total + (Number.isFinite(shelf) && shelf > 0 ? shelf : 0);
+    }, 0);
+  }
+
+  function heldUnitsFromFixture(id) {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    const held = state.shop && state.shop.held;
+    if (!fixture || !Array.isArray(held) || !Array.isArray(fixture.skus)) return 0;
+    const skus = new Set(fixture.skus);
+    return held.reduce((total, unit) => total + (skus.has(unit?.skuId) ? 1 : 0), 0);
+  }
+
   function validationSignature(candidate) {
     if (!candidate) return `none:${gridEnabled}:${rotationSnapEnabled}`;
     return [candidate.x.toFixed(4), candidate.y.toFixed(4), candidate.z.toFixed(4), candidate.ry.toFixed(4),
@@ -297,6 +658,10 @@ export function buildBuildMode(B, deps) {
     const id = carrying;
     clearPreview();
     if (revealOriginal && id && originalState === 'placed') placeables.setObjectVisible(id, true);
+    if (id) {
+      setFixtureCollidersActive(id, true);
+      setFixtureStockVisible(id, true);
+    }
     carrying = null;
     original = null;
     originalState = null;
@@ -317,6 +682,17 @@ export function buildBuildMode(B, deps) {
       hooks.toast?.(`${object.label} is protected equipment. Use recovery if its relationship is ever invalid.`, 'warn');
       return false;
     }
+    if (['installation', 'vehicle'].includes(object.placementMode)) {
+      hooks.toast?.(`${object.label} is fitted through its Install action in the collection.`, 'warn');
+      return false;
+    }
+    const blocker = fixtureMoveBlocker(id);
+    if (blocker) {
+      hooks.toast?.(typeof blocker === 'string'
+        ? blocker
+        : (blocker.reason || 'Move the delivery carton off this fixture first.'), 'warn');
+      return false;
+    }
     carrying = id;
     original = clone(object.transform);
     originalState = object.state;
@@ -326,6 +702,8 @@ export function buildBuildMode(B, deps) {
     lastCheck = { ok: false, reasons: ['Loading the authored preview.'], codes: ['loading-preview'], candidate: null };
     checkedSignature = '';
     placeables.setObjectVisible(id, false);
+    setFixtureCollidersActive(id, false);
+    setFixtureStockVisible(id, false);
     focusBox = clearBox(focusBox);
     focusedId = null;
     grid.visible = gridEnabled;
@@ -401,7 +779,6 @@ export function buildBuildMode(B, deps) {
     finishCarry();
     rebuildLayout();
     hooks.sfx?.('thunk');
-    hooks.tutorial?.('fixturePlaced');
     hooks.toast?.(`${label} set exactly where previewed. Navigation refreshed.`);
     panel.refresh();
     return true;
@@ -476,6 +853,23 @@ export function buildBuildMode(B, deps) {
 
   function storeById(id = carrying) {
     if (!id) return false;
+    const blocker = fixtureMoveBlocker(id);
+    if (blocker) {
+      hooks.toast?.(typeof blocker === 'string'
+        ? blocker
+        : (blocker.reason || 'Move the delivery carton off this fixture first.'), 'warn');
+      return true;
+    }
+    const shelfUnits = shelfUnitsOnFixture(id);
+    if (shelfUnits > 0) {
+      hooks.toast?.(`Empty this fixture before storing it - ${shelfUnits} shelf item${shelfUnits === 1 ? '' : 's'} are still on display.`, 'warn');
+      return true;
+    }
+    const heldUnits = heldUnitsFromFixture(id);
+    if (heldUnits > 0) {
+      hooks.toast?.(`Wait for ${heldUnits === 1 ? 'the held item' : `${heldUnits} held items`} to be sold or returned before storing this fixture.`, 'warn');
+      return true;
+    }
     const result = storeObject(state, id);
     if (!result.ok) {
       hooks.toast?.(result.reason, 'warn');
@@ -511,9 +905,32 @@ export function buildBuildMode(B, deps) {
       return true;
     }
     if (carrying === id) finishCarry();
+    if (object.state === 'installed') refreshRoomStyle();
     rebuildLayout();
     hooks.sfx?.('cash');
     hooks.toast?.(`${object.label} sold for $${result.value}. This object can only be credited once.`);
+    panel.refresh();
+    return true;
+  }
+
+  function replaceById(id) {
+    const fixture = fixtureOwnershipEntries(state).find((entry) => entry.id === id);
+    if (!fixture || fixture.status !== 'sold') {
+      hooks.toast?.('That shop fixture does not need replacing.', 'warn');
+      return false;
+    }
+    const result = buyFixtureReplacement(
+      state,
+      id,
+      `fixture-build-replacement:${id}:${ensureLayout(state).revision}`,
+    );
+    if (!result.ok) {
+      hooks.toast?.(result.reason || 'Could not buy that replacement.', 'warn');
+      return false;
+    }
+    rebuildLayout();
+    hooks.sfx?.('cash');
+    hooks.toast?.(`${fixture.title} replaced for $${result.cost}. It is ready in storage.`);
     panel.refresh();
     return true;
   }
@@ -579,10 +996,66 @@ export function buildBuildMode(B, deps) {
     return result.ok;
   }
 
+  function purchaseSku(skuId) {
+    const result = purchaseFurniture(state, skuId);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    hooks.sfx?.('cash');
+    const levelCopy = result.levelsGained.length
+      ? ` Renovation level ${result.level} unlocked.` : '';
+    hooks.toast?.(`${result.item.name} delivered to the collection for $${result.total}.${levelCopy}`);
+    panel.refresh();
+    return result;
+  }
+
+  function installById(id) {
+    const result = installFurniture(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    refreshRoomStyle();
+    rebuildLayout();
+    hooks.sfx?.('thunk');
+    hooks.toast?.(`${result.item.name} installed. Clubhouse values updated.`);
+    panel.refresh();
+    return result;
+  }
+
+  function uninstallById(id) {
+    const object = objectById(state, id);
+    const result = uninstallFurniture(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    refreshRoomStyle();
+    rebuildLayout();
+    hooks.toast?.(`${object?.label || 'Installation'} returned to storage.`);
+    panel.refresh();
+    return result;
+  }
+
   const api = {
     isActive: () => active,
     isCarrying: () => carrying,
     isCatalogOpen: () => panel.isOpen(),
+    diagnostics() {
+      const colliders = carrying ? fixtureColliderDiagnostics(carrying) : null;
+      return Object.freeze({
+        active,
+        carrying,
+        previewVisible: !!preview?.visible,
+        validation: Object.freeze({
+          ok: !!lastCheck.ok,
+          reasons: Object.freeze([...(lastCheck.reasons || [])]),
+        }),
+        colliderActive: colliders?.active ?? null,
+        colliders,
+      });
+    },
     enter() {
       if (active) return;
       active = true;
@@ -608,6 +1081,7 @@ export function buildBuildMode(B, deps) {
     stow: () => storeById(),
     storeById,
     sellById,
+    replaceById,
     recoverById,
     undo,
     redo,
@@ -627,13 +1101,38 @@ export function buildBuildMode(B, deps) {
     },
     cycleVariant,
     setStyle,
-    uiModel: () => ({
-      placed: placedObjects(state), stored: storedObjects(state), sold: soldObjects(state),
+    purchaseSku,
+    installById,
+    uninstallById,
+    uiModel: () => {
+      const fixtureEconomics = new Map(
+        fixtureOwnershipEntries(state).map((entry) => [entry.id, entry]),
+      );
+      const decorateFixture = (object) => {
+        const fixture = fixtureEconomics.get(object.id);
+        return fixture ? {
+          ...object,
+          sellValue: fixture.sellValue,
+          replacementPrice: fixture.purchasePrice,
+          fixtureStatus: fixture.status,
+        } : object;
+      };
+      return {
+      placed: placedObjects(state).map(decorateFixture),
+      stored: storedObjects(state).map(decorateFixture),
+      sold: soldObjects(state).map(decorateFixture),
+      installed: purchasedFurnitureInstances(state, { states: ['installed'] })
+        .map((instance) => objectById(state, instance.id)).filter(Boolean),
+      catalog: furnitureCatalogAvailability(state),
+      furniture: { ...ensureFurnitureCatalogState(state), effects: furnitureEffects(state) },
+      cash: state.cash,
+      reputation: Math.max(0, Number(state.club?.reputation) || 0),
       style: roomStyle(state), revision: ensureLayout(state).revision,
       undoCount: ensureLayout(state).history.undo.length,
       redoCount: ensureLayout(state).history.redo.length,
       gridEnabled, rotationSnapEnabled, carrying,
-    }),
+      };
+    },
     label() {
       if (!active || panel.isOpen()) return null;
       if (carrying) {

@@ -16,6 +16,8 @@ function boostCourse(st, health = 85) {
   st.turf.disType.fill(0);
   st.turf.disSev.fill(0);
   st.turf.wear.fill(5);
+  st.turf.divots?.fill(0);
+  st.turf.ballMarks?.fill(0);
   for (let i = 0; i < st.course.zones.length; i++) {
     if (st.course.zones[i] === ZONE.GREEN) st.turf.heightMm[i] = 3.5;
   }
@@ -141,7 +143,9 @@ test('a tournament on a trashed course backfires', () => {
 
 test('the endgame: hosting the major wins the campaign', () => {
   const st = newGame('realistic', 42);
-  boostCourse(st, 90);
+  // Begin pristine because the merged course simulation now also applies
+  // localized play damage during the hot-weather tournament lead-in.
+  boostCourse(st, 100);
   st.cash = 200000;
   st.progression.prestige = 90;
   purchaseUpgrade(st, 'tournamentHost');

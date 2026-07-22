@@ -6,10 +6,10 @@ import { el, toast } from './ui.js';
 import { ZONE_NAMES, CELL_YD, ZONE, TURF_ZONES } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import {
-  sectionTurfSummary, sectionStatus, diagnoseSection, treatSection, aerateSection, greenSpeedOf,
+  sectionTurfSummary, sectionStatus, diagnoseSection, treatSection, aerateSection,
+  treatSectionCost, aerateSectionCost, greenSpeedOf,
 } from '../sim/turf.js';
 import { formatMoney } from '../core/utils.js';
-import { BALANCE } from '../sim/balance.js';
 
 const STATUS_COLORS = { Healthy: '#8ed072', Stressed: '#e0a33c', Declining: '#d84b3a' };
 
@@ -45,6 +45,11 @@ export function makeInspectPanel(app, onStateChanged) {
     title.textContent = section.name;
     const areaSqYd = section.size * CELL_YD * CELL_YD;
     const rows = [];
+    rows.push(el('div', {
+      class: 'muted',
+      style: 'font-size:0.76rem;letter-spacing:0.08em;text-transform:uppercase',
+      text: 'Maintenance map · planning only',
+    }));
 
     const isTurf = TURF_ZONES.has(section.zone) && st.turf;
     let summary = null;
@@ -86,6 +91,16 @@ export function makeInspectPanel(app, onStateChanged) {
         } else {
           rows.push(el('div', { class: 'row muted', text: 'Sand raked smooth.' }));
         }
+        const estimate = estimateWorkOrder('rakeBunker', section);
+        rows.push(el('div', { class: 'row' }, el('button', {
+          text: `Create rake order · ~${estimate.durationMinutes} min`,
+          onclick: () => {
+            const res = createWorkOrder(st, 'rakeBunker', section);
+            toast(res.ok ? `Rake order added for ${section.name}. No sand changes until the work is performed.` : res.reason,
+              res.ok ? '' : 'warn');
+            show(section);
+          },
+        })));
       }
     }
 
@@ -112,24 +127,30 @@ export function makeInspectPanel(app, onStateChanged) {
           bar('Nutrients', summary.nutrients),
           bar('Height', summary.heightMm, 90, 'mm'),
           bar('Wear', summary.wear),
+          bar('Divots', summary.divots, Math.max(6, section.size * 0.2)),
+          bar('Ball marks', summary.ballMarks, Math.max(6, section.size * 0.2)),
         );
       }
 
       const actions = [];
       if (summary.disease) {
-        const cost = Math.round(section.cells.length * BALANCE.turf.fungicideCostPerCell);
+        const cost = treatSectionCost(st, section);
         actions.push(el('button', {
-          class: 'primary',
-          text: `💊 Fungicide ${formatMoney(cost)}`,
+          class: primary ? 'primary' : '',
+          text: `${label} · ~${estimate.durationMinutes} min`,
           onclick: () => {
-            const res = treatSection(st, section);
-            toast(res.ok ? `Fungicide applied to ${section.name}.` : res.reason, res.ok ? '' : 'warn');
-            if (res.ok && onStateChanged) onStateChanged();
+            const res = createWorkOrder(st, type, section);
+            toast(res.ok
+              ? `${label} order added for ${section.name}. Turf is unchanged until player, staff, or equipment does the work.`
+              : res.reason, res.ok ? '' : 'warn');
             show(section);
           },
         }));
+      };
+      if (summary.disease) {
+        addOrder('treatDisease', '💊 Treat disease', true);
       }
-      const aerateCost = Math.round(section.cells.length * BALANCE.turf.aerateCostPerCell);
+      const aerateCost = aerateSectionCost(st, section);
       actions.push(el('button', {
         text: `⛏ Aerate ${formatMoney(aerateCost)}`,
         title: 'Relieves wear and compaction',

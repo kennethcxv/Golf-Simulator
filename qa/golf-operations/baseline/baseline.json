@@ -1,0 +1,259 @@
+{
+  "capturedAt": "2026-07-19T23:26:24.891Z",
+  "branch": "overnight/golf-operations",
+  "commit": "0c5137e",
+  "launch": "QA_URL=http://127.0.0.1:8467/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "fixture": {
+    "dayAbs": 0,
+    "created": [
+      {
+        "ok": true,
+        "name": "Priya Nguyen",
+        "minute": 600
+      },
+      {
+        "ok": true,
+        "name": "Marcus Reed",
+        "minute": 630
+      },
+      {
+        "ok": true,
+        "name": "Elaine Castillo",
+        "minute": 660
+      }
+    ]
+  },
+  "fixedCameras": {
+    "frontDeskOverview": {
+      "local": {
+        "x": 0.5,
+        "z": 2.3
+      },
+      "yaw": -2.75,
+      "pitch": -0.08
+    },
+    "laptopSeat": {
+      "local": {
+        "x": 8.45,
+        "z": 4.5
+      },
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    },
+    "cashier": {
+      "world": {
+        "x": -5.2,
+        "z": 233.1
+      },
+      "yaw": 0,
+      "pitch": -0.18
+    }
+  },
+  "runtime": {
+    "sampleDurationMs": 5000,
+    "frames": 524,
+    "averageFps": 104.67,
+    "onePercentLowFps": 16.61,
+    "worstFrameMs": 72.3,
+    "drawCalls": 1434,
+    "renderedTriangles": 4631832,
+    "sceneTriangles": 1781099,
+    "materialCount": 239,
+    "textureCount": 163,
+    "textureMemoryBytesEstimatedRgbaMipmapped": 6169904533,
+    "rendererTextureCount": 208,
+    "rendererGeometryCount": 1072,
+    "jsHeapUsedBytes": 86219800
+  },
+  "listeners": {
+    "beforeRepeatedNavigation": 134,
+    "afterRepeatedNavigation": 251,
+    "delta": 117
+  },
+  "uiMutationCallbacksDuringSixNavClicks": 6,
+  "beforeCheckIn": {
+    "cash": 55354.39,
+    "due": [
+      {
+        "id": 1,
+        "name": "Priya Nguyen",
+        "status": "booked"
+      },
+      {
+        "id": 2,
+        "name": "Marcus Reed",
+        "status": "booked"
+      },
+      {
+        "id": 3,
+        "name": "Elaine Castillo",
+        "status": "booked"
+      }
+    ],
+    "npcNames": [
+      "Alex R.",
+      "Alex R.",
+      "Drew H."
+    ]
+  },
+  "afterCheckIn": {
+    "cash": 55386.39,
+    "reservations": [
+      {
+        "id": 1,
+        "name": "Priya Nguyen",
+        "status": "played"
+      },
+      {
+        "id": 2,
+        "name": "Marcus Reed",
+        "status": "booked"
+      },
+      {
+        "id": 3,
+        "name": "Elaine Castillo",
+        "status": "booked"
+      }
+    ],
+    "greenFees": 32
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/bucket_soil.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/hand_fork.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/clubhouse/armchair.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/clubhouse/kiosk.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/tractor_red.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/workbench.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/clubhouse/rangefinder.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/shed.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/tractor_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/leaves_pile.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/belt.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/tee_sign_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}

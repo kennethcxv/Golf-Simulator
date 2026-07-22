@@ -1,28 +1,38 @@
-// FAIRWAY OFFICE — the clubhouse's operating system.
+// GOLF SIMULATOR — the clubhouse laptop, in its final skin (LaptopUIFinal).
 //
 // This is diegetic software. It renders into `.laptop-screen`, which main.js maps corner-to-
-// corner onto the laptop's physical display every frame — the interface IS the screen, not a
-// panel floating near it. Nothing here knows about 3D; it just has to be a good 1024x640
-// application and stay inside its own rectangle.
+// corner onto the laptop's physical display every frame — the interface IS the screen. Nothing
+// here knows about 3D; it just has to be a good 1024x640 application.
 //
-// THE ONE RULE: every number on these pages is read live from the sim. Where the sim does not
-// model something the brief asked for, the page SAYS SO, in place, rather than showing a
-// plausible number. A management screen you cannot trust is worse than one that admits a gap —
-// you make decisions on it.
+// EIGHT PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
+// list; Shop folds stock, ordering, pricing and deliveries into four tabs; Course folds
+// condition, tasks and holes into three; Upgrades is where money becomes lasting improvement;
+// Finances is a money history a player can trust; Settings is small. The look is the approved
+// reference set: white sidebar, soft gray canvas, white cards, one calm blue, colored words
+// for status — a polished simulator screen, never accounting software.
+//
+// THE ONE RULE SURVIVES EVERY RESKIN: every number on these pages is read live from the sim.
+// Where the sim does not model something, the page says so in place rather than showing a
+// plausible number. And the laptop only MANAGES — boxes are carried, shelves are stocked,
+// change is counted and greens are mowed out in the world, by hands.
 
 import { el, toast } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import { calendarOf } from '../sim/time.js';
 import {
+  membershipPricingResponse, productPricingResponse, rentalPricingResponse,
+  setGreenFee, setMembershipDue, setProductMarkup, setRentalPrice,
+} from '../sim/pricing.js';
+import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
+import { supplierFor } from '../data/suppliers.js';
 import {
-  placeOrder, cancelOrder, shopCondition, priceFor,
-  velocity, daysOfSupply, buyRentalSets,
+  placeOrder, cancelOrder, orderCost, priceFor, velocity, buyRentalSets,
+  deliveryTracking, expediteOrder, priorityDeliveryQuote,
 } from '../sim/shop.js';
 import {
-  boxesOf, shipmentsOf, shipmentStatus, padCount, fallbackCount,
-  PAD_CAPACITY, FALLBACK_CAPACITY, boxOpened,
+  boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY,
 } from '../sim/deliveries.js';
 import {
   ORDER_STATE,
@@ -32,91 +42,231 @@ import {
   submitPurchaseOrders,
 } from '../sim/inventoryLifecycle.js';
 import { planShipment, unitsPerBox } from '../data/boxes.js';
-import { supplierFor } from '../data/suppliers.js';
-import { capacityOf } from '../data/fixtureSlots.js';
 import {
-  daySheet, bookSlot, cancelReservation, fmtSlot,
-  operationsSummary, operationFinanceSummary, operationsPolicySummary,
+  TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot, slotAvailability,
+  markReservationNoShow,
 } from '../sim/reservations.js';
+import {
+  CART_INFRASTRUCTURE, cartReservationQuote, fleetSummary, purchaseFleetCart,
+  serviceFleetCart, upgradeFleetInfrastructure,
+} from '../sim/cartFleet.js';
+import {
+  createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
+} from '../sim/customerIdentity.js';
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
-import { weeklyCharge, propertyLine, arrearsOf } from '../sim/property.js';
+import { arrearsOf } from '../sim/property.js';
+import {
+  ROLE, hireStaff, fireStaff, trainStaff, staffDailyWages, refreshMarketIfDue, groundsCrewHours,
+} from '../sim/staff.js';
+import {
+  sectionTurfSummary, sectionStatus, diagnoseSection, treatSection, aerateSection,
+  treatSectionCost, aerateSectionCost,
+} from '../sim/turf.js';
+import { TRACTOR_STEPS, STEP_LABEL } from '../sim/tractor.js';
+import {
+  clubRatings, fairGreenFee, fairDues, amenityScore, demandMultiplier,
+  memberCounts, TIERS, AMENITIES, UTILITIES_PER_DAY,
+  upgradeAmenity, acceptOuting, declineOuting,
+} from '../sim/club.js';
 import { members } from '../sim/golfers.js';
 import {
-  ROLE, hireStaff, fireStaff, trainStaff, staffDailyWages, refreshMarketIfDue,
-} from '../sim/staff.js';
-import { clubRatings, fairGreenFee } from '../sim/club.js';
+  UPGRADES, TOURNAMENTS, hasUpgrade, purchaseUpgrade, canScheduleTournament, scheduleTournament,
+} from '../sim/progression.js';
+import {
+  NOTIF_KINDS, ensureNotifications, unreadCount, markRead, markAllRead,
+} from '../sim/notifications.js';
 import { currentStep } from '../sim/tutorial.js';
-import { ZONE } from '../sim/constants.js';
-import { financialSummary, LEDGER_LABELS } from '../sim/economy.js';
-import { latestDailySummary, weeklySummary } from '../sim/business.js';
-import { reputationSnapshot, REPUTATION_LABELS } from '../sim/reputation.js';
 import {
-  productPricingResponse, teePricingResponse, membershipPricingResponse, rentalPricingResponse,
-  setProductMarkup, setGreenFee, setMembershipDue, setRentalPrice,
-} from '../sim/pricing.js';
-import { appraisalBreakdown } from '../sim/valuation.js';
-import { propertyConditionBreakdown } from '../sim/propertyCondition.js';
+  CAMPAIGN_SKUS,
+  campaignRecoveryStatus,
+  campaignView,
+  openClubhouse,
+  recoverAllCampaignItems,
+  recoverOpeningLayout,
+} from '../sim/campaign.js';
 import {
-  PROPERTY_TIER_ORDER, PROPERTY_TIERS, propertyReadiness, nextProgressionGoal, propertyTier,
-} from '../sim/propertyProgression.js';
+  checkoutPreferences, setCheckoutPreference,
+} from '../sim/checkoutPreferences.js';
+import { holePar, holeDistanceYd } from '../sim/course.js';
+import { capacityOf } from '../data/fixtureSlots.js';
 import {
-  latestPropertyAppraisal, requestPropertyAppraisal, rejectPropertyAppraisal,
+  SHOP_TIER_ORDER, SHOP_TIERS, beginShopExpansion, shopCategoryUnlocked,
+  shopProgressionSummary, tryCompleteShopExpansion,
+} from '../sim/shopProgression.js';
+import { shopExpansionLayoutSafety } from '../sim/layout.js';
+import { ZONE, HOLE_STATUS, TURF_ZONES } from '../sim/constants.js';
+import {
+  assignPropertyManager, auctionNextBid, holdingValue, inspectPropertyListing,
+  placeAuctionBid, propertyAccess,
 } from '../sim/empire.js';
-import { UPGRADES, hasUpgrade, purchaseUpgrade } from '../sim/progression.js';
+import { listingAgeLabel, marketConditionLabel } from '../sim/marketplace.js';
+import {
+  PROPERTY_INSPECTION_COST, PROPERTY_MANAGER_TIERS, passiveOperationsProjection,
+  propertyOperationsProfile, REMOTE_PROPERTY_UTILITIES_PER_DAY,
+} from '../sim/propertyOperations.js';
+import {
+  SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
+} from './laptopWidgets.js';
+import {
+  CONSTRUCTION_CATEGORY_BY_ID, CONSTRUCTION_FINISH_CATEGORIES,
+  CONSTRUCTION_QUALITY_BY_ID, CONSTRUCTION_QUALITY_LEVELS, constructionFinishVariant,
+} from '../data/constructionFinishes.js';
+import {
+  ensureConstructionFinishes, installedConstructionFinish,
+  ownsConstructionFinish, purchaseConstructionFinish,
+} from '../sim/constructionFinishes.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
-  supplies: 'Shop supplies', decor: 'Decor & fixtures',
+  provisions: 'Drinks & snacks', supplies: 'Shop supplies', decor: 'Decor & fixtures',
 };
 const CAT_ICON = {
-  clubs: '🏌', balls: '🥎', apparel: '👕', accessories: '🧢', supplies: '🧹', decor: '🪴',
+  clubs: '🏌', balls: '🥎', apparel: '👕', accessories: '🧢', provisions: '🥤', supplies: '🧹', decor: '🪴',
 };
 const ROLE_LABEL = {
   groundskeeper: 'Groundskeeper', instructor: 'Teaching pro', fnb: 'Grill room', proshop: 'Pro shop',
+  marshal: 'Course marshal',
 };
 const SHOP_OPEN_MIN = 6 * 60;
 const SHOP_CLOSE_MIN = 20 * 60;
 
-// The brief's eight order states, against the five the delivery sim actually produces. Naming a
-// state the sim cannot reach would be inventing a feature on a screen.
-// The nine, and all nine are real. Six are worn by an order still on the road (sim/deliveries
-// ORDER_FLOW); three by a shipment standing on your floor, derived from the state of its boxes
-// (shipmentStatus). Nothing here is a label with no machinery behind it.
+// Order/shipment statuses — six worn on the road (sim/deliveries ORDER_FLOW), three by a
+// shipment standing on the floor (shipmentStatus). Every label has machinery behind it.
 const ORDER_STATUS = {
-  received: { label: 'Received', tone: '' },
+  received: { label: 'Supplier received', tone: '' },
   processing: { label: 'Processing', tone: '' },
   packed: { label: 'Packed', tone: '' },
-  shipped: { label: 'Shipped', tone: '' },
+  shipped: { label: 'On the way', tone: '' },
   out: { label: 'Out for delivery', tone: 'warn' },
   arriving: { label: 'Arriving soon', tone: 'warn' },
-  delivered: { label: 'Delivered', tone: 'ok' },
-  partial: { label: 'Partially unpacked', tone: 'warn' },
-  unpacked: { label: 'Fully unpacked', tone: 'ok' },
+  delivered: { label: 'Outside', tone: 'ok' },
+  partial: { label: 'Half unpacked', tone: 'warn' },
+  unpacked: { label: 'Unpacked', tone: 'ok' },
 };
 
-const NAV = [
-  { id: 'home', icon: '🏠', label: 'Home' },
-  { group: 'Shop' },
-  { id: 'shop', icon: '🏪', label: 'Pro Shop' },
-  { id: 'supplier', icon: '🛒', label: 'Supplier' },
-  { id: 'orders', icon: '📦', label: 'Orders' },
-  { id: 'deliveries', icon: '🚚', label: 'Deliveries' },
-  { id: 'inventory', icon: '📋', label: 'Inventory' },
-  { id: 'pricing', icon: '🏷', label: 'Pricing' },
-  { group: 'Club' },
-  { id: 'reservations', icon: '📅', label: 'Reservations' },
-  { id: 'course', icon: '⛳', label: 'Course' },
-  { id: 'rentals', icon: '🛄', label: 'Carts & rentals' },
-  { id: 'employees', icon: '👥', label: 'Employees' },
-  { group: 'Books' },
-  { id: 'finances', icon: '💰', label: 'Finances' },
-  { id: 'reviews', icon: '⭐', label: 'Reviews' },
-  { id: 'analytics', icon: '📈', label: 'Analytics' },
-  { group: 'Estate' },
-  { id: 'reno', icon: '🔨', label: 'Renovation' },
-  { id: 'property', icon: '🏛', label: 'Property' },
-  { id: 'settings', icon: '⚙', label: 'Settings' },
-];
+// --- the line-icon set — inline SVG, stroke follows the text color ---------------------------
+// Each glyph is a few strokes on a 24-box; ['c', cx, cy, r] draws a circle.
+const ICONS = {
+  logo: [['p', 'M8 20.5V3.5l8.5 2.6L8 8.9'], ['c', 15.7, 18.6, 2.5], ['p', 'M3.5 20.5h8.7']],
+  home: [['p', 'M3.5 10.4 12 3.2l8.5 7.2'], ['p', 'M5.6 8.9V20.5h12.8V8.9'], ['p', 'M9.9 20.5v-5.7h4.2v5.7']],
+  calendar: [['p', 'M5 5.6h14a1.4 1.4 0 0 1 1.4 1.4v12A1.4 1.4 0 0 1 19 20.4H5A1.4 1.4 0 0 1 3.6 19V7A1.4 1.4 0 0 1 5 5.6z'], ['p', 'M3.6 9.6h16.8'], ['p', 'M8.2 3.4v4'], ['p', 'M15.8 3.4v4']],
+  bag: [['p', 'M6.3 7.6h11.4l1.2 12.9H5.1L6.3 7.6z'], ['p', 'M9.1 10.1V6.4a2.9 2.9 0 0 1 5.8 0v3.7']],
+  flag: [['p', 'M6.6 20.8V4'], ['p', 'M6.6 4.6l9.6 2.9-9.6 3'], ['p', 'M3.8 20.8h5.6']],
+  up: [['p', 'M5 20.6h14'], ['p', 'M12 16.6V5.4'], ['p', 'M7.2 9.9 12 5.2l4.8 4.7']],
+  dollar: [['p', 'M4.4 6.9h15.2a1.3 1.3 0 0 1 1.3 1.3v7.6a1.3 1.3 0 0 1-1.3 1.3H4.4a1.3 1.3 0 0 1-1.3-1.3V8.2a1.3 1.3 0 0 1 1.3-1.3z'], ['c', 12, 12, 2.6], ['p', 'M6.5 12h.01'], ['p', 'M17.5 12h.01']],
+  building: [['p', 'M4.2 20.5V7.2L12 3.5l7.8 3.7v13.3'], ['p', 'M2.8 20.5h18.4'], ['p', 'M8 10h2'], ['p', 'M14 10h2'], ['p', 'M8 14h2'], ['p', 'M14 14h2'], ['p', 'M10.2 20.5v-3.2h3.6v3.2']],
+  gear: [['c', 12, 12, 3.1], ['p', 'M12 2.6v2.8'], ['p', 'M12 18.6v2.8'], ['p', 'M2.6 12h2.8'], ['p', 'M18.6 12h2.8'], ['p', 'M5.2 5.2l2 2'], ['p', 'M16.8 16.8l2 2'], ['p', 'M18.8 5.2l-2 2'], ['p', 'M7.2 16.8l-2 2']],
+  bell: [['p', 'M17.8 8.8a5.8 5.8 0 1 0-11.6 0c0 6.2-2.4 7.2-2.4 7.2h16.4s-2.4-1-2.4-7.2'], ['p', 'M10.4 19.4a1.85 1.85 0 0 0 3.2 0']],
+  power: [['p', 'M12 3.2v7.6'], ['p', 'M17.5 6.4a7.7 7.7 0 1 1-11 0']],
+  target: [['c', 12, 12, 8.4], ['c', 12, 12, 4.6], ['c', 12, 12, 1.1]],
+  clock: [['c', 12, 12, 8.5], ['p', 'M12 7.4V12l3.1 2']],
+  users: [['c', 9, 8.4, 3.2], ['p', 'M3.4 19.6c0-3.1 2.5-5.1 5.6-5.1s5.6 2 5.6 5.1'], ['c', 16.6, 9.4, 2.5], ['p', 'M16.2 14.6c2.6.3 4.4 2.1 4.4 5']],
+  box: [['p', 'M12 3 3.9 7.5v9L12 21l8.1-4.5v-9L12 3z'], ['p', 'M3.9 7.5 12 12l8.1-4.5'], ['p', 'M12 12v9']],
+  leaf: [['p', 'M5.4 18.9C5.4 11 10.5 6 19 5c-1 8.5-6 13.6-13.6 13.9z'], ['p', 'M5.4 18.9C8.2 14 11.6 11 15.6 9']],
+  back: [['p', 'M14.4 5.6 8 12l6.4 6.4']],
+};
+function icon(name, cls = 'lt-ic') {
+  const parts = ICONS[name] || ICONS.target;
+  return svgEl('svg', { class: cls, viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+    ...parts.map((p) => (p[0] === 'c'
+      ? svgEl('circle', { cx: p[1], cy: p[2], r: p[3] })
+      : svgEl('path', { d: p[1] }))));
+}
+
+// --- the overhead course painting — the real splat, softened into an aerial ------------------
+// Colors tuned for the light interface; the OUT scrub doubles as the frame around play.
+const LAND = {
+  [ZONE.OUT]: '#42502f',
+  [ZONE.ROUGH]: '#5b7f42',
+  [ZONE.FAIRWAY]: '#79b154',
+  [ZONE.GREEN]: '#95d377',
+  [ZONE.TEE]: '#88c166',
+  [ZONE.BUNKER]: '#e3d3a3',
+  [ZONE.WATER]: '#4f8ec2',
+  [ZONE.PATH]: '#b9b09b',
+  [ZONE.FRINGE]: '#86c465',
+  [ZONE.HEAVY]: '#4e6a37',
+  [ZONE.DIRT]: '#8f7a5b',
+  [ZONE.BED]: '#6d5943',
+  [ZONE.SEMI]: '#6a9d4b',
+};
+const LAND_RGB = Object.fromEntries(Object.entries(LAND).map(([z, hex]) => [z, [
+  parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16),
+]]));
+
+/**
+ * Paint the property (or a window of it) into a canvas: one pixel per cell, then scaled up
+ * with smoothing so the splat reads as an aerial photograph rather than a tile grid.
+ * win: {x0, y0, w, h} cell window; marks: [{x, y, kind:'number'|'tee'|'pin', n}] in cell coords.
+ */
+function paintCourse(cnv, st, { win = null, marks = [] } = {}) {
+  if (!cnv.getContext) return; // headless tests draw nothing
+  const c = st.course;
+  const ctx = cnv.getContext('2d');
+  const W = cnv.width;
+  const H = cnv.height;
+  ctx.fillStyle = LAND[ZONE.OUT];
+  ctx.fillRect(0, 0, W, H);
+  const x0 = win ? win.x0 : 0;
+  const y0 = win ? win.y0 : 0;
+  const cw = Math.max(1, win ? win.w : c.w);
+  const chh = Math.max(1, win ? win.h : c.h);
+  const off = document.createElement('canvas');
+  if (!off.getContext) return;
+  off.width = cw;
+  off.height = chh;
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(cw, chh);
+  for (let y = 0; y < chh; y++) {
+    for (let x = 0; x < cw; x++) {
+      const zx = x0 + x;
+      const zy = y0 + y;
+      const inb = zx >= 0 && zy >= 0 && zx < c.w && zy < c.h;
+      const rgb = LAND_RGB[inb ? c.zones[zy * c.w + zx] : ZONE.OUT] || LAND_RGB[ZONE.OUT];
+      const i = (y * cw + x) * 4;
+      img.data[i] = rgb[0];
+      img.data[i + 1] = rgb[1];
+      img.data[i + 2] = rgb[2];
+      img.data[i + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  const s = Math.min(W / cw, H / chh);
+  const ox = (W - cw * s) / 2;
+  const oy = (H - chh * s) / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(off, ox, oy, cw * s, chh * s);
+  for (const m of marks) {
+    const px = ox + (m.x + 0.5 - x0) * s;
+    const py = oy + (m.y + 0.5 - y0) * s;
+    if (px < 6 || py < 6 || px > W - 6 || py > H - 6) continue;
+    if (m.kind === 'number') {
+      const r = Math.max(13, Math.min(17, s * 1.15));
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, 7);
+      ctx.fillStyle = 'rgba(16,24,40,0.28)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py - 1, r, 0, 7);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.fillStyle = '#1d2531';
+      ctx.font = `700 ${Math.round(r * 1.05)}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(m.n), px, py);
+    } else {
+      ctx.beginPath();
+      ctx.arc(px, py, m.kind === 'pin' ? 4.5 : 3.5, 0, 7);
+      ctx.fillStyle = m.kind === 'pin' ? '#ffd75e' : '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(16,24,40,0.4)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+  }
+}
 
 const clock12 = (m) => {
   const mm = ((Math.floor(m) % 1440) + 1440) % 1440;
@@ -128,40 +278,204 @@ const hour12 = (m) => {
   const h = Math.floor(mm / 60);
   return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
 };
-const pct = (v) => `${Math.round(v * 100)}%`;
-const operationMoney = (value) => {
-  const amount = Number(value || 0);
-  return `${amount < -0.005 ? '-' : ''}$${Math.abs(amount).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const compactDuration = (minutes) => {
+  if (!Number.isFinite(minutes)) return 'ETA pending';
+  if (minutes <= 0) return 'At receiving';
+  if (minutes < 1) return '<1m';
+  const total = Math.max(1, Math.floor(minutes));
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const mins = total % 60;
+  if (days) return `${days}d${hours ? ` ${hours}h` : ''}`;
+  if (hours) return `${hours}h${mins ? ` ${mins}m` : ''}`;
+  return `${mins}m`;
 };
+const compactPriorityGain = (minutes) => minutes >= 1440
+  ? `~${Math.max(1, Math.round(minutes / 1440))}d`
+  : compactDuration(minutes);
+// The money history must visibly reconcile: amounts show cents when they carry them.
+const exactMoney = (v) => {
+  const n = Number(v) || 0;
+  const a = Math.abs(n);
+  const whole = Math.abs(a - Math.round(a)) < 0.005;
+  const body = whole ? Math.round(a).toLocaleString('en-US')
+    : a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n < -0.005 ? '-$' : '$') + body;
+};
+// A condition number, said in words a player reads faster than a percentage.
+const conditionWord = (h) => (h >= 70 ? 'Good' : h >= 45 ? 'Fair' : 'Poor');
+const conditionTone = (h) => (h >= 70 ? 'ok' : h >= 45 ? 'warn' : 'bad');
+
+// THE WHOLE SIDEBAR. Eight entries, no groups, no scroll.
+const NAV = [
+  { id: 'home', icon: 'home', label: 'Home' },
+  { id: 'reservations', icon: 'calendar', label: 'Bookings' },
+  { id: 'shop', icon: 'bag', label: 'Pro Shop' },
+  { id: 'course', icon: 'flag', label: 'Course' },
+  { id: 'upgrades', icon: 'up', label: 'Upgrades' },
+  { id: 'properties', icon: 'building', label: 'Properties' },
+  { id: 'finances', icon: 'dollar', label: 'Business' },
+  { id: 'settings', icon: 'gear', label: 'Settings' },
+];
+
+// Every retired desk forwards to the page (and tab) that absorbed its job, so old links —
+// notification targets, saved prefs, muscle memory — keep landing somewhere sensible.
+const PAGE_ALIAS = {
+  inventory: ['shop', 'stock'],
+  supplier: ['shop', 'order'],
+  pricing: ['shop', 'prices'],
+  orders: ['shop', 'deliveries'],
+  deliveries: ['shop', 'deliveries'],
+  maintenance: ['course', 'tasks'],
+  reno: ['course', 'tasks'],
+  employees: ['upgrades', 'staff'],
+  rentals: ['upgrades', 'equipment'],
+  events: ['upgrades', 'course'],
+  analytics: ['finances', 'finances'],
+  empire: ['properties', 'portfolio'],
+  marketplace: ['properties', 'market'],
+  reviews: ['finances', 'reviews'],
+  marketing: ['finances', 'marketing'],
+  customers: ['reservations', null],
+  memberships: ['finances', 'memberships'],
+  notifications: ['home', null],
+  help: ['home', null],
+};
+
+const reservationBalance = (reservation) => {
+  if (reservation.status !== 'booked') return 0;
+  const explicit = reservation.balanceDue ?? reservation.remainingBalance;
+  if (Number.isFinite(Number(explicit))) return Math.max(0, Number(explicit));
+  const fee = Number(reservation.fee) || 0;
+  const deposit = Number(reservation.depositPaid ?? reservation.deposit) || 0;
+  return Math.max(0, fee - deposit);
+};
+
+/**
+ * Capacity-aware projection used by the laptop and its headless tests. Names
+ * always come from the persisted customer directory, never from an abbreviated
+ * reservation label.
+ */
+export function laptopReservationSheet(state, dayAbs) {
+  const slots = daySheet(state, dayAbs).map((slot) => {
+    const reservations = (slot.reservations || (slot.res ? [slot.res] : [])).map((reservation) => {
+      const identity = identityForReservation(state, reservation);
+      return {
+        reservation,
+        identity,
+        fullName: identity.fullName,
+        groupSize: Math.max(1, Number(reservation.groupSize ?? reservation.partySize) || 1),
+        outstandingRevenue: reservationBalance(reservation),
+      };
+    });
+    return { ...slot, reservations };
+  });
+  return {
+    slots,
+    reservationCount: slots.reduce((sum, slot) => sum + slot.reservations.length, 0),
+    bookedPlayers: slots.reduce((sum, slot) => sum + slot.bookedPlayers, 0),
+    totalPlayerCapacity: slots.reduce((sum, slot) => sum + slot.capacity, 0),
+    openPlayerCapacity: slots.reduce((sum, slot) => sum + slot.remainingCapacity, 0),
+    expectedRevenue: slots.reduce((sum, slot) => sum
+      + slot.reservations.reduce((slotSum, entry) => slotSum + entry.outstandingRevenue, 0), 0),
+  };
+}
+
+/**
+ * Laptop booking command. A blank guest choice gets a deterministic believable
+ * full name, while selecting an existing directory customer keeps the same ID.
+ */
+export function bookLaptopReservation(state, {
+  dayAbs,
+  minute,
+  partySize = 1,
+  customerId = null,
+  fullName = null,
+  transport = 'walking',
+  holes = 18,
+} = {}) {
+  const size = Number(partySize);
+  const availability = slotAvailability(state, dayAbs, minute, size);
+  if (!availability.available) {
+    return {
+      ok: false,
+      reason: availability.remainingCapacity > 0
+        ? `Only ${availability.remainingCapacity} player spot${availability.remainingCapacity === 1 ? '' : 's'} remain.`
+        : 'That tee time is full.',
+    };
+  }
+
+  const selectedIdentity = customerId ? customerIdentityById(state, customerId) : null;
+  if (customerId && !selectedIdentity) return { ok: false, reason: 'That customer is no longer in the directory.' };
+  const directory = ensureCustomerDirectory(state);
+  const generated = createCustomerIdentity(
+    directory.seed,
+    `laptop-reservation:${state.reservations?.nextId ?? directory.nextOrdinal}`,
+  );
+  const bookingName = selectedIdentity?.fullName || String(fullName || '').trim() || generated.fullName;
+  const cartQuote = transport === 'cart'
+    ? cartReservationQuote(state, { dayAbs, minute, partySize: size, holes })
+    : { ok: true, fee: 0 };
+  if (!cartQuote.ok) return { ok: false, reason: cartQuote.reason, cartQuote };
+  const result = bookSlot(state, dayAbs, minute, {
+    name: bookingName,
+    fullName: bookingName,
+    partySize: size,
+    customerId: selectedIdentity?.customerId,
+    customerIdentity: selectedIdentity || undefined,
+    transport,
+    holes,
+    totalFee: (Number(state.club?.greenFee) || 0) * size + cartQuote.fee,
+  });
+  if (result.ok) identityForReservation(state, result.res);
+  return result;
+}
 
 export function makeLaptop(app, opts) {
   let page = 'home';
   let history = [];        // the Back stack — every navigation pushes, Back pops
-  let cart = new Map();    // supplier basket: skuId -> qty
-  let orderIntent = 1;
+  let cart = new Map();    // order basket: skuId -> qty
   let teeDay = 0;
-  let supplierCat = 'all';
-  let financeWindow = 'today';
-  let bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
+  let teePartySize = 1;
+  let teeTransport = 'walking';
+  let teeHoles = 18;
   let scale = app.preferences?.values?.display?.uiScale || 1;
   let pending = null;      // the live confirmation, if one is open
+  let modal = null;        // the open detail modal, if any — () => element
+
+  // Per-page view state (search text, filter, active tab). Session-only, never serialized.
+  const tstates = {};
+  const ts = (id, defaults = {}) => {
+    const view = (tstates[id] ||= { search: '', filter: 'all', page: 0 });
+    for (const [key, value] of Object.entries(defaults)) {
+      if (!(key in view)) view[key] = value;
+    }
+    return view;
+  };
 
   const content = el('div', { class: 'lt-content' });
   const navBtns = {};
 
+  const prefsOf = () => (app.state ? (app.state.uiPrefs || (app.state.uiPrefs = {})) : {});
+
   function click() {
+    if (prefsOf().uiSounds === false) return;
     if (app.audio && app.audio.ready) app.audio.uiTick();
   }
 
   function go(p, { replace = false } = {}) {
-    if (p === page) return;
+    // retired desks forward to the page that absorbed them, tab included
+    if (PAGE_ALIAS[p]) {
+      const [target, tab] = PAGE_ALIAS[p];
+      if (tab) ts(target).tab = tab;
+      p = target;
+    }
+    if (p === page) { render(); return; }
     if (!replace) history.push(page);
     if (history.length > 24) history.shift();
     page = p;
-    pending = null; // navigating away abandons an open confirmation — it is a cancellation
+    pending = null;
+    modal = null;
     click();
     content.scrollTop = 0;
     render();
@@ -170,22 +484,23 @@ export function makeLaptop(app, opts) {
     if (!history.length) return go('home', { replace: true });
     page = history.pop();
     pending = null;
+    modal = null;
     click();
     content.scrollTop = 0;
     render();
   }
 
-  const nav = el('nav', { class: 'lt-nav' },
-    el('div', { class: 'lt-brand' }, el('span', { text: '⛳' }), el('span', { text: 'Fairway Office' })),
+  const nav = el('nav', { class: 'lt-nav lt-nav-simple' },
+    el('div', { class: 'lt-brand' }, icon('logo'), el('span', { text: 'GOLF SIMULATOR' })),
     el('div', { class: 'lt-navlist' },
       ...NAV.map((n) => {
-        if (n.group) return el('div', { class: 'lt-navgroup', text: n.group });
-        const b = el('button', { class: 'lt-navbtn', title: n.label, onclick: () => go(n.id) },
-          el('span', { class: 'lt-navicon', text: n.icon }), el('span', { text: n.label }));
+        const b = el('button', { class: 'lt-navbtn lt-navbtn-big', title: n.label, onclick: () => go(n.id) },
+          el('span', { class: 'lt-navicon' }, icon(n.icon)), el('span', { text: n.label }));
         navBtns[n.id] = b;
         return b;
       })),
-    el('button', { class: 'lt-navbtn lt-close', text: '⏻  Close the lid', onclick: () => opts.close() }),
+    el('button', { class: 'lt-navbtn lt-close', onclick: () => opts.close() },
+      el('span', { class: 'lt-navicon' }, icon('power')), el('span', { text: 'Close Laptop' })),
   );
 
   const statusBack = el('button', { class: 'lt-crumb', title: 'Back', text: '‹', onclick: () => back() });
@@ -201,28 +516,28 @@ export function makeLaptop(app, opts) {
   const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
 
-  // --- the building blocks every page is made of ------------------------------------------
-  // The brief wants each page to carry: a title, a help tooltip, a primary action, confirmation
-  // and cancellation, an empty state and an error state. So they are components, not per-page
-  // improvisation — which is how eleven pages end up with eleven different ideas of "empty".
-
-  // replaceChildren() is the raw DOM API and it STRINGIFIES a null child into the literal text
-  // "null". Every page here hands it conditionals — a confirm bar that is usually absent, an
-  // error box that is usually not needed — and that is how the Supplier page ended up printing
-  // "nullnull" above its category tabs. el() already filters; the DOM does not. So filter once,
-  // here, and never hand the DOM a raw list again.
+  // --- building blocks ----------------------------------------------------------------------
   const paint = (...kids) => content.replaceChildren(...kids.filter((k) => k != null && k !== false));
-
   const sect = (t) => el('div', { class: 'lt-sect', text: t });
   const row = (...kids) => el('div', { class: 'lt-row' }, ...kids);
   const chip = (t, kind = '') => el('span', { class: `lt-chip ${kind}`, text: t });
+  const word = (t, kind = '') => el('span', { class: `lt-word ${kind}`, text: t });
   const meta = (t) => el('span', { class: 'lt-meta', text: t });
   const card = (...kids) => el('div', { class: 'lt-card' }, ...kids);
   const note = (t) => el('div', { class: 'lt-card lt-note', text: t });
   const empty = (t) => el('div', { class: 'lt-empty' }, el('div', { class: 'lt-emptymark', text: '◌' }), el('div', { text: t }));
+  const flowStep = (number, title, detail) => el('div', { class: 'lt-flowstep' },
+    el('span', { class: 'lt-flownum', text: String(number) }),
+    el('div', { class: 'lt-flowbody' },
+      el('div', { class: 'lt-flowtitle', text: title }),
+      el('div', { class: 'lt-prodmeta', text: detail })));
   const errBox = (t) => el('div', { class: 'lt-card lt-err' }, el('span', { text: '⚠ ' }), el('span', { text: t }));
+  const stat = (label, value, sub, tone = '', extra = null) => el('div', { class: 'lt-stat' },
+    el('div', { class: 'lt-statlabel', text: label }),
+    el('div', { class: `lt-statvalue ${tone}`, text: value }),
+    sub ? el('div', { class: `lt-statsub ${typeof sub === 'object' ? sub.tone || '' : ''}`, text: typeof sub === 'object' ? sub.text : sub }) : null,
+    extra);
 
-  // page header: title, an optional help bubble, and an optional primary action on the right
   function head(title, help, primary) {
     const kids = [el('h1', { class: 'lt-h1', text: title })];
     if (help) kids.push(el('span', { class: 'lt-help', title: help, text: '?' }));
@@ -230,33 +545,65 @@ export function makeLaptop(app, opts) {
     if (primary) kids.push(primary);
     return el('div', { class: 'lt-head' }, ...kids);
   }
-
   const primaryBtn = (label, onclick, disabled) => el('button', {
     class: 'lt-primary', text: label, disabled: disabled ? 'disabled' : undefined, onclick,
   });
 
-  // CONFIRMATION + CANCELLATION. Never a browser confirm() — that is a detached modal, which is
-  // the exact thing the brief rejected, and it would land in the middle of the real monitor
-  // rather than on the laptop's glass.
-  function askConfirm(message, confirmLabel, onYes) {
-    pending = { message, confirmLabel, onYes };
+  // CONFIRMATION + CANCELLATION — an inline bar on the glass, never a detached browser modal.
+  function askConfirm(message, confirmLabel, onYes, details = [], tone = 'danger') {
+    pending = { message, confirmLabel, onYes, details, tone, restoreScroll: content.scrollTop };
+    content.scrollTop = 0;
     render();
   }
   function confirmBar() {
     if (!pending) return null;
     return el('div', { class: 'lt-confirm' },
-      el('span', { class: 'lt-confirmmsg', text: pending.message }),
+      el('div', { class: 'lt-confirmcopy' },
+        el('div', { class: 'lt-confirmmsg', text: pending.message }),
+        pending.details.length ? el('div', {
+          class: `lt-confirmfacts ${pending.details.some((detail) => detail.nowrap) ? 'lt-confirmfacts-dates' : ''}`,
+        },
+          ...pending.details.map((detail) => el('div', { class: 'lt-confirmfact' },
+            el('span', { text: detail.label }),
+            el('strong', { text: detail.value })))) : null),
       el('button', {
         class: 'lt-mini lt-cancel',
         text: 'Cancel',
-        onclick: () => { pending = null; click(); render(); },
+        onclick: () => {
+          const restoreScroll = pending.restoreScroll;
+          pending = null;
+          click();
+          render();
+          content.scrollTop = restoreScroll;
+        },
       }),
       el('button', {
-        class: 'lt-primary lt-danger',
+        class: `lt-primary lt-${pending.tone}`,
         text: pending.confirmLabel,
         onclick: () => { const f = pending.onYes; pending = null; click(); if (f() !== false) render(); },
       }),
     );
+  }
+
+  // A small detail modal INSIDE the laptop glass. One at a time; clicking the dimmed
+  // surround or Close dismisses it. Escape still closes the whole laptop, as ever.
+  function openModal(build) {
+    modal = build;
+    click();
+    render();
+  }
+  function closeModal() {
+    modal = null;
+    click();
+    render();
+  }
+  function modalLayer() {
+    if (!modal) return null;
+    const inner = modal();
+    if (!inner) { modal = null; return null; }
+    const overlay = el('div', { class: 'lt-modal' }, el('div', { class: 'lt-modalcard' }, inner));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    return overlay;
   }
 
   const thumbOf = (sku) => {
@@ -267,319 +614,772 @@ export function makeLaptop(app, opts) {
       : el('div', { class: 'lt-prodicon', text: CAT_ICON[sku.cat] || '📦' });
   };
 
-  const cashOf = () => (app.empire ? app.empire.cash : app.state.cash);
-  const retailSkus = (st) => SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier <= st.shop.unlockedTier);
-  const incomingOf = (st, id) => st.shop.orders.reduce((sum, order) => sum
-    + (order.lines || [{ skuId: order.skuId, quantity: order.qty }])
-      .filter((line) => line.skuId === id)
-      .reduce((lineSum, line) => lineSum + Math.max(0, line.quantity - (line.receivedQuantity || 0)), 0), 0);
-  // The screen must pack the shipment the SAME WAY the receiving pad will. It does not do its own
-  // arithmetic — it calls the one packer (data/boxes.js), which is also what arriveOrder reads.
+  // The active property's state.cash is the empire wallet authority. empire.cash
+  // is reconciled on the next simulation tick, which may be minutes away while
+  // the player is paused at this laptop; reading that cache made purchases look
+  // free until time resumed.
+  const cashOf = () => (Number.isFinite(app.state?.cash) ? app.state.cash : app.empire?.cash || 0);
+  const retailSkus = (st) => SHOP_CATALOG.filter((s) => (
+    RETAIL_CATS.has(s.cat)
+    && s.tier <= st.shop.unlockedTier
+    && shopCategoryUnlocked(st, s.cat)
+  ));
+  const incomingOf = (st, id) => st.shop.orders.filter((o) => o.skuId === id).reduce((a, o) => a + o.qty, 0);
+  // The screen packs a shipment the SAME WAY the receiving pad will — one packer, data/boxes.js.
   const shipOf = (sku, qty) => planShipment(sku, Math.max(1, qty));
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 'es'}`;
   const shopIsOpen = (st) => {
     const m = calendarOf(st.clock.minutes).minuteOfDay;
-    return m >= SHOP_OPEN_MIN && m < SHOP_CLOSE_MIN;
+    const campaignOpen = !st.campaign?.enabled || st.campaign.businessOpen;
+    return campaignOpen && m >= SHOP_OPEN_MIN && m < SHOP_CLOSE_MIN;
   };
-  const grimeAvgOf = (st) => (st.shop.reno
-    ? st.shop.reno.grime.reduce((a, v) => a + v, 0) / st.shop.reno.grime.length : 0);
+  const sumLines = (lines) => Object.values(lines || {}).reduce((a, v) => a + (Number.isFinite(v) ? v : 0), 0);
+
+  // per-zone turf health, averaged over the cells that belong to each zone
+  function zoneHealth(st, zone) {
+    let n = 0;
+    let health = 0;
+    for (let i = 0; i < st.course.zones.length; i++) {
+      if (st.course.zones[i] !== zone) continue;
+      n++;
+      health += st.turf.health[i];
+    }
+    return n ? health / n : null;
+  }
+  const rakeableBunkers = (st) => (st.sections || []).filter((s) => {
+    if (s.zone !== ZONE.BUNKER) return false;
+    let sum = 0;
+    for (const i of s.cells) sum += st.turf.wear[i];
+    return sum / s.cells.length > 25;
+  }).length;
+
+  // the short course-work list Home and the Course page agree on
+  function courseChores(st) {
+    const chores = [];
+    const rakes = rakeableBunkers(st);
+    if (rakes) chores.push({ icon: '🏖', name: `Rake ${rakes} bunker${rakes === 1 ? '' : 's'}`, detail: 'Take the rake out to the sand — nobody does it from a desk.' });
+    const reno = st.shop.reno;
+    const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
+    if (clutterLeft) chores.push({ icon: '🧹', name: `Haul ${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'}`, detail: 'Old junk in the clubhouse — pick it up and carry it out.' });
+    const grime = reno ? reno.grime.reduce((a, v) => a + v, 0) / reno.grime.length : 0;
+    if (grime > 0.4) chores.push({ icon: '🧽', name: 'Vacuum the clubhouse floor', detail: 'The vacuum lives in the cleaning corner.' });
+    if (st.tractor && !st.tractor.repaired) {
+      const missing = TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]);
+      chores.push({ icon: '🚜', name: 'Repair the tractor', detail: `Still needs: ${missing.map((s2) => STEP_LABEL[s2]).join(', ')} — hands-on at the machine.`, tone: 'bad' });
+    }
+    return chores;
+  }
+
+  // the bell — a small in-glass list of what the club recorded, newest first
+  function openNotifications() {
+    const st = app.state;
+    openModal(() => {
+      const feed = ensureNotifications(st);
+      const items = feed.items.slice(0, 10);
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('bell'), el('span', { text: 'Notifications' })),
+        items.length
+          ? el('div', {}, ...items.map((i) => el('button', {
+            class: `lt-notif ${i.read ? '' : 'unread'}`,
+            onclick: () => {
+              markRead(st, i.id);
+              const dest = i.page;
+              closeModal();
+              if (dest) go(dest);
+            },
+          },
+          el('span', { class: `lt-notifdot ${i.read ? 'read' : ''}` }),
+          el('span', { class: 'lt-listbody' },
+            el('div', { class: 'lt-listname', text: `${(NOTIF_KINDS[i.kind] || NOTIF_KINDS.system).icon}  ${i.text}` }),
+            el('div', { class: 'lt-listsub', text: `Day ${calendarOf(i.minute).dayOfSeason} · ${clock12(calendarOf(i.minute).minuteOfDay)}` })))))
+          : empty('Nothing yet — the club writes here when something happens.'),
+        el('div', { class: 'lt-modalbtns' },
+          items.some((i) => !i.read)
+            ? el('button', { class: 'lt-mini', text: 'Mark all read', onclick: () => { markAllRead(st); click(); render(); } })
+            : null,
+          el('button', { class: 'lt-primary', text: 'Close', onclick: () => closeModal() })),
+      );
+    });
+  }
 
   function refreshStatus() {
     const st = app.state;
     if (!st) return;
     const cal = calendarOf(st.clock.minutes);
-    const setText = (node, value) => { if (node.textContent !== value) node.textContent = value; };
-    const backDisabled = history.length === 0;
-    if (statusBack.disabled !== backDisabled) statusBack.disabled = backDisabled;
-    setText(statusName, st.clubName || 'The Club');
-    setText(statusDate, `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}`);
-    setText(statusTime, clock12(cal.minuteOfDay));
-    const shopClass = `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`;
-    if (statusShop.className !== shopClass) statusShop.className = shopClass;
-    setText(statusShop, shopIsOpen(st) ? 'Shop open' : 'Shop closed');
-    setText(statusCash, formatMoney(cashOf()));
+    const unread = unreadCount(st);
+    const showBadge = prefsOf().notifBadge !== false;
+    statusbar.replaceChildren(
+      el('button', { class: 'lt-crumb', title: 'Back', disabled: history.length ? undefined : 'disabled', onclick: () => back() }, icon('back')),
+      el('span', { class: 'lt-statusname', text: (NAV.find((n) => n.id === page) || NAV[0]).label }),
+      el('span', { text: `Day ${cal.dayOfSeason} · ${clock12(cal.minuteOfDay)}` }),
+      el('span', { class: `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`, text: shopIsOpen(st) ? 'Open' : 'Closed' }),
+      el('span', { class: 'lt-headspace' }),
+      el('button', {
+        class: 'lt-crumb', title: unread ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'Notifications',
+        onclick: () => openNotifications(),
+      }, icon('bell'), unread && showBadge ? el('span', { class: 'lt-belldot', text: unread > 9 ? '9+' : String(unread) }) : null),
+      el('button', {
+        class: 'lt-cashcard', title: 'Open Business finances',
+        onclick: () => { ts('finances').tab = 'finances'; go('finances'); },
+      },
+        el('div', { class: 'lt-cashval', text: formatMoney(cashOf()) }),
+        el('div', { class: 'lt-cashlabel', text: 'Cash balance' })),
+    );
   }
 
-  // =========================================================================================
-  // 1. HOME
-  // =========================================================================================
+  function campaignOpeningCard(st) {
+    const view = campaignView(st);
+    if (!view) return null;
+    const opening = view.opening;
+    const done = opening.requirements.filter((item) => item.ok).length;
+    const first = view.firstDay;
+    const firstChecks = [
+      ['Guest checked in', first.checkIn],
+      ['Merchandise sold', first.merchandiseSale],
+      ['Shelf gap observed', first.shelfGap],
+      ['Revenue earned', first.revenue > 0],
+      ['Review received', first.review],
+      ['Books closed', first.booksClosed],
+    ];
+
+    const showOpening = () => openModal(() => {
+      const latest = campaignView(st);
+      const requirements = latest.opening.requirements;
+      const recovery = campaignRecoveryStatus(st);
+      const day = latest.firstDay;
+      const dayChecks = [
+        { label: 'Guest checked in', ok: day.checkIn, reason: 'Serve the scheduled guest on the front-desk monitor.' },
+        { label: 'Merchandise sale complete', ok: day.merchandiseSale, reason: 'Complete a full physical checkout.' },
+        { label: 'Shelf gap observed', ok: day.shelfGap, reason: 'A real sale must remove visible stock.' },
+        { label: 'Revenue earned', ok: day.revenue > 0, reason: 'Bank a check-in or retail transaction.' },
+        { label: 'Customer review received', ok: day.review, reason: 'Finish serving a real visitor.' },
+        { label: 'End-of-day books closed', ok: day.booksClosed, reason: 'The ledger closes at midnight.' },
+      ];
+      const displayRows = st.campaign.businessOpen ? dayChecks : requirements;
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('target'), el('span', { text: latest.mainObjective })),
+        el('div', { class: 'lt-orderlist' }, ...displayRows.map((item) => el('div', { class: 'lt-order' },
+          el('span', { class: `lt-word ${item.ok ? 'ok' : 'warn'}`, text: item.ok ? '✓' : '○' }),
+          el('div', { class: 'lt-orderbody' },
+            el('div', { class: 'lt-ordername', text: item.label }),
+            !item.ok ? el('div', { class: 'lt-prodmeta', text: item.reason }) : null),
+        ))),
+        st.campaign.businessOpen ? row(
+          meta(`First-day revenue ${formatMoney(day.revenue)}`),
+          day.result ? word(`Net ${formatMoney(day.result.net || 0)}`, (day.result.net || 0) >= 0 ? 'ok' : 'bad') : meta('books still open'),
+        ) : null,
+        recovery.needed ? errBox('Recovery is available for an owned missing item or disrupted safe fixture layout.') : null,
+        el('div', { class: 'lt-modalbtns' },
+          recovery.items.length ? el('button', {
+            class: 'lt-mini',
+            text: 'Recover owned items',
+            onclick: () => {
+              const result = recoverAllCampaignItems(st);
+              toast(result.ok ? 'Replacement delivery scheduled.' : 'Nothing owned is missing.', result.ok ? '' : 'warn');
+              opts.onCampaignChanged?.('recovery', result);
+              closeModal();
+              render();
+            },
+          }) : null,
+          recovery.layoutBlocked ? el('button', {
+            class: 'lt-mini',
+            text: 'Restore safe layout',
+            onclick: () => {
+              const result = recoverOpeningLayout(st);
+              toast(result.ok ? 'Required fixtures returned to the safe authored layout.' : result.reason, result.ok ? '' : 'warn');
+              opts.onCampaignChanged?.('recovery', result);
+              closeModal();
+              render();
+            },
+          }) : null,
+          el('button', { class: 'lt-mini', text: 'Close', onclick: () => closeModal() }),
+          !st.campaign.businessOpen ? el('button', {
+            class: 'lt-primary',
+            text: latest.opening.ready ? 'Open Clubhouse' : `${requirements.filter((item) => item.ok).length}/${requirements.length} ready`,
+            disabled: latest.opening.ready ? undefined : 'disabled',
+            onclick: () => {
+              const result = openClubhouse(st);
+              if (!result.ok) {
+                toast(result.reason, 'warn');
+                return;
+              }
+              toast('The clubhouse is open. Your first guests are on the way.');
+              opts.onCampaignChanged?.('opening', result);
+              closeModal();
+              render();
+            },
+          }) : null,
+        ),
+      );
+    });
+
+    if (!st.campaign.businessOpen) {
+      return el('div', { class: 'lt-objbar lt-openingbar' },
+        el('div', { class: 'lt-objicon' }, icon('target')),
+        el('div', { class: 'lt-objbody' },
+          el('div', { class: 'lt-objlabel', text: 'Opening readiness' }),
+          el('div', { class: 'lt-tasktitle', text: opening.ready ? 'Ready to open' : `${done} of ${opening.requirements.length} requirements` }),
+          el('div', { class: 'lt-listsub', text: opening.ready
+            ? 'Everything is physically in place. Change the porch sign when you are ready.'
+            : opening.requirements.find((item) => !item.ok)?.reason || '' })),
+        el('button', { class: opening.ready ? 'lt-primary' : 'lt-mini', text: opening.ready ? 'Open' : 'Review', onclick: showOpening }),
+      );
+    }
+
+    const completeCount = firstChecks.filter(([, ok]) => ok).length;
+    return el('div', { class: 'lt-objbar lt-openingbar' },
+      el('div', { class: 'lt-objicon' }, icon(first.complete ? 'up' : 'users')),
+      el('div', { class: 'lt-objbody' },
+        el('div', { class: 'lt-objlabel', text: first.complete ? 'First day complete' : 'Opening day live' }),
+        el('div', { class: 'lt-tasktitle', text: first.complete
+          ? `${formatMoney(first.revenue)} earned · books reconciled`
+          : `${completeCount}/6 first-day outcomes` }),
+        el('div', { class: 'lt-listsub', text: first.complete
+          ? 'Next goal: keep two core product lines stocked and build a week of strong reviews.'
+          : (firstChecks.find(([, ok]) => !ok)?.[0] || 'Serve the club.') })),
+      el('button', { class: 'lt-mini', text: 'Details', onclick: showOpening }),
+    );
+  }
+
+  // ==========================================================================================
+  // HOME — one screen: four numbers, today's objective, and the three lists that matter
+  // ==========================================================================================
   function pageHome() {
     const st = app.state;
     const cal = calendarOf(st.clock.minutes);
-    const w = st.weather.today;
-    const ops = operationsSummary(st, cal.dayAbs);
-    const todayBookings = st.reservations.booked
-      .filter((reservation) => reservation.dayAbs === cal.dayAbs
-        && !['cancelled', 'noShow'].includes(reservation.status))
-      .sort((a, b) => a.minute - b.minute);
-    const lowLines = retailSkus(st).filter((s) => st.shop.inventory[s.id].shelf === 0);
-    const thinLines = retailSkus(st).filter((s) => {
-      const e = st.shop.inventory[s.id];
-      return e.shelf > 0 && e.shelf < 3;
-    });
-    const rs = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
-    const cond = shopCondition(st);
     const ratings = clubRatings(st);
+    const revToday = sumLines(st.ledger?.today?.revenue);
+    const condition = ratings.condition;
+
+    const teeSheet = laptopReservationSheet(st, cal.dayAbs);
+    const upcoming = teeSheet.slots
+      .flatMap((slot) => slot.reservations.map((entry) => ({ minute: slot.minute, ...entry })))
+      .filter((b) => b.reservation.status === 'booked' && b.minute >= cal.minuteOfDay)
+      .sort((a, b) => a.minute - b.minute);
+    const next = upcoming[0] || null;
+
+    // today's objective, straight from the tutorial — or an honest "all caught up"
     const step = st.tutorial && !st.tutorial.complete ? currentStep(st) : null;
-    const wages = staffDailyWages(st);
-    const rent = weeklyCharge(st);
-    const owed = arrearsOf(st);
-    const inbound = st.shop.orders;
-    const nextIn = inbound.slice().sort((a, b) => a.deliveryMin - b.deliveryMin)[0];
-    const boxes = boxesOf(st).filter((b) => b.loc !== 'gone');
-    const daily = latestDailySummary(st);
-    const appraisal = appraisalBreakdown(st);
-    const reputation = reputationSnapshot(st);
-    const longGoal = nextProgressionGoal(st, app.empire);
-    const risks = [];
-    if (owed > 0) risks.push(`${formatMoney(owed)} property arrears`);
-    if (lowLines.length) risks.push(`${lowLines.length} sold-out line${lowLines.length === 1 ? '' : 's'}`);
-    if (appraisal.conditionBreakdown.unresolved.length) risks.push(`${appraisal.conditionBreakdown.unresolved.length} weak condition area${appraisal.conditionBreakdown.unresolved.length === 1 ? '' : 's'}`);
-    if ((daily?.missedSales || 0) > 0) risks.push(`${daily.missedSales} missed sale${daily.missedSales === 1 ? '' : 's'}`);
-    if (cashOf() < rent + wages * 3) risks.push('thin cash cover');
+    const rs = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
+    const prestige = st.progression ? st.progression.prestige : 0;
+    const nextUpgrade = Object.entries(UPGRADES)
+      .filter(([id]) => !hasUpgrade(st, id))
+      .sort((a, b) => a[1].prestige - b[1].prestige || a[1].cost - b[1].cost)[0] || null;
+    let objectiveTitle = step ? step.title : 'Protect the business';
+    let objectiveHint = step ? (step.hint || '')
+      : (rs.count
+        ? `${rs.average}★ from ${rs.count} reviews — keep the weakest factor moving up.`
+        : 'Build reputation, condition, and a dependable day of trade.');
+    if (!step && nextUpgrade) {
+      const [, upgrade] = nextUpgrade;
+      if (prestige + 0.01 < upgrade.prestige) {
+        objectiveTitle = `Reach prestige ${upgrade.prestige}`;
+        objectiveHint = `${upgrade.name} unlocks next. Course condition, reputation, premium members, and hosted events all move prestige.`;
+      } else if (cashOf() + 0.005 < upgrade.cost) {
+        objectiveTitle = `Fund ${upgrade.name}`;
+        objectiveHint = `Save ${formatMoney(upgrade.cost - cashOf())} more, then buy it under Upgrades.`;
+      } else {
+        objectiveTitle = `Purchase ${upgrade.name}`;
+        objectiveHint = 'It is unlocked and affordable now under Upgrades.';
+      }
+    } else if (!step && st.progression && !st.progression.majorWon) {
+      objectiveTitle = 'Win the club campaign';
+      objectiveHint = 'Host the event ladder, protect course condition, and earn the major.';
+    }
 
-    const stat = (label, value, sub, tone = '') => el('div', { class: 'lt-stat' },
-      el('div', { class: 'lt-statlabel', text: label }),
-      el('div', { class: `lt-statvalue ${tone}`, text: value }),
-      sub ? el('div', { class: 'lt-statsub', text: sub }) : null);
+    // low stock — out lines first, then the thinnest shelves
+    const lowStock = retailSkus(st)
+      .map((s) => ({ sku: s, e: st.shop.inventory[s.id] }))
+      .filter((m) => m.e.shelf < 3)
+      .sort((a, b) => (a.e.shelf + a.e.back * 0.01) - (b.e.shelf + b.e.back * 0.01))
+      .slice(0, 3);
 
-    const jump = (icon, title, sub, dest, tone = '') => el('button', { class: 'lt-tile', onclick: () => go(dest) },
-      el('div', { class: 'lt-tileicon', text: icon }),
-      el('div', { class: 'lt-tiletitle', text: title }),
-      el('div', { class: `lt-tilesub ${tone}`, text: sub }));
+    // course work — turf problems and hands-on chores, worst first
+    const problems = (st.sections || [])
+      .filter((section) => TURF_ZONES.has(section.zone))
+      .map((section) => ({ section, status: sectionStatus(st, section) }))
+      .filter((p) => p.status !== 'Healthy');
+    const chores = courseChores(st);
+    const tasks = [
+      ...problems.map((p) => ({ name: p.section.name || 'Section', detail: p.status, tone: p.status === 'Declining' ? 'bad' : 'warn' })),
+      ...chores.map((c) => ({ name: c.name, detail: 'hands-on', tone: c.tone || 'warn' })),
+    ].slice(0, 3);
+
+    const listRow = (kids) => el('div', { class: 'lt-listrow' }, ...kids);
+    const greetWord = cal.minuteOfDay < 12 * 60 ? 'Good morning' : cal.minuteOfDay < 17 * 60 ? 'Good afternoon' : 'Good evening';
 
     paint(
-      head(`Good ${cal.minuteOfDay < 720 ? 'morning' : cal.minuteOfDay < 1020 ? 'afternoon' : 'evening'} — ${st.clubName}`,
-        'Everything on this page is read live from the club. The tiles below jump straight to the application that owns each number.'),
+      confirmBar(),
+      el('div', { class: 'lt-greet' },
+        el('h1', { text: `${greetWord}, Manager` }),
+        el('div', { class: 'lt-greetsub', text: `Here's what's happening at ${st.clubName || 'your club'}.` })),
 
-      el('div', { class: 'lt-stats' },
-        stat('Cash', formatMoney(cashOf()), owed > 0 ? `${formatMoney(owed)} in arrears` : 'no arrears', owed > 0 ? 'bad' : ''),
-        stat('Weather', `${Math.round(w.tempHiF)}°F`, w.rainIn > 0.02 ? `rain ${w.rainIn.toFixed(2)}"` : 'dry'),
-        stat('Visitors', `${st.club.lastRounds || 0}`, 'rounds yesterday'),
-        stat('Reviews', rs.count ? `${rs.average} ★` : '—', rs.count ? `${rs.count} in` : 'nobody yet'),
-        stat('Shop floor', `${Math.round((1 - grimeAvgOf(st)) * 100)}% clean`, `condition ${cond}`, cond < 45 ? 'bad' : ''),
-        stat('Course', `${Math.round(ratings.overall)}`, `condition ${Math.round(ratings.condition)}`),
-        stat('Tee sheet', pct(ops.utilization), `${ops.reserved} of ${ops.capacity} places`),
-        stat('Waiting', String(ops.waiting.length), ops.nextArrival
-          ? `next ${ops.nextArrival.reservationHolder} at ${fmtSlot(ops.nextArrival.minute)}`
-          : 'no expected arrival', ops.waiting.length ? 'warn' : ''),
-        stat('Golf cash', operationMoney(ops.finance.netCash), 'today, already in the ledger', ops.finance.netCash < 0 ? 'bad' : ''),
-        stat('Today profit', daily ? `${daily.netProfit >= 0 ? '+' : ''}${formatMoney(daily.netProfit)}` : '—', daily ? `closed day ${daily.day + 1} · ${formatMoney(daily.grossRevenue)} gross` : 'first close pending', daily && daily.netProfit < 0 ? 'bad' : 'ok'),
-        stat('Reputation', `${Math.round(reputation.overall)}`, `${rs.count} review${rs.count === 1 ? '' : 's'} · 4 categories`, reputation.overall < 35 ? 'bad' : ''),
-        stat('Property value', formatMoney(appraisal.value), `${appraisal.propertyCondition} condition`, appraisal.value < appraisal.acquisitionCost ? 'bad' : ''),
-        stat('Immediate risks', risks.length ? String(risks.length) : 'Clear', risks.slice(0, 2).join(' · ') || 'no urgent blockers', risks.length ? 'bad' : 'ok'),
-        stat('Next goal', longGoal.type === 'sandbox' ? 'Sandbox' : longGoal.type === 'next-property' ? 'Next tier' : longGoal.type === 'decision' ? 'Decision' : longGoal.type === 'sale-readiness' ? 'Readiness' : 'Progress', longGoal.title),
+      campaignOpeningCard(st),
+
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Cash', formatMoney(cashOf())),
+        stat("Today's Revenue", formatMoney(revToday), revToday > 0 ? { text: 'earned so far today', tone: 'ok' } : 'nothing banked yet'),
+        stat('Next Tee Time', next ? fmtSlot(next.minute) : '—', next ? next.fullName : 'nothing later today'),
+        stat('Course Condition', conditionWord(condition), `${Math.round(condition)} of 100`, conditionTone(condition),
+          el('div', { class: 'lt-statbar' }, el('div', { class: conditionTone(condition), style: `width:${Math.max(2, Math.min(100, condition))}%` }))),
       ),
 
-      ops.late.length || ops.noShows.length
-        ? errBox(`Front-desk review: ${[
-          ops.late.length ? `${ops.late.length} late ${ops.late.length === 1 ? 'party' : 'parties'} waiting` : '',
-          ops.noShows.length ? `${ops.noShows.length} no-show${ops.noShows.length === 1 ? '' : 's'}` : '',
-        ].filter(Boolean).join(' and ')}.`)
-        : null,
-
-      step ? el('div', { class: 'lt-card lt-objective' },
-        el('div', { class: 'lt-objlabel', text: 'Current objective' }),
-        el('div', { class: 'lt-objtitle', text: step.title }),
-        el('div', { class: 'lt-objbody', text: step.body || '' }),
-      ) : null,
-
-      el('div', { class: 'lt-card lt-objective' },
-        el('div', { class: 'lt-objlabel', text: 'Long-term property goal' }),
-        el('div', { class: 'lt-objtitle', text: longGoal.title }),
-        el('div', { class: 'lt-objbody', text: risks.length ? `Watch now: ${risks.join(' · ')}.` : 'No immediate operational blocker. Keep improving value or request an appraisal.' }),
+      el('div', { class: 'lt-objbar' },
+        el('div', { class: 'lt-objicon' }, icon('target')),
+        el('div', { class: 'lt-objbody' },
+          el('div', { class: 'lt-objlabel', text: "Today's objective" }),
+          el('div', { class: 'lt-tasktitle', text: objectiveTitle }),
+          el('div', { class: 'lt-listsub', text: objectiveHint })),
       ),
 
-      sect('Today'),
       el('div', { class: 'lt-cols' },
         card(
-          el('div', { class: 'lt-minihead', text: '📅  Reservations' }),
-          ops.waiting.length
-            ? el('div', {}, ...ops.waiting.slice(0, 3).map((reservation) => row(
-              el('span', { class: 'lt-slottime', text: fmtSlot(reservation.minute) }),
-              el('span', { text: reservation.reservationHolder }),
-              chip('waiting', reservation.arrival.status === 'late' ? 'bad' : 'warn'))))
-            : todayBookings.length
-              ? el('div', {}, ...todayBookings.slice(0, 4).map((reservation) => row(
-                el('span', { class: 'lt-slottime', text: fmtSlot(reservation.minute) }),
-                el('span', { text: reservation.reservationHolder }),
-                chip(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
-                meta(`${operationMoney(reservation.payment.amountDue)} due`))),
-              todayBookings.length > 4 ? meta(`+${todayBookings.length - 4} more`) : null)
-            : empty('Nothing booked today.'),
-          el('button', { class: 'lt-mini', text: 'Open the tee sheet', onclick: () => go('reservations') }),
+          el('div', { class: 'lt-minihead' }, icon('clock'), el('span', { text: 'Upcoming Tee Times' })),
+          upcoming.length
+            ? el('div', {}, ...upcoming.slice(0, 3).map((b) => listRow([
+              el('span', { class: 'lt-slottime', text: fmtSlot(b.minute) }),
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: b.fullName }),
+                el('div', { class: 'lt-listsub', text: `${b.groupSize} player${b.groupSize === 1 ? '' : 's'}${b.outstandingRevenue > 0 ? ` · ${formatMoney(b.outstandingRevenue)} due` : ''}` })),
+            ])))
+            : empty(`No more today — ${teeSheet.reservationCount} came through in all.`),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', { class: 'lt-mini', text: 'View Tee Times', onclick: () => go('reservations') })),
         ),
         card(
-          el('div', { class: 'lt-minihead', text: '🚚  Deliveries' }),
-          inbound.length || boxes.length
-            ? el('div', {},
-              nextIn ? row(el('span', { text: skuById(nextIn.skuId).name }),
-                meta(`${ORDER_STATUS[nextIn.status] ? ORDER_STATUS[nextIn.status].label : nextIn.status} · ${hour12(nextIn.window.open)}–${hour12(nextIn.window.close)}`)) : null,
-              inbound.length > 1 ? meta(`${inbound.length - 1} more on the way`) : null,
-              boxes.length ? row(chip(`${boxes.length} box${boxes.length === 1 ? '' : 'es'} to unpack`, 'warn')) : null)
-            : empty('Nothing on the truck.'),
-          el('button', { class: 'lt-mini', text: 'Track deliveries', onclick: () => go('deliveries') }),
+          el('div', { class: 'lt-minihead' }, icon('box'), el('span', { text: 'Low Stock' })),
+          lowStock.length
+            ? el('div', {}, ...lowStock.map((m) => listRow([
+              thumbOf(m.sku),
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: m.sku.name }),
+                el('div', { class: 'lt-listsub', text: m.e.back > 0 ? `${m.e.back} in the back room` : 'none in the back' })),
+              word(m.e.shelf === 0 ? 'Out' : `Stock: ${m.e.shelf}`, m.e.shelf === 0 ? 'bad' : 'warn'),
+            ])))
+            : empty('Shelves are holding.'),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', {
+              class: 'lt-mini',
+              text: 'Order Stock',
+              onclick: () => { ts('shop').tab = 'order'; go('shop'); },
+            })),
         ),
         card(
-          el('div', { class: 'lt-minihead', text: '⚠  Low stock' }),
-          lowLines.length || thinLines.length
-            ? el('div', {},
-              ...lowLines.slice(0, 4).map((s) => row(el('span', { text: s.name }), chip(st.shop.inventory[s.id].back > 0 ? 'shelve it' : 'out', st.shop.inventory[s.id].back > 0 ? 'warn' : 'bad'))),
-              ...thinLines.slice(0, 2).map((s) => row(el('span', { text: s.name }), chip(`${st.shop.inventory[s.id].shelf} left`, 'warn'))))
-            : empty('Every line has stock on the shelf.'),
-          el('button', { class: 'lt-mini', text: 'Open inventory', onclick: () => go('inventory') }),
+          el('div', { class: 'lt-minihead' }, icon('leaf'), el('span', { text: 'Course Tasks' })),
+          tasks.length
+            ? el('div', {}, ...tasks.map((t) => listRow([
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: t.name }),
+                el('div', { class: 'lt-listsub', text: t.detail })),
+              word(t.tone === 'bad' ? 'Urgent' : 'Needs work', t.tone),
+            ])))
+            : empty('Nothing needs doing out there.'),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', {
+              class: 'lt-mini',
+              text: 'View All Tasks',
+              onclick: () => { ts('course').tab = 'tasks'; go('course'); },
+            })),
         ),
-      ),
-
-      sect('Upcoming expenses'),
-      card(
-        row(el('span', { class: 'lt-mulabel', text: 'Property' }), meta(propertyLine(st, cal.dayAbs)), chip(`${formatMoney(rent)} / week`, owed > 0 ? 'bad' : '')),
-        row(el('span', { class: 'lt-mulabel', text: 'Wages' }), meta(`${st.staff.employees.length} on the books`), chip(`${formatMoney(wages)} / day`)),
-        row(el('span', { class: 'lt-mulabel', text: 'On the truck' }), meta(`${inbound.length} order${inbound.length === 1 ? '' : 's'} already paid for`), chip(formatMoney(inbound.reduce((a, o) => a + o.cost, 0)))),
-      ),
-
-      sect('Jump to'),
-      el('div', { class: 'lt-tiles' },
-        jump('🛒', 'Supplier', 'restock the shop', 'supplier'),
-        jump('🏷', 'Pricing', 'set what you charge', 'pricing'),
-        jump('📈', 'Analytics', 'what changed, and why', 'analytics'),
-        jump('🏛', 'Property', `${formatMoney(appraisal.value)} · appraisal and progression`, 'property'),
       ),
     );
   }
 
-  // =========================================================================================
-  // 2. PRO SHOP
-  // =========================================================================================
-  function pageShop() {
+  // ==========================================================================================
+  // TEE TIMES — an appointment list for one day, with a small detail modal
+  // ==========================================================================================
+  function pageReservations() {
     const st = app.state;
-    const inv = st.shop.inventory;
-    const y = st.shop.salesYesterday;
-    const lost = st.shop.lostSalesYesterday || 0;
-    const avgTxn = y.units ? y.revenue / y.units : 0;
-    // conversion: of the people who wanted something, how many got it? A walkout is a shopper
-    // the shop had and lost — which is exactly what "conversion" is supposed to catch.
-    const conversion = y.units + lost > 0 ? y.units / (y.units + lost) : 0;
+    if (!st.reservations) {
+      paint(head('Tee Times'), empty('Reservations are not available on this property.'));
+      return;
+    }
+    const rs = ts('reservations', { filter: 'all', adding: false });
+    teeDay = Math.max(0, Math.min(TEE_SHEET.horizonDays - 1, teeDay));
+    const cal = calendarOf(st.clock.minutes);
+    const dayAbs = cal.dayAbs + teeDay;
+    const model = laptopReservationSheet(st, dayAbs);
+    const nowAbsMin = st.clock.minutes;
 
-    const catRows = ['balls', 'clubs', 'apparel', 'accessories'].map((cat) => {
-      const skus = retailSkus(st).filter((s) => s.cat === cat);
-      if (!skus.length) return null;
-      const shelf = skus.reduce((a, s) => a + inv[s.id].shelf, 0);
-      const back = skus.reduce((a, s) => a + inv[s.id].back, 0);
-      const capacity = skus.length * SHELF_CAP[cat];
-      const outLines = skus.filter((s) => inv[s.id].shelf === 0).length;
-      const sold = skus.reduce((a, s) => a + velocity(st, s.id), 0);
-      return el('tr', {},
-        el('td', {}, el('span', { text: `${CAT_ICON[cat]} ${CAT_LABEL[cat]}` })),
-        el('td', { class: 'lt-num', text: `${shelf} / ${capacity}` }),
-        el('td', { class: 'lt-num', text: String(back) }),
-        el('td', { class: 'lt-num', text: sold ? sold.toFixed(1) : '—' }),
-        el('td', {}, outLines
-          ? chip(`${outLines} line${outLines === 1 ? '' : 's'} out`, 'bad')
-          : shelf < capacity * 0.3 ? chip('running thin', 'warn') : chip('stocked', 'ok')),
+    const statusText = (r) => (r.status === 'played' ? 'Checked in'
+      : r.status === 'noShow' ? 'No show'
+        : r.status === 'cancelled' ? 'Cancelled' : 'Waiting');
+    const statusTone = (r) => (r.status === 'played' ? 'ok'
+      : r.status === 'noShow' || r.status === 'cancelled' ? 'bad' : '');
+    const canMarkNoShow = (r) => r.status === 'booked'
+      && nowAbsMin > (r.teeTimeAbs ?? (r.dayAbs * 1440 + r.minute)) + (TEE_SHEET.noShowGraceMin || 20);
+
+    const flat = model.slots.flatMap((slot) => slot.reservations.map((entry) => ({ slot, entry, r: entry.reservation })));
+    const shown = flat.filter((m) => (rs.filter === 'waiting' ? m.r.status === 'booked'
+      : rs.filter === 'checkedin' ? m.r.status === 'played'
+        : rs.filter === 'noshow' ? m.r.status === 'noShow' : true));
+    const waitingGroups = flat.filter((m) => m.r.status === 'booked').length;
+    const checkedInGroups = flat.filter((m) => m.r.status === 'played').length;
+    const noShowGroups = flat.filter((m) => m.r.status === 'noShow').length;
+
+    // the small detail modal the brief asks for — everything about one booking, in one place
+    const viewReservation = (m) => openModal(() => {
+      const deposit = Number(m.r.depositPaid ?? m.r.deposit) || 0;
+      const due = m.entry.outstandingRevenue;
+      return el('div', {},
+        el('div', { class: 'lt-minihead', text: m.entry.fullName }),
+        row(el('span', { class: 'lt-mulabel', text: 'Tee time' }), el('span', { style: 'font-size:0.84em', text: `${fmtSlot(m.slot.minute)}, ${teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `in ${teeDay} days`}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Party' }), el('span', { style: 'font-size:0.84em', text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Round' }), el('span', { style: 'font-size:0.84em', text: `${m.r.holes || 18} holes · ${m.r.transport === 'cart' ? `${m.r.cartsRequested} cart${m.r.cartsRequested === 1 ? '' : 's'}` : 'walking'}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Rentals' }), el('span', { style: 'font-size:0.84em', text: Array.isArray(m.r.rentalRequirements) && m.r.rentalRequirements.length ? m.r.rentalRequirements.join(', ') : 'none' })),
+        row(el('span', { class: 'lt-mulabel', text: 'Payment preference' }), chip(m.r.paymentPreference === 'cash' ? 'Cash' : m.r.paymentPreference === 'card' ? 'Card' : 'Ask at desk')),
+        row(el('span', { class: 'lt-mulabel', text: 'Green fees' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.greenFeeSubtotal ?? m.r.fee ?? 0) })),
+        m.r.transport === 'cart'
+          ? row(el('span', { class: 'lt-mulabel', text: 'Cart rental' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.cartRentalFee || 0) }))
+          : null,
+        deposit ? row(el('span', { class: 'lt-mulabel', text: 'Deposit paid' }), word(formatMoney(deposit), 'ok')) : null,
+        row(el('span', { class: 'lt-mulabel', text: 'Due at desk' }), chip(due > 0 ? formatMoney(due) : 'Paid', due > 0 ? 'warn' : 'ok')),
+        row(el('span', { class: 'lt-mulabel', text: 'Status' }), chip(statusText(m.r), statusTone(m.r))),
+        m.r.status === 'noShow' && m.r.noShowFeeStatus
+          ? row(el('span', { class: 'lt-mulabel', text: 'No-show fee' }), meta(m.r.noShowFeeStatus.replace(/-/g, ' ')))
+          : null,
+        el('div', { class: 'lt-modalbtns' },
+          m.r.status === 'booked' && canMarkNoShow(m.r)
+            ? el('button', {
+              class: 'lt-mini lt-cancel',
+              text: 'Mark no-show',
+              onclick: () => {
+                closeModal();
+                askConfirm(`Mark ${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} as a no-show? The fee settles once, deposit first.`, 'Mark no-show', () => {
+                  const res = markReservationNoShow(st, m.r.id, { at: nowAbsMin });
+                  toast(res && res.ok === false ? (res.reason || 'Could not mark it.') : `${m.entry.fullName} marked as a no-show.`, res && res.ok === false ? 'warn' : '');
+                });
+              },
+            })
+            : null,
+          m.r.status === 'booked'
+            ? el('button', {
+              class: 'lt-mini lt-cancel',
+              text: 'Cancel booking',
+              onclick: () => {
+                closeModal();
+                askConfirm(`Cancel ${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} tee time?`, 'Cancel the booking', () => {
+                  cancelReservation(st, m.r.id);
+                  toast(`${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} spot is open again.`);
+                });
+              },
+            })
+            : null,
+          el('button', { class: 'lt-primary', text: 'Close', onclick: () => closeModal() }),
+        ),
       );
-    }).filter(Boolean);
+    });
 
-    const featureSel = el('select', {
+    const rowOf = (m) => el('tr', {},
+      el('td', {}, el('span', { class: 'lt-slottime', text: fmtSlot(m.slot.minute) })),
+      el('td', {}, el('span', { style: 'font-weight:600', text: m.entry.fullName })),
+      el('td', { text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` }),
+      el('td', { text: m.r.transport === 'cart' ? `${m.r.cartsRequested} cart${m.r.cartsRequested === 1 ? '' : 's'}` : 'Walking' }),
+      el('td', {}, word(statusText(m.r), statusTone(m.r))),
+      el('td', { class: 'lt-num' },
+        el('button', { class: 'lt-mini', text: 'View', onclick: () => viewReservation(m) })));
+
+    // the walk-in adder: pick a time with room, pick a party size, done. A walk-in is
+    // standing at the desk NOW — today's already-passed times are not on offer.
+    const openSlots = model.slots.filter((s) => s.remainingCapacity >= teePartySize
+      && (teeDay > 0 || s.minute >= cal.minuteOfDay - 10)
+      && (teeTransport !== 'cart' || cartReservationQuote(st, {
+        dayAbs, minute: s.minute, partySize: teePartySize, holes: teeHoles,
+      }).ok));
+    const timeSel = el('select', { class: 'lt-select' },
+      ...openSlots.map((s) => el('option', { value: String(s.minute), text: `${fmtSlot(s.minute)} (${s.remainingCapacity} open)` })));
+    const partySel = el('select', {
       class: 'lt-select',
-      onchange: (e) => { st.shop.featureCategory = e.target.value; click(); render(); },
-    }, ...['balls', 'clubs', 'apparel', 'accessories'].map((c) =>
-      el('option', { value: c, text: CAT_LABEL[c], selected: st.shop.featureCategory === c ? 'selected' : undefined })));
+      onchange: (e) => { teePartySize = Number(e.target.value) || 1; click(); render(); },
+    }, ...Array.from({ length: Math.max(1, Math.min(16, Number(st.reservations.config?.maxGroupSize) || TEE_SHEET.maxGroupSize)) }, (_, i) => i + 1)
+      .map((size) => el('option', { value: String(size), text: `${size} player${size === 1 ? '' : 's'}`, selected: size === teePartySize ? 'selected' : undefined })));
+    const transportSel = el('select', {
+      class: 'lt-select',
+      onchange: (e) => { teeTransport = e.target.value === 'cart' ? 'cart' : 'walking'; click(); render(); },
+    },
+    el('option', { value: 'walking', text: 'Walking', selected: teeTransport === 'walking' ? 'selected' : undefined }),
+    el('option', { value: 'cart', text: 'Rental cart', selected: teeTransport === 'cart' ? 'selected' : undefined }));
+    const holesSel = el('select', {
+      class: 'lt-select',
+      onchange: (e) => { teeHoles = Number(e.target.value) === 9 ? 9 : 18; click(); render(); },
+    },
+    el('option', { value: '9', text: '9 holes', selected: teeHoles === 9 ? 'selected' : undefined }),
+    el('option', { value: '18', text: '18 holes', selected: teeHoles === 18 ? 'selected' : undefined }));
+    const addCard = rs.adding
+      ? card(
+        el('div', { class: 'lt-minihead', text: 'Add a walk-in' }),
+        row(el('span', { class: 'lt-mulabel', text: 'Time' }), timeSel),
+        row(el('span', { class: 'lt-mulabel', text: 'Party' }), partySel),
+        row(el('span', { class: 'lt-mulabel', text: 'Round' }), holesSel),
+        row(el('span', { class: 'lt-mulabel', text: 'Transport' }), transportSel),
+        row(
+          el('button', { class: 'lt-mini', text: 'Never mind', onclick: () => { rs.adding = false; click(); render(); } }),
+          el('button', {
+            class: 'lt-primary',
+            text: 'Book it',
+            disabled: openSlots.length ? undefined : 'disabled',
+            onclick: () => {
+              const minute = Number(timeSel.value);
+              const result = bookLaptopReservation(st, {
+                dayAbs, minute, partySize: teePartySize, transport: teeTransport, holes: teeHoles,
+              });
+              if (!result.ok) toast(result.reason, 'warn');
+              else {
+                toast(`${result.res.fullName} booked for ${fmtSlot(minute)}.`);
+                rs.adding = false;
+                click();
+              }
+              render();
+            },
+          }),
+        ),
+        teeTransport === 'cart' && openSlots.length
+          ? meta(`${cartReservationQuote(st, { dayAbs, minute: Number(timeSel.value), partySize: teePartySize, holes: teeHoles }).requested} cart${teePartySize > 2 ? 's' : ''} · ${formatMoney(cartReservationQuote(st, { dayAbs, minute: Number(timeSel.value), partySize: teePartySize, holes: teeHoles }).fee)} added`)
+          : null,
+        openSlots.length ? null : meta(teeTransport === 'cart'
+          ? 'No tee time this day has both player and rental-cart capacity.'
+          : 'No slot this day fits that party size.'),
+      )
+      : null;
 
     paint(
-      head('Pro Shop', 'The shop trades while you are on the floor and while you are not. These are yesterday\'s closed numbers plus the live shelf.',
-        primaryBtn('Restock from the supplier', () => go('supplier'))),
+      head('Booking & Check-In', 'Review every booking here. When the golfer arrives, verify these details and collect the balance at the physical front-desk monitor.',
+        primaryBtn('+ Add Walk-In', () => { rs.adding = !rs.adding; click(); render(); })),
       confirmBar(),
-
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' },
-          el('div', { class: 'lt-statlabel', text: 'Trading' }),
-          el('div', { class: `lt-statvalue ${shopIsOpen(st) ? 'ok' : ''}`, text: shopIsOpen(st) ? 'Open' : 'Closed' }),
-          el('div', { class: 'lt-statsub', text: `${hour12(SHOP_OPEN_MIN)} – ${hour12(SHOP_CLOSE_MIN)}` })),
-        el('div', { class: 'lt-stat' },
-          el('div', { class: 'lt-statlabel', text: 'Sales yesterday' }),
-          el('div', { class: 'lt-statvalue', text: String(y.units) }),
-          el('div', { class: 'lt-statsub', text: formatMoney(y.revenue) })),
-        el('div', { class: 'lt-stat' },
-          el('div', { class: 'lt-statlabel', text: 'Average sale' }),
-          el('div', { class: 'lt-statvalue', text: y.units ? formatMoney(avgTxn) : '—' }),
-          el('div', { class: 'lt-statsub', text: y.units ? 'per transaction' : 'nothing sold' })),
-        el('div', { class: 'lt-stat' },
-          el('div', { class: 'lt-statlabel', text: 'Conversion' }),
-          el('div', { class: `lt-statvalue ${conversion < 0.7 && y.units + lost > 0 ? 'bad' : ''}`, text: y.units + lost ? pct(conversion) : '—' }),
-          el('div', { class: 'lt-statsub', text: lost ? `${lost} walked out empty-handed` : 'nobody walked out' })),
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Groups on Sheet', String(model.reservationCount), `${waitingGroups} waiting / ${checkedInGroups} checked in`),
+        stat('Players on Sheet', String(model.bookedPlayers), noShowGroups ? `${noShowGroups} no-show group${noShowGroups === 1 ? '' : 's'}` : 'active capacity this day'),
+        stat('Due at Desk', formatMoney(model.expectedRevenue), model.expectedRevenue ? 'collect during physical check-in' : 'nothing outstanding', model.expectedRevenue ? 'warn' : 'ok'),
+        stat('Open Spots', String(model.openPlayerCapacity), `${model.totalPlayerCapacity} player spots this day`, model.openPlayerCapacity ? 'ok' : 'warn'),
       ),
-
-      sect('Categories'),
-      card(el('table', { class: 'lt-table' },
-        el('thead', {}, el('tr', {},
-          el('th', { text: 'Category' }), el('th', { class: 'lt-num', text: 'On shelf' }),
-          el('th', { class: 'lt-num', text: 'Back' }), el('th', { class: 'lt-num', text: 'Sold / day' }),
-          el('th', { text: '' }))),
-        el('tbody', {}, ...catRows))),
-
-      sect('Feature table'),
-      card(row(
-        el('span', { class: 'lt-mulabel', text: 'Front display' }), featureSel,
-        meta('the table by the door nudges shoppers toward this category'))),
-
-      lost > 0
-        ? errBox(`${lost} shopper${lost === 1 ? '' : 's'} walked out yesterday without buying. Empty shelves and prices they would not pay are the only two reasons.`)
-        : note('Stocking is physical: order from the Supplier, then carry the boxes from the stockroom to the displays.'),
+      row(
+        el('button', { class: 'lt-day', text: '‹', disabled: teeDay === 0 ? 'disabled' : undefined, onclick: () => { teeDay--; click(); render(); } }),
+        el('button', { class: `lt-day ${teeDay === 0 ? 'on' : ''}`, text: 'Today', onclick: () => { teeDay = 0; click(); render(); } }),
+        el('button', { class: 'lt-day', text: '›', disabled: teeDay >= TEE_SHEET.horizonDays - 1 ? 'disabled' : undefined, onclick: () => { teeDay++; click(); render(); } }),
+        meta(teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `${teeDay} days out`),
+      ),
+      addCard,
+      filterTabs(rs, [
+        { value: 'all', label: 'All' }, { value: 'waiting', label: 'Waiting' },
+        { value: 'checkedin', label: 'Checked in' }, { value: 'noshow', label: 'No show' },
+      ], () => { click(); render(); }),
+      !flat.length ? sect('Front-desk flow') : null,
+      !flat.length ? el('div', { class: 'lt-flowgrid' },
+        flowStep(1, 'Book', 'Use Add Walk-In or wait for a scheduled guest.'),
+        flowStep(2, 'Verify', 'Confirm party, round, transport, rentals, and payment preference.'),
+        flowStep(3, 'Check in', 'Use the physical desk monitor and collect the outstanding balance.')) : null,
+      shown.length
+        ? card(el('table', { class: 'lt-table' },
+          el('thead', {}, el('tr', {},
+            el('th', { text: 'Time' }), el('th', { text: 'Customer' }), el('th', { text: 'Party' }),
+            el('th', { text: 'Transport' }), el('th', { text: 'Status' }), el('th', {}))),
+          el('tbody', {}, ...shown.map(rowOf))))
+        : empty(flat.length ? 'Nothing under that filter.' : 'Nothing booked this day — walk-ins welcome.'),
     );
   }
 
-  // =========================================================================================
-  // 3. SUPPLIER
-  // =========================================================================================
-  function pageSupplier() {
+  // ==========================================================================================
+  // SHOP — stock, order, pricing, deliveries. Four tabs, one page.
+  // ==========================================================================================
+  function pageShop() {
     const st = app.state;
-    // Freight is part of the price. Quoting the goods alone and then taking more at the till is
-    // the oldest trick in retail and it has no business being in the player's own back office.
-    const quote = cart.size
-      ? quotePurchaseOrders(st, [...cart].map(([skuId, quantity]) => ({ skuId, quantity })))
-      : { ok: true, goods: 0, freight: 0, boxes: 0, weight: 0, total: 0 };
-    const goods = quote.ok ? quote.goods : 0;
-    const freight = quote.ok ? quote.freight : 0;
-    const boxCount = quote.ok ? quote.boxes : 0;
-    const weight = quote.ok ? quote.weight : 0;
-    const total = quote.ok ? quote.total : Infinity;
-    const affordable = total <= cashOf();
+    const ss = ts('shop', { tab: 'stock', cat: 'all' });
+    const tabs = [['stock', 'Inventory'], ['order', 'Orders & Suppliers'], ['prices', 'Pricing'], ['deliveries', 'Deliveries']];
 
-    const cats = ['balls', 'accessories', 'apparel', 'clubs', 'supplies', 'decor'];
-    const tabs = el('div', { class: 'lt-tabs' },
-      el('button', {
-        class: `lt-tab ${supplierCat === 'all' ? 'on' : ''}`, text: 'All',
-        onclick: () => { supplierCat = 'all'; click(); render(); },
-      }),
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
+      class: `lt-tab ${ss.tab === v ? 'on' : ''}`, text: label,
+      onclick: () => { ss.tab = v; click(); render(); },
+    })));
+
+    const body = ss.tab === 'order' ? shopOrderTab(st, ss)
+      : ss.tab === 'prices' ? shopPricesTab(st)
+        : ss.tab === 'deliveries' ? shopDeliveriesTab(st)
+          : shopStockTab(st, ss);
+
+    paint(
+      head('Pro Shop', 'Review inventory, buy from real suppliers, and set prices here. Boxes still ride the van, land outside, and get carried in and shelved by hand.'),
+      confirmBar(),
+      tabBar,
+      ...body,
+    );
+  }
+
+  function shopStockTab(st, ss) {
+    const inv = st.shop.inventory;
+    // the display capacity is what the fixtures actually hold (fixtureSlots is THE
+    // definition); SHELF_CAP is only the fallback for lines with no authored slots
+    const models = retailSkus(st).map((s) => ({
+      sku: s,
+      e: inv[s.id],
+      cap: capacityOf(s.id) || SHELF_CAP[s.cat],
+      incoming: incomingOf(st, s.id),
+    }));
+    const totalUnits = models.reduce((sum, model) => sum + model.e.shelf + model.e.back, 0);
+    const incomingUnits = models.reduce((sum, model) => sum + model.incoming, 0);
+    const outLines = models.filter((model) => model.e.shelf + model.e.back === 0).length;
+    const shelfRiskLines = models.filter((model) => model.e.shelf < 3).length;
+    const waitingInBack = models.filter((model) => model.e.shelf === 0 && model.e.back > 0).length;
+    const stockValue = models.reduce((sum, model) => sum + (model.e.shelf + model.e.back) * model.sku.cost, 0);
+    const q = applyTableQuery(models, {
+      search: ss.search,
+      searchIn: (m) => [m.sku.name, CAT_LABEL[m.sku.cat]],
+      filters: [
+        ss.filter === 'low' ? (m) => m.e.shelf < 3 : null,
+        ss.filter === 'out' ? (m) => m.e.shelf + m.e.back === 0 : null,
+      ].filter(Boolean),
+      sortVal: (m) => m.sku.name,
+      sortDir: 1,
+      page: 0,
+      pageSize: 200,
+    });
+
+    const suggestedQty = (m) => Math.max(2, Math.ceil(velocity(st, m.sku.id) * LEAD_DAYS[m.sku.cat]) || 6);
+    const statusOf = (m) => (m.e.shelf === 0
+      ? (m.e.back > 0 ? ['Shelve it', 'warn'] : ['Out of stock', 'bad'])
+      : m.e.shelf < 3 ? ['Low stock', 'warn'] : ['In stock', 'ok']);
+    const rows = q.rows.map((m) => {
+      const [label, tone] = statusOf(m);
+      return el('tr', {},
+        el('td', {}, el('div', { style: 'display:flex;gap:8px;align-items:center' },
+          thumbOf(m.sku),
+          el('span', { style: 'font-weight:600', text: m.sku.name }))),
+        el('td', { text: CAT_LABEL[m.sku.cat] }),
+        el('td', {},
+          el('div', { style: `font-weight:700;font-variant-numeric:tabular-nums${m.e.shelf === 0 ? ';color:var(--lt-bad)' : m.e.shelf < 3 ? ';color:var(--lt-warn)' : ''}`, text: `${m.e.shelf} / ${m.cap}` }),
+          m.e.back || m.incoming
+            ? el('div', { class: 'lt-listsub', text: `${m.e.back ? `${m.e.back} in back` : ''}${m.e.back && m.incoming ? ' · ' : ''}${m.incoming ? `${m.incoming} coming` : ''}` })
+            : null),
+        el('td', { class: 'lt-num', text: formatMoney(priceFor(m.sku, st.shop.markup[m.sku.cat] || 1, null)) }),
+        el('td', {}, word(label, tone)),
+        el('td', { class: 'lt-num' }, el('button', {
+          class: 'lt-mini',
+          text: 'Order',
+          onclick: () => { cart.set(m.sku.id, (cart.get(m.sku.id) || 0) + suggestedQty(m)); ss.tab = 'order'; click(); render(); },
+        })));
+    });
+
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Units Owned', String(totalUnits), `${models.length} active product lines`),
+        stat('Shelf Risks', String(shelfRiskLines), outLines
+          ? `${outLines} fully out${waitingInBack ? ` \u00b7 ${waitingInBack} waiting in back` : ''}`
+          : waitingInBack ? `${waitingInBack} waiting to shelve` : 'every line covered',
+        outLines ? 'bad' : shelfRiskLines ? 'warn' : 'ok'),
+        stat('Incoming', String(incomingUnits), incomingUnits ? 'paid stock on the road' : 'nothing ordered'),
+        stat('Stock Cost', formatMoney(stockValue), 'wholesale value on hand'),
+      ),
+      el('div', { class: 'lt-toolbar' },
+        searchBox(ss, () => { click(); render(); }, 'Search products…'),
+        filterTabs(ss, [
+          { value: 'all', label: 'All' }, { value: 'low', label: 'Shelf risk' }, { value: 'out', label: 'Fully out' },
+        ], () => { click(); render(); })),
+      rows.length
+        ? card(el('table', { class: 'lt-table' },
+          el('thead', {}, el('tr', {},
+            el('th', { text: 'Product' }), el('th', { text: 'Category' }), el('th', { text: 'On shelf' }),
+            el('th', { class: 'lt-num', text: 'Price' }), el('th', { text: 'Status' }), el('th', {}))),
+          el('tbody', {}, ...rows)))
+        : empty(models.length ? 'Nothing matches.' : 'No product lines unlocked yet.'),
+      note('Stocking is physical — carry goods from the storage room to the displays. "Shelve it" means the stock is already in the back.'),
+    ];
+  }
+
+  function shopOrderTab(st, ss) {
+    const campaignActive = !!st.campaign?.enabled && !st.campaign.businessOpen;
+    const purchased = st.campaign?.purchased || {};
+    const physicalQuantity = (skuId) => {
+      const inv = st.shop.inventory[skuId] || {};
+      const ordered = st.shop.orders
+        .filter((order) => order.skuId === skuId)
+        .reduce((sum, order) => sum + order.qty, 0);
+      const boxed = boxesOf(st)
+        .filter((box) => box.skuId === skuId)
+        .reduce((sum, box) => sum + box.qty, 0);
+      const carried = st.shop.carry?.skuId === skuId ? st.shop.carry.qty : 0;
+      return (inv.shelf || 0) + (inv.back || 0) + ordered + boxed + carried;
+    };
+    const bundleTargets = [
+      { id: CAMPAIGN_SKUS.repair, qty: 7, purchased: true },
+      { id: CAMPAIGN_SKUS.counter, qty: 1, purchased: true },
+      { id: CAMPAIGN_SKUS.shelves, qty: 2, purchased: true },
+      { id: CAMPAIGN_SKUS.safety, qty: 1, purchased: true },
+      { id: 'balls1', qty: 4, purchased: false },
+      { id: 'tees1', qty: 4, purchased: false },
+    ];
+    const bundleMissing = bundleTargets.map((target) => {
+      const have = target.purchased ? (purchased[target.id] || 0) : physicalQuantity(target.id);
+      return { ...target, missing: Math.max(0, target.qty - have) };
+    }).filter((target) => target.missing > 0);
+    const addOpeningBundle = () => {
+      for (const target of bundleMissing) {
+        const already = cart.get(target.id) || 0;
+        cart.set(target.id, Math.max(already, target.missing));
+      }
+      toast(bundleMissing.length
+        ? 'Missing opening supplies and two starter product lines added to the basket.'
+        : 'The opening bundle is already accounted for.');
+      click();
+      render();
+    };
+
+    let goods = 0;
+    let freight = 0;
+    let boxCount = 0;
+    for (const [id, qty] of cart) {
+      const sku = skuById(id);
+      const ship = shipOf(sku, qty);
+      const lineGoods = orderCost(sku, qty);
+      const q = quoteDelivery(st, sku, qty, {
+        service: deliveryService,
+        orderId: st.shop.nextOrderId + quoteOffset++,
+        goods: lineGoods,
+        freight: ship.fee,
+      });
+      goods += lineGoods;
+      freight += ship.fee;
+      express += q.expressFee;
+      boxCount += ship.boxCount;
+    }
+    goods = Math.round(goods * 100) / 100;
+    freight = Math.round(freight * 100) / 100;
+    const total = Math.round((goods + freight) * 100) / 100;
+    const affordable = total <= cashOf();
+    const supplierCount = new Set([...cart.keys()].map((id) => supplierFor(skuById(id)).id)).size;
+
+    const cats = ['balls', 'clubs', 'apparel', 'accessories', 'provisions', 'supplies', 'decor'];
+    const catBar = el('div', { class: 'lt-tabs' },
+      el('button', { class: `lt-tab ${ss.cat === 'all' ? 'on' : ''}`, text: 'All', onclick: () => { ss.cat = 'all'; click(); render(); } }),
       ...cats.map((c) => el('button', {
-        class: `lt-tab ${supplierCat === c ? 'on' : ''}`, text: CAT_LABEL[c],
-        onclick: () => { supplierCat = c; click(); render(); },
+        class: `lt-tab ${ss.cat === c ? 'on' : ''}`, text: CAT_LABEL[c],
+        onclick: () => { ss.cat = c; click(); render(); },
       })));
 
-    const shown = SHOP_CATALOG.filter((s) => (supplierCat === 'all' ? true : s.cat === supplierCat));
+    const needle = String(ss.search || '').trim().toLowerCase();
+    const shown = SHOP_CATALOG
+      .filter((s) => (ss.cat === 'all' ? RETAIL_CATS.has(s.cat) || s.cat === 'supplies' || s.cat === 'decor' : s.cat === ss.cat))
+      .filter((s) => {
+        const supplier = supplierFor(s);
+        return !needle || [s.name, CAT_LABEL[s.cat], supplier.name].some((value) => String(value || '').toLowerCase().includes(needle));
+      });
+
     const cards = shown.map((s) => {
       const locked = s.tier > st.shop.unlockedTier;
       const owned = st.shop.inventory[s.id];
       const inCart = cart.get(s.id) || 0;
       const suggested = priceFor(s, st.shop.markup[s.cat] || 1, null);
-      const per = unitsPerBox(s);
-      const ship = shipOf(s, inCart);
-      const setQty = (q) => {
-        q = Math.max(0, Math.min(99, q));
-        if (q === 0) cart.delete(s.id); else cart.set(s.id, q);
+      const supplier = supplierFor(s);
+      const setQty = (q2) => {
+        q2 = Math.max(0, Math.min(99, q2));
+        if (q2 === 0) cart.delete(s.id); else cart.set(s.id, q2);
         render();
       };
       return el('div', { class: `lt-product ${locked ? 'locked' : ''}` },
         thumbOf(s),
         el('div', { class: 'lt-prodname', text: s.name }),
-        el('div', { class: 'lt-prodcat', text: `${CAT_LABEL[s.cat]} · tier ${s.tier}` }),
         el('div', { class: 'lt-prodprice' },
           el('span', { class: 'lt-wholesale', text: formatMoney(s.cost) }),
-          el('span', { class: 'lt-meta', text: ` → ${formatMoney(suggested)}` })),
-        el('div', { class: 'lt-prodmeta', text: `${supplierFor(s).name} · ships in ${LEAD_DAYS[s.cat]}d` }),
-        el('div', { class: 'lt-prodmeta', text: `${per} per box · ${plural(ship.boxCount, 'box')} · ${ship.weight} lb${s.fragile ? ' · fragile' : ''}` }),
-        el('div', { class: 'lt-prodmeta', text: `on hand: ${owned.shelf + owned.back}` }),
+          el('span', { class: 'lt-meta', text: ` → sells ${formatMoney(suggested)}` })),
+        el('div', { class: 'lt-prodmeta', text: `${supplier.name} · ${unitsPerBox(s)} per box · arrives in ${LEAD_DAYS[s.cat]}d · have ${owned.shelf + owned.back}` }),
         locked
           ? el('div', { class: 'lt-lock', text: `🔒 Needs supplier tier ${s.tier}` })
           : el('div', { class: 'lt-qtyrow' },
@@ -600,293 +1400,68 @@ export function makeLaptop(app, opts) {
         return;
       }
       cart.clear();
-      toast(`Order accepted — ${formatMoney(result.cost)}. ${plural(result.boxes, 'box')} to receiving.`);
+      toast(`Order accepted — ${formatMoney(result.cost)}. ${plural(result.boxes, 'box')} to the receiving pad.`, 'delivery');
       if (app.audio && app.audio.ready) app.audio.chime();
-      go('orders');
+      ts('shop').tab = 'deliveries';
+      render();
+    };
+    const placeOrderFlow = () => {
+      // small orders can skip the confirmation if the player turned that off in Settings
+      if (prefsOf().confirmOrders === false && total < 100) { placeAll(); return; }
+      const leads = [...cart.keys()].map((id) => LEAD_DAYS[skuById(id).cat]);
+      const minLead = Math.min(...leads);
+      const maxLead = Math.max(...leads);
+      const timing = minLead === maxLead
+        ? `${minLead}-day standard service; exact window follows`
+        : `${minLead}–${maxLead} day standard service; exact windows follow`;
+      askConfirm(
+        `Review ${formatMoney(total)} order`,
+        'Place the order', placeAll,
+        [
+          { label: 'Stock', value: formatMoney(goods) },
+          { label: 'Freight', value: formatMoney(freight) },
+          { label: 'Receiving', value: `${plural(boxCount, 'box')} to the pad outside` },
+          { label: 'Timing', value: timing },
+        ],
+        'commit',
+      );
     };
 
-    paint(
-      head('Supplier', 'Wholesale cost is what you pay, plus freight. The arrow shows what it will ring up at, at your current markup — change that on the Pricing page.',
-        primaryBtn(
-          cart.size ? `Place order — ${formatMoney(total)}` : 'Basket is empty',
-          () => askConfirm(
-            `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} freight. ${plural(boxCount, 'box')}, ${weight} lb, to the receiving pad.`,
-            'Place the order', placeAll,
-          ),
-          !cart.size || !affordable,
-        )),
-      confirmBar(),
+    return [
+      campaignActive ? el('div', { class: 'lt-card lt-opening-order' },
+        el('div', { class: 'lt-minihead' }, icon('target'), el('span', { text: 'Reopening order' })),
+        el('div', { class: 'lt-listsub', text: bundleMissing.length
+          ? 'One click adds only what is still missing: repair components, counter, shelving, safety kit, balls, and tees.'
+          : 'Required supply quantities and two starter product lines are already accounted for.' }),
+        el('div', { class: 'lt-cardfoot' },
+          el('span', { class: 'lt-word ok', text: bundleMissing.length ? `${bundleMissing.reduce((sum, item) => sum + item.missing, 0)} units missing` : 'Ready' }),
+          el('button', {
+            class: 'lt-mini',
+            text: bundleMissing.length ? 'Add missing bundle' : 'Bundle accounted for',
+            disabled: bundleMissing.length ? undefined : 'disabled',
+            onclick: addOpeningBundle,
+          })),
+      ) : null,
+      el('div', { class: 'lt-ordersummary' },
+        el('span', { style: 'font-weight:600', text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
+        meta(`${supplierCount} supplier${supplierCount === 1 ? '' : 's'} · ${plural(boxCount, 'box')} · delivery ${formatMoney(freight)}`),
+        el('span', { class: 'lt-headspace' }),
+        el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: `Total ${formatMoney(total)}` }),
+        pending
+          ? chip('Review above', 'warn')
+          : primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
-      cart.size
-        ? card(
-          row(el('span', { text: 'Stock' }), chip(formatMoney(goods))),
-          row(el('span', { text: 'Freight' }), meta(`${plural(boxCount, 'box')} · ${weight} lb`), chip(formatMoney(freight))),
-          row(el('span', { class: 'lt-mulabel', text: 'Total' }), chip(formatMoney(total), affordable ? 'ok' : 'bad')),
-        )
-        : null,
-      tabs,
-      el('div', { class: 'lt-grid' }, ...cards),
-    );
+      el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
+      catBar,
+      cards.length ? el('div', { class: 'lt-grid' }, ...cards) : empty('No products match that search.'),
+    ];
   }
 
-  // =========================================================================================
-  // 4. ORDERS
-  // =========================================================================================
-  function pageOrders() {
-    const st = app.state;
-    const cal = calendarOf(st.clock.minutes);
-    const orders = st.shop.orders.slice().sort((a, b) => a.deliveryMin - b.deliveryMin);
-    const boxes = boxesOf(st);
+  function shopPricesTab(st) {
+    const ratings = clubRatings(st);
+    const fair = fairGreenFee(ratings.overall, amenityScore(st));
 
-    const orderRow = (o) => {
-      const lines = o.lines || [{ skuId: o.skuId, quantity: o.qty }];
-      const sku = skuById(lines[0].skuId);
-      const stateLabel = o.state || (ORDER_STATUS[o.status] || {}).label || o.status;
-      const stateTone = [ORDER_STATE.ARRIVING, ORDER_STATE.PARTIALLY_RECEIVED, ORDER_STATE.PARTIALLY_UNPACKED].includes(stateLabel)
-        ? 'warn'
-        : [ORDER_STATE.CANCELLED, ORDER_STATE.FAILED].includes(stateLabel) ? 'bad' : '';
-      const days = o.arrivesDay - cal.dayAbs;
-      const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
-      const canCancel = ![
-        ORDER_STATE.ARRIVING, ORDER_STATE.DELIVERED, ORDER_STATE.PARTIALLY_RECEIVED,
-        ORDER_STATE.RECEIVED, ORDER_STATE.PARTIALLY_UNPACKED, ORDER_STATE.FULLY_UNPACKED,
-      ].includes(o.state);
-      // read the order's OWN manifest — the one it was packed with, not a fresh guess
-      const man = o.manifest || shipOf(sku, o.qty);
-      const productText = lines.map((line) => `${skuById(line.skuId)?.name || line.skuId} × ${line.quantity}`).join(' + ');
-      return el('div', { class: 'lt-order' },
-        el('div', { class: 'lt-ordernum', text: `#${String(o.id).padStart(4, '0')}` }),
-        thumbOf(sku),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: productText }),
-          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb` }),
-          el('div', { class: 'lt-prodmeta', text: `${formatMoney(o.goods != null ? o.goods : o.cost)} stock + ${formatMoney(o.fee || man.fee)} freight = ${formatMoney(o.cost)}` }),
-          el('div', { class: 'lt-prodmeta', text: `${when}, ${hour12(o.window.open)}–${hour12(o.window.close)}` })),
-        chip(stateLabel, stateTone),
-        canCancel
-          ? el('button', {
-            class: 'lt-mini lt-cancel',
-            text: 'Cancel',
-            onclick: () => askConfirm(
-              `Cancel order #${o.id} — ${productText}? You get ${formatMoney(o.cost)} back, freight included.`,
-              'Cancel the order',
-              () => {
-                const res = cancelOrder(st, o.id);
-                toast(res.ok ? `Order #${o.id} cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
-              },
-            ),
-          })
-          : meta('too late'),
-      );
-    };
-
-    // A SHIPMENT ON THE FLOOR. Its status is derived from its boxes (sim/deliveries
-    // shipmentStatus) — delivered until someone touches it, partially unpacked while stock is
-    // still in the cardboard, fully unpacked when it is all out. The screen does not get a vote.
-    const shipRow = (sh) => {
-      const shipmentLines = sh.lines || [{ skuId: sh.skuId, quantity: sh.units }];
-      const sku = skuById(shipmentLines[0].skuId);
-      const shipmentText = shipmentLines
-        .map((line) => `${skuById(line.skuId)?.name || line.skuId} × ${line.quantity}`)
-        .join(' + ');
-      const status = shipmentStatus(st, sh);
-      const s = ORDER_STATUS[status];
-      const archived = st.shop.inventoryLifecycle
-        && st.shop.inventoryLifecycle.orders.find((order) => order.id === sh.orderId);
-      const mine = boxes.filter((b) => b.orderId === sh.orderId);
-      const left = mine.reduce((a, b) => a + b.qty, 0);
-      const where = (b) => (b.loc === 'pad' ? 'on the pad'
-        : b.loc === 'receiving-fallback' ? 'in fallback receiving'
-        : b.loc === 'carried' ? 'in your arms'
-          : b.flat ? 'flattened' : 'inside');
-      const placesText = mine.length
-        ? [...new Set(mine.map(where))].join(', ')
-        : 'all cardboard recycled';
-      return el('div', { class: 'lt-order' },
-        el('div', { class: 'lt-ordernum', text: `#${String(sh.orderId).padStart(4, '0')}` }),
-        thumbOf(sku),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: shipmentText }),
-          el('div', { class: 'lt-prodmeta', text: `${sh.supplier} · ${plural(sh.boxCount, 'box')} · ${sh.weight} lb` }),
-          el('div', { class: 'lt-prodmeta', text: `${left} of ${sh.units} still in the cardboard · ${placesText}` })),
-        chip((archived && archived.state) || s.label, s.tone));
-    };
-
-    const shipments = shipmentsOf(st);
-
-    paint(
-      head('Orders', 'An order is paid for when you place it, freight and all. Cancelling before the van reaches its window puts the money straight back.',
-        primaryBtn('Order more stock', () => go('supplier'))),
-      confirmBar(),
-
-      sect(`On the way (${orders.length})`),
-      orders.length
-        ? el('div', { class: 'lt-orderlist' }, ...orders.map(orderRow))
-        : empty('No orders outstanding. Everything you have paid for has landed.'),
-
-      sect(`Landed (${shipments.length})`),
-      shipments.length
-        ? el('div', { class: 'lt-orderlist' }, ...shipments.map(shipRow))
-        : empty('Nothing waiting on the floor.'),
-      shipments.length
-        ? note('Boxes are physical. Carry them in from the pad, cut the tape, open the flaps, and take what is inside out to the fixtures. A shipment clears from this list when its last carton is recycled.')
-        : null,
-    );
-  }
-
-  // =========================================================================================
-  // 5. DELIVERIES
-  // =========================================================================================
-  function pageDeliveries() {
-    const st = app.state;
-    const cal = calendarOf(st.clock.minutes);
-    const nowMin = st.clock.minutes;
-    const today = st.shop.orders.filter((o) => o.arrivesDay === cal.dayAbs);
-    const later = st.shop.orders.filter((o) => o.arrivesDay > cal.dayAbs);
-    const boxes = boxesOf(st);
-    const onPad = boxes.filter((b) => b.loc === 'pad');
-    const inFallback = boxes.filter((b) => b.loc === 'receiving-fallback');
-    const used = padCount(st);
-    const fallbackUsed = fallbackCount(st);
-    // THE BLOCKED-DELIVERY WARNING the brief asks for. This is not a decorative threshold: the
-    // same PAD_CAPACITY is what tickDeliveries checks before it lets a van unload, and a van that
-    // finds no room turns around and tells you (kind: 'blocked'). The screen and the yard agree.
-    const blockedNow = st.shop.orders.filter((o) => o.blocked);
-    const padTight = used >= PAD_CAPACITY - 2;
-
-    const line = (o) => {
-      const orderLines = o.lines || [{ skuId: o.skuId, quantity: o.qty }];
-      const sku = skuById(orderLines[0].skuId);
-      const productText = orderLines
-        .map((orderLine) => `${skuById(orderLine.skuId)?.name || orderLine.skuId} × ${orderLine.quantity}`)
-        .join(' + ');
-      const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
-      const eta = Math.round((o.deliveryMin - nowMin));
-      const man = o.manifest || shipOf(sku, o.qty);
-      return el('div', { class: 'lt-order' },
-        thumbOf(sku),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: productText }),
-          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · pad or safe fallback` }),
-          el('div', { class: 'lt-prodmeta', text: `window ${hour12(o.window.open)}–${hour12(o.window.close)}${eta > 0 && eta < 600 ? ` · about ${eta} min away` : ''}` })),
-        chip(o.state || s.label, s.tone));
-    };
-
-    paint(
-      head('Deliveries', 'The van uses the receiving pad first and the marked stockroom fallback if the pad is blocked. Nobody shelves deliveries for you.'),
-      confirmBar(),
-
-      blockedNow.length
-        ? errBox(`A van could not unload — both receiving zones are full (${used + fallbackUsed} of ${PAD_CAPACITY + FALLBACK_CAPACITY}). ${blockedNow.map((o) => `Order #${o.id}`).join(', ')} ${blockedNow.length === 1 ? 'is' : 'are'} still circling. Clear cartons and the driver will try again.`)
-        : padTight
-          ? errBox(`The receiving pad is nearly full — ${used} of ${PAD_CAPACITY}. New cartons will use the safe fallback zone (${fallbackUsed} of ${FALLBACK_CAPACITY}).`)
-          : null,
-
-      sect(`Expected today (${today.length})`),
-      today.length ? el('div', { class: 'lt-orderlist' }, ...today.map(line)) : empty('No deliveries due today.'),
-
-      sect(`On the receiving pad (${used} of ${PAD_CAPACITY})`),
-      onPad.length
-        ? card(...onPad.map((b) => row(
-          el('span', { text: `${skuById(b.skuId).name} × ${b.qty}` }),
-          meta(`box #${b.id} · ${b.lb ? `${b.lb} lb` : ''}${b.fragile ? ' · fragile' : ''}`),
-          chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
-        : empty('The pad is clear.'),
-
-      sect(`Fallback receiving (${fallbackUsed} of ${FALLBACK_CAPACITY})`),
-      inFallback.length
-        ? card(...inFallback.map((b) => row(
-          el('span', { text: `${skuById(b.skuId).name} × ${b.qty}` }),
-          meta(`box #${b.id} · ${b.lb ? `${b.lb} lb` : ''}`),
-          chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
-        : empty('The fallback receiving zone is clear.'),
-
-      sect(`Later this week (${later.length})`),
-      later.length
-        ? card(...later.map((o) => {
-          const text = (o.lines || [{ skuId: o.skuId, quantity: o.qty }])
-            .map((orderLine) => `${skuById(orderLine.skuId)?.name || orderLine.skuId} × ${orderLine.quantity}`)
-            .join(' + ');
-          return row(
-            el('span', { text }),
-            meta(`day ${o.arrivesDay - cal.dayAbs === 1 ? 'tomorrow' : `+${o.arrivesDay - cal.dayAbs}`} · ${hour12(o.window.open)}–${hour12(o.window.close)}`),
-            chip(o.state || (ORDER_STATUS[o.status] || {}).label || o.status));
-        }))
-        : empty('Nothing further out.'),
-    );
-  }
-
-  // =========================================================================================
-  // 6. INVENTORY
-  // =========================================================================================
-  function pageInventory() {
-    const st = app.state;
-    const inv = st.shop.inventory;
-    const rows = retailSkus(st).map((s) => {
-      const e = inv[s.id];
-      const cap = capacityOf(s.id) || SHELF_CAP[s.cat];
-      const position = inventoryPosition(st, s.id);
-      const suggestion = reorderSuggestion(st, s.id);
-      const incoming = position.inTransit;
-      const v = velocity(st, s.id);
-      const dos = daysOfSupply(st, s.id);
-      const retail = priceFor(s, st.shop.markup[s.cat] || 1, null);
-      const margin = retail > 0 ? (retail - s.cost) / retail : 0;
-      const short = suggestion.totalLow;
-      return el('tr', { class: short ? 'lt-tr-warn' : '' },
-        el('td', {}, el('div', { class: 'lt-invcell' }, thumbOf(s), el('span', { text: s.name }))),
-        el('td', { class: 'lt-num', text: `${e.shelf}/${cap}` }),
-        el('td', { class: 'lt-num', text: String(e.back) }),
-        el('td', { class: 'lt-num', text: incoming ? `+${incoming}` : '—' }),
-        el('td', { class: 'lt-num', text: v ? v.toFixed(1) : '—' }),
-        el('td', { class: 'lt-num', text: dos === Infinity ? '∞' : dos ? dos.toFixed(1) : '0' }),
-        el('td', { class: 'lt-num', text: formatMoney(s.cost) }),
-        el('td', { class: 'lt-num', text: formatMoney(retail) }),
-        el('td', { class: 'lt-num', text: pct(margin) }),
-        el('td', {}, suggestion.outOfStock
-          ? chip(incoming > 0 ? `OUT · ${incoming} due` : 'OUT', incoming > 0 ? 'warn' : 'bad')
-          : suggestion.shelfLow && e.back > 0
-            ? chip('shelve it', 'warn')
-            : short ? chip(suggestion.suggestedQuantity > 0 ? `reorder ${suggestion.suggestedQuantity}` : 'low', 'warn') : chip('ok', 'ok')),
-      );
-    });
-    const locked = SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier > st.shop.unlockedTier);
-    const anyMoved = retailSkus(st).some((s) => velocity(st, s.id) > 0);
-
-    paint(
-      head('Inventory', 'Sold/day is a real seven-day average of what actually left the building — both the sales you rang up and the ones the shop made while you were out on the course. Days of supply is what is on hand divided by that.'),
-      confirmBar(),
-      !anyMoved
-        ? note('No closed trading days on the books yet, so there is no velocity to average. Sold/day and days-of-supply fill in from tomorrow.')
-        : null,
-      card(el('div', { class: 'lt-scrollx' }, el('table', { class: 'lt-table lt-invtable' },
-        el('thead', {}, el('tr', {},
-          el('th', { text: 'Product' }),
-          el('th', { class: 'lt-num', title: 'On the shelf / shelf capacity', text: 'Shelf' }),
-          el('th', { class: 'lt-num', text: 'Back' }),
-          el('th', { class: 'lt-num', text: 'Incoming' }),
-          el('th', { class: 'lt-num', text: 'Sold/day' }),
-          el('th', { class: 'lt-num', title: 'How long the stock on hand lasts at that rate', text: 'Days' }),
-          el('th', { class: 'lt-num', text: 'Cost' }),
-          el('th', { class: 'lt-num', text: 'Retail' }),
-          el('th', { class: 'lt-num', text: 'Margin' }),
-          el('th', { text: '' }))),
-        el('tbody', {}, ...rows)))),
-      locked.length
-        ? card(el('div', { class: 'lt-minihead', text: '🔒  Not unlocked' }),
-          ...locked.map((s) => row(el('span', { text: s.name }), meta(`needs supplier tier ${s.tier}`))))
-        : null,
-    );
-  }
-
-  // =========================================================================================
-  // 7. PRICING
-  // =========================================================================================
-  function pagePricing() {
-    const st = app.state;
-
-    // shop markup, per category
-    const markups = ['clubs', 'balls', 'apparel', 'accessories'].map((cat) => {
+    const markups = ['clubs', 'balls', 'apparel', 'accessories', 'provisions'].map((cat) => {
       const val = st.shop.markup[cat] || 1;
       const sample = SHOP_CATALOG.find((s) => s.cat === cat && s.tier <= st.shop.unlockedTier);
       const out = el('span', { class: 'lt-muval' });
@@ -894,10 +1469,8 @@ export function makeLaptop(app, opts) {
         const response = productPricingResponse(st, cat, v);
         const price = sample ? priceFor(sample, v, null) : 0;
         out.replaceChildren(
-          el('span', { class: 'lt-mupct', text: `${Math.round(v * 100)}% of book` }),
-          el('span', { class: 'lt-meta', text: sample ? ` · ${sample.name} ${formatMoney(price)} · ${pct(response.averageMargin)} average margin` : '' }),
-          el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
-          el('span', { class: 'lt-meta', text: `Demand ${response.salesLikelihoodPercent}% · revenue index ${response.revenueIndex.toFixed(2)} · ${response.band.satisfaction}` }),
+          el('span', { class: 'lt-mupct', text: sample ? `${Math.round(v * 100)}% / ${formatMoney(price)} sample` : `${Math.round(v * 100)}%` }),
+          el('span', { class: `lt-chip ${v > 1.2 ? 'bad' : v > 1.05 ? 'warn' : v < 0.9 ? 'warn' : 'ok'}`, text: v > 1.2 ? 'High price' : v > 1.05 ? 'Punchy' : v < 0.9 ? 'Below the mark' : 'Good price' }),
         );
       };
       paintMarkup(val);
@@ -914,12 +1487,12 @@ export function makeLaptop(app, opts) {
 
     const feeOut = el('span', { class: 'lt-muval' });
     const paintFee = (v) => {
-      const response = teePricingResponse(st, v);
+      const ratio = fair > 0 ? v / fair : 1;
+      const demand = demandMultiplier(v, fair);
       feeOut.replaceChildren(
         el('span', { class: 'lt-mupct', text: formatMoney(v) }),
-        el('span', { class: 'lt-meta', text: ` · fair value ${formatMoney(response.fairValue)} · demand ${response.salesLikelihoodPercent}% · revenue index ${response.revenueIndex.toFixed(2)}` }),
-        el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
-        el('span', { class: 'lt-meta', text: `${response.band.satisfaction} Reputation: ${response.band.reputationEffect}.` }),
+        el('span', { class: `lt-chip ${ratio > 1.25 ? 'bad' : ratio > 1.08 ? 'warn' : ratio < 0.8 ? 'warn' : 'ok'}`, text: ratio > 1.25 ? 'Too high' : ratio > 1.08 ? 'Above the mark' : ratio < 0.8 ? 'Under-charging' : 'Fair' }),
+        chip(`${demand.toFixed(2)}× demand`, demand < 0.7 ? 'bad' : demand < 0.95 ? 'warn' : 'ok'),
       );
     };
     paintFee(st.club.greenFee);
@@ -961,369 +1534,749 @@ export function makeLaptop(app, opts) {
       return row(el('span', { class: 'lt-mulabel', text: tier[0].toUpperCase() + tier.slice(1) }), slider, out);
     });
 
-    paint(
-      head('Pricing', 'Every slider here writes straight into the club — there is nothing to save. The chip on the right is the market reading back at you.'),
-      confirmBar(),
-      sect('Green fee'),
-      card(row(el('span', { class: 'lt-mulabel', text: 'Per round' }), feeRange, feeOut)),
-      sect('Shop markup'),
-      card(...markups),
-      sect('Rentals'),
-      card(row(el('span', { class: 'lt-mulabel', text: 'Club sets' }), rentRange, rentOut)),
-      sect('Membership dues'),
-      card(...membershipRows),
-      note('Higher price raises margin per sale, but each band shows the demand and reputation trade-off. The strongest price is not automatically the most profitable one.'),
-    );
+    return [
+      card(el('div', { class: 'lt-minihead', text: 'Green fee' }),
+        row(el('span', { class: 'lt-mulabel', text: 'Per round' }), feeRange, feeOut),
+        row(meta(`a fair fee for this course is about ${formatMoney(fair)}`))),
+      card(el('div', { class: 'lt-minihead', text: 'Shop prices' }), ...markups,
+        row(meta('Each slider shows percent of list and one sample register price. Changes reach the physical register immediately.'))),
+      card(el('div', { class: 'lt-minihead', text: 'Rental club sets' }),
+        row(el('span', { class: 'lt-mulabel', text: 'Per round' }), rentRange, rentOut),
+        row(meta(`${st.shop.rentalFleet.sets} sets available / ${Math.round(st.shop.rentalFleet.condition)}% fleet condition`))),
+    ];
   }
 
-  // =========================================================================================
-  // 8. RESERVATIONS
-  // =========================================================================================
-  function pageReservations() {
-    const st = app.state;
-    if (!st.reservations) {
-      paint(head('Reservations'), empty('Reservations are not available on this property.'));
-      return;
-    }
-    const config = st.reservations.config;
-    const dayBtns = [];
-    for (let d = 0; d < config.horizonDays; d++) {
-      dayBtns.push(el('button', {
-        class: `lt-day ${d === teeDay ? 'on' : ''}`,
-        text: d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : `+${d}d`,
-        onclick: () => { teeDay = d; click(); render(); },
-      }));
-    }
-    const ms = members(st);
-    const memberSel = el('select', {
-      class: 'lt-select',
-      onchange: (event) => {
-        if (!event.target.value) return;
-        bookingDraft.holder = event.target.value;
-        click();
-        render();
-      },
-    },
-    el('option', { value: '', text: 'Choose an active member…' }),
-    ...ms.slice(0, 60).map((member) => el('option', { value: member.name, text: member.name })));
+  function shopDeliveriesTab(st) {
+    const orders = st.shop.orders.slice().sort((a, b) => a.deliveryMin - b.deliveryMin);
+    const shipments = shipmentsOf(st);
+    const boxes = boxesOf(st);
+    const used = padCount(st);
+    const blockedNow = orders.filter((o) => o.blocked);
+    const scheduledBoxes = orders.reduce((sum, order) => sum + (order.manifest?.boxCount || 1), 0);
+    const boxedUnits = boxes.reduce((sum, box) => sum + Math.max(0, Number(box.qty) || 0), 0);
+    const completedShipments = shipments.filter((shipment) => shipmentStatus(st, shipment) === 'unpacked').length;
+    const noMovement = orders.length === 0 && shipments.length === 0 && boxes.length === 0;
 
-    const holderInput = el('input', {
-      class: 'lt-input', type: 'text', value: bookingDraft.holder,
-      placeholder: 'Reservation holder',
-      oninput: (event) => { bookingDraft.holder = event.target.value; },
-    });
-    const guestsInput = el('input', {
-      class: 'lt-input lt-input-wide', type: 'text', value: bookingDraft.guestNames,
-      placeholder: 'Other player names, comma separated',
-      oninput: (event) => { bookingDraft.guestNames = event.target.value; },
-    });
-    const sizeSel = el('select', {
-      class: 'lt-select',
-      onchange: (event) => { bookingDraft.partySize = Number(event.target.value); render(); },
-    }, ...Array.from({ length: config.maxPartySize }, (_, index) => el('option', {
-      value: String(index + 1),
-      text: `${index + 1} player${index ? 's' : ''}`,
-      selected: bookingDraft.partySize === index + 1 ? 'selected' : undefined,
-    })));
-    const paymentSel = el('select', {
-      class: 'lt-select',
-      onchange: (event) => { bookingDraft.paymentPlan = event.target.value; render(); },
-    }, ...[
-      ['desk', 'Pay at the tee desk'],
-      ['deposit', '35% card deposit'],
-      ['prepaid', 'Prepaid by card'],
-      ['member-pass', 'Member pass'],
-    ].map(([value, text]) => el('option', {
-      value, text,
-      selected: bookingDraft.paymentPlan === value ? 'selected' : undefined,
-    })));
-
-    const dayAbs = calendarOf(st.clock.minutes).dayAbs + teeDay;
-    const sheet = daySheet(st, dayAbs);
-    const activeBookings = st.reservations.booked.filter((reservation) => (
-      reservation.dayAbs === dayAbs && !['cancelled', 'noShow'].includes(reservation.status)
-    ));
-    const reserved = sheet.reduce((sum, slot) => sum + slot.reservedSeats, 0);
-    const capacity = sheet.reduce((sum, slot) => sum + slot.capacity, 0);
-    const expected = activeBookings.reduce((sum, reservation) => sum + reservation.payment.total, 0);
-    const dayOps = operationsSummary(st, dayAbs);
-    const nowCal = calendarOf(st.clock.minutes);
-    const slotIsFuture = (slot) => dayAbs > nowCal.dayAbs || slot.minute >= nowCal.minuteOfDay;
-
-    const arrivalLabel = (reservation) => {
-      if (reservation.status === 'cancelled') return ['cancelled', 'bad'];
-      if (reservation.status === 'noShow') return ['no-show', 'bad'];
-      if (reservation.checkIn.status === 'checked-in') return ['checked in', 'ok'];
-      if (reservation.arrival.status === 'late') return ['late / waiting', 'bad'];
-      if (reservation.arrival.status === 'arrived') return ['waiting', 'warn'];
-      return ['expected', ''];
-    };
-    const paymentLabel = (reservation) => {
-      const payment = reservation.payment;
-      if (reservation.status === 'cancelled') {
-        if (reservation.cancellation.refund > 0.005) return [`${operationMoney(reservation.cancellation.refund)} refunded`, 'warn'];
-        return [reservation.cancellation.fee > 0.005 ? `${operationMoney(reservation.cancellation.fee)} retained` : 'no charge', ''];
-      }
-      if (reservation.status === 'noShow') {
-        return [reservation.noShow.feeApplied > 0.005 ? `${operationMoney(reservation.noShow.feeApplied)} fee` : 'no charge', reservation.noShow.feeApplied > 0.005 ? 'warn' : ''];
-      }
-      if (payment.status === 'member-pass') return ['member pass', 'ok'];
-      if (payment.amountDue <= 0.005) return ['paid', 'ok'];
-      if (payment.depositPaid > 0.005) return [`${operationMoney(payment.amountDue)} due`, 'warn'];
-      return [`${operationMoney(payment.amountDue)} due`, ''];
+    const orderRow = (o) => {
+      const sku = skuById(o.skuId);
+      const supplier = supplierFor(sku);
+      const tracking = deliveryTracking(o, st.clock.minutes);
+      const s = tracking.blocked
+        ? { label: 'Pad blocked', tone: 'bad' }
+        : ORDER_STATUS[tracking.status] || { label: tracking.status, tone: '' };
+      // A blocked driver unloaded nothing, so the player can still turn that van away.
+      const canCancel = tracking.blocked || !['arriving', 'delivered'].includes(tracking.status);
+      const man = o.manifest || shipOf(sku, o.qty);
+      const open = Number.isFinite(o.window && o.window.open) ? o.window.open : tracking.deliveryMin;
+      const close = Number.isFinite(o.window && o.window.close) ? o.window.close : tracking.deliveryMin + 120;
+      const arrivalCal = calendarOf(open);
+      const quote = priorityDeliveryQuote(st, o.id, st.clock.minutes);
+      const priorityCal = quote.ok ? calendarOf(quote.schedule.deliveryMin) : null;
+      const priorityButton = quote.ok
+        ? el('button', {
+          class: 'lt-mini lt-priority',
+          text: `Priority ${formatMoney(quote.fee)} · save ${compactPriorityGain(quote.minutesSaved)}`,
+          onclick: () => askConfirm(
+            `Move this delivery forward by ${compactDuration(quote.minutesSaved)} for ${formatMoney(quote.fee)}?`,
+            'Book priority',
+            () => {
+              const res = expediteOrder(st, o.id);
+              toast(
+                res.ok ? `Priority booked — ETA ${clock12(res.order.deliveryMin)}.` : res.reason,
+                res.ok ? 'delivery' : 'warn',
+              );
+            },
+            [
+              { label: 'Current ETA', value: `${arrivalCal.seasonName} Day ${arrivalCal.dayOfSeason} · ${clock12(tracking.deliveryMin)}`, nowrap: true },
+              { label: 'Priority ETA', value: `${priorityCal.seasonName} Day ${priorityCal.dayOfSeason} · ${clock12(quote.schedule.deliveryMin)}`, nowrap: true },
+              { label: 'Dispatch fee', value: formatMoney(quote.fee) },
+              { label: 'Cash after', value: formatMoney(st.cash - quote.fee) },
+            ],
+            'commit',
+          ),
+        })
+        : null;
+      const cancelButton = canCancel
+        ? el('button', {
+          class: 'lt-mini lt-cancel',
+          text: 'Cancel',
+          onclick: () => askConfirm(
+            `Cancel ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
+            'Cancel the order',
+            () => {
+              const res = cancelOrder(st, o.id);
+              toast(res.ok ? `Cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
+            },
+          ),
+        })
+        : null;
+      return el('div', { class: 'lt-order lt-delivery-order', 'data-order-id': String(o.id) },
+        thumbOf(sku),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}${tracking.priority ? ' · PRIORITY' : ''}` }),
+          el('div', { class: 'lt-prodmeta', text: `${supplier.name} · Order #${o.id} · ${plural(man.boxCount, 'box')} · paid ${formatMoney(o.cost)}` }),
+          el('div', { class: 'lt-delivery-window', text: `${arrivalCal.seasonName} Day ${arrivalCal.dayOfSeason} · ${hour12(open)}–${hour12(close)} window` }),
+          el('div', { class: `lt-delivery-eta ${tracking.blocked ? 'warn' : ''}`, text: tracking.blocked
+            ? 'ETA paused — clear receiving'
+            : `Estimated arrival ${clock12(tracking.deliveryMin)} · ${compactDuration(tracking.etaMinutes)} remaining` }),
+          el('div', {
+            class: `lt-delivery-track ${tracking.blocked ? 'warn' : ''}`,
+            role: 'progressbar',
+            'aria-label': `Delivery progress for ${sku.name}`,
+            'aria-valuemin': '0',
+            'aria-valuemax': '100',
+            'aria-valuenow': String(tracking.progress),
+          }, el('div', { class: 'lt-delivery-trackfill', style: `width:${tracking.progress}%` })),
+          el('div', { class: 'lt-delivery-steps' }, ...tracking.milestones.map((milestone) => el('span', {
+            class: milestone.state,
+            text: milestone.label,
+          })))),
+        el('span', { class: `lt-chip lt-delivery-status ${s.tone}`, text: s.label }),
+        priorityButton || cancelButton
+          ? el('div', { class: 'lt-orderactions' }, priorityButton, cancelButton)
+          : null);
     };
 
-    const makeBooking = (slot) => {
-      const holder = bookingDraft.holder.trim();
-      if (!holder) {
-        toast('Enter a reservation holder first.', 'warn');
-        return;
-      }
-      if (bookingDraft.paymentPlan === 'member-pass' && !ms.some((member) => member.name === holder)) {
-        toast('A member pass needs an active member as the reservation holder.', 'warn');
-        return;
-      }
-      const customerNames = [holder];
-      for (const raw of bookingDraft.guestNames.split(',')) {
-        const name = raw.trim();
-        if (name && !customerNames.includes(name) && customerNames.length < bookingDraft.partySize) customerNames.push(name);
-      }
-      while (customerNames.length < bookingDraft.partySize) {
-        customerNames.push(`Guest ${customerNames.length + 1} of ${holder}`);
-      }
-      const total = st.club.greenFee * bookingDraft.partySize;
-      const options = {
-        holder, customerNames, partySize: bookingDraft.partySize, source: 'laptop',
-      };
-      if (bookingDraft.paymentPlan === 'prepaid') Object.assign(options, {
-        paymentPlan: 'prepaid', paymentMethod: 'card', cardOnFile: true,
-      });
-      if (bookingDraft.paymentPlan === 'deposit') Object.assign(options, {
-        depositAmount: Math.round(total * 35) / 100, paymentMethod: 'card', cardOnFile: true,
-      });
-      if (bookingDraft.paymentPlan === 'member-pass') options.paymentPlan = 'member-pass';
-      const result = bookSlot(st, dayAbs, slot.minute, options);
-      if (!result.ok) toast(result.reason, 'warn');
-      else {
-        toast(`${holder}'s party is booked for ${fmtSlot(slot.minute)}.`);
-        bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
-        click();
-      }
-      render();
+    const shipRow = (sh) => {
+      const sku = skuById(sh.skuId);
+      const supplier = supplierFor(sku);
+      const status = shipmentStatus(st, sh);
+      const s = ORDER_STATUS[status];
+      const mine = boxes.filter((b) => b.orderId === sh.orderId);
+      const left = mine.reduce((a, b) => a + b.qty, 0);
+      const cartons = mine.filter((b) => b.qty > 0).length;
+      return el('div', { class: 'lt-order lt-delivered-order' },
+        thumbOf(sku),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
+          el('div', { class: 'lt-prodmeta', text: left
+            ? `${supplier.name} · ${left} units remain in ${plural(cartons, 'carton')} — carry in, cut, then shelve`
+            : `${supplier.name} · all cartons unpacked and stock transferred` })),
+        chip(s.label, s.tone),
+        el('button', {
+          class: 'lt-mini', text: 'Reorder',
+          onclick: () => { cart.set(sh.skuId, (cart.get(sh.skuId) || 0) + sh.units); ts('shop').tab = 'order'; click(); render(); },
+        }));
     };
 
-    const slots = sheet.map((slot) => el('div', {
-      class: `lt-slot lt-slot-rich ${slot.reservations.length ? 'booked' : ''}`,
-    },
-    el('div', { class: 'lt-slothead' },
-      el('span', { class: 'lt-slottime', text: fmtSlot(slot.minute) }),
-      chip(slot.closed ? (slot.closureReason || 'closed') : `${slot.availableSeats} of ${slot.capacity} open`, slot.closed ? 'bad' : slot.availableSeats ? 'ok' : 'warn')),
-    slot.history.length
-      ? el('div', { class: 'lt-slotparties' }, ...slot.history.map((reservation) => {
-        const [arrival, arrivalTone] = arrivalLabel(reservation);
-        const [payment, paymentTone] = paymentLabel(reservation);
-        return el('div', { class: `lt-partyline ${reservation.status === 'cancelled' ? 'cancelled' : ''}` },
-          el('div', { class: 'lt-partyname', text: reservation.reservationHolder }),
-          meta(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
-          chip(arrival, arrivalTone),
-          chip(payment, paymentTone),
-          reservation.status === 'booked' && reservation.checkIn.status !== 'checked-in'
-            ? el('button', {
-              class: 'lt-mini lt-cancel', text: 'Cancel',
-              onclick: () => askConfirm(
-                `Cancel ${reservation.reservationHolder}'s ${fmtSlot(slot.minute)} tee time? The published fee and refund policy will be applied once.`,
-                'Apply policy and cancel',
-                () => {
-                  const result = cancelReservation(st, reservation.id, { reason: 'Cancelled in Fairway Office' });
-                  if (!result.ok) toast(result.reason, 'warn');
-                  else toast(`Cancelled. ${operationMoney(result.refund)} refunded; ${operationMoney(result.fee)} retained.`);
-                },
-              ),
-            })
-            : null);
-      }))
-      : meta('No parties yet.'),
-    el('button', {
-      class: 'lt-mini lt-book lt-slotbook',
-      text: slot.closed ? 'Closed' : !slotIsFuture(slot) ? 'Time passed' : slot.availableSeats >= bookingDraft.partySize
-        ? `Book party of ${bookingDraft.partySize}` : `Only ${slot.availableSeats} open`,
-      disabled: slot.closed || !slotIsFuture(slot) || slot.availableSeats < bookingDraft.partySize ? 'disabled' : undefined,
-      onclick: () => makeBooking(slot),
-    })));
-
-    paint(
-      head('Reservations', 'Manage named parties against real slot capacity. Pay-at-desk, deposits, prepaid cards, member passes, cancellations, and arrivals all use the same front-desk record.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Parties' }), el('div', { class: 'lt-statvalue', text: String(activeBookings.length) }), el('div', { class: 'lt-statsub', text: `${reserved} players booked` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Utilization' }), el('div', { class: 'lt-statvalue', text: pct(capacity ? reserved / capacity : 0) }), el('div', { class: 'lt-statsub', text: `${capacity - reserved} of ${capacity} places open` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Expected' }), el('div', { class: 'lt-statvalue', text: operationMoney(expected) }), el('div', { class: 'lt-statsub', text: 'green fees for this day' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Waiting' }), el('div', { class: `lt-statvalue ${dayOps.waiting.length ? 'warn' : ''}`, text: String(dayOps.waiting.length) }), el('div', { class: 'lt-statsub', text: `${dayOps.late.length} late` })),
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Receiving Pad', `${used} / ${PAD_CAPACITY}`, 'physical carton spots', used >= PAD_CAPACITY ? 'bad' : used >= PAD_CAPACITY - 2 ? 'warn' : 'ok'),
+        stat('On the Road', String(orders.length), `${scheduledBoxes} carton${scheduledBoxes === 1 ? '' : 's'} scheduled`),
+        stat('In Cardboard', String(boxedUnits), `${boxes.length} active box${boxes.length === 1 ? '' : 'es'}`, boxedUnits ? 'warn' : ''),
+        stat('Completed', String(completedShipments), 'shipment history unpacked', completedShipments ? 'ok' : ''),
       ),
-      card(
-        row(el('span', { class: 'lt-mulabel', text: 'Day' }), ...dayBtns),
-        row(el('span', { class: 'lt-mulabel', text: 'Holder' }), holderInput, memberSel),
-        row(el('span', { class: 'lt-mulabel', text: 'Party' }), sizeSel, guestsInput),
-        row(el('span', { class: 'lt-mulabel', text: 'Payment' }), paymentSel,
-          meta(bookingDraft.paymentPlan === 'deposit' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize * 0.35)} charged now`
-            : bookingDraft.paymentPlan === 'prepaid' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize)} charged now`
-              : bookingDraft.paymentPlan === 'member-pass' ? 'active members only' : 'balance collected in person')),
-      ),
-      el('div', { class: 'lt-card lt-slots' }, ...slots),
-      note(operationsPolicySummary(st).join(' ')),
-    );
+      noMovement ? el('div', { class: 'lt-flowgrid' },
+        flowStep(1, 'Order', 'Choose products and suppliers under Orders & Suppliers.'),
+        flowStep(2, 'Receive', 'Clear the nine-spot pad before the van reaches its window.'),
+        flowStep(3, 'Stock', 'Carry, cut, unpack, and shelve every physical carton.')) : null,
+      blockedNow.length
+        ? errBox(`A van cannot unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). Carry boxes inside and the driver returns.`)
+        : el('div', { class: 'lt-delivery-pad' },
+          el('div', {},
+            el('div', { class: 'lt-minihead', text: 'Receiving pad' }),
+            el('div', { class: 'lt-prodmeta', text: `${PAD_CAPACITY}-carton capacity across five physical pallets` })),
+          el('div', { class: 'lt-delivery-padcount', text: `${used} / ${PAD_CAPACITY}` }),
+          used >= PAD_CAPACITY - 2 ? chip('nearly full', 'warn') : chip(`${PAD_CAPACITY - used} open`, 'ok')),
+      sect(`On the way (${orders.length})`),
+      orders.length ? el('div', { class: 'lt-orderlist' }, ...orders.map(orderRow)) : empty('Nothing on the road.'),
+      sect(`Delivered (${shipments.length})`),
+      shipments.length ? el('div', { class: 'lt-orderlist' }, ...shipments.map(shipRow)) : empty('Nothing waiting outside.'),
+      note('Boxes are physical: carry them in, cut the tape, and shelve what is inside. The laptop cannot do that part.'),
+    ];
   }
 
-  // =========================================================================================
-  // 9. COURSE
-  // =========================================================================================
+  // ==========================================================================================
+  // COURSE — overview, tasks, holes. A real aerial, condition in words, the editor one click.
+  // ==========================================================================================
   function pageCourse() {
     const st = app.state;
+    const cs = ts('course', { tab: 'overview' });
+    const tabs = [['overview', 'Overview'], ['tasks', 'Tasks'], ['holes', 'Holes']];
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
+      class: `lt-tab ${cs.tab === v ? 'on' : ''}`, text: label,
+      onclick: () => { cs.tab = v; click(); render(); },
+    })));
+
+    const body = cs.tab === 'tasks' ? courseTasksTab(st)
+      : cs.tab === 'holes' ? courseHolesTab(st)
+        : courseOverviewTab(st, cs);
+
+    paint(
+      head('Course', 'Condition is read live from the turf. Mowing, raking and repairs happen out on the grass — the laptop plans and pays.',
+        opts.openCourseEditor
+          ? primaryBtn('Open Course Editor', () => askConfirm(
+            'Head to the works desk? The laptop closes and the course opens under the editing camera.',
+            'Open the editor',
+            () => opts.openCourseEditor(),
+          ))
+          : null),
+      confirmBar(),
+      tabBar,
+      ...body,
+    );
+  }
+
+  function courseOverviewTab(st, cs) {
     const ratings = clubRatings(st);
     const w = st.weather.today;
-    const pol = st.maintenance ? st.maintenance.policies : null;
+    const closed = st.course.holes.filter((h) => h.status !== HOLE_STATUS.OPEN).length;
+    const problems = (st.sections || [])
+      .filter((section) => TURF_ZONES.has(section.zone) && sectionStatus(st, section) !== 'Healthy').length;
+    const jobs = problems + courseChores(st).length;
 
-    // real per-zone turf readings, averaged over the cells that actually belong to each zone
-    const ZONES = [
-      ['green', ZONE.GREEN, 'Greens'], ['tee', ZONE.TEE, 'Tees'],
-      ['fairway', ZONE.FAIRWAY, 'Fairways'], ['rough', ZONE.ROUGH, 'Rough'],
-    ];
-    const zoneRows = ZONES.map(([key, zone, label]) => {
-      const t = st.turf;
-      let n = 0; let health = 0; let moist = 0; let wear = 0; let dis = 0;
-      for (let i = 0; i < st.course.zones.length; i++) {
-        if (st.course.zones[i] !== zone) continue;
-        n++;
-        health += t.health[i];
-        moist += t.moisture[i];
-        wear += t.wear[i];
-        if (t.disSev[i] > 8) dis++;
-      }
-      if (!n) return null;
-      const h = health / n;
-      const p = pol ? pol[key] : null;
-      return el('tr', {},
-        el('td', { text: label }),
-        el('td', {}, el('div', { class: 'lt-bar' }, el('div', { class: `lt-barfill ${h < 45 ? 'bad' : h < 70 ? 'warn' : 'ok'}`, style: `width:${Math.max(2, Math.min(100, h))}%` }))),
-        el('td', { class: 'lt-num', text: `${Math.round(h)}` }),
-        el('td', { class: 'lt-num', text: `${Math.round(moist / n)}%` }),
-        el('td', { class: 'lt-num', text: `${Math.round(wear / n)}` }),
-        el('td', {}, dis ? chip(`${dis} cells`, 'bad') : chip('clear', 'ok')),
-        el('td', {}, p ? meta(`${p.irrigation} · ${p.schedule} · mow ${p.mowHeightMm}mm/${p.mowEveryDays}d`) : meta('—')),
-      );
-    }).filter(Boolean);
+    const heroMap = el('canvas', { class: 'lt-heromap', width: '940', height: '620' });
+    paintCourse(heroMap, st, {
+      marks: st.course.holes
+        .map((h, i) => (h.pin ? { x: h.pin.x, y: h.pin.y, kind: 'number', n: i + 1 } : null))
+        .filter(Boolean),
+    });
 
-    const bunkers = (st.sections || []).filter((s) => {
-      if (s.zone !== ZONE.BUNKER) return false;
-      let sum = 0;
-      for (const i of s.cells) sum += st.turf.wear[i];
-      return sum / s.cells.length > 25;
-    }).length;
+    const bar = (label, zone) => {
+      const h = zoneHealth(st, zone);
+      if (h == null) return null;
+      return el('div', { class: 'lt-facrow' },
+        el('span', { class: 'lt-faclabel', text: label }),
+        el('div', { class: 'lt-facbar' }, el('div', { class: `lt-facfill ${h < 45 ? 'bad' : h < 70 ? 'warn' : 'ok'}`, style: `width:${Math.max(2, Math.min(100, h))}%` })),
+        el('span', { class: 'lt-facpct', text: `${Math.round(h)}%` }));
+    };
 
-    const holes = st.course.holes.map((h, i) => row(
-      el('span', { text: `Hole ${i + 1}` }),
-      chip(h.status, h.status === 'open' ? 'ok' : 'warn')));
-    const closed = st.course.holes.filter((h) => h.status !== 'open').length;
-
-    paint(
-      head('Course', 'Health, moisture and wear are averaged live over the cells that belong to each zone. Irrigation is a policy the crew follows at dawn — the club has no sprinkler hardware to fail.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Overall' }), el('div', { class: 'lt-statvalue', text: String(Math.round(ratings.overall)) }), el('div', { class: 'lt-statsub', text: `design ${Math.round(ratings.design)}` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Condition' }), el('div', { class: `lt-statvalue ${ratings.condition < 45 ? 'bad' : ''}`, text: String(Math.round(ratings.condition)) }), el('div', { class: 'lt-statsub', text: 'turf, live' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Weather' }), el('div', { class: 'lt-statvalue', text: `${Math.round(w.tempHiF)}°` }), el('div', { class: 'lt-statsub', text: w.rainIn > 0.02 ? `rain ${w.rainIn.toFixed(2)}"` : 'dry' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Holes' }), el('div', { class: `lt-statvalue ${closed ? 'bad' : 'ok'}`, text: closed ? `${closed} closed` : 'All open' }), el('div', { class: 'lt-statsub', text: `${st.course.holes.length} in play` })),
-      ),
-      sect('Turf by zone'),
-      card(el('div', { class: 'lt-scrollx' }, el('table', { class: 'lt-table' },
-        el('thead', {}, el('tr', {},
-          el('th', { text: 'Zone' }), el('th', { text: 'Health' }), el('th', { class: 'lt-num', text: '' }),
-          el('th', { class: 'lt-num', text: 'Moisture' }), el('th', { class: 'lt-num', text: 'Wear' }),
-          el('th', { text: 'Disease' }), el('th', { text: 'Policy' }))),
-        el('tbody', {}, ...zoneRows)))),
-      bunkers ? errBox(`${bunkers} bunker${bunkers === 1 ? '' : 's'} need raking. Take the rake out to them — nobody else will.`) : null,
-      sect('Holes'),
-      card(...holes),
-      note('Mowing, watering and fertiliser policy live at the Grounds desk. Course surgery is done on the wall map, at the overview camera.'),
-    );
-  }
-
-  // =========================================================================================
-  // 10. CARTS & RENTALS
-  // =========================================================================================
-  function pageRentals() {
-    const st = app.state;
-    const f = st.shop.rentalFleet;
-    const led = st.ledger || {};
-    const yRent = led.yesterday ? (led.yesterday.revenue.rentals || 0) : 0;
-
-    paint(
-      head('Carts & rentals', 'This is the club-set rental fleet: the bags you lend to guests who arrive without clubs. It wears out as it is used and stops earning when it gets too rough.'),
-      confirmBar(),
-
-      // THE HONEST BIT. The brief asked for a golf-cart fleet — a list of vehicles with
-      // cleanliness, reliability, comfort, assignment and maintenance. The club does not
-      // simulate cart vehicles at all: `rentalFleet` is rental CLUB SETS. Rather than print a
-      // page of invented cleanliness and reliability scores that no system produces and no
-      // decision could safely rest on, the page says what is real and names what is not.
-      errBox('Golf carts are not simulated yet — there is no cart fleet, no cart condition and no cart assignment in the club. Nothing on this page is about carts. What follows is the rental club-set fleet, which is real.'),
-
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Sets' }), el('div', { class: 'lt-statvalue', text: String(f.sets) }), el('div', { class: 'lt-statsub', text: 'in the fleet' })),
-        el('div', { class: 'lt-stat' },
-          el('div', { class: 'lt-statlabel', text: 'Condition' }),
-          el('div', { class: `lt-statvalue ${f.condition < 30 ? 'bad' : f.condition < 60 ? 'warn' : 'ok'}`, text: String(Math.round(f.condition)) }),
-          el('div', { class: 'lt-statsub', text: f.condition <= 15 ? 'too rough to rent' : f.condition < 40 ? 'needs replacing' : 'serviceable' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Price' }), el('div', { class: 'lt-statvalue', text: formatMoney(f.pricePerRound) }), el('div', { class: 'lt-statsub', text: 'per round' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Earned' }), el('div', { class: 'lt-statvalue', text: formatMoney(yRent) }), el('div', { class: 'lt-statsub', text: 'yesterday' })),
-      ),
-
-      f.condition <= 15
-        ? errBox('The fleet is too battered to rent out — it is earning nothing at all. Buy fresh sets.')
-        : null,
-
-      sect('The fleet'),
-      card(
-        row(el('span', { class: 'lt-mulabel', text: 'Maintenance' }),
-          meta('Sets wear a little with every round rented. There is no repair — worn sets are replaced.')),
-        row(el('span', { class: 'lt-mulabel', text: 'Price' }),
-          meta(`${formatMoney(f.pricePerRound)} per round`),
-          el('button', { class: 'lt-mini', text: 'Change on the Pricing page', onclick: () => go('pricing') })),
-        row(
-          el('span', { class: 'lt-mulabel', text: 'Buy sets' }),
-          meta('$220 each — a new set lifts the fleet average'),
-          el('button', {
-            class: 'lt-primary',
-            text: 'Buy 1 set — $220',
-            disabled: cashOf() < 220 ? 'disabled' : undefined,
-            onclick: () => askConfirm('Buy one fresh rental set for $220?', 'Buy the set', () => {
-              const res = buyRentalSets(st, 1);
-              toast(res.ok ? 'A fresh set joins the fleet.' : res.reason, res.ok ? '' : 'warn');
-            }),
-          }),
+    return [
+      el('div', { class: 'lt-hero' },
+        heroMap,
+        el('div', { class: 'lt-card', style: 'margin-bottom:0;display:flex;flex-direction:column' },
+          el('div', { class: 'lt-minihead', text: 'Overall Course Condition' }),
+          el('div', { class: 'lt-heropct' },
+            el('span', { text: `${Math.round(ratings.condition)}%` }),
+            word(conditionWord(ratings.condition), conditionTone(ratings.condition))),
+          el('div', { class: 'lt-statbar', style: 'margin:8px 0 12px' },
+            el('div', { class: conditionTone(ratings.condition), style: `width:${Math.max(2, Math.min(100, ratings.condition))}%` })),
+          bar('Greens', ZONE.GREEN),
+          bar('Fairways', ZONE.FAIRWAY),
+          bar('Tees', ZONE.TEE),
+          bar('Rough', ZONE.ROUGH),
+          el('div', { class: 'lt-listrow', style: 'margin-top:8px' },
+            el('span', { class: 'lt-listbody' }, el('div', { class: 'lt-listsub', text: `Weather ${Math.round(w.tempHiF)}°${w.rainIn > 0.02 ? `, rain ${w.rainIn.toFixed(2)}"` : ', dry'} · ${closed ? `${closed} hole${closed === 1 ? '' : 's'} closed` : 'all holes open'}` })),
+            jobs ? word(`${jobs} job${jobs === 1 ? '' : 's'}`, 'warn') : word('No jobs', 'ok')),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', { class: 'lt-mini', text: 'View Tasks', onclick: () => { cs.tab = 'tasks'; click(); render(); } })),
         ),
       ),
+    ];
+  }
+
+  function courseTasksTab(st) {
+    const pol = st.maintenance ? st.maintenance.policies : null;
+    const report = st.maintenance ? st.maintenance.lastReport : null;
+    const crewHours = groundsCrewHours(st);
+    const gks = st.staff.employees.filter((e) => e.role === ROLE.GROUNDSKEEPER);
+
+    // the job list: what the turf model says is suffering, plus the hands-on chores
+    const allProblems = (st.sections || []).filter((section) => TURF_ZONES.has(section.zone)).map((section) => {
+      const status = sectionStatus(st, section);
+      if (status === 'Healthy') return null;
+      return { section, status, summary: sectionTurfSummary(st, section), diagnosis: diagnoseSection(st, section) };
+    }).filter(Boolean).sort((a, b) => {
+      const urgency = (entry) => (entry.status === 'Declining' ? 0 : 1);
+      return urgency(a) - urgency(b)
+        || a.summary.health - b.summary.health
+        || b.section.cells.length - a.section.cells.length;
+    });
+    const problems = allProblems.slice(0, 8);
+
+    const careRecommendation = (problem) => {
+      const summary = problem.summary;
+      const key = problem.section.zone === ZONE.GREEN ? 'green'
+        : problem.section.zone === ZONE.TEE ? 'tee'
+          : problem.section.zone === ZONE.FAIRWAY ? 'fairway' : 'rough';
+      const targetHeight = pol?.[key]?.mowHeightMm;
+      if (summary.wear >= 20) return {
+        label: 'Aerate', aerate: true,
+        detail: `Wear is ${summary.wear}% — aeration directly relieves this compaction.`,
+      };
+      if (summary.moisture < 35) return {
+        label: 'Increase water',
+        detail: `Moisture is ${summary.moisture}% — increase this zone's irrigation order below.`,
+      };
+      if (summary.nutrients < 35) return {
+        label: 'Feed at dawn',
+        detail: `Nutrients are ${summary.nutrients}% — increase this zone's fertilizer order below.`,
+      };
+      if (targetHeight && summary.heightMm > targetHeight * 1.35) return {
+        label: 'Mow at dawn',
+        detail: `Height is ${summary.heightMm}mm against a ${targetHeight}mm standing order.`,
+      };
+      return {
+        label: 'Rest / monitor',
+        detail: `Health is ${summary.health}% with ${summary.wear}% wear — adjust care below and give it time.`,
+      };
+    };
+
+    const problemRow = (p) => {
+      const treatCost = treatSectionCost(st, p.section);
+      const aerateCost = aerateSectionCost(st, p.section);
+      const diseased = !!p.summary.disease;
+      const recommendation = careRecommendation(p);
+      const acres = p.section.cells.length * 64 / 4840;
+      const area = acres < 0.1 ? '<0.1 acre' : `${acres.toFixed(1)} acres`;
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: diseased ? '🦠' : '🌱' }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: `${p.section.name || 'Section'} — ${p.status}` }),
+          el('div', { class: 'lt-prodmeta', text: p.diagnosis || recommendation.detail })),
+        chip(area),
+        chip(`Health ${p.summary.health}%`, p.summary.health < 45 ? 'bad' : 'warn'),
+        diseased ? el('button', {
+          class: 'lt-mini',
+          text: `Treat — ${formatMoney(treatCost)}`,
+          disabled: cashOf() < treatCost ? 'disabled' : undefined,
+          onclick: () => askConfirm(`Send the crew over with fungicide for ${formatMoney(treatCost)}?`, 'Treat it', () => {
+            const res = treatSection(st, p.section);
+            toast(res && res.ok === false ? (res.reason || 'Could not treat it.') : 'The crew is on it.', res && res.ok === false ? 'warn' : '');
+          }),
+        }) : recommendation.aerate ? el('button', {
+          class: 'lt-mini',
+          text: `Aerate — ${formatMoney(aerateCost)}`,
+          disabled: cashOf() < aerateCost ? 'disabled' : undefined,
+          onclick: () => askConfirm(`Aerate ${p.section.name || 'this section'} for ${formatMoney(aerateCost)}?`, 'Aerate it', () => {
+            const res = aerateSection(st, p.section);
+            toast(res && res.ok === false ? (res.reason || 'Could not aerate it.') : 'Cores pulled — the turf breathes again.', res && res.ok === false ? 'warn' : '');
+          }),
+        }) : word(recommendation.label, 'warn'));
+    };
+    const choreRow = (c) => el('div', { class: 'lt-order' },
+      el('span', { class: 'lt-alerticon', text: c.icon }),
+      el('div', { class: 'lt-orderbody' },
+        el('div', { class: 'lt-ordername', text: c.name }),
+        el('div', { class: 'lt-prodmeta', text: c.detail })),
+      chip('hands-on', c.tone || 'warn'));
+    const choreModels = courseChores(st);
+    const chores = choreModels.map(choreRow);
+    const priorityCost = problems.reduce((sum, problem) => sum
+      + (problem.summary.disease
+        ? treatSectionCost(st, problem.section)
+        : problem.summary.wear >= 20 ? aerateSectionCost(st, problem.section) : 0), 0);
+
+    // the crew's standing orders — the sliders write straight into the policy the crew reads at dawn
+    const ZONE_RANGE = {
+      green: { mow: [3, 7], label: 'Greens' },
+      tee: { mow: [8, 14], label: 'Tees' },
+      fairway: { mow: [10, 20], label: 'Fairways' },
+      rough: { mow: [25, 60], label: 'Rough' },
+    };
+    const cycle = (options, current) => options[(options.indexOf(current) + 1) % options.length];
+    const policyRow = (key) => {
+      const p = pol[key];
+      const range = ZONE_RANGE[key];
+      const mowOut = el('span', { class: 'lt-mupct', text: `${p.mowHeightMm}mm` });
+      const mowSlider = el('input', {
+        type: 'range', min: String(range.mow[0]), max: String(range.mow[1]), step: '1',
+        value: String(p.mowHeightMm), class: 'lt-range', style: 'max-width:100px',
+        oninput: (e) => { p.mowHeightMm = Number(e.target.value); mowOut.textContent = `${p.mowHeightMm}mm`; },
+      });
+      const cycleBtn = (label, field, options) => el('button', {
+        class: 'lt-mini', text: `${label}: ${p[field]}`,
+        onclick: (e) => { p[field] = cycle(options, p[field]); e.target.textContent = `${label}: ${p[field]}`; click(); },
+      });
+      return row(el('span', { class: 'lt-mulabel', text: range.label }), mowSlider, mowOut,
+        cycleBtn('Water', 'irrigation', ['off', 'light', 'standard', 'heavy']),
+        cycleBtn('Feed', 'fertilizer', ['none', 'lean', 'standard', 'aggressive']));
+    };
+
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Turf Issues', String(allProblems.length), `${problems.length} highest-priority shown`, allProblems.length ? 'warn' : 'ok'),
+        stat('Hands-On', String(choreModels.length), choreModels.length ? 'physical jobs around the property' : 'none waiting', choreModels.length ? 'warn' : 'ok'),
+        stat('Crew Hours', crewHours.toFixed(1), `${gks.length} employed groundskeeper${gks.length === 1 ? '' : 's'}`),
+        stat('Priority Cost', formatMoney(priorityCost), 'all visible treatment buttons'),
+      ),
+      report && report.skipped && report.skipped.length
+        ? errBox(`The crew ran out of hours this morning — ${report.skipped.length} job${report.skipped.length === 1 ? '' : 's'} went undone. Hire groundskeepers or ask for less.`)
+        : row(meta(`Crew: you + ${gks.length} groundskeeper${gks.length === 1 ? '' : 's'} · ${crewHours.toFixed(1)} hours a morning`)),
+      sect(`Priority Jobs (${problems.length + chores.length} shown / ${allProblems.length + chores.length} total)`),
+      problems.length || chores.length
+        ? el('div', { class: 'lt-orderlist' }, ...problems.map(problemRow), ...chores)
+        : empty('Nothing needs doing. Enjoy it while it lasts.'),
+      pol ? sect('Crew standing orders — followed at dawn') : null,
+      pol ? card(...Object.keys(ZONE_RANGE).map(policyRow)) : null,
+    ];
+  }
+
+  function courseHolesTab(st) {
+    const pinKeyOf = (h) => {
+      if (!h.pins || !h.pin) return null;
+      for (const k of ['A', 'B', 'C']) {
+        const p = h.pins[k];
+        if (p && Math.abs(p.x - h.pin.x) < 0.01 && Math.abs(p.y - h.pin.y) < 0.01) return k;
+      }
+      return null;
+    };
+    const holeCard = (h, i) => {
+      const activePin = pinKeyOf(h);
+      const isOpen = h.status === HOLE_STATUS.OPEN;
+      const routed = h.tee && h.pin;
+      const map = el('canvas', { class: 'lt-holemap', width: '360', height: '128' });
+      if (routed) {
+        const pts = [h.tee, ...(h.wp || []), h.pin];
+        let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;
+        for (const p of pts) {
+          minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+        paintCourse(map, st, {
+          win: { x0: Math.floor(minX - 6), y0: Math.floor(minY - 6), w: Math.ceil(maxX - minX + 12), h: Math.ceil(maxY - minY + 12) },
+          marks: [{ x: h.tee.x, y: h.tee.y, kind: 'tee' }, { x: h.pin.x, y: h.pin.y, kind: 'pin' }],
+        });
+      } else {
+        paintCourse(map, st, { win: { x0: 0, y0: 0, w: st.course.w, h: st.course.h } });
+      }
+      return el('div', { class: 'lt-holecard' },
+        el('div', { class: 'lt-holetop' },
+          el('span', { class: 'lt-holename', text: h.name || `Hole ${i + 1}` }),
+          word(isOpen ? 'Open' : 'Closed', isOpen ? 'ok' : 'warn')),
+        map,
+        el('div', { class: 'lt-listsub', text: routed ? `Par ${holePar(st.course, h)} · ${Math.round(holeDistanceYd(h))} yd${!isOpen && h.daysLeft > 0 ? ` · reopens in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}` : ''}` : 'Unrouted — draw it in the editor.' }),
+        el('div', { class: 'lt-holebtns' },
+          isOpen && h.pins && h.pins.A
+            ? el('span', { style: 'display:flex;gap:3px;align-items:center' },
+              meta('pin'),
+              ...['A', 'B', 'C'].filter((k) => h.pins[k]).map((k) => el('button', {
+                class: `lt-day ${activePin === k ? 'on' : ''}`,
+                style: 'padding:1px 8px',
+                text: k,
+                onclick: () => {
+                  h.pin = { x: h.pins[k].x, y: h.pins[k].y };
+                  toast(`${h.name || `Hole ${i + 1}`} now plays to pin ${k}.`);
+                  click();
+                  render();
+                },
+              })))
+            : null,
+          el('span', { style: 'flex:1' }),
+          isOpen
+            ? el('button', {
+              class: 'lt-mini',
+              text: 'Rest',
+              title: 'Close this hole for one day — golfers route around it and it reopens on its own.',
+              onclick: () => askConfirm(`Rest ${h.name || `hole ${i + 1}`} for a day? Golfers route around it; it reopens on its own.`, 'Rest the hole', () => {
+                h.status = HOLE_STATUS.RENOVATION;
+                h.daysLeft = 1;
+                toast(`${h.name || `Hole ${i + 1}`} is roped off until tomorrow.`);
+              }),
+            })
+            : null,
+          opts.openCourseEditor
+            ? el('button', {
+              class: 'lt-mini',
+              text: 'Edit',
+              onclick: () => askConfirm(
+                `Redesign ${h.name || `hole ${i + 1}`}? The laptop closes and the course opens under the editing camera.`,
+                'Open the editor',
+                () => opts.openCourseEditor(),
+              ),
+            })
+            : null));
+    };
+    return [
+      el('div', { class: 'lt-holegrid' }, ...st.course.holes.map(holeCard)),
+      note('Redesigning holes — terrain, zones, new routing — happens in the Course Editor.'),
+    ];
+  }
+
+  // ==========================================================================================
+  // UPGRADES — course & business improvements, amenities, staff, equipment. Money → lasting.
+  // ==========================================================================================
+  function pageUpgrades() {
+    const st = app.state;
+    const us = ts('upgrades', { tab: 'course' });
+    const tabs = [['course', 'Course'], ['clubhouse', 'Renovations'], ['staff', 'Staff'], ['equipment', 'Equipment']];
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
+      class: `lt-tab ${us.tab === v ? 'on' : ''}`, text: label,
+      onclick: () => { us.tab = v; click(); render(); },
+    })));
+
+    const body = us.tab === 'clubhouse' ? upgradesClubhouseTab(st)
+      : us.tab === 'staff' ? upgradesStaffTab(st)
+        : us.tab === 'equipment' ? upgradesEquipmentTab(st)
+          : upgradesCourseTab(st);
+
+    paint(
+      head('Upgrades', 'Everything here is a real purchase with a lasting effect the sim applies. Locked cards say exactly what they need.'),
+      confirmBar(),
+      tabBar,
+      ...body,
     );
   }
 
-  // =========================================================================================
-  // 11. EMPLOYEES
-  // =========================================================================================
-  function pageEmployees() {
-    const st = app.state;
+  const UPGRADE_ICON = {
+    greensMowerII: '🚜', fairwayMowerII: '🚜', aerator: '🌱', sprayRig: '🧪',
+    smartIrrigation: '💧', premiumSupplier: '📦', reciprocalClubs: '🤝',
+    corporatePartners: '💼', tournamentHost: '🏆',
+  };
+
+  function upgradeCard(st, id, u) {
+    const prestige = st.progression ? st.progression.prestige : 0;
+    const owned = hasUpgrade(st, id);
+    const locked = prestige < u.prestige;
+    const affordable = cashOf() >= u.cost;
+    return el('div', { class: `lt-upcard ${locked && !owned ? 'locked' : ''}` },
+      el('div', { class: 'lt-upicon', text: UPGRADE_ICON[id] || '🏗' }),
+      el('div', { class: 'lt-uptitle', text: u.name }),
+      el('div', { class: 'lt-updesc', text: u.blurb }),
+      el('div', { class: 'lt-upfoot' },
+        el('span', { class: 'lt-upprice', text: owned ? '' : formatMoney(u.cost) }),
+        owned ? chip('Owned', 'ok')
+          : locked ? chip(`Needs prestige ${u.prestige}`, '')
+            : el('button', {
+              class: 'lt-primary', text: 'Buy',
+              disabled: affordable ? undefined : 'disabled',
+              title: affordable ? undefined : 'Not enough cash',
+              onclick: () => askConfirm(`Buy ${u.name} for ${formatMoney(u.cost)}? It bills once and starts working tomorrow.`, 'Buy it', () => {
+                const res = purchaseUpgrade(st, id);
+                toast(res.ok ? `${u.name} — done.` : res.reason, res.ok ? '' : 'warn');
+              }),
+            })));
+  }
+
+  function upgradesCourseTab(st) {
+    const cal = calendarOf(st.clock.minutes);
+    const ev = st.progression ? st.progression.event : null;
+    const hostReady = hasUpgrade(st, 'tournamentHost');
+    const offers = st.club.outings ? st.club.outings.offers : [];
+    const prestige = st.progression ? st.progression.prestige : 0;
+
+    const tournamentRow = (tier) => {
+      const spec = TOURNAMENTS[tier];
+      const gate = canScheduleTournament(st, tier);
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: '🏆' }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: spec.name }),
+          el('div', { class: 'lt-prodmeta', text: `stage ${formatMoney(spec.cost)} · entries ${formatMoney(spec.entryRevenue)} · needs ${spec.conditionReq}+ condition on the day` })),
+        gate.ok
+          ? el('button', {
+            class: 'lt-primary', text: `Schedule — ${formatMoney(spec.cost)}`,
+            onclick: () => askConfirm(`Stage the ${spec.name}? ${formatMoney(spec.cost)} now; the field arrives in ${spec.leadDays} days.`, 'Put it on', () => {
+              const res = scheduleTournament(st, tier);
+              toast(res.ok ? `${spec.name} — day ${res.day + 1}. Get the course ready.` : res.reason, res.ok ? '' : 'warn');
+            }),
+          })
+          : chip(gate.reason, ''));
+    };
+    const offerRow = (o) => el('div', { class: 'lt-order' },
+      el('span', { class: 'lt-alerticon', text: '🤝' }),
+      el('div', { class: 'lt-orderbody' },
+        el('div', { class: 'lt-ordername', text: `${o.company} outing — ${o.size} players` }),
+        el('div', { class: 'lt-prodmeta', text: `pays ${formatMoney(o.payout)} · plays day ${o.day + 1}` })),
+      el('button', {
+        class: 'lt-primary', text: 'Accept',
+        onclick: () => askConfirm(`Book ${o.company}'s outing for ${formatMoney(o.payout)}?`, 'Book it', () => {
+          const res = acceptOuting(st, o.id);
+          toast(res.ok ? `${o.company} is booked.` : res.reason, res.ok ? '' : 'warn');
+        }),
+      }),
+      el('button', {
+        class: 'lt-mini lt-cancel', text: 'Decline',
+        onclick: () => askConfirm(`Turn down ${o.company}? The offer does not come back.`, 'Decline it', () => {
+          declineOuting(st, o.id);
+          toast(`${o.company} will go elsewhere.`);
+        }),
+      }));
+
+    return [
+      row(meta(`Prestige ${Math.round(prestige)} — the golf world's opinion. It rises with wins and good seasons, and it unlocks the locked cards.`)),
+      el('div', { class: 'lt-upgrid' }, ...Object.entries(UPGRADES).map(([id, u]) => upgradeCard(st, id, u))),
+      ev
+        ? card(el('div', { class: 'lt-minihead', text: `🏆 ${TOURNAMENTS[ev.tier]?.name || 'Tournament'} — ${ev.day - cal.dayAbs === 0 ? 'today' : `in ${ev.day - cal.dayAbs} day${ev.day - cal.dayAbs === 1 ? '' : 's'}`}` }),
+          row(meta(`Needs condition ${TOURNAMENTS[ev.tier]?.conditionReq}+ on the day. Current: ${Math.round(clubRatings(st).condition)}.`)))
+        : null,
+      hostReady ? sect('Events you can stage') : null,
+      hostReady ? el('div', { class: 'lt-orderlist' }, ...Object.keys(TOURNAMENTS).map(tournamentRow)) : null,
+      offers.length ? sect(`Outing offers (${offers.length})`) : null,
+      offers.length ? el('div', { class: 'lt-orderlist' }, ...offers.map(offerRow)) : null,
+    ];
+  }
+
+  function upgradesClubhouseTab(st) {
+    const AMENITY_ICON = { range: '🎯', putting: '⛳', lounge: '🛋', lockers: '🚪', spa: '🧖', dining: '🍽' };
+    const amenityRow = (key) => {
+      const spec = AMENITIES[key];
+      const level = st.club.amenities[key] || 0;
+      const maxed = level >= spec.maxLevel;
+      const cost = maxed ? 0 : spec.cost[level];
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: AMENITY_ICON[key] || '🏛' }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: `${spec.name} — level ${level} of ${spec.maxLevel}` }),
+          el('div', { class: 'lt-prodmeta', text: `upkeep ${formatMoney(spec.upkeepPerLevel)}/day per level` })),
+        maxed ? chip('At its best', 'gold')
+          : el('button', {
+            class: 'lt-primary', text: `Upgrade — ${formatMoney(cost)}`,
+            disabled: cashOf() < cost ? 'disabled' : undefined,
+            onclick: () => askConfirm(`Take the ${spec.name.toLowerCase()} to level ${level + 1} for ${formatMoney(cost)}?`, 'Build it', () => {
+              const res = upgradeAmenity(st, key);
+              toast(res.ok ? `${spec.name} is now level ${level + 1}.` : res.reason, res.ok ? '' : 'warn');
+            }),
+          }));
+    };
+    const decorSkus = SHOP_CATALOG.filter((s) => s.cat === 'decor');
+    const reno = st.shop.reno;
+    const shopProgress = shopProgressionSummary(st);
+    const shopTierCard = (tierId) => {
+      const spec = SHOP_TIERS[tierId];
+      const currentIndex = SHOP_TIER_ORDER.indexOf(shopProgress.current.id);
+      const cardIndex = SHOP_TIER_ORDER.indexOf(tierId);
+      const isCurrent = tierId === shopProgress.current.id;
+      const isBuilt = cardIndex < currentIndex;
+      const pending = shopProgress.pending?.target === tierId ? shopProgress.pending : null;
+      const isNext = shopProgress.next?.id === tierId;
+      const status = isCurrent ? 'OPERATING' : isBuilt ? 'BUILT' : pending ? 'UNDER CONSTRUCTION' : isNext ? 'AVAILABLE' : 'LOCKED';
+      let action = chip(status, isCurrent || isBuilt ? 'ok' : pending ? 'warn' : '');
+      if (pending) {
+        action = pending.daysLeft > 0
+          ? chip(`${pending.daysLeft} day${pending.daysLeft === 1 ? '' : 's'} left`, 'warn')
+          : el('button', {
+            class: 'lt-primary', text: 'Recheck site',
+            onclick: () => {
+              const result = tryCompleteShopExpansion(st, shopExpansionLayoutSafety);
+              toast(result.ok ? `${spec.label} fit-out complete.` : result.reason, result.ok ? '' : 'warn');
+              if (result.ok) opts.refreshShopProgression?.();
+              render();
+            },
+          });
+      } else if (isNext) {
+        action = el('button', {
+          class: 'lt-primary', text: `Build — ${formatMoney(spec.cost)}`,
+          disabled: cashOf() < spec.cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(
+            `Start the ${spec.label} shop fit-out for ${formatMoney(spec.cost)}? Construction takes ${spec.days} days.`,
+            'Start construction',
+            () => {
+              const result = beginShopExpansion(st, spec.id);
+              toast(result.ok ? `${spec.label} construction started — ${spec.days} days.` : result.reason, result.ok ? '' : 'warn');
+              if (result.ok) opts.refreshShopProgression?.();
+              render();
+            },
+          ),
+        });
+      }
+      return el('div', { class: `lt-shop-tier ${isCurrent ? 'is-current' : ''} ${pending ? 'is-building' : ''}` },
+        el('div', { class: 'lt-shop-tier-head' },
+          el('div', {},
+            el('div', { class: 'lt-shop-tier-label', text: spec.label }),
+            el('div', { class: 'lt-ordername', text: spec.name })),
+          action),
+        el('div', { class: 'lt-prodmeta', text: spec.summary }),
+        el('div', { class: 'lt-shop-tier-finish', text: spec.finish }),
+        el('div', { class: 'lt-shop-tier-unlocks' }, ...spec.unlocks.map((unlock) => chip(unlock))),
+        el('div', {
+          class: 'lt-shop-tier-foot',
+          text: `${spec.cost ? `${formatMoney(spec.cost)} fit-out · ` : ''}${spec.customerCapacity} customer capacity · +${formatMoney(spec.propertyValue)} property value${spec.days ? ` · ${spec.days} construction days` : ''}`,
+        }));
+    };
+    const decorRow = (s) => {
+      const placed = reno ? reno.decor.filter((d) => d.skuId === s.id).length : 0;
+      const back = st.shop.inventory[s.id].back;
+      return el('div', { class: 'lt-order' },
+        thumbOf(s),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: s.name }),
+          el('div', { class: 'lt-prodmeta', text: `${formatMoney(s.cost)} · ${placed} placed · ${back} in the back` })),
+        el('button', {
+          class: 'lt-mini',
+          text: 'Order one',
+          disabled: cashOf() < s.cost ? 'disabled' : undefined,
+          onclick: () => {
+            const res = placeOrder(st, s.id, 1);
+            toast(res.ok ? `${s.name} ordered — place it by hand when it lands.` : res.reason, res.ok ? '' : 'warn');
+            if (res.ok) click();
+            render();
+          },
+        }));
+    };
+    const finishUi = ts('construction-finishes', { category: 'flooring', quality: 'municipal' });
+    ensureConstructionFinishes(st);
+    const category = CONSTRUCTION_CATEGORY_BY_ID[finishUi.category] || CONSTRUCTION_FINISH_CATEGORIES[0];
+    const quality = CONSTRUCTION_QUALITY_BY_ID[finishUi.quality] || CONSTRUCTION_QUALITY_LEVELS[0];
+    const installed = installedConstructionFinish(st, category.id);
+    const categoryTabs = el('div', { class: 'lt-tabs' }, ...CONSTRUCTION_FINISH_CATEGORIES.map((entry) => el('button', {
+      class: `lt-tab ${category.id === entry.id ? 'on' : ''}`, text: entry.label,
+      onclick: () => { finishUi.category = entry.id; click(); render(); },
+    })));
+    const qualityTabs = el('div', { class: 'lt-tabs' }, ...CONSTRUCTION_QUALITY_LEVELS.map((entry) => el('button', {
+      class: `lt-tab ${quality.id === entry.id ? 'on' : ''}`, text: entry.label,
+      title: `${entry.craftsmanship}; ${entry.warrantyYears}-year warranty`,
+      onclick: () => { finishUi.quality = entry.id; click(); render(); },
+    })));
+    const finishRow = (family) => {
+      const variant = constructionFinishVariant(category.id, family.id, quality.id);
+      const owned = ownsConstructionFinish(st, category.id, family.id, quality.id);
+      const isInstalled = installed?.id === variant.id;
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: quality.level >= 5 ? '✦' : quality.level >= 3 ? '◆' : '▦' }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: family.label }),
+          el('div', { class: 'lt-prodmeta', text: `${variant.description} ${variant.rate.toFixed(2)} / ${variant.unit} · ${variant.warrantyYears}-year warranty.` })),
+        isInstalled ? chip('Installed', 'gold') : el('button', {
+          class: owned ? 'lt-mini' : 'lt-primary',
+          text: owned ? 'Install' : `Buy — ${formatMoney(variant.cost)}`,
+          disabled: !owned && cashOf() < variant.cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(
+            owned
+              ? `Install the ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} package? The owned package can be refitted at no charge.`
+              : `Purchase and install ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} for ${formatMoney(variant.cost)}?`,
+            owned ? 'Install it' : 'Purchase finish',
+            () => {
+              const res = purchaseConstructionFinish(st, category.id, family.id, quality.id);
+              if (res.ok) { app.scene3d?.clubhouse?.()?.rebuildReno?.(); click(); render(); }
+              toast(res.ok ? `${variant.finishLabel} — ${variant.qualityLabel} installed.` : res.reason, res.ok ? '' : 'warn');
+            },
+          ),
+        }));
+    };
+    return [
+      sect('Pro shop fit-out'),
+      card(
+        el('div', { class: 'lt-minihead', text: `${shopProgress.current.label} operation` }),
+        row(meta(`${shopProgress.productCapacity} physical product positions · ${shopProgress.customerCapacity} customers · ${formatMoney(shopProgress.propertyValue)} added property value`)),
+        shopProgress.pending?.blocked ? errBox(`Construction waiting: ${shopProgress.pending.blocker}`) : null,
+      ),
+      el('div', { class: 'lt-shop-tier-grid' }, ...SHOP_TIER_ORDER.map(shopTierCard)),
+      sect('Construction finishes — municipal to luxury country club'),
+      note('Choose a construction family and one of five material grades. Every package is permanent once purchased; owned packages can be refitted without paying twice.'),
+      categoryTabs,
+      qualityTabs,
+      row(meta(`Installed ${category.label.toLowerCase()}: ${installed?.finishLabel || 'None'} — ${installed?.qualityLabel || 'Unknown'}. Viewing ${quality.label.toLowerCase()} workmanship: ${quality.visual}.`)),
+      el('div', { class: 'lt-orderlist' }, ...category.finishes.map(finishRow)),
+      sect('Amenities'),
+      el('div', { class: 'lt-orderlist' }, ...Object.keys(AMENITIES).map(amenityRow)),
+      sect('Decor & fixtures — order here, place them in the room'),
+      el('div', { class: 'lt-orderlist' }, ...decorSkus.map(decorRow)),
+    ];
+  }
+
+  function upgradesStaffTab(st) {
     const cal = calendarOf(st.clock.minutes);
     refreshMarketIfDue(st, cal.dayAbs);
     const emp = st.staff.employees;
-    const daily = staffDailyWages(st);
+    const rolesCovered = new Set(emp.filter((employee) => employee.trainingDays <= 0).map((employee) => employee.role));
+    const trainingCount = emp.filter((employee) => employee.trainingDays > 0).length;
+    const staffCrewHours = groundsCrewHours(st);
+    const daysUntilMarketRefresh = Math.max(0, 6 - (cal.dayAbs - st.staff.marketDay));
+    const roleImpact = {
+      [ROLE.GROUNDSKEEPER]: 'course hours',
+      [ROLE.INSTRUCTOR]: 'lessons',
+      [ROLE.FNB]: 'grill revenue',
+      [ROLE.PROSHOP]: 'club sales',
+    };
     const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
     const empRow = (e) => el('div', { class: 'lt-order' },
       el('div', { class: 'lt-avatar', text: (e.name || '?').slice(0, 1) }),
       el('div', { class: 'lt-orderbody' },
         el('div', { class: 'lt-ordername', text: e.name }),
-        el('div', { class: 'lt-prodmeta', text: `${ROLE_LABEL[e.role] || e.role} · ${stars(e.skill)} · ${formatMoney(e.wage)}/day` }),
-        el('div', { class: 'lt-prodmeta', text: e.trainingDays > 0 ? `in training — ${e.trainingDays} day${e.trainingDays === 1 ? '' : 's'} to go` : 'on shift with the club\'s hours' })),
-      e.trainingDays > 0 ? chip('training', 'warn') : chip('working', 'ok'),
+        el('div', { class: 'lt-prodmeta', text: `${ROLE_LABEL[e.role] || e.role} · ${stars(e.skill)} · ${formatMoney(e.wage)}/day` })),
+      e.trainingDays > 0 ? word('Training', 'warn') : word('On duty', 'ok'),
       el('button', {
         class: 'lt-mini',
         text: 'Train',
@@ -1340,15 +2293,14 @@ export function makeLaptop(app, opts) {
           const res = fireStaff(st, e.id);
           toast(res.ok ? `${e.name} has been let go.` : res.reason, res.ok ? '' : 'warn');
         }),
-      }),
-    );
+      }));
 
     const candRow = (c) => el('div', { class: 'lt-order' },
       el('div', { class: 'lt-avatar', text: (c.name || '?').slice(0, 1) }),
       el('div', { class: 'lt-orderbody' },
         el('div', { class: 'lt-ordername', text: c.name }),
-        el('div', { class: 'lt-prodmeta', text: `${ROLE_LABEL[c.role] || c.role} · ${stars(c.skill)}` }),
-        el('div', { class: 'lt-prodmeta', text: `asking ${formatMoney(c.wage)}/day` })),
+        el('div', { class: 'lt-prodmeta', text: `${ROLE_LABEL[c.role] || c.role} · ${stars(c.skill)}` })),
+      chip(roleImpact[c.role] || 'club service'),
       el('button', {
         class: 'lt-primary',
         text: `Hire — ${formatMoney(c.wage)}/day`,
@@ -1356,601 +2308,851 @@ export function makeLaptop(app, opts) {
           const res = hireStaff(st, c.id);
           toast(res.ok ? `${c.name} starts today.` : res.reason, res.ok ? '' : 'warn');
         }),
-      }),
-    );
+      }));
 
-    const byRole = {};
-    for (const e of emp) byRole[e.role] = (byRole[e.role] || 0) + 1;
-
-    paint(
-      head('Employees', 'A pro on the shop floor sells the big-ticket clubs that will not sell themselves. Groundskeepers cut the hours you would otherwise cut yourself.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'On the books' }), el('div', { class: 'lt-statvalue', text: String(emp.length) }), el('div', { class: 'lt-statsub', text: 'employees' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Wage bill' }), el('div', { class: 'lt-statvalue', text: formatMoney(daily) }), el('div', { class: 'lt-statsub', text: 'per day' })),
-        ...Object.keys(ROLE).map((k) => {
-          const r = ROLE[k];
-          return el('div', { class: 'lt-stat' },
-            el('div', { class: 'lt-statlabel', text: ROLE_LABEL[r] }),
-            el('div', { class: `lt-statvalue ${byRole[r] ? '' : 'bad'}`, text: String(byRole[r] || 0) }),
-            el('div', { class: 'lt-statsub', text: byRole[r] ? 'on staff' : 'nobody' }));
-        }),
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Team', String(emp.length), trainingCount ? `${trainingCount} currently training` : 'all hires available'),
+        stat('Payroll', formatMoney(staffDailyWages(st)), 'posts every day at midnight', staffDailyWages(st) ? 'warn' : ''),
+        stat('Role Coverage', `${rolesCovered.size} / 4`, 'grounds / lessons / grill / shop', rolesCovered.size === 4 ? 'ok' : 'warn'),
+        stat('Course Crew', `${staffCrewHours.toFixed(1)}h`, 'daily maintenance capacity'),
       ),
+      row(meta(`Hiring market refreshes in ${daysUntilMarketRefresh} day${daysUntilMarketRefresh === 1 ? '' : 's'}. Staff effects pause while they train.`)),
       sect(`Your staff (${emp.length})`),
-      emp.length ? el('div', { class: 'lt-orderlist' }, ...emp.map(empRow)) : empty('Nobody works here but you. Every hour on the course is an hour you spend.'),
+      emp.length ? el('div', { class: 'lt-orderlist' }, ...emp.map(empRow)) : empty('Nobody works here but you.'),
       sect(`Available to hire (${st.staff.market.length})`),
       st.staff.market.length
         ? el('div', { class: 'lt-orderlist' }, ...st.staff.market.map(candRow))
-        : empty('Nobody is looking for work this week. The book refreshes every six days.'),
-    );
+        : empty('Nobody is looking for work this week.'),
+    ];
   }
 
-  // =========================================================================================
-  // 12. FINANCES
-  // =========================================================================================
-  function pageFinances() {
-    const st = app.state;
-    const led = st.ledger || {};
-    const cal = calendarOf(st.clock.minutes);
-    const REV_LABEL = {
-      greenFees: 'Green fees', dues: 'Membership dues', outings: 'Outings', range: 'Practice range',
-      restaurant: 'Grill room', lessons: 'Lessons', shopSales: 'Shop sales', rentals: 'Rentals',
-      fittings: 'Club fittings', reciprocal: 'Reciprocal', events: 'Events', walkIns: 'Walk-ins',
-      teeTimeBookings: 'Tee-time bookings',
-      bookingRevenue: 'Prepaid green fees', bookingDeposits: 'Green-fee deposits',
-      bookingBalances: 'Green-fee balances', cancellationFees: 'Cancellation fees',
-      noShowFees: 'No-show fees', walkInRevenue: 'Walk-in green fees',
+  function upgradesEquipmentTab(st) {
+    const f = st.shop.rentalFleet;
+    const carts = fleetSummary(st);
+    const cartPurchaseCost = 4500 + Math.max(0, carts.carts - 4) * 900;
+    const tractorFixed = st.tractor && st.tractor.repaired;
+    const tractorMissing = st.tractor ? TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]) : [];
+    const service = (cart, action, label) => {
+      const result = serviceFleetCart(st, cart.id, action);
+      toast(result.ok ? `${cart.id.replace('fleet-cart-', 'Cart ')} ${label}.` : result.reason, result.ok ? '' : 'warn');
     };
-    const EXP_LABEL = {
-      wagesStaff: 'Wages', wagesDayLabor: 'Day labour', water: 'Water', fertilizer: 'Fertiliser',
-      chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
-      severance: 'Severance', training: 'Training', shopOrders: 'Stock purchases',
-      deliveryCosts: 'Delivery costs', equipment: 'Equipment',
-      cleaningSupplies: 'Cleaning supplies', propertyExpenses: 'Property expenses',
-      checkoutShortage: 'Till shortages', rentalFleet: 'Rental fleet', events: 'Events',
-      rent: 'Property holding cost', bookingRefunds: 'Booking refunds',
-    };
-
-    // aggregate any window of the history
-    const sumOf = (days) => {
-      const out = { revenue: {}, expense: {} };
-      for (const d of days) {
-        for (const [k, v] of Object.entries(d.revenue || {})) out.revenue[k] = (out.revenue[k] || 0) + v;
-        for (const [k, v] of Object.entries(d.expenses || d.expense || {})) out.expense[k] = (out.expense[k] || 0) + v;
-      }
-      return out;
-    };
-    const hist = Array.isArray(led.history) ? led.history : [];
-    const today = led.today || { revenue: {}, expense: {} };
-    const windows = {
-      today: { label: 'Today', data: today },
-      week: { label: 'Last 7 days', data: sumOf(hist.slice(-7)) },
-      month: { label: 'Last 24 days', data: sumOf(hist.slice(-24)) },
-    };
-
-    const table = (data) => {
-      const rev = Object.entries(data.revenue || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-      const exp = Object.entries(data.expense || {}).filter(([, v]) => v !== 0).sort((a, b) => b[1] - a[1]);
-      const revTotal = rev.reduce((a, [, v]) => a + v, 0);
-      const expTotal = exp.reduce((a, [, v]) => a + v, 0);
-      return el('div', { class: 'lt-cols2' },
-        card(el('div', { class: 'lt-minihead', text: 'Revenue' }),
-          ...(rev.length ? rev.map(([k, v]) => row(el('span', { text: REV_LABEL[k] || k }), el('span', { class: 'lt-num lt-pos', text: formatMoney(v) })))
-            : [empty('Nothing came in.')]),
-          el('div', { class: 'lt-total' }, el('span', { text: 'Total' }), el('span', { class: 'lt-pos', text: formatMoney(revTotal) }))),
-        card(el('div', { class: 'lt-minihead', text: 'Expenses' }),
-          ...(exp.length ? exp.map(([k, v]) => row(el('span', { text: EXP_LABEL[k] || k }), el('span', { class: 'lt-num lt-neg', text: formatMoney(v) })))
-            : [empty('Nothing went out.')]),
-          el('div', { class: 'lt-total' }, el('span', { text: 'Total' }), el('span', { class: 'lt-neg', text: formatMoney(expTotal) }))),
+    const infraCard = (kind, capacityText) => {
+      const spec = CART_INFRASTRUCTURE[kind];
+      const level = st.cartFleet.infrastructure[kind];
+      const maxed = level >= spec.maxLevel;
+      const cost = maxed ? 0 : spec.costs[level];
+      return card(
+        el('div', { class: 'lt-minihead', text: spec.label }),
+        row(chip(`Level ${level}`, level > 0 ? 'ok' : ''), meta(capacityText)),
+        el('div', { class: 'lt-cardfoot' }, el('button', {
+          class: 'lt-mini',
+          text: maxed ? 'Fully upgraded' : `Upgrade — ${formatMoney(cost)}`,
+          disabled: maxed || cashOf() < cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(`Upgrade ${spec.label.toLowerCase()} for ${formatMoney(cost)}?`, 'Build it', () => {
+            const result = upgradeFleetInfrastructure(st, kind);
+            toast(result.ok ? `${spec.label} is now level ${result.level}.` : result.reason, result.ok ? '' : 'warn');
+          }),
+        })),
       );
     };
-
-    const w = windows[financeWindow] || windows.today;
-    const rev = Object.values(w.data.revenue || {}).reduce((a, v) => a + v, 0);
-    const exp = Object.values(w.data.expense || {}).reduce((a, v) => a + v, 0);
-    const net = rev - exp;
-    const owed = arrearsOf(st);
-    const operationDays = financeWindow === 'today' ? 1 : financeWindow === 'week' ? 7 : 24;
-    const operationSummaries = Array.from({ length: operationDays }, (_, index) => (
-      operationFinanceSummary(st, cal.dayAbs - index)
-    ));
-    const operationWindow = operationSummaries.reduce((out, summary) => {
-      out.entries.push(...summary.entries);
-      out.cashIn += summary.cashIn;
-      out.cashOut += summary.cashOut;
-      for (const [category, amount] of Object.entries(summary.categories)) {
-        out.categories[category] = (out.categories[category] || 0) + amount;
-      }
-      return out;
-    }, { entries: [], cashIn: 0, cashOut: 0, categories: {} });
-    operationWindow.netCash = operationWindow.cashIn - operationWindow.cashOut;
-    operationWindow.stableIdsUnique = new Set(operationWindow.entries.map((entry) => entry.id)).size === operationWindow.entries.length;
-    const OPERATION_LABEL = {
-      bookingRevenue: 'Prepaid bookings',
-      bookingDeposits: 'Booking deposits',
-      bookingBalances: 'Balances collected',
-      walkInRevenue: 'Walk-in green fees',
-      cancellationFees: 'Cancellation fees retained',
-      noShowFees: 'No-show fees retained / charged',
-      bookingRefunds: 'Booking refunds',
-    };
-    const operationRows = Object.entries(OPERATION_LABEL)
-      .map(([category, label]) => [category, label, operationWindow.categories[category] || 0])
-      .filter(([, , amount]) => amount > 0.005)
-      .map(([category, label, amount]) => row(
-        el('span', { text: label }),
-        meta(category === 'cancellationFees' || category === 'noShowFees' ? 'policy classification' : ''),
-        el('span', {
-          class: `lt-num ${category === 'bookingRefunds' ? 'lt-neg' : 'lt-pos'}`,
-          text: `${category === 'bookingRefunds' ? '-' : ''}${operationMoney(amount)}`,
-        })));
-    const toDay = cal.dayAbs;
-    const fromDay = financeWindow === 'month' ? toDay - 23 : financeWindow === 'week' ? toDay - 6 : toDay;
-    const profit = financialSummary(st, fromDay, toDay);
-    const daily = latestDailySummary(st);
-    const week = weeklySummary(st);
-    const entries = (led.entries || [])
-      .filter((entry) => entry.day >= fromDay && entry.day <= toDay)
-      .slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 24);
-
-    const tabs = el('div', { class: 'lt-tabs' }, ...Object.entries(windows).map(([k, v]) => el('button', {
-      class: `lt-tab ${financeWindow === k ? 'on' : ''}`, text: v.label,
-      onclick: () => { financeWindow = k; click(); render(); },
-    })));
-
-    const histRows = hist.slice(-10).reverse().map((d) => {
-      const r = Object.values(d.revenue || {}).reduce((a, v) => a + v, 0);
-      const e = Object.values(d.expenses || d.expense || {}).reduce((a, v) => a + v, 0);
-      return row(
-        el('span', { text: d.label || `Day ${d.dayAbs ?? ''}` }),
-        meta(`gross ${formatMoney(d.summary?.grossRevenue ?? r)} · served ${d.summary?.customersServed ?? '—'} · condition ${d.summary?.propertyCondition ?? '—'}`),
-        chip(`${(d.summary?.netProfit ?? r - e) >= 0 ? '+' : ''}${formatMoney(d.summary?.netProfit ?? r - e)}`, (d.summary?.netProfit ?? r - e) >= 0 ? 'ok' : 'bad'));
-    });
-
-    const entryRows = entries.map((entry) => row(
-      el('span', { class: 'lt-ordernum', text: `D${entry.day + 1}` }),
-      el('span', { style: 'min-width:150px;flex:1', text: entry.description }),
-      meta(`${LEDGER_LABELS[entry.lineKey] || entry.category}${entry.relatedId ? ` · ${entry.relatedId}` : ''}`),
-      chip(`${entry.cashImpact >= 0 ? '+' : ''}${formatMoney(entry.cashImpact)}`, entry.cashImpact > 0 ? 'ok' : entry.cashImpact < 0 ? 'bad' : ''),
-      meta(entry.cashImpact === 0 && entry.profitImpact < 0 ? `${formatMoney(Math.abs(entry.profitImpact))} COGS` : entry.accountingClass),
-    ));
-
-    paint(
-      head('Finances', 'Every cash movement in the club routes through this ledger, so it reconciles: across any midnight-to-midnight window, the net equals the cash that actually moved.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Cash' }), el('div', { class: 'lt-statvalue', text: formatMoney(cashOf()) }), el('div', { class: 'lt-statsub', text: 'empire-wide wallet' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: `Net · ${w.label.toLowerCase()}` }), el('div', { class: `lt-statvalue ${net >= 0 ? 'ok' : 'bad'}`, text: `${net >= 0 ? '+' : ''}${formatMoney(net)}` }), el('div', { class: 'lt-statsub', text: `${formatMoney(rev)} in, ${formatMoney(exp)} out` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Property' }), el('div', { class: 'lt-statvalue', text: formatMoney(weeklyCharge(st)) }), el('div', { class: 'lt-statsub', text: 'per week' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Wages' }), el('div', { class: 'lt-statvalue', text: formatMoney(staffDailyWages(st)) }), el('div', { class: 'lt-statsub', text: 'per day' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Golf operations' }), el('div', { class: `lt-statvalue ${operationWindow.netCash < 0 ? 'bad' : 'ok'}`, text: operationMoney(operationWindow.netCash) }), el('div', { class: 'lt-statsub', text: `${operationWindow.entries.length} exact-once entries` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Gross revenue' }), el('div', { class: 'lt-statvalue', text: formatMoney(profit.grossRevenue) }), el('div', { class: 'lt-statsub', text: w.label.toLowerCase() })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Cost of goods' }), el('div', { class: 'lt-statvalue', text: formatMoney(profit.costOfGoodsSold) }), el('div', { class: 'lt-statsub', text: 'matched to sold units' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Operating costs' }), el('div', { class: 'lt-statvalue', text: formatMoney(profit.operatingExpenses) }), el('div', { class: 'lt-statsub', text: 'excluding investment' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Net profit' }), el('div', { class: `lt-statvalue ${profit.netProfit >= 0 ? 'ok' : 'bad'}`, text: `${profit.netProfit >= 0 ? '+' : ''}${formatMoney(profit.netProfit)}` }), el('div', { class: 'lt-statsub', text: `cash moved ${profit.cashChange >= 0 ? '+' : ''}${formatMoney(profit.cashChange)}` })),
-      ),
-      owed > 0 ? errBox(`${formatMoney(owed)} in arrears on the property, and it is accruing interest. It comes out of the next bill you can cover.`) : null,
-      tabs,
-      table(w.data),
-      sect('Golf operations subledger'),
+    return [
       card(
-        ...(operationRows.length ? operationRows : [empty('No booking cash moved in this window.')]),
-        el('div', { class: 'lt-total' },
-          el('span', { text: 'Net cash movement' }),
-          el('span', { class: operationWindow.netCash >= 0 ? 'lt-pos' : 'lt-neg', text: operationMoney(operationWindow.netCash) })),
-        meta(`${operationWindow.stableIdsUnique ? 'All entry IDs are unique.' : 'Duplicate entry IDs detected.'} These categories explain the Green fees and Booking refunds already included above; they are not added a second time.`),
-      ),
-      sect('Itemized ledger'),
-      entryRows.length ? card(...entryRows) : empty('No entries in this window.'),
-      daily ? el('div', {}, sect('Latest daily operating summary'), card(
-        row(chip(`${daily.customersServed} served`), chip(`${daily.teeTimeUtilization}% tee utilization`), chip(`${formatMoney(daily.averageTransaction)} average transaction`), chip(`${daily.missedSales} missed`, daily.missedSales ? 'bad' : 'ok')),
-        row(meta(`Cleanliness ${daily.cleaningCondition} · course ${daily.courseCondition} · reputation ${daily.reputationChange >= 0 ? '+' : ''}${daily.reputationChange} · property ${daily.propertyValueChange >= 0 ? '+' : ''}${formatMoney(daily.propertyValueChange)}`)),
-        ...(daily.reasons || []).map((reason) => row(el('span', { class: 'lt-why', text: reason }))),
-      )) : null,
-      week.days ? el('div', {}, sect('Seven-day summary'), card(
-        row(chip(`${formatMoney(week.grossRevenue)} gross`), chip(`${formatMoney(week.netProfit)} profit`, week.netProfit >= 0 ? 'ok' : 'bad'), chip(`${week.customersServed} served`), chip(`${week.teeTimeUtilization}% tee utilization`)),
-        row(meta(`${week.missedSales} missed sales · reputation ${week.reputationChange >= 0 ? '+' : ''}${week.reputationChange} · property value ${week.propertyValueChange >= 0 ? '+' : ''}${formatMoney(week.propertyValueChange)}`)),
-      )) : null,
-      sect('Upcoming'),
-      card(row(el('span', { text: 'Property' }), meta(propertyLine(st, cal.dayAbs)), chip(formatMoney(weeklyCharge(st)))),
-        row(el('span', { text: 'Stock already paid for' }), meta(`${st.shop.orders.length} order${st.shop.orders.length === 1 ? '' : 's'} on the truck`), chip(formatMoney(st.shop.orders.reduce((a, o) => a + o.cost, 0))))),
-      sect('Recent days'),
-      histRows.length ? card(...histRows) : empty('The books fill in as days close.'),
-    );
-  }
-
-  // =========================================================================================
-  // 13. REVIEWS
-  // =========================================================================================
-  function pageReviews() {
-    const st = app.state;
-    const s = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
-    const reputation = reputationSnapshot(st);
-    const changes = (st.reputation?.history || []).slice(0, 10);
-    const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
-
-    const factorBar = (f) => {
-      const p = Math.round(f.score * 100);
-      const tone = f.score >= 0.7 ? 'ok' : f.score >= 0.45 ? '' : 'bad';
-      return el('div', { class: 'lt-facrow' },
-        el('span', { class: 'lt-faclabel', text: f.label }),
-        el('div', { class: 'lt-facbar' }, el('div', { class: `lt-facfill ${tone}`, style: `width:${p}%` })),
-        el('span', { class: 'lt-facpct', text: `${p}` }));
-    };
-
-    paint(
-      head('Reviews', 'Every bar below is read from the same model that decides what a visitor writes. The one at the bottom is what they are complaining about — fix that and the score follows.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Score' }), el('div', { class: 'lt-statvalue', text: s.count ? `${s.average} ★` : '—' }), el('div', { class: 'lt-statsub', text: s.count ? `${s.count} reviews` : 'nobody has been in' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Reputation' }), el('div', { class: 'lt-statvalue', text: String(Math.round(st.club.reputation)) }), el('div', { class: 'lt-statsub', text: 'word of mouth' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Worst factor' }), el('div', { class: `lt-statvalue ${s.worst && s.worst.score < 0.5 ? 'bad' : ''}`, text: s.worst ? `${Math.round(s.worst.score * 100)}` : '—' }), el('div', { class: 'lt-statsub', text: s.worst ? s.worst.label.toLowerCase() : '' })),
-      ),
-      sect('Reputation by outcome category'),
-      card(...Object.entries(reputation.categories).map(([category, score]) => row(
-        el('span', { class: 'lt-mulabel', text: REPUTATION_LABELS[category] || category }),
-        el('div', { class: 'lt-bar lt-barwide' }, el('div', { class: `lt-barfill ${score >= 70 ? 'ok' : score < 40 ? 'bad' : 'warn'}`, style: `width:${score}%` })),
-        chip(String(Math.round(score)), score >= 70 ? 'ok' : score < 40 ? 'bad' : 'warn')))),
-      sect('What they are judging you on, right now'),
-      card(...s.byFactor.map(factorBar)),
-      s.worst && s.worst.score < 0.5
-        ? errBox(`Biggest complaint: ${s.worst.label.toLowerCase()}.`)
-        : note('Nothing is badly letting you down at the moment.'),
-      sect('Recent'),
-      s.recent.length
-        ? card(...s.recent.map((r) => el('div', { class: 'lt-review' },
-          el('div', { class: 'lt-revstars', text: stars(r.stars) }),
-          el('div', { class: 'lt-revtext', text: r.text }),
-          el('div', { class: 'lt-revday', text: `Day ${r.day}` }))))
-        : empty('Reviews land as people come through.'),
-      sect('Why reputation moved'),
-      changes.length ? card(...changes.map((change) => row(
-        el('span', { class: 'lt-ordernum', text: `D${change.day + 1}` }),
-        el('span', { style: 'flex:1', text: change.reason }),
-        meta(Object.entries(change.categoryDeltas).map(([key, value]) => `${REPUTATION_LABELS[key] || key} ${value >= 0 ? '+' : ''}${value}`).join(' · ')),
-        chip(`${change.overallDelta >= 0 ? '+' : ''}${change.overallDelta}`, change.overallDelta >= 0 ? 'ok' : 'bad')))) : empty('No outcome has moved reputation yet.'),
-    );
-  }
-
-  // =========================================================================================
-  // 14. ANALYTICS
-  // =========================================================================================
-  function pageAnalytics() {
-    const st = app.state;
-    const led = st.ledger || {};
-    const hist = Array.isArray(led.history) ? led.history : [];
-    const y = st.shop.salesYesterday;
-    const lost = st.shop.lostSalesYesterday || 0;
-
-    // WHY did the gate move? The sim can explain itself — explainVisitors reads the same factors
-    // the golfers actually used to decide, and hands back one sentence saying so.
-    const why = explainVisitors(st, {
-      today: st.club.lastRounds || 0,
-      yesterday: st.club.prevRounds || 0,
-      rainedToday: st.weather.today.rainIn > 0.1,
-    });
-
-    // best sellers and sellouts, from the real seven-day per-SKU window
-    const ranked = retailSkus(st)
-      .map((s) => ({ sku: s, v: velocity(st, s.id), inv: st.shop.inventory[s.id] }))
-      .sort((a, b) => b.v - a.v);
-    const movers = ranked.filter((r) => r.v > 0).slice(0, 6);
-    const sellouts = ranked.filter((r) => r.inv.shelf === 0 && r.inv.back === 0);
-    const dead = ranked.filter((r) => r.v === 0 && r.inv.shelf + r.inv.back > 0);
-
-    // a simple 10-day net sparkline from the closed books
-    const spark = hist.slice(-10).map((d) => {
-      const r = Object.values(d.revenue || {}).reduce((a, v) => a + v, 0);
-      const e = Object.values(d.expenses || d.expense || {}).reduce((a, v) => a + v, 0);
-      return r - e;
-    });
-    const peak = Math.max(1, ...spark.map((v) => Math.abs(v)));
-    const trend = spark.length >= 2 ? spark[spark.length - 1] - spark[0] : 0;
-
-    paint(
-      head('Analytics', 'Movers and sellouts come from a real seven-day record of what left the building — both the sales you rang up by hand and the ones the shop made while you were out.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Rounds' }), el('div', { class: 'lt-statvalue', text: String(st.club.lastRounds || 0) }), el('div', { class: 'lt-statsub', text: 'yesterday' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Shop sales' }), el('div', { class: 'lt-statvalue', text: String(y.units) }), el('div', { class: 'lt-statsub', text: formatMoney(y.revenue) })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Walked out' }), el('div', { class: `lt-statvalue ${lost ? 'bad' : 'ok'}`, text: String(lost) }), el('div', { class: 'lt-statsub', text: 'bought nothing' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Members' }), el('div', { class: 'lt-statvalue', text: String(members(st).length) }), el('div', { class: 'lt-statsub', text: 'on the roll' })),
-      ),
-
-      why ? el('div', {}, sect('Why the gate moved'), card(el('div', { class: 'lt-why', text: why }))) : null,
-
-      sect('Net, last 10 closed days'),
-      spark.length
-        ? card(el('div', { class: 'lt-spark' }, ...spark.map((v) => el('div', {
-          class: `lt-sparkbar ${v >= 0 ? 'pos' : 'neg'}`,
-          style: `height:${Math.max(3, (Math.abs(v) / peak) * 56)}px`,
-          title: formatMoney(v),
-        }))),
-        row(meta(spark.length >= 2
-          ? `${trend >= 0 ? 'Up' : 'Down'} ${formatMoney(Math.abs(trend))} a day across the window.`
-          : 'One day on the books so far.')))
-        : empty('No closed days yet.'),
-
-      sect('Best sellers'),
-      movers.length
-        ? card(...movers.map((r) => row(
-          thumbOf(r.sku),
-          el('span', { text: r.sku.name }),
-          el('div', { class: 'lt-bar lt-barwide' }, el('div', { class: 'lt-barfill ok', style: `width:${(r.v / movers[0].v) * 100}%` })),
-          meta(`${r.v.toFixed(1)} / day`))))
-        : empty('Nothing has sold in a closed day yet.'),
-
-      sect('Sold out'),
-      sellouts.length
-        ? card(...sellouts.map((r) => row(
-          el('span', { text: r.sku.name }),
-          meta(r.v > 0 ? `was moving ${r.v.toFixed(1)} a day` : 'never stocked'),
-          chip('nothing left', 'bad'),
-          el('button', { class: 'lt-mini', text: 'Reorder', onclick: () => { cart.set(r.sku.id, (cart.get(r.sku.id) || 0) + 6); go('supplier'); } }))))
-        : empty('Nothing is sold out.'),
-
-      dead.length
-        ? el('div', {}, sect('Not moving'), card(...dead.slice(0, 6).map((r) => row(
-          el('span', { text: r.sku.name }),
-          meta(`${r.inv.shelf + r.inv.back} on hand, none sold in seven days`),
-          chip('dead stock', 'warn')))))
-        : null,
-    );
-  }
-
-  // =========================================================================================
-  // 15. RENOVATION
-  // =========================================================================================
-  function pageReno() {
-    const st = app.state;
-    const reno = st.shop.reno;
-    const cond = shopCondition(st);
-    const grime = grimeAvgOf(st);
-    const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
-    const decorSkus = SHOP_CATALOG.filter((s) => s.cat === 'decor');
-    const upgradeRows = Object.entries(UPGRADES).map(([id, spec]) => {
-      const owned = hasUpgrade(st, id);
-      const requirementMet = st.progression.prestige >= spec.prestige;
-      return el('div', { class: 'lt-order' },
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${owned ? '✓ ' : ''}${spec.name}` }),
-          el('div', { class: 'lt-prodmeta', text: `Requirement: prestige ${spec.prestige} · Cost ${formatMoney(spec.cost)} · Property value +${formatMoney(spec.valueEffect)}` }),
-          el('div', { class: 'lt-prodmeta', text: `Visible: ${spec.visibleResult}` }),
-          el('div', { class: 'lt-prodmeta', text: `Gameplay: ${spec.gameplayEffect}` })),
-        owned ? chip('Installed', 'ok') : !requirementMet ? chip(`Prestige ${spec.prestige}`, 'warn')
-          : el('button', {
-            class: 'lt-mini', text: `Install · ${formatMoney(spec.cost)}`,
-            disabled: cashOf() < spec.cost ? 'disabled' : undefined,
-            onclick: () => askConfirm(`Install ${spec.name} for ${formatMoney(spec.cost)}? ${spec.visibleResult}`, 'Install upgrade', () => {
-              const result = purchaseUpgrade(st, id);
-              toast(result.ok ? `${spec.name} installed.` : result.reason, result.ok ? '' : 'warn');
-            }),
-          }));
-    });
-
-    const stage = cond < 30
-      ? ['Stage 1 — Abandoned', 'Heavy grime, clutter, dead lights. Haul the junk, run the vacuum, order the basics.']
-      : cond < 55 ? ['Stage 2 — Clean & functional', 'The floor works. Keep the shelves stocked; start placing decor.']
-        : cond < 85 ? ['Stage 3 — Established shop', 'Organised and lit. Full decor and full shelves push it premium.']
-          : ['Stage 4 — Premium clubhouse shop', 'The room shows like the reference. Keep it that way.'];
-
-    paint(
-      head('Renovation', 'Cleanliness carries 70 points of shop condition; decor finish carries up to 30. Both are earned on the floor, not on this screen.'),
-      confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Condition' }), el('div', { class: `lt-statvalue ${cond < 45 ? 'bad' : ''}`, text: String(cond) }), el('div', { class: 'lt-statsub', text: stage[0] })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Clean' }), el('div', { class: 'lt-statvalue', text: pct(1 - grime) }), el('div', { class: 'lt-statsub', text: `${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'} left` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Decor' }), el('div', { class: 'lt-statvalue', text: String(reno ? reno.decor.length : 0) }), el('div', { class: 'lt-statsub', text: 'pieces placed' })),
-      ),
-      card(el('div', { text: stage[1] })),
-      sect('Operational upgrades'),
-      el('div', { class: 'lt-orderlist' }, ...upgradeRows),
-      sect('Fixtures & decor — order here, place them in the room'),
-      card(...decorSkus.map((s) => {
-        const placed = reno ? reno.decor.filter((d) => d.skuId === s.id).length : 0;
-        const back = st.shop.inventory[s.id].back;
-        const incoming = incomingOf(st, s.id);
-        return el('div', { class: 'lt-order' },
-          thumbOf(s),
-          el('div', { class: 'lt-orderbody' },
-            el('div', { class: 'lt-ordername', text: s.name }),
-            el('div', { class: 'lt-prodmeta', text: `${formatMoney(s.cost)} · finish +${s.finish}` }),
-            el('div', { class: 'lt-prodmeta', text: `${placed} placed · ${back} in the back${incoming ? ` · ${incoming} inbound` : ''}` })),
+        row(
+          el('div', {},
+            el('div', { class: 'lt-minihead', text: 'Customer rental carts' }),
+            meta('Golfers reserve these with their tee time, load their bags, play every hole, and return the keys.')),
+          el('span', { style: 'flex:1' }),
           el('button', {
-            class: 'lt-mini',
-            text: 'Order one',
-            disabled: cashOf() < s.cost ? 'disabled' : undefined,
-            onclick: () => {
-              const res = placeOrder(st, s.id, 1);
-              toast(res.ok ? `${s.name} ordered — place it from its green ghost when it lands.` : res.reason, res.ok ? '' : 'warn');
-              if (res.ok) click();
-              render();
-            },
-          }));
-      })),
-      note('The exterior — siding, gutters, windows, weeds — is cleaned by hand outside, with the pressure washer.'),
-    );
+            class: 'lt-primary',
+            text: `Buy cart — ${formatMoney(cartPurchaseCost)}`,
+            disabled: cashOf() < cartPurchaseCost || carts.carts >= carts.capacity.total ? 'disabled' : undefined,
+            onclick: () => askConfirm(`Add one customer rental cart for ${formatMoney(cartPurchaseCost)}?`, 'Buy the cart', () => {
+              const result = purchaseFleetCart(st);
+              toast(result.ok ? `${result.cart.id.replace('fleet-cart-', 'Cart ')} joins the rental row.` : result.reason, result.ok ? '' : 'warn');
+            }),
+          })),
+        el('div', { class: 'lt-stats lt-stats4' },
+          stat('Fleet', String(carts.carts), `${carts.capacity.total} parking capacity`, carts.overflowUsed ? 'warn' : ''),
+          stat('Ready', String(carts.counts.available || 0), `${carts.activeTrips} active trip${carts.activeTrips === 1 ? '' : 's'}`, (carts.counts.available || 0) ? 'ok' : 'bad'),
+          stat('Average charge', `${Math.round(carts.averageCharge)}%`, `${carts.capacity.chargers} charging point${carts.capacity.chargers === 1 ? '' : 's'}`, carts.averageCharge < 35 ? 'bad' : carts.averageCharge < 65 ? 'warn' : 'ok'),
+          stat('Condition', `${Math.round(carts.averageCondition)}%`, `${Math.round(carts.averageCleanliness)}% clean`, carts.averageCondition < 55 ? 'bad' : carts.averageCondition < 75 ? 'warn' : 'ok')),
+      ),
+      sect('Fleet infrastructure'),
+      el('div', { class: 'lt-cols' },
+        infraCard('parking', `${carts.capacity.parking} bays + ${carts.capacity.overflow} overflow`),
+        infraCard('charging', `${carts.capacity.chargers} overnight points`),
+        infraCard('service', `${carts.capacity.serviceBays} service bay${carts.capacity.serviceBays === 1 ? '' : 's'}`)),
+      sect('Individual carts'),
+      el('div', { class: 'lt-orderlist' }, ...st.cartFleet.carts.map((cart) => el('div', { class: 'lt-order' },
+        el('div', { class: 'lt-avatar', text: cart.id.replace('fleet-cart-', '') }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: cart.id.replace('fleet-cart-', 'Rental cart ') }),
+          el('div', { class: 'lt-prodmeta', text: `${Math.round(cart.charge)}% charge · ${Math.round(cart.cleanliness)}% clean · ${Math.round(cart.condition)}% condition · ${cart.rounds} rounds` })),
+        chip(cart.status.replace(/-/g, ' ').replace(/^./, (letter) => letter.toUpperCase()), cart.status === 'available' ? 'ok' : cart.assignedTripId ? 'warn' : ''),
+        el('button', { class: 'lt-mini', text: 'Charge', disabled: cart.assignedTripId || cart.charge >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'charge', 'charged') }),
+        el('button', { class: 'lt-mini', text: 'Clean', disabled: cart.assignedTripId || cart.cleanliness >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'clean', 'cleaned') }),
+        el('button', { class: 'lt-mini', text: 'Repair', disabled: cart.assignedTripId || cart.condition >= 99.5 ? 'disabled' : undefined, onclick: () => service(cart, 'repair', 'repaired') })))),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Rental club sets' }),
+        row(el('span', { class: 'lt-mulabel', text: 'Fleet' }),
+          el('span', { style: 'font-size:0.84em;font-weight:600', text: `${f.sets} sets` }),
+          chip(f.condition <= 15 ? 'Too rough to rent' : f.condition < 40 ? 'Needs replacing' : 'Serviceable', f.condition <= 15 ? 'bad' : f.condition < 40 ? 'warn' : 'ok')),
+        row(
+          el('span', { class: 'lt-mulabel', text: 'Buy sets' }),
+          meta('a new set lifts the fleet average'),
+          el('button', {
+            class: 'lt-primary',
+            text: 'Buy 1 set — $220',
+            disabled: cashOf() < 220 ? 'disabled' : undefined,
+            onclick: () => askConfirm('Buy one fresh rental set for $220?', 'Buy the set', () => {
+              const res = buyRentalSets(st, 1);
+              toast(res.ok ? 'A fresh set joins the fleet.' : res.reason, res.ok ? '' : 'warn');
+            }),
+          }),
+        ),
+      ),
+      st.tractor
+        ? card(
+          el('div', { class: 'lt-minihead', text: 'Tractor' }),
+          row(tractorFixed ? chip('Running', 'ok') : chip('Broken down', 'bad'),
+            meta(tractorFixed ? 'parked by the shed' : `still needs: ${tractorMissing.map((s2) => STEP_LABEL[s2]).join(', ')} — hands-on at the machine`)),
+        )
+        : null,
+      note('Turf machinery upgrades (mowers, irrigation) live under the Course tab — they are course improvements.'),
+    ];
   }
 
-  // =========================================================================================
-  // PROPERTY — real condition, explainable value, and the safe keep/sell decision
-  // =========================================================================================
-  function pageProperty() {
-    const st = app.state;
+  // ==========================================================================================
+  // BUSINESS — finances, reviews, memberships, and marketing in one purposeful desk
+  // ==========================================================================================
+  function pageProperties() {
     const empire = app.empire;
-    const holding = empire?.holdings?.find((item) => item.property.id === empire.activeId) || null;
-    const valuation = appraisalBreakdown(st);
-    const condition = propertyConditionBreakdown(st);
-    const readiness = propertyReadiness(st, empire);
-    const tier = propertyTier(holding?.property || st.property);
-    const appraisal = holding ? latestPropertyAppraisal(empire, holding.property.id) : null;
-    const openOffer = appraisal && ['offered', 'information'].includes(appraisal.status) ? appraisal : null;
-    const unlocked = new Set(empire?.progression?.unlockedTierIds || ['neglectedPublic']);
+    if (!empire) {
+      paint(head('Properties'), empty('Start an empire before opening the property desk.'));
+      return;
+    }
+    const ps = ts('properties', { tab: 'portfolio' });
+    const cal = calendarOf(app.state.clock.minutes);
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' },
+      ...[['portfolio', 'Portfolio'], ['market', `Market (${empire.market.length + (empire.auctions?.length || 0)})`]].map(([id, label]) => el('button', {
+        class: `lt-tab ${ps.tab === id ? 'on' : ''}`,
+        text: label,
+        onclick: () => { ps.tab = id; click(); render(); },
+      })),
+    );
 
-    const requestAppraisal = () => {
-      if (!holding) return;
-      const result = requestPropertyAppraisal(empire, holding.property.id);
-      toast(result.ok
-        ? result.appraisal.eligible ? `Offer received: ${formatMoney(result.appraisal.netProceeds)} net.` : 'Appraisal complete. Sale requirements remain.'
-        : result.reason, result.ok ? '' : 'warn');
+    const bidAuction = (property) => {
+      const result = placeAuctionBid(empire, property.id);
+      if (!result.ok) toast(result.reason, 'warn');
+      else {
+        toast(`${formatMoney(result.bid)} is now held in escrow for ${property.name}.`);
+        opts.autosave?.();
+      }
       render();
     };
 
-    const conditionRows = Object.values(condition.categories).map((item) => row(
-      el('span', { class: 'lt-mulabel', text: item.label }),
-      el('div', { class: 'lt-bar lt-barwide' }, el('div', { class: `lt-barfill ${item.score >= 70 ? 'ok' : item.score < 45 ? 'bad' : 'warn'}`, style: `width:${item.score}%` })),
-      chip(String(Math.round(item.score)), item.score >= 70 ? 'ok' : item.score < 45 ? 'bad' : 'warn'),
-      meta(item.reasons[0] || 'Live state')));
+    const showInspection = (property, report) => openModal(() => el('div', {},
+      el('div', { class: 'lt-minihead' }, icon('building'), el('span', { text: `${property.name} — inspection` })),
+      el('div', { class: 'lt-stats lt-stats2' },
+        stat('Appraisal range', `${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`),
+        stat('Repair reserve', formatMoney(report.maintenanceReserve)),
+        stat('Report age', report.inspectedDay === cal.dayAbs ? 'Today' : `Day ${report.inspectedDay + 1}`),
+        stat('Inspection fee', formatMoney(report.feePaid)),
+      ),
+      sect('Material risks'),
+      ...report.risks.map((risk) => row(word(risk, risk.startsWith('No material') ? 'ok' : 'warn'))),
+      sect('Independent view'),
+      ...report.opportunities.map((opportunity) => row(meta(opportunity))),
+      sect('Operating profile'),
+      row(chip(property.regionLabel || report.region), chip(property.climateLabel || report.climate), chip(property.difficultyLabel || `Difficulty ${report.difficulty}`), chip(`Demand ${report.customerDemand}`)),
+      row(meta(`Expansion ${report.expansionPotential}/100 · Full property operating cost ${formatMoney(report.operatingCostPerDay)}/day`)),
+      note('The appraiser reports a range. The seller still decides the ask, and restoration remains your responsibility.'),
+      el('div', { class: 'lt-modalbtns' },
+        el('button', { class: 'lt-mini', text: 'Close', onclick: () => closeModal() }),
+        property.auction
+          ? el('button', {
+            class: 'lt-primary',
+            text: property.auction.highBidder === 'player'
+              ? `Leading at ${formatMoney(property.auction.playerEscrow)}`
+              : `Bid ${formatMoney(auctionNextBid(property))}`,
+            disabled: property.auction.highBidder === 'player'
+              || cashOf() < auctionNextBid(property) ? 'disabled' : undefined,
+            onclick: () => { closeModal(); bidAuction(property); },
+          })
+          : el('button', {
+            class: 'lt-primary', text: `Buy for ${formatMoney(property.askingPrice)}`,
+            disabled: cashOf() < property.askingPrice ? 'disabled' : undefined,
+            onclick: () => { closeModal(); opts.buyProperty?.(property.id); render(); },
+          })),
+    ));
 
-    const contributionRows = valuation.contributions
-      .filter((item) => item.amount !== 0)
-      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-      .map((item) => row(
-        el('span', { style: 'min-width:170px;flex:1', text: item.label }),
-        meta(item.reason),
-        chip(`${item.amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(item.amount))}`, item.amount >= 0 ? 'ok' : 'bad')));
+    const orderInspection = (property) => {
+      const result = inspectPropertyListing(empire, property.id);
+      if (!result.ok) {
+        toast(result.reason, 'warn');
+        render();
+        return;
+      }
+      if (!result.already) {
+        toast(`Independent report ready for ${property.name}.`);
+        opts.autosave?.();
+      }
+      showInspection(property, result.report);
+    };
 
-    const requirementRows = readiness.saleRequirements.map((requirement) => row(
-      chip(requirement.met ? 'Ready' : 'Not ready', requirement.met ? 'ok' : 'bad'),
-      el('span', { style: 'flex:1', text: requirement.label }),
-      meta(`${Math.round(requirement.value)} / ${requirement.target}`)));
-
-    const tierRows = PROPERTY_TIER_ORDER.map((id) => {
-      const spec = PROPERTY_TIERS[id];
-      const isCurrent = tier.id === id;
-      const isUnlocked = unlocked.has(id);
-      return el('div', { class: 'lt-order' },
-        el('span', { class: 'lt-ordernum', text: String(spec.level) }),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: spec.name }),
-          el('div', { class: 'lt-prodmeta', text: `${spec.holeCount.join(' or ')} holes · ${spec.maintenanceComplexity.toLowerCase()} maintenance · ${spec.clubhouseScale}` }),
-          el('div', { class: 'lt-prodmeta', text: `Purchase ${formatMoney(spec.purchasePrice[0])}–${formatMoney(spec.purchasePrice[1])} · potential ${formatMoney(spec.potentialValue[0])}–${formatMoney(spec.potentialValue[1])} · upgrade capacity ${spec.upgradeCapacity}` })),
-        chip(isCurrent ? 'Current' : isUnlocked ? 'Unlocked' : 'Locked', isCurrent || isUnlocked ? 'ok' : 'warn'));
+    const showManagement = (holding) => openModal(() => {
+      const { operations } = propertyOperationsProfile(holding);
+      const propertyOverhead = Math.round(Math.max(0, Number(holding.property.operatingCostPerDay) || 0) * 0.45);
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('users'), el('span', { text: `${holding.property.name} — remote management` })),
+        note(`A manager protects work you already completed while you are away. No contract restores a neglected course for free. Daily totals include ${formatMoney(propertyOverhead)} remote overhead and ${formatMoney(REMOTE_PROPERTY_UTILITIES_PER_DAY)} utilities.`),
+        ...Object.values(PROPERTY_MANAGER_TIERS).map((tier) => {
+          const current = operations.managerTier === tier.id;
+          const sizeFactor = Math.max(1, holding.property.size / 9);
+          const dailyCost = Math.round(
+            tier.dailyCostPerNine * sizeFactor + propertyOverhead + REMOTE_PROPERTY_UTILITIES_PER_DAY,
+          );
+          return el('div', { class: `lt-manager-option ${current ? 'on' : ''}` },
+            el('div', { class: 'lt-row' },
+              el('strong', { text: tier.label }),
+              current ? chip('Current', 'ok') : null,
+              el('span', { class: 'lt-headspace' }),
+              word(`${formatMoney(dailyCost)}/day`),
+              el('button', {
+                class: current ? 'lt-mini' : 'lt-primary',
+                disabled: current ? 'disabled' : undefined,
+                text: current ? 'Assigned' : tier.hireCost ? `Hire — ${formatMoney(tier.hireCost)}` : 'Use caretaker',
+                onclick: () => {
+                  const result = assignPropertyManager(empire, holding.property.id, tier.id);
+                  if (!result.ok) toast(result.reason, 'warn');
+                  else {
+                    toast(result.already ? `${tier.label} is already assigned.` : `${result.operations.managerName} assigned.`);
+                    opts.autosave?.();
+                  }
+                  closeModal();
+                },
+              })),
+            el('div', { class: 'lt-property-copy', text: tier.description }),
+            el('div', { class: 'lt-row' },
+              chip(`Decay floor ${tier.conditionFloor}`),
+              chip(`${tier.roundsMultiplier.toFixed(2)}× remote play`),
+              chip(`${tier.revenueMultiplier.toFixed(2)}× fee yield`)),
+          );
+        }),
+        el('div', { class: 'lt-modalbtns' },
+          el('button', { class: 'lt-primary', text: 'Close', onclick: () => closeModal() })),
+      );
     });
 
+    if (ps.tab === 'portfolio') {
+      let totalValue = 0;
+      let combinedNet = 0;
+      for (const holding of empire.holdings) {
+        totalValue += holdingValue(empire, holding);
+        combinedNet += holding.property.id === empire.activeId
+          ? (holding.state.ledger.yesterday?.net || 0)
+          : (holding.passive?.lastNet || 0);
+      }
+      const managedCount = empire.holdings.filter((holding) => propertyOperationsProfile(holding).operations.managerTier !== 'caretaker').length;
+      paint(
+        head('Properties', 'Buy, staff, visit, and sell real playable courses from the physical office laptop.'),
+        confirmBar(),
+        tabBar,
+        el('div', { class: 'lt-stats lt-stats4' },
+          stat('Empire wallet', formatMoney(cashOf())),
+          stat('Portfolio value', formatMoney(totalValue)),
+          stat('All clubs yesterday', `${combinedNet >= 0 ? '+' : ''}${formatMoney(combinedNet)}`, null, combinedNet >= 0 ? 'ok' : 'bad'),
+          stat('Remote managers', `${managedCount} of ${empire.holdings.length}`),
+        ),
+        ...empire.holdings.map((holding) => {
+          const isActive = holding.property.id === empire.activeId;
+          const condition = isActive ? clubRatings(holding.state).condition : holding.passive?.conditionEst || holding.property.condition;
+          const value = holdingValue(empire, holding);
+          const net = isActive ? (holding.state.ledger.yesterday?.net || 0) : (holding.passive?.lastNet || 0);
+          const { operations, tier } = propertyOperationsProfile(holding);
+          const projection = passiveOperationsProjection(holding);
+          return el('div', { class: `lt-property-card ${isActive ? 'active' : ''}` },
+            el('div', { class: 'lt-property-band', style: `--property-health:${Math.round(condition)}%` }),
+            el('div', { class: 'lt-property-body' },
+              el('div', { class: 'lt-row' },
+                el('strong', { class: 'lt-property-name', text: holding.property.name }),
+                isActive ? chip('You are here', 'ok') : chip(`Away ${holding.passive?.days || 0}d`, 'warn'),
+                el('span', { class: 'lt-headspace' }),
+                word(formatMoney(value), 'ok')),
+              el('div', { class: 'lt-row' },
+                chip(`${holding.property.size} holes`),
+                chip(holding.property.regionLabel || holding.property.region),
+                chip(holding.property.climateLabel || holding.property.climate),
+                chip(`Condition ${Math.round(condition)}`, conditionTone(condition)),
+                chip(`${net >= 0 ? '+' : ''}${formatMoney(net)}/day`, net >= 0 ? 'ok' : 'bad'),
+                chip(tier.id === 'caretaker' ? operations.managerName : `${tier.label}: ${operations.managerName}`)),
+              !isActive
+                ? el('div', { class: 'lt-property-copy', text: `Condition decay floor ${projection.protectedCondition} (protection only); yesterday ${formatMoney(holding.passive.lastGrossRevenue || 0)} gross, ${formatMoney(holding.passive.lastOperatingCost || projection.dailyManagementCost)} operating cost.` })
+                : el('div', { class: 'lt-property-copy', text: 'Running live under your direct control. Its manager contract takes effect when you travel.' }),
+              el('div', { class: 'lt-property-actions' },
+                isActive ? word('Operating in person', 'ok') : el('button', {
+                  class: 'lt-primary', text: 'Travel to property',
+                  onclick: () => { opts.close(); opts.switchProperty?.(holding.property.id); },
+                }),
+                el('button', { class: 'lt-mini', text: 'Manage remotely', onclick: () => showManagement(holding) }),
+                el('span', { class: 'lt-headspace' }),
+                el('button', {
+                  class: 'lt-mini lt-text-danger', text: 'Sell property',
+                  onclick: () => askConfirm(
+                    `Sell ${holding.property.name} permanently for ${formatMoney(value)}? Every member, employee, and saved improvement leaves with the deed.`,
+                    `Sell for ${formatMoney(value)}`,
+                    () => { opts.close(); opts.sellProperty?.(holding.property.id); },
+                  ),
+                })),
+            ),
+          );
+        }),
+        !empire.holdings.length ? empty('No holdings yet. Open the Market tab to choose a course.') : null,
+      );
+      return;
+    }
+
+    const mood = marketConditionLabel(empire.marketCondition);
     paint(
-      head('Property', 'Every condition and valuation line is recomputed from the actual clubhouse, stock, turf, equipment, upgrades, operating results, and unresolved damage.',
-        primaryBtn('Request appraisal', requestAppraisal, !holding)),
+      head('Properties', 'Every listing is a real course. The seller sets the ask; inspection narrows the uncertainty.'),
       confirmBar(),
-      el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Current value' }), el('div', { class: 'lt-statvalue', text: formatMoney(valuation.value) }), el('div', { class: 'lt-statsub', text: tier.name })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Acquisition' }), el('div', { class: 'lt-statvalue', text: formatMoney(valuation.acquisitionCost) }), el('div', { class: 'lt-statsub', text: `${valuation.value - valuation.acquisitionCost >= 0 ? '+' : ''}${formatMoney(valuation.value - valuation.acquisitionCost)} value change` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Restoration invested' }), el('div', { class: 'lt-statvalue', text: formatMoney(valuation.restorationInvestment) }), el('div', { class: 'lt-statsub', text: 'capital ledger entries' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: '24-day profit' }), el('div', { class: `lt-statvalue ${valuation.monthlyNet >= 0 ? 'ok' : 'bad'}`, text: `${valuation.monthlyNet >= 0 ? '+' : ''}${formatMoney(valuation.monthlyNet)}` }), el('div', { class: 'lt-statsub', text: 'closed operating days' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Condition' }), el('div', { class: `lt-statvalue ${condition.overall < 45 ? 'bad' : ''}`, text: String(condition.overall) }), el('div', { class: 'lt-statsub', text: `${condition.unresolved.length} unresolved area${condition.unresolved.length === 1 ? '' : 's'}` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: openOffer?.eligible ? 'Net offer' : 'Sale proceeds' }), el('div', { class: 'lt-statvalue', text: formatMoney(openOffer?.eligible ? openOffer.netProceeds : valuation.estimatedSaleProceeds) }), el('div', { class: 'lt-statsub', text: openOffer?.eligible ? 'after closing and outstanding costs' : valuation.outstanding ? `${formatMoney(valuation.outstanding)} outstanding` : 'before closing costs' })),
+      tabBar,
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Market', mood.label, mood.hint),
+        stat('Opportunities', String(empire.market.length + (empire.auctions?.length || 0)), `${empire.auctions?.length || 0} live auctions`),
+        stat('Empire wallet', formatMoney(cashOf())),
+        stat('Inspection', formatMoney(PROPERTY_INSPECTION_COST), 'independent report'),
       ),
-      sect('Sale readiness'),
-      card(...requirementRows),
-      openOffer ? el('div', {}, sect(openOffer.eligible ? 'Current sale offer' : 'Latest appraisal'), card(
-        row(el('strong', { text: 'Appraised value' }), el('span', { style: 'flex:1' }), el('strong', { text: formatMoney(openOffer.appraisedValue) })),
-        row(el('span', { text: `Market offer · ${Math.round(openOffer.marketModifier * 100)}% market` }), el('span', { style: 'flex:1' }), el('span', { text: formatMoney(openOffer.offer) })),
-        row(el('span', { text: 'Closing costs' }), el('span', { style: 'flex:1' }), el('span', { class: 'lt-neg', text: `−${formatMoney(openOffer.closingCosts)}` })),
-        openOffer.outstanding ? row(el('span', { text: 'Outstanding expenses' }), el('span', { style: 'flex:1' }), el('span', { class: 'lt-neg', text: `−${formatMoney(openOffer.outstanding)}` })) : null,
-        row(el('strong', { text: 'Net proceeds' }), el('span', { style: 'flex:1' }), el('strong', { class: 'lt-pos', text: formatMoney(openOffer.netProceeds) })),
-        row(
-          openOffer.eligible ? el('button', { class: 'lt-primary lt-danger', text: 'Accept offer…', onclick: () => askConfirm(
-            `Permanently sell ${holding.property.name} for ${formatMoney(openOffer.netProceeds)} net? A recovery snapshot is written first.`,
-            'Confirm permanent sale', () => {
-              const previousSpeed = app.speedIdx || 1;
-              opts.close();
-              opts.sellHolding?.(holding.property.id, previousSpeed, openOffer.id);
-              return false;
-            }) }) : null,
-          el('button', { class: 'lt-mini', text: openOffer.eligible ? 'Reject offer' : 'Continue improving', onclick: () => {
-            rejectPropertyAppraisal(empire, openOffer.id, openOffer.eligible ? 'rejected' : 'keep');
-            toast(openOffer.eligible ? 'Offer rejected. The property stays yours.' : 'Appraisal filed. Keep improving the property.');
-            render();
-          } }),
-          openOffer.eligible ? el('button', { class: 'lt-mini', text: 'Keep operating', onclick: () => {
-            rejectPropertyAppraisal(empire, openOffer.id, 'keep');
-            toast('You chose to keep operating.');
-            render();
-          } }) : null),
-      )) : note('Requesting an appraisal never moves money or changes ownership. A sale offer appears only when the readiness checks are met.'),
-      note('Refinancing is unavailable because the game has no implemented loan system; no fictional loan balance or payment is being created here.'),
-      sect('Explainable valuation'),
-      card(...contributionRows),
-      sect('Condition · 13 live categories'),
-      card(...conditionRows),
-      sect('Next-property framework'),
-      readiness.nextRequirements.length ? card(...readiness.nextRequirements.map((requirement) => row(
-        chip(requirement.met ? 'Met' : 'Open', requirement.met ? 'ok' : 'warn'),
-        el('span', { style: 'flex:1', text: requirement.label }), meta(`${Math.round(requirement.value)} / ${requirement.target}`)))) : note('All property tiers are unlocked. Keep operating as a sandbox or sell when the timing suits you.'),
-      el('div', { class: 'lt-orderlist' }, ...tierRows),
-      opts.openMarket && readiness.nextTierEligible ? primaryBtn('Browse next-property listings', () => opts.openMarket(), false) : null,
+      (empire.auctions?.length || 0) ? sect('Live auctions') : null,
+      ...(empire.auctions || []).map((property) => {
+        const report = empire.inspections?.[property.id];
+        const access = propertyAccess(empire, property);
+        const auction = property.auction;
+        const nextBid = auctionNextBid(property);
+        const escrow = auction.highBidder === 'player' ? Number(auction.playerEscrow) || 0 : 0;
+        const additional = Math.max(0, nextBid - escrow);
+        const affordable = cashOf() >= additional;
+        const playerLeading = auction.highBidder === 'player';
+        const daysLeft = Math.max(0, auction.endsDay - cal.dayAbs);
+        return el('div', { class: 'lt-market-card auction' },
+          el('div', { class: 'lt-property-band auction', style: `--property-health:${Math.round(property.condition)}%` }),
+          el('div', { class: 'lt-property-body' },
+            el('div', { class: 'lt-row' },
+              el('strong', { class: 'lt-property-name', text: property.name }),
+              chip(`${daysLeft} day${daysLeft === 1 ? '' : 's'} left`, daysLeft <= 2 ? 'warn' : ''),
+              playerLeading ? chip('You lead', 'ok') : auction.highBidder ? chip(`${auction.highBidder} leads`, 'warn') : chip('No bids'),
+              el('span', { class: 'lt-headspace' }),
+              word(`${auction.highBidder ? 'Current' : 'Opening'} ${formatMoney(auction.currentBid)}`, playerLeading ? 'ok' : '')),
+            el('div', { class: 'lt-row' },
+              chip(property.regionLabel || property.region),
+              chip(property.climateLabel || property.climate),
+              chip(`${property.size} holes · ${property.difficultyLabel}`),
+              chip(`Demand ${property.customerDemand}/100`),
+              chip(`Expansion ${property.expansionPotential}/100`)),
+            el('div', { class: 'lt-property-copy', text: property.blurb }),
+            report ? el('div', { class: 'lt-inspection-strip' },
+              word(`Inspected: ${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`, 'ok'),
+              meta(`Repairs ${formatMoney(report.maintenanceReserve)}`)) : null,
+            !access.unlocked ? el('div', { class: 'lt-inspection-strip locked' }, word(access.reason, 'warn')) : null,
+            el('div', { class: 'lt-property-actions' },
+              el('button', {
+                class: 'lt-mini', text: report ? 'Open inspection' : `Inspect — ${formatMoney(PROPERTY_INSPECTION_COST)}`,
+                disabled: !access.unlocked || (!report && cashOf() < PROPERTY_INSPECTION_COST) ? 'disabled' : undefined,
+                onclick: () => orderInspection(property),
+              }),
+              meta(playerLeading ? `${formatMoney(escrow)} escrow secured` : `${formatMoney(additional)} additional escrow`),
+              el('span', { class: 'lt-headspace' }),
+              el('button', {
+                class: 'lt-primary',
+                text: !access.unlocked ? 'Locked' : playerLeading ? `Leading at ${formatMoney(escrow)}` : affordable ? `Bid ${formatMoney(nextBid)}` : 'Not enough cash',
+                disabled: !access.unlocked || !affordable || playerLeading ? 'disabled' : undefined,
+                onclick: () => bidAuction(property),
+              })),
+          ),
+        );
+      }),
+      empire.market.length ? sect('Conventional listings') : null,
+      ...empire.market.map((property) => {
+        const report = empire.inspections?.[property.id];
+        const access = propertyAccess(empire, property);
+        const affordable = access.unlocked && cashOf() >= property.askingPrice;
+        return el('div', { class: 'lt-market-card' },
+          el('div', { class: 'lt-property-band market', style: `--property-health:${Math.round(property.condition)}%` }),
+          el('div', { class: 'lt-property-body' },
+            el('div', { class: 'lt-row' },
+              el('strong', { class: 'lt-property-name', text: property.name }),
+              chip(listingAgeLabel(cal.dayAbs - (property.listedDay ?? cal.dayAbs))),
+              el('span', { class: 'lt-headspace' }),
+              word(formatMoney(property.askingPrice), affordable ? 'ok' : 'bad')),
+            el('div', { class: 'lt-row' },
+              chip(property.regionLabel || property.region),
+              chip(property.climateLabel || property.climate),
+              chip(`${property.size} holes · par ${property.par}`),
+              chip(`${property.yards.toLocaleString('en-US')} yd`),
+              chip(`Design ${Math.round(property.design)}`),
+              chip(`Condition ${Math.round(property.condition)}`, conditionTone(property.condition)),
+              property.sickGreens ? chip(`${property.sickGreens} sick green${property.sickGreens === 1 ? '' : 's'}`, 'warn') : null),
+            el('div', { class: 'lt-row' },
+              chip(property.courseClass),
+              chip(property.difficultyLabel),
+              chip(`Demand ${property.customerDemand}/100`),
+              chip(`Expansion ${property.expansionPotential}/100`),
+              meta(`${formatMoney(property.operatingCostPerDay)}/day property overhead`)),
+            el('div', { class: 'lt-property-copy', text: property.blurb }),
+            report ? el('div', { class: 'lt-inspection-strip' },
+              word(`Inspected: ${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`, 'ok'),
+              meta(`Repairs ${formatMoney(report.maintenanceReserve)}`)) : null,
+            !access.unlocked ? el('div', { class: 'lt-inspection-strip locked' }, word(access.reason, 'warn')) : null,
+            el('div', { class: 'lt-property-actions' },
+              el('button', {
+                class: 'lt-mini', text: report ? 'Open inspection' : `Inspect — ${formatMoney(PROPERTY_INSPECTION_COST)}`,
+                disabled: !access.unlocked || (!report && cashOf() < PROPERTY_INSPECTION_COST) ? 'disabled' : undefined,
+                onclick: () => orderInspection(property),
+              }),
+              el('span', { class: 'lt-headspace' }),
+              el('button', {
+                class: 'lt-primary', text: !access.unlocked ? 'Locked' : affordable ? 'Buy property' : 'Not enough cash',
+                disabled: affordable ? undefined : 'disabled',
+                onclick: () => { opts.buyProperty?.(property.id); render(); },
+              })),
+          ),
+        );
+      }),
+      !empire.market.length ? empty('No properties are listed today. The market continues to move with world time.') : null,
     );
   }
 
-  // =========================================================================================
-  // 16. SETTINGS
-  // =========================================================================================
+  function pageFinances() {
+    const st = app.state;
+    const bs = ts('finances', { tab: 'finances', win: 'week' });
+    const tabs = [
+      ['finances', 'Finances'], ['reviews', 'Reviews'],
+      ['memberships', 'Memberships'], ['marketing', 'Marketing'],
+    ];
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([value, label]) => el('button', {
+      class: `lt-tab ${bs.tab === value ? 'on' : ''}`,
+      text: label,
+      onclick: () => { bs.tab = value; click(); render(); },
+    })));
+    const body = bs.tab === 'reviews' ? businessReviewsTab(st)
+      : bs.tab === 'memberships' ? businessMembershipsTab(st)
+        : bs.tab === 'marketing' ? businessMarketingTab(st)
+          : businessFinancesTab(st, bs);
+    paint(
+      head('Business', 'The live books, customer sentiment, membership value, and real demand levers in one desk.'),
+      confirmBar(),
+      tabBar,
+      ...body,
+    );
+  }
+
+  function businessFinancesTab(st, fs) {
+    const revToday = sumLines(st.ledger?.today?.revenue);
+    const expToday = sumLines(st.ledger?.today?.expense);
+    const owed = arrearsOf(st);
+
+    const hist = Array.isArray(st.ledger?.history) ? st.ledger.history : [];
+    const windowDays = fs.win === 'season' ? 24 : 7;
+    const days = hist.slice(-windowDays);
+    const pts = days.map((d) => ({
+      label: `Day ${(d.dayAbs ?? 0) + 1}`,
+      rev: sumLines(d.revenue),
+      exp: sumLines(d.expenses || d.expense),
+    }));
+    pts.push({ label: 'Today', rev: revToday, exp: expToday });
+
+    const txAll = Array.isArray(st.ledger?.txLog) ? st.ledger.txLog : [];
+    const REV_LABEL = {
+      greenFees: 'Tee-time payment', dues: 'Membership dues', outings: 'Outing', range: 'Range',
+      restaurant: 'Grill room', lessons: 'Lesson', shopSales: 'Pro-shop sale', rentals: 'Rental',
+      fittings: 'Club fitting', reciprocal: 'Reciprocal', events: 'Event',
+    };
+    const EXP_LABEL = {
+      wagesStaff: 'Employee pay', wagesDayLabor: 'Day labour', water: 'Water', fertilizer: 'Fertiliser',
+      chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
+      severance: 'Severance', training: 'Training', shopOrders: 'Stock order',
+      rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
+      propertyServices: 'Property services',
+      cashOverShort: 'Register over/short',
+    };
+    const txRow = (t) => {
+      const c = calendarOf(t.m);
+      const label = t.kind === 'rev' ? (REV_LABEL[t.key] || t.key) : (EXP_LABEL[t.key] || t.key);
+      return el('tr', { title: `Balance after: ${exactMoney(t.bal)}` },
+        el('td', { class: 'lt-listsub', text: `Day ${c.dayOfSeason} · ${clock12(c.minuteOfDay)}` }),
+        el('td', {}, el('span', { style: 'font-weight:600', text: t.kind === 'refund' ? `${label} — refunded` : label })),
+        el('td', {}, word(t.kind === 'exp' ? 'Expense' : t.kind === 'refund' ? 'Refund' : 'Income', t.kind === 'exp' ? '' : t.kind === 'refund' ? 'warn' : 'ok')),
+        el('td', { class: 'lt-num' },
+          el('div', { class: t.kind === 'exp' ? 'lt-neg' : 'lt-pos', text: `${t.kind === 'exp' ? '−' : '+'}${exactMoney(t.amt)}` }),
+          el('div', { class: 'lt-listsub', text: `bal ${exactMoney(t.bal)}` })));
+    };
+    const rows = txAll.slice(-10).reverse().map(txRow);
+    const payroll = staffDailyWages(st);
+    const amenityUpkeep = Object.entries(AMENITIES)
+      .reduce((sum, [key, spec]) => sum + (st.club.amenities[key] || 0) * spec.upkeepPerLevel, 0);
+    const recurringTotal = payroll + UTILITIES_PER_DAY + amenityUpkeep;
+
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Current Cash', formatMoney(cashOf())),
+        stat("Today's Revenue", formatMoney(revToday), null, revToday > 0 ? 'ok' : ''),
+        stat("Today's Expenses", formatMoney(expToday), null, expToday > 0 ? 'bad' : ''),
+        stat("Today's Profit", `${revToday - expToday >= 0 ? '+' : ''}${formatMoney(revToday - expToday)}`, null, revToday - expToday >= 0 ? 'ok' : 'bad'),
+      ),
+      owed > 0 ? errBox(`${formatMoney(owed)} behind on the property, and it accrues interest. It comes out of the next bill you can cover.`) : null,
+      el('div', { class: 'lt-cols2' },
+        card(
+          el('div', { class: 'lt-minihead' },
+            el('span', { text: 'Revenue Trend' }),
+            el('span', { class: 'lt-headspace' }),
+            el('button', { class: `lt-day ${fs.win === 'week' ? 'on' : ''}`, text: '7 days', onclick: () => { fs.win = 'week'; click(); render(); } }),
+            el('button', { class: `lt-day ${fs.win === 'season' ? 'on' : ''}`, text: 'Season', onclick: () => { fs.win = 'season'; click(); render(); } })),
+          pts.length >= 2
+            ? lineChart({
+              series: [
+                { label: 'Earned', color: SERIES.revenue, values: pts.map((p) => p.rev) },
+                { label: 'Spent', color: SERIES.expenses, values: pts.map((p) => p.exp), dash: true },
+              ],
+              labels: pts.map((p) => p.label),
+              h: 112,
+            })
+            : empty('The chart starts once a day has closed on the books.'),
+        ),
+        card(
+          el('div', { class: 'lt-minihead', text: 'Daily Commitments' }),
+          row(el('span', { class: 'lt-mulabel', text: 'Utilities' }), el('span', { class: 'lt-num', text: formatMoney(UTILITIES_PER_DAY) })),
+          row(el('span', { class: 'lt-mulabel', text: 'Payroll' }), el('span', { class: 'lt-num', text: formatMoney(payroll) })),
+          row(el('span', { class: 'lt-mulabel', text: 'Amenity upkeep' }), el('span', { class: 'lt-num', text: formatMoney(amenityUpkeep) })),
+          row(el('span', { class: 'lt-mulabel', text: 'Expected each midnight' }), el('span', { class: 'lt-upprice', text: formatMoney(recurringTotal) })),
+          meta('Property bills and variable course work post separately when they are due.'),
+        ),
+      ),
+      sect('Recent Transactions'),
+      rows.length
+        ? card(el('table', { class: 'lt-table' },
+          el('thead', {}, el('tr', {},
+            el('th', { text: 'When' }), el('th', { text: 'Description' }), el('th', { text: 'Type' }),
+            el('th', { class: 'lt-num', text: 'Amount' }))),
+          el('tbody', {}, ...rows)))
+        : empty('Money movements appear here as they happen.'),
+    ];
+  }
+
+  function businessReviewsTab(st) {
+    const summary = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
+    const archived = Array.isArray(st.club.reviews) ? st.club.reviews : [];
+    const factorNames = Object.fromEntries(summary.byFactor.map((factor) => [factor.id, factor.label]));
+    const fixRoute = {
+      stock: ['shop', 'stock', 'Open Inventory'],
+      prices: ['shop', 'prices', 'Open Pricing'],
+      coursePrice: ['shop', 'prices', 'Open Pricing'],
+      courseCondition: ['course', 'tasks', 'Open Tasks'],
+    };
+    const openRoute = (route) => {
+      const [target, tab] = route;
+      if (tab) ts(target).tab = tab;
+      go(target);
+    };
+    const factorRow = (factor) => {
+      const percent = Math.round(factor.score * 100);
+      const tone = percent < 45 ? 'bad' : percent < 70 ? 'warn' : 'ok';
+      const route = fixRoute[factor.id];
+      return el('div', { class: 'lt-facrow' },
+        el('span', { class: 'lt-faclabel', text: factor.label }),
+        el('div', { class: 'lt-facbar' }, el('div', { class: `lt-facfill ${tone}`, style: `width:${Math.max(2, percent)}%` })),
+        el('span', { class: 'lt-facpct', text: `${percent}%` }),
+        route ? el('button', { class: 'lt-mini', text: route[2], onclick: () => openRoute(route) }) : null);
+    };
+    const reviewRow = (review) => {
+      const cited = (review.cited || []).map((id) => factorNames[id] || id).filter(Boolean);
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-reviewstars', text: `${'★'.repeat(review.stars)}${'☆'.repeat(5 - review.stars)}` }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: review.text }),
+          el('div', { class: 'lt-prodmeta', text: `Day ${(review.day ?? 0) + 1}${cited.length ? ` · cites ${cited.join(', ')}` : ''}` })),
+        chip(`${review.stars} star${review.stars === 1 ? '' : 's'}`, review.stars <= 2 ? 'bad' : review.stars === 3 ? 'warn' : 'ok'));
+    };
+
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Guest Rating', summary.count ? `${summary.average}★` : '—', summary.count ? `${summary.count} on file` : 'no reviews yet', summary.average >= 4 ? 'ok' : summary.average > 0 && summary.average < 3 ? 'bad' : ''),
+        stat('Reputation', `${Math.round(st.club.reputation)} / 100`, 'reviews move it after every visit'),
+        stat('Strongest', summary.best ? summary.best.label : '—', summary.best ? `${Math.round(summary.best.score * 100)}% now` : 'waiting for gameplay'),
+        stat('Weakest', summary.worst
+          ? (summary.worst.id === 'exterior' ? 'Club exterior' : summary.worst.label)
+          : '—', summary.worst ? `${Math.round(summary.worst.score * 100)}% now` : 'waiting for gameplay', summary.worst && summary.worst.score < 0.45 ? 'bad' : 'warn'),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'What guests experience right now' }),
+        ...summary.byFactor.map(factorRow),
+        meta('These factors read live cleanliness, course condition, shelf availability, prices, and recorded queue experience. They are not random scores.'),
+      ),
+      sect(`Latest Reviews (${archived.length})`),
+      archived.length ? el('div', { class: 'lt-orderlist' }, ...archived.slice(0, 12).map(reviewRow))
+        : empty('Reviews arrive after real visits. Serve golfers and keep the club open to build a record.'),
+    ];
+  }
+
+  function businessMembershipsTab(st) {
+    const roster = members(st);
+    const counts = memberCounts(st);
+    const ratings = clubRatings(st);
+    const amenity = amenityScore(st);
+    const atRisk = roster.filter((golfer) => golfer.satisfaction < 35);
+    const dayAbs = calendarOf(st.clock.minutes).dayAbs;
+    // Seed members use joinedDay 0. The first actual membership tick happens after
+    // midnight (day 1), so excluding zero keeps the opening roster out of "new" counts.
+    const recentJoins = roster.filter((golfer) => golfer.joinedDay > 0 && golfer.joinedDay >= dayAbs - 6).length;
+    const dailyDues = Object.keys(TIERS).reduce((sum, tier) => sum + counts[tier] * st.club.dues[tier] / 24, 0);
+    const averageSatisfaction = roster.length
+      ? roster.reduce((sum, golfer) => sum + golfer.satisfaction, 0) / roster.length
+      : 0;
+
+    const tierRow = (tier) => {
+      const spec = TIERS[tier];
+      const fair = fairDues(st, tier, ratings.overall, amenity);
+      const value = Number(st.club.dues[tier]) || spec.baseDues;
+      const output = el('span', { class: 'lt-muval' });
+      const paintDues = (dues) => {
+        const ratio = dues / Math.max(1, fair);
+        output.replaceChildren(
+          el('span', { class: 'lt-mupct', text: `${formatMoney(dues)} / season` }),
+          chip(ratio > 1.22 ? 'Churn risk' : ratio > 1.06 ? 'Premium' : ratio < 0.78 ? 'Underpriced' : 'Fair value', ratio > 1.22 ? 'bad' : ratio > 1.06 || ratio < 0.78 ? 'warn' : 'ok'),
+        );
+      };
+      paintDues(value);
+      const slider = el('input', {
+        type: 'range', class: 'lt-range',
+        min: String(Math.round(spec.baseDues * 0.5 / 5) * 5),
+        max: String(Math.round(spec.baseDues * 2 / 5) * 5), step: '5', value: String(Math.round(value / 5) * 5),
+        oninput: (event) => {
+          st.club.dues[tier] = Number(event.target.value);
+          paintDues(st.club.dues[tier]);
+        },
+      });
+      return el('div', { class: 'lt-card' },
+        el('div', { class: 'lt-minihead' }, el('span', { text: spec.name }), el('span', { class: 'lt-headspace' }), chip(`${counts[tier]} member${counts[tier] === 1 ? '' : 's'}`, counts[tier] ? 'ok' : '')),
+        el('div', { class: 'lt-prodmeta', text: spec.blurb }),
+        row(el('span', { class: 'lt-mulabel', text: 'Season dues' }), slider, output),
+        meta(`Fair value today is about ${formatMoney(fair)} · earns ${formatMoney(counts[tier] * value / 24)} per day.`));
+    };
+    const memberRow = (golfer) => el('tr', {},
+      el('td', {}, el('span', { style: 'font-weight:600', text: golfer.name })),
+      el('td', { text: TIERS[golfer.memberTier]?.name || golfer.memberTier }),
+      el('td', { class: 'lt-num', text: `${Math.round(golfer.satisfaction)}%` }),
+      el('td', { class: 'lt-num', text: String(golfer.roundsPlayed || 0) }),
+      el('td', {}, word(golfer.satisfaction < 25 ? 'Leaving risk' : golfer.satisfaction < 35 ? 'At risk' : golfer.satisfaction >= 70 ? 'Loyal' : 'Steady', golfer.satisfaction < 25 ? 'bad' : golfer.satisfaction < 35 ? 'warn' : golfer.satisfaction >= 70 ? 'ok' : '')));
+
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Members', String(roster.length), `${recentJoins} joined in the last 7 days`),
+        stat('Daily Dues', formatMoney(dailyDues), 'posted when the books close', dailyDues > 0 ? 'ok' : ''),
+        stat('Satisfaction', roster.length ? `${Math.round(averageSatisfaction)}%` : '—', roster.length ? 'all active members' : 'no active members', averageSatisfaction >= 65 ? 'ok' : averageSatisfaction < 40 ? 'bad' : 'warn'),
+        stat('At Risk', String(atRisk.length), atRisk.length ? 'below 35% satisfaction' : 'nobody below 35%', atRisk.length ? 'bad' : 'ok'),
+      ),
+      el('div', { class: 'lt-cols' }, ...Object.keys(TIERS).map(tierRow)),
+      sect(`Member Roll (${roster.length})`),
+      roster.length ? card(el('table', { class: 'lt-table' },
+        el('thead', {}, el('tr', {},
+          el('th', { text: 'Member' }), el('th', { text: 'Tier' }), el('th', { class: 'lt-num', text: 'Satisfaction' }),
+          el('th', { class: 'lt-num', text: 'Rounds' }), el('th', { text: 'Status' }))),
+        el('tbody', {}, ...[...roster].sort((a, b) => a.satisfaction - b.satisfaction).slice(0, 20).map(memberRow))))
+        : empty('No active memberships yet.'),
+      note('Dues change value perception immediately. Satisfaction, course quality, reputation, and amenities determine joins and churn at each daily tick.'),
+    ];
+  }
+
+  function businessMarketingTab(st) {
+    const ratings = clubRatings(st);
+    const amenity = amenityScore(st);
+    const fairFee = fairGreenFee(ratings.overall, amenity);
+    const greenFeeDemand = demandMultiplier(st.club.greenFee, fairFee);
+    const reviews = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
+    const products = retailSkus(st);
+    const stockedLines = products.filter((sku) => (st.shop.inventory[sku.id]?.shelf || 0) > 0).length;
+    const availability = products.length ? stockedLines / products.length : 0;
+    const rain = (st.weather?.today?.rainIn || 0) > 0.15;
+    const narrative = explainVisitors(st, {
+      today: st.club.lastRounds || 0,
+      yesterday: st.club.prevRounds || 0,
+      rainedToday: rain,
+    });
+    const feature = st.shop.featureCategory || null;
+    const featureOptions = [null, 'clubs', 'balls', 'apparel', 'accessories', 'provisions'];
+    const jump = (target, tab) => {
+      if (tab) ts(target).tab = tab;
+      go(target);
+    };
+    const driver = (name, detail, status, tone, action, actionLabel) => el('div', { class: 'lt-order' },
+      el('div', { class: 'lt-orderbody' },
+        el('div', { class: 'lt-ordername', text: name }),
+        el('div', { class: 'lt-prodmeta', text: detail })),
+      word(status, tone),
+      el('button', { class: 'lt-mini', text: actionLabel, onclick: action }));
+
+    return [
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Last Rounds', String(st.club.lastRounds || 0), `previous day ${st.club.prevRounds || 0}`),
+        stat('Green-Fee Demand', `${greenFeeDemand.toFixed(2)}×`, `${formatMoney(st.club.greenFee)} charged · about ${formatMoney(fairFee)} fair`, greenFeeDemand < 0.7 ? 'bad' : greenFeeDemand < 0.95 ? 'warn' : 'ok'),
+        stat('Reputation', `${Math.round(st.club.reputation)} / 100`, 'reviews and membership feed it'),
+        stat('Shelf Availability', `${Math.round(availability * 100)}%`, `${st.shop.lostSalesYesterday || 0} lost sales last day`, availability < 0.5 ? 'bad' : availability < 0.8 ? 'warn' : 'ok'),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Why demand moved' }),
+        el('div', { class: 'lt-tasktitle', text: narrative }),
+        meta('Price, weather, course condition, reputation, and shelf availability are read from the live simulation.'),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Featured Merchandise' }),
+        el('div', { class: 'lt-tabs' }, ...featureOptions.map((category) => el('button', {
+          class: `lt-tab ${feature === category ? 'on' : ''}`,
+          text: category ? CAT_LABEL[category] : 'Balanced',
+          onclick: () => {
+            st.shop.featureCategory = category;
+            toast(category ? `${CAT_LABEL[category]} now gets the feature table.` : 'The feature table is balanced again.');
+            click();
+            render();
+          },
+        }))),
+        meta('The featured category receives a real 15% shopper-attention nudge in the daily pro-shop demand pass.'),
+      ),
+      sect('Demand Levers'),
+      el('div', { class: 'lt-drivergrid' },
+        driver('Green fee', `${formatMoney(st.club.greenFee)} now versus ${formatMoney(fairFee)} fair value`, greenFeeDemand < 0.7 ? 'Suppressing visits' : 'Competitive', greenFeeDemand < 0.7 ? 'bad' : 'ok', () => jump('shop', 'prices'), 'Open Pricing'),
+        driver('Guest sentiment', reviews.count ? `${reviews.average}★ across ${reviews.count} reviews` : 'No reviews yet', reviews.count ? (reviews.worst && reviews.worst.score < 0.45 ? 'Needs work' : 'Stable') : 'No signal', reviews.count && reviews.worst && reviews.worst.score < 0.45 ? 'warn' : reviews.count ? 'ok' : '', () => { ts('finances').tab = 'reviews'; render(); }, 'Open Reviews'),
+        driver('Course condition', `${Math.round(ratings.condition)} / 100`, conditionWord(ratings.condition), conditionTone(ratings.condition), () => jump('course', 'tasks'), 'Open Tasks'),
+        driver('Product availability', `${stockedLines} of ${products.length} active lines stocked`, availability < 0.5 ? 'Thin shelves' : 'Covered', availability < 0.5 ? 'bad' : availability < 0.8 ? 'warn' : 'ok', () => jump('shop', 'stock'), 'Open Inventory'),
+      ),
+      note('Paid advertising campaigns are not simulated yet. This desk exposes only levers the current game actually honors.'),
+    ];
+  }
+
+  // ==========================================================================================
+  // SETTINGS — small, honest, and everything on it works
+  // ==========================================================================================
   function pageSettings() {
     const st = app.state;
-    const teeConfig = st.reservations.config;
+    const prefs = prefsOf();
+    const checkoutPrefs = checkoutPreferences(st);
+    const settingsState = ts('settings', { tab: 'general' });
 
-    const scaleRow = row(
-      el('span', { class: 'lt-mulabel', text: 'Interface scale' }),
-      ...[0.9, 1, 1.15, 1.3].map((s) => el('button', {
-        class: `lt-day ${Math.abs(scale - s) < 0.01 ? 'on' : ''}`,
-        text: `${Math.round(s * 100)}%`,
-        onclick: () => {
-          app.preferences?.set('display.uiScale', s);
-          setScale(s);
-          click();
-          render();
-        },
-      })),
-      meta('also scales menus, HUD, prompts, and notifications'),
-    );
+    const checkRow = (label, detail, checked, onchange) => el('label', { class: 'lt-row' },
+      el('input', { type: 'checkbox', class: 'lt-check', checked: checked ? 'checked' : undefined, onchange }),
+      el('span', {},
+        el('div', { style: 'font-size:0.84em;font-weight:600', text: label }),
+        el('div', { class: 'lt-meta', text: detail })));
 
-    const nameInput = el('input', {
-      class: 'lt-input', type: 'text', value: st.clubName || '',
-      onchange: (e) => {
-        const v = e.target.value.trim();
-        if (!v) { toast('The club needs a name.', 'warn'); e.target.value = st.clubName; return; }
-        st.clubName = v;
-        toast(`The club is now ${v}.`);
-        render();
+    // master volume — the audio engine's own persisted setting, not a fake knob
+    const audio = app.audio;
+    const volOut = el('span', { class: 'lt-mupct', text: audio ? `${Math.round((audio.getVolume ? audio.getVolume() : 0.8) * 100)}%` : '—' });
+    const volRange = el('input', {
+      type: 'range', min: '0', max: '100', step: '5', class: 'lt-range',
+      value: String(Math.round((audio && audio.getVolume ? audio.getVolume() : 0.8) * 100)),
+      disabled: audio ? undefined : 'disabled',
+      oninput: (e) => {
+        if (!audio || !audio.setVolume) return;
+        const v = Number(e.target.value) / 100;
+        audio.setVolume(v);
+        volOut.textContent = `${Math.round(v * 100)}%`;
       },
     });
 
-    const simpleCheck = el('input', {
-      type: 'checkbox', class: 'lt-check',
-      checked: st.shop.simpleCheckout ? 'checked' : undefined,
-      onchange: (e) => {
-        st.shop.simpleCheckout = !!e.target.checked;
-        toast(st.shop.simpleCheckout
-          ? 'Checkout simplified — the register still opens, but change is counted for you.'
-          : 'Checkout is fully manual again.');
-      },
-    });
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' },
+      ...[['general', 'General'], ['checkout', 'Checkout']].map(([value, label]) => el('button', {
+        class: `lt-tab ${settingsState.tab === value ? 'on' : ''}`,
+        text: label,
+        onclick: () => { settingsState.tab = value; click(); render(); },
+      })));
+
+    const general = [
+      card(
+        el('div', { class: 'lt-minihead', text: 'Sound' }),
+        row(el('span', { class: 'lt-mulabel', text: 'Volume' }), volRange, volOut),
+        audio ? null : row(meta('Sound wakes with your first click in the world.')),
+        audio && audio.setMuted
+          ? checkRow('Mute everything', 'Silence the whole game, laptop included.', audio.isMuted && audio.isMuted(),
+            (e) => { audio.setMuted(!!e.target.checked); toast(e.target.checked ? 'Muted.' : 'Sound is back.'); })
+          : null,
+        checkRow('Laptop sounds', 'Clicks and chimes on this screen.', prefs.uiSounds !== false,
+          (e) => { prefs.uiSounds = !!e.target.checked; toast(prefs.uiSounds ? 'Sounds on.' : 'Sounds off.'); }),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Display' }),
+        row(
+          el('span', { class: 'lt-mulabel', text: 'Text size' }),
+          ...[0.9, 1, 1.15, 1.3].map((s) => el('button', {
+            class: `lt-day ${Math.abs(scale - s) < 0.01 ? 'on' : ''}`,
+            text: `${Math.round(s * 100)}%`,
+            onclick: () => {
+              app.preferences?.set('display.uiScale', s);
+              setScale(s);
+              click();
+              render();
+            },
+          })),
+          meta('Also scales menus, HUD, prompts, and notifications.'),
+        ),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Game' }),
+        checkRow('Notification badge', 'Show the red unread count on the bell.', prefs.notifBadge !== false,
+          (e) => { prefs.notifBadge = !!e.target.checked; toast(prefs.notifBadge ? 'Badge on.' : 'Badge hidden — the bell still keeps the list.'); render(); }),
+        checkRow('Confirm every purchase', 'When off, stock orders under $100 skip the confirmation step.', prefs.confirmOrders !== false,
+          (e) => { prefs.confirmOrders = !!e.target.checked; toast(prefs.confirmOrders ? 'Every order asks first.' : 'Small orders go straight through.'); }),
+        row(el('span', { class: 'lt-mulabel', text: 'Club name' }),
+          el('input', {
+            class: 'lt-input', type: 'text', value: st.clubName || '',
+            onchange: (e) => {
+              const v = e.target.value.trim();
+              if (!v) { toast('The club needs a name.', 'warn'); e.target.value = st.clubName; return; }
+              st.clubName = v;
+              toast(`The club is now ${v}.`);
+              render();
+            },
+          })),
+        row(el('span', { class: 'lt-mulabel', text: 'Hours' }),
+          meta(`Shop ${hour12(SHOP_OPEN_MIN)}–${hour12(SHOP_CLOSE_MIN)} · tee times ${hour12(TEE_SHEET.openMin)}–${hour12(TEE_SHEET.closeMin)} · autosave nightly`)),
+      ),
+    ];
+    const checkout = [
+      card(
+        el('div', { class: 'lt-minihead', text: 'Checkout accessibility' }),
+        checkRow('Larger POS text and targets', 'Enlarges register copy and the safe click area around products, payment, and monitor controls.', checkoutPrefs.largeTextAndTargets,
+          (e) => {
+            setCheckoutPreference(st, 'largeTextAndTargets', !!e.target.checked);
+            toast(e.target.checked ? 'Checkout text and targets enlarged.' : 'Checkout text and targets use standard size.');
+          }),
+        checkRow('Reduced checkout camera motion', 'Uses stable camera cuts and disables cursor-driven head sway at the register.', checkoutPrefs.reducedCameraMotion,
+          (e) => {
+            setCheckoutPreference(st, 'reducedCameraMotion', !!e.target.checked);
+            toast(e.target.checked ? 'Checkout camera motion reduced.' : 'Checkout camera easing restored.');
+          }),
+        checkRow('Faster checkout animations', 'Shortens product, payment, drawer, receipt, and handoff choreography without skipping steps.', checkoutPrefs.fasterAnimations,
+          (e) => {
+            setCheckoutPreference(st, 'fasterAnimations', !!e.target.checked);
+            toast(e.target.checked ? 'Checkout animations accelerated.' : 'Checkout animations use standard timing.');
+          }),
+        checkRow('Automatic exact change', 'Counts the fewest exact pieces the current drawer can safely provide; Undo and Clear still work.', checkoutPrefs.automaticExactChange,
+          (e) => {
+            setCheckoutPreference(st, 'automaticExactChange', !!e.target.checked);
+            toast(e.target.checked ? 'Exact-change assistance on.' : 'Change selection is manual.');
+          }),
+        checkRow('Confirm cash purchases', 'When off, exact change hands over automatically. Card purchases still require the reader’s one Confirm.', checkoutPrefs.confirmCashPurchase,
+          (e) => {
+            setCheckoutPreference(st, 'confirmCashPurchase', !!e.target.checked);
+            toast(e.target.checked ? 'Exact cash waits for Done.' : 'Exact cash hands over automatically.');
+          }),
+      ),
+      note('These preferences change the physical register interaction. They are saved with this club.'),
+    ];
 
     paint(
-      head('Settings', 'Hours are the course\'s playing day — the shop trades while the course is open, and closing time empties the floor.'),
+      head('Settings', 'General game preferences and checkout accessibility are separated so every control stays visible.'),
       confirmBar(),
-      sect('Property'),
-      card(
-        row(el('span', { class: 'lt-mulabel', text: 'Club name' }), nameInput),
-        row(el('span', { class: 'lt-mulabel', text: 'Shop hours' }), el('span', { text: `${hour12(SHOP_OPEN_MIN)} – ${hour12(SHOP_CLOSE_MIN)}` }), meta('fixed to the course\'s playing day')),
-        row(el('span', { class: 'lt-mulabel', text: 'Course hours' }), el('span', { text: `${hour12(teeConfig.openMin)} – ${hour12(teeConfig.closeMin)}` }), meta('first and last tee time')),
-        row(el('span', { class: 'lt-mulabel', text: 'Tee interval' }), el('span', { text: `${teeConfig.stepMin} minutes` }), meta(`${teeConfig.slotCapacity} players per slot · parties up to ${teeConfig.maxPartySize}`)),
-        row(el('span', { class: 'lt-mulabel', text: 'Booking window' }), el('span', { text: `${teeConfig.horizonDays} days` }), meta(`${teeConfig.dueLeadMin} minute arrival lead · ${teeConfig.gracePeriodMin} minute grace period`)),
-      ),
-      sect('Booking policy'),
-      card(...operationsPolicySummary(st).map((line) => row(el('span', { text: line })))),
-      sect('Display'),
-      card(scaleRow,
-        el('div', { class: 'lt-meta', text: 'Audio, camera, graphics, reduced motion, contrast, and sustained-tool options live in the shared P > Settings menu.' })),
-      sect('Difficulty'),
-      card(
-        el('label', { class: 'lt-row' }, simpleCheck,
-          el('span', {},
-            el('div', { text: 'Simplified checkout' }),
-            el('div', { class: 'lt-meta', text: 'The register still opens and you still scan and bag — but the change is counted out for you rather than picked coin by coin.' }))),
-      ),
-      sect('Saving'),
-      card(row(el('span', { class: 'lt-mulabel', text: 'Autosave' }), el('span', { text: 'Nightly, plus the office menu (Esc)' }))),
+      tabBar,
+      ...(settingsState.tab === 'checkout' ? checkout : general),
+      row(el('span', { class: 'lt-headspace' }), primaryBtn('Close Laptop', () => opts.close())),
     );
   }
 
@@ -1958,21 +3160,12 @@ export function makeLaptop(app, opts) {
 
   const PAGES = {
     home: pageHome,
-    shop: pageShop,
-    supplier: pageSupplier,
-    orders: pageOrders,
-    deliveries: pageDeliveries,
-    inventory: pageInventory,
-    pricing: pagePricing,
     reservations: pageReservations,
+    shop: pageShop,
     course: pageCourse,
-    rentals: pageRentals,
-    employees: pageEmployees,
+    upgrades: pageUpgrades,
+    properties: pageProperties,
     finances: pageFinances,
-    reviews: pageReviews,
-    analytics: pageAnalytics,
-    reno: pageReno,
-    property: pageProperty,
     settings: pageSettings,
   };
 
@@ -1981,47 +3174,172 @@ export function makeLaptop(app, opts) {
     frame.style.setProperty('--lt-scale', String(s));
   }
 
+  let liveCourseSignature = null;
+
+  function courseSignature() {
+    const st = app.state;
+    if (!st?.golfDay) return '';
+    return JSON.stringify({
+      parties: st.golfDay.parties.map((party) => [
+        party.id, party.state, party.holeIndex, party.currentGolferIndex,
+        party.transport, party.cartId, party.pace?.congestion,
+        Math.round(Number(party.pace?.waitingMinutes || 0)),
+        ...party.golfers.map((golfer) => [golfer.totalStrokes, golfer.holeStrokes]),
+      ]),
+      queue: st.golfDay.starter.queue,
+      practice: Object.values(st.golfDay.practice).map((area) => area.occupants.length),
+      congestion: st.golfDay.congestion,
+      tasks: st.golfDay.marshalTasks.map((task) => [task.id, task.status, task.partyId]),
+      completed: st.golfDay.completed.slice(0, 4).map((round) => [
+        round.id, round.durationMinutes, ...round.scores.map((score) => score.total),
+      ]),
+      experience: st.golfDay.experience,
+    });
+  }
+
   function render() {
     if (root.style.display === 'none' || !app.state) return;
     refreshStatus();
     for (const [id, b] of Object.entries(navBtns)) b.classList.toggle('on', id === page);
     const fn = PAGES[page];
     if (!fn) {
-      // an ERROR STATE that cannot itself throw: the shell survives a bad page id
       paint(head('Not found'), errBox(`There is no application called "${page}".`),
         el('button', { class: 'lt-primary', text: 'Back to Home', onclick: () => go('home') }));
       return;
     }
     try {
       fn();
+      if (page === 'course') liveCourseSignature = courseSignature();
     } catch (e) {
       paint(
         head('Something went wrong'),
         errBox(`The ${page} page could not be drawn: ${e && e.message ? e.message : e}`),
         el('button', { class: 'lt-primary', text: 'Back to Home', onclick: () => go('home') }));
     }
+    // the modal rides above whatever page just painted — one layer, owned by the shell
+    const overlay = modalLayer();
+    if (overlay) content.appendChild(overlay);
+  }
+
+  function refreshLiveDeliveryRows() {
+    if (typeof content.querySelectorAll !== 'function') return;
+    const rows = [...content.querySelectorAll('.lt-delivery-order[data-order-id]')];
+    const orders = app.state?.shop?.orders || [];
+    if (rows.length !== orders.length) {
+      render();
+      return;
+    }
+    const byId = new Map(orders.map((order) => [String(order.id), order]));
+    const textIfChanged = (node, value) => {
+      if (node && node.textContent !== value) node.textContent = value;
+    };
+    for (const row of rows) {
+      const order = byId.get(row.getAttribute('data-order-id'));
+      if (!order) {
+        render();
+        return;
+      }
+      const sku = skuById(order.skuId);
+      const tracking = deliveryTracking(order, app.state.clock.minutes);
+      const status = tracking.blocked
+        ? { label: 'Pad blocked', tone: 'bad' }
+        : ORDER_STATUS[tracking.status] || { label: tracking.status, tone: '' };
+      const canCancel = tracking.blocked || !['arriving', 'delivered'].includes(tracking.status);
+      const canPrioritize = priorityDeliveryQuote(app.state, order.id, app.state.clock.minutes).ok;
+      const hasCancel = !!row.querySelector('.lt-cancel');
+      const hasPriority = !!row.querySelector('.lt-priority');
+      // Action availability changes only at meaningful status thresholds. Let
+      // the full page own those rare structural transitions; ordinary 1 Hz ETA
+      // ticks remain targeted text/progress writes.
+      if (canCancel !== hasCancel || canPrioritize !== hasPriority) {
+        render();
+        return;
+      }
+      const eta = tracking.blocked
+        ? 'ETA paused — clear receiving'
+        : `Estimated arrival ${clock12(tracking.deliveryMin)} · ${compactDuration(tracking.etaMinutes)} remaining`;
+      const etaNode = row.querySelector('.lt-delivery-eta');
+      textIfChanged(etaNode, eta);
+      const etaClass = `lt-delivery-eta ${tracking.blocked ? 'warn' : ''}`.trim();
+      if (etaNode && etaNode.className !== etaClass) etaNode.className = etaClass;
+
+      const progress = row.querySelector('.lt-delivery-track');
+      const progressValue = String(tracking.progress);
+      if (progress?.getAttribute('aria-valuenow') !== progressValue) progress?.setAttribute('aria-valuenow', progressValue);
+      const progressClass = `lt-delivery-track ${tracking.blocked ? 'warn' : ''}`.trim();
+      if (progress && progress.className !== progressClass) progress.className = progressClass;
+      const fill = row.querySelector('.lt-delivery-trackfill');
+      const width = `${tracking.progress}%`;
+      if (fill && fill.style.width !== width) fill.style.width = width;
+
+      const steps = [...row.querySelectorAll('.lt-delivery-steps span')];
+      tracking.milestones.forEach((milestone, index) => {
+        const step = steps[index];
+        if (step && step.className !== milestone.state) step.className = milestone.state;
+      });
+      const statusNode = row.querySelector('.lt-delivery-status');
+      textIfChanged(statusNode, status.label);
+      const statusClass = `lt-chip lt-delivery-status ${status.tone}`.trim();
+      if (statusNode && statusNode.className !== statusClass) statusNode.className = statusClass;
+      textIfChanged(row.querySelector('.lt-ordername'), `${sku.name} × ${order.qty}${tracking.priority ? ' · PRIORITY' : ''}`);
+    }
   }
 
   let liveTimer = null;
 
+  function refreshLive() {
+    if (root.style.display === 'none') return;
+    // Tracking is live software, not a snapshot captured when the page opened.
+    // Redraw only the three clock-sensitive pages, preserve scroll, and never
+    // replace a confirmation while the player is deciding.
+    if (['home', 'orders', 'deliveries'].includes(page) && !pending) {
+      const y = content.scrollTop;
+      render();
+      content.scrollTop = y;
+    } else {
+      refreshStatus();
+    }
+  }
+
   return {
     root,
     open(startPage) {
-      page = startPage || 'home';
+      page = 'home';
       history = [];
       cart = new Map();
       pending = null;
+      modal = null;
+      scale = app.preferences?.values?.display?.uiScale || scale;
+      if (startPage) {
+        const alias = PAGE_ALIAS[startPage];
+        if (alias) {
+          if (alias[1]) ts(alias[0]).tab = alias[1];
+          page = alias[0];
+        } else if (PAGES[startPage]) page = startPage;
+      }
       setScale(scale);
       root.style.display = '';
       render();
       clearInterval(liveTimer);
-      liveTimer = setInterval(refreshStatus, 1000); // the clock keeps ticking on the screen
+      liveTimer = setInterval(() => {
+        refreshStatus();
+        // The delivery ETA is clock-derived. Update only its live text and
+        // progress nodes at 1 Hz so the 3D frame does not pay for rebuilding the
+        // full product/management DOM once a second.
+        const liveDeliveries = page === 'shop' && ts('shop').tab === 'deliveries' && !pending && !modal;
+        if (liveDeliveries) refreshLiveDeliveryRows();
+      }, 1000);
+      // Browser interval IDs are numbers; Node's headless DOM tests return a
+      // Timeout object. Do not let a failed page assertion pin the whole test
+      // process after the failure has already been reported.
+      liveTimer?.unref?.();
     },
     close() {
       root.style.display = 'none';
       clearInterval(liveTimer);
       liveTimer = null;
       pending = null;
+      modal = null;
     },
     // main.js maps this rectangle onto the physical display's four projected corners
     setTransform(matrix3d) {

@@ -1,0 +1,91 @@
+{
+ "id": "pf_display_golf_club_wall_t5",
+ "kind": "fixtures",
+ "category": "store_displays/golf_club_wall",
+ "dims_m": [
+  3.4,
+  0.71,
+  2.62
+ ],
+ "min_z": 0.0,
+ "tris": 4992,
+ "textures": [
+  "NRM_wood_0.7_512:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "CLUB_SLOT_01",
+  "CLUB_SLOT_02",
+  "CLUB_SLOT_03",
+  "CLUB_SLOT_04",
+  "CLUB_SLOT_05",
+  "CLUB_SLOT_06",
+  "CLUB_SLOT_07",
+  "CLUB_SLOT_08",
+  "CLUB_SLOT_09",
+  "CLUB_SLOT_10",
+  "CLUB_SLOT_11",
+  "CLUB_SLOT_12",
+  "CLUB_SLOT_13",
+  "CLUB_SLOT_14",
+  "CLUB_SLOT_15",
+  "CLUB_SLOT_16",
+  "CLUB_SLOT_17",
+  "CLUB_SLOT_18",
+  "CLUB_SLOT_19",
+  "CLUB_SLOT_20",
+  "CLUB_SLOT_21",
+  "CLUB_SLOT_22",
+  "CLUB_SLOT_23",
+  "CLUB_SLOT_24",
+  "CLUB_SLOT_25",
+  "CLUB_SLOT_26",
+  "CLUB_SLOT_27",
+  "CLUB_SLOT_28",
+  "CLUB_SLOT_29",
+  "CLUB_SLOT_30",
+  "CLUB_SLOT_31",
+  "CLUB_SLOT_32"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_golf_club_wall_t5.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/golf_club_wall/pf_display_golf_club_wall_t5.blend",
+ "name": "Golf Club Wall - Tier 5 Luxury",
+ "variant": "private_club_luxury",
+ "tier": 5,
+ "quality": "Luxury",
+ "price_band": 5,
+ "material_story": "built-in walnut millwork, warm cream, brass, glass",
+ "size_grade": 5,
+ "material_grade": 5,
+ "custom_woodwork_level": 4,
+ "fixture_complexity_grade": 5,
+ "integrated_light_count": 5,
+ "target_dimensions_m": [
+  3.4,
+  0.6,
+  2.62
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}

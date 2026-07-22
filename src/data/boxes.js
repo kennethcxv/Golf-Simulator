@@ -11,89 +11,78 @@
 // pounds; the receiving pad reads the same object to decide what to stand there. Pack it twice and
 // the screen would drift a box away from the world, and you would never know which one was lying.
 //
-// Dimensions are yards. A yard is close enough to a metre for these to read at real-world scale.
+// Dimensions are metres, matching the authored Blender assets and product-packaging contract.
 // Weights are pounds, because that is what a shipping label says.
 
+import {
+  PACKAGING_SHELLS,
+  hasProductPackaging,
+  planProductPackaging,
+  productPackagingFor,
+} from './productPackaging.js';
 import { supplierFor, shipFee } from './suppliers.js';
 
-export const BOX_KINDS = {
-  carton: {
-    id: 'carton', label: 'Accessories carton',
-    w: 0.42, h: 0.30, d: 0.36, mass: 'light', tare: 0.6,
-  },
-  ballcase: {
-    id: 'ballcase', label: 'Golf-ball case',
-    w: 0.52, h: 0.34, d: 0.42, mass: 'heavy', tare: 0.9, // balls are dense: a full case is a lift
-  },
-  apparel: {
-    id: 'apparel', label: 'Apparel carton',
-    w: 0.66, h: 0.40, d: 0.50, mass: 'light', tare: 1.0, // big and airy
-  },
-  shoebox: {
-    id: 'shoebox', label: 'Shoe carton',
-    w: 0.58, h: 0.32, d: 0.44, mass: 'medium', tare: 0.6,
-  },
-  clubbox: {
-    id: 'clubbox', label: 'Long club box',
-    w: 1.32, h: 0.22, d: 0.30, mass: 'medium', tare: 1.3, // a driver is 45 inches of box
-  },
-  bagcarton: {
-    id: 'bagcarton', label: 'Golf-bag carton',
-    w: 0.72, h: 1.05, d: 0.52, mass: 'heavy', tare: 1.7, // tall enough to be a nuisance, which is the point
-  },
-  // the two the brief asked for that had nowhere to come from: the shop's own kit ships too.
-  fixture: {
-    id: 'fixture', label: 'Fixture package',
-    w: 0.62, h: 0.55, d: 0.40, mass: 'heavy', tare: 2.6, // a pendant light, an events board, the vacuum
-  },
-  crate: {
-    id: 'crate', label: 'Furniture crate',
-    w: 1.25, h: 0.98, d: 0.85, mass: 'freight', tare: 14, // timber, banded, and you will feel it
-  },
-};
+function kindFromShell(id, label, mass, shellId) {
+  const shell = PACKAGING_SHELLS[shellId];
+  if (!shell) throw new Error(`Box kind ${id} references missing packaging shell ${shellId}`);
+  return Object.freeze({
+    id,
+    label,
+    w: shell.dimensions.w,
+    h: shell.dimensions.h,
+    d: shell.dimensions.d,
+    mass,
+    tare: shell.tareWeightLb,
+    shellId: shell.id,
+    familyId: shell.familyId,
+    modelId: shell.modelId,
+  });
+}
 
-// The oversized lines, by id. Matching on the NAME is a trap: the catalogue has a "Tee bag", a
-// "Bag towel" and an "Ironwood stand bag", and the shoes are called "spikes".
-const KIND_BY_ID = {
-  bag1: BOX_KINDS.bagcarton,   // Ironwood stand bag
-  shoe1: BOX_KINDS.shoebox,    // North Ridge spikes
-  vac1: BOX_KINDS.fixture,     // the shop vacuum
-  light1: BOX_KINDS.fixture,   // green pendant light
-  board1: BOX_KINDS.fixture,   // events board
-  poster1: BOX_KINDS.fixture,  // framed, glazed, flat
-  rug1: BOX_KINDS.crate,       // rolled and crated: 24 lb of wool
-  lounge1: BOX_KINDS.crate,    // a whole seating suite, flat-packed
-  plant1: BOX_KINDS.carton,
-};
+export const BOX_KINDS = Object.freeze({
+  carton: kindFromShell('carton', 'Accessories carton', 'light', 'ACCESSORY_CARTON'),
+  ballcase: kindFromShell('ballcase', 'Golf-ball case', 'heavy', 'BALL_CASE'),
+  merchbox: kindFromShell('merchbox', 'Merchandise carton', 'medium', 'GENERIC_MERCHANDISE'),
+  apparel: kindFromShell('apparel', 'Apparel carton', 'light', 'APPAREL_CARTON'),
+  shoebox: kindFromShell('shoebox', 'Shoe carton', 'medium', 'SHOE_CARTON'),
+  clubbox: kindFromShell('clubbox', 'Long club box', 'medium', 'LONG_CLUB_CARTON'),
+  bagcarton: kindFromShell('bagcarton', 'Golf-bag carton', 'heavy', 'GOLF_BAG_CARTON'),
+  fixture: kindFromShell('fixture', 'Fixture package', 'heavy', 'FIXTURE_PACKAGE'),
+  crate: kindFromShell('crate', 'Furniture crate', 'freight', 'FURNITURE_CRATE'),
+  provisions: kindFromShell('provisions', 'Bulk provisions carton', 'medium', 'BULK_PROVISIONS'),
+  umbrella: kindFromShell('umbrella', 'Umbrella carton', 'medium', 'UMBRELLA_CARTON'),
+  ironset: kindFromShell('ironset', 'Iron-set carton', 'heavy', 'IRON_SET_CARTON'),
+});
+
+export const SHIPMENT_PACKAGING_SCHEMA_VERSION = 1;
+
+const KIND_BY_SHELL_ID = new Map(
+  Object.values(BOX_KINDS).map((kind) => [kind.shellId, kind]),
+);
+
+function packagingContractForSku(sku) {
+  if (!sku || typeof sku.id !== 'string') {
+    throw new TypeError('A catalog SKU with an id is required for packaging');
+  }
+  return productPackagingFor(sku.id);
+}
 
 // what a given product ships in
 export function boxKindFor(sku) {
-  if (!sku) return BOX_KINDS.carton;
-  if (KIND_BY_ID[sku.id]) return KIND_BY_ID[sku.id];
-  if (sku.cat === 'clubs') return BOX_KINDS.clubbox;
-  if (sku.cat === 'balls') return BOX_KINDS.ballcase;
-  if (sku.cat === 'apparel') return BOX_KINDS.apparel;
-  return BOX_KINDS.carton; // gloves, tees, towels, markers
+  const contract = packagingContractForSku(sku);
+  const kind = KIND_BY_SHELL_ID.get(contract.box.shellId);
+  if (!kind) {
+    throw new RangeError(`${sku.id} uses unregistered packaging shell ${contract.box.shellId}`);
+  }
+  return kind;
 }
 
 // --- how many go in one box ---------------------------------------------------------------
 // The category default is a decent guess and a bad law. `bag1`'s category is 'accessories', which
 // packs TWELVE to a carton — so the per-category rule alone would have shipped a dozen stand bags
 // in one box, and the pad would have shown one carton where five belong.
-const PER_BOX_CAT = { clubs: 2, balls: 12, apparel: 8, accessories: 12, supplies: 1, decor: 1 };
-const PER_BOX_ID = {
-  bag1: 1,      // one stand bag to a carton, and it is already an awkward carry
-  irons1: 1,    // an iron set IS eight clubs; you do not get two sets in a sleeve
-  irons2: 1,
-  shoe1: 4,     // four pairs to a shoe carton
-  range2: 4,    // fragile optics, individually padded
-  umb1: 6,
-  jacket2: 6,
-};
-
 export function unitsPerBox(sku) {
-  if (!sku) return 12;
-  return PER_BOX_ID[sku.id] || PER_BOX_CAT[sku.cat] || 12;
+  return packagingContractForSku(sku).unitsPerBox;
 }
 
 export function boxDims(kind) {
@@ -111,9 +100,11 @@ export function boxRadius(kind) {
 
 // what a box of `qty` of this thing weighs, on the label, in pounds
 export function boxWeight(sku, qty) {
-  const kind = boxKindFor(sku);
-  const unit = (sku && sku.lb) || 0.5;
-  return Math.round((kind.tare + unit * qty) * 10) / 10;
+  const contract = packagingContractForSku(sku);
+  if (!Number.isInteger(qty) || qty < 0) {
+    throw new RangeError(`Box quantity for ${sku.id} must be a non-negative integer`);
+  }
+  return Math.round((contract.box.tareWeightLb + contract.unitWeightLb * qty) * 10) / 10;
 }
 
 // --- THE MANIFEST -------------------------------------------------------------------------
@@ -121,29 +112,82 @@ export function boxWeight(sku, qty) {
 // always packs the same way, which is what lets the screen and the pad agree without either of
 // them asking the other.
 export function planShipment(sku, qty) {
+  const contract = packagingContractForSku(sku);
   const supplier = supplierFor(sku);
+  const packingPlan = planProductPackaging(sku.id, qty, {
+    category: sku.cat,
+    fragile: !!sku.fragile,
+    unitWeightLb: sku.lb,
+    packedDimensions: contract.packing.dimensions,
+  });
   const kind = boxKindFor(sku);
-  const per = unitsPerBox(sku);
-  const boxes = [];
-  let left = Math.max(0, Math.floor(qty));
-  while (left > 0) {
-    const n = Math.min(per, left);
-    left -= n;
-    boxes.push({
-      kind: kind.id,
-      qty: n,
-      w: kind.w, h: kind.h, d: kind.d,
-      lb: boxWeight(sku, n),
-      fragile: !!(sku && sku.fragile),
-    });
-  }
+  const boxes = packingPlan.boxes.map((box) => ({
+    kind: kind.id,
+    qty: box.units,
+    w: box.dimensions.w,
+    h: box.dimensions.h,
+    d: box.dimensions.d,
+    lb: box.weightLb,
+    fragile: box.fragile,
+    longProduct: box.longProduct,
+    familyId: box.familyId,
+    layoutId: box.layoutId,
+    shellId: box.shellId,
+    modelId: box.modelId,
+    packingState: contract.packing.state,
+    packingOrientation: contract.packing.orientation,
+    contentScale: box.contentScale,
+  }));
   const weight = Math.round(boxes.reduce((a, b) => a + b.lb, 0) * 10) / 10;
   return {
+    packagingSchemaVersion: SHIPMENT_PACKAGING_SCHEMA_VERSION,
     supplierId: supplier.id,
     supplier: supplier.name,
     boxes,
     boxCount: boxes.length,
     weight,
     fee: shipFee(supplier, boxes.length),
+  };
+}
+
+// Save migration is deliberately tolerant only after a box already exists. A known SKU always
+// heals to the current authored contract; a removed/unknown legacy SKU keeps its recognized shell
+// and receives explicit legacy markers so it cannot disappear during load.
+const SAVED_PACKAGING_METADATA_BY_SKU = new Map();
+
+export function packagingMetadataForSavedBox(box) {
+  if (hasProductPackaging(box?.skuId)) {
+    const cached = SAVED_PACKAGING_METADATA_BY_SKU.get(box.skuId);
+    if (cached) return cached;
+    const contract = productPackagingFor(box.skuId);
+    const kind = KIND_BY_SHELL_ID.get(contract.box.shellId);
+    if (!kind) throw new RangeError(`${box.skuId} uses unregistered packaging shell ${contract.box.shellId}`);
+    const metadata = Object.freeze({
+      kind: kind.id,
+      familyId: contract.familyId,
+      layoutId: contract.layoutId,
+      shellId: contract.box.shellId,
+      modelId: contract.box.modelId,
+      packingState: contract.packing.state,
+      packingOrientation: contract.packing.orientation,
+      contentScale: 1,
+      fragile: contract.fragile,
+      longProduct: contract.longProduct,
+    });
+    SAVED_PACKAGING_METADATA_BY_SKU.set(box.skuId, metadata);
+    return metadata;
+  }
+  const kind = BOX_KINDS[box?.box] || BOX_KINDS.carton;
+  return {
+    kind: kind.id,
+    familyId: kind.familyId,
+    layoutId: 'LEGACY_UNSPECIFIED',
+    shellId: kind.shellId,
+    modelId: kind.modelId,
+    packingState: 'legacy-unspecified',
+    packingOrientation: 'legacy-unspecified',
+    contentScale: 1,
+    fragile: !!box?.fragile,
+    longProduct: kind.id === 'clubbox' || kind.id === 'umbrella' || kind.id === 'ironset',
   };
 }

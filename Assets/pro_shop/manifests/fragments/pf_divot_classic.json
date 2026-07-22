@@ -1,0 +1,29 @@
+{
+ "id": "pf_divot_classic",
+ "kind": "products",
+ "category": "divot_tools",
+ "dims_m": [
+  0.021,
+  0.073,
+  0.0059
+ ],
+ "min_z": 0.0004,
+ "tris": 936,
+ "textures": [
+  "DivKnurl:64x64",
+  "NRM_crinkle_0.12_512:512x512",
+  "PSSatinAlb:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_divot_classic.glb",
+ "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_classic.blend",
+ "name": "Classic Divot Tool",
+ "variant": "steel_green",
+ "price": 11.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

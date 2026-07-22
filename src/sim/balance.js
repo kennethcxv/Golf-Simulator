@@ -18,9 +18,27 @@ export const BALANCE = {
     rough: 40,
     path: 60,
     out: 20, // returning land to nature
+    fringe: 400,
+    heavy: 25,
+    dirt: 15,
+    bed: 90,
+    semi: 60, // the first cut
   },
   elevationCostPerFoot: 50, // per cell, per foot of net height change
   holeMoveCost: 500, // moving/placing a tee or pin marker
+  irrigationHeadCost: 650, // trenching, valve, pop-up head, and commissioning
+  irrigationHeadRemoveCost: 80,
+
+  // --- course editor: objects & landscaping --------------------------------
+  objectCost: {
+    tree: 120, // planting a tree (any species)
+    shrub: 45,
+    rock: 35, // rocks are hauled, not grown
+    prop: 90, // benches, ball washers, signs...
+    decor: 50, // planters, flowers, logs
+  },
+  objectRemoveCost: 40, // crew time to fell/haul any placed object
+  newHoleCost: 2500, // surveying + routing a brand-new hole
 
   // --- renovation / construction downtime ---------------------------------
   // days = clamp(ceil(cellsEdited / cellsPerDay), minDays, maxDays)
@@ -32,7 +50,10 @@ export const BALANCE = {
 
   // --- clock ----------------------------------------------------------------
   // Real-time seconds → game minutes at speed 1. A full day ≈ 2m24s at 1x.
-  gameMinutesPerRealSecond: 10,
+  // Speed 1 is TWO game seconds per real second — a lived-in pace where a tee time
+  // booked for 1:30 is actually reachable, not five wall-seconds per game hour.
+  // 4× and 16× remain the skip gears.
+  gameMinutesPerRealSecond: 1 / 30,
   speeds: [0, 1, 4, 16],
 
   // --- turf simulation --------------------------------------------------------

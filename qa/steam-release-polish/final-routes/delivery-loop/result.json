@@ -1,0 +1,48 @@
+{
+  "log": [
+    {
+      "step": "1. delivery on the pad",
+      "focus": {
+        "label": "Delivery: Club polo ×2 · 2 lb — [E] pick up",
+        "tool": null
+      }
+    },
+    {
+      "step": "2. facing the sealed case",
+      "label": "Range-rock dozen case · 12 inside — hold [E] to cut the tape",
+      "tool": "boxcutter",
+      "cutterEquipped": true
+    },
+    {
+      "step": "3. held E — tape",
+      "tape": 1,
+      "cut": true
+    },
+    {
+      "step": "4. flaps",
+      "flaps": [
+        1,
+        1
+      ],
+      "open": true
+    },
+    {
+      "step": "5. armful into the arms",
+      "hands": {
+        "skuId": "balls1",
+        "qty": 6
+      },
+      "leftInBox": 6
+    },
+    {
+      "step": "6. stocked the ball wall",
+      "fixtureLabel": "Ball wall — hold [E] to stock the range-rock dozen (6 in hand)",
+      "shelf": "0 -> 6",
+      "stocked": true,
+      "handsLeft": 0
+    }
+  ],
+  "errs": [],
+  "errCount": 0,
+  "runnerDiagnostics": []
+}

@@ -20,37 +20,62 @@
 // into a handful of geometries. Detail is close to free; a draw call is not.
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { closeTextureImages } from './resourceLifecycle.js';
+import {
+  CLUBHOUSE_SHARED_TEXTURE_FAMILIES, createSharedTexturePool,
+} from './sharedTexturePool.js';
+import { PRO_SHOP_EQUIPMENT_FAMILIES } from '../../data/proShopEquipment.js';
 
 const FILES = [
   // goods
-  'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'shoe', 'bag',
+  'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'bag',
   'head_driver', 'head_iron', 'head_wedge', 'head_putter', 'cap',
   // furniture + operational kit (tools/blender/build_props.py)
-  'chair_lounge', 'chair_office', 'trophy',
-  'register', 'scanner', 'cardterm', 'printer', 'cash_drawer',
-  'carton', 'carton_open', 'handtruck', 'pendant',
+  'trophy', 'cash_drawer',
+  'carton', 'carton_open', 'pendant',
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
-  'basket', 'bag_open', 'impulse_rack', 'divider',
+  'basket',
+  // production checkout kit (tools/blender/build_checkout_assets.py)
+  'checkout_counter', 'checkout_product_staging_tray', 'checkout_change_handoff_tray',
+  'checkout_cash_drawer', 'checkout_shopping_bag',
+  // Compact, checkout-scale product families (tools/blender/build_checkout_products.py).
+  // Sibling SKUs share one authored silhouette and vary through tint/tier identity.
+  'checkout_product_driver', 'checkout_product_iron_set', 'checkout_product_putter',
+  'checkout_product_wedge', 'checkout_product_ball_carton',
+  'checkout_product_folded_polo', 'checkout_product_folded_jacket',
+  'checkout_product_hanging_polo', 'checkout_product_hanging_jacket',
+  'checkout_product_cap', 'checkout_product_glove', 'checkout_product_tee_pouch',
+  'checkout_product_towel_roll', 'checkout_product_marker_blister',
+  'checkout_product_rangefinder', 'checkout_product_umbrella',
+  'checkout_product_stand_bag', 'checkout_product_shoe_pair', 'checkout_product_shoe_box',
+  'checkout_product_sock_pair', 'checkout_product_headcover',
+  // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
+  // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
+  'delivery_apparel_box', 'delivery_generic_merchandise_box', 'delivery_golf_club_box',
+  'delivery_accessory_carton', 'delivery_golf_ball_case', 'delivery_shoe_carton',
+  'delivery_golf_bag_carton', 'delivery_fixture_package', 'delivery_furniture_crate',
+  'delivery_bulk_provisions_carton', 'delivery_umbrella_carton', 'delivery_iron_set_carton',
+  'delivery_wooden_pallet', 'delivery_van', 'delivery_hand_truck',
+  'delivery_stocking_cart', 'delivery_pallet_jack',
+  'delivery_packing_tape_roll', 'delivery_recycling_station',
 ];
 
-// Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
-// Unlike FILES, these KEEP their own baked PBR atlas material. They are placed as
-// singletons (a pair of chairs, one card terminal, one gondola), so the material-count
-// discipline that instantiate() enforces buys nothing here and would only throw away
-// the fidelity that is the whole point of using a real scan. Loaded the same way,
-// handed out by instantiateRaw(), never slot-swapped.
+// Textured HERO products (Tripo scans, normalized by tools/blender/process_tripo.py).
+// Unlike FILES, these keep their baked PBR atlas material. Repeated instances are
+// later baked by material, so preserving the authored atlas retains fidelity without
+// multiplying texture ownership. Loaded through instantiateRaw(), never slot-swapped.
 const RAW = [
-  'armchair', 'office_chair', 'cardterm_pro', 'kiosk',
   // repeated products — one baked-atlas material each, so a whole shelf of them still
   // bakes (see bake()) into a single draw call, texture intact.
   'shoe_pro', 'cap_pro', 'rangefinder',
-  // Project-owned delivery kit (tools/blender/build_inventory_delivery_assets.py).
-  // These use their authored warm-cream / golf-green PBR palette and expose named
-  // pivots, sockets and collision helpers through glTF extras.
-  'delivery_worktable', 'delivery_stock_shelf', 'delivery_box_cutter',
-  'delivery_recycling_station', 'delivery_van',
+  // Exact packed contents and original provisions products retain their authored
+  // stylized PBR materials. They are instanced at 1:1 into contract sockets.
+  'provisions_fairway_spring_water', 'provisions_bunker_bites_chips',
+  'delivery_fixture_product_vacuum', 'delivery_fixture_product_plant',
+  'delivery_fixture_product_poster', 'delivery_fixture_product_events_board',
+  'delivery_fixture_product_pendant', 'packed_product_rug1', 'packed_product_lounge1',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
@@ -70,20 +95,126 @@ const SLOT = {
   M_tape: 'merchWhite',
   M_paper: 'trimPaint',
   M_glass: 'glass',
+  M_displayglass: 'displayGlass',
   M_screen: 'charcoal',   // the live screens get their own canvas material
+  // production checkout palette
+  M_Cream: 'trimPaint',
+  M_OffWhite: 'merchWhite',
+  M_DeepGreen: 'greenPaint',
+  M_Sage: 'sagePaint',
+  M_Walnut: 'walnut',
+  M_DarkWalnut: 'walnutDark',
+  M_NaturalOak: 'rawWood',
+  M_Charcoal: 'charcoal',
+  M_Plastic: 'plastic',
+  M_Rubber: 'rubber',
+  M_Brass: 'brass',
+  M_Steel: 'chrome',
+  M_Glass: 'glass',
+  M_Paper: 'trimPaint',
+  M_Kraft: 'kraft',
+  M_Label: 'trimPaint',
 };
+
+// These small authored materials carry meaningful emissive feedback. Keeping the
+// imported material preserves that signal without adding a per-instance material.
+const PRESERVE = new Set([
+  'M_Screen', 'M_ScannerBeam', 'M_StatusLED',
+  // Delivery cartons need their authored translucent kraft tape and dark
+  // corrugated interior. Mapping these to generic white/charcoal destroys the
+  // material read and makes the hero carton look like a flat legacy prop.
+  'M_tape', 'M_KraftDark',
+  'M_BoxTape', 'M_BoxKraftInterior', 'M_PackingFoam',
+]);
 
 // The slots that take a per-item colour. A polo's body is fabric; a golf shoe's
 // upper is LEATHER — tinting only fabric left every shoe on the wall the same
 // shade of brown. Both are tintable, and both cache by (slot, colour) so twelve
 // polos in four colours still cost four materials, not twelve.
-const TINTABLE = { M_fabric: 'merchFabric', M_leather: 'merchLeather' };
+const TINTABLE = {
+  M_fabric: 'merchFabric',
+  M_leather: 'merchLeather',
+  // Checkout sibling SKUs share geometry but tint one authored identity band.
+  // The cache key includes the tint, so three tiers cost three stable materials,
+  // never one clone per transaction item.
+  M_SKUAccent: 'merchPlastic',
+};
 
-export function createMerch(mats) {
+export function createMerch(mats, { equipmentTier = null, equipmentFamilies = null } = {}) {
   const protos = new Map();
+  const clips = new Map();
   const tints = new Map();     // 'fabric|0x3f7a34' -> Material, built once, reused forever
+  // GLTF clones deliberately share their prototype resources. Keep ownership at
+  // this loader boundary so tearing down a clubhouse can release each imported
+  // resource exactly once without ever touching the caller-owned material kit.
+  const prototypeGeometries = new Set();
+  const prototypeMaterials = new Set();
+  const prototypeTextures = new Set();
+  const bakedGeometries = new Set();
+  const sharedTexturePool = createSharedTexturePool();
   let ready = false;
+  let disposed = false;
+  let disposalSummary = null;
   const waiting = [];
+  const equipmentTierId = ['municipal', 'public', 'premium', 'high_end', 'country_club'].includes(equipmentTier)
+    ? equipmentTier
+    : null;
+
+  function resourcesIn(root) {
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
+    if (!root || typeof root.traverse !== 'function') return { geometries, materials, textures };
+    root.traverse((object) => {
+      if (object.geometry) geometries.add(object.geometry);
+      const list = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of list) {
+        if (!material) continue;
+        materials.add(material);
+        for (const value of Object.values(material)) {
+          if (value?.isTexture) textures.add(value);
+        }
+      }
+    });
+    return { geometries, materials, textures };
+  }
+
+  function rememberPrototype(root) {
+    const resources = resourcesIn(root);
+    resources.geometries.forEach((resource) => prototypeGeometries.add(resource));
+    resources.materials.forEach((resource) => prototypeMaterials.add(resource));
+    resources.textures.forEach((resource) => prototypeTextures.add(resource));
+  }
+
+  function disposeRootResources(root) {
+    const resources = resourcesIn(root);
+    const closedImages = new Set();
+    resources.textures.forEach((resource) => {
+      closeTextureImages(resource, closedImages);
+      resource.dispose();
+    });
+    resources.materials.forEach((resource) => resource.dispose());
+    resources.geometries.forEach((resource) => resource.dispose());
+    return {
+      geometries: resources.geometries.size,
+      materials: resources.materials.size,
+      textures: resources.textures.size,
+    };
+  }
+
+  function rememberBakedGeometry(geometry) {
+    if (!geometry || bakedGeometries.has(geometry)) return geometry;
+    bakedGeometries.add(geometry);
+    // Existing stock rebuilds already dispose their owned baked geometry. Drop
+    // that externally released resource from this registry immediately so the
+    // loader neither retains it nor attempts a second release at teardown.
+    const forget = () => {
+      bakedGeometries.delete(geometry);
+      geometry.removeEventListener('dispose', forget);
+    };
+    geometry.addEventListener('dispose', forget);
+    return geometry;
+  }
 
   function tinted(slot, tint) {
     const base = mats[TINTABLE[slot]];
@@ -100,6 +231,7 @@ export function createMerch(mats) {
 
   function resolve(src, tint) {
     const name = (src && src.name) || 'M_fabric';
+    if (PRESERVE.has(name)) return src;
     if (TINTABLE[name]) return tinted(name, tint);
     return mats[SLOT[name]] || mats.charcoal;
   }
@@ -107,6 +239,7 @@ export function createMerch(mats) {
   // A clone shares geometry (free) and we overwrite the material with a shared
   // one, so an instantiated polo costs a draw call and nothing else.
   function instantiate(name, { tint = null, scale = 1 } = {}) {
+    if (disposed) return null;
     const proto = protos.get(name);
     if (!proto) return null;
     const obj = proto.clone(true);
@@ -119,6 +252,12 @@ export function createMerch(mats) {
       // canvas on it
       const src = Array.isArray(o.material) ? o.material[0] : o.material;
       o.userData.slot = (src && src.name) || null;
+      // Authoring-only collision and contents volumes are valuable to validators
+      // and runtime lookup, but must never become visible shop geometry.
+      if (o.userData?.collision_proxy || o.name.startsWith('COL_') || o.name.startsWith('COLLISION_')
+        || o.name.startsWith('VOLUME_') || o.name === 'ScannerBeam') {
+        o.visible = false;
+      }
       o.material = Array.isArray(o.material)
         ? o.material.map((m) => resolve(m, tint))
         : resolve(o.material, tint);
@@ -131,10 +270,19 @@ export function createMerch(mats) {
   // reference, so ten instances cost ten draw calls and exactly ONE material) with no
   // slot remapping — the Tripo atlas is left exactly as authored.
   function instantiateRaw(name, { scale = 1 } = {}) {
+    if (disposed) return null;
     const proto = protos.get(name);
     if (!proto) return null;
     const obj = proto.clone(true);
-    obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+    obj.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = false;
+      if (o.userData?.collision_proxy || o.name.startsWith('COL_')
+        || o.name.startsWith('COLLISION_') || o.name.startsWith('VOLUME_')) {
+        o.visible = false;
+      }
+    });
     if (scale !== 1) obj.scale.setScalar(scale);
     return obj;
   }
@@ -148,20 +296,25 @@ export function createMerch(mats) {
 
   // Collapse a built group into one mesh per material. Rebuilt only when stock
   // changes, so the merge cost is paid on restock, not per frame.
-  function bake(group) {
+  function bake(group, { visibleOnly = false } = {}) {
+    if (!group || disposed) return group || null;
     const buckets = new Map();
     const keep = [];
     group.updateMatrixWorld(true);
-    group.traverse((o) => {
+    const visit = visibleOnly
+      ? (visitor) => group.traverseVisible(visitor)
+      : (visitor) => group.traverse(visitor);
+    visit((o) => {
       if (!o.isMesh) return;
-      if (Array.isArray(o.material) || !o.geometry) {
-        // Multi-material meshes cannot enter a one-material merge bucket, but
-        // reparenting them directly used to discard the transform of their
-        // delivery-unit/slot holder. Preserve their baked world transform so
-        // labelled ball packs do not collapse to the fixture origin.
-        keep.push({ object: o, matrix: o.matrixWorld.clone() });
-        return;
-      }
+      // Visibility is the primary contract. The metadata checks are defensive:
+      // a malformed export must not turn an authoring helper or collision volume
+      // into visible geometry merely because its visibility flag was left on.
+      if (visibleOnly && (
+        o.userData?.helper
+        || o.userData?.collision_proxy
+        || /^(?:COL_|COLLISION_|VOLUME_)/i.test(String(o.name || ''))
+      )) return;
+      if (Array.isArray(o.material) || !o.geometry) { keep.push(o); return; }
       const m = o.material;
       const g = o.geometry.clone();
       g.userData.merchBakeOwned = true;
@@ -189,26 +342,115 @@ export function createMerch(mats) {
       }
       if (!merged) { // a mismatched set: keep them loose rather than lose them
         for (const g of geos) out.add(new THREE.Mesh(g, m));
+        for (const g of geos) rememberBakedGeometry(g);
         continue;
       }
-      merged.userData.merchBakeOwned = true;
+      // mergeGeometries creates a new BufferGeometry. Its cloned inputs are no
+      // longer reachable and must be explicitly released instead of waiting for
+      // a later renderer teardown. A one-geometry bucket already is its output.
+      for (const g of geos) if (g !== merged) g.dispose();
+      rememberBakedGeometry(merged);
       const mesh = new THREE.Mesh(merged, m);
+      mesh.geometry.userData.sharedGeometry = false;
+      mesh.userData.disposeGeometry = true;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       out.add(mesh);
     }
-    for (const kept of keep) {
-      kept.matrix.decompose(kept.object.position, kept.object.quaternion, kept.object.scale);
-      kept.object.updateMatrix();
-      out.add(kept.object);
-    }
+    for (const k of keep) out.add(k);
+    out.userData.merchBaked = true;
+    out.userData.merchBakeVisibleOnly = visibleOnly;
     return out;
   }
 
+  // Dispose only geometry minted by bake(). Shared prototype geometry and the
+  // caller's material kit are deliberately outside this method's ownership.
+  // If several clones share one baked geometry, pass a common ancestor after
+  // removing every clone; the Set makes duplicate references and repeat calls
+  // safe.
+  function disposeBaked(root) {
+    if (!root || typeof root.traverse !== 'function') return 0;
+    const found = new Set();
+    root.traverse((object) => {
+      if (object.geometry && bakedGeometries.has(object.geometry)) found.add(object.geometry);
+    });
+    for (const geometry of found) {
+      geometry.dispose();
+      bakedGeometries.delete(geometry);
+    }
+    return found.size;
+  }
+
+  // THE CHECKOUT KIT (assets/checkout/glb, staged to vendor/models/checkout).
+  // These are the finished hero assets for the TCG-style register: baked
+  // materials are kept as authored (no slot remap), collision proxies hidden.
+  const KIT = [
+    'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
+    'barcode_scanner',
+    'receipt_printer', 'shopping_bag', 'payment_card', 'customer_display',
+    'loose_receipt', 'apparel_wall',
+    'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
+    'cash_coin_01', 'cash_coin_05', 'cash_coin_05_sheet01', 'cash_coin_10', 'cash_coin_20', 'cash_coin_50',
+    // Asset Sheet 03: the retail fixture family
+    'apparel_wall_display', 'hat_wall', 'accessory_slatwall', 'club_rack',
+    'putter_rack', 'bag_display', 'shoe_wall', 'ball_shelf', 'snack_shelf',
+    'rangefinder_display',
+    // Asset Sheet 04: the furniture family
+    'merch_table', 'retail_gondola', 'apparel_table', 'stock_shelving',
+    'storage_tote_olive', 'storage_tote_slate', 'storage_tote_charcoal',
+    'storage_tote_stone', 'lounge_armchair', 'lounge_coffee_table',
+    'lounge_side_table', 'office_desk', 'office_chair', 'filing_cabinet',
+  ];
+
+  function instantiateKit(name, { scale = 1 } = {}) {
+    if (disposed) return null;
+    const proto = protos.get(`kit:${name}`);
+    if (!proto) return null;
+    const obj = proto.clone(true);
+    obj.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+      if (o.name.startsWith('COL_')) o.visible = false;
+    });
+    if (scale !== 1) obj.scale.setScalar(scale);
+    return obj;
+  }
+
+  function instantiateEquipment(familyId, { scale = 1 } = {}) {
+    if (disposed || !equipmentTierId) return null;
+    const proto = protos.get(`equipment:${familyId}`);
+    if (!proto) return null;
+    const obj = proto.clone(true);
+    obj.name = `ProShopEquipment_${familyId}_${equipmentTierId}`;
+    obj.userData.equipmentFamily = familyId;
+    obj.userData.equipmentTier = equipmentTierId;
+    obj.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+      if (o.userData?.collision_proxy || o.name.startsWith('COL_')) o.visible = false;
+    });
+    if (scale !== 1) obj.scale.setScalar(scale);
+    return obj;
+  }
+
+  const sharedImageSourceCache = new Map();
   const loader = new GLTFLoader();
-  let pending = FILES.length + RAW.length;
+  if (typeof loader.setSharedImageCache === 'function') {
+    loader.setSharedImageCache(
+      sharedImageSourceCache,
+      (source) => CLUBHOUSE_SHARED_TEXTURE_FAMILIES[source?.name] || null,
+    );
+  }
+  const knownEquipmentFamilies = new Set(PRO_SHOP_EQUIPMENT_FAMILIES.map((family) => family.id));
+  const requestedEquipmentFamilies = Array.isArray(equipmentFamilies)
+    ? equipmentFamilies.filter((familyId) => knownEquipmentFamilies.has(familyId))
+    : [...knownEquipmentFamilies];
+  const EQUIPMENT = equipmentTierId ? [...new Set(requestedEquipmentFamilies)] : [];
+  let pending = FILES.length + RAW.length + KIT.length + EQUIPMENT.length;
   const done = () => {
+    if (disposed) return;
     if (--pending > 0) return;
+    // Materials/prototypes now own the canonical Textures. The decode-promise
+    // cache has served its startup purpose and must not become a second owner.
+    sharedImageSourceCache.clear();
     ready = true;
     for (const fn of waiting) fn();
     waiting.length = 0;
@@ -218,8 +460,15 @@ export function createMerch(mats) {
       `vendor/models/clubhouse/${name}.glb`,
       (g) => {
         const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
         root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        sharedTexturePool.intern(root);
+        rememberPrototype(root);
         protos.set(name, root);
+        clips.set(name, g.animations || []);
         done();
       },
       undefined,
@@ -231,7 +480,13 @@ export function createMerch(mats) {
       `vendor/models/clubhouse/${name}.glb`,
       (g) => {
         const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
         root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        sharedTexturePool.intern(root);
+        rememberPrototype(root);
         protos.set(name, root);
         done();
       },
@@ -239,15 +494,121 @@ export function createMerch(mats) {
       () => done(),
     );
   }
+  for (const name of KIT) {
+    loader.load(
+      `vendor/models/checkout/${name}.glb`,
+      (g) => {
+        const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
+        root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        sharedTexturePool.intern(root);
+        rememberPrototype(root);
+        protos.set(`kit:${name}`, root);
+        clips.set(`kit:${name}`, g.animations || []);
+        done();
+      },
+      undefined,
+      () => done(),
+    );
+  }
+  for (const familyId of EQUIPMENT) {
+    const assetId = `${familyId}_${equipmentTierId}`;
+    loader.load(
+      `vendor/models/pro_shop_equipment/${assetId}.glb`,
+      (g) => {
+        const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
+        root.traverse((o) => {
+          if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+          if (o.userData?.collision_proxy || o.name.startsWith('COL_')) o.visible = false;
+        });
+        sharedTexturePool.intern(root);
+        rememberPrototype(root);
+        protos.set(`equipment:${familyId}`, root);
+        clips.set(`equipment:${familyId}`, g.animations || []);
+        done();
+      },
+      undefined,
+      () => done(),
+    );
+  }
+
+  function dispose() {
+    if (disposed) return { ...disposalSummary, alreadyDisposed: true };
+    disposed = true;
+    ready = false;
+    waiting.length = 0;
+
+    const summary = {
+      bakedGeometries: bakedGeometries.size,
+      tintMaterials: tints.size,
+      prototypeTextures: prototypeTextures.size,
+      prototypeMaterials: prototypeMaterials.size,
+      prototypeGeometries: prototypeGeometries.size,
+    };
+    const closedImages = new Set();
+    bakedGeometries.forEach((resource) => resource.dispose());
+    tints.forEach((resource) => resource.dispose());
+    prototypeTextures.forEach((resource) => {
+      closeTextureImages(resource, closedImages);
+      resource.dispose();
+    });
+    prototypeMaterials.forEach((resource) => resource.dispose());
+    prototypeGeometries.forEach((resource) => resource.dispose());
+
+    bakedGeometries.clear();
+    tints.clear();
+    prototypeTextures.clear();
+    prototypeMaterials.clear();
+    prototypeGeometries.clear();
+    sharedTexturePool.clear();
+    sharedImageSourceCache.clear();
+    protos.clear();
+    clips.clear();
+    disposalSummary = Object.freeze(summary);
+    return { ...disposalSummary, alreadyDisposed: false };
+  }
+
+  // The clubhouse teardown walks its procedural Object3D roots, some of which
+  // contain clones backed by this loader's prototypes. Expose identity-only
+  // snapshots so the outer owner can exclude those resources and leave their
+  // single release to dispose(). Caller-owned material-kit textures are not
+  // included merely because a tint clone references them.
+  function ownedResources() {
+    return {
+      geometries: new Set([...prototypeGeometries, ...bakedGeometries]),
+      materials: new Set([...prototypeMaterials, ...tints.values()]),
+      textures: new Set(prototypeTextures),
+    };
+  }
 
   return {
     instantiate,
     instantiateRaw,
+    instantiateKit,
+    instantiateEquipment,
     slotMesh,
     bake,
-    isReady: () => ready,
-    has: (n) => protos.has(n),
+    disposeBaked,
+    ownedResources,
+    sharedTextureStats: () => sharedTexturePool.stats(),
+    dispose,
+    isReady: () => ready && !disposed,
+    has: (n) => !disposed && protos.has(n),
+    hasKit: (n) => !disposed && protos.has(`kit:${n}`),
+    hasEquipment: (familyId) => !disposed && protos.has(`equipment:${familyId}`),
+    equipmentTier: () => equipmentTierId,
+    animations: (n) => (disposed ? [] : clips.get(n) || []),
     // the models arrive after the shop is built; the caller restocks on ready
-    onReady(fn) { if (ready) fn(); else waiting.push(fn); },
+    onReady(fn) {
+      if (disposed) return;
+      if (ready) fn(); else waiting.push(fn);
+    },
   };
 }

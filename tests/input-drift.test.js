@@ -11,7 +11,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from '../src/core/heldKeys.js';
+import {
+  createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget,
+} from '../src/core/heldKeys.js';
 
 test('a key released while Shift is held still clears (the stranded-key bug)', () => {
   const held = createHeldKeys(OVERVIEW_KEYS);
@@ -92,4 +94,34 @@ test('deliberate input still pans, and in the right direction', () => {
   const left = createHeldKeys(OVERVIEW_KEYS);
   left.down('a', false);
   assert.equal(Math.sign(overviewCameraDelta(left, 16.7).panX), -Math.sign(d.panX), 'A and D oppose');
+});
+
+// Rule 3: the overview camera keys are plain letters, so typing into any form
+// control used to drive the camera. Naming a course "Wasserman" in the editor's
+// Save dialog panned the map on w, a and s.
+test('keys typed into form controls are text, not camera input', () => {
+  for (const tag of ['INPUT', 'TEXTAREA', 'SELECT', 'input', 'textarea', 'select']) {
+    assert.equal(isTextEntryTarget({ tagName: tag }), true, `${tag} should swallow the key`);
+  }
+  assert.equal(isTextEntryTarget({ isContentEditable: true, tagName: 'DIV' }), true);
+});
+
+test('keys pressed over the world still reach the camera', () => {
+  for (const tag of ['CANVAS', 'DIV', 'BUTTON', 'BODY']) {
+    assert.equal(isTextEntryTarget({ tagName: tag }), false, `${tag} must not swallow the key`);
+  }
+  assert.equal(isTextEntryTarget(null), false);
+  assert.equal(isTextEntryTarget(undefined), false);
+  assert.equal(isTextEntryTarget({}), false);
+});
+
+test('a key released while a field has focus still clears', () => {
+  // Only keydown is filtered. If focus moves into a field mid-hold, the keyup
+  // must still clear the key or it stays stranded down — the exact drift bug
+  // rule 1 exists to prevent, arriving by a different route.
+  const keys = createHeldKeys(OVERVIEW_KEYS);
+  keys.down('d', false);
+  assert.equal(keys.has('d'), true);
+  keys.up('d'); // dispatched with an INPUT target; keyup is never filtered
+  assert.equal(keys.has('d'), false, 'a stranded key pans the overview forever');
 });

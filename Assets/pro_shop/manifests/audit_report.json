@@ -1,0 +1,2876 @@
+{
+ "assets": {
+  "pf_bag_cart": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 65x"
+   ],
+   "tris": 2164,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 65.1,
+   "wall_mount": false
+  },
+  "pf_bag_staff": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 20x"
+   ],
+   "tris": 1656,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 19.7,
+   "wall_mount": false
+  },
+  "pf_bag_stand": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 16x"
+   ],
+   "tris": 2604,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 16.2,
+   "wall_mount": false
+  },
+  "pf_bag_sunday": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1432,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 13.6,
+   "wall_mount": false
+  },
+  "pf_ball_loose_white": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 528,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.4,
+   "wall_mount": false
+  },
+  "pf_ball_loose_yellow": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 528,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.4,
+   "wall_mount": false
+  },
+  "pf_ballbox_range12": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1272,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.3,
+   "wall_mount": false
+  },
+  "pf_ballbox_soft12": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.2,
+   "wall_mount": false
+  },
+  "pf_ballbox_tour12": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.2,
+   "wall_mount": false
+  },
+  "pf_ballsleeve_value3": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 972,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 7.6,
+   "wall_mount": false
+  },
+  "pf_belt_coiled": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1572,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 12.6,
+   "wall_mount": false
+  },
+  "pf_bottle_insulated": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 2048,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.7,
+   "wall_mount": false
+  },
+  "pf_bottle_slim": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1168,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.0,
+   "wall_mount": false
+  },
+  "pf_bottle_sport": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 2808,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.8,
+   "wall_mount": false
+  },
+  "pf_bottle_squeeze": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 3672,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 13.4,
+   "wall_mount": false
+  },
+  "pf_divot_classic": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 936,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.0,
+   "wall_mount": false
+  },
+  "pf_divot_classic_card": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1064,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 7.1,
+   "wall_mount": false
+  },
+  "pf_divot_folding_black": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 912,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.5,
+   "wall_mount": false
+  },
+  "pf_divot_folding_black_card": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1040,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 12.4,
+   "wall_mount": false
+  },
+  "pf_divot_folding_sage": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1004,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.7,
+   "wall_mount": false
+  },
+  "pf_divot_folding_sage_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 47x"
+   ],
+   "tris": 1132,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 46.6,
+   "wall_mount": false
+  },
+  "pf_divot_slim": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 568,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.9,
+   "wall_mount": false
+  },
+  "pf_divot_slim_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 34x"
+   ],
+   "tris": 696,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 34.2,
+   "wall_mount": false
+  },
+  "pf_driver_aero_max": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 10,
+   "images": 8,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.6,
+   "wall_mount": false
+  },
+  "pf_driver_elevate_lite": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.6,
+   "wall_mount": false
+  },
+  "pf_driver_forge_tour": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 10,
+   "images": 8,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.6,
+   "wall_mount": false
+  },
+  "pf_driver_vantage_pro": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1804,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.6,
+   "wall_mount": false
+  },
+  "pf_giftcard": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 128,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.1,
+   "wall_mount": false
+  },
+  "pf_glove_black": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 35x"
+   ],
+   "tris": 1258,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 34.7,
+   "wall_mount": false
+  },
+  "pf_glove_black_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 108x"
+   ],
+   "tris": 1386,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 108.5,
+   "wall_mount": false
+  },
+  "pf_glove_navy": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 35x"
+   ],
+   "tris": 1258,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 34.7,
+   "wall_mount": false
+  },
+  "pf_glove_navy_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 108x"
+   ],
+   "tris": 1386,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 108.5,
+   "wall_mount": false
+  },
+  "pf_glove_sage": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 35x"
+   ],
+   "tris": 1258,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 34.7,
+   "wall_mount": false
+  },
+  "pf_glove_sage_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 108x"
+   ],
+   "tris": 1386,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 108.5,
+   "wall_mount": false
+  },
+  "pf_glove_white": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 35x"
+   ],
+   "tris": 1258,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 34.7,
+   "wall_mount": false
+  },
+  "pf_glove_white_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 108x"
+   ],
+   "tris": 1386,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 108.5,
+   "wall_mount": false
+  },
+  "pf_hanger_clip": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 848,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 4.0,
+   "wall_mount": false
+  },
+  "pf_hanger_metal": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 916,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_hanger_wood": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 812,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 6.2,
+   "wall_mount": false
+  },
+  "pf_hat_bucket": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 37x"
+   ],
+   "tris": 2990,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 36.6,
+   "wall_mount": false
+  },
+  "pf_hat_performance": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 24x"
+   ],
+   "tris": 3464,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 24.0,
+   "wall_mount": false
+  },
+  "pf_hat_structured": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 24x"
+   ],
+   "tris": 3464,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 24.0,
+   "wall_mount": false
+  },
+  "pf_hat_visor": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 2048,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 12.5,
+   "wall_mount": false
+  },
+  "pf_headcover_driver": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1178,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 11.6,
+   "wall_mount": false
+  },
+  "pf_headcover_wood": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1178,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 11.6,
+   "wall_mount": false
+  },
+  "pf_hoodie_hanging": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 65x"
+   ],
+   "tris": 2968,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 64.9,
+   "wall_mount": false
+  },
+  "pf_hybrid_aero_2h": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 6.6,
+   "wall_mount": false
+  },
+  "pf_hybrid_elevate_5h": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 6.6,
+   "wall_mount": false
+  },
+  "pf_hybrid_forge_4h": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 6.6,
+   "wall_mount": false
+  },
+  "pf_hybrid_vantage_3h": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1804,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 6.6,
+   "wall_mount": false
+  },
+  "pf_iron_cavity_7": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1152,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_iron_distance_7": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1152,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_iron_gameimp_7": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1152,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_iron_players_7": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 964,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_jacket_hanging": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 51x"
+   ],
+   "tris": 3604,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 8,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 50.6,
+   "wall_mount": false
+  },
+  "pf_marker_clip": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 420,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.5,
+   "wall_mount": false
+  },
+  "pf_marker_clip_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 38x"
+   ],
+   "tris": 548,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 38.4,
+   "wall_mount": false
+  },
+  "pf_marker_coin": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 616,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_marker_coin_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 20x"
+   ],
+   "tris": 744,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 20.0,
+   "wall_mount": false
+  },
+  "pf_marker_enamel": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_marker_enamel_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 21x"
+   ],
+   "tris": 236,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 21.3,
+   "wall_mount": false
+  },
+  "pf_marker_engraved": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 440,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 4.2,
+   "wall_mount": false
+  },
+  "pf_marker_engraved_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 33x"
+   ],
+   "tris": 568,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 32.6,
+   "wall_mount": false
+  },
+  "pf_pants_folded": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 43x"
+   ],
+   "tris": 1088,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 43.0,
+   "wall_mount": false
+  },
+  "pf_pants_hanging": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 42x"
+   ],
+   "tris": 2484,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 41.9,
+   "wall_mount": false
+  },
+  "pf_pencil": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 512,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_polo_folded": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 59x"
+   ],
+   "tris": 1700,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 59.0,
+   "wall_mount": false
+  },
+  "pf_polo_hanging": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 80x"
+   ],
+   "tris": 3004,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 80.0,
+   "wall_mount": false
+  },
+  "pf_putter_blade": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 972,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 5.7,
+   "wall_mount": false
+  },
+  "pf_putter_fang": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1496,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 4.7,
+   "wall_mount": false
+  },
+  "pf_putter_mallet_spider": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1520,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 5.6,
+   "wall_mount": false
+  },
+  "pf_putter_wide_blade": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 972,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 6.7,
+   "wall_mount": false
+  },
+  "pf_quarterzip_folded": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 59x"
+   ],
+   "tris": 1700,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 59.4,
+   "wall_mount": false
+  },
+  "pf_quarterzip_hanging": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 39x"
+   ],
+   "tris": 2352,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 10,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 39.3,
+   "wall_mount": false
+  },
+  "pf_rangefinder_armor": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 4104,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 9.6,
+   "wall_mount": false
+  },
+  "pf_rangefinder_box": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.5,
+   "wall_mount": false
+  },
+  "pf_rangefinder_field": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 4104,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 9.6,
+   "wall_mount": false
+  },
+  "pf_rangefinder_stealth": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 4104,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 9.6,
+   "wall_mount": false
+  },
+  "pf_rangefinder_tour": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 4104,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 9.6,
+   "wall_mount": false
+  },
+  "pf_scorecard_booklet": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 86x"
+   ],
+   "tris": 768,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 85.5,
+   "wall_mount": false
+  },
+  "pf_scorecard_course": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 48,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.7,
+   "wall_mount": false
+  },
+  "pf_scorecard_holeguide": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 7.8,
+   "wall_mount": false
+  },
+  "pf_scorecard_mini": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 7.3,
+   "wall_mount": false
+  },
+  "pf_shoe_knit_flex": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 29x"
+   ],
+   "tris": 5232,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 29.3,
+   "wall_mount": false
+  },
+  "pf_shoe_saddle_classic": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 31x"
+   ],
+   "tris": 6508,
+   "mesh_objects": 1,
+   "mat_slots": 10,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 31.4,
+   "wall_mount": false
+  },
+  "pf_shoe_spiked_pro": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 30x"
+   ],
+   "tris": 5648,
+   "mesh_objects": 1,
+   "mat_slots": 11,
+   "images": 9,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 30.3,
+   "wall_mount": false
+  },
+  "pf_shoe_waterproof_trail": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 29x"
+   ],
+   "tris": 7076,
+   "mesh_objects": 1,
+   "mat_slots": 10,
+   "images": 9,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 28.9,
+   "wall_mount": false
+  },
+  "pf_shorts_folded": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 37x"
+   ],
+   "tris": 1088,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 36.5,
+   "wall_mount": false
+  },
+  "pf_shorts_hanging": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 25x"
+   ],
+   "tris": 2220,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 24.8,
+   "wall_mount": false
+  },
+  "pf_snack_chips": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 120,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 4.0,
+   "wall_mount": false
+  },
+  "pf_snack_granola_box": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_snack_protein_bar": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 132,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.5,
+   "wall_mount": false
+  },
+  "pf_snack_trailmix": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 120,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.9,
+   "wall_mount": false
+  },
+  "pf_sunglasses": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1720,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_sunglasses_box": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 108,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.4,
+   "wall_mount": false
+  },
+  "pf_tee_loose_bamboo": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 390,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_tee_loose_step": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 754,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_tee_loose_white": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 390,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_tee_loose_wood": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 250,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": false
+  },
+  "pf_teebox_bamboo": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 68x"
+   ],
+   "tris": 2600,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 67.9,
+   "wall_mount": false
+  },
+  "pf_teebox_performance": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 68x"
+   ],
+   "tris": 2600,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 67.9,
+   "wall_mount": false
+  },
+  "pf_teebox_prolaunch": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 4784,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 12.2,
+   "wall_mount": false
+  },
+  "pf_teebox_wood": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 18x"
+   ],
+   "tris": 1760,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 17.8,
+   "wall_mount": false
+  },
+  "pf_towel_card": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 44x"
+   ],
+   "tris": 640,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 44.0,
+   "wall_mount": false
+  },
+  "pf_towel_folded": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 25x"
+   ],
+   "tris": 948,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 24.8,
+   "wall_mount": false
+  },
+  "pf_umbrella_closed": {
+   "scope": "pro_products",
+   "issues": [
+    "texel spread 31x"
+   ],
+   "tris": 764,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 30.8,
+   "wall_mount": false
+  },
+  "pf_wedge_gap_50": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1152,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_wedge_lob_60": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 964,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_wedge_sand_56": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 964,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_wedge_versa_54": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 964,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.4,
+   "wall_mount": false
+  },
+  "pf_wood_aero_max_3": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.3,
+   "wall_mount": false
+  },
+  "pf_wood_elevate_tour_3": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.3,
+   "wall_mount": false
+  },
+  "pf_wood_forge_pro_5": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1616,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.3,
+   "wall_mount": false
+  },
+  "pf_wood_vantage_xlt_7": {
+   "scope": "pro_products",
+   "issues": [],
+   "tris": 1804,
+   "mesh_objects": 1,
+   "mat_slots": 9,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.3,
+   "wall_mount": false
+  },
+  "pf_fixture_accessory_slatwall": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 96x"
+   ],
+   "tris": 2928,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 95.7,
+   "wall_mount": false
+  },
+  "pf_fixture_apparel_wall": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 100x"
+   ],
+   "tris": 4436,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 99.9,
+   "wall_mount": false
+  },
+  "pf_fixture_bag_display": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 75x"
+   ],
+   "tris": 1200,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 75.2,
+   "wall_mount": false
+  },
+  "pf_fixture_ball_shelf": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 46x"
+   ],
+   "tris": 2172,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 46.1,
+   "wall_mount": false
+  },
+  "pf_fixture_center_table": {
+   "scope": "pro_fixtures",
+   "issues": [],
+   "tris": 648,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 10.0,
+   "wall_mount": false
+  },
+  "pf_fixture_checkout_counter_shop": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 34x"
+   ],
+   "tris": 336,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 34.4,
+   "wall_mount": false
+  },
+  "pf_fixture_club_rack": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 14x"
+   ],
+   "tris": 3916,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 14.2,
+   "wall_mount": false
+  },
+  "pf_fixture_freestanding_gondola": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 70x"
+   ],
+   "tris": 3664,
+   "mesh_objects": 1,
+   "mat_slots": 5,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 70.2,
+   "wall_mount": false
+  },
+  "pf_fixture_hat_wall": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 95x"
+   ],
+   "tris": 4108,
+   "mesh_objects": 1,
+   "mat_slots": 7,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 95.2,
+   "wall_mount": false
+  },
+  "pf_fixture_rangefinder_display": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 39x"
+   ],
+   "tris": 1632,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 38.7,
+   "wall_mount": false
+  },
+  "pf_fixture_shoe_display": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 32x"
+   ],
+   "tris": 1740,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 32.2,
+   "wall_mount": false
+  },
+  "pf_fixture_snack_shelf": {
+   "scope": "pro_fixtures",
+   "issues": [
+    "texel spread 36x"
+   ],
+   "tris": 2280,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 7,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 36.3,
+   "wall_mount": false
+  },
+  "pf_hook_double": {
+   "scope": "pro_fixtures",
+   "issues": [],
+   "tris": 656,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": true
+  },
+  "pf_hook_long": {
+   "scope": "pro_fixtures",
+   "issues": [],
+   "tris": 436,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": true
+  },
+  "pf_hook_medium": {
+   "scope": "pro_fixtures",
+   "issues": [],
+   "tris": 436,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": true
+  },
+  "pf_hook_short": {
+   "scope": "pro_fixtures",
+   "issues": [],
+   "tris": 436,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0,
+   "wall_mount": true
+  },
+  "accessory_slatwall": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 43"
+   ],
+   "tris": 2066,
+   "mesh_objects": 43,
+   "mat_slots": 43,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "apparel_wall": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 31"
+   ],
+   "tris": 2158,
+   "mesh_objects": 31,
+   "mat_slots": 31,
+   "images": 6,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "apparel_wall_display": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 32"
+   ],
+   "tris": 1342,
+   "mesh_objects": 32,
+   "mat_slots": 32,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "bag_display": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 330,
+   "mesh_objects": 11,
+   "mat_slots": 11,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 8.2
+  },
+  "ball_shelf": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 1270,
+   "mesh_objects": 20,
+   "mat_slots": 20,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "barcode_scanner": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 1650,
+   "mesh_objects": 9,
+   "mat_slots": 9,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.9
+  },
+  "cash_bill_1": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 68,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.8
+  },
+  "cash_bill_10": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 68,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.6
+  },
+  "cash_bill_20": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 68,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.5
+  },
+  "cash_bill_5": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 68,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.7
+  },
+  "cash_bill_50": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 68,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 3.4
+  },
+  "cash_coin_01": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 204,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "cash_coin_05": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 204,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "cash_coin_10": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 220,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "cash_coin_25": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 220,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "cash_coin_50": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 252,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "cash_drawer": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 3040,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "cash_handoff_stack": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 0,
+   "mesh_objects": 0,
+   "mat_slots": 0,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_counter": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 67x"
+   ],
+   "tris": 14434,
+   "mesh_objects": 3,
+   "mat_slots": 13,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 67.3
+  },
+  "club_rack": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 39"
+   ],
+   "tris": 998,
+   "mesh_objects": 39,
+   "mat_slots": 39,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "customer_display": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 830,
+   "mesh_objects": 4,
+   "mat_slots": 4,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 4.2
+  },
+  "hat_wall": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 36"
+   ],
+   "tris": 1358,
+   "mesh_objects": 36,
+   "mat_slots": 36,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.1
+  },
+  "loose_receipt": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 28,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "payment_card": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 252,
+   "mesh_objects": 5,
+   "mat_slots": 5,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "payment_terminal": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 42"
+   ],
+   "tris": 5007,
+   "mesh_objects": 42,
+   "mat_slots": 42,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.3
+  },
+  "pos_monitor": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 2426,
+   "mesh_objects": 17,
+   "mat_slots": 17,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "putter_rack": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 612,
+   "mesh_objects": 14,
+   "mat_slots": 14,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "rangefinder_display": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 584,
+   "mesh_objects": 15,
+   "mat_slots": 15,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.1
+  },
+  "receipt_printer": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 1656,
+   "mesh_objects": 17,
+   "mat_slots": 17,
+   "images": 5,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.9
+  },
+  "scannable_product_box": {
+   "scope": "checkout",
+   "issues": [],
+   "tris": 122,
+   "mesh_objects": 3,
+   "mat_slots": 3,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.6
+  },
+  "shoe_wall": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 43"
+   ],
+   "tris": 1810,
+   "mesh_objects": 43,
+   "mat_slots": 43,
+   "images": 8,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.4
+  },
+  "shopping_bag": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 36"
+   ],
+   "tris": 1180,
+   "mesh_objects": 36,
+   "mat_slots": 36,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 2.3
+  },
+  "snack_shelf": {
+   "scope": "checkout",
+   "issues": [
+    "mat slots 95"
+   ],
+   "tris": 2614,
+   "mesh_objects": 95,
+   "mat_slots": 95,
+   "images": 11,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "accessory_stand": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 22x"
+   ],
+   "tris": 6672,
+   "mesh_objects": 2,
+   "mat_slots": 6,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 21.6
+  },
+  "armchair": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 18165,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "bag": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2912,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "bag_open": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 228,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "bag_rack": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 37x"
+   ],
+   "tris": 10052,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 37.3
+  },
+  "basket": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 312,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "cap": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2096,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "cap_pro": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 3452,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.3
+  },
+  "cardterm": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1620,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "cardterm_pro": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 10416,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "cart": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 22x"
+   ],
+   "tris": 17152,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 22.1
+  },
+  "carton": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 540,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "carton_open": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 540,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "chair_lounge": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 8688,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "chair_office": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 12048,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_card_reader": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 3312,
+   "mesh_objects": 23,
+   "mat_slots": 23,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_cash_drawer": {
+   "scope": "clubhouse",
+   "issues": [
+    "mat slots 78"
+   ],
+   "tris": 37648,
+   "mesh_objects": 78,
+   "mat_slots": 78,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_ball_carton": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1828,
+   "mesh_objects": 6,
+   "mat_slots": 6,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_cap": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 832,
+   "mesh_objects": 4,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_driver": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1108,
+   "mesh_objects": 6,
+   "mat_slots": 6,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_folded_jacket": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 756,
+   "mesh_objects": 7,
+   "mat_slots": 7,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_folded_polo": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 540,
+   "mesh_objects": 5,
+   "mat_slots": 5,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_glove": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 956,
+   "mesh_objects": 7,
+   "mat_slots": 7,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_headcover": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1364,
+   "mesh_objects": 4,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_iron_set": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 7212,
+   "mesh_objects": 11,
+   "mat_slots": 11,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_marker_blister": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1444,
+   "mesh_objects": 5,
+   "mat_slots": 5,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_putter": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 776,
+   "mesh_objects": 6,
+   "mat_slots": 6,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_rangefinder": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1412,
+   "mesh_objects": 8,
+   "mat_slots": 8,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_shoe_pair": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2592,
+   "mesh_objects": 18,
+   "mat_slots": 18,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_sock_pair": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1252,
+   "mesh_objects": 5,
+   "mat_slots": 5,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_stand_bag": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1620,
+   "mesh_objects": 8,
+   "mat_slots": 8,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_tee_pouch": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2060,
+   "mesh_objects": 13,
+   "mat_slots": 13,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_towel_roll": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 632,
+   "mesh_objects": 3,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_umbrella": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 936,
+   "mesh_objects": 5,
+   "mat_slots": 5,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_product_wedge": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 668,
+   "mesh_objects": 5,
+   "mat_slots": 5,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_receipt_printer": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1218,
+   "mesh_objects": 9,
+   "mat_slots": 9,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_scanner": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 552,
+   "mesh_objects": 6,
+   "mat_slots": 6,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "checkout_shopping_bag": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 11320,
+   "mesh_objects": 14,
+   "mat_slots": 14,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "club_wall": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 61x"
+   ],
+   "tris": 15588,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 61.4
+  },
+  "coffee_table": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 27x"
+   ],
+   "tris": 6272,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 27.3
+  },
+  "desk": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 46x"
+   ],
+   "tris": 6740,
+   "mesh_objects": 4,
+   "mat_slots": 13,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 46.3
+  },
+  "display_shelf": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 16254,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.4
+  },
+  "divider": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 448,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "garment_rack": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 5864,
+   "mesh_objects": 1,
+   "mat_slots": 6,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 11.8
+  },
+  "glove": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2780,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "golf_bag": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 76x"
+   ],
+   "tris": 39192,
+   "mesh_objects": 2,
+   "mat_slots": 10,
+   "images": 11,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 75.6
+  },
+  "golf_balls_display": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 122x"
+   ],
+   "tris": 6728,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 2,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 121.8
+  },
+  "handtruck": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1392,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "head_driver": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1896,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "head_iron": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 476,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "head_putter": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 440,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "head_wedge": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 476,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "headcover": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 3627,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.2
+  },
+  "impulse_rack": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1944,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "jacket_hanging": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 5076,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "kiosk": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 6869,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 4.8
+  },
+  "merch_hutch": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 39x",
+    "mat slots 35"
+   ],
+   "tris": 20212,
+   "mesh_objects": 10,
+   "mat_slots": 35,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 39.0
+  },
+  "office_chair": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 9208,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.1
+  },
+  "pendant": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2188,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "polo_folded": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1728,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "polo_hanging": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 5076,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "printer": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 564,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "rangefinder": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 4033,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.1
+  },
+  "register": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 432,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "scanner": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 940,
+   "mesh_objects": 1,
+   "mat_slots": 3,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "shoe": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1488,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "shoe_pro": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 2880,
+   "mesh_objects": 1,
+   "mat_slots": 1,
+   "images": 1,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.3
+  },
+  "slat_shelf": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 69x"
+   ],
+   "tris": 9216,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 69.3
+  },
+  "storage_rack": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 6788,
+   "mesh_objects": 1,
+   "mat_slots": 4,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "trophy": {
+   "scope": "clubhouse",
+   "issues": [],
+   "tris": 1416,
+   "mesh_objects": 1,
+   "mat_slots": 2,
+   "images": 0,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 1.0
+  },
+  "wall_shelf": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 71x"
+   ],
+   "tris": 7060,
+   "mesh_objects": 1,
+   "mat_slots": 8,
+   "images": 4,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 70.9
+  },
+  "workbench": {
+   "scope": "clubhouse",
+   "issues": [
+    "texel spread 62x"
+   ],
+   "tris": 18192,
+   "mesh_objects": 3,
+   "mat_slots": 10,
+   "images": 3,
+   "loose_verts": 0,
+   "nonmanifold_edges": 0,
+   "texel_spread": 61.8
+  }
+ },
+ "summary": {
+  "audited": 235,
+  "flagged": 75,
+  "total_tris": 646227,
+  "total_mat_slots": 1598
+ }
+}

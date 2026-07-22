@@ -2,7 +2,13 @@ node_modules/
 dist/
 out/
 *.log
+__pycache__/
+*.py[cod]
 .DS_Store
 Thumbs.db
 .playwright-mcp/
 /qa/
+*.blend1
+# Claude Code session state; /.claude/worktrees holds live git worktrees whose
+# .git files would corrupt this repository if committed.
+/.claude/
