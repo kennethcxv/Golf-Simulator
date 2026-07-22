@@ -18,7 +18,11 @@ import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initReputation, ensureReputation } from './reputation.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno, RENO } from './shop.js';
 import { recoverCheckout } from './checkout.js';
-import { ensureInventoryLifecycle } from './inventoryLifecycle.js';
+import {
+  ensureInventoryLifecycle,
+  INVENTORY_STAGE,
+  moveInventory,
+} from './inventoryLifecycle.js';
 import { migrateDrawer, newDrawer } from './register.js';
 import { ensurePaymentBag, paymentBagStats } from './paymentBag.js';
 import { ensureWash } from './washing.js';
@@ -138,7 +142,20 @@ const ROUTE_FAILURE = /customers could not get around/i;
 // physical display. Older builds allowed category caps (often 16/24) to exceed
 // the number of authored product sockets. The excess is stockroom inventory,
 // never discarded inventory.
-function reconcileShelfCapacity(shop) {
+function moveShelfProjectionToReserve(state, skuId, quantity, reason) {
+  if (!state?.shop?.inventoryLifecycle || quantity <= 0) return;
+  moveInventory(state, {
+    from: INVENTORY_STAGE.SHELF,
+    to: INVENTORY_STAGE.RESERVE,
+    quantity,
+    skuId,
+    reason,
+    refreshOrder: false,
+  });
+}
+
+function reconcileShelfCapacity(state) {
+  const shop = state?.shop;
   if (!shop || !shop.inventory) return;
   for (const sku of SHOP_CATALOG) {
     const inventory = shop.inventory[sku.id];
@@ -146,6 +163,7 @@ function reconcileShelfCapacity(shop) {
     const capacity = Math.max(0, capacityOf(sku.id));
     if (!Number.isFinite(inventory.shelf) || inventory.shelf <= capacity) continue;
     const excess = inventory.shelf - capacity;
+    moveShelfProjectionToReserve(state, sku.id, excess, 'Authored shelf-capacity repair');
     inventory.shelf = capacity;
     inventory.back = (Number.isFinite(inventory.back) ? inventory.back : 0) + excess;
   }
@@ -250,6 +268,7 @@ function reconcileUnavailableFixtureStock(state) {
     if (!fixture || installed.has(fixture.id) || !inventory) continue;
     const shelf = Number.isFinite(inventory.shelf) ? inventory.shelf : 0;
     if (shelf <= 0) continue;
+    moveShelfProjectionToReserve(state, sku.id, shelf, 'Stored-fixture shelf repair');
     inventory.shelf = 0;
     inventory.back = (Number.isFinite(inventory.back) ? inventory.back : 0) + shelf;
   }
@@ -284,7 +303,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initReputation(state);
   initShop(state);
   ensureFurnitureCatalogState(state);
-  reconcileShelfCapacity(state.shop);
+  reconcileShelfCapacity(state);
   ensureInventoryLifecycle(state);
   // Persisted interaction authorities exist from the first save, not only
   // after the renderer happens to construct the clubhouse or register.
@@ -1422,6 +1441,11 @@ export function deserializeWithReport(json) {
   normalizeShopState(state, raw.shop, shopDefaults, report);
   normalizeCollections(state, report);
   ensureLedger(state);
+  // Absence is the migration signal for the conserved lot ledger. The
+  // newGame defaults used during domain merging must not masquerade as the
+  // player's inventory authority or legacy saves inherit unrelated starter
+  // lots instead of capturing their own physical stock.
+  if (!isRecord(raw.shop?.inventoryLifecycle)) delete state.shop.inventoryLifecycle;
   ensureInventoryLifecycle(state);
   if (persistedVersion < 12 && !isRecord(raw.shop?.progression)) {
     delete state.shop.progression;
@@ -1444,7 +1468,7 @@ export function deserializeWithReport(json) {
   migrateFeatureCategory(state.shop, persistedVersion);
   reconcileLegacyMovedFixturePoses(state, persistedVersion);
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
-  reconcileShelfCapacity(state.shop); // authored shelf slots win; overflow remains owned in back stock
+  reconcileShelfCapacity(state); // authored shelf slots win; overflow remains owned in back stock
   reconcileUnavailableFixtureStock(state); // absent fixtures cannot retain invisible shelf inventory
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   ensurePropertyInventory(state);

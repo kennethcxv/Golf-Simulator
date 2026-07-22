@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { SAVE_VERSION, deserialize, newGame, serialize } from '../src/sim/state.js';
 import { capacityOf, homeFixture } from '../src/data/fixtureSlots.js';
 import { SHOP_CATALOG } from '../src/data/shopItems.js';
-import { placedFixtures } from '../src/sim/layout.js';
+import { reconcileInventory } from '../src/sim/inventoryLifecycle.js';
+import { placedFixtures, storeObject } from '../src/sim/layout.js';
 
 const SHEET03_CAPACITIES = Object.freeze({
   driver1: 6,
@@ -56,6 +57,7 @@ test('deserialize moves every authored-capacity overflow to back stock and conse
     back: index % 3,
   }]));
   Object.assign(raw.shop.inventory, structuredClone(overfull));
+  delete raw.shop.inventoryLifecycle;
   raw.shop.held = [{ uid: 'sheet03-held-rangefinder', skuId: 'range2' }];
 
   const totalsBefore = Object.fromEntries(Object.entries(overfull).map(([skuId, inventory]) => [
@@ -70,12 +72,31 @@ test('deserialize moves every authored-capacity overflow to back stock and conse
     assert.equal(inventory.shelf, capacityOf(skuId), `${skuId} shelf stops at its authored capacity`);
     assert.equal(inventory.shelf + inventory.back, totalBefore, `${skuId} total inventory is conserved`);
   }
+  assert.equal(reconcileInventory(loaded).ok, true,
+    'legacy capacity repair relocates the matching lifecycle lots');
 
   const loadedAgain = deserialize(serialize(loaded));
   for (const skuId of Object.keys(overfull)) {
     assert.deepEqual(loadedAgain.shop.inventory[skuId], loaded.shop.inventory[skuId],
       `${skuId} capacity repair is round-trip idempotent`);
   }
+});
+
+test('load-time stored-fixture repair moves the physical projection and lifecycle ledger together', () => {
+  const state = newGame('relaxed', 30305);
+  assert.equal(storeObject(state, 'shelf_balls').ok, true);
+  assert.equal(state.shop.inventory.balls1.shelf, 10);
+  assert.equal(reconcileInventory(state).ok, true,
+    'the deliberately interrupted pre-load state still projects stock on the now-stored display');
+
+  const loaded = deserialize(serialize(state));
+  assert.deepEqual(loaded.shop.inventory.balls1, { shelf: 0, back: 10 });
+  assert.equal(reconcileInventory(loaded).ok, true,
+    'load repair relocates the same units in both inventory authorities');
+
+  const loadedAgain = deserialize(serialize(loaded));
+  assert.deepEqual(loadedAgain.shop.inventory.balls1, loaded.shop.inventory.balls1);
+  assert.equal(reconcileInventory(loadedAgain).ok, true, 'the repair is round-trip idempotent');
 });
 
 test('v7 stored feature migrates back to range2 visibility while v8 intentional stow persists', () => {

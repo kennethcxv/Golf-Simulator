@@ -19,6 +19,7 @@ import {
   arriveOrder,
   boxesOf,
   cutTape,
+  flapsOpen,
   openFlap,
   pickUpBox,
   putDownBox,
@@ -105,7 +106,7 @@ sample('initial', state);
 
 const placement = await phase('placements', () => {
   for (const meta of PLACEABLES) {
-    if (!meta.requiredObject) storeObject(state, meta.id, { history: false });
+    if (!meta.requiredObject && !meta.fixture) storeObject(state, meta.id, { history: false });
   }
   ensureLayout(state).history.undo.length = 0;
   ensureLayout(state).history.redo.length = 0;
@@ -152,8 +153,12 @@ const boxes = await phase('boxes', () => {
   }
   assert.equal(cutTape(state, box.id, 0.45).ok, true);
   assert.equal(cutTape(state, box.id, 1).ok, true);
-  assert.equal(openFlap(state, box.id).ok, true);
-  assert.equal(openFlap(state, box.id).ok, true);
+  let openingInteractions = 2;
+  while (!flapsOpen(box) && openingInteractions < 8) {
+    assert.equal(openFlap(state, box.id).ok, true);
+    openingInteractions += 1;
+  }
+  assert.equal(flapsOpen(box), true, 'every authored box flap must be open before unloading');
   let removed = 0;
   while (box.qty > 0) {
     const taken = takeFromBox(state, box.id);
@@ -165,7 +170,7 @@ const boxes = await phase('boxes', () => {
   assert.equal(invariant.ok, true, JSON.stringify(invariant.discrepancies));
   return {
     carryInteractions: 100,
-    openingInteractions: 4,
+    openingInteractions,
     deliveredBoxes: delivered.length,
     unitsRemovedFromFirstBox: removed,
     inventoryReconciled: true,
@@ -307,7 +312,8 @@ const saves = await phase('save-load-cycles', () => {
   assert.deepEqual(state.ledger.entries.map((entry) => entry.id), identity.ledger);
   assert.deepEqual(boxesOf(state).map((entry) => entry.persistentId), identity.boxes);
   assert.equal(customerSimulationOf(state).active.length, 0);
-  assert.equal(reconcileInventory(state, { qa: true, context: 'integration soak final' }).ok, true);
+  const finalInvariant = reconcileInventory(state, { qa: true, context: 'integration soak final' });
+  assert.equal(finalInvariant.ok, true, JSON.stringify(finalInvariant.discrepancies));
   const finalWindow = sizes.slice(-20);
   return {
     completed: 100,
