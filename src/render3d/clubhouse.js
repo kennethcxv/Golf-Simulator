@@ -965,6 +965,20 @@ export function makeClubhouse(ctx) {
   };
   let syncGeneratedFurnishings = () => props61to100.refreshGeneratedFurnishings?.();
   props61to100.ready.then(() => {
+    // Willow Creek's municipal architecture suppresses the old universal shop
+    // dressing, but the restoration campaign still depends on its authored
+    // cleaning kit. Lease only Assets 71-80 (and a mounting parent such as the
+    // workbench when necessary) into that shell.
+    for (let number = 71; number <= 80; number++) {
+      const root = props61to100.getRoot(number);
+      if (!root) continue;
+      let lease = root;
+      while (lease.parent && lease.parent !== interior) lease = lease.parent;
+      if (lease.parent === interior) {
+        lease.userData.preserveInMunicipal = true;
+        lease.visible = true;
+      }
+    }
     syncBucketVisual();
     syncGeneratedFurnishings();
     if (interior.parent) refreshEntranceMatAppearance();
@@ -2669,6 +2683,7 @@ export function makeClubhouse(ctx) {
 
   function buildClutterPile(idx, pile) {
     const g = new THREE.Group();
+    g.userData.preserveInMunicipal = true;
     // abandoned shipment: kraft cases with a shipping label, one burst open
     const big = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.5), [cardboard, cardboard, cardboard, cardboard, shipLabelMat, cardboard]);
     big.position.y = 0.25;
@@ -2709,10 +2724,13 @@ export function makeClubhouse(ctx) {
     g.rotation.y = pile.ry;
     interior.add(g);
 
-    const collider = addCol(colBoxAt(pile.x, pile.z, 0.9, 0.9));
+    const collider = addCol({
+      ...colBoxAt(pile.x, pile.z, 0.9, 0.9),
+      preserveInMunicipal: true,
+    });
     const wp = L2W(pile.x, pile.z);
     const prop = addProp({
-      x: wp.x, z: wp.z, r: 1.9,
+      x: wp.x, z: wp.z, r: 1.9, preserveInMunicipal: true,
       label: () => 'Old clutter — [E] haul it out',
       action: () => {
         const res = clearClutter(state, idx);
@@ -6464,7 +6482,11 @@ export function makeClubhouse(ctx) {
   {
     const wp = L2W(7.25, 1.10); // the authored asset-73 placement socket
     addProp({
-      x: wp.x, z: wp.z, r: 1.90, aimY: floorY + 0.72, focusBias: 0.22,
+      // Keep this combined service socket forgiving in XZ. The bay contains
+      // several differently sized authored tools, so a single elevated aim
+      // point made the interaction disappear behind the equipped dustpan/mop
+      // at ordinary first-person pitches on sloped clubhouse foundations.
+      x: wp.x, z: wp.z, r: 2.40, focusBias: 0.22, preserveInMunicipal: true,
       label: () => {
         const held = hooks.getTool?.();
         const status = cleaningStatus(state);
@@ -6545,7 +6567,7 @@ export function makeClubhouse(ctx) {
   {
     const wp = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
     addProp({
-      x: wp.x, z: wp.z, r: 1.8,
+      x: wp.x, z: wp.z, r: 1.8, preserveInMunicipal: true,
       label: () => {
         const held = hooks.getTool?.();
         const cleaning = cleaningStatus(state);

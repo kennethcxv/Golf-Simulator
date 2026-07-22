@@ -232,7 +232,10 @@ export function createCourse1MunicipalEnvironment({
   }
   const hideLegacyGroupChildren = () => {
     for (const child of group.children) {
-      if (!roots.has(child)) child.visible = false;
+      // The interior root remains the ownership boundary for leased campaign
+      // props and player furniture. Its children are filtered separately;
+      // hiding the parent made every explicitly preserved child invisible.
+      if (child !== interior && !roots.has(child)) child.visible = false;
     }
   };
   hideLegacyGroupChildren();
@@ -245,6 +248,7 @@ export function createCourse1MunicipalEnvironment({
     }
     for (const child of interior?.children || []) {
       if (customFixtureRoots.has(child)
+        || child.userData?.preserveInMunicipal
         || /^Course1MunicipalFixtureBuild(?:Ghost|Halo)$/.test(child.name || '')) continue;
       if (child.name === 'Course1MunicipalCustomFixtureStock') {
         let hasCustomStock = false;
@@ -270,6 +274,7 @@ export function createCourse1MunicipalEnvironment({
     if (Array.isArray(registeredColliders)) {
       for (const collider of [...registeredColliders]) {
         if (String(collider?.id || '').startsWith('course1-municipal-')) continue;
+        if (collider?.preserveInMunicipal) continue;
         if (collider?.fixtureLayoutId && !defaultFixtureIdSet.has(collider.fixtureLayoutId)) continue;
         removeCollider?.(collider);
       }
@@ -277,6 +282,7 @@ export function createCourse1MunicipalEnvironment({
     if (Array.isArray(registeredProps)) {
       for (const prop of [...registeredProps]) {
         if (String(prop?.id || '').startsWith('course1-municipal-')) continue;
+        if (prop?.preserveInMunicipal) continue;
         if (prop?.fixtureLayoutId && !defaultFixtureIdSet.has(prop.fixtureLayoutId)) continue;
         removeProp?.(prop);
       }
