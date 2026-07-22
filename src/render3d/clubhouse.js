@@ -2035,7 +2035,13 @@ export function makeClubhouse(ctx) {
 
     const compWp = L2W(officePlan.laptop.x, officePlan.laptop.z);
     office.computerProp = addProp({
-      x: compWp.x, z: compWp.z, r: 2.3,
+      // The generated clear-side access point sits 2.35 m from the laptop on
+      // the inherited layout. Keep the authored approach reachable without
+      // forcing the player's capsule through the solid office chair.
+      // The nearby wall map is physically closer from that seat-side approach.
+      // Prefer the machine the player is facing so E opens the laptop instead
+      // of unexpectedly switching to the course overview.
+      x: compWp.x, z: compWp.z, r: 2.4, focusBias: 1.45,
       label: () => facilityInstalled(state, 'laptop')
         ? 'Laptop — [E] open GOLF SIMULATOR'
         : null,

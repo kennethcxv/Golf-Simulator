@@ -2117,6 +2117,7 @@ body.store-display-showroom-active .toast-wrap {
   z-index: 70;
   display: grid;
   place-items: center;
+  pointer-events: auto;
 }
 
 /* --- COURSE EDITOR ------------------------------------------------------- */

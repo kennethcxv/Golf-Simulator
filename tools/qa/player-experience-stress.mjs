@@ -154,6 +154,40 @@ try {
   await page.locator('.market-listing').first().waitFor({ state: 'visible' });
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
   await waitForWorld();
+
+  // Keep the real first-purchase flow above, then move the cross-mode soak to
+  // a fully operating holding. Willow Creek's campaign correctly withholds the
+  // laptop until the inherited office kit is installed, while this test needs
+  // every player mode available before it begins cycling them.
+  await page.evaluate(async () => {
+    const app = window.__fw;
+    const E = await import('/src/sim/empire.js');
+    const active = E.activeState(app.empire);
+    app.empire.cash = 1_000_000;
+    active.cash = 1_000_000;
+    E.buyProperty(app.empire, 'bent-pines');
+    const operatingProperty = E.buyProperty(app.empire, 'flatiron-meadows');
+    if (!operatingProperty.ok) throw new Error(`Stress QA operating purchase failed: ${operatingProperty.reason}`);
+    const activated = E.switchProperty(app.empire, 'flatiron-meadows');
+    if (!activated.ok) throw new Error(`Stress QA operating activation failed: ${activated.reason}`);
+    // This is a cross-mode/save soak, not the portfolio-capacity route. Keep
+    // the equipped active club and leave multi-property persistence to the
+    // dedicated property-operations and save-matrix coverage; duplicating
+    // three full course states into autosave plus a browser slot exceeds
+    // Chromium's localStorage quota (Electron production saves are file-backed).
+    app.empire.holdings = app.empire.holdings.filter(
+      (holding) => holding.property.id === 'flatiron-meadows',
+    );
+    localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(app.empire)));
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const continueTitle = page.getByText('Continue', { exact: true }).first();
+  await continueTitle.locator('xpath=ancestor::button[1]').click();
+  await waitForWorld();
+  await page.evaluate(async () => {
+    const { replayTutorial } = await import('/src/sim/tutorial.js');
+    replayTutorial(window.__fw.state);
+  });
   await page.evaluate(() => {
     window.__fw.speedIdx = 0;
     const c = window.__fw.state.clock;
@@ -256,19 +290,49 @@ try {
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().build.isActive());
   await pauseProbe('placement');
   await page.keyboard.press('b');
+  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().build.isActive());
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const app = window.__fw;
+    const { resolvedOfficeLayout } = await import('/src/data/shopLayout.js');
+    const office = resolvedOfficeLayout(app.state);
     const origin = app.scene3d.clubhouse().interior.position;
-    const walk = app.scene3d.walk;
-    walk.state.x = 8.45 + origin.x;
-    walk.state.z = 4.5 + origin.z;
-    walk.state.yaw = -Math.PI / 2;
-    walk.state.pitch = -0.05;
+    app.scene3d.walk.clearKeys?.();
+    const walk = app.scene3d.walk.state;
+    walk.x = origin.x + (office.access?.x ?? office.chair.x);
+    walk.z = origin.z + (office.access?.z ?? office.chair.z);
+    const laptopX = origin.x + office.laptop.x;
+    const laptopZ = origin.z + office.laptop.z;
+    walk.yaw = Math.atan2(-(laptopX - walk.x), -(laptopZ - walk.z));
+    walk.pitch = -0.05;
   });
-  await page.waitForTimeout(350);
+  result.pauseModes.laptopSetup = await page.evaluate(async () => {
+    const app = window.__fw;
+    const { resolvedOfficeLayout } = await import('/src/data/shopLayout.js');
+    const { facilityInstalled } = await import('/src/sim/campaign.js');
+    const office = resolvedOfficeLayout(app.state);
+    const rig = app.scene3d.clubhouse().laptopRig?.();
+    return {
+      activeId: app.empire.activeId,
+      holdings: app.empire.holdings.map((holding) => holding.property.id),
+      campaignEnabled: app.state.campaign?.enabled ?? null,
+      laptopInstalled: facilityInstalled(app.state, 'laptop'),
+      office,
+      walk: { ...app.scene3d.walk.state },
+      rig: rig ? {
+        visible: rig.object.visible,
+        position: rig.object.position.toArray(),
+        rotationY: rig.object.rotation.y,
+      } : null,
+      focusLabel: app.scene3d.walk.getFocusLabel?.() || null,
+      uiMode: document.body.dataset.uiMode,
+      activeElement: document.activeElement?.tagName || null,
+      buildActive: app.scene3d.clubhouse().build.isActive(),
+      walkKeys: Object.keys(app.scene3d.walk),
+    };
+  });
   await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.laptopOpen === true);
+  await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 5_000 });
   await pauseProbe('laptop');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__fw.laptopOpen === false);
@@ -366,7 +430,9 @@ try {
   });
   await page.locator('canvas').click({ position: { x: 720, y: 450 } });
   await page.keyboard.down('f');
-  await page.waitForTimeout(300);
+  // Stay comfortably beyond the 230 ms hold threshold; a borderline 300 ms
+  // interval can be consumed by pointer-lock acquisition on slower CI frames.
+  await page.waitForTimeout(600);
   await page.keyboard.up('f');
   await page.locator('.tool-wheel').waitFor({ state: 'visible' });
   await page.locator('.tool-wheel-item').filter({ hasText: 'Rented washer' }).click();
