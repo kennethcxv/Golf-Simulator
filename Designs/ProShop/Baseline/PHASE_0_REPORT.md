@@ -258,7 +258,7 @@ Things Phase 1 must know before it starts.
 7. **`clubhouse.js` and `merch.js` are hot shared files** across parallel sessions.
    Stage single hunks.
 8. **No performance threshold exists yet.** The brief defers budgets to these
-   measurements, so no pass/fail is claimed. §7 of `BASELINE_PERFORMANCE.md` proposes
+   measurements, so no pass/fail is claimed. §8 of `BASELINE_PERFORMANCE.md` proposes
    candidates for human approval.
 
 ---
@@ -281,7 +281,7 @@ Please inspect, in this order:
    *feels* good is a human call and this agent must not make it.
 6. **`Baseline/video/baseline-laptop-checkout-customer.webm`** — watch the laptop exit
    and confirm the FOV never returns to normal (OBS-1).
-7. **`BASELINE_PERFORMANCE.md` §7** — approve or reject the candidate budgets, and rule
+7. **`BASELINE_PERFORMANCE.md` §8** — approve or reject the candidate budgets, and rule
    on whether 30.8 FPS at the 1 % low is acceptable given the averages sit near 100+.
 8. **`AB_SCENE_PLAN.md` §1** — approve the `pine-hills-v2` variant approach before any
    room code is written.
