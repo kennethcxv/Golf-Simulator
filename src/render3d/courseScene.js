@@ -6809,7 +6809,15 @@ export function makeCourseScene(canvas, state) {
   let focusDuration = 0.4;
 
   function walkFocusOn(pose) {
-    if (!walkFocusPose && focusBaseFov == null) focusBaseFov = camera.fov;
+    // Snapshot the WALK lens, not the camera's current one. Callers that need a
+    // different lens for the focused pose set it before calling — enterLaptop must
+    // (main.js:354-356: the seat distance is derived from the fov, so the lens has to
+    // change first), and register mode does the same. Reading camera.fov here captured
+    // that already-modified value, so the ease-out below restored the laptop's 34 deg
+    // instead of the player's 66, permanently, and re-poisoned itself on every
+    // subsequent cycle. walk.fov is the walk-mode authority and matches the idiom used
+    // when walk mode re-applies its lens.
+    if (!walkFocusPose && focusBaseFov == null) focusBaseFov = walk.fov || 66;
     walkFocusPose = pose;
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     focusDuration = reduceMotion ? 0 : Math.max(0, pose?.duration ?? 0.4);

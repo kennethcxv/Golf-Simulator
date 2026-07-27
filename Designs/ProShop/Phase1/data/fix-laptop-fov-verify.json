@@ -1,0 +1,156 @@
+{
+  "defect": "LAPTOP-1",
+  "fix": "courseScene.js walkFocusOn snapshots walk.fov instead of camera.fov",
+  "laptopSpot": {
+    "label": "Laptop — [E] open GOLF SIMULATOR",
+    "spot": [
+      1,
+      0,
+      -1.5707963267948966
+    ]
+  },
+  "deskSpot": {
+    "label": "Tee desk — [E] arrivals, check-in & walk-ins",
+    "spot": [
+      -2.5,
+      1
+    ]
+  },
+  "staged": {
+    "ok": true,
+    "who": "Owen Osborne"
+  },
+  "registerEntered": true,
+  "allOk": true,
+  "checks": [
+    {
+      "name": "laptop:close-button",
+      "ok": true,
+      "expectFov": 66,
+      "before": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      },
+      "inside": {
+        "cameraFov": 34,
+        "cameraNear": 0.03,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "live"
+      },
+      "after": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      }
+    },
+    {
+      "name": "laptop:escape",
+      "ok": true,
+      "expectFov": 66,
+      "before": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      },
+      "inside": {
+        "cameraFov": 34,
+        "cameraNear": 0.03,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "live"
+      },
+      "after": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      }
+    },
+    {
+      "name": "laptop:escape-second-cycle",
+      "ok": true,
+      "expectFov": 66,
+      "before": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      },
+      "inside": {
+        "cameraFov": 34,
+        "cameraNear": 0.03,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "live"
+      },
+      "after": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      }
+    },
+    {
+      "name": "laptop:after-moving-again",
+      "ok": true,
+      "expectFov": 66,
+      "after": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      }
+    },
+    {
+      "name": "register:exited-cleanly",
+      "ok": true,
+      "detail": {
+        "escPresses": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "regStillActive": false
+      }
+    },
+    {
+      "name": "register:escape",
+      "ok": true,
+      "expectFov": 66,
+      "before": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      },
+      "inside": {
+        "cameraFov": 48.5,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      },
+      "after": {
+        "cameraFov": 66,
+        "cameraNear": 0.15,
+        "walkFov": 66,
+        "view": "course",
+        "screen": "desk"
+      }
+    }
+  ]
+}
