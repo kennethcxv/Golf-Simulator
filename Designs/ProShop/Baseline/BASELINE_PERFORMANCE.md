@@ -197,24 +197,50 @@ Stated only where the evidence supports them.
 
 ## 8. Pass / fail
 
-**No pass or fail is claimed.** `SLICE_BRIEF.md` §13 states that performance targets
-are to be established *from* these Phase 0 measurements, so no threshold existed to
-test against while capturing them.
+No pass or fail was claimed at capture time: `SLICE_BRIEF.md` §13 states that targets are
+to be established *from* these measurements, so no threshold existed to test against.
 
-For Phase 1 to adopt, the evidence supports these as candidate baselines on this
-machine — proposed, not approved:
+### Ruling at review (2026-07-27)
+
+> Average frame rate is acceptable. **The deep dips are not, and are to be treated as a
+> defect rather than a budget to preserve** — a machine of this class should not be
+> producing lows in this range.
+
+That converts one row of the table below from "baseline to hold" into "bug to fix":
+
+| Measure | Value | Status |
+|---|---|---|
+| Average frame time, interior | 8.4 ms idle / 10.2 ms worst locomotion | acceptable — hold as baseline |
+| 1 % low | 30.8 FPS (`spin-interior`), 34.2 (`walk-spin`), 36.7 (live 16×) | **defect — diagnose and fix** |
+| Worst single frame | 216.6 ms | **defect — diagnose and fix** |
+
+Phase 1 should treat `spin-interior` as the reproduction case. Prime suspects, **not
+isolated by this pass**: the 100 ms sun-shadow re-fit and bake, and culling churn across
+the ~3,450-object interior subtree. `tools/qa/perf-probe.js` already A/B-toggles GTAO,
+bloom, DPR and shadow-map size and captures a CDP CPU profile — that is the fastest route
+to attributing the spike rather than guessing at it.
+
+The remaining candidate baselines on this machine — proposed, not yet approved. The
+1 % low and worst-frame rows are deliberately **absent**: they are defects per the ruling
+above, so freezing them as budgets would enshrine the bug.
 
 | Candidate budget | Baseline value |
 |---|---|
 | Interior average frame time | 8.4 ms idle / 10.2 ms worst locomotion |
-| Interior 1 % low | ≥ 30.8 FPS (`spin-interior`, the current floor) |
-| Worst single frame | 216.6 ms — already bad, should be treated as a bug to fix, not a budget to preserve |
 | Time to first interactive frame | 18.2 s |
-| Draw calls, room in view | 1,766–3,015 |
+| Draw calls, room in view | ~1,500–3,000 (1,517 and 1,766 across two capture passes; 3,015 at the entrance sightline) |
 | Triangles drawn per frame | ~7.3 M |
+| Visible meshes, whole scene | ~3,000 |
+| Unique materials / textures | ~800 / 227 |
 
-The brief's "no unapproved regression greater than 10 % from baseline frame time"
-rule can be applied to the average-ms column above once a human approves it.
+The brief's "no unapproved regression greater than 10 % from baseline frame time" rule
+can be applied to the average-ms row once approved.
+
 The brief's "sustained 60 FPS at the documented test configuration" is met on this
-hardware by a wide margin at the average, and **not** met at the 1 % low in four of
-seven scenarios — which is a judgement call for the user, not for this agent.
+hardware by a wide margin at the average, and **not** met at the 1 % low in four of seven
+scenarios. Per the ruling, that gap is now classified as a defect to fix rather than an
+accepted characteristic.
+
+**This remains one machine (RTX 5080).** Fixing the lows should not be judged solely by
+re-measuring here — a dip that is survivable at 100+ FPS average will be far more severe
+on lower-end hardware, which is entirely unmeasured.

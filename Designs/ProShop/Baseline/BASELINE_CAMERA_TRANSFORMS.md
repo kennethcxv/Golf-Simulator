@@ -72,10 +72,16 @@ capture time — recorded for provenance only, **not** for reuse.
 | 06 | `06-main-merchandise-wall.png` | −3.20, 1.40 | −3.60, −4.40 | 0.06886 | −0.020 | −363.200, −0.692, 5.400 |
 | 07 | `07-cleaning-route.png` | −7.40, 4.10 | 3.60, 3.00 | −1.47113 | −0.300 | −367.400, −0.692, 8.100 |
 | 08 | `08-customer-route.png` | −0.80, 5.00 | 0.20, 1.60 | −0.28605 | −0.100 | −360.800, −0.692, 9.000 |
-| 09 | `09-floor-dirt-read.png` | −2.00, 3.20 | −2.00, 0.40 | 0.00000 | −0.620 | −362.000, −0.692, 7.200 |
-| 10 | `10-back-of-room-clutter.png` | 4.60, 1.20 | 7.60, 3.40 | −2.20355 | −0.120 | −355.400, −0.692, 5.200 |
+| 09 | `09-floor-dirt-read.png` | −4.00, −1.00 | −8.00, −1.00 | 1.57080 | −0.660 | −364.000, 0.881, 3.000 |
+| 10 | `10-back-of-room-clutter.png` | 4.60, 1.20 | 7.60, 3.40 | −2.20355 | −0.120 | −355.400, 0.881, 5.200 |
 
-`world.y` is `interior.position.y + eye(1.75)`. It will differ on any other run.
+`world.y` is `interior.position.y + eye(1.75)`. It will differ on any other run — on the
+capture that produced these frames `interior.position.y` was `−0.869`, against `−2.442`
+on the first pass. That is the random-seed terrain variance described in the protocol,
+and it is exactly why poses are authored in local coordinates.
+
+Shots 01–08 and 10 keep the poses from the first pass. **Shot 09 was re-framed** after
+review — see the note under its entry below.
 
 ---
 
@@ -104,9 +110,17 @@ capture time — recorded for provenance only, **not** for reuse.
 **Two extra views**, added because they show current weaknesses the eight required
 views do not:
 
-9. **`09-floor-dirt-read`** — floor grime and debris at working distance. This is the
-   surface the cleaning benchmark has to make satisfying, and it is the clearest look
-   at the current dirt presentation.
+9. **`09-floor-dirt-read`** — the open merchandise-side floor, pitched down so the
+   boards fill roughly 80 % of the frame with the `Shop condition 10 — filthy` badge
+   still legible top-right. This is the primary evidence for how the neglected state
+   actually reads.
+
+   **Re-framed after the first review.** The original pose stood beside the counter at
+   local (−2.0, 3.2); the counter then occupied most of the image and the floor was
+   reduced to a corner detail, which made it useless as evidence about dirt. The
+   replacement pose sits in open floor away from any tall fixture. Grime cell
+   (−4.13, 0.69) reads 0.927 here, and the dirtiest cells in the room reach 0.947, so
+   the framing is aimed at genuinely dirty floor rather than a clean patch.
 10. **`10-back-of-room-clutter`** — the delivery / back-of-room corner, currently the
     weakest composition in the room.
 

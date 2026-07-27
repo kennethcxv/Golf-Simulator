@@ -6,8 +6,8 @@
   },
   "minuteOfDay": 780,
   "loadTimings": {
-    "newGameClickToWalkActiveMs": 4674,
-    "newGameClickToVeilClearMs": 18176
+    "newGameClickToWalkActiveMs": 4627,
+    "newGameClickToVeilClearMs": 18304
   },
   "env": {
     "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
@@ -38,7 +38,7 @@
     },
     "interiorPosition": {
       "x": -360,
-      "y": -2.4422654628753664,
+      "y": -0.8694298982620239,
       "z": 4
     },
     "interiorRotationY": 0,
@@ -48,10 +48,10 @@
     },
     "laptopPose": {
       "x": -359.0799999999999,
-      "y": -1.1254296661258412,
+      "y": 0.4474058984875012,
       "z": 5.777853848077579,
       "yaw": 0,
-      "pitch": -0.5103425333995382
+      "pitch": -0.5103425333995375
     },
     "clock": {
       "minutes": 780,
@@ -59,16 +59,16 @@
     },
     "weather": {
       "today": {
-        "tempHiF": 63,
-        "tempLoF": 45,
-        "rainIn": 1.07,
-        "humidity": 0.82,
-        "windMph": 11
+        "tempHiF": 58,
+        "tempLoF": 34,
+        "rainIn": 0,
+        "humidity": 0.5,
+        "windMph": 9
       },
-      "droughtDays": 0,
+      "droughtDays": 2,
       "bias": {
-        "temp": 0.29052474898751823,
-        "dry": -0.051423346308292824
+        "temp": -4.811944949557073,
+        "dry": 0.08165082655730657
       }
     },
     "speedIdx": 0,
@@ -76,16 +76,16 @@
     "shopCondition": 10,
     "neglect": {
       "grimeCells": 104,
-      "grimeMean": 0.757,
+      "grimeMean": 0.7696,
       "debrisCount": 18,
       "debrisTotal": 3.93,
       "clutterPiles": 8,
       "clutterCleared": 0,
       "windows": [
-        0.87,
+        0.91,
+        0.73,
         0.79,
-        0.92,
-        0.89
+        0.82
       ],
       "architectureRestored": {
         "shell": false,
@@ -106,23 +106,23 @@
       "depthZ": 10
     },
     "sceneCounts": {
-      "objects": 5453,
-      "meshes": 3528,
-      "visibleMeshes": 2982,
+      "objects": 5456,
+      "meshes": 3531,
+      "visibleMeshes": 3008,
       "lights": 20
     }
   },
   "renderStats": {
-    "drawCallsPerFrame": 1545,
-    "trianglesDrawnPerFrame": 7715129,
-    "visibleMeshes": 2982,
-    "visibleSceneTriangles": 3291985,
-    "uniqueMaterials": 800,
+    "drawCallsPerFrame": 1517,
+    "trianglesDrawnPerFrame": 7724292,
+    "visibleMeshes": 2997,
+    "visibleSceneTriangles": 3272928,
+    "uniqueMaterials": 801,
     "uniqueTextures": 227,
-    "geometriesInMemory": 1674,
+    "geometriesInMemory": 1661,
     "texturesInMemory": 297,
     "programs": 244,
-    "heapMB": 332
+    "heapMB": 317
   },
   "shots": [
     {
@@ -139,7 +139,7 @@
       ],
       "world": {
         "x": -360.8,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 8.6
       },
       "yaw": 0,
@@ -162,7 +162,7 @@
       ],
       "world": {
         "x": -367,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 7.6
       },
       "yaw": -1.0855693342275603,
@@ -185,7 +185,7 @@
       ],
       "world": {
         "x": -360,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 8.2
       },
       "yaw": 0,
@@ -208,7 +208,7 @@
       ],
       "world": {
         "x": -360,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 4.2
       },
       "yaw": -3.141592653589793,
@@ -231,7 +231,7 @@
       ],
       "world": {
         "x": -359.1,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 4.1
       },
       "yaw": -3.1198569467479955,
@@ -254,7 +254,7 @@
       ],
       "world": {
         "x": -363.2,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 5.4
       },
       "yaw": 0.06885648930105046,
@@ -277,7 +277,7 @@
       ],
       "world": {
         "x": -367.4,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 8.1
       },
       "yaw": -1.4711276743037347,
@@ -300,7 +300,7 @@
       ],
       "world": {
         "x": -360.8,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 9
       },
       "yaw": -0.2860514417173182,
@@ -312,22 +312,22 @@
     {
       "id": "09-floor-dirt-read",
       "file": "09-floor-dirt-read.png",
-      "note": "Extra: floor grime and debris at working distance — the cleaning surface.",
+      "note": "Extra: floor grime at working distance — the primary evidence for how the neglected state actually reads. Grid cell (-4.13, 0.69) is 0.927 dirty here.",
       "localAt": [
-        -2,
-        3.2
+        -4,
+        -1
       ],
       "localLook": [
-        -2,
-        0.4
+        -8,
+        -1
       ],
       "world": {
-        "x": -362,
-        "y": -0.6922654628753664,
-        "z": 7.2
+        "x": -364,
+        "y": 0.8805701017379761,
+        "z": 3
       },
-      "yaw": 0,
-      "pitch": -0.62,
+      "yaw": 1.5707963267948966,
+      "pitch": -0.66,
       "eye": 1.75,
       "fov": 66,
       "insideRoom": true
@@ -346,7 +346,7 @@
       ],
       "world": {
         "x": -355.4,
-        "y": -0.6922654628753664,
+        "y": 0.8805701017379761,
         "z": 5.2
       },
       "yaw": -2.20354516179708,

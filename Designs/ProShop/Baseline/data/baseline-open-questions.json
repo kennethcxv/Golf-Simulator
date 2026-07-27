@@ -1,0 +1,334 @@
+{
+  "note": "Diagnostic pass for the two open questions in PHASE_0_REPORT.md. Nothing was fixed.",
+  "interactableCensus": {
+    "Old clutter — [E] haul it out": {
+      "lx": -8,
+      "lz": -4,
+      "yaw": 0
+    },
+    "Drivers & woods — Fairline driver 0/6 · Apex TD driver 0/6 · Apex TD Pro driver 0/6 — backroom empty": {
+      "lx": -8,
+      "lz": -3,
+      "yaw": 1.571
+    },
+    "Irons & wedges — Fairline iron set 0/5 · Apex forged irons 0/5 · Scoop 56° wedge 0/5 · Spin-mill wedge 0/5 — backroom empty": {
+      "lx": -8,
+      "lz": -1,
+      "yaw": 1.571
+    },
+    "Putter studio — Roll-true putter 0/6 · Milled blade putter 0/6 · Meridian tour putter 0/6 — backroom empty": {
+      "lx": -8,
+      "lz": 2,
+      "yaw": 3.142
+    },
+    "Window (filthy) — [E] wipe it down": {
+      "lx": -8,
+      "lz": 5,
+      "yaw": 3.142
+    },
+    "Golf balls — Range-rock dozen 7/15 · Tour-soft dozen 7/15 · Pro-V dozen 7/15 — backroom empty": {
+      "lx": -7,
+      "lz": -4,
+      "yaw": 0
+    },
+    "Range-rock dozen ×54 · 46.7 lb — [E] pick up": {
+      "lx": -6,
+      "lz": -4,
+      "yaw": -1.571
+    },
+    "Fairway Spring Water ×28 · 15.8 lb — [E] pick up": {
+      "lx": -6,
+      "lz": 4,
+      "yaw": 3.142
+    },
+    "Turn snacks — Sea-salt kettle chips 4/8 · Back-nine oat bar 4/8 · Cheddar club crackers 4/8 · Bunker Bites Potato Chips 4/8 — backroom empty": {
+      "lx": -6,
+      "lz": 5,
+      "yaw": 3.142
+    },
+    "Golf shoes — North Ridge spikes 0/6 · Meridian knit spikes 0/6 — backroom empty": {
+      "lx": -5,
+      "lz": -4,
+      "yaw": 3.142
+    },
+    "Damaged flooring - blocked: Vacuum and mop the lobby and sales floor to 60% first.": {
+      "lx": -3,
+      "lz": 0,
+      "yaw": 1.571
+    },
+    "Tee desk — [E] arrivals, check-in & walk-ins": {
+      "lx": -2,
+      "lz": 2,
+      "yaw": 1.571
+    },
+    "Interior and entrance trim - blocked: Clean the lobby and wipe the key windows first.": {
+      "lx": -2,
+      "lz": 5,
+      "yaw": 1.571
+    },
+    "Outerwear — Storm shell 4/8 — backroom empty": {
+      "lx": -1,
+      "lz": -4,
+      "yaw": -1.571
+    },
+    "Today's tee-time board — [E] open reservations": {
+      "lx": -1,
+      "lz": -1,
+      "yaw": -1.571
+    },
+    "Shop doors — [E] open both · [X] open left leaf": {
+      "lx": -1,
+      "lz": 5,
+      "yaw": -1.571
+    },
+    "Club polo ×31 · 16.8 lb — [E] pick up": {
+      "lx": 0,
+      "lz": -4,
+      "yaw": 1.571
+    },
+    "Back-counter cabinet — [E] open": {
+      "lx": 0,
+      "lz": 1,
+      "yaw": 1.571
+    },
+    "Desk lamp — [E] switch off": {
+      "lx": 0,
+      "lz": 4,
+      "yaw": 0
+    },
+    "Shop doors — [E] open both · [X] open right leaf": {
+      "lx": 0,
+      "lz": 4,
+      "yaw": 1.571
+    },
+    "Hand sanitiser — [E] use": {
+      "lx": 0,
+      "lz": 4,
+      "yaw": -1.571
+    },
+    "Hat tree — Pine Hills cap 2/4 · Heritage rope cap 2/4 · Pine Hills visor 2/4 — backroom empty": {
+      "lx": 1,
+      "lz": -5,
+      "yaw": -1.571
+    },
+    "Laptop — [E] open GOLF SIMULATOR": {
+      "lx": 1,
+      "lz": 0,
+      "yaw": -1.571
+    },
+    "Office telephone — [E] use": {
+      "lx": 1,
+      "lz": 2,
+      "yaw": -1.571
+    },
+    "Dead porch light — [E] fit a new bulb ($5)": {
+      "lx": 1,
+      "lz": 5,
+      "yaw": 1.571
+    },
+    "Scorecards — Pine Hills scorecard 6/12 — backroom empty": {
+      "lx": 3,
+      "lz": 2,
+      "yaw": 3.142
+    },
+    "Weeds — [E] pull them": {
+      "lx": 3,
+      "lz": 5,
+      "yaw": -1.571
+    },
+    "Straighten chair — [E]": {
+      "lx": 4,
+      "lz": -4,
+      "yaw": -1.571
+    },
+    "Office printer — [E] use": {
+      "lx": 5,
+      "lz": -5,
+      "yaw": 0
+    },
+    "Trophy cabinet — [E] open": {
+      "lx": 5,
+      "lz": -5,
+      "yaw": -1.571
+    },
+    "Stocking cart — top deck ready for a delivery carton": {
+      "lx": 5,
+      "lz": -3,
+      "yaw": -1.571
+    },
+    "Pressure-washer motor — [E] open": {
+      "lx": 5,
+      "lz": -1,
+      "yaw": -1.571
+    },
+    "Mop — [E] equip": {
+      "lx": 5,
+      "lz": 1,
+      "yaw": 3.142
+    },
+    "Push broom — [E] equip": {
+      "lx": 5,
+      "lz": 2,
+      "yaw": 0
+    },
+    "All-purpose cleaner — [E] equip": {
+      "lx": 6,
+      "lz": -3,
+      "yaw": -1.571
+    },
+    "Microfibre cloth — [E] equip": {
+      "lx": 6,
+      "lz": -2,
+      "yaw": 0
+    },
+    "Trash bag — [E] equip": {
+      "lx": 6,
+      "lz": -1,
+      "yaw": 3.142
+    },
+    "Wall panels and counter area - blocked: Clean the lobby to 60% first (currently 23%).": {
+      "lx": 6,
+      "lz": 0,
+      "yaw": 1.571
+    },
+    "Stockroom door — [E] open": {
+      "lx": 6,
+      "lz": 1,
+      "yaw": 3.142
+    },
+    "Office power and ceiling - blocked: Clean the office to 45% first (currently 21%).": {
+      "lx": 6,
+      "lz": 3,
+      "yaw": -1.571
+    },
+    "Key cabinet — [E] open": {
+      "lx": 7,
+      "lz": 0,
+      "yaw": -1.571
+    },
+    "Delivery hand truck — [E] tip it back and check the load balance": {
+      "lx": 7,
+      "lz": 2,
+      "yaw": 0
+    },
+    "Course wall map — [E] step back to the overview camera": {
+      "lx": 7,
+      "lz": 5,
+      "yaw": -1.571
+    },
+    "First-aid cabinet — [E] open": {
+      "lx": 8,
+      "lz": -5,
+      "yaw": 3.142
+    },
+    "Receiving door — [E] open": {
+      "lx": 8,
+      "lz": -4,
+      "yaw": 3.142
+    },
+    "Choked gutter — [E] clear the downspout": {
+      "lx": 8,
+      "lz": 5,
+      "yaw": -1.571
+    }
+  },
+  "q1_laptopExitRestoresLens": {
+    "laptopSpot": {
+      "lx": 1,
+      "lz": 0,
+      "yaw": -1.571
+    },
+    "routes": [
+      {
+        "route": "Close Laptop button",
+        "entered": true,
+        "clicked": true,
+        "before": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "desk"
+        },
+        "inside": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "live"
+        },
+        "after": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "desk"
+        },
+        "afterMoving": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "desk"
+        }
+      },
+      {
+        "route": "Escape key",
+        "entered": true,
+        "clicked": null,
+        "before": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "desk"
+        },
+        "inside": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "live"
+        },
+        "after": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "desk"
+        },
+        "afterMoving": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "view": "course",
+          "screenMode": "desk"
+        }
+      }
+    ],
+    "afterSecondCycle": {
+      "entered": true,
+      "cameraFov": 34,
+      "walkFov": 66,
+      "view": "course",
+      "screenMode": "desk"
+    }
+  },
+  "q2_registerInteract": {
+    "staged": {
+      "ok": true,
+      "who": "Nora Abbott"
+    },
+    "beforeEnter": {
+      "isActive": false,
+      "hasTx": true,
+      "flow": "WaitingForCashier",
+      "queueLength": 1,
+      "customer": "present"
+    },
+    "registerFocusLabel": "Back-counter cabinet — [E] open",
+    "registerFocusSpot": {
+      "lx": 0,
+      "lz": 1,
+      "yaw": 1.571
+    },
+    "labelAtSpot": "Back-counter cabinet — [E] open",
+    "afterEnter": {
+      "isActive": false,
+      "hasTx": true,
+      "flow": "WaitingForCashier"
+    }
+  }
+}

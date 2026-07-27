@@ -32,12 +32,13 @@ rewritten; `main` was not touched.
 | Screenshots | 10 PNG, 1600 × 900, 6.7 MB | `Baseline/screenshots/` |
 | Video | 2 WebM, 85.5 s total, 13.5 MB | `Baseline/video/` |
 | Performance captures | 21 samples (7 scenarios × 3 runs) | `Baseline/data/baseline-performance.json` |
-| Machine-readable capture data | 4 JSON | `Baseline/data/` |
+| Machine-readable capture data | 5 JSON | `Baseline/data/` |
+| Interactable census (47 labelled props) | 1 | `Baseline/data/baseline-open-questions.json` |
 | Camera transforms | 10 poses | `BASELINE_CAMERA_TRANSFORMS.md` |
 | Test protocol | 1 | `BASELINE_TEST_PROTOCOL.md` |
 | Integration map | 1 | `CURRENT_INTEGRATION_MAP.md` |
 | A/B plan | 1 | `AB_SCENE_PLAN.md` |
-| Capture scripts (new, non-gameplay) | 4 | `tools/qa/proshop-baseline-*.js` |
+| Capture scripts (new, non-gameplay) | 5 | `tools/qa/proshop-baseline-*.js` |
 
 Videos: `baseline-broom-interaction.webm` (42.5 s — equip, idle, walking, first
 contact, continuous sweeping, direction changes, cleaning at a wall, stop, unequip)
@@ -135,12 +136,23 @@ Observations only. No solutions are proposed and nothing was fixed.
 * The room centre is occupied by a counter island plus a tall tee-time board column,
   which cuts the space into halves that cannot see each other (`02`, and the recon
   panorama).
-* **Merchandise fixtures are largely empty at the starting state** — long runs of bare
+* Merchandise fixtures are largely empty at the starting state — long runs of bare
   black pegboard and empty shelving dominate the merchandise wall (`02`, `06`).
+  **Confirmed intended at review**: you have just bought the clubhouse and have not
+  stocked it. This is *not* a defect. It is recorded only because empty fixtures are
+  a large share of the entrance sightline, so the rebuild has to make bare shelving
+  read as "opportunity" rather than "unfinished".
 * The back-of-room corner has no legible purpose: boxes, a bin, an office desk and a
   course map compete without hierarchy (`10`).
-* An orange rectangular outline is drawn on the floor in the back area (`10`) — a
-  placement-zone marker visible during normal play, which reads as a debug artifact.
+* An orange rectangular outline is drawn on the floor in the back area (`10`).
+  **Corrected after investigation**: this is deliberate, not a debug artifact. It is a
+  campaign marker from `clubhouse/campaignWorld.js:45 outlineMarker()` — burnt orange
+  `0xb66d3d` for the eight repair sites, warm tan `0xc59a4a` for the eight facility
+  install sites. Markers hide themselves once the work completes and recolour as repair
+  progresses (`campaignWorld.js:185-197`), so they are transient quest affordances.
+  The fair criticism is only that they are *styled* as a wireframe box plus a cylinder
+  corner pip, which reads as programmer art beside the rest of the room — an art note
+  for Phase 3/5, not a bug.
 * Delivery boxes are scattered across circulation routes rather than staged, so the
   clutter reads as accidental rather than authored (`02`, `05`, `07`).
 
@@ -177,20 +189,35 @@ Observations only. No solutions are proposed and nothing was fixed.
 
 ### Logic
 
-* **OBS-1 — leaving the laptop does not restore the camera lens.** Escape correctly
-  returns `view` to `course` and the screen to `desk`, but `camera.fov` stays at the
-  laptop's **34°** instead of the walk FOV **66°**, and stays there permanently.
-  Reproduced in two independent scripts. Evidence in
-  `data/baseline-systems-video.json` and `data/baseline-performance.json`
-  (`laptopEntry.fovAfterExit: 34`). **Not fixed** — Phase 0 does not change gameplay
-  code.
+* **OBS-1 — leaving the laptop does not restore the camera lens.** Now tested on **both**
+  exit routes (`data/baseline-open-questions.json`):
+
+  | Exit route | on enter | in laptop | after exit | after moving again |
+  |---|---|---|---|---|
+  | "Close Laptop" button | 66 | 34 | **34** | **34** |
+  | Escape key | 66 | 34 | **34** | **34** |
+
+  A second enter-and-exit cycle does not recover it either. `view` returns to `course`
+  and the screen to `desk` correctly — only the lens is stranded, permanently, for the
+  rest of the session.
+
+  Crucially **`walk.state.fov` stays 66 throughout** while `camera.fov` sits at 34, so
+  the intended value is never lost: something writes `camera.fov = LAPTOP_FOV` on entry
+  and nothing writes it back on exit. That makes this a small, well-scoped fix rather
+  than a design question. **Not fixed** — Phase 0 does not change gameplay code.
 * `state.campaign.cleaningToolsUsed` remained `{}` after a sweep that returned
   `did > 0`, even though `recordCampaignCleaning` is called on success
   (`clubhouse.js:5268`) and `campaign.enabled` was `true`. Not investigated further.
-* Pressing the interact verb at the counter did not flip `register.isActive()` in the
-  recorded pass; the focus-label probe did not match a register prop from the positions
-  tried. Whether this is a harness aiming problem or a real interaction issue is
-  **unresolved**.
+* **The register works — the earlier miss was my harness, now resolved.** With a
+  customer waiting (`flow: WaitingForCashier`, `hasTx: true`), the interact verb opens
+  register mode correctly and advances the flow to `WaitingForScan`. My first probe
+  searched focus labels matching `/register|till|checkout|counter/`, and the prop is
+  labelled **"Tee desk — [E] arrivals, check-in & walk-ins"**, so nothing matched.
+  A full interactable census of the room (47 labels, in
+  `data/baseline-open-questions.json`) confirms there is no separately-labelled till.
+  *Observation for the slice:* one prop labelled for "arrivals, check-in & walk-ins" is
+  also the only way to serve a shop customer holding golf balls. That wording does not
+  advertise the till, which is a discoverability weakness rather than a bug.
 * `src/render3d/clubhouse/customers.js` (1,323 lines) and `src/data/customerSockets.js`
   are dead code. The registry `audio:` cue tables are dead data.
 
@@ -213,11 +240,11 @@ Measured on an **RTX 5080** — not a minimum-spec statement.
 
 ### Unknown / needs human review
 
-* Whether the "Close Laptop" button restores the FOV correctly (only Escape was tested).
-* Whether the register interact failure above is real or a harness artifact.
-* Whether the empty merchandise fixtures are intended at the starting state or a
-  stocking bug.
-* Whether the orange floor outline in `10` is intended to be visible in normal play.
+Four items previously listed here were resolved during review and are recorded above:
+the "Close Laptop" button fails exactly as Escape does; the register works and the miss
+was my harness; empty fixtures are intended; the orange outline is a deliberate campaign
+marker. What remains genuinely open:
+
 * Minimum-spec behaviour — completely unmeasured.
 * Texture memory in bytes — not obtainable from WebGL.
 * Audio quality. Nothing was captured; all audio is synthesised WebAudio.
@@ -239,8 +266,8 @@ Things Phase 1 must know before it starts.
    content remains ignored, verified with `git check-ignore`.
    **This is a deviation from "commit only the Phase 0 baseline package" and from
    "no ignored junk staged", made deliberately** because the alternative was a Phase 0
-   whose evidence could not be committed at all. Reverse it if you disagree — the tag
-   `pro-shop-pre-rebuild-baseline` is unaffected either way.
+   whose evidence could not be committed at all.
+   **Confirmed at review: kept.**
 2. **OBS-1 (laptop FOV) contaminates any capture taken after a laptop visit.** Until it
    is fixed, every capture harness must assert `camera.fov === walk.state.fov` before
    shooting, and performance routes must run the laptop scenario last. The first
@@ -257,37 +284,68 @@ Things Phase 1 must know before it starts.
    migration corrupts saved cleaning progress.
 7. **`clubhouse.js` and `merch.js` are hot shared files** across parallel sessions.
    Stage single hunks.
-8. **No performance threshold exists yet.** The brief defers budgets to these
-   measurements, so no pass/fail is claimed. §8 of `BASELINE_PERFORMANCE.md` proposes
-   candidates for human approval.
+8. **The deep frame-time dips are a defect to fix, not a budget to preserve.** Ruled at
+   review: averages of 98–120 FPS are fine, but 1 % lows of 30.8 FPS and a 216.6 ms worst
+   frame are not acceptable on this hardware. Phase 1 should treat `spin-interior` as a
+   bug to diagnose — the prime suspects, unisolated, are the 100 ms shadow re-fit and
+   culling churn across the ~3,450-object interior subtree. See `BASELINE_PERFORMANCE.md`
+   §8.
+9. **The broom fails its review** (§6). Phase 6 must deliver player-attached framing, no
+   geometry interpenetration, and correct look-down behaviour.
 
 ---
 
-## 6. Human review required
+## 6. Review outcome
 
-Please inspect, in this order:
+The baseline was reviewed by the user on **2026-07-27**, including a live pass through
+the running game. Verdicts as given:
 
-1. **`Baseline/screenshots/09-floor-dirt-read.png`** — confirm the finding that a
-   "filthy" 10/100 room does not look dirty. This is the most consequential observation
-   in the report.
-2. **`Baseline/screenshots/01-entrance-looking-inward.png`** — confirm the entrance
-   sightline is blocked by the counter.
-3. **`Baseline/screenshots/02-wide-room-overview.png`** and **`06-main-merchandise-wall.png`**
-   — judge whether the empty fixtures are intended at the starting state.
-4. **`Baseline/screenshots/10-back-of-room-clutter.png`** — confirm the blank partition
-   and the orange floor outline, and decide whether that marker should be visible in play.
-5. **`Baseline/video/baseline-broom-interaction.webm`** — judge the current broom feel
-   for yourself. The code review says it is well beyond a static offset; whether it
-   *feels* good is a human call and this agent must not make it.
-6. **`Baseline/video/baseline-laptop-checkout-customer.webm`** — watch the laptop exit
-   and confirm the FOV never returns to normal (OBS-1).
-7. **`BASELINE_PERFORMANCE.md` §8** — approve or reject the candidate budgets, and rule
-   on whether 30.8 FPS at the 1 % low is acceptable given the averages sit near 100+.
-8. **`AB_SCENE_PLAN.md` §1** — approve the `pine-hills-v2` variant approach before any
-   room code is written.
-9. **Blocker 1 above** — confirm or reverse the `.gitignore` change.
+| Item | Verdict |
+|---|---|
+| Do the screenshots match the live game? | **Yes** — baseline confirmed honest |
+| Entrance sightline blocked by the counter | **Confirmed**; the whole clubhouse is to be revamped |
+| Floor dirt does not read as filthy | **Agreed**, but shot 09 was badly framed — re-shot (below) |
+| Broom feel | **FAIL** — see below |
+| Performance | Good on average, but **the deep lows are a defect, not a budget** |
+| `.gitignore` deviation | **Keep it** (agent's discretion) |
+| A/B plan — `pine-hills-v2` variant | **Approved** |
+| Empty merchandise fixtures | **Intended** — you have just bought the clubhouse |
+| Orange floor outline | User expected it to be unintended; investigation showed it is a deliberate self-clearing campaign marker |
 
-**Silence is not approval.** Phase 1 must not begin until you say so.
+### Broom verdict — FAIL
+
+In the user's words, the broom *"is completely detached from the person and just has
+some floating hands in front of it"*. Requirements stated at review:
+
+1. It must be **attached to the player**, in the manner of House Flipper — not a tool
+   floating in front of disembodied hands.
+2. It **must not pass through tables and other geometry**.
+3. **Looking down (and around) with the broom must work properly.**
+
+This overrides the code-level assessment in §4, which found authored clips, sockets,
+bob, sway and recoil present. Those exist, but the player-facing result is still read as
+detached — and the player-facing result is what counts. Notably, all three complaints
+map onto gaps the code review had already identified: no separate viewmodel camera, no
+surface-normal alignment, a contact solve that samples only the flat floor constant, and
+`floorAnchored: true` holding the head pinned to the floor plane while the view pitches.
+
+This is **Phase 6** work (one polished cleaning tool). It is recorded here, not fixed.
+
+### Shot 09 was re-framed
+
+The original pose stood beside the counter, which then filled most of the frame and
+reduced the floor to a corner detail. It has been re-shot from open floor at local
+(−4.0, −1.0) looking −X, pitch −0.66, so the boards fill roughly 80 % of the image with
+the `Shop condition 10 — filthy` badge legible top-right. Grime there reads 0.927 and
+the room's dirtiest cells reach 0.947, so the framing is aimed at genuinely dirty floor.
+Shots 01–08 and 10 keep their original poses; all ten were re-captured in one pass so
+the set stays internally consistent.
+
+### Still open
+
+* **Phase 1 has not been authorised.** The brief requires each phase to be named
+  explicitly. Silence is not approval.
+* Minimum-spec performance behaviour remains unmeasured.
 
 ---
 
@@ -295,10 +353,19 @@ Please inspect, in this order:
 
 Per the stopping rule: Phase 1 was not started; no art bible was written; no asset,
 material, lighting, broom, interaction or room change was made; the old room was not
-deleted or modified; and **none of the defects found above were fixed**, including
-OBS-1.
+deleted or modified; and **none of the defects found above were fixed** — not OBS-1, not
+the frame-time dips, not the broom, not the marker styling.
 
-The only files added outside `Designs/ProShop/` are the four
-`tools/qa/proshop-baseline-*.js` capture scripts, which contain no gameplay code and
-exist so a later session can reproduce this evidence, plus the `.gitignore` change
-described in Blocker 1.
+The only files added outside `Designs/ProShop/` are the five
+`tools/qa/proshop-baseline-*.js` capture and diagnostic scripts, which contain no
+gameplay code and exist so a later session can reproduce this evidence, plus the
+`.gitignore` change described in Blocker 1.
+
+Work done during the review pass, all of it evidence-only:
+
+* Re-shot the ten screenshots in one pass with shot 09 re-framed (§6).
+* Added `tools/qa/proshop-baseline-open-questions.js` to resolve the two open questions,
+  producing `data/baseline-open-questions.json` including a full interactable census.
+* Traced the orange floor marker to `clubhouse/campaignWorld.js` and corrected §4.
+* Recorded the user's verdicts in §6 and the performance ruling in
+  `BASELINE_PERFORMANCE.md` §8.

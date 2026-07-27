@@ -45,8 +45,13 @@ async (page) => {
       note: 'Along the debris strip the starter cleaning task runs down.' },
     { id: '08-customer-route', at: [-0.8, 5.0], look: [0.2, 1.6], pitch: -0.10,
       note: 'The path a customer walks from the door to the counter.' },
-    { id: '09-floor-dirt-read', at: [-2.0, 3.2], look: [-2.0, 0.4], pitch: -0.62,
-      note: 'Extra: floor grime and debris at working distance — the cleaning surface.' },
+    // Open merchandise-side floor, pitched down so the boards fill most of the frame
+    // and the "Shop condition — filthy" badge stays legible top-right. An earlier pose
+    // stood beside the counter, which then occupied most of the image and left the
+    // floor as a corner detail — useless as evidence about how dirt reads.
+    { id: '09-floor-dirt-read', at: [-4.0, -1.0], look: [-8.0, -1.0], pitch: -0.66,
+      note: 'Extra: floor grime at working distance — the primary evidence for how the '
+        + 'neglected state actually reads. Grid cell (-4.13, 0.69) is 0.927 dirty here.' },
     { id: '10-back-of-room-clutter', at: [4.6, 1.2], look: [7.6, 3.4], pitch: -0.12,
       note: 'Extra: the delivery/back-of-room corner, currently the weakest composition.' },
   ];

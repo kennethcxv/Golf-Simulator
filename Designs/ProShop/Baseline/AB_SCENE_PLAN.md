@@ -5,6 +5,11 @@ entered, photographed and measured under identical conditions.
 
 This is a plan only. Nothing here is implemented, and Phase 0 does not implement it.
 
+> **Status: approved by the user on 2026-07-27.** The `pine-hills-v2` variant approach in
+> §1 is the agreed A/B mechanism. Approval covers the *strategy* only — Phase 3 still
+> needs its own greybox review gate before any hero asset work begins, and Phase 1 has
+> not been authorised.
+
 ---
 
 ## 1. The key finding: the mechanism already exists
@@ -100,9 +105,11 @@ a worktop at `FRONT_DESK.laptop` and nothing else.
 * Keep the 1024 × 640 16:10 screen contract and corner order `[tl, tr, br, bl]`.
 * Keep the seat pose reachable and unobstructed — the focus camera has no collision,
   but the player must be able to stand where the `[E]` prop takes focus.
-* **Fix OBS-1 first or explicitly defer it.** Leaving the laptop currently strands the
-  camera at 34° FOV (see `BASELINE_PERFORMANCE.md` §5). Any A/B screenshot taken after
-  a laptop visit in the same session will be at the wrong FOV. Until it is fixed, every
+* **Fix OBS-1 first or explicitly defer it.** Leaving the laptop strands the camera at
+  34° FOV — confirmed on **both** exit routes ("Close Laptop" button and Escape), and a
+  second enter/exit cycle does not recover it. `walk.state.fov` stays correct at 66
+  throughout, so only the lens write-back is missing. Any A/B screenshot taken after a
+  laptop visit in the same session will be at the wrong FOV. Until it is fixed, every
   capture harness must assert `camera.fov === walk.state.fov` before shooting.
 
 ### 3.3 Cleaning-system boundary
