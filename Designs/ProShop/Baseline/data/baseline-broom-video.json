@@ -1,0 +1,796 @@
+{
+  "durationMs": 42512,
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "minuteOfDay": 780,
+  "equipRoute": "walk.setTool(\"broom\") — see header note for the two in-game routes",
+  "useRoute": "real left-mouse down/up (main.js:1886)",
+  "moveRoute": "real W/S keyboard",
+  "lookRoute": "walk.state.yaw written directly (pointer-lock look is not automatable)",
+  "sweepGeometry": {
+    "standoffYd": 1.6,
+    "pitchRad": -0.82
+  },
+  "cleaningLanded": true,
+  "pre": {
+    "cleaningKitOwned": true,
+    "toolAtStart": null,
+    "debrisCount": 18,
+    "debrisTotal": 3.93,
+    "debrisLocal": [
+      {
+        "x": -7.6,
+        "z": 4.6,
+        "a": 0.26,
+        "kind": "grit"
+      },
+      {
+        "x": -5.2,
+        "z": 4.4,
+        "a": 0.18,
+        "kind": "grit"
+      },
+      {
+        "x": -4.5,
+        "z": 2.8,
+        "a": 0.22,
+        "kind": "grit"
+      },
+      {
+        "x": -1.2,
+        "z": 2.85,
+        "a": 0.31,
+        "kind": "grit"
+      },
+      {
+        "x": 1.3,
+        "z": 2.85,
+        "a": 0.17,
+        "kind": "grit"
+      },
+      {
+        "x": 3.6,
+        "z": 2.8,
+        "a": 0.24,
+        "kind": "litter"
+      },
+      {
+        "x": -8.1,
+        "z": 1.3,
+        "a": 0.21,
+        "kind": "grit"
+      },
+      {
+        "x": -4.8,
+        "z": 1.8,
+        "a": 0.16,
+        "kind": "grit"
+      },
+      {
+        "x": -3.7,
+        "z": 0,
+        "a": 0.27,
+        "kind": "litter"
+      },
+      {
+        "x": -0.4,
+        "z": 0.7,
+        "a": 0.19,
+        "kind": "grit"
+      },
+      {
+        "x": 1.8,
+        "z": -0.2,
+        "a": 0.25,
+        "kind": "litter"
+      },
+      {
+        "x": 3.2,
+        "z": -1.1,
+        "a": 0.14,
+        "kind": "litter"
+      },
+      {
+        "x": -7.4,
+        "z": -3.8,
+        "a": 0.23,
+        "kind": "grit"
+      },
+      {
+        "x": -4.4,
+        "z": -4.3,
+        "a": 0.2,
+        "kind": "litter"
+      },
+      {
+        "x": 6.65,
+        "z": 5.15,
+        "a": 0.18,
+        "kind": "grit"
+      },
+      {
+        "x": 7.15,
+        "z": 3.3,
+        "a": 0.24,
+        "kind": "grit"
+      },
+      {
+        "x": 8.2,
+        "z": -1.5,
+        "a": 0.28,
+        "kind": "grit"
+      },
+      {
+        "x": 6.8,
+        "z": -5.1,
+        "a": 0.2,
+        "kind": "litter"
+      }
+    ]
+  },
+  "post": {
+    "toolAtEnd": null,
+    "debrisCount": 18,
+    "debrisTotal": 3.93,
+    "cleaningStatus": {
+      "pan": {
+        "load": 0,
+        "capacity": 1.8,
+        "full": false
+      },
+      "bag": {
+        "load": 0,
+        "capacity": 7.5,
+        "tied": false,
+        "disposed": 0,
+        "disposedLoad": 0,
+        "full": false
+      },
+      "mop": {
+        "charge": 0,
+        "capacity": 24,
+        "soil": 0,
+        "wet": false
+      },
+      "bucket": {
+        "level": 1,
+        "soil": 0,
+        "water": "clean",
+        "wrings": 0,
+        "changes": 0
+      }
+    },
+    "grimeMean": 0.7514,
+    "toolViewmodel": {
+      "loadResults": [
+        {
+          "id": "washer",
+          "ok": true
+        },
+        {
+          "id": "vacuum",
+          "ok": true
+        },
+        {
+          "id": "mop",
+          "ok": true
+        },
+        {
+          "id": "broom",
+          "ok": true
+        },
+        {
+          "id": "dustpan",
+          "ok": true
+        },
+        {
+          "id": "spray",
+          "ok": true
+        },
+        {
+          "id": "cloth",
+          "ok": true
+        },
+        {
+          "id": "sponge",
+          "ok": true
+        },
+        {
+          "id": "trashbag",
+          "ok": true
+        }
+      ],
+      "authoredCount": 9,
+      "authored": 9,
+      "equippedTool": null,
+      "activeTools": [],
+      "animated": [
+        "washer",
+        "vacuum",
+        "mop",
+        "broom",
+        "dustpan",
+        "spray",
+        "cloth",
+        "sponge",
+        "trashbag"
+      ],
+      "playing": [],
+      "clips": {
+        "washer": [
+          "WasherWand_Equip",
+          "WasherWand_Recoil",
+          "WasherWand_Unequip",
+          "WasherWand_TriggerDown",
+          "WasherWand_TriggerUp"
+        ],
+        "vacuum": [
+          "Vacuum_Equip",
+          "Vacuum_FloorHeadContact",
+          "Vacuum_Start",
+          "Vacuum_Stop",
+          "Vacuum_StrokeLeft",
+          "Vacuum_StrokeRight",
+          "Vacuum_Unequip"
+        ],
+        "mop": [
+          "Mop_Equip",
+          "Mop_HeadCompress",
+          "Mop_StrokeLeft",
+          "Mop_StrokeRight",
+          "Mop_Unequip"
+        ],
+        "broom": [
+          "Broom_BristleContact",
+          "Broom_Equip",
+          "Broom_SweepLeft",
+          "Broom_SweepRight",
+          "Broom_Unequip"
+        ],
+        "dustpan": [
+          "Dustpan_Empty",
+          "Dustpan_Equip",
+          "Dustpan_PickUp",
+          "Dustpan_SetDown",
+          "Dustpan_Unequip"
+        ],
+        "spray": [
+          "SprayBottle_Equip",
+          "SprayBottle_Unequip",
+          "SprayBottle_Trigger"
+        ],
+        "cloth": [
+          "Cloth_Equip",
+          "Cloth_Unequip",
+          "Cloth_Wipe"
+        ],
+        "sponge": [
+          "Sponge_Equip",
+          "Sponge_Scrub",
+          "Sponge_Unequip"
+        ],
+        "trashbag": [
+          "TrashBag_Dispose",
+          "TrashBag_Equip",
+          "TrashBag_Swallow",
+          "TrashBag_Tie",
+          "TrashBag_Unequip"
+        ]
+      },
+      "tools": {
+        "washer": {
+          "clips": [
+            "WasherWand_Equip",
+            "WasherWand_Recoil",
+            "WasherWand_Unequip",
+            "WasherWand_TriggerDown",
+            "WasherWand_TriggerUp"
+          ],
+          "played": [],
+          "active": false
+        },
+        "vacuum": {
+          "clips": [
+            "Vacuum_Equip",
+            "Vacuum_FloorHeadContact",
+            "Vacuum_Start",
+            "Vacuum_Stop",
+            "Vacuum_StrokeLeft",
+            "Vacuum_StrokeRight",
+            "Vacuum_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "mop": {
+          "clips": [
+            "Mop_Equip",
+            "Mop_HeadCompress",
+            "Mop_StrokeLeft",
+            "Mop_StrokeRight",
+            "Mop_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "broom": {
+          "clips": [
+            "Broom_BristleContact",
+            "Broom_Equip",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "played": [
+            "Broom_Equip",
+            "Broom_BristleContact",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "active": false
+        },
+        "dustpan": {
+          "clips": [
+            "Dustpan_Empty",
+            "Dustpan_Equip",
+            "Dustpan_PickUp",
+            "Dustpan_SetDown",
+            "Dustpan_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "spray": {
+          "clips": [
+            "SprayBottle_Equip",
+            "SprayBottle_Unequip",
+            "SprayBottle_Trigger"
+          ],
+          "played": [],
+          "active": false
+        },
+        "cloth": {
+          "clips": [
+            "Cloth_Equip",
+            "Cloth_Unequip",
+            "Cloth_Wipe"
+          ],
+          "played": [],
+          "active": false
+        },
+        "sponge": {
+          "clips": [
+            "Sponge_Equip",
+            "Sponge_Scrub",
+            "Sponge_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "trashbag": {
+          "clips": [
+            "TrashBag_Dispose",
+            "TrashBag_Equip",
+            "TrashBag_Swallow",
+            "TrashBag_Tie",
+            "TrashBag_Unequip"
+          ],
+          "played": [],
+          "active": false
+        }
+      }
+    },
+    "cleaningDiagnostics": {
+      "tool": null,
+      "using": false,
+      "soaping": false,
+      "contact": [
+        -366.79367484383675,
+        -1.1071629073898288,
+        6.9817934652826255
+      ],
+      "target": [
+        -366.79367484383675,
+        -1.1071629073898288,
+        6.9817934652826255
+      ],
+      "result": {
+        "did": 0,
+        "kind": "sweep",
+        "tool": "broom"
+      },
+      "sprayVisible": false,
+      "viewmodels": {
+        "authoredCount": 9,
+        "authored": 9,
+        "equippedTool": null,
+        "activeTools": [],
+        "animated": [
+          "washer",
+          "vacuum",
+          "mop",
+          "broom",
+          "dustpan",
+          "spray",
+          "cloth",
+          "sponge",
+          "trashbag"
+        ],
+        "playing": [],
+        "clips": {
+          "washer": [
+            "WasherWand_Equip",
+            "WasherWand_Recoil",
+            "WasherWand_Unequip",
+            "WasherWand_TriggerDown",
+            "WasherWand_TriggerUp"
+          ],
+          "vacuum": [
+            "Vacuum_Equip",
+            "Vacuum_FloorHeadContact",
+            "Vacuum_Start",
+            "Vacuum_Stop",
+            "Vacuum_StrokeLeft",
+            "Vacuum_StrokeRight",
+            "Vacuum_Unequip"
+          ],
+          "mop": [
+            "Mop_Equip",
+            "Mop_HeadCompress",
+            "Mop_StrokeLeft",
+            "Mop_StrokeRight",
+            "Mop_Unequip"
+          ],
+          "broom": [
+            "Broom_BristleContact",
+            "Broom_Equip",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "dustpan": [
+            "Dustpan_Empty",
+            "Dustpan_Equip",
+            "Dustpan_PickUp",
+            "Dustpan_SetDown",
+            "Dustpan_Unequip"
+          ],
+          "spray": [
+            "SprayBottle_Equip",
+            "SprayBottle_Unequip",
+            "SprayBottle_Trigger"
+          ],
+          "cloth": [
+            "Cloth_Equip",
+            "Cloth_Unequip",
+            "Cloth_Wipe"
+          ],
+          "sponge": [
+            "Sponge_Equip",
+            "Sponge_Scrub",
+            "Sponge_Unequip"
+          ],
+          "trashbag": [
+            "TrashBag_Dispose",
+            "TrashBag_Equip",
+            "TrashBag_Swallow",
+            "TrashBag_Tie",
+            "TrashBag_Unequip"
+          ]
+        },
+        "tools": {
+          "washer": {
+            "clips": [
+              "WasherWand_Equip",
+              "WasherWand_Recoil",
+              "WasherWand_Unequip",
+              "WasherWand_TriggerDown",
+              "WasherWand_TriggerUp"
+            ],
+            "played": [],
+            "active": false
+          },
+          "vacuum": {
+            "clips": [
+              "Vacuum_Equip",
+              "Vacuum_FloorHeadContact",
+              "Vacuum_Start",
+              "Vacuum_Stop",
+              "Vacuum_StrokeLeft",
+              "Vacuum_StrokeRight",
+              "Vacuum_Unequip"
+            ],
+            "played": [],
+            "active": false
+          },
+          "mop": {
+            "clips": [
+              "Mop_Equip",
+              "Mop_HeadCompress",
+              "Mop_StrokeLeft",
+              "Mop_StrokeRight",
+              "Mop_Unequip"
+            ],
+            "played": [],
+            "active": false
+          },
+          "broom": {
+            "clips": [
+              "Broom_BristleContact",
+              "Broom_Equip",
+              "Broom_SweepLeft",
+              "Broom_SweepRight",
+              "Broom_Unequip"
+            ],
+            "played": [
+              "Broom_Equip",
+              "Broom_BristleContact",
+              "Broom_SweepLeft",
+              "Broom_SweepRight",
+              "Broom_Unequip"
+            ],
+            "active": false
+          },
+          "dustpan": {
+            "clips": [
+              "Dustpan_Empty",
+              "Dustpan_Equip",
+              "Dustpan_PickUp",
+              "Dustpan_SetDown",
+              "Dustpan_Unequip"
+            ],
+            "played": [],
+            "active": false
+          },
+          "spray": {
+            "clips": [
+              "SprayBottle_Equip",
+              "SprayBottle_Unequip",
+              "SprayBottle_Trigger"
+            ],
+            "played": [],
+            "active": false
+          },
+          "cloth": {
+            "clips": [
+              "Cloth_Equip",
+              "Cloth_Unequip",
+              "Cloth_Wipe"
+            ],
+            "played": [],
+            "active": false
+          },
+          "sponge": {
+            "clips": [
+              "Sponge_Equip",
+              "Sponge_Scrub",
+              "Sponge_Unequip"
+            ],
+            "played": [],
+            "active": false
+          },
+          "trashbag": {
+            "clips": [
+              "TrashBag_Dispose",
+              "TrashBag_Equip",
+              "TrashBag_Swallow",
+              "TrashBag_Tie",
+              "TrashBag_Unequip"
+            ],
+            "played": [],
+            "active": false
+          }
+        }
+      },
+      "effects": {
+        "motesVisible": false,
+        "wetVisible": false,
+        "washerJetVisible": false,
+        "washerMistVisible": false,
+        "washerWet": {
+          "activeCells": 0,
+          "mean": 0,
+          "coverage": 0,
+          "max": 0,
+          "drying": false
+        }
+      }
+    },
+    "campaignToolsUsed": {}
+  },
+  "samples": [
+    {
+      "label": "first-contact",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "blocked",
+      "targetLocal": [
+        -4.45,
+        2.9
+      ]
+    },
+    {
+      "label": "sweep-strafe-0",
+      "tool": "broom",
+      "using": true,
+      "did": 0.31,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.56,
+        2.89
+      ]
+    },
+    {
+      "label": "sweep-strafe-1",
+      "tool": "broom",
+      "using": true,
+      "did": 0.24,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        3.21,
+        2.89
+      ]
+    },
+    {
+      "label": "sweep-strafe-2",
+      "tool": "broom",
+      "using": true,
+      "did": 0.24,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        7.63,
+        2.91
+      ]
+    },
+    {
+      "label": "sweep-strafe-3",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "occluded",
+      "targetLocal": [
+        7.92,
+        2.9
+      ]
+    },
+    {
+      "label": "sweep-strafe-4",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        7.8,
+        2.9
+      ]
+    },
+    {
+      "label": "turn-0.55",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "blocked",
+      "targetLocal": [
+        7.06,
+        2.88
+      ]
+    },
+    {
+      "label": "turn--0.55",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "blocked",
+      "targetLocal": [
+        8.63,
+        3.39
+      ]
+    },
+    {
+      "label": "turn-0.3",
+      "tool": "broom",
+      "using": true,
+      "did": 0.24,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        7.66,
+        2.76
+      ]
+    },
+    {
+      "label": "turn-0",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "occluded",
+      "targetLocal": [
+        8.06,
+        2.9
+      ]
+    },
+    {
+      "label": "near-wall",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -7.39,
+        3.65
+      ]
+    },
+    {
+      "label": "near-wall-turned",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -6.92,
+        3.17
+      ]
+    }
+  ],
+  "beats": [
+    {
+      "name": "idle-hands-free",
+      "atMs": 4
+    },
+    {
+      "name": "equip-broom",
+      "atMs": 3010
+    },
+    {
+      "name": "idle-holding",
+      "atMs": 6217
+    },
+    {
+      "name": "walking",
+      "atMs": 9721
+    },
+    {
+      "name": "begin-surface-contact",
+      "atMs": 14149
+    },
+    {
+      "name": "continuous-sweeping",
+      "atMs": 16762
+    },
+    {
+      "name": "direction-changes",
+      "atMs": 23694
+    },
+    {
+      "name": "cleaning-near-wall",
+      "atMs": 29734
+    },
+    {
+      "name": "stop-use",
+      "atMs": 36290
+    },
+    {
+      "name": "unequip",
+      "atMs": 39296
+    },
+    {
+      "name": "end",
+      "atMs": 42505
+    }
+  ]
+}

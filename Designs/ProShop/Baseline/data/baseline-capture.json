@@ -1,0 +1,359 @@
+{
+  "capturedAtNote": "Timestamps are deliberately omitted so re-runs diff cleanly.",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "minuteOfDay": 780,
+  "loadTimings": {
+    "newGameClickToWalkActiveMs": 4674,
+    "newGameClickToVeilClearMs": 18176
+  },
+  "env": {
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "devicePixelRatio": 1.0000000298023224,
+    "canvas": {
+      "width": 1600,
+      "height": 900
+    },
+    "rendererPixelRatio": 1.0000000298023224,
+    "camera": {
+      "fov": 66,
+      "near": 0.15,
+      "far": 6000,
+      "aspect": 1.7777777777777777
+    },
+    "walkFov": 66,
+    "eyeHeight": 1.75,
+    "toneMapping": 4,
+    "toneMappingExposure": 1.12,
+    "outputColorSpace": "srgb",
+    "shadowMap": {
+      "enabled": true,
+      "type": 1
+    },
+    "post": {
+      "gtao": true,
+      "bloom": true
+    },
+    "interiorPosition": {
+      "x": -360,
+      "y": -2.4422654628753664,
+      "z": 4
+    },
+    "interiorRotationY": 0,
+    "doorWorld": {
+      "x": -360.8,
+      "z": 9.625
+    },
+    "laptopPose": {
+      "x": -359.0799999999999,
+      "y": -1.1254296661258412,
+      "z": 5.777853848077579,
+      "yaw": 0,
+      "pitch": -0.5103425333995382
+    },
+    "clock": {
+      "minutes": 780,
+      "minuteOfDay": 780
+    },
+    "weather": {
+      "today": {
+        "tempHiF": 63,
+        "tempLoF": 45,
+        "rainIn": 1.07,
+        "humidity": 0.82,
+        "windMph": 11
+      },
+      "droughtDays": 0,
+      "bias": {
+        "temp": 0.29052474898751823,
+        "dry": -0.051423346308292824
+      }
+    },
+    "speedIdx": 0,
+    "propertyId": "willow-creek",
+    "shopCondition": 10,
+    "neglect": {
+      "grimeCells": 104,
+      "grimeMean": 0.757,
+      "debrisCount": 18,
+      "debrisTotal": 3.93,
+      "clutterPiles": 8,
+      "clutterCleared": 0,
+      "windows": [
+        0.87,
+        0.79,
+        0.92,
+        0.89
+      ],
+      "architectureRestored": {
+        "shell": false,
+        "porch": false,
+        "windows": false,
+        "panels": false,
+        "trim": false,
+        "ceiling": false,
+        "floor": false
+      }
+    },
+    "roomFootprintLocal": {
+      "minX": -8.5,
+      "maxX": 8.5,
+      "minZ": -5,
+      "maxZ": 5,
+      "widthX": 17,
+      "depthZ": 10
+    },
+    "sceneCounts": {
+      "objects": 5453,
+      "meshes": 3528,
+      "visibleMeshes": 2982,
+      "lights": 20
+    }
+  },
+  "renderStats": {
+    "drawCallsPerFrame": 1545,
+    "trianglesDrawnPerFrame": 7715129,
+    "visibleMeshes": 2982,
+    "visibleSceneTriangles": 3291985,
+    "uniqueMaterials": 800,
+    "uniqueTextures": 227,
+    "geometriesInMemory": 1674,
+    "texturesInMemory": 297,
+    "programs": 244,
+    "heapMB": 332
+  },
+  "shots": [
+    {
+      "id": "01-entrance-looking-inward",
+      "file": "01-entrance-looking-inward.png",
+      "note": "Standing just inside the entrance doors, facing the length of the room.",
+      "localAt": [
+        -0.8,
+        4.6
+      ],
+      "localLook": [
+        -0.8,
+        -3
+      ],
+      "world": {
+        "x": -360.8,
+        "y": -0.6922654628753664,
+        "z": 8.6
+      },
+      "yaw": 0,
+      "pitch": -0.03,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "02-wide-room-overview",
+      "file": "02-wide-room-overview.png",
+      "note": "South-west corner diagonal — the widest honest read of the whole floor.",
+      "localAt": [
+        -7,
+        3.6
+      ],
+      "localLook": [
+        4,
+        -2.2
+      ],
+      "world": {
+        "x": -367,
+        "y": -0.6922654628753664,
+        "z": 7.6
+      },
+      "yaw": -1.0855693342275603,
+      "pitch": -0.05,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "03-checkout-focal-view",
+      "file": "03-checkout-focal-view.png",
+      "note": "Customer side of the counter, the checkout as a focal point.",
+      "localAt": [
+        0,
+        4.2
+      ],
+      "localLook": [
+        0,
+        0.8
+      ],
+      "world": {
+        "x": -360,
+        "y": -0.6922654628753664,
+        "z": 8.2
+      },
+      "yaw": 0,
+      "pitch": -0.04,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "04-checkout-interaction-view",
+      "file": "04-checkout-interaction-view.png",
+      "note": "Staff side, the working checkout framing the player actually uses.",
+      "localAt": [
+        0,
+        0.2
+      ],
+      "localLook": [
+        0,
+        3.4
+      ],
+      "world": {
+        "x": -360,
+        "y": -0.6922654628753664,
+        "z": 4.2
+      },
+      "yaw": -3.141592653589793,
+      "pitch": -0.16,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "05-laptop-workstation",
+      "file": "05-laptop-workstation.png",
+      "note": "The laptop station on the back-of-counter run.",
+      "localAt": [
+        0.9,
+        0.1
+      ],
+      "localLook": [
+        0.95,
+        2.4
+      ],
+      "world": {
+        "x": -359.1,
+        "y": -0.6922654628753664,
+        "z": 4.1
+      },
+      "yaw": -3.1198569467479955,
+      "pitch": -0.3,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "06-main-merchandise-wall",
+      "file": "06-main-merchandise-wall.png",
+      "note": "The main merchandise wall on the far side of the room.",
+      "localAt": [
+        -3.2,
+        1.4
+      ],
+      "localLook": [
+        -3.6,
+        -4.4
+      ],
+      "world": {
+        "x": -363.2,
+        "y": -0.6922654628753664,
+        "z": 5.4
+      },
+      "yaw": 0.06885648930105046,
+      "pitch": -0.02,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "07-cleaning-route",
+      "file": "07-cleaning-route.png",
+      "note": "Along the debris strip the starter cleaning task runs down.",
+      "localAt": [
+        -7.4,
+        4.1
+      ],
+      "localLook": [
+        3.6,
+        3
+      ],
+      "world": {
+        "x": -367.4,
+        "y": -0.6922654628753664,
+        "z": 8.1
+      },
+      "yaw": -1.4711276743037347,
+      "pitch": -0.3,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "08-customer-route",
+      "file": "08-customer-route.png",
+      "note": "The path a customer walks from the door to the counter.",
+      "localAt": [
+        -0.8,
+        5
+      ],
+      "localLook": [
+        0.2,
+        1.6
+      ],
+      "world": {
+        "x": -360.8,
+        "y": -0.6922654628753664,
+        "z": 9
+      },
+      "yaw": -0.2860514417173182,
+      "pitch": -0.1,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "09-floor-dirt-read",
+      "file": "09-floor-dirt-read.png",
+      "note": "Extra: floor grime and debris at working distance — the cleaning surface.",
+      "localAt": [
+        -2,
+        3.2
+      ],
+      "localLook": [
+        -2,
+        0.4
+      ],
+      "world": {
+        "x": -362,
+        "y": -0.6922654628753664,
+        "z": 7.2
+      },
+      "yaw": 0,
+      "pitch": -0.62,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    },
+    {
+      "id": "10-back-of-room-clutter",
+      "file": "10-back-of-room-clutter.png",
+      "note": "Extra: the delivery/back-of-room corner, currently the weakest composition.",
+      "localAt": [
+        4.6,
+        1.2
+      ],
+      "localLook": [
+        7.6,
+        3.4
+      ],
+      "world": {
+        "x": -355.4,
+        "y": -0.6922654628753664,
+        "z": 5.2
+      },
+      "yaw": -2.20354516179708,
+      "pitch": -0.12,
+      "eye": 1.75,
+      "fov": 66,
+      "insideRoom": true
+    }
+  ]
+}

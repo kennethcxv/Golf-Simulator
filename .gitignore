@@ -39,5 +39,16 @@ logs/
 # Blender automatic backups
 *.blend2
 *.blend@
-# Design references and concept art stored separately
-/Designs/
+# Design references and concept art stored separately.
+# Written as /Designs/* rather than /Designs/ so the one exception below can re-include
+# a subdirectory — git cannot re-include anything inside an excluded directory.
+/Designs/*
+
+# Exception: the pro-shop vertical slice is project-of-record, not concept art.
+# SLICE_BRIEF.md and ANTI_SLOP_CHECKLIST.md are the permanent source of truth for the
+# rebuild, and Designs/ProShop/Baseline/ is the pre-rebuild evidence that later phases
+# are compared against — none of it is reconstructable once lost, so it is tracked.
+# The baseline videos are the one deliberate exception to the *.webm rule above; they
+# are a one-time ~13 MB capture, not recurring QA output.
+!/Designs/ProShop/
+!/Designs/ProShop/Baseline/video/*.webm

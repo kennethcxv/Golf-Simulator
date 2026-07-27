@@ -1,0 +1,74 @@
+{
+  "durationMs": 42983,
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "minuteOfDay": 780,
+  "notes": {
+    "fovBeforeLaptop": 66,
+    "laptopFocusLabel": "Laptop — [E] open GOLF SIMULATOR",
+    "laptopFocusSpot": [
+      0.9,
+      0.9
+    ],
+    "laptopEntered": true,
+    "fovInLaptop": 34,
+    "viewAfterEscape": "course",
+    "laptopScreenModeAfterExit": "desk",
+    "fovAfterLaptopExit": 34,
+    "fovAfterMoving": 34,
+    "sendToCounter": {
+      "ok": true,
+      "detail": "Dean Clarke"
+    },
+    "customersAfterSpawn": {
+      "customerCount": 2,
+      "queueLength": 1
+    },
+    "registerBeforeEnter": {
+      "isActive": false,
+      "hasTx": true,
+      "flow": "WaitingForCashier"
+    },
+    "registerAfterEnter": {
+      "isActive": false,
+      "hasTx": true,
+      "flow": "WaitingForCashier"
+    }
+  },
+  "beats": [
+    {
+      "name": "approach-laptop",
+      "atMs": 0
+    },
+    {
+      "name": "laptop-open",
+      "atMs": 2687
+    },
+    {
+      "name": "laptop-page-home",
+      "atMs": 5772
+    },
+    {
+      "name": "laptop-exit",
+      "atMs": 7973
+    },
+    {
+      "name": "customer-route",
+      "atMs": 12969
+    },
+    {
+      "name": "checkout",
+      "atMs": 22666
+    },
+    {
+      "name": "checkout-observe",
+      "atMs": 31963
+    },
+    {
+      "name": "end",
+      "atMs": 42983
+    }
+  ]
+}
