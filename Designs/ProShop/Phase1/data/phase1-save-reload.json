@@ -1,0 +1,451 @@
+{
+  "note": "Phase 1 save/reload reality check. Inspection only; nothing was fixed.",
+  "mutations": [
+    {
+      "spot": [
+        -4.13,
+        2.29
+      ],
+      "did": 0.0019,
+      "blocked": false,
+      "reason": null
+    },
+    {
+      "spot": [
+        -6.88,
+        -0.45999999999999996
+      ],
+      "did": 0.0019,
+      "blocked": false,
+      "reason": null
+    },
+    {
+      "spot": [
+        1.38,
+        -0.45999999999999996
+      ],
+      "did": 0,
+      "blocked": false,
+      "reason": null
+    }
+  ],
+  "saveResult": {
+    "ok": true
+  },
+  "savedRaw": {
+    "present": true,
+    "bytes": 828301
+  },
+  "menuButtonsAfterReload": [
+    "ContinuePine Hills Municipal Golf · Day 1",
+    "New gameChoose Relaxed or Realistic mode",
+    "Load gameChoose a manual save slot",
+    "SettingsAudio, camera, display, and accessibility",
+    "Credits",
+    "Test scene: Maintenance Shed",
+    "✕",
+    "Home"
+  ],
+  "continueVisible": true,
+  "reloaded": true,
+  "changedByCleaning": {
+    "grimeSum": [
+      79.914,
+      67.109
+    ],
+    "debrisCount": [
+      18,
+      18
+    ],
+    "debrisMass": [
+      3.93,
+      3.93
+    ],
+    "condition": [
+      9,
+      14
+    ],
+    "campaignToolsUsed": [
+      {},
+      {}
+    ]
+  },
+  "survivedReload": true,
+  "diffCount": 0,
+  "diff": [],
+  "before": {
+    "grime": {
+      "len": 104,
+      "sum": 79.914,
+      "mean": 0.7684
+    },
+    "debris": {
+      "count": 18,
+      "totalMass": 3.93,
+      "positions": [
+        "-0.40,0.70,grit",
+        "-1.20,2.85,grit",
+        "-3.70,0.00,litter",
+        "-4.40,-4.30,litter",
+        "-4.50,2.80,grit",
+        "-4.80,1.80,grit",
+        "-5.20,4.40,grit",
+        "-7.40,-3.80,grit",
+        "-7.60,4.60,grit",
+        "-8.10,1.30,grit",
+        "1.30,2.85,grit",
+        "1.80,-0.20,litter",
+        "3.20,-1.10,litter",
+        "3.60,2.80,litter",
+        "6.65,5.15,grit",
+        "6.80,-5.10,litter",
+        "7.15,3.30,grit",
+        "8.20,-1.50,grit"
+      ]
+    },
+    "wetSum": 0,
+    "solutionSum": 0,
+    "cleaning": {
+      "version": 1,
+      "pan": {
+        "load": 0,
+        "capacity": 1.8
+      },
+      "bag": {
+        "load": 0,
+        "capacity": 7.5,
+        "tied": false,
+        "disposed": 0,
+        "disposedLoad": 0
+      },
+      "mop": {
+        "charge": 0,
+        "capacity": 24,
+        "soil": 0
+      },
+      "bucket": {
+        "level": 1,
+        "soil": 0,
+        "water": "clean",
+        "wrings": 0,
+        "changes": 0
+      }
+    },
+    "clutter": [
+      "-8.32,4.64,false",
+      "-6.1,-3.98,false",
+      "4.59,0.64,false",
+      "4.43,3.01,false",
+      "-1.07,-4.12,false",
+      "-8.26,-4.59,false",
+      "6.86,2.37,false",
+      "6.17,5.1,false"
+    ],
+    "windows": [
+      0.81,
+      0.76,
+      0.92,
+      0.82
+    ],
+    "architecture": {
+      "shell": false,
+      "porch": false,
+      "windows": false,
+      "panels": false,
+      "trim": false,
+      "ceiling": false,
+      "floor": false
+    },
+    "lightPanels": {
+      "panel-01": "working",
+      "panel-02": "flicker",
+      "panel-03": "working",
+      "panel-04": "working",
+      "panel-05": "working",
+      "panel-06": "working",
+      "panel-07": "dead",
+      "panel-08": "working"
+    },
+    "targetProgress": {
+      "entry:leaves-trash": 0,
+      "corner:cobweb-nw": 0,
+      "corner:cobweb-ne": 0,
+      "wall:scuff-west": 0,
+      "wall:scuff-east": 0,
+      "lounge:pizza-box": 0,
+      "lounge:empty-cups": 0,
+      "lounge:chair-crooked": 0,
+      "wall:fallen-frame": 0,
+      "desk:paper-stack": 0,
+      "desk:overflow-bin": 0,
+      "desk:sticky-notes": 0,
+      "ceiling:panel-02": 0,
+      "ceiling:panel-07": 0
+    },
+    "cleanupMilestones": {
+      "floor": false,
+      "windows": false,
+      "generic-debris": false
+    },
+    "condition": 9,
+    "cash": 76000,
+    "inventoryShelfTotal": 110,
+    "inventoryBackTotal": 2,
+    "drawerTotal": "{\"1\":25,\"5\":10,\"10\":8,\"20\":5,\"50\":2,\"0.5\":16,\"0.2\":25,\"0.1\":20,\"0.05\":20,\"0.01\":50}",
+    "heldCount": 0,
+    "campaignToolsUsed": {},
+    "campaignFacilities": {},
+    "uiPrefs": {},
+    "saveVersion": 13
+  },
+  "afterMutation": {
+    "grime": {
+      "len": 104,
+      "sum": 67.109,
+      "mean": 0.64528
+    },
+    "debris": {
+      "count": 18,
+      "totalMass": 3.93,
+      "positions": [
+        "-0.40,0.70,grit",
+        "-1.20,2.85,grit",
+        "-3.70,0.00,litter",
+        "-4.40,-4.30,litter",
+        "-4.50,2.80,grit",
+        "-4.80,1.80,grit",
+        "-5.20,4.40,grit",
+        "-7.40,-3.80,grit",
+        "-7.60,4.60,grit",
+        "-8.10,1.30,grit",
+        "1.30,2.85,grit",
+        "1.80,-0.20,litter",
+        "3.20,-1.10,litter",
+        "3.60,2.80,litter",
+        "6.65,5.15,grit",
+        "6.80,-5.10,litter",
+        "7.15,3.30,grit",
+        "8.20,-1.50,grit"
+      ]
+    },
+    "wetSum": 0,
+    "solutionSum": 0,
+    "cleaning": {
+      "version": 1,
+      "pan": {
+        "load": 0,
+        "capacity": 1.8
+      },
+      "bag": {
+        "load": 0,
+        "capacity": 7.5,
+        "tied": false,
+        "disposed": 0,
+        "disposedLoad": 0
+      },
+      "mop": {
+        "charge": 0,
+        "capacity": 24,
+        "soil": 0
+      },
+      "bucket": {
+        "level": 1,
+        "soil": 0,
+        "water": "clean",
+        "wrings": 0,
+        "changes": 0
+      }
+    },
+    "clutter": [
+      "-8.32,4.64,false",
+      "-6.1,-3.98,false",
+      "4.59,0.64,false",
+      "4.43,3.01,false",
+      "-1.07,-4.12,false",
+      "-8.26,-4.59,false",
+      "6.86,2.37,false",
+      "6.17,5.1,false"
+    ],
+    "windows": [
+      0.81,
+      0.76,
+      0.92,
+      0.82
+    ],
+    "architecture": {
+      "shell": false,
+      "porch": false,
+      "windows": false,
+      "panels": false,
+      "trim": false,
+      "ceiling": false,
+      "floor": false
+    },
+    "lightPanels": {
+      "panel-01": "working",
+      "panel-02": "flicker",
+      "panel-03": "working",
+      "panel-04": "working",
+      "panel-05": "working",
+      "panel-06": "working",
+      "panel-07": "dead",
+      "panel-08": "working"
+    },
+    "targetProgress": {
+      "entry:leaves-trash": 0,
+      "corner:cobweb-nw": 0,
+      "corner:cobweb-ne": 0,
+      "wall:scuff-west": 0,
+      "wall:scuff-east": 0,
+      "lounge:pizza-box": 0,
+      "lounge:empty-cups": 0,
+      "lounge:chair-crooked": 0,
+      "wall:fallen-frame": 0,
+      "desk:paper-stack": 0,
+      "desk:overflow-bin": 0,
+      "desk:sticky-notes": 0,
+      "ceiling:panel-02": 0,
+      "ceiling:panel-07": 0
+    },
+    "cleanupMilestones": {
+      "floor": false,
+      "windows": false,
+      "generic-debris": false
+    },
+    "condition": 14,
+    "cash": 76000,
+    "inventoryShelfTotal": 110,
+    "inventoryBackTotal": 2,
+    "drawerTotal": "{\"1\":25,\"5\":10,\"10\":8,\"20\":5,\"50\":2,\"0.5\":16,\"0.2\":25,\"0.1\":20,\"0.05\":20,\"0.01\":50}",
+    "heldCount": 0,
+    "campaignToolsUsed": {},
+    "campaignFacilities": {},
+    "uiPrefs": {},
+    "saveVersion": 13
+  },
+  "afterReload": {
+    "grime": {
+      "len": 104,
+      "sum": 67.109,
+      "mean": 0.64528
+    },
+    "debris": {
+      "count": 18,
+      "totalMass": 3.93,
+      "positions": [
+        "-0.40,0.70,grit",
+        "-1.20,2.85,grit",
+        "-3.70,0.00,litter",
+        "-4.40,-4.30,litter",
+        "-4.50,2.80,grit",
+        "-4.80,1.80,grit",
+        "-5.20,4.40,grit",
+        "-7.40,-3.80,grit",
+        "-7.60,4.60,grit",
+        "-8.10,1.30,grit",
+        "1.30,2.85,grit",
+        "1.80,-0.20,litter",
+        "3.20,-1.10,litter",
+        "3.60,2.80,litter",
+        "6.65,5.15,grit",
+        "6.80,-5.10,litter",
+        "7.15,3.30,grit",
+        "8.20,-1.50,grit"
+      ]
+    },
+    "wetSum": 0,
+    "solutionSum": 0,
+    "cleaning": {
+      "version": 1,
+      "pan": {
+        "load": 0,
+        "capacity": 1.8
+      },
+      "bag": {
+        "load": 0,
+        "capacity": 7.5,
+        "tied": false,
+        "disposed": 0,
+        "disposedLoad": 0
+      },
+      "mop": {
+        "charge": 0,
+        "capacity": 24,
+        "soil": 0
+      },
+      "bucket": {
+        "level": 1,
+        "soil": 0,
+        "water": "clean",
+        "wrings": 0,
+        "changes": 0
+      }
+    },
+    "clutter": [
+      "-8.32,4.64,false",
+      "-6.1,-3.98,false",
+      "4.59,0.64,false",
+      "4.43,3.01,false",
+      "-1.07,-4.12,false",
+      "-8.26,-4.59,false",
+      "6.86,2.37,false",
+      "6.17,5.1,false"
+    ],
+    "windows": [
+      0.81,
+      0.76,
+      0.92,
+      0.82
+    ],
+    "architecture": {
+      "shell": false,
+      "porch": false,
+      "windows": false,
+      "panels": false,
+      "trim": false,
+      "ceiling": false,
+      "floor": false
+    },
+    "lightPanels": {
+      "panel-01": "working",
+      "panel-02": "flicker",
+      "panel-03": "working",
+      "panel-04": "working",
+      "panel-05": "working",
+      "panel-06": "working",
+      "panel-07": "dead",
+      "panel-08": "working"
+    },
+    "targetProgress": {
+      "entry:leaves-trash": 0,
+      "corner:cobweb-nw": 0,
+      "corner:cobweb-ne": 0,
+      "wall:scuff-west": 0,
+      "wall:scuff-east": 0,
+      "lounge:pizza-box": 0,
+      "lounge:empty-cups": 0,
+      "lounge:chair-crooked": 0,
+      "wall:fallen-frame": 0,
+      "desk:paper-stack": 0,
+      "desk:overflow-bin": 0,
+      "desk:sticky-notes": 0,
+      "ceiling:panel-02": 0,
+      "ceiling:panel-07": 0
+    },
+    "cleanupMilestones": {
+      "floor": false,
+      "windows": false,
+      "generic-debris": false
+    },
+    "condition": 14,
+    "cash": 76000,
+    "inventoryShelfTotal": 110,
+    "inventoryBackTotal": 2,
+    "drawerTotal": "{\"1\":25,\"5\":10,\"10\":8,\"20\":5,\"50\":2,\"0.5\":16,\"0.2\":25,\"0.1\":20,\"0.05\":20,\"0.01\":50}",
+    "heldCount": 0,
+    "campaignToolsUsed": {},
+    "campaignFacilities": {},
+    "uiPrefs": {},
+    "saveVersion": 13
+  }
+}

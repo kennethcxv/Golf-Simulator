@@ -1,0 +1,461 @@
+{
+  "note": "Phase 1 attribution pass. Inspection only; nothing was fixed.",
+  "perfAttribution": [
+    {
+      "name": "cold-first-spin",
+      "frames": 754,
+      "avgMs": 10.58,
+      "p1Ms": 70.84,
+      "worstMs": 200,
+      "over33": 10,
+      "bakeAvgMs": 15.58,
+      "plainAvgMs": 10.02,
+      "bakeWorstMs": 200,
+      "plainWorstMs": 58.3,
+      "drawCalls": 1304
+    },
+    {
+      "name": "warm-spin",
+      "frames": 811,
+      "avgMs": 9.83,
+      "p1Ms": 29.23,
+      "worstMs": 33.4,
+      "over33": 3,
+      "bakeAvgMs": 11.82,
+      "plainAvgMs": 9.63,
+      "bakeWorstMs": 25.1,
+      "plainWorstMs": 33.4,
+      "drawCalls": 3067
+    },
+    {
+      "name": "warm-spin-gtao-off",
+      "frames": 662,
+      "avgMs": 9.03,
+      "p1Ms": 26.19,
+      "worstMs": 33.3,
+      "over33": 0,
+      "bakeAvgMs": 9.34,
+      "plainAvgMs": 9,
+      "bakeWorstMs": 16.7,
+      "plainWorstMs": 33.3,
+      "drawCalls": 1164
+    },
+    {
+      "name": "warm-spin-bloom-off",
+      "frames": 616,
+      "avgMs": 9.67,
+      "p1Ms": 25.03,
+      "worstMs": 25.1,
+      "over33": 0,
+      "bakeAvgMs": 11.36,
+      "plainAvgMs": 9.5,
+      "bakeWorstMs": 25.1,
+      "plainWorstMs": 25.1,
+      "drawCalls": 3066
+    },
+    {
+      "name": "warm-spin-shadow2048",
+      "frames": 611,
+      "avgMs": 9.77,
+      "p1Ms": 27.8,
+      "worstMs": 33.4,
+      "over33": 2,
+      "bakeAvgMs": 10.98,
+      "plainAvgMs": 9.64,
+      "bakeWorstMs": 25,
+      "plainWorstMs": 33.4,
+      "drawCalls": 934
+    },
+    {
+      "name": "warm-spin-sun-shadow-off",
+      "frames": 568,
+      "avgMs": 10.49,
+      "p1Ms": 118.05,
+      "worstMs": 241.6,
+      "over33": 8,
+      "bakeAvgMs": 20.01,
+      "plainAvgMs": 9.47,
+      "bakeWorstMs": 241.6,
+      "plainWorstMs": 83.3,
+      "drawCalls": 3309
+    }
+  ],
+  "broom": {
+    "pitchSweep": [
+      {
+        "pitch": 0.2,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.435,
+          "y": -0.192,
+          "z": -0.47
+        },
+        "contactLocal": {
+          "x": -5.116,
+          "z": 2.429
+        },
+        "contactHeightAboveFloor": 0.309,
+        "contactNdc": {
+          "x": 0.274,
+          "y": -1.794
+        },
+        "contactOnScreen": false
+      },
+      {
+        "pitch": 0,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.435,
+          "y": -0.279,
+          "z": -0.423
+        },
+        "contactLocal": {
+          "x": -5.118,
+          "z": 2.477
+        },
+        "contactHeightAboveFloor": 0.222,
+        "contactNdc": {
+          "x": 0.232,
+          "y": -1.305
+        },
+        "contactOnScreen": false
+      },
+      {
+        "pitch": -0.2,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.436,
+          "y": -0.356,
+          "z": -0.358
+        },
+        "contactLocal": {
+          "x": -5.115,
+          "z": 2.542
+        },
+        "contactHeightAboveFloor": 0.145,
+        "contactNdc": {
+          "x": 0.208,
+          "y": -0.935
+        },
+        "contactOnScreen": true
+      },
+      {
+        "pitch": -0.4,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.438,
+          "y": -0.42,
+          "z": -0.279
+        },
+        "contactLocal": {
+          "x": -5.109,
+          "z": 2.621
+        },
+        "contactHeightAboveFloor": 0.081,
+        "contactNdc": {
+          "x": 0.195,
+          "y": -0.63
+        },
+        "contactOnScreen": true
+      },
+      {
+        "pitch": -0.62,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.44,
+          "y": -0.471,
+          "z": -0.178
+        },
+        "contactLocal": {
+          "x": -5.1,
+          "z": 2.722
+        },
+        "contactHeightAboveFloor": 0.029,
+        "contactNdc": {
+          "x": 0.191,
+          "y": -0.336
+        },
+        "contactOnScreen": true
+      },
+      {
+        "pitch": -0.8,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.442,
+          "y": -0.497,
+          "z": -0.088
+        },
+        "contactLocal": {
+          "x": -5.092,
+          "z": 2.812
+        },
+        "contactHeightAboveFloor": 0.004,
+        "contactNdc": {
+          "x": 0.193,
+          "y": -0.111
+        },
+        "contactOnScreen": true
+      },
+      {
+        "pitch": -1,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.444,
+          "y": -0.505,
+          "z": 0.014
+        },
+        "contactLocal": {
+          "x": -5.087,
+          "z": 2.914
+        },
+        "contactHeightAboveFloor": -0.004,
+        "contactNdc": {
+          "x": 0.201,
+          "y": 0.14
+        },
+        "contactOnScreen": true
+      },
+      {
+        "pitch": -1.25,
+        "foundRoot": true,
+        "foundSocket": true,
+        "rootOffsetFromCamera": {
+          "x": 0.445,
+          "y": -0.485,
+          "z": 0.138
+        },
+        "contactLocal": {
+          "x": -5.087,
+          "z": 3.038
+        },
+        "contactHeightAboveFloor": 0.016,
+        "contactNdc": {
+          "x": 0.218,
+          "y": 0.478
+        },
+        "contactOnScreen": true
+      }
+    ],
+    "bodyCensus": {
+      "cameraChildren": [
+        "PerspectiveCamera:(unnamed)",
+        "Group:(unnamed)",
+        "Group:(unnamed)",
+        "Group:(unnamed)",
+        "Group:(unnamed)",
+        "Group:HeldWasher",
+        "Object3D:SOCKET_nozzle",
+        "Group:Scene",
+        "Object3D:A_079_PRESSURE_WASHER_HOSE_AND_WAND_FP_ROOT",
+        "Object3D:LOD0_WandHeld",
+        "Mesh:MESH_GunBody",
+        "Mesh:MESH_GunGrip",
+        "Mesh:MESH_GunGripStrap",
+        "Mesh:MESH_GunHoseInlet",
+        "Mesh:MESH_GunInletNut",
+        "Mesh:MESH_GunShroud",
+        "Mesh:MESH_GunTriggerGuard",
+        "Mesh:MESH_WandHoseTail",
+        "Mesh:MESH_WandLance",
+        "Mesh:MESH_WandNozzle",
+        "Mesh:MESH_WandTipCollar",
+        "Object3D:PIVOT_Trigger",
+        "Mesh:MESH_WandTriggerBlade",
+        "Object3D:SOCKET_GripPrimary",
+        "Object3D:SOCKET_GripSupport",
+        "Object3D:SOCKET_SprayEmission",
+        "Object3D:SOCKET_Trigger",
+        "Group:(unnamed)",
+        "Group:DeliveryBoxCutterVisual",
+        "Group:DeliveryBoxCutterLoadingFallback",
+        "Group:DeliveryBoxCutterAuthored",
+        "Object3D:delivery_box_cutter",
+        "Object3D:BLADE_CONTACT",
+        "Mesh:COL_CUTTER",
+        "Mesh:CUTTER_BLADE",
+        "Mesh:CUTTER_BODY",
+        "Mesh:CUTTER_CHANNEL",
+        "Object3D:CUTTER_GRIP_POINT",
+        "Mesh:CUTTER_GRIP_RIDGE_01",
+        "Mesh:CUTTER_GRIP_RIDGE_02"
+      ],
+      "heldRootName": "DeliveryBoxCarryHands",
+      "cameraChildCount": 269
+    },
+    "clipProbe": [
+      {
+        "spot": [
+          -5,
+          -1
+        ],
+        "pose": {
+          "pitch": -0.62,
+          "foundRoot": true,
+          "foundSocket": true,
+          "rootOffsetFromCamera": {
+            "x": 0.293,
+            "y": -0.431,
+            "z": -0.167
+          },
+          "contactLocal": {
+            "x": -4.661,
+            "z": -2.471
+          },
+          "contactHeightAboveFloor": -0.011,
+          "contactNdc": {
+            "x": 0.132,
+            "y": -0.401
+          },
+          "contactOnScreen": true
+        },
+        "result": {
+          "did": 0,
+          "blocked": false,
+          "reason": null
+        },
+        "contactInsideRoom": true,
+        "contactLocalFromDiag": {
+          "x": -4.66,
+          "z": -2.47
+        }
+      },
+      {
+        "spot": [
+          -3.5,
+          0.6
+        ],
+        "pose": {
+          "pitch": -0.62,
+          "foundRoot": true,
+          "foundSocket": true,
+          "rootOffsetFromCamera": {
+            "x": 0.593,
+            "y": -0.432,
+            "z": -0.169
+          },
+          "contactLocal": {
+            "x": -2.858,
+            "z": -0.872
+          },
+          "contactHeightAboveFloor": -0.012,
+          "contactNdc": {
+            "x": 0.25,
+            "y": -0.401
+          },
+          "contactOnScreen": true
+        },
+        "result": {
+          "did": 0,
+          "blocked": false,
+          "reason": null
+        },
+        "contactInsideRoom": true,
+        "contactLocalFromDiag": {
+          "x": -2.86,
+          "z": -0.87
+        }
+      },
+      {
+        "spot": [
+          0,
+          1.6
+        ],
+        "pose": {
+          "pitch": -0.62,
+          "foundRoot": true,
+          "foundSocket": true,
+          "rootOffsetFromCamera": {
+            "x": 0.283,
+            "y": -0.431,
+            "z": -0.163
+          },
+          "contactLocal": {
+            "x": -0.148,
+            "z": -0.518
+          },
+          "contactHeightAboveFloor": -0.011,
+          "contactNdc": {
+            "x": 0.137,
+            "y": -0.404
+          },
+          "contactOnScreen": true
+        },
+        "result": {
+          "did": 0,
+          "blocked": true,
+          "reason": "blocked"
+        },
+        "contactInsideRoom": true,
+        "contactLocalFromDiag": {
+          "x": -0.15,
+          "z": -0.52
+        }
+      },
+      {
+        "spot": [
+          4.6,
+          1.2
+        ],
+        "pose": {
+          "pitch": -0.62,
+          "foundRoot": true,
+          "foundSocket": true,
+          "rootOffsetFromCamera": {
+            "x": 0.564,
+            "y": -0.431,
+            "z": -0.165
+          },
+          "contactLocal": {
+            "x": 5.216,
+            "z": -0.198
+          },
+          "contactHeightAboveFloor": -0.011,
+          "contactNdc": {
+            "x": 0.241,
+            "y": -0.403
+          },
+          "contactOnScreen": true
+        },
+        "result": {
+          "did": 0,
+          "blocked": true,
+          "reason": "occluded"
+        },
+        "contactInsideRoom": true,
+        "contactLocalFromDiag": {
+          "x": 5.22,
+          "z": -0.2
+        }
+      }
+    ],
+    "toolDiag": {
+      "equippedTool": "broom",
+      "animated": [
+        "washer",
+        "vacuum",
+        "mop",
+        "broom",
+        "dustpan",
+        "spray",
+        "cloth",
+        "sponge",
+        "trashbag"
+      ],
+      "playing": [],
+      "clips": [
+        "Broom_BristleContact",
+        "Broom_Equip",
+        "Broom_SweepLeft",
+        "Broom_SweepRight",
+        "Broom_Unequip"
+      ]
+    }
+  }
+}
