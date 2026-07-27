@@ -1,0 +1,1535 @@
+{
+  "assetFamily": "Golf Flipper Ceiling Lights",
+  "generator": "tools/blender/build_ceiling_lights.py",
+  "blenderVersion": "5.1.2",
+  "units": "meters",
+  "orientation": {
+    "up": "+Z",
+    "front": "-Y",
+    "origin": "ceiling mounting centre"
+  },
+  "references": [
+    "Designs/Lights/Basic.png",
+    "Designs/Lights/Standard.png",
+    "Designs/Lights/Premium.png",
+    "Designs/Lights/High-End.png",
+    "Designs/Lights/Luxury.png"
+  ],
+  "externalAssets": [],
+  "externalTextures": [],
+  "license": "Original Golf Flipper project-owned procedural geometry; project-owned design references only.",
+  "assets": [
+    {
+      "key": "basic",
+      "asset": "CeilingLight_Basic",
+      "progressionPrimary": true,
+      "reference": "Designs/Lights/Basic.png",
+      "dimensionsM": [
+        1.45,
+        0.56,
+        0.16
+      ],
+      "source": "Assets/ceiling_lights/source/ceiling_light_basic.blend",
+      "exports": {
+        "LOD0": "Assets/ceiling_lights/exports/ceiling_light_basic.glb",
+        "LOD1": "Assets/ceiling_lights/exports/ceiling_light_basic_lod1.glb",
+        "LOD2": "Assets/ceiling_lights/exports/ceiling_light_basic_lod2.glb"
+      },
+      "runtime": {
+        "LOD0": "vendor/models/ceiling_lights/ceiling_light_basic.glb",
+        "LOD1": "vendor/models/ceiling_lights/ceiling_light_basic_lod1.glb",
+        "LOD2": "vendor/models/ceiling_lights/ceiling_light_basic_lod2.glb"
+      },
+      "previews": {
+        "off": "Assets/ceiling_lights/previews/ceiling_light_basic_off.png",
+        "on": "Assets/ceiling_lights/previews/ceiling_light_basic_on.png"
+      },
+      "colorTemperatureK": 4250,
+      "powerDrawWatts": 42,
+      "runtimeLightCount": 2,
+      "runtimeIntensity": [
+        6.1,
+        6.1
+      ],
+      "runtimeRangeYards": [
+        7.6,
+        7.6
+      ],
+      "sourceValidation": {
+        "source": "Assets/ceiling_lights/source/ceiling_light_basic.blend",
+        "objects": 37,
+        "meshes": 28,
+        "materials": [
+          "MAT_Emitter_4250K",
+          "MAT_FrostedDiffuser_Unlit",
+          "MAT_PowderCoat_UtilityWhite",
+          "MAT_PowderCoat_WarmWhite",
+          "MAT_RearHousing_White",
+          "MAT_SuspensionCable",
+          "MAT_WarmCharcoal_Metal"
+        ],
+        "emitterMaterials": [
+          "MAT_Emitter_4250K"
+        ],
+        "runtimeLights": [
+          "LIGHT_LINEAR_RIGHT",
+          "LIGHT_LINEAR_LEFT"
+        ],
+        "triangles": {
+          "LOD0": 4356,
+          "LOD1": 1956,
+          "LOD2": 1276
+        },
+        "renderBoundsM": {
+          "min": [
+            -0.7195,
+            -0.0755,
+            -0.541
+          ],
+          "max": [
+            0.7195,
+            0.0755,
+            0.0
+          ],
+          "dimensions": [
+            1.439,
+            0.151,
+            0.541
+          ]
+        },
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "trackMotion": null,
+        "issues": []
+      },
+      "exportOptimization": {
+        "LOD0": {
+          "sourceMeshes": 28,
+          "exportMeshes": 8,
+          "batches": 6,
+          "mergedMeshes": 20,
+          "preservedMovingPivots": []
+        },
+        "LOD1": {
+          "sourceMeshes": 16,
+          "exportMeshes": 6,
+          "batches": 3,
+          "mergedMeshes": 10,
+          "preservedMovingPivots": []
+        },
+        "LOD2": {
+          "sourceMeshes": 10,
+          "exportMeshes": 6,
+          "batches": 3,
+          "mergedMeshes": 4,
+          "preservedMovingPivots": []
+        }
+      },
+      "reimportValidation": {
+        "glb": "Assets/ceiling_lights/exports/ceiling_light_basic.glb",
+        "objects": 17,
+        "meshes": 8,
+        "materials": [
+          "MAT_Emitter_4250K",
+          "MAT_FrostedDiffuser_Unlit",
+          "MAT_PowderCoat_UtilityWhite",
+          "MAT_PowderCoat_WarmWhite",
+          "MAT_RearHousing_White",
+          "MAT_SuspensionCable",
+          "MAT_WarmCharcoal_Metal"
+        ],
+        "lights": [
+          "LIGHT_LINEAR_LEFT",
+          "LIGHT_LINEAR_RIGHT"
+        ],
+        "collisionMeshes": [
+          "COLLISION_CeilingLight_Basic"
+        ],
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "splitBoundaryEdgesAfterImport": 4604,
+        "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+        "issues": []
+      },
+      "reimportValidations": {
+        "LOD0": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_basic.glb",
+          "objects": 17,
+          "meshes": 8,
+          "materials": [
+            "MAT_Emitter_4250K",
+            "MAT_FrostedDiffuser_Unlit",
+            "MAT_PowderCoat_UtilityWhite",
+            "MAT_PowderCoat_WarmWhite",
+            "MAT_RearHousing_White",
+            "MAT_SuspensionCable",
+            "MAT_WarmCharcoal_Metal"
+          ],
+          "lights": [
+            "LIGHT_LINEAR_LEFT",
+            "LIGHT_LINEAR_RIGHT"
+          ],
+          "collisionMeshes": [
+            "COLLISION_CeilingLight_Basic"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 4604,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD1": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_basic_lod1.glb",
+          "objects": 14,
+          "meshes": 6,
+          "materials": [
+            "MAT_Emitter_4250K",
+            "MAT_FrostedDiffuser_Unlit",
+            "MAT_PowderCoat_UtilityWhite",
+            "MAT_SuspensionCable",
+            "MAT_WarmCharcoal_Metal"
+          ],
+          "lights": [
+            "LOD1_LIGHT_LINEAR_LEFT",
+            "LOD1_LIGHT_LINEAR_RIGHT"
+          ],
+          "collisionMeshes": [
+            "LOD1_COLLISION_CeilingLight_Basic"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 1712,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD2": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_basic_lod2.glb",
+          "objects": 14,
+          "meshes": 6,
+          "materials": [
+            "MAT_Emitter_4250K",
+            "MAT_FrostedDiffuser_Unlit",
+            "MAT_PowderCoat_UtilityWhite",
+            "MAT_SuspensionCable",
+            "MAT_WarmCharcoal_Metal"
+          ],
+          "lights": [
+            "LOD2_LIGHT_LINEAR_LEFT",
+            "LOD2_LIGHT_LINEAR_RIGHT"
+          ],
+          "collisionMeshes": [
+            "LOD2_COLLISION_CeilingLight_Basic"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 1324,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        }
+      },
+      "issues": []
+    },
+    {
+      "key": "standard",
+      "asset": "CeilingLight_Standard",
+      "progressionPrimary": true,
+      "reference": "Designs/Lights/Standard.png",
+      "dimensionsM": [
+        0.62,
+        0.075,
+        0.62
+      ],
+      "source": "Assets/ceiling_lights/source/ceiling_light_standard.blend",
+      "exports": {
+        "LOD0": "Assets/ceiling_lights/exports/ceiling_light_standard.glb",
+        "LOD1": "Assets/ceiling_lights/exports/ceiling_light_standard_lod1.glb",
+        "LOD2": "Assets/ceiling_lights/exports/ceiling_light_standard_lod2.glb"
+      },
+      "runtime": {
+        "LOD0": "vendor/models/ceiling_lights/ceiling_light_standard.glb",
+        "LOD1": "vendor/models/ceiling_lights/ceiling_light_standard_lod1.glb",
+        "LOD2": "vendor/models/ceiling_lights/ceiling_light_standard_lod2.glb"
+      },
+      "previews": {
+        "off": "Assets/ceiling_lights/previews/ceiling_light_standard_off.png",
+        "on": "Assets/ceiling_lights/previews/ceiling_light_standard_on.png"
+      },
+      "colorTemperatureK": 3800,
+      "powerDrawWatts": 36,
+      "runtimeLightCount": 1,
+      "runtimeIntensity": [
+        12.2
+      ],
+      "runtimeRangeYards": [
+        9.2
+      ],
+      "sourceValidation": {
+        "source": "Assets/ceiling_lights/source/ceiling_light_standard.blend",
+        "objects": 28,
+        "meshes": 21,
+        "materials": [
+          "MAT_Emitter_3800K",
+          "MAT_FrostedDiffuser_Unlit",
+          "MAT_PowderCoat_WarmWhite",
+          "MAT_RearHousing_White",
+          "MAT_WarmCharcoal_Metal"
+        ],
+        "emitterMaterials": [
+          "MAT_Emitter_3800K"
+        ],
+        "runtimeLights": [
+          "LIGHT_PANEL_CENTER"
+        ],
+        "triangles": {
+          "LOD0": 1904,
+          "LOD1": 548,
+          "LOD2": 196
+        },
+        "renderBoundsM": {
+          "min": [
+            -0.31,
+            -0.31,
+            -0.08575
+          ],
+          "max": [
+            0.31,
+            0.31,
+            -0.008
+          ],
+          "dimensions": [
+            0.62,
+            0.62,
+            0.07775
+          ]
+        },
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "trackMotion": null,
+        "issues": []
+      },
+      "exportOptimization": {
+        "LOD0": {
+          "sourceMeshes": 21,
+          "exportMeshes": 6,
+          "batches": 4,
+          "mergedMeshes": 15,
+          "preservedMovingPivots": []
+        },
+        "LOD1": {
+          "sourceMeshes": 12,
+          "exportMeshes": 6,
+          "batches": 2,
+          "mergedMeshes": 6,
+          "preservedMovingPivots": []
+        },
+        "LOD2": {
+          "sourceMeshes": 4,
+          "exportMeshes": 4,
+          "batches": 0,
+          "mergedMeshes": 0,
+          "preservedMovingPivots": []
+        }
+      },
+      "reimportValidation": {
+        "glb": "Assets/ceiling_lights/exports/ceiling_light_standard.glb",
+        "objects": 13,
+        "meshes": 6,
+        "materials": [
+          "MAT_Emitter_3800K",
+          "MAT_FrostedDiffuser_Unlit",
+          "MAT_PowderCoat_WarmWhite",
+          "MAT_RearHousing_White",
+          "MAT_WarmCharcoal_Metal"
+        ],
+        "lights": [
+          "LIGHT_PANEL_CENTER"
+        ],
+        "collisionMeshes": [
+          "COLLISION_CeilingLight_Standard"
+        ],
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "splitBoundaryEdgesAfterImport": 3336,
+        "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+        "issues": []
+      },
+      "reimportValidations": {
+        "LOD0": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_standard.glb",
+          "objects": 13,
+          "meshes": 6,
+          "materials": [
+            "MAT_Emitter_3800K",
+            "MAT_FrostedDiffuser_Unlit",
+            "MAT_PowderCoat_WarmWhite",
+            "MAT_RearHousing_White",
+            "MAT_WarmCharcoal_Metal"
+          ],
+          "lights": [
+            "LIGHT_PANEL_CENTER"
+          ],
+          "collisionMeshes": [
+            "COLLISION_CeilingLight_Standard"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 3336,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD1": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_standard_lod1.glb",
+          "objects": 13,
+          "meshes": 6,
+          "materials": [
+            "MAT_Emitter_3800K",
+            "MAT_FrostedDiffuser_Unlit",
+            "MAT_PowderCoat_WarmWhite",
+            "MAT_RearHousing_White",
+            "MAT_WarmCharcoal_Metal"
+          ],
+          "lights": [
+            "LOD1_LIGHT_PANEL_CENTER"
+          ],
+          "collisionMeshes": [
+            "LOD1_COLLISION_CeilingLight_Standard"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 1176,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD2": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_standard_lod2.glb",
+          "objects": 11,
+          "meshes": 4,
+          "materials": [
+            "MAT_Emitter_3800K",
+            "MAT_FrostedDiffuser_Unlit",
+            "MAT_PowderCoat_WarmWhite"
+          ],
+          "lights": [
+            "LOD2_LIGHT_PANEL_CENTER"
+          ],
+          "collisionMeshes": [
+            "LOD2_COLLISION_CeilingLight_Standard"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 408,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        }
+      },
+      "issues": []
+    },
+    {
+      "key": "premium_single",
+      "asset": "CeilingLight_Premium_Single",
+      "progressionPrimary": false,
+      "reference": "Designs/Lights/Premium.png",
+      "dimensionsM": [
+        0.184,
+        0.02,
+        0.184
+      ],
+      "source": "Assets/ceiling_lights/source/ceiling_light_premium_single.blend",
+      "exports": {
+        "LOD0": "Assets/ceiling_lights/exports/ceiling_light_premium_single.glb",
+        "LOD1": "Assets/ceiling_lights/exports/ceiling_light_premium_single_lod1.glb",
+        "LOD2": "Assets/ceiling_lights/exports/ceiling_light_premium_single_lod2.glb"
+      },
+      "runtime": {
+        "LOD0": "vendor/models/ceiling_lights/ceiling_light_premium_single.glb",
+        "LOD1": "vendor/models/ceiling_lights/ceiling_light_premium_single_lod1.glb",
+        "LOD2": "vendor/models/ceiling_lights/ceiling_light_premium_single_lod2.glb"
+      },
+      "previews": {
+        "off": "Assets/ceiling_lights/previews/ceiling_light_premium_single_off.png",
+        "on": "Assets/ceiling_lights/previews/ceiling_light_premium_single_on.png"
+      },
+      "colorTemperatureK": 3250,
+      "powerDrawWatts": 18,
+      "runtimeLightCount": 1,
+      "runtimeIntensity": [
+        7.4
+      ],
+      "runtimeRangeYards": [
+        7.0
+      ],
+      "sourceValidation": {
+        "source": "Assets/ceiling_lights/source/ceiling_light_premium_single.blend",
+        "objects": 27,
+        "meshes": 17,
+        "materials": [
+          "MAT_Emitter_3250K",
+          "MAT_Premium_DarkBronze",
+          "MAT_Premium_Recess",
+          "MAT_Reflector_SatinMetal",
+          "MAT_WarmCharcoal_Metal",
+          "MAT_WarmLens_Unlit"
+        ],
+        "emitterMaterials": [
+          "MAT_Emitter_3250K"
+        ],
+        "runtimeLights": [
+          "LIGHT_DOWNLIGHT_01"
+        ],
+        "triangles": {
+          "LOD0": 4768,
+          "LOD1": 1820,
+          "LOD2": 700
+        },
+        "renderBoundsM": {
+          "min": [
+            -0.11915,
+            -0.092,
+            -0.02321
+          ],
+          "max": [
+            0.1255,
+            0.092,
+            0.1265
+          ],
+          "dimensions": [
+            0.24465,
+            0.184,
+            0.14971
+          ]
+        },
+        "ceilingCutouts": [
+          "Downlight_01_CEILING_CUTOUT"
+        ],
+        "aboveCeilingComponents": [
+          "Downlight_01_JunctionBox",
+          "Downlight_01_RoughInHousing",
+          "Downlight_01_SpringClip_Left",
+          "Downlight_01_SpringClip_Right",
+          "Downlight_01_ThermalFin_01",
+          "Downlight_01_ThermalFin_02",
+          "Downlight_01_ThermalFin_03",
+          "Downlight_01_ThermalFin_04"
+        ],
+        "trackMotion": null,
+        "issues": []
+      },
+      "exportOptimization": {
+        "LOD0": {
+          "sourceMeshes": 17,
+          "exportMeshes": 14,
+          "batches": 2,
+          "mergedMeshes": 3,
+          "preservedMovingPivots": []
+        },
+        "LOD1": {
+          "sourceMeshes": 8,
+          "exportMeshes": 7,
+          "batches": 1,
+          "mergedMeshes": 1,
+          "preservedMovingPivots": []
+        },
+        "LOD2": {
+          "sourceMeshes": 7,
+          "exportMeshes": 7,
+          "batches": 0,
+          "mergedMeshes": 0,
+          "preservedMovingPivots": []
+        }
+      },
+      "reimportValidation": {
+        "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_single.glb",
+        "objects": 24,
+        "meshes": 14,
+        "materials": [
+          "MAT_Emitter_3250K",
+          "MAT_Premium_DarkBronze",
+          "MAT_Premium_Recess",
+          "MAT_Reflector_SatinMetal",
+          "MAT_WarmCharcoal_Metal",
+          "MAT_WarmLens_Unlit"
+        ],
+        "lights": [
+          "LIGHT_DOWNLIGHT_01"
+        ],
+        "collisionMeshes": [
+          "COLLISION_CeilingLight_Premium_Single"
+        ],
+        "ceilingCutouts": [
+          "Downlight_01_CEILING_CUTOUT"
+        ],
+        "aboveCeilingComponents": [
+          "Downlight_01_JunctionBox",
+          "Downlight_01_RoughInHousing",
+          "Downlight_01_SpringClip_Left",
+          "Downlight_01_SpringClip_Right",
+          "Downlight_01_ThermalFin_01",
+          "Downlight_01_ThermalFin_02",
+          "Downlight_01_ThermalFin_03",
+          "Downlight_01_ThermalFin_04"
+        ],
+        "splitBoundaryEdgesAfterImport": 5614,
+        "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+        "issues": []
+      },
+      "reimportValidations": {
+        "LOD0": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_single.glb",
+          "objects": 24,
+          "meshes": 14,
+          "materials": [
+            "MAT_Emitter_3250K",
+            "MAT_Premium_DarkBronze",
+            "MAT_Premium_Recess",
+            "MAT_Reflector_SatinMetal",
+            "MAT_WarmCharcoal_Metal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LIGHT_DOWNLIGHT_01"
+          ],
+          "collisionMeshes": [
+            "COLLISION_CeilingLight_Premium_Single"
+          ],
+          "ceilingCutouts": [
+            "Downlight_01_CEILING_CUTOUT"
+          ],
+          "aboveCeilingComponents": [
+            "Downlight_01_JunctionBox",
+            "Downlight_01_RoughInHousing",
+            "Downlight_01_SpringClip_Left",
+            "Downlight_01_SpringClip_Right",
+            "Downlight_01_ThermalFin_01",
+            "Downlight_01_ThermalFin_02",
+            "Downlight_01_ThermalFin_03",
+            "Downlight_01_ThermalFin_04"
+          ],
+          "splitBoundaryEdgesAfterImport": 5614,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD1": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_single_lod1.glb",
+          "objects": 17,
+          "meshes": 7,
+          "materials": [
+            "MAT_Emitter_3250K",
+            "MAT_Premium_DarkBronze",
+            "MAT_Premium_Recess",
+            "MAT_Reflector_SatinMetal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LOD1_LIGHT_DOWNLIGHT_01"
+          ],
+          "collisionMeshes": [
+            "LOD1_COLLISION_CeilingLight_Premium_Single"
+          ],
+          "ceilingCutouts": [
+            "LOD1_Downlight_01_CEILING_CUTOUT"
+          ],
+          "aboveCeilingComponents": [
+            "LOD1_Downlight_01_RoughInHousing"
+          ],
+          "splitBoundaryEdgesAfterImport": 2044,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD2": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_single_lod2.glb",
+          "objects": 17,
+          "meshes": 7,
+          "materials": [
+            "MAT_Emitter_3250K",
+            "MAT_Premium_DarkBronze",
+            "MAT_Premium_Recess",
+            "MAT_Reflector_SatinMetal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LOD2_LIGHT_DOWNLIGHT_01"
+          ],
+          "collisionMeshes": [
+            "LOD2_COLLISION_CeilingLight_Premium_Single"
+          ],
+          "ceilingCutouts": [
+            "LOD2_Downlight_01_CEILING_CUTOUT"
+          ],
+          "aboveCeilingComponents": [
+            "LOD2_Downlight_01_RoughInHousing"
+          ],
+          "splitBoundaryEdgesAfterImport": 820,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        }
+      },
+      "issues": []
+    },
+    {
+      "key": "premium",
+      "asset": "CeilingLight_Premium_Triple",
+      "progressionPrimary": true,
+      "reference": "Designs/Lights/Premium.png",
+      "dimensionsM": [
+        0.86,
+        0.02,
+        0.64
+      ],
+      "source": "Assets/ceiling_lights/source/ceiling_light_premium_triple.blend",
+      "exports": {
+        "LOD0": "Assets/ceiling_lights/exports/ceiling_light_premium_triple.glb",
+        "LOD1": "Assets/ceiling_lights/exports/ceiling_light_premium_triple_lod1.glb",
+        "LOD2": "Assets/ceiling_lights/exports/ceiling_light_premium_triple_lod2.glb"
+      },
+      "runtime": {
+        "LOD0": "vendor/models/ceiling_lights/ceiling_light_premium_triple.glb",
+        "LOD1": "vendor/models/ceiling_lights/ceiling_light_premium_triple_lod1.glb",
+        "LOD2": "vendor/models/ceiling_lights/ceiling_light_premium_triple_lod2.glb"
+      },
+      "previews": {
+        "off": "Assets/ceiling_lights/previews/ceiling_light_premium_triple_off.png",
+        "on": "Assets/ceiling_lights/previews/ceiling_light_premium_triple_on.png"
+      },
+      "colorTemperatureK": 3250,
+      "powerDrawWatts": 54,
+      "runtimeLightCount": 3,
+      "runtimeIntensity": [
+        7.4,
+        7.4,
+        7.4
+      ],
+      "runtimeRangeYards": [
+        7.0,
+        7.0,
+        7.0
+      ],
+      "sourceValidation": {
+        "source": "Assets/ceiling_lights/source/ceiling_light_premium_triple.blend",
+        "objects": 67,
+        "meshes": 49,
+        "materials": [
+          "MAT_Emitter_3250K",
+          "MAT_Premium_DarkBronze",
+          "MAT_Premium_Recess",
+          "MAT_Reflector_SatinMetal",
+          "MAT_WarmCharcoal_Metal",
+          "MAT_WarmLens_Unlit"
+        ],
+        "emitterMaterials": [
+          "MAT_Emitter_3250K"
+        ],
+        "runtimeLights": [
+          "LIGHT_DOWNLIGHT_03",
+          "LIGHT_DOWNLIGHT_02",
+          "LIGHT_DOWNLIGHT_01"
+        ],
+        "triangles": {
+          "LOD0": 14304,
+          "LOD1": 5460,
+          "LOD2": 2100
+        },
+        "renderBoundsM": {
+          "min": [
+            -0.44915,
+            -0.342,
+            -0.02321
+          ],
+          "max": [
+            0.4555,
+            0.272,
+            0.1265
+          ],
+          "dimensions": [
+            0.90465,
+            0.614,
+            0.14971
+          ]
+        },
+        "ceilingCutouts": [
+          "Downlight_01_CEILING_CUTOUT",
+          "Downlight_02_CEILING_CUTOUT",
+          "Downlight_03_CEILING_CUTOUT"
+        ],
+        "aboveCeilingComponents": [
+          "Downlight_01_JunctionBox",
+          "Downlight_01_RoughInHousing",
+          "Downlight_01_SpringClip_Left",
+          "Downlight_01_SpringClip_Right",
+          "Downlight_01_ThermalFin_01",
+          "Downlight_01_ThermalFin_02",
+          "Downlight_01_ThermalFin_03",
+          "Downlight_01_ThermalFin_04",
+          "Downlight_02_JunctionBox",
+          "Downlight_02_RoughInHousing",
+          "Downlight_02_SpringClip_Left",
+          "Downlight_02_SpringClip_Right",
+          "Downlight_02_ThermalFin_01",
+          "Downlight_02_ThermalFin_02",
+          "Downlight_02_ThermalFin_03",
+          "Downlight_02_ThermalFin_04",
+          "Downlight_03_JunctionBox",
+          "Downlight_03_RoughInHousing",
+          "Downlight_03_SpringClip_Left",
+          "Downlight_03_SpringClip_Right",
+          "Downlight_03_ThermalFin_01",
+          "Downlight_03_ThermalFin_02",
+          "Downlight_03_ThermalFin_03",
+          "Downlight_03_ThermalFin_04"
+        ],
+        "trackMotion": null,
+        "issues": []
+      },
+      "exportOptimization": {
+        "LOD0": {
+          "sourceMeshes": 49,
+          "exportMeshes": 30,
+          "batches": 5,
+          "mergedMeshes": 19,
+          "preservedMovingPivots": []
+        },
+        "LOD1": {
+          "sourceMeshes": 22,
+          "exportMeshes": 9,
+          "batches": 5,
+          "mergedMeshes": 13,
+          "preservedMovingPivots": []
+        },
+        "LOD2": {
+          "sourceMeshes": 19,
+          "exportMeshes": 9,
+          "batches": 5,
+          "mergedMeshes": 10,
+          "preservedMovingPivots": []
+        }
+      },
+      "reimportValidation": {
+        "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_triple.glb",
+        "objects": 48,
+        "meshes": 30,
+        "materials": [
+          "MAT_Emitter_3250K",
+          "MAT_Premium_DarkBronze",
+          "MAT_Premium_Recess",
+          "MAT_Reflector_SatinMetal",
+          "MAT_WarmCharcoal_Metal",
+          "MAT_WarmLens_Unlit"
+        ],
+        "lights": [
+          "LIGHT_DOWNLIGHT_01",
+          "LIGHT_DOWNLIGHT_02",
+          "LIGHT_DOWNLIGHT_03"
+        ],
+        "collisionMeshes": [
+          "COLLISION_CeilingLight_Premium_Triple"
+        ],
+        "ceilingCutouts": [
+          "Downlight_01_CEILING_CUTOUT",
+          "Downlight_02_CEILING_CUTOUT",
+          "Downlight_03_CEILING_CUTOUT"
+        ],
+        "aboveCeilingComponents": [
+          "Downlight_01_JunctionBox",
+          "Downlight_01_RoughInHousing",
+          "Downlight_01_SpringClip_Left",
+          "Downlight_01_SpringClip_Right",
+          "Downlight_01_ThermalFin_01",
+          "Downlight_01_ThermalFin_02",
+          "Downlight_01_ThermalFin_03",
+          "Downlight_01_ThermalFin_04",
+          "Downlight_02_JunctionBox",
+          "Downlight_02_RoughInHousing",
+          "Downlight_02_SpringClip_Left",
+          "Downlight_02_SpringClip_Right",
+          "Downlight_02_ThermalFin_01",
+          "Downlight_02_ThermalFin_02",
+          "Downlight_02_ThermalFin_03",
+          "Downlight_02_ThermalFin_04",
+          "Downlight_03_JunctionBox",
+          "Downlight_03_RoughInHousing",
+          "Downlight_03_SpringClip_Left",
+          "Downlight_03_SpringClip_Right",
+          "Downlight_03_ThermalFin_01",
+          "Downlight_03_ThermalFin_02",
+          "Downlight_03_ThermalFin_03",
+          "Downlight_03_ThermalFin_04"
+        ],
+        "splitBoundaryEdgesAfterImport": 16842,
+        "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+        "issues": []
+      },
+      "reimportValidations": {
+        "LOD0": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_triple.glb",
+          "objects": 48,
+          "meshes": 30,
+          "materials": [
+            "MAT_Emitter_3250K",
+            "MAT_Premium_DarkBronze",
+            "MAT_Premium_Recess",
+            "MAT_Reflector_SatinMetal",
+            "MAT_WarmCharcoal_Metal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LIGHT_DOWNLIGHT_01",
+            "LIGHT_DOWNLIGHT_02",
+            "LIGHT_DOWNLIGHT_03"
+          ],
+          "collisionMeshes": [
+            "COLLISION_CeilingLight_Premium_Triple"
+          ],
+          "ceilingCutouts": [
+            "Downlight_01_CEILING_CUTOUT",
+            "Downlight_02_CEILING_CUTOUT",
+            "Downlight_03_CEILING_CUTOUT"
+          ],
+          "aboveCeilingComponents": [
+            "Downlight_01_JunctionBox",
+            "Downlight_01_RoughInHousing",
+            "Downlight_01_SpringClip_Left",
+            "Downlight_01_SpringClip_Right",
+            "Downlight_01_ThermalFin_01",
+            "Downlight_01_ThermalFin_02",
+            "Downlight_01_ThermalFin_03",
+            "Downlight_01_ThermalFin_04",
+            "Downlight_02_JunctionBox",
+            "Downlight_02_RoughInHousing",
+            "Downlight_02_SpringClip_Left",
+            "Downlight_02_SpringClip_Right",
+            "Downlight_02_ThermalFin_01",
+            "Downlight_02_ThermalFin_02",
+            "Downlight_02_ThermalFin_03",
+            "Downlight_02_ThermalFin_04",
+            "Downlight_03_JunctionBox",
+            "Downlight_03_RoughInHousing",
+            "Downlight_03_SpringClip_Left",
+            "Downlight_03_SpringClip_Right",
+            "Downlight_03_ThermalFin_01",
+            "Downlight_03_ThermalFin_02",
+            "Downlight_03_ThermalFin_03",
+            "Downlight_03_ThermalFin_04"
+          ],
+          "splitBoundaryEdgesAfterImport": 16842,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD1": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_triple_lod1.glb",
+          "objects": 27,
+          "meshes": 9,
+          "materials": [
+            "MAT_Emitter_3250K",
+            "MAT_Premium_DarkBronze",
+            "MAT_Premium_Recess",
+            "MAT_Reflector_SatinMetal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LOD1_LIGHT_DOWNLIGHT_01",
+            "LOD1_LIGHT_DOWNLIGHT_02",
+            "LOD1_LIGHT_DOWNLIGHT_03"
+          ],
+          "collisionMeshes": [
+            "LOD1_COLLISION_CeilingLight_Premium_Triple"
+          ],
+          "ceilingCutouts": [
+            "LOD1_Downlight_01_CEILING_CUTOUT",
+            "LOD1_Downlight_02_CEILING_CUTOUT",
+            "LOD1_Downlight_03_CEILING_CUTOUT"
+          ],
+          "aboveCeilingComponents": [
+            "LOD1_Downlight_01_RoughInHousing",
+            "LOD1_Downlight_02_RoughInHousing",
+            "LOD1_Downlight_03_RoughInHousing"
+          ],
+          "splitBoundaryEdgesAfterImport": 6132,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD2": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_premium_triple_lod2.glb",
+          "objects": 27,
+          "meshes": 9,
+          "materials": [
+            "MAT_Emitter_3250K",
+            "MAT_Premium_DarkBronze",
+            "MAT_Premium_Recess",
+            "MAT_Reflector_SatinMetal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LOD2_LIGHT_DOWNLIGHT_01",
+            "LOD2_LIGHT_DOWNLIGHT_02",
+            "LOD2_LIGHT_DOWNLIGHT_03"
+          ],
+          "collisionMeshes": [
+            "LOD2_COLLISION_CeilingLight_Premium_Triple"
+          ],
+          "ceilingCutouts": [
+            "LOD2_Downlight_01_CEILING_CUTOUT",
+            "LOD2_Downlight_02_CEILING_CUTOUT",
+            "LOD2_Downlight_03_CEILING_CUTOUT"
+          ],
+          "aboveCeilingComponents": [
+            "LOD2_Downlight_01_RoughInHousing",
+            "LOD2_Downlight_02_RoughInHousing",
+            "LOD2_Downlight_03_RoughInHousing"
+          ],
+          "splitBoundaryEdgesAfterImport": 2460,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        }
+      },
+      "issues": []
+    },
+    {
+      "key": "high_end",
+      "asset": "CeilingLight_HighEnd",
+      "progressionPrimary": true,
+      "reference": "Designs/Lights/High-End.png",
+      "dimensionsM": [
+        1.28,
+        0.43,
+        0.28
+      ],
+      "source": "Assets/ceiling_lights/source/ceiling_light_high_end.blend",
+      "exports": {
+        "LOD0": "Assets/ceiling_lights/exports/ceiling_light_high_end.glb",
+        "LOD1": "Assets/ceiling_lights/exports/ceiling_light_high_end_lod1.glb",
+        "LOD2": "Assets/ceiling_lights/exports/ceiling_light_high_end_lod2.glb"
+      },
+      "runtime": {
+        "LOD0": "vendor/models/ceiling_lights/ceiling_light_high_end.glb",
+        "LOD1": "vendor/models/ceiling_lights/ceiling_light_high_end_lod1.glb",
+        "LOD2": "vendor/models/ceiling_lights/ceiling_light_high_end_lod2.glb"
+      },
+      "previews": {
+        "off": "Assets/ceiling_lights/previews/ceiling_light_high_end_off.png",
+        "on": "Assets/ceiling_lights/previews/ceiling_light_high_end_on.png",
+        "straightDown": "Assets/ceiling_lights/previews/ceiling_light_high_end_straight_down.png",
+        "aimed": "Assets/ceiling_lights/previews/ceiling_light_high_end_aimed.png"
+      },
+      "colorTemperatureK": 2950,
+      "powerDrawWatts": 72,
+      "runtimeLightCount": 3,
+      "runtimeIntensity": [
+        9.8,
+        9.8,
+        9.8
+      ],
+      "runtimeRangeYards": [
+        8.4,
+        8.4,
+        8.4
+      ],
+      "sourceValidation": {
+        "source": "Assets/ceiling_lights/source/ceiling_light_high_end.blend",
+        "objects": 78,
+        "meshes": 60,
+        "materials": [
+          "MAT_AdjustmentKnob_Black",
+          "MAT_Emitter_2950K",
+          "MAT_Reflector_SatinMetal",
+          "MAT_Track_MatteBlack",
+          "MAT_WarmCharcoal_Metal",
+          "MAT_WarmLens_Unlit"
+        ],
+        "emitterMaterials": [
+          "MAT_Emitter_2950K"
+        ],
+        "runtimeLights": [
+          "LIGHT_SPOT_03",
+          "LIGHT_SPOT_02",
+          "LIGHT_SPOT_01"
+        ],
+        "triangles": {
+          "LOD0": 14164,
+          "LOD1": 9364,
+          "LOD2": 3136
+        },
+        "renderBoundsM": {
+          "min": [
+            -0.638,
+            -0.1129,
+            -0.52583
+          ],
+          "max": [
+            0.638,
+            0.11503,
+            0.0005
+          ],
+          "dimensions": [
+            1.276,
+            0.22793,
+            0.52633
+          ]
+        },
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "trackMotion": [
+          {
+            "head": 1,
+            "ok": true,
+            "directions": [
+              [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              [
+                -0.262,
+                0.7198,
+                -0.6428
+              ],
+              [
+                -0.262,
+                -0.7198,
+                -0.6428
+              ]
+            ],
+            "lightParent": "Spotlight_01_TiltPivot"
+          },
+          {
+            "head": 2,
+            "ok": true,
+            "directions": [
+              [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              [
+                -0.262,
+                0.7198,
+                -0.6428
+              ],
+              [
+                -0.262,
+                -0.7198,
+                -0.6428
+              ]
+            ],
+            "lightParent": "Spotlight_02_TiltPivot"
+          },
+          {
+            "head": 3,
+            "ok": true,
+            "directions": [
+              [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              [
+                -0.262,
+                0.7198,
+                -0.6428
+              ],
+              [
+                -0.262,
+                -0.7198,
+                -0.6428
+              ]
+            ],
+            "lightParent": "Spotlight_03_TiltPivot"
+          }
+        ],
+        "issues": []
+      },
+      "exportOptimization": {
+        "LOD0": {
+          "sourceMeshes": 60,
+          "exportMeshes": 22,
+          "batches": 9,
+          "mergedMeshes": 38,
+          "preservedMovingPivots": [
+            "Spotlight_01_TiltPivot",
+            "Spotlight_01_YawPivot",
+            "Spotlight_02_TiltPivot",
+            "Spotlight_02_YawPivot",
+            "Spotlight_03_TiltPivot",
+            "Spotlight_03_YawPivot"
+          ]
+        },
+        "LOD1": {
+          "sourceMeshes": 56,
+          "exportMeshes": 22,
+          "batches": 9,
+          "mergedMeshes": 34,
+          "preservedMovingPivots": [
+            "LOD1_Spotlight_01_TiltPivot",
+            "LOD1_Spotlight_01_YawPivot",
+            "LOD1_Spotlight_02_TiltPivot",
+            "LOD1_Spotlight_02_YawPivot",
+            "LOD1_Spotlight_03_TiltPivot",
+            "LOD1_Spotlight_03_YawPivot"
+          ]
+        },
+        "LOD2": {
+          "sourceMeshes": 33,
+          "exportMeshes": 20,
+          "batches": 4,
+          "mergedMeshes": 13,
+          "preservedMovingPivots": [
+            "LOD2_Spotlight_01_TiltPivot",
+            "LOD2_Spotlight_01_YawPivot",
+            "LOD2_Spotlight_02_TiltPivot",
+            "LOD2_Spotlight_02_YawPivot",
+            "LOD2_Spotlight_03_TiltPivot",
+            "LOD2_Spotlight_03_YawPivot"
+          ]
+        }
+      },
+      "reimportValidation": {
+        "glb": "Assets/ceiling_lights/exports/ceiling_light_high_end.glb",
+        "objects": 40,
+        "meshes": 22,
+        "materials": [
+          "MAT_AdjustmentKnob_Black",
+          "MAT_Emitter_2950K",
+          "MAT_Reflector_SatinMetal",
+          "MAT_Track_MatteBlack",
+          "MAT_WarmCharcoal_Metal",
+          "MAT_WarmLens_Unlit"
+        ],
+        "lights": [
+          "LIGHT_SPOT_01",
+          "LIGHT_SPOT_02",
+          "LIGHT_SPOT_03"
+        ],
+        "collisionMeshes": [
+          "COLLISION_CeilingLight_HighEnd"
+        ],
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "splitBoundaryEdgesAfterImport": 12188,
+        "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+        "issues": []
+      },
+      "reimportValidations": {
+        "LOD0": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_high_end.glb",
+          "objects": 40,
+          "meshes": 22,
+          "materials": [
+            "MAT_AdjustmentKnob_Black",
+            "MAT_Emitter_2950K",
+            "MAT_Reflector_SatinMetal",
+            "MAT_Track_MatteBlack",
+            "MAT_WarmCharcoal_Metal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LIGHT_SPOT_01",
+            "LIGHT_SPOT_02",
+            "LIGHT_SPOT_03"
+          ],
+          "collisionMeshes": [
+            "COLLISION_CeilingLight_HighEnd"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 12188,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD1": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_high_end_lod1.glb",
+          "objects": 40,
+          "meshes": 22,
+          "materials": [
+            "MAT_AdjustmentKnob_Black",
+            "MAT_Emitter_2950K",
+            "MAT_Reflector_SatinMetal",
+            "MAT_Track_MatteBlack",
+            "MAT_WarmCharcoal_Metal",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LOD1_LIGHT_SPOT_01",
+            "LOD1_LIGHT_SPOT_02",
+            "LOD1_LIGHT_SPOT_03"
+          ],
+          "collisionMeshes": [
+            "LOD1_COLLISION_CeilingLight_HighEnd"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 8124,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD2": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_high_end_lod2.glb",
+          "objects": 38,
+          "meshes": 20,
+          "materials": [
+            "MAT_AdjustmentKnob_Black",
+            "MAT_Emitter_2950K",
+            "MAT_Reflector_SatinMetal",
+            "MAT_Track_MatteBlack",
+            "MAT_WarmLens_Unlit"
+          ],
+          "lights": [
+            "LOD2_LIGHT_SPOT_01",
+            "LOD2_LIGHT_SPOT_02",
+            "LOD2_LIGHT_SPOT_03"
+          ],
+          "collisionMeshes": [
+            "LOD2_COLLISION_CeilingLight_HighEnd"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 3906,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        }
+      },
+      "issues": []
+    },
+    {
+      "key": "luxury",
+      "asset": "CeilingLight_Luxury",
+      "progressionPrimary": true,
+      "reference": "Designs/Lights/Luxury.png",
+      "dimensionsM": [
+        1.58,
+        1.28,
+        1.58
+      ],
+      "source": "Assets/ceiling_lights/source/ceiling_light_luxury.blend",
+      "exports": {
+        "LOD0": "Assets/ceiling_lights/exports/ceiling_light_luxury.glb",
+        "LOD1": "Assets/ceiling_lights/exports/ceiling_light_luxury_lod1.glb",
+        "LOD2": "Assets/ceiling_lights/exports/ceiling_light_luxury_lod2.glb"
+      },
+      "runtime": {
+        "LOD0": "vendor/models/ceiling_lights/ceiling_light_luxury.glb",
+        "LOD1": "vendor/models/ceiling_lights/ceiling_light_luxury_lod1.glb",
+        "LOD2": "vendor/models/ceiling_lights/ceiling_light_luxury_lod2.glb"
+      },
+      "previews": {
+        "off": "Assets/ceiling_lights/previews/ceiling_light_luxury_off.png",
+        "on": "Assets/ceiling_lights/previews/ceiling_light_luxury_on.png",
+        "closeup": "Assets/ceiling_lights/previews/ceiling_light_luxury_brass_crystal_closeup.png",
+        "lodDistance": "Assets/ceiling_lights/previews/ceiling_light_luxury_lod2_distance.png"
+      },
+      "colorTemperatureK": 2700,
+      "powerDrawWatts": 156,
+      "runtimeLightCount": 3,
+      "runtimeIntensity": [
+        13.8,
+        3.6,
+        3.6
+      ],
+      "runtimeRangeYards": [
+        10.8,
+        6.6,
+        6.6
+      ],
+      "sourceValidation": {
+        "source": "Assets/ceiling_lights/source/ceiling_light_luxury.blend",
+        "objects": 250,
+        "meshes": 205,
+        "materials": [
+          "MAT_AgedBrass_Recess",
+          "MAT_AntiqueBrass",
+          "MAT_CandleBulb_Clear",
+          "MAT_CandleSleeve_Ivory",
+          "MAT_Emitter_2700K",
+          "MAT_FacetedCrystal",
+          "MAT_PolishedBrass_Accent",
+          "MAT_WarmCharcoal_Metal"
+        ],
+        "emitterMaterials": [
+          "MAT_Emitter_2700K"
+        ],
+        "runtimeLights": [
+          "LIGHT_CHANDELIER_SUPPORT_02",
+          "LIGHT_CHANDELIER_SUPPORT_01",
+          "LIGHT_CHANDELIER_CENTER"
+        ],
+        "triangles": {
+          "LOD0": 43114,
+          "LOD1": 24234,
+          "LOD2": 9462
+        },
+        "renderBoundsM": {
+          "min": [
+            -0.76565,
+            -0.76565,
+            -1.3152
+          ],
+          "max": [
+            0.76565,
+            0.76565,
+            0.001
+          ],
+          "dimensions": [
+            1.53129,
+            1.53129,
+            1.3162
+          ]
+        },
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "trackMotion": null,
+        "issues": []
+      },
+      "exportOptimization": {
+        "LOD0": {
+          "sourceMeshes": 205,
+          "exportMeshes": 9,
+          "batches": 8,
+          "mergedMeshes": 196,
+          "preservedMovingPivots": []
+        },
+        "LOD1": {
+          "sourceMeshes": 139,
+          "exportMeshes": 8,
+          "batches": 7,
+          "mergedMeshes": 131,
+          "preservedMovingPivots": []
+        },
+        "LOD2": {
+          "sourceMeshes": 81,
+          "exportMeshes": 7,
+          "batches": 6,
+          "mergedMeshes": 74,
+          "preservedMovingPivots": []
+        }
+      },
+      "reimportValidation": {
+        "glb": "Assets/ceiling_lights/exports/ceiling_light_luxury.glb",
+        "objects": 54,
+        "meshes": 9,
+        "materials": [
+          "MAT_AgedBrass_Recess",
+          "MAT_AntiqueBrass",
+          "MAT_CandleBulb_Clear",
+          "MAT_CandleSleeve_Ivory",
+          "MAT_Emitter_2700K",
+          "MAT_FacetedCrystal",
+          "MAT_PolishedBrass_Accent",
+          "MAT_WarmCharcoal_Metal"
+        ],
+        "lights": [
+          "LIGHT_CHANDELIER_CENTER",
+          "LIGHT_CHANDELIER_SUPPORT_01",
+          "LIGHT_CHANDELIER_SUPPORT_02"
+        ],
+        "collisionMeshes": [
+          "COLLISION_CeilingLight_Luxury"
+        ],
+        "ceilingCutouts": [],
+        "aboveCeilingComponents": [],
+        "splitBoundaryEdgesAfterImport": 29848,
+        "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+        "issues": []
+      },
+      "reimportValidations": {
+        "LOD0": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_luxury.glb",
+          "objects": 54,
+          "meshes": 9,
+          "materials": [
+            "MAT_AgedBrass_Recess",
+            "MAT_AntiqueBrass",
+            "MAT_CandleBulb_Clear",
+            "MAT_CandleSleeve_Ivory",
+            "MAT_Emitter_2700K",
+            "MAT_FacetedCrystal",
+            "MAT_PolishedBrass_Accent",
+            "MAT_WarmCharcoal_Metal"
+          ],
+          "lights": [
+            "LIGHT_CHANDELIER_CENTER",
+            "LIGHT_CHANDELIER_SUPPORT_01",
+            "LIGHT_CHANDELIER_SUPPORT_02"
+          ],
+          "collisionMeshes": [
+            "COLLISION_CeilingLight_Luxury"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 29848,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD1": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_luxury_lod1.glb",
+          "objects": 41,
+          "meshes": 8,
+          "materials": [
+            "MAT_AgedBrass_Recess",
+            "MAT_AntiqueBrass",
+            "MAT_CandleBulb_Clear",
+            "MAT_CandleSleeve_Ivory",
+            "MAT_Emitter_2700K",
+            "MAT_FacetedCrystal",
+            "MAT_PolishedBrass_Accent"
+          ],
+          "lights": [
+            "LOD1_LIGHT_CHANDELIER_CENTER",
+            "LOD1_LIGHT_CHANDELIER_SUPPORT_01",
+            "LOD1_LIGHT_CHANDELIER_SUPPORT_02"
+          ],
+          "collisionMeshes": [
+            "LOD1_COLLISION_CeilingLight_Luxury"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 16186,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        },
+        "LOD2": {
+          "glb": "Assets/ceiling_lights/exports/ceiling_light_luxury_lod2.glb",
+          "objects": 40,
+          "meshes": 7,
+          "materials": [
+            "MAT_AgedBrass_Recess",
+            "MAT_AntiqueBrass",
+            "MAT_CandleSleeve_Ivory",
+            "MAT_Emitter_2700K",
+            "MAT_FacetedCrystal",
+            "MAT_PolishedBrass_Accent"
+          ],
+          "lights": [
+            "LOD2_LIGHT_CHANDELIER_CENTER",
+            "LOD2_LIGHT_CHANDELIER_SUPPORT_01",
+            "LOD2_LIGHT_CHANDELIER_SUPPORT_02"
+          ],
+          "collisionMeshes": [
+            "LOD2_COLLISION_CeilingLight_Luxury"
+          ],
+          "ceilingCutouts": [],
+          "aboveCeilingComponents": [],
+          "splitBoundaryEdgesAfterImport": 7014,
+          "topologyValidation": "source meshes validated before glTF UV/normal seam splitting",
+          "issues": []
+        }
+      },
+      "issues": []
+    }
+  ],
+  "comparison": {
+    "source": "Assets/ceiling_lights/source/ceiling_lights_comparison.blend",
+    "off": "Assets/ceiling_lights/previews/ceiling_lights_progression_off.png",
+    "on": "Assets/ceiling_lights/previews/ceiling_lights_progression_on.png",
+    "assets": [
+      "CeilingLight_Basic",
+      "CeilingLight_Standard",
+      "CeilingLight_Premium_Triple",
+      "CeilingLight_HighEnd",
+      "CeilingLight_Luxury"
+    ]
+  },
+  "summary": {
+    "assetCount": 6,
+    "progressionAssetCount": 5,
+    "passed": 6,
+    "failed": 0,
+    "failures": []
+  }
+}

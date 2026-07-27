@@ -1,0 +1,87 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { MINUTES_PER_DAY } from '../src/sim/constants.js';
+import { newGame, update } from '../src/sim/state.js';
+import {
+  ROLE, hireStaff, fireStaff, trainStaff, groundsCrewHours, staffDailyWages,
+  refreshMarketIfDue, wageForSkill,
+} from '../src/sim/staff.js';
+
+test('newGame initializes a hiring market but an empty payroll', () => {
+  const st = newGame('realistic', 42);
+  assert.ok(st.staff, 'staff state exists');
+  assert.equal(st.staff.employees.length, 0, 'fixer-upper starts with no salaried staff');
+  assert.ok(st.staff.market.length >= 3, 'candidates are available to hire');
+  for (const c of st.staff.market) {
+    assert.ok(Object.values(ROLE).includes(c.role));
+    assert.ok(c.skill >= 1 && c.skill <= 5);
+    assert.ok(c.wage > 0);
+    assert.ok(c.name.length > 3);
+  }
+});
+
+test('hiring moves a candidate onto payroll and firing costs severance', () => {
+  const st = newGame('realistic', 42);
+  const candidate = st.staff.market.find((c) => c.role === ROLE.GROUNDSKEEPER) || st.staff.market[0];
+  const res = hireStaff(st, candidate.id);
+  assert.equal(res.ok, true);
+  assert.equal(st.staff.employees.length, 1);
+  assert.ok(!st.staff.market.some((c) => c.id === candidate.id));
+
+  const cashBefore = st.cash;
+  const fired = fireStaff(st, candidate.id);
+  assert.equal(fired.ok, true);
+  assert.equal(st.staff.employees.length, 0);
+  assert.ok(st.cash < cashBefore, 'severance was paid');
+});
+
+test('groundskeeper skill scales real crew-hours', () => {
+  const st = newGame('realistic', 42);
+  st.maintenance.crewUnits = 0;
+  assert.equal(groundsCrewHours(st), 0);
+  st.staff.employees.push({ id: 901, name: 'Test A', role: ROLE.GROUNDSKEEPER, skill: 1, wage: 100, trainingDays: 0 });
+  const low = groundsCrewHours(st);
+  st.staff.employees[0].skill = 5;
+  const high = groundsCrewHours(st);
+  assert.ok(high > low + 3, `skill 5 (${high}h) well above skill 1 (${low}h)`);
+  // day labor still adds on top
+  st.maintenance.crewUnits = 1;
+  assert.ok(groundsCrewHours(st) > high + 7);
+});
+
+test('training costs money, sidelines the staffer, then raises skill', () => {
+  const st = newGame('realistic', 42);
+  st.staff.employees.push({ id: 902, name: 'Test B', role: ROLE.GROUNDSKEEPER, skill: 2, wage: 100, trainingDays: 0 });
+  const cashBefore = st.cash;
+  const res = trainStaff(st, 902);
+  assert.equal(res.ok, true);
+  assert.ok(st.cash < cashBefore);
+  const emp = st.staff.employees[0];
+  assert.ok(emp.trainingDays > 0);
+  assert.equal(groundsCrewHours(st), 0, 'trainee contributes nothing and a fresh club has no free day-labor crew');
+  update(st, 3 * MINUTES_PER_DAY);
+  assert.equal(emp.trainingDays, 0);
+  assert.ok(emp.skill >= 2.5, `skill rose: ${emp.skill}`);
+});
+
+test('the hiring market refreshes deterministically over time', () => {
+  const a = newGame('realistic', 314);
+  const b = newGame('realistic', 314);
+  update(a, 8 * MINUTES_PER_DAY);
+  update(b, 8 * MINUTES_PER_DAY);
+  assert.deepEqual(a.staff.market.map((c) => c.name + c.role + c.skill), b.staff.market.map((c) => c.name + c.role + c.skill));
+});
+
+test('wages scale with role and skill', () => {
+  assert.ok(wageForSkill(ROLE.GROUNDSKEEPER, 5) > wageForSkill(ROLE.GROUNDSKEEPER, 1));
+  assert.ok(wageForSkill(ROLE.INSTRUCTOR, 3) > wageForSkill(ROLE.FNB, 3));
+});
+
+test('staff wages accrue daily through the ledger', () => {
+  const st = newGame('realistic', 42);
+  st.staff.employees.push({ id: 903, name: 'Test C', role: ROLE.FNB, skill: 3, wage: 120, trainingDays: 0 });
+  assert.equal(staffDailyWages(st), 120);
+  update(st, MINUTES_PER_DAY);
+  // the club also earns revenue now, so check the payroll line itself
+  assert.ok(st.ledger.yesterday.expense.wagesStaff >= 120, JSON.stringify(st.ledger.yesterday.expense));
+});

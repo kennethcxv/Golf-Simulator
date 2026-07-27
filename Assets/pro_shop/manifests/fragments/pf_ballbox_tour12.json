@@ -1,0 +1,29 @@
+{
+ "id": "pf_ballbox_tour12",
+ "kind": "products",
+ "category": "golf_balls",
+ "dims_m": [
+  0.192,
+  0.052,
+  0.14
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "BallBoxTour12:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_ballbox_tour12.glb",
+ "blend": "assets/pro_shop/source/products/golf_balls/pf_ballbox_tour12.blend",
+ "name": "Prime Tour Premium 12-Ball Box",
+ "variant": "tour_black",
+ "price": 54.99,
+ "fixture": "pf_fixture_ball_shelf",
+ "slot_type": "shelf_box",
+ "packaging": "closed retail box",
+ "material": "premium board"
+}

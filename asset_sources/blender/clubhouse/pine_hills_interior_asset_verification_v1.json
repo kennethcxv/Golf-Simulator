@@ -1,0 +1,1898 @@
+{
+  "assetCount": 11,
+  "assets": [
+    {
+      "errors": [],
+      "glbBytes": 196888,
+      "glbPath": "vendor/models/clubhouse/pine_hills_front_desk_return_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.00275,
+            0.0,
+            0.487
+          ],
+          "maximum": [
+            0.6405,
+            1.05,
+            0.974
+          ],
+          "minimum": [
+            -0.635,
+            -1.05,
+            0.0
+          ],
+          "size": [
+            1.2755,
+            2.1,
+            0.974
+          ]
+        },
+        "collisionMeshCount": 4,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_ReturnDarkWalnut",
+          "MAT_PH_ReturnWalnutInset"
+        ],
+        "nodeCount": 55,
+        "nodeNames": [
+          "A_PINE_HILLS_FRONT_DESK_RETURN_V1_ROOT",
+          "COL_ReturnFrontHull",
+          "COL_ReturnLegHull",
+          "COL_ReturnTopFront",
+          "COL_ReturnTopLeg",
+          "GROUP_FrontDeskReturnJoinery",
+          "GROUP_FrontDeskReturnShell",
+          "GROUP_FrontDeskReturnStaffStorage",
+          "MESH_ReturnCornerJoinKey",
+          "MESH_ReturnCustomerPanel_Inset",
+          "MESH_ReturnCustomerPanel_RailBottom",
+          "MESH_ReturnCustomerPanel_RailTop",
+          "MESH_ReturnCustomerPanel_StileL",
+          "MESH_ReturnCustomerPanel_StileR",
+          "MESH_ReturnFrontCarcass",
+          "MESH_ReturnFrontPlinth",
+          "MESH_ReturnFrontTop",
+          "MESH_ReturnFrontTopInlay",
+          "MESH_ReturnLegCarcass",
+          "MESH_ReturnLegPlinth",
+          "MESH_ReturnLegTop",
+          "MESH_ReturnLegTopInlay",
+          "MESH_ReturnOuterPanelA_Inset",
+          "MESH_ReturnOuterPanelA_RailBottom",
+          "MESH_ReturnOuterPanelA_RailTop",
+          "MESH_ReturnOuterPanelA_StileA",
+          "MESH_ReturnOuterPanelA_StileB",
+          "MESH_ReturnOuterPanelB_Inset",
+          "MESH_ReturnOuterPanelB_RailBottom",
+          "MESH_ReturnOuterPanelB_RailTop",
+          "MESH_ReturnOuterPanelB_StileA",
+          "MESH_ReturnOuterPanelB_StileB",
+          "MESH_ReturnOuterPilaster_01",
+          "MESH_ReturnOuterPilaster_02",
+          "MESH_ReturnOuterPilaster_03",
+          "MESH_ReturnOuterPilaster_04",
+          "MESH_ReturnStaffDivider",
+          "MESH_ReturnStaffDrawer_01",
+          "MESH_ReturnStaffDrawer_02",
+          "MESH_ReturnStaffDrawer_03",
+          "MESH_ReturnStaffPull_01_Bar",
+          "MESH_ReturnStaffPull_01_MountL",
+          "MESH_ReturnStaffPull_01_MountR",
+          "MESH_ReturnStaffPull_02_Bar",
+          "MESH_ReturnStaffPull_02_MountL",
+          "MESH_ReturnStaffPull_02_MountR",
+          "MESH_ReturnStaffPull_03_Bar",
+          "MESH_ReturnStaffPull_03_MountL",
+          "MESH_ReturnStaffPull_03_MountR",
+          "MESH_ReturnStaffShelf",
+          "SOCKET_JoinAsset61_Right",
+          "SOCKET_PLACEMENT",
+          "SOCKET_ReturnCounterProp_01",
+          "SOCKET_ReturnCounterProp_02",
+          "SOCKET_StaffChair"
+        ],
+        "ok": true,
+        "polygonCount": 5144,
+        "socketCount": 5,
+        "triangleCount": 5144,
+        "visibleMeshCount": 42,
+        "warnings": []
+      },
+      "glbSha256": "02135fbfab15764c1f104662de7d750b6a5748503e6a83f744cadeceee49f344",
+      "key": "front_desk_return",
+      "ok": true,
+      "requiredNodes": [
+        "SOCKET_JoinAsset61_Right",
+        "SOCKET_ReturnCounterProp_01",
+        "SOCKET_StaffChair",
+        "COL_ReturnFrontHull",
+        "COL_ReturnLegHull"
+      ],
+      "root": "A_PINE_HILLS_FRONT_DESK_RETURN_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.00275,
+            0.0,
+            0.487
+          ],
+          "maximum": [
+            0.6405,
+            1.05,
+            0.974
+          ],
+          "minimum": [
+            -0.635,
+            -1.05,
+            0.0
+          ],
+          "size": [
+            1.2755,
+            2.1,
+            0.974
+          ]
+        },
+        "collisionMeshCount": 4,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_ReturnDarkWalnut",
+          "MAT_PH_ReturnWalnutInset"
+        ],
+        "nodeCount": 55,
+        "nodeNames": [
+          "A_PINE_HILLS_FRONT_DESK_RETURN_V1_ROOT",
+          "COL_ReturnFrontHull",
+          "COL_ReturnLegHull",
+          "COL_ReturnTopFront",
+          "COL_ReturnTopLeg",
+          "GROUP_FrontDeskReturnJoinery",
+          "GROUP_FrontDeskReturnShell",
+          "GROUP_FrontDeskReturnStaffStorage",
+          "MESH_ReturnCornerJoinKey",
+          "MESH_ReturnCustomerPanel_Inset",
+          "MESH_ReturnCustomerPanel_RailBottom",
+          "MESH_ReturnCustomerPanel_RailTop",
+          "MESH_ReturnCustomerPanel_StileL",
+          "MESH_ReturnCustomerPanel_StileR",
+          "MESH_ReturnFrontCarcass",
+          "MESH_ReturnFrontPlinth",
+          "MESH_ReturnFrontTop",
+          "MESH_ReturnFrontTopInlay",
+          "MESH_ReturnLegCarcass",
+          "MESH_ReturnLegPlinth",
+          "MESH_ReturnLegTop",
+          "MESH_ReturnLegTopInlay",
+          "MESH_ReturnOuterPanelA_Inset",
+          "MESH_ReturnOuterPanelA_RailBottom",
+          "MESH_ReturnOuterPanelA_RailTop",
+          "MESH_ReturnOuterPanelA_StileA",
+          "MESH_ReturnOuterPanelA_StileB",
+          "MESH_ReturnOuterPanelB_Inset",
+          "MESH_ReturnOuterPanelB_RailBottom",
+          "MESH_ReturnOuterPanelB_RailTop",
+          "MESH_ReturnOuterPanelB_StileA",
+          "MESH_ReturnOuterPanelB_StileB",
+          "MESH_ReturnOuterPilaster_01",
+          "MESH_ReturnOuterPilaster_02",
+          "MESH_ReturnOuterPilaster_03",
+          "MESH_ReturnOuterPilaster_04",
+          "MESH_ReturnStaffDivider",
+          "MESH_ReturnStaffDrawer_01",
+          "MESH_ReturnStaffDrawer_02",
+          "MESH_ReturnStaffDrawer_03",
+          "MESH_ReturnStaffPull_01_Bar",
+          "MESH_ReturnStaffPull_01_MountL",
+          "MESH_ReturnStaffPull_01_MountR",
+          "MESH_ReturnStaffPull_02_Bar",
+          "MESH_ReturnStaffPull_02_MountL",
+          "MESH_ReturnStaffPull_02_MountR",
+          "MESH_ReturnStaffPull_03_Bar",
+          "MESH_ReturnStaffPull_03_MountL",
+          "MESH_ReturnStaffPull_03_MountR",
+          "MESH_ReturnStaffShelf",
+          "SOCKET_JoinAsset61_Right",
+          "SOCKET_PLACEMENT",
+          "SOCKET_ReturnCounterProp_01",
+          "SOCKET_ReturnCounterProp_02",
+          "SOCKET_StaffChair"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 2516,
+        "socketCount": 5,
+        "special": {
+          "asset61ReferenceMeters": [
+            2.93,
+            0.91,
+            0.965
+          ],
+          "combinedFrontRunMeters": 4.2,
+          "moduleFrontExtensionMeters": 1.27,
+          "staffReturnMeters": 2.1
+        },
+        "triangleCount": 5144,
+        "visibleMeshCount": 42,
+        "warnings": []
+      },
+      "sourceBytes": 155967,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_front_desk_return_v1.blend",
+      "sourceSha256": "445653b4006228444385b68fadababe545d6fb3effdd084d49bf644519167f32",
+      "targetDimensionsMeters": [
+        1.27,
+        2.1,
+        0.965
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 130996,
+      "glbPath": "vendor/models/clubhouse/pine_hills_opening_drinks_cooler_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0005,
+            0.95
+          ],
+          "maximum": [
+            0.45,
+            0.34,
+            1.9
+          ],
+          "minimum": [
+            -0.45,
+            -0.339,
+            0.0
+          ],
+          "size": [
+            0.9,
+            0.679,
+            1.9
+          ]
+        },
+        "collisionMeshCount": 2,
+        "errors": [],
+        "materialCount": 9,
+        "materialNames": [
+          "MAT_PH_BrushedSteel",
+          "MAT_PH_CoolerGlass",
+          "MAT_PH_CoolerInterior",
+          "MAT_PH_CoolerInteriorGlow",
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_Rubber",
+          "MAT_PH_WarmCharcoal"
+        ],
+        "nodeCount": 61,
+        "nodeNames": [
+          "A_PINE_HILLS_OPENING_DRINKS_COOLER_V1_ROOT",
+          "COL_COOLER_Carcass",
+          "COL_COOLER_Door",
+          "COOLER_Door",
+          "GROUP_CoolerCarcass",
+          "GROUP_CoolerInterior",
+          "MESH_COOLER_DoorFrameBottom",
+          "MESH_COOLER_DoorFrameLeft",
+          "MESH_COOLER_DoorFrameRight",
+          "MESH_COOLER_DoorFrameTop",
+          "MESH_COOLER_DoorGlass",
+          "MESH_COOLER_DoorHandle",
+          "MESH_COOLER_DoorHandleMountBottom",
+          "MESH_COOLER_DoorHandleMountTop",
+          "MESH_CoolerBack",
+          "MESH_CoolerBase",
+          "MESH_CoolerHeader",
+          "MESH_CoolerHeaderBadge",
+          "MESH_CoolerHeaderGolfMark",
+          "MESH_CoolerInteriorBack",
+          "MESH_CoolerInteriorLight",
+          "MESH_CoolerKick",
+          "MESH_CoolerShelfLip_01",
+          "MESH_CoolerShelfLip_02",
+          "MESH_CoolerShelfLip_03",
+          "MESH_CoolerShelfLip_04",
+          "MESH_CoolerShelf_01",
+          "MESH_CoolerShelf_02",
+          "MESH_CoolerShelf_03",
+          "MESH_CoolerShelf_04",
+          "MESH_CoolerSideLeft",
+          "MESH_CoolerSideRight",
+          "MESH_CoolerTop",
+          "PIVOT_COOLER_Door",
+          "SOCKET_Bottle_01",
+          "SOCKET_Bottle_02",
+          "SOCKET_Bottle_03",
+          "SOCKET_Bottle_04",
+          "SOCKET_Bottle_05",
+          "SOCKET_Bottle_06",
+          "SOCKET_Bottle_07",
+          "SOCKET_Bottle_08",
+          "SOCKET_Bottle_09",
+          "SOCKET_Bottle_10",
+          "SOCKET_Bottle_11",
+          "SOCKET_Bottle_12",
+          "SOCKET_Bottle_13",
+          "SOCKET_Bottle_14",
+          "SOCKET_Bottle_15",
+          "SOCKET_Bottle_16",
+          "SOCKET_Bottle_17",
+          "SOCKET_Bottle_18",
+          "SOCKET_Bottle_19",
+          "SOCKET_Bottle_20",
+          "SOCKET_Bottle_21",
+          "SOCKET_Bottle_22",
+          "SOCKET_Bottle_23",
+          "SOCKET_Bottle_24",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PowerCable",
+          "SOCKET_Use"
+        ],
+        "ok": true,
+        "polygonCount": 3140,
+        "socketCount": 27,
+        "triangleCount": 3140,
+        "visibleMeshCount": 27,
+        "warnings": []
+      },
+      "glbSha256": "4dd6fa68cd95d9c830a7adbce4f3aa439b9787a4968e5b928adfc8b56ed0b0ea",
+      "key": "opening_drinks_cooler",
+      "ok": true,
+      "requiredNodes": [
+        "COOLER_Door",
+        "PIVOT_COOLER_Door",
+        "MESH_COOLER_DoorGlass",
+        "MESH_COOLER_DoorHandle",
+        "COL_COOLER_Carcass",
+        "COL_COOLER_Door",
+        "SOCKET_Bottle_01",
+        "SOCKET_Bottle_24"
+      ],
+      "root": "A_PINE_HILLS_OPENING_DRINKS_COOLER_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0005,
+            0.95
+          ],
+          "maximum": [
+            0.45,
+            0.34,
+            1.9
+          ],
+          "minimum": [
+            -0.45,
+            -0.339,
+            0.0
+          ],
+          "size": [
+            0.9,
+            0.679,
+            1.9
+          ]
+        },
+        "collisionMeshCount": 2,
+        "errors": [],
+        "materialCount": 9,
+        "materialNames": [
+          "MAT_PH_BrushedSteel",
+          "MAT_PH_CoolerGlass",
+          "MAT_PH_CoolerInterior",
+          "MAT_PH_CoolerInteriorGlow",
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_Rubber",
+          "MAT_PH_WarmCharcoal"
+        ],
+        "nodeCount": 61,
+        "nodeNames": [
+          "A_PINE_HILLS_OPENING_DRINKS_COOLER_V1_ROOT",
+          "COL_COOLER_Carcass",
+          "COL_COOLER_Door",
+          "COOLER_Door",
+          "GROUP_CoolerCarcass",
+          "GROUP_CoolerInterior",
+          "MESH_COOLER_DoorFrameBottom",
+          "MESH_COOLER_DoorFrameLeft",
+          "MESH_COOLER_DoorFrameRight",
+          "MESH_COOLER_DoorFrameTop",
+          "MESH_COOLER_DoorGlass",
+          "MESH_COOLER_DoorHandle",
+          "MESH_COOLER_DoorHandleMountBottom",
+          "MESH_COOLER_DoorHandleMountTop",
+          "MESH_CoolerBack",
+          "MESH_CoolerBase",
+          "MESH_CoolerHeader",
+          "MESH_CoolerHeaderBadge",
+          "MESH_CoolerHeaderGolfMark",
+          "MESH_CoolerInteriorBack",
+          "MESH_CoolerInteriorLight",
+          "MESH_CoolerKick",
+          "MESH_CoolerShelfLip_01",
+          "MESH_CoolerShelfLip_02",
+          "MESH_CoolerShelfLip_03",
+          "MESH_CoolerShelfLip_04",
+          "MESH_CoolerShelf_01",
+          "MESH_CoolerShelf_02",
+          "MESH_CoolerShelf_03",
+          "MESH_CoolerShelf_04",
+          "MESH_CoolerSideLeft",
+          "MESH_CoolerSideRight",
+          "MESH_CoolerTop",
+          "PIVOT_COOLER_Door",
+          "SOCKET_Bottle_01",
+          "SOCKET_Bottle_02",
+          "SOCKET_Bottle_03",
+          "SOCKET_Bottle_04",
+          "SOCKET_Bottle_05",
+          "SOCKET_Bottle_06",
+          "SOCKET_Bottle_07",
+          "SOCKET_Bottle_08",
+          "SOCKET_Bottle_09",
+          "SOCKET_Bottle_10",
+          "SOCKET_Bottle_11",
+          "SOCKET_Bottle_12",
+          "SOCKET_Bottle_13",
+          "SOCKET_Bottle_14",
+          "SOCKET_Bottle_15",
+          "SOCKET_Bottle_16",
+          "SOCKET_Bottle_17",
+          "SOCKET_Bottle_18",
+          "SOCKET_Bottle_19",
+          "SOCKET_Bottle_20",
+          "SOCKET_Bottle_21",
+          "SOCKET_Bottle_22",
+          "SOCKET_Bottle_23",
+          "SOCKET_Bottle_24",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PowerCable",
+          "SOCKET_Use"
+        ],
+        "ok": true,
+        "pivotCount": 2,
+        "polygonCount": 1530,
+        "socketCount": 27,
+        "special": {
+          "animationNames": [
+            "COOLER_Door_Close",
+            "COOLER_Door_Open"
+          ],
+          "bottleSocketCount": 24,
+          "bottleSocketNames": [
+            "SOCKET_Bottle_01",
+            "SOCKET_Bottle_02",
+            "SOCKET_Bottle_03",
+            "SOCKET_Bottle_04",
+            "SOCKET_Bottle_05",
+            "SOCKET_Bottle_06",
+            "SOCKET_Bottle_07",
+            "SOCKET_Bottle_08",
+            "SOCKET_Bottle_09",
+            "SOCKET_Bottle_10",
+            "SOCKET_Bottle_11",
+            "SOCKET_Bottle_12",
+            "SOCKET_Bottle_13",
+            "SOCKET_Bottle_14",
+            "SOCKET_Bottle_15",
+            "SOCKET_Bottle_16",
+            "SOCKET_Bottle_17",
+            "SOCKET_Bottle_18",
+            "SOCKET_Bottle_19",
+            "SOCKET_Bottle_20",
+            "SOCKET_Bottle_21",
+            "SOCKET_Bottle_22",
+            "SOCKET_Bottle_23",
+            "SOCKET_Bottle_24"
+          ],
+          "doorHandleClosedY": -0.327,
+          "doorHandleOpenY": -1.002545,
+          "doorHandleTravelMetersAtMinus108Degrees": 1.25628,
+          "hingeLocationMeters": [
+            -0.41999998688697815,
+            -0.2800000011920929,
+            0.0
+          ]
+        },
+        "triangleCount": 3140,
+        "visibleMeshCount": 27,
+        "warnings": []
+      },
+      "sourceBytes": 148161,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_opening_drinks_cooler_v1.blend",
+      "sourceSha256": "37d1871399f393c47a75785fcdc929768c77781a5c3f16276335a7eae47c89ef",
+      "targetDimensionsMeters": [
+        0.9,
+        0.68,
+        1.9
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 54088,
+      "glbPath": "vendor/models/clubhouse/pine_hills_golf_tv_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            -0.013,
+            0.34
+          ],
+          "maximum": [
+            0.55,
+            0.07,
+            0.68
+          ],
+          "minimum": [
+            -0.55,
+            -0.096,
+            0.0
+          ],
+          "size": [
+            1.1,
+            0.166,
+            0.68
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 8,
+        "materialNames": [
+          "MAT_PH_MutedSage",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_Rubber",
+          "MAT_PH_TVFairway",
+          "MAT_PH_TVScreenBlack",
+          "MAT_PH_TVSky",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 16,
+        "nodeNames": [
+          "A_PINE_HILLS_GOLF_TV_V1_ROOT",
+          "COL_GolfTV",
+          "GROUP_GolfTV",
+          "MESH_GolfTVBall",
+          "MESH_GolfTVFairway",
+          "MESH_GolfTVFlag",
+          "MESH_GolfTVFlagPole",
+          "MESH_GolfTVFrame",
+          "MESH_GolfTVGreen",
+          "MESH_GolfTVPowerLead",
+          "MESH_GolfTVScreen",
+          "MESH_GolfTVSky",
+          "MESH_GolfTVWallBracket",
+          "SOCKET_ChannelControl",
+          "SOCKET_Power",
+          "SOCKET_WallMount"
+        ],
+        "ok": true,
+        "polygonCount": 1196,
+        "socketCount": 3,
+        "triangleCount": 1196,
+        "visibleMeshCount": 10,
+        "warnings": []
+      },
+      "glbSha256": "94c5717995892839a852fe3a433fef1232c51574edfb28f787676ca7d90da266",
+      "key": "golf_tv",
+      "ok": true,
+      "requiredNodes": [
+        "SOCKET_WallMount",
+        "MESH_GolfTVScreen",
+        "MESH_GolfTVFlag",
+        "COL_GolfTV"
+      ],
+      "root": "A_PINE_HILLS_GOLF_TV_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            -0.013,
+            0.34
+          ],
+          "maximum": [
+            0.55,
+            0.07,
+            0.68
+          ],
+          "minimum": [
+            -0.55,
+            -0.096,
+            0.0
+          ],
+          "size": [
+            1.1,
+            0.166,
+            0.68
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 8,
+        "materialNames": [
+          "MAT_PH_MutedSage",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_Rubber",
+          "MAT_PH_TVFairway",
+          "MAT_PH_TVScreenBlack",
+          "MAT_PH_TVSky",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 16,
+        "nodeNames": [
+          "A_PINE_HILLS_GOLF_TV_V1_ROOT",
+          "COL_GolfTV",
+          "GROUP_GolfTV",
+          "MESH_GolfTVBall",
+          "MESH_GolfTVFairway",
+          "MESH_GolfTVFlag",
+          "MESH_GolfTVFlagPole",
+          "MESH_GolfTVFrame",
+          "MESH_GolfTVGreen",
+          "MESH_GolfTVPowerLead",
+          "MESH_GolfTVScreen",
+          "MESH_GolfTVSky",
+          "MESH_GolfTVWallBracket",
+          "SOCKET_ChannelControl",
+          "SOCKET_Power",
+          "SOCKET_WallMount"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 587,
+        "socketCount": 3,
+        "special": {},
+        "triangleCount": 1196,
+        "visibleMeshCount": 10,
+        "warnings": []
+      },
+      "sourceBytes": 126885,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_golf_tv_v1.blend",
+      "sourceSha256": "ecd4f799c550a3cce9ad0a88f9989024b6e42fb4edea1b36065aab7d114031a2",
+      "targetDimensionsMeters": [
+        1.1,
+        0.17,
+        0.68
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 78212,
+      "glbPath": "vendor/models/clubhouse/pine_hills_water_cooler_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.0025,
+            -0.045,
+            0.685
+          ],
+          "maximum": [
+            0.195,
+            0.19,
+            1.37
+          ],
+          "minimum": [
+            -0.19,
+            -0.28,
+            0.0
+          ],
+          "size": [
+            0.385,
+            0.47,
+            1.37
+          ]
+        },
+        "collisionMeshCount": 2,
+        "errors": [],
+        "materialCount": 6,
+        "materialNames": [
+          "MAT_PH_MutedSage",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream",
+          "MAT_PH_WaterJugGlass",
+          "MAT_PH_WaterVolume"
+        ],
+        "nodeCount": 21,
+        "nodeNames": [
+          "A_PINE_HILLS_WATER_COOLER_V1_ROOT",
+          "COL_WaterCoolerBody",
+          "COL_WaterCoolerJug",
+          "GROUP_WaterCooler",
+          "MESH_WaterCoolerBasePlinth",
+          "MESH_WaterCoolerBody",
+          "MESH_WaterCoolerCupDispenser",
+          "MESH_WaterCoolerDripTray",
+          "MESH_WaterCoolerFrontInset",
+          "MESH_WaterCoolerJug",
+          "MESH_WaterCoolerJugShoulder",
+          "MESH_WaterCoolerPaddleCold",
+          "MESH_WaterCoolerPaddleRoom",
+          "MESH_WaterCoolerTapCold",
+          "MESH_WaterCoolerTapRoom",
+          "MESH_WaterCoolerTopCollar",
+          "MESH_WaterCoolerWater",
+          "SOCKET_BottleRefill",
+          "SOCKET_CupStack",
+          "SOCKET_PLACEMENT",
+          "SOCKET_UseCold"
+        ],
+        "ok": true,
+        "polygonCount": 1932,
+        "socketCount": 4,
+        "triangleCount": 1932,
+        "visibleMeshCount": 13,
+        "warnings": []
+      },
+      "glbSha256": "0a8c220ba3d55b3603cff42afad1c52a13f311d94bbd6e5fafd0e86a7e6bc3eb",
+      "key": "water_cooler",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_WaterCoolerJug",
+        "SOCKET_UseCold",
+        "SOCKET_CupStack",
+        "COL_WaterCoolerBody"
+      ],
+      "root": "A_PINE_HILLS_WATER_COOLER_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.0025,
+            -0.045,
+            0.685
+          ],
+          "maximum": [
+            0.195,
+            0.19,
+            1.37
+          ],
+          "minimum": [
+            -0.19,
+            -0.28,
+            0.0
+          ],
+          "size": [
+            0.385,
+            0.47,
+            1.37
+          ]
+        },
+        "collisionMeshCount": 2,
+        "errors": [],
+        "materialCount": 6,
+        "materialNames": [
+          "MAT_PH_MutedSage",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream",
+          "MAT_PH_WaterJugGlass",
+          "MAT_PH_WaterVolume"
+        ],
+        "nodeCount": 21,
+        "nodeNames": [
+          "A_PINE_HILLS_WATER_COOLER_V1_ROOT",
+          "COL_WaterCoolerBody",
+          "COL_WaterCoolerJug",
+          "GROUP_WaterCooler",
+          "MESH_WaterCoolerBasePlinth",
+          "MESH_WaterCoolerBody",
+          "MESH_WaterCoolerCupDispenser",
+          "MESH_WaterCoolerDripTray",
+          "MESH_WaterCoolerFrontInset",
+          "MESH_WaterCoolerJug",
+          "MESH_WaterCoolerJugShoulder",
+          "MESH_WaterCoolerPaddleCold",
+          "MESH_WaterCoolerPaddleRoom",
+          "MESH_WaterCoolerTapCold",
+          "MESH_WaterCoolerTapRoom",
+          "MESH_WaterCoolerTopCollar",
+          "MESH_WaterCoolerWater",
+          "SOCKET_BottleRefill",
+          "SOCKET_CupStack",
+          "SOCKET_PLACEMENT",
+          "SOCKET_UseCold"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 906,
+        "socketCount": 4,
+        "special": {},
+        "triangleCount": 1932,
+        "visibleMeshCount": 13,
+        "warnings": []
+      },
+      "sourceBytes": 130013,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_water_cooler_v1.blend",
+      "sourceSha256": "2ab4d7fe544bd55660660e10dc6c512e7943d3912186b2b955ec3c0ebcdfc83f",
+      "targetDimensionsMeters": [
+        0.39,
+        0.47,
+        1.37
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 37192,
+      "glbPath": "vendor/models/clubhouse/pine_hills_public_waste_bin_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0,
+            0.3435
+          ],
+          "maximum": [
+            0.22,
+            0.22,
+            0.687
+          ],
+          "minimum": [
+            -0.22,
+            -0.22,
+            0.0
+          ],
+          "size": [
+            0.44,
+            0.44,
+            0.687
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_SoftBlack",
+          "MAT_PH_WarmCharcoal"
+        ],
+        "nodeCount": 12,
+        "nodeNames": [
+          "A_PINE_HILLS_PUBLIC_WASTE_BIN_V1_ROOT",
+          "COL_WasteBinBody",
+          "GROUP_PublicWasteBin",
+          "MESH_WasteBinBody",
+          "MESH_WasteBinFrontPlaque",
+          "MESH_WasteBinOakSlat_01",
+          "MESH_WasteBinOakSlat_02",
+          "MESH_WasteBinOakSlat_03",
+          "MESH_WasteBinOpening",
+          "MESH_WasteBinTopRim",
+          "SOCKET_Discard",
+          "SOCKET_PLACEMENT"
+        ],
+        "ok": true,
+        "polygonCount": 836,
+        "socketCount": 2,
+        "triangleCount": 836,
+        "visibleMeshCount": 7,
+        "warnings": []
+      },
+      "glbSha256": "038104f6d43900ba6756073429b12eb7760b7a80f15f56cd087ac3ded3bf512e",
+      "key": "public_waste_bin",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_WasteBinOpening",
+        "SOCKET_Discard",
+        "COL_WasteBinBody"
+      ],
+      "root": "A_PINE_HILLS_PUBLIC_WASTE_BIN_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0,
+            0.3435
+          ],
+          "maximum": [
+            0.22,
+            0.22,
+            0.687
+          ],
+          "minimum": [
+            -0.22,
+            -0.22,
+            0.0
+          ],
+          "size": [
+            0.44,
+            0.44,
+            0.687
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_SoftBlack",
+          "MAT_PH_WarmCharcoal"
+        ],
+        "nodeCount": 12,
+        "nodeNames": [
+          "A_PINE_HILLS_PUBLIC_WASTE_BIN_V1_ROOT",
+          "COL_WasteBinBody",
+          "GROUP_PublicWasteBin",
+          "MESH_WasteBinBody",
+          "MESH_WasteBinFrontPlaque",
+          "MESH_WasteBinOakSlat_01",
+          "MESH_WasteBinOakSlat_02",
+          "MESH_WasteBinOakSlat_03",
+          "MESH_WasteBinOpening",
+          "MESH_WasteBinTopRim",
+          "SOCKET_Discard",
+          "SOCKET_PLACEMENT"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 422,
+        "socketCount": 2,
+        "special": {},
+        "triangleCount": 836,
+        "visibleMeshCount": 7,
+        "warnings": []
+      },
+      "sourceBytes": 112382,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_public_waste_bin_v1.blend",
+      "sourceSha256": "74b55157e0014d5eddc00542183b85661bc1a87f1669e3deb9039e4bf2ca00b5",
+      "targetDimensionsMeters": [
+        0.44,
+        0.44,
+        0.68
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 56656,
+      "glbPath": "vendor/models/clubhouse/pine_hills_public_waste_bin_overflow_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            -0.008197,
+            0.0,
+            0.436104
+          ],
+          "maximum": [
+            0.22,
+            0.22,
+            0.872208
+          ],
+          "minimum": [
+            -0.236393,
+            -0.22,
+            0.0
+          ],
+          "size": [
+            0.456393,
+            0.44,
+            0.872208
+          ]
+        },
+        "collisionMeshCount": 2,
+        "errors": [],
+        "materialCount": 7,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_Paper",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_SoftBlack",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 21,
+        "nodeNames": [
+          "A_PINE_HILLS_PUBLIC_WASTE_BIN_OVERFLOW_V1_ROOT",
+          "COL_WasteBinBody",
+          "COL_WasteOverflowCleanup",
+          "GROUP_PublicWasteBin",
+          "GROUP_WasteBinOverflowCleanup",
+          "MESH_WasteBinBody",
+          "MESH_WasteBinFrontPlaque",
+          "MESH_WasteBinOakSlat_01",
+          "MESH_WasteBinOakSlat_02",
+          "MESH_WasteBinOakSlat_03",
+          "MESH_WasteBinOpening",
+          "MESH_WasteBinTopRim",
+          "MESH_WasteOverflowCup",
+          "MESH_WasteOverflowPaper_01",
+          "MESH_WasteOverflowPaper_02",
+          "MESH_WasteOverflowPaper_03",
+          "MESH_WasteOverflowPaper_04",
+          "MESH_WasteOverflowReceipt",
+          "SOCKET_CleanupTarget",
+          "SOCKET_Discard",
+          "SOCKET_PLACEMENT"
+        ],
+        "ok": true,
+        "polygonCount": 1164,
+        "socketCount": 3,
+        "triangleCount": 1164,
+        "visibleMeshCount": 13,
+        "warnings": []
+      },
+      "glbSha256": "1550e2adf504f205aa514561421478f8e91cdf2666e87ce0453e4ab5dce10c09",
+      "key": "public_waste_bin_overflow",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_WasteOverflowPaper_01",
+        "SOCKET_CleanupTarget",
+        "COL_WasteOverflowCleanup"
+      ],
+      "root": "A_PINE_HILLS_PUBLIC_WASTE_BIN_OVERFLOW_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            -0.008197,
+            0.0,
+            0.436104
+          ],
+          "maximum": [
+            0.22,
+            0.22,
+            0.872208
+          ],
+          "minimum": [
+            -0.236393,
+            -0.22,
+            0.0
+          ],
+          "size": [
+            0.456393,
+            0.44,
+            0.872208
+          ]
+        },
+        "collisionMeshCount": 2,
+        "errors": [],
+        "materialCount": 7,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_Paper",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_SoftBlack",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 21,
+        "nodeNames": [
+          "A_PINE_HILLS_PUBLIC_WASTE_BIN_OVERFLOW_V1_ROOT",
+          "COL_WasteBinBody",
+          "COL_WasteOverflowCleanup",
+          "GROUP_PublicWasteBin",
+          "GROUP_WasteBinOverflowCleanup",
+          "MESH_WasteBinBody",
+          "MESH_WasteBinFrontPlaque",
+          "MESH_WasteBinOakSlat_01",
+          "MESH_WasteBinOakSlat_02",
+          "MESH_WasteBinOakSlat_03",
+          "MESH_WasteBinOpening",
+          "MESH_WasteBinTopRim",
+          "MESH_WasteOverflowCup",
+          "MESH_WasteOverflowPaper_01",
+          "MESH_WasteOverflowPaper_02",
+          "MESH_WasteOverflowPaper_03",
+          "MESH_WasteOverflowPaper_04",
+          "MESH_WasteOverflowReceipt",
+          "SOCKET_CleanupTarget",
+          "SOCKET_Discard",
+          "SOCKET_PLACEMENT"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 618,
+        "socketCount": 3,
+        "special": {},
+        "triangleCount": 1164,
+        "visibleMeshCount": 13,
+        "warnings": []
+      },
+      "sourceBytes": 125501,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_public_waste_bin_overflow_v1.blend",
+      "sourceSha256": "6084360b7f21913c77d789cc0b7820a5dff2376d53043b2ace6588e8b0948707",
+      "targetDimensionsMeters": [
+        0.5,
+        0.44,
+        0.86
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 115696,
+      "glbPath": "vendor/models/clubhouse/pine_hills_front_desk_clutter_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.009343,
+            -0.044768,
+            0.125015
+          ],
+          "maximum": [
+            0.350686,
+            0.138972,
+            0.250029
+          ],
+          "minimum": [
+            -0.332,
+            -0.228508,
+            0.0
+          ],
+          "size": [
+            0.682686,
+            0.36748,
+            0.250029
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 9,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_DeskMugCeramic",
+          "MAT_PH_MutedSage",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_Paper",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_SoftBlack",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 28,
+        "nodeNames": [
+          "A_PINE_HILLS_FRONT_DESK_CLUTTER_V1_ROOT",
+          "COL_FrontDeskClutter",
+          "GROUP_FrontDeskClutter",
+          "MESH_CoffeeMug",
+          "MESH_CoffeeMugHandle",
+          "MESH_CoffeeMugOpening",
+          "MESH_DeskPhoneBase",
+          "MESH_DeskPhoneHandset",
+          "MESH_DeskPhoneNote",
+          "MESH_PaperStack_01",
+          "MESH_PaperStack_02",
+          "MESH_PaperStack_03",
+          "MESH_PenCup",
+          "MESH_PenCupOpening",
+          "MESH_Pen_01",
+          "MESH_Pen_02",
+          "MESH_Pen_03",
+          "MESH_Pen_04",
+          "MESH_ReceiptOnSpike",
+          "MESH_ReceiptSpike",
+          "MESH_ReceiptSpikeBase",
+          "SOCKET_CleanupTarget",
+          "SOCKET_Mug",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Paper",
+          "SOCKET_PenCup",
+          "SOCKET_Phone",
+          "SOCKET_ReceiptSpike"
+        ],
+        "ok": true,
+        "polygonCount": 3012,
+        "socketCount": 7,
+        "triangleCount": 3012,
+        "visibleMeshCount": 18,
+        "warnings": []
+      },
+      "glbSha256": "f84f2083cbcb91cd7991ec1a1eea37bda4b4220113531b0da04a56de2cfe66d2",
+      "key": "front_desk_clutter",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_PenCup",
+        "MESH_ReceiptSpike",
+        "MESH_CoffeeMug",
+        "MESH_PaperStack_01",
+        "MESH_DeskPhoneBase",
+        "SOCKET_CleanupTarget",
+        "COL_FrontDeskClutter"
+      ],
+      "root": "A_PINE_HILLS_FRONT_DESK_CLUTTER_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.009343,
+            -0.044768,
+            0.125015
+          ],
+          "maximum": [
+            0.350686,
+            0.138972,
+            0.250029
+          ],
+          "minimum": [
+            -0.332,
+            -0.228508,
+            0.0
+          ],
+          "size": [
+            0.682686,
+            0.36748,
+            0.250029
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 9,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_DeskMugCeramic",
+          "MAT_PH_MutedSage",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_Paper",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_SoftBlack",
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 28,
+        "nodeNames": [
+          "A_PINE_HILLS_FRONT_DESK_CLUTTER_V1_ROOT",
+          "COL_FrontDeskClutter",
+          "GROUP_FrontDeskClutter",
+          "MESH_CoffeeMug",
+          "MESH_CoffeeMugHandle",
+          "MESH_CoffeeMugOpening",
+          "MESH_DeskPhoneBase",
+          "MESH_DeskPhoneHandset",
+          "MESH_DeskPhoneNote",
+          "MESH_PaperStack_01",
+          "MESH_PaperStack_02",
+          "MESH_PaperStack_03",
+          "MESH_PenCup",
+          "MESH_PenCupOpening",
+          "MESH_Pen_01",
+          "MESH_Pen_02",
+          "MESH_Pen_03",
+          "MESH_Pen_04",
+          "MESH_ReceiptOnSpike",
+          "MESH_ReceiptSpike",
+          "MESH_ReceiptSpikeBase",
+          "SOCKET_CleanupTarget",
+          "SOCKET_Mug",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Paper",
+          "SOCKET_PenCup",
+          "SOCKET_Phone",
+          "SOCKET_ReceiptSpike"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 1424,
+        "socketCount": 7,
+        "special": {},
+        "triangleCount": 3012,
+        "visibleMeshCount": 18,
+        "warnings": []
+      },
+      "sourceBytes": 158052,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_front_desk_clutter_v1.blend",
+      "sourceSha256": "fcbbbe9cc65fbf768f7d19f6d963286b954a90dd31c4595f7ea34ba9fdc3a0ef",
+      "targetDimensionsMeters": [
+        0.72,
+        0.38,
+        0.24
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 49564,
+      "glbPath": "vendor/models/clubhouse/pine_hills_lounge_litter_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            -0.01998,
+            -0.016237,
+            0.0785
+          ],
+          "maximum": [
+            0.353337,
+            0.25,
+            0.157
+          ],
+          "minimum": [
+            -0.393297,
+            -0.282475,
+            0.0
+          ],
+          "size": [
+            0.746634,
+            0.532475,
+            0.157
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 6,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_MutedSage",
+          "MAT_PH_Paper",
+          "MAT_PH_PizzaCardboard",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 17,
+        "nodeNames": [
+          "A_PINE_HILLS_LOUNGE_LITTER_V1_ROOT",
+          "COL_LoungeLitter",
+          "GROUP_LoungeLitter",
+          "MESH_EmptyCupTipped",
+          "MESH_EmptyCupTippedRim",
+          "MESH_EmptyCupUpright",
+          "MESH_EmptyCupUprightRim",
+          "MESH_LoungeNapkin",
+          "MESH_PizzaBoxBase",
+          "MESH_PizzaBoxLabel",
+          "MESH_PizzaBoxLid",
+          "MESH_PizzaBoxLogo",
+          "SOCKET_CleanupTarget",
+          "SOCKET_EmptyCup_01",
+          "SOCKET_EmptyCup_02",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PizzaBox"
+        ],
+        "ok": true,
+        "polygonCount": 1228,
+        "socketCount": 5,
+        "triangleCount": 1228,
+        "visibleMeshCount": 9,
+        "warnings": []
+      },
+      "glbSha256": "48d8ffce58180ce1e7db4bb9ddeea6edb844ba909285fd66fc3f9b03764d6f4a",
+      "key": "lounge_litter",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_PizzaBoxBase",
+        "MESH_EmptyCupUpright",
+        "MESH_EmptyCupTipped",
+        "SOCKET_CleanupTarget",
+        "COL_LoungeLitter"
+      ],
+      "root": "A_PINE_HILLS_LOUNGE_LITTER_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            -0.01998,
+            -0.016237,
+            0.0785
+          ],
+          "maximum": [
+            0.353337,
+            0.25,
+            0.157
+          ],
+          "minimum": [
+            -0.393297,
+            -0.282475,
+            0.0
+          ],
+          "size": [
+            0.746634,
+            0.532475,
+            0.157
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 6,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_MutedSage",
+          "MAT_PH_Paper",
+          "MAT_PH_PizzaCardboard",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 17,
+        "nodeNames": [
+          "A_PINE_HILLS_LOUNGE_LITTER_V1_ROOT",
+          "COL_LoungeLitter",
+          "GROUP_LoungeLitter",
+          "MESH_EmptyCupTipped",
+          "MESH_EmptyCupTippedRim",
+          "MESH_EmptyCupUpright",
+          "MESH_EmptyCupUprightRim",
+          "MESH_LoungeNapkin",
+          "MESH_PizzaBoxBase",
+          "MESH_PizzaBoxLabel",
+          "MESH_PizzaBoxLid",
+          "MESH_PizzaBoxLogo",
+          "SOCKET_CleanupTarget",
+          "SOCKET_EmptyCup_01",
+          "SOCKET_EmptyCup_02",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PizzaBox"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 582,
+        "socketCount": 5,
+        "special": {},
+        "triangleCount": 1228,
+        "visibleMeshCount": 9,
+        "warnings": []
+      },
+      "sourceBytes": 123500,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_lounge_litter_v1.blend",
+      "sourceSha256": "707faefc9014333161742686d8c956bed6c4c86e80db1367110639514b4a068d",
+      "targetDimensionsMeters": [
+        0.76,
+        0.6,
+        0.16
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 38452,
+      "glbPath": "vendor/models/clubhouse/pine_hills_fallen_frame_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0,
+            0.036005
+          ],
+          "maximum": [
+            0.32,
+            0.23,
+            0.064511
+          ],
+          "minimum": [
+            -0.32,
+            -0.23,
+            0.0075
+          ],
+          "size": [
+            0.64,
+            0.46,
+            0.057011
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_MutedSage",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_RestrainedGlass"
+        ],
+        "nodeCount": 14,
+        "nodeNames": [
+          "A_PINE_HILLS_FALLEN_FRAME_V1_ROOT",
+          "COL_FallenFrame",
+          "GROUP_FallenFrame",
+          "MESH_FallenFrameCourseStripe",
+          "MESH_FallenFrameGlass",
+          "MESH_FallenFrameHanger",
+          "MESH_FallenFramePhoto",
+          "MESH_FallenFrameRailEast",
+          "MESH_FallenFrameRailNorth",
+          "MESH_FallenFrameRailSouth",
+          "MESH_FallenFrameRailWest",
+          "SOCKET_CleanupTarget",
+          "SOCKET_PLACEMENT",
+          "SOCKET_WallMount"
+        ],
+        "ok": true,
+        "polygonCount": 872,
+        "socketCount": 3,
+        "triangleCount": 872,
+        "visibleMeshCount": 8,
+        "warnings": []
+      },
+      "glbSha256": "54466f725a125e51b4ee3585f770968094d3bc3a821b72d8b9238f25d1070b38",
+      "key": "fallen_frame",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_FallenFrameGlass",
+        "SOCKET_CleanupTarget",
+        "SOCKET_WallMount",
+        "COL_FallenFrame"
+      ],
+      "root": "A_PINE_HILLS_FALLEN_FRAME_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0,
+            0.036005
+          ],
+          "maximum": [
+            0.32,
+            0.23,
+            0.064511
+          ],
+          "minimum": [
+            -0.32,
+            -0.23,
+            0.0075
+          ],
+          "size": [
+            0.64,
+            0.46,
+            0.057011
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_MutedSage",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_RestrainedGlass"
+        ],
+        "nodeCount": 14,
+        "nodeNames": [
+          "A_PINE_HILLS_FALLEN_FRAME_V1_ROOT",
+          "COL_FallenFrame",
+          "GROUP_FallenFrame",
+          "MESH_FallenFrameCourseStripe",
+          "MESH_FallenFrameGlass",
+          "MESH_FallenFrameHanger",
+          "MESH_FallenFramePhoto",
+          "MESH_FallenFrameRailEast",
+          "MESH_FallenFrameRailNorth",
+          "MESH_FallenFrameRailSouth",
+          "MESH_FallenFrameRailWest",
+          "SOCKET_CleanupTarget",
+          "SOCKET_PLACEMENT",
+          "SOCKET_WallMount"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 430,
+        "socketCount": 3,
+        "special": {},
+        "triangleCount": 872,
+        "visibleMeshCount": 8,
+        "warnings": []
+      },
+      "sourceBytes": 113589,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_fallen_frame_v1.blend",
+      "sourceSha256": "27ef06b26fb2bc45e20468b6d1e62de1e4f07ddf2a8c4c4d6eb57d0bfb50633d",
+      "targetDimensionsMeters": [
+        0.64,
+        0.46,
+        0.06
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 62928,
+      "glbPath": "vendor/models/clubhouse/pine_hills_floor_plant_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.005169,
+            0.004448,
+            0.614008
+          ],
+          "maximum": [
+            0.386803,
+            0.314164,
+            1.228016
+          ],
+          "minimum": [
+            -0.376465,
+            -0.305267,
+            0.0
+          ],
+          "size": [
+            0.763268,
+            0.619431,
+            1.228016
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 6,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_FloorPlantLeafDark",
+          "MAT_PH_FloorPlantLeafLight",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_MutedSage",
+          "MAT_PH_NaturalOak"
+        ],
+        "nodeCount": 22,
+        "nodeNames": [
+          "A_PINE_HILLS_FLOOR_PLANT_V1_ROOT",
+          "COL_FloorPlantPot",
+          "GROUP_FloorPlantBroadleaf",
+          "MESH_FloorPlantCrown",
+          "MESH_FloorPlantLeaf_01",
+          "MESH_FloorPlantLeaf_02",
+          "MESH_FloorPlantLeaf_03",
+          "MESH_FloorPlantLeaf_04",
+          "MESH_FloorPlantLeaf_05",
+          "MESH_FloorPlantLeaf_06",
+          "MESH_FloorPlantPot",
+          "MESH_FloorPlantPotRim",
+          "MESH_FloorPlantSoil",
+          "MESH_FloorPlantStem_01",
+          "MESH_FloorPlantStem_02",
+          "MESH_FloorPlantStem_03",
+          "MESH_FloorPlantStem_04",
+          "MESH_FloorPlantStem_05",
+          "MESH_FloorPlantStem_06",
+          "SOCKET_DecorAnchor",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Water"
+        ],
+        "ok": true,
+        "polygonCount": 1316,
+        "socketCount": 3,
+        "triangleCount": 1316,
+        "visibleMeshCount": 16,
+        "warnings": []
+      },
+      "glbSha256": "4148640aea401ca9e9c565cdefdc38700783222be28007ca63ee988a5d6aa282",
+      "key": "floor_plant",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_FloorPlantPot",
+        "MESH_FloorPlantLeaf_01",
+        "SOCKET_Water",
+        "COL_FloorPlantPot"
+      ],
+      "root": "A_PINE_HILLS_FLOOR_PLANT_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.005169,
+            0.004448,
+            0.614008
+          ],
+          "maximum": [
+            0.386803,
+            0.314164,
+            1.228016
+          ],
+          "minimum": [
+            -0.376465,
+            -0.305267,
+            0.0
+          ],
+          "size": [
+            0.763268,
+            0.619431,
+            1.228016
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 6,
+        "materialNames": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_FloorPlantLeafDark",
+          "MAT_PH_FloorPlantLeafLight",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_MutedSage",
+          "MAT_PH_NaturalOak"
+        ],
+        "nodeCount": 22,
+        "nodeNames": [
+          "A_PINE_HILLS_FLOOR_PLANT_V1_ROOT",
+          "COL_FloorPlantPot",
+          "GROUP_FloorPlantBroadleaf",
+          "MESH_FloorPlantCrown",
+          "MESH_FloorPlantLeaf_01",
+          "MESH_FloorPlantLeaf_02",
+          "MESH_FloorPlantLeaf_03",
+          "MESH_FloorPlantLeaf_04",
+          "MESH_FloorPlantLeaf_05",
+          "MESH_FloorPlantLeaf_06",
+          "MESH_FloorPlantPot",
+          "MESH_FloorPlantPotRim",
+          "MESH_FloorPlantSoil",
+          "MESH_FloorPlantStem_01",
+          "MESH_FloorPlantStem_02",
+          "MESH_FloorPlantStem_03",
+          "MESH_FloorPlantStem_04",
+          "MESH_FloorPlantStem_05",
+          "MESH_FloorPlantStem_06",
+          "SOCKET_DecorAnchor",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Water"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 920,
+        "socketCount": 3,
+        "special": {},
+        "triangleCount": 1316,
+        "visibleMeshCount": 16,
+        "warnings": []
+      },
+      "sourceBytes": 130212,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_floor_plant_v1.blend",
+      "sourceSha256": "e8a0a5d90430fd7bc987f0135ddab6f4449daa646d66cc073ea24c39c36edc8e",
+      "targetDimensionsMeters": [
+        0.76,
+        0.62,
+        1.23
+      ],
+      "warnings": []
+    },
+    {
+      "errors": [],
+      "glbBytes": 50488,
+      "glbPath": "vendor/models/clubhouse/pine_hills_counter_plant_v1.glb",
+      "glbRoundTrip": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0,
+            0.329447
+          ],
+          "maximum": [
+            0.129403,
+            0.129403,
+            0.658894
+          ],
+          "minimum": [
+            -0.129403,
+            -0.129403,
+            0.0
+          ],
+          "size": [
+            0.258806,
+            0.258806,
+            0.658894
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_CounterPlantLeafDark",
+          "MAT_PH_CounterPlantLeafSage",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 14,
+        "nodeNames": [
+          "A_PINE_HILLS_COUNTER_PLANT_V1_ROOT",
+          "COL_CounterPlantPot",
+          "GROUP_CounterPlantSpear",
+          "MESH_CounterPlantLeaf_01",
+          "MESH_CounterPlantLeaf_02",
+          "MESH_CounterPlantLeaf_03",
+          "MESH_CounterPlantLeaf_04",
+          "MESH_CounterPlantLeaf_05",
+          "MESH_CounterPlantPot",
+          "MESH_CounterPlantPotBand",
+          "MESH_CounterPlantSoil",
+          "SOCKET_DecorAnchor",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Water"
+        ],
+        "ok": true,
+        "polygonCount": 964,
+        "socketCount": 3,
+        "triangleCount": 964,
+        "visibleMeshCount": 8,
+        "warnings": []
+      },
+      "glbSha256": "36d208513406b2f5e2a719c16efada5699112f0aaa11c2f3851054426360dd9d",
+      "key": "counter_plant",
+      "ok": true,
+      "requiredNodes": [
+        "MESH_CounterPlantPot",
+        "MESH_CounterPlantLeaf_01",
+        "SOCKET_Water",
+        "COL_CounterPlantPot"
+      ],
+      "root": "A_PINE_HILLS_COUNTER_PLANT_V1_ROOT",
+      "source": {
+        "boundsMeters": {
+          "center": [
+            0.0,
+            0.0,
+            0.329447
+          ],
+          "maximum": [
+            0.129403,
+            0.129403,
+            0.658894
+          ],
+          "minimum": [
+            -0.129403,
+            -0.129403,
+            0.0
+          ],
+          "size": [
+            0.258806,
+            0.258806,
+            0.658894
+          ]
+        },
+        "collisionMeshCount": 1,
+        "errors": [],
+        "materialCount": 5,
+        "materialNames": [
+          "MAT_PH_CounterPlantLeafDark",
+          "MAT_PH_CounterPlantLeafSage",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCream"
+        ],
+        "nodeCount": 14,
+        "nodeNames": [
+          "A_PINE_HILLS_COUNTER_PLANT_V1_ROOT",
+          "COL_CounterPlantPot",
+          "GROUP_CounterPlantSpear",
+          "MESH_CounterPlantLeaf_01",
+          "MESH_CounterPlantLeaf_02",
+          "MESH_CounterPlantLeaf_03",
+          "MESH_CounterPlantLeaf_04",
+          "MESH_CounterPlantLeaf_05",
+          "MESH_CounterPlantPot",
+          "MESH_CounterPlantPotBand",
+          "MESH_CounterPlantSoil",
+          "SOCKET_DecorAnchor",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Water"
+        ],
+        "ok": true,
+        "pivotCount": 0,
+        "polygonCount": 451,
+        "socketCount": 3,
+        "special": {},
+        "triangleCount": 964,
+        "visibleMeshCount": 8,
+        "warnings": []
+      },
+      "sourceBytes": 119155,
+      "sourcePath": "asset_sources/blender/clubhouse/pine_hills_counter_plant_v1.blend",
+      "sourceSha256": "ee219a903578a98643d53c2ef547fc4c081fadfba613cb9257c9ed6072fcea0b",
+      "targetDimensionsMeters": [
+        0.26,
+        0.26,
+        0.65
+      ],
+      "warnings": []
+    }
+  ],
+  "blenderVersion": "5.1.2",
+  "errorCount": 0,
+  "errors": [],
+  "externalAssets": false,
+  "externalTextures": false,
+  "ok": true,
+  "schema": "pine-hills-interior-asset-verification-v1",
+  "summedPerAssetMaterialCounts": 71,
+  "totalSourcePolygons": 10386,
+  "totalSourceTriangles": 20804,
+  "units": "meters"
+}

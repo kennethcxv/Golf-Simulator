@@ -1,0 +1,25 @@
+{
+ "id": "pf_sunglasses",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.1482,
+  0.1656,
+  0.0506
+ ],
+ "min_z": 0.0037,
+ "tris": 1720,
+ "textures": [],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_sunglasses.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_sunglasses.blend",
+ "name": "PF Sport Shades",
+ "variant": "black",
+ "price": 89.99,
+ "fixture": "pf_fixture_rangefinder_display",
+ "slot_type": "shelf_small",
+ "packaging": "loose"
+}

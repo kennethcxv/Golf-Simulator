@@ -1,0 +1,43 @@
+node_modules/
+dist/
+out/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.playwright-mcp/
+__pycache__/
+*.py[cod]
+/qa/
+__pycache__/
+*.py[cod]
+*.blend1
+# Claude Code session state; /.claude/worktrees holds live git worktrees whose
+# .git files would corrupt this repository if committed.
+/.claude/
+
+# SDD scratch ledger (session tooling, not project state)
+.superpowers/
+build/
+release/
+coverage/
+.cache/
+temp/
+tmp/
+logs/
+*.zip
+*.7z
+*.mp4
+*.mov
+*.exe
+*.msi
+
+# Generated QA evidence
+*.webm
+
+# Blender automatic backups
+*.blend2
+*.blend@
+# Design references and concept art stored separately
+/Designs/

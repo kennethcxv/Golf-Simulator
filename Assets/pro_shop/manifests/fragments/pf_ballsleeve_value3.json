@@ -1,0 +1,31 @@
+{
+ "id": "pf_ballsleeve_value3",
+ "kind": "products",
+ "category": "golf_balls",
+ "dims_m": [
+  0.048,
+  0.048,
+  0.155
+ ],
+ "min_z": 0.0,
+ "tris": 972,
+ "textures": [
+  "BallSleeveValue3:1024x1024",
+  "NRM_dimple_1.0_512:512x512",
+  "ValueBall:256x256"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_ballsleeve_value3.glb",
+ "blend": "assets/pro_shop/source/products/golf_balls/pf_ballsleeve_value3.blend",
+ "name": "Birdie Value 3-Ball Sleeve",
+ "variant": "value_green",
+ "price": 8.99,
+ "fixture": "pf_fixture_ball_shelf",
+ "slot_type": "shelf_box",
+ "packaging": "window sleeve",
+ "material": "retail board"
+}

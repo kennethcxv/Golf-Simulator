@@ -1,0 +1,3471 @@
+{
+ "count": 114,
+ "products": [
+  {
+   "sku": "pf_bag_cart",
+   "name": "Forge 460 Cart Bag",
+   "category": "golf_bags",
+   "variant": "charcoal",
+   "dims_m": [
+    0.3182,
+    0.3038,
+    1.0139
+   ],
+   "tris": 2164,
+   "price": 269.99,
+   "fixture": "pf_fixture_bag_display",
+   "slot_type": "bag_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "BagPlate_pf_bag_cart_FORG:256x96",
+    "M_BagChar_alb:512x512",
+    "NRM_canvas_0.6_512:512x512",
+    "RGH_canvas_0.58:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bag_cart.glb",
+   "blend": "assets/pro_shop/source/products/golf_bags/pf_bag_cart.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bag_staff",
+   "name": "Elevate Tour Staff Bag",
+   "category": "golf_bags",
+   "variant": "navy_white",
+   "dims_m": [
+    0.3494,
+    0.3428,
+    1.0596
+   ],
+   "tris": 1656,
+   "price": 549.99,
+   "fixture": "pf_fixture_bag_display",
+   "slot_type": "bag_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_BagNavy_alb:512x512",
+    "M_BagWhiteL_alb:512x512",
+    "NRM_leather_0.5_512:512x512",
+    "RGH_leather_0.44:256x256",
+    "StaffCrest:512x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bag_staff.glb",
+   "blend": "assets/pro_shop/source/products/golf_bags/pf_bag_staff.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bag_stand",
+   "name": "Aero Max Stand Bag",
+   "category": "golf_bags",
+   "variant": "sage_white",
+   "dims_m": [
+    0.3304,
+    0.4761,
+    0.906
+   ],
+   "tris": 2604,
+   "price": 229.99,
+   "fixture": "pf_fixture_bag_display",
+   "slot_type": "bag_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "BagPlate_pf_bag_stand_AERO:256x96",
+    "M_BagSage_alb:512x512",
+    "M_BagWhite_alb:512x512",
+    "NRM_ripstop_0.6_512:512x512",
+    "NRM_ripstop_0.7_512:512x512",
+    "RGH_ripstop_0.62:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bag_stand.glb",
+   "blend": "assets/pro_shop/source/products/golf_bags/pf_bag_stand.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bag_sunday",
+   "name": "PF Sunday Pencil Bag",
+   "category": "golf_bags",
+   "variant": "navy_white",
+   "dims_m": [
+    0.1893,
+    0.2448,
+    0.898
+   ],
+   "tris": 1432,
+   "price": 119.99,
+   "fixture": "pf_fixture_bag_display",
+   "slot_type": "bag_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "BagPlate_pf_bag_sunday_SUND:256x96",
+    "M_BagNavyC_alb:512x512",
+    "M_BagWhiteC_alb:512x512",
+    "NRM_canvas_0.6_512:512x512",
+    "RGH_canvas_0.62:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bag_sunday.glb",
+   "blend": "assets/pro_shop/source/products/golf_bags/pf_bag_sunday.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_ball_loose_white",
+   "name": "Prime Tour Golf Ball",
+   "category": "golf_balls",
+   "variant": "white",
+   "dims_m": [
+    0.0427,
+    0.0427,
+    0.0427
+   ],
+   "tris": 528,
+   "price": 4.99,
+   "fixture": "pf_fixture_ball_shelf",
+   "slot_type": "shelf_loose",
+   "packaging": "loose",
+   "material": "urethane",
+   "textures": [
+    "NRM_dimple_1.2_512:512x512",
+    "pf_ball_loose_white_tex:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_ball_loose_white.glb",
+   "blend": "assets/pro_shop/source/products/golf_balls/pf_ball_loose_white.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_ball_loose_yellow",
+   "name": "Range Practice Ball",
+   "category": "golf_balls",
+   "variant": "yellow",
+   "dims_m": [
+    0.0427,
+    0.0427,
+    0.0427
+   ],
+   "tris": 528,
+   "price": 1.99,
+   "fixture": "pf_fixture_ball_shelf",
+   "slot_type": "shelf_loose",
+   "packaging": "loose",
+   "material": "surlyn",
+   "textures": [
+    "NRM_dimple_1.2_512:512x512",
+    "pf_ball_loose_yellow_tex:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_ball_loose_yellow.glb",
+   "blend": "assets/pro_shop/source/products/golf_balls/pf_ball_loose_yellow.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_ballbox_range12",
+   "name": "Range Practice Balls 12",
+   "category": "golf_balls",
+   "variant": "range_navy",
+   "dims_m": [
+    0.2,
+    0.056,
+    0.15
+   ],
+   "tris": 1272,
+   "price": 19.99,
+   "fixture": "pf_fixture_ball_shelf",
+   "slot_type": "shelf_box",
+   "packaging": "window retail box",
+   "material": "retail board",
+   "textures": [
+    "BallBoxRange12:1024x1024",
+    "NRM_dimple_1.0_512:512x512",
+    "PSBoard:512x512",
+    "RangeBall_green:256x256",
+    "RangeBall_orange:256x256",
+    "RangeBall_pink:256x256",
+    "RangeBall_yellow:256x256"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_ballbox_range12.glb",
+   "blend": "assets/pro_shop/source/products/golf_balls/pf_ballbox_range12.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_ballbox_soft12",
+   "name": "Eagle Soft Feel 12-Ball Box",
+   "category": "golf_balls",
+   "variant": "soft_navy",
+   "dims_m": [
+    0.192,
+    0.052,
+    0.14
+   ],
+   "tris": 108,
+   "price": 32.99,
+   "fixture": "pf_fixture_ball_shelf",
+   "slot_type": "shelf_box",
+   "packaging": "closed retail box",
+   "material": "retail board",
+   "textures": [
+    "BallBoxSoft12:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_ballbox_soft12.glb",
+   "blend": "assets/pro_shop/source/products/golf_balls/pf_ballbox_soft12.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_ballbox_tour12",
+   "name": "Prime Tour Premium 12-Ball Box",
+   "category": "golf_balls",
+   "variant": "tour_black",
+   "dims_m": [
+    0.192,
+    0.052,
+    0.14
+   ],
+   "tris": 108,
+   "price": 54.99,
+   "fixture": "pf_fixture_ball_shelf",
+   "slot_type": "shelf_box",
+   "packaging": "closed retail box",
+   "material": "premium board",
+   "textures": [
+    "BallBoxTour12:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_ballbox_tour12.glb",
+   "blend": "assets/pro_shop/source/products/golf_balls/pf_ballbox_tour12.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_ballsleeve_value3",
+   "name": "Birdie Value 3-Ball Sleeve",
+   "category": "golf_balls",
+   "variant": "value_green",
+   "dims_m": [
+    0.048,
+    0.048,
+    0.155
+   ],
+   "tris": 972,
+   "price": 8.99,
+   "fixture": "pf_fixture_ball_shelf",
+   "slot_type": "shelf_box",
+   "packaging": "window sleeve",
+   "material": "retail board",
+   "textures": [
+    "BallSleeveValue3:1024x1024",
+    "NRM_dimple_1.0_512:512x512",
+    "ValueBall:256x256"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_ballsleeve_value3.glb",
+   "blend": "assets/pro_shop/source/products/golf_balls/pf_ballsleeve_value3.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_belt_coiled",
+   "name": "PF Leather Belt",
+   "category": "extras",
+   "variant": "navy",
+   "dims_m": [
+    0.1302,
+    0.1258,
+    0.0223
+   ],
+   "tris": 1572,
+   "price": 44.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "shelf_small",
+   "packaging": "coiled",
+   "material": null,
+   "textures": [
+    "M_BeltNavy_alb:512x512",
+    "NRM_leather_0.5_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_belt_coiled.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_belt_coiled.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bottle_insulated",
+   "name": "PF Insulated Flask",
+   "category": "bottles",
+   "variant": "sage_steel",
+   "dims_m": [
+    0.0862,
+    0.0862,
+    0.3095
+   ],
+   "tris": 2048,
+   "price": 34.99,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_bottle",
+   "packaging": "none",
+   "material": "stainless",
+   "textures": [
+    "LblInsul:1024x512"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bottle_insulated.glb",
+   "blend": "assets/pro_shop/source/products/bottles/pf_bottle_insulated.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bottle_slim",
+   "name": "PF Slim Steel Bottle",
+   "category": "bottles",
+   "variant": "cream_steel",
+   "dims_m": [
+    0.0722,
+    0.0722,
+    0.261
+   ],
+   "tris": 1168,
+   "price": 24.99,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_bottle",
+   "packaging": "none",
+   "material": "stainless",
+   "textures": [
+    "LblSlim:1024x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bottle_slim.glb",
+   "blend": "assets/pro_shop/source/products/bottles/pf_bottle_slim.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bottle_sport",
+   "name": "PF Sport Bottle",
+   "category": "bottles",
+   "variant": "navy_green",
+   "dims_m": [
+    0.075,
+    0.075,
+    0.2635
+   ],
+   "tris": 2808,
+   "price": 14.99,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_bottle",
+   "packaging": "none",
+   "material": "HDPE",
+   "textures": [
+    "LblSport:1024x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bottle_sport.glb",
+   "blend": "assets/pro_shop/source/products/bottles/pf_bottle_sport.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_bottle_squeeze",
+   "name": "PF Squeeze Bottle",
+   "category": "bottles",
+   "variant": "cream_navy",
+   "dims_m": [
+    0.0777,
+    0.0742,
+    0.251
+   ],
+   "tris": 3672,
+   "price": 12.99,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_bottle",
+   "packaging": "none",
+   "material": "HDPE",
+   "textures": [
+    "LblSqueeze:1024x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_bottle_squeeze.glb",
+   "blend": "assets/pro_shop/source/products/bottles/pf_bottle_squeeze.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_classic",
+   "name": "Classic Divot Tool",
+   "category": "divot_tools",
+   "variant": "steel_green",
+   "dims_m": [
+    0.021,
+    0.073,
+    0.0059
+   ],
+   "tris": 936,
+   "price": 11.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "DivKnurl:64x64",
+    "NRM_crinkle_0.12_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_classic.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_classic.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_classic_card",
+   "name": "Classic Divot Tool (Card)",
+   "category": "divot_tools",
+   "variant": "steel_green",
+   "dims_m": [
+    0.09,
+    0.0136,
+    0.15
+   ],
+   "tris": 1064,
+   "price": 11.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_divot_classic_card:512x852",
+    "DivKnurl:64x64",
+    "NRM_crinkle_0.12_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_classic_card.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_classic_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_folding_black",
+   "name": "Folding Divot Tool",
+   "category": "divot_tools",
+   "variant": "black_brass",
+   "dims_m": [
+    0.023,
+    0.074,
+    0.0078
+   ],
+   "tris": 912,
+   "price": 16.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "NRM_crinkle_0.12_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_folding_black.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_folding_black.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_folding_black_card",
+   "name": "Folding Divot Tool (Card)",
+   "category": "divot_tools",
+   "variant": "black_brass",
+   "dims_m": [
+    0.09,
+    0.0158,
+    0.15
+   ],
+   "tris": 1040,
+   "price": 16.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_divot_folding_black_card:512x852",
+    "NRM_crinkle_0.12_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_folding_black_card.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_folding_black_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_folding_sage",
+   "name": "Folding Divot Tool Field",
+   "category": "divot_tools",
+   "variant": "sage_brass",
+   "dims_m": [
+    0.022,
+    0.074,
+    0.0095
+   ],
+   "tris": 1004,
+   "price": 18.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "NRM_crinkle_0.12_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_folding_sage.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_folding_sage.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_folding_sage_card",
+   "name": "Folding Divot Tool Field (Card)",
+   "category": "divot_tools",
+   "variant": "sage_brass",
+   "dims_m": [
+    0.09,
+    0.0166,
+    0.15
+   ],
+   "tris": 1132,
+   "price": 18.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_divot_folding_sage_card:512x852",
+    "NRM_crinkle_0.12_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_folding_sage_card.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_folding_sage_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_slim",
+   "name": "Slim Tour Divot Tool",
+   "category": "divot_tools",
+   "variant": "steel",
+   "dims_m": [
+    0.019,
+    0.0798,
+    0.0048
+   ],
+   "tris": 568,
+   "price": 13.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "NRM_crinkle_0.12_512:512x512",
+    "PSBlackSteel:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_slim.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_slim.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_divot_slim_card",
+   "name": "Slim Tour Divot Tool (Card)",
+   "category": "divot_tools",
+   "variant": "steel",
+   "dims_m": [
+    0.09,
+    0.0125,
+    0.15
+   ],
+   "tris": 696,
+   "price": 13.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_divot_slim_card:512x852",
+    "NRM_crinkle_0.12_512:512x512",
+    "PSBlackSteel:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_divot_slim_card.glb",
+   "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_slim_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_driver_aero_max",
+   "name": "Aero Max Driver",
+   "category": "clubs",
+   "variant": "x",
+   "dims_m": [
+    0.125,
+    0.1103,
+    1.1861
+   ],
+   "tris": 1616,
+   "price": 549.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "CarbonWeave:512x512",
+    "ClubGripTex:128x256",
+    "Decal_pf_driver_aero_max:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_0.15_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_driver_aero_max.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_driver_aero_max.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_driver_elevate_lite",
+   "name": "Elevate Lite Driver",
+   "category": "clubs",
+   "variant": "wing",
+   "dims_m": [
+    0.125,
+    0.1103,
+    1.1861
+   ],
+   "tris": 1616,
+   "price": 549.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_driver_elevate_lite:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_driver_elevate_lite.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_driver_elevate_lite.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_driver_forge_tour",
+   "name": "Forge Tour Driver",
+   "category": "clubs",
+   "variant": "v",
+   "dims_m": [
+    0.125,
+    0.1103,
+    1.1861
+   ],
+   "tris": 1616,
+   "price": 549.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "CarbonWeave:512x512",
+    "ClubGripTex:128x256",
+    "Decal_pf_driver_forge_tour:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_0.15_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_driver_forge_tour.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_driver_forge_tour.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_driver_vantage_pro",
+   "name": "Vantage Pro Driver",
+   "category": "clubs",
+   "variant": "y",
+   "dims_m": [
+    0.125,
+    0.1103,
+    1.1861
+   ],
+   "tris": 1804,
+   "price": 549.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_driver_vantage_pro:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_driver_vantage_pro.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_driver_vantage_pro.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_giftcard",
+   "name": "PF Gift Card",
+   "category": "extras",
+   "variant": "navy",
+   "dims_m": [
+    0.09,
+    0.0022,
+    0.135
+   ],
+   "tris": 128,
+   "price": 25,
+   "fixture": "pf_fixture_checkout",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "GiftCard:512x768"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_giftcard.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_giftcard.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_black",
+   "name": "VANTAGE PRO Golf Glove",
+   "category": "gloves",
+   "variant": "black",
+   "dims_m": [
+    0.1244,
+    0.0386,
+    0.178
+   ],
+   "tris": 1258,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "GloveRibAlb_black:128x128",
+    "GloveTab_black:256x128",
+    "M_Glove_black_alb:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_black.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_black.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_black_card",
+   "name": "VANTAGE PRO Golf Glove (Card)",
+   "category": "gloves",
+   "variant": "black",
+   "dims_m": [
+    0.1152,
+    0.0371,
+    0.225
+   ],
+   "tris": 1386,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_glove_black_card:512x1024",
+    "GloveRibAlb_black:128x128",
+    "GloveTab_black:256x128",
+    "M_Glove_black_alb:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_black_card.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_black_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_navy",
+   "name": "FORGE 360 Golf Glove",
+   "category": "gloves",
+   "variant": "navy",
+   "dims_m": [
+    0.1244,
+    0.0386,
+    0.178
+   ],
+   "tris": 1258,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "GloveRibAlb_navy:128x128",
+    "GloveTab_navy:256x128",
+    "M_Glove_navy_alb:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "NRM_ripstop_0.8_512:512x512",
+    "RGH_ripstop_0.62:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_navy.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_navy.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_navy_card",
+   "name": "FORGE 360 Golf Glove (Card)",
+   "category": "gloves",
+   "variant": "navy",
+   "dims_m": [
+    0.1152,
+    0.0371,
+    0.225
+   ],
+   "tris": 1386,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_glove_navy_card:512x1024",
+    "GloveRibAlb_navy:128x128",
+    "GloveTab_navy:256x128",
+    "M_Glove_navy_alb:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "NRM_ripstop_0.8_512:512x512",
+    "RGH_ripstop_0.62:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_navy_card.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_navy_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_sage",
+   "name": "ELEVATE LITE Golf Glove",
+   "category": "gloves",
+   "variant": "sage",
+   "dims_m": [
+    0.1244,
+    0.0386,
+    0.178
+   ],
+   "tris": 1258,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "GloveRibAlb_sage:128x128",
+    "GloveTab_sage:256x128",
+    "M_Glove_sage_alb:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_sage.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_sage.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_sage_card",
+   "name": "ELEVATE LITE Golf Glove (Card)",
+   "category": "gloves",
+   "variant": "sage",
+   "dims_m": [
+    0.1152,
+    0.0371,
+    0.225
+   ],
+   "tris": 1386,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_glove_sage_card:512x1024",
+    "GloveRibAlb_sage:128x128",
+    "GloveTab_sage:256x128",
+    "M_Glove_sage_alb:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_sage_card.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_sage_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_white",
+   "name": "AERO MAX Golf Glove",
+   "category": "gloves",
+   "variant": "white",
+   "dims_m": [
+    0.1244,
+    0.0386,
+    0.178
+   ],
+   "tris": 1258,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "GloveRibAlb_white:128x128",
+    "GloveTab_white:256x128",
+    "M_Glove_white_alb:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_white.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_white.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_glove_white_card",
+   "name": "AERO MAX Golf Glove (Card)",
+   "category": "gloves",
+   "variant": "white",
+   "dims_m": [
+    0.1152,
+    0.0371,
+    0.225
+   ],
+   "tris": 1386,
+   "price": 19.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_glove_white_card:512x1024",
+    "GloveRibAlb_white:128x128",
+    "GloveTab_white:256x128",
+    "M_Glove_white_alb:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "NRM_rib_1.6_512:512x512",
+    "RGH_leather_0.42:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_glove_white_card.glb",
+   "blend": "assets/pro_shop/source/products/gloves/pf_glove_white_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hanger_clip",
+   "name": "Pf Hanger Clip",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.34,
+    0.0397,
+    0.1515
+   ],
+   "tris": 848,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "NRM_wood_0.6_512:512x512",
+    "PSOak:1024x512"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hanger_clip.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_hanger_clip.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_hanger_metal",
+   "name": "Pf Hanger Metal",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.426,
+    0.0397,
+    0.2012
+   ],
+   "tris": 916,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hanger_metal.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_hanger_metal.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_hanger_wood",
+   "name": "Pf Hanger Wood",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.461,
+    0.0397,
+    0.2196
+   ],
+   "tris": 812,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "NRM_wood_0.6_512:512x512",
+    "PSOak:1024x512"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hanger_wood.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_hanger_wood.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_hat_bucket",
+   "name": "PF Bucket Hat",
+   "category": "hats",
+   "variant": "cream_sage",
+   "dims_m": [
+    0.306,
+    0.3043,
+    0.115
+   ],
+   "tris": 2990,
+   "price": 34.99,
+   "fixture": "pf_fixture_hat_wall",
+   "slot_type": "hat_shelf",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_HatBandSage2_alb:512x512",
+    "M_HatCreamB2_alb:512x512",
+    "NRM_canvas_0.35_512:512x512",
+    "NRM_canvas_0.3_512:512x512",
+    "RGH_canvas_0.66:256x256",
+    "RGH_canvas_0.74:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hat_bucket.glb",
+   "blend": "assets/pro_shop/source/products/hats/pf_hat_bucket.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hat_performance",
+   "name": "PF Performance Perf Cap",
+   "category": "hats",
+   "variant": "sage",
+   "dims_m": [
+    0.2626,
+    0.2732,
+    0.138
+   ],
+   "tris": 3464,
+   "price": 32.99,
+   "fixture": "pf_fixture_hat_wall",
+   "slot_type": "hat_shelf",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "HatRopeSpeck:128x32",
+    "HatSagePerfV2:512x512",
+    "NRM_knit_1.0_512:512x512",
+    "RGH_knit_0.62:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hat_performance.glb",
+   "blend": "assets/pro_shop/source/products/hats/pf_hat_performance.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hat_structured",
+   "name": "PF Structured Rope Cap",
+   "category": "hats",
+   "variant": "cream_navy",
+   "dims_m": [
+    0.2626,
+    0.2732,
+    0.138
+   ],
+   "tris": 3464,
+   "price": 29.99,
+   "fixture": "pf_fixture_hat_wall",
+   "slot_type": "hat_shelf",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_HatCreamV2_alb:512x512",
+    "NRM_canvas_0.9_512:512x512",
+    "RGH_canvas_0.72:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hat_structured.glb",
+   "blend": "assets/pro_shop/source/products/hats/pf_hat_structured.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hat_visor",
+   "name": "PF Tour Visor",
+   "category": "hats",
+   "variant": "navy",
+   "dims_m": [
+    0.2626,
+    0.2574,
+    0.0731
+   ],
+   "tris": 2048,
+   "price": 24.99,
+   "fixture": "pf_fixture_hat_wall",
+   "slot_type": "hat_shelf",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_HatNavyV2_alb:512x512",
+    "M_HatTerry_alb:512x512",
+    "NRM_canvas_0.9_512:512x512",
+    "NRM_fleece_1.2_512:512x512",
+    "RGH_canvas_0.68:256x256",
+    "RGH_fleece_0.85:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hat_visor.glb",
+   "blend": "assets/pro_shop/source/products/hats/pf_hat_visor.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_headcover_driver",
+   "name": "PF Driver Headcover",
+   "category": "extras",
+   "variant": "navy",
+   "dims_m": [
+    0.124,
+    0.118,
+    0.374
+   ],
+   "tris": 1178,
+   "price": 39.99,
+   "fixture": "pf_fixture_freestanding_gondola",
+   "slot_type": "hook_soft",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "HCKnit_pf_headcover_driver:128x128",
+    "HCNum_pf_headcover_driver:128x128",
+    "HC_pf_headcover_driver:256x256",
+    "M_HCPom_alb:512x512",
+    "NRM_fleece_1.4_512:512x512",
+    "NRM_rib_2.0_512:512x512",
+    "RGH_fleece_0.9:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_headcover_driver.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_headcover_driver.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_headcover_wood",
+   "name": "PF Wood Headcover",
+   "category": "extras",
+   "variant": "sage",
+   "dims_m": [
+    0.124,
+    0.118,
+    0.374
+   ],
+   "tris": 1178,
+   "price": 34.99,
+   "fixture": "pf_fixture_freestanding_gondola",
+   "slot_type": "hook_soft",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "HCKnit_pf_headcover_wood:128x128",
+    "HCNum_pf_headcover_wood:128x128",
+    "HC_pf_headcover_wood:256x256",
+    "M_HCPom_alb:512x512",
+    "NRM_fleece_1.4_512:512x512",
+    "NRM_rib_2.0_512:512x512",
+    "RGH_fleece_0.9:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_headcover_wood.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_headcover_wood.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hoodie_hanging",
+   "name": "Pf Hoodie Hanging",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.5474,
+    0.1797,
+    0.6646
+   ],
+   "tris": 2968,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "Logo_pf_hoodie_hanging:128x128",
+    "M_HoodieNavyV2_alb:512x512",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_fleece_0.5_512:512x512",
+    "PSSatinAlb:256x256",
+    "RGH_fleece_0.85:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hoodie_hanging.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_hoodie_hanging.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_hybrid_aero_2h",
+   "name": "Aero 2H Hybrid",
+   "category": "clubs",
+   "variant": "x",
+   "dims_m": [
+    0.0775,
+    0.077,
+    1.0609
+   ],
+   "tris": 1616,
+   "price": 279.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_hybrid_aero_2h:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hybrid_aero_2h.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_hybrid_aero_2h.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hybrid_elevate_5h",
+   "name": "Elevate 5H Hybrid",
+   "category": "clubs",
+   "variant": "wing",
+   "dims_m": [
+    0.0775,
+    0.077,
+    1.0209
+   ],
+   "tris": 1616,
+   "price": 279.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_hybrid_elevate_5h:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hybrid_elevate_5h.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_hybrid_elevate_5h.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hybrid_forge_4h",
+   "name": "Forge 4H Hybrid",
+   "category": "clubs",
+   "variant": "v",
+   "dims_m": [
+    0.0775,
+    0.077,
+    1.0359
+   ],
+   "tris": 1616,
+   "price": 279.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_hybrid_forge_4h:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hybrid_forge_4h.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_hybrid_forge_4h.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_hybrid_vantage_3h",
+   "name": "Vantage 3H Hybrid",
+   "category": "clubs",
+   "variant": "y",
+   "dims_m": [
+    0.0775,
+    0.077,
+    1.0529
+   ],
+   "tris": 1804,
+   "price": 279.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_hybrid_vantage_3h:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_hybrid_vantage_3h.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_hybrid_vantage_3h.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_iron_cavity_7",
+   "name": "Vantage 7-Iron",
+   "category": "clubs",
+   "variant": "cavity",
+   "dims_m": [
+    0.0866,
+    0.0622,
+    0.9739
+   ],
+   "tris": 1152,
+   "price": 179.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronBadge_pf_iron_cavity_7:192x96",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSBlackSteel:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_iron_cavity_7.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_iron_cavity_7.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_iron_distance_7",
+   "name": "Elevate Max 7-Iron",
+   "category": "clubs",
+   "variant": "distance",
+   "dims_m": [
+    0.0867,
+    0.0659,
+    0.9739
+   ],
+   "tris": 1152,
+   "price": 179.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronBadge_pf_iron_distance_7:192x96",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSBlackSteel:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_iron_distance_7.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_iron_distance_7.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_iron_gameimp_7",
+   "name": "Forge 4300 7-Iron",
+   "category": "clubs",
+   "variant": "gameimp",
+   "dims_m": [
+    0.0867,
+    0.0644,
+    0.9739
+   ],
+   "tris": 1152,
+   "price": 179.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronBadge_pf_iron_gameimp_7:192x96",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSBlackSteel:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_iron_gameimp_7.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_iron_gameimp_7.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_iron_players_7",
+   "name": "Aero Forged 7-Iron",
+   "category": "clubs",
+   "variant": "players",
+   "dims_m": [
+    0.0866,
+    0.0603,
+    0.9739
+   ],
+   "tris": 964,
+   "price": 179.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronStamp_pf_iron_players_7:192x64",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_iron_players_7.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_iron_players_7.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_jacket_hanging",
+   "name": "Pf Jacket Hanging",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.5433,
+    0.1834,
+    0.708
+   ],
+   "tris": 3604,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "Logo_pf_jacket_hanging:128x128",
+    "M_JacketCharV2_alb:512x512",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_rib_2.0_512:512x512",
+    "NRM_ripstop_0.35_512:512x512",
+    "PSSatinAlb:256x256",
+    "RGH_ripstop_0.55:256x256",
+    "ZipTeeth_pf_jacket_hanging_front:64x64"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_jacket_hanging.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_jacket_hanging.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_marker_clip",
+   "name": "Magnetic Clip Marker",
+   "category": "ball_markers",
+   "variant": "copper",
+   "dims_m": [
+    0.033,
+    0.033,
+    0.0199
+   ],
+   "tris": 420,
+   "price": 12.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "MarkerClip:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_clip.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_clip.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_clip_card",
+   "name": "Magnetic Clip Marker (Card)",
+   "category": "ball_markers",
+   "variant": "copper",
+   "dims_m": [
+    0.075,
+    0.0226,
+    0.12
+   ],
+   "tris": 548,
+   "price": 12.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_marker_clip_card:512x820",
+    "MarkerClip:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_clip_card.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_clip_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_coin",
+   "name": "Brass Coin Marker",
+   "category": "ball_markers",
+   "variant": "brass",
+   "dims_m": [
+    0.031,
+    0.031,
+    0.0042
+   ],
+   "tris": 616,
+   "price": 6.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_coin.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_coin.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_coin_card",
+   "name": "Brass Coin Marker (Card)",
+   "category": "ball_markers",
+   "variant": "brass",
+   "dims_m": [
+    0.075,
+    0.0085,
+    0.12
+   ],
+   "tris": 744,
+   "price": 6.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_marker_coin_card:512x820"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_coin_card.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_coin_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_enamel",
+   "name": "Enamel Tee Marker",
+   "category": "ball_markers",
+   "variant": "green",
+   "dims_m": [
+    0.032,
+    0.032,
+    0.0042
+   ],
+   "tris": 108,
+   "price": 9.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "MarkerEnamel:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_enamel.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_enamel.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_enamel_card",
+   "name": "Enamel Tee Marker (Card)",
+   "category": "ball_markers",
+   "variant": "green",
+   "dims_m": [
+    0.075,
+    0.0085,
+    0.12
+   ],
+   "tris": 236,
+   "price": 9.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_marker_enamel_card:512x820",
+    "MarkerEnamel:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_enamel_card.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_enamel_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_engraved",
+   "name": "Engraved Premium Marker",
+   "category": "ball_markers",
+   "variant": "pewter",
+   "dims_m": [
+    0.035,
+    0.035,
+    0.0046
+   ],
+   "tris": 440,
+   "price": 14.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [
+    "MarkerEngraved:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_engraved.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_engraved.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_marker_engraved_card",
+   "name": "Engraved Premium Marker (Card)",
+   "category": "ball_markers",
+   "variant": "pewter",
+   "dims_m": [
+    0.075,
+    0.009,
+    0.12
+   ],
+   "tris": 568,
+   "price": 14.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_marker_engraved_card:512x820",
+    "MarkerEngraved:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_marker_engraved_card.glb",
+   "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_engraved_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_pants_folded",
+   "name": "Pf Pants Folded",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.3054,
+    0.37,
+    0.0349
+   ],
+   "tris": 1088,
+   "price": 64.99,
+   "fixture": "pf_fixture_center_table",
+   "slot_type": "folded_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_pf_pants_foldedV2_alb:512x512",
+    "NRM_twill_0.35_512:512x512",
+    "RGH_twill_0.72:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_pants_folded.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_pants_folded.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_pants_hanging",
+   "name": "Pf Pants Hanging",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.354,
+    0.1056,
+    0.895
+   ],
+   "tris": 2484,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_PantsCreamV2_alb:512x512",
+    "NRM_twill_0.45_512:512x512",
+    "RGH_twill_0.62:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_pants_hanging.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_pants_hanging.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_pencil",
+   "name": "PF Scoring Pencil",
+   "category": "scorecards",
+   "variant": "green",
+   "dims_m": [
+    0.0878,
+    0.0077,
+    0.0077
+   ],
+   "tris": 512,
+   "price": 0.49,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_pencil.glb",
+   "blend": "assets/pro_shop/source/products/scorecards/pf_pencil.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_polo_folded",
+   "name": "Pf Polo Folded",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.2865,
+    0.35,
+    0.0353
+   ],
+   "tris": 1700,
+   "price": 64.99,
+   "fixture": "pf_fixture_center_table",
+   "slot_type": "folded_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_pf_polo_foldedV2_alb:512x512",
+    "NRM_pique_0.35_512:512x512",
+    "PSBoard:512x512",
+    "RGH_pique_0.72:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_polo_folded.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_polo_folded.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_polo_hanging",
+   "name": "Pf Polo Hanging",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.477,
+    0.1509,
+    0.6095
+   ],
+   "tris": 3004,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "Logo_pf_polo_hanging:128x128",
+    "M_PoloCreamV2_alb:512x512",
+    "NRM_pique_0.28_512:512x512",
+    "PSBoard:512x512",
+    "RGH_pique_0.74:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_polo_hanging.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_polo_hanging.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_putter_blade",
+   "name": "Elevate Blade Putter",
+   "category": "clubs",
+   "variant": "blade",
+   "dims_m": [
+    0.105,
+    0.0613,
+    0.8912
+   ],
+   "tris": 972,
+   "price": 249.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "NRM_knurl_1.0_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_putter_blade.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_putter_blade.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_putter_fang",
+   "name": "Elevate Fang Putter",
+   "category": "clubs",
+   "variant": "fang",
+   "dims_m": [
+    0.096,
+    0.062,
+    0.9073
+   ],
+   "tris": 1496,
+   "price": 249.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "NRM_knurl_1.0_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_putter_fang.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_putter_fang.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_putter_mallet_spider",
+   "name": "Elevate Spider Putter",
+   "category": "clubs",
+   "variant": "spider",
+   "dims_m": [
+    0.106,
+    0.0698,
+    0.9162
+   ],
+   "tris": 1520,
+   "price": 249.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "NRM_knurl_1.0_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_putter_mallet_spider.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_putter_mallet_spider.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_putter_wide_blade",
+   "name": "Elevate Wide Putter",
+   "category": "clubs",
+   "variant": "wide",
+   "dims_m": [
+    0.102,
+    0.0693,
+    0.8984
+   ],
+   "tris": 972,
+   "price": 249.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "NRM_knurl_1.0_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_putter_wide_blade.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_putter_wide_blade.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_quarterzip_folded",
+   "name": "Pf Quarterzip Folded",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.2863,
+    0.35,
+    0.0378
+   ],
+   "tris": 1700,
+   "price": 64.99,
+   "fixture": "pf_fixture_center_table",
+   "slot_type": "folded_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_pf_quarterzip_foldedV2_alb:512x512",
+    "NRM_knit_0.35_512:512x512",
+    "PSBoard:512x512",
+    "RGH_knit_0.72:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_quarterzip_folded.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_quarterzip_folded.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_quarterzip_hanging",
+   "name": "Pf Quarterzip Hanging",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.5385,
+    0.1313,
+    0.635
+   ],
+   "tris": 2352,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "Logo_pf_quarterzip_hanging:128x128",
+    "M_QZSageV2_alb:512x512",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knit_0.45_512:512x512",
+    "NRM_rib_1.8_512:512x512",
+    "NRM_rib_2.0_512:512x512",
+    "PSSatinAlb:256x256",
+    "QZRibAlb:256x256",
+    "RGH_knit_0.72:256x256",
+    "ZipTeeth_pf_quarterzip_hanging_front:64x64"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_quarterzip_hanging.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_quarterzip_hanging.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_rangefinder_armor",
+   "name": "PF Optics Rangefinder (Armor)",
+   "category": "rangefinders",
+   "variant": "armor",
+   "dims_m": [
+    0.075,
+    0.1123,
+    0.077
+   ],
+   "tris": 4104,
+   "price": 219.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_device",
+   "packaging": "loose display",
+   "material": null,
+   "textures": [
+    "NRM_knurl_1.4_512:512x512",
+    "RFArmor_armor:256x256",
+    "RFBody_armor:256x256",
+    "RFBrand_armor:256x64"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_rangefinder_armor.glb",
+   "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_armor.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_rangefinder_box",
+   "name": "PF Optics Rangefinder Box",
+   "category": "rangefinders",
+   "variant": "retail",
+   "dims_m": [
+    0.13,
+    0.095,
+    0.145
+   ],
+   "tris": 108,
+   "price": 219.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_box",
+   "packaging": "retail box",
+   "material": null,
+   "textures": [
+    "RFBox:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_rangefinder_box.glb",
+   "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_box.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_rangefinder_field",
+   "name": "PF Optics Rangefinder (Field)",
+   "category": "rangefinders",
+   "variant": "field",
+   "dims_m": [
+    0.075,
+    0.1123,
+    0.077
+   ],
+   "tris": 4104,
+   "price": 219.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_device",
+   "packaging": "loose display",
+   "material": null,
+   "textures": [
+    "NRM_knurl_1.4_512:512x512",
+    "RFArmor_field:256x256",
+    "RFBody_field:256x256",
+    "RFBrand_field:256x64"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_rangefinder_field.glb",
+   "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_field.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_rangefinder_stealth",
+   "name": "PF Optics Rangefinder (Stealth)",
+   "category": "rangefinders",
+   "variant": "stealth",
+   "dims_m": [
+    0.075,
+    0.1123,
+    0.077
+   ],
+   "tris": 4104,
+   "price": 219.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_device",
+   "packaging": "loose display",
+   "material": null,
+   "textures": [
+    "NRM_knurl_1.4_512:512x512",
+    "RFArmor_stealth:256x256",
+    "RFBody_stealth:256x256",
+    "RFBrand_stealth:256x64"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_rangefinder_stealth.glb",
+   "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_stealth.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_rangefinder_tour",
+   "name": "PF Optics Rangefinder (Tour)",
+   "category": "rangefinders",
+   "variant": "tour",
+   "dims_m": [
+    0.075,
+    0.1123,
+    0.077
+   ],
+   "tris": 4104,
+   "price": 219.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_device",
+   "packaging": "loose display",
+   "material": null,
+   "textures": [
+    "NRM_knurl_1.4_512:512x512",
+    "RFArmor_tour:256x256",
+    "RFBody_tour:256x256",
+    "RFBrand_tour:256x64"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_rangefinder_tour.glb",
+   "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_tour.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_scorecard_booklet",
+   "name": "Player's Scorecard Booklet",
+   "category": "scorecards",
+   "variant": "navy_gold",
+   "dims_m": [
+    0.111,
+    0.014,
+    0.15
+   ],
+   "tris": 768,
+   "price": 24.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_card",
+   "packaging": "hardcover",
+   "material": null,
+   "textures": [
+    "BookNavy:256x256",
+    "BookletCover:512x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_scorecard_booklet.glb",
+   "blend": "assets/pro_shop/source/products/scorecards/pf_scorecard_booklet.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_scorecard_course",
+   "name": "PF Golf Club Scorecard",
+   "category": "scorecards",
+   "variant": "course",
+   "dims_m": [
+    0.155,
+    0.0632,
+    0.1061
+   ],
+   "tris": 48,
+   "price": 2.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_card",
+   "packaging": "folded card",
+   "material": null,
+   "textures": [
+    "ScorecardCover:1024x512",
+    "ScorecardInside:1024x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_scorecard_course.glb",
+   "blend": "assets/pro_shop/source/products/scorecards/pf_scorecard_course.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_scorecard_holeguide",
+   "name": "Hole Guide Card",
+   "category": "scorecards",
+   "variant": "hole7",
+   "dims_m": [
+    0.09,
+    0.0016,
+    0.14
+   ],
+   "tris": 108,
+   "price": 1.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_card",
+   "packaging": "card",
+   "material": null,
+   "textures": [
+    "HoleGuide:512x1024"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_scorecard_holeguide.glb",
+   "blend": "assets/pro_shop/source/products/scorecards/pf_scorecard_holeguide.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_scorecard_mini",
+   "name": "Mini Scorecard",
+   "category": "scorecards",
+   "variant": "mini",
+   "dims_m": [
+    0.125,
+    0.0016,
+    0.095
+   ],
+   "tris": 108,
+   "price": 0.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_card",
+   "packaging": "card",
+   "material": null,
+   "textures": [
+    "MiniCard:1024x512"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_scorecard_mini.glb",
+   "blend": "assets/pro_shop/source/products/scorecards/pf_scorecard_mini.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_shoe_knit_flex",
+   "name": "PF Knit Flex Spikeless",
+   "category": "shoes",
+   "variant": "navy_knit",
+   "dims_m": [
+    0.1114,
+    0.3214,
+    0.108
+   ],
+   "tris": 5232,
+   "price": 129.99,
+   "fixture": "pf_fixture_shoe_display",
+   "slot_type": "shoe_tier",
+   "packaging": "display single",
+   "material": null,
+   "textures": [
+    "M_ShoeKnitV2_alb:512x512",
+    "NRM_knit_1.2_512:512x512",
+    "RGH_knit_0.8:256x256",
+    "ShoeTab_pf_shoe_knit_flex:128x64",
+    "SideLogo_pf_shoe_knit_flex:96x96"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_shoe_knit_flex.glb",
+   "blend": "assets/pro_shop/source/products/shoes/pf_shoe_knit_flex.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_shoe_saddle_classic",
+   "name": "PF Classic Saddle Shoe",
+   "category": "shoes",
+   "variant": "white_navy",
+   "dims_m": [
+    0.1114,
+    0.3214,
+    0.118
+   ],
+   "tris": 6508,
+   "price": 159.99,
+   "fixture": "pf_fixture_shoe_display",
+   "slot_type": "shoe_tier",
+   "packaging": "display single",
+   "material": null,
+   "textures": [
+    "M_ShoeWhiteV2_alb:512x512",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_leather_0.5_512:512x512",
+    "PSSatinAlb:256x256",
+    "RGH_leather_0.42:256x256",
+    "ShoeTab_pf_shoe_saddle_classic:128x64",
+    "SideLogo_pf_shoe_saddle_classic:96x96"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_shoe_saddle_classic.glb",
+   "blend": "assets/pro_shop/source/products/shoes/pf_shoe_saddle_classic.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_shoe_spiked_pro",
+   "name": "PF Tour Spiked Shoe",
+   "category": "shoes",
+   "variant": "white_dial",
+   "dims_m": [
+    0.1114,
+    0.3214,
+    0.1168
+   ],
+   "tris": 5648,
+   "price": 179.99,
+   "fixture": "pf_fixture_shoe_display",
+   "slot_type": "shoe_tier",
+   "packaging": "display single",
+   "material": null,
+   "textures": [
+    "DialKnurl:64x64",
+    "M_ShoeWhiteV2_alb:512x512",
+    "NRM_knurl_0.8_512:512x512",
+    "NRM_knurl_1.6_512:512x512",
+    "NRM_leather_0.5_512:512x512",
+    "RGH_leather_0.42:256x256",
+    "ShoeTab_pf_shoe_spiked_pro:128x64",
+    "SideLogo_pf_shoe_spiked_pro:96x96",
+    "SoleWhiteAlb:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_shoe_spiked_pro.glb",
+   "blend": "assets/pro_shop/source/products/shoes/pf_shoe_spiked_pro.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_shoe_waterproof_trail",
+   "name": "PF Waterproof Trail Shoe",
+   "category": "shoes",
+   "variant": "charcoal",
+   "dims_m": [
+    0.1114,
+    0.3214,
+    0.1166
+   ],
+   "tris": 7076,
+   "price": 149.99,
+   "fixture": "pf_fixture_shoe_display",
+   "slot_type": "shoe_tier",
+   "packaging": "display single",
+   "material": null,
+   "textures": [
+    "M_ShoeCharV2_alb:512x512",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_leather_0.55_512:512x512",
+    "PSSatinAlb:256x256",
+    "RGH_leather_0.48:256x256",
+    "ShoeTab_pf_shoe_waterproof_trail:128x64",
+    "SideLogo_pf_shoe_waterproof_trail:96x96",
+    "SoleGreyAlb:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_shoe_waterproof_trail.glb",
+   "blend": "assets/pro_shop/source/products/shoes/pf_shoe_waterproof_trail.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_shorts_folded",
+   "name": "Pf Shorts Folded",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.2834,
+    0.32,
+    0.0305
+   ],
+   "tris": 1088,
+   "price": 64.99,
+   "fixture": "pf_fixture_center_table",
+   "slot_type": "folded_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_pf_shorts_foldedV2_alb:512x512",
+    "NRM_twill_0.35_512:512x512",
+    "RGH_twill_0.72:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_shorts_folded.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_shorts_folded.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_shorts_hanging",
+   "name": "Pf Shorts Hanging",
+   "category": "apparel",
+   "variant": "base",
+   "dims_m": [
+    0.354,
+    0.1056,
+    0.32
+   ],
+   "tris": 2220,
+   "price": 12.99,
+   "fixture": "pf_fixture_apparel_wall",
+   "slot_type": "hanger_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "M_ShortsNavyV2_alb:512x512",
+    "NRM_twill_0.45_512:512x512",
+    "RGH_twill_0.62:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_shorts_hanging.glb",
+   "blend": "assets/pro_shop/source/products/apparel/pf_shorts_hanging.blend",
+   "hanging": true
+  },
+  {
+   "sku": "pf_snack_chips",
+   "name": "Bunker Bites Potato Chips",
+   "category": "snacks",
+   "variant": "sour_cream_chive",
+   "dims_m": [
+    0.16,
+    0.0715,
+    0.195
+   ],
+   "tris": 120,
+   "price": 2.99,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_bag",
+   "packaging": "pillow bag",
+   "material": null,
+   "textures": [
+    "SnackChips:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_snack_chips.glb",
+   "blend": "assets/pro_shop/source/products/snacks/pf_snack_chips.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_snack_granola_box",
+   "name": "Fairway Fuel Granola Bars (6)",
+   "category": "snacks",
+   "variant": "oats_honey",
+   "dims_m": [
+    0.16,
+    0.05,
+    0.19
+   ],
+   "tris": 108,
+   "price": 7.49,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_box",
+   "packaging": "carton",
+   "material": null,
+   "textures": [
+    "SnackGranola:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_snack_granola_box.glb",
+   "blend": "assets/pro_shop/source/products/snacks/pf_snack_granola_box.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_snack_protein_bar",
+   "name": "Green Drive Protein Bar",
+   "category": "snacks",
+   "variant": "chocolate_chip",
+   "dims_m": [
+    0.095,
+    0.035,
+    0.02
+   ],
+   "tris": 132,
+   "price": 3.49,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_small",
+   "packaging": "flow wrap",
+   "material": null,
+   "textures": [
+    "SnackProtein:1024x512"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_snack_protein_bar.glb",
+   "blend": "assets/pro_shop/source/products/snacks/pf_snack_protein_bar.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_snack_trailmix",
+   "name": "Elevate Trail Mix",
+   "category": "snacks",
+   "variant": "peak_blend",
+   "dims_m": [
+    0.155,
+    0.0931,
+    0.24
+   ],
+   "tris": 120,
+   "price": 6.99,
+   "fixture": "pf_fixture_snack_shelf",
+   "slot_type": "shelf_pouch",
+   "packaging": "stand-up pouch",
+   "material": null,
+   "textures": [
+    "SnackTrailmix:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_snack_trailmix.glb",
+   "blend": "assets/pro_shop/source/products/snacks/pf_snack_trailmix.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_sunglasses",
+   "name": "PF Sport Shades",
+   "category": "extras",
+   "variant": "black",
+   "dims_m": [
+    0.1482,
+    0.1656,
+    0.0506
+   ],
+   "tris": 1720,
+   "price": 89.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_small",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_sunglasses.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_sunglasses.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_sunglasses_box",
+   "name": "PF Sport Shades Box",
+   "category": "extras",
+   "variant": "black",
+   "dims_m": [
+    0.165,
+    0.062,
+    0.075
+   ],
+   "tris": 108,
+   "price": 89.99,
+   "fixture": "pf_fixture_rangefinder_display",
+   "slot_type": "shelf_box",
+   "packaging": "retail box",
+   "material": null,
+   "textures": [
+    "SGBox:512x512"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_sunglasses_box.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_sunglasses_box.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_tee_loose_bamboo",
+   "name": "Bamboo Tee",
+   "category": "tees",
+   "variant": "bamboo",
+   "dims_m": [
+    0.0665,
+    0.0113,
+    0.0116
+   ],
+   "tris": 390,
+   "price": 0.3,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_tee_loose_bamboo.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_tee_loose_bamboo.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_tee_loose_step",
+   "name": "Pro Launch Tee",
+   "category": "tees",
+   "variant": "step",
+   "dims_m": [
+    0.0665,
+    0.0113,
+    0.0116
+   ],
+   "tris": 754,
+   "price": 0.45,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_tee_loose_step.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_tee_loose_step.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_tee_loose_white",
+   "name": "Performance Tee",
+   "category": "tees",
+   "variant": "white",
+   "dims_m": [
+    0.0665,
+    0.0113,
+    0.0116
+   ],
+   "tris": 390,
+   "price": 0.35,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_tee_loose_white.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_tee_loose_white.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_tee_loose_wood",
+   "name": "Wood Tee",
+   "category": "tees",
+   "variant": "wood",
+   "dims_m": [
+    0.0665,
+    0.0113,
+    0.0116
+   ],
+   "tris": 250,
+   "price": 0.25,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "loose",
+   "packaging": "loose",
+   "material": null,
+   "textures": [],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_tee_loose_wood.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_tee_loose_wood.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_teebox_bamboo",
+   "name": "Eco Bamboo Tees 20pk",
+   "category": "tees",
+   "variant": "bamboo_navy",
+   "dims_m": [
+    0.078,
+    0.036,
+    0.139
+   ],
+   "tris": 2600,
+   "price": 7.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "window box + hang tab",
+   "material": null,
+   "textures": [
+    "PSBoard:512x512",
+    "TeeBox_bamboo:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_teebox_bamboo.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_teebox_bamboo.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_teebox_performance",
+   "name": "Performance Golf Tees 20pk",
+   "category": "tees",
+   "variant": "white_green",
+   "dims_m": [
+    0.078,
+    0.036,
+    0.139
+   ],
+   "tris": 2600,
+   "price": 8.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "window box + hang tab",
+   "material": null,
+   "textures": [
+    "PSBoard:512x512",
+    "TeeBox_performance:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_teebox_performance.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_teebox_performance.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_teebox_prolaunch",
+   "name": "Pro Launch Performance Tees 20pk",
+   "category": "tees",
+   "variant": "white_navy",
+   "dims_m": [
+    0.078,
+    0.036,
+    0.139
+   ],
+   "tris": 4784,
+   "price": 10.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "window box + hang tab",
+   "material": null,
+   "textures": [
+    "PSBoard:512x512",
+    "TeeBox_prolaunch:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_teebox_prolaunch.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_teebox_prolaunch.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_teebox_wood",
+   "name": "Classic Wood Tees 20pk",
+   "category": "tees",
+   "variant": "kraft",
+   "dims_m": [
+    0.078,
+    0.036,
+    0.139
+   ],
+   "tris": 1760,
+   "price": 5.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "window box + hang tab",
+   "material": null,
+   "textures": [
+    "NRM_canvas_0.25_512:512x512",
+    "PSKraft:512x512",
+    "TeeBox_wood:1024x1024"
+   ],
+   "sockets": [
+    "BARCODE_AREA",
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_teebox_wood.glb",
+   "blend": "assets/pro_shop/source/products/tees/pf_teebox_wood.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_towel_card",
+   "name": "PF Tour Towel (Card)",
+   "category": "extras",
+   "variant": "green",
+   "dims_m": [
+    0.13,
+    0.0375,
+    0.32
+   ],
+   "tris": 640,
+   "price": 24.99,
+   "fixture": "pf_fixture_accessory_slatwall",
+   "slot_type": "hook_card",
+   "packaging": "hang-card",
+   "material": null,
+   "textures": [
+    "Card_pf_towel_card:512x590",
+    "TowelGreen:256x256"
+   ],
+   "sockets": [
+    "HANG_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_towel_card.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_towel_card.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_towel_folded",
+   "name": "PF Tour Towel Folded",
+   "category": "extras",
+   "variant": "green",
+   "dims_m": [
+    0.383,
+    0.15,
+    0.0479
+   ],
+   "tris": 948,
+   "price": 24.99,
+   "fixture": "pf_fixture_freestanding_gondola",
+   "slot_type": "shelf_soft",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "NRM_canvas_1.5_512:512x512",
+    "TowelGreenV2:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_towel_folded.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_towel_folded.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_umbrella_closed",
+   "name": "PF Course Umbrella",
+   "category": "extras",
+   "variant": "green_cream",
+   "dims_m": [
+    0.055,
+    0.073,
+    0.94
+   ],
+   "tris": 764,
+   "price": 54.99,
+   "fixture": "pf_fixture_freestanding_gondola",
+   "slot_type": "barrel",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "PSBlackSteel:512x512",
+    "UmbCream:256x256",
+    "UmbGreen:256x256"
+   ],
+   "sockets": [
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_umbrella_closed.glb",
+   "blend": "assets/pro_shop/source/products/extras/pf_umbrella_closed.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wedge_gap_50",
+   "name": "Norvik Gap 50 Wedge",
+   "category": "clubs",
+   "variant": "cavity_50",
+   "dims_m": [
+    0.0866,
+    0.0622,
+    0.9389
+   ],
+   "tris": 1152,
+   "price": 139.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronBadge_pf_wedge_gap_50:192x96",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSBlackSteel:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wedge_gap_50.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wedge_gap_50.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wedge_lob_60",
+   "name": "Norvik Lob 60 Wedge",
+   "category": "clubs",
+   "variant": "players_60",
+   "dims_m": [
+    0.0866,
+    0.0603,
+    0.9389
+   ],
+   "tris": 964,
+   "price": 139.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronStamp_pf_wedge_lob_60:192x64",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wedge_lob_60.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wedge_lob_60.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wedge_sand_56",
+   "name": "Norvik Sand 56 Wedge",
+   "category": "clubs",
+   "variant": "players_56",
+   "dims_m": [
+    0.0866,
+    0.0603,
+    0.9389
+   ],
+   "tris": 964,
+   "price": 139.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronStamp_pf_wedge_sand_56:192x64",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wedge_sand_56.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wedge_sand_56.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wedge_versa_54",
+   "name": "Norvik Versa 54 Wedge",
+   "category": "clubs",
+   "variant": "players_54",
+   "dims_m": [
+    0.0866,
+    0.0603,
+    0.9389
+   ],
+   "tris": 964,
+   "price": 139.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "IronStamp_pf_wedge_versa_54:192x64",
+    "NRM_crinkle_0.12_512:512x512",
+    "NRM_knurl_1.0_512:512x512",
+    "PSSatinAlb:256x256"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wedge_versa_54.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wedge_versa_54.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wood_aero_max_3",
+   "name": "Aero Max 3 Fairway",
+   "category": "clubs",
+   "variant": "x",
+   "dims_m": [
+    0.0975,
+    0.0905,
+    1.1194
+   ],
+   "tris": 1616,
+   "price": 329.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_wood_aero_max_3:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wood_aero_max_3.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wood_aero_max_3.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wood_elevate_tour_3",
+   "name": "Elevate Tour Fairway",
+   "category": "clubs",
+   "variant": "wing",
+   "dims_m": [
+    0.0975,
+    0.0905,
+    1.1194
+   ],
+   "tris": 1616,
+   "price": 329.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_wood_elevate_tour_3:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wood_elevate_tour_3.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wood_elevate_tour_3.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wood_forge_pro_5",
+   "name": "Forge Pro 5 Fairway",
+   "category": "clubs",
+   "variant": "v",
+   "dims_m": [
+    0.0975,
+    0.0905,
+    1.0994
+   ],
+   "tris": 1616,
+   "price": 329.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_wood_forge_pro_5:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wood_forge_pro_5.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wood_forge_pro_5.blend",
+   "hanging": false
+  },
+  {
+   "sku": "pf_wood_vantage_xlt_7",
+   "name": "Vantage Xlt 7 Fairway",
+   "category": "clubs",
+   "variant": "y",
+   "dims_m": [
+    0.0975,
+    0.0905,
+    1.0794
+   ],
+   "tris": 1804,
+   "price": 329.99,
+   "fixture": "pf_fixture_club_rack",
+   "slot_type": "club_slot",
+   "packaging": "none",
+   "material": null,
+   "textures": [
+    "ClubGripTex:128x256",
+    "Decal_pf_wood_vantage_xlt_7:256x96",
+    "FaceSteelAlb:128x128",
+    "HeadGlossAlb:256x256",
+    "NRM_knurl_1.0_512:512x512",
+    "NRM_rib_1.2_512:512x512"
+   ],
+   "sockets": [
+    "CLUB_BUTT",
+    "CLUB_HEAD_POINT",
+    "PICKUP_SOCKET",
+    "SHELF_ANCHOR"
+   ],
+   "glb": "assets/pro_shop/glb/products/pf_wood_vantage_xlt_7.glb",
+   "blend": "assets/pro_shop/source/products/clubs/pf_wood_vantage_xlt_7.blend",
+   "hanging": false
+  }
+ ]
+}

@@ -1,0 +1,393 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { MINUTES_PER_DAY, HOLE_STATUS, ZONE } from '../src/sim/constants.js';
+import { BALANCE } from '../src/sim/balance.js';
+import { SAVE_VERSION, newGame, serialize, deserialize, update, rngOf } from '../src/sim/state.js';
+import { calendarOf } from '../src/sim/time.js';
+import { bookSlot, generateOnlineReservations } from '../src/sim/reservations.js';
+import { customerIdentityById } from '../src/sim/customerIdentity.js';
+import { stackTotal } from '../src/sim/register.js';
+import { addRevenue, addExpense } from '../src/sim/economy.js';
+
+test('newGame builds a complete starting state per mode', () => {
+  const st = newGame('relaxed', 42);
+  assert.equal(st.mode, 'relaxed');
+  assert.equal(st.cash, BALANCE.startingCash.relaxed);
+  assert.equal(st.course.holes.length, 9);
+  assert.ok(st.sections.length > 0, 'sections precomputed');
+  assert.equal(st.shop.layout.version, 2, 'canonical placement state exists before rendering');
+  const st2 = newGame('realistic', 42);
+  assert.equal(st2.cash, BALANCE.startingCash.realistic);
+});
+
+test('state serializes to JSON and back without losing the world', () => {
+  const st = newGame('realistic', 1234);
+  const json = serialize(st);
+  assert.equal(typeof json, 'string');
+  const back = deserialize(json);
+  assert.equal(back.mode, st.mode);
+  assert.equal(back.cash, st.cash);
+  assert.equal(back.clock.minutes, st.clock.minutes);
+  assert.deepEqual(Array.from(back.course.zones), Array.from(st.course.zones));
+  assert.equal(back.course.holes.length, 9);
+  assert.deepEqual(back.course.holes[3].pin, st.course.holes[3].pin);
+  assert.ok(back.sections.length > 0, 'sections rebuilt on load');
+  assert.equal(back.shop.layout.version, 2, 'placement state migrates at the schema boundary');
+});
+
+test('course editor selection, camera, and lighting preferences survive save/load', () => {
+  const st = newGame('relaxed', 90210);
+  st.uiPrefs.courseEditor = {
+    selectedHoleId: st.course.holes[5].id,
+    cameraView: 'green',
+    lighting: 'golden',
+  };
+
+  const back = deserialize(serialize(st));
+  assert.deepEqual(back.uiPrefs.courseEditor, st.uiPrefs.courseEditor);
+});
+
+test('course editor one-yard snap coordinates remain exact after save/load', () => {
+  const st = newGame('relaxed', 90211);
+  st.course.objects = [{ id: 1, type: 'bench', x: 4.125, y: 8.375, rot: 0, scale: 1 }];
+  st.course.paths = [{
+    id: 1,
+    pts: [{ x: 3.125, y: 6.875 }, { x: 7.375, y: 10.125 }],
+    width: 2.5,
+    material: 'gravel',
+  }];
+
+  const raw = JSON.parse(serialize(st));
+  assert.deepEqual(raw.course.objects[0], st.course.objects[0]);
+  assert.deepEqual(raw.course.paths[0].pts, st.course.paths[0].pts);
+  const back = deserialize(raw);
+  assert.deepEqual(back.course.objects[0], st.course.objects[0]);
+  assert.deepEqual(back.course.paths[0], st.course.paths[0]);
+});
+
+test('v6: the vector course design survives save/load intact', () => {
+  const st = newGame('realistic', 1234);
+  assert.ok(st.course.vec, 'a fresh course is vector-designed');
+  const bunkersBefore = st.course.vec.holes.reduce((a, h) => a + (h.bunkers || []).length, 0);
+  const back = deserialize(serialize(st));
+  assert.ok(back.course.vec, 'vec persists');
+  assert.equal(back.course.vec.holes.length, st.course.vec.holes.length);
+  assert.equal(back.course.vec.waters.length, st.course.vec.waters.length);
+  assert.equal(back.course.vec.holes.reduce((a, h) => a + (h.bunkers || []).length, 0), bunkersBefore);
+  // the derived sim grid + object/path placements round-trip too
+  assert.deepEqual(Array.from(back.course.zones), Array.from(st.course.zones));
+  assert.equal(back.course.objects.length, st.course.objects.length);
+  assert.equal(back.course.paths.length, st.course.paths.length);
+});
+
+test('v6: a painted freeform override survives save/load', () => {
+  const st = newGame('relaxed', 77);
+  // paint a small green override far from play (NW forest corner)
+  const paint = (st.course.paint = st.course.paint
+    || (new Uint8Array(st.course.w * st.course.h).fill(255)));
+  for (let y = 9; y <= 11; y++) for (let x = 9; x <= 11; x++) paint[y * st.course.w + x] = ZONE.GREEN;
+  const back = deserialize(serialize(st));
+  assert.ok(back.course.paint, 'paint layer persists');
+  assert.equal(back.course.paint[10 * st.course.w + 10], ZONE.GREEN, 'override value restored');
+});
+
+test('v7: pre-v6 nine-hole saves preserve their exact legacy grid, routing, placements and turf', () => {
+  const st = newGame('realistic', 4242);
+  st.cash = 88000;
+  st.progression.prestige = 55;
+  st.shop.inventory.balls1.back = 37;
+  // Fabricate a legacy v5 snapshot with unmistakably player-authored content.
+  const raw = JSON.parse(serialize(st));
+  delete raw.course.vec;
+  delete raw.course.paint;
+  raw.version = 5;
+  raw.course.zones[0] = ZONE.BUNKER;
+  raw.course.zones[1] = ZONE.GREEN;
+  raw.course.elevation[0] = 12.34;
+  raw.course.elevation[1] = -3.21;
+  raw.course.holes[0].name = 'Legacy Dogleg';
+  raw.course.holes[1].status = HOLE_STATUS.RENOVATION;
+  raw.course.holes[1].daysLeft = 4;
+  raw.course.nextHoleId = 2; // stale legacy allocator must not duplicate an existing hole id
+  raw.course.structures.push({ type: 'legacy-shed', x: 7, y: 8, w: 3, h: 2 });
+  raw.course.objects = [
+    { id: 41, type: 'oak_a', x: 12.25, y: 19.5, rot: 0.75, scale: 1.2 },
+    { id: 92, type: 'rock_a', x: 33.5, y: 41.25, rot: -0.2, scale: 0.85 },
+  ];
+  raw.course.nextObjectId = 2; // stale legacy allocator must not duplicate id 41/92
+  raw.course.paths = [{
+    id: 17,
+    pts: [{ x: 4.5, y: 5.25 }, { x: 10.75, y: 12.5 }, { x: 14, y: 18 }],
+    width: 2.8,
+    material: 'gravel',
+  }];
+  raw.course.nextPathId = 17; // also stale
+  raw.turf.health[0] = 23.4;
+  raw.turf.moisture[1] = 87.6;
+  raw.turf.wear[2] = 44.2;
+  raw.turf.disType[3] = 2;
+  raw.turf.disSev[3] = 61.7;
+
+  const expectedCourse = structuredClone(raw.course);
+  const expectedTurf = structuredClone(raw.turf);
+  const back = deserialize(raw);
+  assert.equal(back.version, SAVE_VERSION, 'migration advances to the non-destructive schema');
+  assert.equal(back.course.vec, undefined, 'legacy grid remains a supported course format');
+  assert.equal(back.course.holes.length, 9);
+  assert.deepEqual(Array.from(back.course.zones), expectedCourse.zones, 'zone cells are never regenerated');
+  assert.deepEqual(Array.from(back.course.elevation), Array.from(Float32Array.from(expectedCourse.elevation)), 'elevation stays cell-for-cell');
+  assert.deepEqual(back.course.holes, expectedCourse.holes, 'hole routing, order and progress survive exactly');
+  assert.deepEqual(back.course.structures, expectedCourse.structures);
+  assert.deepEqual(back.course.objects, expectedCourse.objects, 'placed objects are neither replaced nor duplicated');
+  assert.deepEqual(back.course.paths, expectedCourse.paths, 'authored paths survive exactly');
+  assert.equal(back.course.nextHoleId, 10, 'stale hole allocator advances beyond preserved ids');
+  assert.equal(back.course.nextObjectId, 93, 'stale object allocator advances beyond preserved ids');
+  assert.equal(back.course.nextPathId, 18, 'stale path allocator advances beyond preserved ids');
+  assert.deepEqual(raw.course, expectedCourse, 'object-form deserialize does not mutate the source course');
+  assert.equal(back.cash, 88000, 'business cash carries across the migration');
+  assert.equal(back.progression.prestige, 55, 'progression carries across the migration');
+  assert.equal(back.shop.inventory.balls1.back, 37, 'shop state carries across the migration');
+  for (const field of ['health', 'moisture', 'nutrients', 'heightMm', 'wear', 'disSev']) {
+    assert.deepEqual(Array.from(back.turf[field]), Array.from(Float32Array.from(expectedTurf[field])), `${field} remains cell-for-cell`);
+  }
+  for (const field of ['disType', 'treated']) {
+    assert.deepEqual(Array.from(back.turf[field]), expectedTurf[field], `${field} remains cell-for-cell`);
+  }
+
+  const firstPersisted = JSON.parse(serialize(back));
+  const loadedAgain = deserialize(firstPersisted);
+  const secondPersisted = JSON.parse(serialize(loadedAgain));
+  assert.deepEqual(secondPersisted.course, firstPersisted.course, 'course migration is round-trip idempotent');
+  assert.deepEqual(secondPersisted.turf, firstPersisted.turf, 'turf migration is round-trip idempotent');
+  assert.equal(loadedAgain.course.objects.length, 2, 'second load adds no objects');
+});
+
+test('v7: pre-v5 missing objects are synthesized once, while an explicit empty array stays empty', () => {
+  const st = newGame('relaxed', 5151);
+  const missing = JSON.parse(serialize(st));
+  missing.version = 4;
+  delete missing.course.vec;
+  delete missing.course.paint;
+  delete missing.course.objects;
+  delete missing.course.nextObjectId;
+  const zonesBefore = missing.course.zones.slice();
+  const elevationBefore = missing.course.elevation.slice();
+
+  const a = deserialize(structuredClone(missing));
+  const b = deserialize(structuredClone(missing));
+  assert.ok(a.course.objects.length > 0, 'pre-v5 compatibility planting exists');
+  assert.deepEqual(a.course.objects, b.course.objects, 'compatibility planting is deterministic');
+  assert.equal(new Set(a.course.objects.map((object) => object.id)).size, a.course.objects.length, 'synthesized object ids are unique');
+  assert.deepEqual(Array.from(a.course.zones), zonesBefore, 'planting does not rewrite legacy zones');
+  assert.deepEqual(Array.from(a.course.elevation), Array.from(Float32Array.from(elevationBefore)), 'planting does not rewrite elevation');
+
+  const persisted = JSON.parse(serialize(a));
+  const again = deserialize(persisted);
+  assert.deepEqual(again.course.objects, persisted.course.objects, 'persisted compatibility objects are not synthesized twice');
+  assert.equal(again.course.objects.length, a.course.objects.length);
+
+  const explicitlyEmpty = structuredClone(missing);
+  explicitlyEmpty.course.objects = [];
+  explicitlyEmpty.course.nextObjectId = 1;
+  const empty = deserialize(explicitlyEmpty);
+  assert.deepEqual(empty.course.objects, [], 'an intentional empty placement layer stays empty');
+  assert.equal(empty.course.nextObjectId, 1);
+});
+
+test('v7: legacy paint without a vector payload is preserved rather than discarded', () => {
+  const raw = JSON.parse(serialize(newGame('relaxed', 6161)));
+  raw.version = 6;
+  delete raw.course.vec;
+  raw.course.paint = new Array(raw.course.w * raw.course.h).fill(255);
+  raw.course.paint[123] = ZONE.GREEN;
+  const loaded = deserialize(raw);
+  assert.equal(loaded.course.vec, undefined);
+  assert.equal(loaded.course.paint[123], ZONE.GREEN);
+  const loadedAgain = deserialize(serialize(loaded));
+  assert.deepEqual(Array.from(loadedAgain.course.paint), Array.from(loaded.course.paint));
+});
+
+test('a corrupted (NaN/null) cash balance heals on save and on load', () => {
+  // NaN serializes to JSON null; without the heal every register sale then
+  // refuses to bank ("The club books are not available") forever after.
+  const st = newGame('relaxed', 77);
+  st.cash = NaN;
+  const raw = JSON.parse(serialize(st));
+  assert.equal(raw.cash, 0, 'serialize never writes a non-finite balance');
+  const doctored = JSON.parse(serialize(newGame('relaxed', 78)));
+  doctored.cash = null; // a save written by an older build
+  const healed = deserialize(JSON.stringify(doctored));
+  assert.equal(healed.cash, 0, 'deserialize heals a null balance to a finite number');
+  assert.ok(Number.isFinite(healed.cash));
+});
+
+test('the books refuse a non-finite amount at the gateway', () => {
+  // `NaN <= 0` is false, so the old positive-amount guard let NaN through and
+  // one bad posting corrupted cash forever after.
+  const st = newGame('relaxed', 91);
+  const cash = st.cash;
+  const fees = st.ledger.today.revenue.greenFees;
+  addRevenue(st, 'greenFees', NaN);
+  addRevenue(st, 'greenFees', undefined);
+  addRevenue(st, 'greenFees', Infinity);
+  addExpense(st, 'upkeep', NaN);
+  assert.equal(st.cash, cash, 'cash never moves on a non-finite amount');
+  assert.equal(st.ledger.today.revenue.greenFees, fees, 'no ledger line moves either');
+  addRevenue(st, 'greenFees', 12.5);
+  assert.equal(st.cash, cash + 12.5, 'real money still books normally');
+});
+
+test('a ledger poisoned by an old build heals to zeros on load', () => {
+  const st = newGame('relaxed', 92);
+  st.ledger.today.revenue.greenFees = NaN;
+  st.ledger.yesterday = { revenue: { greenFees: NaN }, expense: {}, revenueTotal: NaN, net: NaN };
+  st.ledger.history.push({ day: 1, revenue: { greenFees: NaN }, expense: {}, net: NaN });
+  const healed = deserialize(serialize(st)); // NaN crosses JSON as null
+  assert.equal(healed.ledger.today.revenue.greenFees, 0);
+  assert.equal(healed.ledger.yesterday.revenue.greenFees, 0);
+  assert.equal(healed.ledger.yesterday.net, 0);
+  assert.equal(healed.ledger.history.at(-1).net, 0);
+  assert.ok(Number.isFinite(healed.ledger.yesterday.revenueTotal));
+});
+
+test('legacy drawers replace quarter slots and rebalance without minting value', () => {
+  const state = newGame('relaxed', 4321);
+  state.shop.drawer = { 20: 5, 10: 8, 5: 10, 1: 25, 0.25: 20, 0.1: 20, 0.05: 20 };
+  const opening = stackTotal(state.shop.drawer);
+  const loaded = deserialize(serialize(state));
+  assert.equal(stackTotal(loaded.shop.drawer), opening);
+  assert.equal(loaded.shop.drawer[0.25], undefined, 'the out-of-contract quarter slot is removed');
+  assert.ok(loaded.shop.drawer[0.2] > 0, 'the migrated drawer carries the authored 20-unit coin');
+  assert.ok(loaded.shop.drawer[0.05] >= 40, 'each legacy quarter also funds a 5-unit coin');
+  assert.ok(loaded.shop.drawer[0.5] >= 16, 'old float funds the half-dollar slot');
+  assert.ok(loaded.shop.drawer[0.01] >= 50, 'old float funds the penny slot');
+  const loadedAgain = deserialize(serialize(loaded));
+  assert.deepEqual(loadedAgain.shop.drawer, loaded.shop.drawer, 'drawer migration is idempotent');
+});
+
+test('rng stream resumes identically after save/load', () => {
+  const st = newGame('relaxed', 555);
+  rngOf(st).next(); // advance a bit
+  rngOf(st).next();
+  const json = serialize(st);
+  const back = deserialize(json);
+  assert.equal(rngOf(st).next(), rngOf(back).next());
+  assert.equal(rngOf(st).int(1000), rngOf(back).int(1000));
+});
+
+test('unknown future save data survives migration without overriding canonical fields', () => {
+  const raw = JSON.parse(serialize(newGame('relaxed', 556)));
+  raw.futureSystem = { version: 17, payload: ['opaque', { value: 42 }] };
+  raw.clock.futureClockField = { cadence: 3 };
+  raw.course.futureCourseField = ['north-nine'];
+  raw.weather.futureWeatherField = { model: 'vNext' };
+  raw.turf.futureTurfField = { mask: 'opaque' };
+  raw.courseMaintenance.futureMaintenanceField = { treatment: 'experimental' };
+
+  const migrated = JSON.parse(serialize(deserialize(raw)));
+  assert.deepEqual(migrated.futureSystem, raw.futureSystem);
+  assert.deepEqual(migrated.clock.futureClockField, raw.clock.futureClockField);
+  assert.deepEqual(migrated.course.futureCourseField, raw.course.futureCourseField);
+  assert.deepEqual(migrated.weather.futureWeatherField, raw.weather.futureWeatherField);
+  assert.deepEqual(migrated.turf.futureTurfField, raw.turf.futureTurfField);
+  assert.deepEqual(
+    migrated.courseMaintenance.futureMaintenanceField,
+    raw.courseMaintenance.futureMaintenanceField,
+  );
+  assert.equal(migrated.version, SAVE_VERSION, 'the integrated schema remains authoritative');
+});
+
+test('update advances the clock and runs daily ticks across midnight', () => {
+  const st = newGame('realistic', 9);
+  const hole = st.course.holes[0];
+  hole.status = HOLE_STATUS.RENOVATION;
+  hole.daysLeft = 1;
+  const res = update(st, MINUTES_PER_DAY);
+  assert.equal(res.daysPassed, 1);
+  assert.equal(hole.status, HOLE_STATUS.OPEN, 'renovation completed on the daily tick');
+});
+
+test('a fresh game is playable: open holes and cash to work with', () => {
+  const st = newGame('realistic', 42);
+  const open = st.course.holes.filter((h) => h.status === HOLE_STATUS.OPEN);
+  assert.equal(open.length, 9);
+  assert.ok(st.cash > 0);
+  // there is actual fairway on the ground
+  let fairway = 0;
+  for (const z of st.course.zones) if (z === ZONE.FAIRWAY) fairway++;
+  assert.ok(fairway > 200, `only ${fairway} fairway cells`);
+});
+
+test('online reservations use unique persisted customer authorities across save/load', () => {
+  const state = newGame('relaxed', 8765);
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs + 1;
+  const generated = generateOnlineReservations(state, {
+    dayAbs,
+    count: 12,
+    minGroupSize: 1,
+    maxGroupSize: 3,
+    noShowChance: 0,
+  });
+  assert.equal(generated.created.length, 12);
+
+  const reservationIds = generated.created.map((reservation) => reservation.customerId);
+  const reservationNames = generated.created.map((reservation) => reservation.fullName);
+  const directoryIds = state.customerDirectory.customers.map((customer) => customer.customerId);
+  const directoryNames = state.customerDirectory.customers.map((customer) => customer.fullName);
+  assert.equal(new Set(reservationIds).size, reservationIds.length);
+  assert.equal(new Set(reservationNames).size, reservationNames.length);
+  assert.equal(new Set(directoryIds).size, directoryIds.length);
+  assert.equal(new Set(directoryNames).size, directoryNames.length);
+  for (const reservation of generated.created) {
+    const identity = customerIdentityById(state, reservation.customerId);
+    assert.ok(identity, `directory owns ${reservation.customerId}`);
+    assert.equal(reservation.fullName, identity.fullName);
+    for (const member of reservation.groupMembers) {
+      assert.equal(customerIdentityById(state, member.customerId)?.fullName, member.fullName);
+    }
+  }
+
+  const directoryBefore = structuredClone(state.customerDirectory);
+  const loaded = deserialize(serialize(state));
+  assert.deepEqual(loaded.customerDirectory, directoryBefore);
+  assert.equal(new Set(loaded.customerDirectory.customers.map((customer) => customer.customerId)).size,
+    loaded.customerDirectory.customers.length);
+  assert.equal(new Set(loaded.customerDirectory.customers.map((customer) => customer.fullName)).size,
+    loaded.customerDirectory.customers.length);
+  for (const reservation of loaded.reservations.booked) {
+    assert.equal(customerIdentityById(loaded, reservation.customerId)?.fullName, reservation.fullName);
+  }
+});
+
+test('pre-directory saves migrate reservation contacts and group members exactly once', () => {
+  const state = newGame('relaxed', 5150);
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs + 1;
+  const booked = bookSlot(state, dayAbs, 480, { name: 'Legacy Golfer', partySize: 2 });
+  assert.equal(booked.ok, true);
+
+  const raw = JSON.parse(serialize(state));
+  delete raw.customerDirectory;
+  raw.version = 3;
+  const legacy = raw.reservations.booked[0];
+  legacy.customerId = `reservation-customer-${legacy.id}`;
+  legacy.name = 'Legacy Golfer';
+  legacy.fullName = 'Legacy Golfer';
+  legacy.groupMembers = [];
+
+  const loaded = deserialize(JSON.stringify(raw));
+  assert.equal(loaded.version, SAVE_VERSION, 'successful migration advances the save schema');
+  const reservation = loaded.reservations.booked[0];
+  const identity = customerIdentityById(loaded, reservation.customerId);
+  assert.ok(identity);
+  assert.equal(identity.customerId, `reservation-customer-${reservation.id}`);
+  assert.equal(identity.fullName, 'Legacy Golfer');
+  assert.equal(reservation.name, identity.fullName);
+  assert.equal(reservation.fullName, identity.fullName);
+  assert.equal(reservation.groupMembers.length, 2);
+  assert.equal(new Set(reservation.groupMembers.map((member) => member.customerId)).size, 2);
+  assert.equal(loaded.customerDirectory.customers.length, 2);
+
+  const loadedAgain = deserialize(serialize(loaded));
+  assert.deepEqual(loadedAgain.customerDirectory, loaded.customerDirectory);
+  assert.equal(loadedAgain.customerDirectory.customers.length, 2, 'second migration allocates nobody');
+});

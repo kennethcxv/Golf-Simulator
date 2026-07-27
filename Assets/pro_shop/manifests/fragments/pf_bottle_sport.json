@@ -1,0 +1,28 @@
+{
+ "id": "pf_bottle_sport",
+ "kind": "products",
+ "category": "bottles",
+ "dims_m": [
+  0.075,
+  0.075,
+  0.2635
+ ],
+ "min_z": 0.0,
+ "tris": 2808,
+ "textures": [
+  "LblSport:1024x512"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_bottle_sport.glb",
+ "blend": "assets/pro_shop/source/products/bottles/pf_bottle_sport.blend",
+ "name": "PF Sport Bottle",
+ "variant": "navy_green",
+ "price": 14.99,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_bottle",
+ "packaging": "none",
+ "material": "HDPE"
+}

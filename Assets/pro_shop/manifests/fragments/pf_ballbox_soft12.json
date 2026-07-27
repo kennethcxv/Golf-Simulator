@@ -1,0 +1,29 @@
+{
+ "id": "pf_ballbox_soft12",
+ "kind": "products",
+ "category": "golf_balls",
+ "dims_m": [
+  0.192,
+  0.052,
+  0.14
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "BallBoxSoft12:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_ballbox_soft12.glb",
+ "blend": "assets/pro_shop/source/products/golf_balls/pf_ballbox_soft12.blend",
+ "name": "Eagle Soft Feel 12-Ball Box",
+ "variant": "soft_navy",
+ "price": 32.99,
+ "fixture": "pf_fixture_ball_shelf",
+ "slot_type": "shelf_box",
+ "packaging": "closed retail box",
+ "material": "retail board"
+}

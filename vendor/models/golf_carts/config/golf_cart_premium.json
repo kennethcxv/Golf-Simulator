@@ -1,0 +1,69 @@
+{
+  "assetId": "GolfCart_Premium",
+  "tier": "premium",
+  "displayName": "Premium Golf Cart",
+  "modelUrl": "vendor/models/golf_carts/golf_cart_premium.glb",
+  "dimensionsMeters": {
+    "width": 1.27,
+    "length": 3.08,
+    "height": 1.86
+  },
+  "wheelbaseMeters": 2.0,
+  "wheelRadiusMeters": 0.305,
+  "passengerCapacity": 4,
+  "forwardAxisBlender": "+Y",
+  "forwardAxisRuntime": "-Z",
+  "wheelNodes": [
+    "Wheel_FL",
+    "Wheel_FR",
+    "Wheel_RL",
+    "Wheel_RR"
+  ],
+  "steeringNodes": [
+    "SteeringPivot_FL",
+    "SteeringPivot_FR"
+  ],
+  "steeringWheelNode": "SteeringWheel",
+  "seatAnchors": [
+    "SEAT_ANCHOR_Seat_Driver",
+    "SEAT_ANCHOR_Seat_Passenger_Front",
+    "SEAT_ANCHOR_Seat_Passenger_Rear_Left",
+    "SEAT_ANCHOR_Seat_Passenger_Rear_Right"
+  ],
+  "entryPoints": [
+    "ENTRY_POINT_Seat_Driver",
+    "ENTRY_POINT_Seat_Passenger_Front",
+    "ENTRY_POINT_Seat_Passenger_Rear_Left",
+    "ENTRY_POINT_Seat_Passenger_Rear_Right"
+  ],
+  "exitPoints": [
+    "EXIT_POINT_Seat_Driver",
+    "EXIT_POINT_Seat_Passenger_Front",
+    "EXIT_POINT_Seat_Passenger_Rear_Left",
+    "EXIT_POINT_Seat_Passenger_Rear_Right"
+  ],
+  "golfBagSlots": [
+    "GOLF_BAG_SLOT_01",
+    "GOLF_BAG_SLOT_02"
+  ],
+  "storageZones": [
+    "CARGO_ZONE_REAR",
+    "STORAGE_ZONE_DASH",
+    "STORAGE_ZONE_UNDER_SEAT"
+  ],
+  "doorNodes": [],
+  "windshieldType": "fixed",
+  "chargePort": "CHARGE_PORT",
+  "batteryAccess": "BATTERY_ACCESS_POINT",
+  "collisionPrefix": "COL_",
+  "lodDistancesMeters": [
+    0,
+    22,
+    55
+  ],
+  "projectTextureSources": [
+    "asset_sources/textures/golf_carts/golf_cart_premium_paint_roughness.png",
+    "asset_sources/textures/golf_carts/golf_cart_premium_upholstery_roughness.png",
+    "asset_sources/textures/golf_carts/golf_cart_premium_upholstery_normal.png"
+  ]
+}

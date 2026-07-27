@@ -1,0 +1,650 @@
+{
+  "schemaVersion": 1,
+  "family": "Golf Flipper Architectural Door Tiers",
+  "builder": "tools/blender/build_architectural_doors.py",
+  "blenderVersion": "5.1.2",
+  "units": "meters",
+  "upAxis": "+Z",
+  "frontAxis": "-Y",
+  "origin": "threshold center at finished floor",
+  "license": "Golf Flipper project-owned original work",
+  "externalAssets": [],
+  "referenceImages": [
+    {
+      "tier": "basic",
+      "path": "Designs/Doors/Basic.png",
+      "sha256": "f656f69a179b998107111e095659bcf839d47578e7146009383c7a5bb5f9376f",
+      "modified": false
+    },
+    {
+      "tier": "standard",
+      "path": "Designs/Doors/Standard.png",
+      "sha256": "a2bb2899b8e1b0dbb581f77e3981797325638ef9d63daf21e838189b84f84549",
+      "modified": false
+    },
+    {
+      "tier": "premium",
+      "path": "Designs/Doors/Premium.png",
+      "sha256": "956fb05348d6f42bafef12622a91b80b306cf3e555b26dc616a6bb2e6e72a1db",
+      "modified": false
+    },
+    {
+      "tier": "high-end",
+      "path": "Designs/Doors/High-End.png",
+      "sha256": "3f4a7b1284eab52d405b03d173abd6fb9d5be8e08766ea7b2ae6cefb7e806970",
+      "modified": false
+    },
+    {
+      "tier": "luxury",
+      "path": "Designs/Doors/Luxury.png",
+      "sha256": "cb0d7b1ea90c5ace2e1b69c709b03e9e207e76081a34ec436c8f0bd83c55e9e1",
+      "modified": false
+    }
+  ],
+  "runtimePolicy": {
+    "interaction": "procedural leaf/handle/latch interpolation using authored pivots",
+    "collision": "analytic swept leaf plus authored hidden proxies",
+    "navigation": "opening excluded from static nav bake; runtime occupancy gate",
+    "locking": "future-ready nodes only; no invented access-control authority",
+    "audioHooks": {
+      "open": "doorSwing",
+      "close": "doorShut",
+      "entry": "doorbell"
+    },
+    "save": "persist tier and per-leaf closed/open state; intermediate swing is transient"
+  },
+  "comparison": {
+    "source": "Assets/architecture/doors/source/door_tier_comparison.blend",
+    "preview": "Assets/architecture/doors/previews/door_tier_comparison.png"
+  },
+  "assets": [
+    {
+      "id": "architectural-door-basic",
+      "tier": "basic",
+      "label": "Basic",
+      "reference": "Designs/Doors/Basic.png",
+      "source": "Assets/architecture/doors/source/door_basic.blend",
+      "runtimeGlb": "vendor/models/architecture/doors/door_basic.glb",
+      "sourceValidation": "qa/doors/blender/door_basic_source_validation.json",
+      "previews": [
+        "Assets/architecture/doors/previews/door_basic_closed_front.png",
+        "Assets/architecture/doors/previews/door_basic_open_45.png",
+        "Assets/architecture/doors/previews/door_basic_open_full.png",
+        "Assets/architecture/doors/previews/door_basic_closed_rear.png",
+        "Assets/architecture/doors/previews/door_basic_hardware_closeup.png"
+      ],
+      "fileBytes": 899568,
+      "sha256": "0ca1e687c5a0029870671334bc0c6c23d84cc4a1e472db6f0847e957df510331",
+      "dimensionsMeters": {
+        "leafWidth": 0.84,
+        "leafHeight": 2.04,
+        "leafThickness": 0.04,
+        "openingWidth": 0.852,
+        "openingHeight": 2.052,
+        "frameDepth": 0.24,
+        "outerTargetWidth": 1.06,
+        "outerTargetHeight": 2.19
+      },
+      "leafCount": 1,
+      "hingesPerLeaf": 2,
+      "openDegrees": 100.0,
+      "lodDistancesMeters": {
+        "LOD0": 0.0,
+        "LOD1": 8.0,
+        "LOD2": 18.0
+      },
+      "lodTriangles": {
+        "LOD0": 13048,
+        "LOD1": 7676,
+        "LOD2": 3592
+      },
+      "boundsLOD0": {
+        "min": [
+          -0.568,
+          -0.1575,
+          0.0
+        ],
+        "max": [
+          0.568,
+          0.146,
+          2.194
+        ],
+        "dimensions": [
+          1.136,
+          0.3035,
+          2.194
+        ]
+      },
+      "objectCount": 146,
+      "meshCount": 103,
+      "materialCount": 5,
+      "animations": [
+        "A_RestPose",
+        "Door_Close",
+        "Door_Open",
+        "Handle_Exterior_Press",
+        "Handle_Interior_Press",
+        "Latch_Extend",
+        "Latch_Retract"
+      ],
+      "functionalNodes": [
+        "WALL_OPENING_CENTER",
+        "WALL_SNAP_ANCHOR",
+        "WALL_NORMAL",
+        "DOORWAY_MIN",
+        "DOORWAY_MAX",
+        "FLOOR_CONTACT_CENTER",
+        "PLACEMENT_ANCHOR",
+        "INTERACTION_POINT",
+        "INTERACT_Door",
+        "NAV_ENTRY_A",
+        "NAV_ENTRY_B",
+        "NAV_CENTER",
+        "NAV_CLEARANCE_MIN",
+        "NAV_CLEARANCE_MAX",
+        "LOCK_ANCHOR",
+        "STRIKE_PLATE",
+        "SWING_CLEARANCE",
+        "INTERACT_Handle_Exterior",
+        "INTERACT_Handle_Interior"
+      ],
+      "collisionNodes": [
+        "COLLISION_DoorFrame_Basic",
+        "COLLISION_DoorLeaf_Basic"
+      ],
+      "materials": [
+        "MAT_Door_BasicBrass",
+        "MAT_Door_CollisionAuthoring",
+        "MAT_Door_DarkWalnut",
+        "MAT_Door_LatchSteel",
+        "MAT_Door_Mahogany",
+        "MAT_Door_MediumWalnut",
+        "MAT_Door_PrivacyGlass",
+        "MAT_Door_RefinedBrass",
+        "MAT_Door_StructuralBrass",
+        "MAT_Door_WarmCreamPaint",
+        "MAT_Door_WarmWhitePaint",
+        "MAT_Door_WeatherSeal"
+      ],
+      "externalAssets": [],
+      "license": "Golf Flipper project-owned",
+      "sourceValidationOk": true
+    },
+    {
+      "id": "architectural-door-standard",
+      "tier": "standard",
+      "label": "Standard",
+      "reference": "Designs/Doors/Standard.png",
+      "source": "Assets/architecture/doors/source/door_standard.blend",
+      "runtimeGlb": "vendor/models/architecture/doors/door_standard.glb",
+      "sourceValidation": "qa/doors/blender/door_standard_source_validation.json",
+      "previews": [
+        "Assets/architecture/doors/previews/door_standard_closed_front.png",
+        "Assets/architecture/doors/previews/door_standard_open_45.png",
+        "Assets/architecture/doors/previews/door_standard_open_full.png",
+        "Assets/architecture/doors/previews/door_standard_closed_rear.png",
+        "Assets/architecture/doors/previews/door_standard_hardware_closeup.png"
+      ],
+      "fileBytes": 1015460,
+      "sha256": "520f509e44ee2bd56867e97886b83cf823ae8d3e2f5d7e3232059e4a438f15f0",
+      "dimensionsMeters": {
+        "leafWidth": 0.86,
+        "leafHeight": 2.08,
+        "leafThickness": 0.044,
+        "openingWidth": 0.873,
+        "openingHeight": 2.093,
+        "frameDepth": 0.25,
+        "outerTargetWidth": 1.095,
+        "outerTargetHeight": 2.235
+      },
+      "leafCount": 1,
+      "hingesPerLeaf": 3,
+      "openDegrees": 105.0,
+      "lodDistancesMeters": {
+        "LOD0": 0.0,
+        "LOD1": 8.0,
+        "LOD2": 18.0
+      },
+      "lodTriangles": {
+        "LOD0": 15704,
+        "LOD1": 8820,
+        "LOD2": 3856
+      },
+      "boundsLOD0": {
+        "min": [
+          -0.5995,
+          -0.1625,
+          0.0
+        ],
+        "max": [
+          0.5995,
+          0.151,
+          2.256
+        ],
+        "dimensions": [
+          1.199,
+          0.3135,
+          2.256
+        ]
+      },
+      "objectCount": 146,
+      "meshCount": 103,
+      "materialCount": 4,
+      "animations": [
+        "A_RestPose",
+        "Door_Close",
+        "Door_Open",
+        "Handle_Exterior_Press",
+        "Handle_Interior_Press",
+        "Latch_Extend",
+        "Latch_Retract"
+      ],
+      "functionalNodes": [
+        "WALL_OPENING_CENTER",
+        "WALL_SNAP_ANCHOR",
+        "WALL_NORMAL",
+        "DOORWAY_MIN",
+        "DOORWAY_MAX",
+        "FLOOR_CONTACT_CENTER",
+        "PLACEMENT_ANCHOR",
+        "INTERACTION_POINT",
+        "INTERACT_Door",
+        "NAV_ENTRY_A",
+        "NAV_ENTRY_B",
+        "NAV_CENTER",
+        "NAV_CLEARANCE_MIN",
+        "NAV_CLEARANCE_MAX",
+        "LOCK_ANCHOR",
+        "STRIKE_PLATE",
+        "SWING_CLEARANCE",
+        "INTERACT_Handle_Exterior",
+        "INTERACT_Handle_Interior"
+      ],
+      "collisionNodes": [
+        "COLLISION_DoorFrame_Standard",
+        "COLLISION_DoorLeaf_Standard"
+      ],
+      "materials": [
+        "MAT_Door_BasicBrass",
+        "MAT_Door_CollisionAuthoring",
+        "MAT_Door_DarkWalnut",
+        "MAT_Door_LatchSteel",
+        "MAT_Door_Mahogany",
+        "MAT_Door_MediumWalnut",
+        "MAT_Door_PrivacyGlass",
+        "MAT_Door_RefinedBrass",
+        "MAT_Door_StructuralBrass",
+        "MAT_Door_WarmCreamPaint",
+        "MAT_Door_WarmWhitePaint",
+        "MAT_Door_WeatherSeal"
+      ],
+      "externalAssets": [],
+      "license": "Golf Flipper project-owned",
+      "sourceValidationOk": true
+    },
+    {
+      "id": "architectural-door-premium",
+      "tier": "premium",
+      "label": "Premium",
+      "reference": "Designs/Doors/Premium.png",
+      "source": "Assets/architecture/doors/source/door_premium.blend",
+      "runtimeGlb": "vendor/models/architecture/doors/door_premium.glb",
+      "sourceValidation": "qa/doors/blender/door_premium_source_validation.json",
+      "previews": [
+        "Assets/architecture/doors/previews/door_premium_closed_front.png",
+        "Assets/architecture/doors/previews/door_premium_open_45.png",
+        "Assets/architecture/doors/previews/door_premium_open_full.png",
+        "Assets/architecture/doors/previews/door_premium_closed_rear.png",
+        "Assets/architecture/doors/previews/door_premium_hardware_closeup.png"
+      ],
+      "fileBytes": 1306440,
+      "sha256": "7581b2fdeb0e3e727a96e61e40c6ef5eb2459cb2ad96ad6e190a94712ed0edb7",
+      "dimensionsMeters": {
+        "leafWidth": 0.92,
+        "leafHeight": 2.16,
+        "leafThickness": 0.05,
+        "openingWidth": 0.934,
+        "openingHeight": 2.174,
+        "frameDepth": 0.27,
+        "outerTargetWidth": 1.205,
+        "outerTargetHeight": 2.345
+      },
+      "leafCount": 1,
+      "hingesPerLeaf": 3,
+      "openDegrees": 105.0,
+      "lodDistancesMeters": {
+        "LOD0": 0.0,
+        "LOD1": 8.0,
+        "LOD2": 18.0
+      },
+      "lodTriangles": {
+        "LOD0": 19372,
+        "LOD1": 10968,
+        "LOD2": 4788
+      },
+      "boundsLOD0": {
+        "min": [
+          -0.651,
+          -0.1725,
+          0.0
+        ],
+        "max": [
+          0.651,
+          0.161,
+          2.37
+        ],
+        "dimensions": [
+          1.302,
+          0.3335,
+          2.37
+        ]
+      },
+      "objectCount": 203,
+      "meshCount": 160,
+      "materialCount": 4,
+      "animations": [
+        "A_RestPose",
+        "Door_Close",
+        "Door_Open",
+        "Handle_Exterior_Press",
+        "Handle_Interior_Press",
+        "Latch_Extend",
+        "Latch_Retract"
+      ],
+      "functionalNodes": [
+        "WALL_OPENING_CENTER",
+        "WALL_SNAP_ANCHOR",
+        "WALL_NORMAL",
+        "DOORWAY_MIN",
+        "DOORWAY_MAX",
+        "FLOOR_CONTACT_CENTER",
+        "PLACEMENT_ANCHOR",
+        "INTERACTION_POINT",
+        "INTERACT_Door",
+        "NAV_ENTRY_A",
+        "NAV_ENTRY_B",
+        "NAV_CENTER",
+        "NAV_CLEARANCE_MIN",
+        "NAV_CLEARANCE_MAX",
+        "LOCK_ANCHOR",
+        "STRIKE_PLATE",
+        "SWING_CLEARANCE",
+        "INTERACT_Handle_Exterior",
+        "INTERACT_Handle_Interior"
+      ],
+      "collisionNodes": [
+        "COLLISION_DoorFrame_Premium",
+        "COLLISION_DoorLeaf_Premium"
+      ],
+      "materials": [
+        "MAT_Door_BasicBrass",
+        "MAT_Door_CollisionAuthoring",
+        "MAT_Door_DarkWalnut",
+        "MAT_Door_LatchSteel",
+        "MAT_Door_Mahogany",
+        "MAT_Door_MediumWalnut",
+        "MAT_Door_PrivacyGlass",
+        "MAT_Door_RefinedBrass",
+        "MAT_Door_StructuralBrass",
+        "MAT_Door_WarmCreamPaint",
+        "MAT_Door_WarmWhitePaint",
+        "MAT_Door_WeatherSeal"
+      ],
+      "externalAssets": [],
+      "license": "Golf Flipper project-owned",
+      "sourceValidationOk": true
+    },
+    {
+      "id": "architectural-door-high-end",
+      "tier": "high-end",
+      "label": "High-End",
+      "reference": "Designs/Doors/High-End.png",
+      "source": "Assets/architecture/doors/source/door_high_end.blend",
+      "runtimeGlb": "vendor/models/architecture/doors/door_high_end.glb",
+      "sourceValidation": "qa/doors/blender/door_high_end_source_validation.json",
+      "previews": [
+        "Assets/architecture/doors/previews/door_high_end_closed_front.png",
+        "Assets/architecture/doors/previews/door_high_end_open_45.png",
+        "Assets/architecture/doors/previews/door_high_end_open_full.png",
+        "Assets/architecture/doors/previews/door_high_end_closed_rear.png",
+        "Assets/architecture/doors/previews/door_high_end_hardware_closeup.png",
+        "Assets/architecture/doors/previews/door_high_end_privacy_glass_closeup.png",
+        "Assets/architecture/doors/previews/door_high_end_privacy_glass_interior.png",
+        "Assets/architecture/doors/previews/door_high_end_open_interior.png"
+      ],
+      "fileBytes": 1851764,
+      "sha256": "5bcc83536c21d90ac9008ce222f74032636b081a6fe58d0917d3f75de464d930",
+      "dimensionsMeters": {
+        "leafWidth": 1.02,
+        "leafHeight": 2.46,
+        "leafThickness": 0.055,
+        "openingWidth": 1.034,
+        "openingHeight": 2.474,
+        "frameDepth": 0.3,
+        "outerTargetWidth": 1.365,
+        "outerTargetHeight": 2.66
+      },
+      "leafCount": 1,
+      "hingesPerLeaf": 4,
+      "openDegrees": 105.0,
+      "lodDistancesMeters": {
+        "LOD0": 0.0,
+        "LOD1": 8.0,
+        "LOD2": 18.0
+      },
+      "lodTriangles": {
+        "LOD0": 31604,
+        "LOD1": 14888,
+        "LOD2": 5988
+      },
+      "boundsLOD0": {
+        "min": [
+          -0.754,
+          -0.1975,
+          0.0
+        ],
+        "max": [
+          0.754,
+          0.183,
+          2.711
+        ],
+        "dimensions": [
+          1.508,
+          0.3805,
+          2.711
+        ]
+      },
+      "objectCount": 203,
+      "meshCount": 160,
+      "materialCount": 6,
+      "animations": [
+        "A_RestPose",
+        "Door_Close",
+        "Door_Open",
+        "Handle_Exterior_Press",
+        "Handle_Interior_Press",
+        "Latch_Extend",
+        "Latch_Retract"
+      ],
+      "functionalNodes": [
+        "WALL_OPENING_CENTER",
+        "WALL_SNAP_ANCHOR",
+        "WALL_NORMAL",
+        "DOORWAY_MIN",
+        "DOORWAY_MAX",
+        "FLOOR_CONTACT_CENTER",
+        "PLACEMENT_ANCHOR",
+        "INTERACTION_POINT",
+        "INTERACT_Door",
+        "NAV_ENTRY_A",
+        "NAV_ENTRY_B",
+        "NAV_CENTER",
+        "NAV_CLEARANCE_MIN",
+        "NAV_CLEARANCE_MAX",
+        "LOCK_ANCHOR",
+        "STRIKE_PLATE",
+        "SWING_CLEARANCE",
+        "INTERACT_Handle_Exterior",
+        "INTERACT_Handle_Interior"
+      ],
+      "collisionNodes": [
+        "COLLISION_DoorFrame_HighEnd",
+        "COLLISION_DoorLeaf_HighEnd"
+      ],
+      "materials": [
+        "MAT_Door_BasicBrass",
+        "MAT_Door_CollisionAuthoring",
+        "MAT_Door_DarkWalnut",
+        "MAT_Door_LatchSteel",
+        "MAT_Door_Mahogany",
+        "MAT_Door_MediumWalnut",
+        "MAT_Door_PrivacyGlass",
+        "MAT_Door_RefinedBrass",
+        "MAT_Door_StructuralBrass",
+        "MAT_Door_WarmCreamPaint",
+        "MAT_Door_WarmWhitePaint",
+        "MAT_Door_WeatherSeal"
+      ],
+      "externalAssets": [],
+      "license": "Golf Flipper project-owned",
+      "sourceValidationOk": true
+    },
+    {
+      "id": "architectural-door-luxury",
+      "tier": "luxury",
+      "label": "Luxury",
+      "reference": "Designs/Doors/Luxury.png",
+      "source": "Assets/architecture/doors/source/door_luxury.blend",
+      "runtimeGlb": "vendor/models/architecture/doors/door_luxury.glb",
+      "sourceValidation": "qa/doors/blender/door_luxury_source_validation.json",
+      "previews": [
+        "Assets/architecture/doors/previews/door_luxury_closed_front.png",
+        "Assets/architecture/doors/previews/door_luxury_open_45.png",
+        "Assets/architecture/doors/previews/door_luxury_open_full.png",
+        "Assets/architecture/doors/previews/door_luxury_closed_rear.png",
+        "Assets/architecture/doors/previews/door_luxury_hardware_closeup.png",
+        "Assets/architecture/doors/previews/door_luxury_left_open.png",
+        "Assets/architecture/doors/previews/door_luxury_right_open.png",
+        "Assets/architecture/doors/previews/door_luxury_both_open.png",
+        "Assets/architecture/doors/previews/door_luxury_center_seam_closeup.png"
+      ],
+      "fileBytes": 2345652,
+      "sha256": "66ad2b3e5cd2543e8528975b73f22ae414e3ff3bfe0594178c461283cd7ec832",
+      "dimensionsMeters": {
+        "leafWidth": 0.93,
+        "leafHeight": 2.35,
+        "leafThickness": 0.058,
+        "openingWidth": 1.874,
+        "openingHeight": 2.364,
+        "frameDepth": 0.32,
+        "outerTargetWidth": 2.205,
+        "outerTargetHeight": 2.555
+      },
+      "leafCount": 2,
+      "hingesPerLeaf": 4,
+      "openDegrees": 105.0,
+      "lodDistancesMeters": {
+        "LOD0": 0.0,
+        "LOD1": 8.0,
+        "LOD2": 18.0
+      },
+      "lodTriangles": {
+        "LOD0": 39288,
+        "LOD1": 20472,
+        "LOD2": 9356
+      },
+      "boundsLOD0": {
+        "min": [
+          -1.163,
+          -0.1975,
+          0.0
+        ],
+        "max": [
+          1.163,
+          0.19,
+          2.602
+        ],
+        "dimensions": [
+          2.326,
+          0.3875,
+          2.602
+        ]
+      },
+      "objectCount": 345,
+      "meshCount": 269,
+      "materialCount": 5,
+      "animations": [
+        "A_RestPose",
+        "Door_Left_Close",
+        "Door_Left_Open",
+        "Door_Right_Close",
+        "Door_Right_Open",
+        "FlushBolt_Right_Bottom_Extend",
+        "FlushBolt_Right_Bottom_Retract",
+        "FlushBolt_Right_Top_Extend",
+        "FlushBolt_Right_Top_Retract",
+        "Handle_Left_Exterior_Press",
+        "Handle_Left_Interior_Press",
+        "Handle_Right_Exterior_Press",
+        "Handle_Right_Interior_Press",
+        "Latch_Left_Extend",
+        "Latch_Left_Retract"
+      ],
+      "functionalNodes": [
+        "WALL_OPENING_CENTER",
+        "WALL_SNAP_ANCHOR",
+        "WALL_NORMAL",
+        "DOORWAY_MIN",
+        "DOORWAY_MAX",
+        "FLOOR_CONTACT_CENTER",
+        "PLACEMENT_ANCHOR",
+        "INTERACTION_POINT",
+        "INTERACT_Door",
+        "NAV_ENTRY_A",
+        "NAV_ENTRY_B",
+        "NAV_CENTER",
+        "NAV_CLEARANCE_MIN",
+        "NAV_CLEARANCE_MAX",
+        "LOCK_ANCHOR",
+        "STRIKE_PLATE",
+        "SWING_CLEARANCE",
+        "INTERACTION_POINT_Left",
+        "INTERACT_Door_Left",
+        "INTERACT_Handle_Left_Exterior",
+        "INTERACT_Handle_Left_Interior",
+        "LOCK_ANCHOR_Left",
+        "STRIKE_PLATE_Left",
+        "SWING_CLEARANCE_LEFT",
+        "INTERACTION_POINT_Right",
+        "INTERACT_Door_Right",
+        "INTERACT_Handle_Right_Exterior",
+        "INTERACT_Handle_Right_Interior",
+        "LOCK_ANCHOR_Right",
+        "STRIKE_PLATE_Right",
+        "SWING_CLEARANCE_RIGHT"
+      ],
+      "collisionNodes": [
+        "COLLISION_DoorFrame_Luxury",
+        "COLLISION_DoorLeaf_Luxury_Left",
+        "COLLISION_DoorLeaf_Luxury_Right"
+      ],
+      "materials": [
+        "MAT_Door_BasicBrass",
+        "MAT_Door_CollisionAuthoring",
+        "MAT_Door_DarkWalnut",
+        "MAT_Door_LatchSteel",
+        "MAT_Door_Mahogany",
+        "MAT_Door_MediumWalnut",
+        "MAT_Door_PrivacyGlass",
+        "MAT_Door_RefinedBrass",
+        "MAT_Door_StructuralBrass",
+        "MAT_Door_WarmCreamPaint",
+        "MAT_Door_WarmWhitePaint",
+        "MAT_Door_WeatherSeal"
+      ],
+      "externalAssets": [],
+      "license": "Golf Flipper project-owned",
+      "sourceValidationOk": true
+    }
+  ]
+}

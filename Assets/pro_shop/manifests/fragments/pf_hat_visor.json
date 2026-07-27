@@ -1,0 +1,32 @@
+{
+ "id": "pf_hat_visor",
+ "kind": "products",
+ "category": "hats",
+ "dims_m": [
+  0.2626,
+  0.2574,
+  0.0731
+ ],
+ "min_z": -0.0073,
+ "tris": 2048,
+ "textures": [
+  "M_HatNavyV2_alb:512x512",
+  "M_HatTerry_alb:512x512",
+  "NRM_canvas_0.9_512:512x512",
+  "NRM_fleece_1.2_512:512x512",
+  "RGH_canvas_0.68:256x256",
+  "RGH_fleece_0.85:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hat_visor.glb",
+ "blend": "assets/pro_shop/source/products/hats/pf_hat_visor.blend",
+ "name": "PF Tour Visor",
+ "variant": "navy",
+ "price": 24.99,
+ "fixture": "pf_fixture_hat_wall",
+ "slot_type": "hat_shelf",
+ "packaging": "none"
+}

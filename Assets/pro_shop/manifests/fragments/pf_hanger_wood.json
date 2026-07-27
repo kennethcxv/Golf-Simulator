@@ -1,0 +1,29 @@
+{
+ "id": "pf_hanger_wood",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.461,
+  0.0397,
+  0.2196
+ ],
+ "min_z": -0.2061,
+ "tris": 812,
+ "textures": [
+  "NRM_wood_0.6_512:512x512",
+  "PSOak:1024x512"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hanger_wood.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_hanger_wood.blend",
+ "name": "Pf Hanger Wood",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

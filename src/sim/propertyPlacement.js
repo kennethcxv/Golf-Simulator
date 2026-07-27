@@ -1,0 +1,338 @@
+// Pure placement authority for durable property assets.
+//
+// The renderer asks this module where a selected item snaps and whether that
+// exact pose is legal. Commit callers run the same validation again before
+// mutating inventory, so a green ghost can never disagree with the save.
+
+import {
+  BACKDOOR_CLEARWAY,
+  DOOR_CLEARWAY,
+  FRONT_DESK_FRAME,
+  INTERIOR,
+  PARTITIONS,
+  SHELL,
+  STAFF_CORRIDOR_MIN,
+  frontDeskRect,
+  fixtureRect,
+} from '../data/shopLayout.js';
+import {
+  placeablePlacementProfile,
+  placeableSpec,
+} from '../data/placeableItems.js';
+import { placedPropertyItems } from './propertyInventory.js';
+import { placedFixtures, rectsOverlap, routesIntact, GRID } from './layout.js';
+
+const WALL_INSET = 0.02;
+
+const staffZone = () => frontDeskRect({
+  minX: -FRONT_DESK_FRAME.frontLength / 2 - 0.3,
+  maxX: FRONT_DESK_FRAME.frontLength / 2 + 0.3,
+  minZ: FRONT_DESK_FRAME.frontDepth / 2,
+  maxZ: FRONT_DESK_FRAME.frontDepth / 2 + STAFF_CORRIDOR_MIN,
+});
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const snap = (value, step = GRID) => Math.round(value / step) * step;
+
+function localBounds(profile) {
+  return {
+    minX: (profile.offsetX || 0) - profile.width / 2,
+    maxX: (profile.offsetX || 0) + profile.width / 2,
+    minZ: (profile.offsetZ || 0) - profile.depth / 2,
+    maxZ: (profile.offsetZ || 0) + profile.depth / 2,
+  };
+}
+
+export function placeableFootprint(idOrSpec, pose) {
+  const profile = placeablePlacementProfile(
+    typeof idOrSpec === 'object' ? (idOrSpec.assetId || idOrSpec.skuId) : idOrSpec,
+  );
+  if (!profile || !pose) return null;
+  const local = localBounds(profile);
+  const angle = Number.isFinite(pose.ry) ? pose.ry : 0;
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  const corners = [
+    [local.minX, local.minZ], [local.minX, local.maxZ],
+    [local.maxX, local.minZ], [local.maxX, local.maxZ],
+  ].map(([x, z]) => ({
+    x: pose.x + x * cosine + z * sine,
+    z: pose.z - x * sine + z * cosine,
+  }));
+  return {
+    minX: Math.min(...corners.map((point) => point.x)),
+    maxX: Math.max(...corners.map((point) => point.x)),
+    minZ: Math.min(...corners.map((point) => point.z)),
+    maxZ: Math.max(...corners.map((point) => point.z)),
+  };
+}
+
+function crossesPartition(rect) {
+  const HALF = 0.13;
+  for (const partition of PARTITIONS) {
+    if (partition.axis === 'x') {
+      const lo = Math.min(partition.from, partition.to);
+      const hi = Math.max(partition.from, partition.to);
+      if (rect.maxX <= partition.at - HALF || rect.minX >= partition.at + HALF
+          || rect.maxZ <= lo || rect.minZ >= hi) continue;
+      if (partition.opening
+          && rect.minZ >= partition.opening.c - partition.opening.w / 2
+          && rect.maxZ <= partition.opening.c + partition.opening.w / 2) continue;
+      return true;
+    }
+    const lo = Math.min(partition.from, partition.to);
+    const hi = Math.max(partition.from, partition.to);
+    if (rect.maxZ <= partition.at - HALF || rect.minZ >= partition.at + HALF
+        || rect.maxX <= lo || rect.minX >= hi) continue;
+    if (partition.opening
+        && rect.minX >= partition.opening.c - partition.opening.w / 2
+        && rect.maxX <= partition.opening.c + partition.opening.w / 2) continue;
+    return true;
+  }
+  return false;
+}
+
+// Each segment is a continuous usable wall surface. Door and window apertures
+// are removed up front, so wall snapping cannot hide a sign in glazing.
+const WALL_SEGMENTS = Object.freeze([
+  // north wall, split around the lounge window centred at x=3
+  { id: 'wall:north:west', axis: 'x', fixed: -INTERIOR.d / 2 + WALL_INSET, min: -INTERIOR.w / 2, max: 1.8, ry: 0 },
+  { id: 'wall:north:east', axis: 'x', fixed: -INTERIOR.d / 2 + WALL_INSET, min: 4.2, max: INTERIOR.w / 2, ry: 0 },
+  // south wall: two windows and the main entrance are excluded
+  { id: 'wall:south:west', axis: 'x', fixed: INTERIOR.d / 2 - WALL_INSET, min: -INTERIOR.w / 2, max: -9.5, ry: Math.PI },
+  { id: 'wall:south:midwest', axis: 'x', fixed: INTERIOR.d / 2 - WALL_INSET, min: -7.1, max: -6.1, ry: Math.PI },
+  { id: 'wall:south:mid', axis: 'x', fixed: INTERIOR.d / 2 - WALL_INSET, min: -3.7, max: -1.8, ry: Math.PI },
+  { id: 'wall:south:east', axis: 'x', fixed: INTERIOR.d / 2 - WALL_INSET, min: 0.2, max: INTERIOR.w / 2, ry: Math.PI },
+  { id: 'wall:west', axis: 'z', fixed: -INTERIOR.w / 2 + WALL_INSET, min: -INTERIOR.d / 2, max: INTERIOR.d / 2, ry: Math.PI / 2 },
+  // east wall, split around receiving door and office window
+  { id: 'wall:east:north', axis: 'z', fixed: INTERIOR.w / 2 - WALL_INSET, min: -INTERIOR.d / 2, max: -4.35, ry: -Math.PI / 2 },
+  { id: 'wall:east:middle', axis: 'z', fixed: INTERIOR.w / 2 - WALL_INSET, min: -2.85, max: 3.4, ry: -Math.PI / 2 },
+  { id: 'wall:east:south', axis: 'z', fixed: INTERIOR.w / 2 - WALL_INSET, min: 5.8, max: INTERIOR.d / 2, ry: -Math.PI / 2 },
+  // both sides of the service-wing partitions
+  { id: 'wall:partition-x:west', axis: 'z', fixed: 5.7 - WALL_INSET, min: -INTERIOR.d / 2, max: 2, ry: -Math.PI / 2 },
+  { id: 'wall:partition-x:east', axis: 'z', fixed: 5.7 + WALL_INSET, min: -INTERIOR.d / 2, max: 2, ry: Math.PI / 2 },
+  { id: 'wall:partition-z:north-west', axis: 'x', fixed: 2 - WALL_INSET, min: 5.7, max: 8.25, ry: Math.PI },
+  { id: 'wall:partition-z:north-east', axis: 'x', fixed: 2 - WALL_INSET, min: 9.55, max: INTERIOR.w / 2, ry: Math.PI },
+  { id: 'wall:partition-z:south-west', axis: 'x', fixed: 2 + WALL_INSET, min: 5.7, max: 8.25, ry: 0 },
+  { id: 'wall:partition-z:south-east', axis: 'x', fixed: 2 + WALL_INSET, min: 9.55, max: INTERIOR.w / 2, ry: 0 },
+]);
+
+function segmentDistance(segment, x, z) {
+  if (segment.axis === 'x') {
+    return Math.hypot(x - clamp(x, segment.min, segment.max), z - segment.fixed);
+  }
+  return Math.hypot(x - segment.fixed, z - clamp(z, segment.min, segment.max));
+}
+
+function nearestWallSegment(x, z) {
+  return [...WALL_SEGMENTS]
+    .sort((a, b) => segmentDistance(a, x, z) - segmentDistance(b, x, z))[0];
+}
+
+export function snapPlaceablePose(idOrSpec, aim, rotation = 0) {
+  const spec = typeof idOrSpec === 'object' ? idOrSpec : placeableSpec(idOrSpec);
+  const profile = spec?.placementProfile;
+  if (!spec || !profile) return null;
+  const mount = profile.mount;
+  if (mount === 'wall') {
+    const segment = nearestWallSegment(aim.x, aim.z);
+    const half = profile.width / 2;
+    const along = segment.axis === 'x' ? aim.x : aim.z;
+    const placedAlong = clamp(snap(along), segment.min + half, segment.max - half);
+    return {
+      area: 'clubhouse', mount, x: segment.axis === 'x' ? placedAlong : segment.fixed,
+      y: 0, z: segment.axis === 'x' ? segment.fixed : placedAlong,
+      ry: segment.ry, surfaceId: segment.id, authoredSpot: null,
+    };
+  }
+  if (mount === 'floor' && spec.wallSnap?.enabled) {
+    const segment = nearestWallSegment(aim.x, aim.z);
+    const threshold = Math.max(0, Number(spec.wallSnap.threshold) || 0);
+    const half = profile.width / 2;
+    if (segment && segmentDistance(segment, aim.x, aim.z) <= threshold
+        && segment.max - segment.min >= profile.width) {
+      const along = segment.axis === 'x' ? aim.x : aim.z;
+      const placedAlong = clamp(snap(along), segment.min + half, segment.max - half);
+      const anchorDepth = Math.max(0, Number(spec.wallSnap.anchorDepth) || profile.depth / 2);
+      const surfaceOffset = Math.max(0, Number(spec.wallSnap.surfaceOffset) || 0);
+      const snapDepth = surfaceOffset + anchorDepth;
+      const inwardX = Math.sin(segment.ry);
+      const inwardZ = Math.cos(segment.ry);
+      const wallX = segment.axis === 'x' ? placedAlong : segment.fixed;
+      const wallZ = segment.axis === 'x' ? segment.fixed : placedAlong;
+      return {
+        area: 'clubhouse', mount,
+        x: wallX + inwardX * snapDepth,
+        y: 0,
+        z: wallZ + inwardZ * snapDepth,
+        ry: segment.ry,
+        surfaceId: segment.id,
+        authoredSpot: null,
+      };
+    }
+  }
+  return {
+    area: 'clubhouse', mount,
+    x: snap(aim.x), y: 0, z: snap(aim.z),
+    ry: rotation,
+    surfaceId: mount === 'ceiling' ? 'clubhouse:ceiling' : 'clubhouse:floor',
+    authoredSpot: null,
+  };
+}
+
+function placementRects(state, exceptPlacementId = null, blockingOnly = false) {
+  return placedPropertyItems(state).flatMap((placement) => {
+    if (placement.id === exceptPlacementId) return [];
+    const spec = placeableSpec(placement.assetId);
+    if (!spec || (blockingOnly && !spec.placementProfile?.blocksMovement)) return [];
+    const rect = placeableFootprint(spec, placement.pose);
+    return rect ? [{ placement, spec, rect }] : [];
+  });
+}
+
+function wallClearanceRect(rect, pose, depth = 0.55) {
+  const inwardX = Math.sin(pose.ry || 0);
+  const inwardZ = Math.cos(pose.ry || 0);
+  const clearance = { ...rect };
+  if (inwardX > 0.5) clearance.maxX += depth;
+  else if (inwardX < -0.5) clearance.minX -= depth;
+  if (inwardZ > 0.5) clearance.maxZ += depth;
+  else if (inwardZ < -0.5) clearance.minZ -= depth;
+  return clearance;
+}
+
+function rectContainsPoint(rect, x, z) {
+  return x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
+}
+
+function protectedLowFixtureArea(state, rect, pose, exceptPlacementId = null) {
+  const protectors = [
+    ...placedFixtures(state).map((fixture) => fixtureRect(fixture)),
+    ...placementRects(state, exceptPlacementId, true)
+      .filter((entry) => entry.placement.pose?.mount === 'floor')
+      .map((entry) => entry.rect),
+  ];
+  const fixtureArea = Math.max(0.01, (rect.maxX - rect.minX) * (rect.maxZ - rect.minZ));
+  return protectors.some((protector) => {
+    if (!rectContainsPoint(protector, pose.x, pose.z)) return false;
+    const overlapWidth = Math.max(0, Math.min(rect.maxX, protector.maxX) - Math.max(rect.minX, protector.minX));
+    const overlapDepth = Math.max(0, Math.min(rect.maxZ, protector.maxZ) - Math.max(rect.minZ, protector.minZ));
+    return (overlapWidth * overlapDepth) / fixtureArea >= 0.45;
+  });
+}
+
+export function validatePlaceablePlacement(state, idOrSpec, pose, options = {}) {
+  const spec = typeof idOrSpec === 'object' ? idOrSpec : placeableSpec(idOrSpec);
+  const profile = spec?.placementProfile;
+  const reasons = [];
+  if (!spec || !profile || !pose) return { ok: false, reasons: ['No such property item.'] };
+  if (pose.mount !== profile.mount) reasons.push(`The ${spec.displayName} needs a ${profile.mount} surface.`);
+  const rect = placeableFootprint(spec, pose);
+  if (!rect) return { ok: false, reasons: ['That item has no placement bounds.'] };
+
+  if (pose.mount === 'wall') {
+    const segment = WALL_SEGMENTS.find((entry) => entry.id === pose.surfaceId);
+    if (!segment) reasons.push('Aim at a usable wall surface.');
+    else {
+      const half = profile.width / 2;
+      const along = segment.axis === 'x' ? pose.x : pose.z;
+      if (along < segment.min + half - 1e-6 || along > segment.max - half + 1e-6) {
+        reasons.push('That would hang past the usable wall.');
+      }
+    }
+    const clearance = wallClearanceRect(rect, pose);
+    for (const fixture of placedFixtures(state)) {
+      if (rectsOverlap(clearance, fixtureRect(fixture))) {
+        reasons.push(`The ${fixture.title || fixture.kind} would hide that wall item.`);
+        break;
+      }
+    }
+  } else if (pose.mount === 'floor' && spec.wallSnap?.enabled
+      && String(pose.surfaceId || '').startsWith('wall:')) {
+    const segment = WALL_SEGMENTS.find((entry) => entry.id === pose.surfaceId);
+    if (!segment) reasons.push('That built-in needs a usable wall segment.');
+    else {
+      const half = profile.width / 2;
+      const along = segment.axis === 'x' ? pose.x : pose.z;
+      if (along < segment.min + half - 1e-6 || along > segment.max - half + 1e-6) {
+        reasons.push('That built-in would extend past the usable wall segment.');
+      }
+      const yawError = Math.atan2(Math.sin(pose.ry - segment.ry), Math.cos(pose.ry - segment.ry));
+      if (Math.abs(yawError) > 1e-5) reasons.push('That built-in must face away from the wall.');
+      const anchorDepth = Math.max(0, Number(spec.wallSnap.anchorDepth) || profile.depth / 2);
+      const surfaceOffset = Math.max(0, Number(spec.wallSnap.surfaceOffset) || 0);
+      const snapDepth = surfaceOffset + anchorDepth;
+      const expectedFixed = segment.fixed + (segment.axis === 'x'
+        ? Math.cos(segment.ry) * snapDepth
+        : Math.sin(segment.ry) * snapDepth);
+      const actualFixed = segment.axis === 'x' ? pose.z : pose.x;
+      if (Math.abs(actualFixed - expectedFixed) > 1e-5) {
+        reasons.push('That built-in is not flush with its wall anchor.');
+      }
+    }
+  }
+
+  const outsideInterior = rect.minX < -INTERIOR.w / 2 || rect.maxX > INTERIOR.w / 2
+    || rect.minZ < -INTERIOR.d / 2 || rect.maxZ > INTERIOR.d / 2;
+  if (pose.mount !== 'wall' && outsideInterior) {
+    reasons.push('That would go into a wall.');
+  } else if ((pose.mount === 'floor' || pose.mount === 'ceiling') && crossesPartition(rect)) {
+    reasons.push('That would cross an interior wall.');
+  }
+
+  if (pose.mount === 'ceiling') {
+    const bottomClearance = SHELL.h - profile.height;
+    const minimumWalkClearance = Number(profile.minimumWalkClearance) || 0;
+    if ((profile.requiresProtectedClearance || bottomClearance < minimumWalkClearance)
+        && !protectedLowFixtureArea(state, rect, pose, options.exceptPlacementId)) {
+      reasons.push('That fixture hangs below walking clearance - place it over a table or blocked floor area.');
+    }
+  }
+
+  for (const other of placementRects(state, options.exceptPlacementId)) {
+    if (other.placement.pose?.mount !== pose.mount || !rectsOverlap(rect, other.rect)) continue;
+    if (pose.mount === 'floor'
+        && profile.blocksMovement !== other.spec.placementProfile?.blocksMovement) continue;
+    reasons.push(`That overlaps the ${other.spec.displayName}.`);
+    break;
+  }
+
+  if (pose.mount === 'floor' && profile.blocksMovement) {
+    for (const fixture of placedFixtures(state)) {
+      if (rectsOverlap(rect, fixtureRect(fixture))) {
+        reasons.push(`That overlaps the ${fixture.title || fixture.kind}.`);
+        break;
+      }
+    }
+    if (rectsOverlap(rect, DOOR_CLEARWAY)) reasons.push('That blocks the shop door.');
+    if (rectsOverlap(rect, BACKDOOR_CLEARWAY)) reasons.push('That blocks the receiving door.');
+    if (rectsOverlap(rect, staffZone())) reasons.push('You need to be able to stand at the checkout.');
+    if (!reasons.length) {
+      const obstacles = placementRects(state, options.exceptPlacementId, true).map((entry) => entry.rect);
+      obstacles.push(rect);
+      if (!routesIntact(state, { extraRects: obstacles })) {
+        reasons.push('That would cut the shop off - customers could not get around it.');
+      }
+    }
+  }
+
+  return { ok: reasons.length === 0, reasons, rect, spec };
+}
+
+export function placedPlaceableAt(state, x, z, maxDistance = 1.8) {
+  let best = null;
+  let bestDistance = maxDistance;
+  for (const entry of placementRects(state)) {
+    const inside = x >= entry.rect.minX && x <= entry.rect.maxX
+      && z >= entry.rect.minZ && z <= entry.rect.maxZ;
+    const distance = inside ? 0 : Math.hypot(
+      Math.max(entry.rect.minX - x, 0, x - entry.rect.maxX),
+      Math.max(entry.rect.minZ - z, 0, z - entry.rect.maxZ),
+    );
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = entry;
+    }
+  }
+  return best;
+}

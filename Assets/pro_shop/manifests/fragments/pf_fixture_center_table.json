@@ -1,0 +1,39 @@
+{
+ "id": "pf_fixture_center_table",
+ "kind": "fixtures",
+ "category": "center_table",
+ "dims_m": [
+  1.5,
+  0.8,
+  0.85
+ ],
+ "min_z": 0.0,
+ "tris": 648,
+ "textures": [
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "SHELF_SLOT_L01",
+  "SHELF_SLOT_L02",
+  "SHELF_SLOT_L03",
+  "SHELF_SLOT_L04",
+  "TABLE_SLOT_01",
+  "TABLE_SLOT_02",
+  "TABLE_SLOT_03",
+  "TABLE_SLOT_04",
+  "TABLE_SLOT_05",
+  "TABLE_SLOT_06",
+  "TABLE_SLOT_07",
+  "TABLE_SLOT_08"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_center_table.glb",
+ "blend": "assets/pro_shop/source/fixtures/center_table/pf_fixture_center_table.blend",
+ "name": "Pf Center Table",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

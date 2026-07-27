@@ -1,0 +1,35 @@
+{
+ "id": "pf_jacket_hanging",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.5433,
+  0.1834,
+  0.708
+ ],
+ "min_z": -0.7248,
+ "tris": 3604,
+ "textures": [
+  "Logo_pf_jacket_hanging:128x128",
+  "M_JacketCharV2_alb:512x512",
+  "NRM_crinkle_0.12_512:512x512",
+  "NRM_rib_2.0_512:512x512",
+  "NRM_ripstop_0.35_512:512x512",
+  "PSSatinAlb:256x256",
+  "RGH_ripstop_0.55:256x256",
+  "ZipTeeth_pf_jacket_hanging_front:64x64"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_jacket_hanging.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_jacket_hanging.blend",
+ "name": "Pf Jacket Hanging",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

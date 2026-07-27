@@ -1,0 +1,35 @@
+{
+ "id": "pf_iron_cavity_7",
+ "kind": "products",
+ "category": "clubs",
+ "dims_m": [
+  0.0866,
+  0.0622,
+  0.9739
+ ],
+ "min_z": -0.0,
+ "tris": 1152,
+ "textures": [
+  "ClubGripTex:128x256",
+  "IronBadge_pf_iron_cavity_7:192x96",
+  "NRM_crinkle_0.12_512:512x512",
+  "NRM_knurl_1.0_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSSatinAlb:256x256"
+ ],
+ "sockets": [
+  "CLUB_BUTT",
+  "CLUB_HEAD_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_iron_cavity_7.glb",
+ "blend": "assets/pro_shop/source/products/clubs/pf_iron_cavity_7.blend",
+ "name": "Vantage 7-Iron",
+ "variant": "cavity",
+ "price": 179.99,
+ "fixture": "pf_fixture_club_rack",
+ "slot_type": "club_slot",
+ "packaging": "none",
+ "length_m": 0.94
+}

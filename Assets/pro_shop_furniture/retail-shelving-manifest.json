@@ -1,0 +1,1496 @@
+{
+  "schemaVersion": 1,
+  "generator": "tools/blender/build_retail_shelves.py",
+  "blenderVersion": "5.1.2",
+  "units": "metres",
+  "orientation": "Blender Z-up; glTF Y-up; front +Z in glTF",
+  "assetCount": 5,
+  "assets": [
+    {
+      "id": "basic",
+      "assetName": "Shelf_Basic",
+      "label": "Basic Shelf",
+      "reference": "Designs/Shelves/Basic.png",
+      "dimensionsM": {
+        "width": 1.15,
+        "depth": 0.47,
+        "height": 1.42
+      },
+      "source": "Assets/pro_shop_furniture/source/retail-shelving/shelf_basic.blend",
+      "glb": "vendor/models/pro_shop_furniture/retail-shelving/shelf_basic.glb",
+      "lodGlbs": {
+        "LOD1": "vendor/models/pro_shop_furniture/retail-shelving/shelf_basic_lod1.glb",
+        "LOD2": "vendor/models/pro_shop_furniture/retail-shelving/shelf_basic_lod2.glb"
+      },
+      "preview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_basic_preview.png",
+      "functionalPreview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_basic_functional.png",
+      "stockingPreview": "qa/retail_shelves/blender/shelf_basic_stocking_validation.png",
+      "anglePreviews": [
+        "qa/retail_shelves/blender/shelf_basic_angle_front.png",
+        "qa/retail_shelves/blender/shelf_basic_angle_left.png"
+      ],
+      "triangleCounts": {
+        "LOD0": 6888,
+        "LOD1": 1520,
+        "LOD2": 628
+      },
+      "materials": [
+        "GF_Shelf_DarkHardware",
+        "GF_Shelf_UtilityMetal"
+      ],
+      "shelfZones": 3,
+      "shelfCapacity": 24,
+      "cabinetDoors": 0,
+      "storageZones": 0,
+      "lightNodes": 0,
+      "storageCapacity": 0,
+      "collisionMeshes": 7,
+      "testProducts": [
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Bottle_00_00",
+          "bottom": 0.17,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_01",
+          "bottom": 0.17,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_02",
+          "bottom": 0.17,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_03",
+          "bottom": 0.17,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_00",
+          "bottom": 0.73,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_01",
+          "bottom": 0.73,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_02",
+          "bottom": 0.73,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_03",
+          "bottom": 0.73,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_00",
+          "bottom": 1.29,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_01",
+          "bottom": 1.29,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_02",
+          "bottom": 1.29,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Bottle_02_03",
+          "bottom": 1.29,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        }
+      ],
+      "wallSnap": false,
+      "license": "Original Golf Flipper project asset; no external source"
+    },
+    {
+      "id": "standard",
+      "assetName": "Shelf_Standard",
+      "label": "Standard Shelf",
+      "reference": "Designs/Shelves/Standard.png",
+      "dimensionsM": {
+        "width": 1.28,
+        "depth": 0.48,
+        "height": 1.55
+      },
+      "source": "Assets/pro_shop_furniture/source/retail-shelving/shelf_standard.blend",
+      "glb": "vendor/models/pro_shop_furniture/retail-shelving/shelf_standard.glb",
+      "lodGlbs": {
+        "LOD1": "vendor/models/pro_shop_furniture/retail-shelving/shelf_standard_lod1.glb",
+        "LOD2": "vendor/models/pro_shop_furniture/retail-shelving/shelf_standard_lod2.glb"
+      },
+      "preview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_standard_preview.png",
+      "functionalPreview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_standard_functional.png",
+      "stockingPreview": "qa/retail_shelves/blender/shelf_standard_stocking_validation.png",
+      "anglePreviews": [
+        "qa/retail_shelves/blender/shelf_standard_angle_front.png",
+        "qa/retail_shelves/blender/shelf_standard_angle_left.png"
+      ],
+      "triangleCounts": {
+        "LOD0": 9896,
+        "LOD1": 2488,
+        "LOD2": 684
+      },
+      "materials": [
+        "GF_Shelf_CharcoalSteel",
+        "GF_Shelf_CommercialComposite",
+        "GF_Shelf_DarkHardware",
+        "GF_Shelf_Recess"
+      ],
+      "shelfZones": 3,
+      "shelfCapacity": 30,
+      "cabinetDoors": 0,
+      "storageZones": 0,
+      "lightNodes": 0,
+      "storageCapacity": 0,
+      "collisionMeshes": 7,
+      "testProducts": [
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Bottle_00_00",
+          "bottom": 0.216,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_01",
+          "bottom": 0.216,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_02",
+          "bottom": 0.216,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_03",
+          "bottom": 0.216,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_00",
+          "bottom": 0.856,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_01",
+          "bottom": 0.856,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_02",
+          "bottom": 0.856,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_03",
+          "bottom": 0.856,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_00",
+          "bottom": 1.496,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_01",
+          "bottom": 1.496,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_02",
+          "bottom": 1.496,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Bottle_02_03",
+          "bottom": 1.496,
+          "width": 0.2,
+          "depth": 0.2232,
+          "height": 0.24
+        }
+      ],
+      "wallSnap": false,
+      "license": "Original Golf Flipper project asset; no external source"
+    },
+    {
+      "id": "premium",
+      "assetName": "Shelf_Premium",
+      "label": "Premium Shelf",
+      "reference": "Designs/Shelves/Premium.png",
+      "dimensionsM": {
+        "width": 1.5,
+        "depth": 0.52,
+        "height": 1.45
+      },
+      "source": "Assets/pro_shop_furniture/source/retail-shelving/shelf_premium.blend",
+      "glb": "vendor/models/pro_shop_furniture/retail-shelving/shelf_premium.glb",
+      "lodGlbs": {
+        "LOD1": "vendor/models/pro_shop_furniture/retail-shelving/shelf_premium_lod1.glb",
+        "LOD2": "vendor/models/pro_shop_furniture/retail-shelving/shelf_premium_lod2.glb"
+      },
+      "preview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_premium_preview.png",
+      "functionalPreview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_premium_functional.png",
+      "stockingPreview": "qa/retail_shelves/blender/shelf_premium_stocking_validation.png",
+      "anglePreviews": [
+        "qa/retail_shelves/blender/shelf_premium_angle_front.png",
+        "qa/retail_shelves/blender/shelf_premium_angle_left.png"
+      ],
+      "triangleCounts": {
+        "LOD0": 2748,
+        "LOD1": 1012,
+        "LOD2": 748
+      },
+      "materials": [
+        "GF_Shelf_CharcoalSteel",
+        "GF_Shelf_DarkHardware",
+        "GF_Shelf_PremiumWalnut_Horizontal"
+      ],
+      "shelfZones": 3,
+      "shelfCapacity": 36,
+      "cabinetDoors": 0,
+      "storageZones": 0,
+      "lightNodes": 0,
+      "storageCapacity": 0,
+      "collisionMeshes": 7,
+      "testProducts": [
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Bottle_00_00",
+          "bottom": 0.201,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_01",
+          "bottom": 0.201,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_02",
+          "bottom": 0.201,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_01",
+          "object": "TEST_Box_00_03",
+          "bottom": 0.201,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_00",
+          "bottom": 0.781,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_01",
+          "bottom": 0.781,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_02",
+          "bottom": 0.781,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_02",
+          "object": "TEST_Box_01_03",
+          "bottom": 0.781,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_00",
+          "bottom": 1.361,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_01",
+          "bottom": 1.361,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Box_02_02",
+          "bottom": 1.361,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        },
+        {
+          "zone": "SHELF_ZONE_03",
+          "object": "TEST_Bottle_02_03",
+          "bottom": 1.361,
+          "width": 0.2,
+          "depth": 0.24,
+          "height": 0.24
+        }
+      ],
+      "wallSnap": false,
+      "license": "Original Golf Flipper project asset; no external source"
+    },
+    {
+      "id": "high-end",
+      "assetName": "Shelf_HighEnd",
+      "label": "High-End Display Wall",
+      "reference": "Designs/Shelves/High-End.png",
+      "dimensionsM": {
+        "width": 3.1,
+        "depth": 0.6,
+        "height": 2.4
+      },
+      "source": "Assets/pro_shop_furniture/source/retail-shelving/shelf_high_end.blend",
+      "glb": "vendor/models/pro_shop_furniture/retail-shelving/shelf_high_end.glb",
+      "lodGlbs": {
+        "LOD1": "vendor/models/pro_shop_furniture/retail-shelving/shelf_high_end_lod1.glb",
+        "LOD2": "vendor/models/pro_shop_furniture/retail-shelving/shelf_high_end_lod2.glb"
+      },
+      "preview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_high_end_preview.png",
+      "functionalPreview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_high_end_functional.png",
+      "stockingPreview": "qa/retail_shelves/blender/shelf_high_end_stocking_validation.png",
+      "anglePreviews": [
+        "qa/retail_shelves/blender/shelf_high_end_angle_front.png",
+        "qa/retail_shelves/blender/shelf_high_end_angle_left.png"
+      ],
+      "triangleCounts": {
+        "LOD0": 11664,
+        "LOD1": 4872,
+        "LOD2": 3552
+      },
+      "materials": [
+        "GF_Shelf_CabinetInterior",
+        "GF_Shelf_DarkHardware",
+        "GF_Shelf_HighEndWalnut_Horizontal",
+        "GF_Shelf_HighEndWalnut_Vertical",
+        "GF_Shelf_Recess",
+        "GF_Shelf_WarmIntegratedLight"
+      ],
+      "shelfZones": 15,
+      "shelfCapacity": 90,
+      "cabinetDoors": 6,
+      "storageZones": 6,
+      "lightNodes": 3,
+      "storageCapacity": 36,
+      "collisionMeshes": 9,
+      "testProducts": [
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Bottle_00_00",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Box_00_01",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Box_00_02",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Box_00_03",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_00",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_01",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_02",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_03",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Box_02_00",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Box_02_01",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Box_02_02",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Bottle_02_03",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Box_03_00",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Box_03_01",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Bottle_03_02",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Box_03_03",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Box_04_00",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Bottle_04_01",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Box_04_02",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Box_04_03",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Bottle_05_00",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Box_05_01",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Box_05_02",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Box_05_03",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_00",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_01",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_02",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_03",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Box_07_00",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Box_07_01",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Box_07_02",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Bottle_07_03",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Box_08_00",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Box_08_01",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Bottle_08_02",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Box_08_03",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Box_09_00",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Bottle_09_01",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Box_09_02",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Box_09_03",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Bottle_10_00",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Box_10_01",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Box_10_02",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Box_10_03",
+          "bottom": 0.669,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_00",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_01",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_02",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_03",
+          "bottom": 0.96,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Box_12_00",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Box_12_01",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Box_12_02",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Bottle_12_03",
+          "bottom": 1.251,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Box_13_00",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Box_13_01",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Bottle_13_02",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Box_13_03",
+          "bottom": 1.542,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1308
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Box_14_00",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Bottle_14_01",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Box_14_02",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Box_14_03",
+          "bottom": 1.833,
+          "width": 0.1486,
+          "depth": 0.2124,
+          "height": 0.1432
+        }
+      ],
+      "wallSnap": true,
+      "license": "Original Golf Flipper project asset; no external source"
+    },
+    {
+      "id": "luxury",
+      "assetName": "Shelf_Luxury",
+      "label": "Luxury Display Wall",
+      "reference": "Designs/Shelves/Luxury.png",
+      "dimensionsM": {
+        "width": 3.75,
+        "depth": 0.65,
+        "height": 2.55
+      },
+      "source": "Assets/pro_shop_furniture/source/retail-shelving/shelf_luxury.blend",
+      "glb": "vendor/models/pro_shop_furniture/retail-shelving/shelf_luxury.glb",
+      "lodGlbs": {
+        "LOD1": "vendor/models/pro_shop_furniture/retail-shelving/shelf_luxury_lod1.glb",
+        "LOD2": "vendor/models/pro_shop_furniture/retail-shelving/shelf_luxury_lod2.glb"
+      },
+      "preview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_luxury_preview.png",
+      "functionalPreview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_luxury_functional.png",
+      "stockingPreview": "qa/retail_shelves/blender/shelf_luxury_stocking_validation.png",
+      "anglePreviews": [
+        "qa/retail_shelves/blender/shelf_luxury_angle_front.png",
+        "qa/retail_shelves/blender/shelf_luxury_angle_left.png"
+      ],
+      "triangleCounts": {
+        "LOD0": 17928,
+        "LOD1": 7424,
+        "LOD2": 3640
+      },
+      "materials": [
+        "GF_Shelf_CabinetInterior",
+        "GF_Shelf_DarkHardware",
+        "GF_Shelf_LuxuryMahogany_Horizontal",
+        "GF_Shelf_LuxuryMahogany_Vertical",
+        "GF_Shelf_Recess",
+        "GF_Shelf_RestrainedBrass",
+        "GF_Shelf_WarmIntegratedLight"
+      ],
+      "shelfZones": 15,
+      "shelfCapacity": 120,
+      "cabinetDoors": 6,
+      "storageZones": 6,
+      "lightNodes": 15,
+      "storageCapacity": 36,
+      "collisionMeshes": 9,
+      "testProducts": [
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Bottle_00_00",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Box_00_01",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Box_00_02",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL01",
+          "object": "TEST_Box_00_03",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_00",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_01",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_02",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL02",
+          "object": "TEST_Box_01_03",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Box_02_00",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Box_02_01",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Box_02_02",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL03",
+          "object": "TEST_Bottle_02_03",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Box_03_00",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Box_03_01",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Bottle_03_02",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL04",
+          "object": "TEST_Box_03_03",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Box_04_00",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Bottle_04_01",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Box_04_02",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY01_LEVEL05",
+          "object": "TEST_Box_04_03",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Bottle_05_00",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Box_05_01",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Box_05_02",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL01",
+          "object": "TEST_Box_05_03",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_00",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_01",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_02",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL02",
+          "object": "TEST_Box_06_03",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Box_07_00",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Box_07_01",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Box_07_02",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL03",
+          "object": "TEST_Bottle_07_03",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Box_08_00",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Box_08_01",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Bottle_08_02",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL04",
+          "object": "TEST_Box_08_03",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Box_09_00",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Bottle_09_01",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Box_09_02",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY02_LEVEL05",
+          "object": "TEST_Box_09_03",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Bottle_10_00",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Box_10_01",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Box_10_02",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL01",
+          "object": "TEST_Box_10_03",
+          "bottom": 0.729,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_00",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_01",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_02",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL02",
+          "object": "TEST_Box_11_03",
+          "bottom": 1.032,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Box_12_00",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Box_12_01",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Box_12_02",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL03",
+          "object": "TEST_Bottle_12_03",
+          "bottom": 1.335,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Box_13_00",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Box_13_01",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Bottle_13_02",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL04",
+          "object": "TEST_Box_13_03",
+          "bottom": 1.638,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1383
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Box_14_00",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Bottle_14_01",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Box_14_02",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        },
+        {
+          "zone": "SHELF_ZONE_BAY03_LEVEL05",
+          "object": "TEST_Box_14_03",
+          "bottom": 1.941,
+          "width": 0.191,
+          "depth": 0.24,
+          "height": 0.1507
+        }
+      ],
+      "wallSnap": true,
+      "license": "Original Golf Flipper project asset; no external source"
+    }
+  ],
+  "textureDirectory": "Assets/pro_shop_furniture/textures/retail-shelving",
+  "externalAssets": [],
+  "comparison": {
+    "source": "Assets/pro_shop_furniture/source/retail-shelving/shelf_progression_comparison.blend",
+    "preview": "Assets/pro_shop_furniture/previews/retail-shelving/shelf_progression_comparison.png"
+  }
+}

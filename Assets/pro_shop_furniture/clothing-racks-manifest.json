@@ -1,0 +1,528 @@
+{
+  "assetFamily": "Pinehollow Clothing Racks",
+  "generator": "tools/blender/build_clothing_racks.py",
+  "blenderVersion": "5.1.2",
+  "units": "meters",
+  "orientation": {
+    "up": "+Z",
+    "front": "-Y",
+    "origin": "footprint center at floor"
+  },
+  "externalAssets": [],
+  "externalTextures": [],
+  "license": "Original project-owned procedural geometry and textures; project-owned design references only.",
+  "textures": [
+    "Assets/pro_shop_furniture/textures/clothing-racks/charcoal_metal_roughness.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_dark_walnut_albedo.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_dark_walnut_normal.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_dark_walnut_roughness.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_albedo.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_normal.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_roughness.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_walnut_albedo.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_walnut_normal.png",
+    "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_walnut_roughness.png"
+  ],
+  "assets": [
+    {
+      "id": "clothing-racks:basic",
+      "tier": "basic",
+      "label": "Basic Clothing Rack",
+      "primaryObject": "ClothingRack_Basic",
+      "reference": "Designs/Clothing_Racks/Basic.png",
+      "dimensionsM": [
+        1.55,
+        1.76,
+        0.56
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "frontAxis": "-Y",
+      "source": "Assets/pro_shop_furniture/source/clothing-racks/ClothingRack_Basic.blend",
+      "glb": "vendor/models/pro_shop_furniture/clothing-racks/basic.glb",
+      "preview": "Assets/pro_shop_furniture/previews/clothing-racks/basic.png",
+      "merchandiseValidationPreview": "qa/clothing_racks/blender/basic-merchandise-validation.png",
+      "collision": "COLLISION_BasicClothingRack",
+      "hangZoneCount": 1,
+      "shelfZoneCount": 0,
+      "nodes": {
+        "hangNodes": [
+          "HANG_ZONE_01_START",
+          "HANG_ZONE_01_END",
+          "HANG_ZONE_01_CENTER"
+        ],
+        "shelfNodes": [],
+        "lightNodes": [],
+        "interactionNode": "INTERACTION_POINT",
+        "footprintNode": "PLACEMENT_FOOTPRINT"
+      },
+      "lodTriangles": {
+        "LOD0": 10380,
+        "LOD1": 5300,
+        "LOD2": 3580
+      },
+      "lodDistancesM": {
+        "LOD0": 0,
+        "LOD1": 8,
+        "LOD2": 18
+      },
+      "lod0BoundsM": {
+        "min": [
+          -0.77,
+          -0.277,
+          0.0
+        ],
+        "max": [
+          0.77,
+          0.277,
+          1.727
+        ],
+        "size": [
+          1.54,
+          0.554,
+          1.727
+        ]
+      },
+      "sourceObjectCount": 108,
+      "sourceMeshCount": 98,
+      "glbBytes": 718776,
+      "materials": [
+        "M_CR_CasterRubber",
+        "M_CR_Collision",
+        "M_CR_PaintedSteel"
+      ],
+      "textures": [
+        "Assets/pro_shop_furniture/textures/clothing-racks/charcoal_metal_roughness.png"
+      ],
+      "qaTemporaryMerchandiseObjectCount": 24
+    },
+    {
+      "id": "clothing-racks:standard",
+      "tier": "standard",
+      "label": "Standard Clothing Rack",
+      "primaryObject": "ClothingRack_Standard",
+      "reference": "Designs/Clothing_Racks/Standard.png",
+      "dimensionsM": [
+        1.62,
+        1.8,
+        0.62
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "frontAxis": "-Y",
+      "source": "Assets/pro_shop_furniture/source/clothing-racks/ClothingRack_Standard.blend",
+      "glb": "vendor/models/pro_shop_furniture/clothing-racks/standard.glb",
+      "preview": "Assets/pro_shop_furniture/previews/clothing-racks/standard.png",
+      "merchandiseValidationPreview": "qa/clothing_racks/blender/standard-merchandise-validation.png",
+      "collision": "COLLISION_StandardClothingRack",
+      "hangZoneCount": 1,
+      "shelfZoneCount": 1,
+      "nodes": {
+        "hangNodes": [
+          "HANG_ZONE_01_START",
+          "HANG_ZONE_01_END",
+          "HANG_ZONE_01_CENTER"
+        ],
+        "shelfNodes": [
+          "SHELF_ZONE_01",
+          "SHELF_ZONE_01_MIN",
+          "SHELF_ZONE_01_MAX"
+        ],
+        "lightNodes": [],
+        "interactionNode": "INTERACTION_POINT",
+        "footprintNode": "PLACEMENT_FOOTPRINT"
+      },
+      "lodTriangles": {
+        "LOD0": 12088,
+        "LOD1": 6216,
+        "LOD2": 4220
+      },
+      "lodDistancesM": {
+        "LOD0": 0,
+        "LOD1": 8,
+        "LOD2": 18
+      },
+      "lod0BoundsM": {
+        "min": [
+          -0.803,
+          -0.308,
+          0.0
+        ],
+        "max": [
+          0.803,
+          0.308,
+          1.777
+        ],
+        "size": [
+          1.606,
+          0.616,
+          1.777
+        ]
+      },
+      "sourceObjectCount": 131,
+      "sourceMeshCount": 118,
+      "glbBytes": 2788120,
+      "materials": [
+        "M_CR_CasterRubber",
+        "M_CR_Collision",
+        "M_CR_IndustrialIron",
+        "M_CR_NaturalOak"
+      ],
+      "textures": [
+        "Assets/pro_shop_furniture/textures/clothing-racks/charcoal_metal_roughness.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_albedo.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_normal.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_roughness.png"
+      ],
+      "qaTemporaryMerchandiseObjectCount": 30
+    },
+    {
+      "id": "clothing-racks:premium",
+      "tier": "premium",
+      "label": "Premium Clothing Rack",
+      "primaryObject": "ClothingRack_Premium",
+      "reference": "Designs/Clothing_Racks/Premium.png",
+      "dimensionsM": [
+        1.86,
+        2.08,
+        0.58
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "frontAxis": "-Y",
+      "source": "Assets/pro_shop_furniture/source/clothing-racks/ClothingRack_Premium.blend",
+      "glb": "vendor/models/pro_shop_furniture/clothing-racks/premium.glb",
+      "preview": "Assets/pro_shop_furniture/previews/clothing-racks/premium.png",
+      "merchandiseValidationPreview": "qa/clothing_racks/blender/premium-merchandise-validation.png",
+      "collision": "COLLISION_PremiumClothingRack",
+      "hangZoneCount": 1,
+      "shelfZoneCount": 4,
+      "nodes": {
+        "hangNodes": [
+          "HANG_ZONE_01_START",
+          "HANG_ZONE_01_END",
+          "HANG_ZONE_01_CENTER"
+        ],
+        "shelfNodes": [
+          "SHELF_ZONE_01",
+          "SHELF_ZONE_01_MIN",
+          "SHELF_ZONE_01_MAX",
+          "SHELF_ZONE_02",
+          "SHELF_ZONE_02_MIN",
+          "SHELF_ZONE_02_MAX",
+          "SHELF_ZONE_03",
+          "SHELF_ZONE_03_MIN",
+          "SHELF_ZONE_03_MAX",
+          "SHELF_ZONE_04",
+          "SHELF_ZONE_04_MIN",
+          "SHELF_ZONE_04_MAX"
+        ],
+        "lightNodes": [],
+        "interactionNode": "INTERACTION_POINT",
+        "footprintNode": "PLACEMENT_FOOTPRINT"
+      },
+      "lodTriangles": {
+        "LOD0": 11264,
+        "LOD1": 5112,
+        "LOD2": 4000
+      },
+      "lodDistancesM": {
+        "LOD0": 0,
+        "LOD1": 8,
+        "LOD2": 18
+      },
+      "lod0BoundsM": {
+        "min": [
+          -0.935,
+          -0.295,
+          0.0
+        ],
+        "max": [
+          0.935,
+          0.295,
+          2.08
+        ],
+        "size": [
+          1.87,
+          0.59,
+          2.08
+        ]
+      },
+      "sourceObjectCount": 151,
+      "sourceMeshCount": 129,
+      "glbBytes": 2800796,
+      "materials": [
+        "M_CR_BoutiqueBlack",
+        "M_CR_CasterRubber",
+        "M_CR_Collision",
+        "M_CR_DarkPremiumMetal",
+        "M_CR_NaturalOak"
+      ],
+      "textures": [
+        "Assets/pro_shop_furniture/textures/clothing-racks/charcoal_metal_roughness.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_albedo.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_normal.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_oak_roughness.png"
+      ],
+      "qaTemporaryMerchandiseObjectCount": 31
+    },
+    {
+      "id": "clothing-racks:high-end",
+      "tier": "high-end",
+      "label": "High-End Clothing Rack",
+      "primaryObject": "ClothingRack_HighEnd",
+      "reference": "Designs/Clothing_Racks/High-End.png",
+      "dimensionsM": [
+        2.88,
+        2.28,
+        0.62
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "frontAxis": "-Y",
+      "source": "Assets/pro_shop_furniture/source/clothing-racks/ClothingRack_HighEnd.blend",
+      "glb": "vendor/models/pro_shop_furniture/clothing-racks/high-end.glb",
+      "preview": "Assets/pro_shop_furniture/previews/clothing-racks/high-end.png",
+      "merchandiseValidationPreview": "qa/clothing_racks/blender/high-end-merchandise-validation.png",
+      "collision": "COLLISION_HighEndClothingRack",
+      "hangZoneCount": 3,
+      "shelfZoneCount": 9,
+      "nodes": {
+        "hangNodes": [
+          "HANG_ZONE_01_START",
+          "HANG_ZONE_01_END",
+          "HANG_ZONE_01_CENTER",
+          "HANG_ZONE_02_START",
+          "HANG_ZONE_02_END",
+          "HANG_ZONE_02_CENTER",
+          "HANG_ZONE_03_START",
+          "HANG_ZONE_03_END",
+          "HANG_ZONE_03_CENTER"
+        ],
+        "shelfNodes": [
+          "SHELF_ZONE_01",
+          "SHELF_ZONE_01_MIN",
+          "SHELF_ZONE_01_MAX",
+          "SHELF_ZONE_02",
+          "SHELF_ZONE_02_MIN",
+          "SHELF_ZONE_02_MAX",
+          "SHELF_ZONE_03",
+          "SHELF_ZONE_03_MIN",
+          "SHELF_ZONE_03_MAX",
+          "SHELF_ZONE_04",
+          "SHELF_ZONE_04_MIN",
+          "SHELF_ZONE_04_MAX",
+          "SHELF_ZONE_05",
+          "SHELF_ZONE_05_MIN",
+          "SHELF_ZONE_05_MAX",
+          "SHELF_ZONE_06",
+          "SHELF_ZONE_06_MIN",
+          "SHELF_ZONE_06_MAX",
+          "SHELF_ZONE_07",
+          "SHELF_ZONE_07_MIN",
+          "SHELF_ZONE_07_MAX",
+          "SHELF_ZONE_08",
+          "SHELF_ZONE_08_MIN",
+          "SHELF_ZONE_08_MAX",
+          "SHELF_ZONE_09",
+          "SHELF_ZONE_09_MIN",
+          "SHELF_ZONE_09_MAX"
+        ],
+        "lightNodes": [
+          "LIGHT_POINT_01",
+          "LIGHT_POINT_02",
+          "LIGHT_POINT_03"
+        ],
+        "interactionNode": "INTERACTION_POINT",
+        "footprintNode": "PLACEMENT_FOOTPRINT"
+      },
+      "lodTriangles": {
+        "LOD0": 23232,
+        "LOD1": 9264,
+        "LOD2": 6120
+      },
+      "lodDistancesM": {
+        "LOD0": 0,
+        "LOD1": 8,
+        "LOD2": 18
+      },
+      "lod0BoundsM": {
+        "min": [
+          -1.47,
+          -0.351,
+          0.0
+        ],
+        "max": [
+          1.47,
+          0.3375,
+          2.2525
+        ],
+        "size": [
+          2.94,
+          0.6885,
+          2.2525
+        ]
+      },
+      "sourceObjectCount": 323,
+      "sourceMeshCount": 277,
+      "glbBytes": 3487624,
+      "materials": [
+        "M_CR_Collision",
+        "M_CR_DarkPremiumMetal",
+        "M_CR_LightLens",
+        "M_CR_MediumWalnut"
+      ],
+      "textures": [
+        "Assets/pro_shop_furniture/textures/clothing-racks/charcoal_metal_roughness.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_walnut_albedo.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_walnut_normal.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_walnut_roughness.png"
+      ],
+      "qaTemporaryMerchandiseObjectCount": 90
+    },
+    {
+      "id": "clothing-racks:luxury",
+      "tier": "luxury",
+      "label": "Luxury Clothing Rack",
+      "primaryObject": "ClothingRack_Luxury",
+      "reference": "Designs/Clothing_Racks/Luxury.png",
+      "dimensionsM": [
+        3.18,
+        2.38,
+        0.68
+      ],
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "frontAxis": "-Y",
+      "source": "Assets/pro_shop_furniture/source/clothing-racks/ClothingRack_Luxury.blend",
+      "glb": "vendor/models/pro_shop_furniture/clothing-racks/luxury.glb",
+      "preview": "Assets/pro_shop_furniture/previews/clothing-racks/luxury.png",
+      "merchandiseValidationPreview": "qa/clothing_racks/blender/luxury-merchandise-validation.png",
+      "collision": "COLLISION_LuxuryClothingRack",
+      "hangZoneCount": 3,
+      "shelfZoneCount": 12,
+      "nodes": {
+        "hangNodes": [
+          "HANG_ZONE_01_START",
+          "HANG_ZONE_01_END",
+          "HANG_ZONE_01_CENTER",
+          "HANG_ZONE_02_START",
+          "HANG_ZONE_02_END",
+          "HANG_ZONE_02_CENTER",
+          "HANG_ZONE_03_START",
+          "HANG_ZONE_03_END",
+          "HANG_ZONE_03_CENTER"
+        ],
+        "shelfNodes": [
+          "SHELF_ZONE_01",
+          "SHELF_ZONE_01_MIN",
+          "SHELF_ZONE_01_MAX",
+          "SHELF_ZONE_02",
+          "SHELF_ZONE_02_MIN",
+          "SHELF_ZONE_02_MAX",
+          "SHELF_ZONE_03",
+          "SHELF_ZONE_03_MIN",
+          "SHELF_ZONE_03_MAX",
+          "SHELF_ZONE_04",
+          "SHELF_ZONE_04_MIN",
+          "SHELF_ZONE_04_MAX",
+          "SHELF_ZONE_05",
+          "SHELF_ZONE_05_MIN",
+          "SHELF_ZONE_05_MAX",
+          "SHELF_ZONE_06",
+          "SHELF_ZONE_06_MIN",
+          "SHELF_ZONE_06_MAX",
+          "SHELF_ZONE_07",
+          "SHELF_ZONE_07_MIN",
+          "SHELF_ZONE_07_MAX",
+          "SHELF_ZONE_08",
+          "SHELF_ZONE_08_MIN",
+          "SHELF_ZONE_08_MAX",
+          "SHELF_ZONE_09",
+          "SHELF_ZONE_09_MIN",
+          "SHELF_ZONE_09_MAX",
+          "SHELF_ZONE_10",
+          "SHELF_ZONE_10_MIN",
+          "SHELF_ZONE_10_MAX",
+          "SHELF_ZONE_11",
+          "SHELF_ZONE_11_MIN",
+          "SHELF_ZONE_11_MAX",
+          "SHELF_ZONE_12",
+          "SHELF_ZONE_12_MIN",
+          "SHELF_ZONE_12_MAX"
+        ],
+        "lightNodes": [
+          "LIGHT_POINT_01",
+          "LIGHT_POINT_02",
+          "LIGHT_POINT_03",
+          "LIGHT_POINT_04",
+          "LIGHT_POINT_05",
+          "LIGHT_POINT_06"
+        ],
+        "interactionNode": "INTERACTION_POINT",
+        "footprintNode": "PLACEMENT_FOOTPRINT"
+      },
+      "lodTriangles": {
+        "LOD0": 21264,
+        "LOD1": 8856,
+        "LOD2": 6120
+      },
+      "lodDistancesM": {
+        "LOD0": 0,
+        "LOD1": 8,
+        "LOD2": 18
+      },
+      "lod0BoundsM": {
+        "min": [
+          -1.62,
+          -0.389,
+          0.0
+        ],
+        "max": [
+          1.62,
+          0.3675,
+          2.3525
+        ],
+        "size": [
+          3.24,
+          0.7565,
+          2.3525
+        ]
+      },
+      "sourceObjectCount": 305,
+      "sourceMeshCount": 247,
+      "glbBytes": 3212660,
+      "materials": [
+        "M_CR_Collision",
+        "M_CR_DarkPremiumMetal",
+        "M_CR_DarkWalnut",
+        "M_CR_LightLens",
+        "M_CR_RestrainedBrass",
+        "M_CR_WarmLED",
+        "M_CR_WarmLowerLED"
+      ],
+      "textures": [
+        "Assets/pro_shop_furniture/textures/clothing-racks/charcoal_metal_roughness.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_dark_walnut_albedo.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_dark_walnut_normal.png",
+        "Assets/pro_shop_furniture/textures/clothing-racks/pinehollow_dark_walnut_roughness.png"
+      ],
+      "qaTemporaryMerchandiseObjectCount": 102
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "golf-empire",
+  "productName": "GOLF EMPIRE",
+  "version": "0.1.0",
+  "description": "Buy distressed golf courses, restore them, keep the gems or flip them — built on the FAIRWAY STATE simulation core",
+  "author": "Prime Fairways",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "serve": "node tools/serve.cjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^39.8.10",
+    "playwright": "^1.61.1"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "allowScripts": {
+    "electron@39.8.10": true
+  }
+}

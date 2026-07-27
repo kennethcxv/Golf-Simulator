@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blender Game Assets"
+  short_description: "Build and verify production-ready Blender game assets"
+  default_prompt: "Use $blender-game-assets to build and integrate a game-ready 3D asset."

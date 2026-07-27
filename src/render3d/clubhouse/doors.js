@@ -1,0 +1,1078 @@
+// CLUBHOUSE DOORS — real hinged slabs in real frames. Every doorway gets a jamb
+// lining that fills the wall depth, a header, a threshold sill, and (where the
+// swing is one-way) door stops — so a closed door is visually sealed: no slits,
+// no light leak. The two service leaves park on their operational side: the
+// stock door in the stockroom, the receiving door outside. This keeps freight
+// and furnished-office aisles clear. The entry is architecturally inward (into
+// the shop) and gently pushes a body out of its sweep instead of passing through
+// it. The player operates doors with E — the only automatic opens are for
+// customers (with the entrance bell) and for a player whose arms are full.
+
+import * as THREE from 'three';
+import { SHELL, DOOR_MAIN, DOOR_STOCK, DOOR_BACK } from '../../data/shopLayout.js';
+import { chooseSwingAngle, hingeBearing, sweptBy, SWING } from '../../data/doorMath.js';
+import { carriedBox } from '../../sim/deliveries.js';
+import { carriedGoods } from '../../sim/stocking.js';
+import { tutorialFlag } from '../../sim/tutorial.js';
+import {
+  ensureClubhouseArchitecture,
+  setMainDoorLeafState,
+  setMainDoorState,
+} from '../../sim/clubhouseRestoration.js';
+import {
+  METERS_TO_YARDS,
+  architecturalDoorSpec,
+} from '../../data/architecturalDoors.js';
+
+const MAIN_DOOR_OPEN_RADIANS = 100 * Math.PI / 180;
+
+export function armsFullForDoor(state) {
+  return !!(carriedBox(state) || carriedGoods(state));
+}
+
+export function buildDoors(B, { dormant = false } = {}) {
+  const {
+    group, mats, addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
+    state, hooks, walk, camera = null, getCustomers,
+  } = B;
+  // Dormant mode (the 'shed' presentation): build NO door visuals, colliders or
+  // [E] interaction props, but still return the full API so every consumer
+  // (architecturalDoorInstallation, sheet06Production) keeps working. The
+  // architectural installer requires bindArchitecturalMainEntranceVisual to
+  // exist and reads `.ok` off the bind result — returning { ok: false } keeps
+  // any architectural door GLB it loads invisible.
+  if (dormant) {
+    const emptyRoot = new THREE.Group();
+    emptyRoot.name = 'DormantDoorFallback';
+    const dormantBind = () => Object.freeze({ ok: false, dormant: true });
+    return {
+      doors: [],
+      mainDoor: null,
+      mainEntranceFallback: emptyRoot,
+      stockDoorFallback: emptyRoot,
+      receivingDoorFallback: emptyRoot,
+      updateDoors: () => {},
+      bindMainEntranceVisual: dormantBind,
+      bindArchitecturalMainEntranceVisual: dormantBind,
+      bindArchitecturalServiceDoorVisual: dormantBind,
+      bindModernRoomDoorVisuals: dormantBind,
+      unbindArchitecturalServiceDoorVisual: () => {},
+      unbindModernRoomDoorVisuals: () => {},
+      unbindMainEntranceVisual: () => {},
+      syncMainEntranceFromState: () => {},
+      mainEntranceDiagnostics: () => Object.freeze({ dormant: true }),
+      serviceDoorDiagnostics: () => Object.freeze({ dormant: true }),
+      modernRoomDoorDiagnostics: () => Object.freeze({ dormant: true }),
+      setMainLeafOpen: () => {},
+      setMainAssemblyOpen: () => false,
+    };
+  }
+  const halfW = SHELL.w / 2 - SHELL.wallT / 2;
+  const halfD = SHELL.d / 2 - SHELL.wallT / 2;
+  const doors = [];
+  let doorClock = 0;
+
+  const greenDeep = new THREE.MeshStandardMaterial({ color: 0x1f4a26, roughness: 0.5 });
+  const greenPanel = new THREE.MeshStandardMaterial({ color: 0x193d20, roughness: 0.55 });
+  // One fallback handle owns only the procedural main entrance. Service doors,
+  // their collisions, and the shared interaction controller remain independent.
+  const mainEntranceFallback = new THREE.Group();
+  mainEntranceFallback.name = 'ProceduralMainEntranceFallback';
+  const stockDoorFallback = new THREE.Group();
+  stockDoorFallback.name = 'ProceduralStockroomDoorFallback';
+  const receivingDoorFallback = new THREE.Group();
+  receivingDoorFallback.name = 'ProceduralReceivingDoorFallback';
+  group.add(mainEntranceFallback, stockDoorFallback, receivingDoorFallback);
+  let authoredMainEntranceRoot = null;
+  let authoredMainEntrancePivots = null;
+  let preferredMainEntranceRoot = null;
+  let legacyMainEntranceRoot = null;
+  const authoredServiceRoots = { stockroom: null, receiving: null };
+  let modernRoomDoorRoot = null;
+  const modernRoomDoors = new Map();
+
+  function triggerDoorHardware(door, side = door.mainLeaf || 'single') {
+    door.authoredController?.triggerHandle?.(side);
+  }
+
+  // brass lever on a backplate, both faces
+  function addLever(parent, x, y, z, along) {
+    for (const side of [-1, 1]) {
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.05 : 0.09, 0.2, along === 'x' ? 0.09 : 0.05), mats.brass);
+      const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.16, 8), mats.brass);
+      lever.rotation.z = Math.PI / 2;
+      if (along === 'x') {
+        plate.position.set(x, y, z + side * 0.05);
+        lever.position.set(x - 0.07, y, z + side * 0.065);
+      } else {
+        plate.position.set(x + side * 0.05, y, z);
+        lever.rotation.y = Math.PI / 2;
+        lever.position.set(x + side * 0.065, y, z - 0.07);
+      }
+      parent.add(plate, lever);
+    }
+  }
+
+  // the glazed entry slab (built extending +x from its hinge edge)
+  function buildEntrySlab(width, height, closedSign = 1) {
+    const g = new THREE.Group();
+    const t = 0.07;
+    const stile = 0.13;
+    const partsSpec = [
+      { w: width, h: stile, x: width / 2, y: height - stile / 2 },          // top rail
+      { w: width, h: 0.3, x: width / 2, y: 0.15 },                          // bottom rail
+      { w: stile, h: height, x: stile / 2, y: height / 2 },                 // hinge stile
+      { w: stile, h: height, x: width - stile / 2, y: height / 2 },         // latch stile
+      { w: width, h: 0.12, x: width / 2, y: height * 0.42 },                // lock rail
+    ];
+    for (const p of partsSpec) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, t), greenDeep);
+      m.position.set(p.x, p.y, 0);
+      m.castShadow = true;
+      g.add(m);
+    }
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(width - stile * 2 - 0.06, height * 0.42 - 0.36, t * 0.75), greenPanel);
+    panel.position.set(width / 2, (height * 0.42 + 0.3) / 2 - 0.02, 0);
+    g.add(panel);
+    // glazing above the lock rail: one pane + muntin cross = 4 lites
+    const gw = width - stile * 2;
+    const gh = height - stile - height * 0.42 - 0.06;
+    const gy = height * 0.42 + 0.06 + gh / 2;
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mats.glass);
+    glass.position.set(width / 2, gy, 0);
+    g.add(glass);
+    const mv = new THREE.Mesh(new THREE.BoxGeometry(0.045, gh, t * 0.8), greenDeep);
+    mv.position.set(width / 2, gy, 0);
+    g.add(mv);
+    const mh = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.045, t * 0.8), greenDeep);
+    mh.position.set(width / 2, gy, 0);
+    g.add(mh);
+    const kick = new THREE.Mesh(new THREE.BoxGeometry(width - stile * 2, 0.16, 0.012), mats.brass);
+    kick.position.set(width / 2, 0.12, t / 2 + 0.004);
+    g.add(kick);
+    addLever(g, width - 0.16, 1.05, 0, 'x');
+    // The right leaf grows toward -X from its outer hinge. Mirroring the entire
+    // fallback slab keeps its hardware on the meeting edge; this branch is only
+    // visible while the authored Asset 53 is unavailable.
+    if (closedSign < 0) g.scale.x = -1;
+    return g;
+  }
+
+  // 6-panel painted service slab (extending +x or +z from its hinge edge)
+  function buildServiceSlab(width, height, along) {
+    const g = new THREE.Group();
+    const t = 0.06;
+    const slab = new THREE.Mesh(
+      new THREE.BoxGeometry(along === 'x' ? width : t, height, along === 'x' ? t : width),
+      mats.walnut,
+    );
+    slab.castShadow = true;
+    if (along === 'x') slab.position.set(width / 2, height / 2, 0);
+    else slab.position.set(0, height / 2, width / 2);
+    g.add(slab);
+    for (let col = 0; col < 2; col++) {
+      for (let row = 0; row < 3; row++) {
+        const pw = width * 0.34;
+        const ph = height * 0.24;
+        const px = width * (0.28 + col * 0.44);
+        const py = height * (0.2 + row * 0.28);
+        const inset = new THREE.Mesh(
+          new THREE.BoxGeometry(along === 'x' ? pw : t + 0.012, ph, along === 'x' ? t + 0.012 : pw),
+          mats.walnutDark,
+        );
+        if (along === 'x') inset.position.set(px, py, 0);
+        else inset.position.set(0, py, px);
+        g.add(inset);
+      }
+    }
+    addLever(g, along === 'x' ? width - 0.14 : 0, 1.05, along === 'x' ? 0 : width - 0.14, along);
+    return g;
+  }
+
+  // architrave casing on both wall faces (decorative surround)
+  function addCasing({ cx, cz, along, w, h, mat, parent = group }) {
+    for (const side of [-1, 1]) {
+      const off = side * (SHELL.wallT / 2 + 0.03);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? w + 0.3 : 0.06, 0.14, along === 'x' ? 0.06 : w + 0.3), mat);
+      if (along === 'x') head.position.set(cx, FLOOR_TOP + h + 0.07, cz + off);
+      else head.position.set(cx + off, FLOOR_TOP + h + 0.07, cz);
+      parent.add(head);
+      for (const end of [-1, 1]) {
+        const jamb = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.12 : 0.06, h + 0.1, along === 'x' ? 0.06 : 0.12), mat);
+        if (along === 'x') jamb.position.set(cx + end * (w / 2 + 0.09), FLOOR_TOP + (h + 0.1) / 2, cz + off);
+        else jamb.position.set(cx + off, FLOOR_TOP + (h + 0.1) / 2, cz + end * (w / 2 + 0.09));
+        parent.add(jamb);
+      }
+    }
+  }
+
+  // the REAL frame: jambs lining the opening depth, header, threshold sill, and
+  // optional stops on one face (for the one-way entry door). This is what makes
+  // a closed door read sealed instead of floating in a raw hole.
+  function addFrame({ cx, cz, along, w, h, mat, stopsSide = 0, sillMat, parent = group }) {
+    const depth = SHELL.wallT + 0.02;
+    const JAMB = 0.09;
+    // side jambs — inside the opening, full height
+    for (const end of [-1, 1]) {
+      const jamb = new THREE.Mesh(
+        new THREE.BoxGeometry(along === 'x' ? JAMB : depth, h, along === 'x' ? depth : JAMB),
+        mat,
+      );
+      if (along === 'x') jamb.position.set(cx + end * (w / 2 - JAMB / 2), FLOOR_TOP + h / 2, cz);
+      else jamb.position.set(cx, FLOOR_TOP + h / 2, cz + end * (w / 2 - JAMB / 2));
+      parent.add(jamb);
+    }
+    // header across the top of the clear opening
+    const header = new THREE.Mesh(
+      new THREE.BoxGeometry(along === 'x' ? w : depth, 0.1, along === 'x' ? depth : w),
+      mat,
+    );
+    header.position.set(cx, FLOOR_TOP + h - 0.05, cz);
+    parent.add(header);
+    // threshold sill — slightly proud both faces, covers the floorless wall strip
+    const sill = new THREE.Mesh(
+      new THREE.BoxGeometry(along === 'x' ? w : depth + 0.12, 0.045, along === 'x' ? depth + 0.12 : w),
+      sillMat || mat,
+    );
+    sill.position.set(cx, FLOOR_TOP + 0.0225, cz);
+    parent.add(sill);
+    // stops: thin strips the closed slab rests against (one-way doors only)
+    if (stopsSide !== 0) {
+      const t = 0.05; // slab-plane offset
+      const off = stopsSide * t;
+      const clear = w - JAMB * 2;
+      for (const end of [-1, 1]) {
+        const strip = new THREE.Mesh(
+          new THREE.BoxGeometry(along === 'x' ? 0.035 : 0.05, h - 0.1, along === 'x' ? 0.05 : 0.035),
+          mat,
+        );
+        if (along === 'x') strip.position.set(cx + end * (clear / 2 + 0.0175), FLOOR_TOP + (h - 0.1) / 2, cz + off);
+        else strip.position.set(cx + off, FLOOR_TOP + (h - 0.1) / 2, cz + end * (clear / 2 + 0.0175));
+        parent.add(strip);
+      }
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(along === 'x' ? clear : 0.05, 0.035, along === 'x' ? 0.05 : clear),
+        mat,
+      );
+      if (along === 'x') top.position.set(cx, FLOOR_TOP + h - 0.117, cz + off);
+      else top.position.set(cx + off, FLOOR_TOP + h - 0.117, cz);
+      parent.add(top);
+    }
+  }
+
+  // door angular basis: position angle of a point around the hinge, measured so
+  // that 0 = the closed slab direction and + matches positive hinge rotation
+  const hingeAngleOf = (d, lx, lz) => hingeBearing(d, lx, lz); // shared with the occupancy rule
+
+  function updateDoorCollider(d) {
+    // AABB over the slab from hinge to tip at the current angle, padded
+    const a = d.angle;
+    const closedSign = d.closedSign === -1 ? -1 : 1;
+    const dir = d.along === 'x'
+      ? { x: closedSign * Math.cos(a), z: -closedSign * Math.sin(a) }
+      : { x: closedSign * Math.sin(a), z: closedSign * Math.cos(a) };
+    const tipX = d.lx + dir.x * d.slabW;
+    const tipZ = d.lz + dir.z * d.slabW;
+    const p1 = L2W(d.lx, d.lz);
+    const p2 = L2W(tipX, tipZ);
+    const pad = d.collisionPad;
+    d.collider.minX = Math.min(p1.x, p2.x) - pad;
+    d.collider.maxX = Math.max(p1.x, p2.x) + pad;
+    d.collider.minZ = Math.min(p1.z, p2.z) - pad;
+    d.collider.maxZ = Math.max(p1.z, p2.z) + pad;
+  }
+
+  function makeDoor({
+    cx, cz, along, w, h, name, style, isMain = false, fixedSwing = 0,
+    closedSign = 1, hingeLx = null, hingeLz = null, slabWOverride = null,
+    visualParent = group, registerInteraction = true, mainLeaf = null,
+    createProceduralVisual = true,
+  }) {
+    const JAMB = 0.09;
+    const clear = w - JAMB * 2;
+    const slabW = Number.isFinite(slabWOverride) ? slabWOverride : clear - 0.015;
+    const slabH = h - 0.16; // clears the header (top reveal hides behind the stops)
+    // Service slabs are 6 cm thick. The former 12 cm radial pad produced a
+    // 24 cm collision leaf even at ninety degrees and consumed the last usable
+    // centimetres of the receiving opening for the visible freight crate.
+    // Preserve the broader entrance buffer, but keep service collision close
+    // to its authored geometry with a small safety allowance.
+    const collisionPad = style === 'service' ? 0.055 : 0.12;
+    // hinge at the low-coordinate jamb's inner face
+    const lx = Number.isFinite(hingeLx)
+      ? hingeLx
+      : (along === 'x' ? cx - w / 2 + JAMB : cx);
+    const lz = Number.isFinite(hingeLz)
+      ? hingeLz
+      : (along === 'x' ? cz : cz - w / 2 + JAMB);
+    const hinge = new THREE.Group();
+    hinge.position.set(lx, FLOOR_TOP + 0.048, lz);
+    if (createProceduralVisual) {
+      const slab = style === 'entry'
+        ? buildEntrySlab(slabW, slabH, closedSign)
+        : buildServiceSlab(slabW, slabH, along);
+      if (style === 'entry' && along !== 'x') slab.rotation.y = -Math.PI / 2;
+      hinge.add(slab);
+    }
+    visualParent.add(hinge);
+
+    const slabCenter = along === 'x'
+      ? { x: lx + closedSign * slabW / 2, z: lz }
+      : { x: lx, z: lz + closedSign * slabW / 2 };
+    const collider = along === 'x'
+      ? colBoxAt(slabCenter.x, slabCenter.z, slabW + collisionPad * 2, collisionPad * 2)
+      : colBoxAt(slabCenter.x, slabCenter.z, collisionPad * 2, slabW + collisionPad * 2);
+    collider.door = true; // nav grid ignores doors — they open for walkers
+    collider.mainEntrance = isMain;
+    addCol(collider);
+
+    const door = {
+      name, hinge, angle: 0, open: false, collider, isMain,
+      along, lx, lz, slabW, fixedSwing, closedSign, mainLeaf, collisionPad,
+      swingTarget: 0, lastNear: 0,
+      world: L2W(slabCenter.x, slabCenter.z),
+    };
+    doors.push(door);
+
+    // service doors swing away from whoever opens them; the entry keeps its
+    // real-world inward swing (pure math shared with the tests)
+    door.chooseSwing = (wx, wz) => {
+      const lp = W2L(wx, wz);
+      return chooseSwingAngle(door, lp.x, lp.z);
+    };
+    door.openFor = (wx, wz, holdAt = null) => {
+      const wasOpen = door.open;
+      door.swingTarget = door.chooseSwing(wx, wz);
+      door.open = true;
+      if (!wasOpen) triggerDoorHardware(door);
+      // A controller may request the door before its actor reaches the short
+      // automatic proximity gate. Supplying the shared scene clock prevents
+      // the close timer from undoing that request one frame later.
+      if (Number.isFinite(holdAt)) door.lastNear = Math.max(door.lastNear, holdAt);
+    };
+
+    const wp = L2W(slabCenter.x, slabCenter.z);
+    if (registerInteraction) {
+      const interactionProp = {
+        x: wp.x, z: wp.z, r: 2.1,
+        label: () => `${name} — [E] ${door.open ? 'close' : 'open'}`,
+        action: () => {
+          if (door.open) {
+            const blocker = doorBlockedBy(door);
+            if (blocker) {
+              if (hooks.toast) {
+                hooks.toast(blocker === 'customer'
+                  ? 'Someone is still in the doorway.'
+                  : 'A box is in the way of the door.', 'warn');
+              }
+              return; // the slab does not move through anyone
+            }
+            door.open = false;
+          } else {
+            // The interaction radius is intentionally a little wider than the
+            // passive hold-open radius. Seed the close timer from the same
+            // scene clock so a manual open from that outer band survives long
+            // enough for the player to walk through.
+            door.openFor(walk.x, walk.z, doorClock);
+            if (door.isMain) {
+              tutorialFlag(state, 'doorOpened');
+              if (hooks.sfx) hooks.sfx('doorbell');
+            }
+          }
+          if (hooks.sfx) hooks.sfx(door.open ? 'doorSwing' : 'doorShut');
+        },
+      };
+      const registeredInteraction = addProp(interactionProp);
+      door.interactionProp = registeredInteraction
+        && (typeof registeredInteraction === 'object' || typeof registeredInteraction === 'function')
+        ? registeredInteraction
+        : interactionProp;
+    }
+    return door;
+  }
+
+  // The entrance is one assembly with two real outer hinges and two analytic
+  // leaf colliders. Normal controls operate both leaves together; the save
+  // schema still retains independent leaf state for safe migration/debugging.
+  const mainJamb = 0.09;
+  const mainClear = DOOR_MAIN.w - mainJamb * 2;
+  const mainLeafWidth = (mainClear - 0.02) / 2;
+  const mainLeftHingeX = DOOR_MAIN.x - DOOR_MAIN.w / 2 + mainJamb;
+  const mainRightHingeX = DOOR_MAIN.x + DOOR_MAIN.w / 2 - mainJamb;
+  const mainDoor = makeDoor({
+    cx: DOOR_MAIN.x, cz: halfD, along: 'x', w: DOOR_MAIN.w, h: DOOR_MAIN.h,
+    name: 'Shop door', style: 'entry', isMain: true,
+    fixedSwing: MAIN_DOOR_OPEN_RADIANS, closedSign: 1,
+    hingeLx: mainLeftHingeX, hingeLz: halfD, slabWOverride: mainLeafWidth,
+    visualParent: mainEntranceFallback, registerInteraction: false, mainLeaf: 'left',
+  });
+  const mainDoorRight = makeDoor({
+    cx: DOOR_MAIN.x, cz: halfD, along: 'x', w: DOOR_MAIN.w, h: DOOR_MAIN.h,
+    name: 'Shop door right leaf', style: 'entry', isMain: true,
+    fixedSwing: -MAIN_DOOR_OPEN_RADIANS, closedSign: -1,
+    hingeLx: mainRightHingeX, hingeLz: halfD, slabWOverride: mainLeafWidth,
+    visualParent: mainEntranceFallback, registerInteraction: false, mainLeaf: 'right',
+  });
+  mainDoor.isMainPrimary = true;
+  mainDoorRight.isMainFollower = true;
+  mainDoor.leaves = [mainDoor, mainDoorRight];
+  mainDoorRight.leaves = mainDoor.leaves;
+  const mainWorld = L2W(DOOR_MAIN.x, halfD);
+  mainDoor.world = mainWorld;
+  mainDoorRight.world = mainWorld;
+
+  const persistedMain = ensureClubhouseArchitecture(state)?.doors?.main;
+  mainDoor.desiredOpen = persistedMain?.left === 'open';
+  mainDoorRight.desiredOpen = persistedMain?.right === 'open';
+  mainDoor.open = mainDoor.desiredOpen || mainDoorRight.desiredOpen;
+  mainDoorRight.open = mainDoor.open;
+  mainDoor.swingTarget = MAIN_DOOR_OPEN_RADIANS;
+  mainDoorRight.swingTarget = -MAIN_DOOR_OPEN_RADIANS;
+
+  function setMainAssemblyOpen(open, { persist = true } = {}) {
+    const desired = Boolean(open);
+    const wasFullyOpen = mainDoor.desiredOpen && mainDoorRight.desiredOpen;
+    mainDoor.desiredOpen = desired;
+    mainDoorRight.desiredOpen = desired;
+    mainDoor.open = desired;
+    mainDoorRight.open = desired;
+    if (desired && !wasFullyOpen) triggerDoorHardware(mainDoor, 'both');
+    if (persist) setMainDoorState(state, desired ? 'open' : 'closed');
+    return desired;
+  }
+
+  function setMainLeafOpen(leaf, open, { persist = true } = {}) {
+    const door = leaf === 'right' ? mainDoorRight : mainDoor;
+    const desired = Boolean(open);
+    if (desired && !door.desiredOpen) triggerDoorHardware(door, leaf);
+    door.desiredOpen = desired;
+    mainDoor.open = mainDoor.desiredOpen || mainDoorRight.desiredOpen;
+    mainDoorRight.open = mainDoor.open;
+    if (persist) setMainDoorLeafState(state, leaf, desired ? 'open' : 'closed');
+    return desired;
+  }
+
+  mainDoor.openFor = () => setMainAssemblyOpen(true);
+  mainDoorRight.openFor = mainDoor.openFor;
+
+  const mainEntranceProp = addProp({
+    x: mainWorld.x, z: mainWorld.z, r: 2.1,
+    label: () => {
+      const lp = W2L(walk.x, walk.z);
+      const leaf = lp.x > DOOR_MAIN.x ? 'right' : 'left';
+      const selected = leaf === 'right' ? mainDoorRight : mainDoor;
+      return `Shop doors — [E] ${mainDoor.open ? 'close both' : 'open both'} · [X] ${selected.desiredOpen ? 'close' : 'open'} ${leaf} leaf`;
+    },
+    action: () => {
+      if (mainDoor.open) {
+        const blocker = mainDoorBlockedBy();
+        if (blocker) {
+          if (hooks.toast) {
+            hooks.toast(blocker === 'customer'
+              ? 'Someone is still in the doorway.'
+              : blocker === 'player'
+                ? 'Step clear of the doorway first.'
+                : 'A box is in the way of the door.', 'warn');
+          }
+          return;
+        }
+        setMainAssemblyOpen(false);
+      } else {
+        setMainAssemblyOpen(true);
+        mainDoor.lastNear = Math.max(mainDoor.lastNear, doorClock);
+        mainDoorRight.lastNear = Math.max(mainDoorRight.lastNear, doorClock);
+        tutorialFlag(state, 'doorOpened');
+        if (hooks.sfx) hooks.sfx('doorbell');
+      }
+      if (hooks.sfx) hooks.sfx(mainDoor.open ? 'doorSwing' : 'doorShut');
+    },
+    secondaryAction: () => {
+      const lp = W2L(walk.x, walk.z);
+      const leaf = lp.x > DOOR_MAIN.x ? 'right' : 'left';
+      const selected = leaf === 'right' ? mainDoorRight : mainDoor;
+      if (selected.desiredOpen) {
+        const blocker = doorBlockedBy(selected);
+        if (blocker) {
+          if (hooks.toast) hooks.toast(
+            blocker === 'customer'
+              ? 'Someone is still in that doorway.'
+              : blocker === 'player'
+                ? 'Step clear of that leaf first.'
+                : 'A box is in the way of that leaf.',
+            'warn',
+          );
+          return;
+        }
+        setMainLeafOpen(leaf, false);
+      } else {
+        setMainLeafOpen(leaf, true);
+        mainDoor.lastNear = Math.max(mainDoor.lastNear, doorClock);
+        mainDoorRight.lastNear = Math.max(mainDoorRight.lastNear, doorClock);
+        tutorialFlag(state, 'doorOpened');
+        if (hooks.sfx) hooks.sfx('doorbell');
+      }
+      if (hooks.sfx) hooks.sfx(selected.desiredOpen ? 'doorSwing' : 'doorShut');
+    },
+  });
+  // Production addProp returns the registered interaction, while lightweight
+  // test/adapter callbacks may return an insertion count or nothing. Preserve
+  // the interaction when there is an object to tag without making that return
+  // convention part of the door controller contract.
+  if (mainEntranceProp && (typeof mainEntranceProp === 'object'
+      || typeof mainEntranceProp === 'function')) {
+    mainEntranceProp.premiumCountryClubPreserve = true;
+  }
+  const stockroomDoor = makeDoor({
+    cx: DOOR_STOCK.x, cz: DOOR_STOCK.z, along: 'x', w: DOOR_STOCK.w, h: DOOR_STOCK.h,
+    name: 'Stockroom door', style: 'service', fixedSwing: SWING,
+    visualParent: stockDoorFallback,
+  });
+  const receivingDoor = makeDoor({
+    cx: halfW, cz: DOOR_BACK.z, along: 'z', w: DOOR_BACK.w, h: DOOR_BACK.h,
+    name: 'Receiving door', style: 'service', fixedSwing: SWING,
+    visualParent: receivingDoorFallback,
+  });
+  for (const door of [stockroomDoor, receivingDoor]) {
+    door.proceduralGeometry = Object.freeze({
+      lx: door.lx,
+      lz: door.lz,
+      slabW: door.slabW,
+      collisionPad: door.collisionPad,
+      fixedSwing: door.fixedSwing,
+      closedSign: door.closedSign,
+    });
+  }
+
+  // frames (jambs/header/sill/stops) + surface casings
+  addFrame({
+    cx: DOOR_MAIN.x, cz: halfD, along: 'x', w: DOOR_MAIN.w, h: DOOR_MAIN.h,
+    mat: mats.trimPaint, stopsSide: 1, sillMat: mats.walnut,
+    parent: mainEntranceFallback,
+  });
+  addFrame({
+    cx: DOOR_STOCK.x, cz: DOOR_STOCK.z, along: 'x', w: DOOR_STOCK.w, h: DOOR_STOCK.h,
+    mat: mats.walnut, parent: stockDoorFallback,
+  });
+  addFrame({
+    cx: halfW, cz: DOOR_BACK.z, along: 'z', w: DOOR_BACK.w, h: DOOR_BACK.h,
+    mat: mats.walnut, parent: receivingDoorFallback,
+  });
+  addCasing({
+    cx: DOOR_MAIN.x, cz: halfD, along: 'x', w: DOOR_MAIN.w, h: DOOR_MAIN.h,
+    mat: mats.trimPaint, parent: mainEntranceFallback,
+  });
+  addCasing({
+    cx: DOOR_STOCK.x, cz: DOOR_STOCK.z, along: 'x', w: DOOR_STOCK.w, h: DOOR_STOCK.h,
+    mat: mats.walnut, parent: stockDoorFallback,
+  });
+  addCasing({
+    cx: halfW, cz: DOOR_BACK.z, along: 'z', w: DOOR_BACK.w, h: DOOR_BACK.h,
+    mat: mats.walnut, parent: receivingDoorFallback,
+  });
+
+  // per-customer motion memory: a door opens for someone HEADING through it, not
+  // for anyone loitering at arm's length (that caused endless open/close flapping)
+  const custMotion = new WeakMap();
+
+  // "Never close through an actor." A door may only shut through empty air: not a customer
+  // standing in it (too still to read as "heading through", too far to read as "in it"), not a
+  // delivery box set down in the threshold, and not the player. The player used to be left to the
+  // radial push-out below (which shoves them out of the arc); but that is a correction after the
+  // fact, and the coarse 2.0yd proximity gate that also held the door misses the far tip of the
+  // wide main door's swing (reach ~2.7yd from the door centre). So the player is an actor here
+  // too, held by the same precise swept-arc test as everyone else; the push-out stays as a backstop.
+  function doorBlockedBy(d) {
+    if (walk.active) {
+      const lp = W2L(walk.x, walk.z);
+      if (sweptBy(d, lp.x, lp.z, walk.radius || 0.34)) return 'player';
+    }
+    for (const c of getCustomers()) {
+      const lp = W2L(c.mesh.position.x, c.mesh.position.z);
+      if (sweptBy(d, lp.x, lp.z, 0.32)) return 'customer';
+    }
+    const boxes = (state.shop && state.shop.deliveries && state.shop.deliveries.boxes) || [];
+    for (const b of boxes) {
+      if (b.loc !== 'world' || b.x === undefined) continue;
+      const lp = W2L(b.x, b.z);
+      if (sweptBy(d, lp.x, lp.z, 0.32)) return 'box';
+    }
+    return null;
+  }
+
+  function mainDoorBlockedBy() {
+    for (const leaf of mainDoor.leaves) {
+      const blocker = doorBlockedBy(leaf);
+      if (blocker) return blocker;
+    }
+    return null;
+  }
+
+  function applyDoorVisualRotation(d) {
+    d.hinge.rotation.y = d.angle;
+    if (!d.authoredPivot) return;
+    d.authoredPivot.rotation.y = (Number(d.authoredClosedAngleY) || 0) + d.angle;
+    d.authoredPivot.matrixWorldNeedsUpdate = true;
+    d.authoredPivot.updateMatrix?.();
+  }
+
+  function updateDoors(dt, now) {
+    doorClock = now;
+    const customers = getCustomers();
+    // A carton and its unpacked contents both occupy the player's hands. The
+    // stockroom put-away helper deliberately owns E while goods are carried,
+    // so service doors must recognise either load or the player can become
+    // trapped between receiving and the sales floor after unboxing.
+    const playerDeliveryLoad = walk.active
+      ? (carriedBox(state) || carriedGoods(state))
+      : null;
+    const snaps = [];
+    for (const c of customers) {
+      const p = c.mesh.position;
+      const prev = custMotion.get(c) || { x: p.x, z: p.z };
+      snaps.push({ x: p.x, z: p.z, vx: p.x - prev.x, vz: p.z - prev.z });
+      custMotion.set(c, { x: p.x, z: p.z });
+    }
+    for (const d of doors) {
+      const playerDist = walk.active ? Math.hypot(walk.x - d.world.x, walk.z - d.world.z) : 99;
+      const audible = walk.active && playerDist < 18;
+
+      // customers use doors themselves (bell on the entrance)
+      let custNear = false;
+      if (!d.isMainFollower) {
+        for (const s of snaps) {
+          const dx = d.world.x - s.x;
+          const dz = d.world.z - s.z;
+          const dist = Math.hypot(dx, dz);
+          const inDoorway = dist < 0.95; // mid-passage: hold it open, never close on them
+          const heading = dist < 1.5 && (s.vx * dx + s.vz * dz) > 0.0004;
+          if (inDoorway || heading) {
+            custNear = true;
+            if (!d.open) {
+              d.openFor(s.x, s.z);
+              if (audible && hooks.sfx) {
+                hooks.sfx('doorSwing');
+                if (d.isMain) hooks.sfx('doorbell');
+              }
+            }
+            break;
+          }
+        }
+        // Arms full: the service door swings for a carton or unpacked goods.
+        if (walk.active && playerDist < 1.6 && !d.open && playerDeliveryLoad) {
+          d.openFor(walk.x, walk.z);
+          if (audible && hooks.sfx) hooks.sfx('doorSwing');
+        }
+      }
+
+      // hold open while anyone lingers in it; close shortly after they clear — but never
+      // through someone. A shopper reading a label in the doorway keeps it open as long as
+      // they stand there.
+      if (!d.isMainFollower) {
+        const blocker = d.isMainPrimary ? mainDoorBlockedBy() : doorBlockedBy(d);
+        if (custNear || (d.open && playerDist < 2.0) || (d.open && blocker)) d.lastNear = now;
+        if (d.open && now - d.lastNear > 2.5) {
+          if (d.isMainPrimary) setMainAssemblyOpen(false);
+          else d.open = false;
+          if (audible && hooks.sfx) hooks.sfx('doorShut');
+        }
+      }
+
+      const target = d.mainLeaf
+        ? (d.desiredOpen ? d.fixedSwing : 0)
+        : (d.open ? d.swingTarget : 0);
+      const prev = d.angle;
+      d.angle += (target - d.angle) * Math.min(1, dt * 5.5);
+      if (Math.abs(d.angle - prev) > 0.0005) {
+        applyDoorVisualRotation(d);
+        updateDoorCollider(d);
+        // A full delivery box already triggers this door before contact and uses
+        // the live slab collider. The body-only radial correction would otherwise
+        // shove a long carried profile sideways into the opposite jamb.
+        if (walk.active && !playerDeliveryLoad && Math.abs(d.angle) > 0.05) {
+          const lp = W2L(walk.x, walk.z);
+          const dx = lp.x - d.lx;
+          const dz = lp.z - d.lz;
+          const dist = Math.hypot(dx, dz);
+          if (dist < d.slabW + 0.35 && dist > 0.001) {
+            const psi = hingeAngleOf(d, lp.x, lp.z);
+            const t = psi / (d.angle || 0.001);
+            if (t > -0.06 && t < 1.15) {
+              const push = (d.slabW + 0.38 - dist) * Math.min(1, dt * 10);
+              const wp1 = L2W(d.lx, d.lz);
+              const nx = (walk.x - wp1.x) / dist;
+              const nz = (walk.z - wp1.z) / dist;
+              walk.x += nx * push;
+              walk.z += nz * push;
+            }
+          }
+        }
+      }
+    }
+    const updatedControllers = new Set();
+    for (const door of doors) {
+      const controller = door.authoredController;
+      if (!controller || updatedControllers.has(controller)) continue;
+      updatedControllers.add(controller);
+      if (door.isMain) controller.setInactiveLeafOpen?.(mainDoorRight.desiredOpen);
+      const viewer = walk.active ? walk : camera?.position;
+      const distanceYards = viewer
+        ? Math.hypot(viewer.x - door.world.x, viewer.z - door.world.z)
+        : 0;
+      controller.update?.(dt, distanceYards / METERS_TO_YARDS);
+    }
+  }
+
+  function findNamed(root, name) {
+    if (!root) return null;
+    const direct = root.getObjectByName?.(name);
+    if (direct) return direct;
+    let found = null;
+    root.traverse?.((node) => {
+      if (!found && String(node?.name || '') === name) found = node;
+    });
+    return found;
+  }
+
+  function mainPivotsFor(root) {
+    const left = findNamed(root, 'PIVOT_Door_Left') || findNamed(root, 'PIVOT_DoorLeft');
+    const right = findNamed(root, 'PIVOT_Door_Right') || findNamed(root, 'PIVOT_DoorRight');
+    return left && right && left !== right ? { left, right } : null;
+  }
+
+  function unbindModernRoomDoorVisuals() {
+    const removedKeys = [];
+    for (const [key, door] of modernRoomDoors) {
+      if (door.authoredPivot) {
+        door.authoredPivot.rotation.y = Number(door.authoredClosedAngleY) || 0;
+        door.authoredPivot.matrixWorldNeedsUpdate = true;
+        door.authoredPivot.updateMatrix?.();
+        door.authoredPivot.userData.modernRoomDoorLiveController = false;
+      }
+      door.hinge.removeFromParent();
+      removeCol?.(door.collider);
+      if (door.interactionProp) removeProp?.(door.interactionProp);
+      const index = doors.indexOf(door);
+      if (index >= 0) doors.splice(index, 1);
+      removedKeys.push(key);
+    }
+    modernRoomDoors.clear();
+    modernRoomDoorRoot = null;
+    return Object.freeze({ removed: removedKeys.length, keys: Object.freeze(removedKeys) });
+  }
+
+  /**
+   * Give the modern shell's authored room leaves the same analytic collision,
+   * interaction, audio and occupancy authority as every other clubhouse door.
+   * Specs are expressed in established shop-local yards; the GLB remains only
+   * the presentation layer and contributes its closed-pose pivot transform.
+   */
+  function bindModernRoomDoorVisuals(root, specs = []) {
+    if (!root) return Object.freeze({ ok: false, reason: 'missing-root', bound: 0 });
+    if (!Array.isArray(specs) || specs.length === 0) {
+      return Object.freeze({ ok: false, reason: 'missing-specs', bound: 0 });
+    }
+    if (modernRoomDoorRoot === root && modernRoomDoors.size === specs.length) {
+      return Object.freeze({ ok: true, reused: true, bound: modernRoomDoors.size });
+    }
+    if (modernRoomDoors.size) unbindModernRoomDoorVisuals();
+
+    const missing = specs.filter((spec) => !findNamed(root, spec.pivotName));
+    if (missing.length) {
+      return Object.freeze({
+        ok: false,
+        reason: 'missing-room-pivots',
+        bound: 0,
+        missing: Object.freeze(missing.map((spec) => spec.pivotName)),
+      });
+    }
+
+    for (const spec of specs) {
+      const pivot = findNamed(root, spec.pivotName);
+      const door = makeDoor({
+        cx: spec.cx,
+        cz: spec.cz,
+        along: spec.along || 'z',
+        w: spec.width + 0.18,
+        h: spec.height + 0.16,
+        name: spec.name,
+        style: 'service',
+        fixedSwing: spec.fixedSwing,
+        closedSign: spec.closedSign,
+        hingeLx: spec.hingeLx,
+        hingeLz: spec.hingeLz,
+        slabWOverride: spec.width,
+        createProceduralVisual: false,
+      });
+      door.modernRoomKey = spec.key;
+      door.authoredPivot = pivot;
+      door.authoredClosedAngleY = pivot.rotation.y;
+      pivot.userData.modernRoomDoorLiveController = true;
+      pivot.userData.doorCollisionAuthority = 'ANALYTIC_SINGLE_LEAF';
+      applyDoorVisualRotation(door);
+      modernRoomDoors.set(spec.key, door);
+    }
+    modernRoomDoorRoot = root;
+    return Object.freeze({
+      ok: true,
+      reused: false,
+      bound: modernRoomDoors.size,
+      keys: Object.freeze([...modernRoomDoors.keys()]),
+    });
+  }
+
+  function activateMainBinding(root, pivots, controller = null) {
+    authoredMainEntranceRoot = root;
+    authoredMainEntrancePivots = pivots;
+    mainDoor.authoredPivot = pivots.left;
+    mainDoorRight.authoredPivot = pivots.right;
+    mainDoor.authoredController = controller;
+    mainDoorRight.authoredController = controller;
+    applyDoorVisualRotation(mainDoor);
+    applyDoorVisualRotation(mainDoorRight);
+    mainEntranceFallback.visible = false;
+  }
+
+  // Sheet 6 still asks to bind its legacy Asset 53 during atomic activation.
+  // Once the new Luxury assembly is live, accept that contract but keep the
+  // architectural family authoritative and the legacy visual hidden.
+  function bindMainEntranceVisual(root) {
+    if (!root) return Object.freeze({ ok: false, reason: 'missing-root' });
+    const pivots = mainPivotsFor(root);
+    if (!pivots) return Object.freeze({ ok: false, reason: 'missing-double-leaf-pivots' });
+    legacyMainEntranceRoot = root;
+    if (preferredMainEntranceRoot) {
+      root.visible = false;
+      root.userData.sheet06LiveDoorController = false;
+      root.userData.sheet06DoorCollisionAuthority = 'ANALYTIC_DOUBLE_LEAF';
+      return Object.freeze({ ok: true, leafCount: 2 });
+    }
+    root.visible = true;
+    activateMainBinding(root, pivots);
+    root.userData.sheet06LiveDoorController = true;
+    root.userData.sheet06DoorCollisionAuthority = 'ANALYTIC_DOUBLE_LEAF';
+    return Object.freeze({ ok: true, leafCount: 2 });
+  }
+
+  function applyArchitecturalMainDimensions(tier, fitScale) {
+    const spec = architecturalDoorSpec(tier);
+    if (!spec || spec.leafCount !== 2) return false;
+    const scaleYards = Math.max(0.001, fitScale) * METERS_TO_YARDS;
+    const halfOpening = spec.openingWidthM * scaleYards / 2;
+    mainDoor.lx = DOOR_MAIN.x - halfOpening;
+    mainDoorRight.lx = DOOR_MAIN.x + halfOpening;
+    mainDoor.lz = halfD;
+    mainDoorRight.lz = halfD;
+    mainDoor.slabW = spec.leafWidthM * scaleYards;
+    mainDoorRight.slabW = mainDoor.slabW;
+    mainDoor.collisionPad = spec.leafThicknessM * scaleYards / 2 + 0.025;
+    mainDoorRight.collisionPad = mainDoor.collisionPad;
+    mainDoor.fixedSwing = THREE.MathUtils.degToRad(spec.openDegrees);
+    mainDoorRight.fixedSwing = -mainDoor.fixedSwing;
+    mainDoor.swingTarget = mainDoor.fixedSwing;
+    mainDoorRight.swingTarget = mainDoorRight.fixedSwing;
+    updateDoorCollider(mainDoor);
+    updateDoorCollider(mainDoorRight);
+    return true;
+  }
+
+  function bindArchitecturalMainEntranceVisual(root, {
+    tier = 'luxury', fitScale = 1,
+  } = {}) {
+    if (!root) return Object.freeze({ ok: false, reason: 'missing-root' });
+    const pivots = mainPivotsFor(root);
+    const controller = root.userData?.controller || null;
+    if (!pivots) return Object.freeze({ ok: false, reason: 'missing-double-leaf-pivots' });
+    if (!controller) return Object.freeze({ ok: false, reason: 'missing-runtime-controller' });
+    if (!applyArchitecturalMainDimensions(tier, fitScale)) {
+      return Object.freeze({ ok: false, reason: 'invalid-double-door-tier' });
+    }
+    if (preferredMainEntranceRoot && preferredMainEntranceRoot !== root) {
+      preferredMainEntranceRoot.visible = false;
+    }
+    preferredMainEntranceRoot = root;
+    if (legacyMainEntranceRoot) {
+      legacyMainEntranceRoot.visible = false;
+      legacyMainEntranceRoot.userData.sheet06LiveDoorController = false;
+    }
+    root.visible = true;
+    activateMainBinding(root, pivots, controller);
+    root.userData.architecturalDoorLiveController = true;
+    root.userData.doorCollisionAuthority = 'ANALYTIC_DOUBLE_LEAF';
+    return Object.freeze({ ok: true, leafCount: 2, tier, fitScale });
+  }
+
+  function unbindMainEntranceVisual({ restoreFallback = true } = {}) {
+    if (preferredMainEntranceRoot) {
+      const wasBound = authoredMainEntranceRoot === legacyMainEntranceRoot;
+      if (legacyMainEntranceRoot?.userData) {
+        legacyMainEntranceRoot.userData.sheet06LiveDoorController = false;
+        legacyMainEntranceRoot.visible = false;
+      }
+      legacyMainEntranceRoot = null;
+      return Object.freeze({ wasBound, fallbackVisible: false, preferredPreserved: true });
+    }
+    const wasBound = Boolean(authoredMainEntranceRoot);
+    if (authoredMainEntranceRoot?.userData) {
+      authoredMainEntranceRoot.userData.sheet06LiveDoorController = false;
+    }
+    mainDoor.authoredPivot = null;
+    mainDoorRight.authoredPivot = null;
+    mainDoor.authoredController = null;
+    mainDoorRight.authoredController = null;
+    authoredMainEntranceRoot = null;
+    authoredMainEntrancePivots = null;
+    legacyMainEntranceRoot = null;
+    if (restoreFallback) mainEntranceFallback.visible = true;
+    return Object.freeze({ wasBound, fallbackVisible: mainEntranceFallback.visible });
+  }
+
+  function bindArchitecturalServiceDoorVisual(which, root, {
+    tier = 'basic', fitScale = 1,
+  } = {}) {
+    const entry = which === 'receiving'
+      ? { door: receivingDoor, fallback: receivingDoorFallback, cx: halfW, cz: DOOR_BACK.z }
+      : which === 'stockroom'
+        ? { door: stockroomDoor, fallback: stockDoorFallback, cx: DOOR_STOCK.x, cz: DOOR_STOCK.z }
+        : null;
+    const spec = architecturalDoorSpec(tier);
+    if (!entry) return Object.freeze({ ok: false, reason: 'unknown-service-door' });
+    if (!root) return Object.freeze({ ok: false, reason: 'missing-root' });
+    if (!spec || spec.leafCount !== 1) return Object.freeze({ ok: false, reason: 'invalid-single-door-tier' });
+    const pivot = findNamed(root, 'PIVOT_Door');
+    const controller = root.userData?.controller || null;
+    if (!pivot) return Object.freeze({ ok: false, reason: 'missing-door-pivot' });
+    if (!controller) return Object.freeze({ ok: false, reason: 'missing-runtime-controller' });
+
+    const previous = authoredServiceRoots[which];
+    if (previous && previous !== root) previous.visible = false;
+    authoredServiceRoots[which] = root;
+    const scaleYards = Math.max(0.001, fitScale) * METERS_TO_YARDS;
+    entry.door.slabW = spec.leafWidthM * scaleYards;
+    entry.door.collisionPad = spec.leafThicknessM * scaleYards / 2 + 0.025;
+    entry.door.closedSign = which === 'receiving' ? -1 : 1;
+    entry.door.fixedSwing = THREE.MathUtils.degToRad(spec.openDegrees)
+      * (which === 'receiving' ? -1 : 1);
+    entry.door.swingTarget = entry.door.fixedSwing;
+    if (entry.door.along === 'x') {
+      entry.door.lx = entry.cx - spec.leafWidthM * scaleYards / 2;
+      entry.door.lz = entry.cz;
+    } else {
+      entry.door.lx = entry.cx;
+      entry.door.lz = entry.cz + spec.leafWidthM * scaleYards / 2;
+    }
+    entry.door.authoredPivot = pivot;
+    entry.door.authoredController = controller;
+    entry.door.world = L2W(entry.cx, entry.cz);
+    applyDoorVisualRotation(entry.door);
+    updateDoorCollider(entry.door);
+    entry.fallback.visible = false;
+    root.visible = true;
+    root.userData.architecturalDoorLiveController = true;
+    root.userData.doorCollisionAuthority = 'ANALYTIC_SINGLE_LEAF';
+    return Object.freeze({ ok: true, which, tier, fitScale, leafCount: 1 });
+  }
+
+  function unbindArchitecturalServiceDoorVisual(which, { restoreFallback = true } = {}) {
+    const entry = which === 'receiving'
+      ? { door: receivingDoor, fallback: receivingDoorFallback }
+      : which === 'stockroom'
+        ? { door: stockroomDoor, fallback: stockDoorFallback }
+        : null;
+    if (!entry) return Object.freeze({ ok: false, reason: 'unknown-service-door' });
+    const root = authoredServiceRoots[which];
+    if (root?.userData) root.userData.architecturalDoorLiveController = false;
+    if (root) root.visible = false;
+    authoredServiceRoots[which] = null;
+    entry.door.authoredPivot = null;
+    entry.door.authoredController = null;
+    Object.assign(entry.door, entry.door.proceduralGeometry);
+    entry.door.swingTarget = entry.door.fixedSwing;
+    applyDoorVisualRotation(entry.door);
+    updateDoorCollider(entry.door);
+    if (restoreFallback) entry.fallback.visible = true;
+    return Object.freeze({ ok: true, wasBound: Boolean(root), fallbackVisible: entry.fallback.visible });
+  }
+
+  function syncMainEntranceFromState() {
+    const persisted = ensureClubhouseArchitecture(state)?.doors?.main;
+    if (!persisted) return Object.freeze({ ok: false });
+    mainDoor.desiredOpen = persisted.left === 'open';
+    mainDoorRight.desiredOpen = persisted.right === 'open';
+    mainDoor.open = mainDoor.desiredOpen || mainDoorRight.desiredOpen;
+    mainDoorRight.open = mainDoor.open;
+    return Object.freeze({
+      ok: true,
+      left: mainDoor.desiredOpen ? 'open' : 'closed',
+      right: mainDoorRight.desiredOpen ? 'open' : 'closed',
+    });
+  }
+
+  function mainEntranceDiagnostics() {
+    return Object.freeze({
+      authoredBound: Boolean(authoredMainEntranceRoot),
+      preferredArchitecturalBound: Boolean(preferredMainEntranceRoot),
+      legacyAsset53Bound: Boolean(legacyMainEntranceRoot),
+      authoredPivotCount: authoredMainEntrancePivots ? 2 : 0,
+      proceduralFallbackVisible: mainEntranceFallback.visible,
+      leafCount: mainDoor.leaves.length,
+      colliderCount: mainDoor.leaves.filter((leaf) => leaf.collider).length,
+      leftAngle: mainDoor.angle,
+      rightAngle: mainDoorRight.angle,
+      leftState: mainDoor.desiredOpen ? 'open' : 'closed',
+      rightState: mainDoorRight.desiredOpen ? 'open' : 'closed',
+    });
+  }
+
+  function serviceDoorDiagnostics() {
+    return Object.freeze({
+      stockroom: Object.freeze({
+        authoredBound: Boolean(authoredServiceRoots.stockroom),
+        tier: authoredServiceRoots.stockroom?.userData?.architecturalDoorTier || null,
+        proceduralFallbackVisible: stockDoorFallback.visible,
+        angle: stockroomDoor.angle,
+      }),
+      receiving: Object.freeze({
+        authoredBound: Boolean(authoredServiceRoots.receiving),
+        tier: authoredServiceRoots.receiving?.userData?.architecturalDoorTier || null,
+        proceduralFallbackVisible: receivingDoorFallback.visible,
+        angle: receivingDoor.angle,
+      }),
+    });
+  }
+
+  function modernRoomDoorDiagnostics() {
+    return Object.freeze({
+      authoredBound: Boolean(modernRoomDoorRoot),
+      count: modernRoomDoors.size,
+      doors: Object.freeze([...modernRoomDoors.entries()].map(([key, door]) => Object.freeze({
+        key,
+        name: door.name,
+        angle: door.angle,
+        open: door.open,
+        pivot: door.authoredPivot?.name || null,
+      }))),
+    });
+  }
+
+  return {
+    doors,
+    mainDoor,
+    mainEntranceFallback,
+    stockDoorFallback,
+    receivingDoorFallback,
+    updateDoors,
+    bindMainEntranceVisual,
+    bindArchitecturalMainEntranceVisual,
+    bindArchitecturalServiceDoorVisual,
+    bindModernRoomDoorVisuals,
+    unbindArchitecturalServiceDoorVisual,
+    unbindModernRoomDoorVisuals,
+    unbindMainEntranceVisual,
+    syncMainEntranceFromState,
+    mainEntranceDiagnostics,
+    serviceDoorDiagnostics,
+    modernRoomDoorDiagnostics,
+    setMainLeafOpen,
+    setMainAssemblyOpen,
+  };
+}

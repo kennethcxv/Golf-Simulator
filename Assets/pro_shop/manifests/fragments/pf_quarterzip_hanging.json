@@ -1,0 +1,37 @@
+{
+ "id": "pf_quarterzip_hanging",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.5385,
+  0.1313,
+  0.635
+ ],
+ "min_z": -0.685,
+ "tris": 2352,
+ "textures": [
+  "Logo_pf_quarterzip_hanging:128x128",
+  "M_QZSageV2_alb:512x512",
+  "NRM_crinkle_0.12_512:512x512",
+  "NRM_knit_0.45_512:512x512",
+  "NRM_rib_1.8_512:512x512",
+  "NRM_rib_2.0_512:512x512",
+  "PSSatinAlb:256x256",
+  "QZRibAlb:256x256",
+  "RGH_knit_0.72:256x256",
+  "ZipTeeth_pf_quarterzip_hanging_front:64x64"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_quarterzip_hanging.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_quarterzip_hanging.blend",
+ "name": "Pf Quarterzip Hanging",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

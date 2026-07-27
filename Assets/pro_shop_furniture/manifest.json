@@ -1,0 +1,2614 @@
+{
+  "benches:basic": {
+    "category": "benches",
+    "label": "Clubhouse Bench",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.419,
+      0.8648,
+      0.5456
+    ],
+    "meshCount": 3,
+    "glb": "vendor/models/pro_shop_furniture/benches/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/benches/basic.png",
+    "source": "Assets/pro_shop_furniture/source/benches.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "benches:executive": {
+    "category": "benches",
+    "label": "Clubhouse Bench",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.376,
+      1.012,
+      0.806
+    ],
+    "meshCount": 20,
+    "glb": "vendor/models/pro_shop_furniture/benches/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/benches/executive.png",
+    "source": "Assets/pro_shop_furniture/source/benches.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "benches:luxury": {
+    "category": "benches",
+    "label": "Clubhouse Bench",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      2.112,
+      0.9844,
+      0.744
+    ],
+    "meshCount": 16,
+    "glb": "vendor/models/pro_shop_furniture/benches/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/benches/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/benches.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "benches:premium": {
+    "category": "benches",
+    "label": "Clubhouse Bench",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.881,
+      0.9522,
+      0.682
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/benches/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/benches/premium.png",
+    "source": "Assets/pro_shop_furniture/source/benches.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "benches:standard": {
+    "category": "benches",
+    "label": "Clubhouse Bench",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.65,
+      0.92,
+      0.62
+    ],
+    "meshCount": 4,
+    "glb": "vendor/models/pro_shop_furniture/benches/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/benches/standard.png",
+    "source": "Assets/pro_shop_furniture/source/benches.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "chairs:basic": {
+    "category": "chairs",
+    "label": "Chair",
+    "assetName": "Chair_Basic",
+    "referenceTier": "Basic",
+    "tier": "basic",
+    "runtimeModelFile": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "chairKind": "office",
+    "dimensionsM": [
+      0.63,
+      1.04,
+      0.68
+    ],
+    "seatHeightM": 0.485,
+    "meshCount": 48,
+    "triangleCount": 10888,
+    "lodTriangleCounts": {
+      "LOD0": 10888,
+      "LOD1": 5960,
+      "LOD2": 2156
+    },
+    "glb": "vendor/models/pro_shop_furniture/chairs/basic.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/chairs/chair_basic.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/chairs/chair_basic.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/chairs/chair_basic_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/chairs/chair_basic_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/chairs/chair_basic_preview.png",
+    "seatedPreview": "Assets/pro_shop_furniture/previews/chairs/chair_basic_seated_test.png",
+    "previews": {
+      "main": "Assets/pro_shop_furniture/previews/chairs/chair_basic_preview.png",
+      "front": "Assets/pro_shop_furniture/previews/chairs/chair_basic_front.png",
+      "minimumHeight": "Assets/pro_shop_furniture/previews/chairs/chair_basic_minimum_height.png",
+      "maximumHeight": "Assets/pro_shop_furniture/previews/chairs/chair_basic_maximum_height.png",
+      "seatedTest": "Assets/pro_shop_furniture/previews/chairs/chair_basic_seated_test.png"
+    },
+    "source": "Assets/pro_shop_furniture/source/chairs/chair_basic.blend",
+    "animationClips": [
+      "Swivel_Left",
+      "Swivel_Right",
+      "Swivel_360_Test",
+      "Height_Raise",
+      "Height_Lower"
+    ],
+    "interactionNodes": [
+      "DESK_ALIGNMENT_ANCHOR",
+      "ENTRY_POINT_LEFT",
+      "ENTRY_POINT_RIGHT",
+      "EXIT_POINT_LEFT",
+      "EXIT_POINT_RIGHT",
+      "FOOT_ANCHOR_LEFT",
+      "FOOT_ANCHOR_RIGHT",
+      "FRONT_DIRECTION",
+      "HAND_ANCHOR_LEFT",
+      "HAND_ANCHOR_RIGHT",
+      "INTERACTION_POINT",
+      "INTERACT_HeightLever",
+      "PLACEMENT_FOOTPRINT",
+      "SEAT_ANCHOR",
+      "SIT_INTERACTION_POINT",
+      "SOCKET_DeskAlignment",
+      "SOCKET_PLACEMENT",
+      "SOCKET_Seat",
+      "SWIVEL_CENTER",
+      "WALL_CLEARANCE_BACK"
+    ],
+    "collisionMeshes": 5,
+    "authoredLodDistancesM": [
+      0,
+      6,
+      14
+    ],
+    "validationReport": "qa/chairs/blender/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "chairs:executive": {
+    "category": "chairs",
+    "label": "Chair",
+    "assetName": "Chair_Luxury",
+    "referenceTier": "Luxury",
+    "tier": "executive",
+    "runtimeModelFile": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 5,
+    "chairKind": "lounge",
+    "dimensionsM": [
+      1.2,
+      0.97,
+      1.08
+    ],
+    "seatHeightM": 0.45,
+    "meshCount": 31,
+    "triangleCount": 21152,
+    "lodTriangleCounts": {
+      "LOD0": 21152,
+      "LOD1": 7100,
+      "LOD2": 4544
+    },
+    "glb": "vendor/models/pro_shop_furniture/chairs/luxury.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/chairs/chair_luxury.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/chairs/chair_luxury.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/chairs/chair_luxury_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/chairs/chair_luxury_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/chairs/chair_luxury_preview.png",
+    "seatedPreview": "Assets/pro_shop_furniture/previews/chairs/chair_luxury_seated_test.png",
+    "previews": {
+      "main": "Assets/pro_shop_furniture/previews/chairs/chair_luxury_preview.png",
+      "front": "Assets/pro_shop_furniture/previews/chairs/chair_luxury_front.png",
+      "tuftingCloseup": "Assets/pro_shop_furniture/previews/chairs/chair_luxury_tufting_closeup.png",
+      "seatedTest": "Assets/pro_shop_furniture/previews/chairs/chair_luxury_seated_test.png"
+    },
+    "source": "Assets/pro_shop_furniture/source/chairs/chair_luxury.blend",
+    "animationClips": [],
+    "interactionNodes": [
+      "ENTRY_POINT_LEFT",
+      "ENTRY_POINT_RIGHT",
+      "EXIT_POINT_LEFT",
+      "EXIT_POINT_RIGHT",
+      "FOOT_ANCHOR_LEFT",
+      "FOOT_ANCHOR_RIGHT",
+      "FRONT_DIRECTION",
+      "HAND_ANCHOR_LEFT",
+      "HAND_ANCHOR_RIGHT",
+      "INTERACTION_POINT",
+      "PLACEMENT_FOOTPRINT",
+      "SEAT_ANCHOR",
+      "SIT_INTERACTION_POINT",
+      "SOCKET_PLACEMENT",
+      "SOCKET_Seat",
+      "WALL_CLEARANCE_BACK"
+    ],
+    "collisionMeshes": 4,
+    "authoredLodDistancesM": [
+      0,
+      6,
+      14
+    ],
+    "validationReport": "qa/chairs/blender/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "chairs:luxury": {
+    "category": "chairs",
+    "label": "Chair",
+    "assetName": "Chair_HighEnd",
+    "referenceTier": "High-End",
+    "tier": "luxury",
+    "runtimeModelFile": "high-end",
+    "tierLabel": "High-End",
+    "tierLevel": 4,
+    "chairKind": "lounge",
+    "dimensionsM": [
+      1.05,
+      0.92,
+      0.99
+    ],
+    "seatHeightM": 0.445,
+    "meshCount": 31,
+    "triangleCount": 17388,
+    "lodTriangleCounts": {
+      "LOD0": 17388,
+      "LOD1": 6712,
+      "LOD2": 4712
+    },
+    "glb": "vendor/models/pro_shop_furniture/chairs/high-end.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/chairs/chair_high_end.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/chairs/chair_high_end.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/chairs/chair_high_end_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/chairs/chair_high_end_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/chairs/chair_high_end_preview.png",
+    "seatedPreview": "Assets/pro_shop_furniture/previews/chairs/chair_high_end_seated_test.png",
+    "previews": {
+      "main": "Assets/pro_shop_furniture/previews/chairs/chair_high_end_preview.png",
+      "front": "Assets/pro_shop_furniture/previews/chairs/chair_high_end_front.png",
+      "tuftingCloseup": "Assets/pro_shop_furniture/previews/chairs/chair_high_end_tufting_closeup.png",
+      "seatedTest": "Assets/pro_shop_furniture/previews/chairs/chair_high_end_seated_test.png"
+    },
+    "source": "Assets/pro_shop_furniture/source/chairs/chair_high_end.blend",
+    "animationClips": [],
+    "interactionNodes": [
+      "ENTRY_POINT_LEFT",
+      "ENTRY_POINT_RIGHT",
+      "EXIT_POINT_LEFT",
+      "EXIT_POINT_RIGHT",
+      "FOOT_ANCHOR_LEFT",
+      "FOOT_ANCHOR_RIGHT",
+      "FRONT_DIRECTION",
+      "HAND_ANCHOR_LEFT",
+      "HAND_ANCHOR_RIGHT",
+      "INTERACTION_POINT",
+      "PLACEMENT_FOOTPRINT",
+      "SEAT_ANCHOR",
+      "SIT_INTERACTION_POINT",
+      "SOCKET_PLACEMENT",
+      "SOCKET_Seat",
+      "WALL_CLEARANCE_BACK"
+    ],
+    "collisionMeshes": 4,
+    "authoredLodDistancesM": [
+      0,
+      6,
+      14
+    ],
+    "validationReport": "qa/chairs/blender/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "chairs:premium": {
+    "category": "chairs",
+    "label": "Chair",
+    "assetName": "Chair_Premium",
+    "referenceTier": "Premium",
+    "tier": "premium",
+    "runtimeModelFile": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "chairKind": "office",
+    "dimensionsM": [
+      0.78,
+      1.19,
+      0.82
+    ],
+    "seatHeightM": 0.505,
+    "meshCount": 57,
+    "triangleCount": 16260,
+    "lodTriangleCounts": {
+      "LOD0": 16260,
+      "LOD1": 6072,
+      "LOD2": 2268
+    },
+    "glb": "vendor/models/pro_shop_furniture/chairs/premium.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/chairs/chair_premium.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/chairs/chair_premium.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/chairs/chair_premium_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/chairs/chair_premium_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/chairs/chair_premium_preview.png",
+    "seatedPreview": "Assets/pro_shop_furniture/previews/chairs/chair_premium_seated_test.png",
+    "previews": {
+      "main": "Assets/pro_shop_furniture/previews/chairs/chair_premium_preview.png",
+      "front": "Assets/pro_shop_furniture/previews/chairs/chair_premium_front.png",
+      "minimumHeight": "Assets/pro_shop_furniture/previews/chairs/chair_premium_minimum_height.png",
+      "maximumHeight": "Assets/pro_shop_furniture/previews/chairs/chair_premium_maximum_height.png",
+      "reclined": "Assets/pro_shop_furniture/previews/chairs/chair_premium_reclined.png",
+      "seatedTest": "Assets/pro_shop_furniture/previews/chairs/chair_premium_seated_test.png"
+    },
+    "source": "Assets/pro_shop_furniture/source/chairs/chair_premium.blend",
+    "animationClips": [
+      "Swivel_Left",
+      "Swivel_Right",
+      "Swivel_360_Test",
+      "Height_Raise",
+      "Height_Lower",
+      "Recline_Back",
+      "Recline_Return"
+    ],
+    "interactionNodes": [
+      "DESK_ALIGNMENT_ANCHOR",
+      "ENTRY_POINT_LEFT",
+      "ENTRY_POINT_RIGHT",
+      "EXIT_POINT_LEFT",
+      "EXIT_POINT_RIGHT",
+      "FOOT_ANCHOR_LEFT",
+      "FOOT_ANCHOR_RIGHT",
+      "FRONT_DIRECTION",
+      "HAND_ANCHOR_LEFT",
+      "HAND_ANCHOR_RIGHT",
+      "INTERACTION_POINT",
+      "INTERACT_HeightLever",
+      "INTERACT_ReclineControl",
+      "PLACEMENT_FOOTPRINT",
+      "SEAT_ANCHOR",
+      "SIT_INTERACTION_POINT",
+      "SOCKET_DeskAlignment",
+      "SOCKET_PLACEMENT",
+      "SOCKET_Seat",
+      "SWIVEL_CENTER",
+      "WALL_CLEARANCE_BACK"
+    ],
+    "collisionMeshes": 5,
+    "authoredLodDistancesM": [
+      0,
+      6,
+      14
+    ],
+    "validationReport": "qa/chairs/blender/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "chairs:standard": {
+    "category": "chairs",
+    "label": "Chair",
+    "assetName": "Chair_Standard",
+    "referenceTier": "Standard",
+    "tier": "standard",
+    "runtimeModelFile": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "chairKind": "office",
+    "dimensionsM": [
+      0.68,
+      1.12,
+      0.73
+    ],
+    "seatHeightM": 0.495,
+    "meshCount": 49,
+    "triangleCount": 14120,
+    "lodTriangleCounts": {
+      "LOD0": 14120,
+      "LOD1": 5960,
+      "LOD2": 2156
+    },
+    "glb": "vendor/models/pro_shop_furniture/chairs/standard.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/chairs/chair_standard.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/chairs/chair_standard.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/chairs/chair_standard_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/chairs/chair_standard_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/chairs/chair_standard_preview.png",
+    "seatedPreview": "Assets/pro_shop_furniture/previews/chairs/chair_standard_seated_test.png",
+    "previews": {
+      "main": "Assets/pro_shop_furniture/previews/chairs/chair_standard_preview.png",
+      "front": "Assets/pro_shop_furniture/previews/chairs/chair_standard_front.png",
+      "minimumHeight": "Assets/pro_shop_furniture/previews/chairs/chair_standard_minimum_height.png",
+      "maximumHeight": "Assets/pro_shop_furniture/previews/chairs/chair_standard_maximum_height.png",
+      "reclined": "Assets/pro_shop_furniture/previews/chairs/chair_standard_reclined.png",
+      "seatedTest": "Assets/pro_shop_furniture/previews/chairs/chair_standard_seated_test.png"
+    },
+    "source": "Assets/pro_shop_furniture/source/chairs/chair_standard.blend",
+    "animationClips": [
+      "Swivel_Left",
+      "Swivel_Right",
+      "Swivel_360_Test",
+      "Height_Raise",
+      "Height_Lower",
+      "Recline_Back",
+      "Recline_Return"
+    ],
+    "interactionNodes": [
+      "DESK_ALIGNMENT_ANCHOR",
+      "ENTRY_POINT_LEFT",
+      "ENTRY_POINT_RIGHT",
+      "EXIT_POINT_LEFT",
+      "EXIT_POINT_RIGHT",
+      "FOOT_ANCHOR_LEFT",
+      "FOOT_ANCHOR_RIGHT",
+      "FRONT_DIRECTION",
+      "HAND_ANCHOR_LEFT",
+      "HAND_ANCHOR_RIGHT",
+      "INTERACTION_POINT",
+      "INTERACT_HeightLever",
+      "INTERACT_ReclineControl",
+      "PLACEMENT_FOOTPRINT",
+      "SEAT_ANCHOR",
+      "SIT_INTERACTION_POINT",
+      "SOCKET_DeskAlignment",
+      "SOCKET_PLACEMENT",
+      "SOCKET_Seat",
+      "SWIVEL_CENTER",
+      "WALL_CLEARANCE_BACK"
+    ],
+    "collisionMeshes": 5,
+    "authoredLodDistancesM": [
+      0,
+      6,
+      14
+    ],
+    "validationReport": "qa/chairs/blender/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-counters:basic": {
+    "category": "checkout-counters",
+    "label": "Checkout Counter",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      2.064,
+      0.94,
+      0.7216
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/checkout-counters/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-counters/basic.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-counters.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-counters:executive": {
+    "category": "checkout-counters",
+    "label": "Checkout Counter",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      3.456,
+      1.1,
+      1.066
+    ],
+    "meshCount": 42,
+    "glb": "vendor/models/pro_shop_furniture/checkout-counters/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-counters/executive.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-counters.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-counters:luxury": {
+    "category": "checkout-counters",
+    "label": "Checkout Counter",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      3.072,
+      1.07,
+      0.984
+    ],
+    "meshCount": 28,
+    "glb": "vendor/models/pro_shop_furniture/checkout-counters/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-counters/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-counters.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-counters:premium": {
+    "category": "checkout-counters",
+    "label": "Checkout Counter",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      2.736,
+      1.035,
+      0.902
+    ],
+    "meshCount": 20,
+    "glb": "vendor/models/pro_shop_furniture/checkout-counters/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-counters/premium.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-counters.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-counters:standard": {
+    "category": "checkout-counters",
+    "label": "Checkout Counter",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      2.4,
+      1.0,
+      0.82
+    ],
+    "meshCount": 13,
+    "glb": "vendor/models/pro_shop_furniture/checkout-counters/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-counters/standard.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-counters.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-islands:basic": {
+    "category": "checkout-islands",
+    "label": "Checkout Island",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.763,
+      0.94,
+      0.9856
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/checkout-islands/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-islands/basic.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-islands:executive": {
+    "category": "checkout-islands",
+    "label": "Checkout Island",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.952,
+      1.1,
+      1.456
+    ],
+    "meshCount": 34,
+    "glb": "vendor/models/pro_shop_furniture/checkout-islands/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-islands/executive.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-islands:luxury": {
+    "category": "checkout-islands",
+    "label": "Checkout Island",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      2.624,
+      1.07,
+      1.344
+    ],
+    "meshCount": 27,
+    "glb": "vendor/models/pro_shop_furniture/checkout-islands/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-islands/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-islands:premium": {
+    "category": "checkout-islands",
+    "label": "Checkout Island",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      2.337,
+      1.035,
+      1.232
+    ],
+    "meshCount": 17,
+    "glb": "vendor/models/pro_shop_furniture/checkout-islands/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-islands/premium.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "checkout-islands:standard": {
+    "category": "checkout-islands",
+    "label": "Checkout Island",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      2.05,
+      1.0,
+      1.12
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/checkout-islands/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/checkout-islands/standard.png",
+    "source": "Assets/pro_shop_furniture/source/checkout-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "coffee-tables:basic": {
+    "category": "coffee-tables",
+    "label": "Coffee Table",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      0.989,
+      0.4418,
+      0.5984
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/coffee-tables/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/coffee-tables/basic.png",
+    "source": "Assets/pro_shop_furniture/source/coffee-tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "coffee-tables:executive": {
+    "category": "coffee-tables",
+    "label": "Coffee Table",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.656,
+      0.517,
+      0.884
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/coffee-tables/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/coffee-tables/executive.png",
+    "source": "Assets/pro_shop_furniture/source/coffee-tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "coffee-tables:luxury": {
+    "category": "coffee-tables",
+    "label": "Coffee Table",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.472,
+      0.5029,
+      0.816
+    ],
+    "meshCount": 18,
+    "glb": "vendor/models/pro_shop_furniture/coffee-tables/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/coffee-tables/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/coffee-tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "coffee-tables:premium": {
+    "category": "coffee-tables",
+    "label": "Coffee Table",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.311,
+      0.4864,
+      0.748
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/coffee-tables/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/coffee-tables/premium.png",
+    "source": "Assets/pro_shop_furniture/source/coffee-tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "coffee-tables:standard": {
+    "category": "coffee-tables",
+    "label": "Coffee Table",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.15,
+      0.47,
+      0.68
+    ],
+    "meshCount": 6,
+    "glb": "vendor/models/pro_shop_furniture/coffee-tables/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/coffee-tables/standard.png",
+    "source": "Assets/pro_shop_furniture/source/coffee-tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "display-islands:basic": {
+    "category": "display-islands",
+    "label": "Display Island",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.505,
+      1.2408,
+      1.0384
+    ],
+    "meshCount": 4,
+    "glb": "vendor/models/pro_shop_furniture/display-islands/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/display-islands/basic.png",
+    "source": "Assets/pro_shop_furniture/source/display-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "display-islands:executive": {
+    "category": "display-islands",
+    "label": "Display Island",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.52,
+      1.452,
+      1.534
+    ],
+    "meshCount": 20,
+    "glb": "vendor/models/pro_shop_furniture/display-islands/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/display-islands/executive.png",
+    "source": "Assets/pro_shop_furniture/source/display-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "display-islands:luxury": {
+    "category": "display-islands",
+    "label": "Display Island",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      2.24,
+      1.4124,
+      1.416
+    ],
+    "meshCount": 13,
+    "glb": "vendor/models/pro_shop_furniture/display-islands/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/display-islands/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/display-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "display-islands:premium": {
+    "category": "display-islands",
+    "label": "Display Island",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.995,
+      1.3662,
+      1.298
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/display-islands/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/display-islands/premium.png",
+    "source": "Assets/pro_shop_furniture/source/display-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "display-islands:standard": {
+    "category": "display-islands",
+    "label": "Display Island",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.75,
+      1.32,
+      1.18
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/display-islands/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/display-islands/standard.png",
+    "source": "Assets/pro_shop_furniture/source/display-islands.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "fitting-rooms:basic": {
+    "category": "fitting-rooms",
+    "label": "Fitting Room",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.247,
+      2.162,
+      1.276
+    ],
+    "meshCount": 13,
+    "glb": "vendor/models/pro_shop_furniture/fitting-rooms/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/fitting-rooms/basic.png",
+    "source": "Assets/pro_shop_furniture/source/fitting-rooms.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "fitting-rooms:executive": {
+    "category": "fitting-rooms",
+    "label": "Fitting Room",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.088,
+      2.53,
+      1.885
+    ],
+    "meshCount": 32,
+    "glb": "vendor/models/pro_shop_furniture/fitting-rooms/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/fitting-rooms/executive.png",
+    "source": "Assets/pro_shop_furniture/source/fitting-rooms.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "fitting-rooms:luxury": {
+    "category": "fitting-rooms",
+    "label": "Fitting Room",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.856,
+      2.461,
+      1.74
+    ],
+    "meshCount": 26,
+    "glb": "vendor/models/pro_shop_furniture/fitting-rooms/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/fitting-rooms/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/fitting-rooms.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "fitting-rooms:premium": {
+    "category": "fitting-rooms",
+    "label": "Fitting Room",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.653,
+      2.3805,
+      1.595
+    ],
+    "meshCount": 19,
+    "glb": "vendor/models/pro_shop_furniture/fitting-rooms/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/fitting-rooms/premium.png",
+    "source": "Assets/pro_shop_furniture/source/fitting-rooms.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "fitting-rooms:standard": {
+    "category": "fitting-rooms",
+    "label": "Fitting Room",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.45,
+      2.3,
+      1.45
+    ],
+    "meshCount": 15,
+    "glb": "vendor/models/pro_shop_furniture/fitting-rooms/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/fitting-rooms/standard.png",
+    "source": "Assets/pro_shop_furniture/source/fitting-rooms.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "freestanding-shelving:basic": {
+    "category": "freestanding-shelving",
+    "label": "Freestanding Shelving",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.333,
+      1.8988,
+      0.5104
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/freestanding-shelving/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/freestanding-shelving/basic.png",
+    "source": "Assets/pro_shop_furniture/source/freestanding-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "freestanding-shelving:executive": {
+    "category": "freestanding-shelving",
+    "label": "Freestanding Shelving",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.232,
+      2.222,
+      0.754
+    ],
+    "meshCount": 26,
+    "glb": "vendor/models/pro_shop_furniture/freestanding-shelving/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/freestanding-shelving/executive.png",
+    "source": "Assets/pro_shop_furniture/source/freestanding-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "freestanding-shelving:luxury": {
+    "category": "freestanding-shelving",
+    "label": "Freestanding Shelving",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.984,
+      2.1614,
+      0.696
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/freestanding-shelving/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/freestanding-shelving/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/freestanding-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "freestanding-shelving:premium": {
+    "category": "freestanding-shelving",
+    "label": "Freestanding Shelving",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.767,
+      2.0907,
+      0.638
+    ],
+    "meshCount": 13,
+    "glb": "vendor/models/pro_shop_furniture/freestanding-shelving/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/freestanding-shelving/premium.png",
+    "source": "Assets/pro_shop_furniture/source/freestanding-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "freestanding-shelving:standard": {
+    "category": "freestanding-shelving",
+    "label": "Freestanding Shelving",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.55,
+      2.02,
+      0.58
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/freestanding-shelving/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/freestanding-shelving/standard.png",
+    "source": "Assets/pro_shop_furniture/source/freestanding-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "glass-showcases:basic": {
+    "category": "glass-showcases",
+    "label": "Glass Showcase",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.2728,
+      1.8048,
+      0.4928
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/glass-showcases/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/glass-showcases/basic.png",
+    "source": "Assets/pro_shop_furniture/source/glass-showcases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "glass-showcases:executive": {
+    "category": "glass-showcases",
+    "label": "Glass Showcase",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.1312,
+      2.112,
+      0.728
+    ],
+    "meshCount": 29,
+    "glb": "vendor/models/pro_shop_furniture/glass-showcases/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/glass-showcases/executive.png",
+    "source": "Assets/pro_shop_furniture/source/glass-showcases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "glass-showcases:luxury": {
+    "category": "glass-showcases",
+    "label": "Glass Showcase",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.8944,
+      2.0544,
+      0.672
+    ],
+    "meshCount": 15,
+    "glb": "vendor/models/pro_shop_furniture/glass-showcases/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/glass-showcases/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/glass-showcases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "glass-showcases:premium": {
+    "category": "glass-showcases",
+    "label": "Glass Showcase",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.6872,
+      1.9872,
+      0.616
+    ],
+    "meshCount": 12,
+    "glb": "vendor/models/pro_shop_furniture/glass-showcases/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/glass-showcases/premium.png",
+    "source": "Assets/pro_shop_furniture/source/glass-showcases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "glass-showcases:standard": {
+    "category": "glass-showcases",
+    "label": "Glass Showcase",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.48,
+      1.92,
+      0.56
+    ],
+    "meshCount": 10,
+    "glb": "vendor/models/pro_shop_furniture/glass-showcases/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/glass-showcases/standard.png",
+    "source": "Assets/pro_shop_furniture/source/glass-showcases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "golf-bag-displays:basic": {
+    "category": "golf-bag-displays",
+    "label": "Golf Bag Display",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.247,
+      1.3912,
+      0.6864
+    ],
+    "meshCount": 11,
+    "glb": "vendor/models/pro_shop_furniture/golf-bag-displays/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/golf-bag-displays/basic.png",
+    "source": "Assets/pro_shop_furniture/source/golf-bag-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "golf-bag-displays:executive": {
+    "category": "golf-bag-displays",
+    "label": "Golf Bag Display",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.088,
+      1.628,
+      1.014
+    ],
+    "meshCount": 36,
+    "glb": "vendor/models/pro_shop_furniture/golf-bag-displays/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/golf-bag-displays/executive.png",
+    "source": "Assets/pro_shop_furniture/source/golf-bag-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "golf-bag-displays:luxury": {
+    "category": "golf-bag-displays",
+    "label": "Golf Bag Display",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.856,
+      1.5836,
+      0.936
+    ],
+    "meshCount": 23,
+    "glb": "vendor/models/pro_shop_furniture/golf-bag-displays/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/golf-bag-displays/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/golf-bag-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "golf-bag-displays:premium": {
+    "category": "golf-bag-displays",
+    "label": "Golf Bag Display",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.653,
+      1.5318,
+      0.858
+    ],
+    "meshCount": 19,
+    "glb": "vendor/models/pro_shop_furniture/golf-bag-displays/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/golf-bag-displays/premium.png",
+    "source": "Assets/pro_shop_furniture/source/golf-bag-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "golf-bag-displays:standard": {
+    "category": "golf-bag-displays",
+    "label": "Golf Bag Display",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.45,
+      1.48,
+      0.78
+    ],
+    "meshCount": 14,
+    "glb": "vendor/models/pro_shop_furniture/golf-bag-displays/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/golf-bag-displays/standard.png",
+    "source": "Assets/pro_shop_furniture/source/golf-bag-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "hat-displays:basic": {
+    "category": "hat-displays",
+    "label": "Hat Display",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.032,
+      1.7672,
+      0.5104
+    ],
+    "meshCount": 14,
+    "glb": "vendor/models/pro_shop_furniture/hat-displays/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/hat-displays/basic.png",
+    "source": "Assets/pro_shop_furniture/source/hat-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "hat-displays:executive": {
+    "category": "hat-displays",
+    "label": "Hat Display",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.728,
+      2.068,
+      0.754
+    ],
+    "meshCount": 39,
+    "glb": "vendor/models/pro_shop_furniture/hat-displays/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/hat-displays/executive.png",
+    "source": "Assets/pro_shop_furniture/source/hat-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "hat-displays:luxury": {
+    "category": "hat-displays",
+    "label": "Hat Display",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.536,
+      2.0116,
+      0.696
+    ],
+    "meshCount": 31,
+    "glb": "vendor/models/pro_shop_furniture/hat-displays/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/hat-displays/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/hat-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "hat-displays:premium": {
+    "category": "hat-displays",
+    "label": "Hat Display",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.368,
+      1.9458,
+      0.638
+    ],
+    "meshCount": 24,
+    "glb": "vendor/models/pro_shop_furniture/hat-displays/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/hat-displays/premium.png",
+    "source": "Assets/pro_shop_furniture/source/hat-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "hat-displays:standard": {
+    "category": "hat-displays",
+    "label": "Hat Display",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.2,
+      1.88,
+      0.58
+    ],
+    "meshCount": 18,
+    "glb": "vendor/models/pro_shop_furniture/hat-displays/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/hat-displays/standard.png",
+    "source": "Assets/pro_shop_furniture/source/hat-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "jewelry-cases:basic": {
+    "category": "jewelry-cases",
+    "label": "Jewelry Case",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.161,
+      0.9588,
+      0.5456
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/jewelry-cases/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/jewelry-cases/basic.png",
+    "source": "Assets/pro_shop_furniture/source/jewelry-cases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "jewelry-cases:executive": {
+    "category": "jewelry-cases",
+    "label": "Jewelry Case",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.944,
+      1.122,
+      0.806
+    ],
+    "meshCount": 35,
+    "glb": "vendor/models/pro_shop_furniture/jewelry-cases/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/jewelry-cases/executive.png",
+    "source": "Assets/pro_shop_furniture/source/jewelry-cases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "jewelry-cases:luxury": {
+    "category": "jewelry-cases",
+    "label": "Jewelry Case",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.728,
+      1.0914,
+      0.744
+    ],
+    "meshCount": 19,
+    "glb": "vendor/models/pro_shop_furniture/jewelry-cases/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/jewelry-cases/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/jewelry-cases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "jewelry-cases:premium": {
+    "category": "jewelry-cases",
+    "label": "Jewelry Case",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.539,
+      1.0557,
+      0.682
+    ],
+    "meshCount": 14,
+    "glb": "vendor/models/pro_shop_furniture/jewelry-cases/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/jewelry-cases/premium.png",
+    "source": "Assets/pro_shop_furniture/source/jewelry-cases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "jewelry-cases:standard": {
+    "category": "jewelry-cases",
+    "label": "Jewelry Case",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.35,
+      1.02,
+      0.62
+    ],
+    "meshCount": 10,
+    "glb": "vendor/models/pro_shop_furniture/jewelry-cases/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/jewelry-cases/standard.png",
+    "source": "Assets/pro_shop_furniture/source/jewelry-cases.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "locker-units:basic": {
+    "category": "locker-units",
+    "label": "Locker Unit",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.2212,
+      1.9552,
+      0.4576
+    ],
+    "meshCount": 9,
+    "glb": "vendor/models/pro_shop_furniture/locker-units/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/locker-units/basic.png",
+    "source": "Assets/pro_shop_furniture/source/locker-units.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "locker-units:executive": {
+    "category": "locker-units",
+    "label": "Locker Unit",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.0448,
+      2.288,
+      0.676
+    ],
+    "meshCount": 64,
+    "glb": "vendor/models/pro_shop_furniture/locker-units/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/locker-units/executive.png",
+    "source": "Assets/pro_shop_furniture/source/locker-units.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "locker-units:luxury": {
+    "category": "locker-units",
+    "label": "Locker Unit",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.8176,
+      2.2256,
+      0.624
+    ],
+    "meshCount": 60,
+    "glb": "vendor/models/pro_shop_furniture/locker-units/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/locker-units/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/locker-units.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "locker-units:premium": {
+    "category": "locker-units",
+    "label": "Locker Unit",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.6188,
+      2.1528,
+      0.572
+    ],
+    "meshCount": 38,
+    "glb": "vendor/models/pro_shop_furniture/locker-units/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/locker-units/premium.png",
+    "source": "Assets/pro_shop_furniture/source/locker-units.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "locker-units:standard": {
+    "category": "locker-units",
+    "label": "Locker Unit",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.42,
+      2.08,
+      0.52
+    ],
+    "meshCount": 16,
+    "glb": "vendor/models/pro_shop_furniture/locker-units/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/locker-units/standard.png",
+    "source": "Assets/pro_shop_furniture/source/locker-units.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "mirrors:basic": {
+    "category": "mirrors",
+    "label": "Clubhouse Mirror",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      0.9288,
+      1.7108,
+      0.088
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/mirrors/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/mirrors/basic.png",
+    "source": "Assets/pro_shop_furniture/source/mirrors.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "mirrors:executive": {
+    "category": "mirrors",
+    "label": "Clubhouse Mirror",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.5552,
+      2.002,
+      0.13
+    ],
+    "meshCount": 13,
+    "glb": "vendor/models/pro_shop_furniture/mirrors/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/mirrors/executive.png",
+    "source": "Assets/pro_shop_furniture/source/mirrors.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "mirrors:luxury": {
+    "category": "mirrors",
+    "label": "Clubhouse Mirror",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.3824,
+      1.9474,
+      0.12
+    ],
+    "meshCount": 9,
+    "glb": "vendor/models/pro_shop_furniture/mirrors/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/mirrors/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/mirrors.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "mirrors:premium": {
+    "category": "mirrors",
+    "label": "Clubhouse Mirror",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.2312,
+      1.8837,
+      0.11
+    ],
+    "meshCount": 7,
+    "glb": "vendor/models/pro_shop_furniture/mirrors/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/mirrors/premium.png",
+    "source": "Assets/pro_shop_furniture/source/mirrors.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "mirrors:standard": {
+    "category": "mirrors",
+    "label": "Clubhouse Mirror",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.08,
+      1.82,
+      0.1
+    ],
+    "meshCount": 6,
+    "glb": "vendor/models/pro_shop_furniture/mirrors/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/mirrors/standard.png",
+    "source": "Assets/pro_shop_furniture/source/mirrors.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-cabinets:basic": {
+    "category": "office-cabinets",
+    "label": "Office Cabinet",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      0.989,
+      1.833,
+      0.4224
+    ],
+    "meshCount": 10,
+    "glb": "vendor/models/pro_shop_furniture/office-cabinets/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/office-cabinets/basic.png",
+    "source": "Assets/pro_shop_furniture/source/office-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-cabinets:executive": {
+    "category": "office-cabinets",
+    "label": "Office Cabinet",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.656,
+      2.145,
+      0.624
+    ],
+    "meshCount": 25,
+    "glb": "vendor/models/pro_shop_furniture/office-cabinets/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/office-cabinets/executive.png",
+    "source": "Assets/pro_shop_furniture/source/office-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-cabinets:luxury": {
+    "category": "office-cabinets",
+    "label": "Office Cabinet",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.472,
+      2.0865,
+      0.576
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/office-cabinets/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/office-cabinets/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/office-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-cabinets:premium": {
+    "category": "office-cabinets",
+    "label": "Office Cabinet",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.311,
+      2.0182,
+      0.528
+    ],
+    "meshCount": 20,
+    "glb": "vendor/models/pro_shop_furniture/office-cabinets/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/office-cabinets/premium.png",
+    "source": "Assets/pro_shop_furniture/source/office-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-cabinets:standard": {
+    "category": "office-cabinets",
+    "label": "Office Cabinet",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.15,
+      1.95,
+      0.48
+    ],
+    "meshCount": 15,
+    "glb": "vendor/models/pro_shop_furniture/office-cabinets/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/office-cabinets/standard.png",
+    "source": "Assets/pro_shop_furniture/source/office-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-desks:basic": {
+    "category": "office-desks",
+    "label": "Office Desk",
+    "assetName": "Desk_Basic",
+    "referenceTier": "Basic",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.32,
+      0.76,
+      0.68
+    ],
+    "meshCount": 11,
+    "triangleCount": 4240,
+    "lodTriangleCounts": {
+      "LOD0": 4240,
+      "LOD1": 396,
+      "LOD2": 396
+    },
+    "glb": "vendor/models/pro_shop_furniture/office-desks/basic.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/office-desks/desk_basic.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/office-desks/desk_basic.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/office-desks/desk_basic_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/office-desks/desk_basic_lod2.glb"
+    },
+    "runtimeLods": {
+      "LOD1": "vendor/models/pro_shop_furniture/office-desks/basic_lod1.glb",
+      "LOD2": "vendor/models/pro_shop_furniture/office-desks/basic_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/office-desks/basic.png",
+    "canonicalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_basic_preview.png",
+    "functionalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_basic_functional.png",
+    "source": "Assets/pro_shop_furniture/source/office-desks/desk_basic.blend",
+    "functionalDrawers": 2,
+    "functionalCabinetDoors": 0,
+    "animationClips": [
+      "Close_Drawer_Left_Bottom",
+      "Close_Drawer_Left_Top",
+      "Open_Drawer_Left_Bottom",
+      "Open_Drawer_Left_Top"
+    ],
+    "interactionNodes": [
+      "CHAIR_ANCHOR",
+      "DESK_SURFACE_CENTER",
+      "DESK_SURFACE_MAX",
+      "DESK_SURFACE_MIN",
+      "INTERACTION_POINT",
+      "INTERACT_Drawer_Left_Bottom",
+      "INTERACT_Drawer_Left_Top",
+      "PACK_ANCHOR",
+      "PLACEMENT_FOOTPRINT"
+    ],
+    "storageNodes": [
+      "STORAGE_ZONE_Drawer_Left_Bottom",
+      "STORAGE_ZONE_Drawer_Left_Top"
+    ],
+    "collisionMeshes": 3,
+    "validationReport": "qa/desks/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-desks:executive": {
+    "category": "office-desks",
+    "label": "Office Desk",
+    "assetName": "Desk_Luxury",
+    "referenceTier": "Luxury",
+    "tier": "executive",
+    "tierLabel": "Luxury",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.92,
+      0.81,
+      0.9
+    ],
+    "meshCount": 22,
+    "triangleCount": 18748,
+    "lodTriangleCounts": {
+      "LOD0": 18748,
+      "LOD1": 1580,
+      "LOD2": 308
+    },
+    "glb": "vendor/models/pro_shop_furniture/office-desks/executive.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury_lod2.glb"
+    },
+    "runtimeLods": {
+      "LOD1": "vendor/models/pro_shop_furniture/office-desks/executive_lod1.glb",
+      "LOD2": "vendor/models/pro_shop_furniture/office-desks/executive_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/office-desks/executive.png",
+    "canonicalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_luxury_preview.png",
+    "functionalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_luxury_functional.png",
+    "source": "Assets/pro_shop_furniture/source/office-desks/desk_luxury.blend",
+    "functionalDrawers": 4,
+    "functionalCabinetDoors": 1,
+    "animationClips": [
+      "Close_CabinetDoor_Left",
+      "Close_Drawer_Left_Top",
+      "Close_Drawer_Right_Bottom",
+      "Close_Drawer_Right_Middle",
+      "Close_Drawer_Right_Top",
+      "Open_CabinetDoor_Left",
+      "Open_Drawer_Left_Top",
+      "Open_Drawer_Right_Bottom",
+      "Open_Drawer_Right_Middle",
+      "Open_Drawer_Right_Top"
+    ],
+    "interactionNodes": [
+      "CHAIR_ANCHOR",
+      "DESK_SURFACE_CENTER",
+      "DESK_SURFACE_MAX",
+      "DESK_SURFACE_MIN",
+      "INTERACTION_POINT",
+      "INTERACT_CabinetDoor_Left",
+      "INTERACT_Drawer_Left_Top",
+      "INTERACT_Drawer_Right_Bottom",
+      "INTERACT_Drawer_Right_Middle",
+      "INTERACT_Drawer_Right_Top",
+      "PACK_ANCHOR",
+      "PLACEMENT_FOOTPRINT"
+    ],
+    "storageNodes": [
+      "STORAGE_ZONE_CabinetLeft",
+      "STORAGE_ZONE_Drawer_Left_Top",
+      "STORAGE_ZONE_Drawer_Right_Bottom",
+      "STORAGE_ZONE_Drawer_Right_Middle",
+      "STORAGE_ZONE_Drawer_Right_Top"
+    ],
+    "collisionMeshes": 3,
+    "validationReport": "qa/desks/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-desks:luxury": {
+    "category": "office-desks",
+    "label": "Office Desk",
+    "assetName": "Desk_HighEnd",
+    "referenceTier": "High-End",
+    "tier": "luxury",
+    "tierLabel": "High-End",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.74,
+      0.79,
+      0.82
+    ],
+    "meshCount": 18,
+    "triangleCount": 17444,
+    "lodTriangleCounts": {
+      "LOD0": 17444,
+      "LOD1": 1112,
+      "LOD2": 264
+    },
+    "glb": "vendor/models/pro_shop_furniture/office-desks/luxury.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end_lod2.glb"
+    },
+    "runtimeLods": {
+      "LOD1": "vendor/models/pro_shop_furniture/office-desks/luxury_lod1.glb",
+      "LOD2": "vendor/models/pro_shop_furniture/office-desks/luxury_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/office-desks/luxury.png",
+    "canonicalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_high_end_preview.png",
+    "functionalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_high_end_functional.png",
+    "source": "Assets/pro_shop_furniture/source/office-desks/desk_high_end.blend",
+    "functionalDrawers": 3,
+    "functionalCabinetDoors": 2,
+    "animationClips": [
+      "Close_CabinetDoor_Left",
+      "Close_CabinetDoor_Right",
+      "Close_Drawer_Center",
+      "Close_Drawer_Left_Top",
+      "Close_Drawer_Right_Top",
+      "Open_CabinetDoor_Left",
+      "Open_CabinetDoor_Right",
+      "Open_Drawer_Center",
+      "Open_Drawer_Left_Top",
+      "Open_Drawer_Right_Top"
+    ],
+    "interactionNodes": [
+      "CHAIR_ANCHOR",
+      "DESK_SURFACE_CENTER",
+      "DESK_SURFACE_MAX",
+      "DESK_SURFACE_MIN",
+      "INTERACTION_POINT",
+      "INTERACT_CabinetDoor_Left",
+      "INTERACT_CabinetDoor_Right",
+      "INTERACT_Drawer_Center",
+      "INTERACT_Drawer_Left_Top",
+      "INTERACT_Drawer_Right_Top",
+      "PACK_ANCHOR",
+      "PLACEMENT_FOOTPRINT"
+    ],
+    "storageNodes": [
+      "STORAGE_ZONE_CabinetLeft",
+      "STORAGE_ZONE_CabinetRight",
+      "STORAGE_ZONE_Drawer_Center",
+      "STORAGE_ZONE_Drawer_Left_Top",
+      "STORAGE_ZONE_Drawer_Right_Top"
+    ],
+    "collisionMeshes": 3,
+    "validationReport": "qa/desks/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-desks:premium": {
+    "category": "office-desks",
+    "label": "Office Desk",
+    "assetName": "Desk_Premium",
+    "referenceTier": "Premium",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.64,
+      0.78,
+      0.78
+    ],
+    "meshCount": 18,
+    "triangleCount": 14440,
+    "lodTriangleCounts": {
+      "LOD0": 14440,
+      "LOD1": 1112,
+      "LOD2": 264
+    },
+    "glb": "vendor/models/pro_shop_furniture/office-desks/premium.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/office-desks/desk_premium.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/office-desks/desk_premium.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/office-desks/desk_premium_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/office-desks/desk_premium_lod2.glb"
+    },
+    "runtimeLods": {
+      "LOD1": "vendor/models/pro_shop_furniture/office-desks/premium_lod1.glb",
+      "LOD2": "vendor/models/pro_shop_furniture/office-desks/premium_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/office-desks/premium.png",
+    "canonicalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_premium_preview.png",
+    "functionalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_premium_functional.png",
+    "source": "Assets/pro_shop_furniture/source/office-desks/desk_premium.blend",
+    "functionalDrawers": 3,
+    "functionalCabinetDoors": 2,
+    "animationClips": [
+      "Close_CabinetDoor_Left",
+      "Close_CabinetDoor_Right",
+      "Close_Drawer_Center",
+      "Close_Drawer_Left_Top",
+      "Close_Drawer_Right_Top",
+      "Open_CabinetDoor_Left",
+      "Open_CabinetDoor_Right",
+      "Open_Drawer_Center",
+      "Open_Drawer_Left_Top",
+      "Open_Drawer_Right_Top"
+    ],
+    "interactionNodes": [
+      "CHAIR_ANCHOR",
+      "DESK_SURFACE_CENTER",
+      "DESK_SURFACE_MAX",
+      "DESK_SURFACE_MIN",
+      "INTERACTION_POINT",
+      "INTERACT_CabinetDoor_Left",
+      "INTERACT_CabinetDoor_Right",
+      "INTERACT_Drawer_Center",
+      "INTERACT_Drawer_Left_Top",
+      "INTERACT_Drawer_Right_Top",
+      "PACK_ANCHOR",
+      "PLACEMENT_FOOTPRINT"
+    ],
+    "storageNodes": [
+      "STORAGE_ZONE_CabinetLeft",
+      "STORAGE_ZONE_CabinetRight",
+      "STORAGE_ZONE_Drawer_Center",
+      "STORAGE_ZONE_Drawer_Left_Top",
+      "STORAGE_ZONE_Drawer_Right_Top"
+    ],
+    "collisionMeshes": 3,
+    "validationReport": "qa/desks/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "office-desks:standard": {
+    "category": "office-desks",
+    "label": "Office Desk",
+    "assetName": "Desk_Standard",
+    "referenceTier": "Standard",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.52,
+      0.76,
+      0.72
+    ],
+    "meshCount": 25,
+    "triangleCount": 9024,
+    "lodTriangleCounts": {
+      "LOD0": 9024,
+      "LOD1": 440,
+      "LOD2": 176
+    },
+    "glb": "vendor/models/pro_shop_furniture/office-desks/standard.glb",
+    "canonicalGlb": "Assets/pro_shop_furniture/exports/office-desks/desk_standard.glb",
+    "lods": {
+      "LOD0": "Assets/pro_shop_furniture/exports/office-desks/desk_standard.glb",
+      "LOD1": "Assets/pro_shop_furniture/exports/office-desks/desk_standard_lod1.glb",
+      "LOD2": "Assets/pro_shop_furniture/exports/office-desks/desk_standard_lod2.glb"
+    },
+    "runtimeLods": {
+      "LOD1": "vendor/models/pro_shop_furniture/office-desks/standard_lod1.glb",
+      "LOD2": "vendor/models/pro_shop_furniture/office-desks/standard_lod2.glb"
+    },
+    "preview": "Assets/pro_shop_furniture/previews/office-desks/standard.png",
+    "canonicalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_standard_preview.png",
+    "functionalPreview": "Assets/pro_shop_furniture/previews/office-desks/desk_standard_functional.png",
+    "source": "Assets/pro_shop_furniture/source/office-desks/desk_standard.blend",
+    "functionalDrawers": 7,
+    "functionalCabinetDoors": 0,
+    "animationClips": [
+      "Close_Drawer_Center",
+      "Close_Drawer_Left_Bottom",
+      "Close_Drawer_Left_Middle",
+      "Close_Drawer_Left_Top",
+      "Close_Drawer_Right_Bottom",
+      "Close_Drawer_Right_Middle",
+      "Close_Drawer_Right_Top",
+      "Open_Drawer_Center",
+      "Open_Drawer_Left_Bottom",
+      "Open_Drawer_Left_Middle",
+      "Open_Drawer_Left_Top",
+      "Open_Drawer_Right_Bottom",
+      "Open_Drawer_Right_Middle",
+      "Open_Drawer_Right_Top"
+    ],
+    "interactionNodes": [
+      "CHAIR_ANCHOR",
+      "DESK_SURFACE_CENTER",
+      "DESK_SURFACE_MAX",
+      "DESK_SURFACE_MIN",
+      "INTERACTION_POINT",
+      "INTERACT_Drawer_Center",
+      "INTERACT_Drawer_Left_Bottom",
+      "INTERACT_Drawer_Left_Middle",
+      "INTERACT_Drawer_Left_Top",
+      "INTERACT_Drawer_Right_Bottom",
+      "INTERACT_Drawer_Right_Middle",
+      "INTERACT_Drawer_Right_Top",
+      "PACK_ANCHOR",
+      "PLACEMENT_FOOTPRINT"
+    ],
+    "storageNodes": [
+      "STORAGE_ZONE_Drawer_Center",
+      "STORAGE_ZONE_Drawer_Left_Bottom",
+      "STORAGE_ZONE_Drawer_Left_Middle",
+      "STORAGE_ZONE_Drawer_Left_Top",
+      "STORAGE_ZONE_Drawer_Right_Bottom",
+      "STORAGE_ZONE_Drawer_Right_Middle",
+      "STORAGE_ZONE_Drawer_Right_Top"
+    ],
+    "collisionMeshes": 3,
+    "validationReport": "qa/desks/blender-validation.json",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "pegboard-walls:basic": {
+    "category": "pegboard-walls",
+    "label": "Pegboard Wall",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.2728,
+      1.6732,
+      0.1408
+    ],
+    "meshCount": 40,
+    "glb": "vendor/models/pro_shop_furniture/pegboard-walls/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/pegboard-walls/basic.png",
+    "source": "Assets/pro_shop_furniture/source/pegboard-walls.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "pegboard-walls:executive": {
+    "category": "pegboard-walls",
+    "label": "Pegboard Wall",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.1312,
+      1.958,
+      0.208
+    ],
+    "meshCount": 151,
+    "glb": "vendor/models/pro_shop_furniture/pegboard-walls/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/pegboard-walls/executive.png",
+    "source": "Assets/pro_shop_furniture/source/pegboard-walls.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "pegboard-walls:luxury": {
+    "category": "pegboard-walls",
+    "label": "Pegboard Wall",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.8944,
+      1.9046,
+      0.192
+    ],
+    "meshCount": 117,
+    "glb": "vendor/models/pro_shop_furniture/pegboard-walls/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/pegboard-walls/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/pegboard-walls.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "pegboard-walls:premium": {
+    "category": "pegboard-walls",
+    "label": "Pegboard Wall",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.6872,
+      1.8423,
+      0.176
+    ],
+    "meshCount": 87,
+    "glb": "vendor/models/pro_shop_furniture/pegboard-walls/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/pegboard-walls/premium.png",
+    "source": "Assets/pro_shop_furniture/source/pegboard-walls.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "pegboard-walls:standard": {
+    "category": "pegboard-walls",
+    "label": "Pegboard Wall",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.48,
+      1.78,
+      0.16
+    ],
+    "meshCount": 61,
+    "glb": "vendor/models/pro_shop_furniture/pegboard-walls/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/pegboard-walls/standard.png",
+    "source": "Assets/pro_shop_furniture/source/pegboard-walls.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "reception-desks:basic": {
+    "category": "reception-desks",
+    "label": "Reception Desk",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      2.193,
+      1.0528,
+      0.8096
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/reception-desks/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/reception-desks/basic.png",
+    "source": "Assets/pro_shop_furniture/source/reception-desks.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "reception-desks:executive": {
+    "category": "reception-desks",
+    "label": "Reception Desk",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      3.672,
+      1.232,
+      1.196
+    ],
+    "meshCount": 29,
+    "glb": "vendor/models/pro_shop_furniture/reception-desks/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/reception-desks/executive.png",
+    "source": "Assets/pro_shop_furniture/source/reception-desks.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "reception-desks:luxury": {
+    "category": "reception-desks",
+    "label": "Reception Desk",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      3.264,
+      1.1984,
+      1.104
+    ],
+    "meshCount": 19,
+    "glb": "vendor/models/pro_shop_furniture/reception-desks/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/reception-desks/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/reception-desks.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "reception-desks:premium": {
+    "category": "reception-desks",
+    "label": "Reception Desk",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      2.907,
+      1.1592,
+      1.012
+    ],
+    "meshCount": 15,
+    "glb": "vendor/models/pro_shop_furniture/reception-desks/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/reception-desks/premium.png",
+    "source": "Assets/pro_shop_furniture/source/reception-desks.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "reception-desks:standard": {
+    "category": "reception-desks",
+    "label": "Reception Desk",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      2.55,
+      1.12,
+      0.92
+    ],
+    "meshCount": 9,
+    "glb": "vendor/models/pro_shop_furniture/reception-desks/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/reception-desks/standard.png",
+    "source": "Assets/pro_shop_furniture/source/reception-desks.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "shirt-displays:basic": {
+    "category": "shirt-displays",
+    "label": "Shirt Display",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.333,
+      1.8988,
+      0.5456
+    ],
+    "meshCount": 4,
+    "glb": "vendor/models/pro_shop_furniture/shirt-displays/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/shirt-displays/basic.png",
+    "source": "Assets/pro_shop_furniture/source/shirt-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "shirt-displays:executive": {
+    "category": "shirt-displays",
+    "label": "Shirt Display",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.232,
+      2.222,
+      0.806
+    ],
+    "meshCount": 24,
+    "glb": "vendor/models/pro_shop_furniture/shirt-displays/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/shirt-displays/executive.png",
+    "source": "Assets/pro_shop_furniture/source/shirt-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "shirt-displays:luxury": {
+    "category": "shirt-displays",
+    "label": "Shirt Display",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.984,
+      2.1614,
+      0.744
+    ],
+    "meshCount": 12,
+    "glb": "vendor/models/pro_shop_furniture/shirt-displays/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/shirt-displays/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/shirt-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "shirt-displays:premium": {
+    "category": "shirt-displays",
+    "label": "Shirt Display",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.767,
+      2.0907,
+      0.682
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/shirt-displays/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/shirt-displays/premium.png",
+    "source": "Assets/pro_shop_furniture/source/shirt-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "shirt-displays:standard": {
+    "category": "shirt-displays",
+    "label": "Shirt Display",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.55,
+      2.02,
+      0.62
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/shirt-displays/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/shirt-displays/standard.png",
+    "source": "Assets/pro_shop_furniture/source/shirt-displays.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "storage-cabinets:basic": {
+    "category": "storage-cabinets",
+    "label": "Storage Cabinet",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.075,
+      1.927,
+      0.5104
+    ],
+    "meshCount": 10,
+    "glb": "vendor/models/pro_shop_furniture/storage-cabinets/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/storage-cabinets/basic.png",
+    "source": "Assets/pro_shop_furniture/source/storage-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "storage-cabinets:executive": {
+    "category": "storage-cabinets",
+    "label": "Storage Cabinet",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.8,
+      2.255,
+      0.754
+    ],
+    "meshCount": 29,
+    "glb": "vendor/models/pro_shop_furniture/storage-cabinets/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/storage-cabinets/executive.png",
+    "source": "Assets/pro_shop_furniture/source/storage-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "storage-cabinets:luxury": {
+    "category": "storage-cabinets",
+    "label": "Storage Cabinet",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.6,
+      2.1935,
+      0.696
+    ],
+    "meshCount": 25,
+    "glb": "vendor/models/pro_shop_furniture/storage-cabinets/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/storage-cabinets/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/storage-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "storage-cabinets:premium": {
+    "category": "storage-cabinets",
+    "label": "Storage Cabinet",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.425,
+      2.1217,
+      0.638
+    ],
+    "meshCount": 20,
+    "glb": "vendor/models/pro_shop_furniture/storage-cabinets/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/storage-cabinets/premium.png",
+    "source": "Assets/pro_shop_furniture/source/storage-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "storage-cabinets:standard": {
+    "category": "storage-cabinets",
+    "label": "Storage Cabinet",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.25,
+      2.05,
+      0.58
+    ],
+    "meshCount": 15,
+    "glb": "vendor/models/pro_shop_furniture/storage-cabinets/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/storage-cabinets/standard.png",
+    "source": "Assets/pro_shop_furniture/source/storage-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "tables:basic": {
+    "category": "tables",
+    "label": "Merchandising Table",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.419,
+      0.8836,
+      0.8096
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/tables/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/tables/basic.png",
+    "source": "Assets/pro_shop_furniture/source/tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "tables:executive": {
+    "category": "tables",
+    "label": "Merchandising Table",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.376,
+      1.034,
+      1.196
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/tables/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/tables/executive.png",
+    "source": "Assets/pro_shop_furniture/source/tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "tables:luxury": {
+    "category": "tables",
+    "label": "Merchandising Table",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      2.112,
+      1.0058,
+      1.104
+    ],
+    "meshCount": 18,
+    "glb": "vendor/models/pro_shop_furniture/tables/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/tables/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "tables:premium": {
+    "category": "tables",
+    "label": "Merchandising Table",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.881,
+      0.9729,
+      1.012
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/tables/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/tables/premium.png",
+    "source": "Assets/pro_shop_furniture/source/tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "tables:standard": {
+    "category": "tables",
+    "label": "Merchandising Table",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.65,
+      0.94,
+      0.92
+    ],
+    "meshCount": 6,
+    "glb": "vendor/models/pro_shop_furniture/tables/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/tables/standard.png",
+    "source": "Assets/pro_shop_furniture/source/tables.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "waiting-area-furniture:basic": {
+    "category": "waiting-area-furniture",
+    "label": "Waiting Area Suite",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      2.021,
+      0.9212,
+      0.924
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/waiting-area-furniture/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/waiting-area-furniture/basic.png",
+    "source": "Assets/pro_shop_furniture/source/waiting-area-furniture.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "waiting-area-furniture:executive": {
+    "category": "waiting-area-furniture",
+    "label": "Waiting Area Suite",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      3.384,
+      1.078,
+      1.365
+    ],
+    "meshCount": 37,
+    "glb": "vendor/models/pro_shop_furniture/waiting-area-furniture/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/waiting-area-furniture/executive.png",
+    "source": "Assets/pro_shop_furniture/source/waiting-area-furniture.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "waiting-area-furniture:luxury": {
+    "category": "waiting-area-furniture",
+    "label": "Waiting Area Suite",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      3.008,
+      1.0486,
+      1.26
+    ],
+    "meshCount": 28,
+    "glb": "vendor/models/pro_shop_furniture/waiting-area-furniture/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/waiting-area-furniture/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/waiting-area-furniture.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "waiting-area-furniture:premium": {
+    "category": "waiting-area-furniture",
+    "label": "Waiting Area Suite",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      2.679,
+      1.0143,
+      1.155
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/waiting-area-furniture/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/waiting-area-furniture/premium.png",
+    "source": "Assets/pro_shop_furniture/source/waiting-area-furniture.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "waiting-area-furniture:standard": {
+    "category": "waiting-area-furniture",
+    "label": "Waiting Area Suite",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      2.35,
+      0.98,
+      1.05
+    ],
+    "meshCount": 14,
+    "glb": "vendor/models/pro_shop_furniture/waiting-area-furniture/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/waiting-area-furniture/standard.png",
+    "source": "Assets/pro_shop_furniture/source/waiting-area-furniture.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-cabinets:basic": {
+    "category": "wall-cabinets",
+    "label": "Wall Cabinet",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.075,
+      0.8648,
+      0.2992
+    ],
+    "meshCount": 10,
+    "glb": "vendor/models/pro_shop_furniture/wall-cabinets/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-cabinets/basic.png",
+    "source": "Assets/pro_shop_furniture/source/wall-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-cabinets:executive": {
+    "category": "wall-cabinets",
+    "label": "Wall Cabinet",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      1.8,
+      1.012,
+      0.442
+    ],
+    "meshCount": 25,
+    "glb": "vendor/models/pro_shop_furniture/wall-cabinets/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-cabinets/executive.png",
+    "source": "Assets/pro_shop_furniture/source/wall-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-cabinets:luxury": {
+    "category": "wall-cabinets",
+    "label": "Wall Cabinet",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.6,
+      0.9844,
+      0.408
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/wall-cabinets/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-cabinets/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/wall-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-cabinets:premium": {
+    "category": "wall-cabinets",
+    "label": "Wall Cabinet",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.425,
+      0.9522,
+      0.374
+    ],
+    "meshCount": 20,
+    "glb": "vendor/models/pro_shop_furniture/wall-cabinets/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-cabinets/premium.png",
+    "source": "Assets/pro_shop_furniture/source/wall-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-cabinets:standard": {
+    "category": "wall-cabinets",
+    "label": "Wall Cabinet",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.25,
+      0.92,
+      0.34
+    ],
+    "meshCount": 15,
+    "glb": "vendor/models/pro_shop_furniture/wall-cabinets/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-cabinets/standard.png",
+    "source": "Assets/pro_shop_furniture/source/wall-cabinets.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-shelving:basic": {
+    "category": "wall-shelving",
+    "label": "Wall Shelving",
+    "tier": "basic",
+    "tierLabel": "Basic",
+    "tierLevel": 1,
+    "dimensionsM": [
+      1.333,
+      1.6168,
+      0.2992
+    ],
+    "meshCount": 4,
+    "glb": "vendor/models/pro_shop_furniture/wall-shelving/basic.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-shelving/basic.png",
+    "source": "Assets/pro_shop_furniture/source/wall-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-shelving:executive": {
+    "category": "wall-shelving",
+    "label": "Wall Shelving",
+    "tier": "executive",
+    "tierLabel": "Executive",
+    "tierLevel": 5,
+    "dimensionsM": [
+      2.232,
+      1.892,
+      0.442
+    ],
+    "meshCount": 21,
+    "glb": "vendor/models/pro_shop_furniture/wall-shelving/executive.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-shelving/executive.png",
+    "source": "Assets/pro_shop_furniture/source/wall-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-shelving:luxury": {
+    "category": "wall-shelving",
+    "label": "Wall Shelving",
+    "tier": "luxury",
+    "tierLabel": "Luxury",
+    "tierLevel": 4,
+    "dimensionsM": [
+      1.984,
+      1.8404,
+      0.408
+    ],
+    "meshCount": 16,
+    "glb": "vendor/models/pro_shop_furniture/wall-shelving/luxury.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-shelving/luxury.png",
+    "source": "Assets/pro_shop_furniture/source/wall-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-shelving:premium": {
+    "category": "wall-shelving",
+    "label": "Wall Shelving",
+    "tier": "premium",
+    "tierLabel": "Premium",
+    "tierLevel": 3,
+    "dimensionsM": [
+      1.767,
+      1.7802,
+      0.374
+    ],
+    "meshCount": 8,
+    "glb": "vendor/models/pro_shop_furniture/wall-shelving/premium.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-shelving/premium.png",
+    "source": "Assets/pro_shop_furniture/source/wall-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  },
+  "wall-shelving:standard": {
+    "category": "wall-shelving",
+    "label": "Wall Shelving",
+    "tier": "standard",
+    "tierLabel": "Standard",
+    "tierLevel": 2,
+    "dimensionsM": [
+      1.55,
+      1.72,
+      0.34
+    ],
+    "meshCount": 5,
+    "glb": "vendor/models/pro_shop_furniture/wall-shelving/standard.glb",
+    "preview": "Assets/pro_shop_furniture/previews/wall-shelving/standard.png",
+    "source": "Assets/pro_shop_furniture/source/wall-shelving.blend",
+    "license": "Original Golf Flipper project asset; no external source"
+  }
+}
