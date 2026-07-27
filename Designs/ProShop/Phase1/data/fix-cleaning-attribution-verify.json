@@ -1,0 +1,318 @@
+{
+  "defect": "CLEAN-1",
+  "fix": "all eight cleanWithTool success paths return through finish(); finish() is attribution-only",
+  "campaignEnabled": true,
+  "before": {
+    "toolsUsed": {},
+    "grimeSum": 79.053,
+    "condition": 10,
+    "debrisCount": 18,
+    "campaignEnabled": true
+  },
+  "after": {
+    "toolsUsed": {
+      "broom": true,
+      "vacuum": true,
+      "dustpan": true,
+      "trashbag": true,
+      "mop": true
+    },
+    "grimeSum": 73.939,
+    "condition": 12,
+    "debrisCount": 15,
+    "campaignEnabled": true
+  },
+  "runs": [
+    {
+      "tool": "broom",
+      "why": "SWEEP — needs a debris cluster in reach",
+      "usedSpot": [
+        -1.2,
+        2.85
+      ],
+      "attempts": [
+        {
+          "spot": [
+            -7.6,
+            4.6
+          ],
+          "did": 0,
+          "reason": "occluded"
+        },
+        {
+          "spot": [
+            -5.2,
+            4.4
+          ],
+          "did": 0,
+          "reason": "occluded"
+        },
+        {
+          "spot": [
+            -4.5,
+            2.8
+          ],
+          "did": 0,
+          "reason": "blocked"
+        },
+        {
+          "spot": [
+            -1.2,
+            2.85
+          ],
+          "did": 0.31,
+          "reason": null
+        }
+      ],
+      "bestDidObserved": 0.31,
+      "recorded": true,
+      "toolsUsedNow": {
+        "broom": true
+      }
+    },
+    {
+      "tool": "vacuum",
+      "why": "SUCTION — grime and fine debris",
+      "usedSpot": [
+        0,
+        -2.06
+      ],
+      "attempts": [
+        {
+          "spot": [
+            0,
+            -2.06
+          ],
+          "did": 0.0106,
+          "reason": null
+        }
+      ],
+      "bestDidObserved": 0.0106,
+      "recorded": true,
+      "toolsUsedNow": {
+        "broom": true,
+        "vacuum": true
+      }
+    },
+    {
+      "tool": "dustpan",
+      "why": "SCOOP — needs a pile in reach",
+      "usedSpot": null,
+      "attempts": [
+        {
+          "spot": [
+            -7.6,
+            4.6
+          ],
+          "did": 0,
+          "reason": "occluded"
+        },
+        {
+          "spot": [
+            -5.2,
+            4.4
+          ],
+          "did": 0,
+          "reason": "occluded"
+        },
+        {
+          "spot": [
+            -4.5,
+            2.8
+          ],
+          "did": 0,
+          "reason": "blocked"
+        },
+        {
+          "spot": [
+            -1.2,
+            2.85
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            1.3,
+            2.85
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            3.6,
+            2.8
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            -8.1,
+            1.3
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            -4.8,
+            1.8
+          ],
+          "did": 0,
+          "reason": "blocked"
+        }
+      ],
+      "bestDidObserved": 0,
+      "recorded": true,
+      "toolsUsedNow": {
+        "broom": true,
+        "vacuum": true,
+        "dustpan": true
+      }
+    },
+    {
+      "tool": "trashbag",
+      "why": "CARRY — litter only",
+      "usedSpot": null,
+      "attempts": [
+        {
+          "spot": [
+            3.6,
+            2.8
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            -3.7,
+            0
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            1.8,
+            -0.2
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            3.2,
+            -1.1
+          ],
+          "did": 0,
+          "reason": "blocked"
+        },
+        {
+          "spot": [
+            -4.4,
+            -4.3
+          ],
+          "did": 0,
+          "reason": null
+        },
+        {
+          "spot": [
+            6.8,
+            -5.1
+          ],
+          "did": 0,
+          "reason": null
+        }
+      ],
+      "bestDidObserved": 0,
+      "recorded": true,
+      "toolsUsedNow": {
+        "broom": true,
+        "vacuum": true,
+        "dustpan": true,
+        "trashbag": true
+      }
+    },
+    {
+      "tool": "mop",
+      "why": "STROKE — grime, hard floor only, needs charge",
+      "usedSpot": [
+        0,
+        -2.06
+      ],
+      "attempts": [
+        {
+          "spot": [
+            0,
+            -2.06
+          ],
+          "did": 0.005,
+          "reason": "mop-dry"
+        }
+      ],
+      "bestDidObserved": 0.005,
+      "recorded": true,
+      "toolsUsedNow": {
+        "broom": true,
+        "vacuum": true,
+        "dustpan": true,
+        "trashbag": true,
+        "mop": true
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "attribution:broom",
+      "did": 0.31,
+      "recorded": true,
+      "ok": true,
+      "note": "did>0 so attribution is required"
+    },
+    {
+      "name": "attribution:vacuum",
+      "did": 0.0106,
+      "recorded": true,
+      "ok": true,
+      "note": "did>0 so attribution is required"
+    },
+    {
+      "name": "attribution:dustpan",
+      "did": 0,
+      "recorded": true,
+      "ok": true,
+      "note": "no work landed; attribution not required"
+    },
+    {
+      "name": "attribution:trashbag",
+      "did": 0,
+      "recorded": true,
+      "ok": true,
+      "note": "no work landed; attribution not required"
+    },
+    {
+      "name": "attribution:mop",
+      "did": 0.005,
+      "recorded": true,
+      "ok": true,
+      "note": "did>0 so attribution is required"
+    },
+    {
+      "name": "grime-still-cleans-and-condition-moves",
+      "ok": true,
+      "detail": {
+        "grimeSum": [
+          79.053,
+          73.939
+        ],
+        "condition": [
+          10,
+          12
+        ]
+      }
+    }
+  ],
+  "allOk": true
+}

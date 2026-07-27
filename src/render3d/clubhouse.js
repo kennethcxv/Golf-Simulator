@@ -5263,16 +5263,19 @@ export function makeClubhouse(ctx) {
     if (!gate.ok) return { did: 0, kind: def.toolClass, blocked: true, reason: gate.reason };
     const l = gate.local;
     let did = 0;
+    // EVERY successful tool path must return through here, or the campaign never learns
+    // the tool was used. Five of the eight used to return directly and so never recorded
+    // (broom, dustpan, vacuum, mop, trash bag), which left the objective's recommended
+    // tool stuck on "Push broom"/"Shop vacuum" forever.
+    //
+    // Attribution only. Grime repainting stays with recordFloorCleaning, which the paths
+    // that actually move grime already call — routing the clock through here as well
+    // double-ticked it for cloth/sponge and repainted for spray, which touches solution,
+    // not grime.
     const finish = (result) => {
       if ((result.did || 0) <= 0) return result;
       recordCampaignCleaning(state, toolId, result.did);
       if (def.toolClass === TOOL_CLASS.SUCTION && state.tutorial) tutorialFlag(state, 'vacuumed');
-      cleanClock += dt;
-      if (cleanClock > 0.12) {
-        cleanClock = 0;
-        repaintGrime();
-        refreshCondition();
-      }
       return result;
     };
 
@@ -5282,7 +5285,7 @@ export function makeClubhouse(ctx) {
         did = sweepAt(state, l.x, l.z, dirX, dirZ, def.radius, dt).moved;
         if (did > 0) refreshDebrisVisual();
         if (did > 0) showCleaningMotes('sweep', wx, wz, dirX, dirZ, dt);
-        return { did, kind: 'sweep' };
+        return finish({ did, kind: 'sweep' });
       }
       case TOOL_CLASS.SCOOP: {
         const room = panSpace(state);
@@ -5293,7 +5296,7 @@ export function makeClubhouse(ctx) {
           addToPan(state, did);
           presentRestorationFeedback(syncGenericCleanupMilestone(state));
         }
-        return { did, kind: 'scoop', full: panSpace(state) <= 0 };
+        return finish({ did, kind: 'scoop', full: panSpace(state) <= 0 });
       }
       case TOOL_CLASS.SUCTION: {
         // debris is drawn in and swallowed only at the mouth; ground-in dust comes up under the head
@@ -5304,7 +5307,7 @@ export function makeClubhouse(ctx) {
         if (did > 0) refreshDebrisVisual();
         if (did + dust.cleaned > 0) showCleaningMotes('suction', wx, wz, 0, 0, dt);
         recordFloorCleaning(did + dust.cleaned, dt);
-        return { did: did + dust.cleaned, kind: 'suction', picked: did > 0 };
+        return finish({ did: did + dust.cleaned, kind: 'suction', picked: did > 0 });
       }
       case TOOL_CLASS.STROKE: {
         if (def.id === 'mop') {
@@ -5327,7 +5330,7 @@ export function makeClubhouse(ctx) {
           wetVisualDirty = true;
           if (res.cleaned > 0) showCleaningMotes('mop', wx, wz, dirX, dirZ, dt);
           recordFloorCleaning(res.cleaned, dt);
-          return { did: res.cleaned, kind: 'mop', charge: charge.charge };
+          return finish({ did: res.cleaned, kind: 'mop', charge: charge.charge });
         }
         // cloth and sponge: the cloth only lifts what the spray has already loosened
         const wp = toWet(l.x, l.z);
@@ -5361,7 +5364,7 @@ export function makeClubhouse(ctx) {
           addToBag(state, did);
           presentRestorationFeedback(syncGenericCleanupMilestone(state));
         }
-        return { did, kind: 'bag', full: bagSpace(state) <= 0 };
+        return finish({ did, kind: 'bag', full: bagSpace(state) <= 0 });
       }
       default:
         return { did: 0, kind: null };
