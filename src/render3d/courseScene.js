@@ -674,7 +674,7 @@ export function makeCourseScene(canvas, state) {
   // at gameplay distance — a 4K/200% desktop was rendering 78% more pixels than this.
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // SPIKE ARM 1: was PCFSoftShadowMap, which r185 coerces to this anyway
   renderer.shadowMap.autoUpdate = false; // baked on the throttle in render(), not per frame
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -746,6 +746,7 @@ export function makeCourseScene(canvas, state) {
   sc.far = 2600;
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 1.2;
+  sun.shadow.radius = 4; // SPIKE ARM 1: PCF ignores this - recorded as a null result in LIGHTING_SPIKE.md
   scene.add(sun);
   scene.add(sun.target);
 

@@ -849,6 +849,30 @@ export function makeClubhouse(ctx) {
   } finally {
     if (shedPresentation) shedShellPhase = false;
   }
+
+  // ===== SPIKE ARM 3 — THROWAWAY. One warm directional key light indoors. =====
+  // Arm 2 showed that letting interior meshes cast into the SUN's map only dims the
+  // room: the roof blocks the sun, so everything is uniformly shadowed and nothing is
+  // grounded. The eight ceiling panels are RectAreaLights, which cannot cast shadows in
+  // three.js at all — so today no interior light can produce a contact shadow.
+  // This adds the missing piece: a single shadow-casting directional light inside the
+  // room, warm, angled across it, to test whether contact and directional falloff are
+  // what the room is actually missing. Not a proposal, not tuned. Revert with git.
+  {
+    const key = new THREE.DirectionalLight(0xffd9a8, 2.0);
+    key.name = 'SPIKE_InteriorKeyLight';
+    key.position.set(6, 5.5, 5);
+    key.target.position.set(-2, 0, -1);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    const kc = key.shadow.camera;
+    kc.left = -14; kc.right = 14; kc.top = 14; kc.bottom = -14;
+    kc.near = 0.5; kc.far = 40;
+    key.shadow.bias = -0.0006;
+    key.shadow.normalBias = 0.06;
+    interior.add(key);
+    interior.add(key.target);
+  }
   // Pine Hills' approved lighting contract is the eight authored rectangular
   // ceiling panels on every renderer.  Point proxies double the named rig,
   // flatten the broad panel falloff, and invalidate the repair/fault evidence.
