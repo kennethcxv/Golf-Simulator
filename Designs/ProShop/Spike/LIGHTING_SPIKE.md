@@ -246,3 +246,164 @@ Designs/ProShop/Spike/
 
 Reproduce an arm with `ARM=<n> HEADED=1 node tools/qa/run-playwright.cjs
 tools/qa/spike-lighting-arm.js` on the matching commit of this branch.
+
+---
+---
+
+# ADDENDUM — Arms 4 and 5: contact occlusion
+
+The verdict above stands as written and is not revised. This addendum answers a narrower
+question it raised but did not test: **Arm 3 gave objects form but left table legs meeting
+the floor with no tight contact. Directional shadow gives form; ambient occlusion gives
+grounding — and GTAO was never tested.**
+
+| Arm | Change |
+|---|---|
+| **4** | Control lighting (Arm 0), GTAO pushed hard |
+| **5** | Arm 3 **plus** Arm 4 |
+
+GTAO settings for both, verified live at runtime rather than assumed:
+`blendIntensity 0.4 -> 1.0`, `uniforms.radius 1.5 -> 2.4`, `samples 12 -> 24`,
+denoiser radius `4 -> 2`, and **full resolution — render target 800x450 -> 1600x900**.
+
+## Protocol changes, and what they invalidate
+
+Three controls were added that the first pass lacked, all capture-side:
+
+* **Doors forced closed** before every frame (`open/angle/swingTarget = 0`). Verified: every
+  door angle is 0 in all 40 shots of every arm.
+* **HUD toasts hidden** (`.notification-center` display:none). Verified per shot.
+* **4 samples per scenario** instead of 2, as asked.
+
+**Arms 0 and 3 were therefore re-shot** so the comparisons are like-for-like. The arm0/arm3
+numbers below supersede those in the main report. **Arms 1 and 2 were not re-shot** — their
+figures above come from the older, less-controlled pass, and Arm 1's conclusion (a visual
+null) is unaffected because it was verified by direct inspection, not by the metric.
+
+Shot 08 is excluded from conclusions: it frames the entrance and includes **moving outdoor
+golfers and carts**, which were not suppressed. Its delta swings between 5.9 and 28.9
+across comparisons of the same arms. That is the harness, not the lighting.
+
+## A defect found on the way in — GTAO-1
+
+**`GTAOPass` has no `radius` property.** The occlusion radius lives in
+`gtaoMaterial.uniforms.radius` and is settable only through `updateGtaoMaterial()`
+(`vendor/addons/postprocessing/GTAOPass.js:376-378`). So `main.js:196`'s
+`gtao.radius = 0.7` on entering walk, and `main.js:221`'s `gtao.radius = 1.5` on leaving,
+both write a **stray property that nothing reads**.
+
+Captured proof from the Arm 5 run: `strayRadiusProp: 0.7` alongside `uniformRadius: 2.4`.
+
+The real AO radius is whatever `updateGtaoMaterial` set at construction — **1.5 in every
+mode**. The per-mode walk tuning has never taken effect.
+
+**This corrects `PHASE_1_CLASSIFICATION.md` §10**, which stated "radius 0.7 in walk mode".
+That was wrong; I took it from the `main.js` line without checking the API. Severity: minor,
+one line, **not fixed** — but it means nobody has ever seen the walk-mode AO tuning they
+thought they were shipping.
+
+## The result: contact darkening where geometry meets the floor
+
+Mean luminance of each crop. Lower = darker = more occlusion. Whole-frame meanAbs is the
+wrong instrument here, so this measures only the contact regions.
+
+| Contact point | arm0 control | arm3 key light | **arm4 GTAO** | **arm5 both** |
+|---|---|---|---|---|
+| display-table-legs | 90.6 | 53.5 | **83.1** | **48.4** |
+| bench-base | 63.9 | 37.8 | **60.2** | **35.0** |
+| table-legs-midroom | 100.6 | 84.7 | **94.0** | **79.0** |
+| snack-rack-base | 46.9 | 40.5 | **41.8** | **36.3** |
+| counter-plinth | 56.5 | 49.4 | **55.4** | **48.5** |
+| shelving-base | 48.3 | 35.6 | **45.3** | **32.6** |
+
+Six close-up strips, four arms side by side at 2x, in `lighting/contact/`.
+
+### Answering the question directly: yes, partly — it is not purely geometric
+
+**`contact/display-table-legs.png` is the decisive image.** In arm0 the table leg simply
+*ends* where it meets the boards — there is no darkening at the join at all, which is
+exactly the pasted-on symptom. In arm4 a visible occlusion pool appears around the base of
+the leg and under the table. In arm5 that pool is present *and* the leg casts a directional
+shadow, and it is the first frame in this whole spike where the table reads as standing on
+the floor rather than floating in front of it.
+
+So I am not going to tell you the grounding problem is purely geometric. **It is not.** The
+room has been shipping with its only contact-darkening mechanism running at half resolution
+and 40% blend, and turning that up produces contact that was previously absent.
+
+### But two things temper it, and they matter
+
+1. **Raising the radius was the wrong direction for *tight* contact.** At radius 2.4 the AO
+   resolves as broad, soft, slightly blotchy pools spreading a foot or more across the
+   floor — visible in the arm4 crop as patchy darkening that reads almost like staining
+   rather than a crisp contact line. Tight contact wants a *smaller* radius at high
+   intensity. The instruction said "radius raised" and I followed it; the honest result is
+   that intensity and resolution did the useful work and radius worked against it.
+2. **The remaining grounding failures are geometric, and GTAO cannot reach them.** The
+   flat-bottomed meshes, absent floor bevels, and missing dust/scuff decals are all still
+   there in arm5. AO darkens the air *near* a contact; it cannot invent the small-scale
+   geometry that sells one. `contact/shelving-base.png` shows this — the shelf was already
+   partly occluded by the wall, so the arms barely move it, while the free-standing table
+   leg moves a lot.
+
+So: **grounding is roughly half a lighting problem and half a geometry problem**, where the
+main report's verdict put the whole flat-look question at about a third lighting. Contact
+specifically is more lighting-fixable than the overall flatness is.
+
+## Whole-frame deltas
+
+| Comparison | meanAbs | pctDiff8 | dLuma |
+|---|---|---|---|
+| arm4 vs arm0 — GTAO alone | 6.336 | 18.07% | -3.577 |
+| arm5 vs arm0 — everything | 10.748 | 34.08% | -9.168 |
+| **arm5 vs arm3 — GTAO's marginal contribution** | **6.008** | **17.25%** | **-2.383** |
+
+GTAO contributes about as much on its own (6.34) as it does on top of the key light (6.01),
+so the two are close to independent rather than redundant.
+
+## Performance — 4 samples per scenario
+
+| Arm | idle avg / 1% low | spin avg / 1% low | entrance avg / 1% low |
+|---|---|---|---|
+| 0 control | 7.82 / 22.31 | 10.69 / 33.99 | 10.96 / 28.06 |
+| 3 key light | 8.03 / 23.23 | 11.28 / 38.04 | 11.67 / 29.88 |
+| **4 strong GTAO** | **7.78 / 22.10** | **10.62 / 34.79** | **10.95 / 29.45** |
+| 5 both | 8.21 / 23.71 | 11.61 / 38.79 | 11.61 / 30.17 |
+
+**Arm 4 is free.** Full-resolution GTAO at double samples measured indistinguishable from
+the control — 7.78 vs 7.82 idle, 10.62 vs 10.69 spinning. That is reported with suspicion
+rather than enthusiasm, because it contradicts the comment at `courseScene.js:722-724`
+claiming the half-res optimisation saved ~5 ms/frame. Both can be true: that measurement
+was taken on the **outdoor** spin route with the whole course in frame, while these are
+interior scenarios behind an 80 yd draw gate with far less depth complexity. It should be
+re-measured outdoors before anyone acts on it.
+
+The interior-shadow arms (3 and 5) cost a consistent 3-8%.
+
+**The noise floor, stated plainly.** Arm 0 measured `entrance-sightline` at **9.22 ms** in
+the first pass and **10.96 ms** in this one — **19% apart on byte-identical code**. That
+drift is larger than every inter-arm difference in the table above. Treat the ordering as
+indicative and the magnitudes as unresolved; nothing here justifies a budget decision.
+
+## What to take from the addendum
+
+1. **Turn GTAO up before authoring hero assets.** It is the cheapest change tested in this
+   entire spike — measurably free on interior scenes — and it is the only one that produced
+   contact where none existed.
+2. **Tune it for tightness, not breadth.** Full resolution and blend 1.0 earned their keep;
+   radius 2.4 did not. Start from a radius at or below the shipped 1.5 and raise intensity.
+3. **Fix GTAO-1 first**, or the per-mode tuning will keep silently doing nothing.
+4. **The hero-asset recommendation is unchanged and slightly strengthened.** Count should
+   not drop. Lighting should still precede Phase 4 — and now there is a specific, cheap
+   lighting change to make first, so assets are judged against contact that actually exists.
+5. **Some of the grounding work remains geometric** — floor bevels, contact dust, scuff
+   decals, non-flat bottoms. AO makes those read better; it does not replace them.
+
+## Addendum files
+
+```
+lighting/arm4/, arm5/            10 shots + arm.json each
+lighting/contact/                6 four-arm contact close-ups at 2x
+lighting/compare/                arm0-vs-arm4, arm0-vs-arm5, arm3-vs-arm5 side-by-sides
+contact_crops.py                 throwaway crop/luma tool
+```

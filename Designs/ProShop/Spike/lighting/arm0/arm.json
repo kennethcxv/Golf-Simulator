@@ -147,7 +147,7 @@
     "grimeSum": 78.942,
     "interiorY": -0.6223
   },
-  "loadVeilMs": 18407,
+  "loadVeilMs": 19439,
   "fovAssertAllShots": true,
   "shots": [
     {
@@ -164,7 +164,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 0
+      "yaw": 0,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "02-wide-room-overview",
@@ -180,7 +187,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -1.0855693342275603
+      "yaw": -1.0855693342275603,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "03-checkout-focal-view",
@@ -196,7 +210,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 0
+      "yaw": 0,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "04-checkout-interaction-view",
@@ -212,7 +233,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -3.141592653589793
+      "yaw": -3.141592653589793,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "05-laptop-workstation",
@@ -228,7 +256,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -3.1198569467479955
+      "yaw": -3.1198569467479955,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "06-main-merchandise-wall",
@@ -244,7 +279,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 0.06885648930105046
+      "yaw": 0.06885648930105046,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "07-cleaning-route",
@@ -260,7 +302,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -1.4711276743037347
+      "yaw": -1.4711276743037347,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "08-customer-route",
@@ -276,7 +325,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -0.2860514417173182
+      "yaw": -0.2860514417173182,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "09-floor-dirt-read",
@@ -292,7 +348,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 1.5707963267948966
+      "yaw": 1.5707963267948966,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "10-back-of-room-clutter",
@@ -308,40 +371,47 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -2.20354516179708
+      "yaw": -2.20354516179708,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     }
   ],
   "summary": [
     {
       "scenario": "idle-interior",
-      "runs": 2,
-      "avgMs": 6.71,
-      "p1Ms": 20.09,
-      "avgFps": 149.05,
-      "low1Fps": 49.8,
-      "worstMsMax": 27.9,
-      "over33Total": 0,
+      "runs": 4,
+      "avgMs": 7.82,
+      "p1Ms": 22.31,
+      "avgFps": 127.85,
+      "low1Fps": 44.88,
+      "worstMsMax": 33.4,
+      "over33Total": 1,
       "drawCalls": 1454
     },
     {
       "scenario": "spin-interior",
-      "runs": 2,
-      "avgMs": 9.12,
-      "p1Ms": 30.12,
-      "avgFps": 109.75,
-      "low1Fps": 33.2,
-      "worstMsMax": 41.8,
-      "over33Total": 3,
-      "drawCalls": 1117
+      "runs": 4,
+      "avgMs": 10.69,
+      "p1Ms": 33.99,
+      "avgFps": 93.55,
+      "low1Fps": 29.55,
+      "worstMsMax": 50,
+      "over33Total": 13,
+      "drawCalls": 1145
     },
     {
       "scenario": "entrance-sightline",
-      "runs": 2,
-      "avgMs": 9.22,
-      "p1Ms": 25.21,
-      "avgFps": 108.4,
-      "low1Fps": 39.7,
-      "worstMsMax": 27.8,
+      "runs": 4,
+      "avgMs": 10.96,
+      "p1Ms": 28.06,
+      "avgFps": 91.25,
+      "low1Fps": 35.63,
+      "worstMsMax": 30.6,
       "over33Total": 0,
       "drawCalls": 2814
     }
@@ -349,72 +419,144 @@
   "runs": [
     {
       "name": "run1/idle-interior",
-      "frames": 880,
-      "avgMs": 6.79,
-      "p1Ms": 20.36,
-      "worstMs": 27.8,
-      "avgFps": 147.3,
-      "low1Fps": 49.1,
-      "over33": 0,
+      "frames": 753,
+      "avgMs": 7.92,
+      "p1Ms": 23.3,
+      "worstMs": 33.4,
+      "avgFps": 126.2,
+      "low1Fps": 42.9,
+      "over33": 1,
       "drawCalls": 1454,
       "triangles": 7476235
     },
     {
       "name": "run1/spin-interior",
-      "frames": 865,
-      "avgMs": 9.22,
-      "p1Ms": 29.66,
-      "worstMs": 41.8,
-      "avgFps": 108.5,
-      "low1Fps": 33.7,
-      "over33": 1,
-      "drawCalls": 728,
-      "triangles": 4772334
+      "frames": 737,
+      "avgMs": 10.8,
+      "p1Ms": 31.77,
+      "worstMs": 36.2,
+      "avgFps": 92.6,
+      "low1Fps": 31.5,
+      "over33": 2,
+      "drawCalls": 1196,
+      "triangles": 7454747
     },
     {
       "name": "run1/entrance-sightline",
-      "frames": 651,
-      "avgMs": 9.17,
-      "p1Ms": 25.4,
+      "frames": 542,
+      "avgMs": 10.99,
+      "p1Ms": 27.76,
       "worstMs": 27.8,
-      "avgFps": 109,
-      "low1Fps": 39.4,
+      "avgFps": 91,
+      "low1Fps": 36,
       "over33": 0,
       "drawCalls": 2814,
       "triangles": 7776263
     },
     {
       "name": "run2/idle-interior",
-      "frames": 903,
-      "avgMs": 6.63,
-      "p1Ms": 19.81,
-      "worstMs": 27.9,
-      "avgFps": 150.8,
-      "low1Fps": 50.5,
+      "frames": 767,
+      "avgMs": 7.78,
+      "p1Ms": 22.19,
+      "worstMs": 27.8,
+      "avgFps": 128.5,
+      "low1Fps": 45.1,
       "over33": 0,
       "drawCalls": 1454,
       "triangles": 7476235
     },
     {
       "name": "run2/spin-interior",
-      "frames": 884,
-      "avgMs": 9.01,
-      "p1Ms": 30.58,
-      "worstMs": 38.8,
-      "avgFps": 111,
-      "low1Fps": 32.7,
-      "over33": 2,
-      "drawCalls": 1117,
-      "triangles": 7446728
+      "frames": 742,
+      "avgMs": 10.74,
+      "p1Ms": 36.94,
+      "worstMs": 50,
+      "avgFps": 93.1,
+      "low1Fps": 27.1,
+      "over33": 5,
+      "drawCalls": 1111,
+      "triangles": 7427966
     },
     {
       "name": "run2/entrance-sightline",
-      "frames": 644,
-      "avgMs": 9.28,
-      "p1Ms": 25.02,
+      "frames": 543,
+      "avgMs": 10.98,
+      "p1Ms": 27.78,
+      "worstMs": 27.9,
+      "avgFps": 91.1,
+      "low1Fps": 36,
+      "over33": 0,
+      "drawCalls": 2814,
+      "triangles": 7776263
+    },
+    {
+      "name": "run3/idle-interior",
+      "frames": 768,
+      "avgMs": 7.79,
+      "p1Ms": 21.23,
       "worstMs": 25.1,
-      "avgFps": 107.8,
-      "low1Fps": 40,
+      "avgFps": 128.3,
+      "low1Fps": 47.1,
+      "over33": 0,
+      "drawCalls": 1973,
+      "triangles": 8779061
+    },
+    {
+      "name": "run3/spin-interior",
+      "frames": 752,
+      "avgMs": 10.59,
+      "p1Ms": 31.96,
+      "worstMs": 44.5,
+      "avgFps": 94.4,
+      "low1Fps": 31.3,
+      "over33": 2,
+      "drawCalls": 1166,
+      "triangles": 7443566
+    },
+    {
+      "name": "run3/entrance-sightline",
+      "frames": 545,
+      "avgMs": 10.93,
+      "p1Ms": 28.4,
+      "worstMs": 30.6,
+      "avgFps": 91.5,
+      "low1Fps": 35.2,
+      "over33": 0,
+      "drawCalls": 2814,
+      "triangles": 7776263
+    },
+    {
+      "name": "run4/idle-interior",
+      "frames": 766,
+      "avgMs": 7.79,
+      "p1Ms": 22.51,
+      "worstMs": 27.7,
+      "avgFps": 128.4,
+      "low1Fps": 44.4,
+      "over33": 0,
+      "drawCalls": 1454,
+      "triangles": 7476235
+    },
+    {
+      "name": "run4/spin-interior",
+      "frames": 749,
+      "avgMs": 10.63,
+      "p1Ms": 35.31,
+      "worstMs": 41.6,
+      "avgFps": 94.1,
+      "low1Fps": 28.3,
+      "over33": 4,
+      "drawCalls": 1145,
+      "triangles": 7441598
+    },
+    {
+      "name": "run4/entrance-sightline",
+      "frames": 545,
+      "avgMs": 10.94,
+      "p1Ms": 28.32,
+      "worstMs": 30.5,
+      "avgFps": 91.4,
+      "low1Fps": 35.3,
       "over33": 0,
       "drawCalls": 2814,
       "triangles": 7776263

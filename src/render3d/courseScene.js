@@ -705,24 +705,25 @@ export function makeCourseScene(canvas, state) {
   patchPoissonDenoiseMaterial(gtao.pdMaterial);
   gtao.output = GTAOPass.OUTPUT.Default;
   // STYLE GUIDE §3: tight contact darkening only — no corner grime spread
-  gtao.blendIntensity = 0.4;
+  gtao.blendIntensity = 1.0; // SPIKE ARM 4/5: was 0.4
   gtao.updateGtaoMaterial({
-    radius: 1.5, // yards — hugs feet, wheels, and trunks; stays out of open turf
+    radius: 2.4, // SPIKE ARM 4/5: was 1.5
     distanceExponent: 1,
     thickness: 1,
     scale: 1.0,
-    samples: 12,
+    samples: 24, // SPIKE ARM 4/5: was 12
     distanceFallOff: 1,
     screenSpaceRadius: false,
   });
-  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 16 }); // SPIKE ARM 4/5: radius 4->2, samples 8->16
   // AO at HALF resolution. The pass re-renders the whole scene for depth+normals and then
   // runs two more full-screen passes; at full size that measured ~5ms/frame on the fixed
   // spin route (90.5 → 175.8 fps with the pass off). setSize here touches only the pass's
   // own targets — the beauty image stays full-res and the soft contact darkening (§3) is
   // upsampled bilinearly, which its own denoiser already smooths past noticing.
+  // SPIKE ARM 4/5: half-res wrapper removed — GTAO runs at FULL resolution.
   const gtaoFullSetSize = gtao.setSize.bind(gtao);
-  gtao.setSize = (w, h) => gtaoFullSetSize(Math.max(1, Math.ceil(w * 0.5)), Math.max(1, Math.ceil(h * 0.5)));
+  gtao.setSize = (w, h) => gtaoFullSetSize(Math.max(1, w), Math.max(1, h));
   composer.addPass(gtao);
   // STYLE GUIDE §3: bloom effectively OFF for the scene — only the sun disc
   // (radiance in the thousands) may glint; turf and trim never halo

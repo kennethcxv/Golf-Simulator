@@ -137,14 +137,14 @@
       },
       {
         "type": "PointLight",
-        "name": "AssetRuntimeLight_94",
-        "intensity": 0.38,
+        "name": "AssetRuntimeLight_95",
+        "intensity": 0.45,
         "castShadow": false
       },
       {
         "type": "PointLight",
-        "name": "AssetRuntimeLight_95",
-        "intensity": 0.45,
+        "name": "AssetRuntimeLight_94",
+        "intensity": 0.38,
         "castShadow": false
       }
     ],
@@ -153,7 +153,7 @@
     "grimeSum": 78.942,
     "interiorY": -0.6223
   },
-  "loadVeilMs": 21457,
+  "loadVeilMs": 19365,
   "fovAssertAllShots": true,
   "shots": [
     {
@@ -170,7 +170,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 0
+      "yaw": 0,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "02-wide-room-overview",
@@ -186,7 +193,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -1.0855693342275603
+      "yaw": -1.0855693342275603,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "03-checkout-focal-view",
@@ -202,7 +216,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 0
+      "yaw": 0,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "04-checkout-interaction-view",
@@ -218,7 +239,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -3.141592653589793
+      "yaw": -3.141592653589793,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "05-laptop-workstation",
@@ -234,7 +262,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -3.1198569467479955
+      "yaw": -3.1198569467479955,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "06-main-merchandise-wall",
@@ -250,7 +285,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 0.06885648930105046
+      "yaw": 0.06885648930105046,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "07-cleaning-route",
@@ -266,7 +308,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -1.4711276743037347
+      "yaw": -1.4711276743037347,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "08-customer-route",
@@ -282,7 +331,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -0.2860514417173182
+      "yaw": -0.2860514417173182,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "09-floor-dirt-read",
@@ -298,7 +354,14 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": 1.5707963267948966
+      "yaw": 1.5707963267948966,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     },
     {
       "id": "10-back-of-room-clutter",
@@ -314,52 +377,59 @@
       "fovOk": true,
       "cameraFov": 66,
       "walkFov": 66,
-      "yaw": -2.20354516179708
+      "yaw": -2.20354516179708,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
     }
   ],
   "summary": [
     {
       "scenario": "idle-interior",
-      "runs": 2,
-      "avgMs": 7.09,
-      "p1Ms": 21.35,
-      "avgFps": 141.05,
-      "low1Fps": 46.85,
-      "worstMsMax": 27.7,
+      "runs": 4,
+      "avgMs": 8.03,
+      "p1Ms": 23.23,
+      "avgFps": 125.05,
+      "low1Fps": 43.13,
+      "worstMsMax": 30.6,
       "over33Total": 0,
       "drawCalls": 1454
     },
     {
       "scenario": "spin-interior",
-      "runs": 2,
-      "avgMs": 9.62,
-      "p1Ms": 31.09,
-      "avgFps": 103.95,
-      "low1Fps": 32.2,
-      "worstMsMax": 41.7,
-      "over33Total": 4,
-      "drawCalls": 6051
+      "runs": 4,
+      "avgMs": 11.28,
+      "p1Ms": 38.04,
+      "avgFps": 89.02,
+      "low1Fps": 26.63,
+      "worstMsMax": 52.7,
+      "over33Total": 36,
+      "drawCalls": 5981
     },
     {
       "scenario": "entrance-sightline",
-      "runs": 2,
-      "avgMs": 9.61,
-      "p1Ms": 25.7,
-      "avgFps": 104.05,
-      "low1Fps": 38.9,
-      "worstMsMax": 27.8,
-      "over33Total": 0,
-      "drawCalls": 5815
+      "runs": 4,
+      "avgMs": 11.67,
+      "p1Ms": 29.88,
+      "avgFps": 85.67,
+      "low1Fps": 33.58,
+      "worstMsMax": 36.2,
+      "over33Total": 3,
+      "drawCalls": 2817
     }
   ],
   "runs": [
     {
       "name": "run1/idle-interior",
-      "frames": 837,
-      "avgMs": 7.14,
-      "p1Ms": 21.56,
-      "worstMs": 27.7,
-      "avgFps": 140.1,
+      "frames": 834,
+      "avgMs": 7.17,
+      "p1Ms": 21.54,
+      "worstMs": 27.8,
+      "avgFps": 139.5,
       "low1Fps": 46.4,
       "over33": 0,
       "drawCalls": 1454,
@@ -367,63 +437,135 @@
     },
     {
       "name": "run1/spin-interior",
-      "frames": 826,
-      "avgMs": 9.64,
-      "p1Ms": 32.29,
-      "worstMs": 41.7,
-      "avgFps": 103.7,
-      "low1Fps": 31,
+      "frames": 794,
+      "avgMs": 10.02,
+      "p1Ms": 31.94,
+      "worstMs": 36.1,
+      "avgFps": 99.8,
+      "low1Fps": 31.3,
       "over33": 3,
-      "drawCalls": 6543,
-      "triangles": 14084059
+      "drawCalls": 3820,
+      "triangles": 10612944
     },
     {
       "name": "run1/entrance-sightline",
-      "frames": 622,
-      "avgMs": 9.6,
-      "p1Ms": 25.97,
-      "worstMs": 27.8,
-      "avgFps": 104.2,
-      "low1Fps": 38.5,
+      "frames": 510,
+      "avgMs": 11.66,
+      "p1Ms": 27.8,
+      "worstMs": 30.5,
+      "avgFps": 85.8,
+      "low1Fps": 36,
       "over33": 0,
-      "drawCalls": 5815,
-      "triangles": 11061877
+      "drawCalls": 5818,
+      "triangles": 11062201
     },
     {
       "name": "run2/idle-interior",
-      "frames": 849,
-      "avgMs": 7.04,
-      "p1Ms": 21.15,
-      "worstMs": 25,
-      "avgFps": 142,
-      "low1Fps": 47.3,
+      "frames": 721,
+      "avgMs": 8.29,
+      "p1Ms": 23.83,
+      "worstMs": 25.1,
+      "avgFps": 120.6,
+      "low1Fps": 42,
       "over33": 0,
       "drawCalls": 1454,
       "triangles": 7476235
     },
     {
       "name": "run2/spin-interior",
-      "frames": 829,
-      "avgMs": 9.6,
-      "p1Ms": 29.9,
-      "worstMs": 36.1,
-      "avgFps": 104.2,
-      "low1Fps": 33.4,
-      "over33": 1,
-      "drawCalls": 6051,
-      "triangles": 13945671
+      "frames": 675,
+      "avgMs": 11.81,
+      "p1Ms": 44.04,
+      "worstMs": 49.9,
+      "avgFps": 84.7,
+      "low1Fps": 22.7,
+      "over33": 17,
+      "drawCalls": 6747,
+      "triangles": 15767347
     },
     {
       "name": "run2/entrance-sightline",
-      "frames": 620,
-      "avgMs": 9.62,
-      "p1Ms": 25.43,
-      "worstMs": 27.8,
-      "avgFps": 103.9,
-      "low1Fps": 39.3,
+      "frames": 510,
+      "avgMs": 11.67,
+      "p1Ms": 31.1,
+      "worstMs": 36,
+      "avgFps": 85.7,
+      "low1Fps": 32.2,
+      "over33": 1,
+      "drawCalls": 2817,
+      "triangles": 7776587
+    },
+    {
+      "name": "run3/idle-interior",
+      "frames": 719,
+      "avgMs": 8.31,
+      "p1Ms": 23.76,
+      "worstMs": 25,
+      "avgFps": 120.3,
+      "low1Fps": 42.1,
       "over33": 0,
-      "drawCalls": 5815,
-      "triangles": 11061877
+      "drawCalls": 1454,
+      "triangles": 7476235
+    },
+    {
+      "name": "run3/spin-interior",
+      "frames": 684,
+      "avgMs": 11.64,
+      "p1Ms": 37.26,
+      "worstMs": 52.7,
+      "avgFps": 85.9,
+      "low1Fps": 26.8,
+      "over33": 8,
+      "drawCalls": 6048,
+      "triangles": 13945347
+    },
+    {
+      "name": "run3/entrance-sightline",
+      "frames": 507,
+      "avgMs": 11.78,
+      "p1Ms": 28.9,
+      "worstMs": 30.6,
+      "avgFps": 84.9,
+      "low1Fps": 34.6,
+      "over33": 0,
+      "drawCalls": 5818,
+      "triangles": 11062201
+    },
+    {
+      "name": "run4/idle-interior",
+      "frames": 715,
+      "avgMs": 8.35,
+      "p1Ms": 23.81,
+      "worstMs": 30.6,
+      "avgFps": 119.8,
+      "low1Fps": 42,
+      "over33": 0,
+      "drawCalls": 1454,
+      "triangles": 7476235
+    },
+    {
+      "name": "run4/spin-interior",
+      "frames": 684,
+      "avgMs": 11.66,
+      "p1Ms": 38.91,
+      "worstMs": 44.5,
+      "avgFps": 85.7,
+      "low1Fps": 25.7,
+      "over33": 8,
+      "drawCalls": 5981,
+      "triangles": 13911816
+    },
+    {
+      "name": "run4/entrance-sightline",
+      "frames": 514,
+      "avgMs": 11.58,
+      "p1Ms": 31.7,
+      "worstMs": 36.2,
+      "avgFps": 86.3,
+      "low1Fps": 31.5,
+      "over33": 2,
+      "drawCalls": 2817,
+      "triangles": 7776587
     }
   ],
   "errs": []

@@ -93,6 +93,22 @@ async (page) => {
       sunShadowMapSize: S(() => `${s3.post.sun.shadow.mapSize.x}x${s3.post.sun.shadow.mapSize.y}`),
       toneMapping: r.toneMapping, exposure: r.toneMappingExposure,
       gtao: !!s3.post.gtao?.enabled, bloom: !!s3.post.bloom?.enabled,
+      // Prove the GTAO arm actually took effect rather than assuming the source edit
+      // reached the running pass. NOTE: GTAOPass has no `radius` property — it lives in
+      // gtaoMaterial.uniforms.radius, which is why main.js:196's `gtao.radius = 0.7` is
+      // inert and the real radius is whatever updateGtaoMaterial set at construction.
+      gtaoParams: S(() => {
+        const g = s3.post.gtao;
+        const u = g.gtaoMaterial?.uniforms || {};
+        return {
+          blendIntensity: g.blendIntensity,
+          uniformRadius: u.radius?.value ?? null,
+          uniformSamples: u.samples?.value ?? null,
+          strayRadiusProp: g.radius ?? null,
+          renderTarget: g.gtaoRenderTarget ? `${g.gtaoRenderTarget.width}x${g.gtaoRenderTarget.height}` : null,
+          pdRadius: g.pdMaterial?.uniforms?.radius?.value ?? null,
+        };
+      }),
       interiorMeshes, interiorCasters, interiorReceivers,
       lightCount: lights.length,
       lights: lights.slice(0, 40),
@@ -114,6 +130,16 @@ async (page) => {
       // Presentation-only and capture-local; the sim keeps running untouched.
       const cs = typeof ch.customers === 'function' ? ch.customers() : ch.customers;
       if (Array.isArray(cs)) cs.forEach((c) => { if (c && c.mesh) c.mesh.visible = false; });
+      // Doors must be in the SAME state in every arm. A customer walking the entrance
+      // leaves them swinging, and shot 04's whole delta in the first pass turned out to
+      // be an open door rather than lighting.
+      const doors = ch.doors || ch.doorApi?.doors || null;
+      if (Array.isArray(doors)) {
+        doors.forEach((d) => { if (d) { d.open = false; d.swingTarget = 0; d.angle = 0; } });
+      }
+      // Objective/notification toasts appear on their own schedule and are pure HUD.
+      const nc = document.querySelector('.notification-center');
+      if (nc) nc.style.display = 'none';
       const o = ch.interior.position; const w = s3.walk; w.clearKeys();
       const c = app.state.clock;
       c.minutes = Math.floor(c.minutes / 1440) * 1440 + m;
@@ -125,7 +151,12 @@ async (page) => {
       w.state.yaw = Math.atan2(-dx / d, -dz / d);
       w.state.pitch = shot.pitch;
       // Required by the spike brief: the lens must be the walk lens for every frame.
-      return { fovOk: s3.camera.fov === w.state.fov, cameraFov: s3.camera.fov, walkFov: w.state.fov, yaw: w.state.yaw };
+      return {
+        fovOk: s3.camera.fov === w.state.fov,
+        cameraFov: s3.camera.fov, walkFov: w.state.fov, yaw: w.state.yaw,
+        doorAngles: Array.isArray(doors) ? doors.map((d) => +Number(d?.angle || 0).toFixed(4)) : null,
+        toastsHidden: !!nc,
+      };
     }, { shot: s, m: MINUTE_OF_DAY });
     await page.waitForTimeout(750);
     await page.screenshot({ path: path.join(out, `${s.id}.png`) });

@@ -1,0 +1,580 @@
+{
+  "arm": "5",
+  "seed": {
+    "seed": 20260727,
+    "activeId": "willow-creek"
+  },
+  "env": {
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "fov": 66,
+    "walkFov": 66,
+    "shadowMapType": 1,
+    "shadowMapEnabled": true,
+    "sunShadowRadius": 4,
+    "sunShadowMapSize": "2048x2048",
+    "toneMapping": 4,
+    "exposure": 1.12,
+    "gtao": true,
+    "bloom": true,
+    "gtaoParams": {
+      "blendIntensity": 1,
+      "uniformRadius": 2.4,
+      "uniformSamples": null,
+      "strayRadiusProp": 0.7,
+      "renderTarget": "1600x900",
+      "pdRadius": 2
+    },
+    "interiorMeshes": 2191,
+    "interiorCasters": 2186,
+    "interiorReceivers": 2180,
+    "lightCount": 21,
+    "lights": [
+      {
+        "type": "DirectionalLight",
+        "name": "",
+        "intensity": 1.45,
+        "castShadow": true
+      },
+      {
+        "type": "HemisphereLight",
+        "name": "",
+        "intensity": 0.9,
+        "castShadow": false
+      },
+      {
+        "type": "AmbientLight",
+        "name": "",
+        "intensity": 0.16,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "intensity": 9.735,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "intensity": 9.735,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "intensity": 9.735,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-01",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-02",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-03",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-04",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-05",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-06",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-07",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "RectAreaLight",
+        "name": "CeilingPanelLight_panel-08",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "PineHillsAccent_reception",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "PineHillsAccent_retail",
+        "intensity": 0,
+        "castShadow": false
+      },
+      {
+        "type": "DirectionalLight",
+        "name": "SPIKE_InteriorKeyLight",
+        "intensity": 2,
+        "castShadow": true
+      },
+      {
+        "type": "PointLight",
+        "name": "AssetRuntimeLight_83",
+        "intensity": 0.55,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "AssetRuntimeLight_94",
+        "intensity": 0.38,
+        "castShadow": false
+      },
+      {
+        "type": "PointLight",
+        "name": "AssetRuntimeLight_95",
+        "intensity": 0.45,
+        "castShadow": false
+      }
+    ],
+    "propertyId": "willow-creek",
+    "condition": 10,
+    "grimeSum": 78.942,
+    "interiorY": -0.6223
+  },
+  "loadVeilMs": 19964,
+  "fovAssertAllShots": true,
+  "shots": [
+    {
+      "id": "01-entrance-looking-inward",
+      "at": [
+        -0.8,
+        4.6
+      ],
+      "look": [
+        -0.8,
+        -3
+      ],
+      "pitch": -0.03,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": 0,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "02-wide-room-overview",
+      "at": [
+        -7,
+        3.6
+      ],
+      "look": [
+        4,
+        -2.2
+      ],
+      "pitch": -0.05,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": -1.0855693342275603,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "03-checkout-focal-view",
+      "at": [
+        0,
+        4.2
+      ],
+      "look": [
+        0,
+        0.8
+      ],
+      "pitch": -0.04,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": 0,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "04-checkout-interaction-view",
+      "at": [
+        0,
+        0.2
+      ],
+      "look": [
+        0,
+        3.4
+      ],
+      "pitch": -0.16,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": -3.141592653589793,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "05-laptop-workstation",
+      "at": [
+        0.9,
+        0.1
+      ],
+      "look": [
+        0.95,
+        2.4
+      ],
+      "pitch": -0.3,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": -3.1198569467479955,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "06-main-merchandise-wall",
+      "at": [
+        -3.2,
+        1.4
+      ],
+      "look": [
+        -3.6,
+        -4.4
+      ],
+      "pitch": -0.02,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": 0.06885648930105046,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "07-cleaning-route",
+      "at": [
+        -7.4,
+        4.1
+      ],
+      "look": [
+        3.6,
+        3
+      ],
+      "pitch": -0.3,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": -1.4711276743037347,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "08-customer-route",
+      "at": [
+        -0.8,
+        5
+      ],
+      "look": [
+        0.2,
+        1.6
+      ],
+      "pitch": -0.1,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": -0.2860514417173182,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "09-floor-dirt-read",
+      "at": [
+        -4,
+        -1
+      ],
+      "look": [
+        -8,
+        -1
+      ],
+      "pitch": -0.66,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": 1.5707963267948966,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    },
+    {
+      "id": "10-back-of-room-clutter",
+      "at": [
+        4.6,
+        1.2
+      ],
+      "look": [
+        7.6,
+        3.4
+      ],
+      "pitch": -0.12,
+      "fovOk": true,
+      "cameraFov": 66,
+      "walkFov": 66,
+      "yaw": -2.20354516179708,
+      "doorAngles": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "toastsHidden": true
+    }
+  ],
+  "summary": [
+    {
+      "scenario": "idle-interior",
+      "runs": 4,
+      "avgMs": 8.21,
+      "p1Ms": 23.71,
+      "avgFps": 121.8,
+      "low1Fps": 42.25,
+      "worstMsMax": 30.6,
+      "over33Total": 0,
+      "drawCalls": 1454
+    },
+    {
+      "scenario": "spin-interior",
+      "runs": 4,
+      "avgMs": 11.61,
+      "p1Ms": 38.79,
+      "avgFps": 86.13,
+      "low1Fps": 25.82,
+      "worstMsMax": 49.9,
+      "over33Total": 44,
+      "drawCalls": 5981
+    },
+    {
+      "scenario": "entrance-sightline",
+      "runs": 4,
+      "avgMs": 11.61,
+      "p1Ms": 30.17,
+      "avgFps": 86.15,
+      "low1Fps": 33.17,
+      "worstMsMax": 41.7,
+      "over33Total": 3,
+      "drawCalls": 2814
+    }
+  ],
+  "runs": [
+    {
+      "name": "run1/idle-interior",
+      "frames": 726,
+      "avgMs": 8.23,
+      "p1Ms": 23.01,
+      "worstMs": 27.8,
+      "avgFps": 121.5,
+      "low1Fps": 43.5,
+      "over33": 0,
+      "drawCalls": 4433,
+      "triangles": 10735753
+    },
+    {
+      "name": "run1/spin-interior",
+      "frames": 684,
+      "avgMs": 11.64,
+      "p1Ms": 38.9,
+      "worstMs": 47.3,
+      "avgFps": 85.9,
+      "low1Fps": 25.7,
+      "over33": 12,
+      "drawCalls": 5981,
+      "triangles": 13888947
+    },
+    {
+      "name": "run1/entrance-sightline",
+      "frames": 509,
+      "avgMs": 11.67,
+      "p1Ms": 28.32,
+      "worstMs": 30.5,
+      "avgFps": 85.7,
+      "low1Fps": 35.3,
+      "over33": 0,
+      "drawCalls": 5815,
+      "triangles": 11061877
+    },
+    {
+      "name": "run2/idle-interior",
+      "frames": 729,
+      "avgMs": 8.21,
+      "p1Ms": 25,
+      "worstMs": 30.6,
+      "avgFps": 121.8,
+      "low1Fps": 40,
+      "over33": 0,
+      "drawCalls": 1454,
+      "triangles": 7476235
+    },
+    {
+      "name": "run2/spin-interior",
+      "frames": 684,
+      "avgMs": 11.62,
+      "p1Ms": 36.56,
+      "worstMs": 41.8,
+      "avgFps": 86.1,
+      "low1Fps": 27.4,
+      "over33": 11,
+      "drawCalls": 5981,
+      "triangles": 13888947
+    },
+    {
+      "name": "run2/entrance-sightline",
+      "frames": 514,
+      "avgMs": 11.59,
+      "p1Ms": 31.12,
+      "worstMs": 41.7,
+      "avgFps": 86.3,
+      "low1Fps": 32.1,
+      "over33": 1,
+      "drawCalls": 2814,
+      "triangles": 7776263
+    },
+    {
+      "name": "run3/idle-interior",
+      "frames": 727,
+      "avgMs": 8.2,
+      "p1Ms": 22.64,
+      "worstMs": 25.1,
+      "avgFps": 122,
+      "low1Fps": 44.2,
+      "over33": 0,
+      "drawCalls": 1454,
+      "triangles": 7476235
+    },
+    {
+      "name": "run3/spin-interior",
+      "frames": 685,
+      "avgMs": 11.61,
+      "p1Ms": 38.47,
+      "worstMs": 49.9,
+      "avgFps": 86.2,
+      "low1Fps": 26,
+      "over33": 12,
+      "drawCalls": 8960,
+      "triangles": 17148465
+    },
+    {
+      "name": "run3/entrance-sightline",
+      "frames": 513,
+      "avgMs": 11.61,
+      "p1Ms": 30.64,
+      "worstMs": 30.7,
+      "avgFps": 86.2,
+      "low1Fps": 32.6,
+      "over33": 0,
+      "drawCalls": 2814,
+      "triangles": 7776263
+    },
+    {
+      "name": "run4/idle-interior",
+      "frames": 727,
+      "avgMs": 8.2,
+      "p1Ms": 24.2,
+      "worstMs": 27.8,
+      "avgFps": 121.9,
+      "low1Fps": 41.3,
+      "over33": 0,
+      "drawCalls": 1454,
+      "triangles": 7476235
+    },
+    {
+      "name": "run4/spin-interior",
+      "frames": 686,
+      "avgMs": 11.59,
+      "p1Ms": 41.24,
+      "worstMs": 49.9,
+      "avgFps": 86.3,
+      "low1Fps": 24.2,
+      "over33": 9,
+      "drawCalls": 5981,
+      "triangles": 13888947
+    },
+    {
+      "name": "run4/entrance-sightline",
+      "frames": 515,
+      "avgMs": 11.58,
+      "p1Ms": 30.6,
+      "worstMs": 33.4,
+      "avgFps": 86.4,
+      "low1Fps": 32.7,
+      "over33": 2,
+      "drawCalls": 2814,
+      "triangles": 7776263
+    }
+  ],
+  "errs": []
+}
