@@ -194,6 +194,30 @@ export function markGrassInstanceBuffersUpdated(grassMesh, instanceCount) {
   colorAttribute.needsUpdate = true;
 }
 
+/**
+ * Ground-truth GTAO configuration. Contact occlusion is the ONLY thing darkening where
+ * indoor geometry meets the floor: RectAreaLights cannot cast shadows in three.js, and
+ * interior meshes are deliberately kept out of the sun's shadow atlas
+ * (clubhouse/interiorShadowPolicy.js). At half resolution and 0.4 blend that contact was
+ * effectively absent — a table leg simply ended where it met the boards.
+ *
+ * Exported so tests/gtao-config.test.js can assert the LIVE uniform matches what this
+ * file claims. That guard exists because `gtao.radius = x` looks like it works and does
+ * nothing: GTAOPass keeps the radius in gtaoMaterial.uniforms.radius and never reads a
+ * bare property, so two call sites spent their lives setting a field nobody consumed.
+ *
+ * `radius` stays at 1.5 on purpose. Raising it to 2.4 was measured and made the occlusion
+ * read as broad blotchy staining rather than tight contact — see Designs/ProShop/Spike.
+ * Intensity and resolution are what buy grounding; radius buys spread.
+ */
+export const GTAO_CONFIG = Object.freeze({
+  radius: 1.5,
+  blendIntensity: 1.0,
+  samples: 24,
+  resolutionScale: 1, // 1 = full resolution
+  pd: Object.freeze({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 16 }),
+});
+
 const WALK_FOCUS_MIN_FACING = 0.3;
 const WALK_FOCUS_CROSS_TRACK_WEIGHT = 3.8;
 const WALK_FOCUS_DEPTH_WEIGHT = 0.18;
@@ -704,25 +728,31 @@ export function makeCourseScene(canvas, state) {
   const gtao = new GTAOPass(scene, camera, 2, 2);
   patchPoissonDenoiseMaterial(gtao.pdMaterial);
   gtao.output = GTAOPass.OUTPUT.Default;
-  // STYLE GUIDE §3: tight contact darkening only — no corner grime spread
-  gtao.blendIntensity = 0.4;
+  // STYLE GUIDE §3: tight contact darkening only — no corner grime spread. All values
+  // come from GTAO_CONFIG so the source of truth is one object (see its comment).
+  gtao.blendIntensity = GTAO_CONFIG.blendIntensity;
   gtao.updateGtaoMaterial({
-    radius: 1.5, // yards — hugs feet, wheels, and trunks; stays out of open turf
+    radius: GTAO_CONFIG.radius, // yards — hugs feet, wheels, and trunks; stays out of open turf
     distanceExponent: 1,
     thickness: 1,
     scale: 1.0,
-    samples: 12,
+    samples: GTAO_CONFIG.samples,
     distanceFallOff: 1,
     screenSpaceRadius: false,
   });
-  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
-  // AO at HALF resolution. The pass re-renders the whole scene for depth+normals and then
-  // runs two more full-screen passes; at full size that measured ~5ms/frame on the fixed
-  // spin route (90.5 → 175.8 fps with the pass off). setSize here touches only the pass's
-  // own targets — the beauty image stays full-res and the soft contact darkening (§3) is
-  // upsampled bilinearly, which its own denoiser already smooths past noticing.
-  const gtaoFullSetSize = gtao.setSize.bind(gtao);
-  gtao.setSize = (w, h) => gtaoFullSetSize(Math.max(1, Math.ceil(w * 0.5)), Math.max(1, Math.ceil(h * 0.5)));
+  gtao.updatePdMaterial({ ...GTAO_CONFIG.pd });
+  // AO runs at FULL resolution. It used to be halved here, on a measurement taken from the
+  // outdoor spin route with the whole course in frame (~5ms/frame, 90.5 → 175.8 fps with
+  // the pass off). Indoors, behind the 80yd interior draw gate, the same change measured
+  // free: 7.78ms vs 7.82ms idle and 10.62 vs 10.69 spinning across 4 samples each. Half
+  // resolution was also costing the one effect that grounds indoor objects at all, so the
+  // interior trade was strictly bad. If the outdoor cost ever bites, scale by camera mode
+  // rather than reinstating a blanket halving.
+  if (GTAO_CONFIG.resolutionScale !== 1) {
+    const scale = GTAO_CONFIG.resolutionScale;
+    const gtaoFullSetSize = gtao.setSize.bind(gtao);
+    gtao.setSize = (w, h) => gtaoFullSetSize(Math.max(1, Math.ceil(w * scale)), Math.max(1, Math.ceil(h * scale)));
+  }
   composer.addPass(gtao);
   // STYLE GUIDE §3: bloom effectively OFF for the scene — only the sun disc
   // (radiance in the thousands) may glint; turf and trim never halo

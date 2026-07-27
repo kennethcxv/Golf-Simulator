@@ -498,7 +498,18 @@ ceiling panels alone mint 16 materials) and the number is explained.
 * Sun shadows are deliberately stripped from every interior mesh by the wrapped
   `interior.add` (`clubhouse.js:572-608`) and `interiorShadowPolicy.js:5-18`.
 * So the **only** contact darkening indoors is GTAO — at half resolution, blend 0.4,
-  radius 0.7 in walk mode.
+  radius **1.5**.
+
+  > **CORRECTION (2026-07-27).** This originally read "radius 0.7 in walk mode", taken
+  > from `main.js:196` without checking the API. That was wrong. `GTAOPass` has no
+  > `radius` property — the value lives in `gtaoMaterial.uniforms.radius` and is settable
+  > only through `updateGtaoMaterial()`. Both `main.js` assignments wrote a stray field
+  > nothing read, so the radius was **1.5 in every mode**, and the per-mode tuning never
+  > took effect. Logged as GTAO-1, root-caused in
+  > `Designs/ProShop/Spike/LIGHTING_SPIKE.md` (addendum) and since **fixed**: the AO now
+  > runs at full resolution with blend 1.0 and a single honestly-applied radius of 1.5,
+  > pinned by `tests/gtao-config.test.js`. The half-resolution and 0.4-blend parts of this
+  > paragraph are likewise now historical.
 * Meanwhile the canvas maps are deliberately low-amplitude: grain alpha 0.03–0.07, normal
   strength attenuated by `normalScale` 0.25–0.9, 256 px bases for most families.
 

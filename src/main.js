@@ -194,7 +194,15 @@ function requestLook() {
 let yardHintShown = false; // one nudge per session toward the earned-tractor arc
 
 function enterWalk(spawn) {
-  if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 0.7; // first-person contact shadows
+  // GTAO radius is deliberately NOT set per mode. This line used to read
+  // `post.gtao.radius = 0.7`, which did nothing at all: GTAOPass keeps the radius in
+  // gtaoMaterial.uniforms.radius and never reads a bare property, so the value the code
+  // claimed and the value the shader used disagreed for the whole life of the feature.
+  // Making it real would have meant shipping an untested 0.7 in first person; the
+  // measured finding is that a smaller radius tightens contact and a larger one smears
+  // it, so if per-mode tuning is ever wanted it must go through updateGtaoMaterial() and
+  // be verified on the contact crops. One configured radius, honestly applied, until then.
+  // See GTAO_CONFIG in render3d/courseScene.js and tests/gtao-config.test.js.
   if (!yardHintShown && app.state && app.state.tractor && !app.state.tractor.repaired) {
     yardHintShown = true;
     setTimeout(() => toast('The old tractor sits by the shed, east of the porch — she’d run again with some work.'), 1200);
@@ -218,7 +226,7 @@ function exitWalk() {
   cancelToolKey();
   if (app.frontDeskOpen) exitFrontDesk(true);
   if (app.laptopOpen) exitLaptop(true);
-  if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
+  // No per-mode GTAO radius here either — see the note in enterWalk.
   if (app.scene3d) app.scene3d.walk.exit();
   walkOverlay.style.display = 'none';
   const viewToggle = document.querySelector('.view-toggle');
