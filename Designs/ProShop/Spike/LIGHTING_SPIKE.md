@@ -407,3 +407,86 @@ lighting/contact/                6 four-arm contact close-ups at 2x
 lighting/compare/                arm0-vs-arm4, arm0-vs-arm5, arm3-vs-arm5 side-by-sides
 contact_crops.py                 throwaway crop/luma tool
 ```
+
+---
+---
+
+# DISPOSITION — what was adopted, what was deferred
+
+Decided 2026-07-27 after review of this spike. The spike branch itself remains
+**disposable and unmerged**; these are the decisions taken on
+`feature/pro-shop-vertical-slice` as a result of it.
+
+## ADOPTED — Arm 4's ambient occlusion (production commit `40ed03d`)
+
+Applied to the feature branch, **without** Arm 4's radius change:
+
+| Setting | Before | Production |
+|---|---|---|
+| `blendIntensity` | 0.4 | **1.0** |
+| `samples` | 12 | **24** |
+| Render target | half (800×450) | **full (1600×900)** |
+| `uniforms.radius` | 1.5 | **1.5 — deliberately unchanged** |
+
+Radius stayed at 1.5 because this spike's own finding was that 2.4 reads as broad blotchy
+staining rather than tight contact. That call was then verified rather than assumed:
+production reaches Arm 4's contact darkening **with the tighter radius**, and the crop
+shows the occlusion hugging the table leg instead of smearing away from it.
+
+| Contact luma | before | arm4 (r 2.4) | production (r 1.5) |
+|---|---|---|---|
+| display-table-legs | 90.6 | 83.1 | **82.6** |
+| bench-base | 63.9 | 60.2 | **60.3** |
+| shelving-base | 48.3 | 45.3 | **45.3** |
+
+Evidence: `Designs/ProShop/Phase1/data/ao-verify/`. Configuration is now
+`GTAO_CONFIG` in `render3d/courseScene.js`, pinned by `tests/gtao-config.test.js`.
+
+**GTAO-1 fixed in the same commit.** The two inert `post.gtao.radius` assignments in
+`main.js` are gone in favour of one configured radius that is honestly applied. The test
+asserts the live `gtaoMaterial.uniforms.radius` matches `GTAO_CONFIG`, and refuses any
+bare `gtao.radius =` assignment; its negative control was verified by injecting the
+original bug shape and confirming the test fails.
+
+## DEFERRED — Arm 3's interior key light, to Phase 5, as a design question
+
+**Not implemented, and it should not be implemented as tested.**
+
+Arm 3 added an unconditional warm directional light inside the room. That conflicts
+directly with a starter beat this project already has. Per
+`PHASE_1_CLASSIFICATION.md` §11, the interior rig is a **save-driven state machine**:
+
+* The campaign **starts the room dark** — `powered = !campaign.enabled || repairComplete(state, 'ceiling')`
+  (`clubhouse.js:1049-1057`) — until the player repairs the ceiling.
+* `panel-02` flickers and `panel-07` is dead by default (`shell.js:1001-1002`), and repair
+  must permanently stop the flicker.
+
+An unconditional key light lights the room **before the player has repaired it**, which
+erases the ceiling-repair beat and the fault-state evidence along with it. Arm 3 measured
+well on form and badly on design.
+
+**Conditions any future interior key light must satisfy:**
+
+1. Gated to the **same power state** as the eight authored panels — dark until the ceiling
+   repair completes, via `setCeilingCircuitPowered`.
+2. Gated to the **same fault state**, so a room with dead and flickering panels does not
+   read as evenly lit from an invisible source.
+3. Motivated by something the player can see — a window, a fixture, a skylight. Arm 3's
+   direction corresponded to nothing in the room, so its shadows were physically arbitrary.
+4. Resolves the `THREE.WebGLProgram: VALIDATE_STATUS false` shader error Arm 3 emitted, and
+   the +3 s load-time regression that came with it.
+5. Re-measured against the contact crops, not just whole-frame metrics.
+
+This is a **Phase 5 decision for the art bible**, not a Phase 2 assumption. The relevant
+hard constraint to carry forward is the one this spike established: *three.js cannot cast
+shadows from RectAreaLights*, so if the art direction wants shadowed interior lighting at
+all, that is a deliberate architectural choice with a cost, not a setting to turn on.
+
+## NOT ADOPTED — Arms 1 and 2
+
+* **Arm 1** (request `PCFShadowMap`) is a one-line hygiene fix that silences a per-boot
+  warning and changes nothing visually. Worth doing eventually; not urgent, and deliberately
+  left out of the AO commit to keep that change single-purpose.
+* **Arm 2** (interior meshes cast into the sun map) is **rejected**. It only dims the room,
+  because the roof blocks the sun. The existing suppression policy in
+  `interiorShadowPolicy.js` is correct and stays.
