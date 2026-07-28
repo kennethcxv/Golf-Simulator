@@ -50,11 +50,14 @@ async (page) => {
     const clubhouse = app.scene3d.clubhouse();
     const state = app.state;
 
-    // Open for business and make customers come: force shop hours active.
-    state.speed = 16;
-    if (state.clock) state.clock.minutes = Math.floor(state.clock.minutes / 1440) * 1440 + 9 * 60;
+    // 9 AM, speed index 3 (the live-speed16 scenario's setting): a 9AM→7PM day
+    // passes in roughly 19 wall-minutes.
+    const c = state.clock;
+    c.minutes = Math.floor(c.minutes / 1440) * 1440 + 9 * 60;
+    app.scene3d.applyTimeWeather(9 * 60, state.weather);
+    app.speedIdx = 3;
 
-    // Ten scripted customers on top of organic walk-ins.
+    // Ten scripted customers on top of any organic walk-ins.
     const spawned = clubhouse.debugSpawn ? Array.from({ length: 10 }, () => clubhouse.debugSpawn(false)).length : 0;
 
     // clubhouse.customers() returns the raw customer array (clubhouse.js:10433);
@@ -77,7 +80,7 @@ async (page) => {
       const tick = () => {
         const nowMinute = state.clock?.minutes ?? 0;
         const minuteOfDay = nowMinute % 1440;
-        const wallOverrun = performance.now() - started > 240000;
+        const wallOverrun = performance.now() - started > 1500000;
         const list = observe();
         maxSimultaneous = Math.max(maxSimultaneous, list.length);
         if (list.length) sawAny = true;
@@ -91,8 +94,11 @@ async (page) => {
             perCustomer.delete(id);
             continue;
           }
-          const x = Math.round((customer.x ?? customer.entity?.position?.x ?? 0) * 2) / 2;
-          const z = Math.round((customer.z ?? customer.entity?.position?.z ?? 0) * 2) / 2;
+          // The live position is the character root (customer.mesh) — the customer
+          // record itself carries no x/z.
+          const p = customer.mesh?.position;
+          const x = Math.round((p?.x ?? 0) * 2) / 2;
+          const z = Math.round((p?.z ?? 0) * 2) / 2;
           const key = `${customer.stopIdx ?? '-'}|${customer.checkoutPhase ?? '-'}|${x},${z}`;
           const record = perCustomer.get(id) || { key: null, sinceWall: performance.now(), worstWallS: 0 };
           if (!perCustomer.has(id)) totalSeen += 1;
@@ -109,10 +115,11 @@ async (page) => {
           perCustomer.set(id, record);
         }
         if (minuteOfDay >= dayEnd || wallOverrun || stuck.length > 3) resolve();
-        else setTimeout(tick, 250);
+        else setTimeout(tick, 500);
       };
       tick();
     });
+    app.speedIdx = 0;
 
     const worstHold = Math.max(0, ...[...perCustomer.values()].map((record) => record.worstWallS));
     return {
@@ -125,8 +132,8 @@ async (page) => {
       stuck,
       worstStateHoldWallS: Math.round(worstHold * 10) / 10,
       simMinutesRun: (state.clock?.minutes ?? 0) - startMinute,
-      history: state.shop?.history?.length ?? null,
-      unitsSold: state.shop?.unitsSold ?? null,
+      transactions: state.shop?.transactionHistory?.length ?? null,
+      unitsSold: state.shop?.salesLive?.units ?? null,
     };
   }, [label, STUCK_LIMIT_S, DAY_END_MINUTE]);
 
