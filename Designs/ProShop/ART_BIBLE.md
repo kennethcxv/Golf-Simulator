@@ -413,7 +413,81 @@ colours already in the room where one existed.
 | Warm panel light | `#FFD8AD` | Ceiling panel emissive (existing rig value) |
 | Dead diffuser | `#C9C1B3` | The `panel-07` dead-panel face (existing value) |
 
-Rules:
+### 8.1 The conversion — hex is sRGB, `baseColorFactor` is LINEAR
+
+Every hex above is an **sRGB** value: what you would type into a colour picker, sample
+from a screenshot, or read off this table. Almost nothing downstream wants that number
+directly.
+
+| Consumer | Wants | Convert? |
+|---|---|---|
+| glTF `pbrMetallicRoughness.baseColorFactor` | linear | **yes** |
+| Blender Principled BSDF **Base Color** socket | linear | **yes** |
+| `THREE.Color.setHex(h)` / `.set('#hex')` | sRGB, converts internally | no |
+| `THREE.Color.setRGB(r, g, b)` with no colour space argument | linear | **yes** |
+| An albedo *texture* tagged sRGB | sRGB | no |
+| CSS, UI, swatch documents | sRGB | no |
+
+The conversion is the IEC 61966-2-1 EOTF, applied per channel to the 0–1 byte value.
+**It is not `x ** 2.2`** — the standard has a linear toe below 0.04045, and at the dark
+end of this palette (dark walnut, black powder-coat, deep green shadow) the difference
+is visible:
+
+```
+c_srgb  = byte / 255
+c_lin   = c_srgb / 12.92                          if c_srgb <= 0.04045
+        = ((c_srgb + 0.055) / 1.055) ** 2.4       otherwise
+```
+
+Use `tools/blender/palette.py` — `hex_to_linear_rgba('6B4A2F')` — rather than
+reimplementing it. Do not derive these by eye.
+
+| Name | Hex (sRGB) | Linear `baseColorFactor` R, G, B |
+|---|---|---|
+| Warm cream | `#E8DFC9` | 0.806952, 0.737910, 0.584078 |
+| Plaster shadow | `#CFC6B0` | 0.623960, 0.564712, 0.434154 |
+| Medium walnut | `#6B4A2F` | 0.147027, 0.068478, 0.028426 |
+| Dark walnut | `#3E2A1B` | 0.048172, 0.023153, 0.010960 |
+| Deep green | `#2F4A35` | 0.028426, 0.068478, 0.035601 |
+| Deep green shadow | `#21351F` | 0.015209, 0.035601, 0.013702 |
+| Sage green | `#9FB09A` | 0.346704, 0.434154, 0.323143 |
+| Charcoal | `#2B2E30` | 0.024158, 0.027321, 0.029557 |
+| Black powder-coat | `#1C1E1F` | 0.011612, 0.012983, 0.013702 |
+| Muted brass | `#A8823C` | 0.391572, 0.223228, 0.045186 |
+| Warm panel light | `#FFD8AD` | 1.000000, 0.686685, 0.417885 |
+| Dead diffuser | `#C9C1B3` | 0.584078, 0.533276, 0.450786 |
+
+**The failure this prevents.** `Spike/TEXTURE_VALIDATION.md` Arm C wrote medium walnut as
+`0.420, 0.290, 0.184` — the raw bytes over 255 — into a `baseColorFactor`. That is the
+*sRGB* triple. The surface shipped as `#AD9377`, a washed-out tan. The exporter, the GLB
+validator and the renderer all accepted it silently; it was only caught by looking at a
+screenshot. There is no automatic check for "that colour is wrong", so the conversion is
+pinned instead.
+
+[T] `tests/palette-colorspace.test.js` asserts the table above against an independent
+implementation of the EOTF, asserts the round trip back to hex, and carries a negative
+control that fails if the raw-bytes shortcut is reintroduced.
+
+### 8.2 Conflict — the shipping builder palette is not this palette
+
+`tools/blender/palette.py` exposes **two** tables. `ART_BIBLE_SRGB_HEX` is §8 above and is
+the authority for this slice. `PALETTE_SRGB_HEX` is what the assets 51–100 builders have
+actually shipped, and the two disagree on most entries:
+
+| Name | §8 | Shipped builder value |
+|---|---|---|
+| Warm cream | `#E8DFC9` | `#E8DFC9` — agrees |
+| Medium walnut | `#6B4A2F` | `#704934` |
+| Deep green | `#2F4A35` | `#173F32` |
+| Charcoal | `#2B2E30` | `#292C2A` (`warm_charcoal`) |
+| Muted brass | `#A8823C` | `#9B7A3B` (`restrained_brass`) |
+
+Retinting fifty already-shipped assets is a Phase 3 decision, not a texture-infrastructure
+change, so both tables stand and a builder states which one it draws from. **A Tier 1
+pro-shop asset draws from `ART_BIBLE_SRGB_HEX`.** [T] the palette audit in §8 rules below
+samples against the §8 values.
+
+### 8.3 Rules
 
 * **Brass is a jewellery metal here.** If a brass surface is larger than a hand, it is
   wrong. [V] anchor plate: the counter's pulls are the correct dose.

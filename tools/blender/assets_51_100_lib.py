@@ -413,35 +413,27 @@ def apply_transforms(
 # Pinehollow stylized PBR materials and project-owned texture support
 
 
-PALETTE_SRGB_HEX: Mapping[str, str] = {
-    "warm_cream": "E8DFC9",
-    "deep_green": "173F32",
-    "muted_sage": "829681",
-    "medium_walnut": "704934",
-    "natural_oak": "B98A59",
-    "warm_charcoal": "292C2A",
-    "restrained_brass": "9B7A3B",
-    "brushed_steel": "737B7C",
-    "soft_black": "111513",
-    "rubber": "171B19",
-    "paper": "EEE9DC",
-    "safety_red": "9E2F2B",
-    "safety_yellow": "C9A33B",
-    "cool_white": "DDE4E0",
-    "glass_tint": "B8D0C9",
-}
+# The palette tables and the sRGB->linear conversion live in `palette.py`, which
+# imports no `bpy` and so can be exercised by a plain-Python test.  They are
+# re-exported here unchanged: every existing `A.hex_to_linear_rgba(...)` and
+# `A.PALETTE_SRGB_HEX` call site keeps working.  Pinned by
+# `tests/palette-colorspace.test.js` — glTF baseColorFactor is LINEAR and the
+# conversion has already been got wrong once in production.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    # Blender does not consistently add an imported module's directory to sys.path,
+    # and this module can be imported from a builder run out of any cwd.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from palette import (  # noqa: E402  (module layout: constants block, not top of file)
+    ART_BIBLE_SRGB_HEX,
+    PALETTE_SRGB_HEX,
+    hex_to_linear_rgba,
+    hex_to_srgb_floats,
+    linear_channel_to_srgb,
+    srgb_channel_to_linear,
+)
 
-def _srgb_channel_to_linear(value: float) -> float:
-    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
-
-
-def hex_to_linear_rgba(value: str, alpha: float = 1.0) -> tuple[float, float, float, float]:
-    value = value.strip().lstrip("#")
-    if len(value) != 6:
-        raise ValueError(f"expected six-digit hex color, got {value!r}")
-    channels = [int(value[index : index + 2], 16) / 255.0 for index in (0, 2, 4)]
-    return (*(_srgb_channel_to_linear(channel) for channel in channels), float(alpha))
+_srgb_channel_to_linear = srgb_channel_to_linear  # pre-existing private alias
 
 
 def _principled_input(node: bpy.types.Node, names: Sequence[str]) -> Any | None:
