@@ -1,9 +1,12 @@
 # Pine Hills v2 — Greybox Floor Plan
 
-> **Status: PLAN ONLY, awaiting approval.** Produced 2026-07-28. No geometry, no code,
-> no variant exists yet. Per the Phase 3 brief: the plan and the build do not share a
-> session. Approval of this document green-lights the greybox build described in §9 —
-> and nothing else (no hero assets, no materials, no lighting changes).
+> **Status: APPROVED 2026-07-28, with two amendments, both incorporated below.**
+> (1) Decision D1 approved as written — the checkout frame moves to the south wall and
+> `PineHillsFrontDeskBackdrop` is deleted. (2) The lounge stays, rejustified: it is a
+> **cleaning surface**, not decor (§5), with two recorded consequences — fully dirtyable
+> in the v2 dirt plan, and visible from the entrance (§3 F5; `rail_outer` leaves the
+> door→lounge fan to guarantee it). Approval green-lights exactly the greybox build in
+> §9 — and nothing else (no hero assets, no materials, no lighting changes).
 
 The room this replaces is measured in `../Baseline/PHASE_0_REPORT.md` §4 and the build
 mechanism is the approved `../Baseline/AB_SCENE_PLAN.md` §1: a new `pine-hills-v2`
@@ -55,21 +58,30 @@ position: enter, the shop is ahead of you, the counter is to your right.
 | Queue head → step | (−0.32, 2.85) stepping SE toward the door | (2.82, 2.30) stepping WNW into the shop, away from till and door |
 | Laptop | (0.92, 1.72) | (1.58, 3.43) |
 | Staff chair / corridor | corridor on the room side of the desk | corridor z 3.76–4.89 against the S wall, entered from the office |
-| Backdrop surface (boards) | z −0.08 — **mid-room** | z 5.23 (+0.20 renderer offset → 5.43) — **flush on the S wall** |
+| Key rack / boards | surface z −0.08 — **mid-room**, on the backdrop | on the real S wall plane, z ≈ 5.42, frame-local x — **wall-mounted** |
 
-The last row is the proof the choreography survives translation: every checkout offset
-is authored frame-local, and Pine Hills itself already rotated the whole frame 180°
-(`ry π`) as a one-token presentation choice. v2 is the same operation — a translation
-and a rotation of one frozen constant. The reach circles, scan volume, drawer travel,
-staging/bagging rects and queue pitch all ride along unchanged in local space.
+The register/queue/laptop rows are the proof the choreography survives translation:
+every checkout offset is authored frame-local, and Pine Hills itself already rotated
+the whole frame 180° (`ry π`) as a one-token presentation choice. v2 is the same
+operation — a translation and a rotation of one frozen constant. The reach circles,
+scan volume, drawer travel, staging/bagging rects and queue pitch all ride along
+unchanged in local space. One honest exception, found against the code: the boards'
+`+0.20 world-Z` renderer compensation is **ry-π-specific** (at ry 0 it stacks instead
+of cancelling and would sink the boards 0.14 yd into the wall), so v2 does not reuse
+it — the key rack and both boards mount on the actual wall plane at their frame-local
+x positions (key rack x 1.37, tee sheet x 2.55, club mark x 4.25), facing the room.
 
 **Mechanism** (build session): `shopLayout.js` exports a pure
 `deriveFrontDeskFrame(variant)`; the module-level `FRONT_DESK_FRAME` and everything
 derived from it resolve once at load from the active variant (browser query param;
 Node and every existing test see no variant → today's values, byte-identical). v2
-layout tests call the pure derivation directly — no module-state games. This is the
-"separate, explicitly-approved change" `AB_SCENE_PLAN.md` §2 anticipated; approving
-this document is that approval.
+layout tests call the pure derivation directly — no module-state games. The same
+module-load variant switch resolves the six repositioned fixture poses (§5), the
+clutter spots and traffic polylines (§7), and the `safety` campaign site (§8): one
+seam, one resolution point, and the dirt system (`clubhouse/dirt.js` paints from
+`TRAFFIC_PATHS`, `FIXTURES` footprints and `frontDeskPoint`) re-seeds the v2 room
+with zero dirt-code changes. This is the "separate, explicitly-approved change"
+`AB_SCENE_PLAN.md` §2 anticipated; approving this document is that approval.
 
 **Costs, priced:**
 
@@ -122,6 +134,18 @@ dead zone **≥ 0.8 yd off every traffic polyline**, and every one carrying a st
 in the plan (§7). Boxes never sit on the loop. *Acceptance:* the spot table in §7 is
 the shipped `CLUTTER_SPOTS_V2`; a layout test asserts the 0.8-yd clearance.
 
+**F5 — the lounge must read from the entrance** (approval amendment). The lounge is a
+cleaning surface (§5): the neglect→restored transformation has to register on arrival,
+so the door→lounge fan must be open. Measured against real fixture half-extents, a
+1.45-yd rail anywhere in the mid-floor band x ≈ 1.0–2.9 cuts either the F1 strip or a
+chair ray — so `rail_outer` leaves the open floor entirely (§5). What remains in the
+fan: nothing at tier 1 (the starter state — the whole suite reads from the door on
+day one, when the neglect read matters most); from tier 2 the bag stand occludes
+`chairA` below ≈ 1.0 yd while **`chairB` stays visible full-height** — the arrival
+hero, already angled toward the room. *Acceptance (greybox, measured):* from the door
+pose (−0.8, 5.2, eye 1.7), silhouette sample visibility per upholstery piece —
+tier-1: every piece ≥ 95 %; tier-2+: `chairB` ≥ 95 %, all pieces reported.
+
 ---
 
 ## 4. Fixture rules
@@ -153,7 +177,7 @@ Poses are `x, z, ry`. **KEEP** = today's coordinates, unchanged.
 | `shelf_acc` | KEEP (−4.0, −5.05) | Seven-sku browse wall | — |
 | `shelf_small` | KEEP (−0.8, −5.05) | Gloves/apparel browse wall; gates fitting room | — |
 | `table_polos` | KEEP (−6.0, 0.65) | Four-sku apparel table, three browse stops | — |
-| `rail_outer` | **1.90, 0.30, ry π/2** | Outerwear browse; at 1.45 tall it violated the F1 strip at its old x −0.5 | **MOVED** out of the sightline strip, beside bags |
+| `rail_outer` | **−4.00, 5.20, ry π** | Outerwear browse on the exit path — last-chance apparel between the snack corner and the door; at 1.45 tall it cannot stand anywhere in the open floor without cutting the F1 strip or the F5 lounge fan (both measured) | **MOVED** to the S wall |
 | `hatstand` | KEEP (2.0, −4.95) | Three-sku impulse browse | — |
 | `bagstand` | KEEP (2.05, −2.65) | Tier-2 big-ticket browse | — |
 | `shoerack` | KEEP (−5.9, −3.5) | Tier-2 browse; pairs with fitting room | — |
@@ -165,7 +189,7 @@ Poses are `x, z, ry`. **KEEP** = today's coordinates, unchanged.
 | `tour_vault` | KEEP (4.95, −1.65) | Tier-3 premium experience case, wall-backed | — |
 | `putting_demo` | **−5.00, 2.90, ry 0** | Tier-3 experience; putt toward the window beside the putter studio it upsells; its old pose (2.75, 4.25) is inside the new staff corridor | **MOVED** |
 | office / stockroom set (`office_desk`, `office_chair`, `office_filing`, `packing_bench`, `backshelf_n/e/e2`) | KEEP | Back-office loop: laptop chair, filing, receiving, restock | — |
-| Lounge suite (`chairA/B`, `coffee`, `rug`, `trophy`, `events`, `photo`) | KEEP (NE corner per `LOUNGE`) | **The debatable keep** — no customer interacts with it. Justification: it is a restoration/cleaning surface from day one, the `lounge1` decor-upgrade target, and it holds the room's only north window. Flagged for your veto; cutting it frees the NE corner for nothing that currently needs the space | — |
+| Lounge suite (`chairA/B`, `coffee`, `rug`, `trophy`, `events`, `photo`) | KEEP (NE corner per `LOUNGE`) | **Cleaning surface — approved with amended justification.** Not decor: upholstery is among the highest-value before/after material in a restoration game, and the lounge is the room's clearest "this place was neglected" read. Two recorded consequences: **(a) fully dirtyable** — the v2 dirt plan covers the whole suite from day one (grime cells under the footprint, the three `lounge:*` cleanup targets with visuals, the crooked chair). No upholstery-level dirt mechanism exists in the codebase today; building one is material work, **recorded here as a Phase 4 requirement** so the grey chairs are understood as stand-ins for dirtyable upholstered heroes. **(b) Entrance-visible** — guaranteed and measured as F5; `rail_outer` left the fan to buy it | — |
 
 **Cut list:**
 
@@ -188,13 +212,13 @@ Scale: 1 column ≈ 0.5 yd, 1 row ≈ 0.5 yd. North (z −5.49) at top. `·` = o
      -4      │l··[SHOES──]···················{LNG·window│ [backshelves]│
      -3      │u··[SHOES──]·[FIT]·······[BAGS]{LNG chairs│ [rcv]═ BACK
      -2      │b·····②·····[FIT]···············{LNG·····│·············│ DOOR
-     -1      │w······[dsS]·····•FLOOR····[rail]┃[VAULT]·│ [restroom]···│
-      0      │a······[dsS]····················[rail]···⑤│··············│
+     -1      │w······[dsS]·····•FLOOR··········┃[VAULT]·│ [restroom]···│
+      0      │a······[dsS]··························⑤│··············│
      +1      │l··[TABLE───]····•panels·→·······③·[safe]├──stock·door──┤
      +2      │l··[TABLE···]······queue③②①···[MEMB]····│    OFFICE    │
      +3      │··[DEMO────────]··[FEAT]··∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎│ ④·[DESK]····│
      +4      │······⑦·······{rug}·{rug}·R∥··corridor····→··[chair]····│ E
-     +5      │[FRIDGE]·[SNACK]···{mat}····[HUTCH═boards]│··[map]·······│
+     +5      │[FRIDGE]·[SNACK][RAIL]{mat}·[HUTCH═boards]│··[map]·······│
   z +5.49    └───⑧────────────┤MAIN·DOOR├──────────────┴──────────────┘
                  S (porch: welcome mat, hours sign — door at x −0.8)
 
@@ -205,14 +229,17 @@ Scale: 1 column ≈ 0.5 yd, 1 row ≈ 0.5 yd. North (z −5.49) at top. `·` = o
   queue ①②③ = (2.82,2.30) (1.64,1.85) (0.46,1.40) — the frame's own local pitch
   •FLOOR / •panels = campaign repair sites (kept fixture-clear)
   ①…⑧ in the open floor = clutter spots (§7 stories) — corners and dead zones
-  {LNG} = lounge suite (KEEP, flagged) · [FIT] booth · [DEMO] putting strip
+  {LNG} = lounge suite (KEEP — cleaning surface, F5) · [FIT] booth · [DEMO] strip
+  [RAIL] = outerwear rail on the S wall (F5 moved it out of the lounge fan)
   Entry-axis strip x −2.4..0.9: nothing over 1.35 tall from door to north wall
 ```
 
 Key measured clearances: door clearway untouched (nearest fixture corner: desk return
 at x 1.00, 0.50 yd east of it) · feature-to-return pass 1.35 · feature-to-table pass
 2.40 · main north aisle ≥ 2.2 · club-wall browse lane ≥ 1.6 · lounge approach 1.6 ·
-staff corridor 1.13 · hutch-to-return wall gap 0.31 (sealed by the return end panel).
+staff corridor 1.13 · hutch-to-return wall gap 0.31 (sealed by the return end panel) ·
+rail–snackrack wall gap 0.65 (both wall-backed) · rail browse stand 1.5 yd clear of
+the door clearway.
 
 ---
 
@@ -221,8 +248,8 @@ staff corridor 1.13 · hutch-to-return wall gap 0.31 (sealed by the return end p
 **Customer route** (door → browse → counter → exit): enter at (−0.8, 5.49) → split
 around the feature table → north aisle (x ≈ −0.9) → ball/accessory/glove walls → west
 to the club wall → south past shoes/fitting → east along z ≈ −1.4 past bags/rail →
-queue head (2.82, 2.30) → pay facing the boards → exit west past the grab-and-go
-corner. Staff route: office → corridor mouth at (5.65, 4.3) → till; customers cannot
+queue head (2.82, 2.30) → pay facing the boards → exit west past the outerwear rail
+and the grab-and-go corner. Staff route: office → corridor mouth at (5.65, 4.3) → till; customers cannot
 enter the corridor — the return closes its west end, the desk its north flank.
 
 **Draft `TRAFFIC_PATHS_V2`** (final polylines land with the dirt plan in the build):
@@ -276,11 +303,13 @@ run; any drift is a plan bug, not a runtime surprise.
 
 Build scope, in order: (1) `deriveFrontDeskFrame` seam + v2 frame constants;
 (2) `pineHillsV2Interior.js` greybox — grey volumes per §5, colliders, v2 dirt plan,
-traffic paths, clutter spots, campaign table; (3) **fix OBS-1** (the laptop exit
-leaves `camera.fov` at 34; `walk.state.fov` stays 66, so it is a missing write-back —
-`AB_SCENE_PLAN.md` §3.2 conditions Phase 3 on fixing or re-deferring it, and every
-verification below depends on honest FOV); (4) `BASELINE_VARIANT` env in the capture
-script; (5) verification. No hero assets, no materials, no lighting changes, no GLBs
+traffic paths, clutter spots, campaign table; (3) **OBS-1 is already fixed on this
+branch** — `b1c7e5b fix(LAPTOP-1)` corrected the walk-lens snapshot ordering in
+`walkFocusOn`, with evidence in `../Phase1/data/fix-laptop-fov-verify.json`; the
+build session re-runs `tools/qa/proshop-fix-laptop-fov-verify.js` and reports the
+measured 66/34/66 instead of re-fixing (`AB_SCENE_PLAN.md` §3.2's condition is
+satisfied); (4) `BASELINE_VARIANT` env in the capture script (still owed);
+(5) verification. No hero assets, no materials, no lighting changes, no GLBs
 (grey volumes are procedural — the part-visibility gate is untouched).
 
 **Report measured numbers, not assurances:**
@@ -288,12 +317,12 @@ script; (5) verification. No hero assets, no materials, no lighting changes, no 
 | System | The number |
 |---|---|
 | Checkout | one scripted full transaction in v2: items scanned / total / change / `tx` completes; `checkout-space` reach-circle distances against the v2 frame, all within the same bounds the old room passes |
-| Laptop | `camera.fov` before / inside / after (66 / 34 / **66** with OBS-1 fixed), both exit routes; all 24 pages reachable from the v2 seat pose |
-| Customer navigation | 10/10 scripted customers complete door → browse → queue → pay → exit, in neglected AND restored states, run twice each (the anti-slop repeat rule); mean route time |
+| Laptop | `camera.fov` before / inside / after (66 / 34 / **66**), both exit routes, re-verified in v2; every sidebar destination reachable from the v2 seat pose (the tour's 7 pages — older notes' "24 pages" counts tabs/aliases, which the headless page suite covers) |
+| Customer navigation | 10/10 scripted customers complete door → browse → queue → pay → exit, in neglected AND restored states, run twice each (the anti-slop repeat rule); mean route time; **zero stuck NPCs across a full simulated day** (state-age watchdog — any customer pinned in one nav state past its timeout fails the run) |
 | Save/reload | old-room save → v2 load → old-room load: 104 grime cells, stock counts, drawer cash, campaign task states identical both directions (field-level diff counts) |
-| Sightline | the F1 ray metric from the door pose (≥ 60 % of central-cone rays first-hit ≥ 8 yd) and the F2 wall-midpoint check |
+| Sightline | the F1 ray metric from the door pose (≥ 60 % of central-cone rays first-hit ≥ 8 yd), the F2 wall-midpoint check, and the F5 lounge-visibility percentages per upholstery piece |
 | Clearances | every §6 aisle number re-measured from the placed colliders |
-| Performance | the 7 baseline scenarios × 3 runs in BOTH rooms, same session, seeded empire; 1 % lows and worst frame side by side; no unapproved regression > 10 % |
+| Performance | the 7 baseline scenarios × 3 runs in BOTH rooms, same session, seeded empire; 1 % lows and worst frame side by side with the harness's 95 % CI per scenario; no unapproved regression > 10 % (deltas quoted against the CI) |
 | Suite | full `node --test` green, including `proshop-part-visibility` and the existing register/laptop/nav pins (which all still run against the DEFAULT room and must not notice v2 exists) |
 
 **What approval of this document authorises:** exactly the scope above, in a fresh
