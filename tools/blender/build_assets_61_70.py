@@ -596,7 +596,12 @@ def build_65() -> bpy.types.Object:
     _box("LowerShelf", (1.55, 0.52, 0.055), (0.0, 0.0, 0.25), p["medium_walnut"], frame,
          bevel=0.003, properties={"storage_surface": True})
     corner_caps = [
-        _box(f"CornerCap{i}", (0.12, 0.12, 0.012), (x, y, 0.914), p["restrained_brass"], frame, bevel=0.0015)
+        # SPIKE ARM D — contact/intersection fix. The cap was centred at z=0.914 with a
+        # 0.012 thickness, so its top face landed at 0.920 — exactly coplanar with the
+        # worktop top (0.8775 + 0.085/2 = 0.920) and its body buried inside the slab.
+        # The control's 24mm worktop bevel hid that; Arm B's 3mm bevel exposed it as a
+        # bright brass square sunk into the corner. Seat it ON the surface instead.
+        _box(f"CornerCap{i}", (0.12, 0.12, 0.012), (x, y, 0.926), p["restrained_brass"], frame, bevel=0.0015)
         for i, (x, y) in enumerate(((-0.82, -0.31), (-0.82, 0.31),
                                     (0.82, -0.31), (0.82, 0.31)), 1)
     ]
