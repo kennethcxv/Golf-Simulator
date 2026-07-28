@@ -697,11 +697,14 @@ export function createPineHillsV2Interior({
   }
 
   // --- initial pass ------------------------------------------------------------------
+  // onStockSocketsReady is deliberately NOT called: v1 fires it only when the cooler
+  // GLB adds stocking sockets, and calling it synchronously mid-clubhouse-construction
+  // trips the module's later declarations. The greybox changes no stock sockets.
+  void onStockSocketsReady;
   hideRetailFixtureAnchors();
   rebuildGreyFixtures();
   sweepLegacyVisuals();
   refresh();
-  onStockSocketsReady();
 
   const ready = Promise.resolve(Object.freeze({ loaded: 0, failed: 0, greybox: true }));
 
