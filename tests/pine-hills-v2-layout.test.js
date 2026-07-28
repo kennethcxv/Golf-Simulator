@@ -25,6 +25,7 @@ import {
   FIXTURE_HALF,
   LOUNGE,
   MODERN_PUBLIC_INTERIOR,
+  PARTITIONS,
   PINE_HILLS_V2_LAYOUT,
   PLAYER_DIAM,
   PUBLIC_ROOM_BOUNDS,
@@ -327,6 +328,23 @@ test('the protected clearways stay empty', () => {
   for (const piece of [L.loungeSet.chairA, L.loungeSet.chairB, L.loungeSet.coffee]) {
     assert.ok(!inBounds(piece, DOOR_CLEARWAY), 'lounge piece in the door clearway');
   }
+});
+
+test('the corridor seal closes the partition-to-desk hole', () => {
+  // First requeue day run, 2026-07-28: the x 5.70 partition ends at z 2.00 and
+  // the desk face starts at z 2.94; customers were body-shoved through the
+  // 0.94-yd hole and pinned in the staff corridor — violating §7's explicit
+  // "customers cannot enter the corridor". The seal is the drawn wall segment.
+  const seal = L.corridorSeal;
+  const partition = PARTITIONS[0];
+  const slabFaceZ = V2.z - V2.frontDepth / 2;
+  assert.ok(Math.abs(seal.x - partition.at) < 1e-6, 'seal off the partition line');
+  assert.ok(seal.zFrom <= partition.to + 1e-6, 'seal leaves a gap at the partition end');
+  assert.ok(seal.zTo >= slabFaceZ - 1e-6, 'seal leaves a gap at the desk face');
+  assert.ok(seal.zTo < 3.8, 'seal reaches into the staff corridor');
+  const member = fixtureRectOf(byId.get('member_station'));
+  assert.ok(seal.x - seal.t / 2 >= member.maxX + 0.05,
+    'seal presses member_station');
 });
 
 test('the staff corridor behind the desk survives the resize untouched', () => {

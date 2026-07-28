@@ -394,6 +394,16 @@ export function createPineHillsV2Interior({
     greyStaticRoots.set('GREY_WestWall', westWall);
     greyStaticRoots.set('GREY_NorthWall', northWall);
     greyStaticRoots.set('GREY_Ceiling', ceilingLid);
+    // The corridor seal: partition line continued to the desk, as §6 draws it.
+    const seal = PINE_HILLS_V2_LAYOUT.corridorSeal;
+    const sealWall = new THREE.Mesh(
+      box(seal.t, CEILING_Y, seal.zTo - seal.zFrom), grey,
+    );
+    sealWall.name = 'GREY_CorridorSeal';
+    sealWall.position.set(seal.x, CEILING_Y / 2, (seal.zFrom + seal.zTo) / 2);
+    sealWall.receiveShadow = true;
+    archRoot.add(sealWall);
+    greyStaticRoots.set('GREY_CorridorSeal', sealWall);
   }
 
   greyChair('GREY_chairA', LOUNGE.chairA);

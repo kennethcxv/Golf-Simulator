@@ -305,11 +305,24 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     // angle k*goldenAngle. The nine points a full house uses (k 0-8) are all
     // ≥0.30 from every fixture rect, wall and the desk slab, and every one is
     // clear of the exit lane — tests/pine-hills-v2-layout.test.js holds this.
+    // Anchor sits SW with z capped at 1.80 (first requeue day run): the first
+    // anchor's crowd reached z 2.30 and pressed browsing customers into the
+    // member_station stand band (z ≈ 2.15) and toward the corridor mouth.
     overflow: Object.freeze({
-      x: 3.40, z: 1.25, r0: 0.52, rGrow: 0.30, rMax: 1.05,
+      x: 3.15, z: 0.95, r0: 0.45, rGrow: 0.26, rMax: 0.85,
       goldenAngle: 2.399963229728653,
     }),
   }),
+
+  // THE CORRIDOR SEAL (first requeue day run, 2026-07-28): FLOOR_PLAN §7
+  // promises "customers cannot enter the corridor — the return closes its west
+  // end, the desk its north flank", and the §6 drawing runs the partition line
+  // continuously into the desk. The build never did: PARTITIONS ends the x 5.70
+  // wall at z 2.00 while the desk face starts at z 2.94, and the measured day
+  // run shows customers body-shoved through that 0.94-yd hole and pinned in
+  // the staff corridor for game-hours. This stub is the drawn wall segment,
+  // v2-only (PARTITIONS itself is shared with v1 and untouchable).
+  corridorSeal: Object.freeze({ x: 5.70, t: 0.20, zFrom: 2.00, zTo: 2.94 }),
 
   // The lounge keeps its mandate (cleaning surface, entrance-visible) inside the
   // new envelope: NE corner, chairs facing the putting strip, boards on the

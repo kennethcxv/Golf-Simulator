@@ -447,3 +447,30 @@ real gameplay surface for a marginal sightline gain."*
 The putting strip stays at (1.70, −2.20); the lounge F5 figures stand at
 71.4 / 100 / 85.7 / 71.4 with the shading understood as below-knee only. Not to
 be revisited in Phase 4 layout passes.
+
+### 11a-addendum — what the first re-pitched day run found (same day)
+
+The 16× day re-run on the re-pitch (`greybox-customer-day-requeue.json`)
+confirmed the ruled defect dead — zero queue targets beyond the west aisle
+(was: slots through the west wall), neglected blocks 455→231, zero queue
+violations, still-inside reduced to the designed no-cashier counter-waiters —
+and exposed two follow-on faults, both fixed the same day:
+
+1. **The corridor was never actually sealed.** §7 promises "customers cannot
+   enter the corridor", and the §6 drawing runs the x 5.70 partition line into
+   the desk — but the build's `PARTITIONS` stops that wall at z 2.00 while the
+   desk face starts at z 2.94. Two customers were body-shoved through the
+   0.94-yd hole by the full-house crowd and spent game-hours pinned in the
+   staff corridor retrying paths through the desk (722 sampled block events in
+   the restored leg = those two walkers). Fix: `corridorSeal` — the drawn
+   stub, v2-only (grey slab `GREY_CorridorSeal` + builder collider), asserted
+   continuous partition-end → desk-face by the layout test.
+2. **The overflow pocket pressed the member_station stand band.** The first
+   anchor (3.40, 1.25, r ≤ 1.05) reached z 2.30 — into the browse-stand band
+   at z ≈ 2.15, feeding the shoves above. Re-anchored (3.15, 0.95, r ≤ 0.85):
+   crowd tops out at z 1.80, browse lane z 1.8–2.6 stays clear; every pocket
+   point re-verified ≥0.30 from every rect by the same test.
+
+Also: `walk-input-parity`'s v2 stand (0.5, 0.5) predates the resize — the
+feature table now sits 0.40 yd north of it, and the probe read a dead W key.
+Stand moved to (0.5, 1.7). A stale probe fixture, not an input regression.

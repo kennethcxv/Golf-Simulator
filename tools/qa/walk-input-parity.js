@@ -16,12 +16,17 @@ async (page) => {
   fs.mkdirSync(outDir, { recursive: true });
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const SEED = Number(process.env.GREYBOX_SEED || 20260727);
-  // Open floor differs per room: v1's checkout island owns the mid-floor, v2's
-  // feature table sits near the door clearway. Both spots verified ≥1.2 yd clear
-  // in all four directions in their room.
+  // Open floor differs per room: v1's checkout island owns the mid-floor. The
+  // v2 stand moved (0.5, 0.5) → (0.5, 1.7) on 2026-07-28: the resize re-seated
+  // the feature table at (0.55, −0.55), 0.40 yd north of the original stand,
+  // and the northward sweep read as a dead W key — a stale-stand red, the
+  // exact drift class HARNESS_TRUST.md exists to catch, in this file's own
+  // fixture. The new spot clears ≥0.9 yd of body travel on all four sweeps
+  // against every current v2 rect (feature north, desk south, member east,
+  // essentials west).
   const STANDS = {
     'pine-hills': { x: -0.8, z: 3.6 },
-    'pine-hills-v2': { x: 0.5, z: 0.5 },
+    'pine-hills-v2': { x: 0.5, z: 1.7 },
   };
 
   const sweep = async (STAND) => {

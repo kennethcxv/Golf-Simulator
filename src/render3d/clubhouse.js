@@ -1177,6 +1177,15 @@ export function makeClubhouse(ctx) {
       bounds.maxX - (bounds.minX - wallT),
       wallT,
     ));
+    // The corridor seal: the partition-to-desk stub the approved drawing shows
+    // and the build never placed (see the layout's corridorSeal note).
+    const seal = PINE_HILLS_V2_LAYOUT.corridorSeal;
+    addCol(colBoxAt(
+      seal.x,
+      (seal.zFrom + seal.zTo) / 2,
+      seal.t,
+      seal.zTo - seal.zFrom,
+    ));
   }
 
   props61to100 = buildProps({
