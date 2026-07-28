@@ -654,26 +654,26 @@ def build_65() -> bpy.types.Object:
     frame = _group("WorktableFrame", root)
     _placement(root)
     _box("OakWorktop", (1.80, 0.75, 0.085), (0.0, 0.0, 0.8775), p["natural_oak"], frame,
-         bevel=0.024, bevel_segments=3, properties={"placement_surface": True, "delivery_setdown": True})
+         bevel=0.003, bevel_segments=2, properties={"placement_surface": True, "delivery_setdown": True})
     _box("WorktopDarkEdge", (1.72, 0.67, 0.035), (0.0, 0.0, 0.823), p["medium_walnut"], frame,
-         bevel=0.010)
+         bevel=0.003)
     legs = [
-        _box(f"Leg{i}", (0.085, 0.085, 0.80), (x, y, 0.40), p["warm_charcoal"], frame, bevel=0.010)
+        _box(f"Leg{i}", (0.085, 0.085, 0.80), (x, y, 0.40), p["warm_charcoal"], frame, bevel=0.003)
         for i, (x, y) in enumerate(((-0.80, -0.285), (-0.80, 0.285),
                                     (0.80, -0.285), (0.80, 0.285)), 1)
     ]
     _join_meshes(legs, "WorktableLegSet", frame)
     aprons = [
-        _box("ApronFront", (1.58, 0.06, 0.13), (0.0, -0.30, 0.75), p["warm_charcoal"], frame, bevel=0.008),
-        _box("ApronRear", (1.58, 0.06, 0.13), (0.0, 0.30, 0.75), p["warm_charcoal"], frame, bevel=0.008),
-        _box("ApronWest", (0.06, 0.52, 0.13), (-0.80, 0.0, 0.75), p["warm_charcoal"], frame, bevel=0.008),
-        _box("ApronEast", (0.06, 0.52, 0.13), (0.80, 0.0, 0.75), p["warm_charcoal"], frame, bevel=0.008),
+        _box("ApronFront", (1.58, 0.06, 0.13), (0.0, -0.30, 0.75), p["warm_charcoal"], frame, bevel=0.003),
+        _box("ApronRear", (1.58, 0.06, 0.13), (0.0, 0.30, 0.75), p["warm_charcoal"], frame, bevel=0.003),
+        _box("ApronWest", (0.06, 0.52, 0.13), (-0.80, 0.0, 0.75), p["warm_charcoal"], frame, bevel=0.003),
+        _box("ApronEast", (0.06, 0.52, 0.13), (0.80, 0.0, 0.75), p["warm_charcoal"], frame, bevel=0.003),
     ]
     _join_meshes(aprons, "WorktableApronFrame", frame)
     _box("LowerShelf", (1.55, 0.52, 0.055), (0.0, 0.0, 0.25), p["medium_walnut"], frame,
-         bevel=0.014, properties={"storage_surface": True})
+         bevel=0.003, properties={"storage_surface": True})
     corner_caps = [
-        _box(f"CornerCap{i}", (0.12, 0.12, 0.012), (x, y, 0.914), p["restrained_brass"], frame, bevel=0.004)
+        _box(f"CornerCap{i}", (0.12, 0.12, 0.012), (x, y, 0.926), p["restrained_brass"], frame, bevel=0.0015)
         for i, (x, y) in enumerate(((-0.82, -0.31), (-0.82, 0.31),
                                     (0.82, -0.31), (0.82, 0.31)), 1)
     ]
