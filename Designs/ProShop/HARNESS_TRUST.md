@@ -42,6 +42,16 @@ Verdict: trust the browser-build greens of the Band-A harnesses; treat every per
 number produced headless as non-live; treat every "full day / zero stuck" claim from the
 old watchdog as unproven; and treat the live desktop build as essentially uninstrumented.
 
+> **Remediation status (2026-07-28 afternoon, user-authorized):** the
+> maintenance-drift class is CLOSED — 11 files archived with named successors,
+> 8 revived, the false-red pins re-derived, and the rule-8 parse/API sweep is a
+> committed suite test (`tests/qa-harness-integrity.test.js`), so this class
+> cannot silently recur. Rule-5 renderer gates guard the flagship perf files
+> (shared helper `perf-renderer-gate.mjs`; family-wide wiring remains). Rules
+> 11 and 13 have their first instruments (`mouse-look-parity.js`,
+> `electron-walk-input.mjs`). Per-harness before/after and the green→red
+> analysis live in `HARNESS_REMEDIATION.md`.
+
 ---
 
 ## Trust grades
@@ -104,6 +114,10 @@ old watchdog as unproven; and treat the live desktop build as essentially uninst
 
 **Fix:** delete the two stale asserts or re-derive them from the live evidence shape; the rest of the file's route is sound.
 
+> **DONE 2026-07-28:** re-derived to the live contract (`{ ok, code: 'ok',
+> scanHit }` per `src/sim/barcode.js`); bagged-ness stays asserted via the
+> transaction item flags. Expected red→green — see HARNESS_REMEDIATION.md §E.
+
 ### Band E — DEAD (cannot run as committed)
 
 | Harness | Cause |
@@ -114,6 +128,15 @@ old watchdog as unproven; and treat the live desktop build as essentially uninst
 | `laptop-tour.js`, `laptop-look.js`, `laptop-persist.js`, `register-recover.js`, `delivery-accept.js`, `delivery-boxes-visual.js`, `delivery-shelves.js`, `shoot-clubhouse.js` | `page.goto(BASE_URL)` with `BASE_URL` never defined by any committed runner — MCP-REPL-era scripts; their `qa/` evidence cannot be regenerated |
 
 **Fix (one afternoon, mechanical):** (a) `BASE_URL` → `process.env.QA_BASE_URL || 'http://localhost:8457/'` in the nine files; (b) fix/port or archive the swipe family; (c) commit the parse sweep as a test — `Function()`-construct every function-file, `node --check` every module; (d) an API-surface lint: every `register.<method>(` in `tools/qa` must exist in the live export object.
+
+> **DONE 2026-07-28, all four** — plus three transitively-dead loaders of
+> `register-sale.js` this table missed (`pro-shop-checkout.mjs`,
+> `player-experience-checkout-baseline.mjs`, `record-core-production-gameplay.js`'s
+> checkout leg), found by reference-tracing before the moves. The swipe family
+> and the parse-dead chain are archived under `tools/qa/archive/` with named
+> successors; the eight BASE_URL scripts are revived in place; the sweep is
+> `tests/qa-harness-integrity.test.js` (parse + register-API lint + BASE_URL
+> rule + archive-load ban, negative-verified). Ledger: HARNESS_REMEDIATION.md.
 
 ---
 
@@ -193,9 +216,9 @@ is present in the good harnesses and absent in some older glass-clickers.
 5. **Performance greens must gate the renderer string.** Fail (or hard-tag) SwiftShader results unless the harness is declared software-relative. Absolute FPS from headless-default runs is not evidence.
 6. **No pinned contract strings.** Assert against fields the live code demonstrably emits (probe first) or import the constant from `src/`. The `direct-to-bag` drift is what pinning costs.
 7. **Retry-to-green must surface the flake rate in the exit contract.**
-8. **Commit the parse/API sweep** so a parse-dead harness can never sit in the tree again.
+8. **Commit the parse/API sweep** so a parse-dead harness can never sit in the tree again. *(DONE 2026-07-28: `tests/qa-harness-integrity.test.js`.)*
 9. **One organic route per loop** — seeded fixtures for determinism, but each gameplay loop keeps at least one unseeded, no-`sendToCounter`, no-`debugSpawn` route.
 10. **localStorage hygiene:** ephemeral contexts by default; snapshot/restore any persistent profile; never run QA in a profile a human plays in.
-11. **Pointer-lock mouse-look needs its first instrument** before any mouse-look regression is called "covered."
+11. **Pointer-lock mouse-look needs its first instrument** before any mouse-look regression is called "covered." *(First instrument 2026-07-28: `mouse-look-parity.js`.)*
 12. **Run the clock, don't set it,** in any harness whose claim spans time.
-13. **The desktop build is not the browser build.** Until at least one Band-A acceptance runs inside Electron, phrase every green as "works in the browser build" — because that is all it proves.
+13. **The desktop build is not the browser build.** Until at least one Band-A acceptance runs inside Electron, phrase every green as "works in the browser build" — because that is all it proves. *(First shell acceptance 2026-07-28: `electron-walk-input.mjs`.)*
