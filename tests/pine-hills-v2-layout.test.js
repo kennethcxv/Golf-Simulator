@@ -345,6 +345,26 @@ test('the corridor seal closes the partition-to-desk hole', () => {
   const member = fixtureRectOf(byId.get('member_station'));
   assert.ok(seal.x - seal.t / 2 >= member.maxX + 0.05,
     'seal presses member_station');
+
+  // The west seal (same day): the Z-channel behind the return — return-south
+  // gap plus return-to-hutch gap — tunnelled bodies into the corridor even
+  // though every pinch is sub-capsule. Both fillets must be flush on every
+  // seam or a shove channel reopens.
+  const westSeal = L.corridorWestSeal;
+  const returnWestX = V2.x - V2.frontLength / 2;
+  const returnEastX = returnWestX + V2.returnCollisionWidth;
+  const returnSouthZ = V2.z + V2.returnStaffExtent;
+  const hutch = fixtureRectOf(byId.get('backcounter'));
+  const back = westSeal.returnBackFill;
+  assert.ok(back.minX <= returnWestX + 0.02, 'returnBackFill west seam');
+  assert.ok(back.maxX >= returnEastX - 0.02, 'returnBackFill east seam');
+  assert.ok(back.minZ <= returnSouthZ + 0.02, 'returnBackFill return-end seam');
+  assert.ok(back.maxZ >= B.maxZ - 0.02, 'returnBackFill south-wall seam');
+  const gapFill = westSeal.hutchGapFill;
+  assert.ok(gapFill.minX <= back.maxX + 1e-6, 'gapFill does not meet returnBackFill');
+  assert.ok(gapFill.maxX >= hutch.minX - 0.02, 'gapFill-hutch seam');
+  assert.ok(gapFill.minZ <= hutch.minZ + 0.02, 'gapFill hutch-face seam');
+  assert.ok(gapFill.maxZ >= B.maxZ - 0.02, 'gapFill south-wall seam');
 });
 
 test('the staff corridor behind the desk survives the resize untouched', () => {

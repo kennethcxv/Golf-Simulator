@@ -29,15 +29,34 @@ async (page) => {
     await page.waitForTimeout(2200);
   };
   const sitDown = async () => {
-    await page.evaluate(() => {
-      const app = window.__fw;
-      const o = app.scene3d.clubhouse().interior.position;
-      const w = app.scene3d.walk.state;
-      w.x = 8.45 + o.x; w.z = 4.5 + o.z; w.yaw = -Math.PI / 2; w.pitch = -0.05;
-    });
-    await page.waitForTimeout(700);
-    await page.waitForFunction(() => { const p = document.querySelector('.shop-prompt'); return p && /laptop/i.test(p.textContent || ''); }, null, { timeout: 10000 });
-    await page.keyboard.press('e');
+    // Live-laptop stand (2026-07-28): the fixed (8.45, 4.5) office stand
+    // predates the laptop's move to the front desk. fov-parity's two-stand sit.
+    let opened = false;
+    for (const stand of ['chair', 'north']) {
+      await page.evaluate(async (which) => {
+        const app = window.__fw;
+        const L = await import('/src/data/shopLayout.js');
+        const o = app.scene3d.clubhouse().interior.position;
+        const w = app.scene3d.walk.state;
+        const laptop = L.FRONT_DESK.laptop;
+        const seat = which === 'north'
+          ? { x: laptop.x, z: laptop.z + 0.95 }
+          : { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
+        w.x = seat.x + o.x;
+        w.z = seat.z + o.z;
+        const dx = laptop.x - seat.x;
+        const dz = laptop.z - seat.z;
+        const horizontal = Math.hypot(dx, dz) || 0.001;
+        w.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+        w.pitch = Math.atan2(1.06 - 1.62, horizontal);
+      }, stand);
+      await page.waitForTimeout(600);
+      await page.keyboard.press('e');
+      opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+        .then(() => true).catch(() => false);
+      if (opened) break;
+    }
+    if (!opened) throw new Error('laptop did not open from either live stand');
     await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
     await page.waitForFunction(() => { const r = document.querySelector('.laptop-screen'); return r && r.style.display !== 'none'; }, null, { timeout: 15000 });
     // wait for the projection to stop moving — never for a clock
@@ -62,6 +81,20 @@ async (page) => {
     await page.mouse.click(spot.x, spot.y);
     await page.waitForTimeout(380);
   };
+  // The old Pricing/Supplier/Orders sidebar desks are tabs under Pro Shop now
+  // (laptop.js NAV is seven entries; PAGE_ALIAS forwards the retired ids).
+  const tab = async (label) => {
+    const spot = await page.evaluate((lbl) => {
+      const buttons = [...document.querySelectorAll('.lt-tabs-big .lt-tab')];
+      const button = buttons.find((x) => x.textContent.trim() === lbl);
+      if (!button) return null;
+      const r = button.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, label);
+    if (!spot) throw new Error(`no shop tab "${label}"`);
+    await page.mouse.click(spot.x, spot.y);
+    await page.waitForTimeout(380);
+  };
 
   await boot();
   await page.evaluate(() => { window.__fw.state.cash = 40000; window.__fw.state.shop.unlockedTier = 3; });
@@ -77,7 +110,8 @@ async (page) => {
   log.push({ step: '1. before touching anything', ...before });
 
   // --- PRICING: drag the sliders with a real mouse ---------------------------------------
-  await nav('Pricing');
+  await nav('Pro Shop');
+  await tab('Pricing');
   const dragged = await page.evaluate(() => {
     // set the range inputs the way the browser does, and fire the same event the UI listens for
     const ranges = [...document.querySelectorAll('.lt-range')];
@@ -105,7 +139,8 @@ async (page) => {
   });
 
   // --- SUPPLIER: place a real order through the real buttons ------------------------------
-  await nav('Supplier');
+  await nav('Pro Shop');
+  await tab('Orders & Suppliers');
   await page.evaluate(() => {
     // add 4 of the first orderable product
     const plus = [...document.querySelectorAll('.lt-qbtn')].filter((b) => b.textContent === '+');
@@ -133,7 +168,8 @@ async (page) => {
   });
 
   // --- ORDERS: cancel it, and check the money comes back ----------------------------------
-  await nav('Orders');
+  await nav('Pro Shop');
+  await tab('Orders & Suppliers');
   const cashBeforeCancel = await page.evaluate(() => window.__fw.state.cash);
   await page.evaluate(() => document.querySelector('.lt-order .lt-mini.lt-cancel')?.click());
   await page.waitForTimeout(250);
@@ -162,7 +198,8 @@ async (page) => {
     inp.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await page.waitForTimeout(300);
-  await nav('Supplier');
+  await nav('Pro Shop');
+  await tab('Orders & Suppliers');
   await page.evaluate(() => {
     const plus = [...document.querySelectorAll('.lt-qbtn')].filter((b) => b.textContent === '+');
     for (let i = 0; i < 3; i++) plus[1].click();

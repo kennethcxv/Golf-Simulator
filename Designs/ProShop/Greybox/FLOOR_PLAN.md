@@ -474,3 +474,14 @@ and exposed two follow-on faults, both fixed the same day:
 Also: `walk-input-parity`'s v2 stand (0.5, 0.5) predates the resize — the
 feature table now sits 0.40 yd north of it, and the probe read a dead W key.
 Stand moved to (0.5, 1.7). A stale probe fixture, not an input regression.
+
+**Same-day follow-up (sealed-room re-run):** with the east hole closed, the day
+run surfaced the SECOND leak the §6 drawing seals and the build never did — a
+Z-shaped sub-capsule channel behind the return (return-south gap z 5.15–5.44,
+then the return-to-hutch slot x 1.87–2.40): the greybox note assumed "narrower
+than a capsule" meant impassable, and body-separation shoves tunnel exactly
+such gaps. Two cabinet-height fillets now close it airtight
+(`corridorWestSeal`: GREY_ReturnBackFill 1.00–1.88 × 5.15–5.49,
+GREY_HutchGapFill 1.88–2.40 × 4.89–5.49), every seam asserted flush by the
+layout test. Standing rule this bought: **a sub-capsule gap is not a wall** —
+if the plan draws it sealed, build the seal.

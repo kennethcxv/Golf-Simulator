@@ -48,6 +48,9 @@ async (page) => {
     locked: document.pointerLockElement?.tagName === 'CANVAS',
   }));
   const engageLock = async () => {
+    // requestPointerLock is refused when the document is unfocused — a
+    // background headed window fails exactly like headless without this.
+    await page.bringToFront().catch(() => {});
     await page.mouse.move(800, 450);
     await page.mouse.click(800, 450);
     try {

@@ -24,16 +24,44 @@ async (page) => {
     await page.waitForTimeout(1800);
   };
   const sitDown = async () => {
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       const app = window.__fw;
+      // Live-laptop stand (2026-07-28): the fixed (8.45, 4.5) office stand
+      // predates the laptop's move to the front desk.
+      const L = await import('/src/data/shopLayout.js');
       const o = app.scene3d.clubhouse().interior.position;
       const w = app.scene3d.walk.state;
-      w.x = 8.45 + o.x; w.z = 4.5 + o.z; w.yaw = -Math.PI / 2; w.pitch = -0.05;
+      const laptop = L.FRONT_DESK.laptop;
+      const seat = { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
+      w.x = seat.x + o.x;
+      w.z = seat.z + o.z;
+      const dx = laptop.x - seat.x;
+      const dz = laptop.z - seat.z;
+      const horizontal = Math.hypot(dx, dz) || 0.001;
+      w.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+      w.pitch = Math.atan2(1.06 - 1.62, horizontal);
     });
     await page.waitForTimeout(700);
-    await page.waitForFunction(() => { const p = document.querySelector('.shop-prompt'); return p && /laptop/i.test(p.textContent || ''); }, null, { timeout: 10000 });
     await page.keyboard.press('e');
-    await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+    let opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+      .then(() => true).catch(() => false);
+    if (!opened) {
+      await page.evaluate(async () => {
+        const app = window.__fw;
+        const L = await import('/src/data/shopLayout.js');
+        const o = app.scene3d.clubhouse().interior.position;
+        const w = app.scene3d.walk.state;
+        const laptop = L.FRONT_DESK.laptop;
+        w.x = laptop.x + o.x;
+        w.z = laptop.z + 0.95 + o.z;
+        const horizontal = 0.95;
+        w.yaw = Math.atan2(0, 1); // north stand faces -z, straight at the laptop
+        w.pitch = Math.atan2(1.06 - 1.62, horizontal);
+      });
+      await page.waitForTimeout(600);
+      await page.keyboard.press('e');
+      await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+    }
     await page.waitForFunction(() => { const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); const p = window.__q || {}; window.__q = { x: r.left, w: r.width }; return Math.abs((p.x ?? 0) - r.left) < 0.05 && Math.abs((p.w ?? 0) - r.width) < 0.05 && r.width > 100; }, null, { timeout: 15000, polling: 120 });
   };
   const nav = async (label) => {
@@ -45,6 +73,20 @@ async (page) => {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     }, label);
     if (!spot) throw new Error(`no nav "${label}"`);
+    await page.mouse.click(spot.x, spot.y);
+    await page.waitForTimeout(400);
+  };
+  // The old Orders/Deliveries/Supplier desks are tabs under Pro Shop now.
+  const shopTab = async (label) => {
+    await nav('Pro Shop');
+    const spot = await page.evaluate((lbl) => {
+      const button = [...document.querySelectorAll('.lt-tabs-big .lt-tab')]
+        .find((x) => x.textContent.trim() === lbl);
+      if (!button) return null;
+      const r = button.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, label);
+    if (!spot) throw new Error(`no shop tab "${label}"`);
     await page.mouse.click(spot.x, spot.y);
     await page.waitForTimeout(400);
   };
@@ -65,11 +107,11 @@ async (page) => {
   log.push({ step: '1. ordered six kinds', ordered });
 
   await sitDown();
-  await nav('Orders');
+  await shopTab('Orders & Suppliers');
   await page.screenshot({ path: `${OUT}/laptop-orders.png` });
-  await nav('Deliveries');
+  await shopTab('Deliveries');
   await page.screenshot({ path: `${OUT}/laptop-deliveries.png` });
-  await nav('Supplier');
+  await shopTab('Orders & Suppliers');
   await page.screenshot({ path: `${OUT}/laptop-supplier.png` });
 
   // land everything, then partially open two shipments and take the autosave

@@ -1,0 +1,5776 @@
+{
+  "tag": "requeue",
+  "variant": "pine-hills-v2",
+  "watchdog": {
+    "freezeWindowWallSeconds": 12,
+    "freezeEpsilonYd": 0.15,
+    "queueBoundWallMinutes": 12
+  },
+  "limitations": {
+    "customersMoveInWallTime": true,
+    "note": "clubhouseApi.update receives raw wall dt (courseScene.js:9651): 16x compresses the clock only, so one 16x \"day\" carries ~40 wall-minutes of true-rate customer motion. A full-parity day requires 1x (10.5 h)."
+  },
+  "neglected": {
+    "tag": "neglected",
+    "spawned": 10,
+    "maxSimultaneous": 10,
+    "customersTracked": 10,
+    "stillInsideAtClose": [
+      {
+        "id": "customer_12qcuao_visitor%3A9",
+        "stopKind": "counter",
+        "phase": "waiting",
+        "lx": 2.99,
+        "lz": 2.31
+      }
+    ],
+    "frozen": [
+      {
+        "id": "customer_12qcuao_visitor%3A6",
+        "simMinute": 554.8,
+        "x": -361.25,
+        "z": 11.64,
+        "stopIdx": 1,
+        "stopKind": "enter",
+        "fixtureId": null,
+        "phase": "shopping",
+        "netYd": 0.119,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -1.25,
+        "lz": 7.64
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A8",
+        "simMinute": 554.4,
+        "x": -360.52,
+        "z": 11.5,
+        "stopIdx": 0,
+        "stopKind": "walk",
+        "fixtureId": null,
+        "phase": "shopping",
+        "netYd": 0.066,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -0.52,
+        "lz": 7.5
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A4",
+        "simMinute": 558.9,
+        "x": -360.68,
+        "z": 11.89,
+        "stopIdx": 0,
+        "stopKind": "walk",
+        "fixtureId": null,
+        "phase": "shopping",
+        "netYd": 0.135,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -0.68,
+        "lz": 7.89
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A5",
+        "simMinute": 564.3,
+        "x": -359.44,
+        "z": 4.98,
+        "stopIdx": 4,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.045,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 0.56,
+        "lz": 0.98
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A3",
+        "simMinute": 571.3,
+        "x": -355.87,
+        "z": 5.45,
+        "stopIdx": 3,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.014,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 4.13,
+        "lz": 1.45
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A9",
+        "simMinute": 762.7,
+        "x": -356.18,
+        "z": 6.07,
+        "stopIdx": 2,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.122,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 3.82,
+        "lz": 2.07
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A1",
+        "simMinute": 583.9,
+        "x": -356.65,
+        "z": 6.69,
+        "stopIdx": 2,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.078,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 3.35,
+        "lz": 2.69
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A7",
+        "simMinute": 876.8,
+        "x": -357.06,
+        "z": 6.2,
+        "stopIdx": 5,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.034,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.94,
+        "lz": 2.2
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A0",
+        "simMinute": 877.3,
+        "x": -357.64,
+        "z": 6.57,
+        "stopIdx": 6,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.1,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.36,
+        "lz": 2.57
+      }
+    ],
+    "queueViolations": [],
+    "navBlocks": {
+      "total": 231,
+      "events": [
+        {
+          "atMinute": 766.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 767.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 770.1,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 770.3,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 772.9,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 775.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 775.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 778.2,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 778.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 780.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 781.6,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 783.4,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 784.5,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 786.1,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 787.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 788.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 790.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 791.3,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 793.9,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 794.1,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 796.6,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 799.2,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 799.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.03,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.03,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 801.9,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 802.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 804.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 804.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.05,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.05,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 807.1,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 807.7,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.05,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.05,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 809.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 810.5,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 812.4,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 812.9,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 815,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 815.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.05,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.05,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 817.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 818.6,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 820.3,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 822.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 822.9,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 825.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 825.6,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 828.1,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 828.2,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 830.6,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 830.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 833.4,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 833.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 835.9,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 836.1,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 838.7,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 838.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 841.4,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 841.6,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 844,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 844.4,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.05,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.05,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 846.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 847,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 849.3,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 849.5,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 852,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 852.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 854.6,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 855.2,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 857.2,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 857.7,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 859.9,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 860.5,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 862.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 863.3,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 865.2,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 866.1,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 867.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 870.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 870.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.61,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.39,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 873.1,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 873.7,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 875.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.12,
+          "z": 5.97,
+          "tx": -355.96,
+          "tz": 6.1,
+          "wpx": -355.96,
+          "wpz": 6.1,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.88,
+          "lz": 1.97,
+          "ltx": 4.04,
+          "ltz": 2.1
+        },
+        {
+          "atMinute": 876.4,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -357.6,
+          "z": 6.04,
+          "tx": -355.97,
+          "tz": 6.08,
+          "wpx": -355.97,
+          "wpz": 6.08,
+          "colliders": [
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 2.4,
+          "lz": 2.04,
+          "ltx": 4.03,
+          "ltz": 2.08
+        },
+        {
+          "atMinute": 889.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 3,
+          "stopKind": "fixture",
+          "fixtureId": "feature",
+          "x": -356.44,
+          "z": 5.8,
+          "tx": -359.39,
+          "tz": 4.67,
+          "wpx": -359.39,
+          "wpz": 4.67,
+          "colliders": [],
+          "lx": 3.56,
+          "lz": 1.8,
+          "ltx": 0.61,
+          "ltz": 0.67
+        }
+      ]
+    },
+    "simMinutesRun": 630.1,
+    "transactions": 0,
+    "unitsSold": null
+  },
+  "restored": {
+    "tag": "restored",
+    "spawned": 10,
+    "maxSimultaneous": 11,
+    "customersTracked": 11,
+    "stillInsideAtClose": [
+      {
+        "id": "customer_12qcuao_visitor%3A10",
+        "stopKind": "fixture",
+        "phase": "shopping",
+        "lx": 6,
+        "lz": 3.2
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A17",
+        "stopKind": "fixture",
+        "phase": "shopping",
+        "lx": 3.62,
+        "lz": 4.16
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A19",
+        "stopKind": "counter",
+        "phase": "waiting",
+        "lx": 3,
+        "lz": 2.28
+      }
+    ],
+    "frozen": [
+      {
+        "id": "customer_12qcuao_visitor%3A10",
+        "simMinute": 748.3,
+        "x": -354,
+        "z": 7.2,
+        "stopIdx": 2,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 6,
+        "lz": 3.2
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A19",
+        "simMinute": 590.2,
+        "x": -357.54,
+        "z": 6.55,
+        "stopIdx": 3,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.017,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.46,
+        "lz": 2.55
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A16",
+        "simMinute": 589.9,
+        "x": -356.22,
+        "z": 6.12,
+        "stopIdx": 4,
+        "stopKind": "fixture",
+        "fixtureId": "shelf_balls",
+        "phase": "shopping",
+        "netYd": 0.144,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 3.78,
+        "lz": 2.12
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A18",
+        "simMinute": 567.4,
+        "x": -360.26,
+        "z": 4.7,
+        "stopIdx": 3,
+        "stopKind": "fixture",
+        "fixtureId": "feature",
+        "phase": "shopping",
+        "netYd": 0.136,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -0.26,
+        "lz": 0.7
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A9",
+        "simMinute": 584,
+        "x": -357.02,
+        "z": 6.28,
+        "stopIdx": 5,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.043,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.98,
+        "lz": 2.28
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A17",
+        "simMinute": 591.4,
+        "x": -356.59,
+        "z": 8.16,
+        "stopIdx": 4,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.148,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 3.41,
+        "lz": 4.16
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A13",
+        "simMinute": 875.8,
+        "x": -357.05,
+        "z": 6.36,
+        "stopIdx": 6,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.09,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.95,
+        "lz": 2.36
+      }
+    ],
+    "queueViolations": [],
+    "navBlocks": {
+      "total": 722,
+      "events": [
+        {
+          "atMinute": 1074.1,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1076,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1076.8,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1078.4,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1079.4,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1080.7,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1081.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1083,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1084.3,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1085.5,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1086.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1087.7,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1089,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1090.1,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1091.4,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1092.3,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.13,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.87,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1093.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1094.6,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1096,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1096.8,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.13,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.87,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1098.4,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1099.2,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1100.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1101.5,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1103,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1103.9,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1105.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1106.3,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1108.3,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1108.6,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1110.9,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1110.9,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1113.2,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1113.4,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1115.7,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1115.9,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1118,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1118.5,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1120.4,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1121.1,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1122.7,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1123.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1125,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1126.1,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1127.4,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1128.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1129.7,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1131,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1132,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1133.6,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1134.5,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1136.3,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1136.7,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1138.6,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1139.1,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1140.9,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1141.5,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1143.3,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1143.8,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1145.9,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1146.1,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1148.2,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1148.5,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1150.8,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1150.9,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1153.1,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1153.5,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1155.6,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1156.1,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1157.8,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1158.4,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1160.2,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1161,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1162.6,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1163.4,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1164.9,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.07,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.93,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1165.7,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1167.2,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.14,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.86,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        },
+        {
+          "atMinute": 1168.3,
+          "id": "customer_12qcuao_visitor%3A10",
+          "action": "sidestep",
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -354,
+          "z": 7.2,
+          "tx": -355.84,
+          "tz": 6.36,
+          "wpx": -355.84,
+          "wpz": 6.36,
+          "colliders": [
+            {
+              "minX": -355.23,
+              "maxX": -354.47,
+              "minZ": 5.67,
+              "maxZ": 6.63,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            },
+            {
+              "minX": -354.01,
+              "maxX": -353.11,
+              "minZ": 6,
+              "maxZ": 6.9,
+              "door": false
+            }
+          ],
+          "lx": 6,
+          "lz": 3.2,
+          "ltx": 4.16,
+          "ltz": 2.36
+        },
+        {
+          "atMinute": 1169.4,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "x": -356.02,
+          "z": 8.16,
+          "tx": -356.08,
+          "tz": 6.01,
+          "wpx": -356.08,
+          "wpz": 6.01,
+          "colliders": [
+            {
+              "minX": -357.6,
+              "maxX": -354.4,
+              "minZ": 8.89,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -359.1,
+              "maxX": -354.3,
+              "minZ": 6.84,
+              "maxZ": 7.86,
+              "door": false
+            }
+          ],
+          "lx": 3.98,
+          "lz": 4.16,
+          "ltx": 3.92,
+          "ltz": 2.01
+        }
+      ]
+    },
+    "simMinutesRun": 630,
+    "transactions": 0,
+    "unitsSold": null
+  },
+  "errs": [],
+  "ok": false
+}

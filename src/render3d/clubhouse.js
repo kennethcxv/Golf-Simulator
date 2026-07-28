@@ -1186,6 +1186,16 @@ export function makeClubhouse(ctx) {
       seal.t,
       seal.zTo - seal.zFrom,
     ));
+    // The west seal: both fillets of the Z-channel behind the return (see the
+    // layout's corridorWestSeal note).
+    for (const rect of Object.values(PINE_HILLS_V2_LAYOUT.corridorWestSeal)) {
+      addCol(colBoxAt(
+        (rect.minX + rect.maxX) / 2,
+        (rect.minZ + rect.maxZ) / 2,
+        rect.maxX - rect.minX,
+        rect.maxZ - rect.minZ,
+      ));
+    }
   }
 
   props61to100 = buildProps({

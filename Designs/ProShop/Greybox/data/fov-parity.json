@@ -95,6 +95,15 @@
       "zoom": 1,
       "aspect": 1.7778,
       "laptopOpen": false
+    },
+    "dpr2": {
+      "cameraFov": 66,
+      "walkFov": 66,
+      "renderedVerticalFov": 66,
+      "zoom": 1,
+      "aspect": 1.7778,
+      "laptopOpen": false,
+      "devicePixelRatio": 2
     }
   },
   "errs": [],
@@ -104,7 +113,8 @@
     "laptopSeatsAt34": true,
     "laptopEscapeRestores": true,
     "laptopCloseRestores": true,
-    "prefReachesLens": true
+    "prefReachesLens": true,
+    "idleDpr2At66": true
   },
   "ok": true
 }

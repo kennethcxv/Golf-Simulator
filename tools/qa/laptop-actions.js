@@ -26,7 +26,11 @@ async (page) => {
     if (await cont.isEnabled().catch(() => false)) {
       await cont.click();
     } else {
-      await page.getByText('New Empire — Relaxed', { exact: true }).click();
+      // Live menu flow (2026-07-28): New game → difficulty card → confirm.
+      await page.getByRole('button', { name: /New game/i }).click();
+      await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
+      const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
+      if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
       await page.waitForTimeout(900);
       const buy = await page.evaluate(() => {
         const btns = [...document.querySelectorAll('button')]

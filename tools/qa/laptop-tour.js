@@ -27,7 +27,11 @@ async (page) => {
   if (await cont.isEnabled().catch(() => false)) {
     await cont.click();
   } else {
-    await page.getByText('New Empire — Relaxed', { exact: true }).click();
+    // Live menu flow (2026-07-28): New game → difficulty card → confirm.
+    await page.getByRole('button', { name: /New game/i }).click();
+    await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
+    const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
+    if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
     await page.waitForTimeout(900);
     const buy = await page.evaluate(() => {
       const btns = [...document.querySelectorAll('button')]
@@ -97,17 +101,42 @@ async (page) => {
       });
     }
 
-    // stand at the desk, mid-morning
-    const o = app.scene3d.clubhouse().interior.position;
-    const w = app.scene3d.walk.state;
-    w.x = 8.45 + o.x; w.z = 4.5 + o.z; w.yaw = -Math.PI / 2; w.pitch = -0.05;
     st.clock.minutes = Math.floor(st.clock.minutes / 1440) * 1440 + 9 * 60 + 20;
     app.scene3d.applyTimeWeather(9 * 60 + 20, st.weather);
   });
   await page.waitForTimeout(900);
 
-  await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+  // Sit at the LIVE laptop (2026-07-28): the fixed (8.45, 4.5) office stand
+  // predates the laptop's move to the front desk — [E] hit nothing and the
+  // tour timed out on laptopOpen. Two-stand retry is fov-parity's proven sit.
+  {
+    let opened = false;
+    for (const stand of ['chair', 'north']) {
+      await page.evaluate(async (which) => {
+        const app = window.__fw;
+        const L = await import('/src/data/shopLayout.js');
+        const o = app.scene3d.clubhouse().interior.position;
+        const w = app.scene3d.walk.state;
+        const laptop = L.FRONT_DESK.laptop;
+        const seat = which === 'north'
+          ? { x: laptop.x, z: laptop.z + 0.95 }
+          : { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
+        w.x = seat.x + o.x;
+        w.z = seat.z + o.z;
+        const dx = laptop.x - seat.x;
+        const dz = laptop.z - seat.z;
+        const horizontal = Math.hypot(dx, dz) || 0.001;
+        w.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+        w.pitch = Math.atan2(1.06 - 1.62, horizontal);
+      }, stand);
+      await page.waitForTimeout(600);
+      await page.keyboard.press('e');
+      opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+        .then(() => true).catch(() => false);
+      if (opened) break;
+    }
+    if (!opened) throw new Error('laptop did not open from either live stand');
+  }
   await page.waitForFunction(() => { const r = document.querySelector('.laptop-screen'); return r && r.style.display !== 'none'; }, null, { timeout: 15000 });
   // the camera is still easing; wait for the projection to STOP MOVING rather than for a clock
   await page.waitForFunction(() => {
@@ -121,8 +150,10 @@ async (page) => {
   await page.waitForTimeout(300);
 
   // every nav destination, clicked where it really is on the glass — the seven pages
+  // Live sidebar labels (laptop.js NAV, 2026-07-28): the MCP-era list said
+  // Tee Times/Shop/Finances — two of those buttons no longer exist by name.
   const PAGES = [
-    'Home', 'Tee Times', 'Shop', 'Course', 'Upgrades', 'Finances', 'Settings',
+    'Home', 'Bookings', 'Pro Shop', 'Course', 'Upgrades', 'Business', 'Settings',
   ];
 
   for (const label of PAGES) {

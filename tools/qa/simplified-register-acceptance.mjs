@@ -281,7 +281,10 @@ async function scanAll(page, shot, mode) {
       await page.waitForFunction((id) => {
         const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
         return presentation.active && presentation.uid === id
-          && presentation.phase === 'bagging'
+          // 'bag' is the live scan-motion phase (pickup → scan-approach →
+          // scan-hold → scan-exit → bag); the old 'bagging' pin belonged to
+          // the TRANSACTION stage machine and never existed on this one.
+          && presentation.phase === 'bag'
           && presentation.phaseT >= 0.12 && presentation.phaseT <= 0.88
           && presentation.lastRead?.uid === id
           && presentation.lastRead.ok;
@@ -292,7 +295,10 @@ async function scanAll(page, shot, mode) {
       await page.waitForFunction((id) => {
         const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
         return presentation.active && presentation.uid === id
-          && presentation.phase === 'bagging'
+          // 'bag' is the live scan-motion phase (pickup → scan-approach →
+          // scan-hold → scan-exit → bag); the old 'bagging' pin belonged to
+          // the TRANSACTION stage machine and never existed on this one.
+          && presentation.phase === 'bag'
           && presentation.phaseT >= 0.18 && presentation.phaseT <= 0.82;
       }, uid, { timeout: 5000 });
       await shot('06b-mid-bagging.png');

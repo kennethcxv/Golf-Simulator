@@ -404,6 +404,24 @@ export function createPineHillsV2Interior({
     sealWall.receiveShadow = true;
     archRoot.add(sealWall);
     greyStaticRoots.set('GREY_CorridorSeal', sealWall);
+    // The west seal: cabinet-height fillets closing the Z-channel behind the
+    // return (see the layout's corridorWestSeal note).
+    const westSeal = PINE_HILLS_V2_LAYOUT.corridorWestSeal;
+    for (const [name, rect] of [
+      ['GREY_ReturnBackFill', westSeal.returnBackFill],
+      ['GREY_HutchGapFill', westSeal.hutchGapFill],
+    ]) {
+      const fill = new THREE.Mesh(
+        box(rect.maxX - rect.minX, 2.20, rect.maxZ - rect.minZ), greyDark,
+      );
+      fill.name = name;
+      fill.position.set(
+        (rect.minX + rect.maxX) / 2, 1.10, (rect.minZ + rect.maxZ) / 2,
+      );
+      fill.receiveShadow = true;
+      archRoot.add(fill);
+      greyStaticRoots.set(name, fill);
+    }
   }
 
   greyChair('GREY_chairA', LOUNGE.chairA);

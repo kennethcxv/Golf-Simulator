@@ -99,15 +99,14 @@ the customer-day re-run holds it as of this writing).
 
 | Run | Result |
 |---|---|
-| `fov-parity.js` (now 7 checks incl. DPR-2) | ⏳ |
-| `walk-input-parity.js` (regression check after courseScene untouched) | ⏳ |
-| `mouse-look-parity.js` | ⏳ |
-| `simplified-register-card.js` (the re-derived acceptance) | ⏳ |
-| Revived: `laptop-tour.js` | ⏳ |
-| Revived: `laptop-persist.js` | ⏳ |
-| Revived: `register-recover.js` | ⏳ |
-| Revived: `delivery-accept.js` | ⏳ |
-| `starter-loop-acceptance.js` at 1600×900 | ⏳ |
-| `electron-walk-input.mjs` | ⏳ |
-| `proshop-greybox-acceptance.js` (re-pitched queue clearances) | ⏳ |
-| `proshop-speed-curve.js` | ⏳ |
+| `fov-parity.js` (now 7 checks incl. DPR-2) | **GREEN 7/7** — the DPR-2 leg passes: lens 66 and the projection hold at deviceScaleFactor 2 |
+| `walk-input-parity.js` | First run RED — **stale probe fixture, not a regression**: the resize seated the feature table 0.40 yd north of the v2 stand and W read dead. Stand moved (0.5, 0.5)→(0.5, 1.7) → **GREEN 8/8** on the re-run |
+| `mouse-look-parity.js` | Headless AND background-headed both refuse pointer lock (`requestPointerLock` needs a **focused** document) — the instrument correctly reports `pointer-lock-unavailable` instead of faking a green. Fixed with `page.bringToFront()` before engaging; re-run ⏳ chain 3 |
+| `simplified-register-card.js` (the re-derived acceptance) | Second FALSE-RED layer found on the re-run: the file also pinned `presentation.phase === 'bagging'` — a string from the **transaction-stage** machine; the live scan-motion machine runs `pickup → scan-approach → scan-hold → scan-exit → bag`. Both pins re-derived to `'bag'`; re-run ⏳ chain 3 |
+| Revived: `laptop-tour.js` / `laptop-persist.js` / `laptop-look.js` | Revival exposed their second drift layer: all three stood at the OFFICE desk (8.45, 4.5) — the laptop moved to the front desk since. All three now derive the stand from the live layout (`FRONT_DESK.laptop`, fov-parity's proven two-stand sit). Re-runs ⏳ chain 3 |
+| Revived: `register-recover.js` / `delivery-accept.js` / `delivery-boxes-visual.js` / `delivery-shelves.js` / `shoot-clubhouse.js` | ⏳ chain 2 |
+| `starter-loop-acceptance.js` at 1600×900 | ⏳ chain 2 |
+| `electron-walk-input.mjs` | ⏳ chain 2 |
+| `proshop-greybox-acceptance.js` | **GREEN** on the re-pitched queue (pre-seal room); re-runs in chain 2 for the `GREY_CorridorSeal` contract ⏳ |
+| `proshop-greybox-customer-day.js` (requeue) | Ran to completion, honest `ok:false`: ruled queue class dead (0 west targets, 455→231 neglected blocks, 0 queue violations) — and it caught the **corridor leak** (two customers shoved through the unsealed partition-to-desk hole; fixed same day, `a63b265`). Sealed re-run in chain 2 ⏳ |
+| `proshop-speed-curve.js` | ⏳ chain 2, final step |

@@ -17,8 +17,11 @@ async (managedPage) => {
   const sections = [];
   try {
     await page.goto(process.env.QA_BASE_URL || 'http://127.0.0.1:18457/', { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await page.getByRole('button', { name: /New Empire.*Relaxed/i }).click();
-    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+    // Live menu flow (2026-07-28): New game → difficulty card → confirm.
+    await page.getByRole('button', { name: /New game/i }).click();
+    await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
+    const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
+    if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
     await page.waitForFunction(() => window.__fw?.screen === 'game' && window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 90000 });
     for (const [name, filename] of [
       // register-sale.js drove the removed swipe register and is archived; the

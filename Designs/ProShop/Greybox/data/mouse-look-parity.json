@@ -1,0 +1,15 @@
+{
+  "variants": {
+    "pine-hills": {
+      "variant": "pine-hills",
+      "lockEngaged": false,
+      "blocked": "pointer-lock-unavailable"
+    },
+    "pine-hills-v2": {
+      "variant": "pine-hills-v2",
+      "lockEngaged": false,
+      "blocked": "pointer-lock-unavailable"
+    }
+  },
+  "ok": false
+}

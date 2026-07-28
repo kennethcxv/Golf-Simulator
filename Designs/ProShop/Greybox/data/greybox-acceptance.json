@@ -13,7 +13,7 @@
         "cleanupTargets": 12,
         "interactions": 14,
         "staticDressingBatch": null,
-        "greyVolumes": 20,
+        "greyVolumes": 21,
         "suppressedLegacy": [
           "PineHillsFrontDeskReturn",
           "TieredMemberLounge",
@@ -116,7 +116,7 @@
         "featureToReturnPass": -0.5965879265091867,
         "featureToTablePass": null,
         "queueHeadToDesk": 0.6398950131233598,
-        "queueSpacing": 1.2628935030318273,
+        "queueSpacing": 0.8062257748298551,
         "registerAt": {
           "x": 2.0999999999999996,
           "z": 3.35
@@ -160,6 +160,10 @@
           {
             "name": "GREY_CeilingBeam_1",
             "found": true
+          },
+          {
+            "name": "GREY_CorridorSeal",
+            "found": true
           }
         ],
         "legacyHidden": [
@@ -182,7 +186,7 @@
         "registerHardwareVisible": true,
         "tierIndex": 0
       },
-      "visibleMeshCount": 628
+      "visibleMeshCount": 629
     },
     "v1": {
       "variant": null,
@@ -332,6 +336,10 @@
           },
           {
             "name": "GREY_CeilingBeam_1",
+            "found": false
+          },
+          {
+            "name": "GREY_CorridorSeal",
             "found": false
           }
         ],

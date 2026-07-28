@@ -31,14 +31,24 @@ async (page) => {
   }, null, { timeout: 40000 });
   await page.waitForTimeout(2000);
 
-  // stand at the office chair, facing the desk (east). forward = (-sin yaw, -cos yaw),
-  // so east (+x) is yaw = -PI/2.
-  await page.evaluate(() => {
+  // Stand at the LIVE laptop (2026-07-28): the fixed (8.55, 4.5) office stand
+  // predates the laptop's move to the front desk. Same derivation as
+  // fov-parity's proven sit ('chair' stand; 'north' retry happens at [E] below).
+  await page.evaluate(async () => {
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
+    const L = await import('/src/data/shopLayout.js');
     const o = ch.interior.position;
     const st = app.scene3d.walk.state;
-    st.x = 8.55 + o.x; st.z = 4.5 + o.z; st.yaw = -Math.PI / 2; st.pitch = -0.05;
+    const laptop = L.FRONT_DESK.laptop;
+    const seat = { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
+    st.x = seat.x + o.x;
+    st.z = seat.z + o.z;
+    const dx = laptop.x - seat.x;
+    const dz = laptop.z - seat.z;
+    const horizontal = Math.hypot(dx, dz) || 0.001;
+    st.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+    st.pitch = Math.atan2(1.06 - 1.62, horizontal);
     const c = app.state.clock;
     c.minutes = Math.floor(c.minutes / 1440) * 1440 + 9 * 60;
     app.scene3d.applyTimeWeather(9 * 60, app.state.weather);
@@ -46,9 +56,31 @@ async (page) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/0-standing-at-desk.png` });
 
-  // sit down
+  // sit down (retry once from the square-on north stand if the chair diagonal
+  // does not focus the laptop)
   await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+  const openedFromChair = await page.waitForFunction(
+    () => window.__fw.laptopOpen === true, null, { timeout: 6000 },
+  ).then(() => true).catch(() => false);
+  if (!openedFromChair) {
+    await page.evaluate(async () => {
+      const app = window.__fw;
+      const L = await import('/src/data/shopLayout.js');
+      const o = app.scene3d.clubhouse().interior.position;
+      const st = app.scene3d.walk.state;
+      const laptop = L.FRONT_DESK.laptop;
+      st.x = laptop.x + o.x;
+      st.z = laptop.z + 0.95 + o.z;
+      const dx = 0;
+      const dz = -0.95;
+      const horizontal = Math.hypot(dx, dz) || 0.001;
+      st.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+      st.pitch = Math.atan2(1.06 - 1.62, horizontal);
+    });
+    await page.waitForTimeout(600);
+    await page.keyboard.press('e');
+    await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+  }
   // the DOM lands 1.35s in (lid swing -> boot -> interface). Wait for the ELEMENT, not the clock.
   await page.waitForFunction(() => {
     const r = document.querySelector('.laptop-screen');

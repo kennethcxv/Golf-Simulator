@@ -324,6 +324,20 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // v2-only (PARTITIONS itself is shared with v1 and untouchable).
   corridorSeal: Object.freeze({ x: 5.70, t: 0.20, zFrom: 2.00, zTo: 2.94 }),
 
+  // THE WEST SEAL (sealed-room day run, same day): with the east hole closed,
+  // walkers still surfaced inside the corridor. The route decodes to a Z-shaped
+  // sub-capsule channel the §6 drawing shows sealed ("hutch-to-return wall gap
+  // … sealed by the return end panel") and the greybox shipped visual-only on
+  // the assumption sub-capsule means impassable — body-separation shoves
+  // tunnel it. Two cabinetry fillets close it airtight: the return's back
+  // filled to the south wall, and the return-to-hutch gap filled over the
+  // south band. Both flush on every seam — the layout test re-derives each
+  // edge from the live frame and hutch and pins flushness.
+  corridorWestSeal: Object.freeze({
+    returnBackFill: Object.freeze({ minX: 1.00, maxX: 1.88, minZ: 5.15, maxZ: 5.49 }),
+    hutchGapFill: Object.freeze({ minX: 1.88, maxX: 2.40, minZ: 4.89, maxZ: 5.49 }),
+  }),
+
   // The lounge keeps its mandate (cleaning surface, entrance-visible) inside the
   // new envelope: NE corner, chairs facing the putting strip, boards on the
   // partition's west face, course photography on the new north wall.

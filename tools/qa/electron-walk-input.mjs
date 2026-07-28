@@ -54,8 +54,10 @@ try {
 
   // A genuinely fresh empire through the real menu — the same route a first
   // desktop launch takes.
-  await window.getByRole('button', { name: /New Empire.*Relaxed/i }).click();
-  await window.getByRole('button', { name: 'Buy', exact: true }).first().click();
+  await window.getByRole('button', { name: /New game/i }).click();
+  await window.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
+  const confirmStart = window.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
+  if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
   await window.waitForFunction(
     () => window.__fw?.screen === 'game' && window.__fw?.scene3d?.walk?.isActive?.(),
     null, { timeout: 120_000 },
