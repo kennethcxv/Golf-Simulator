@@ -1,0 +1,282 @@
+{
+  "instrument": "Designs/ProShop/Discriminator/frames/asset_0NN.png",
+  "producedBy": "tools/qa/proshop-asset-contact-sheet.js",
+  "judgedBy": "single observer, one sitting. All forty portraits shot under identical lighting, lens and standoff-by-bounding-sphere. Azimuth chosen per asset by measured visible structure; elevation set per asset to the angle a standing player eye makes with it, clamped to +48/-55 degrees.",
+  "criteria": [
+    {
+      "key": "A-identifiability",
+      "weight": "highest",
+      "text": "Does it read as the object it is named after, at a glance, at room distance? A clock needs a dial; a camera needs a lens. Failing this outranks every other defect because the player never gets to the second question."
+    },
+    {
+      "key": "B-coherence",
+      "weight": "high",
+      "text": "Do the parts touch, sit and connect where physics would put them? Floating, detached or interpenetrating parts read as broken rather than as cheap."
+    },
+    {
+      "key": "C-secondary-structure",
+      "weight": "medium",
+      "text": "Does the form carry structure beyond its primitive -- panels, reveals, mouldings, glazing bars, hardware -- or is it the bare box it started as?"
+    },
+    {
+      "key": "D-material",
+      "weight": "medium",
+      "text": "Does the shading read as the material the object is supposed to be made of?"
+    },
+    {
+      "key": "E-proportion",
+      "weight": "low",
+      "text": "Are the proportions those of the real object?"
+    }
+  ],
+  "note": "Rank 1 is best. The ranking was fixed before any correlation was computed, and before the construction numbers for most of these assets had been looked at.",
+  "ranking": [
+    {
+      "rank": 1,
+      "n": 70,
+      "asset": "trophy_display_cabinet",
+      "why": "Glazed doors with muntins, internal shelves carrying trophies, lit valance, panelled base doors, cornice, plinth, brass ring pull. Deepest secondary structure in the set."
+    },
+    {
+      "rank": 2,
+      "n": 83,
+      "asset": "desk_lamp",
+      "why": "Banker's lamp: articulated arm with two real joints, shade, weighted base, emissive bulb. Instantly identifiable and elegantly proportioned."
+    },
+    {
+      "rank": 3,
+      "n": 64,
+      "asset": "stockroom_shelving_system",
+      "why": "Reads exactly as industrial racking -- upright frames, four shelves, a diagonal brace. Nothing is wasted and nothing is missing."
+    },
+    {
+      "rank": 4,
+      "n": 94,
+      "asset": "exit_sign",
+      "why": "Correct object, legible lettering, twin lamp heads, sensible housing."
+    },
+    {
+      "rank": 5,
+      "n": 91,
+      "asset": "fire_extinguisher",
+      "why": "Cylinder, valve body, carry handle, hose, gauge and wall bracket all present and correctly related."
+    },
+    {
+      "rank": 6,
+      "n": 65,
+      "asset": "stockroom_worktable",
+      "why": "Grain visible on the worktop, dark legs, lower shelf, brass corner caps. Only asset in the set carrying an albedo map."
+    },
+    {
+      "rank": 7,
+      "n": 81,
+      "asset": "office_chair_sheet09",
+      "why": "Five-star base with casters, gas stem, seat, back and headrest read immediately as an executive chair."
+    },
+    {
+      "rank": 8,
+      "n": 66,
+      "asset": "office_laptop_desk",
+      "why": "Pedestal desk with six drawers, pulls, plinth and an inset writing surface."
+    },
+    {
+      "rank": 9,
+      "n": 62,
+      "asset": "back_counter_storage_cabinets",
+      "why": "Overhead shelf on posts, drawer bank, worktop, backsplash. Composed like real back-of-house joinery."
+    },
+    {
+      "rank": 10,
+      "n": 95,
+      "asset": "emergency_light",
+      "why": "Twin adjustable heads, housing, status LED. Correct and unfussy."
+    },
+    {
+      "rank": 11,
+      "n": 61,
+      "asset": "front_desk_counter_shell",
+      "why": "Plinth, capping rail, drawer bank and a reveal on the front panel, but a large bare field between them."
+    },
+    {
+      "rank": 12,
+      "n": 72,
+      "asset": "mop",
+      "why": "The radial strand fan genuinely reads as a mop head rather than a cone."
+    },
+    {
+      "rank": 13,
+      "n": 89,
+      "asset": "reservation_clipboard",
+      "why": "Board, ruled sheet, clip and pen. Simple, and every part is right."
+    },
+    {
+      "rank": 14,
+      "n": 86,
+      "asset": "corkboard_noticeboard",
+      "why": "Frame, cork field, pinned papers at varied angles."
+    },
+    {
+      "rank": 15,
+      "n": 96,
+      "asset": "bulletin_board",
+      "why": "Same family as the corkboard, slightly plainer frame."
+    },
+    {
+      "rank": 16,
+      "n": 90,
+      "asset": "scorecard_holder",
+      "why": "Dividers, cards and a ring; reads as a rack, though the brass torus is unexplained."
+    },
+    {
+      "rank": 17,
+      "n": 99,
+      "asset": "umbrella_stand",
+      "why": "Cylinder with two brass bands and a dark rim. Right silhouette, correct material read."
+    },
+    {
+      "rank": 18,
+      "n": 74,
+      "asset": "broom",
+      "why": "Handle, ferrule, block and bristle teeth. Reads correctly; the bristles are a row of prisms."
+    },
+    {
+      "rank": 19,
+      "n": 71,
+      "asset": "vacuum_cleaner",
+      "why": "Drum, lid, hose, wand and floor nozzle. Correct, if soft in the details."
+    },
+    {
+      "rank": 20,
+      "n": 92,
+      "asset": "first_aid_kit_cabinet",
+      "why": "Clean box with a green cross and a handle. Correct but almost featureless."
+    },
+    {
+      "rank": 21,
+      "n": 88,
+      "asset": "key_rack",
+      "why": "Backboard, hooks and keys. Reads, but the board is a plain slab with one slot."
+    },
+    {
+      "rank": 22,
+      "n": 79,
+      "asset": "pressure_washer_hose_and_wand",
+      "why": "Hose loop, gun and lance with a coloured tip. Right object, minimal build."
+    },
+    {
+      "rank": 23,
+      "n": 69,
+      "asset": "lounge_coffee_table_sheet07",
+      "why": "Legs, apron and a lower shelf. Correct, generic."
+    },
+    {
+      "rank": 24,
+      "n": 85,
+      "asset": "office_telephone",
+      "why": "Base, handset, keypad and cord present; entirely black and glossy, so the detail is hard to see."
+    },
+    {
+      "rank": 25,
+      "n": 67,
+      "asset": "clubhouse_lounge_sofa",
+      "why": "Cushions and buttoning are there, but the shading reads as moulded plastic and the legs are token stubs."
+    },
+    {
+      "rank": 26,
+      "n": 84,
+      "asset": "office_printer",
+      "why": "A box with two trays and an LED. Identifiable only from context."
+    },
+    {
+      "rank": 27,
+      "n": 97,
+      "asset": "key_cabinet",
+      "why": "Box with a recessed door panel and a ring pull. Nothing wrong, nothing there."
+    },
+    {
+      "rank": 28,
+      "n": 93,
+      "asset": "security_camera",
+      "why": "Correct dome-camera silhouette -- dark dome on a cream base -- but completely featureless: no visible lens through the dome, no bezel, no housing seam. Placed on structure, not on identifiability."
+    },
+    {
+      "rank": 29,
+      "n": 75,
+      "asset": "dustpan",
+      "why": "Pan, lip and handle. Correct, and completely plain."
+    },
+    {
+      "rank": 30,
+      "n": 63,
+      "asset": "pro_shop_fitting_room",
+      "why": "Two pale posts, a pleated curtain and a cap rail. Reads, but the posts are untouched boxes."
+    },
+    {
+      "rank": 31,
+      "n": 76,
+      "asset": "cleaning_spray_bottle",
+      "why": "Bottle and trigger head are right; the label carries garbled pseudo-text and the nozzle is an unexplained brown ring."
+    },
+    {
+      "rank": 32,
+      "n": 98,
+      "asset": "hand_sanitizer_station",
+      "why": "Plate, dispenser and drip tray, with a floating green torus that corresponds to nothing."
+    },
+    {
+      "rank": 33,
+      "n": 82,
+      "asset": "filing_cabinet_sheet09",
+      "why": "Four drawers with recessed pulls on one face; every other face is a bare slab."
+    },
+    {
+      "rank": 34,
+      "n": 68,
+      "asset": "lounge_armchair_sheet07",
+      "why": "Soft, melted forms; the arm and back read as one lump and the legs are stubs."
+    },
+    {
+      "rank": 35,
+      "n": 100,
+      "asset": "floor_mat_welcome_mat",
+      "why": "A flat slab with one groove and an oval. No lettering, no pile, no edge."
+    },
+    {
+      "rank": 36,
+      "n": 77,
+      "asset": "cleaning_cloth_and_sponge_set",
+      "why": "Three rounded slabs. Does not read as cloth or as sponge."
+    },
+    {
+      "rank": 37,
+      "n": 78,
+      "asset": "pressure_washer",
+      "why": "Hose reel discs float clear of their axle, the pump reads as a gold treasure chest, and the wheels are half-buried in the base."
+    },
+    {
+      "rank": 38,
+      "n": 80,
+      "asset": "trash_bag",
+      "why": "Three stacked rounded boxes with a twisted neck. Does not read as a bag at any distance."
+    },
+    {
+      "rank": 39,
+      "n": 73,
+      "asset": "mop_bucket_and_wringer",
+      "why": "Broken: the wringer handle floats detached above the bucket and the wringer body does not sit on the rim."
+    },
+    {
+      "rank": 40,
+      "n": 87,
+      "asset": "wall_clock",
+      "why": "A blank domed disc with a single hand. No dial, no numerals, no bezel. Fails identifiability outright."
+    }
+  ],
+  "correction": {
+    "date": "2026-07-27",
+    "asset": 93,
+    "from": 40,
+    "to": 28,
+    "reason": "The first portrait pass shot every asset from a fixed +20 degree elevation. For an asset mounted above the player that photographs its ceiling plate, and asset_093 was ranked worst in the set on the strength of a view no player can ever have. tools/qa/proshop-asset-contact-sheet.js now derives elevation from the angle a standing eye makes with each asset, and from below the camera reads correctly as a dome camera. The re-rank is a correction to the instrument, not to the judgement: asset_087 was re-checked the same way and did not improve."
+  }
+}

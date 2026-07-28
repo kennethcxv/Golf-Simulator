@@ -1,0 +1,4804 @@
+{
+  "shots": [
+    {
+      "n": 61,
+      "name": "AssetRuntime_61_front_desk_counter_shell",
+      "azimuthDeg": 0,
+      "elevationDeg": 16.8,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3407,
+      "edgeDensityChosen": 0.1599,
+      "edgeDensityMax": 0.4095,
+      "compactnessMean": 1.705,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 15.6,
+          "edges": 956,
+          "edgeDensity": 0.3734,
+          "compactness": 1.91
+        },
+        {
+          "deg": 30,
+          "coverage": 14.6,
+          "edges": 979,
+          "edgeDensity": 0.4095,
+          "compactness": 1.73
+        },
+        {
+          "deg": 60,
+          "coverage": 13.3,
+          "edges": 808,
+          "edgeDensity": 0.3708,
+          "compactness": 1.4
+        },
+        {
+          "deg": 90,
+          "coverage": 10.4,
+          "edges": 361,
+          "edgeDensity": 0.2126,
+          "compactness": 1.4
+        },
+        {
+          "deg": 120,
+          "coverage": 13.6,
+          "edges": 702,
+          "edgeDensity": 0.3141,
+          "compactness": 1.79
+        },
+        {
+          "deg": 150,
+          "coverage": 14.8,
+          "edges": 794,
+          "edgeDensity": 0.3277,
+          "compactness": 1.94
+        },
+        {
+          "deg": 180,
+          "coverage": 15.8,
+          "edges": 968,
+          "edgeDensity": 0.3729,
+          "compactness": 1.93
+        },
+        {
+          "deg": 210,
+          "coverage": 14.8,
+          "edges": 889,
+          "edgeDensity": 0.3669,
+          "compactness": 1.72
+        },
+        {
+          "deg": 240,
+          "coverage": 13.6,
+          "edges": 728,
+          "edgeDensity": 0.3257,
+          "compactness": 1.37
+        },
+        {
+          "deg": 270,
+          "coverage": 10.4,
+          "edges": 404,
+          "edgeDensity": 0.2379,
+          "compactness": 1.42
+        },
+        {
+          "deg": 300,
+          "coverage": 13.3,
+          "edges": 837,
+          "edgeDensity": 0.3841,
+          "compactness": 1.9
+        },
+        {
+          "deg": 330,
+          "coverage": 14.6,
+          "edges": 939,
+          "edgeDensity": 0.3927,
+          "compactness": 1.95
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_61_front_desk_counter_shell",
+      "wasVisible": true,
+      "meshTotal": 19,
+      "meshVisible": 16,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        3.204,
+        1.058,
+        0.995
+      ],
+      "radiusYd": 1.759,
+      "centreLocal": [
+        -1.49,
+        0.53,
+        1.8
+      ],
+      "standoffYd": 4.05,
+      "coveragePct": 15.7,
+      "file": "asset_061.png"
+    },
+    {
+      "n": 62,
+      "name": "AssetRuntime_62_back_counter_storage_cabinets_backcounter",
+      "azimuthDeg": 150,
+      "elevationDeg": 6.7,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3025,
+      "edgeDensityChosen": 0.119,
+      "edgeDensityMax": 0.3673,
+      "compactnessMean": 5.317,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 13.1,
+          "edges": 688,
+          "edgeDensity": 0.3203,
+          "compactness": 6.5
+        },
+        {
+          "deg": 30,
+          "coverage": 12.6,
+          "edges": 756,
+          "edgeDensity": 0.3673,
+          "compactness": 6.25
+        },
+        {
+          "deg": 60,
+          "coverage": 11.6,
+          "edges": 602,
+          "edgeDensity": 0.3155,
+          "compactness": 4.57
+        },
+        {
+          "deg": 90,
+          "coverage": 6.9,
+          "edges": 182,
+          "edgeDensity": 0.1602,
+          "compactness": 2.56
+        },
+        {
+          "deg": 120,
+          "coverage": 11.3,
+          "edges": 554,
+          "edgeDensity": 0.2993,
+          "compactness": 5.09
+        },
+        {
+          "deg": 150,
+          "coverage": 12.5,
+          "edges": 749,
+          "edgeDensity": 0.365,
+          "compactness": 6.71
+        },
+        {
+          "deg": 180,
+          "coverage": 13.2,
+          "edges": 783,
+          "edgeDensity": 0.3628,
+          "compactness": 6.91
+        },
+        {
+          "deg": 210,
+          "coverage": 12.5,
+          "edges": 698,
+          "edgeDensity": 0.3402,
+          "compactness": 6.49
+        },
+        {
+          "deg": 240,
+          "coverage": 11.3,
+          "edges": 529,
+          "edgeDensity": 0.2858,
+          "compactness": 4.8
+        },
+        {
+          "deg": 270,
+          "coverage": 6.9,
+          "edges": 172,
+          "edgeDensity": 0.1514,
+          "compactness": 2.58
+        },
+        {
+          "deg": 300,
+          "coverage": 11.6,
+          "edges": 605,
+          "edgeDensity": 0.3171,
+          "compactness": 4.88
+        },
+        {
+          "deg": 330,
+          "coverage": 12.6,
+          "edges": 711,
+          "edgeDensity": 0.3455,
+          "compactness": 6.47
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_62_back_counter_storage_cabinets_backcounter",
+      "wasVisible": true,
+      "meshTotal": 20,
+      "meshVisible": 15,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        3.5,
+        2.351,
+        0.717
+      ],
+      "radiusYd": 2.138,
+      "centreLocal": [
+        -0.18,
+        1.18,
+        -0.32
+      ],
+      "standoffYd": 4.924,
+      "coveragePct": 12.7,
+      "file": "asset_062.png"
+    },
+    {
+      "n": 63,
+      "name": "AssetRuntime_63_pro_shop_fitting_room",
+      "azimuthDeg": 150,
+      "elevationDeg": 5.7,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.1617,
+      "edgeDensityChosen": 0.0712,
+      "edgeDensityMax": 0.2549,
+      "compactnessMean": 1.391,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 24.6,
+          "edges": 153,
+          "edgeDensity": 0.0379,
+          "compactness": 1.33
+        },
+        {
+          "deg": 30,
+          "coverage": 25.2,
+          "edges": 571,
+          "edgeDensity": 0.1381,
+          "compactness": 1.35
+        },
+        {
+          "deg": 60,
+          "coverage": 24.4,
+          "edges": 693,
+          "edgeDensity": 0.1734,
+          "compactness": 1.45
+        },
+        {
+          "deg": 90,
+          "coverage": 22.7,
+          "edges": 715,
+          "edgeDensity": 0.1923,
+          "compactness": 1.63
+        },
+        {
+          "deg": 120,
+          "coverage": 24.4,
+          "edges": 1019,
+          "edgeDensity": 0.2549,
+          "compactness": 1.56
+        },
+        {
+          "deg": 150,
+          "coverage": 25.2,
+          "edges": 949,
+          "edgeDensity": 0.2296,
+          "compactness": 1.43
+        },
+        {
+          "deg": 180,
+          "coverage": 24.6,
+          "edges": 285,
+          "edgeDensity": 0.0706,
+          "compactness": 1.33
+        },
+        {
+          "deg": 210,
+          "coverage": 25.7,
+          "edges": 626,
+          "edgeDensity": 0.1487,
+          "compactness": 1.32
+        },
+        {
+          "deg": 240,
+          "coverage": 25.7,
+          "edges": 829,
+          "edgeDensity": 0.1969,
+          "compactness": 1.32
+        },
+        {
+          "deg": 270,
+          "coverage": 24.5,
+          "edges": 778,
+          "edgeDensity": 0.1934,
+          "compactness": 1.34
+        },
+        {
+          "deg": 300,
+          "coverage": 25.7,
+          "edges": 741,
+          "edgeDensity": 0.176,
+          "compactness": 1.32
+        },
+        {
+          "deg": 330,
+          "coverage": 25.7,
+          "edges": 539,
+          "edgeDensity": 0.1281,
+          "compactness": 1.31
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_63_pro_shop_fitting_room",
+      "wasVisible": false,
+      "meshTotal": 18,
+      "meshVisible": 14,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        1.696,
+        2.679,
+        1.695
+      ],
+      "radiusYd": 1.798,
+      "centreLocal": [
+        -3,
+        1.34,
+        -2.85
+      ],
+      "standoffYd": 4.14,
+      "coveragePct": 25.4,
+      "file": "asset_063.png"
+    },
+    {
+      "n": 64,
+      "name": "AssetRuntime_64_stockroom_shelving_system_backshelf_n",
+      "azimuthDeg": 180,
+      "elevationDeg": 9.2,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3718,
+      "edgeDensityChosen": 0.2435,
+      "edgeDensityMax": 0.5221,
+      "compactnessMean": 35.564,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 10.9,
+          "edges": 444,
+          "edgeDensity": 0.2483,
+          "compactness": 47.58
+        },
+        {
+          "deg": 30,
+          "coverage": 10.7,
+          "edges": 473,
+          "edgeDensity": 0.2694,
+          "compactness": 41.5
+        },
+        {
+          "deg": 60,
+          "coverage": 10,
+          "edges": 509,
+          "edgeDensity": 0.3096,
+          "compactness": 27.74
+        },
+        {
+          "deg": 90,
+          "coverage": 7.8,
+          "edges": 306,
+          "edgeDensity": 0.2396,
+          "compactness": 18.1
+        },
+        {
+          "deg": 120,
+          "coverage": 10,
+          "edges": 810,
+          "edgeDensity": 0.4948,
+          "compactness": 29.27
+        },
+        {
+          "deg": 150,
+          "coverage": 10.9,
+          "edges": 933,
+          "edgeDensity": 0.5221,
+          "compactness": 45.52
+        },
+        {
+          "deg": 180,
+          "coverage": 11.1,
+          "edges": 881,
+          "edgeDensity": 0.4833,
+          "compactness": 51.39
+        },
+        {
+          "deg": 210,
+          "coverage": 10.9,
+          "edges": 900,
+          "edgeDensity": 0.5056,
+          "compactness": 44.08
+        },
+        {
+          "deg": 240,
+          "coverage": 10.1,
+          "edges": 766,
+          "edgeDensity": 0.4637,
+          "compactness": 28.12
+        },
+        {
+          "deg": 270,
+          "coverage": 7.8,
+          "edges": 389,
+          "edgeDensity": 0.3025,
+          "compactness": 17.25
+        },
+        {
+          "deg": 300,
+          "coverage": 10.1,
+          "edges": 601,
+          "edgeDensity": 0.3618,
+          "compactness": 30.66
+        },
+        {
+          "deg": 330,
+          "coverage": 10.8,
+          "edges": 461,
+          "edgeDensity": 0.2607,
+          "compactness": 45.55
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_64_stockroom_shelving_system_backshelf_n",
+      "wasVisible": true,
+      "meshTotal": 12,
+      "meshVisible": 7,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        2.001,
+        2.329,
+        0.667
+      ],
+      "radiusYd": 1.571,
+      "centreLocal": [
+        8.35,
+        1.16,
+        -5.05
+      ],
+      "standoffYd": 3.618,
+      "coveragePct": 11.4,
+      "file": "asset_064.png"
+    },
+    {
+      "n": 65,
+      "name": "AssetRuntime_65_stockroom_worktable",
+      "azimuthDeg": 150,
+      "elevationDeg": 20.6,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2553,
+      "edgeDensityChosen": 0.1184,
+      "edgeDensityMax": 0.3372,
+      "compactnessMean": 5.601,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 12.8,
+          "edges": 468,
+          "edgeDensity": 0.2228,
+          "compactness": 6.97
+        },
+        {
+          "deg": 30,
+          "coverage": 12.4,
+          "edges": 484,
+          "edgeDensity": 0.2377,
+          "compactness": 6.04
+        },
+        {
+          "deg": 60,
+          "coverage": 11.9,
+          "edges": 573,
+          "edgeDensity": 0.2938,
+          "compactness": 4.05
+        },
+        {
+          "deg": 90,
+          "coverage": 10.6,
+          "edges": 438,
+          "edgeDensity": 0.2533,
+          "compactness": 3.36
+        },
+        {
+          "deg": 120,
+          "coverage": 12,
+          "edges": 661,
+          "edgeDensity": 0.3372,
+          "compactness": 5.32
+        },
+        {
+          "deg": 150,
+          "coverage": 12.4,
+          "edges": 655,
+          "edgeDensity": 0.3219,
+          "compactness": 7.33
+        },
+        {
+          "deg": 180,
+          "coverage": 12.8,
+          "edges": 533,
+          "edgeDensity": 0.2543,
+          "compactness": 6.95
+        },
+        {
+          "deg": 210,
+          "coverage": 12.4,
+          "edges": 517,
+          "edgeDensity": 0.2536,
+          "compactness": 6.31
+        },
+        {
+          "deg": 240,
+          "coverage": 12,
+          "edges": 481,
+          "edgeDensity": 0.2454,
+          "compactness": 4.39
+        },
+        {
+          "deg": 270,
+          "coverage": 10.8,
+          "edges": 328,
+          "edgeDensity": 0.1862,
+          "compactness": 3.62
+        },
+        {
+          "deg": 300,
+          "coverage": 12,
+          "edges": 485,
+          "edgeDensity": 0.2468,
+          "compactness": 5.48
+        },
+        {
+          "deg": 330,
+          "coverage": 12.5,
+          "edges": 432,
+          "edgeDensity": 0.2109,
+          "compactness": 7.39
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_65_stockroom_worktable",
+      "wasVisible": true,
+      "meshTotal": 34,
+      "meshVisible": 27,
+      "meshBatched": 4,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        1.979,
+        1.319,
+        0.82
+      ],
+      "radiusYd": 1.258,
+      "centreLocal": [
+        6.31,
+        0.66,
+        -1.7
+      ],
+      "standoffYd": 2.896,
+      "coveragePct": 12.6,
+      "file": "asset_065.png"
+    },
+    {
+      "n": 66,
+      "name": "AssetRuntime_66_office_laptop_desk",
+      "azimuthDeg": 270,
+      "elevationDeg": 28.6,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2866,
+      "edgeDensityChosen": 0.1585,
+      "edgeDensityMax": 0.4561,
+      "compactnessMean": 2.149,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 17.7,
+          "edges": 345,
+          "edgeDensity": 0.119,
+          "compactness": 1.46
+        },
+        {
+          "deg": 30,
+          "coverage": 18.9,
+          "edges": 581,
+          "edgeDensity": 0.1876,
+          "compactness": 1.85
+        },
+        {
+          "deg": 60,
+          "coverage": 19.4,
+          "edges": 877,
+          "edgeDensity": 0.2757,
+          "compactness": 2.53
+        },
+        {
+          "deg": 90,
+          "coverage": 20.3,
+          "edges": 773,
+          "edgeDensity": 0.2327,
+          "compactness": 2.66
+        },
+        {
+          "deg": 120,
+          "coverage": 19.4,
+          "edges": 957,
+          "edgeDensity": 0.3008,
+          "compactness": 2.45
+        },
+        {
+          "deg": 150,
+          "coverage": 18.9,
+          "edges": 673,
+          "edgeDensity": 0.2173,
+          "compactness": 1.59
+        },
+        {
+          "deg": 180,
+          "coverage": 17.7,
+          "edges": 612,
+          "edgeDensity": 0.2111,
+          "compactness": 1.48
+        },
+        {
+          "deg": 210,
+          "coverage": 17.7,
+          "edges": 965,
+          "edgeDensity": 0.3326,
+          "compactness": 1.96
+        },
+        {
+          "deg": 240,
+          "coverage": 16.4,
+          "edges": 1225,
+          "edgeDensity": 0.4561,
+          "compactness": 2.56
+        },
+        {
+          "deg": 270,
+          "coverage": 16.4,
+          "edges": 1113,
+          "edgeDensity": 0.4147,
+          "compactness": 2.87
+        },
+        {
+          "deg": 300,
+          "coverage": 16.4,
+          "edges": 1213,
+          "edgeDensity": 0.4516,
+          "compactness": 2.63
+        },
+        {
+          "deg": 330,
+          "coverage": 17.7,
+          "edges": 695,
+          "edgeDensity": 0.2396,
+          "compactness": 1.76
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_66_office_laptop_desk",
+      "wasVisible": true,
+      "meshTotal": 15,
+      "meshVisible": 12,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.875,
+        0.831,
+        1.75
+      ],
+      "radiusYd": 1.063,
+      "centreLocal": [
+        8.35,
+        0.42,
+        4.2
+      ],
+      "standoffYd": 2.447,
+      "coveragePct": 16.6,
+      "file": "asset_066.png"
+    },
+    {
+      "n": 67,
+      "name": "AssetRuntime_67_clubhouse_lounge_sofa",
+      "azimuthDeg": 330,
+      "elevationDeg": 21.6,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.4007,
+      "edgeDensityChosen": 0.1445,
+      "edgeDensityMax": 0.5332,
+      "compactnessMean": 1.722,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 16.9,
+          "edges": 1450,
+          "edgeDensity": 0.5227,
+          "compactness": 1.64
+        },
+        {
+          "deg": 30,
+          "coverage": 16.2,
+          "edges": 1304,
+          "edgeDensity": 0.4917,
+          "compactness": 1.62
+        },
+        {
+          "deg": 60,
+          "coverage": 14.9,
+          "edges": 1087,
+          "edgeDensity": 0.446,
+          "compactness": 1.32
+        },
+        {
+          "deg": 90,
+          "coverage": 11.8,
+          "edges": 767,
+          "edgeDensity": 0.3952,
+          "compactness": 1.54
+        },
+        {
+          "deg": 120,
+          "coverage": 12.4,
+          "edges": 769,
+          "edgeDensity": 0.3783,
+          "compactness": 2.09
+        },
+        {
+          "deg": 150,
+          "coverage": 13.8,
+          "edges": 731,
+          "edgeDensity": 0.3242,
+          "compactness": 2.1
+        },
+        {
+          "deg": 180,
+          "coverage": 14.8,
+          "edges": 560,
+          "edgeDensity": 0.2314,
+          "compactness": 1.85
+        },
+        {
+          "deg": 210,
+          "coverage": 13.8,
+          "edges": 698,
+          "edgeDensity": 0.3095,
+          "compactness": 1.87
+        },
+        {
+          "deg": 240,
+          "coverage": 12.4,
+          "edges": 699,
+          "edgeDensity": 0.3438,
+          "compactness": 1.64
+        },
+        {
+          "deg": 270,
+          "coverage": 11.8,
+          "edges": 683,
+          "edgeDensity": 0.3519,
+          "compactness": 1.61
+        },
+        {
+          "deg": 300,
+          "coverage": 14.9,
+          "edges": 1172,
+          "edgeDensity": 0.4809,
+          "compactness": 1.65
+        },
+        {
+          "deg": 330,
+          "coverage": 16.2,
+          "edges": 1414,
+          "edgeDensity": 0.5332,
+          "compactness": 1.74
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_67_clubhouse_lounge_sofa",
+      "wasVisible": true,
+      "meshTotal": 18,
+      "meshVisible": 15,
+      "meshBatched": 5,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        2.351,
+        0.984,
+        1.039
+      ],
+      "radiusYd": 1.376,
+      "centreLocal": [
+        3.45,
+        0.49,
+        -4.85
+      ],
+      "standoffYd": 3.169,
+      "coveragePct": 16.3,
+      "file": "asset_067.png"
+    },
+    {
+      "n": 68,
+      "name": "AssetRuntime_68_lounge_armchair_sheet07",
+      "azimuthDeg": 270,
+      "elevationDeg": 28.1,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3412,
+      "edgeDensityChosen": 0.0919,
+      "edgeDensityMax": 0.3946,
+      "compactnessMean": 1.676,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 11.5,
+          "edges": 568,
+          "edgeDensity": 0.3012,
+          "compactness": 1.86
+        },
+        {
+          "deg": 30,
+          "coverage": 11.3,
+          "edges": 529,
+          "edgeDensity": 0.2864,
+          "compactness": 1.76
+        },
+        {
+          "deg": 60,
+          "coverage": 11.3,
+          "edges": 492,
+          "edgeDensity": 0.2649,
+          "compactness": 1.63
+        },
+        {
+          "deg": 90,
+          "coverage": 11.3,
+          "edges": 652,
+          "edgeDensity": 0.3511,
+          "compactness": 1.85
+        },
+        {
+          "deg": 120,
+          "coverage": 11.6,
+          "edges": 701,
+          "edgeDensity": 0.3689,
+          "compactness": 1.79
+        },
+        {
+          "deg": 150,
+          "coverage": 11.6,
+          "edges": 630,
+          "edgeDensity": 0.3312,
+          "compactness": 1.61
+        },
+        {
+          "deg": 180,
+          "coverage": 12.8,
+          "edges": 785,
+          "edgeDensity": 0.3743,
+          "compactness": 1.74
+        },
+        {
+          "deg": 210,
+          "coverage": 13.1,
+          "edges": 782,
+          "edgeDensity": 0.3636,
+          "compactness": 1.51
+        },
+        {
+          "deg": 240,
+          "coverage": 13.2,
+          "edges": 852,
+          "edgeDensity": 0.3946,
+          "compactness": 1.4
+        },
+        {
+          "deg": 270,
+          "coverage": 13.1,
+          "edges": 776,
+          "edgeDensity": 0.3619,
+          "compactness": 1.59
+        },
+        {
+          "deg": 300,
+          "coverage": 12.7,
+          "edges": 798,
+          "edgeDensity": 0.3835,
+          "compactness": 1.69
+        },
+        {
+          "deg": 330,
+          "coverage": 11.4,
+          "edges": 584,
+          "edgeDensity": 0.3126,
+          "compactness": 1.69
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_68_lounge_armchair_sheet07",
+      "wasVisible": true,
+      "meshTotal": 17,
+      "meshVisible": 15,
+      "meshBatched": 5,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        1.275,
+        0.983,
+        1.261
+      ],
+      "radiusYd": 1.022,
+      "centreLocal": [
+        4.8,
+        0.49,
+        -3.79
+      ],
+      "standoffYd": 2.354,
+      "coveragePct": 13.2,
+      "file": "asset_068.png"
+    },
+    {
+      "n": 69,
+      "name": "AssetRuntime_69_lounge_coffee_table_sheet07",
+      "azimuthDeg": 185,
+      "elevationDeg": 41.4,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.2396,
+      "edgeDensityChosen": 0.0801,
+      "edgeDensityMax": 0.3338,
+      "compactnessMean": 1.942,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 18.8,
+          "edges": 629,
+          "edgeDensity": 0.2048,
+          "compactness": 1.85
+        },
+        {
+          "deg": 30,
+          "coverage": 18.1,
+          "edges": 714,
+          "edgeDensity": 0.2407,
+          "compactness": 1.88
+        },
+        {
+          "deg": 60,
+          "coverage": 16.7,
+          "edges": 488,
+          "edgeDensity": 0.1783,
+          "compactness": 1.82
+        },
+        {
+          "deg": 90,
+          "coverage": 17.5,
+          "edges": 535,
+          "edgeDensity": 0.1865,
+          "compactness": 1.76
+        },
+        {
+          "deg": 120,
+          "coverage": 16.7,
+          "edges": 562,
+          "edgeDensity": 0.2053,
+          "compactness": 2.31
+        },
+        {
+          "deg": 150,
+          "coverage": 18.1,
+          "edges": 990,
+          "edgeDensity": 0.3338,
+          "compactness": 2.03
+        },
+        {
+          "deg": 180,
+          "coverage": 18.8,
+          "edges": 844,
+          "edgeDensity": 0.2747,
+          "compactness": 1.85
+        },
+        {
+          "deg": 210,
+          "coverage": 18.1,
+          "edges": 885,
+          "edgeDensity": 0.2984,
+          "compactness": 1.88
+        },
+        {
+          "deg": 240,
+          "coverage": 16.7,
+          "edges": 543,
+          "edgeDensity": 0.1984,
+          "compactness": 1.82
+        },
+        {
+          "deg": 270,
+          "coverage": 17.5,
+          "edges": 605,
+          "edgeDensity": 0.2109,
+          "compactness": 1.76
+        },
+        {
+          "deg": 300,
+          "coverage": 16.7,
+          "edges": 646,
+          "edgeDensity": 0.236,
+          "compactness": 2.31
+        },
+        {
+          "deg": 330,
+          "coverage": 18.1,
+          "edges": 911,
+          "edgeDensity": 0.3071,
+          "compactness": 2.03
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_69_lounge_coffee_table_sheet07",
+      "wasVisible": true,
+      "meshTotal": 13,
+      "meshVisible": 10,
+      "meshBatched": 4,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        1.203,
+        0.492,
+        0.711
+      ],
+      "radiusYd": 0.741,
+      "centreLocal": [
+        3.45,
+        0.25,
+        -4.15
+      ],
+      "standoffYd": 1.706,
+      "coveragePct": 19.1,
+      "file": "asset_069.png"
+    },
+    {
+      "n": 70,
+      "name": "AssetRuntime_70_trophy_display_cabinet",
+      "azimuthDeg": 240,
+      "elevationDeg": 10.3,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.262,
+      "edgeDensityChosen": 0.1454,
+      "edgeDensityMax": 0.4932,
+      "compactnessMean": 1.626,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 10,
+          "edges": 97,
+          "edgeDensity": 0.0594,
+          "compactness": 2.29
+        },
+        {
+          "deg": 30,
+          "coverage": 17.2,
+          "edges": 474,
+          "edgeDensity": 0.1681,
+          "compactness": 1.61
+        },
+        {
+          "deg": 60,
+          "coverage": 21.7,
+          "edges": 551,
+          "edgeDensity": 0.1552,
+          "compactness": 1.46
+        },
+        {
+          "deg": 90,
+          "coverage": 22.6,
+          "edges": 418,
+          "edgeDensity": 0.113,
+          "compactness": 1.36
+        },
+        {
+          "deg": 120,
+          "coverage": 21.7,
+          "edges": 474,
+          "edgeDensity": 0.1335,
+          "compactness": 1.4
+        },
+        {
+          "deg": 150,
+          "coverage": 17.2,
+          "edges": 431,
+          "edgeDensity": 0.1528,
+          "compactness": 1.51
+        },
+        {
+          "deg": 180,
+          "coverage": 10,
+          "edges": 227,
+          "edgeDensity": 0.1389,
+          "compactness": 2.27
+        },
+        {
+          "deg": 210,
+          "coverage": 17.2,
+          "edges": 1105,
+          "edgeDensity": 0.393,
+          "compactness": 1.6
+        },
+        {
+          "deg": 240,
+          "coverage": 21.2,
+          "edges": 1639,
+          "edgeDensity": 0.4722,
+          "compactness": 1.6
+        },
+        {
+          "deg": 270,
+          "coverage": 22.3,
+          "edges": 1787,
+          "edgeDensity": 0.4885,
+          "compactness": 1.37
+        },
+        {
+          "deg": 300,
+          "coverage": 21.2,
+          "edges": 1712,
+          "edgeDensity": 0.4932,
+          "compactness": 1.54
+        },
+        {
+          "deg": 330,
+          "coverage": 17.2,
+          "edges": 1058,
+          "edgeDensity": 0.3762,
+          "compactness": 1.51
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_70_trophy_display_cabinet",
+      "wasVisible": true,
+      "meshTotal": 25,
+      "meshVisible": 22,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.53,
+        2.297,
+        1.64
+      ],
+      "radiusYd": 1.436,
+      "centreLocal": [
+        5.4,
+        1.15,
+        -4.85
+      ],
+      "standoffYd": 3.306,
+      "coveragePct": 21.3,
+      "file": "asset_070.png"
+    },
+    {
+      "n": 71,
+      "name": "AssetRuntime_71_vacuum_cleaner",
+      "azimuthDeg": 0,
+      "elevationDeg": 36.2,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.364,
+      "edgeDensityChosen": 0.1213,
+      "edgeDensityMax": 0.4293,
+      "compactnessMean": 3.297,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 7.4,
+          "edges": 494,
+          "edgeDensity": 0.4053,
+          "compactness": 4.55
+        },
+        {
+          "deg": 30,
+          "coverage": 7.3,
+          "edges": 509,
+          "edgeDensity": 0.4238,
+          "compactness": 4.65
+        },
+        {
+          "deg": 60,
+          "coverage": 7.1,
+          "edges": 498,
+          "edgeDensity": 0.4293,
+          "compactness": 3.72
+        },
+        {
+          "deg": 90,
+          "coverage": 7.1,
+          "edges": 479,
+          "edgeDensity": 0.4144,
+          "compactness": 2.89
+        },
+        {
+          "deg": 120,
+          "coverage": 7,
+          "edges": 365,
+          "edgeDensity": 0.3168,
+          "compactness": 3.16
+        },
+        {
+          "deg": 150,
+          "coverage": 7.7,
+          "edges": 412,
+          "edgeDensity": 0.3265,
+          "compactness": 3
+        },
+        {
+          "deg": 180,
+          "coverage": 7.8,
+          "edges": 392,
+          "edgeDensity": 0.3084,
+          "compactness": 2.36
+        },
+        {
+          "deg": 210,
+          "coverage": 7.9,
+          "edges": 424,
+          "edgeDensity": 0.3262,
+          "compactness": 3.04
+        },
+        {
+          "deg": 240,
+          "coverage": 8.1,
+          "edges": 449,
+          "edgeDensity": 0.3373,
+          "compactness": 3.16
+        },
+        {
+          "deg": 270,
+          "coverage": 7.9,
+          "edges": 428,
+          "edgeDensity": 0.331,
+          "compactness": 2.71
+        },
+        {
+          "deg": 300,
+          "coverage": 7.7,
+          "edges": 460,
+          "edgeDensity": 0.3633,
+          "compactness": 2.69
+        },
+        {
+          "deg": 330,
+          "coverage": 7.6,
+          "edges": 481,
+          "edgeDensity": 0.3857,
+          "compactness": 3.61
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_71_vacuum_cleaner",
+      "wasVisible": true,
+      "meshTotal": 22,
+      "meshVisible": 20,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.972,
+        0.855,
+        0.877
+      ],
+      "radiusYd": 0.782,
+      "centreLocal": [
+        8.27,
+        0.43,
+        1.32
+      ],
+      "standoffYd": 1.8,
+      "coveragePct": 7.6,
+      "file": "asset_071.png"
+    },
+    {
+      "n": 72,
+      "name": "AssetRuntime_72_mop",
+      "azimuthDeg": 270,
+      "elevationDeg": 26,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.5724,
+      "edgeDensityChosen": 0.485,
+      "edgeDensityMax": 0.6962,
+      "compactnessMean": 10.162,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 1.6,
+          "edges": 173,
+          "edgeDensity": 0.6603,
+          "compactness": 11.08
+        },
+        {
+          "deg": 30,
+          "coverage": 1.6,
+          "edges": 116,
+          "edgeDensity": 0.4394,
+          "compactness": 9.66
+        },
+        {
+          "deg": 60,
+          "coverage": 1.6,
+          "edges": 119,
+          "edgeDensity": 0.4542,
+          "compactness": 10.51
+        },
+        {
+          "deg": 90,
+          "coverage": 1.6,
+          "edges": 130,
+          "edgeDensity": 0.4981,
+          "compactness": 9.77
+        },
+        {
+          "deg": 120,
+          "coverage": 1.6,
+          "edges": 140,
+          "edgeDensity": 0.5323,
+          "compactness": 10.13
+        },
+        {
+          "deg": 150,
+          "coverage": 1.6,
+          "edges": 169,
+          "edgeDensity": 0.6475,
+          "compactness": 9.99
+        },
+        {
+          "deg": 180,
+          "coverage": 1.6,
+          "edges": 119,
+          "edgeDensity": 0.4491,
+          "compactness": 9.51
+        },
+        {
+          "deg": 210,
+          "coverage": 1.6,
+          "edges": 179,
+          "edgeDensity": 0.6858,
+          "compactness": 10.1
+        },
+        {
+          "deg": 240,
+          "coverage": 1.6,
+          "edges": 181,
+          "edgeDensity": 0.6962,
+          "compactness": 10.48
+        },
+        {
+          "deg": 270,
+          "coverage": 1.6,
+          "edges": 163,
+          "edgeDensity": 0.6128,
+          "compactness": 9.69
+        },
+        {
+          "deg": 300,
+          "coverage": 1.6,
+          "edges": 133,
+          "edgeDensity": 0.5175,
+          "compactness": 11.3
+        },
+        {
+          "deg": 330,
+          "coverage": 1.6,
+          "edges": 179,
+          "edgeDensity": 0.6755,
+          "compactness": 9.73
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_72_mop",
+      "wasVisible": true,
+      "meshTotal": 7,
+      "meshVisible": 5,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.36,
+        1.605,
+        0.359
+      ],
+      "radiusYd": 0.842,
+      "centreLocal": [
+        5.88,
+        0.8,
+        1.82
+      ],
+      "standoffYd": 1.938,
+      "coveragePct": 1.6,
+      "file": "asset_072.png"
+    },
+    {
+      "n": 73,
+      "name": "AssetRuntime_73_mop_bucket_and_wringer",
+      "azimuthDeg": 335,
+      "elevationDeg": 37,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.2586,
+      "edgeDensityChosen": 0.105,
+      "edgeDensityMax": 0.3017,
+      "compactnessMean": 2.941,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 9.4,
+          "edges": 341,
+          "edgeDensity": 0.2216,
+          "compactness": 2.39
+        },
+        {
+          "deg": 30,
+          "coverage": 9.7,
+          "edges": 383,
+          "edgeDensity": 0.2401,
+          "compactness": 2.87
+        },
+        {
+          "deg": 60,
+          "coverage": 9.2,
+          "edges": 364,
+          "edgeDensity": 0.2412,
+          "compactness": 2.99
+        },
+        {
+          "deg": 90,
+          "coverage": 8.6,
+          "edges": 348,
+          "edgeDensity": 0.2463,
+          "compactness": 3.33
+        },
+        {
+          "deg": 120,
+          "coverage": 8.5,
+          "edges": 343,
+          "edgeDensity": 0.2462,
+          "compactness": 3.63
+        },
+        {
+          "deg": 150,
+          "coverage": 7.7,
+          "edges": 328,
+          "edgeDensity": 0.2611,
+          "compactness": 2.03
+        },
+        {
+          "deg": 180,
+          "coverage": 7.3,
+          "edges": 317,
+          "edgeDensity": 0.2668,
+          "compactness": 1.98
+        },
+        {
+          "deg": 210,
+          "coverage": 8.1,
+          "edges": 400,
+          "edgeDensity": 0.3017,
+          "compactness": 2.72
+        },
+        {
+          "deg": 240,
+          "coverage": 8.4,
+          "edges": 395,
+          "edgeDensity": 0.2862,
+          "compactness": 3.93
+        },
+        {
+          "deg": 270,
+          "coverage": 8.8,
+          "edges": 357,
+          "edgeDensity": 0.2488,
+          "compactness": 3.63
+        },
+        {
+          "deg": 300,
+          "coverage": 9.5,
+          "edges": 445,
+          "edgeDensity": 0.286,
+          "compactness": 3.46
+        },
+        {
+          "deg": 330,
+          "coverage": 9.5,
+          "edges": 399,
+          "edgeDensity": 0.2573,
+          "compactness": 2.33
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_73_mop_bucket_and_wringer",
+      "wasVisible": true,
+      "meshTotal": 12,
+      "meshVisible": 10,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.647,
+        1.018,
+        0.759
+      ],
+      "radiusYd": 0.713,
+      "centreLocal": [
+        6.42,
+        0.51,
+        1.41
+      ],
+      "standoffYd": 1.641,
+      "coveragePct": 9.5,
+      "file": "asset_073.png"
+    },
+    {
+      "n": 74,
+      "name": "AssetRuntime_74_broom",
+      "azimuthDeg": 90,
+      "elevationDeg": 26.2,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.5063,
+      "edgeDensityChosen": 0.3371,
+      "edgeDensityMax": 0.7018,
+      "compactnessMean": 12.722,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 2.1,
+          "edges": 130,
+          "edgeDensity": 0.3846,
+          "compactness": 11.71
+        },
+        {
+          "deg": 30,
+          "coverage": 1.9,
+          "edges": 120,
+          "edgeDensity": 0.3859,
+          "compactness": 13.42
+        },
+        {
+          "deg": 60,
+          "coverage": 1.4,
+          "edges": 130,
+          "edgeDensity": 0.5485,
+          "compactness": 18.54
+        },
+        {
+          "deg": 90,
+          "coverage": 1.3,
+          "edges": 153,
+          "edgeDensity": 0.7018,
+          "compactness": 19.31
+        },
+        {
+          "deg": 120,
+          "coverage": 1.6,
+          "edges": 165,
+          "edgeDensity": 0.642,
+          "compactness": 15.96
+        },
+        {
+          "deg": 150,
+          "coverage": 1.6,
+          "edges": 130,
+          "edgeDensity": 0.4981,
+          "compactness": 12.2
+        },
+        {
+          "deg": 180,
+          "coverage": 1.6,
+          "edges": 105,
+          "edgeDensity": 0.4134,
+          "compactness": 9.38
+        },
+        {
+          "deg": 210,
+          "coverage": 1.6,
+          "edges": 122,
+          "edgeDensity": 0.4729,
+          "compactness": 8.3
+        },
+        {
+          "deg": 240,
+          "coverage": 1.4,
+          "edges": 111,
+          "edgeDensity": 0.4912,
+          "compactness": 8.46
+        },
+        {
+          "deg": 270,
+          "coverage": 1.1,
+          "edges": 94,
+          "edgeDensity": 0.5193,
+          "compactness": 12.41
+        },
+        {
+          "deg": 300,
+          "coverage": 1.6,
+          "edges": 146,
+          "edgeDensity": 0.5428,
+          "compactness": 12.19
+        },
+        {
+          "deg": 330,
+          "coverage": 2,
+          "edges": 156,
+          "edgeDensity": 0.4756,
+          "compactness": 10.8
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_74_broom",
+      "wasVisible": true,
+      "meshTotal": 7,
+      "meshVisible": 5,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.575,
+        1.528,
+        0.63
+      ],
+      "radiusYd": 0.875,
+      "centreLocal": [
+        6.96,
+        0.76,
+        1.58
+      ],
+      "standoffYd": 2.015,
+      "coveragePct": 1.4,
+      "file": "asset_074.png"
+    },
+    {
+      "n": 75,
+      "name": "AssetRuntime_75_dustpan",
+      "azimuthDeg": 275,
+      "elevationDeg": 47.6,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.25,
+      "edgeDensityChosen": 0.1061,
+      "edgeDensityMax": 0.3346,
+      "compactnessMean": 5.184,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 3.7,
+          "edges": 112,
+          "edgeDensity": 0.1854,
+          "compactness": 5.54
+        },
+        {
+          "deg": 30,
+          "coverage": 3.7,
+          "edges": 140,
+          "edgeDensity": 0.2306,
+          "compactness": 5.67
+        },
+        {
+          "deg": 60,
+          "coverage": 3.7,
+          "edges": 165,
+          "edgeDensity": 0.2723,
+          "compactness": 5.74
+        },
+        {
+          "deg": 90,
+          "coverage": 3.6,
+          "edges": 152,
+          "edgeDensity": 0.2612,
+          "compactness": 5.47
+        },
+        {
+          "deg": 120,
+          "coverage": 3.3,
+          "edges": 137,
+          "edgeDensity": 0.257,
+          "compactness": 5.11
+        },
+        {
+          "deg": 150,
+          "coverage": 3.2,
+          "edges": 108,
+          "edgeDensity": 0.2057,
+          "compactness": 5.47
+        },
+        {
+          "deg": 180,
+          "coverage": 3.1,
+          "edges": 91,
+          "edgeDensity": 0.1798,
+          "compactness": 5.15
+        },
+        {
+          "deg": 210,
+          "coverage": 3.1,
+          "edges": 156,
+          "edgeDensity": 0.3029,
+          "compactness": 4.79
+        },
+        {
+          "deg": 240,
+          "coverage": 3.2,
+          "edges": 178,
+          "edgeDensity": 0.3346,
+          "compactness": 4.27
+        },
+        {
+          "deg": 270,
+          "coverage": 3.3,
+          "edges": 132,
+          "edgeDensity": 0.2422,
+          "compactness": 4.37
+        },
+        {
+          "deg": 300,
+          "coverage": 3.6,
+          "edges": 156,
+          "edgeDensity": 0.2635,
+          "compactness": 5.22
+        },
+        {
+          "deg": 330,
+          "coverage": 3.7,
+          "edges": 162,
+          "edgeDensity": 0.2651,
+          "compactness": 5.42
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_75_dustpan",
+      "wasVisible": true,
+      "meshTotal": 10,
+      "meshVisible": 8,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.373,
+        0.898,
+        0.336
+      ],
+      "radiusYd": 0.514,
+      "centreLocal": [
+        7.3,
+        0.45,
+        1.47
+      ],
+      "standoffYd": 1.184,
+      "coveragePct": 3.5,
+      "file": "asset_075.png"
+    },
+    {
+      "n": 76,
+      "name": "AssetRuntime_76_cleaning_spray_bottle",
+      "azimuthDeg": 60,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3237,
+      "edgeDensityChosen": 0.1166,
+      "edgeDensityMax": 0.4219,
+      "compactnessMean": 2.227,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 7.3,
+          "edges": 434,
+          "edgeDensity": 0.3647,
+          "compactness": 1.8
+        },
+        {
+          "deg": 30,
+          "coverage": 7.8,
+          "edges": 540,
+          "edgeDensity": 0.4219,
+          "compactness": 1.82
+        },
+        {
+          "deg": 60,
+          "coverage": 8.6,
+          "edges": 500,
+          "edgeDensity": 0.3561,
+          "compactness": 2.38
+        },
+        {
+          "deg": 90,
+          "coverage": 8.3,
+          "edges": 463,
+          "edgeDensity": 0.3419,
+          "compactness": 2.47
+        },
+        {
+          "deg": 120,
+          "coverage": 8.4,
+          "edges": 467,
+          "edgeDensity": 0.3387,
+          "compactness": 2.45
+        },
+        {
+          "deg": 150,
+          "coverage": 8.6,
+          "edges": 365,
+          "edgeDensity": 0.2578,
+          "compactness": 2.05
+        },
+        {
+          "deg": 180,
+          "coverage": 8.1,
+          "edges": 340,
+          "edgeDensity": 0.2578,
+          "compactness": 1.93
+        },
+        {
+          "deg": 210,
+          "coverage": 8.4,
+          "edges": 408,
+          "edgeDensity": 0.2967,
+          "compactness": 2.2
+        },
+        {
+          "deg": 240,
+          "coverage": 8.6,
+          "edges": 381,
+          "edgeDensity": 0.2719,
+          "compactness": 2.34
+        },
+        {
+          "deg": 270,
+          "coverage": 8,
+          "edges": 369,
+          "edgeDensity": 0.28,
+          "compactness": 2.64
+        },
+        {
+          "deg": 300,
+          "coverage": 8.3,
+          "edges": 451,
+          "edgeDensity": 0.3297,
+          "compactness": 2.54
+        },
+        {
+          "deg": 330,
+          "coverage": 8.3,
+          "edges": 501,
+          "edgeDensity": 0.367,
+          "compactness": 2.1
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_76_cleaning_spray_bottle",
+      "wasVisible": true,
+      "meshTotal": 13,
+      "meshVisible": 12,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.107,
+        0.313,
+        0.132
+      ],
+      "radiusYd": 0.178,
+      "centreLocal": [
+        7.05,
+        1.16,
+        -1.48
+      ],
+      "standoffYd": 0.41,
+      "coveragePct": 8.6,
+      "file": "asset_076.png"
+    },
+    {
+      "n": 77,
+      "name": "AssetRuntime_77_cleaning_cloth_and_sponge_set",
+      "azimuthDeg": 335,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.2128,
+      "edgeDensityChosen": 0.0431,
+      "edgeDensityMax": 0.2481,
+      "compactnessMean": 2.275,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 12.5,
+          "edges": 376,
+          "edgeDensity": 0.1833,
+          "compactness": 2.42
+        },
+        {
+          "deg": 30,
+          "coverage": 12.1,
+          "edges": 442,
+          "edgeDensity": 0.2229,
+          "compactness": 2.71
+        },
+        {
+          "deg": 60,
+          "coverage": 11.4,
+          "edges": 462,
+          "edgeDensity": 0.2481,
+          "compactness": 1.81
+        },
+        {
+          "deg": 90,
+          "coverage": 10.7,
+          "edges": 388,
+          "edgeDensity": 0.2213,
+          "compactness": 2.12
+        },
+        {
+          "deg": 120,
+          "coverage": 10.5,
+          "edges": 404,
+          "edgeDensity": 0.235,
+          "compactness": 2.94
+        },
+        {
+          "deg": 150,
+          "coverage": 10.6,
+          "edges": 394,
+          "edgeDensity": 0.226,
+          "compactness": 2.74
+        },
+        {
+          "deg": 180,
+          "coverage": 11,
+          "edges": 386,
+          "edgeDensity": 0.2143,
+          "compactness": 2.38
+        },
+        {
+          "deg": 210,
+          "coverage": 11.4,
+          "edges": 384,
+          "edgeDensity": 0.2048,
+          "compactness": 2.09
+        },
+        {
+          "deg": 240,
+          "coverage": 12,
+          "edges": 345,
+          "edgeDensity": 0.1749,
+          "compactness": 1.63
+        },
+        {
+          "deg": 270,
+          "coverage": 13,
+          "edges": 404,
+          "edgeDensity": 0.1893,
+          "compactness": 1.64
+        },
+        {
+          "deg": 300,
+          "coverage": 13.2,
+          "edges": 532,
+          "edgeDensity": 0.2455,
+          "compactness": 2.2
+        },
+        {
+          "deg": 330,
+          "coverage": 12.8,
+          "edges": 395,
+          "edgeDensity": 0.1882,
+          "compactness": 2.6
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_77_cleaning_cloth_and_sponge_set",
+      "wasVisible": true,
+      "meshTotal": 7,
+      "meshVisible": 5,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.441,
+        0.067,
+        0.26
+      ],
+      "radiusYd": 0.258,
+      "centreLocal": [
+        7.07,
+        1.04,
+        -1.95
+      ],
+      "standoffYd": 0.594,
+      "coveragePct": 12.9,
+      "file": "asset_077.png"
+    },
+    {
+      "n": 78,
+      "name": "AssetRuntime_78_pressure_washer",
+      "azimuthDeg": 60,
+      "elevationDeg": 39.3,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3739,
+      "edgeDensityChosen": 0.146,
+      "edgeDensityMax": 0.4701,
+      "compactnessMean": 5.037,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 10.5,
+          "edges": 741,
+          "edgeDensity": 0.4301,
+          "compactness": 6.05
+        },
+        {
+          "deg": 30,
+          "coverage": 11.1,
+          "edges": 858,
+          "edgeDensity": 0.4701,
+          "compactness": 6.07
+        },
+        {
+          "deg": 60,
+          "coverage": 12.1,
+          "edges": 838,
+          "edgeDensity": 0.4239,
+          "compactness": 6.28
+        },
+        {
+          "deg": 90,
+          "coverage": 12,
+          "edges": 704,
+          "edgeDensity": 0.3585,
+          "compactness": 5.64
+        },
+        {
+          "deg": 120,
+          "coverage": 11.6,
+          "edges": 670,
+          "edgeDensity": 0.3513,
+          "compactness": 3.63
+        },
+        {
+          "deg": 150,
+          "coverage": 10.7,
+          "edges": 580,
+          "edgeDensity": 0.3305,
+          "compactness": 4.97
+        },
+        {
+          "deg": 180,
+          "coverage": 9.4,
+          "edges": 508,
+          "edgeDensity": 0.3314,
+          "compactness": 4.61
+        },
+        {
+          "deg": 210,
+          "coverage": 10,
+          "edges": 564,
+          "edgeDensity": 0.3441,
+          "compactness": 4.06
+        },
+        {
+          "deg": 240,
+          "coverage": 11,
+          "edges": 644,
+          "edgeDensity": 0.3582,
+          "compactness": 3.25
+        },
+        {
+          "deg": 270,
+          "coverage": 11.7,
+          "edges": 620,
+          "edgeDensity": 0.3226,
+          "compactness": 4.45
+        },
+        {
+          "deg": 300,
+          "coverage": 11.8,
+          "edges": 707,
+          "edgeDensity": 0.3652,
+          "compactness": 5.45
+        },
+        {
+          "deg": 330,
+          "coverage": 11.7,
+          "edges": 770,
+          "edgeDensity": 0.4013,
+          "compactness": 5.99
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_78_pressure_washer",
+      "wasVisible": true,
+      "meshTotal": 17,
+      "meshVisible": 14,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.762,
+        0.772,
+        0.957
+      ],
+      "radiusYd": 0.723,
+      "centreLocal": [
+        6.18,
+        0.39,
+        -2.62
+      ],
+      "standoffYd": 1.666,
+      "coveragePct": 12.2,
+      "file": "asset_078.png"
+    },
+    {
+      "n": 79,
+      "name": "AssetRuntime_79_pressure_washer_hose_and_wand",
+      "azimuthDeg": 125,
+      "elevationDeg": 38.8,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.4854,
+      "edgeDensityChosen": 0.2543,
+      "edgeDensityMax": 0.6108,
+      "compactnessMean": 19.797,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 1.1,
+          "edges": 113,
+          "edgeDensity": 0.6108,
+          "compactness": 14.25
+        },
+        {
+          "deg": 30,
+          "coverage": 1.1,
+          "edges": 90,
+          "edgeDensity": 0.4972,
+          "compactness": 17.94
+        },
+        {
+          "deg": 60,
+          "coverage": 1.4,
+          "edges": 120,
+          "edgeDensity": 0.5357,
+          "compactness": 22.92
+        },
+        {
+          "deg": 90,
+          "coverage": 1.6,
+          "edges": 142,
+          "edgeDensity": 0.542,
+          "compactness": 22.97
+        },
+        {
+          "deg": 120,
+          "coverage": 1.6,
+          "edges": 122,
+          "edgeDensity": 0.4621,
+          "compactness": 21.01
+        },
+        {
+          "deg": 150,
+          "coverage": 1.6,
+          "edges": 98,
+          "edgeDensity": 0.363,
+          "compactness": 18.72
+        },
+        {
+          "deg": 180,
+          "coverage": 1.6,
+          "edges": 102,
+          "edgeDensity": 0.3806,
+          "compactness": 16.26
+        },
+        {
+          "deg": 210,
+          "coverage": 1.5,
+          "edges": 95,
+          "edgeDensity": 0.3862,
+          "compactness": 19.1
+        },
+        {
+          "deg": 240,
+          "coverage": 1.5,
+          "edges": 126,
+          "edgeDensity": 0.506,
+          "compactness": 21.77
+        },
+        {
+          "deg": 270,
+          "coverage": 1.4,
+          "edges": 128,
+          "edgeDensity": 0.5447,
+          "compactness": 23.96
+        },
+        {
+          "deg": 300,
+          "coverage": 1.4,
+          "edges": 111,
+          "edgeDensity": 0.4847,
+          "compactness": 21.72
+        },
+        {
+          "deg": 330,
+          "coverage": 1.3,
+          "edges": 107,
+          "edgeDensity": 0.512,
+          "compactness": 16.95
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_79_pressure_washer_hose_and_wand",
+      "wasVisible": true,
+      "meshTotal": 15,
+      "meshVisible": 13,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.83,
+        0.237,
+        1.546
+      ],
+      "radiusYd": 0.885,
+      "centreLocal": [
+        6.6,
+        0.11,
+        -2.48
+      ],
+      "standoffYd": 2.039,
+      "coveragePct": 1.7,
+      "file": "asset_079.png"
+    },
+    {
+      "n": 80,
+      "name": "AssetRuntime_80_trash_bag",
+      "azimuthDeg": 300,
+      "elevationDeg": 46.3,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2743,
+      "edgeDensityChosen": 0.0816,
+      "edgeDensityMax": 0.3058,
+      "compactnessMean": 1.775,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 12.9,
+          "edges": 549,
+          "edgeDensity": 0.2607,
+          "compactness": 1.88
+        },
+        {
+          "deg": 30,
+          "coverage": 12.9,
+          "edges": 593,
+          "edgeDensity": 0.2813,
+          "compactness": 1.81
+        },
+        {
+          "deg": 60,
+          "coverage": 11.7,
+          "edges": 588,
+          "edgeDensity": 0.3058,
+          "compactness": 1.54
+        },
+        {
+          "deg": 90,
+          "coverage": 10.5,
+          "edges": 511,
+          "edgeDensity": 0.2957,
+          "compactness": 1.68
+        },
+        {
+          "deg": 120,
+          "coverage": 12.1,
+          "edges": 513,
+          "edgeDensity": 0.2597,
+          "compactness": 1.86
+        },
+        {
+          "deg": 150,
+          "coverage": 12.9,
+          "edges": 579,
+          "edgeDensity": 0.2732,
+          "compactness": 1.87
+        },
+        {
+          "deg": 180,
+          "coverage": 12.8,
+          "edges": 564,
+          "edgeDensity": 0.2682,
+          "compactness": 1.88
+        },
+        {
+          "deg": 210,
+          "coverage": 12.9,
+          "edges": 557,
+          "edgeDensity": 0.2642,
+          "compactness": 1.81
+        },
+        {
+          "deg": 240,
+          "coverage": 11.7,
+          "edges": 456,
+          "edgeDensity": 0.2371,
+          "compactness": 1.54
+        },
+        {
+          "deg": 270,
+          "coverage": 10.5,
+          "edges": 440,
+          "edgeDensity": 0.2546,
+          "compactness": 1.68
+        },
+        {
+          "deg": 300,
+          "coverage": 12.1,
+          "edges": 578,
+          "edgeDensity": 0.2927,
+          "compactness": 1.86
+        },
+        {
+          "deg": 330,
+          "coverage": 12.9,
+          "edges": 630,
+          "edgeDensity": 0.2977,
+          "compactness": 1.89
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_80_trash_bag",
+      "wasVisible": true,
+      "meshTotal": 9,
+      "meshVisible": 8,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.567,
+        0.838,
+        0.442
+      ],
+      "radiusYd": 0.552,
+      "centreLocal": [
+        5.98,
+        0.42,
+        1.13
+      ],
+      "standoffYd": 1.271,
+      "coveragePct": 12.1,
+      "file": "asset_080.png"
+    },
+    {
+      "n": 81,
+      "name": "AssetRuntime_81_office_chair_sheet09",
+      "azimuthDeg": 300,
+      "elevationDeg": 33.1,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3031,
+      "edgeDensityChosen": 0.1145,
+      "edgeDensityMax": 0.3692,
+      "compactnessMean": 4.361,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 11.7,
+          "edges": 499,
+          "edgeDensity": 0.2603,
+          "compactness": 3.96
+        },
+        {
+          "deg": 30,
+          "coverage": 11.3,
+          "edges": 529,
+          "edgeDensity": 0.2864,
+          "compactness": 5.1
+        },
+        {
+          "deg": 60,
+          "coverage": 10.4,
+          "edges": 501,
+          "edgeDensity": 0.2937,
+          "compactness": 4.81
+        },
+        {
+          "deg": 90,
+          "coverage": 8,
+          "edges": 444,
+          "edgeDensity": 0.3392,
+          "compactness": 6.5
+        },
+        {
+          "deg": 120,
+          "coverage": 8.2,
+          "edges": 494,
+          "edgeDensity": 0.3692,
+          "compactness": 4.97
+        },
+        {
+          "deg": 150,
+          "coverage": 10.4,
+          "edges": 466,
+          "edgeDensity": 0.2732,
+          "compactness": 3.43
+        },
+        {
+          "deg": 180,
+          "coverage": 11.3,
+          "edges": 405,
+          "edgeDensity": 0.219,
+          "compactness": 2.95
+        },
+        {
+          "deg": 210,
+          "coverage": 10.5,
+          "edges": 498,
+          "edgeDensity": 0.29,
+          "compactness": 2.99
+        },
+        {
+          "deg": 240,
+          "coverage": 8.1,
+          "edges": 435,
+          "edgeDensity": 0.3293,
+          "compactness": 4.07
+        },
+        {
+          "deg": 270,
+          "coverage": 8.1,
+          "edges": 466,
+          "edgeDensity": 0.352,
+          "compactness": 4.71
+        },
+        {
+          "deg": 300,
+          "coverage": 10.3,
+          "edges": 536,
+          "edgeDensity": 0.3172,
+          "compactness": 4.58
+        },
+        {
+          "deg": 330,
+          "coverage": 11.3,
+          "edges": 572,
+          "edgeDensity": 0.3084,
+          "compactness": 4.26
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_81_office_chair_sheet09",
+      "wasVisible": true,
+      "meshTotal": 9,
+      "meshVisible": 6,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.685,
+        1.197,
+        0.669
+      ],
+      "radiusYd": 0.766,
+      "centreLocal": [
+        0.2,
+        0.6,
+        0.73
+      ],
+      "standoffYd": 1.764,
+      "coveragePct": 10.4,
+      "file": "asset_081.png"
+    },
+    {
+      "n": 82,
+      "name": "AssetRuntime_82_filing_cabinet_sheet09",
+      "azimuthDeg": 65,
+      "elevationDeg": 27.3,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.093,
+      "edgeDensityChosen": 0.0597,
+      "edgeDensityMax": 0.1659,
+      "compactnessMean": 1.523,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 15.6,
+          "edges": 423,
+          "edgeDensity": 0.1659,
+          "compactness": 1.61
+        },
+        {
+          "deg": 30,
+          "coverage": 18.5,
+          "edges": 475,
+          "edgeDensity": 0.157,
+          "compactness": 1.57
+        },
+        {
+          "deg": 60,
+          "coverage": 19.7,
+          "edges": 367,
+          "edgeDensity": 0.1137,
+          "compactness": 1.5
+        },
+        {
+          "deg": 90,
+          "coverage": 18.9,
+          "edges": 125,
+          "edgeDensity": 0.0403,
+          "compactness": 1.45
+        },
+        {
+          "deg": 120,
+          "coverage": 19.8,
+          "edges": 188,
+          "edgeDensity": 0.058,
+          "compactness": 1.5
+        },
+        {
+          "deg": 150,
+          "coverage": 18.9,
+          "edges": 202,
+          "edgeDensity": 0.0653,
+          "compactness": 1.52
+        },
+        {
+          "deg": 180,
+          "coverage": 16,
+          "edges": 136,
+          "edgeDensity": 0.0519,
+          "compactness": 1.59
+        },
+        {
+          "deg": 210,
+          "coverage": 18.9,
+          "edges": 203,
+          "edgeDensity": 0.0657,
+          "compactness": 1.56
+        },
+        {
+          "deg": 240,
+          "coverage": 19.8,
+          "edges": 220,
+          "edgeDensity": 0.0679,
+          "compactness": 1.53
+        },
+        {
+          "deg": 270,
+          "coverage": 18.9,
+          "edges": 222,
+          "edgeDensity": 0.0716,
+          "compactness": 1.45
+        },
+        {
+          "deg": 300,
+          "coverage": 19.7,
+          "edges": 402,
+          "edgeDensity": 0.1245,
+          "compactness": 1.46
+        },
+        {
+          "deg": 330,
+          "coverage": 18.5,
+          "edges": 405,
+          "edgeDensity": 0.1339,
+          "compactness": 1.53
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_82_filing_cabinet_sheet09",
+      "wasVisible": true,
+      "meshTotal": 10,
+      "meshVisible": 9,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.538,
+        1.461,
+        0.717
+      ],
+      "radiusYd": 0.857,
+      "centreLocal": [
+        5.99,
+        0.73,
+        5.11
+      ],
+      "standoffYd": 1.974,
+      "coveragePct": 19.6,
+      "file": "asset_082.png"
+    },
+    {
+      "n": 83,
+      "name": "AssetRuntime_83_desk_lamp",
+      "azimuthDeg": 60,
+      "elevationDeg": 20,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3989,
+      "edgeDensityChosen": 0.2347,
+      "edgeDensityMax": 0.5106,
+      "compactnessMean": 7.031,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 3.4,
+          "edges": 234,
+          "edgeDensity": 0.4247,
+          "compactness": 6.74
+        },
+        {
+          "deg": 30,
+          "coverage": 3.4,
+          "edges": 288,
+          "edgeDensity": 0.5106,
+          "compactness": 8.06
+        },
+        {
+          "deg": 60,
+          "coverage": 3.3,
+          "edges": 265,
+          "edgeDensity": 0.4944,
+          "compactness": 9.5
+        },
+        {
+          "deg": 90,
+          "coverage": 3.1,
+          "edges": 232,
+          "edgeDensity": 0.4522,
+          "compactness": 10.41
+        },
+        {
+          "deg": 120,
+          "coverage": 3.3,
+          "edges": 216,
+          "edgeDensity": 0.3942,
+          "compactness": 8.93
+        },
+        {
+          "deg": 150,
+          "coverage": 3.7,
+          "edges": 157,
+          "edgeDensity": 0.2612,
+          "compactness": 4.98
+        },
+        {
+          "deg": 180,
+          "coverage": 3.5,
+          "edges": 148,
+          "edgeDensity": 0.2569,
+          "compactness": 3.99
+        },
+        {
+          "deg": 210,
+          "coverage": 3.7,
+          "edges": 165,
+          "edgeDensity": 0.2745,
+          "compactness": 4.68
+        },
+        {
+          "deg": 240,
+          "coverage": 3.3,
+          "edges": 199,
+          "edgeDensity": 0.3638,
+          "compactness": 6.48
+        },
+        {
+          "deg": 270,
+          "coverage": 3.1,
+          "edges": 215,
+          "edgeDensity": 0.4207,
+          "compactness": 7.67
+        },
+        {
+          "deg": 300,
+          "coverage": 3.3,
+          "edges": 245,
+          "edgeDensity": 0.4579,
+          "compactness": 6.75
+        },
+        {
+          "deg": 330,
+          "coverage": 3.4,
+          "edges": 268,
+          "edgeDensity": 0.476,
+          "compactness": 6.17
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_83_desk_lamp",
+      "wasVisible": true,
+      "meshTotal": 10,
+      "meshVisible": 9,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.252,
+        0.588,
+        0.71
+      ],
+      "radiusYd": 0.478,
+      "centreLocal": [
+        0.32,
+        1.35,
+        1.66
+      ],
+      "standoffYd": 1.1,
+      "coveragePct": 3.4,
+      "file": "asset_083.png"
+    },
+    {
+      "n": 84,
+      "name": "AssetRuntime_84_office_printer",
+      "azimuthDeg": 330,
+      "elevationDeg": 10.4,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2228,
+      "edgeDensityChosen": 0.1435,
+      "edgeDensityMax": 0.3457,
+      "compactnessMean": 1.499,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 15.4,
+          "edges": 866,
+          "edgeDensity": 0.3442,
+          "compactness": 1.42
+        },
+        {
+          "deg": 30,
+          "coverage": 15.3,
+          "edges": 864,
+          "edgeDensity": 0.3457,
+          "compactness": 1.6
+        },
+        {
+          "deg": 60,
+          "coverage": 15.7,
+          "edges": 682,
+          "edgeDensity": 0.265,
+          "compactness": 1.44
+        },
+        {
+          "deg": 90,
+          "coverage": 15.3,
+          "edges": 420,
+          "edgeDensity": 0.1671,
+          "compactness": 1.73
+        },
+        {
+          "deg": 120,
+          "coverage": 15.5,
+          "edges": 411,
+          "edgeDensity": 0.1615,
+          "compactness": 1.6
+        },
+        {
+          "deg": 150,
+          "coverage": 16.4,
+          "edges": 376,
+          "edgeDensity": 0.1397,
+          "compactness": 1.4
+        },
+        {
+          "deg": 180,
+          "coverage": 17.1,
+          "edges": 448,
+          "edgeDensity": 0.1595,
+          "compactness": 1.37
+        },
+        {
+          "deg": 210,
+          "coverage": 16.4,
+          "edges": 470,
+          "edgeDensity": 0.1746,
+          "compactness": 1.39
+        },
+        {
+          "deg": 240,
+          "coverage": 15.6,
+          "edges": 403,
+          "edgeDensity": 0.1582,
+          "compactness": 1.44
+        },
+        {
+          "deg": 270,
+          "coverage": 15.3,
+          "edges": 419,
+          "edgeDensity": 0.1669,
+          "compactness": 1.53
+        },
+        {
+          "deg": 300,
+          "coverage": 15.7,
+          "edges": 693,
+          "edgeDensity": 0.2692,
+          "compactness": 1.55
+        },
+        {
+          "deg": 330,
+          "coverage": 15.2,
+          "edges": 804,
+          "edgeDensity": 0.3224,
+          "compactness": 1.5
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_84_office_printer",
+      "wasVisible": true,
+      "meshTotal": 10,
+      "meshVisible": 9,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.47,
+        0.29,
+        0.528
+      ],
+      "radiusYd": 0.382,
+      "centreLocal": [
+        5.99,
+        1.59,
+        5.12
+      ],
+      "standoffYd": 0.88,
+      "coveragePct": 15.3,
+      "file": "asset_084.png"
+    },
+    {
+      "n": 85,
+      "name": "AssetRuntime_85_office_telephone",
+      "azimuthDeg": 330,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2308,
+      "edgeDensityChosen": 0.0949,
+      "edgeDensityMax": 0.2762,
+      "compactnessMean": 1.53,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 16.7,
+          "edges": 699,
+          "edgeDensity": 0.2548,
+          "compactness": 1.33
+        },
+        {
+          "deg": 30,
+          "coverage": 16.4,
+          "edges": 687,
+          "edgeDensity": 0.2557,
+          "compactness": 1.84
+        },
+        {
+          "deg": 60,
+          "coverage": 16.4,
+          "edges": 699,
+          "edgeDensity": 0.2599,
+          "compactness": 1.57
+        },
+        {
+          "deg": 90,
+          "coverage": 16.2,
+          "edges": 612,
+          "edgeDensity": 0.2305,
+          "compactness": 1.4
+        },
+        {
+          "deg": 120,
+          "coverage": 15.5,
+          "edges": 556,
+          "edgeDensity": 0.2193,
+          "compactness": 1.65
+        },
+        {
+          "deg": 150,
+          "coverage": 15.7,
+          "edges": 440,
+          "edgeDensity": 0.171,
+          "compactness": 1.62
+        },
+        {
+          "deg": 180,
+          "coverage": 15.9,
+          "edges": 450,
+          "edgeDensity": 0.1731,
+          "compactness": 1.47
+        },
+        {
+          "deg": 210,
+          "coverage": 15.5,
+          "edges": 534,
+          "edgeDensity": 0.2097,
+          "compactness": 1.65
+        },
+        {
+          "deg": 240,
+          "coverage": 15.7,
+          "edges": 556,
+          "edgeDensity": 0.2158,
+          "compactness": 1.59
+        },
+        {
+          "deg": 270,
+          "coverage": 16.2,
+          "edges": 624,
+          "edgeDensity": 0.2353,
+          "compactness": 1.37
+        },
+        {
+          "deg": 300,
+          "coverage": 16.3,
+          "edges": 738,
+          "edgeDensity": 0.2762,
+          "compactness": 1.47
+        },
+        {
+          "deg": 330,
+          "coverage": 16.5,
+          "edges": 727,
+          "edgeDensity": 0.2686,
+          "compactness": 1.41
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_85_office_telephone",
+      "wasVisible": true,
+      "meshTotal": 15,
+      "meshVisible": 14,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.275,
+        0.115,
+        0.268
+      ],
+      "radiusYd": 0.2,
+      "centreLocal": [
+        1.28,
+        1.11,
+        1.96
+      ],
+      "standoffYd": 0.461,
+      "coveragePct": 16.6,
+      "file": "asset_085.png"
+    },
+    {
+      "n": 86,
+      "name": "AssetRuntime_86_corkboard_noticeboard",
+      "azimuthDeg": 0,
+      "elevationDeg": 19.1,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2323,
+      "edgeDensityChosen": 0.0733,
+      "edgeDensityMax": 0.3333,
+      "compactnessMean": 2.122,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 20.7,
+          "edges": 666,
+          "edgeDensity": 0.1961,
+          "compactness": 1.36
+        },
+        {
+          "deg": 30,
+          "coverage": 19.2,
+          "edges": 704,
+          "edgeDensity": 0.2234,
+          "compactness": 1.35
+        },
+        {
+          "deg": 60,
+          "coverage": 13.4,
+          "edges": 593,
+          "edgeDensity": 0.27,
+          "compactness": 1.28
+        },
+        {
+          "deg": 90,
+          "coverage": 2.2,
+          "edges": 63,
+          "edgeDensity": 0.1726,
+          "compactness": 5.37
+        },
+        {
+          "deg": 120,
+          "coverage": 13.4,
+          "edges": 574,
+          "edgeDensity": 0.2615,
+          "compactness": 1.82
+        },
+        {
+          "deg": 150,
+          "coverage": 19.4,
+          "edges": 584,
+          "edgeDensity": 0.184,
+          "compactness": 1.55
+        },
+        {
+          "deg": 180,
+          "coverage": 21.2,
+          "edges": 594,
+          "edgeDensity": 0.1711,
+          "compactness": 1.35
+        },
+        {
+          "deg": 210,
+          "coverage": 19.4,
+          "edges": 563,
+          "edgeDensity": 0.1774,
+          "compactness": 1.35
+        },
+        {
+          "deg": 240,
+          "coverage": 13.4,
+          "edges": 509,
+          "edgeDensity": 0.2319,
+          "compactness": 1.32
+        },
+        {
+          "deg": 270,
+          "coverage": 2.2,
+          "edges": 121,
+          "edgeDensity": 0.3315,
+          "compactness": 5.37
+        },
+        {
+          "deg": 300,
+          "coverage": 13.4,
+          "edges": 732,
+          "edgeDensity": 0.3333,
+          "compactness": 1.77
+        },
+        {
+          "deg": 330,
+          "coverage": 19.2,
+          "edges": 739,
+          "edgeDensity": 0.2345,
+          "compactness": 1.55
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_86_corkboard_noticeboard",
+      "wasVisible": true,
+      "meshTotal": 11,
+      "meshVisible": 11,
+      "meshBatched": 4,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        0.984,
+        0.711,
+        0.055
+      ],
+      "radiusYd": 0.608,
+      "centreLocal": [
+        6.25,
+        1.26,
+        2.14
+      ],
+      "standoffYd": 1.399,
+      "coveragePct": 20.9,
+      "file": "asset_086.png"
+    },
+    {
+      "n": 87,
+      "name": "AssetRuntime_87_wall_clock",
+      "azimuthDeg": 245,
+      "elevationDeg": -26.9,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": true,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.165,
+      "edgeDensityChosen": 0.0344,
+      "edgeDensityMax": 0.3293,
+      "compactnessMean": 1.389,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 5.1,
+          "edges": 274,
+          "edgeDensity": 0.3293,
+          "compactness": 2.1
+        },
+        {
+          "deg": 30,
+          "coverage": 11.7,
+          "edges": 503,
+          "edgeDensity": 0.2614,
+          "compactness": 1.2
+        },
+        {
+          "deg": 60,
+          "coverage": 16.1,
+          "edges": 450,
+          "edgeDensity": 0.1708,
+          "compactness": 1.14
+        },
+        {
+          "deg": 90,
+          "coverage": 17.3,
+          "edges": 133,
+          "edgeDensity": 0.047,
+          "compactness": 1.18
+        },
+        {
+          "deg": 120,
+          "coverage": 16.1,
+          "edges": 100,
+          "edgeDensity": 0.038,
+          "compactness": 1.28
+        },
+        {
+          "deg": 150,
+          "coverage": 11.7,
+          "edges": 141,
+          "edgeDensity": 0.0733,
+          "compactness": 1.46
+        },
+        {
+          "deg": 180,
+          "coverage": 5.1,
+          "edges": 104,
+          "edgeDensity": 0.125,
+          "compactness": 2.1
+        },
+        {
+          "deg": 210,
+          "coverage": 11.6,
+          "edges": 624,
+          "edgeDensity": 0.3276,
+          "compactness": 1.19
+        },
+        {
+          "deg": 240,
+          "coverage": 15.8,
+          "edges": 374,
+          "edgeDensity": 0.1442,
+          "compactness": 1.12
+        },
+        {
+          "deg": 270,
+          "coverage": 17.1,
+          "edges": 240,
+          "edgeDensity": 0.0857,
+          "compactness": 1.18
+        },
+        {
+          "deg": 300,
+          "coverage": 15.8,
+          "edges": 379,
+          "edgeDensity": 0.1462,
+          "compactness": 1.29
+        },
+        {
+          "deg": 330,
+          "coverage": 11.6,
+          "edges": 442,
+          "edgeDensity": 0.232,
+          "compactness": 1.43
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_87_wall_clock",
+      "wasVisible": true,
+      "meshTotal": 14,
+      "meshVisible": 14,
+      "meshBatched": 5,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        0.071,
+        0.376,
+        0.376
+      ],
+      "radiusYd": 0.268,
+      "centreLocal": [
+        8.85,
+        2.06,
+        2.65
+      ],
+      "standoffYd": 0.618,
+      "coveragePct": 16.3,
+      "file": "asset_087.png"
+    },
+    {
+      "n": 88,
+      "name": "AssetRuntime_88_key_rack",
+      "azimuthDeg": 215,
+      "elevationDeg": 19.7,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.2063,
+      "edgeDensityChosen": 0.0491,
+      "edgeDensityMax": 0.4306,
+      "compactnessMean": 3.289,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 11.4,
+          "edges": 268,
+          "edgeDensity": 0.1432,
+          "compactness": 2.08
+        },
+        {
+          "deg": 30,
+          "coverage": 10.7,
+          "edges": 296,
+          "edgeDensity": 0.1683,
+          "compactness": 2.05
+        },
+        {
+          "deg": 60,
+          "coverage": 7.9,
+          "edges": 280,
+          "edgeDensity": 0.2169,
+          "compactness": 1.78
+        },
+        {
+          "deg": 90,
+          "coverage": 1.8,
+          "edges": 105,
+          "edgeDensity": 0.3646,
+          "compactness": 9.35
+        },
+        {
+          "deg": 120,
+          "coverage": 7.9,
+          "edges": 176,
+          "edgeDensity": 0.1362,
+          "compactness": 2.39
+        },
+        {
+          "deg": 150,
+          "coverage": 11.3,
+          "edges": 274,
+          "edgeDensity": 0.1479,
+          "compactness": 2.21
+        },
+        {
+          "deg": 180,
+          "coverage": 12.3,
+          "edges": 385,
+          "edgeDensity": 0.1914,
+          "compactness": 1.85
+        },
+        {
+          "deg": 210,
+          "coverage": 11.3,
+          "edges": 239,
+          "edgeDensity": 0.129,
+          "compactness": 1.74
+        },
+        {
+          "deg": 240,
+          "coverage": 7.9,
+          "edges": 180,
+          "edgeDensity": 0.1393,
+          "compactness": 1.37
+        },
+        {
+          "deg": 270,
+          "coverage": 1.8,
+          "edges": 124,
+          "edgeDensity": 0.4306,
+          "compactness": 9.35
+        },
+        {
+          "deg": 300,
+          "coverage": 7.9,
+          "edges": 303,
+          "edgeDensity": 0.2347,
+          "compactness": 2.82
+        },
+        {
+          "deg": 330,
+          "coverage": 10.7,
+          "edges": 305,
+          "edgeDensity": 0.1734,
+          "compactness": 2.48
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_88_key_rack",
+      "wasVisible": true,
+      "meshTotal": 9,
+      "meshVisible": 9,
+      "meshBatched": 3,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        0.82,
+        0.249,
+        0.062
+      ],
+      "radiusYd": 0.43,
+      "centreLocal": [
+        1.13,
+        1.4,
+        -0.05
+      ],
+      "standoffYd": 0.99,
+      "coveragePct": 11.1,
+      "file": "asset_088.png"
+    },
+    {
+      "n": 89,
+      "name": "AssetRuntime_89_reservation_clipboard",
+      "azimuthDeg": 0,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2519,
+      "edgeDensityChosen": 0.1507,
+      "edgeDensityMax": 0.2799,
+      "compactnessMean": 1.59,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 12.7,
+          "edges": 569,
+          "edgeDensity": 0.2736,
+          "compactness": 1.37
+        },
+        {
+          "deg": 30,
+          "coverage": 12.6,
+          "edges": 580,
+          "edgeDensity": 0.2799,
+          "compactness": 1.71
+        },
+        {
+          "deg": 60,
+          "coverage": 12.5,
+          "edges": 556,
+          "edgeDensity": 0.2721,
+          "compactness": 1.8
+        },
+        {
+          "deg": 90,
+          "coverage": 12.3,
+          "edges": 477,
+          "edgeDensity": 0.2364,
+          "compactness": 1.63
+        },
+        {
+          "deg": 120,
+          "coverage": 12.4,
+          "edges": 495,
+          "edgeDensity": 0.2432,
+          "compactness": 1.61
+        },
+        {
+          "deg": 150,
+          "coverage": 12.6,
+          "edges": 456,
+          "edgeDensity": 0.2201,
+          "compactness": 1.4
+        },
+        {
+          "deg": 180,
+          "coverage": 12.8,
+          "edges": 439,
+          "edgeDensity": 0.2089,
+          "compactness": 1.37
+        },
+        {
+          "deg": 210,
+          "coverage": 12.8,
+          "edges": 492,
+          "edgeDensity": 0.2353,
+          "compactness": 1.73
+        },
+        {
+          "deg": 240,
+          "coverage": 12.6,
+          "edges": 532,
+          "edgeDensity": 0.2581,
+          "compactness": 1.82
+        },
+        {
+          "deg": 270,
+          "coverage": 12.4,
+          "edges": 539,
+          "edgeDensity": 0.2658,
+          "compactness": 1.62
+        },
+        {
+          "deg": 300,
+          "coverage": 12.4,
+          "edges": 543,
+          "edgeDensity": 0.2683,
+          "compactness": 1.62
+        },
+        {
+          "deg": 330,
+          "coverage": 12.5,
+          "edges": 535,
+          "edgeDensity": 0.2606,
+          "compactness": 1.41
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_89_reservation_clipboard",
+      "wasVisible": true,
+      "meshTotal": 11,
+      "meshVisible": 10,
+      "meshBatched": 4,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        0.312,
+        0.03,
+        0.4
+      ],
+      "radiusYd": 0.254,
+      "centreLocal": [
+        0.76,
+        1.07,
+        1.97
+      ],
+      "standoffYd": 0.585,
+      "coveragePct": 12.8,
+      "file": "asset_089.png"
+    },
+    {
+      "n": 90,
+      "name": "AssetRuntime_90_scorecard_holder",
+      "azimuthDeg": 210,
+      "elevationDeg": 37.1,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2495,
+      "edgeDensityChosen": 0.0972,
+      "edgeDensityMax": 0.3392,
+      "compactnessMean": 1.765,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 15,
+          "edges": 218,
+          "edgeDensity": 0.0889,
+          "compactness": 2.24
+        },
+        {
+          "deg": 30,
+          "coverage": 14.6,
+          "edges": 549,
+          "edgeDensity": 0.2298,
+          "compactness": 2.15
+        },
+        {
+          "deg": 60,
+          "coverage": 13.9,
+          "edges": 775,
+          "edgeDensity": 0.3392,
+          "compactness": 1.79
+        },
+        {
+          "deg": 90,
+          "coverage": 15.8,
+          "edges": 837,
+          "edgeDensity": 0.3242,
+          "compactness": 1.59
+        },
+        {
+          "deg": 120,
+          "coverage": 18.6,
+          "edges": 987,
+          "edgeDensity": 0.3236,
+          "compactness": 1.36
+        },
+        {
+          "deg": 150,
+          "coverage": 19.3,
+          "edges": 915,
+          "edgeDensity": 0.2899,
+          "compactness": 1.45
+        },
+        {
+          "deg": 180,
+          "coverage": 19.9,
+          "edges": 989,
+          "edgeDensity": 0.3036,
+          "compactness": 1.31
+        },
+        {
+          "deg": 210,
+          "coverage": 19.2,
+          "edges": 901,
+          "edgeDensity": 0.2863,
+          "compactness": 1.44
+        },
+        {
+          "deg": 240,
+          "coverage": 17.6,
+          "edges": 713,
+          "edgeDensity": 0.2472,
+          "compactness": 1.43
+        },
+        {
+          "deg": 270,
+          "coverage": 14.1,
+          "edges": 551,
+          "edgeDensity": 0.2377,
+          "compactness": 1.69
+        },
+        {
+          "deg": 300,
+          "coverage": 14.4,
+          "edges": 491,
+          "edgeDensity": 0.2079,
+          "compactness": 2.14
+        },
+        {
+          "deg": 330,
+          "coverage": 14.2,
+          "edges": 270,
+          "edgeDensity": 0.116,
+          "compactness": 2.57
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_90_scorecard_holder",
+      "wasVisible": true,
+      "meshTotal": 13,
+      "meshVisible": 12,
+      "meshBatched": 4,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        0.447,
+        0.301,
+        0.332
+      ],
+      "radiusYd": 0.316,
+      "centreLocal": [
+        -2.35,
+        1.2,
+        1.96
+      ],
+      "standoffYd": 0.728,
+      "coveragePct": 19.3,
+      "file": "asset_090.png"
+    },
+    {
+      "n": 91,
+      "name": "AssetRuntime_91_fire_extinguisher",
+      "azimuthDeg": 60,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.3521,
+      "edgeDensityChosen": 0.1184,
+      "edgeDensityMax": 0.4375,
+      "compactnessMean": 2.213,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 8.5,
+          "edges": 411,
+          "edgeDensity": 0.2961,
+          "compactness": 2.6
+        },
+        {
+          "deg": 30,
+          "coverage": 8.7,
+          "edges": 533,
+          "edgeDensity": 0.3748,
+          "compactness": 1.98
+        },
+        {
+          "deg": 60,
+          "coverage": 8.6,
+          "edges": 572,
+          "edgeDensity": 0.4045,
+          "compactness": 2.1
+        },
+        {
+          "deg": 90,
+          "coverage": 8.2,
+          "edges": 577,
+          "edgeDensity": 0.4316,
+          "compactness": 2.68
+        },
+        {
+          "deg": 120,
+          "coverage": 8.1,
+          "edges": 577,
+          "edgeDensity": 0.4375,
+          "compactness": 1.98
+        },
+        {
+          "deg": 150,
+          "coverage": 8.5,
+          "edges": 561,
+          "edgeDensity": 0.401,
+          "compactness": 1.97
+        },
+        {
+          "deg": 180,
+          "coverage": 8.4,
+          "edges": 473,
+          "edgeDensity": 0.343,
+          "compactness": 2.95
+        },
+        {
+          "deg": 210,
+          "coverage": 8.4,
+          "edges": 479,
+          "edgeDensity": 0.3466,
+          "compactness": 2.17
+        },
+        {
+          "deg": 240,
+          "coverage": 8,
+          "edges": 415,
+          "edgeDensity": 0.3175,
+          "compactness": 2.34
+        },
+        {
+          "deg": 270,
+          "coverage": 7.3,
+          "edges": 340,
+          "edgeDensity": 0.2831,
+          "compactness": 2.05
+        },
+        {
+          "deg": 300,
+          "coverage": 7.4,
+          "edges": 316,
+          "edgeDensity": 0.2597,
+          "compactness": 1.96
+        },
+        {
+          "deg": 330,
+          "coverage": 8.4,
+          "edges": 451,
+          "edgeDensity": 0.3294,
+          "compactness": 1.8
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_91_fire_extinguisher",
+      "wasVisible": true,
+      "meshTotal": 21,
+      "meshVisible": 20,
+      "meshBatched": 5,
+      "drawnFromGlobalBatch": true,
+      "sizeYd": [
+        0.199,
+        0.624,
+        0.221
+      ],
+      "radiusYd": 0.346,
+      "centreLocal": [
+        5.6,
+        0.7,
+        -0.86
+      ],
+      "standoffYd": 0.796,
+      "coveragePct": 8.7,
+      "file": "asset_091.png"
+    },
+    {
+      "n": 92,
+      "name": "AssetRuntime_92_first_aid_kit_cabinet",
+      "azimuthDeg": 5,
+      "elevationDeg": 35,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.0868,
+      "edgeDensityChosen": 0.0335,
+      "edgeDensityMax": 0.1209,
+      "compactnessMean": 1.519,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 22.5,
+          "edges": 277,
+          "edgeDensity": 0.0751,
+          "compactness": 1.32
+        },
+        {
+          "deg": 30,
+          "coverage": 21.3,
+          "edges": 363,
+          "edgeDensity": 0.1039,
+          "compactness": 1.39
+        },
+        {
+          "deg": 60,
+          "coverage": 18.3,
+          "edges": 298,
+          "edgeDensity": 0.0992,
+          "compactness": 1.43
+        },
+        {
+          "deg": 90,
+          "coverage": 13,
+          "edges": 194,
+          "edgeDensity": 0.091,
+          "compactness": 1.76
+        },
+        {
+          "deg": 120,
+          "coverage": 18.4,
+          "edges": 221,
+          "edgeDensity": 0.0735,
+          "compactness": 1.68
+        },
+        {
+          "deg": 150,
+          "coverage": 21.9,
+          "edges": 173,
+          "edgeDensity": 0.0481,
+          "compactness": 1.55
+        },
+        {
+          "deg": 180,
+          "coverage": 23.4,
+          "edges": 151,
+          "edgeDensity": 0.0394,
+          "compactness": 1.33
+        },
+        {
+          "deg": 210,
+          "coverage": 21.9,
+          "edges": 354,
+          "edgeDensity": 0.0984,
+          "compactness": 1.39
+        },
+        {
+          "deg": 240,
+          "coverage": 18.4,
+          "edges": 267,
+          "edgeDensity": 0.0888,
+          "compactness": 1.44
+        },
+        {
+          "deg": 270,
+          "coverage": 12.9,
+          "edges": 256,
+          "edgeDensity": 0.1209,
+          "compactness": 1.75
+        },
+        {
+          "deg": 300,
+          "coverage": 18.4,
+          "edges": 278,
+          "edgeDensity": 0.0924,
+          "compactness": 1.67
+        },
+        {
+          "deg": 330,
+          "coverage": 21.3,
+          "edges": 388,
+          "edgeDensity": 0.111,
+          "compactness": 1.53
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_92_first_aid_kit_cabinet",
+      "wasVisible": true,
+      "meshTotal": 15,
+      "meshVisible": 14,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.459,
+        0.601,
+        0.196
+      ],
+      "radiusYd": 0.391,
+      "centreLocal": [
+        8.55,
+        1.12,
+        -5.43
+      ],
+      "standoffYd": 0.9,
+      "coveragePct": 22.6,
+      "file": "asset_092.png"
+    },
+    {
+      "n": 93,
+      "name": "AssetRuntime_93_security_camera",
+      "azimuthDeg": 210,
+      "elevationDeg": -55,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": true,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.0961,
+      "edgeDensityChosen": 0.0447,
+      "edgeDensityMax": 0.1386,
+      "compactnessMean": 1.199,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 14.6,
+          "edges": 141,
+          "edgeDensity": 0.0588,
+          "compactness": 1.2
+        },
+        {
+          "deg": 30,
+          "coverage": 14.6,
+          "edges": 147,
+          "edgeDensity": 0.0614,
+          "compactness": 1.2
+        },
+        {
+          "deg": 60,
+          "coverage": 14.6,
+          "edges": 185,
+          "edgeDensity": 0.0772,
+          "compactness": 1.2
+        },
+        {
+          "deg": 90,
+          "coverage": 14.6,
+          "edges": 228,
+          "edgeDensity": 0.0952,
+          "compactness": 1.2
+        },
+        {
+          "deg": 120,
+          "coverage": 14.6,
+          "edges": 292,
+          "edgeDensity": 0.1219,
+          "compactness": 1.2
+        },
+        {
+          "deg": 150,
+          "coverage": 14.6,
+          "edges": 325,
+          "edgeDensity": 0.1356,
+          "compactness": 1.2
+        },
+        {
+          "deg": 180,
+          "coverage": 14.6,
+          "edges": 332,
+          "edgeDensity": 0.1386,
+          "compactness": 1.2
+        },
+        {
+          "deg": 210,
+          "coverage": 14.6,
+          "edges": 319,
+          "edgeDensity": 0.1331,
+          "compactness": 1.2
+        },
+        {
+          "deg": 240,
+          "coverage": 14.6,
+          "edges": 283,
+          "edgeDensity": 0.1181,
+          "compactness": 1.2
+        },
+        {
+          "deg": 270,
+          "coverage": 14.6,
+          "edges": 206,
+          "edgeDensity": 0.086,
+          "compactness": 1.2
+        },
+        {
+          "deg": 300,
+          "coverage": 14.6,
+          "edges": 163,
+          "edgeDensity": 0.068,
+          "compactness": 1.2
+        },
+        {
+          "deg": 330,
+          "coverage": 14.6,
+          "edges": 142,
+          "edgeDensity": 0.0593,
+          "compactness": 1.2
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_93_security_camera",
+      "wasVisible": true,
+      "meshTotal": 10,
+      "meshVisible": 10,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.197,
+        0.124,
+        0.197
+      ],
+      "radiusYd": 0.152,
+      "centreLocal": [
+        1.25,
+        2.87,
+        5.42
+      ],
+      "standoffYd": 0.351,
+      "coveragePct": 14.7,
+      "file": "asset_093.png"
+    },
+    {
+      "n": 94,
+      "name": "AssetRuntime_94_exit_sign",
+      "azimuthDeg": 245,
+      "elevationDeg": -55,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": true,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.1754,
+      "edgeDensityChosen": 0.088,
+      "edgeDensityMax": 0.322,
+      "compactnessMean": 2.075,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 12,
+          "edges": 137,
+          "edgeDensity": 0.0699,
+          "compactness": 1.81
+        },
+        {
+          "deg": 30,
+          "coverage": 11.3,
+          "edges": 130,
+          "edgeDensity": 0.0702,
+          "compactness": 2.54
+        },
+        {
+          "deg": 60,
+          "coverage": 9.2,
+          "edges": 150,
+          "edgeDensity": 0.0992,
+          "compactness": 2.71
+        },
+        {
+          "deg": 90,
+          "coverage": 7.4,
+          "edges": 165,
+          "edgeDensity": 0.1359,
+          "compactness": 2.17
+        },
+        {
+          "deg": 120,
+          "coverage": 9.5,
+          "edges": 388,
+          "edgeDensity": 0.2502,
+          "compactness": 1.54
+        },
+        {
+          "deg": 150,
+          "coverage": 11.2,
+          "edges": 534,
+          "edgeDensity": 0.2902,
+          "compactness": 1.8
+        },
+        {
+          "deg": 180,
+          "coverage": 11.9,
+          "edges": 448,
+          "edgeDensity": 0.2296,
+          "compactness": 1.8
+        },
+        {
+          "deg": 210,
+          "coverage": 11.3,
+          "edges": 586,
+          "edgeDensity": 0.3169,
+          "compactness": 2.42
+        },
+        {
+          "deg": 240,
+          "coverage": 9.5,
+          "edges": 501,
+          "edgeDensity": 0.322,
+          "compactness": 2.61
+        },
+        {
+          "deg": 270,
+          "coverage": 7.3,
+          "edges": 200,
+          "edgeDensity": 0.1671,
+          "compactness": 2.13
+        },
+        {
+          "deg": 300,
+          "coverage": 9.2,
+          "edges": 135,
+          "edgeDensity": 0.09,
+          "compactness": 1.59
+        },
+        {
+          "deg": 330,
+          "coverage": 11.3,
+          "edges": 117,
+          "edgeDensity": 0.0632,
+          "compactness": 1.79
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_94_exit_sign",
+      "wasVisible": true,
+      "meshTotal": 8,
+      "meshVisible": 8,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.497,
+        0.233,
+        0.107
+      ],
+      "radiusYd": 0.279,
+      "centreLocal": [
+        -0.8,
+        2.84,
+        5.4
+      ],
+      "standoffYd": 0.643,
+      "coveragePct": 9.2,
+      "file": "asset_094.png"
+    },
+    {
+      "n": 95,
+      "name": "AssetRuntime_95_emergency_light",
+      "azimuthDeg": 185,
+      "elevationDeg": -54.2,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": true,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.1707,
+      "edgeDensityChosen": 0.0557,
+      "edgeDensityMax": 0.2948,
+      "compactnessMean": 2.034,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 11.3,
+          "edges": 168,
+          "edgeDensity": 0.0909,
+          "compactness": 2.22
+        },
+        {
+          "deg": 30,
+          "coverage": 12.9,
+          "edges": 389,
+          "edgeDensity": 0.1834,
+          "compactness": 1.93
+        },
+        {
+          "deg": 60,
+          "coverage": 14.1,
+          "edges": 566,
+          "edgeDensity": 0.2459,
+          "compactness": 2.09
+        },
+        {
+          "deg": 90,
+          "coverage": 14.7,
+          "edges": 498,
+          "edgeDensity": 0.2061,
+          "compactness": 1.96
+        },
+        {
+          "deg": 120,
+          "coverage": 14.1,
+          "edges": 511,
+          "edgeDensity": 0.222,
+          "compactness": 2.43
+        },
+        {
+          "deg": 150,
+          "coverage": 12.9,
+          "edges": 625,
+          "edgeDensity": 0.2948,
+          "compactness": 2.5
+        },
+        {
+          "deg": 180,
+          "coverage": 11.3,
+          "edges": 342,
+          "edgeDensity": 0.1848,
+          "compactness": 2.18
+        },
+        {
+          "deg": 210,
+          "coverage": 11.9,
+          "edges": 312,
+          "edgeDensity": 0.1599,
+          "compactness": 1.66
+        },
+        {
+          "deg": 240,
+          "coverage": 13.4,
+          "edges": 159,
+          "edgeDensity": 0.0727,
+          "compactness": 1.48
+        },
+        {
+          "deg": 270,
+          "coverage": 13.7,
+          "edges": 229,
+          "edgeDensity": 0.1022,
+          "compactness": 1.36
+        },
+        {
+          "deg": 300,
+          "coverage": 13.4,
+          "edges": 330,
+          "edgeDensity": 0.1508,
+          "compactness": 2.08
+        },
+        {
+          "deg": 330,
+          "coverage": 11.9,
+          "edges": 263,
+          "edgeDensity": 0.1349,
+          "compactness": 2.51
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_95_emergency_light",
+      "wasVisible": true,
+      "meshTotal": 10,
+      "meshVisible": 10,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.195,
+        0.232,
+        0.462
+      ],
+      "radiusYd": 0.276,
+      "centreLocal": [
+        -8.8,
+        2.63,
+        -1.4
+      ],
+      "standoffYd": 0.636,
+      "coveragePct": 11.2,
+      "file": "asset_095.png"
+    },
+    {
+      "n": 96,
+      "name": "AssetRuntime_96_bulletin_board",
+      "azimuthDeg": 330,
+      "elevationDeg": 20.4,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2108,
+      "edgeDensityChosen": 0.0833,
+      "edgeDensityMax": 0.3075,
+      "compactnessMean": 2.118,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 21,
+          "edges": 578,
+          "edgeDensity": 0.1681,
+          "compactness": 1.37
+        },
+        {
+          "deg": 30,
+          "coverage": 19.3,
+          "edges": 623,
+          "edgeDensity": 0.1969,
+          "compactness": 1.37
+        },
+        {
+          "deg": 60,
+          "coverage": 13.5,
+          "edges": 560,
+          "edgeDensity": 0.2536,
+          "compactness": 1.3
+        },
+        {
+          "deg": 90,
+          "coverage": 2.4,
+          "edges": 48,
+          "edgeDensity": 0.1231,
+          "compactness": 5.29
+        },
+        {
+          "deg": 120,
+          "coverage": 13.4,
+          "edges": 483,
+          "edgeDensity": 0.2203,
+          "compactness": 1.85
+        },
+        {
+          "deg": 150,
+          "coverage": 19.4,
+          "edges": 583,
+          "edgeDensity": 0.1835,
+          "compactness": 1.58
+        },
+        {
+          "deg": 180,
+          "coverage": 21.1,
+          "edges": 590,
+          "edgeDensity": 0.1709,
+          "compactness": 1.36
+        },
+        {
+          "deg": 210,
+          "coverage": 19.4,
+          "edges": 566,
+          "edgeDensity": 0.1782,
+          "compactness": 1.36
+        },
+        {
+          "deg": 240,
+          "coverage": 13.4,
+          "edges": 487,
+          "edgeDensity": 0.2222,
+          "compactness": 1.32
+        },
+        {
+          "deg": 270,
+          "coverage": 2.4,
+          "edges": 114,
+          "edgeDensity": 0.2923,
+          "compactness": 5.22
+        },
+        {
+          "deg": 300,
+          "coverage": 13.5,
+          "edges": 679,
+          "edgeDensity": 0.3075,
+          "compactness": 1.81
+        },
+        {
+          "deg": 330,
+          "coverage": 19.3,
+          "edges": 672,
+          "edgeDensity": 0.2124,
+          "compactness": 1.58
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_96_bulletin_board",
+      "wasVisible": true,
+      "meshTotal": 4,
+      "meshVisible": 4,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        1.039,
+        0.766,
+        0.058
+      ],
+      "radiusYd": 0.646,
+      "centreLocal": [
+        -4.1,
+        1.2,
+        -5.42
+      ],
+      "standoffYd": 1.487,
+      "coveragePct": 19.4,
+      "file": "asset_096.png"
+    },
+    {
+      "n": 97,
+      "name": "AssetRuntime_97_key_cabinet",
+      "azimuthDeg": 270,
+      "elevationDeg": 31,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.0841,
+      "edgeDensityChosen": 0.0512,
+      "edgeDensityMax": 0.1251,
+      "compactnessMean": 1.549,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 11.2,
+          "edges": 100,
+          "edgeDensity": 0.0547,
+          "compactness": 1.94
+        },
+        {
+          "deg": 30,
+          "coverage": 17.5,
+          "edges": 130,
+          "edgeDensity": 0.0452,
+          "compactness": 1.7
+        },
+        {
+          "deg": 60,
+          "coverage": 21.6,
+          "edges": 149,
+          "edgeDensity": 0.0421,
+          "compactness": 1.53
+        },
+        {
+          "deg": 90,
+          "coverage": 23,
+          "edges": 101,
+          "edgeDensity": 0.0268,
+          "compactness": 1.33
+        },
+        {
+          "deg": 120,
+          "coverage": 21.6,
+          "edges": 211,
+          "edgeDensity": 0.0597,
+          "compactness": 1.37
+        },
+        {
+          "deg": 150,
+          "coverage": 17.5,
+          "edges": 211,
+          "edgeDensity": 0.0734,
+          "compactness": 1.45
+        },
+        {
+          "deg": 180,
+          "coverage": 11.1,
+          "edges": 218,
+          "edgeDensity": 0.1196,
+          "compactness": 1.91
+        },
+        {
+          "deg": 210,
+          "coverage": 17.5,
+          "edges": 294,
+          "edgeDensity": 0.1024,
+          "compactness": 1.66
+        },
+        {
+          "deg": 240,
+          "coverage": 21.1,
+          "edges": 412,
+          "edgeDensity": 0.1193,
+          "compactness": 1.53
+        },
+        {
+          "deg": 270,
+          "coverage": 22.2,
+          "edges": 431,
+          "edgeDensity": 0.1187,
+          "compactness": 1.33
+        },
+        {
+          "deg": 300,
+          "coverage": 21.1,
+          "edges": 432,
+          "edgeDensity": 0.1251,
+          "compactness": 1.38
+        },
+        {
+          "deg": 330,
+          "coverage": 17.5,
+          "edges": 349,
+          "edgeDensity": 0.1216,
+          "compactness": 1.44
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_97_key_cabinet",
+      "wasVisible": true,
+      "meshTotal": 12,
+      "meshVisible": 11,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.195,
+        0.711,
+        0.525
+      ],
+      "radiusYd": 0.452,
+      "centreLocal": [
+        8.88,
+        1.12,
+        0.7
+      ],
+      "standoffYd": 1.042,
+      "coveragePct": 22.3,
+      "file": "asset_097.png"
+    },
+    {
+      "n": 98,
+      "name": "AssetRuntime_98_hand_sanitizer_station",
+      "azimuthDeg": 245,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure + fixed offset",
+      "edgeDensityMean": 0.2393,
+      "edgeDensityChosen": 0.0714,
+      "edgeDensityMax": 0.3919,
+      "compactnessMean": 1.688,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 15.2,
+          "edges": 232,
+          "edgeDensity": 0.0933,
+          "compactness": 1.47
+        },
+        {
+          "deg": 30,
+          "coverage": 15.3,
+          "edges": 338,
+          "edgeDensity": 0.1346,
+          "compactness": 1.53
+        },
+        {
+          "deg": 60,
+          "coverage": 14.5,
+          "edges": 366,
+          "edgeDensity": 0.1542,
+          "compactness": 1.68
+        },
+        {
+          "deg": 90,
+          "coverage": 13.8,
+          "edges": 487,
+          "edgeDensity": 0.2158,
+          "compactness": 1.8
+        },
+        {
+          "deg": 120,
+          "coverage": 15.5,
+          "edges": 775,
+          "edgeDensity": 0.3044,
+          "compactness": 1.8
+        },
+        {
+          "deg": 150,
+          "coverage": 15.6,
+          "edges": 815,
+          "edgeDensity": 0.3185,
+          "compactness": 1.6
+        },
+        {
+          "deg": 180,
+          "coverage": 14.3,
+          "edges": 662,
+          "edgeDensity": 0.2827,
+          "compactness": 1.53
+        },
+        {
+          "deg": 210,
+          "coverage": 15.6,
+          "edges": 1003,
+          "edgeDensity": 0.3919,
+          "compactness": 1.66
+        },
+        {
+          "deg": 240,
+          "coverage": 15.5,
+          "edges": 797,
+          "edgeDensity": 0.313,
+          "compactness": 1.65
+        },
+        {
+          "deg": 270,
+          "coverage": 13.8,
+          "edges": 630,
+          "edgeDensity": 0.2791,
+          "compactness": 1.88
+        },
+        {
+          "deg": 300,
+          "coverage": 14.5,
+          "edges": 515,
+          "edgeDensity": 0.2169,
+          "compactness": 2.01
+        },
+        {
+          "deg": 330,
+          "coverage": 15.3,
+          "edges": 421,
+          "edgeDensity": 0.1677,
+          "compactness": 1.63
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_98_hand_sanitizer_station",
+      "wasVisible": true,
+      "meshTotal": 9,
+      "meshVisible": 8,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.142,
+        0.339,
+        0.138
+      ],
+      "radiusYd": 0.196,
+      "centreLocal": [
+        0.98,
+        1.05,
+        5.39
+      ],
+      "standoffYd": 0.452,
+      "coveragePct": 15.4,
+      "file": "asset_098.png"
+    },
+    {
+      "n": 99,
+      "name": "AssetRuntime_99_umbrella_stand",
+      "azimuthDeg": 180,
+      "elevationDeg": 48,
+      "elevationFromPlayerEye": false,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.2093,
+      "edgeDensityChosen": 0.0817,
+      "edgeDensityMax": 0.22,
+      "compactnessMean": 1.375,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 13.3,
+          "edges": 449,
+          "edgeDensity": 0.2061,
+          "compactness": 1.37
+        },
+        {
+          "deg": 30,
+          "coverage": 13.3,
+          "edges": 465,
+          "edgeDensity": 0.2136,
+          "compactness": 1.38
+        },
+        {
+          "deg": 60,
+          "coverage": 13.3,
+          "edges": 470,
+          "edgeDensity": 0.2158,
+          "compactness": 1.38
+        },
+        {
+          "deg": 90,
+          "coverage": 13.3,
+          "edges": 461,
+          "edgeDensity": 0.2115,
+          "compactness": 1.37
+        },
+        {
+          "deg": 120,
+          "coverage": 13.3,
+          "edges": 468,
+          "edgeDensity": 0.215,
+          "compactness": 1.38
+        },
+        {
+          "deg": 150,
+          "coverage": 13.3,
+          "edges": 448,
+          "edgeDensity": 0.2057,
+          "compactness": 1.38
+        },
+        {
+          "deg": 180,
+          "coverage": 13.3,
+          "edges": 466,
+          "edgeDensity": 0.2139,
+          "compactness": 1.37
+        },
+        {
+          "deg": 210,
+          "coverage": 13.3,
+          "edges": 479,
+          "edgeDensity": 0.22,
+          "compactness": 1.38
+        },
+        {
+          "deg": 240,
+          "coverage": 13.3,
+          "edges": 465,
+          "edgeDensity": 0.2135,
+          "compactness": 1.38
+        },
+        {
+          "deg": 270,
+          "coverage": 13.3,
+          "edges": 431,
+          "edgeDensity": 0.1978,
+          "compactness": 1.37
+        },
+        {
+          "deg": 300,
+          "coverage": 13.3,
+          "edges": 426,
+          "edgeDensity": 0.1955,
+          "compactness": 1.37
+        },
+        {
+          "deg": 330,
+          "coverage": 13.3,
+          "edges": 443,
+          "edgeDensity": 0.2032,
+          "compactness": 1.37
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_99_umbrella_stand",
+      "wasVisible": true,
+      "meshTotal": 12,
+      "meshVisible": 11,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        0.487,
+        0.674,
+        0.487
+      ],
+      "radiusYd": 0.482,
+      "centreLocal": [
+        0.75,
+        0.34,
+        5
+      ],
+      "standoffYd": 1.109,
+      "coveragePct": 13.4,
+      "file": "asset_099.png"
+    },
+    {
+      "n": 100,
+      "name": "AssetRuntime_100_floor_mat_welcome_mat",
+      "azimuthDeg": 300,
+      "elevationDeg": 44.2,
+      "elevationFromPlayerEye": true,
+      "aboveEyeLevel": false,
+      "azimuthChosenBy": "measured structure, skewed to three-quarter",
+      "edgeDensityMean": 0.1593,
+      "edgeDensityChosen": 0.0604,
+      "edgeDensityMax": 0.1987,
+      "compactnessMean": 1.671,
+      "structureProbes": [
+        {
+          "deg": 0,
+          "coverage": 14.6,
+          "edges": 324,
+          "edgeDensity": 0.1359,
+          "compactness": 1.66
+        },
+        {
+          "deg": 30,
+          "coverage": 15.2,
+          "edges": 455,
+          "edgeDensity": 0.1827,
+          "compactness": 1.68
+        },
+        {
+          "deg": 60,
+          "coverage": 15.8,
+          "edges": 400,
+          "edgeDensity": 0.1541,
+          "compactness": 1.42
+        },
+        {
+          "deg": 90,
+          "coverage": 16.3,
+          "edges": 430,
+          "edgeDensity": 0.1608,
+          "compactness": 1.44
+        },
+        {
+          "deg": 120,
+          "coverage": 15.8,
+          "edges": 436,
+          "edgeDensity": 0.168,
+          "compactness": 1.87
+        },
+        {
+          "deg": 150,
+          "coverage": 15.2,
+          "edges": 406,
+          "edgeDensity": 0.163,
+          "compactness": 1.96
+        },
+        {
+          "deg": 180,
+          "coverage": 14.6,
+          "edges": 340,
+          "edgeDensity": 0.1426,
+          "compactness": 1.66
+        },
+        {
+          "deg": 210,
+          "coverage": 15.2,
+          "edges": 387,
+          "edgeDensity": 0.1554,
+          "compactness": 1.68
+        },
+        {
+          "deg": 240,
+          "coverage": 15.8,
+          "edges": 338,
+          "edgeDensity": 0.1302,
+          "compactness": 1.42
+        },
+        {
+          "deg": 270,
+          "coverage": 16.3,
+          "edges": 377,
+          "edgeDensity": 0.141,
+          "compactness": 1.44
+        },
+        {
+          "deg": 300,
+          "coverage": 15.8,
+          "edges": 467,
+          "edgeDensity": 0.1799,
+          "compactness": 1.87
+        },
+        {
+          "deg": 330,
+          "coverage": 15.2,
+          "edges": 495,
+          "edgeDensity": 0.1987,
+          "compactness": 1.96
+        }
+      ],
+      "found": true,
+      "target": "AssetRuntime_100_floor_mat_welcome_mat",
+      "wasVisible": true,
+      "meshTotal": 7,
+      "meshVisible": 7,
+      "meshBatched": 0,
+      "drawnFromGlobalBatch": false,
+      "sizeYd": [
+        1.312,
+        0.024,
+        0.82
+      ],
+      "radiusYd": 0.774,
+      "centreLocal": [
+        -0.8,
+        0.02,
+        5.05
+      ],
+      "standoffYd": 1.782,
+      "coveragePct": 15.9,
+      "file": "asset_100.png"
+    }
+  ]
+}

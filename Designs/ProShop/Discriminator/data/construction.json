@@ -1,0 +1,5810 @@
+{
+  "generatedBy": "tools/qa/proshop-construction-audit.mjs",
+  "glbDir": "vendor\\models\\assets_51_100",
+  "sourceUnits": "metres",
+  "sheets": [
+    "sheet_07",
+    "sheet_08",
+    "sheet_09",
+    "sheet_10"
+  ],
+  "sourceDir": "tools\\blender",
+  "count": 40,
+  "assets": [
+    {
+      "n": 61,
+      "sheet": "sheet_07",
+      "file": "asset_061_front_desk_counter_shell.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_061_front_desk_counter_shell.glb",
+      "bytes": 160856,
+      "sizeM": [
+        2.93,
+        0.967,
+        0.91
+      ],
+      "longestM": 2.93,
+      "parts": 10,
+      "shells": 28,
+      "mergeFactor": 2.8,
+      "triangles": 4364,
+      "trianglesPerPart": 436,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 27.1,
+      "lumaSpreadRange": 78,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0015,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 16.5897,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 6.8268,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_NaturalOak",
+          "areaM2": 4.7106,
+          "lumaCode": 147,
+          "hex": "#B98A59",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WalnutInset",
+          "areaM2": 2.6903,
+          "lumaCode": 92,
+          "hex": "#79553C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0465,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 8,
+      "socketNames": [
+        "SOCKET_Bagging",
+        "SOCKET_CardTerminal",
+        "SOCKET_CashDrawer",
+        "SOCKET_PLACEMENT",
+        "SOCKET_POS",
+        "SOCKET_ProductStage",
+        "SOCKET_ReceiptPrinter",
+        "SOCKET_Scanner"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 30.8639,
+      "flatAreaShare": 0.805,
+      "largestFaceShare": 0.081,
+      "flatRegions": 2762,
+      "coplanarEdges": 1578,
+      "hardCorners": 0,
+      "bevelCorners": 56,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 8.14,
+      "bevelWidthP10Mm": 6.18,
+      "bevelWidthP90Mm": 19.36,
+      "perPart": [
+        {
+          "name": "MESH_CustomerRaisedPanelSet",
+          "tris": 1620,
+          "shells": 6,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StaffBrassPullSet",
+          "tris": 1260,
+          "shells": 9,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CustomerPilasterSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StaffDrawerFrontSet",
+          "tris": 324,
+          "shells": 3,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CounterTop",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CounterCarcass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CounterPlinth",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StaffDivider",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StaffLowerShelf",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CounterTopInlay",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 62,
+      "sheet": "sheet_07",
+      "file": "asset_062_back_counter_storage_cabinets.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_062_back_counter_storage_cabinets.glb",
+      "bytes": 196016,
+      "sizeM": [
+        3.2,
+        2.15,
+        0.656
+      ],
+      "longestM": 3.2,
+      "parts": 13,
+      "shells": 32,
+      "mergeFactor": 2.46,
+      "triangles": 5232,
+      "trianglesPerPart": 402,
+      "materials": 6,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 6,
+      "lumaSpreadSd": 30.6,
+      "lumaSpreadRange": 78,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.04,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 16.5121,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_NaturalOak",
+          "areaM2": 4.9808,
+          "lumaCode": 147,
+          "hex": "#B98A59",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 3.9847,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WalnutInset",
+          "areaM2": 2.3627,
+          "lumaCode": 92,
+          "hex": "#79553C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MutedSage",
+          "areaM2": 1.0906,
+          "lumaCode": 145,
+          "hex": "#829681",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0692,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 4,
+      "animationNames": [
+        "CabinetDoor_Close",
+        "CabinetDoor_Open",
+        "CabinetDrawer_Close",
+        "CabinetDrawer_Open"
+      ],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_CabinetNext",
+        "SOCKET_CounterProp_01",
+        "SOCKET_CounterProp_02",
+        "SOCKET_InternalShelf",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 5,
+      "surfaceAreaM2": 29,
+      "flatAreaShare": 0.798,
+      "largestFaceShare": 0.075,
+      "flatRegions": 3192,
+      "coplanarEdges": 2040,
+      "hardCorners": 0,
+      "bevelCorners": 64,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 10.59,
+      "bevelWidthP10Mm": 4.28,
+      "bevelWidthP90Mm": 16.45,
+      "perPart": [
+        {
+          "name": "MESH_StaticCabinetFrontSet",
+          "tris": 1620,
+          "shells": 6,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StaticCabinetBrassPullSet",
+          "tris": 1260,
+          "shells": 9,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_AnimatedBaseCabinetDoor",
+          "tris": 540,
+          "shells": 2,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_AnimatedDoorBrassPull",
+          "tris": 420,
+          "shells": 3,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_AnimatedDrawerBrassPull",
+          "tris": 420,
+          "shells": 3,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_OpenHutchUprightSet",
+          "tris": 216,
+          "shells": 2,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_Backsplash",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BaseCarcass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BaseToeKick",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_Countertop",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_InternalShelf",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WallCrown",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_AnimatedBaseDrawer",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 63,
+      "sheet": "sheet_07",
+      "file": "asset_063_pro_shop_fitting_room.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_063_pro_shop_fitting_room.glb",
+      "bytes": 182648,
+      "sizeM": [
+        1.55,
+        2.45,
+        1.551
+      ],
+      "longestM": 2.45,
+      "parts": 14,
+      "shells": 32,
+      "mergeFactor": 2.29,
+      "triangles": 4892,
+      "trianglesPerPart": 349,
+      "materials": 7,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 7,
+      "lumaSpreadSd": 75,
+      "lumaSpreadRange": 167,
+      "accentMaterials": 3,
+      "accentAreaShare": 0.0442,
+      "emissiveMaterials": 1,
+      "swatches": [
+        {
+          "material": "MAT_PH_WarmCream",
+          "areaM2": 23.8126,
+          "lumaCode": 223,
+          "hex": "#E8DFC9",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_DeepGolfGreen",
+          "areaM2": 8.8554,
+          "lumaCode": 56,
+          "hex": "#173F32",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_GreenCurtain",
+          "areaM2": 6.2174,
+          "lumaCode": 96,
+          "hex": "#3C6957",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 5.8484,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_Mirror",
+          "areaM2": 1.1617,
+          "lumaCode": 187,
+          "hex": "#ADBFBD",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.7588,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WarmCabinetLight",
+          "areaM2": 0.1502,
+          "lumaCode": 190,
+          "hex": "#DDBA79",
+          "emissive": true
+        }
+      ],
+      "images": 0,
+      "animations": 2,
+      "animationNames": [
+        "FittingCurtain_Close",
+        "FittingCurtain_Open"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Bench",
+        "SOCKET_Hook_01",
+        "SOCKET_Hook_02",
+        "SOCKET_InteriorLight",
+        "SOCKET_Mirror",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 4,
+      "surfaceAreaM2": 46.8046,
+      "flatAreaShare": 0.869,
+      "largestFaceShare": 0.075,
+      "flatRegions": 2878,
+      "coplanarEdges": 1778,
+      "hardCorners": 0,
+      "bevelCorners": 204,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 9.13,
+      "bevelWidthP10Mm": 5.32,
+      "bevelWidthP90Mm": 13.7,
+      "perPart": [
+        {
+          "name": "MESH_FittingCurtainPleated",
+          "tris": 1880,
+          "shells": 10,
+          "bevelCorners": 40,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FittingHookSet",
+          "tris": 664,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MirrorFrame",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FittingRoomCrown",
+          "tris": 432,
+          "shells": 1,
+          "bevelCorners": 44,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FittingRoomWainscot",
+          "tris": 324,
+          "shells": 3,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BenchLegSet",
+          "tris": 216,
+          "shells": 2,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CurtainRail",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BenchSeat",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_InteriorLightLens",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MirrorGlass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EastWall",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FrontHeader",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_RearWall",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WestWall",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 64,
+      "sheet": "sheet_07",
+      "file": "asset_064_stockroom_shelving_system.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_064_stockroom_shelving_system.glb",
+      "bytes": 103072,
+      "sizeM": [
+        1.83,
+        2.13,
+        0.61
+      ],
+      "longestM": 2.13,
+      "parts": 5,
+      "shells": 24,
+      "mergeFactor": 4.8,
+      "triangles": 2592,
+      "trianglesPerPart": 518,
+      "materials": 2,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 2,
+      "lumaSpreadSd": 51.1,
+      "lumaSpreadRange": 104,
+      "accentMaterials": 0,
+      "accentAreaShare": 0,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_PH_NaturalOak",
+          "areaM2": 8.2457,
+          "lumaCode": 147,
+          "hex": "#B98A59",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_WarmCharcoal",
+          "areaM2": 5.7075,
+          "lumaCode": 43,
+          "hex": "#292C2A",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_PLACEMENT",
+        "SOCKET_ShelfLevel_01",
+        "SOCKET_ShelfLevel_02",
+        "SOCKET_ShelfLevel_03",
+        "SOCKET_ShelfLevel_04",
+        "SOCKET_ShelfNext"
+      ],
+      "collisionMeshes": 5,
+      "surfaceAreaM2": 13.9533,
+      "flatAreaShare": 0.67,
+      "largestFaceShare": 0.065,
+      "flatRegions": 1872,
+      "coplanarEdges": 720,
+      "hardCorners": 0,
+      "bevelCorners": 48,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 4.58,
+      "bevelWidthP10Mm": 4.32,
+      "bevelWidthP90Mm": 6.1,
+      "perPart": [
+        {
+          "name": "MESH_ShelfLipSet",
+          "tris": 864,
+          "shells": 8,
+          "bevelCorners": 32,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_AdjustableShelfDeckSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_RearCrossBraceSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ShelvingFootplateSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ShelvingUprightSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 65,
+      "sheet": "sheet_07",
+      "file": "asset_065_stockroom_worktable.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_065_stockroom_worktable.glb",
+      "bytes": 2580844,
+      "sizeM": [
+        1.8,
+        0.932,
+        0.75
+      ],
+      "longestM": 1.8,
+      "parts": 6,
+      "shells": 15,
+      "mergeFactor": 2.5,
+      "triangles": 1620,
+      "trianglesPerPart": 270,
+      "materials": 4,
+      "texturedMaterials": 4,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 28.5,
+      "lumaSpreadRange": 114,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0132,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_CC065_DarkWalnut",
+          "areaM2": 4.2861,
+          "lumaCode": 73,
+          "hex": "#5F422D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_CC065_MediumWalnut",
+          "areaM2": 3.1186,
+          "lumaCode": 105,
+          "hex": "#89603E",
+          "emissive": false
+        },
+        {
+          "material": "MAT_CC065_BlackPowderCoat",
+          "areaM2": 2.7543,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_CC065_MutedBrass",
+          "areaM2": 0.1354,
+          "lumaCode": 147,
+          "hex": "#B68D42",
+          "emissive": false
+        }
+      ],
+      "images": 9,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_BoxOpening",
+        "SOCKET_LowerShelf",
+        "SOCKET_PackageStage",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Tool_01",
+        "SOCKET_Tool_02"
+      ],
+      "collisionMeshes": 4,
+      "surfaceAreaM2": 10.2945,
+      "flatAreaShare": 0.956,
+      "largestFaceShare": 0.13,
+      "flatRegions": 1170,
+      "coplanarEdges": 450,
+      "hardCorners": 0,
+      "bevelCorners": 140,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.23,
+      "bevelWidthP10Mm": 1.14,
+      "bevelWidthP90Mm": 2.29,
+      "perPart": [
+        {
+          "name": "MESH_WorktableApronFrame",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WorktableCornerCapSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WorktableLegSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LowerShelf",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_OakWorktop",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WorktopDarkEdge",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 66,
+      "sheet": "sheet_07",
+      "file": "asset_066_office_laptop_desk.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_066_office_laptop_desk.glb",
+      "bytes": 144136,
+      "sizeM": [
+        1.6,
+        0.76,
+        0.8
+      ],
+      "longestM": 1.6,
+      "parts": 8,
+      "shells": 31,
+      "mergeFactor": 3.88,
+      "triangles": 4004,
+      "trianglesPerPart": 501,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 8.8,
+      "lumaSpreadRange": 58,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0796,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 6.0275,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 4.3798,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WalnutInset",
+          "areaM2": 0.8203,
+          "lumaCode": 92,
+          "hex": "#79553C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0796,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_CableGrommet",
+        "SOCKET_ChairPlacement",
+        "SOCKET_Lamp",
+        "SOCKET_Laptop",
+        "SOCKET_OfficeProp_01",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 11.3072,
+      "flatAreaShare": 0.866,
+      "largestFaceShare": 0.106,
+      "flatRegions": 2150,
+      "coplanarEdges": 1830,
+      "hardCorners": 0,
+      "bevelCorners": 92,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 9.25,
+      "bevelWidthP10Mm": 7.8,
+      "bevelWidthP90Mm": 16.38,
+      "perPart": [
+        {
+          "name": "MESH_OfficeDeskBrassPullSet",
+          "tris": 2520,
+          "shells": 18,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_OfficeDeskDrawerFrontSet",
+          "tris": 648,
+          "shells": 6,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DeskPlinthSet",
+          "tris": 216,
+          "shells": 2,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DeskTop",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EastPedestal",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_RearModestyPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WestPedestal",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DeskTopInset",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 67,
+      "sheet": "sheet_07",
+      "file": "asset_067_clubhouse_lounge_sofa.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_067_clubhouse_lounge_sofa.glb",
+      "bytes": 176332,
+      "sizeM": [
+        2.15,
+        0.9,
+        0.95
+      ],
+      "longestM": 2.15,
+      "parts": 10,
+      "shells": 34,
+      "mergeFactor": 3.4,
+      "triangles": 5020,
+      "trianglesPerPart": 502,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 10.5,
+      "lumaSpreadRange": 75,
+      "accentMaterials": 3,
+      "accentAreaShare": 0.0304,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S07_ChestnutLeather",
+          "areaM2": 11.1161,
+          "lumaCode": 88,
+          "hex": "#794D35",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 5.0253,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.2698,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.1875,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_LeatherShadow",
+          "areaM2": 0.048,
+          "lumaCode": 52,
+          "hex": "#4D2C1D",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_LoungeTable",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Seat_01",
+        "SOCKET_Seat_02",
+        "SOCKET_Seat_03"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 16.6466,
+      "flatAreaShare": 0.653,
+      "largestFaceShare": 0.1,
+      "flatRegions": 2616,
+      "coplanarEdges": 2170,
+      "hardCorners": 0,
+      "bevelCorners": 184,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 16.03,
+      "bevelWidthP10Mm": 2.66,
+      "bevelWidthP90Mm": 20.14,
+      "perPart": [
+        {
+          "name": "MESH_SofaTuftButtonSet",
+          "tris": 1680,
+          "shells": 14,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaBackCushionSet",
+          "tris": 564,
+          "shells": 3,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaSeatCushionSet",
+          "tris": 564,
+          "shells": 3,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaFootSet",
+          "tris": 560,
+          "shells": 4,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaArmRollSet",
+          "tris": 472,
+          "shells": 2,
+          "bevelCorners": 40,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaArmBlockSet",
+          "tris": 376,
+          "shells": 2,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaBackRoll",
+          "tris": 284,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaBase",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SofaBackPanel",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SeatPipingSet",
+          "tris": 144,
+          "shells": 3,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 68,
+      "sheet": "sheet_07",
+      "file": "asset_068_lounge_armchair_sheet07.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_068_lounge_armchair_sheet07.glb",
+      "bytes": 123140,
+      "sizeM": [
+        0.85,
+        0.8993,
+        0.9
+      ],
+      "longestM": 0.9,
+      "parts": 10,
+      "shells": 22,
+      "mergeFactor": 2.2,
+      "triangles": 3428,
+      "trianglesPerPart": 343,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 9.7,
+      "lumaSpreadRange": 75,
+      "accentMaterials": 3,
+      "accentAreaShare": 0.0342,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S07_ChestnutLeather",
+          "areaM2": 5.3494,
+          "lumaCode": 88,
+          "hex": "#794D35",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 2.0486,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.1528,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0817,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_LeatherShadow",
+          "areaM2": 0.0274,
+          "lumaCode": 52,
+          "hex": "#4D2C1D",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 3,
+      "socketNames": [
+        "SOCKET_PLACEMENT",
+        "SOCKET_Seat",
+        "SOCKET_SideTable"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 7.66,
+      "flatAreaShare": 0.869,
+      "largestFaceShare": 0.074,
+      "flatRegions": 1746,
+      "coplanarEdges": 1540,
+      "hardCorners": 0,
+      "bevelCorners": 288,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.14,
+      "bevelWidthP10Mm": 2.65,
+      "bevelWidthP90Mm": 15.02,
+      "perPart": [
+        {
+          "name": "MESH_ArmchairTuftButtonSet",
+          "tris": 960,
+          "shells": 8,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairFootSet",
+          "tris": 560,
+          "shells": 4,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairArmRollSet",
+          "tris": 472,
+          "shells": 2,
+          "bevelCorners": 80,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairArmBlockSet",
+          "tris": 376,
+          "shells": 2,
+          "bevelCorners": 40,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairBackRoll",
+          "tris": 260,
+          "shells": 1,
+          "bevelCorners": 44,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairBase",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairBack",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 28,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairBackCushion",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ArmchairSeat",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SeatPipingSet",
+          "tris": 48,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 69,
+      "sheet": "sheet_07",
+      "file": "asset_069_lounge_coffee_table_sheet07.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_069_lounge_coffee_table_sheet07.glb",
+      "bytes": 63380,
+      "sizeM": [
+        1.1,
+        0.45,
+        0.65
+      ],
+      "longestM": 1.1,
+      "parts": 6,
+      "shells": 13,
+      "mergeFactor": 2.17,
+      "triangles": 1484,
+      "trianglesPerPart": 247,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 26.5,
+      "lumaSpreadRange": 78,
+      "accentMaterials": 0,
+      "accentAreaShare": 0,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 1.7349,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 1.6333,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WalnutInset",
+          "areaM2": 0.8852,
+          "lumaCode": 92,
+          "hex": "#79553C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_NaturalOak",
+          "areaM2": 0.8284,
+          "lumaCode": 147,
+          "hex": "#B98A59",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Cup",
+        "SOCKET_Decor",
+        "SOCKET_LowerShelf",
+        "SOCKET_Magazine_01",
+        "SOCKET_Magazine_02",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 5.0819,
+      "flatAreaShare": 0.854,
+      "largestFaceShare": 0.129,
+      "flatRegions": 1034,
+      "coplanarEdges": 426,
+      "hardCorners": 0,
+      "bevelCorners": 140,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 7.59,
+      "bevelWidthP10Mm": 4.57,
+      "bevelWidthP90Mm": 8.93,
+      "perPart": [
+        {
+          "name": "MESH_CoffeeTableApronFrame",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CoffeeTableLegSet",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CoffeeTableShelfTrim",
+          "tris": 216,
+          "shells": 2,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CoffeeTableTop",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CoffeeTableInset",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CoffeeTableLowerShelf",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 70,
+      "sheet": "sheet_07",
+      "file": "asset_070_trophy_display_cabinet.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_07\\asset_070_trophy_display_cabinet.glb",
+      "bytes": 158308,
+      "sizeM": [
+        1.5,
+        2.1,
+        0.485
+      ],
+      "longestM": 2.1,
+      "parts": 15,
+      "shells": 23,
+      "mergeFactor": 1.53,
+      "triangles": 4056,
+      "trianglesPerPart": 270,
+      "materials": 7,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 7,
+      "lumaSpreadSd": 45.1,
+      "lumaSpreadRange": 147,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0146,
+      "emissiveMaterials": 1,
+      "swatches": [
+        {
+          "material": "MAT_S07_DarkWalnut",
+          "areaM2": 10.4053,
+          "lumaCode": 69,
+          "hex": "#5B3F2D",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_DeepGolfGreen",
+          "areaM2": 5.5788,
+          "lumaCode": 56,
+          "hex": "#173F32",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_NaturalOak",
+          "areaM2": 2.7406,
+          "lumaCode": 147,
+          "hex": "#B98A59",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WalnutInset",
+          "areaM2": 2.3332,
+          "lumaCode": 92,
+          "hex": "#79553C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedGlass",
+          "areaM2": 1.9162,
+          "lumaCode": 203,
+          "hex": "#B8D0C9",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S07_WarmCabinetLight",
+          "areaM2": 0.2886,
+          "lumaCode": 190,
+          "hex": "#DDBA79",
+          "emissive": true
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.052,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 4,
+      "animationNames": [
+        "DisplayDoorLeft_Close",
+        "DisplayDoorLeft_Open",
+        "DisplayDoorRight_Close",
+        "DisplayDoorRight_Open"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Collectible_01",
+        "SOCKET_InteriorLight",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Plaque_01",
+        "SOCKET_Trophy_01",
+        "SOCKET_Trophy_02"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 23.3147,
+      "flatAreaShare": 0.845,
+      "largestFaceShare": 0.104,
+      "flatRegions": 2722,
+      "coplanarEdges": 1312,
+      "hardCorners": 0,
+      "bevelCorners": 136,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 8.66,
+      "bevelWidthP10Mm": 3.95,
+      "bevelWidthP90Mm": 13.63,
+      "perPart": [
+        {
+          "name": "MESH_DisplayLowerDoorSet",
+          "tris": 1080,
+          "shells": 4,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayDoorLeftWoodFrame",
+          "tris": 540,
+          "shells": 2,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayDoorRightWoodFrame",
+          "tris": 540,
+          "shells": 2,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayShelfSet",
+          "tris": 324,
+          "shells": 3,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayCrest",
+          "tris": 240,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayCabinetSideSet",
+          "tris": 216,
+          "shells": 2,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayCrown",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayDoorPull1",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayDoorPull2",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayBack",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayPlinth",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LowerStorageCarcass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_InteriorLightLens",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayDoorLeftGlass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DisplayDoorRightGlass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 71,
+      "sheet": "sheet_08",
+      "file": "asset_071_vacuum_cleaner.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_071_vacuum_cleaner.glb",
+      "bytes": 275588,
+      "sizeM": [
+        0.6783,
+        0.782,
+        0.7784
+      ],
+      "longestM": 0.782,
+      "parts": 17,
+      "shells": 54,
+      "mergeFactor": 3.18,
+      "triangles": 8088,
+      "trianglesPerPart": 476,
+      "materials": 6,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 6,
+      "lumaSpreadSd": 21.5,
+      "lumaSpreadRange": 60,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0628,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 1.0197,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MachineGreen",
+          "areaM2": 0.8827,
+          "lumaCode": 76,
+          "hex": "#305440",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MachineShell",
+          "areaM2": 0.3945,
+          "lumaCode": 93,
+          "hex": "#426551",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MatteBlack",
+          "areaM2": 0.3824,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HoseBlack",
+          "areaM2": 0.1689,
+          "lumaCode": 46,
+          "hex": "#2D2E30",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_Bristle",
+          "areaM2": 0.0106,
+          "lumaCode": 54,
+          "hex": "#373534",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 7,
+      "socketNames": [
+        "SOCKET_DirtIntake",
+        "SOCKET_HoseWand",
+        "SOCKET_Audio",
+        "SOCKET_Carry",
+        "SOCKET_Grip",
+        "SOCKET_HoseBody",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 2.8588,
+      "flatAreaShare": 0.773,
+      "largestFaceShare": 0.062,
+      "flatRegions": 3800,
+      "coplanarEdges": 4052,
+      "hardCorners": 0,
+      "bevelCorners": 346,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.02,
+      "bevelWidthP10Mm": 1.34,
+      "bevelWidthP90Mm": 7.9,
+      "perPart": [
+        {
+          "name": "MESH_VacuumMachine",
+          "tris": 3780,
+          "shells": 23,
+          "bevelCorners": 276,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHeadBrushStrip",
+          "tris": 1728,
+          "shells": 16,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacWandSpine",
+          "tris": 500,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHose",
+          "tris": 308,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacWandGrip",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 14,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHoseRib_0",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHoseRib_1",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHoseRib_2",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHoseRib_3",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHoseRib_4",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHoseRib_5",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHeadWheelL",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHeadWheelR",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacWandCollar",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHeadIntakeSlot",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHeadShell",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_VacHeadSole",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 72,
+      "sheet": "sheet_08",
+      "file": "asset_072_mop.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_072_mop.glb",
+      "bytes": 237124,
+      "sizeM": [
+        0.2832,
+        1.4675,
+        0.2826
+      ],
+      "longestM": 1.4675,
+      "parts": 5,
+      "shells": 108,
+      "mergeFactor": 21.6,
+      "triangles": 5304,
+      "trianglesPerPart": 1061,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 55.5,
+      "lumaSpreadRange": 179,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0629,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_MopCotton",
+          "areaM2": 0.8002,
+          "lumaCode": 220,
+          "hex": "#E4DCC6",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_WoodWalnut",
+          "areaM2": 0.1199,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 0.0371,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_Brass",
+          "areaM2": 0.0247,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_Drip",
+        "SOCKET_FloorContact",
+        "SOCKET_GripPrimary",
+        "SOCKET_GripSupport",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 0.9819,
+      "flatAreaShare": 0.023,
+      "largestFaceShare": 0.009,
+      "flatRegions": 3022,
+      "coplanarEdges": 2282,
+      "hardCorners": 0,
+      "bevelCorners": 34,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.02,
+      "bevelWidthP10Mm": 2.02,
+      "bevelWidthP90Mm": 2.55,
+      "perPart": [
+        {
+          "name": "MESH_MopSkirt",
+          "tris": 4576,
+          "shells": 104,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MopBand",
+          "tris": 212,
+          "shells": 1,
+          "bevelCorners": 18,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MopCollar",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MopHandle",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MopHandleCap",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 73,
+      "sheet": "sheet_08",
+      "file": "asset_073_mop_bucket_and_wringer.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_073_mop_bucket_and_wringer.glb",
+      "bytes": 142396,
+      "sizeM": [
+        0.535,
+        0.9311,
+        0.6637
+      ],
+      "longestM": 0.9311,
+      "parts": 7,
+      "shells": 31,
+      "mergeFactor": 4.43,
+      "triangles": 3700,
+      "trianglesPerPart": 529,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 61.2,
+      "lumaSpreadRange": 146,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0515,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_BucketYellow",
+          "areaM2": 1.8248,
+          "lumaCode": 179,
+          "hex": "#CEB130",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MatteBlack",
+          "areaM2": 0.5604,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_CleanerFluid",
+          "areaM2": 0.3523,
+          "lumaCode": 164,
+          "hex": "#86AD90",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 0.1334,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_CautionMark",
+          "areaM2": 0.0153,
+          "lumaCode": 50,
+          "hex": "#353227",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 4,
+      "animationNames": [
+        "Bucket_LeverDown",
+        "Bucket_LeverUp",
+        "Bucket_WringerClose",
+        "Bucket_WringerOpen"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_Drip",
+        "SOCKET_MopInsertion",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WaterSurface",
+        "SOCKET_Wringer"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 2.8862,
+      "flatAreaShare": 0.829,
+      "largestFaceShare": 0.071,
+      "flatRegions": 2154,
+      "coplanarEdges": 1546,
+      "hardCorners": 0,
+      "bevelCorners": 108,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 1.78,
+      "bevelWidthP10Mm": 1.08,
+      "bevelWidthP90Mm": 8.67,
+      "perPart": [
+        {
+          "name": "MESH_BucketCasters",
+          "tris": 1584,
+          "shells": 12,
+          "bevelCorners": 56,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WringerCage",
+          "tris": 864,
+          "shells": 8,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BucketShell",
+          "tris": 756,
+          "shells": 7,
+          "bevelCorners": 32,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WringerLeverArm",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WringerLeverGrip",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BucketWater",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WringerPressPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 74,
+      "sheet": "sheet_08",
+      "file": "asset_074_broom.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_074_broom.glb",
+      "bytes": 208072,
+      "sizeM": [
+        0.52,
+        1.3975,
+        0.5467
+      ],
+      "longestM": 1.3975,
+      "parts": 5,
+      "shells": 52,
+      "mergeFactor": 10.4,
+      "triangles": 5704,
+      "trianglesPerPart": 1141,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 16.3,
+      "lumaSpreadRange": 73,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0246,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_WoodWalnut",
+          "areaM2": 0.3487,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_Bristle",
+          "areaM2": 0.2732,
+          "lumaCode": 54,
+          "hex": "#373534",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_Brass",
+          "areaM2": 0.0157,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_DebrisPush",
+        "SOCKET_FloorContact",
+        "SOCKET_GripPrimary",
+        "SOCKET_GripSupport",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 0.6376,
+      "flatAreaShare": 0.254,
+      "largestFaceShare": 0.049,
+      "flatRegions": 4034,
+      "coplanarEdges": 1670,
+      "hardCorners": 0,
+      "bevelCorners": 12,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 5.49,
+      "bevelWidthP10Mm": 2.79,
+      "bevelWidthP90Mm": 6.05,
+      "perPart": [
+        {
+          "name": "MESH_BroomBristles",
+          "tris": 5184,
+          "shells": 48,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BroomHandle",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BroomFerrule",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BroomBlock",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BroomBlockCap",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 75,
+      "sheet": "sheet_08",
+      "file": "asset_075_dustpan.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_075_dustpan.glb",
+      "bytes": 48496,
+      "sizeM": [
+        0.3,
+        0.821,
+        0.281
+      ],
+      "longestM": 0.821,
+      "parts": 8,
+      "shells": 8,
+      "mergeFactor": 1,
+      "triangles": 1012,
+      "trianglesPerPart": 127,
+      "materials": 2,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 2,
+      "lumaSpreadSd": 3.1,
+      "lumaSpreadRange": 8,
+      "accentMaterials": 0,
+      "accentAreaShare": 0,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_MatteBlack",
+          "areaM2": 0.3502,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 0.078,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_DebrisFill",
+        "SOCKET_Emptying",
+        "SOCKET_Grip",
+        "SOCKET_PanIntake",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 0.4281,
+      "flatAreaShare": 0.66,
+      "largestFaceShare": 0.168,
+      "flatRegions": 580,
+      "coplanarEdges": 434,
+      "hardCorners": 0,
+      "bevelCorners": 16,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.18,
+      "bevelWidthP10Mm": 2.15,
+      "bevelWidthP90Mm": 2.55,
+      "perPart": [
+        {
+          "name": "MESH_DustpanHangLoop",
+          "tris": 192,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanHandle",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanHandleGrip",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanBack",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanFloor",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanLip",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanWallL",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_DustpanWallR",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 76,
+      "sheet": "sheet_08",
+      "file": "asset_076_cleaning_spray_bottle.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_076_cleaning_spray_bottle.glb",
+      "bytes": 170600,
+      "sizeM": [
+        0.082,
+        0.262,
+        0.1058
+      ],
+      "longestM": 0.262,
+      "parts": 12,
+      "shells": 29,
+      "mergeFactor": 2.42,
+      "triangles": 3900,
+      "trianglesPerPart": 325,
+      "materials": 7,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 7,
+      "lumaSpreadSd": 49.7,
+      "lumaSpreadRange": 182,
+      "accentMaterials": 3,
+      "accentAreaShare": 0.0387,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_BottleWhite",
+          "areaM2": 0.0636,
+          "lumaCode": 222,
+          "hex": "#DFDEDA",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_CleanerFluid",
+          "areaM2": 0.0275,
+          "lumaCode": 164,
+          "hex": "#86AD90",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_TriggerGreen",
+          "areaM2": 0.0188,
+          "lumaCode": 105,
+          "hex": "#3C7457",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_LabelCream",
+          "areaM2": 0.0142,
+          "lumaCode": 223,
+          "hex": "#E8DFC9",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_LabelGreen",
+          "areaM2": 0.0042,
+          "lumaCode": 56,
+          "hex": "#173F32",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 0.0004,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_Brass",
+          "areaM2": 0.0004,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 1,
+      "animationNames": [
+        "SprayBottle_Trigger"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_Grip",
+        "SOCKET_LiquidLevel",
+        "SOCKET_PLACEMENT",
+        "SOCKET_SprayEmission",
+        "SOCKET_Trigger"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 0.1291,
+      "flatAreaShare": 0.824,
+      "largestFaceShare": 0.065,
+      "flatRegions": 1285,
+      "coplanarEdges": 2478,
+      "hardCorners": 0,
+      "bevelCorners": 136,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.31,
+      "bevelWidthP10Mm": 1.1,
+      "bevelWidthP90Mm": 4.57,
+      "perPart": [
+        {
+          "name": "MESH_SprayLabelUse",
+          "tris": 2140,
+          "shells": 11,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayLabelBrand",
+          "tris": 444,
+          "shells": 8,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayBody",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayCollar",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 32,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayOrificeRing",
+          "tris": 144,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayNozzle",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayNozzleTip",
+          "tris": 116,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayFluid",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 20,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayHead",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayLabelPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayShoulder",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SprayTriggerBlade",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 77,
+      "sheet": "sheet_08",
+      "file": "asset_077_cleaning_cloth_and_sponge_set.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_077_cleaning_cloth_and_sponge_set.glb",
+      "bytes": 35220,
+      "sizeM": [
+        0.3625,
+        0.056,
+        0.1895
+      ],
+      "longestM": 0.3625,
+      "parts": 5,
+      "shells": 5,
+      "mergeFactor": 1,
+      "triangles": 780,
+      "trianglesPerPart": 156,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 29.4,
+      "lumaSpreadRange": 112,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0708,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_MicrofibreGreen",
+          "areaM2": 0.2077,
+          "lumaCode": 101,
+          "hex": "#426E5B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_SpongeYellow",
+          "areaM2": 0.0234,
+          "lumaCode": 200,
+          "hex": "#DDC85F",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_SpongeScour",
+          "areaM2": 0.0176,
+          "lumaCode": 88,
+          "hex": "#3E5F46",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_ClothContact",
+        "SOCKET_ClothGrip",
+        "SOCKET_PLACEMENT",
+        "SOCKET_SpongeContact",
+        "SOCKET_SpongeGrip"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 0.2487,
+      "flatAreaShare": 0.79,
+      "largestFaceShare": 0.151,
+      "flatRegions": 450,
+      "coplanarEdges": 258,
+      "hardCorners": 0,
+      "bevelCorners": 44,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.16,
+      "bevelWidthP10Mm": 1.96,
+      "bevelWidthP90Mm": 3.64,
+      "perPart": [
+        {
+          "name": "MESH_ClothFoldedLower",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClothFoldedUpper",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SpongeFoam",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClothFoldSeam",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SpongeScourPad",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 78,
+      "sheet": "sheet_08",
+      "file": "asset_078_pressure_washer.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_078_pressure_washer.glb",
+      "bytes": 182236,
+      "sizeM": [
+        0.65,
+        0.7061,
+        0.8065
+      ],
+      "longestM": 0.8065,
+      "parts": 7,
+      "shells": 30,
+      "mergeFactor": 4.29,
+      "triangles": 5224,
+      "trianglesPerPart": 746,
+      "materials": 6,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 6,
+      "lumaSpreadSd": 28.7,
+      "lumaSpreadRange": 94,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.1358,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_MatteBlack",
+          "areaM2": 1.5667,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MachineGreen",
+          "areaM2": 0.6761,
+          "lumaCode": 76,
+          "hex": "#305440",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 0.4321,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MachineShell",
+          "areaM2": 0.3337,
+          "lumaCode": 93,
+          "hex": "#426551",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.2365,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HoseBlack",
+          "areaM2": 0.2361,
+          "lumaCode": 46,
+          "hex": "#2D2E30",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 4,
+      "animationNames": [
+        "PressureWasher_Running",
+        "PressureWasher_Start",
+        "PressureWasher_Stop",
+        "PressureWasher_WheelRoll"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Audio",
+        "SOCKET_Carry",
+        "SOCKET_Hose",
+        "SOCKET_PLACEMENT",
+        "SOCKET_PressureOutlet",
+        "SOCKET_WaterInlet"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 3.4814,
+      "flatAreaShare": 0.718,
+      "largestFaceShare": 0.091,
+      "flatRegions": 2500,
+      "coplanarEdges": 2556,
+      "hardCorners": 0,
+      "bevelCorners": 376,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.42,
+      "bevelWidthP10Mm": 1.24,
+      "bevelWidthP90Mm": 5.06,
+      "perPart": [
+        {
+          "name": "MESH_WasherHoseReelAssembly",
+          "tris": 2104,
+          "shells": 8,
+          "bevelCorners": 84,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WasherChassis",
+          "tris": 1200,
+          "shells": 10,
+          "bevelCorners": 60,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WasherEngineAssembly",
+          "tris": 1168,
+          "shells": 8,
+          "bevelCorners": 128,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WasherWheelL",
+          "tris": 236,
+          "shells": 1,
+          "bevelCorners": 40,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WasherWheelR",
+          "tris": 236,
+          "shells": 1,
+          "bevelCorners": 40,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WasherHubL",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WasherHubR",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 79,
+      "sheet": "sheet_08",
+      "file": "asset_079_pressure_washer_hose_and_wand.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_079_pressure_washer_hose_and_wand.glb",
+      "bytes": 90704,
+      "sizeM": [
+        0.5059,
+        0.217,
+        1.3966
+      ],
+      "longestM": 1.3966,
+      "parts": 13,
+      "shells": 13,
+      "mergeFactor": 1,
+      "triangles": 2224,
+      "trianglesPerPart": 171,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 35,
+      "lumaSpreadRange": 159,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0781,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_HoseBlack",
+          "areaM2": 0.1801,
+          "lumaCode": 46,
+          "hex": "#2D2E30",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_HardBlack",
+          "areaM2": 0.0811,
+          "lumaCode": 41,
+          "hex": "#28292B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_MatteBlack",
+          "areaM2": 0.0774,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S08_SafetyYellow",
+          "areaM2": 0.0174,
+          "lumaCode": 192,
+          "hex": "#DDBF3C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0113,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 2,
+      "animationNames": [
+        "WasherWand_TriggerDown",
+        "WasherWand_TriggerUp"
+      ],
+      "skins": 0,
+      "sockets": 7,
+      "socketNames": [
+        "SOCKET_GripPrimary",
+        "SOCKET_GripSupport",
+        "SOCKET_HoseGun",
+        "SOCKET_HoseMachine",
+        "SOCKET_PLACEMENT",
+        "SOCKET_SprayEmission",
+        "SOCKET_Trigger"
+      ],
+      "collisionMeshes": 2,
+      "surfaceAreaM2": 0.3673,
+      "flatAreaShare": 0.03,
+      "largestFaceShare": 0.015,
+      "flatRegions": 1072,
+      "coplanarEdges": 1104,
+      "hardCorners": 0,
+      "bevelCorners": 4,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 6.85,
+      "bevelWidthP10Mm": 6.47,
+      "bevelWidthP90Mm": 7.23,
+      "perPart": [
+        {
+          "name": "MESH_WasherHoseCoil",
+          "tris": 524,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunTriggerGuard",
+          "tris": 216,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunGrip",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WandLance",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunHoseInlet",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunInletNut",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WandNozzle",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WandTipCollar",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HoseMachineCoupler",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunBody",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunGripStrap",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_GunShroud",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_WandTriggerBlade",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 80,
+      "sheet": "sheet_08",
+      "file": "asset_080_trash_bag.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_08\\asset_080_trash_bag.glb",
+      "bytes": 57652,
+      "sizeM": [
+        0.5,
+        0.7658,
+        0.38
+      ],
+      "longestM": 0.7658,
+      "parts": 8,
+      "shells": 8,
+      "mergeFactor": 1,
+      "triangles": 1488,
+      "trianglesPerPart": 186,
+      "materials": 1,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 1,
+      "lumaSpreadSd": 0,
+      "lumaSpreadRange": 0,
+      "accentMaterials": 0,
+      "accentAreaShare": 0,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S08_BagPolyethylene",
+          "areaM2": 1.9028,
+          "lumaCode": 36,
+          "hex": "#232427",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_Disposal",
+        "SOCKET_Grip",
+        "SOCKET_Opening",
+        "SOCKET_PLACEMENT",
+        "SOCKET_TrashFill"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 1.9028,
+      "flatAreaShare": 0.906,
+      "largestFaceShare": 0.044,
+      "flatRegions": 784,
+      "coplanarEdges": 536,
+      "hardCorners": 0,
+      "bevelCorners": 178,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 9.72,
+      "bevelWidthP10Mm": 4.95,
+      "bevelWidthP90Mm": 14.24,
+      "perPart": [
+        {
+          "name": "MESH_BagBase",
+          "tris": 300,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagBelly",
+          "tris": 300,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagCrinkle",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagKnot",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagShoulder",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagNeck",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 28,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagEarL",
+          "tris": 80,
+          "shells": 1,
+          "bevelCorners": 9,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BagEarR",
+          "tris": 80,
+          "shells": 1,
+          "bevelCorners": 9,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 81,
+      "sheet": "sheet_09",
+      "file": "asset_081_office_chair_sheet09.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_081_office_chair_sheet09.glb",
+      "bytes": 173448,
+      "sizeM": [
+        0.626,
+        1.0943,
+        0.6116
+      ],
+      "longestM": 1.0943,
+      "parts": 2,
+      "shells": 33,
+      "mergeFactor": 16.5,
+      "triangles": 4876,
+      "trianglesPerPart": 2438,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 10.3,
+      "lumaSpreadRange": 48,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0646,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S09_BlackLeather",
+          "areaM2": 1.4926,
+          "lumaCode": 48,
+          "hex": "#303031",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_LeatherSeam",
+          "areaM2": 0.5444,
+          "lumaCode": 34,
+          "hex": "#232224",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.4936,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.1119,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_HardBlack",
+          "areaM2": 0.063,
+          "lumaCode": 44,
+          "hex": "#2B2C2E",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 1,
+      "animationNames": [
+        "OfficeChair_Swivel"
+      ],
+      "skins": 0,
+      "sockets": 3,
+      "socketNames": [
+        "SOCKET_DeskAlignment",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Seat"
+      ],
+      "collisionMeshes": 3,
+      "surfaceAreaM2": 2.7055,
+      "flatAreaShare": 0.686,
+      "largestFaceShare": 0.089,
+      "flatRegions": 2784,
+      "coplanarEdges": 1698,
+      "hardCorners": 0,
+      "bevelCorners": 188,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.65,
+      "bevelWidthP10Mm": 1.6,
+      "bevelWidthP90Mm": 10.86,
+      "perPart": [
+        {
+          "name": "MESH_ChairBaseAssembly",
+          "tris": 2824,
+          "shells": 18,
+          "bevelCorners": 124,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ChairSeatAssembly",
+          "tris": 2052,
+          "shells": 15,
+          "bevelCorners": 64,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 82,
+      "sheet": "sheet_09",
+      "file": "asset_082_filing_cabinet_sheet09.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_082_filing_cabinet_sheet09.glb",
+      "bytes": 70764,
+      "sizeM": [
+        0.492,
+        1.336,
+        0.656
+      ],
+      "longestM": 1.336,
+      "parts": 8,
+      "shells": 16,
+      "mergeFactor": 2,
+      "triangles": 1728,
+      "trianglesPerPart": 216,
+      "materials": 2,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 2,
+      "lumaSpreadSd": 17.7,
+      "lumaSpreadRange": 41,
+      "accentMaterials": 0,
+      "accentAreaShare": 0,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S09_OfficeGreen",
+          "areaM2": 5.2521,
+          "lumaCode": 75,
+          "hex": "#404F42",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 1.7225,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 2,
+      "animationNames": [
+        "FilingDrawer_01_Close",
+        "FilingDrawer_01_Open"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Drawer_01",
+        "SOCKET_Drawer_02",
+        "SOCKET_Drawer_03",
+        "SOCKET_Drawer_04",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallPlacement"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 6.9746,
+      "flatAreaShare": 0.932,
+      "largestFaceShare": 0.113,
+      "flatRegions": 1248,
+      "coplanarEdges": 480,
+      "hardCorners": 0,
+      "bevelCorners": 56,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.8,
+      "bevelWidthP10Mm": 3.63,
+      "bevelWidthP90Mm": 6.06,
+      "perPart": [
+        {
+          "name": "MESH_CabinetLowerDrawers",
+          "tris": 972,
+          "shells": 9,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetCarcass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetPlinth",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetTopCap",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetTopBox",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetTopFace",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetTopLabel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CabinetTopPull",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 83,
+      "sheet": "sheet_09",
+      "file": "asset_083_desk_lamp.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_083_desk_lamp.glb",
+      "bytes": 62720,
+      "sizeM": [
+        0.23,
+        0.5377,
+        0.6489
+      ],
+      "longestM": 0.6489,
+      "parts": 9,
+      "shells": 9,
+      "mergeFactor": 1,
+      "triangles": 1476,
+      "trianglesPerPart": 164,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 31.5,
+      "lumaSpreadRange": 199,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0387,
+      "emissiveMaterials": 1,
+      "swatches": [
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.1456,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_LampShadeGreen",
+          "areaM2": 0.1379,
+          "lumaCode": 84,
+          "hex": "#385B46",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_BulbWarm",
+          "areaM2": 0.0098,
+          "lumaCode": 233,
+          "hex": "#F9E7BF",
+          "emissive": true
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.0016,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 2,
+      "animationNames": [
+        "DeskLamp_SwitchOff",
+        "DeskLamp_SwitchOn"
+      ],
+      "skins": 0,
+      "sockets": 3,
+      "socketNames": [
+        "SOCKET_Bulb",
+        "SOCKET_Desk",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 0.2949,
+      "flatAreaShare": 0.668,
+      "largestFaceShare": 0.167,
+      "flatRegions": 716,
+      "coplanarEdges": 756,
+      "hardCorners": 0,
+      "bevelCorners": 68,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.31,
+      "bevelWidthP10Mm": 1.82,
+      "bevelWidthP90Mm": 2.73,
+      "perPart": [
+        {
+          "name": "MESH_LampBase",
+          "tris": 284,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampBaseCrown",
+          "tris": 236,
+          "shells": 1,
+          "bevelCorners": 20,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampElbow",
+          "tris": 168,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampBulb",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 14,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampArmLower",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampArmUpper",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampShadeJoint",
+          "tris": 120,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampSwitchKnob",
+          "tris": 116,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_LampShadeWall",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 10,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 84,
+      "sheet": "sheet_09",
+      "file": "asset_084_office_printer.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_084_office_printer.glb",
+      "bytes": 43036,
+      "sizeM": [
+        0.43,
+        0.2648,
+        0.4831
+      ],
+      "longestM": 0.4831,
+      "parts": 9,
+      "shells": 9,
+      "mergeFactor": 1,
+      "triangles": 972,
+      "trianglesPerPart": 108,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 41.3,
+      "lumaSpreadRange": 193,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0533,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S09_HardBlack",
+          "areaM2": 0.6556,
+          "lumaCode": 44,
+          "hex": "#2B2C2E",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.6038,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_Paper",
+          "areaM2": 0.064,
+          "lumaCode": 227,
+          "hex": "#E5E3DE",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_PhoneDisplay",
+          "areaM2": 0.0069,
+          "lumaCode": 164,
+          "hex": "#95AA99",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 1,
+      "animationNames": [
+        "OfficePrinter_Print"
+      ],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_Cable",
+        "SOCKET_Desk",
+        "SOCKET_PaperInput",
+        "SOCKET_PaperOutput",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 1.3303,
+      "flatAreaShare": 0.86,
+      "largestFaceShare": 0.111,
+      "flatRegions": 702,
+      "coplanarEdges": 270,
+      "hardCorners": 0,
+      "bevelCorners": 76,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 4.15,
+      "bevelWidthP10Mm": 0.73,
+      "bevelWidthP90Mm": 8.95,
+      "perPart": [
+        {
+          "name": "MESH_PrinterCase",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterControlPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterDisplay",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterFeedTray",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterOutputLip",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterOutputRecess",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterPaperDrawer",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterScannerLid",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PrinterSheet",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 85,
+      "sheet": "sheet_09",
+      "file": "asset_085_office_telephone.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_085_office_telephone.glb",
+      "bytes": 129732,
+      "sizeM": [
+        0.2283,
+        0.105,
+        0.22
+      ],
+      "longestM": 0.2283,
+      "parts": 14,
+      "shells": 31,
+      "mergeFactor": 2.21,
+      "triangles": 3476,
+      "trianglesPerPart": 248,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 17.6,
+      "lumaSpreadRange": 130,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0183,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.1938,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_HardBlack",
+          "areaM2": 0.1281,
+          "lumaCode": 44,
+          "hex": "#2B2C2E",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_PhoneDisplay",
+          "areaM2": 0.006,
+          "lumaCode": 164,
+          "hex": "#95AA99",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 3,
+      "animationNames": [
+        "Telephone_ButtonPress",
+        "Telephone_HandsetLift",
+        "Telephone_HandsetReplace"
+      ],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_Handset",
+        "SOCKET_CordBase",
+        "SOCKET_Desk",
+        "SOCKET_Display",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 0.3279,
+      "flatAreaShare": 0.85,
+      "largestFaceShare": 0.136,
+      "flatRegions": 2386,
+      "coplanarEdges": 1090,
+      "hardCorners": 0,
+      "bevelCorners": 184,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 1.6,
+      "bevelWidthP10Mm": 0.72,
+      "bevelWidthP90Mm": 3.48,
+      "perPart": [
+        {
+          "name": "MESH_PhoneKeypad",
+          "tris": 1944,
+          "shells": 18,
+          "bevelCorners": 72,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneCord_0",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneCord_1",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneCord_2",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneCord_3",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneBase",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneCradleL",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneCradleR",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneDisplay",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneFoot",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneSpeakerKey",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneHandsetBar",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneHandsetEarpiece",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PhoneHandsetMouthpiece",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 86,
+      "sheet": "sheet_09",
+      "file": "asset_086_corkboard_noticeboard.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_086_corkboard_noticeboard.glb",
+      "bytes": 90044,
+      "sizeM": [
+        0.9,
+        0.65,
+        0.05
+      ],
+      "longestM": 0.9,
+      "parts": 6,
+      "shells": 17,
+      "mergeFactor": 2.83,
+      "triangles": 2508,
+      "trianglesPerPart": 418,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 46.1,
+      "lumaSpreadRange": 145,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0016,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S09_Cork",
+          "areaM2": 1.0342,
+          "lumaCode": 149,
+          "hex": "#AD9067",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.4609,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_Paper",
+          "areaM2": 0.2912,
+          "lumaCode": 227,
+          "hex": "#E5E3DE",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0028,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Calendar",
+        "SOCKET_Note_01",
+        "SOCKET_Note_02",
+        "SOCKET_PLACEMENT",
+        "SOCKET_TaskPosting",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 1.7891,
+      "flatAreaShare": 0.906,
+      "largestFaceShare": 0.269,
+      "flatRegions": 1650,
+      "coplanarEdges": 558,
+      "hardCorners": 0,
+      "bevelCorners": 60,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.76,
+      "bevelWidthP10Mm": 0.29,
+      "bevelWidthP90Mm": 3.05,
+      "perPart": [
+        {
+          "name": "MESH_CorkNote_Content",
+          "tris": 1968,
+          "shells": 12,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CorkFrame_Bottom",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CorkFrame_Left",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CorkFrame_Right",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CorkFrame_Top",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CorkPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 87,
+      "sheet": "sheet_09",
+      "file": "asset_087_wall_clock.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_087_wall_clock.glb",
+      "bytes": 123048,
+      "sizeM": [
+        0.344,
+        0.344,
+        0.065
+      ],
+      "longestM": 0.344,
+      "parts": 9,
+      "shells": 20,
+      "mergeFactor": 2.22,
+      "triangles": 3568,
+      "trianglesPerPart": 396,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 66.2,
+      "lumaSpreadRange": 192,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0225,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.4288,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedGlass",
+          "areaM2": 0.1478,
+          "lumaCode": 203,
+          "hex": "#B8D0C9",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_ClockFace",
+          "areaM2": 0.1457,
+          "lumaCode": 226,
+          "hex": "#E7E2D4",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.0146,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.002,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 2,
+      "socketNames": [
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 0.7389,
+      "flatAreaShare": 0.92,
+      "largestFaceShare": 0.123,
+      "flatRegions": 1704,
+      "coplanarEdges": 1568,
+      "hardCorners": 0,
+      "bevelCorners": 212,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 1.29,
+      "bevelWidthP10Mm": 0.37,
+      "bevelWidthP90Mm": 4.59,
+      "perPart": [
+        {
+          "name": "MESH_ClockDial",
+          "tris": 1296,
+          "shells": 12,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockBezel",
+          "tris": 476,
+          "shells": 1,
+          "bevelCorners": 40,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockCase",
+          "tris": 476,
+          "shells": 1,
+          "bevelCorners": 80,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockFace",
+          "tris": 428,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockGlass",
+          "tris": 428,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockBoss",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockHourHand",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockMinuteHand",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClockSecondHand",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 88,
+      "sheet": "sheet_09",
+      "file": "asset_088_key_rack.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_088_key_rack.glb",
+      "bytes": 103704,
+      "sizeM": [
+        0.75,
+        0.228,
+        0.0565
+      ],
+      "longestM": 0.75,
+      "parts": 5,
+      "shells": 23,
+      "mergeFactor": 4.6,
+      "triangles": 3104,
+      "trianglesPerPart": 621,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 14.8,
+      "lumaSpreadRange": 93,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.1061,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.4254,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.037,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.0135,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 7,
+      "socketNames": [
+        "SOCKET_Key_01",
+        "SOCKET_Key_02",
+        "SOCKET_Key_03",
+        "SOCKET_Key_04",
+        "SOCKET_Key_05",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 0.4758,
+      "flatAreaShare": 0.742,
+      "largestFaceShare": 0.279,
+      "flatRegions": 2004,
+      "coplanarEdges": 1020,
+      "hardCorners": 0,
+      "bevelCorners": 16,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 4.05,
+      "bevelWidthP10Mm": 1.39,
+      "bevelWidthP90Mm": 5.47,
+      "perPart": [
+        {
+          "name": "MESH_KeyRackHooks",
+          "tris": 1700,
+          "shells": 10,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyRackKeys",
+          "tris": 1080,
+          "shells": 10,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyRackCrown",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyRackPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyRackPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 89,
+      "sheet": "sheet_09",
+      "file": "asset_089_reservation_clipboard.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_089_reservation_clipboard.glb",
+      "bytes": 57496,
+      "sizeM": [
+        0.23,
+        0.0272,
+        0.331
+      ],
+      "longestM": 0.331,
+      "parts": 6,
+      "shells": 13,
+      "mergeFactor": 2.17,
+      "triangles": 1412,
+      "trianglesPerPart": 235,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 71.8,
+      "lumaSpreadRange": 193,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0798,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.1587,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_Paper",
+          "areaM2": 0.1201,
+          "lumaCode": 227,
+          "hex": "#E5E3DE",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_BrushedSteel",
+          "areaM2": 0.014,
+          "lumaCode": 121,
+          "hex": "#737B7C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_MatteBlack",
+          "areaM2": 0.0102,
+          "lumaCode": 34,
+          "hex": "#212223",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_Desk",
+        "SOCKET_HandGrip",
+        "SOCKET_Paper",
+        "SOCKET_Pen",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 0.3031,
+      "flatAreaShare": 0.907,
+      "largestFaceShare": 0.243,
+      "flatRegions": 988,
+      "coplanarEdges": 424,
+      "hardCorners": 0,
+      "bevelCorners": 16,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 1.27,
+      "bevelWidthP10Mm": 0.29,
+      "bevelWidthP90Mm": 1.8,
+      "perPart": [
+        {
+          "name": "MESH_ClipboardRuling",
+          "tris": 864,
+          "shells": 8,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClipboardPen",
+          "tris": 116,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClipboardClipArm",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClipboardClipBase",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClipboardPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ClipboardSheet",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 90,
+      "sheet": "sheet_09",
+      "file": "asset_090_scorecard_holder.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_09\\asset_090_scorecard_holder.glb",
+      "bytes": 101824,
+      "sizeM": [
+        0.38,
+        0.2748,
+        0.2649
+      ],
+      "longestM": 0.38,
+      "parts": 8,
+      "shells": 18,
+      "mergeFactor": 2.25,
+      "triangles": 2724,
+      "trianglesPerPart": 341,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 47.8,
+      "lumaSpreadRange": 145,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0204,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.9721,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S09_Paper",
+          "areaM2": 0.1384,
+          "lumaCode": 227,
+          "hex": "#E5E3DE",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_NaturalOak",
+          "areaM2": 0.0175,
+          "lumaCode": 147,
+          "hex": "#B98A59",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0056,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Desk",
+        "SOCKET_Pencils",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Scorecards_01",
+        "SOCKET_Scorecards_02",
+        "SOCKET_Scorecards_03"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 1.1336,
+      "flatAreaShare": 0.874,
+      "largestFaceShare": 0.086,
+      "flatRegions": 1724,
+      "coplanarEdges": 694,
+      "hardCorners": 0,
+      "bevelCorners": 96,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.27,
+      "bevelWidthP10Mm": 2.18,
+      "bevelWidthP90Mm": 3.07,
+      "perPart": [
+        {
+          "name": "MESH_HolderPencils",
+          "tris": 1320,
+          "shells": 6,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderDividers",
+          "tris": 432,
+          "shells": 4,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderScorecards",
+          "tris": 324,
+          "shells": 3,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderCrest",
+          "tris": 216,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderBack",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderBase",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderSideL",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 10,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_HolderSideR",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 10,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 91,
+      "sheet": "sheet_10",
+      "file": "asset_091_fire_extinguisher.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_091_fire_extinguisher.glb",
+      "bytes": 105692,
+      "sizeM": [
+        0.2024,
+        0.571,
+        0.182
+      ],
+      "longestM": 0.571,
+      "parts": 15,
+      "shells": 15,
+      "mergeFactor": 1,
+      "triangles": 2948,
+      "trianglesPerPart": 197,
+      "materials": 5,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 5,
+      "lumaSpreadSd": 43.1,
+      "lumaSpreadRange": 193,
+      "accentMaterials": 3,
+      "accentAreaShare": 0.143,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_ExtinguisherRed",
+          "areaM2": 0.3357,
+          "lumaCode": 96,
+          "hex": "#AD352F",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_MatteBlack",
+          "areaM2": 0.0996,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_BrushedSteel",
+          "areaM2": 0.0397,
+          "lumaCode": 121,
+          "hex": "#737B7C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_SignWhite",
+          "areaM2": 0.0311,
+          "lumaCode": 226,
+          "hex": "#E2E2DF",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0018,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Carry",
+        "SOCKET_Grip",
+        "SOCKET_Hose",
+        "SOCKET_Nozzle",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallBracket"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 0.5078,
+      "flatAreaShare": 0.598,
+      "largestFaceShare": 0.027,
+      "flatRegions": 1346,
+      "coplanarEdges": 1464,
+      "hardCorners": 0,
+      "bevelCorners": 206,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.83,
+      "bevelWidthP10Mm": 1.84,
+      "bevelWidthP90Mm": 10.72,
+      "perPart": [
+        {
+          "name": "MESH_ExtinguisherBase",
+          "tris": 528,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExtinguisherShell",
+          "tris": 332,
+          "shells": 1,
+          "bevelCorners": 56,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExtinguisherShoulder",
+          "tris": 284,
+          "shells": 1,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BracketStrap",
+          "tris": 240,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExtinguisherHose",
+          "tris": 236,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExtinguisherNeck",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_PressureGauge",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExtinguisherHorn",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 14,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ValvePinRing",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExtinguisherLabel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ValveBody",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ValveCarryHandle",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ValveSqueezeLever",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BracketArm",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BracketPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 92,
+      "sheet": "sheet_10",
+      "file": "asset_092_first_aid_kit_cabinet.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_092_first_aid_kit_cabinet.glb",
+      "bytes": 77796,
+      "sizeM": [
+        0.42,
+        0.55,
+        0.179
+      ],
+      "longestM": 0.55,
+      "parts": 13,
+      "shells": 18,
+      "mergeFactor": 1.38,
+      "triangles": 1952,
+      "trianglesPerPart": 150,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 17.8,
+      "lumaSpreadRange": 99,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0398,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_CabinetWhite",
+          "areaM2": 1.9656,
+          "lumaCode": 220,
+          "hex": "#DDDDDA",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedGlass",
+          "areaM2": 0.3109,
+          "lumaCode": 203,
+          "hex": "#B8D0C9",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_FirstAidGreen",
+          "areaM2": 0.0907,
+          "lumaCode": 132,
+          "hex": "#35955F",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_BrushedSteel",
+          "areaM2": 0.0037,
+          "lumaCode": 121,
+          "hex": "#737B7C",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 2,
+      "animationNames": [
+        "FirstAidDoor_Close",
+        "FirstAidDoor_Open"
+      ],
+      "skins": 0,
+      "sockets": 5,
+      "socketNames": [
+        "SOCKET_Handle",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Shelf_01",
+        "SOCKET_Shelf_02",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 2.371,
+      "flatAreaShare": 0.882,
+      "largestFaceShare": 0.094,
+      "flatRegions": 1378,
+      "coplanarEdges": 574,
+      "hardCorners": 0,
+      "bevelCorners": 116,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.56,
+      "bevelWidthP10Mm": 1.1,
+      "bevelWidthP90Mm": 3.64,
+      "perPart": [
+        {
+          "name": "MESH_FirstAidSupplies",
+          "tris": 648,
+          "shells": 6,
+          "bevelCorners": 72,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidHandle",
+          "tris": 116,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidBack",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidBottom",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidShelf_0",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidShelf_1",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidSideL",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidSideR",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidTop",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidCrossH",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidCrossV",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidDoorGlass",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_FirstAidDoorPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 93,
+      "sheet": "sheet_10",
+      "file": "asset_093_security_camera.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_093_security_camera.glb",
+      "bytes": 59444,
+      "sizeM": [
+        0.18,
+        0.1136,
+        0.18
+      ],
+      "longestM": 0.18,
+      "parts": 6,
+      "shells": 6,
+      "mergeFactor": 1,
+      "triangles": 1812,
+      "trianglesPerPart": 302,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 84.4,
+      "lumaSpreadRange": 179,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0799,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_HousingCream",
+          "areaM2": 0.1123,
+          "lumaCode": 212,
+          "hex": "#D7D4CB",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_HardBlack",
+          "areaM2": 0.0731,
+          "lumaCode": 42,
+          "hex": "#292A2C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_MatteBlack",
+          "areaM2": 0.0115,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedGlass",
+          "areaM2": 0.0046,
+          "lumaCode": 203,
+          "hex": "#B8D0C9",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 3,
+      "socketNames": [
+        "SOCKET_CableEntry",
+        "SOCKET_CeilingMount",
+        "SOCKET_PLACEMENT"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 0.2015,
+      "flatAreaShare": 0.942,
+      "largestFaceShare": 0.12,
+      "flatRegions": 700,
+      "coplanarEdges": 1006,
+      "hardCorners": 0,
+      "bevelCorners": 184,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 1.76,
+      "bevelWidthP10Mm": 0.68,
+      "bevelWidthP90Mm": 2.42,
+      "perPart": [
+        {
+          "name": "MESH_CameraDome",
+          "tris": 728,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CameraCollar",
+          "tris": 284,
+          "shells": 1,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CameraMountPlate",
+          "tris": 284,
+          "shells": 1,
+          "bevelCorners": 48,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CameraLensBarrel",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 32,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CameraLensGlass",
+          "tris": 188,
+          "shells": 1,
+          "bevelCorners": 32,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_CameraCableEntry",
+          "tris": 140,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 94,
+      "sheet": "sheet_10",
+      "file": "asset_094_exit_sign.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_094_exit_sign.glb",
+      "bytes": 67688,
+      "sizeM": [
+        0.454,
+        0.213,
+        0.098
+      ],
+      "longestM": 0.454,
+      "parts": 8,
+      "shells": 14,
+      "mergeFactor": 1.75,
+      "triangles": 1840,
+      "trianglesPerPart": 230,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 41.9,
+      "lumaSpreadRange": 121,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0206,
+      "emissiveMaterials": 2,
+      "swatches": [
+        {
+          "material": "MAT_S10_SignWhite",
+          "areaM2": 0.3701,
+          "lumaCode": 226,
+          "hex": "#E2E2DF",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_ExitRed",
+          "areaM2": 0.0724,
+          "lumaCode": 112,
+          "hex": "#CB3C30",
+          "emissive": true
+        },
+        {
+          "material": "MAT_S10_LampLens",
+          "areaM2": 0.0093,
+          "lumaCode": 233,
+          "hex": "#EFEAD7",
+          "emissive": true
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 4,
+      "socketNames": [
+        "SOCKET_LightLeft",
+        "SOCKET_LightRight",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 0.4518,
+      "flatAreaShare": 0.823,
+      "largestFaceShare": 0.128,
+      "flatRegions": 1244,
+      "coplanarEdges": 596,
+      "hardCorners": 0,
+      "bevelCorners": 152,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 1.13,
+      "bevelWidthP10Mm": 1.08,
+      "bevelWidthP90Mm": 6.47,
+      "perPart": [
+        {
+          "name": "MESH_ExitLegend",
+          "tris": 972,
+          "shells": 7,
+          "bevelCorners": 76,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitLampLensLeft",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 14,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitLampLensRight",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 14,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitCanopy",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 8,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitFacePanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitHousing",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitLampBodyLeft",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_ExitLampBodyRight",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 95,
+      "sheet": "sheet_10",
+      "file": "asset_095_emergency_light.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_095_emergency_light.glb",
+      "bytes": 54808,
+      "sizeM": [
+        0.4228,
+        0.212,
+        0.178
+      ],
+      "longestM": 0.4228,
+      "parts": 10,
+      "shells": 10,
+      "mergeFactor": 1,
+      "triangles": 1524,
+      "trianglesPerPart": 152,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 4.3,
+      "lumaSpreadRange": 49,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0424,
+      "emissiveMaterials": 2,
+      "swatches": [
+        {
+          "material": "MAT_S10_HousingCream",
+          "areaM2": 0.4429,
+          "lumaCode": 212,
+          "hex": "#D7D4CB",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_LampLens",
+          "areaM2": 0.0188,
+          "lumaCode": 233,
+          "hex": "#EFEAD7",
+          "emissive": true
+        },
+        {
+          "material": "MAT_S10_Indicator",
+          "areaM2": 0.0008,
+          "lumaCode": 184,
+          "hex": "#59CE81",
+          "emissive": true
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 3,
+      "socketNames": [
+        "SOCKET_Indicator",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 0.4624,
+      "flatAreaShare": 0.837,
+      "largestFaceShare": 0.14,
+      "flatRegions": 778,
+      "coplanarEdges": 746,
+      "hardCorners": 0,
+      "bevelCorners": 128,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 3.35,
+      "bevelWidthP10Mm": 1,
+      "bevelWidthP90Mm": 3.43,
+      "perPart": [
+        {
+          "name": "MESH_EmergencyHeadBodyLeft",
+          "tris": 212,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyHeadLensLeft",
+          "tris": 212,
+          "shells": 1,
+          "bevelCorners": 18,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyHeadBodyRight",
+          "tris": 212,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyHeadLensRight",
+          "tris": 212,
+          "shells": 1,
+          "bevelCorners": 18,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyIndicator",
+          "tris": 120,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyHeadYokeLeft",
+          "tris": 116,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyHeadYokeRight",
+          "tris": 116,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyBackPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyBatteryVent",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_EmergencyHousing",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 96,
+      "sheet": "sheet_10",
+      "file": "asset_096_bulletin_board.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_096_bulletin_board.glb",
+      "bytes": 88932,
+      "sizeM": [
+        0.95,
+        0.7,
+        0.053
+      ],
+      "longestM": 0.95,
+      "parts": 3,
+      "shells": 14,
+      "mergeFactor": 4.67,
+      "triangles": 2508,
+      "trianglesPerPart": 836,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 48.5,
+      "lumaSpreadRange": 145,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0013,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_Cork",
+          "areaM2": 1.1726,
+          "lumaCode": 149,
+          "hex": "#AD9067",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 0.5417,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_Paper",
+          "areaM2": 0.4319,
+          "lumaCode": 227,
+          "hex": "#E5E3DE",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0028,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_GuestInfo",
+        "SOCKET_Notice_01",
+        "SOCKET_Notice_02",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Tournament",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 2.149,
+      "flatAreaShare": 0.915,
+      "largestFaceShare": 0.254,
+      "flatRegions": 1650,
+      "coplanarEdges": 558,
+      "hardCorners": 0,
+      "bevelCorners": 64,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.79,
+      "bevelWidthP10Mm": 0.29,
+      "bevelWidthP90Mm": 3.05,
+      "perPart": [
+        {
+          "name": "MESH_BulletinContent",
+          "tris": 1968,
+          "shells": 12,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BulletinFrame_Frame",
+          "tris": 432,
+          "shells": 1,
+          "bevelCorners": 36,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_BulletinCork",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 97,
+      "sheet": "sheet_10",
+      "file": "asset_097_key_cabinet.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_097_key_cabinet.glb",
+      "bytes": 222340,
+      "sizeM": [
+        0.48,
+        0.65,
+        0.178
+      ],
+      "longestM": 0.65,
+      "parts": 10,
+      "shells": 45,
+      "mergeFactor": 4.5,
+      "triangles": 6392,
+      "trianglesPerPart": 639,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 6.2,
+      "lumaSpreadRange": 94,
+      "accentMaterials": 2,
+      "accentAreaShare": 0.0179,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_PH_MediumWalnut",
+          "areaM2": 2.5145,
+          "lumaCode": 82,
+          "hex": "#704934",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.0278,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_MatteBlack",
+          "areaM2": 0.018,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 2,
+      "animationNames": [
+        "KeyCabinetDoor_Close",
+        "KeyCabinetDoor_Open"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Key_01",
+        "SOCKET_Key_02",
+        "SOCKET_Key_03",
+        "SOCKET_Lock",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 2.5603,
+      "flatAreaShare": 0.891,
+      "largestFaceShare": 0.118,
+      "flatRegions": 4156,
+      "coplanarEdges": 1686,
+      "hardCorners": 0,
+      "bevelCorners": 28,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.92,
+      "bevelWidthP10Mm": 1.47,
+      "bevelWidthP90Mm": 3.64,
+      "perPart": [
+        {
+          "name": "MESH_KeyCabinetKeys",
+          "tris": 5232,
+          "shells": 36,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetCrest",
+          "tris": 240,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetLock",
+          "tris": 164,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetBack",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetBottom",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetSideL",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetSideR",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetTop",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetDoorInset",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_KeyCabinetDoorPanel",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 98,
+      "sheet": "sheet_10",
+      "file": "asset_098_hand_sanitizer_station.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_098_hand_sanitizer_station.glb",
+      "bytes": 40016,
+      "sizeM": [
+        0.13,
+        0.31,
+        0.126
+      ],
+      "longestM": 0.31,
+      "parts": 8,
+      "shells": 8,
+      "mergeFactor": 1,
+      "triangles": 916,
+      "trianglesPerPart": 115,
+      "materials": 4,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 4,
+      "lumaSpreadSd": 23.9,
+      "lumaSpreadRange": 178,
+      "accentMaterials": 3,
+      "accentAreaShare": 0.0872,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_CabinetWhite",
+          "areaM2": 0.2428,
+          "lumaCode": 220,
+          "hex": "#DDDDDA",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedGlass",
+          "areaM2": 0.0157,
+          "lumaCode": 203,
+          "hex": "#B8D0C9",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_HardBlack",
+          "areaM2": 0.004,
+          "lumaCode": 42,
+          "hex": "#292A2C",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_FirstAidGreen",
+          "areaM2": 0.0035,
+          "lumaCode": 132,
+          "hex": "#35955F",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 1,
+      "animationNames": [
+        "Sanitizer_Dispense"
+      ],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_Dispense",
+        "SOCKET_DripTray",
+        "SOCKET_Hand",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Refill",
+        "SOCKET_WallMount"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 0.266,
+      "flatAreaShare": 0.893,
+      "largestFaceShare": 0.141,
+      "flatRegions": 626,
+      "coplanarEdges": 290,
+      "hardCorners": 0,
+      "bevelCorners": 80,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.41,
+      "bevelWidthP10Mm": 1.9,
+      "bevelWidthP90Mm": 2.84,
+      "perPart": [
+        {
+          "name": "MESH_SanitizerCrest",
+          "tris": 160,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerBackPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerDripTray",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerHousing",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 24,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerLevelWindow",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerNozzle",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerTrayLip",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_SanitizerPlate",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 12,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 99,
+      "sheet": "sheet_10",
+      "file": "asset_099_umbrella_stand.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_099_umbrella_stand.glb",
+      "bytes": 87956,
+      "sizeM": [
+        0.356,
+        0.616,
+        0.356
+      ],
+      "longestM": 0.616,
+      "parts": 8,
+      "shells": 8,
+      "mergeFactor": 1,
+      "triangles": 2740,
+      "trianglesPerPart": 343,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 24.2,
+      "lumaSpreadRange": 94,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.0398,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_StandGreen",
+          "areaM2": 1.2518,
+          "lumaCode": 75,
+          "hex": "#375140",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_MatteBlack",
+          "areaM2": 0.8248,
+          "lumaCode": 33,
+          "hex": "#1F2122",
+          "emissive": false
+        },
+        {
+          "material": "MAT_PH_RestrainedBrass",
+          "areaM2": 0.086,
+          "lumaCode": 127,
+          "hex": "#9B7A3B",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 6,
+      "socketNames": [
+        "SOCKET_DrainTray",
+        "SOCKET_FloorPlacement",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Umbrella_01",
+        "SOCKET_Umbrella_02",
+        "SOCKET_Umbrella_03"
+      ],
+      "collisionMeshes": 1,
+      "surfaceAreaM2": 2.1626,
+      "flatAreaShare": 0.918,
+      "largestFaceShare": 0.043,
+      "flatRegions": 790,
+      "coplanarEdges": 1654,
+      "hardCorners": 0,
+      "bevelCorners": 252,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 2.78,
+      "bevelWidthP10Mm": 1.1,
+      "bevelWidthP90Mm": 6.12,
+      "perPart": [
+        {
+          "name": "MESH_StandBase",
+          "tris": 380,
+          "shells": 1,
+          "bevelCorners": 64,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandBore",
+          "tris": 380,
+          "shells": 1,
+          "bevelCorners": 64,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandRim",
+          "tris": 380,
+          "shells": 1,
+          "bevelCorners": 32,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandWall",
+          "tris": 380,
+          "shells": 1,
+          "bevelCorners": 64,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandBand_0",
+          "tris": 336,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandBand_1",
+          "tris": 336,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandDrainTray",
+          "tris": 332,
+          "shells": 1,
+          "bevelCorners": 28,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_StandCrest",
+          "tris": 216,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        }
+      ]
+    },
+    {
+      "n": 100,
+      "sheet": "sheet_10",
+      "file": "asset_100_floor_mat_welcome_mat.glb",
+      "path": "vendor\\models\\assets_51_100\\sheet_10\\asset_100_floor_mat_welcome_mat.glb",
+      "bytes": 36408,
+      "sizeM": [
+        1.2,
+        0.0217,
+        0.75
+      ],
+      "longestM": 1.2,
+      "parts": 4,
+      "shells": 4,
+      "mergeFactor": 1,
+      "triangles": 984,
+      "trianglesPerPart": 246,
+      "materials": 3,
+      "texturedMaterials": 0,
+      "materialsWithBaseColorFactor": 3,
+      "lumaSpreadSd": 15.8,
+      "lumaSpreadRange": 43,
+      "accentMaterials": 1,
+      "accentAreaShare": 0.068,
+      "emissiveMaterials": 0,
+      "swatches": [
+        {
+          "material": "MAT_S10_MatRubber",
+          "areaM2": 1.8181,
+          "lumaCode": 37,
+          "hex": "#242627",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_MatGreen",
+          "areaM2": 1.6646,
+          "lumaCode": 66,
+          "hex": "#32463A",
+          "emissive": false
+        },
+        {
+          "material": "MAT_S10_MatBorder",
+          "areaM2": 0.2542,
+          "lumaCode": 80,
+          "hex": "#405546",
+          "emissive": false
+        }
+      ],
+      "images": 0,
+      "animations": 0,
+      "animationNames": [],
+      "skins": 0,
+      "sockets": 4,
+      "socketNames": [
+        "SOCKET_DirtMask",
+        "SOCKET_FloorPlacement",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WetnessMask"
+      ],
+      "collisionMeshes": 0,
+      "surfaceAreaM2": 3.7369,
+      "flatAreaShare": 0.968,
+      "largestFaceShare": 0.239,
+      "flatRegions": 598,
+      "coplanarEdges": 388,
+      "hardCorners": 0,
+      "bevelCorners": 24,
+      "bevelRatio": 1,
+      "bevelWidthMedianMm": 0.37,
+      "bevelWidthP10Mm": 0.37,
+      "bevelWidthP90Mm": 1.1,
+      "perPart": [
+        {
+          "name": "MESH_MatBorderInlay",
+          "tris": 432,
+          "shells": 1,
+          "bevelCorners": 16,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MatCrest",
+          "tris": 336,
+          "shells": 1,
+          "bevelCorners": 0,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MatBacking",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        },
+        {
+          "name": "MESH_MatPile",
+          "tris": 108,
+          "shells": 1,
+          "bevelCorners": 4,
+          "hardCorners": 0
+        }
+      ]
+    }
+  ]
+}
