@@ -1,0 +1,5483 @@
+{
+  "tag": "resized",
+  "variant": "pine-hills-v2",
+  "watchdog": {
+    "freezeWindowWallSeconds": 12,
+    "freezeEpsilonYd": 0.15,
+    "queueBoundWallMinutes": 12
+  },
+  "limitations": {
+    "customersMoveInWallTime": true,
+    "note": "clubhouseApi.update receives raw wall dt (courseScene.js:9651): 16x compresses the clock only, so one 16x \"day\" carries ~40 wall-minutes of true-rate customer motion. A full-parity day requires 1x (10.5 h)."
+  },
+  "neglected": {
+    "tag": "neglected",
+    "spawned": 10,
+    "maxSimultaneous": 11,
+    "customersTracked": 11,
+    "stillInsideAtClose": [
+      {
+        "id": "customer_12qcuao_visitor%3A1",
+        "stopKind": "gone",
+        "phase": "leaving",
+        "lx": -0.79,
+        "lz": 8.16
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A8",
+        "stopKind": "counter",
+        "phase": "waiting",
+        "lx": 2.68,
+        "lz": 2.2
+      }
+    ],
+    "frozen": [
+      {
+        "id": "customer_12qcuao_visitor%3A9",
+        "simMinute": 554.4,
+        "x": -361.16,
+        "z": 12.25,
+        "stopIdx": 0,
+        "stopKind": "walk",
+        "fixtureId": null,
+        "phase": "shopping",
+        "netYd": 0.113,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -1.16,
+        "lz": 8.25
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A8",
+        "simMinute": 568.8,
+        "x": -357.54,
+        "z": 6.55,
+        "stopIdx": 2,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.015,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.46,
+        "lz": 2.55
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A5",
+        "simMinute": 568.8,
+        "x": -360.9,
+        "z": 4.46,
+        "stopIdx": 4,
+        "stopKind": "fixture",
+        "fixtureId": "member_station",
+        "phase": "shopping",
+        "netYd": 0.114,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -0.9,
+        "lz": 0.46
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A1",
+        "simMinute": 573.1,
+        "x": -359.98,
+        "z": 5.14,
+        "stopIdx": 3,
+        "stopKind": "fixture",
+        "fixtureId": "shelf_acc",
+        "phase": "shopping",
+        "netYd": 0.002,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 0.02,
+        "lz": 1.14
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A3",
+        "simMinute": 873.5,
+        "x": -357.11,
+        "z": 6.13,
+        "stopIdx": 5,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.118,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.89,
+        "lz": 2.13
+      }
+    ],
+    "queueViolations": [],
+    "navBlocks": {
+      "total": 455,
+      "events": [
+        {
+          "atMinute": 827.2,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.74,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.26,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 828.3,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.37,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.63,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 828.4,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.73,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.73,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 829.5,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.74,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.26,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 830.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.35,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.65,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 831.6,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "feature",
+          "x": -360.16,
+          "z": 5.41,
+          "tx": -359.37,
+          "tz": 4.68,
+          "wpx": -359.37,
+          "wpz": 4.68,
+          "colliders": [],
+          "lx": -0.16,
+          "lz": 1.41,
+          "ltx": 0.63,
+          "ltz": 0.68
+        },
+        {
+          "atMinute": 831.7,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.73,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.27,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 832.1,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.38,
+          "z": 4.53,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -360.5,
+              "maxX": -358.4,
+              "minZ": 2.8,
+              "maxZ": 4.1,
+              "door": false
+            }
+          ],
+          "lx": -1.38,
+          "lz": 0.53,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 832.1,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.98,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.02,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 834,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.31,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.69,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 834,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.71,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.29,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 834.3,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.95,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.05,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 836.3,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.43,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.57,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 836.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.05,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.95,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 836.7,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.93,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.93,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 836.9,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "fixture",
+          "fixtureId": "feature",
+          "x": -360.16,
+          "z": 5.41,
+          "tx": -359.37,
+          "tz": 4.68,
+          "wpx": -359.37,
+          "wpz": 4.68,
+          "colliders": [],
+          "lx": -0.16,
+          "lz": 1.41,
+          "ltx": 0.63,
+          "ltz": 0.68
+        },
+        {
+          "atMinute": 838.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.38,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.62,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 838.9,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.42,
+          "z": 4.25,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.42,
+          "lz": 0.25,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 839,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.77,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.23,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 839.7,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.61,
+          "z": 4.82,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.61,
+          "lz": 0.82,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 841.3,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.48,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.52,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 841.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.09,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.91,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 842,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.42,
+          "z": 4.25,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.42,
+          "lz": 0.25,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 843.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.4,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.6,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 844,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.79,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.21,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 846.3,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.67,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.33,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 846.3,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.41,
+          "z": 4.24,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.41,
+          "lz": 0.24,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 846.3,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.81,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.81,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 846.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.08,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.92,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 848.2,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.32,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.68,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 848.6,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 5.45,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 1.45,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 848.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.3,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.7,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 849.7,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.43,
+          "z": 4.28,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.43,
+          "lz": 0.28,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 850.4,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.03,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.97,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 850.9,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.85,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.85,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 851,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.3,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.7,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 852.7,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.41,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.59,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 853.2,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.32,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.68,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 854.7,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.96,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.96,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 854.7,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.8,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.2,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 854.9,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.47,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.53,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 855.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.18,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.82,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 857,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.42,
+          "z": 4.25,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.42,
+          "lz": 0.25,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 857.2,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.09,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.91,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 857.8,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.83,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.83,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 858,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.74,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.26,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 858.1,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.3,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.7,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 859.5,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.14,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.86,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 860,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.42,
+          "z": 4.25,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.42,
+          "lz": 0.25,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 860.4,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.74,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.26,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 860.6,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.33,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.67,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 862.1,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.72,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.72,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 862.7,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.73,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.27,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 862.7,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.13,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.87,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 863.7,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.32,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.68,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 865,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.72,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.28,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 865,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.12,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.88,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 865.7,
+          "id": "customer_12qcuao_visitor%3A6",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.4,
+          "z": 4.49,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.45,
+          "wpz": 4.35,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.4,
+          "lz": 0.49,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 865.7,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.94,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 866,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.32,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.68,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 867.3,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.12,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.88,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 867.3,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.72,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.28,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 868,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.92,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.08,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 868.3,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.25,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.75,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 869.6,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.41,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.59,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 870.3,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.93,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.93,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 870.5,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.5,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.5,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 872,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.08,
+          "tx": -367.8,
+          "tz": 2.25,
+          "wpx": -367.8,
+          "wpz": 2.25,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.92,
+          "ltx": -7.8,
+          "ltz": -1.75
+        },
+        {
+          "atMinute": 872.9,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.77,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.23,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 873.3,
+          "id": "customer_12qcuao_visitor%3A2",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.83,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.83,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 875,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.27,
+          "tx": -366.62,
+          "tz": 2.7,
+          "wpx": -366.62,
+          "wpz": 2.7,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.73,
+          "ltx": -6.62,
+          "ltz": -1.3
+        },
+        {
+          "atMinute": 875,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.52,
+          "tx": -364.26,
+          "tz": 3.6,
+          "wpx": -364.26,
+          "wpz": 3.6,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.48,
+          "ltx": -4.26,
+          "ltz": -0.4
+        },
+        {
+          "atMinute": 875.7,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.96,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.04,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 877.8,
+          "id": "customer_12qcuao_visitor%3A9",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.02,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.02,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 879.6,
+          "id": "customer_12qcuao_visitor%3A1",
+          "action": "nudge",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.17,
+          "tx": -364.26,
+          "tz": 3.6,
+          "wpx": -364.26,
+          "wpz": 3.6,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.83,
+          "ltx": -4.26,
+          "ltz": -0.4
+        },
+        {
+          "atMinute": 879.8,
+          "id": "customer_12qcuao_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.77,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.23,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 881.7,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 5.46,
+          "tx": -358.36,
+          "tz": 5.85,
+          "wpx": -358.36,
+          "wpz": 5.85,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 1.46,
+          "ltx": 1.64,
+          "ltz": 1.85
+        },
+        {
+          "atMinute": 884.4,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 6.13,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 2.13,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 886.7,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 6.01,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 2.01,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 890.8,
+          "id": "customer_12qcuao_visitor%3A4",
+          "action": "sidestep",
+          "stopIdx": 7,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 9.14,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [
+            {
+              "minX": -369.2,
+              "maxX": -361.78,
+              "minZ": 9.44,
+              "maxZ": 9.81,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -362.71,
+              "maxX": -361.99,
+              "minZ": 8.79,
+              "maxZ": 9.31,
+              "door": false
+            },
+            {
+              "minX": -362.52,
+              "maxX": -361.62,
+              "minZ": 8.66,
+              "maxZ": 9.56,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 5.14,
+          "ltx": -0.8,
+          "ltz": 8.22
+        }
+      ]
+    },
+    "simMinutesRun": 630.1,
+    "transactions": 0,
+    "unitsSold": null
+  },
+  "restored": {
+    "tag": "restored",
+    "spawned": 10,
+    "maxSimultaneous": 12,
+    "customersTracked": 13,
+    "stillInsideAtClose": [
+      {
+        "id": "customer_12qcuao_visitor%3A21",
+        "stopKind": "counter",
+        "phase": "walk-in-waiting",
+        "lx": 2.66,
+        "lz": 2.37
+      }
+    ],
+    "frozen": [
+      {
+        "id": "customer_12qcuao_visitor%3A17",
+        "simMinute": 602.3,
+        "x": -360.36,
+        "z": 4.42,
+        "stopIdx": 3,
+        "stopKind": "fixture",
+        "fixtureId": "shelf_balls",
+        "phase": "shopping",
+        "netYd": 0.092,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -0.36,
+        "lz": 0.42
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A11",
+        "simMinute": 578.8,
+        "x": -356.97,
+        "z": 6.55,
+        "stopIdx": 3,
+        "stopKind": "fixture",
+        "fixtureId": "shelf_acc",
+        "phase": "shopping",
+        "netYd": 0.137,
+        "spanWallS": 12.3,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 3.03,
+        "lz": 2.55
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A8",
+        "simMinute": 577.5,
+        "x": -357.36,
+        "z": 6.18,
+        "stopIdx": 7,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.047,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.64,
+        "lz": 2.18
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A13",
+        "simMinute": 874.1,
+        "x": -357.17,
+        "z": 6.16,
+        "stopIdx": 5,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.076,
+        "spanWallS": 12.1,
+        "inQueue": false,
+        "atStop": false,
+        "lx": 2.83,
+        "lz": 2.16
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A14",
+        "simMinute": 896.3,
+        "x": -363.15,
+        "z": 6.05,
+        "stopIdx": 7,
+        "stopKind": "exit",
+        "fixtureId": null,
+        "phase": "leaving",
+        "netYd": 0.109,
+        "spanWallS": 12.2,
+        "inQueue": false,
+        "atStop": false,
+        "lx": -3.15,
+        "lz": 2.05
+      }
+    ],
+    "queueViolations": [],
+    "navBlocks": {
+      "total": 380,
+      "events": [
+        {
+          "atMinute": 815.3,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 816.9,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.04,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.04,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 817.4,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.01,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.99,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 817.8,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 819.4,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 819.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "nudge",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 2.98,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -1.02,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 820.1,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 821.7,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.06,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 821.9,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.08,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.92,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 822.7,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 824.3,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 825.5,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.2,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.8,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 827,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 827.8,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "nudge",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.29,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.71,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 828.4,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 829.3,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 830.1,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.15,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.85,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 830.7,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.06,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 831.9,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 832.3,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.01,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.99,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 833.3,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 834.4,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 834.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.26,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.74,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 836.1,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 836.7,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 836.8,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.29,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.71,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 838.4,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.06,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 839.1,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "nudge",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.24,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.76,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 839.3,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 840.6,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.05,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.05,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 841.4,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.15,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.85,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 841.8,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 843.2,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 843.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.01,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.99,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 844.1,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 845.9,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.26,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.74,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 846,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 846.7,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 848.3,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.06,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 849.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.21,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.79,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 851,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 851.8,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "nudge",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.21,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.79,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 852.4,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.05,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.05,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 853.3,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 854.1,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.15,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.85,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 854.7,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.04,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.04,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 855.9,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 856.3,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.22,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.78,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 857.2,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 858.4,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 858.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "nudge",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.29,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.71,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 859.5,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.06,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 860.7,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 860.9,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.15,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.85,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 862,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 863.1,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.29,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.71,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 863.3,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 864.9,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 865.4,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.04,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.96,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 865.8,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 867.2,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.06,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.06,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 867.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.25,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.75,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 868.1,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 869.7,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 869.9,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.03,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.97,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 870.7,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.5,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.5,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 872.5,
+          "id": "customer_12qcuao_visitor%3A16",
+          "action": "nudge",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 4.35,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": 0.35,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 873.6,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.2,
+          "tx": -365.44,
+          "tz": 3.15,
+          "wpx": -365.44,
+          "wpz": 3.15,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.8,
+          "ltx": -5.44,
+          "ltz": -0.85
+        },
+        {
+          "atMinute": 875.6,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "nudge",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.87,
+          "tx": -360.72,
+          "tz": 4.95,
+          "wpx": -360.72,
+          "wpz": 4.95,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.87,
+          "ltx": -0.72,
+          "ltz": 0.95
+        },
+        {
+          "atMinute": 878.4,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 5.26,
+          "tx": -359.54,
+          "tz": 5.4,
+          "wpx": -359.54,
+          "wpz": 5.4,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 1.26,
+          "ltx": 0.46,
+          "ltz": 1.4
+        },
+        {
+          "atMinute": 878.4,
+          "id": "customer_12qcuao_visitor%3A11",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.16,
+          "tx": -363.08,
+          "tz": 4.05,
+          "wpx": -363.08,
+          "wpz": 4.05,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.84,
+          "ltx": -3.08,
+          "ltz": 0.05
+        },
+        {
+          "atMinute": 878.4,
+          "id": "customer_12qcuao_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -361.6,
+          "z": 3.76,
+          "tx": -364.26,
+          "tz": 3.6,
+          "wpx": -364.26,
+          "wpz": 3.6,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            }
+          ],
+          "lx": -1.6,
+          "lz": -0.24,
+          "ltx": -4.26,
+          "ltz": -0.4
+        },
+        {
+          "atMinute": 879.3,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 4.49,
+          "tx": -361.9,
+          "tz": 4.5,
+          "wpx": -361.9,
+          "wpz": 4.5,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 0.85,
+              "maxZ": 4.05,
+              "door": false
+            },
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 0.49,
+          "ltx": -1.9,
+          "ltz": 0.5
+        },
+        {
+          "atMinute": 884.5,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 5.75,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 1.75,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 885.2,
+          "id": "customer_12qcuao_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 9.14,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [
+            {
+              "minX": -369.2,
+              "maxX": -361.78,
+              "minZ": 9.44,
+              "maxZ": 9.81,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -362.71,
+              "maxX": -361.99,
+              "minZ": 8.79,
+              "maxZ": 9.31,
+              "door": false
+            },
+            {
+              "minX": -362.52,
+              "maxX": -361.62,
+              "minZ": 8.66,
+              "maxZ": 9.56,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 5.14,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 886.7,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 6.32,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 2.32,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 889.7,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 6.52,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 2.52,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 892,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 6.13,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 2.13,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 894.2,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "counter",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 5.95,
+          "tx": -357.18,
+          "tz": 6.3,
+          "wpx": -357.18,
+          "wpz": 6.3,
+          "colliders": [
+            {
+              "minX": -362.6,
+              "maxX": -361.9,
+              "minZ": 4.15,
+              "maxZ": 7.35,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 1.95,
+          "ltx": 2.82,
+          "ltz": 2.3
+        },
+        {
+          "atMinute": 900.3,
+          "id": "customer_12qcuao_visitor%3A14",
+          "action": "sidestep",
+          "stopIdx": 7,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -363.15,
+          "z": 9.14,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [
+            {
+              "minX": -369.2,
+              "maxX": -361.78,
+              "minZ": 9.44,
+              "maxZ": 9.81,
+              "door": false
+            },
+            {
+              "minX": -362.85,
+              "maxX": -362.6,
+              "minZ": -0.85,
+              "maxZ": 9.49,
+              "door": false
+            },
+            {
+              "minX": -362.71,
+              "maxX": -361.99,
+              "minZ": 8.79,
+              "maxZ": 9.31,
+              "door": false
+            },
+            {
+              "minX": -362.52,
+              "maxX": -361.62,
+              "minZ": 8.66,
+              "maxZ": 9.56,
+              "door": false
+            }
+          ],
+          "lx": -3.15,
+          "lz": 5.14,
+          "ltx": -0.8,
+          "ltz": 8.22
+        }
+      ]
+    },
+    "simMinutesRun": 630,
+    "transactions": 0,
+    "unitsSold": null
+  },
+  "errs": [],
+  "ok": false
+}

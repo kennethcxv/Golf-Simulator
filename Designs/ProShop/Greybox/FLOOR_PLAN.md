@@ -338,3 +338,52 @@ satisfied); (4) `BASELINE_VARIANT` env in the capture script (still owed);
 session. **What it does not:** Phase 4+ (hero assets), any texture work (deferred in
 `../Spike/TEXTURE_VALIDATION.md`), the 061/099 geometry work (deferred in
 `../Discriminator/ASSEMBLY_FIXES.md`), or removal of anything from the old room.
+
+---
+
+## 10. THE RESIZE — the 70 m² room this plan grew into (2026-07-28)
+
+The greybox walk (see `../OVERNIGHT_REPORT.md`, the authoritative record) judged
+the room above "far too large for a failing municipal starter pro shop" and
+authorised a resize. The design was derived (real municipal shops 25–90 m²;
+TCG Card Shop Simulator ≈ 50–80 m²; Supermarket Simulator starts at 16 m²),
+approved by the morning "Continue", and built as commit `00f92eb`.
+
+**What changed against §§5–7 of this document:**
+
+- **Envelope:** public floor x ∈ [−2.60, 5.70], z ∈ [−4.60, 5.49] = 8.30 × 10.09 yd
+  = **70.0 m²** (was 134.4 m²). East (service partition) and south (door/porch)
+  anchor; the new west/north walls are grey slabs with builder-owned colliders
+  inside the authored shell. The space behind them is sealed cavity pending the
+  Phase 4+ exterior re-author. Ceiling **2.80 yd = 2.56 m** (was 2.93 m) with four
+  exposed beams (2.40 m clear).
+- **Cut rather than crammed (11):** rack_drivers, rack_irons, rack_putters,
+  table_polos, shoerack, bagstand, rail_outer, hatstand, snackrack, cold_drinks,
+  shelf_small (gloves SKUs fold into the essentials pegboard). Clubs, apparel
+  depth, bags, shoes and refreshments become the upgrade path.
+- **Keepers re-seated:** fitting booth NW corner (−0.35, −3.70, ry 0 — its
+  axis-aligned analytic hull now matches its shell); golf balls (−2.25, −1.55)
+  and essentials+gloves (−2.25, 1.75) on the west wall; feature display
+  (0.55, −0.55) facing the door; putting strip (1.70, −2.20); the **lounge
+  re-seats in the new NE corner** (chairA 3.55/−4.05, chairB 4.45/−3.30, coffee
+  3.55/−3.35, photo on the new north wall) — mandate intact. Desk frame, queue,
+  backdrop, member station, safety site, tour vault, and the whole service wing:
+  untouched.
+- **§9's metric change, recorded:** the literal F1 ≥8-yd threshold is physically
+  impossible for most bearings in a 9.2 m-deep room (the walls arrive first), so
+  the resize contract is wall-normalized F1 — first obstruction at ≥80% of the
+  empty-room distance per ray, pass fraction ≥60%. Both figures are measured and
+  reported; the same instrument measures both rooms.
+
+**Measured on the finished room** (evidence in `data/`): F1 normalized **65.7%**
+(v1: 5.7%) with the near-blockers now the retail fixtures themselves rather than
+the POS masses; F1 literal 51.7% (wall-capped; static prediction 51.2%); F2 4/4;
+F5 lounge 71.4/100/85.7/71.4 (the putting strip and feature corner shade
+below-knee samples — flagged as a design trade, not silently accepted); staff
+corridor 1.130 / queue 0.640 / spacing 1.263 (identical to the approved desk);
+checkout $33.00 card transaction with exact business deltas; laptop 66/34/66 both
+exits; save round-trip zero diffs. Customer-day and perf-vs-Phase-0 figures live
+in `../OVERNIGHT_REPORT.md` §12. Layout contract: `tests/pine-hills-v2-layout.test.js`
+(16 tests) now proves every stand point and queue slot ≥0.30 yd clear of every
+collider rect — the stuck-customer class of this room's first build cannot
+statically recur.

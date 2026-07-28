@@ -5,7 +5,13 @@ Every measured figure in this report has its instrument and evidence file named.
 
 ---
 
-## 1. READ FIRST — item 12 fired: the resize build and the §9 number set are STOPPED
+> **Morning update:** your "Continue" un-gated the stop. The resize is BUILT as
+> §3 specifies (commit `00f92eb`), the layout contract grew to 16 green tests,
+> and the full verification battery ran on the finished room — measured results
+> in §3b and the addendum. The two decisions still open for you: the wall-vs-sim
+> clock ruling, and the harness-hygiene afternoon.
+
+## 1. READ FIRST — item 12 fired: the resize build and the §9 number set were STOPPED overnight
 
 Item 7's audit came back **systemic, not one-harness** — three named divergence classes
 (full findings in `Designs/ProShop/HARNESS_TRUST.md`):
@@ -93,7 +99,7 @@ The fix shipped tonight is the recovery ladder + block log (section 8), which ma
 such trap loud, recoverable, and reported with positions. The proposed resize (section 3)
 also happens to demolish the entire west-wall territory where these pins live.
 
-## 3. Items 4 + 10 — the resize, designed to the coordinate level, awaiting your go
+## 3. Items 4 + 10 — the resize: designed overnight, BUILT on your go
 
 **Current interior, at the verified 66° lens** (datums from `shopLayout.js`, walls
 measured live): the whole interior is 16.34 × 10.04 m (**164.1 m²**; gross shell
@@ -194,6 +200,40 @@ AFTER — proposed 70 m² room (new grey walls; ▒ = sealed dead cavity):
 - Customer route door → browse → counter → exit re-verifies with the rebuilt day
   instrument as the acceptance, plus stop-clearance assertions added to the layout tests
   so a stand point inside a collider (item 3's trap) can never ship again.
+
+### 3b. Built and measured (commit `00f92eb`, full suite 2407/2407)
+
+The build is exactly the design above, with three coordinate refinements the new
+16-test layout contract forced before it would go green (balls/essentials shifted
+0.35/0.15 north to clear the booth's stand-point clearances; lounge chairB pulled
+to (4.45, −3.30) out of tour_vault's sightline corner; the lounge traffic leg
+ends at the threshold instead of inside the coffee table). The contract now
+proves, statically, the thing item 3 taught: **every browse/stock stand point
+and queue slot is ≥0.30 yd clear of every collider rect**, and no traffic leg
+crosses anything solid.
+
+Live figures on the finished room (`greybox-acceptance.json`, instrument updated
+to the envelope — same code path measures both rooms):
+
+| Measure | Resized v2 | v1 (same instrument) |
+|---|---|---|
+| F1 normalized (first obstruction ≥0.8× empty-room distance) | **65.7%** ≥ 60% ✓ | 5.7% |
+| F1 literal ≥8 yd (physically wall-capped in a 9.2 m room) | 51.7% (static prediction was 51.2%) | 5.5% |
+| F1 near-blockers | the retail fixtures themselves (essentials, feature, balls) | POS_Rear + static batch + POS_Bezel |
+| F2 wall midpoints | 4/4 | 3/4 † |
+| F5 lounge from the door | chairA 71.4 / chairB 100 / coffee 85.7 / rug 71.4 ‡ | n/a (no grey suite) |
+| Staff corridor / queue gap / spacing | 1.130 / 0.640 / 1.263 (identical to approved — the desk anchored) | — |
+| Checkout (full card tx) | $33.00, cash=ledger +33, units +3, shelf −3, facing −1.0 ×3 | — |
+| Laptop | 66→34→66 both exits, 7/7 pages | — |
+| Save round-trip v1↔v2 | zero differences | — |
+| Customer day + perf A/B vs Phase 0 | addendum §12 | addendum §12 |
+
+† v1's F2 north "miss" is the reworked vantage (now envelope-centre-derived)
+grazing v1's outerwear rail — nothing moved in v1; the old vantage dodged it.
+‡ The putting strip (0.4 tall, deliberately in the door→lounge fan so the chairs
+watch the green) and the feature display's corner shade below-knee samples;
+everything from seat-height up reads. If you want the old 100×4 back, the trade
+is sliding the strip out of the fan — your call, flagged rather than made.
 
 ## 4. Item 1 — FOV: no defect is measurable; the instrument now pins it
 
@@ -398,6 +438,54 @@ final tuning bounds it at 12; transactions are zero because the player is the ca
 and no player was present. Full-parity day coverage (customers at true rate for a whole
 day) remains gated on the wall-vs-sim design decision in section 1 — at 1× it is a
 10.5-hour run.
+
+**Customer day on the RESIZED room** (`greybox-customer-day-resized.json`, wall-unit
+watchdog, ten scripted + organic walk-ins, both restoration states, full 16× clock
+days):
+
+| Leg | Tracked | Frozen (12 wall-s net<0.15) | Queue violations | Still inside at close | Blocks |
+|---|---|---|---|---|---|
+| Neglected | 11 | 5 | **0** | 2 (1 counter-waiting, 1 mid-exit on the porch) | 455 |
+| Restored | 13 | 5 | **0** | 1 (walk-in waiting at counter) | 380 |
+
+**The browse-stand trap class is dead.** Zero block events at any fixture stand
+point that the resize re-placed — the block log's mass moved entirely to the
+COUNTER area (75/58 sidesteps), and every frozen record decodes to the same new
+cause: **crowd congestion in the queue/exit funnel**. With ~11 customers in 70 m²
+and nobody serving the till, leavers jam against the standing queue for 10–15
+wall-seconds at a time (the "fixture" labels on frozen rows name the walker's
+DESTINATION; the coordinates are all the queue-head area or the porch). Compare
+the first build's runs: sim-hour pins and 15 customers trapped at close.
+
+One design flag from this, yours to rule on: D1's queue steps west INTO the shop
+(frame-local pitch −1.18/−0.45), which in the smaller room crosses the exit path —
+that crossing is where every remaining jam lives. Options: re-pitch the queue
+southward along the desk face (a frame-local change to acceptance-pinned register
+choreography — not made unilaterally), thin the peak occupancy, or accept
+10–15-second jams at full house with no cashier as the "packed muni shop" read.
+
+**Performance — 7 scenarios × 3 runs, HEADED on the real GPU (RTX 5080), both rooms
+in one session, Phase 0 quoted alongside** (`baseline-performance-pine-hills{,-v2}.json`):
+
+| Scenario | Phase 0 avg ms ±CI95 | v1 today | v2 resized | v2 vs v1 |
+|---|---|---|---|---|
+| idle-interior | 6.76 ±0.13 | 8.40 ±0.00 | 8.33 ±0.00 | −0.8% |
+| spin-interior | 9.39 ±0.27 | 10.48 ±1.14 | 9.80 ±0.57 | −6.4% |
+| walk-spin-interior | 8.82 ±0.07 | 10.66 ±0.13 | 10.04 ±0.06 | −5.9% |
+| entrance-sightline | 9.55 ±0.10 | 9.76 ±1.78 | 8.39 ±0.00 | **−14.0%** |
+| broom-sweeping | 4.93 ±0.19 | 8.40 ±0.00 | 8.33 ±0.00 | −0.8% |
+| live-speed16-customers | 9.59 ±0.30 | 10.63 ±0.51 | 9.91 ±0.06 | −6.7% |
+| laptop-open | 5.73 ±0.20 | 8.55 ±0.00 | 8.33 ±0.00 | −2.6% |
+
+**Regressions beyond CI and >10%: NONE — the resized room is faster than v1 on
+every scenario**, and the worst frames collapse (1% highs, v1→v2: idle 15.6→8.5 ms,
+walk-spin 37.5→26.1, entrance 30.6→14.3, customers 34.7→25.5, laptop-open
+23.8→8.5). Scene cost: draw calls 3051→**1791** (−41%), visible meshes 3469→3022.
+Measurement caveat, stated rather than hidden: today's HEADED captures pin at the
+display's 120 fps cap (the 8.33 ms floors with CI 0.00), while Phase 0's session
+ran at a higher refresh — so the absolute Phase 0 deltas on the capped scenarios
+are display-mode artifacts; the controlled comparison is the same-session v1↔v2
+A/B above, exactly as the §9 plan specified.
 
 **Commits tonight** (all pushed to `feature/pro-shop-vertical-slice`):
 `05920d0` v2 boot TDZ fix · `b3379b7` lens/input parity instruments + typed-keys guard ·

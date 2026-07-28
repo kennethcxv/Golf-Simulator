@@ -13,26 +13,15 @@
         "cleanupTargets": 12,
         "interactions": 14,
         "staticDressingBatch": null,
-        "greyVolumes": 28,
+        "greyVolumes": 20,
         "suppressedLegacy": [
           "PineHillsFrontDeskReturn",
           "TieredMemberLounge",
           "lounge-trophies"
         ],
         "hiddenFixtureAnchors": [
-          "rack_drivers",
-          "rack_irons",
-          "rack_putters",
           "shelf_balls",
           "shelf_acc",
-          "shelf_small",
-          "table_polos",
-          "rail_outer",
-          "hatstand",
-          "bagstand",
-          "shoerack",
-          "cold_drinks",
-          "snackrack",
           "member_station",
           "feature",
           "backcounter"
@@ -40,20 +29,42 @@
       },
       "f1": {
         "raysTotal": 861,
-        "raysAtLeast8yd": 850,
-        "percent": 98.7,
+        "raysAtLeast8yd": 445,
+        "percent": 51.7,
+        "raysNormalizedPass": 566,
+        "normalizedPercent": 65.7,
         "nearBlockers": [
           [
-            "SHEET06_58_straight_0_MESH_DarkWalnutScarfJointBeam_INSTANCES",
-            3
+            "GREY_shelf_acc",
+            142
+          ],
+          [
+            "GREY_feature",
+            76
+          ],
+          [
+            "GREY_shelf_balls",
+            73
+          ],
+          [
+            "GREY_CeilingBeam_2",
+            72
+          ],
+          [
+            "GREY_Ceiling",
+            36
+          ],
+          [
+            "GREY_WestWall",
+            15
           ]
         ]
       },
       "f2": {
         "north": {
           "unoccluded": true,
-          "firstHit": "GREY_shelf_small",
-          "hitAt": 4.7
+          "firstHit": "GREY_NorthWall",
+          "hitAt": 5.05
         },
         "south": {
           "unoccluded": true,
@@ -62,8 +73,8 @@
         },
         "west": {
           "unoccluded": true,
-          "firstHit": "GREY_rack_irons",
-          "hitAt": 6.5
+          "firstHit": "GREY_shelf_acc",
+          "hitAt": 2.95
         },
         "eastPartition": {
           "unoccluded": true,
@@ -75,8 +86,8 @@
         "GREY_chairA": {
           "present": true,
           "samples": 35,
-          "visible": 35,
-          "percent": 100
+          "visible": 25,
+          "percent": 71.4
         },
         "GREY_chairB": {
           "present": true,
@@ -87,14 +98,14 @@
         "GREY_coffee": {
           "present": true,
           "samples": 35,
-          "visible": 35,
-          "percent": 100
+          "visible": 30,
+          "percent": 85.7
         },
         "GREY_loungeRug": {
           "present": true,
           "samples": 35,
-          "visible": 35,
-          "percent": 100
+          "visible": 25,
+          "percent": 71.4
         }
       },
       "clearances": {
@@ -102,8 +113,8 @@
         "deskWestToClearway": 0.5034120734908134,
         "staffCorridor": 1.12989501312336,
         "corridorWestSlot": 0.5238845144356956,
-        "featureToReturnPass": 1.3034120734908134,
-        "featureToTablePass": 2.3999999999999995,
+        "featureToReturnPass": -0.5965879265091867,
+        "featureToTablePass": null,
         "queueHeadToDesk": 0.6398950131233598,
         "queueSpacing": 1.2628935030318273,
         "registerAt": {
@@ -131,11 +142,23 @@
             "found": true
           },
           {
-            "name": "GREY_rail_outer",
+            "name": "GREY_teeTimeBoard",
             "found": true
           },
           {
-            "name": "GREY_teeTimeBoard",
+            "name": "GREY_WestWall",
+            "found": true
+          },
+          {
+            "name": "GREY_NorthWall",
+            "found": true
+          },
+          {
+            "name": "GREY_Ceiling",
+            "found": true
+          },
+          {
+            "name": "GREY_CeilingBeam_1",
             "found": true
           }
         ],
@@ -159,7 +182,7 @@
         "registerHardwareVisible": true,
         "tierIndex": 0
       },
-      "visibleMeshCount": 676
+      "visibleMeshCount": 628
     },
     "v1": {
       "variant": null,
@@ -193,6 +216,8 @@
         "raysTotal": 861,
         "raysAtLeast8yd": 47,
         "percent": 5.5,
+        "raysNormalizedPass": 49,
+        "normalizedPercent": 5.7,
         "nearBlockers": [
           [
             "POS_Rear",
@@ -234,7 +259,7 @@
         "west": {
           "unoccluded": true,
           "firstHit": "Cube",
-          "hitAt": 7.21
+          "hitAt": 8.31
         },
         "eastPartition": {
           "unoccluded": true,
@@ -290,11 +315,23 @@
             "found": false
           },
           {
-            "name": "GREY_rail_outer",
+            "name": "GREY_teeTimeBoard",
             "found": false
           },
           {
-            "name": "GREY_teeTimeBoard",
+            "name": "GREY_WestWall",
+            "found": false
+          },
+          {
+            "name": "GREY_NorthWall",
+            "found": false
+          },
+          {
+            "name": "GREY_Ceiling",
+            "found": false
+          },
+          {
+            "name": "GREY_CeilingBeam_1",
             "found": false
           }
         ],
