@@ -361,7 +361,11 @@ def build_82() -> bpy.types.Object:
     m = _materials()
     shell = _group("CabinetShell", root)
 
-    A.box("CabinetCarcass", (0.480, 0.620, 1.320), (0.0, 0.0, 0.660), m["office_green"],
+    # The carcass stops at the plinth top (0.0555, 1 mm overlapped) instead of running to
+    # the floor: at full height it swallowed the recessed black plinth entirely and the
+    # authored shadow-gap reveal never existed on screen. Same box, same twelve
+    # triangles, shorter.
+    A.box("CabinetCarcass", (0.480, 0.620, 1.2655), (0.0, 0.0, 0.68725), m["office_green"],
           parent=shell, bevel=0.008)
     A.box("CabinetPlinth", (0.462, 0.600, 0.055), (0.0, 0.0, 0.028), m["matte_black"],
           parent=shell, bevel=0.006)
@@ -658,9 +662,14 @@ def build_87() -> bpy.types.Object:
     m = _materials()
     body = _group("ClockBody", root)
 
-    A.cylinder("ClockCase", 0.170, 0.052, (0.0, -0.026, -0.170), p["medium_walnut"],
+    # The case and bezel are solid cylinders, not rings, so whichever of these discs sits
+    # furthest along -Y is the whole clock: at the original depths the bezel's front cap
+    # stood 8 mm in front of the dial and the shipped asset rendered as a blank walnut
+    # dome. The face must stay the frontmost opaque disc; case and bezel sit behind it,
+    # with the bezel's 22 mm annulus reading as the rim around the dial.
+    A.cylinder("ClockCase", 0.170, 0.052, (0.0, -0.020, -0.170), p["medium_walnut"],
                rotation=(math.pi / 2.0, 0.0, 0.0), vertices=40, parent=body, bevel=0.006)
-    A.cylinder("ClockBezel", 0.172, 0.014, (0.0, -0.050, -0.170), p["medium_walnut"],
+    A.cylinder("ClockBezel", 0.172, 0.014, (0.0, -0.040, -0.170), p["medium_walnut"],
                rotation=(math.pi / 2.0, 0.0, 0.0), vertices=40, parent=body, bevel=0.004)
     A.cylinder("ClockFace", 0.150, 0.006, (0.0, -0.046, -0.170), m["clock_face"],
                rotation=(math.pi / 2.0, 0.0, 0.0), vertices=36, parent=body, bevel=0.002)

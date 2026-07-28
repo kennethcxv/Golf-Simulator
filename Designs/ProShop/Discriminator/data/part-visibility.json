@@ -1,0 +1,3082 @@
+{
+  "directions": 26,
+  "size": 512,
+  "results": [
+    {
+      "n": 61,
+      "file": "asset_061_front_desk_counter_shell.glb",
+      "opaqueParts": 11,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_CounterCarcass",
+          "triangles": 108,
+          "maxPx": 32223,
+          "seenAngles": 24,
+          "sharePct": 25.717
+        },
+        {
+          "name": "MESH_CounterPlinth",
+          "triangles": 108,
+          "maxPx": 44680,
+          "seenAngles": 25,
+          "sharePct": 24.544
+        },
+        {
+          "name": "MESH_CounterTop",
+          "triangles": 188,
+          "maxPx": 14618,
+          "seenAngles": 25,
+          "sharePct": 16.122
+        },
+        {
+          "name": "MESH_StaffDivider",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_StaffLowerShelf",
+          "triangles": 108,
+          "maxPx": 632,
+          "seenAngles": 8,
+          "sharePct": 0.139
+        },
+        {
+          "name": "MESH_CounterTopInlay",
+          "triangles": 108,
+          "maxPx": 36278,
+          "seenAngles": 9,
+          "sharePct": 15.714
+        },
+        {
+          "name": "MESH_CustomerPilasterSet",
+          "triangles": 432,
+          "maxPx": 5539,
+          "seenAngles": 22,
+          "sharePct": 4.109
+        },
+        {
+          "name": "Cube004",
+          "triangles": 324,
+          "maxPx": 14868,
+          "seenAngles": 9,
+          "sharePct": 6.303
+        },
+        {
+          "name": "Cube004_1",
+          "triangles": 1296,
+          "maxPx": 9920,
+          "seenAngles": 15,
+          "sharePct": 5.222
+        },
+        {
+          "name": "MESH_StaffBrassPullSet",
+          "triangles": 1260,
+          "maxPx": 223,
+          "seenAngles": 9,
+          "sharePct": 0.121
+        },
+        {
+          "name": "MESH_StaffDrawerFrontSet",
+          "triangles": 324,
+          "maxPx": 4597,
+          "seenAngles": 9,
+          "sharePct": 2.009
+        }
+      ],
+      "invisible": [
+        "MESH_StaffDivider"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 62,
+      "file": "asset_062_back_counter_storage_cabinets.glb",
+      "opaqueParts": 15,
+      "transparentParts": [],
+      "animations": [
+        "CabinetDoor_Close",
+        "CabinetDoor_Open",
+        "CabinetDrawer_Close",
+        "CabinetDrawer_Open"
+      ],
+      "parts": [
+        {
+          "name": "MESH_Backsplash",
+          "triangles": 108,
+          "maxPx": 4592,
+          "seenAngles": 19,
+          "sharePct": 4.476
+        },
+        {
+          "name": "MESH_BaseCarcass",
+          "triangles": 108,
+          "maxPx": 27216,
+          "seenAngles": 25,
+          "sharePct": 24.935
+        },
+        {
+          "name": "MESH_BaseToeKick",
+          "triangles": 108,
+          "maxPx": 26924,
+          "seenAngles": 25,
+          "sharePct": 15.625
+        },
+        {
+          "name": "MESH_Countertop",
+          "triangles": 108,
+          "maxPx": 14056,
+          "seenAngles": 25,
+          "sharePct": 10.544
+        },
+        {
+          "name": "MESH_InternalShelf",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_OpenHutchUprightSet",
+          "triangles": 216,
+          "maxPx": 7086,
+          "seenAngles": 24,
+          "sharePct": 9.864
+        },
+        {
+          "name": "MESH_WallCrown",
+          "triangles": 108,
+          "maxPx": 27470,
+          "seenAngles": 25,
+          "sharePct": 23.516
+        },
+        {
+          "name": "MESH_StaticCabinetBrassPullSet",
+          "triangles": 1260,
+          "maxPx": 123,
+          "seenAngles": 12,
+          "sharePct": 0.084
+        },
+        {
+          "name": "Cube013",
+          "triangles": 324,
+          "maxPx": 6580,
+          "seenAngles": 9,
+          "sharePct": 3.534
+        },
+        {
+          "name": "Cube013_1",
+          "triangles": 1296,
+          "maxPx": 4878,
+          "seenAngles": 17,
+          "sharePct": 3.459
+        },
+        {
+          "name": "Cube007",
+          "triangles": 108,
+          "maxPx": 2820,
+          "seenAngles": 9,
+          "sharePct": 1.453
+        },
+        {
+          "name": "Cube007_1",
+          "triangles": 432,
+          "maxPx": 2356,
+          "seenAngles": 17,
+          "sharePct": 1.442
+        },
+        {
+          "name": "MESH_AnimatedDoorBrassPull",
+          "triangles": 420,
+          "maxPx": 49,
+          "seenAngles": 10,
+          "sharePct": 0.028
+        },
+        {
+          "name": "MESH_AnimatedBaseDrawer",
+          "triangles": 108,
+          "maxPx": 1606,
+          "seenAngles": 13,
+          "sharePct": 1.016
+        },
+        {
+          "name": "MESH_AnimatedDrawerBrassPull",
+          "triangles": 420,
+          "maxPx": 34,
+          "seenAngles": 12,
+          "sharePct": 0.023
+        }
+      ],
+      "invisible": [
+        "MESH_InternalShelf"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 63,
+      "file": "asset_063_pro_shop_fitting_room.glb",
+      "opaqueParts": 14,
+      "transparentParts": [],
+      "animations": [
+        "FittingCurtain_Close",
+        "FittingCurtain_Open"
+      ],
+      "parts": [
+        {
+          "name": "MESH_BenchLegSet",
+          "triangles": 216,
+          "maxPx": 3759,
+          "seenAngles": 10,
+          "sharePct": 1.057
+        },
+        {
+          "name": "MESH_BenchSeat",
+          "triangles": 108,
+          "maxPx": 4744,
+          "seenAngles": 7,
+          "sharePct": 0.594
+        },
+        {
+          "name": "MESH_FittingHookSet",
+          "triangles": 664,
+          "maxPx": 148,
+          "seenAngles": 2,
+          "sharePct": 0.013
+        },
+        {
+          "name": "MESH_InteriorLightLens",
+          "triangles": 108,
+          "maxPx": 1670,
+          "seenAngles": 10,
+          "sharePct": 0.404
+        },
+        {
+          "name": "MESH_MirrorFrame",
+          "triangles": 432,
+          "maxPx": 1072,
+          "seenAngles": 7,
+          "sharePct": 0.178
+        },
+        {
+          "name": "MESH_MirrorGlass",
+          "triangles": 108,
+          "maxPx": 2654,
+          "seenAngles": 7,
+          "sharePct": 0.305
+        },
+        {
+          "name": "MESH_CurtainRail",
+          "triangles": 188,
+          "maxPx": 502,
+          "seenAngles": 7,
+          "sharePct": 0.083
+        },
+        {
+          "name": "MESH_EastWall",
+          "triangles": 108,
+          "maxPx": 77056,
+          "seenAngles": 25,
+          "sharePct": 25.092
+        },
+        {
+          "name": "MESH_FittingRoomCrown",
+          "triangles": 432,
+          "maxPx": 33872,
+          "seenAngles": 26,
+          "sharePct": 10.56
+        },
+        {
+          "name": "MESH_FittingRoomWainscot",
+          "triangles": 324,
+          "maxPx": 30284,
+          "seenAngles": 22,
+          "sharePct": 11.732
+        },
+        {
+          "name": "MESH_FrontHeader",
+          "triangles": 108,
+          "maxPx": 4966,
+          "seenAngles": 16,
+          "sharePct": 1.729
+        },
+        {
+          "name": "MESH_RearWall",
+          "triangles": 108,
+          "maxPx": 39736,
+          "seenAngles": 21,
+          "sharePct": 10.957
+        },
+        {
+          "name": "MESH_WestWall",
+          "triangles": 108,
+          "maxPx": 77056,
+          "seenAngles": 25,
+          "sharePct": 25.272
+        },
+        {
+          "name": "MESH_FittingCurtainPleated",
+          "triangles": 1880,
+          "maxPx": 43657,
+          "seenAngles": 21,
+          "sharePct": 12.024
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 64,
+      "file": "asset_064_stockroom_shelving_system.glb",
+      "opaqueParts": 5,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_AdjustableShelfDeckSet",
+          "triangles": 432,
+          "maxPx": 39900,
+          "seenAngles": 26,
+          "sharePct": 56.322
+        },
+        {
+          "name": "MESH_RearCrossBraceSet",
+          "triangles": 432,
+          "maxPx": 4638,
+          "seenAngles": 24,
+          "sharePct": 4.118
+        },
+        {
+          "name": "MESH_ShelfLipSet",
+          "triangles": 864,
+          "maxPx": 16864,
+          "seenAngles": 26,
+          "sharePct": 21.349
+        },
+        {
+          "name": "MESH_ShelvingFootplateSet",
+          "triangles": 432,
+          "maxPx": 348,
+          "seenAngles": 25,
+          "sharePct": 0.324
+        },
+        {
+          "name": "MESH_ShelvingUprightSet",
+          "triangles": 432,
+          "maxPx": 11931,
+          "seenAngles": 26,
+          "sharePct": 17.888
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 65,
+      "file": "asset_065_stockroom_worktable.glb",
+      "opaqueParts": 6,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_LowerShelf",
+          "triangles": 108,
+          "maxPx": 32204,
+          "seenAngles": 25,
+          "sharePct": 24.696
+        },
+        {
+          "name": "MESH_OakWorktop",
+          "triangles": 108,
+          "maxPx": 60268,
+          "seenAngles": 26,
+          "sharePct": 35.227
+        },
+        {
+          "name": "MESH_WorktableApronFrame",
+          "triangles": 432,
+          "maxPx": 10756,
+          "seenAngles": 25,
+          "sharePct": 12.693
+        },
+        {
+          "name": "MESH_WorktableCornerCapSet",
+          "triangles": 432,
+          "maxPx": 2912,
+          "seenAngles": 21,
+          "sharePct": 1.472
+        },
+        {
+          "name": "MESH_WorktableLegSet",
+          "triangles": 432,
+          "maxPx": 13161,
+          "seenAngles": 25,
+          "sharePct": 17.044
+        },
+        {
+          "name": "MESH_WorktopDarkEdge",
+          "triangles": 108,
+          "maxPx": 15648,
+          "seenAngles": 16,
+          "sharePct": 8.867
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 66,
+      "file": "asset_066_office_laptop_desk.glb",
+      "opaqueParts": 8,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_DeskPlinthSet",
+          "triangles": 216,
+          "maxPx": 36130,
+          "seenAngles": 25,
+          "sharePct": 18.049
+        },
+        {
+          "name": "MESH_DeskTop",
+          "triangles": 188,
+          "maxPx": 46586,
+          "seenAngles": 26,
+          "sharePct": 28.019
+        },
+        {
+          "name": "MESH_EastPedestal",
+          "triangles": 108,
+          "maxPx": 32141,
+          "seenAngles": 23,
+          "sharePct": 15.455
+        },
+        {
+          "name": "MESH_RearModestyPanel",
+          "triangles": 108,
+          "maxPx": 16560,
+          "seenAngles": 18,
+          "sharePct": 7.654
+        },
+        {
+          "name": "MESH_WestPedestal",
+          "triangles": 108,
+          "maxPx": 32141,
+          "seenAngles": 23,
+          "sharePct": 15.455
+        },
+        {
+          "name": "MESH_DeskTopInset",
+          "triangles": 108,
+          "maxPx": 47888,
+          "seenAngles": 6,
+          "sharePct": 8.297
+        },
+        {
+          "name": "MESH_OfficeDeskBrassPullSet",
+          "triangles": 2520,
+          "maxPx": 852,
+          "seenAngles": 14,
+          "sharePct": 0.414
+        },
+        {
+          "name": "MESH_OfficeDeskDrawerFrontSet",
+          "triangles": 648,
+          "maxPx": 16134,
+          "seenAngles": 20,
+          "sharePct": 6.657
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 67,
+      "file": "asset_067_clubhouse_lounge_sofa.glb",
+      "opaqueParts": 10,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_SofaBase",
+          "triangles": 188,
+          "maxPx": 55836,
+          "seenAngles": 26,
+          "sharePct": 41.019
+        },
+        {
+          "name": "MESH_SofaFootSet",
+          "triangles": 560,
+          "maxPx": 1600,
+          "seenAngles": 23,
+          "sharePct": 1.695
+        },
+        {
+          "name": "MESH_SeatPipingSet",
+          "triangles": 144,
+          "maxPx": 1796,
+          "seenAngles": 15,
+          "sharePct": 1.074
+        },
+        {
+          "name": "MESH_SofaArmBlockSet",
+          "triangles": 376,
+          "maxPx": 17771,
+          "seenAngles": 26,
+          "sharePct": 14.153
+        },
+        {
+          "name": "MESH_SofaArmRollSet",
+          "triangles": 472,
+          "maxPx": 7628,
+          "seenAngles": 25,
+          "sharePct": 6.044
+        },
+        {
+          "name": "MESH_SofaBackCushionSet",
+          "triangles": 564,
+          "maxPx": 11710,
+          "seenAngles": 14,
+          "sharePct": 5.527
+        },
+        {
+          "name": "MESH_SofaBackPanel",
+          "triangles": 188,
+          "maxPx": 28146,
+          "seenAngles": 22,
+          "sharePct": 12.328
+        },
+        {
+          "name": "MESH_SofaBackRoll",
+          "triangles": 284,
+          "maxPx": 9726,
+          "seenAngles": 22,
+          "sharePct": 5.958
+        },
+        {
+          "name": "MESH_SofaSeatCushionSet",
+          "triangles": 564,
+          "maxPx": 24734,
+          "seenAngles": 15,
+          "sharePct": 12.01
+        },
+        {
+          "name": "MESH_SofaTuftButtonSet",
+          "triangles": 1680,
+          "maxPx": 315,
+          "seenAngles": 12,
+          "sharePct": 0.192
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 68,
+      "file": "asset_068_lounge_armchair_sheet07.glb",
+      "opaqueParts": 10,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_ArmchairBase",
+          "triangles": 188,
+          "maxPx": 59292,
+          "seenAngles": 26,
+          "sharePct": 34.78
+        },
+        {
+          "name": "MESH_ArmchairFootSet",
+          "triangles": 560,
+          "maxPx": 3788,
+          "seenAngles": 23,
+          "sharePct": 3.099
+        },
+        {
+          "name": "MESH_ArmchairArmBlockSet",
+          "triangles": 376,
+          "maxPx": 34367,
+          "seenAngles": 26,
+          "sharePct": 27.068
+        },
+        {
+          "name": "MESH_ArmchairArmRollSet",
+          "triangles": 472,
+          "maxPx": 17534,
+          "seenAngles": 25,
+          "sharePct": 9.021
+        },
+        {
+          "name": "MESH_ArmchairBack",
+          "triangles": 188,
+          "maxPx": 30638,
+          "seenAngles": 22,
+          "sharePct": 10.282
+        },
+        {
+          "name": "MESH_ArmchairBackCushion",
+          "triangles": 188,
+          "maxPx": 9674,
+          "seenAngles": 16,
+          "sharePct": 3.001
+        },
+        {
+          "name": "MESH_ArmchairBackRoll",
+          "triangles": 260,
+          "maxPx": 11392,
+          "seenAngles": 24,
+          "sharePct": 6.079
+        },
+        {
+          "name": "MESH_ArmchairSeat",
+          "triangles": 188,
+          "maxPx": 18480,
+          "seenAngles": 15,
+          "sharePct": 5.893
+        },
+        {
+          "name": "MESH_ArmchairTuftButtonSet",
+          "triangles": 960,
+          "maxPx": 518,
+          "seenAngles": 12,
+          "sharePct": 0.193
+        },
+        {
+          "name": "MESH_SeatPipingSet",
+          "triangles": 48,
+          "maxPx": 1612,
+          "seenAngles": 15,
+          "sharePct": 0.584
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 69,
+      "file": "asset_069_lounge_coffee_table_sheet07.glb",
+      "opaqueParts": 6,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_CoffeeTableApronFrame",
+          "triangles": 432,
+          "maxPx": 10778,
+          "seenAngles": 23,
+          "sharePct": 11.885
+        },
+        {
+          "name": "MESH_CoffeeTableInset",
+          "triangles": 108,
+          "maxPx": 28394,
+          "seenAngles": 6,
+          "sharePct": 6.377
+        },
+        {
+          "name": "MESH_CoffeeTableLegSet",
+          "triangles": 432,
+          "maxPx": 12563,
+          "seenAngles": 25,
+          "sharePct": 15.639
+        },
+        {
+          "name": "MESH_CoffeeTableLowerShelf",
+          "triangles": 108,
+          "maxPx": 33740,
+          "seenAngles": 23,
+          "sharePct": 15.759
+        },
+        {
+          "name": "MESH_CoffeeTableShelfTrim",
+          "triangles": 216,
+          "maxPx": 7848,
+          "seenAngles": 23,
+          "sharePct": 8.032
+        },
+        {
+          "name": "MESH_CoffeeTableTop",
+          "triangles": 188,
+          "maxPx": 77868,
+          "seenAngles": 26,
+          "sharePct": 42.308
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 70,
+      "file": "asset_070_trophy_display_cabinet.glb",
+      "opaqueParts": 14,
+      "transparentParts": [
+        "MESH_DisplayDoorLeftGlass",
+        "MESH_DisplayDoorRightGlass"
+      ],
+      "animations": [
+        "DisplayDoorLeft_Close",
+        "DisplayDoorLeft_Open",
+        "DisplayDoorRight_Close",
+        "DisplayDoorRight_Open"
+      ],
+      "parts": [
+        {
+          "name": "MESH_DisplayBack",
+          "triangles": 108,
+          "maxPx": 65230,
+          "seenAngles": 24,
+          "sharePct": 31.181
+        },
+        {
+          "name": "MESH_DisplayCabinetSideSet",
+          "triangles": 216,
+          "maxPx": 28584,
+          "seenAngles": 24,
+          "sharePct": 25.117
+        },
+        {
+          "name": "MESH_DisplayCrest",
+          "triangles": 240,
+          "maxPx": 250,
+          "seenAngles": 9,
+          "sharePct": 0.111
+        },
+        {
+          "name": "MESH_DisplayCrown",
+          "triangles": 188,
+          "maxPx": 30178,
+          "seenAngles": 25,
+          "sharePct": 13.472
+        },
+        {
+          "name": "Cube006",
+          "triangles": 216,
+          "maxPx": 6434,
+          "seenAngles": 9,
+          "sharePct": 2.601
+        },
+        {
+          "name": "Cube006_1",
+          "triangles": 864,
+          "maxPx": 6342,
+          "seenAngles": 15,
+          "sharePct": 2.671
+        },
+        {
+          "name": "MESH_DisplayPlinth",
+          "triangles": 108,
+          "maxPx": 28812,
+          "seenAngles": 25,
+          "sharePct": 11.529
+        },
+        {
+          "name": "MESH_LowerStorageCarcass",
+          "triangles": 108,
+          "maxPx": 5616,
+          "seenAngles": 12,
+          "sharePct": 2.232
+        },
+        {
+          "name": "MESH_DisplayShelfSet",
+          "triangles": 324,
+          "maxPx": 13540,
+          "seenAngles": 9,
+          "sharePct": 4.588
+        },
+        {
+          "name": "MESH_InteriorLightLens",
+          "triangles": 108,
+          "maxPx": 1104,
+          "seenAngles": 6,
+          "sharePct": 0.205
+        },
+        {
+          "name": "MESH_DisplayDoorLeftWoodFrame",
+          "triangles": 540,
+          "maxPx": 6066,
+          "seenAngles": 12,
+          "sharePct": 3.093
+        },
+        {
+          "name": "MESH_DisplayDoorPull1",
+          "triangles": 140,
+          "maxPx": 104,
+          "seenAngles": 9,
+          "sharePct": 0.053
+        },
+        {
+          "name": "MESH_DisplayDoorPull2",
+          "triangles": 140,
+          "maxPx": 104,
+          "seenAngles": 9,
+          "sharePct": 0.053
+        },
+        {
+          "name": "MESH_DisplayDoorRightWoodFrame",
+          "triangles": 540,
+          "maxPx": 6066,
+          "seenAngles": 12,
+          "sharePct": 3.093
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 71,
+      "file": "asset_071_vacuum_cleaner.glb",
+      "opaqueParts": 20,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "Cylinder",
+          "triangles": 332,
+          "maxPx": 27323,
+          "seenAngles": 25,
+          "sharePct": 46.041
+        },
+        {
+          "name": "Cylinder_1",
+          "triangles": 332,
+          "maxPx": 1463,
+          "seenAngles": 24,
+          "sharePct": 2.867
+        },
+        {
+          "name": "Cylinder_2",
+          "triangles": 1732,
+          "maxPx": 17367,
+          "seenAngles": 25,
+          "sharePct": 26.732
+        },
+        {
+          "name": "Cylinder_3",
+          "triangles": 1384,
+          "maxPx": 1604,
+          "seenAngles": 26,
+          "sharePct": 2.453
+        },
+        {
+          "name": "MESH_VacHose",
+          "triangles": 308,
+          "maxPx": 4972,
+          "seenAngles": 26,
+          "sharePct": 7.104
+        },
+        {
+          "name": "MESH_VacHeadBrushStrip",
+          "triangles": 1728,
+          "maxPx": 250,
+          "seenAngles": 17,
+          "sharePct": 0.228
+        },
+        {
+          "name": "MESH_VacHeadIntakeSlot",
+          "triangles": 108,
+          "maxPx": 747,
+          "seenAngles": 9,
+          "sharePct": 0.392
+        },
+        {
+          "name": "MESH_VacHeadShell",
+          "triangles": 108,
+          "maxPx": 1679,
+          "seenAngles": 24,
+          "sharePct": 1.907
+        },
+        {
+          "name": "MESH_VacHeadSole",
+          "triangles": 108,
+          "maxPx": 4641,
+          "seenAngles": 24,
+          "sharePct": 4.85
+        },
+        {
+          "name": "MESH_VacHeadWheelL",
+          "triangles": 140,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_VacHeadWheelR",
+          "triangles": 140,
+          "maxPx": 203,
+          "seenAngles": 23,
+          "sharePct": 0.239
+        },
+        {
+          "name": "MESH_VacHoseRib_0",
+          "triangles": 144,
+          "maxPx": 150,
+          "seenAngles": 24,
+          "sharePct": 0.26
+        },
+        {
+          "name": "MESH_VacHoseRib_1",
+          "triangles": 144,
+          "maxPx": 156,
+          "seenAngles": 24,
+          "sharePct": 0.252
+        },
+        {
+          "name": "MESH_VacHoseRib_2",
+          "triangles": 144,
+          "maxPx": 156,
+          "seenAngles": 24,
+          "sharePct": 0.257
+        },
+        {
+          "name": "MESH_VacHoseRib_3",
+          "triangles": 144,
+          "maxPx": 160,
+          "seenAngles": 24,
+          "sharePct": 0.261
+        },
+        {
+          "name": "MESH_VacHoseRib_4",
+          "triangles": 144,
+          "maxPx": 173,
+          "seenAngles": 25,
+          "sharePct": 0.271
+        },
+        {
+          "name": "MESH_VacHoseRib_5",
+          "triangles": 144,
+          "maxPx": 364,
+          "seenAngles": 25,
+          "sharePct": 0.384
+        },
+        {
+          "name": "MESH_VacWandCollar",
+          "triangles": 140,
+          "maxPx": 226,
+          "seenAngles": 14,
+          "sharePct": 0.236
+        },
+        {
+          "name": "MESH_VacWandGrip",
+          "triangles": 164,
+          "maxPx": 1080,
+          "seenAngles": 24,
+          "sharePct": 1.714
+        },
+        {
+          "name": "MESH_VacWandSpine",
+          "triangles": 500,
+          "maxPx": 2747,
+          "seenAngles": 25,
+          "sharePct": 3.553
+        }
+      ],
+      "invisible": [
+        "MESH_VacHeadWheelL"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 72,
+      "file": "asset_072_mop.glb",
+      "opaqueParts": 5,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_MopBand",
+          "triangles": 212,
+          "maxPx": 1023,
+          "seenAngles": 25,
+          "sharePct": 1.605
+        },
+        {
+          "name": "MESH_MopCollar",
+          "triangles": 188,
+          "maxPx": 572,
+          "seenAngles": 25,
+          "sharePct": 7.056
+        },
+        {
+          "name": "MESH_MopHandle",
+          "triangles": 164,
+          "maxPx": 2436,
+          "seenAngles": 24,
+          "sharePct": 31.889
+        },
+        {
+          "name": "MESH_MopHandleCap",
+          "triangles": 164,
+          "maxPx": 163,
+          "seenAngles": 25,
+          "sharePct": 1.36
+        },
+        {
+          "name": "MESH_MopSkirt",
+          "triangles": 4576,
+          "maxPx": 6211,
+          "seenAngles": 26,
+          "sharePct": 58.091
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 73,
+      "file": "asset_073_mop_bucket_and_wringer.glb",
+      "opaqueParts": 9,
+      "transparentParts": [
+        "MESH_BucketWater"
+      ],
+      "animations": [
+        "Bucket_LeverDown",
+        "Bucket_LeverUp",
+        "Bucket_WringerClose",
+        "Bucket_WringerOpen"
+      ],
+      "parts": [
+        {
+          "name": "Cylinder",
+          "triangles": 656,
+          "maxPx": 2142,
+          "seenAngles": 25,
+          "sharePct": 2.875
+        },
+        {
+          "name": "Cylinder_1",
+          "triangles": 928,
+          "maxPx": 784,
+          "seenAngles": 25,
+          "sharePct": 1.098
+        },
+        {
+          "name": "MESH_BucketWall_DATA",
+          "triangles": 432,
+          "maxPx": 35916,
+          "seenAngles": 26,
+          "sharePct": 73.886
+        },
+        {
+          "name": "MESH_BucketWall_DATA_1",
+          "triangles": 324,
+          "maxPx": 923,
+          "seenAngles": 18,
+          "sharePct": 0.841
+        },
+        {
+          "name": "Cube007",
+          "triangles": 324,
+          "maxPx": 10564,
+          "seenAngles": 25,
+          "sharePct": 18.606
+        },
+        {
+          "name": "Cube007_1",
+          "triangles": 540,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_WringerLeverArm",
+          "triangles": 140,
+          "maxPx": 682,
+          "seenAngles": 23,
+          "sharePct": 1.218
+        },
+        {
+          "name": "MESH_WringerLeverGrip",
+          "triangles": 140,
+          "maxPx": 844,
+          "seenAngles": 25,
+          "sharePct": 1.476
+        },
+        {
+          "name": "MESH_WringerPressPlate",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        }
+      ],
+      "invisible": [
+        "Cube007_1",
+        "MESH_WringerPressPlate"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 74,
+      "file": "asset_074_broom.glb",
+      "opaqueParts": 5,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_BroomBlock",
+          "triangles": 108,
+          "maxPx": 3594,
+          "seenAngles": 26,
+          "sharePct": 23.458
+        },
+        {
+          "name": "MESH_BroomBlockCap",
+          "triangles": 108,
+          "maxPx": 1424,
+          "seenAngles": 23,
+          "sharePct": 10.401
+        },
+        {
+          "name": "MESH_BroomBristles",
+          "triangles": 5184,
+          "maxPx": 5799,
+          "seenAngles": 25,
+          "sharePct": 32.729
+        },
+        {
+          "name": "MESH_BroomFerrule",
+          "triangles": 140,
+          "maxPx": 298,
+          "seenAngles": 26,
+          "sharePct": 2.73
+        },
+        {
+          "name": "MESH_BroomHandle",
+          "triangles": 164,
+          "maxPx": 2515,
+          "seenAngles": 26,
+          "sharePct": 30.682
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 75,
+      "file": "asset_075_dustpan.glb",
+      "opaqueParts": 8,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_DustpanBack",
+          "triangles": 108,
+          "maxPx": 9742,
+          "seenAngles": 26,
+          "sharePct": 19.094
+        },
+        {
+          "name": "MESH_DustpanFloor",
+          "triangles": 108,
+          "maxPx": 22342,
+          "seenAngles": 25,
+          "sharePct": 30.948
+        },
+        {
+          "name": "MESH_DustpanHandle",
+          "triangles": 140,
+          "maxPx": 3662,
+          "seenAngles": 26,
+          "sharePct": 14.05
+        },
+        {
+          "name": "MESH_DustpanHandleGrip",
+          "triangles": 140,
+          "maxPx": 1243,
+          "seenAngles": 25,
+          "sharePct": 4.854
+        },
+        {
+          "name": "MESH_DustpanHangLoop",
+          "triangles": 192,
+          "maxPx": 346,
+          "seenAngles": 25,
+          "sharePct": 0.976
+        },
+        {
+          "name": "MESH_DustpanLip",
+          "triangles": 108,
+          "maxPx": 2496,
+          "seenAngles": 25,
+          "sharePct": 4.839
+        },
+        {
+          "name": "MESH_DustpanWallL",
+          "triangles": 108,
+          "maxPx": 6364,
+          "seenAngles": 26,
+          "sharePct": 12.617
+        },
+        {
+          "name": "MESH_DustpanWallR",
+          "triangles": 108,
+          "maxPx": 6364,
+          "seenAngles": 26,
+          "sharePct": 12.622
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 76,
+      "file": "asset_076_cleaning_spray_bottle.glb",
+      "opaqueParts": 11,
+      "transparentParts": [
+        "MESH_SprayFluid"
+      ],
+      "animations": [
+        "SprayBottle_Trigger"
+      ],
+      "parts": [
+        {
+          "name": "MESH_SprayBody",
+          "triangles": 188,
+          "maxPx": 31969,
+          "seenAngles": 26,
+          "sharePct": 59.842
+        },
+        {
+          "name": "MESH_SprayCollar",
+          "triangles": 188,
+          "maxPx": 3047,
+          "seenAngles": 25,
+          "sharePct": 4.187
+        },
+        {
+          "name": "MESH_SprayHead",
+          "triangles": 108,
+          "maxPx": 6728,
+          "seenAngles": 25,
+          "sharePct": 10.071
+        },
+        {
+          "name": "MESH_SprayLabelBrand",
+          "triangles": 444,
+          "maxPx": 823,
+          "seenAngles": 18,
+          "sharePct": 0.857
+        },
+        {
+          "name": "MESH_SprayLabelPlate",
+          "triangles": 108,
+          "maxPx": 12478,
+          "seenAngles": 23,
+          "sharePct": 9.008
+        },
+        {
+          "name": "MESH_SprayLabelUse",
+          "triangles": 2140,
+          "maxPx": 656,
+          "seenAngles": 16,
+          "sharePct": 0.664
+        },
+        {
+          "name": "MESH_SprayNozzle",
+          "triangles": 140,
+          "maxPx": 1688,
+          "seenAngles": 24,
+          "sharePct": 2.139
+        },
+        {
+          "name": "MESH_SprayNozzleTip",
+          "triangles": 116,
+          "maxPx": 230,
+          "seenAngles": 23,
+          "sharePct": 0.267
+        },
+        {
+          "name": "MESH_SprayOrificeRing",
+          "triangles": 144,
+          "maxPx": 372,
+          "seenAngles": 24,
+          "sharePct": 0.408
+        },
+        {
+          "name": "MESH_SprayShoulder",
+          "triangles": 108,
+          "maxPx": 6490,
+          "seenAngles": 25,
+          "sharePct": 10.811
+        },
+        {
+          "name": "MESH_SprayTriggerBlade",
+          "triangles": 108,
+          "maxPx": 1654,
+          "seenAngles": 22,
+          "sharePct": 1.744
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 77,
+      "file": "asset_077_cleaning_cloth_and_sponge_set.glb",
+      "opaqueParts": 5,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_ClothFoldedLower",
+          "triangles": 188,
+          "maxPx": 43602,
+          "seenAngles": 26,
+          "sharePct": 45.861
+        },
+        {
+          "name": "MESH_ClothFoldedUpper",
+          "triangles": 188,
+          "maxPx": 36472,
+          "seenAngles": 24,
+          "sharePct": 32.302
+        },
+        {
+          "name": "MESH_ClothFoldSeam",
+          "triangles": 108,
+          "maxPx": 5914,
+          "seenAngles": 22,
+          "sharePct": 3.879
+        },
+        {
+          "name": "MESH_SpongeFoam",
+          "triangles": 188,
+          "maxPx": 10315,
+          "seenAngles": 24,
+          "sharePct": 10.808
+        },
+        {
+          "name": "MESH_SpongeScourPad",
+          "triangles": 108,
+          "maxPx": 8686,
+          "seenAngles": 23,
+          "sharePct": 7.149
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 78,
+      "file": "asset_078_pressure_washer.glb",
+      "opaqueParts": 14,
+      "transparentParts": [],
+      "animations": [
+        "PressureWasher_Running",
+        "PressureWasher_Start",
+        "PressureWasher_Stop",
+        "PressureWasher_WheelRoll"
+      ],
+      "parts": [
+        {
+          "name": "Cube007",
+          "triangles": 108,
+          "maxPx": 11779,
+          "seenAngles": 25,
+          "sharePct": 16.158
+        },
+        {
+          "name": "Cube007_1",
+          "triangles": 108,
+          "maxPx": 8327,
+          "seenAngles": 25,
+          "sharePct": 7.274
+        },
+        {
+          "name": "Cube007_2",
+          "triangles": 352,
+          "maxPx": 2940,
+          "seenAngles": 24,
+          "sharePct": 3.589
+        },
+        {
+          "name": "Cube007_3",
+          "triangles": 164,
+          "maxPx": 2247,
+          "seenAngles": 18,
+          "sharePct": 1.663
+        },
+        {
+          "name": "Cube007_4",
+          "triangles": 436,
+          "maxPx": 5742,
+          "seenAngles": 20,
+          "sharePct": 5.219
+        },
+        {
+          "name": "Cube",
+          "triangles": 984,
+          "maxPx": 53834,
+          "seenAngles": 26,
+          "sharePct": 45.263
+        },
+        {
+          "name": "Cube_1",
+          "triangles": 216,
+          "maxPx": 1413,
+          "seenAngles": 23,
+          "sharePct": 1.306
+        },
+        {
+          "name": "Cylinder012",
+          "triangles": 236,
+          "maxPx": 1075,
+          "seenAngles": 14,
+          "sharePct": 0.471
+        },
+        {
+          "name": "Cylinder012_1",
+          "triangles": 636,
+          "maxPx": 6568,
+          "seenAngles": 24,
+          "sharePct": 7.118
+        },
+        {
+          "name": "Cylinder012_2",
+          "triangles": 1232,
+          "maxPx": 3601,
+          "seenAngles": 21,
+          "sharePct": 3.285
+        },
+        {
+          "name": "MESH_WasherHubL",
+          "triangles": 140,
+          "maxPx": 649,
+          "seenAngles": 16,
+          "sharePct": 0.327
+        },
+        {
+          "name": "MESH_WasherHubR",
+          "triangles": 140,
+          "maxPx": 649,
+          "seenAngles": 16,
+          "sharePct": 0.327
+        },
+        {
+          "name": "MESH_WasherWheelL",
+          "triangles": 236,
+          "maxPx": 4619,
+          "seenAngles": 23,
+          "sharePct": 4.003
+        },
+        {
+          "name": "MESH_WasherWheelR",
+          "triangles": 236,
+          "maxPx": 4619,
+          "seenAngles": 23,
+          "sharePct": 3.995
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 79,
+      "file": "asset_079_pressure_washer_hose_and_wand.glb",
+      "opaqueParts": 13,
+      "transparentParts": [],
+      "animations": [
+        "WasherWand_TriggerDown",
+        "WasherWand_TriggerUp"
+      ],
+      "parts": [
+        {
+          "name": "MESH_GunBody",
+          "triangles": 108,
+          "maxPx": 635,
+          "seenAngles": 26,
+          "sharePct": 7.82
+        },
+        {
+          "name": "MESH_GunGrip",
+          "triangles": 188,
+          "maxPx": 507,
+          "seenAngles": 26,
+          "sharePct": 5.712
+        },
+        {
+          "name": "MESH_GunGripStrap",
+          "triangles": 108,
+          "maxPx": 295,
+          "seenAngles": 26,
+          "sharePct": 2.087
+        },
+        {
+          "name": "MESH_GunHoseInlet",
+          "triangles": 140,
+          "maxPx": 122,
+          "seenAngles": 25,
+          "sharePct": 1.265
+        },
+        {
+          "name": "MESH_GunInletNut",
+          "triangles": 140,
+          "maxPx": 117,
+          "seenAngles": 24,
+          "sharePct": 1.106
+        },
+        {
+          "name": "MESH_GunShroud",
+          "triangles": 108,
+          "maxPx": 215,
+          "seenAngles": 26,
+          "sharePct": 1.94
+        },
+        {
+          "name": "MESH_GunTriggerGuard",
+          "triangles": 216,
+          "maxPx": 87,
+          "seenAngles": 21,
+          "sharePct": 0.844
+        },
+        {
+          "name": "MESH_WandLance",
+          "triangles": 164,
+          "maxPx": 1252,
+          "seenAngles": 26,
+          "sharePct": 16.053
+        },
+        {
+          "name": "MESH_WandNozzle",
+          "triangles": 140,
+          "maxPx": 106,
+          "seenAngles": 25,
+          "sharePct": 0.944
+        },
+        {
+          "name": "MESH_WandTipCollar",
+          "triangles": 140,
+          "maxPx": 189,
+          "seenAngles": 26,
+          "sharePct": 2.001
+        },
+        {
+          "name": "MESH_WandTriggerBlade",
+          "triangles": 108,
+          "maxPx": 60,
+          "seenAngles": 20,
+          "sharePct": 0.325
+        },
+        {
+          "name": "MESH_HoseMachineCoupler",
+          "triangles": 140,
+          "maxPx": 275,
+          "seenAngles": 25,
+          "sharePct": 2.543
+        },
+        {
+          "name": "MESH_WasherHoseCoil",
+          "triangles": 524,
+          "maxPx": 5490,
+          "seenAngles": 26,
+          "sharePct": 57.361
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 80,
+      "file": "asset_080_trash_bag.glb",
+      "opaqueParts": 8,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_BagBase",
+          "triangles": 300,
+          "maxPx": 50560,
+          "seenAngles": 25,
+          "sharePct": 51.666
+        },
+        {
+          "name": "MESH_BagBelly",
+          "triangles": 300,
+          "maxPx": 18893,
+          "seenAngles": 25,
+          "sharePct": 27.275
+        },
+        {
+          "name": "MESH_BagCrinkle",
+          "triangles": 188,
+          "maxPx": 2480,
+          "seenAngles": 13,
+          "sharePct": 0.93
+        },
+        {
+          "name": "MESH_BagEarL",
+          "triangles": 80,
+          "maxPx": 1824,
+          "seenAngles": 23,
+          "sharePct": 1.592
+        },
+        {
+          "name": "MESH_BagEarR",
+          "triangles": 80,
+          "maxPx": 1824,
+          "seenAngles": 23,
+          "sharePct": 1.592
+        },
+        {
+          "name": "MESH_BagKnot",
+          "triangles": 188,
+          "maxPx": 2328,
+          "seenAngles": 17,
+          "sharePct": 1.397
+        },
+        {
+          "name": "MESH_BagNeck",
+          "triangles": 164,
+          "maxPx": 990,
+          "seenAngles": 17,
+          "sharePct": 0.895
+        },
+        {
+          "name": "MESH_BagShoulder",
+          "triangles": 188,
+          "maxPx": 13068,
+          "seenAngles": 25,
+          "sharePct": 14.653
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 81,
+      "file": "asset_081_office_chair_sheet09.glb",
+      "opaqueParts": 6,
+      "transparentParts": [],
+      "animations": [
+        "OfficeChair_Swivel"
+      ],
+      "parts": [
+        {
+          "name": "Cube",
+          "triangles": 1536,
+          "maxPx": 11617,
+          "seenAngles": 25,
+          "sharePct": 16.554
+        },
+        {
+          "name": "Cube_1",
+          "triangles": 1288,
+          "maxPx": 1143,
+          "seenAngles": 25,
+          "sharePct": 1.87
+        },
+        {
+          "name": "Cube006",
+          "triangles": 752,
+          "maxPx": 36284,
+          "seenAngles": 25,
+          "sharePct": 60.396
+        },
+        {
+          "name": "Cube006_1",
+          "triangles": 708,
+          "maxPx": 15279,
+          "seenAngles": 26,
+          "sharePct": 14.114
+        },
+        {
+          "name": "Cube006_2",
+          "triangles": 376,
+          "maxPx": 3204,
+          "seenAngles": 26,
+          "sharePct": 5.012
+        },
+        {
+          "name": "Cube006_3",
+          "triangles": 216,
+          "maxPx": 1185,
+          "seenAngles": 26,
+          "sharePct": 2.055
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 82,
+      "file": "asset_082_filing_cabinet_sheet09.glb",
+      "opaqueParts": 9,
+      "transparentParts": [],
+      "animations": [
+        "FilingDrawer_01_Close",
+        "FilingDrawer_01_Open"
+      ],
+      "parts": [
+        {
+          "name": "MESH_CabinetCarcass",
+          "triangles": 108,
+          "maxPx": 70141,
+          "seenAngles": 24,
+          "sharePct": 62.633
+        },
+        {
+          "name": "Cube003",
+          "triangles": 324,
+          "maxPx": 32300,
+          "seenAngles": 15,
+          "sharePct": 10.63
+        },
+        {
+          "name": "Cube003_1",
+          "triangles": 648,
+          "maxPx": 1996,
+          "seenAngles": 9,
+          "sharePct": 0.8
+        },
+        {
+          "name": "MESH_CabinetPlinth",
+          "triangles": 108,
+          "maxPx": 37222,
+          "seenAngles": 25,
+          "sharePct": 11.433
+        },
+        {
+          "name": "MESH_CabinetTopCap",
+          "triangles": 108,
+          "maxPx": 41580,
+          "seenAngles": 25,
+          "sharePct": 10.402
+        },
+        {
+          "name": "MESH_CabinetTopBox",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_CabinetTopFace",
+          "triangles": 108,
+          "maxPx": 11528,
+          "seenAngles": 16,
+          "sharePct": 3.807
+        },
+        {
+          "name": "MESH_CabinetTopLabel",
+          "triangles": 108,
+          "maxPx": 264,
+          "seenAngles": 9,
+          "sharePct": 0.09
+        },
+        {
+          "name": "MESH_CabinetTopPull",
+          "triangles": 108,
+          "maxPx": 644,
+          "seenAngles": 10,
+          "sharePct": 0.205
+        }
+      ],
+      "invisible": [
+        "MESH_CabinetTopBox"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 83,
+      "file": "asset_083_desk_lamp.glb",
+      "opaqueParts": 9,
+      "transparentParts": [],
+      "animations": [
+        "DeskLamp_SwitchOff",
+        "DeskLamp_SwitchOn"
+      ],
+      "parts": [
+        {
+          "name": "MESH_LampBase",
+          "triangles": 284,
+          "maxPx": 8734,
+          "seenAngles": 25,
+          "sharePct": 21.532
+        },
+        {
+          "name": "MESH_LampBaseCrown",
+          "triangles": 236,
+          "maxPx": 2198,
+          "seenAngles": 21,
+          "sharePct": 6.115
+        },
+        {
+          "name": "MESH_LampArmLower",
+          "triangles": 140,
+          "maxPx": 2150,
+          "seenAngles": 26,
+          "sharePct": 8.787
+        },
+        {
+          "name": "MESH_LampElbow",
+          "triangles": 168,
+          "maxPx": 262,
+          "seenAngles": 26,
+          "sharePct": 1.204
+        },
+        {
+          "name": "MESH_LampArmUpper",
+          "triangles": 140,
+          "maxPx": 1312,
+          "seenAngles": 25,
+          "sharePct": 5.535
+        },
+        {
+          "name": "MESH_LampBulb",
+          "triangles": 164,
+          "maxPx": 924,
+          "seenAngles": 25,
+          "sharePct": 3.851
+        },
+        {
+          "name": "MESH_LampShadeJoint",
+          "triangles": 120,
+          "maxPx": 260,
+          "seenAngles": 16,
+          "sharePct": 0.724
+        },
+        {
+          "name": "MESH_LampShadeWall",
+          "triangles": 108,
+          "maxPx": 14400,
+          "seenAngles": 25,
+          "sharePct": 51.893
+        },
+        {
+          "name": "MESH_LampSwitchKnob",
+          "triangles": 116,
+          "maxPx": 102,
+          "seenAngles": 21,
+          "sharePct": 0.359
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 84,
+      "file": "asset_084_office_printer.glb",
+      "opaqueParts": 9,
+      "transparentParts": [],
+      "animations": [
+        "OfficePrinter_Print"
+      ],
+      "parts": [
+        {
+          "name": "MESH_PrinterCase",
+          "triangles": 108,
+          "maxPx": 69090,
+          "seenAngles": 25,
+          "sharePct": 56.159
+        },
+        {
+          "name": "MESH_PrinterControlPanel",
+          "triangles": 108,
+          "maxPx": 1097,
+          "seenAngles": 14,
+          "sharePct": 0.425
+        },
+        {
+          "name": "MESH_PrinterDisplay",
+          "triangles": 108,
+          "maxPx": 484,
+          "seenAngles": 9,
+          "sharePct": 0.166
+        },
+        {
+          "name": "MESH_PrinterFeedTray",
+          "triangles": 108,
+          "maxPx": 9266,
+          "seenAngles": 21,
+          "sharePct": 5.344
+        },
+        {
+          "name": "MESH_PrinterOutputLip",
+          "triangles": 108,
+          "maxPx": 10132,
+          "seenAngles": 17,
+          "sharePct": 4.332
+        },
+        {
+          "name": "MESH_PrinterOutputRecess",
+          "triangles": 108,
+          "maxPx": 4518,
+          "seenAngles": 8,
+          "sharePct": 1.105
+        },
+        {
+          "name": "MESH_PrinterPaperDrawer",
+          "triangles": 108,
+          "maxPx": 11250,
+          "seenAngles": 19,
+          "sharePct": 3.78
+        },
+        {
+          "name": "MESH_PrinterScannerLid",
+          "triangles": 108,
+          "maxPx": 58629,
+          "seenAngles": 25,
+          "sharePct": 28.689
+        },
+        {
+          "name": "MESH_PrinterSheet",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        }
+      ],
+      "invisible": [
+        "MESH_PrinterSheet"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 85,
+      "file": "asset_085_office_telephone.glb",
+      "opaqueParts": 14,
+      "transparentParts": [],
+      "animations": [
+        "Telephone_ButtonPress",
+        "Telephone_HandsetLift",
+        "Telephone_HandsetReplace"
+      ],
+      "parts": [
+        {
+          "name": "MESH_PhoneBase",
+          "triangles": 108,
+          "maxPx": 29923,
+          "seenAngles": 26,
+          "sharePct": 30.762
+        },
+        {
+          "name": "MESH_PhoneCord_0",
+          "triangles": 140,
+          "maxPx": 1667,
+          "seenAngles": 18,
+          "sharePct": 0.653
+        },
+        {
+          "name": "MESH_PhoneCord_1",
+          "triangles": 140,
+          "maxPx": 1561,
+          "seenAngles": 18,
+          "sharePct": 0.588
+        },
+        {
+          "name": "MESH_PhoneCord_2",
+          "triangles": 140,
+          "maxPx": 1583,
+          "seenAngles": 18,
+          "sharePct": 0.599
+        },
+        {
+          "name": "MESH_PhoneCord_3",
+          "triangles": 140,
+          "maxPx": 1668,
+          "seenAngles": 22,
+          "sharePct": 0.718
+        },
+        {
+          "name": "MESH_PhoneCradleL",
+          "triangles": 108,
+          "maxPx": 3440,
+          "seenAngles": 19,
+          "sharePct": 2.008
+        },
+        {
+          "name": "MESH_PhoneCradleR",
+          "triangles": 108,
+          "maxPx": 2942,
+          "seenAngles": 16,
+          "sharePct": 1.546
+        },
+        {
+          "name": "MESH_PhoneDisplay",
+          "triangles": 108,
+          "maxPx": 1478,
+          "seenAngles": 15,
+          "sharePct": 0.698
+        },
+        {
+          "name": "MESH_PhoneFoot",
+          "triangles": 108,
+          "maxPx": 79188,
+          "seenAngles": 26,
+          "sharePct": 49.18
+        },
+        {
+          "name": "MESH_PhoneKeypad",
+          "triangles": 1944,
+          "maxPx": 3605,
+          "seenAngles": 20,
+          "sharePct": 2.175
+        },
+        {
+          "name": "MESH_PhoneSpeakerKey",
+          "triangles": 108,
+          "maxPx": 541,
+          "seenAngles": 15,
+          "sharePct": 0.266
+        },
+        {
+          "name": "MESH_PhoneHandsetBar",
+          "triangles": 108,
+          "maxPx": 6063,
+          "seenAngles": 23,
+          "sharePct": 3.649
+        },
+        {
+          "name": "MESH_PhoneHandsetEarpiece",
+          "triangles": 108,
+          "maxPx": 5622,
+          "seenAngles": 19,
+          "sharePct": 3.741
+        },
+        {
+          "name": "MESH_PhoneHandsetMouthpiece",
+          "triangles": 108,
+          "maxPx": 5270,
+          "seenAngles": 22,
+          "sharePct": 3.419
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 86,
+      "file": "asset_086_corkboard_noticeboard.glb",
+      "opaqueParts": 7,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_CorkFrame_Bottom",
+          "triangles": 108,
+          "maxPx": 8336,
+          "seenAngles": 25,
+          "sharePct": 8.919
+        },
+        {
+          "name": "MESH_CorkFrame_Left",
+          "triangles": 108,
+          "maxPx": 6708,
+          "seenAngles": 21,
+          "sharePct": 5.74
+        },
+        {
+          "name": "MESH_CorkFrame_Right",
+          "triangles": 108,
+          "maxPx": 6708,
+          "seenAngles": 21,
+          "sharePct": 5.74
+        },
+        {
+          "name": "MESH_CorkFrame_Top",
+          "triangles": 108,
+          "maxPx": 8336,
+          "seenAngles": 25,
+          "sharePct": 8.919
+        },
+        {
+          "name": "Cube005",
+          "triangles": 648,
+          "maxPx": 18677,
+          "seenAngles": 9,
+          "sharePct": 10.606
+        },
+        {
+          "name": "Cube005_1",
+          "triangles": 1320,
+          "maxPx": 109,
+          "seenAngles": 17,
+          "sharePct": 0.084
+        },
+        {
+          "name": "MESH_CorkPanel",
+          "triangles": 108,
+          "maxPx": 61988,
+          "seenAngles": 18,
+          "sharePct": 59.992
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 87,
+      "file": "asset_087_wall_clock.glb",
+      "opaqueParts": 8,
+      "transparentParts": [
+        "MESH_ClockGlass"
+      ],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_ClockBezel",
+          "triangles": 476,
+          "maxPx": 14868,
+          "seenAngles": 25,
+          "sharePct": 15.833
+        },
+        {
+          "name": "MESH_ClockBoss",
+          "triangles": 140,
+          "maxPx": 214,
+          "seenAngles": 17,
+          "sharePct": 0.208
+        },
+        {
+          "name": "MESH_ClockCase",
+          "triangles": 476,
+          "maxPx": 64744,
+          "seenAngles": 25,
+          "sharePct": 54.603
+        },
+        {
+          "name": "MESH_ClockDial",
+          "triangles": 1296,
+          "maxPx": 1478,
+          "seenAngles": 17,
+          "sharePct": 1.2
+        },
+        {
+          "name": "MESH_ClockFace",
+          "triangles": 428,
+          "maxPx": 45914,
+          "seenAngles": 17,
+          "sharePct": 26.936
+        },
+        {
+          "name": "MESH_ClockHourHand",
+          "triangles": 108,
+          "maxPx": 271,
+          "seenAngles": 16,
+          "sharePct": 0.295
+        },
+        {
+          "name": "MESH_ClockMinuteHand",
+          "triangles": 108,
+          "maxPx": 430,
+          "seenAngles": 16,
+          "sharePct": 0.488
+        },
+        {
+          "name": "MESH_ClockSecondHand",
+          "triangles": 108,
+          "maxPx": 470,
+          "seenAngles": 17,
+          "sharePct": 0.437
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 88,
+      "file": "asset_088_key_rack.glb",
+      "opaqueParts": 6,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_KeyRackCrown",
+          "triangles": 108,
+          "maxPx": 10636,
+          "seenAngles": 26,
+          "sharePct": 21.096
+        },
+        {
+          "name": "MESH_KeyRackHooks",
+          "triangles": 1700,
+          "maxPx": 568,
+          "seenAngles": 17,
+          "sharePct": 1.158
+        },
+        {
+          "name": "Cube003",
+          "triangles": 540,
+          "maxPx": 1530,
+          "seenAngles": 17,
+          "sharePct": 1.892
+        },
+        {
+          "name": "Cube003_1",
+          "triangles": 540,
+          "maxPx": 394,
+          "seenAngles": 22,
+          "sharePct": 0.737
+        },
+        {
+          "name": "MESH_KeyRackPanel",
+          "triangles": 108,
+          "maxPx": 37248,
+          "seenAngles": 25,
+          "sharePct": 72.256
+        },
+        {
+          "name": "MESH_KeyRackPlate",
+          "triangles": 108,
+          "maxPx": 2280,
+          "seenAngles": 17,
+          "sharePct": 2.86
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 89,
+      "file": "asset_089_reservation_clipboard.glb",
+      "opaqueParts": 6,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_ClipboardClipArm",
+          "triangles": 108,
+          "maxPx": 3314,
+          "seenAngles": 17,
+          "sharePct": 1.889
+        },
+        {
+          "name": "MESH_ClipboardClipBase",
+          "triangles": 108,
+          "maxPx": 2328,
+          "seenAngles": 20,
+          "sharePct": 1.895
+        },
+        {
+          "name": "MESH_ClipboardPanel",
+          "triangles": 108,
+          "maxPx": 77244,
+          "seenAngles": 26,
+          "sharePct": 59.76
+        },
+        {
+          "name": "MESH_ClipboardPen",
+          "triangles": 116,
+          "maxPx": 2135,
+          "seenAngles": 17,
+          "sharePct": 1.958
+        },
+        {
+          "name": "MESH_ClipboardRuling",
+          "triangles": 864,
+          "maxPx": 2005,
+          "seenAngles": 17,
+          "sharePct": 1.457
+        },
+        {
+          "name": "MESH_ClipboardSheet",
+          "triangles": 108,
+          "maxPx": 53119,
+          "seenAngles": 17,
+          "sharePct": 33.04
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 90,
+      "file": "asset_090_scorecard_holder.glb",
+      "opaqueParts": 8,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_HolderBack",
+          "triangles": 108,
+          "maxPx": 72834,
+          "seenAngles": 25,
+          "sharePct": 31.642
+        },
+        {
+          "name": "MESH_HolderBase",
+          "triangles": 108,
+          "maxPx": 75142,
+          "seenAngles": 26,
+          "sharePct": 28.011
+        },
+        {
+          "name": "MESH_HolderCrest",
+          "triangles": 216,
+          "maxPx": 1476,
+          "seenAngles": 13,
+          "sharePct": 0.634
+        },
+        {
+          "name": "MESH_HolderDividers",
+          "triangles": 432,
+          "maxPx": 29162,
+          "seenAngles": 26,
+          "sharePct": 14.023
+        },
+        {
+          "name": "MESH_HolderPencils",
+          "triangles": 1320,
+          "maxPx": 1575,
+          "seenAngles": 4,
+          "sharePct": 0.212
+        },
+        {
+          "name": "MESH_HolderScorecards",
+          "triangles": 324,
+          "maxPx": 16832,
+          "seenAngles": 19,
+          "sharePct": 5.876
+        },
+        {
+          "name": "MESH_HolderSideL",
+          "triangles": 108,
+          "maxPx": 28384,
+          "seenAngles": 22,
+          "sharePct": 8.416
+        },
+        {
+          "name": "MESH_HolderSideR",
+          "triangles": 108,
+          "maxPx": 37631,
+          "seenAngles": 22,
+          "sharePct": 11.186
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 91,
+      "file": "asset_091_fire_extinguisher.glb",
+      "opaqueParts": 15,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_ExtinguisherBase",
+          "triangles": 528,
+          "maxPx": 13464,
+          "seenAngles": 25,
+          "sharePct": 14.309
+        },
+        {
+          "name": "MESH_ExtinguisherHorn",
+          "triangles": 164,
+          "maxPx": 1361,
+          "seenAngles": 19,
+          "sharePct": 1.44
+        },
+        {
+          "name": "MESH_ExtinguisherHose",
+          "triangles": 236,
+          "maxPx": 3622,
+          "seenAngles": 21,
+          "sharePct": 5.356
+        },
+        {
+          "name": "MESH_ExtinguisherLabel",
+          "triangles": 108,
+          "maxPx": 6278,
+          "seenAngles": 22,
+          "sharePct": 4.726
+        },
+        {
+          "name": "MESH_ExtinguisherNeck",
+          "triangles": 188,
+          "maxPx": 777,
+          "seenAngles": 15,
+          "sharePct": 0.862
+        },
+        {
+          "name": "MESH_ExtinguisherShell",
+          "triangles": 332,
+          "maxPx": 23249,
+          "seenAngles": 26,
+          "sharePct": 50.74
+        },
+        {
+          "name": "MESH_ExtinguisherShoulder",
+          "triangles": 284,
+          "maxPx": 4109,
+          "seenAngles": 25,
+          "sharePct": 5.502
+        },
+        {
+          "name": "MESH_PressureGauge",
+          "triangles": 188,
+          "maxPx": 904,
+          "seenAngles": 20,
+          "sharePct": 0.976
+        },
+        {
+          "name": "MESH_ValveBody",
+          "triangles": 108,
+          "maxPx": 2252,
+          "seenAngles": 24,
+          "sharePct": 2.738
+        },
+        {
+          "name": "MESH_ValveCarryHandle",
+          "triangles": 108,
+          "maxPx": 2337,
+          "seenAngles": 23,
+          "sharePct": 2.124
+        },
+        {
+          "name": "MESH_ValvePinRing",
+          "triangles": 140,
+          "maxPx": 356,
+          "seenAngles": 18,
+          "sharePct": 0.36
+        },
+        {
+          "name": "MESH_ValveSqueezeLever",
+          "triangles": 108,
+          "maxPx": 373,
+          "seenAngles": 19,
+          "sharePct": 0.493
+        },
+        {
+          "name": "MESH_BracketArm",
+          "triangles": 108,
+          "maxPx": 1710,
+          "seenAngles": 22,
+          "sharePct": 2.018
+        },
+        {
+          "name": "MESH_BracketPlate",
+          "triangles": 108,
+          "maxPx": 5331,
+          "seenAngles": 24,
+          "sharePct": 6.086
+        },
+        {
+          "name": "MESH_BracketStrap",
+          "triangles": 240,
+          "maxPx": 1393,
+          "seenAngles": 25,
+          "sharePct": 2.27
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 92,
+      "file": "asset_092_first_aid_kit_cabinet.glb",
+      "opaqueParts": 13,
+      "transparentParts": [
+        "MESH_FirstAidDoorGlass"
+      ],
+      "animations": [
+        "FirstAidDoor_Close",
+        "FirstAidDoor_Open"
+      ],
+      "parts": [
+        {
+          "name": "MESH_FirstAidBack",
+          "triangles": 108,
+          "maxPx": 86004,
+          "seenAngles": 25,
+          "sharePct": 31.163
+        },
+        {
+          "name": "MESH_FirstAidBottom",
+          "triangles": 108,
+          "maxPx": 36718,
+          "seenAngles": 18,
+          "sharePct": 9.127
+        },
+        {
+          "name": "MESH_FirstAidShelf_0",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_FirstAidShelf_1",
+          "triangles": 108,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_FirstAidSideL",
+          "triangles": 108,
+          "maxPx": 41802,
+          "seenAngles": 22,
+          "sharePct": 11.928
+        },
+        {
+          "name": "MESH_FirstAidSideR",
+          "triangles": 108,
+          "maxPx": 41802,
+          "seenAngles": 22,
+          "sharePct": 11.928
+        },
+        {
+          "name": "Cube007",
+          "triangles": 324,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "Cube007_1",
+          "triangles": 324,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_FirstAidTop",
+          "triangles": 108,
+          "maxPx": 38642,
+          "seenAngles": 23,
+          "sharePct": 9.764
+        },
+        {
+          "name": "MESH_FirstAidCrossH",
+          "triangles": 108,
+          "maxPx": 1008,
+          "seenAngles": 9,
+          "sharePct": 0.415
+        },
+        {
+          "name": "MESH_FirstAidCrossV",
+          "triangles": 108,
+          "maxPx": 1412,
+          "seenAngles": 9,
+          "sharePct": 0.443
+        },
+        {
+          "name": "MESH_FirstAidDoorPanel",
+          "triangles": 108,
+          "maxPx": 72366,
+          "seenAngles": 9,
+          "sharePct": 24.985
+        },
+        {
+          "name": "MESH_FirstAidHandle",
+          "triangles": 116,
+          "maxPx": 524,
+          "seenAngles": 12,
+          "sharePct": 0.247
+        }
+      ],
+      "invisible": [
+        "MESH_FirstAidShelf_0",
+        "MESH_FirstAidShelf_1",
+        "Cube007",
+        "Cube007_1"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 93,
+      "file": "asset_093_security_camera.glb",
+      "opaqueParts": 5,
+      "transparentParts": [
+        "MESH_CameraLensGlass"
+      ],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_CameraCableEntry",
+          "triangles": 140,
+          "maxPx": 2118,
+          "seenAngles": 12,
+          "sharePct": 1.131
+        },
+        {
+          "name": "MESH_CameraCollar",
+          "triangles": 284,
+          "maxPx": 4360,
+          "seenAngles": 20,
+          "sharePct": 4.195
+        },
+        {
+          "name": "MESH_CameraDome",
+          "triangles": 728,
+          "maxPx": 37144,
+          "seenAngles": 26,
+          "sharePct": 52.326
+        },
+        {
+          "name": "MESH_CameraMountPlate",
+          "triangles": 284,
+          "maxPx": 58474,
+          "seenAngles": 25,
+          "sharePct": 37.2
+        },
+        {
+          "name": "MESH_CameraLensBarrel",
+          "triangles": 188,
+          "maxPx": 6052,
+          "seenAngles": 19,
+          "sharePct": 5.148
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 94,
+      "file": "asset_094_exit_sign.glb",
+      "opaqueParts": 8,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_ExitCanopy",
+          "triangles": 108,
+          "maxPx": 5470,
+          "seenAngles": 18,
+          "sharePct": 4.476
+        },
+        {
+          "name": "MESH_ExitFacePanel",
+          "triangles": 108,
+          "maxPx": 27009,
+          "seenAngles": 17,
+          "sharePct": 16.333
+        },
+        {
+          "name": "MESH_ExitHousing",
+          "triangles": 108,
+          "maxPx": 43740,
+          "seenAngles": 26,
+          "sharePct": 54.364
+        },
+        {
+          "name": "MESH_ExitLampBodyLeft",
+          "triangles": 108,
+          "maxPx": 4578,
+          "seenAngles": 23,
+          "sharePct": 5.808
+        },
+        {
+          "name": "MESH_ExitLampBodyRight",
+          "triangles": 108,
+          "maxPx": 4578,
+          "seenAngles": 23,
+          "sharePct": 5.843
+        },
+        {
+          "name": "MESH_ExitLampLensLeft",
+          "triangles": 164,
+          "maxPx": 1489,
+          "seenAngles": 18,
+          "sharePct": 1.001
+        },
+        {
+          "name": "MESH_ExitLampLensRight",
+          "triangles": 164,
+          "maxPx": 1489,
+          "seenAngles": 18,
+          "sharePct": 1.051
+        },
+        {
+          "name": "MESH_ExitLegend",
+          "triangles": 972,
+          "maxPx": 11137,
+          "seenAngles": 22,
+          "sharePct": 11.125
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 95,
+      "file": "asset_095_emergency_light.glb",
+      "opaqueParts": 10,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_EmergencyBackPlate",
+          "triangles": 108,
+          "maxPx": 54712,
+          "seenAngles": 25,
+          "sharePct": 30.759
+        },
+        {
+          "name": "MESH_EmergencyBatteryVent",
+          "triangles": 108,
+          "maxPx": 6806,
+          "seenAngles": 14,
+          "sharePct": 3.815
+        },
+        {
+          "name": "MESH_EmergencyHousing",
+          "triangles": 108,
+          "maxPx": 35410,
+          "seenAngles": 25,
+          "sharePct": 50.486
+        },
+        {
+          "name": "MESH_EmergencyIndicator",
+          "triangles": 120,
+          "maxPx": 164,
+          "seenAngles": 14,
+          "sharePct": 0.113
+        },
+        {
+          "name": "MESH_EmergencyHeadBodyLeft",
+          "triangles": 212,
+          "maxPx": 5744,
+          "seenAngles": 23,
+          "sharePct": 5.321
+        },
+        {
+          "name": "MESH_EmergencyHeadLensLeft",
+          "triangles": 212,
+          "maxPx": 3578,
+          "seenAngles": 22,
+          "sharePct": 1.946
+        },
+        {
+          "name": "MESH_EmergencyHeadYokeLeft",
+          "triangles": 116,
+          "maxPx": 421,
+          "seenAngles": 10,
+          "sharePct": 0.151
+        },
+        {
+          "name": "MESH_EmergencyHeadBodyRight",
+          "triangles": 212,
+          "maxPx": 5744,
+          "seenAngles": 23,
+          "sharePct": 5.314
+        },
+        {
+          "name": "MESH_EmergencyHeadLensRight",
+          "triangles": 212,
+          "maxPx": 3578,
+          "seenAngles": 22,
+          "sharePct": 1.946
+        },
+        {
+          "name": "MESH_EmergencyHeadYokeRight",
+          "triangles": 116,
+          "maxPx": 421,
+          "seenAngles": 10,
+          "sharePct": 0.151
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 96,
+      "file": "asset_096_bulletin_board.glb",
+      "opaqueParts": 4,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "Cube005",
+          "triangles": 648,
+          "maxPx": 24612,
+          "seenAngles": 9,
+          "sharePct": 13.923
+        },
+        {
+          "name": "Cube005_1",
+          "triangles": 1320,
+          "maxPx": 97,
+          "seenAngles": 13,
+          "sharePct": 0.074
+        },
+        {
+          "name": "MESH_BulletinCork",
+          "triangles": 108,
+          "maxPx": 61744,
+          "seenAngles": 18,
+          "sharePct": 55.818
+        },
+        {
+          "name": "MESH_BulletinFrame_Frame",
+          "triangles": 432,
+          "maxPx": 16086,
+          "seenAngles": 26,
+          "sharePct": 30.185
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 97,
+      "file": "asset_097_key_cabinet.glb",
+      "opaqueParts": 11,
+      "transparentParts": [],
+      "animations": [
+        "KeyCabinetDoor_Close",
+        "KeyCabinetDoor_Open"
+      ],
+      "parts": [
+        {
+          "name": "MESH_KeyCabinetBack",
+          "triangles": 108,
+          "maxPx": 77588,
+          "seenAngles": 21,
+          "sharePct": 30.032
+        },
+        {
+          "name": "MESH_KeyCabinetBottom",
+          "triangles": 108,
+          "maxPx": 34366,
+          "seenAngles": 23,
+          "sharePct": 8.974
+        },
+        {
+          "name": "Cylinder",
+          "triangles": 3936,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "Cylinder_1",
+          "triangles": 1296,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_KeyCabinetSideL",
+          "triangles": 108,
+          "maxPx": 37633,
+          "seenAngles": 25,
+          "sharePct": 11.92
+        },
+        {
+          "name": "MESH_KeyCabinetSideR",
+          "triangles": 108,
+          "maxPx": 37632,
+          "seenAngles": 25,
+          "sharePct": 11.947
+        },
+        {
+          "name": "MESH_KeyCabinetTop",
+          "triangles": 108,
+          "maxPx": 34742,
+          "seenAngles": 25,
+          "sharePct": 9.248
+        },
+        {
+          "name": "MESH_KeyCabinetCrest",
+          "triangles": 240,
+          "maxPx": 1032,
+          "seenAngles": 9,
+          "sharePct": 0.44
+        },
+        {
+          "name": "MESH_KeyCabinetDoorInset",
+          "triangles": 108,
+          "maxPx": 56454,
+          "seenAngles": 9,
+          "sharePct": 20.716
+        },
+        {
+          "name": "MESH_KeyCabinetDoorPanel",
+          "triangles": 108,
+          "maxPx": 16578,
+          "seenAngles": 9,
+          "sharePct": 6.599
+        },
+        {
+          "name": "MESH_KeyCabinetLock",
+          "triangles": 164,
+          "maxPx": 246,
+          "seenAngles": 12,
+          "sharePct": 0.124
+        }
+      ],
+      "invisible": [
+        "Cylinder",
+        "Cylinder_1"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 98,
+      "file": "asset_098_hand_sanitizer_station.glb",
+      "opaqueParts": 7,
+      "transparentParts": [
+        "MESH_SanitizerLevelWindow"
+      ],
+      "animations": [
+        "Sanitizer_Dispense"
+      ],
+      "parts": [
+        {
+          "name": "MESH_SanitizerBackPlate",
+          "triangles": 108,
+          "maxPx": 63944,
+          "seenAngles": 26,
+          "sharePct": 37.442
+        },
+        {
+          "name": "MESH_SanitizerCrest",
+          "triangles": 160,
+          "maxPx": 1906,
+          "seenAngles": 16,
+          "sharePct": 0.921
+        },
+        {
+          "name": "MESH_SanitizerDripTray",
+          "triangles": 108,
+          "maxPx": 19280,
+          "seenAngles": 23,
+          "sharePct": 8.19
+        },
+        {
+          "name": "MESH_SanitizerHousing",
+          "triangles": 108,
+          "maxPx": 39872,
+          "seenAngles": 24,
+          "sharePct": 46.464
+        },
+        {
+          "name": "MESH_SanitizerNozzle",
+          "triangles": 108,
+          "maxPx": 1373,
+          "seenAngles": 15,
+          "sharePct": 0.819
+        },
+        {
+          "name": "MESH_SanitizerTrayLip",
+          "triangles": 108,
+          "maxPx": 4304,
+          "seenAngles": 22,
+          "sharePct": 2.102
+        },
+        {
+          "name": "MESH_SanitizerPlate",
+          "triangles": 108,
+          "maxPx": 7586,
+          "seenAngles": 19,
+          "sharePct": 4.063
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    },
+    {
+      "n": 99,
+      "file": "asset_099_umbrella_stand.glb",
+      "opaqueParts": 8,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_StandBand_0",
+          "triangles": 336,
+          "maxPx": 1497,
+          "seenAngles": 24,
+          "sharePct": 1.983
+        },
+        {
+          "name": "MESH_StandBand_1",
+          "triangles": 336,
+          "maxPx": 1440,
+          "seenAngles": 24,
+          "sharePct": 1.913
+        },
+        {
+          "name": "MESH_StandBase",
+          "triangles": 380,
+          "maxPx": 46328,
+          "seenAngles": 25,
+          "sharePct": 16.07
+        },
+        {
+          "name": "MESH_StandBore",
+          "triangles": 380,
+          "maxPx": 34328,
+          "seenAngles": 9,
+          "sharePct": 8.732
+        },
+        {
+          "name": "MESH_StandCrest",
+          "triangles": 216,
+          "maxPx": 984,
+          "seenAngles": 15,
+          "sharePct": 0.467
+        },
+        {
+          "name": "MESH_StandDrainTray",
+          "triangles": 332,
+          "maxPx": 0,
+          "seenAngles": 0,
+          "sharePct": 0
+        },
+        {
+          "name": "MESH_StandRim",
+          "triangles": 380,
+          "maxPx": 11848,
+          "seenAngles": 25,
+          "sharePct": 6.57
+        },
+        {
+          "name": "MESH_StandWall",
+          "triangles": 380,
+          "maxPx": 53112,
+          "seenAngles": 24,
+          "sharePct": 64.264
+        }
+      ],
+      "invisible": [
+        "MESH_StandDrainTray"
+      ],
+      "nearInvisible": []
+    },
+    {
+      "n": 100,
+      "file": "asset_100_floor_mat_welcome_mat.glb",
+      "opaqueParts": 4,
+      "transparentParts": [],
+      "animations": [],
+      "parts": [
+        {
+          "name": "MESH_MatBacking",
+          "triangles": 108,
+          "maxPx": 72080,
+          "seenAngles": 26,
+          "sharePct": 54.221
+        },
+        {
+          "name": "MESH_MatBorderInlay",
+          "triangles": 432,
+          "maxPx": 7828,
+          "seenAngles": 17,
+          "sharePct": 5.801
+        },
+        {
+          "name": "MESH_MatCrest",
+          "triangles": 336,
+          "maxPx": 1144,
+          "seenAngles": 17,
+          "sharePct": 0.935
+        },
+        {
+          "name": "MESH_MatPile",
+          "triangles": 108,
+          "maxPx": 56228,
+          "seenAngles": 17,
+          "sharePct": 39.043
+        }
+      ],
+      "invisible": [],
+      "nearInvisible": []
+    }
+  ]
+}

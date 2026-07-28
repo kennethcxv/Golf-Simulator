@@ -451,3 +451,24 @@ python Designs/ProShop/Spike/compare_arms.py A F I
 python Designs/ProShop/Spike/compare_arms.py --surface A F I
 python Designs/ProShop/Spike/bible_crops.py A F I
 ```
+
+---
+
+## Status 2026-07-27: the twelve-file pass is deferred pending Phase 3
+
+The discriminator measurement (`Designs/ProShop/Discriminator/DISCRIMINATOR.md`, all 40
+props) split this spike's conclusion in two:
+
+* **Arm I stands.** Texture improves an asset — the within-asset A/E/F deltas above are
+  real and unrevised.
+* **The between-asset claim is dead.** Texture does not explain what separates the room's
+  good assets from its bad ones: 39 of 40 props are untextured and they occupy the entire
+  quality range. The bottom of the ranking is assembly defects (parts hidden behind their
+  own sibling parts), fixed separately at zero texture cost. The room-level complaint is
+  composition, which is Phase 3's subject.
+
+Therefore the twelve-file texture pass is **deferred until Phase 3 lands**. It is polish,
+not repair. If it proceeds afterwards, it is sequenced by measured screen time, not by
+sheet order: **062, 061, 064, 070** are the only assets above 0.6% mean screen share
+(`Designs/ProShop/Discriminator/data/screen-time.json`, median 0.026%); nothing below that
+line earns a map until those four have one.

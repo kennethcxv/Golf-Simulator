@@ -27,8 +27,16 @@ async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
-  const out = path.join(repo, 'Designs', 'ProShop', 'Discriminator', 'frames');
-  const dataDir = path.join(repo, 'Designs', 'ProShop', 'Discriminator', 'data');
+  // QA_FRAMES_DIR redirects the portraits (e.g. an after-fix re-shoot that must not
+  // clobber the frames the ranking was made from). QA_ONLY_ASSETS="73,78,87" limits the
+  // pass; a limited pass writes its contact-sheet.json next to its frames, never over
+  // the full-population data file.
+  const out = process.env.QA_FRAMES_DIR
+    ? path.resolve(repo, process.env.QA_FRAMES_DIR)
+    : path.join(repo, 'Designs', 'ProShop', 'Discriminator', 'frames');
+  const only = String(process.env.QA_ONLY_ASSETS || '')
+    .split(',').map((s) => Number(s.trim())).filter(Number.isFinite);
+  const dataDir = only.length ? out : path.join(repo, 'Designs', 'ProShop', 'Discriminator', 'data');
   fs.mkdirSync(out, { recursive: true });
   fs.mkdirSync(dataDir, { recursive: true });
 
@@ -78,9 +86,10 @@ async (page) => {
     });
     return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([n, name]) => ({ n, name }));
   });
+  const wanted = only.length ? subjects.filter((s) => only.includes(s.n)) : subjects;
 
   const shots = [];
-  for (const subject of subjects) {
+  for (const subject of wanted) {
     const shot = await page.evaluate(async ({ target }) => {
       const THREE = await import('/vendor/three.module.js');
       const s3 = window.__fw.scene3d; const ch = s3.clubhouse(); const o = ch.interior.position;

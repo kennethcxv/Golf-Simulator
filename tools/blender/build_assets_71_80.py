@@ -716,9 +716,15 @@ def _vacuum_wand_geometry(parent: bpy.types.Object, m: dict) -> dict:
     strip = _bristle_block("VacHeadBrush", parent, m["bristle"], width=0.228, depth=0.016,
                            height=0.014, center=(0.0, -0.238, 0.010), columns=16, rows=1)
     _join(strip, "VacHeadBrushStrip", parent)
+    # Rear rollers, outer faces 3 mm proud of the sole's side edges and half-proud of its
+    # back edge (-0.055). At (0.102, -0.086) both wheels sat entirely inside the sole
+    # footprint and the sweep measured the left one at zero pixels from all 26
+    # directions; rear exposure alone was not enough either, because the wand drops into
+    # the head's rear-left quadrant and takes that arc away from the left wheel. Side
+    # exposure is symmetric and nothing can stand in front of it.
     for sx in (-1.0, 1.0):
         A.cylinder(f"VacHeadWheel{'L' if sx < 0 else 'R'}", 0.020, 0.016,
-                   (sx * 0.102, -0.086, 0.020), m["hard_black"],
+                   (sx * 0.120, -0.050, 0.020), m["hard_black"],
                    rotation=(0.0, math.pi / 2.0, 0.0), vertices=12, parent=parent, bevel=0.003)
     return {
         "intake": (0.0, -0.196, 0.006),
@@ -898,16 +904,19 @@ def build_73() -> bpy.types.Object:
                                     frame, m, radius=0.036))
     _join(caster_parts, "BucketCasters", frame)
 
-    # Wringer: a fixed cage plus a hinged press on its own pivot.
+    # Wringer: a fixed cage plus a hinged press on its own pivot. The whole cage sits
+    # 1 mm into the rim top (0.490) rather than 20 mm above it -- the original heights
+    # left daylight between the wringer body and the bucket, carried by two leg stubs
+    # buried in the rim, and the unit read as hovering.
     wringer = _group("BucketWringer", root)
-    cage = [A.box("WringerBody", (0.335, 0.230, 0.180), (0.0, 0.115, 0.600), m["matte_black"],
+    cage = [A.box("WringerBody", (0.335, 0.230, 0.180), (0.0, 0.115, 0.579), m["matte_black"],
                   parent=wringer, bevel=0.012)]
     for sx in (-1.0, 1.0):
         cage.append(A.box(f"WringerLeg{'L' if sx < 0 else 'R'}", (0.030, 0.028, 0.135),
-                          (sx * 0.150, 0.115, 0.470), m["matte_black"], parent=wringer, bevel=0.006))
+                          (sx * 0.150, 0.115, 0.449), m["matte_black"], parent=wringer, bevel=0.006))
     for index in range(5):
         cage.append(A.box(f"WringerSlat_{index}", (0.300, 0.016, 0.014),
-                          (0.0, 0.030 + index * 0.040, 0.520), m["hard_black"],
+                          (0.0, 0.030 + index * 0.040, 0.499), m["hard_black"],
                           parent=wringer, bevel=0.003))
     _join(cage, "WringerCage", wringer)
 
@@ -915,28 +924,32 @@ def build_73() -> bpy.types.Object:
     # world space, not as offsets from that pivot: `parent_keep_world` preserves a
     # child's world transform when parenting, so pivot-relative numbers would put the
     # press plate 5 cm under the floor rather than inside the cage.
-    lever = _pivot("WringerLever", root, (0.0, 0.235, 0.690),
+    lever = _pivot("WringerLever", root, (0.0, 0.235, 0.669),
                    moving_part="wringer_lever", rotation_axis="+X")
-    A.box("WringerPressPlate", (0.300, 0.150, 0.032), (0.0, 0.150, 0.635),
+    A.box("WringerPressPlate", (0.300, 0.150, 0.032), (0.0, 0.150, 0.614),
           m["matte_black"], parent=lever, bevel=0.008)
     # A fairly upright lever, as in the reference: raked far enough back to grab, but not
-    # so far that the handle doubles the bucket's floor footprint.
-    A.cylinder("WringerLeverArm", 0.016, 0.280, (0.0, 0.313, 0.806), m["matte_black"],
-               rotation=(math.radians(34.0), 0.0, 0.0), vertices=12, parent=lever, bevel=0.004)
-    A.cylinder("WringerLeverGrip", 0.024, 0.110, (0.0, 0.361, 0.877), m["hard_black"],
-               rotation=(math.radians(34.0), 0.0, 0.0), vertices=12, parent=lever, bevel=0.005)
+    # so far that the handle doubles the bucket's floor footprint. The rake is NEGATIVE
+    # about X -- toward +Y, over the bucket's rear. Every centre below was computed for
+    # that rake, starting the arm exactly at the pivot and capping its tip with the grip;
+    # the sign flipped once and both cylinders detached into mid-air while every
+    # structural check kept passing.
+    A.cylinder("WringerLeverArm", 0.016, 0.280, (0.0, 0.313, 0.785), m["matte_black"],
+               rotation=(math.radians(-34.0), 0.0, 0.0), vertices=12, parent=lever, bevel=0.004)
+    A.cylinder("WringerLeverGrip", 0.024, 0.110, (0.0, 0.361, 0.856), m["hard_black"],
+               rotation=(math.radians(-34.0), 0.0, 0.0), vertices=12, parent=lever, bevel=0.005)
 
-    _marker("Carry", root, (0.0, 0.361, 0.885), grip_role="lever_push")
-    _marker("MopInsertion", root, (0.0, 0.115, 0.640), rotation=DOWN,
+    _marker("Carry", root, (0.0, 0.361, 0.864), grip_role="lever_push")
+    _marker("MopInsertion", root, (0.0, 0.115, 0.619), rotation=DOWN,
             insertion_tolerance_m=0.14, accepts_asset=72)
-    _marker("Wringer", root, (0.0, 0.115, 0.560), rotation=DOWN)
+    _marker("Wringer", root, (0.0, 0.115, 0.539), rotation=DOWN)
     _marker("WaterSurface", root, (0.0, -0.060, 0.356), rotation=DOWN)
-    _marker("Drip", root, (0.0, 0.115, 0.500), rotation=DOWN, effect_role="drip_origin")
+    _marker("Drip", root, (0.0, 0.115, 0.479), rotation=DOWN, effect_role="drip_origin")
     _placement(root, "origin centered on floor contact; wringer faces +Y, spout on +X")
 
     collision = _group("BucketCollision", root)
     A.collision_box("BucketTubHull", (0.55, 0.42, 0.40), (0.0, 0.0, 0.290), parent=collision)
-    A.collision_box("BucketWringerHull", (0.34, 0.24, 0.22), (0.0, 0.115, 0.610),
+    A.collision_box("BucketWringerHull", (0.34, 0.24, 0.22), (0.0, 0.115, 0.589),
                     parent=collision, purpose="non-blocking-interaction")
 
     closed, opened = (0.0, 0.0, 0.0), (math.radians(-46.0), 0.0, 0.0)
@@ -1031,7 +1044,9 @@ def build_77() -> bpy.types.Object:
           m["cloth_green"], parent=stack, bevel=0.010, bevel_segments=3)
     A.box("ClothFoldedUpper", (0.215, 0.170, 0.026), (-0.052, 0.042, 0.043),
           m["cloth_green"], parent=stack, bevel=0.010, bevel_segments=3)
-    A.box("ClothFoldSeam", (0.212, 0.010, 0.022), (-0.052, -0.030, 0.043),
+    # The fold ridge belongs on the stack's front face; at y -0.030 it sat 8 mm inside
+    # the upper cloth slab and no camera angle could see it.
+    A.box("ClothFoldSeam", (0.212, 0.010, 0.022), (-0.052, -0.044, 0.043),
           m["cloth_green"], parent=stack, bevel=0.006)
     sponge = _group("SpongeSet", root)
     A.box("SpongeFoam", (0.110, 0.070, 0.030), (0.145, -0.020, 0.015),
@@ -1127,22 +1142,31 @@ def build_78() -> bpy.types.Object:
                                   m["matte_black"], rotation=(0.0, math.pi / 2.0, 0.0),
                                   vertices=14, parent=frame, bevel=0.003))
     _join(frame_parts, "WasherChassis", frame)
-    # Hose reel with a coiled hose, straight from the reference.
+    # Hose reel with a coiled hose, straight from the reference. Nothing on the chassis
+    # exists to hang it from, so the reel earns its seat by contact instead: the axle
+    # sits at drum-radius above the cowl top (0.4425 + 0.088) so the drum rests on the
+    # shell, centred far enough back that the flanges stop overhanging the pump void.
     reel = _group("WasherHoseReel", root)
     reel_parts = [
-        A.cylinder("ReelDrum", 0.088, 0.150, (0.0, -0.120, 0.560), m["matte_black"],
+        A.cylinder("ReelDrum", 0.088, 0.150, (0.0, -0.045, 0.530), m["matte_black"],
                    rotation=(0.0, math.pi / 2.0, 0.0), vertices=20, parent=reel, bevel=0.006),
-        A.cylinder("ReelCrank", 0.010, 0.090, (0.104, -0.190, 0.560), m["hard_black"],
+        A.cylinder("ReelCrank", 0.010, 0.090, (0.104, -0.115, 0.530), m["hard_black"],
                    rotation=(0.0, math.pi / 2.0, 0.0), vertices=10, parent=reel, bevel=0.002),
     ]
     for sx in (-1.0, 1.0):
         reel_parts.append(A.cylinder(f"ReelFlange{'L' if sx < 0 else 'R'}", 0.135, 0.014,
-                                     (sx * 0.082, -0.120, 0.560), m["hard_black"],
+                                     (sx * 0.082, -0.045, 0.530), m["hard_black"],
                                      rotation=(0.0, math.pi / 2.0, 0.0), vertices=22,
                                      parent=reel, bevel=0.003))
+    # The four hose loops spread along the drum at tube pitch and each drops by its own
+    # radius surplus (major + minor - drum radius) so its top edge lands exactly on the
+    # drum surface -- a loose hose hangs from the top of a drum, it does not hover
+    # concentrically around it. Stacked at one x with no drop they read as four more
+    # flange discs, floating clear of everything.
     for index in range(4):
         reel_parts.append(A.torus(f"ReelCoil_{index}", 0.108 + index * 0.008, 0.013,
-                                  (0.0, -0.120, 0.560), m["hose_black"],
+                                  (-0.039 + index * 0.026, -0.045,
+                                   0.530 - (0.007 + index * 0.008)), m["hose_black"],
                                   rotation=(0.0, math.pi / 2.0, 0.0),
                                   major_segments=22, minor_segments=7, parent=reel))
     _join(reel_parts, "WasherHoseReelAssembly", reel)
@@ -1150,7 +1174,7 @@ def build_78() -> bpy.types.Object:
     _marker("Carry", root, (0.0, post_top[0], post_top[1] + 0.020), grip_role="push_handle")
     _marker("WaterInlet", root, (-0.120, -0.330, 0.165), rotation=FORWARD, port="garden_hose_in")
     _marker("PressureOutlet", root, (0.120, -0.330, 0.165), rotation=FORWARD, port="high_pressure_out")
-    _marker("Hose", root, (0.0, -0.205, 0.560), rotation=FORWARD, port="reel_feed", connects_asset=79)
+    _marker("Hose", root, (0.0, -0.130, 0.530), rotation=FORWARD, port="reel_feed", connects_asset=79)
     _marker("Audio", root, (0.0, 0.045, 0.300), audio_role="engine_loop")
     _placement(root, "origin centered on floor contact; pump and ports face -Y")
 

@@ -74,7 +74,7 @@ SPEC_CONTRACT_DIMENSIONS = {
 DIMENSIONS = {
     91: (0.20, 0.18, 0.57),
     92: (0.42, 0.18, 0.55),
-    93: (0.18, 0.18, 0.11),
+    93: (0.18, 0.18, 0.13),
     94: (0.45, 0.10, 0.21),
     95: (0.42, 0.18, 0.21),
     96: (0.95, 0.05, 0.70),
@@ -454,10 +454,15 @@ def build_93() -> bpy.types.Object:
     A.cylinder("CameraCableEntry", 0.016, 0.030, (0.0, 0.058, -0.008), m["housing_cream"],
                vertices=12, parent=body, bevel=0.003)
 
-    lens = _pivot("Lens", root, (0.0, 0.0, -0.062), moving_part="camera_lens", rotation_axis="+Z")
-    A.cylinder("CameraLensBarrel", 0.030, 0.036, (0.0, -0.022, -0.070), m["matte_black"],
+    # The dome is opaque, so a lens fully inside it does not exist on screen -- the
+    # part-visibility sweep measured the barrel at zero pixels from every direction,
+    # which is why the portrait read "featureless dome". Dropped 30 mm, the barrel's
+    # lower flank and the glass break the dome's underside and the camera reads as a
+    # camera from the only view a player has: below.
+    lens = _pivot("Lens", root, (0.0, 0.0, -0.092), moving_part="camera_lens", rotation_axis="+Z")
+    A.cylinder("CameraLensBarrel", 0.030, 0.036, (0.0, -0.022, -0.100), m["matte_black"],
                rotation=(math.radians(58.0), 0.0, 0.0), vertices=16, parent=lens, bevel=0.004)
-    A.cylinder("CameraLensGlass", 0.024, 0.008, (0.0, -0.036, -0.079), p["glass"],
+    A.cylinder("CameraLensGlass", 0.024, 0.008, (0.0, -0.036, -0.109), p["glass"],
                rotation=(math.radians(58.0), 0.0, 0.0), vertices=16, parent=lens, bevel=0.002)
 
     _marker("CeilingMount", root, (0.0, 0.0, 0.0), rotation=DOWN, mount_surface="ceiling")

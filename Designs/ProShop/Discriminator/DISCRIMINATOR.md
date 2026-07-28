@@ -347,6 +347,10 @@ holds *within* an object class rather than across the population.
 
 ## 7. Revised order of work
 
+> **Executed 2026-07-27** — items 1 and 2 are done; see `ASSEMBLY_FIXES.md` in this
+> directory for the fixes, the part-visibility sweep that followed, and the before/after
+> evidence in `frames_after/`.
+
 The premise of the question was that if part separation beat texture, the texture pass
 drops behind a merged-mesh rebuild. Neither is what the data supports.
 
