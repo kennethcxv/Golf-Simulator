@@ -1,11 +1,12 @@
-"""THROWAWAY — ART_BIBLE validation spike. Side-by-side crops across arms.
+"""ART_BIBLE validation — side-by-side crops across arms.
 
-    python Designs/ProShop/Spike/bible_crops.py [A B C D]
+    python Designs/ProShop/Spike/bible_crops.py [A F I]
 
-Whole-frame numbers are the wrong instrument for "does this read as furniture".
-This crops the places where the bible's claims are testable — the worktop edge where a
-bevel either catches light or does not, and the leg-to-floor join where contact either
-reads or does not — and puts the arms side by side at 2x.
+Whole-frame numbers are the wrong instrument for "does this read as furniture", and
+they are the wrong instrument for "does the grain survive calibration" too: a mean
+absolute difference cannot separate detail that was added from colour that moved.
+This crops the places where the claims are testable and puts the arms side by side at
+2x, which is the only way to answer either question.
 """
 import os
 import sys
@@ -15,10 +16,14 @@ ROOT = os.path.join(os.path.dirname(__file__), 'bible')
 OUT = os.path.join(ROOT, 'compare')
 
 LABEL = {
-    'A': 'A control',
+    'A': 'A control (untextured)',
     'B': 'B bevels only',
     'C': 'C + materials',
     'D': 'D + contact',
+    'F': 'F raw CC0, tint dropped',
+    'G': 'G 512 + KTX2',
+    'H': 'H 512 uncompressed',
+    'I': 'I calibrated + tint',
 }
 
 # (name, shot file, crop box, zoom)
@@ -27,6 +32,12 @@ CROPS = [
     ('whole-table', '2-front-elevation.png', (600, 430, 1200, 890), 1),
     ('leg-floor-contact', '3-floor-contact.png', (600, 360, 1020, 800), 2),
     ('three-quarter', '1-three-quarter.png', (420, 300, 1300, 800), 1),
+    # §7.4.1 palette gate. The worktop surface at 2x is where "does calibrated texture
+    # still carry grain" is decided; the leg is where the dropped tint is most visible,
+    # because raw Metal032 is a pale blue-grey and black powder-coat is not.
+    ('cal-worktop-surface', '4-worktop-elevation.png', (620, 495, 1200, 660), 2),
+    ('cal-worktop-leg', '4-worktop-elevation.png', (980, 600, 1220, 850), 2),
+    ('cal-counter-surface', '5-counter-elevation.png', (500, 430, 1100, 620), 2),
 ]
 
 

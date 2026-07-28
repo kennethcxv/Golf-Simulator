@@ -1,5 +1,5 @@
 {
-  "arm": "F",
+  "arm": "I",
   "seed": 20260727,
   "subject": {
     "found": true,
@@ -21,23 +21,23 @@
         "roughness": 1,
         "metalness": 0
       },
+      "MAT_CC065_DarkWalnut": {
+        "color": "#5f422d",
+        "roughness": 1,
+        "metalness": 0
+      },
       "MAT_CC065_MediumWalnut": {
-        "color": "#ffffff",
+        "color": "#89603e",
         "roughness": 1,
         "metalness": 0
       },
-      "MAT_CC065_NaturalOak": {
-        "color": "#ffffff",
+      "MAT_CC065_BlackPowderCoat": {
+        "color": "#1f2122",
         "roughness": 1,
         "metalness": 0
       },
-      "MAT_CC065_WarmCharcoal": {
-        "color": "#ffffff",
-        "roughness": 1,
-        "metalness": 0
-      },
-      "MAT_CC065_RestrainedBrass": {
-        "color": "#ffffff",
+      "MAT_CC065_MutedBrass": {
+        "color": "#b68d42",
         "roughness": 1,
         "metalness": 1
       },

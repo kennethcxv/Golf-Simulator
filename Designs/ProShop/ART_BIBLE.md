@@ -404,21 +404,36 @@ For a non-tiling unique-UV map, substitute the surface's own span for the tile s
 justified for a tile larger than 1.33 yd.** Nothing in a 17 × 10 yd room viewed from
 0.5 yd needs 2048².
 
-**Both ends of this are verified against real surfaces.**
+**Verified against a real surface.**
 
-* The reception counter — the §1 best-in-room anchor — supplies **701 texels/yd** from a
-  1024×640 map, against 767 required at 0.5 yd. The best-looking thing in the room is
-  very slightly *under*-resolved at nose distance, which is why 768 rather than something
-  lower is the hero number: it is calibrated to the surface that already works.
 * `asset_065`'s rebuilt worktop supplies **1029 texels/yd** from a 512² map against 646
   required at its closest approach — 1.6× headroom, minimum observed mip 0.67, so mip 0
   is never sampled. Dropping it to 256² would supply 514 and go under at arm's length.
   **512² is the correct call for this asset by measurement, not by rounding.**
 
+> **Correction, 2026-07-27.** An earlier version of this section stated that the reception
+> counter supplies **701 texels/yd** and used it as the second anchor. That was wrong. The
+> counter carries **no textures at all** — `tools/qa/proshop-counter-material-audit.js`
+> reports 0 of 6 materials with a map. The 701 figure came from an unnamed 1024×640 map
+> *behind* the counter that the probe's ray reached instead.
+>
+> **A surface with no texture is invisible to a texel-density probe**: there is no UV
+> derivative to take, so the sample walks past it to whatever is behind. Any probe of this
+> kind must report the object and texture it actually hit, which
+> `tools/qa/proshop-texel-density.js` does — the error was in reading its output, not in
+> the instrument.
+>
+> **The ceiling is unaffected.** The requirement curve is measured from the camera and the
+> display, not from any surface, so 767 px/yd at 0.5 yd and the 768 texels/yd hero ceiling
+> both stand. What is lost is a corroborating example — and what replaces it is a stronger
+> statement of the same case: the room's best-looking object is not marginally
+> under-resolved, it is untextured.
+
 | Rule | Gate |
 |---|---|
 | No runtime texture exceeds 512 on its long edge without written justification | [T] `tests/proshop-texture-budget.test.js` reads dimensions out of the shipped GLBs |
-| A hero surface supplies ≥ 768 texels/yd | [T] `tools/qa/proshop-texel-density.js`, `texelsPerYard` at the target |
+| A hero surface supplies ≥ 768 texels/yd | [T] `tools/qa/proshop-texel-density.js`, `texelsPerYard` at the target. **Read the `hit` and `tex` fields, not just the number** — an untextured surface has no UV derivative, so the sample passes through it and reports whatever is behind. A missing texture reads as a passing one otherwise |
+| A hero surface has a texture at all | [T] `tools/qa/proshop-counter-material-audit.js` reports textured-material counts per asset. This exists because the row above cannot detect the absence it is meant to police |
 | No surface supplies more than 2× its class requirement | [T] same probe: a minimum observed mip ≥ 1 across every pose means mip 0 is never sampled and the map can be halved |
 | Signage and readable text | up to 512 on the long edge | [V] legibility at 2 yd |
 
@@ -531,10 +546,36 @@ Two things this example is here to teach:
 |---|---|
 | Shipped mean albedo within **3.0** sRGB 0–255 distance of the §8 target | [T] `cc0_calibrate.py --report` reports `gapToTarget`; the solve is exact, so anything above 3.0 means a step was skipped |
 | Calibrated map mean chroma **< 0.01** — it is achromatic | [T] same report, `meanChroma` after bake |
-| Source contrast ratio p90/p10 **≥ 1.5** | [T] a map flatter than this is not carrying surface information and fails §7.4 on its own terms regardless of colour. **Metal032 is at 1.14 and fails this** — it needs a replacement source or a procedural break-up before the Tier 1 pass |
-| Clipped fraction after exposure normalisation **< 0.5 %** | [T] `--bake` reports `clippedFraction` |
+| **Predicted visible span ≥ 8 sRGB code values** | [T] `cc0_calibrate.py --emit` reports `visibleSpanCodeValues` and `textureWorthCarrying`. **This replaces the source-contrast gate**, which could not distinguish a map that will be visible from one that will not — see §7.4.2 |
+| Source contrast ratio p90/p10 **≥ 1.5** | [T] retained as a source-quality screen only. A map flatter than this is not carrying surface information regardless of where it lands. It is **not sufficient**: Metal032 fails at 1.14 and would still fail the span gate on a dark target after any contrast fix |
+| Clipped fraction after exposure normalisation **< 0.5 %** | [T] `--bake` reports `clippedFraction`. Wood062 measures **0.67 %** and exceeds this. Left as-is deliberately: the remedy is a per-map exposure ceiling, and the procedure's value is that it has no per-map knobs. 0.17 points of clipping on an albedo is invisible; if a future source is materially worse, lower `CEILING` globally rather than adding a knob |
 | Roughness, metalness and normal maps are untouched by calibration and tagged Non-Color | [T] existing colour-space check |
-| The calibrated surface reads as the same production as the reception counter run | **[V]** the first calibrated asset must produce `Designs/ProShop/Spike/bible/compare/palette-calibration-worktop.png` — the worktable worktop and the counter run in one frame, front elevation, from `tools/qa/spike-bible-arm.js` pose `2-front-elevation`, stacked by `Designs/ProShop/Spike/compare_arms.py`. Both are medium walnut; if they read as two different woods, calibration failed regardless of what the arithmetic says. **Not yet produced — no asset has been through calibration** |
+| The calibrated surface reads as the same production as the reception counter run | **[V] PRODUCED** — `Designs/ProShop/Spike/bible/compare/palette-calibration-worktop.png`, arms A / F / I. **It failed, and the counter is why.** One frame proved impossible (a solid partition stands between the two rooms — `tools/qa/proshop-counter-worktop-sightline.js`), so the plate is a matched-camera pair at 1.6 yd. The counter turns out to carry **no textures at all** (0/6 materials) and its top is natural oak, not medium walnut. Full finding: `Spike/TEXTURE_VALIDATION.md` addendum Part 3 |
+
+### 7.4.2 What decides whether a texture will be visible at all
+
+**A map's contrast ratio does not tell you whether its grain will be seen.** The palette
+value it lands on decides that too, and the two multiply.
+
+Calibration preserves contrast ratio exactly — that is why exposure normalisation is a
+constant multiply in linear space rather than a curve. But the sRGB transfer function is
+steeply compressive near black, so the same ratio spans far fewer *visible* code values on a
+dark target than on a light one. Measured on asset_065:
+
+| Material | Source | Source contrast | §8 target | Visible span | Measured on-screen `detail` |
+|---|---|---|---|---|---|
+| Medium walnut | Wood051 | 1.95 | `#6B4A2F` | **33.1** | 3.02 — clearly legible grain |
+| Dark walnut | Wood062 | 3.17 | `#3E2A1B` | **34.5** | — |
+| Black powder-coat | Metal032 | 1.14 | `#1C1E1F` | **2.4** | 0.09 — **flatter than untextured** |
+| Muted brass | Metal032 | 1.14 | `#A8823C` | **9.7** | — |
+
+The last two rows are the same photograph at the same contrast and differ by 4×.
+
+**Rule: do not texture black powder-coat.** `#1C1E1F` cannot carry a visible map from any
+source. Racks, brackets, shelf standards and stands are all black powder-coat per §8, so
+that is three maps per family not worth authoring, storing or paying VRAM for. Give them
+roughness variation or geometry instead — both survive at that brightness, because neither
+is read through the albedo's transfer curve.
 
 ---
 
