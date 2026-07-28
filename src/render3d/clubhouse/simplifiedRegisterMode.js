@@ -6312,6 +6312,47 @@ export function createRegisterMode(B) {
     return 'overview';
   }
 
+  // CHECK-IN, DERIVED FROM THE GLASS (greybox-walk item 9). The old authored
+  // pose sat the eye at 1.26 looking 14.5° UP at the POS — the "watching the
+  // screen from below the desk" read. Derive instead from the live screen quad:
+  // eye on the screen's forward normal at the centre's own height, looking
+  // straight at the face, standoff solved so the panel takes a comfortable
+  // share of the frame. Falls back to the old preset until the POS mounts.
+  const CHECKIN_FRAC_H = 0.60;
+  function derivedCheckinPose() {
+    const fallback = POSES.checkin;
+    if (!screenPlane) return fallback;
+    screenPlane.updateWorldMatrix(true, false);
+    const centre = screenPlane.getWorldPosition(new THREE.Vector3());
+    const normal = new THREE.Vector3(0, 0, 1)
+      .transformDirection(screenPlane.matrixWorld).normalize();
+    const top = screenPlane.localToWorld(new THREE.Vector3(0, POS_PLANE_H / 2, 0));
+    const worldH = top.distanceTo(centre) * 2;
+    if (!(worldH > 0.01)) return fallback;
+    const dist = (worldH / CHECKIN_FRAC_H)
+      / (2 * Math.tan(THREE.MathUtils.degToRad(fallback.fov) / 2));
+    // The quad's +Z must face the cashier; if an export or parent flip turns it
+    // into the desk, the derived eye would sit behind the glass. The fallback
+    // pose's own yaw/pitch encode the intended viewing direction — use it to
+    // pick the side.
+    const fb = fallback.pose;
+    const intended = new THREE.Vector3(
+      -Math.sin(fb.yaw) * Math.cos(fb.pitch),
+      Math.sin(fb.pitch),
+      -Math.cos(fb.yaw) * Math.cos(fb.pitch),
+    );
+    if (normal.dot(intended) > 0) normal.negate();
+    const eyeWorld = centre.clone().addScaledVector(normal, Math.max(0.5, dist));
+    // Poses live in interior-local coordinates (deskCameraPoint's frame);
+    // projectLocal is the inverse of this conversion.
+    const toLocal = (v) => ({
+      x: v.x - interior.position.x,
+      y: v.y - interior.position.y,
+      z: v.z - interior.position.z,
+    });
+    return { pose: poseBetween(toLocal(eyeWorld), toLocal(centre)), fov: fallback.fov };
+  }
+
   // The card flow's two poses are computed live: handoff frames the actual
   // customer and entry closes in on the reader at its fixed counter station.
   // All other states keep their static presets.
@@ -6332,6 +6373,7 @@ export function createRegisterMode(B) {
       const p = cardTerminalPose(CARD_STATION, COUNTER_TOP);
       return { pose: poseBetween(p.eye, p.look), fov: p.fov };
     }
+    if (key === 'checkin') return derivedCheckinPose();
     return POSES[key] || POSES.overview;
   }
 

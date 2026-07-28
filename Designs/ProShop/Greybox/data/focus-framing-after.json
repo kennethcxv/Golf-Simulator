@@ -1,0 +1,30 @@
+{
+  "tag": "after",
+  "laptop": {
+    "cameraFov": 34,
+    "ndcTop": 0.62,
+    "ndcBottom": -0.62,
+    "ndcCentreY": 0,
+    "ndcWidth": 1.116,
+    "viewportHeightFraction": 0.62,
+    "eyeY": -1.073,
+    "screenCentreY": -1.249,
+    "eyeAboveScreenCentre": 0.176,
+    "pitchDeg": -17.14,
+    "standoff": 0.598
+  },
+  "register": {
+    "cameraFov": 48.5,
+    "ndcTop": 0.549,
+    "ndcBottom": -0.346,
+    "ndcCentreY": 0.102,
+    "ndcWidth": 0.702,
+    "viewportHeightFraction": 0.448,
+    "eyeY": -0.757,
+    "screenCentreY": -1.173,
+    "eyeAboveScreenCentre": 0.415,
+    "pitchDeg": -24.59,
+    "standoff": 1.124
+  },
+  "registerScreenMesh": "COL_POSMonitor"
+}

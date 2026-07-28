@@ -2344,16 +2344,18 @@ export function makeClubhouse(ctx) {
       const n = screenNormalLocal(LID_OPEN);
       const out = new THREE.Vector3(n.x, n.y, n.z).transformDirection(laptop.matrixWorld).normalize();
 
+      // Measured before the greybox-walk item-9 correction: fracH 0.80 with a
+      // +0.16h eye raise and a -0.10h aim drop produced a 78%-height panel taken
+      // at a 24° downward dive from 0.48 yd — the screen filled the frame and the
+      // lid's back-tilt keystoned the UI. The corrected seat sits ON the screen's
+      // forward normal at the centre's own height, looks straight at the face,
+      // and stands off far enough that the panel takes a comfortable share of the
+      // frame with the deck and bezel as context.
       const dist = fitDistance({
-        screenW: LAPTOP.screen.w, screenH: LAPTOP.screen.h, fovDeg, aspect, fracH: 0.80, fracW: 0.90,
+        screenW: LAPTOP.screen.w, screenH: LAPTOP.screen.h, fovDeg, aspect, fracH: 0.62, fracW: 0.80,
       });
-      // Sit a touch high and aim a touch low. Both together push the screen up in frame and
-      // leave the bezel and a strip of keyboard showing underneath it — which is the difference
-      // between sitting at a laptop and having a menu shoved in your face.
       const eye = centre.clone().addScaledVector(out, dist);
-      eye.y += LAPTOP.screen.h * 0.16;
       const aim = centre.clone();
-      aim.y -= LAPTOP.screen.h * 0.10;
 
       // look back at the screen: forward = (-sin y cos p, sin p, -cos y cos p)
       const f = aim.clone().sub(eye).normalize();

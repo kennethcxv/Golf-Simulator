@@ -8,10 +8,11 @@ async (page) => {
   //
   // Primary source: the game's OWN nav-block log (clubhouse.navBlockDiagnostics)
   // — the same evidence the live build logs — plus an external freeze watchdog
-  // in SIM seconds with net-displacement windows so oscillating stuck-loops
-  // count as stuck. No state-class exemptions: a queue customer must advance
-  // their queue index or leave within the patience bound. The verdict includes
-  // stillInsideAtClose. Every block is reported with positions.
+  // with net-displacement windows (in WALL seconds, matching how the actors
+  // actually move — see the measured constraint below) so oscillating
+  // stuck-loops count as stuck. No state-class exemptions: a queue customer
+  // must advance their queue index or leave within the patience bound. The
+  // verdict includes stillInsideAtClose. Every block is reported with positions.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
@@ -22,12 +23,18 @@ async (page) => {
   const SEED = Number(process.env.GREYBOX_SEED || 20260727);
   const RUN_TAG = String(process.env.GREYBOX_DAY_TAG || 'run1');
   const VARIANT = String(process.env.GREYBOX_DAY_VARIANT || 'pine-hills-v2');
-  // A walker that nets under 0.15 yd of displacement across 20 consecutive
-  // sim-seconds is frozen — an order of magnitude tighter than the player's
-  // patience for a stuck NPC, and immune to oscillation.
-  const FREEZE_WINDOW_SIM_S = 20;
+  // MEASURED CONSTRAINT this instrument must respect: the clubhouse update
+  // receives RAW WALL dt (courseScene.js:9651) — the 16x speed compresses the
+  // CLOCK, not customer locomotion. Customers walk, linger, and drain patience
+  // in wall time, so freeze/queue thresholds are WALL units; sim units against
+  // wall-time actors flag 1.6-second pauses as freezes. A walker that nets
+  // under 0.15 yd across 12 consecutive wall-seconds is frozen (a moving
+  // customer covers ~13 yd in that window; the recovery ladder resolves real
+  // traps in ~15 wall-seconds, and its sidesteps clear this bar — so only a
+  // trap the ladder itself cannot escape flags).
+  const FREEZE_WINDOW_WALL_S = 12;
   const FREEZE_EPSILON_YD = 0.15;
-  const QUEUE_BOUND_SIM_MIN = 25; // patience empties a queue slot well inside this
+  const QUEUE_BOUND_WALL_MIN = 8; // head patience is ~3 wall-min; 8 = never advancing
   const DAY_END_MINUTE = 19 * 60 + 30; // run past close so leavers can clear
 
   const errs = [];
@@ -55,7 +62,7 @@ async (page) => {
   }, null, { timeout: 120000 });
   await page.waitForTimeout(3000);
 
-  const runDay = async (label) => page.evaluate(async ([tag, freezeWindowS, freezeEps, queueBoundMin, dayEnd]) => {
+  const runDay = async (label) => page.evaluate(async ([tag, freezeWindowWallS, freezeEps, queueBoundWallMin, dayEnd]) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const state = app.state;
@@ -88,7 +95,7 @@ async (page) => {
       const tick = () => {
         const nowMinute = state.clock.minutes;
         const minuteOfDay = nowMinute % 1440;
-        const simSecond = nowMinute * 60;
+        const wallSecond = performance.now() / 1000;
         const wallOverrun = performance.now() - started > 2100000;
         const list = customersOf();
         maxSimultaneous = Math.max(maxSimultaneous, list.length);
@@ -99,11 +106,11 @@ async (page) => {
           if (!p) continue;
           if (!windows.has(id)) totalSeen += 1;
           const win = windows.get(id) || [];
-          win.push({ t: simSecond, x: p.x, z: p.z });
-          while (win.length > 2 && win[win.length - 1].t - win[1].t >= freezeWindowS) win.shift();
+          win.push({ t: wallSecond, x: p.x, z: p.z });
+          while (win.length > 2 && win[win.length - 1].t - win[1].t >= freezeWindowWallS) win.shift();
           windows.set(id, win);
           const span = win[win.length - 1].t - win[0].t;
-          if (span >= freezeWindowS) {
+          if (span >= freezeWindowWallS) {
             const net = Math.hypot(win[win.length - 1].x - win[0].x, win[win.length - 1].z - win[0].z);
             if (net < freezeEps) {
               const prior = frozen.get(id);
@@ -117,7 +124,7 @@ async (page) => {
                 fixtureId: customer.stops?.[customer.stopIdx]?.fixtureId ?? null,
                 phase: customer.checkoutPhase ?? null,
                 netYd: +net.toFixed(3),
-                spanSimS: +span.toFixed(1),
+                spanWallS: +span.toFixed(1),
                 inQueue: queue.includes(id),
                 // Standing still AT a stop is browsing, not a freeze: only count
                 // when the walker has not arrived (its own loop would be in the
@@ -131,7 +138,7 @@ async (page) => {
                   return Math.hypot((stop.x ?? 0) - p.x, (stop.z ?? 0) - p.z) < 0.22;
                 })(),
               };
-              if (!record.atStop && !record.inQueue && (!prior || span > prior.spanSimS)) {
+              if (!record.atStop && !record.inQueue && (!prior || span > prior.spanWallS)) {
                 frozen.set(id, record);
               }
             }
@@ -139,12 +146,12 @@ async (page) => {
           // Queue advancement bound.
           const qIndex = queue.indexOf(id);
           if (qIndex >= 0) {
-            const seen = queueSeen.get(id) || { firstSimMin: minuteOfDay, bestIndex: qIndex };
+            const seen = queueSeen.get(id) || { firstWallS: wallSecond, bestIndex: qIndex };
             seen.bestIndex = Math.min(seen.bestIndex, qIndex);
-            if (minuteOfDay - seen.firstSimMin > queueBoundMin
+            if ((wallSecond - seen.firstWallS) / 60 > queueBoundWallMin
               && !queueViolations.some((v) => v.id === id)) {
               queueViolations.push({
-                id, qIndex, heldSimMin: +(minuteOfDay - seen.firstSimMin).toFixed(1),
+                id, qIndex, heldWallMin: +((wallSecond - seen.firstWallS) / 60).toFixed(1),
               });
             }
             queueSeen.set(id, seen);
@@ -200,7 +207,7 @@ async (page) => {
       transactions: state.shop?.transactionHistory?.length ?? null,
       unitsSold: state.shop?.salesLive?.units ?? null,
     };
-  }, [label, FREEZE_WINDOW_SIM_S, FREEZE_EPSILON_YD, QUEUE_BOUND_SIM_MIN, DAY_END_MINUTE]);
+  }, [label, FREEZE_WINDOW_WALL_S, FREEZE_EPSILON_YD, QUEUE_BOUND_WALL_MIN, DAY_END_MINUTE]);
 
   const neglected = await runDay('neglected');
   await page.screenshot({ path: path.join(outDir, `day-${RUN_TAG}-neglected-close.png`) });
@@ -231,9 +238,15 @@ async (page) => {
     tag: RUN_TAG,
     variant: VARIANT,
     watchdog: {
-      freezeWindowSimSeconds: FREEZE_WINDOW_SIM_S,
+      freezeWindowWallSeconds: FREEZE_WINDOW_WALL_S,
       freezeEpsilonYd: FREEZE_EPSILON_YD,
-      queueBoundSimMinutes: QUEUE_BOUND_SIM_MIN,
+      queueBoundWallMinutes: QUEUE_BOUND_WALL_MIN,
+    },
+    limitations: {
+      customersMoveInWallTime: true,
+      note: 'clubhouseApi.update receives raw wall dt (courseScene.js:9651): 16x '
+        + 'compresses the clock only, so one 16x "day" carries ~40 wall-minutes of '
+        + 'true-rate customer motion. A full-parity day requires 1x (10.5 h).',
     },
     neglected,
     restored,
