@@ -4,6 +4,7 @@ Run from Blender, for example::
 
     blender --background --factory-startup --python tools/blender/build_assets_61_70.py -- --asset 61
     blender --background --factory-startup --python tools/blender/build_assets_61_70.py -- --asset 70 --preview
+    blender --background --factory-startup --python tools/blender/build_assets_61_70.py -- --asset 65 --untextured
 
 All geometry is original, deterministic, authored in metres, +Z up, with the
 player/customer-facing side on -Y.  Existing checkout and clubhouse candidates
@@ -552,29 +553,63 @@ def build_64() -> bpy.types.Object:
 # video game" - https://ambientcg.com/license). Maps in
 # asset_sources/textures/cc0_spike/.
 #
-# Carried forward VERBATIM from Spike/TEXTURE_VALIDATION.md Arm F, deliberately
-# unchanged, because asset_065 is the control for validating the shared/compressed
-# texture path: if the recipe moves at the same time as the pipeline, a visual
-# difference cannot be attributed to either.
+# TINT EXPORT — the defect that was here, and why the node type below is load-bearing.
 #
-# KNOWN DEFECT, not fixed here.  The MixRGB-multiply tints below DO NOT SURVIVE glTF
-# EXPORT.  Blender 5.1's exporter does not recognise this node pattern as a base-colour
-# factor, so it emits the texture with baseColorFactor absent — which defaults to
-# (1,1,1,1).  Every surface below therefore ships as the raw untinted ambientCG photo.
-# Verified by reading the exported GLB's material block directly: all four textured
-# materials have no baseColorFactor.  This is the real cause of Arm F's palette drift —
-# not subtle colour maths, the tint was dropped entirely.  Fixing it is Tier 1 pass work
-# and belongs with the ART_BIBLE §7.4.1 calibration procedure; doing it here would
-# invalidate the pipeline comparison this asset exists to provide.
+# This recipe previously built its base-colour tint with a `ShaderNodeMixRGB`, and every
+# tint was silently dropped at export: all four textured materials shipped with NO
+# `baseColorFactor` at all, which glTF defaults to (1,1,1,1), so each surface arrived as
+# the raw untinted ambientCG photograph.  Nothing failed.  That, not colour arithmetic,
+# is what put Spike/TEXTURE_VALIDATION.md Arm F off palette.
+#
+# The cause is exact and is in the exporter, not in Blender's shading.  Both node types
+# render identically in the viewport, so the .blend looked right.
+# `io_scene_gltf2/blender/exp/material/search_node_tree.py::get_multiply_factors`
+# recognises a base-colour factor only when ALL of these hold:
+#
+#     prev.node.type == 'MIX'          <- ShaderNodeMix.  A ShaderNodeMixRGB reports
+#                                         type 'MIX_RGB' and never matches.
+#     prev.node.data_type == 'RGBA'
+#     prev.node.blend_type == 'MULTIPLY'
+#     Factor is a constant exactly 1.0 <- 0.9 does not match either
+#     one of A_Color / B_Color is an unconnected constant
+#
+# So: ShaderNodeMix, RGBA, MULTIPLY, Factor pinned to 1.0, tint on the constant socket.
+# `tests/proshop-basecolor-factor.test.js` reads the exported GLB back and fails if a
+# material carrying an albedo map ships without a factor, because a silent drop is
+# exactly the kind of defect that survives review.
 _CC0_DIR = Path(__file__).resolve().parents[2] / "asset_sources" / "textures" / "cc0_spike"
+_CAL_MANIFEST = (Path(__file__).resolve().parents[2] / "asset_sources" / "textures"
+                 / "cc0_calibrated" / "asset_065_calibration.json")
+
+
+def _tint_base_colour(nt, source_socket, bsdf, tint):
+    """Multiply an albedo by a constant tint so the exporter emits a baseColorFactor.
+
+    Every property set here is required by the exporter's pattern match; see the block
+    above before changing any of them.
+    """
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 1.0
+    # RGBA sockets by index: ShaderNodeMix carries one A/B pair per data type and they
+    # all share the display names "A" and "B", so a name lookup is ambiguous.
+    nt.links.new(source_socket, mix.inputs[6])   # A_Color <- texture
+    mix.inputs[7].default_value = tuple(tint)    # B_Color <- constant, becomes the factor
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+    return mix
 
 
 def _textured_material(name, cc0_id, *, tint=None, uv_scale=2.0, metallic=0.0,
-                       roughness_boost=0.0, has_metalness=False):
+                       roughness_boost=0.0, has_metalness=False, albedo_path=None):
     """Principled BSDF driven by CC0 Color/Roughness/NormalGL maps.
 
     Colour space matters and is easy to get silently wrong: Color is sRGB, Roughness and
     Normal are Non-Color. NormalGL is the OpenGL convention, which is what glTF expects.
+
+    `albedo_path` overrides the base-colour map only, leaving roughness/normal on the
+    original source — ART_BIBLE §7.4.1 calibrates the albedo and nothing else, because
+    roughness and normal are data rather than colour.
     """
     mat = bpy.data.materials.new(name if name.startswith("MAT_") else "MAT_" + name)
     mat.use_nodes = True
@@ -592,6 +627,8 @@ def _textured_material(name, cc0_id, *, tint=None, uv_scale=2.0, metallic=0.0,
 
     def img(suffix, non_color):
         path = _CC0_DIR / f"{cc0_id}_1K-JPG_{suffix}.jpg"
+        if suffix == "Color" and albedo_path is not None:
+            path = albedo_path
         if not path.exists():
             return None
         node = nt.nodes.new("ShaderNodeTexImage")
@@ -609,12 +646,7 @@ def _textured_material(name, cc0_id, *, tint=None, uv_scale=2.0, metallic=0.0,
     col = img("Color", False)
     if col is not None:
         if tint is not None:
-            mix = nt.nodes.new("ShaderNodeMixRGB")
-            mix.blend_type = "MULTIPLY"
-            mix.inputs["Fac"].default_value = 1.0
-            mix.inputs["Color2"].default_value = tint
-            nt.links.new(col.outputs["Color"], mix.inputs["Color1"])
-            nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
+            _tint_base_colour(nt, col.outputs["Color"], bsdf, tint)
         else:
             nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
 
@@ -647,25 +679,67 @@ def _textured_material(name, cc0_id, *, tint=None, uv_scale=2.0, metallic=0.0,
     return mat
 
 
+# Per-slot settings that are geometry and material response, not colour: they are the
+# same in every arm, so a difference between arms is only ever the albedo pipeline.
+_SLOTS_65 = {
+    "natural_oak": dict(source="Wood051", uv_scale=2.2),
+    "medium_walnut": dict(source="Wood062", uv_scale=2.6),
+    "warm_charcoal": dict(source="Metal032", uv_scale=3.0, roughness_boost=0.12),
+    "restrained_brass": dict(source="Metal032", uv_scale=4.0, metallic=1.0),
+}
+
+
 def _cc0_materials_65() -> dict:
-    """Textured replacements, asset 065 only.  See the tint defect noted above."""
-    return {
-        "natural_oak": _textured_material("CC065_NaturalOak", "Wood051",
-                                          tint=(0.92, 0.78, 0.58, 1.0), uv_scale=2.2),
-        "medium_walnut": _textured_material("CC065_MediumWalnut", "Wood062",
-                                            tint=(0.62, 0.44, 0.30, 1.0), uv_scale=2.6),
-        "warm_charcoal": _textured_material("CC065_WarmCharcoal", "Metal032",
-                                            tint=(0.20, 0.21, 0.22, 1.0), uv_scale=3.0,
-                                            roughness_boost=0.12),
-        "restrained_brass": _textured_material("CC065_RestrainedBrass", "Metal032",
-                                               tint=(1.25, 0.98, 0.46, 1.0), uv_scale=4.0,
-                                               metallic=1.0),
-    }
+    """Calibrated textured materials for asset 065 — ART_BIBLE §7.4.1.
+
+    The tints are NOT authored here.  They are solved by
+    ``python tools/blender/cc0_calibrate.py --emit 065`` from the measured mean
+    luminance of each calibrated map, and read back from the manifest it writes.  A
+    tint that is computed from the map it multiplies is the only kind that lands on
+    the palette value; an eyeballed one is off by an amount that scales with how
+    saturated the source photograph happened to be.
+    """
+    if not _CAL_MANIFEST.exists():
+        raise SystemExit(
+            f"missing {_CAL_MANIFEST}\n"
+            "run: python tools/blender/cc0_calibrate.py --emit 065"
+        )
+    manifest = json.loads(_CAL_MANIFEST.read_text(encoding="utf-8"))
+    repo = Path(__file__).resolve().parents[2]
+
+    materials = {}
+    for entry in manifest["materials"]:
+        slot = _SLOTS_65[entry["key"]]
+        if entry["source"] != slot["source"]:
+            raise SystemExit(
+                f"calibration manifest maps {entry['key']} to {entry['source']}, "
+                f"builder expects {slot['source']}"
+            )
+        if not entry["reachable"]:
+            raise SystemExit(f"{entry['name']}: {entry['note']}")
+        settings = {k: v for k, v in slot.items() if k != "source"}
+        materials[entry["key"]] = _textured_material(
+            f"CC065_{entry['name']}", entry["source"],
+            # Solved in linear, which is what a Blender Base Color socket and a glTF
+            # baseColorFactor both hold. Writing the sRGB floats here is the Arm C bug.
+            tint=(*entry["tintLinear"], 1.0),
+            albedo_path=repo / entry["calibratedMap"],
+            **settings,
+        )
+    return materials
+
+
+# Arm A of the texture validation: the same geometry with the flat palette materials it
+# had before any CC0 map was introduced. It is the control the whole texture thesis is
+# measured against, so it has to be rebuildable rather than remembered.
+#   blender ... --python tools/blender/build_assets_61_70.py -- --asset 65 --untextured
+UNTEXTURED = False
 
 
 def build_65() -> bpy.types.Object:
     root, p = _root(65, fixture_role="delivery_worktable", full_top_placement_surface=True)
-    p = {**p, **_cc0_materials_65()}  # asset-065-local textured override
+    if not UNTEXTURED:
+        p = {**p, **_cc0_materials_65()}  # asset-065-local textured override
     frame = _group("WorktableFrame", root)
     _placement(root)
     _box("OakWorktop", (1.80, 0.75, 0.085), (0.0, 0.0, 0.8775), p["natural_oak"], frame,
@@ -1040,11 +1114,16 @@ BUILDERS: dict[int, Callable[[], bpy.types.Object]] = {
 
 
 def _parse_cli(argv: Sequence[str]) -> tuple[int | None, A.BuildOptions]:
+    global UNTEXTURED
     selected: int | None = None
     forwarded: list[str] = []
     index = 0
     while index < len(argv):
         arg = argv[index]
+        if arg == "--untextured":
+            UNTEXTURED = True
+            index += 1
+            continue
         if arg == "--asset":
             if index + 1 >= len(argv):
                 raise SystemExit("--asset requires a number from 61 through 70")

@@ -24,7 +24,14 @@ The fix is to make the map carry **variation** and the tint carry **hue**:
 Run standalone (no Blender needed):
 
     python tools/blender/cc0_calibrate.py --report
-    python tools/blender/cc0_calibrate.py --bake Wood051_1K-JPG_Color.jpg medium_walnut
+    python tools/blender/cc0_calibrate.py --bake SRC DST
+    python tools/blender/cc0_calibrate.py --emit 065
+
+``--emit`` is the one the builder consumes.  It bakes each calibrated albedo and
+writes a manifest of solved tints beside them, because the arithmetic needs Pillow
+and Blender does not ship Pillow.  Keeping the solve outside Blender also means the
+tint that ships is a value on disk that can be diffed and reviewed, rather than a
+number computed during a build nobody watched.
 """
 
 from __future__ import annotations
@@ -33,6 +40,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Mapping
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from palette import (  # noqa: E402
@@ -146,6 +154,42 @@ def solve_tint(source_mean_luma: float, luma_p99: float, target_hex: str) -> dic
     }
 
 
+def visible_span(luma_p10: float, luma_p90: float, luma_p99: float, target_hex: str) -> dict:
+    """How many sRGB code values the grain will actually span once tinted.
+
+    This is the number that decides whether a texture is worth putting on a surface, and
+    it is NOT the source's contrast ratio. Contrast ratio is preserved exactly by
+    calibration — but the sRGB transfer curve is steeply compressive near black, so the
+    same ratio spans far fewer visible code values on a dark palette target than on a
+    light one.
+
+    Measured consequence, from `Spike/TEXTURE_VALIDATION.md` addendum: Wood051 on medium
+    walnut spans ~34 code values and reads clearly as grain; Metal032 on black powder-coat
+    spans ~2 and is invisible, flatter on screen than the untextured control. Both passed
+    every other check. A source-contrast gate alone cannot tell those two apart.
+
+    Reported per channel and summarised on the brightest, because a surface reads as
+    textured if any channel carries the variation.
+    """
+    gain = exposure_gain(luma_p99)
+    target = hex_to_linear_rgba(target_hex)[:3]
+    mean = luma_p99 and (luma_p10 + luma_p90) / 2
+    spans = []
+    for channel_target in target:
+        # tint x normalised map, evaluated at the map's p10 and p90
+        tint = channel_target / max((luma_p10 + luma_p90) / 2 * gain, 1e-9)
+        low = tint * luma_p10 * gain
+        high = tint * luma_p90 * gain
+        spans.append(
+            (linear_channel_to_srgb(min(high, 1.0)) - linear_channel_to_srgb(min(low, 1.0))) * 255
+        )
+    return {
+        "visibleSpanPerChannel": [round(s, 1) for s in spans],
+        "visibleSpanCodeValues": round(max(spans), 1),
+        "midLinear": round(float(mean or 0.0), 6),
+    }
+
+
 def predicted_shipped(tint, source_mean_luma: float) -> dict:
     """What the renderer will actually average to, given tint x desaturated map."""
     shipped = [t * source_mean_luma for t in tint]
@@ -243,14 +287,112 @@ def bake(src: Path, dst: Path) -> dict:
     }
 
 
+# ===== Per-asset calibration plans =====
+#
+# One entry per MATERIAL, not per source map: Metal032 appears twice below because
+# asset_065 uses the same photograph for two different palette values, which is the
+# whole point of separating variation (map) from hue (tint).
+#
+# `key` is the builder's material slot. `target` is a key into ART_BIBLE_SRGB_HEX,
+# i.e. the §8 table, which is the authority for the slice.
+CALIBRATION_PLANS: Mapping[str, tuple] = {
+    "065": (
+        {"key": "natural_oak", "name": "MediumWalnut", "source": "Wood051",
+         "target": "medium_walnut", "role": "worktop"},
+        {"key": "medium_walnut", "name": "DarkWalnut", "source": "Wood062",
+         "target": "dark_walnut", "role": "worktop dark edge, lower shelf"},
+        {"key": "warm_charcoal", "name": "BlackPowderCoat", "source": "Metal032",
+         "target": "black_powder_coat", "role": "legs, apron frame"},
+        {"key": "restrained_brass", "name": "MutedBrass", "source": "Metal032",
+         "target": "muted_brass", "role": "corner caps"},
+    ),
+}
+
+CALIBRATED_DIR = REPO / "asset_sources" / "textures" / "cc0_calibrated"
+
+
+def emit(asset: str) -> dict:
+    """Bake every calibrated albedo for one asset and write the tint manifest.
+
+    The manifest is what the Blender builder reads. It carries the solved tint in
+    LINEAR — the space a glTF baseColorFactor and a Blender Base Color socket both
+    want — so no consumer has to repeat the conversion that was got wrong once
+    already (see :mod:`palette`).
+    """
+    plan = CALIBRATION_PLANS.get(asset)
+    if plan is None:
+        raise SystemExit(f"no calibration plan for asset {asset!r}")
+
+    materials = []
+    for entry in plan:
+        src = CC0_DIR / f"{entry['source']}_1K-JPG_Color.jpg"
+        if not src.exists():
+            raise SystemExit(f"missing CC0 source {src}")
+        dst = CALIBRATED_DIR / f"{entry['source']}_calibrated_Color.jpg"
+
+        measured = measure(src)
+        target_hex = ART_BIBLE_SRGB_HEX[entry["target"]]
+        solved = solve_tint(measured["meanLuma"], measured["lumaP99"], target_hex)
+        shipped = predicted_shipped(solved["tintLinear"], solved["normalisedMeanLuma"])
+
+        # One bake per SOURCE, not per material: the calibrated map is achromatic and
+        # exposure-normalised, so both palette values share the same image and the
+        # asset pays for it once. That sharing is the reason to desaturate at all.
+        baked = bake(src, dst) if not dst.exists() else None
+
+        span = visible_span(
+            measured["lumaP10"], measured["lumaP90"], measured["lumaP99"], target_hex,
+        )
+        materials.append({
+            **{k: entry[k] for k in ("key", "name", "source", "target", "role")},
+            "calibratedMap": str(dst.relative_to(REPO)).replace("\\", "/"),
+            "targetHex": target_hex,
+            "tintLinear": solved["tintLinear"],
+            "reachable": solved["reachable"],
+            "note": solved["note"],
+            "exposureGain": solved["exposureGain"],
+            "shippedHex": shipped["shippedHex"],
+            "gapToTarget": deltaE_ish(shipped["shippedLinear"], solved["targetLinear"]),
+            "sourceContrastP90overP10": measured["contrastP90overP10"],
+            **span,
+            # 8 code values is where a difference stops being reliably visible on an
+            # uncalibrated display at normal viewing distance — the same threshold the
+            # arm comparison uses for pctOver8.
+            "textureWorthCarrying": span["visibleSpanCodeValues"] >= 8.0,
+            "bake": baked,
+        })
+
+    unreachable = [m["name"] for m in materials if not m["reachable"]]
+    manifest = {
+        "asset": asset,
+        "procedure": "ART_BIBLE.md §7.4.1",
+        "paletteTable": "ART_BIBLE_SRGB_HEX (§8)",
+        "materials": materials,
+        "unreachable": unreachable,
+    }
+    CALIBRATED_DIR.mkdir(parents=True, exist_ok=True)
+    out = CALIBRATED_DIR / f"asset_{asset}_calibration.json"
+    out.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    if unreachable:
+        raise SystemExit(
+            f"unreachable palette targets for {unreachable} — see §7.4.1 step 2; "
+            "these sources cannot carry these values by multiplication"
+        )
+    return manifest
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--report", action="store_true", help="measure the CC0 sources and solve tints")
     ap.add_argument("--bake", nargs=2, metavar=("SRC", "DST"), help="write a calibrated map")
+    ap.add_argument("--emit", metavar="ASSET", help="bake maps + write the builder's tint manifest")
     args = ap.parse_args()
 
     if args.bake:
         print(json.dumps(bake(Path(args.bake[0]), Path(args.bake[1])), indent=2))
+        return
+    if args.emit:
+        print(json.dumps(emit(args.emit), indent=2))
         return
     print(json.dumps(report(), indent=2))
 

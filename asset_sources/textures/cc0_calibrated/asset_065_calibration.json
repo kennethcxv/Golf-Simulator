@@ -1,0 +1,124 @@
+{
+  "asset": "065",
+  "procedure": "ART_BIBLE.md \u00a77.4.1",
+  "paletteTable": "ART_BIBLE_SRGB_HEX (\u00a78)",
+  "materials": [
+    {
+      "key": "natural_oak",
+      "name": "MediumWalnut",
+      "source": "Wood051",
+      "target": "medium_walnut",
+      "role": "worktop",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Wood051_calibrated_Color.jpg",
+      "targetHex": "6B4A2F",
+      "tintLinear": [
+        0.251884,
+        0.117315,
+        0.048699
+      ],
+      "reachable": true,
+      "note": "reachable",
+      "exposureGain": 15.034,
+      "shippedHex": "6B4A2F",
+      "gapToTarget": 0.0,
+      "sourceContrastP90overP10": 1.951,
+      "visibleSpanPerChannel": [
+        33.1,
+        24.0,
+        16.7
+      ],
+      "visibleSpanCodeValues": 33.1,
+      "midLinear": 0.039025,
+      "textureWorthCarrying": true,
+      "bake": null
+    },
+    {
+      "key": "medium_walnut",
+      "name": "DarkWalnut",
+      "source": "Wood062",
+      "target": "dark_walnut",
+      "role": "worktop dark edge, lower shelf",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Wood062_calibrated_Color.jpg",
+      "targetHex": "3E2A1B",
+      "tintLinear": [
+        0.114921,
+        0.055236,
+        0.026147
+      ],
+      "reachable": true,
+      "note": "reachable",
+      "exposureGain": 4.3881,
+      "shippedHex": "3E2A1B",
+      "gapToTarget": 0.0,
+      "sourceContrastP90overP10": 3.167,
+      "visibleSpanPerChannel": [
+        34.5,
+        25.4,
+        18.6
+      ],
+      "visibleSpanCodeValues": 34.5,
+      "midLinear": 0.097648,
+      "textureWorthCarrying": true,
+      "bake": null
+    },
+    {
+      "key": "warm_charcoal",
+      "name": "BlackPowderCoat",
+      "source": "Metal032",
+      "target": "black_powder_coat",
+      "role": "legs, apron frame",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Metal032_calibrated_Color.jpg",
+      "targetHex": "1C1E1F",
+      "tintLinear": [
+        0.013848,
+        0.015483,
+        0.01634
+      ],
+      "reachable": true,
+      "note": "reachable",
+      "exposureGain": 3.4575,
+      "shippedHex": "1C1E1F",
+      "gapToTarget": 0.0,
+      "sourceContrastP90overP10": 1.137,
+      "visibleSpanPerChannel": [
+        2.2,
+        2.3,
+        2.4
+      ],
+      "visibleSpanCodeValues": 2.4,
+      "midLinear": 0.241358,
+      "textureWorthCarrying": false,
+      "bake": null
+    },
+    {
+      "key": "restrained_brass",
+      "name": "MutedBrass",
+      "source": "Metal032",
+      "target": "muted_brass",
+      "role": "corner caps",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Metal032_calibrated_Color.jpg",
+      "targetHex": "A8823C",
+      "tintLinear": [
+        0.46696,
+        0.266205,
+        0.053886
+      ],
+      "reachable": true,
+      "note": "reachable",
+      "exposureGain": 3.4575,
+      "shippedHex": "A8823C",
+      "gapToTarget": 0.0,
+      "sourceContrastP90overP10": 1.137,
+      "visibleSpanPerChannel": [
+        9.7,
+        7.7,
+        3.9
+      ],
+      "visibleSpanCodeValues": 9.7,
+      "midLinear": 0.241358,
+      "textureWorthCarrying": true,
+      "bake": null
+    }
+  ],
+  "unreachable": []
+}
