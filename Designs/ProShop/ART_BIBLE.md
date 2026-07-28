@@ -391,6 +391,89 @@ files and sheet_07 carries zero — not because its bevels or its palette are be
 **Do not approve a hero asset that ships with zero embedded images.** That is now the single
 highest-value technical gate in this document.
 
+### 7.4.1 Palette calibration — bringing a CC0 albedo onto palette
+
+> Added because §7.4 requires a texture and §8 requires a palette, and satisfying both at
+> once is a real job that nobody had costed. `Spike/TEXTURE_VALIDATION.md` Arm F applied CC0
+> maps over palette-tinted bases and **drifted off palette** — every individual value in it
+> looked reasonable. Calibration was estimated at 1.5–3 h of the 2.75–5.25 h per asset, so
+> this is most of the texture pass, not a finishing step.
+
+**Why tinting a downloaded map does not put it on palette.** The renderer computes
+
+```
+albedo_linear = baseColorFactor × texture_linear
+```
+
+so the shipped colour is the **product** of two colours. A downloaded albedo arrives with
+its own hue, its own mean brightness and its own saturation. Multiply a walnut tint into
+an already-brown wood photo and the result is browner, darker and more saturated than
+either — reliably off palette, and off by a different amount for every source map.
+
+**The rule: the map carries variation, the tint carries hue.** Three steps, all arithmetic,
+none by eye. `tools/blender/cc0_calibrate.py` performs and reports them.
+
+| Step | What happens | Why this operation |
+|---|---|---|
+| 1. **Desaturate** | Collapse the map to its Rec. 709 luminance | Strips the source's hue so it stops competing with the palette. After this the map is achromatic and contributes only light and dark |
+| 2. **Exposure-normalise** | One multiply in linear space, chosen so the map's p99 luminance reaches 0.95 | A constant multiply in linear is an exposure change: it preserves **every ratio exactly**, so grain contrast survives. A gamma or levels curve would not. p99 rather than max so one specular pixel does not set the exposure |
+| 3. **Solve the tint** | `baseColorFactor = target_linear / mean_luminance_of_normalised_map` | The mean of (constant × image) is constant × mean, so this lands the shipped mean **exactly** on the §8 value. The tint is computed, never eyeballed |
+
+Step 2 is not optional and is not cosmetic. Without it, a dark source cannot reach a
+lighter palette value at all: `baseColorFactor` is clamped to [0, 1], so if the required
+tint exceeds 1.0 the colour is simply unreachable by multiplication. Wood051 hits this —
+see below.
+
+**What gets tinted, what does not.**
+
+| Map | Calibrate? | Colour space |
+|---|---|---|
+| Albedo / base colour | **Yes** — all three steps | sRGB |
+| Roughness, metalness, AO | **No.** These are data, not colour. Desaturating or tinting them changes material response, not appearance | Non-Color / linear |
+| Normal | **No.** Never touch a normal map's values | Non-Color / linear |
+| Emissive | Tint only, to the §8 emissive value; no exposure normalisation — its absolute level is the light output | sRGB |
+
+#### Worked example — asset_065, the stockroom worktable
+
+Measured with `python tools/blender/cc0_calibrate.py --report` against the three ambientCG
+(CC0 1.0) sources in `asset_sources/textures/cc0_spike/`.
+
+| | Worktop | Underframe / shelf | Legs, brackets |
+|---|---|---|---|
+| Source | `Wood051` albedo | `Wood062` albedo | `Metal032` albedo |
+| Source mean, as sRGB | `#42352F` | `#63544B` | `#7D8994` |
+| Source mean luminance (linear) | 0.0388 | 0.0955 | 0.2425 |
+| Source contrast (p90/p10) | 1.95 | 3.17 | **1.14** |
+| §8 target | Medium walnut `#6B4A2F` | Dark walnut `#3E2A1B` | Black powder-coat `#1C1E1F` |
+| **1.** desaturate | mean chroma 0.0266 → 0 | 0.0549 → 0 | 0.0892 → 0 |
+| **2.** exposure gain | **×15.03** → mean 0.5837 | ×4.39 → mean 0.4192 | ×3.46 → mean 0.8386 |
+| **3.** solved `baseColorFactor` | 0.2519, 0.1173, 0.0487 | 0.1149, 0.0552, 0.0261 | 0.0138, 0.0155, 0.0163 |
+| Shipped mean | `#6B4A2F` ✔ | `#3E2A1B` ✔ | `#1C1E1F` ✔ |
+| **Same tint, skipping step 1** | `#7E4627` — **off by 20.4** | `#472816` — off by 10.5 | `#191E23` — off by 4.7 |
+
+Two things this example is here to teach:
+
+* **Wood051 is unreachable without step 2.** Its mean luminance is 0.0388 while medium
+  walnut's red channel needs 0.147, so the tint would have to be **3.79** — nearly four
+  times the legal maximum. Tinting the raw map cannot produce medium walnut at any tint
+  value. This is not a subtlety; it is the difference between the colour being achievable
+  and not.
+* **The drift scales with the source's own saturation.** The wood maps, which carry the
+  most hue, drift furthest (20.4 and 10.5 in sRGB 0–255 distance). The near-neutral metal
+  drifts least (4.7). An asset calibrated by eye will therefore look *nearly* right on its
+  metal and clearly wrong on its wood — which is exactly the failure Arm F showed.
+
+#### Acceptance
+
+| Check | Gate |
+|---|---|
+| Shipped mean albedo within **3.0** sRGB 0–255 distance of the §8 target | [T] `cc0_calibrate.py --report` reports `gapToTarget`; the solve is exact, so anything above 3.0 means a step was skipped |
+| Calibrated map mean chroma **< 0.01** — it is achromatic | [T] same report, `meanChroma` after bake |
+| Source contrast ratio p90/p10 **≥ 1.5** | [T] a map flatter than this is not carrying surface information and fails §7.4 on its own terms regardless of colour. **Metal032 is at 1.14 and fails this** — it needs a replacement source or a procedural break-up before the Tier 1 pass |
+| Clipped fraction after exposure normalisation **< 0.5 %** | [T] `--bake` reports `clippedFraction` |
+| Roughness, metalness and normal maps are untouched by calibration and tagged Non-Color | [T] existing colour-space check |
+| The calibrated surface reads as the same production as the reception counter run | **[V]** `Designs/ProShop/Spike/bible/compare/palette-calibration-worktop.png` — the worktable worktop and the counter run in one frame, front elevation, from `tools/qa/spike-bible-arm.js` pose `2-front-elevation`. Both are medium walnut; if they read as two different woods, calibration failed regardless of what the arithmetic says |
+
 ---
 
 ## 8. Palette
