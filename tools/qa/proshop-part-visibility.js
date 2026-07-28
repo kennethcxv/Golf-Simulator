@@ -23,6 +23,7 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
+  const crypto = process.getBuiltinModule('node:crypto');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const dataDir = path.join(repo, 'Designs', 'ProShop', 'Discriminator', 'data');
   fs.mkdirSync(dataDir, { recursive: true });
@@ -31,15 +32,23 @@ async (page) => {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(800);
 
+  // Population: every sheet under assets_51_100, asset number >= 61 with no upper
+  // bound. tests/proshop-part-visibility.test.js enumerates the SAME rule and fails
+  // when the JSON and the disk disagree, so an asset added to a new sheet cannot ship
+  // unswept. Each entry carries the sha256 of the GLB bytes at sweep time -- the test's
+  // staleness gate: rebuild a GLB and the suite refuses to trust this file until the
+  // sweep is re-run.
   const glbRoot = path.join(repo, 'vendor', 'models', 'assets_51_100');
   const list = [];
-  for (const sheet of ['sheet_07', 'sheet_08', 'sheet_09', 'sheet_10']) {
+  for (const sheet of fs.readdirSync(glbRoot).filter((d) => /^sheet_\d+$/.test(d))) {
     for (const file of fs.readdirSync(path.join(glbRoot, sheet))) {
       const m = /^asset_(\d{3})_.+\.glb$/.exec(file);
       if (!m) continue;
       const n = Number(m[1]);
-      if (n < 61 || n > 100) continue;
-      list.push({ n, url: `/vendor/models/assets_51_100/${sheet}/${file}`, file });
+      if (n < 61) continue;
+      const bytes = fs.readFileSync(path.join(glbRoot, sheet, file));
+      const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+      list.push({ n, url: `/vendor/models/assets_51_100/${sheet}/${file}`, file, sheet, sha256 });
     }
   }
   list.sort((a, b) => a.n - b.n);
@@ -160,6 +169,8 @@ async (page) => {
       out.push({
         n: asset.n,
         file: asset.file,
+        sheet: asset.sheet,
+        sha256: asset.sha256,
         opaqueParts: opaque.length,
         transparentParts: transparent,
         animations: (gltf.animations || []).map((a) => a.name),

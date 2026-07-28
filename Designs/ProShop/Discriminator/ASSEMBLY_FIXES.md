@@ -28,6 +28,13 @@ a sphere at 512², counts pixels per part. Transparent parts (glass) are hidden 
 pass and never flagged — glass in front of a dial does not hide it in the shipped game.
 Data: `data/part-visibility.json`.
 
+**The sweep is permanent since 2026-07-28**: `tests/proshop-part-visibility.test.js`
+fails the suite when any opaque part registers zero pixels from all 26 directions unless
+it is whitelisted by name with a reason. The instrument records each GLB's sha256 at
+sweep time and the test recomputes them from disk, so a rebuilt or newly added asset
+fails as *stale*/*unswept* until the sweep has actually looked at the new bytes — a new
+asset with a buried part cannot ship without anyone remembering to check.
+
 ### The 087 class — static burial, no angle can ever reveal the part (6 found in the 37)
 
 | Asset | Part | Cause | Outcome |
@@ -41,6 +48,17 @@ Data: `data/part-visibility.json`.
 
 Six is more than three, so fixes were applied per the brief; four of the six were
 repositionable.
+
+### The two structural cases are deferred until after Phase 3 — not forgotten
+
+`061 StaffDivider` and `099 StandDrainTray` need real geometry work (carving the staff
+bay open; boring a true cavity), not repositioning. Both are parked **until after
+Phase 3 lands**, deliberately: 061 *is* the reception counter, and Phase 3 may relocate
+or rebuild it — the entrance-sightline complaint in `PHASE_0_REPORT.md` §4 is about that
+counter's position. Cutting geometry into an asset the layout verdict may replace would
+be work done twice. 099 is the same class of work and waits with it. The suite carries
+both as named `DEFERRED` whitelist entries in `tests/proshop-part-visibility.test.js`,
+so the deferral is enforced and visible, not remembered.
 
 ### Flagged by the instrument but NOT the class — hidden at bind pose, revealed by animation
 

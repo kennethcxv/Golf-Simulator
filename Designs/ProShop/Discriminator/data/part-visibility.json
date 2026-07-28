@@ -5,6 +5,8 @@
     {
       "n": 61,
       "file": "asset_061_front_desk_counter_shell.glb",
+      "sheet": "sheet_07",
+      "sha256": "7c7e903aec98aa39d872eb72f662ad7f94fc370ab17d0f6aed95cbc8f9a6a354",
       "opaqueParts": 11,
       "transparentParts": [],
       "animations": [],
@@ -95,6 +97,8 @@
     {
       "n": 62,
       "file": "asset_062_back_counter_storage_cabinets.glb",
+      "sheet": "sheet_07",
+      "sha256": "c76acceadf7e5fa36962e36135e42cbbcf8f5fab457a2b147f570a6dcfa07426",
       "opaqueParts": 15,
       "transparentParts": [],
       "animations": [
@@ -218,6 +222,8 @@
     {
       "n": 63,
       "file": "asset_063_pro_shop_fitting_room.glb",
+      "sheet": "sheet_07",
+      "sha256": "a8fcaab7ae86201f592c7471a94af4463f44f532dbc049f387f9bdfa1d497129",
       "opaqueParts": 14,
       "transparentParts": [],
       "animations": [
@@ -330,6 +336,8 @@
     {
       "n": 64,
       "file": "asset_064_stockroom_shelving_system.glb",
+      "sheet": "sheet_07",
+      "sha256": "6995e5bb12aa86e93acaef548c95b48f9a39157ae79d665d4aaf30db728e8460",
       "opaqueParts": 5,
       "transparentParts": [],
       "animations": [],
@@ -376,6 +384,8 @@
     {
       "n": 65,
       "file": "asset_065_stockroom_worktable.glb",
+      "sheet": "sheet_07",
+      "sha256": "a16671dd742071e4ad07333da4e13477ba1ef6a6ef7afaaa87a1681f5afc9192",
       "opaqueParts": 6,
       "transparentParts": [],
       "animations": [],
@@ -429,6 +439,8 @@
     {
       "n": 66,
       "file": "asset_066_office_laptop_desk.glb",
+      "sheet": "sheet_07",
+      "sha256": "83e5d47f957f16c5f9905cb90832de80882026ad438880f87c486f45164b016a",
       "opaqueParts": 8,
       "transparentParts": [],
       "animations": [],
@@ -496,6 +508,8 @@
     {
       "n": 67,
       "file": "asset_067_clubhouse_lounge_sofa.glb",
+      "sheet": "sheet_07",
+      "sha256": "e9f43ccb325b7595bfa614af04f21bb6d6409b04d3b8cba1241549fd4fe06070",
       "opaqueParts": 10,
       "transparentParts": [],
       "animations": [],
@@ -577,6 +591,8 @@
     {
       "n": 68,
       "file": "asset_068_lounge_armchair_sheet07.glb",
+      "sheet": "sheet_07",
+      "sha256": "c5c5ea13479b2b21767700bb75f88e1323a4d0b0b0881ccd6b5795456e359917",
       "opaqueParts": 10,
       "transparentParts": [],
       "animations": [],
@@ -658,6 +674,8 @@
     {
       "n": 69,
       "file": "asset_069_lounge_coffee_table_sheet07.glb",
+      "sheet": "sheet_07",
+      "sha256": "ced81d16ec473537bd7056eca963cc09d18647dfd8ff0d09c27c73993f7d069b",
       "opaqueParts": 6,
       "transparentParts": [],
       "animations": [],
@@ -711,6 +729,8 @@
     {
       "n": 70,
       "file": "asset_070_trophy_display_cabinet.glb",
+      "sheet": "sheet_07",
+      "sha256": "c41148698031ef4b4a6666bcf4b98ccbb85b1b3e166ef4a9b841c1e54d0fb014",
       "opaqueParts": 14,
       "transparentParts": [
         "MESH_DisplayDoorLeftGlass",
@@ -828,6 +848,8 @@
     {
       "n": 71,
       "file": "asset_071_vacuum_cleaner.glb",
+      "sheet": "sheet_08",
+      "sha256": "6737f072fe142d6f73de3dccc161fd13e807342ce3e37c80d571ebc97237cce9",
       "opaqueParts": 20,
       "transparentParts": [],
       "animations": [],
@@ -981,6 +1003,8 @@
     {
       "n": 72,
       "file": "asset_072_mop.glb",
+      "sheet": "sheet_08",
+      "sha256": "c5d8d29617b4bbbaa68aca713e4391adceb91958e8c3fc752c6ea80a1b956412",
       "opaqueParts": 5,
       "transparentParts": [],
       "animations": [],
@@ -1027,6 +1051,8 @@
     {
       "n": 73,
       "file": "asset_073_mop_bucket_and_wringer.glb",
+      "sheet": "sheet_08",
+      "sha256": "391674aa437ece687ae73f2ff59c473eae93fa830f1e234de8a2a5449b95d194",
       "opaqueParts": 9,
       "transparentParts": [
         "MESH_BucketWater"
@@ -1111,6 +1137,8 @@
     {
       "n": 74,
       "file": "asset_074_broom.glb",
+      "sheet": "sheet_08",
+      "sha256": "8a958a67fb738b5d30616777f6024527f7efba350f1d3b961abdf9f3f597e857",
       "opaqueParts": 5,
       "transparentParts": [],
       "animations": [],
@@ -1157,6 +1185,8 @@
     {
       "n": 75,
       "file": "asset_075_dustpan.glb",
+      "sheet": "sheet_08",
+      "sha256": "e5179248f128eb27b9189e307fe842a10e20282a5f2996941bce5d12f9246d71",
       "opaqueParts": 8,
       "transparentParts": [],
       "animations": [],
@@ -1224,6 +1254,8 @@
     {
       "n": 76,
       "file": "asset_076_cleaning_spray_bottle.glb",
+      "sheet": "sheet_08",
+      "sha256": "ab9d5024ecddca3baa6c945d7cfefdb40e17769eab4c7e45bd94bf63ffdc8f64",
       "opaqueParts": 11,
       "transparentParts": [
         "MESH_SprayFluid"
@@ -1316,6 +1348,8 @@
     {
       "n": 77,
       "file": "asset_077_cleaning_cloth_and_sponge_set.glb",
+      "sheet": "sheet_08",
+      "sha256": "366933c3342c1f1e10d83513ffe8a49956fd9317d60d55f6e16b8e491ee7f7fd",
       "opaqueParts": 5,
       "transparentParts": [],
       "animations": [],
@@ -1362,6 +1396,8 @@
     {
       "n": 78,
       "file": "asset_078_pressure_washer.glb",
+      "sheet": "sheet_08",
+      "sha256": "c8e12fe39dc66de8fdeed4cb5b520642be85b66bab61a0b82ba049d8465e1ac4",
       "opaqueParts": 14,
       "transparentParts": [],
       "animations": [
@@ -1476,6 +1512,8 @@
     {
       "n": 79,
       "file": "asset_079_pressure_washer_hose_and_wand.glb",
+      "sheet": "sheet_08",
+      "sha256": "6b0af1d660d23a3b0147709a1363c8fa9cee647e9a64175267ccc4fe56a16d7c",
       "opaqueParts": 13,
       "transparentParts": [],
       "animations": [
@@ -1581,6 +1619,8 @@
     {
       "n": 80,
       "file": "asset_080_trash_bag.glb",
+      "sheet": "sheet_08",
+      "sha256": "2f23f1bc12eb8656bf765932953478d066fe5830f6b3571f383d235decff3225",
       "opaqueParts": 8,
       "transparentParts": [],
       "animations": [],
@@ -1648,6 +1688,8 @@
     {
       "n": 81,
       "file": "asset_081_office_chair_sheet09.glb",
+      "sheet": "sheet_09",
+      "sha256": "fa1215af3b03aca743bd606795f0c9538880ac3338a001584ef3c7e6d9b61c34",
       "opaqueParts": 6,
       "transparentParts": [],
       "animations": [
@@ -1703,6 +1745,8 @@
     {
       "n": 82,
       "file": "asset_082_filing_cabinet_sheet09.glb",
+      "sheet": "sheet_09",
+      "sha256": "85dc369ab495e736cb5dcf08ea9839539e0e1600223e44c55f54bccd8a6c1012",
       "opaqueParts": 9,
       "transparentParts": [],
       "animations": [
@@ -1782,6 +1826,8 @@
     {
       "n": 83,
       "file": "asset_083_desk_lamp.glb",
+      "sheet": "sheet_09",
+      "sha256": "99d4950f8b77cbb41c63bc3733a4daa26f34ebd25595fd0c6410b8ac7981aa6a",
       "opaqueParts": 9,
       "transparentParts": [],
       "animations": [
@@ -1859,6 +1905,8 @@
     {
       "n": 84,
       "file": "asset_084_office_printer.glb",
+      "sheet": "sheet_09",
+      "sha256": "2a2117d866cd5374211d36cb1829e622c1c93dc09768e54cf22ab2a405522cec",
       "opaqueParts": 9,
       "transparentParts": [],
       "animations": [
@@ -1937,6 +1985,8 @@
     {
       "n": 85,
       "file": "asset_085_office_telephone.glb",
+      "sheet": "sheet_09",
+      "sha256": "8e6b9e58c58e23a585fc0e427a5e3359dc6d962083630abc38d3b5f6d4f93aa9",
       "opaqueParts": 14,
       "transparentParts": [],
       "animations": [
@@ -2050,6 +2100,8 @@
     {
       "n": 86,
       "file": "asset_086_corkboard_noticeboard.glb",
+      "sheet": "sheet_09",
+      "sha256": "bef79605ad06ca3b92ab5c76d56c17a583a4ad2eccc413283fd1fe6e852fc03e",
       "opaqueParts": 7,
       "transparentParts": [],
       "animations": [],
@@ -2110,6 +2162,8 @@
     {
       "n": 87,
       "file": "asset_087_wall_clock.glb",
+      "sheet": "sheet_09",
+      "sha256": "f69e120d3d8b73ace61199f8430e1b371801c6e1ffb097894865f21a6b6882f8",
       "opaqueParts": 8,
       "transparentParts": [
         "MESH_ClockGlass"
@@ -2179,6 +2233,8 @@
     {
       "n": 88,
       "file": "asset_088_key_rack.glb",
+      "sheet": "sheet_09",
+      "sha256": "64c9117d750d3d8bf266f4140ea64817094dd2e1aea9f7e97d5d37f4aaa49b82",
       "opaqueParts": 6,
       "transparentParts": [],
       "animations": [],
@@ -2232,6 +2288,8 @@
     {
       "n": 89,
       "file": "asset_089_reservation_clipboard.glb",
+      "sheet": "sheet_09",
+      "sha256": "e60c896e6ffc1da2f79f59463bc5b941f9d46e3b65278572418cbf80ebe6e769",
       "opaqueParts": 6,
       "transparentParts": [],
       "animations": [],
@@ -2285,6 +2343,8 @@
     {
       "n": 90,
       "file": "asset_090_scorecard_holder.glb",
+      "sheet": "sheet_09",
+      "sha256": "2382fde82e9c92f7b3db817583ae1d3bc988bec9395dcfe2cf3c72ea34079cd5",
       "opaqueParts": 8,
       "transparentParts": [],
       "animations": [],
@@ -2352,6 +2412,8 @@
     {
       "n": 91,
       "file": "asset_091_fire_extinguisher.glb",
+      "sheet": "sheet_10",
+      "sha256": "a35ffdb5b614d61ad92c24923433a05f794b5621876788303e5de8139e6d20e5",
       "opaqueParts": 15,
       "transparentParts": [],
       "animations": [],
@@ -2468,6 +2530,8 @@
     {
       "n": 92,
       "file": "asset_092_first_aid_kit_cabinet.glb",
+      "sheet": "sheet_10",
+      "sha256": "a6c9192584d6545196917636ea056bc8aec81ad83b41aa1a574da31e28ff180f",
       "opaqueParts": 13,
       "transparentParts": [
         "MESH_FirstAidDoorGlass"
@@ -2580,6 +2644,8 @@
     {
       "n": 93,
       "file": "asset_093_security_camera.glb",
+      "sheet": "sheet_10",
+      "sha256": "a15a1366b655bfd3e622b42ab560d3d440672e94055fe9ef6474be1bb9f292b1",
       "opaqueParts": 5,
       "transparentParts": [
         "MESH_CameraLensGlass"
@@ -2628,6 +2694,8 @@
     {
       "n": 94,
       "file": "asset_094_exit_sign.glb",
+      "sheet": "sheet_10",
+      "sha256": "735aaf178afbf984f75794a3fc1f137f43b3d73f6d16dd03efed8510b27c39dd",
       "opaqueParts": 8,
       "transparentParts": [],
       "animations": [],
@@ -2695,6 +2763,8 @@
     {
       "n": 95,
       "file": "asset_095_emergency_light.glb",
+      "sheet": "sheet_10",
+      "sha256": "849204264f2425c2c510b5bcbab7029c91f435395c568ef863b2d1540139d50a",
       "opaqueParts": 10,
       "transparentParts": [],
       "animations": [],
@@ -2776,6 +2846,8 @@
     {
       "n": 96,
       "file": "asset_096_bulletin_board.glb",
+      "sheet": "sheet_10",
+      "sha256": "a104a5f1d84d8386e8afaa9c8d021860d10c39ee37a81da3cfde2ea827fdb9b0",
       "opaqueParts": 4,
       "transparentParts": [],
       "animations": [],
@@ -2815,6 +2887,8 @@
     {
       "n": 97,
       "file": "asset_097_key_cabinet.glb",
+      "sheet": "sheet_10",
+      "sha256": "97f14c63f04a8839b1a45060671e4b79eda997510056663bcd8c81978629a0c9",
       "opaqueParts": 11,
       "transparentParts": [],
       "animations": [
@@ -2909,6 +2983,8 @@
     {
       "n": 98,
       "file": "asset_098_hand_sanitizer_station.glb",
+      "sheet": "sheet_10",
+      "sha256": "ad09400c837430c6dde8cdf26c77007b7deee2315a595f3780015fa8677170dd",
       "opaqueParts": 7,
       "transparentParts": [
         "MESH_SanitizerLevelWindow"
@@ -2973,6 +3049,8 @@
     {
       "n": 99,
       "file": "asset_099_umbrella_stand.glb",
+      "sheet": "sheet_10",
+      "sha256": "e9785bbcde6a7c6375c72547aa5be279cf736bfab0d426d688417f4db2cecb3e",
       "opaqueParts": 8,
       "transparentParts": [],
       "animations": [],
@@ -3042,6 +3120,8 @@
     {
       "n": 100,
       "file": "asset_100_floor_mat_welcome_mat.glb",
+      "sheet": "sheet_10",
+      "sha256": "2618f1ec6eb434e039db8861ae6ae7168894f804f50a2b2e02037f7bbf0f0a77",
       "opaqueParts": 4,
       "transparentParts": [],
       "animations": [],
