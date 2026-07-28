@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import {
   INTERIOR, FIXTURES, TRAFFIC_PATHS, DOOR_MAIN, MAT, STOCKROOM, frontDeskPoint,
+  CLUBHOUSE_LAYOUT_VARIANT, PUBLIC_ROOM_BOUNDS,
 } from '../../data/shopLayout.js';
 import { RENO, wipeWindow } from '../../sim/shop.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
@@ -163,10 +164,24 @@ export function buildDirt(B, windowDefs) {
     };
     const hw = INTERIOR.w / 2 - 0.24;
     const hd = INTERIOR.d / 2 - 0.24;
-    bank(-hw, -hd, hw, -hd, 30);
-    bank(-hw, hd, hw, hd, 30);
-    bank(-hw, -hd, -hw, hd, 20);
-    bank(hw, -hd, hw, hd, 20);
+    if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') {
+      // The resized envelope: dust banks along the walls a walker can actually
+      // reach — the public room's variant-resolved west/north walls, the south
+      // wall from the new west corner, and the wing's original shell. Nothing
+      // seeds in the sealed cavity, so no cleaning target can be unreachable.
+      const bMinX = PUBLIC_ROOM_BOUNDS.minX + 0.24;
+      const bMinZ = PUBLIC_ROOM_BOUNDS.minZ + 0.24;
+      bank(bMinX, bMinZ, STOCKROOM.bounds.minX, bMinZ, 22); // public north wall
+      bank(STOCKROOM.bounds.minX, -hd, hw, -hd, 10);        // wing north wall
+      bank(bMinX, hd, hw, hd, 30);                          // south wall
+      bank(bMinX, bMinZ, bMinX, hd, 20);                    // public west wall
+      bank(hw, -hd, hw, hd, 20);                            // east wall
+    } else {
+      bank(-hw, -hd, hw, -hd, 30);
+      bank(-hw, hd, hw, hd, 30);
+      bank(-hw, -hd, -hw, hd, 20);
+      bank(hw, -hd, hw, hd, 20);
+    }
     bank(STOCKROOM.bounds.minX, -hd, STOCKROOM.bounds.minX, 1.8, 12); // partition line
 
     // 4) grime shadows under every fixture footprint
@@ -179,7 +194,11 @@ export function buildDirt(B, windowDefs) {
     }
 
     // 5) corner buildup
-    for (const [cx, cz] of [[-hw + 0.3, -hd + 0.3], [hw - 0.3, -hd + 0.3], [-hw + 0.3, hd - 0.3], [hw - 0.3, hd - 0.3], [STOCKROOM.bounds.minX + 0.35, -hd + 0.35], [STOCKROOM.bounds.minX + 0.35, 1.6]]) {
+    const cMinX = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+      ? PUBLIC_ROOM_BOUNDS.minX : -hw + 0.3 - 0.3;
+    const cMinZ = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+      ? PUBLIC_ROOM_BOUNDS.minZ : -hd + 0.3 - 0.3;
+    for (const [cx, cz] of [[cMinX + 0.3, cMinZ + 0.3], [hw - 0.3, -hd + 0.3], [cMinX + 0.3, hd - 0.3], [hw - 0.3, hd - 0.3], [STOCKROOM.bounds.minX + 0.35, -hd + 0.35], [STOCKROOM.bounds.minX + 0.35, 1.6]]) {
       blot(cx, cz, 0.62, DARK, 0.46);
       blot(cx, cz, 0.34, MUD, 0.34);
     }

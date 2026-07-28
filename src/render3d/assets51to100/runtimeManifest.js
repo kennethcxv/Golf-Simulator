@@ -8,6 +8,7 @@
 import {
   BACKDOOR_CLEARWAY, COUNTER_TOP, DOOR_CLEARWAY, DOOR_MAIN, FRONT_DESK,
   FIXTURES, FRONT_DESK_ASSETS, INTERIOR, LOUNGE, OFFICE, STOCKROOM,
+  CLUBHOUSE_LAYOUT_VARIANT, PINE_HILLS_V2_LAYOUT, PUBLIC_ROOM_BOUNDS,
 } from '../../data/shopLayout.js';
 import { ALL_ASSETS } from './assetsRegistry.js';
 import { resolveSheet06Placement } from './sheet06ClubhouseAdapter.js';
@@ -16,6 +17,13 @@ const S_WALL = INTERIOR.d / 2;
 const N_WALL = -INTERIOR.d / 2;
 const E_WALL = INTERIOR.w / 2;
 const W_WALL = -INTERIOR.w / 2;
+// The resized v2 room moves the PUBLIC west wall and drops the ceiling; the two
+// wall-mounted assets that live on those surfaces follow the variant-resolved
+// envelope. The wing walls (N/E for assets 87/92/97) keep the original shell.
+const IS_V2 = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2';
+const PUBLIC_W_WALL = PUBLIC_ROOM_BOUNDS.minX;
+const EXIT_SIGN_Y = IS_V2 ? Math.min(2.70, PINE_HILLS_V2_LAYOUT.ceilingY - 0.10) : 2.96;
+const WEST_LIGHT_Y = IS_V2 ? PINE_HILLS_V2_LAYOUT.ceilingY - 0.14 : 2.78;
 const FACE_N = Math.PI;
 const FACE_S = 0;
 const FACE_W = -Math.PI / 2;
@@ -171,11 +179,11 @@ export const PROP_PLACEMENTS = Object.freeze([
     note: 'reachable stockroom north wall, clear of shelving uprights' },
   { n: 93, x: 1.25, z: S_WALL - 0.08, y: 2.92, mount: 'ceiling', ry: FACE_N,
     category: 'security', collision: 'none', note: 'high entrance mount covers the door and checkout island' },
-  { n: 94, x: DOOR_MAIN.x, z: S_WALL - 0.05, y: 2.96, mount: 'wall', ry: FACE_N,
+  { n: 94, x: DOOR_MAIN.x, z: S_WALL - 0.05, y: EXIT_SIGN_Y, mount: 'wall', ry: FACE_N,
     category: 'safety-light', collision: 'none',
     light: { color: 0xa8ffd0, intensity: 0.38, distance: 2.2, presentation: 'emissive-only' },
     note: 'exit sign clears the authored main-door head without touching the ceiling' },
-  { n: 95, x: W_WALL + 0.06, z: -1.40, y: 2.78, mount: 'wall', ry: FACE_E,
+  { n: 95, x: PUBLIC_W_WALL + 0.06, z: -1.40, y: WEST_LIGHT_Y, mount: 'wall', ry: FACE_E,
     category: 'safety-light', collision: 'none',
     light: { color: 0xffefd2, intensity: 0.45, distance: 3.0, presentation: 'emissive-only' },
     note: 'high west-wall emergency light washes the central shop floor' },

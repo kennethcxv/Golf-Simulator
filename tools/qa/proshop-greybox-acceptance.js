@@ -108,7 +108,25 @@ async (page) => {
     // (-z), central cone 40 deg wide x 20 deg tall, 41x21 rays, PASS = first hit
     // at >= 8 yd.
     const eye = { x: -0.8, y: 1.7, z: 5.2 };
+    // Two figures per ray. LITERAL: first hit >= 8 yd (the original threshold —
+    // physically capped in a small room where the walls arrive first). NORMALIZED
+    // (the resize contract): first obstruction at >= 80% of the empty-room
+    // distance along the ray's horizontal bearing, so the metric measures
+    // FIXTURE occlusion, not room size. A hit on the (deliberately low) ceiling
+    // or its beams counts as reaching the envelope — the room being short is
+    // item 10's decision, not a sightline blocker.
+    const roomBounds = L.PUBLIC_ROOM_BOUNDS;
+    const envelopeDistance = (origin, yawOff) => {
+      const dir = { x: Math.sin(yawOff), z: -Math.cos(yawOff) };
+      let best = Infinity;
+      if (dir.x < 0) best = Math.min(best, (roomBounds.minX - origin.x) / dir.x);
+      if (dir.x > 0) best = Math.min(best, (roomBounds.maxX - origin.x) / dir.x);
+      if (dir.z < 0) best = Math.min(best, (roomBounds.minZ - origin.z) / dir.z);
+      if (dir.z > 0) best = Math.min(best, (roomBounds.maxZ - origin.z) / dir.z);
+      return best;
+    };
     let pass = 0;
+    let normPass = 0;
     let total = 0;
     const hitHistogram = {};
     for (let ix = 0; ix <= 40; ix += 1) {
@@ -125,24 +143,33 @@ async (page) => {
         total += 1;
         if (ray.hitDistanceLocal >= 8) pass += 1;
         else if (ray.hitName) hitHistogram[ray.hitName] = (hitHistogram[ray.hitName] || 0) + 1;
+        const envDist = envelopeDistance(eye, yawOff);
+        const horizontalHit = Number.isFinite(ray.hitDistanceLocal)
+          ? ray.hitDistanceLocal * Math.cos(pitchOff)
+          : Infinity;
+        const envelopeHit = /Ceiling|Beam|Floor|Wall/i.test(ray.hitName || '');
+        if (envelopeHit || horizontalHit >= envDist * 0.8) normPass += 1;
       }
     }
     const f1 = {
       raysTotal: total,
       raysAtLeast8yd: pass,
       percent: Math.round((pass / total) * 1000) / 10,
+      raysNormalizedPass: normPass,
+      normalizedPercent: Math.round((normPass / total) * 1000) / 10,
       nearBlockers: Object.entries(hitHistogram).sort((a, b) => b[1] - a[1]).slice(0, 6),
     };
 
-    // F2 — from room centre (-1.6, 0) at eye height, the four retail-wall midpoints.
-    const centre = { x: -1.6, y: 1.55, z: 0 };
-    const halfW = L.MODERN_PUBLIC_INTERIOR.w / 2;
-    const halfD = L.MODERN_PUBLIC_INTERIOR.d / 2;
+    // F2 — from the (variant-resolved) room centre at eye height, the four
+    // retail-wall midpoints of the live envelope.
+    const cX = (roomBounds.minX + roomBounds.maxX) / 2 - 0.5;
+    const cZ = (roomBounds.minZ + roomBounds.maxZ) / 2;
+    const centre = { x: cX, y: 1.55, z: cZ };
     const wallTargets = {
-      north: { x: -1.6, y: 1.55, z: -halfD + 0.1 },
-      south: { x: -0.8, y: 1.55, z: halfD - 0.1 },
-      west: { x: -halfW + 0.1, y: 1.55, z: 0 },
-      eastPartition: { x: 5.6, y: 1.55, z: 0 },
+      north: { x: cX, y: 1.55, z: roomBounds.minZ + 0.1 },
+      south: { x: -0.8, y: 1.55, z: roomBounds.maxZ - 0.1 },
+      west: { x: roomBounds.minX + 0.1, y: 1.55, z: cZ },
+      eastPartition: { x: 5.6, y: 1.55, z: cZ },
     };
     const f2 = {};
     for (const [key, target] of Object.entries(wallTargets)) {
@@ -244,7 +271,7 @@ async (page) => {
     const names = (list) => list.map((name) => ({ name, found: !!interior.getObjectByName(name) }));
     const contract = {
       backdropAbsent: !interior.getObjectByName('PineHillsFrontDeskBackdrop'),
-      greyPresent: names(['GREY_frontCounter', 'GREY_backcounter', 'GREY_chairB', 'GREY_rail_outer', 'GREY_teeTimeBoard']),
+      greyPresent: names(['GREY_frontCounter', 'GREY_backcounter', 'GREY_chairB', 'GREY_teeTimeBoard', 'GREY_WestWall', 'GREY_NorthWall', 'GREY_Ceiling', 'GREY_CeilingBeam_1']),
       legacyHidden: names(['LegacyCheckoutCounter', 'LegacyCheckoutProductionCounter', 'PineHillsFrontDeskReturn'])
         .map((entry) => ({
           ...entry,
@@ -318,7 +345,7 @@ async (page) => {
       rooms.v2 && !rooms.v2.error
       && rooms.v2.variant === 'pine-hills-v2'
       && rooms.v2.contract.backdropAbsent
-      && rooms.v2.f1.percent >= 60
+      && rooms.v2.f1.normalizedPercent >= 60
       && rooms.v1 && rooms.v1.variant === null
     ),
   };

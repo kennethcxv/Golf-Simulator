@@ -218,61 +218,126 @@ export const CLUBHOUSE_LAYOUT_VARIANT = (() => {
 // Everything the v2 layout changes, in one place, frame-independent, so the layout
 // tests can audit the variant from Node without module-state games.
 export const PINE_HILLS_V2_LAYOUT = Object.freeze({
-  // Decision D1: the desk becomes a south-wall counter east of the entrance. At ry 0
-  // the staff side (+local z) faces the south wall, giving the corridor its wall run.
+  // Decision D1 (unchanged by the resize): the desk is a south-wall counter east
+  // of the entrance. At ry 0 the staff side (+local z) faces the south wall.
   frame: Object.freeze({ x: 3.30, z: 3.35, ry: 0 }),
-  // FLOOR_PLAN.md §5 — the five absolute fixture moves (backcounter is frame-local).
-  fixturePoses: Object.freeze({
-    rail_outer: Object.freeze({ x: -4.00, z: 5.20, ry: Math.PI }),
-    fittingroom: Object.freeze({ x: -3.55, z: -2.85, ry: Math.PI / 2 }),
-    // ry PI: the power display faces the entrance, and its browse stand lands on
-    // the aisle side instead of inside the protected door clearway.
-    feature: Object.freeze({ x: -1.35, z: 2.60, ry: Math.PI }),
-    // z 2.15, not 2.05: at 2.05 the station's rect grazes the relocated safety
-    // keep-clear by 0.03 yd; 2.15 clears it by 0.07 and still leaves 0.31 to the desk.
-    member_station: Object.freeze({ x: 5.15, z: 2.15, ry: -Math.PI / 2 }),
-    // The measured F5 swap: the furnished starter conveys the bag stand on day one,
-    // and at (2.05,-2.65) x 1.25 tall it owned the door→lounge fan (chairA 0%,
-    // chairB 85.7% measured). The 0.15-yd putting strip takes that floor — the
-    // lounge chairs watch the green, and the fan sees over it at every tier —
-    // while the bags move west between the apparel table and the club wall.
-    putting_demo: Object.freeze({ x: 1.35, z: -2.65, ry: 0 }),
-    bagstand: Object.freeze({ x: -5.00, z: 2.90, ry: 0 }),
+
+  // THE RESIZE (OVERNIGHT_REPORT.md §3, approved): the public retail floor
+  // shrinks to a municipal 70.0 m² — 8.30 × 10.09 yd — by pulling the west wall
+  // to x −2.60 and the north wall to z −4.60. East (service partition) and south
+  // (door/porch) anchor, so the desk frame, queue, backdrop, campaign anchors and
+  // the entire service wing keep their proven datums. The space behind the new
+  // walls is sealed dead cavity until the exterior shell is re-authored (Phase 4+).
+  publicBounds: Object.freeze({
+    minX: -2.60,
+    maxX: 5.70,
+    minZ: -4.60,
+    maxZ: MODERN_PUBLIC_INTERIOR.d / 2,
   }),
-  // The wordmark hutch moves to the staff side of the corridor, against the S wall:
-  // local (0.70, 1.84) at the v2 frame lands it at (4.00, 5.19), z 4.89..5.49.
-  backcounterLocal: Object.freeze({ x: 0.70, z: 1.84, ry: 0 }),
-  // The safety campaign facility leaves tour_vault's wall run (FLOOR_PLAN.md §8).
-  safetySite: Object.freeze({ x: 5.30, z: 1.35 }),
-  // FLOOR_PLAN.md §7 — eight authored neglect spots, corners and dead zones only.
-  clutterSpots: Object.freeze([
-    Object.freeze({ x: 1.20, z: -5.05 }),  // unhung apparel stock, gloves/hat-tree nook
-    Object.freeze({ x: -6.30, z: -3.90 }), // shoe boxes mid-unpack beside the shoe wall
-    // x -3.30, not the drafted -1.20: the draft spot sat 0.75 yd off the door→north
-    // leg (F4 needs 0.8) and under the wrong wall besides.
-    Object.freeze({ x: -3.30, z: -4.60 }), // fallen pegboard stock under the accessory wall
-    Object.freeze({ x: 6.70, z: 2.60 }),   // office paperwork pile (kept)
-    Object.freeze({ x: 5.25, z: 0.10 }),   // returns pile against the partition
-    // Deeper into the corner than v1's spot: the new office→till corridor leg passes
-    // the old pose 0.65 yd away.
-    Object.freeze({ x: 6.55, z: 5.20 }),   // office corner pile, beside the filing cabinet
-    Object.freeze({ x: -7.90, z: 4.60 }),  // delivery never shelved, beside the fridge
-    Object.freeze({ x: -8.10, z: -4.80 }), // unopened range-ball delivery, NW corner (kept)
+  wallT: 0.25,
+  // Item 10: cramped is vertical too. 2.80 yd = 2.56 m under the 2.93 m original,
+  // with four exposed grey beams (2.40 m clear beneath). Beam stations stay
+  // ≥1.3 yd off the door wall so the 2.68-yd door head keeps a clean frame.
+  ceilingY: 2.80,
+  beams: Object.freeze({
+    width: 0.22,
+    depth: 0.18,
+    zStations: Object.freeze([-3.35, -0.85, 1.65, 4.15]),
+  }),
+
+  // Cut rather than crammed (report §3's table): a failing muni starter keeps
+  // consumables, one fitting booth, the demo strip, and the mandated lounge.
+  // Clubs, apparel depth, bags, shoes and refreshments are the upgrade path.
+  cutFixtures: Object.freeze([
+    'rack_drivers', 'rack_irons', 'rack_putters',
+    'table_polos', 'shoerack', 'bagstand', 'rail_outer',
+    'hatstand', 'snackrack', 'cold_drinks', 'shelf_small',
   ]),
-  // Pure over the queue-slot function so layout tests can audit the shipped polylines
-  // against the v2 frame from Node. FLOOR_PLAN.md §7: one counterclockwise loop; the
-  // office→till corridor leg is new — v2's register is worked from behind the desk.
+  // The gloves display folds into the essentials pegboard rather than keeping a
+  // third wall unit the shortened west wall cannot hold.
+  skuOverrides: Object.freeze({
+    shelf_acc: Object.freeze([
+      'tees1', 'towel1', 'marker1', 'divot1', 'sunglasses2', 'bottle1', 'umb1',
+      'glove1', 'glove2', 'sock1',
+    ]),
+  }),
+
+  fixturePoses: Object.freeze({
+    // NW corner, ry 0: the booth's authored analytic hull is axis-aligned with
+    // its curtain on +x, so at ry 0 the visible shell and the collision walls
+    // agree — the rotation desync the punch list flagged cannot exist here.
+    fittingroom: Object.freeze({ x: -0.35, z: -3.70, ry: 0 }),
+    // The west wall carries the whole tier-0 retail run: balls south, the
+    // (gloves-folded) essentials pegboard north, both ending short of the door
+    // clearway's x band.
+    shelf_balls: Object.freeze({ x: -2.25, z: -1.55, ry: Math.PI / 2 }),
+    shelf_acc: Object.freeze({ x: -2.25, z: 1.75, ry: Math.PI / 2 }),
+    // Centre-south, ry 0: the power display faces the entrance with its browse
+    // stand on the door side, clear of the queue's westward line.
+    feature: Object.freeze({ x: 0.55, z: -0.55, ry: 0 }),
+    // The 0.4-yd putting strip mid-room; the relocated lounge watches the green
+    // over it and the door→lounge fan sees across it at every tier.
+    putting_demo: Object.freeze({ x: 1.70, z: -2.20, ry: 0 }),
+    // z 2.15 (not 2.05): at 2.05 the station's rect grazes the relocated safety
+    // keep-clear by 0.03 yd.
+    member_station: Object.freeze({ x: 5.15, z: 2.15, ry: -Math.PI / 2 }),
+  }),
+  // The wordmark hutch stays on the staff side of the corridor, against the S wall.
+  backcounterLocal: Object.freeze({ x: 0.70, z: 1.84, ry: 0 }),
+  // The safety campaign facility keeps its partition-run site (FLOOR_PLAN.md §8).
+  safetySite: Object.freeze({ x: 5.30, z: 1.35 }),
+
+  // The lounge keeps its mandate (cleaning surface, entrance-visible) inside the
+  // new envelope: NE corner, chairs facing the putting strip, boards on the
+  // partition's west face, course photography on the new north wall.
+  loungeSet: Object.freeze({
+    bounds: Object.freeze({ minX: 2.40, maxX: 5.70, minZ: -4.60, maxZ: -2.40 }),
+    chairA: Object.freeze({ x: 3.55, z: -4.05, ry: 0 }),
+    chairB: Object.freeze({ x: 4.45, z: -3.30, ry: -2.10 }),
+    coffee: Object.freeze({ x: 3.55, z: -3.35 }),
+    rug: Object.freeze({ x: 3.95, z: -3.65, ry: 0 }),
+    trophy: Object.freeze({ x: 5.42, z: -4.05, ry: -Math.PI / 2 }),
+    events: Object.freeze({ x: 5.55, z: -2.95, ry: -Math.PI / 2 }),
+    photo: Object.freeze({ x: 4.60, z: -4.50, ry: 0 }),
+  }),
+
+  // Eight authored neglect spots — corners and dead zones of the NEW envelope,
+  // each ≥0.8 yd off every traffic leg (the layout test holds this).
+  clutterSpots: Object.freeze([
+    Object.freeze({ x: 1.55, z: -4.25 }),  // unshelved sleeve boxes under the north wall
+    Object.freeze({ x: -2.05, z: -4.05 }), // dead pocket between the booth and the west wall
+    Object.freeze({ x: -2.35, z: 4.85 }),  // SW sliver west of the door clearway
+    Object.freeze({ x: 0.95, z: 4.90 }),   // south-wall pocket east of the door
+    Object.freeze({ x: 2.45, z: -3.95 }),  // carry-out boxes beside the lounge
+    Object.freeze({ x: 6.70, z: 2.60 }),   // office paperwork pile (kept)
+    Object.freeze({ x: 5.25, z: 0.10 }),   // returns pile against the partition (kept)
+    Object.freeze({ x: 6.55, z: 5.20 }),   // office corner pile (kept)
+  ]),
+  // Pure over the queue-slot function so layout tests can audit the shipped
+  // polylines from Node. One customer loop (door → west retail aisle → the
+  // feature/demo gap → lounge), the queue spur, and the two staff legs.
   trafficPaths(slotAt) {
     return [
-      [{ x: -0.8, z: 5.45 }, { x: -0.3, z: 2.9 }, { x: -0.9, z: -1.4 }, { x: -2.2, z: -4.7 }], // door → aisle → north walls
-      [{ x: -0.3, z: 2.9 }, slotAt(1), slotAt(0)],                                             // aisle → queue → service
-      [{ x: -0.9, z: -1.4 }, { x: -7.6, z: -0.6 }],                                            // aisle → club wall
-      [{ x: -0.9, z: -1.4 }, { x: 4.2, z: -1.55 }, { x: 3.9, z: -3.3 }],                       // aisle → vault corner → lounge (east of the putting strip)
-      [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],                          // office → stock door → receiving
-      [{ x: 6.4, z: 4.3 }, { x: 4.3, z: 4.3 }],                                                // office → till corridor
+      [{ x: -0.8, z: 4.90 }, { x: -1.30, z: 2.40 }, { x: -1.30, z: -0.20 }, { x: -0.80, z: -2.40 }],
+      [{ x: -0.60, z: 2.60 }, slotAt(1), slotAt(0)],
+      [{ x: -0.80, z: -2.40 }, { x: -0.55, z: -1.38 }, { x: 3.95, z: -1.38 }, { x: 4.30, z: -2.35 }],
+      [{ x: 6.4, z: 4.3 }, { x: 4.3, z: 4.3 }],
+      [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],
     ];
   },
 });
+
+// The public room's wall envelope, variant-resolved. Consumers that seed along
+// or mount onto the public walls (dirt banks, wall-hung runtime assets, the
+// greybox wall volumes) read THIS and never learn about variants.
+export const PUBLIC_ROOM_BOUNDS = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? PINE_HILLS_V2_LAYOUT.publicBounds
+  : Object.freeze({
+    minX: -MODERN_PUBLIC_INTERIOR.w / 2,
+    maxX: MODERN_PUBLIC_INTERIOR.w / 2,
+    minZ: -MODERN_PUBLIC_INTERIOR.d / 2,
+    maxZ: MODERN_PUBLIC_INTERIOR.d / 2,
+  });
 
 // --- Pine Hills front desk ----------------------------------------------------------
 // All reception and checkout geometry is authored in this one local frame. At
@@ -504,6 +569,14 @@ export const LOUNGE = {
   events: { x: 5.55, z: -3.75, ry: -Math.PI / 2 },   // club events board beside it
   photo: { x: 4.95, z: -5.38, ry: 0 },               // course photography, clear of the window
 };
+// The resized v2 room's north wall lands INSIDE the v1 lounge; the mandate keeps
+// the lounge (cleaning surface, entrance-visible), so v2 re-seats the whole set
+// in the new NE corner. Same one-switch rule as the fixtures: every consumer —
+// builder colliders, the greybox volumes, traffic, F5, cleanup targets — reads
+// the switched datums and never learns about variants.
+if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') {
+  Object.assign(LOUNGE, PINE_HILLS_V2_LAYOUT.loungeSet);
+}
 
 // --- checkout ---------------------------------------------------------------------
 // A person is 0.68 yd across, and a till is a workspace, not a gap: you stand at it, turn, pull
@@ -694,14 +767,24 @@ export const FIXTURES = [
   { id: 'packing_bench', kind: 'packingbench', x: 6.30, z: -1.7, ry: 0, skus: [], title: 'Packing bench', zone: 'stockroom', generatedOnly: true },
 ];
 
-// pine-hills-v2 repositions six fixtures (FLOOR_PLAN.md §5) before any consumer reads
-// the array: the builders, colliders, browse sockets, placeable catalog, runtime-asset
-// manifest and campaign anchors all see one consistent layout. Saved player moves in
-// state.shop.layout still win over these defaults, exactly as they do over the v1 poses.
+// pine-hills-v2 reshapes the fixture set BEFORE any consumer reads the array: the
+// builders, colliders, browse sockets, placeable catalog, runtime-asset manifest and
+// campaign anchors all see one consistent layout. The resize CUTS eleven fixtures
+// outright (the 70 m² room holds consumables, one booth, the demo strip and the
+// lounge — everything else is the upgrade path), folds the gloves SKUs into the
+// essentials pegboard, and repositions the keepers. Saved player moves in
+// state.shop.layout still win over these defaults; moves saved for cut fixtures
+// become inert orphan entries.
 if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') {
+  const cut = new Set(PINE_HILLS_V2_LAYOUT.cutFixtures);
+  for (let i = FIXTURES.length - 1; i >= 0; i--) {
+    if (cut.has(FIXTURES[i].id)) FIXTURES.splice(i, 1);
+  }
   for (const fixture of FIXTURES) {
     const pose = PINE_HILLS_V2_LAYOUT.fixturePoses[fixture.id];
     if (pose) Object.assign(fixture, pose);
+    const skus = PINE_HILLS_V2_LAYOUT.skuOverrides[fixture.id];
+    if (skus) fixture.skus = [...skus];
     if (fixture.id === 'backcounter') {
       Object.assign(fixture, frontDeskPose(
         PINE_HILLS_V2_LAYOUT.backcounterLocal.x,

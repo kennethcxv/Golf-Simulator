@@ -22,6 +22,7 @@ import {
   FRONT_DESK, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
   COUNTER_TOP, fixtureBrowsePoint, frontDeskPoint,
   CLUBHOUSE_LAYOUT_VARIANT,
+  PINE_HILLS_V2_LAYOUT,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -1155,6 +1156,28 @@ export function makeClubhouse(ctx) {
     }
   }
   setFittingRoomInstalled(fixtureIsInstalled(state, 'fittingroom'));
+
+  // THE RESIZE WALLS (pine-hills-v2, OVERNIGHT_REPORT.md §3): the 70 m² public
+  // envelope's new west and north walls. Builder-owned colliders exactly like
+  // every other wall — the greybox module draws the matching grey slabs but
+  // registers nothing. The walls meet at the NW corner; the service wing east of
+  // the partition keeps the original shell.
+  if (greyboxPresentation) {
+    const bounds = PINE_HILLS_V2_LAYOUT.publicBounds;
+    const wallT = PINE_HILLS_V2_LAYOUT.wallT;
+    addCol(colBoxAt(
+      bounds.minX - wallT / 2,
+      (bounds.minZ - wallT + bounds.maxZ) / 2,
+      wallT,
+      bounds.maxZ - (bounds.minZ - wallT),
+    ));
+    addCol(colBoxAt(
+      (bounds.minX - wallT + bounds.maxX) / 2,
+      bounds.minZ - wallT / 2,
+      bounds.maxX - (bounds.minX - wallT),
+      wallT,
+    ));
+  }
 
   props61to100 = buildProps({
     interior,

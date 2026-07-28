@@ -18,6 +18,7 @@ import * as THREE from 'three';
 
 import {
   CLUBHOUSE_CEILING_PANELS,
+  PINE_HILLS_V2_LAYOUT,
   COUNTER_TOP,
   FRONT_DESK_BACKDROP,
   FRONT_DESK_FRAME,
@@ -47,7 +48,9 @@ import {
   pineHillsRestorationObjectName,
 } from './pineHillsInterior.js';
 
-const CEILING_Y = SHELL.h;
+// The resized room's ceiling (OVERNIGHT_REPORT.md §3, item 10): 2.80 yd = 2.56 m
+// under the original 2.93 m shell, with exposed grey beams just below it.
+const CEILING_Y = PINE_HILLS_V2_LAYOUT.ceilingY;
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 
 // The v1 pose table is authored against frontDeskPoint at module load, so the desk
@@ -60,11 +63,25 @@ export const PINE_HILLS_V2_CLEANUP_POSES = Object.freeze({
   'wall:scuff-east': Object.freeze({ x: 4.95, z: -0.05, radius: 1.05 }),
   // Just west of the return's end panel, 0.25 yd clear of the door clearway.
   'desk:overflow-bin': Object.freeze({ ...frontDeskPoint(-2.55, 1.30), radius: 1.35 }),
+  // THE RESIZE re-homes every neglect beat the new walls orphaned. The v1 poses
+  // for these sat against walls that are now sealed cavity; each moves to the
+  // equivalent spot on the 70 m² envelope (lounge beats follow the switched
+  // LOUNGE datums on their own).
+  'entry:leaves-trash': Object.freeze({ x: -2.30, z: 4.95, radius: 1.05 }),
+  'corner:cobweb-nw': Object.freeze({ x: -2.20, z: -4.15, radius: 1.15 }),
+  'wall:scuff-west': Object.freeze({ x: -2.28, z: 4.20, radius: 1.05 }),
+  'wall:fallen-frame': Object.freeze({ x: 4.60, z: -4.28, radius: 1.05 }),
 });
 
 export const PINE_HILLS_V2_CLEANUP_VISUAL_POSES = Object.freeze({
   ...PINE_HILLS_CLEANUP_VISUAL_POSES,
   'wall:scuff-east': Object.freeze({ x: 5.60, z: -0.05 }),
+  // On the resized envelope's own surfaces: NW corner web, NE web pulled to the
+  // new north wall, west scuff on the sliver of west wall the clearway leaves
+  // visible beside the door.
+  'corner:cobweb-nw': Object.freeze({ x: -2.48, z: -4.48 }),
+  'corner:cobweb-ne': Object.freeze({ x: 2.05, z: -4.48 }),
+  'wall:scuff-west': Object.freeze({ x: -2.53, z: 4.20 }),
 });
 
 // Greybox heights per fixture kind — FLOOR_PLAN.md §4, and the same table the layout
@@ -96,7 +113,9 @@ const STRUCTURAL_WORK_SITES = Object.freeze([
   { id: 'floor', x: -2.1, z: -0.8, aimY: 0.25 },
   { id: 'panels', x: 5.15, z: 0.75, aimY: 1.25 },
   { id: 'trim', x: -2.0, z: 5.72, aimY: 1.0 },
-  { id: 'windows', x: 3.0, z: -5.82, aimY: 1.35 },
+  // The resize seals the old north window behind the new wall; the office's
+  // east window is the one glazed opening left to repair.
+  { id: 'windows', x: 8.25, z: 4.25, aimY: 1.35 },
   { id: 'porch', x: 1.6, z: 7.55, aimY: 0.45 },
   { id: 'shell', x: -10.8, z: 0.1, aimY: 1.3 },
 ]);
@@ -326,6 +345,57 @@ export function createPineHillsV2Interior({
     greyStaticRoots.set(name, chair);
     return chair;
   };
+  // --- the resized envelope: new west/north walls, dropped ceiling, beams ----------
+  // Grey architecture at final dimensions (OVERNIGHT_REPORT.md §3). The two wall
+  // COLLIDERS are builder-owned — clubhouse.js registers them at these same
+  // datums; everything here is visual.
+  {
+    const envelope = PINE_HILLS_V2_LAYOUT.publicBounds;
+    const wallT = PINE_HILLS_V2_LAYOUT.wallT;
+    const archRoot = new THREE.Group();
+    archRoot.name = 'GreyboxResizeArchitecture';
+    group.add(archRoot);
+    const westWall = new THREE.Mesh(
+      box(wallT, CEILING_Y, envelope.maxZ - (envelope.minZ - wallT)), grey,
+    );
+    westWall.name = 'GREY_WestWall';
+    westWall.position.set(
+      envelope.minX - wallT / 2, CEILING_Y / 2, (envelope.minZ - wallT + envelope.maxZ) / 2,
+    );
+    westWall.receiveShadow = true;
+    const northWall = new THREE.Mesh(
+      box(envelope.maxX - (envelope.minX - wallT), CEILING_Y, wallT), grey,
+    );
+    northWall.name = 'GREY_NorthWall';
+    northWall.position.set(
+      (envelope.minX - wallT + envelope.maxX) / 2, CEILING_Y / 2, envelope.minZ - wallT / 2,
+    );
+    northWall.receiveShadow = true;
+    // One grey lid over the public envelope, and the four exposed beams that make
+    // 2.56 m read as pressure instead of paint. Beam stations clear the door wall.
+    const ceilingLid = new THREE.Mesh(
+      box(envelope.maxX - envelope.minX, 0.06, envelope.maxZ - envelope.minZ), greyDark,
+    );
+    ceilingLid.name = 'GREY_Ceiling';
+    ceilingLid.position.set(
+      (envelope.minX + envelope.maxX) / 2, CEILING_Y + 0.03, (envelope.minZ + envelope.maxZ) / 2,
+    );
+    archRoot.add(westWall, northWall, ceilingLid);
+    const beams = PINE_HILLS_V2_LAYOUT.beams;
+    beams.zStations.forEach((zStation, index) => {
+      const beam = new THREE.Mesh(
+        box(envelope.maxX - envelope.minX, beams.depth, beams.width), grey,
+      );
+      beam.name = `GREY_CeilingBeam_${index + 1}`;
+      beam.position.set((envelope.minX + envelope.maxX) / 2, CEILING_Y - beams.depth / 2, zStation);
+      beam.receiveShadow = true;
+      archRoot.add(beam);
+    });
+    greyStaticRoots.set('GREY_WestWall', westWall);
+    greyStaticRoots.set('GREY_NorthWall', northWall);
+    greyStaticRoots.set('GREY_Ceiling', ceilingLid);
+  }
+
   greyChair('GREY_chairA', LOUNGE.chairA);
   const greyChairB = greyChair('GREY_chairB', LOUNGE.chairB);
   const coffee = new THREE.Mesh(box(0.95, 0.48, 0.60), grey);
@@ -504,7 +574,7 @@ export function createPineHillsV2Interior({
     });
   }
 
-  for (const panel of CLUBHOUSE_CEILING_PANELS.filter(({ id }) => id === 'panel-02' || id === 'panel-07')) {
+  for (const panel of CLUBHOUSE_CEILING_PANELS.filter(({ id }) => id === 'panel-03' || id === 'panel-07')) {
     const targetId = `ceiling:${panel.id}`;
     addInteraction({
       x: panel.x,
@@ -626,7 +696,7 @@ export function createPineHillsV2Interior({
     overflowBin.visible = snapshot.targetProgress['desk:overflow-bin'] < 1;
     const frameRepaired = snapshot.targetProgress['wall:fallen-frame'] >= 1;
     if (frameRepaired) {
-      fallenFrame.position.set(4.58, 1.62, -5.41);
+      fallenFrame.position.set(3.60, 1.62, -4.54);
       fallenFrame.rotation.set(0, 0, 0);
     } else {
       fallenFrame.position.set(fallenFramePose.x, 0.24, fallenFramePose.z);
