@@ -1,0 +1,110 @@
+{
+  "scenarios": {
+    "starterIdle": {
+      "pine-hills": {
+        "cameraFov": 66,
+        "walkFov": 66,
+        "renderedVerticalFov": 66,
+        "zoom": 1,
+        "aspect": 1.7778,
+        "laptopOpen": false
+      },
+      "pine-hills-v2": {
+        "cameraFov": 66,
+        "walkFov": 66,
+        "renderedVerticalFov": 66,
+        "zoom": 1,
+        "aspect": 1.7778,
+        "laptopOpen": false
+      }
+    },
+    "laptopCycle": {
+      "pine-hills": {
+        "boot": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "renderedVerticalFov": 66,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": false
+        },
+        "seated": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "renderedVerticalFov": 34,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": true
+        },
+        "afterEscape": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "renderedVerticalFov": 66,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": false
+        },
+        "afterClose": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "renderedVerticalFov": 66,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": false
+        }
+      },
+      "pine-hills-v2": {
+        "boot": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "renderedVerticalFov": 66,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": false
+        },
+        "seated": {
+          "cameraFov": 34,
+          "walkFov": 66,
+          "renderedVerticalFov": 34,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": true
+        },
+        "afterEscape": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "renderedVerticalFov": 66,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": false
+        },
+        "afterClose": {
+          "cameraFov": 66,
+          "walkFov": 66,
+          "renderedVerticalFov": 66,
+          "zoom": 1,
+          "aspect": 1.7778,
+          "laptopOpen": false
+        }
+      }
+    },
+    "pref80": {
+      "cameraFov": 80,
+      "walkFov": 80,
+      "renderedVerticalFov": 80,
+      "zoom": 1,
+      "aspect": 1.7778,
+      "laptopOpen": false
+    }
+  },
+  "errs": [],
+  "checks": {
+    "idleBothAt66": true,
+    "idleParity": true,
+    "laptopSeatsAt34": true,
+    "laptopEscapeRestores": true,
+    "laptopCloseRestores": true,
+    "prefReachesLens": true
+  },
+  "ok": true
+}

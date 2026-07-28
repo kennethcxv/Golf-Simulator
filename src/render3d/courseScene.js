@@ -22,6 +22,7 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
+import { isTextEntryTarget } from '../core/heldKeys.js';
 import { ownedWasher } from '../sim/washing.js';
 import { chargeGolfCart } from '../sim/golfCartFleet.js';
 import { makeFpHands, GRIPS } from './fpHands.js';
@@ -7810,6 +7811,11 @@ export function makeCourseScene(canvas, state) {
   }
 
   function walkKeyDown(e) {
+    // A key typed into a form control (a laptop search field, a save-name box)
+    // is text, not movement. Filter key-DOWN only — the matching release below
+    // must always clear, or a field grabbing focus mid-press strands the key in
+    // walkHeld and the walker drifts forever (heldKeys.js rule 3).
+    if (isTextEntryTarget(e.target)) return;
     const key = e.key.toLowerCase();
     if (key === 'e' && !walkHeld.has(key)) {
       holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold

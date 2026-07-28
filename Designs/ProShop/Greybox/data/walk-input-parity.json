@@ -1,0 +1,109 @@
+{
+  "stands": {
+    "pine-hills": {
+      "x": -0.8,
+      "z": 3.6
+    },
+    "pine-hills-v2": {
+      "x": 0.5,
+      "z": 0.5
+    }
+  },
+  "variants": {
+    "pine-hills": [
+      {
+        "key": "w",
+        "dx": 0,
+        "dz": -0.935
+      },
+      {
+        "key": "a",
+        "dx": -2.097,
+        "dz": 0
+      },
+      {
+        "key": "s",
+        "dx": 0,
+        "dz": 1.559
+      },
+      {
+        "key": "d",
+        "dx": 2.096,
+        "dz": 0
+      }
+    ],
+    "pine-hills-v2": [
+      {
+        "key": "w",
+        "dx": 0,
+        "dz": -2.068
+      },
+      {
+        "key": "a",
+        "dx": -2.069,
+        "dz": 0
+      },
+      {
+        "key": "s",
+        "dx": 0,
+        "dz": 2.069
+      },
+      {
+        "key": "d",
+        "dx": 2.069,
+        "dz": 0
+      }
+    ]
+  },
+  "verdicts": [
+    {
+      "variant": "pine-hills",
+      "key": "w",
+      "moved": 0.935,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills",
+      "key": "a",
+      "moved": 2.097,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills",
+      "key": "s",
+      "moved": 1.559,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills",
+      "key": "d",
+      "moved": 2.096,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills-v2",
+      "key": "w",
+      "moved": 2.068,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills-v2",
+      "key": "a",
+      "moved": 2.069,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills-v2",
+      "key": "s",
+      "moved": 2.069,
+      "ok": true
+    },
+    {
+      "variant": "pine-hills-v2",
+      "key": "d",
+      "moved": 2.069,
+      "ok": true
+    }
+  ],
+  "ok": true
+}
