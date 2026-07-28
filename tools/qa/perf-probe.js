@@ -84,11 +84,12 @@ async (page) => {
     };
   });
 
-  const gpu = await page.evaluate(() => {
-    const gl = window.__fw.scene3d.renderer.getContext();
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'masked';
-  });
+  // Rule 5: a performance green must gate the renderer string, not just record
+  // it. Software (SwiftShader) numbers refuse unless explicitly overridden.
+  const { gateRenderer } = await import(
+    `file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`
+  );
+  const { gpu, software } = await gateRenderer(page);
 
   const runs = [];
   async function sample(name, seconds, { spin = false, move = false, setup = null, teardown = null } = {}) {
@@ -201,5 +202,5 @@ async (page) => {
     .map(([k, ms]) => `${Math.round(ms)}ms  ${k}`);
 
   const dpr = await page.evaluate(() => window.devicePixelRatio);
-  return { gpu, dpr, runs, topSelf, errs: errs.slice(0, 5) };
+  return { gpu, softwareRenderer: software, dpr, runs, topSelf, errs: errs.slice(0, 5) };
 }

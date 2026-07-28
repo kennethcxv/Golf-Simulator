@@ -150,6 +150,13 @@ async (page) => {
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 90_000 });
 
+  // Rule 5: "locked performance" asserted from a CPU rasterizer is not locked
+  // performance. Headless-default runs now refuse instead of passing quietly.
+  const { gateRenderer } = await import(
+    `file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`
+  );
+  const rendererGate = await gateRenderer(page);
+
   await page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
@@ -750,6 +757,7 @@ async (page) => {
       fixture: 'relaxed seed 424242 bootstrap; high quality; 14:00 locked weather; simulation paused; organic walk-ins and golfers disabled; fixed camera reset before every run',
       fixtureBoundary: 'direct camera poses, sendToCounter, debugSpawn, and deterministic customer positioning establish repeatable measured state only; walking, vacuum activation, register entry/product scans, and populated-floor movement use normal keyboard/mouse controls',
     },
+    rendererGate,
     environment,
     inputProof,
     diagnostics,

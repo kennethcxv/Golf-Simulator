@@ -306,6 +306,10 @@ const report = {
   phase,
   stamp,
   url,
+  // Declared software-relative (HARNESS_TRUST.md rule 5): this file PINS
+  // SwiftShader for deterministic A/B numbers. Absolute figures here are not
+  // live evidence and must never be quoted as such.
+  softwareRelativeOnly: true,
   protocol: {
     browser: 'Chrome headless via Playwright',
     viewport: { width: 1600, height: 900, deviceScaleFactor: 1 },

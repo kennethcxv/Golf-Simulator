@@ -59,6 +59,11 @@ async (page) => {
     return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
   }, null, { timeout: 120000 });
   const tVeilClear = Date.now();
+  // Rule 5: baselines cited against Phase 0 must come from real hardware.
+  const { gateRenderer } = await import(
+    `file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`
+  );
+  const rendererGate = await gateRenderer(page);
   await page.waitForTimeout(3000); // shader prewarm done, AO history settled
 
   const gpu = await page.evaluate(() => {
@@ -382,6 +387,7 @@ async (page) => {
     runsPerScenario: RUNS,
     requestedVariant: VARIANT || null,
     gpu,
+    softwareRenderer: rendererGate.software,
     env,
     loadTimings: {
       newGameClickToWalkActiveMs: tWalkActive - tNewGame,

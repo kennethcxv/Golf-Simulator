@@ -114,6 +114,11 @@ async (page) => {
     const veil = document.querySelector('.load-veil');
     return !veil || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 90000 });
+  // Rule 5: this file's numbers gate an integration decision — refuse software GL.
+  const { gateRenderer } = await import(
+    `file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`
+  );
+  const rendererGate = await gateRenderer(page);
   await page.evaluate(() => {
     const app = window.__fw;
     app.speedIdx = 0;
@@ -440,6 +445,7 @@ async (page) => {
     absoluteThresholds,
     thresholdsEnforced: !quick,
     performanceFailures,
+    rendererGate,
     environment,
     listenerBaseline,
     listenerFinal,

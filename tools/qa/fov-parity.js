@@ -196,6 +196,23 @@ async (page) => {
   // 4: a non-default stored preference must reach the lens.
   out.scenarios.pref80 = await bootStarter('pine-hills', 80);
 
+  // 5: the same lens truth at native-style DPR 2 (the shared runner pins the
+  // context to deviceScaleFactor 1, so this is the one harness leg covering
+  // high-DPR rendering; CDP override scoped to this boot only).
+  {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 1600, height: 900, deviceScaleFactor: 2, mobile: false,
+    });
+    try {
+      out.scenarios.dpr2 = await bootStarter('pine-hills-v2');
+      out.scenarios.dpr2.devicePixelRatio = await page.evaluate(() => window.devicePixelRatio);
+    } finally {
+      await cdp.send('Emulation.clearDeviceMetricsOverride').catch(() => {});
+      await cdp.detach().catch(() => {});
+    }
+  }
+
   const idleA = out.scenarios.starterIdle['pine-hills'];
   const idleB = out.scenarios.starterIdle['pine-hills-v2'];
   const cycA = out.scenarios.laptopCycle['pine-hills'];
@@ -207,6 +224,8 @@ async (page) => {
     laptopEscapeRestores: lensOk(cycA.afterEscape, 66) && lensOk(cycB.afterEscape, 66),
     laptopCloseRestores: lensOk(cycA.afterClose, 66) && lensOk(cycB.afterClose, 66),
     prefReachesLens: lensOk(out.scenarios.pref80, 80),
+    idleDpr2At66: lensOk(out.scenarios.dpr2, 66)
+      && out.scenarios.dpr2.devicePixelRatio === 2,
   };
   out.ok = Object.values(out.checks).every(Boolean);
   fs.writeFileSync(path.join(outDir, 'fov-parity.json'), `${JSON.stringify(out, null, 2)}\n`);

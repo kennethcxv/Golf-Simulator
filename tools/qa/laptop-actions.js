@@ -16,6 +16,11 @@ async (page) => {
   const fail = (why) => { throw new Error(why); };
 
   async function bootIntoClub() {
+    // Explicit navigation fallback (2026-07-28): this file relied on the runner
+    // having already navigated; on a fresh context it sat on about:blank.
+    if (!/^https?:/.test(page.url())) {
+      await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/', { waitUntil: 'domcontentloaded' });
+    }
     await page.waitForTimeout(1000);
     const cont = page.getByText('Continue', { exact: true });
     if (await cont.isEnabled().catch(() => false)) {

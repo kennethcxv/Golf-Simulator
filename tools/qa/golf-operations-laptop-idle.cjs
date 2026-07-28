@@ -117,6 +117,9 @@ async function main() {
     result.pageErrors = pageErrors;
     result.consoleErrors = consoleErrors;
     result.commit = process.env.QA_COMMIT || 'working-tree';
+    // Declared software-relative (HARNESS_TRUST.md rule 5): SwiftShader is
+    // pinned; listener/mutation counts are the claim, frame numbers are not.
+    result.softwareRelativeOnly = true;
     fs.writeFileSync(path.join(OUT, 'evidence.json'), `${JSON.stringify(result, null, 2)}\n`);
     if (result.activeListenerDelta !== 0 || result.registrationDelta !== 0 || result.laptopMutationCallbacks !== 0) {
       throw new Error(`Laptop idle instability: ${JSON.stringify(result)}`);

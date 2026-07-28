@@ -840,7 +840,18 @@ for (let attempt = 1; attempt <= MAX_ATTEMPTS && Object.keys(accepted).length < 
 }
 await browser.close();
 
-const passed = [...targets].every((mode) => accepted[mode]);
+// Rule 7 (2026-07-28): retry-to-green must surface the flake rate in the exit
+// contract. This is the one fully-organic route, so it may flake — but a mode
+// that succeeds only on attempt 7 of 8 is failing 6 times for a live player and
+// must not exit green. Each accepted mode has to land within
+// NATURAL_ACCEPT_WITHIN attempts (default 2: one flake tolerated); later
+// successes still record their evidence, but the run exits red carrying the
+// full attempts array.
+const acceptWithin = Number(process.env.NATURAL_ACCEPT_WITHIN || 2);
+const flaky = Object.entries(accepted)
+  .filter(([, entry]) => entry.attempt > acceptWithin)
+  .map(([mode, entry]) => `${mode} accepted only on attempt ${entry.attempt}/${MAX_ATTEMPTS}`);
+const passed = [...targets].every((mode) => accepted[mode]) && flaky.length === 0;
 const summary = {
   pass: PASS,
   timestamp: new Date().toISOString(),
@@ -848,6 +859,8 @@ const summary = {
   baseUrl: BASE_URL,
   requested: [...targets],
   passed,
+  acceptWithin,
+  flaky,
   attempts,
   accepted,
   protocol: {
@@ -864,5 +877,5 @@ const summary = {
   },
 };
 await writeFile(path.join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
-console.log(JSON.stringify({ passed, attempts, accepted: Object.keys(accepted) }, null, 2));
+console.log(JSON.stringify({ passed, flaky, attempts, accepted: Object.keys(accepted) }, null, 2));
 if (!passed) process.exitCode = 1;

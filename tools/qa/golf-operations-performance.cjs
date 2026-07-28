@@ -165,6 +165,9 @@ async function main() {
     const listenersAfter = await page.evaluate(() => window.__qaListeners());
     const evidence = {
       capturedAt: new Date().toISOString(),
+      // Declared software-relative (HARNESS_TRUST.md rule 5): SwiftShader is
+      // pinned for determinism; numbers are before/after-comparable only.
+      softwareRelativeOnly: true,
       label: LABEL,
       url: URL,
       browser: await browser.version(),

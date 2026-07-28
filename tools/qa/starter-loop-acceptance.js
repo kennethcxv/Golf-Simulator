@@ -69,7 +69,9 @@ async (page) => {
   try {
     // ---- Step 1: a genuinely fresh Relaxed game through the menu ----------
     currentStep = 'fresh relaxed new game through the menu';
-    await page.setViewportSize({ width: 1280, height: 720 });
+    // 1600×900 (2026-07-28): the QA-standard viewport every other harness and
+    // the shared runner pin — this file's 1280×720 was the lone aspect outlier.
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -100,7 +102,7 @@ async (page) => {
 
     // ---- Step 2: survey — look around, then walk to the clubhouse ---------
     currentStep = 'survey: look around';
-    await page.mouse.click(640, 360);
+    await page.mouse.click(800, 450); // viewport centre (canvas focus)
     for (let i = 0; i < 10; i += 1) {
       await page.evaluate(() => {
         window.__fw.scene3d.walk.state.yaw += 0.42;
