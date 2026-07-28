@@ -1,0 +1,60 @@
+{
+  "variantLaptopAt": {
+    "x": 1.5799999999999998,
+    "z": 3.43,
+    "ry": 0
+  },
+  "seatAt": {
+    "x": 2.3,
+    "z": 4.4,
+    "ry": 3.141592653589793
+  },
+  "walkAt": {
+    "x": 3,
+    "z": 4.4,
+    "yaw": 0.64,
+    "pitch": -0.43
+  },
+  "laptopNodes": [
+    {
+      "name": "AssetRuntime_66_office_laptop_desk",
+      "visible": true,
+      "at": [
+        8.35,
+        0,
+        4.2
+      ]
+    },
+    {
+      "name": "A_066_OFFICE_LAPTOP_DESK_ROOT",
+      "visible": true,
+      "at": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "SOCKET_Laptop",
+      "visible": true,
+      "at": [
+        0,
+        0.76,
+        0.1
+      ]
+    }
+  ],
+  "prompts": [
+    {
+      "cls": "shop-prompt",
+      "text": "Desk lamp — E switch off",
+      "visible": true
+    },
+    {
+      "cls": "prompt-key",
+      "text": "E",
+      "visible": true
+    }
+  ],
+  "laptopOpenApi": "undefined"
+}

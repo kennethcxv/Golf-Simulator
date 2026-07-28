@@ -1,0 +1,57 @@
+{
+  "room": "pine-hills-v2",
+  "registerAt": {
+    "x": 3.82,
+    "z": 3.5700000000000003
+  },
+  "standAt": {
+    "x": 3.1999999999999997,
+    "z": 4.25
+  },
+  "scans": [
+    {
+      "uid": "anonymous-1",
+      "ok": true,
+      "attempts": 1,
+      "scanHit": true,
+      "facingDot": -0.9999999999999999,
+      "code": "ok"
+    },
+    {
+      "uid": "anonymous-2",
+      "ok": true,
+      "attempts": 2,
+      "scanHit": true,
+      "facingDot": -0.9999999999999999,
+      "code": "ok"
+    },
+    {
+      "uid": "anonymous-3",
+      "ok": true,
+      "attempts": 1,
+      "scanHit": true,
+      "facingDot": -0.9999999999999999,
+      "code": "ok"
+    }
+  ],
+  "completion": {
+    "done": true,
+    "flow": null,
+    "waitedMs": 5645
+  },
+  "saleTotal": 33,
+  "business": {
+    "cashDelta": 33,
+    "ledgerDelta": 33,
+    "unitsDelta": 3,
+    "historyDelta": 1,
+    "shelfUnitsSold": 3,
+    "lastTx": {
+      "total": 33,
+      "method": "card",
+      "items": 3
+    }
+  },
+  "errs": [],
+  "ok": true
+}

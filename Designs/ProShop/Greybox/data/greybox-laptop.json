@@ -1,0 +1,83 @@
+{
+  "seatPose": "COUNTER.staffStand → FRONT_DESK.laptop (live v2 datums)",
+  "lens": {
+    "before": {
+      "cameraFov": 66,
+      "cameraNear": 0.15,
+      "walkFov": 66,
+      "laptopOpen": false
+    },
+    "seated": {
+      "cameraFov": 34,
+      "cameraNear": 0.03,
+      "walkFov": 66,
+      "laptopOpen": true
+    },
+    "afterEscape": {
+      "cameraFov": 66,
+      "cameraNear": 0.15,
+      "walkFov": 66,
+      "laptopOpen": false
+    },
+    "seatedAgain": {
+      "cameraFov": 34,
+      "cameraNear": 0.03,
+      "walkFov": 66,
+      "laptopOpen": true
+    },
+    "afterCloseButton": {
+      "cameraFov": 66,
+      "cameraNear": 0.15,
+      "walkFov": 66,
+      "laptopOpen": false
+    }
+  },
+  "pages": [
+    {
+      "page": "Home",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 117
+    },
+    {
+      "page": "Bookings",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 52
+    },
+    {
+      "page": "Pro Shop",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 330
+    },
+    {
+      "page": "Course",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 45
+    },
+    {
+      "page": "Upgrades",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 75
+    },
+    {
+      "page": "Business",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 51
+    },
+    {
+      "page": "Settings",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 53
+    }
+  ],
+  "crashes": [],
+  "misclicks": [],
+  "errs": [],
+  "ok": true
+}

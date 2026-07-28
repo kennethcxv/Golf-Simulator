@@ -1,0 +1,326 @@
+{
+  "seed": 20260727,
+  "rooms": {
+    "v2": {
+      "variant": "pine-hills-v2",
+      "diagnostics": {
+        "greybox": true,
+        "expected": 0,
+        "loaded": 0,
+        "failed": 0,
+        "failures": [],
+        "coolerMounted": false,
+        "cleanupTargets": 12,
+        "interactions": 14,
+        "staticDressingBatch": null,
+        "greyVolumes": 28,
+        "suppressedLegacy": [
+          "PineHillsFrontDeskReturn",
+          "TieredMemberLounge",
+          "lounge-trophies"
+        ],
+        "hiddenFixtureAnchors": [
+          "rack_drivers",
+          "rack_irons",
+          "rack_putters",
+          "shelf_balls",
+          "shelf_acc",
+          "shelf_small",
+          "table_polos",
+          "rail_outer",
+          "hatstand",
+          "bagstand",
+          "shoerack",
+          "cold_drinks",
+          "snackrack",
+          "member_station",
+          "feature",
+          "backcounter"
+        ]
+      },
+      "f1": {
+        "raysTotal": 861,
+        "raysAtLeast8yd": 850,
+        "percent": 98.7,
+        "nearBlockers": [
+          [
+            "SHEET06_58_straight_0_MESH_DarkWalnutScarfJointBeam_INSTANCES",
+            3
+          ]
+        ]
+      },
+      "f2": {
+        "north": {
+          "unoccluded": true,
+          "firstHit": "GREY_shelf_small",
+          "hitAt": 4.7
+        },
+        "south": {
+          "unoccluded": true,
+          "firstHit": null,
+          "hitAt": null
+        },
+        "west": {
+          "unoccluded": true,
+          "firstHit": "GREY_rack_irons",
+          "hitAt": 6.5
+        },
+        "eastPartition": {
+          "unoccluded": true,
+          "firstHit": null,
+          "hitAt": null
+        }
+      },
+      "f5": {
+        "GREY_chairA": {
+          "present": true,
+          "samples": 35,
+          "visible": 35,
+          "percent": 100
+        },
+        "GREY_chairB": {
+          "present": true,
+          "samples": 35,
+          "visible": 35,
+          "percent": 100
+        },
+        "GREY_coffee": {
+          "present": true,
+          "samples": 35,
+          "visible": 35,
+          "percent": 100
+        },
+        "GREY_loungeRug": {
+          "present": true,
+          "samples": 35,
+          "visible": 35,
+          "percent": 100
+        }
+      },
+      "clearances": {
+        "variant": "pine-hills-v2",
+        "deskWestToClearway": 0.5034120734908134,
+        "staffCorridor": 1.12989501312336,
+        "corridorWestSlot": 0.5238845144356956,
+        "featureToReturnPass": 1.3034120734908134,
+        "featureToTablePass": 2.3999999999999995,
+        "queueHeadToDesk": 0.6398950131233598,
+        "queueSpacing": 1.2628935030318273,
+        "registerAt": {
+          "x": 2.0999999999999996,
+          "z": 3.35
+        },
+        "laptopAt": {
+          "x": 1.5799999999999998,
+          "z": 3.43
+        }
+      },
+      "contract": {
+        "backdropAbsent": true,
+        "greyPresent": [
+          {
+            "name": "GREY_frontCounter",
+            "found": true
+          },
+          {
+            "name": "GREY_backcounter",
+            "found": true
+          },
+          {
+            "name": "GREY_chairB",
+            "found": true
+          },
+          {
+            "name": "GREY_rail_outer",
+            "found": true
+          },
+          {
+            "name": "GREY_teeTimeBoard",
+            "found": true
+          }
+        ],
+        "legacyHidden": [
+          {
+            "name": "LegacyCheckoutCounter",
+            "found": false,
+            "visible": null
+          },
+          {
+            "name": "LegacyCheckoutProductionCounter",
+            "found": false,
+            "visible": null
+          },
+          {
+            "name": "PineHillsFrontDeskReturn",
+            "found": true,
+            "visible": false
+          }
+        ],
+        "registerHardwareVisible": true,
+        "tierIndex": 0
+      },
+      "visibleMeshCount": 676
+    },
+    "v1": {
+      "variant": null,
+      "diagnostics": {
+        "expected": 11,
+        "loaded": 11,
+        "failed": 0,
+        "failures": [],
+        "coolerMounted": true,
+        "cleanupTargets": 12,
+        "interactions": 14,
+        "staticDressingBatch": {
+          "keys": [
+            "golfTv",
+            "waterCooler",
+            "wasteBin",
+            "floorPlant",
+            "counterPlant"
+          ],
+          "sourceDrawCalls": 93,
+          "batchedSourceDrawCalls": 87,
+          "batchedDrawCalls": 12,
+          "drawCallsSaved": 75,
+          "sourceTriangles": 9248,
+          "batchedTriangles": 8600,
+          "canonicalMaterials": 18,
+          "materialCanonicalizations": 47
+        }
+      },
+      "f1": {
+        "raysTotal": 861,
+        "raysAtLeast8yd": 47,
+        "percent": 5.5,
+        "nearBlockers": [
+          [
+            "POS_Rear",
+            20
+          ],
+          [
+            "BATCH_PineHillsStatic_12",
+            17
+          ],
+          [
+            "POS_Bezel",
+            16
+          ],
+          [
+            "Terminal_Shell",
+            12
+          ],
+          [
+            "CustDisp_Frame",
+            11
+          ],
+          [
+            "Bag_Body_1",
+            6
+          ]
+        ]
+      },
+      "f2": {
+        "north": {
+          "unoccluded": false,
+          "firstHit": null,
+          "hitAt": 0.08
+        },
+        "south": {
+          "unoccluded": true,
+          "firstHit": null,
+          "hitAt": null
+        },
+        "west": {
+          "unoccluded": true,
+          "firstHit": "Cube",
+          "hitAt": 7.21
+        },
+        "eastPartition": {
+          "unoccluded": true,
+          "firstHit": null,
+          "hitAt": null
+        }
+      },
+      "f5": {
+        "GREY_chairA": {
+          "present": false
+        },
+        "GREY_chairB": {
+          "present": false
+        },
+        "GREY_coffee": {
+          "present": false
+        },
+        "GREY_loungeRug": {
+          "present": false
+        }
+      },
+      "clearances": {
+        "variant": null,
+        "deskWestToClearway": -3.5965879265091862,
+        "staffCorridor": -2.850104986876641,
+        "corridorWestSlot": 0.44388451443569554,
+        "featureToReturnPass": 0.6034120734908139,
+        "featureToTablePass": -1,
+        "queueHeadToDesk": -1.4601049868766403,
+        "queueSpacing": 1.2628935030318273,
+        "registerAt": {
+          "x": 0.3999999999999999,
+          "z": 1.7974628171478566
+        },
+        "laptopAt": {
+          "x": 0.9199999999999999,
+          "z": 1.7174628171478565
+        }
+      },
+      "contract": {
+        "backdropAbsent": false,
+        "greyPresent": [
+          {
+            "name": "GREY_frontCounter",
+            "found": false
+          },
+          {
+            "name": "GREY_backcounter",
+            "found": false
+          },
+          {
+            "name": "GREY_chairB",
+            "found": false
+          },
+          {
+            "name": "GREY_rail_outer",
+            "found": false
+          },
+          {
+            "name": "GREY_teeTimeBoard",
+            "found": false
+          }
+        ],
+        "legacyHidden": [
+          {
+            "name": "LegacyCheckoutCounter",
+            "found": false,
+            "visible": null
+          },
+          {
+            "name": "LegacyCheckoutProductionCounter",
+            "found": false,
+            "visible": null
+          },
+          {
+            "name": "PineHillsFrontDeskReturn",
+            "found": true,
+            "visible": true
+          }
+        ],
+        "registerHardwareVisible": true,
+        "tierIndex": 0
+      },
+      "visibleMeshCount": 857
+    }
+  },
+  "errs": [],
+  "ok": true
+}

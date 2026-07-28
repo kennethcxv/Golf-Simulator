@@ -1,0 +1,25 @@
+{
+  "seed": 20260727,
+  "grimeCellCount": 104,
+  "legs": {
+    "v1ToV2": {
+      "differences": 0,
+      "detail": []
+    },
+    "v2ToV1": {
+      "differences": 0,
+      "detail": []
+    },
+    "fullCircle": {
+      "differences": 0,
+      "detail": []
+    }
+  },
+  "savedVariantField": {
+    "inV1": "pine-hills",
+    "inV2": "pine-hills",
+    "backInV1": "pine-hills"
+  },
+  "errs": [],
+  "ok": true
+}

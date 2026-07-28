@@ -34,7 +34,9 @@ async (page) => {
   // trap the ladder itself cannot escape flags).
   const FREEZE_WINDOW_WALL_S = 12;
   const FREEZE_EPSILON_YD = 0.15;
-  const QUEUE_BOUND_WALL_MIN = 8; // head patience is ~3 wall-min; 8 = never advancing
+  // Designed queue patience runs ~10 REAL minutes (register-feel spec) before a
+  // customer gives up; only a queue that outlives that is a navigation claim.
+  const QUEUE_BOUND_WALL_MIN = 12;
   const DAY_END_MINUTE = 19 * 60 + 30; // run past close so leavers can clear
 
   const errs = [];
