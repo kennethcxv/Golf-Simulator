@@ -546,8 +546,111 @@ def build_64() -> bpy.types.Object:
     return root
 
 
+# ===== SPIKE ARM E — THROWAWAY. CC0 textured materials for asset 065 only. =====
+# Source: ambientCG.com, Creative Commons CC0 1.0 Universal. Commercial use permitted,
+# attribution optional ("You can include the raw files in your project, for example a
+# video game" - https://ambientcg.com/license). Maps extracted to
+# asset_sources/textures/cc0_spike/.
+_CC0_DIR = Path(__file__).resolve().parents[2] / "asset_sources" / "textures" / "cc0_spike"
+
+
+def _textured_material(name, cc0_id, *, tint=None, uv_scale=2.0, metallic=0.0,
+                       roughness_boost=0.0, has_metalness=False):
+    """Principled BSDF driven by CC0 Color/Roughness/NormalGL maps.
+
+    Colour space matters and is easy to get silently wrong: Color is sRGB, Roughness and
+    Normal are Non-Color. NormalGL is the OpenGL convention, which is what glTF expects.
+    """
+    mat = bpy.data.materials.new(name if name.startswith("MAT_") else "MAT_" + name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+
+    texco = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (uv_scale, uv_scale, 1.0)
+    nt.links.new(texco.outputs["UV"], mapping.inputs["Vector"])
+
+    def img(suffix, non_color):
+        path = _CC0_DIR / f"{cc0_id}_1K-JPG_{suffix}.jpg"
+        if not path.exists():
+            return None
+        node = nt.nodes.new("ShaderNodeTexImage")
+        node.image = bpy.data.images.load(str(path), check_existing=True)
+        # The repo's asset validator rejects unpacked textures (texture-not-packed), and
+        # correctly so: an unpacked image is a path dependency that breaks the moment the
+        # .blend moves. Pack it into the file so the export is self-contained.
+        if not node.image.packed_file:
+            node.image.pack()
+        if non_color:
+            node.image.colorspace_settings.name = "Non-Color"
+        nt.links.new(mapping.outputs["Vector"], node.inputs["Vector"])
+        return node
+
+    col = img("Color", False)
+    if col is not None:
+        if tint is not None:
+            mix = nt.nodes.new("ShaderNodeMixRGB")
+            mix.blend_type = "MULTIPLY"
+            mix.inputs["Fac"].default_value = 1.0
+            mix.inputs["Color2"].default_value = tint
+            nt.links.new(col.outputs["Color"], mix.inputs["Color1"])
+            nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
+        else:
+            nt.links.new(col.outputs["Color"], bsdf.inputs["Base Color"])
+
+    rgh = img("Roughness", True)
+    if rgh is not None:
+        if roughness_boost:
+            add = nt.nodes.new("ShaderNodeMath")
+            add.operation = "ADD"
+            add.inputs[1].default_value = roughness_boost
+            add.use_clamp = True
+            nt.links.new(rgh.outputs["Color"], add.inputs[0])
+            nt.links.new(add.outputs["Value"], bsdf.inputs["Roughness"])
+        else:
+            nt.links.new(rgh.outputs["Color"], bsdf.inputs["Roughness"])
+
+    nrm = img("NormalGL", True)
+    if nrm is not None:
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nt.links.new(nrm.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+
+    if has_metalness:
+        met = img("Metalness", True)
+        if met is not None:
+            nt.links.new(met.outputs["Color"], bsdf.inputs["Metallic"])
+        else:
+            bsdf.inputs["Metallic"].default_value = metallic
+    else:
+        bsdf.inputs["Metallic"].default_value = metallic
+    return mat
+
+
+def _cc0_materials_65() -> dict:
+    """SPIKE ARM E — textured replacements, asset 065 only. Tints keep the bible palette."""
+    return {
+        "natural_oak": _textured_material("CC065_NaturalOak", "Wood051",
+                                          tint=(0.92, 0.78, 0.58, 1.0), uv_scale=2.2),
+        "medium_walnut": _textured_material("CC065_MediumWalnut", "Wood062",
+                                            tint=(0.62, 0.44, 0.30, 1.0), uv_scale=2.6),
+        "warm_charcoal": _textured_material("CC065_WarmCharcoal", "Metal032",
+                                            tint=(0.20, 0.21, 0.22, 1.0), uv_scale=3.0,
+                                            roughness_boost=0.12),
+        "restrained_brass": _textured_material("CC065_RestrainedBrass", "Metal032",
+                                               tint=(1.25, 0.98, 0.46, 1.0), uv_scale=4.0,
+                                               metallic=1.0),
+    }
+
+
 def build_65() -> bpy.types.Object:
     root, p = _root(65, fixture_role="delivery_worktable", full_top_placement_surface=True)
+    p = {**p, **_cc0_materials_65()}  # SPIKE ARM E — asset-065-local textured override
     frame = _group("WorktableFrame", root)
     _placement(root)
     _box("OakWorktop", (1.80, 0.75, 0.085), (0.0, 0.0, 0.8775), p["natural_oak"], frame,
