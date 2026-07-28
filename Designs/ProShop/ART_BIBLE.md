@@ -33,12 +33,46 @@ both currently in the room, both shot in-game at gameplay framing:
 | Material | Walnut with believable grain scale, brass pulls, distinct worktop | Single flat colour, no identity |
 | Contact | Sits on the floor; plinth grounds it | Floats visually — no bevel or contact break |
 
-**Correction worth recording:** the debris is *not* a two-triangle quad, which is what it
-looks like. It is a 36-triangle dodecahedron flattened to 0.22 of its height. It has
-geometry and still reads as a sticker. **That is the whole thesis of this bible: triangle
-count is not the problem, and adding triangles is not the fix.** The counter's worktop is
-188 triangles and reads as furniture; the debris is 36 and reads as a decal. The
-difference is bevel, material identity and contact — not density.
+**Still true:** the debris is *not* a two-triangle quad, which is what it looks like. It is
+a 36-triangle dodecahedron flattened to 0.22 of its height. It has geometry and still reads
+as a sticker. **Triangle count is not the problem, and adding triangles is not the fix.**
+
+> ### SUPERSEDED — the original diagnosis was wrong
+>
+> This section originally concluded: *"The difference is bevel, material identity and
+> contact — not density."* That was tested on one asset in
+> `Spike/BIBLE_VALIDATION.md` and **it does not hold.**
+>
+> The control asset already satisfied all three claims — `baseY` exactly `0.0000`, bevels
+> present at **8–24 mm** (*larger* than §5 asks for), materials palette-aligned — and still
+> read as a primitive. Applying the bible's bevel, material and contact specs in three
+> separate arms changed almost nothing at object scale.
+>
+> **The actual discriminator is texture presence.** A survey of every GLB family:
+>
+> | family | files | with zero embedded images |
+> |---|---|---|
+> | checkout kit | 49 | **1 (2 %)** |
+> | sheet_06 architecture | 10 | **0 (0 %)** |
+> | sheet_07 fixtures | 10 | **10 (100 %)** |
+> | sheet_08 tools | 10 | **10 (100 %)** |
+> | clubhouse / merch | 152 | **129 (85 %)** |
+>
+> ### How the error happened — worth preserving
+>
+> **The anchors were selected badly, and the selection encoded the wrong conclusion.**
+> I picked the reception counter as "best" and floor debris as "worst" by eye, then derived
+> every rule from the differences I could see between them. What I did not check is that
+> the counter area is served by the **checkout kit — the one family that is 98 % textured**
+> — while the debris and the worktable are from families that are **100 % untextured**.
+>
+> So the anchors differed in texture *and* in bevel, material and contact at the same time,
+> and I attributed the gap to the three properties I had looked at rather than the one I
+> had not. Choosing anchors from the same asset family, or checking what varies between
+> them before writing rules, would have caught it.
+>
+> The rules below are still worth following — they were just aimed at the wrong cause.
+> §7.4 now carries the requirement that actually matters.
 
 ---
 
@@ -225,6 +259,35 @@ Rules:
 * **Do not add bevels to buy realism on an object that lacks form.** The debris needs a
   silhouette and a material first; a bevel on a flat lump is still a flat lump.
 
+### Correction — the room is over-bevelled, not under-bevelled
+
+The original framing here implied assets lacked bevels. They do not.
+`asset_065_stockroom_worktable` ships with worktop 24 mm / 3 segments, dark edge 10 mm,
+legs 10 mm, aprons 8 mm, shelf 14 mm — every one **larger** than the table above asks for.
+Applying the 3 mm spec *reduced* them.
+
+**Keep the values.** At 3 mm the worktop reads as a timber arris; the shipped 24 mm chamfer
+reads soft and slightly plastic (`Spike/bible/compare/worktop-edge.png`). But stop
+describing the room as missing bevel language, and expect a bevel pass to be a
+**tightening** job.
+
+### A bevel pass is also a defect-finding pass
+
+This is the strongest practical reason to do one, and it was discovered by accident.
+
+Tightening the worktop bevel from 24 mm to 3 mm **exposed a hidden coplanar defect**: the
+brass corner caps sat centred at z 0.914 with 0.012 thickness, putting their top face at
+0.920 — exactly coplanar with the worktop top (0.8775 + 0.085/2) and their bodies buried
+inside the slab. The oversized bevel had been covering it. At 3 mm it appears as a bright
+brass square sunk into the corner
+(`Spike/bible/compare/leg-floor-contact.png`, panels B and D).
+
+**An oversized bevel can conceal a geometry error indefinitely.** Any asset receiving a
+bevel pass must be re-inspected at the tightened width before the pass is called done — the
+new edge will reveal intersections the old one was hiding. [V] corner and junction crops
+before and after. [T] a coplanar-face check between adjacent parts would catch this class
+automatically and does not exist yet.
+
 ---
 
 ## 6. Polygon targets
@@ -303,6 +366,30 @@ roughness problem. [T] assert metalness ∈ {0, 1} across the slice's materials.
 Texel density target: **256 px per yard** on hero and fixture surfaces, ±25 %. [T]
 computable from UV area against world area. This is what keeps a counter and the shelf
 beside it looking like the same production.
+
+### 7.4 Textured surface is REQUIRED — this is the rule that was missing
+
+> Added after `Spike/BIBLE_VALIDATION.md` found that the bible specified texture
+> *resolution* and *density* while never requiring a texture to exist at all. Every §7.3
+> number above presupposes a map that **100 % of sheet_07 and sheet_08 assets do not have.**
+
+| Rule | Gate |
+|---|---|
+| Every fixture, furniture and hero asset ships with **at minimum an albedo and a roughness map**. Flat `baseColorFactor` + a roughness scalar is not an acceptable surface | [T] GLB image count > 0 per asset — the survey script in `Spike/BIBLE_VALIDATION.md` is the check |
+| A **normal map** is required on any surface a player stands within 2 yd of: worktops, counter fronts, shelf boards, seat faces | [T] `normalTexture` present |
+| Small clutter and instanced debris are **exempt** — at 4 cm they cannot carry a readable map | [T] exempt list |
+| Materials that are genuinely uniform (glass, powder-coated metal, painted trim) may ship albedo-flat, but still need roughness variation | [V] side-by-side against a textured neighbour |
+| No asset ships whose material count exceeds its **distinct real-world material count** | [T] material census |
+
+**Why this outranks everything else in §5–§8.** Measured on one asset across three arms:
+correcting bevels to spec, correcting palette hex and roughness into range, and correcting
+contact produced *marginal* change at object scale. The object still read as coloured boxes,
+because there was no surface for any of those corrections to modulate. The counter reads
+better than the worktable because the checkout kit carries 145 embedded images across 49
+files and sheet_07 carries zero — not because its bevels or its palette are better.
+
+**Do not approve a hero asset that ships with zero embedded images.** That is now the single
+highest-value technical gate in this document.
 
 ---
 
