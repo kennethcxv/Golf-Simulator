@@ -8,6 +8,8 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CachedGLTFLoader as GLTFLoader, clearGltfCache } from './gltfCache.js';
+import { initKTX2, ktx2Diagnostics } from './ktx2Support.js';
+import { sharedTextureDiagnostics } from './sharedTexturePool.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -703,6 +705,11 @@ export function makeCourseScene(canvas, state) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.12;
+  // Stand the KTX2 transcoder up here, against this renderer, because the block
+  // format it targets depends on what this GPU supports. It has to exist before
+  // the first GLB that carries KHR_texture_basisu is requested — GLTFLoader
+  // throws rather than falling back if the loader is missing at parse time.
+  initKTX2(renderer);
 
   const scene = new THREE.Scene();
   // The world root itself never moves. Leaving it on auto-update marks it dirty
@@ -10792,6 +10799,9 @@ export function makeCourseScene(canvas, state) {
     camera,
     rig,
     post: { composer, gtao, bloom, sun, stats: () => ({ shadowBakes }) },
+    // Texture-memory infrastructure, exposed so the QA harness can assert that
+    // sharing and compression are actually happening rather than assume it.
+    textureMemory: () => ({ ktx2: ktx2Diagnostics(), shared: sharedTextureDiagnostics() }),
     render,
     resize,
     raycastCell,

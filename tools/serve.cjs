@@ -24,6 +24,11 @@ const MIME = {
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',
   '.woff2': 'font/woff2',
+  // The Basis transcoder is instantiated with WebAssembly.instantiateStreaming,
+  // which rejects any response not served as application/wasm.
+  '.wasm': 'application/wasm',
+  '.ktx2': 'image/ktx2',
+  '.glb': 'model/gltf-binary',
 };
 
 const server = http.createServer((req, res) => {

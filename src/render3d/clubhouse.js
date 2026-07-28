@@ -165,7 +165,12 @@ import {
   createPremiumCountryClub,
   PREMIUM_COUNTRY_CLUB_METERS_TO_YARDS,
 } from './clubhouse/premiumCountryClub.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// The cached loader, not the bare one: assets 61-100 are the sheet_07/sheet_08
+// pro-shop set, they share material families with each other, and the cached
+// loader is what runs cross-file texture interning and attaches the KTX2
+// transcoder. On the bare GLTFLoader every asset paid for its own copy of a
+// shared walnut or steel map. See sharedTexturePool.js.
+import { CachedGLTFLoader as GLTFLoader } from './gltfCache.js';
 import { buildProps } from './assets51to100/propPlacement.js';
 import { RUNTIME_ASSET_MANIFEST_BY_NUMBER } from './assets51to100/runtimeManifest.js';
 import {
