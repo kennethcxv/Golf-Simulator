@@ -1,0 +1,141 @@
+{
+  "arm": "G",
+  "seed": 20260727,
+  "subject": {
+    "found": true,
+    "meshes": 34,
+    "tris": 8004,
+    "dimsYd": [
+      1.982,
+      1.341,
+      0.82
+    ],
+    "baseYAboveFloor": 0,
+    "centreLocal": [
+      6.31,
+      -1.7
+    ],
+    "materials": {
+      "MAT_PH_CollisionAuthoring": {
+        "color": "#ff00ff",
+        "roughness": 1,
+        "metalness": 0
+      },
+      "MAT_CC065_MediumWalnut": {
+        "color": "#ffffff",
+        "roughness": 1,
+        "metalness": 0
+      },
+      "MAT_CC065_NaturalOak": {
+        "color": "#ffffff",
+        "roughness": 1,
+        "metalness": 0
+      },
+      "MAT_CC065_WarmCharcoal": {
+        "color": "#ffffff",
+        "roughness": 1,
+        "metalness": 0
+      },
+      "MAT_CC065_RestrainedBrass": {
+        "color": "#ffffff",
+        "roughness": 1,
+        "metalness": 1
+      },
+      "MAT_S08_MicrofibreGreen": {
+        "color": "#426e5b",
+        "roughness": 0.9,
+        "metalness": 0
+      },
+      "MAT_S08_SpongeYellow": {
+        "color": "#ddc85f",
+        "roughness": 0.93,
+        "metalness": 0
+      },
+      "MAT_S08_SpongeScour": {
+        "color": "#3e5f46",
+        "roughness": 0.95,
+        "metalness": 0
+      },
+      "MAT_S08_BottleWhite": {
+        "color": "#dfdeda",
+        "roughness": 0.36,
+        "metalness": 0
+      },
+      "MAT_S08_TriggerGreen": {
+        "color": "#3c7457",
+        "roughness": 0.42,
+        "metalness": 0
+      },
+      "MAT_S08_CleanerFluid": {
+        "color": "#76aeb1",
+        "roughness": 0.18,
+        "metalness": 0
+      },
+      "MAT_S08_LabelGreen": {
+        "color": "#173f32",
+        "roughness": 0.46,
+        "metalness": 0
+      },
+      "MAT_S08_LabelCream": {
+        "color": "#e8dfc9",
+        "roughness": 0.7,
+        "metalness": 0
+      },
+      "MAT_S08_HardBlack": {
+        "color": "#28292b",
+        "roughness": 0.41,
+        "metalness": 0
+      },
+      "MAT_PH_RestrainedBrass": {
+        "color": "#9b7a3b",
+        "roughness": 0.32,
+        "metalness": 0.88
+      }
+    }
+  },
+  "shots": [
+    {
+      "id": "1-three-quarter",
+      "at": [
+        7.7,
+        -0.15
+      ],
+      "look": [
+        6.1,
+        -1.85
+      ],
+      "pitch": -0.3,
+      "fovOk": true,
+      "cameraFov": 66
+    },
+    {
+      "id": "2-front-elevation",
+      "at": [
+        6.3,
+        0.55
+      ],
+      "look": [
+        6.3,
+        -1.7
+      ],
+      "pitch": -0.2,
+      "fovOk": true,
+      "cameraFov": 66
+    },
+    {
+      "id": "3-floor-contact",
+      "at": [
+        5.05,
+        -0.72
+      ],
+      "look": [
+        5.45,
+        -1.42
+      ],
+      "pitch": -0.8,
+      "fovOk": true,
+      "cameraFov": 66
+    }
+  ],
+  "fovAssertAll": true
+}

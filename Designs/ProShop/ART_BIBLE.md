@@ -353,19 +353,81 @@ roughness problem. [T] assert metalness ∈ {0, 1} across the slice's materials.
 
 **No material may exist to hide weak geometry.** [V]
 
-### 7.3 Texture resolution
+### 7.3 Texture resolution — measured, not conventional
 
-| Use | Size | Gate |
+> **Revised.** The previous version of this section set a texel-density target of 256 px
+> per yard and a 1024² hero ceiling. Both were written by convention. Measurement says the
+> density target was **roughly 3× too low** and the size ceiling **4× too high**, which is
+> the worst pairing available: assets that are simultaneously blurry where you stand and
+> expensive where you do not. The numbers below come from
+> `tools/qa/proshop-texel-density.js` against the live room.
+
+**The unit.** Two quantities, both measured by casting rays one pixel apart and reading
+back the world hit point and the UV:
+
+* **`pixelsPerYard`** — what the display can resolve on a surface at a given distance.
+  A property of the camera, not the asset. This is the **requirement**.
+* **`texelsPerYard`** — what the asset supplies. A property of the map size and the tile
+  size, independent of where the camera is. This is the **supply**.
+
+A surface needs supply ≥ requirement at the **closest distance a player can reach it**,
+and not one texel more. Above that the GPU picks a lower mip and the extra memory is
+literally never sampled.
+
+**Measured requirement in this room** (1600×900, FOV 66, and the analytic
+`H / (2 d tan(fov/2))` agrees with the ray measurement to within 1 % — 346 predicted vs
+350 measured at 2 yd):
+
+| Standoff | Measured `pixelsPerYard` | What is at this distance |
 |---|---|---|
-| Tiling surface (wall, floor, fabric) | **256²**, the room's dominant working size | [T] texture census |
-| Hero asset albedo | **1024²** ceiling | [T] census |
-| Small prop | **256²** ceiling | [T] census |
-| Signage and readable text | up to **1024** on the long edge | [V] legibility at 2 yd |
-| Anything above 1024² | requires written justification | [T] census flags them |
+| 0.5 yd | **767** | Nose against a counter front. The collision body radius is 0.34 yd, so ~0.5 yd is the closest realisable |
+| 1 yd | 693 | Working at a worktop |
+| 2 yd | 350 | Standing back from a fixture |
+| 3 yd | 237 | Across the retail floor |
+| 4 yd + | ≤ 173 | Ceiling, upper wall, far shelving |
 
-Texel density target: **256 px per yard** on hero and fixture surfaces, ±25 %. [T]
-computable from UV area against world area. This is what keeps a counter and the shelf
-beside it looking like the same production.
+**Ceilings.** Express the ceiling as **texels per yard**, then derive the map size from
+the tile size — because tile size is the thing that actually varies, and a "512² map" means
+nothing until you know how far it stretches.
+
+| Class | Reachable to | Required `texelsPerYard` | Max tile at 256² | at 512² | at 1024² |
+|---|---|---|---|---|---|
+| **Hero** — counters, worktops, seat faces, anything within arm's reach | 0.5 yd | **768** | 0.33 yd | **0.67 yd** | 1.33 yd |
+| **Standing** — fixture bodies, cabinet sides, shelf boards | 2 yd | **384** | 0.67 yd | 1.33 yd | 2.67 yd |
+| **Background** — upper wall, ceiling, far dressing | 3 yd | **256** | 1.00 yd | 2.00 yd | 4.00 yd |
+| **Out of reach** — ceiling field, beam faces | 4 yd + | **192** | 1.33 yd | 2.67 yd | 5.33 yd |
+
+For a non-tiling unique-UV map, substitute the surface's own span for the tile size:
+`mapSize = texelsPerYard × spanYd`.
+
+**The practical consequence: 512² is the hero ceiling in this room, and 1024² is only
+justified for a tile larger than 1.33 yd.** Nothing in a 17 × 10 yd room viewed from
+0.5 yd needs 2048².
+
+**Both ends of this are verified against real surfaces.**
+
+* The reception counter — the §1 best-in-room anchor — supplies **701 texels/yd** from a
+  1024×640 map, against 767 required at 0.5 yd. The best-looking thing in the room is
+  very slightly *under*-resolved at nose distance, which is why 768 rather than something
+  lower is the hero number: it is calibrated to the surface that already works.
+* `asset_065`'s rebuilt worktop supplies **1029 texels/yd** from a 512² map against 646
+  required at its closest approach — 1.6× headroom, minimum observed mip 0.67, so mip 0
+  is never sampled. Dropping it to 256² would supply 514 and go under at arm's length.
+  **512² is the correct call for this asset by measurement, not by rounding.**
+
+| Rule | Gate |
+|---|---|
+| No runtime texture exceeds 512 on its long edge without written justification | [T] `tests/proshop-texture-budget.test.js` reads dimensions out of the shipped GLBs |
+| A hero surface supplies ≥ 768 texels/yd | [T] `tools/qa/proshop-texel-density.js`, `texelsPerYard` at the target |
+| No surface supplies more than 2× its class requirement | [T] same probe: a minimum observed mip ≥ 1 across every pose means mip 0 is never sampled and the map can be halved |
+| Signage and readable text | up to 512 on the long edge | [V] legibility at 2 yd |
+
+**Where the ceiling is applied.** The Blender builder exports canonical and runtime GLBs
+identically at source resolution; the ceiling is applied to the *runtime* GLB afterwards by
+`tools/blender/pack_ktx2.mjs --max-size 512`. That split is deliberate — the canonical
+asset keeps full-resolution source — but it means the reduction is easy to lose by
+re-running the builder and forgetting the pack step, which is what the budget test exists
+to catch.
 
 ### 7.4 Textured surface is REQUIRED — this is the rule that was missing
 
@@ -472,7 +534,7 @@ Two things this example is here to teach:
 | Source contrast ratio p90/p10 **≥ 1.5** | [T] a map flatter than this is not carrying surface information and fails §7.4 on its own terms regardless of colour. **Metal032 is at 1.14 and fails this** — it needs a replacement source or a procedural break-up before the Tier 1 pass |
 | Clipped fraction after exposure normalisation **< 0.5 %** | [T] `--bake` reports `clippedFraction` |
 | Roughness, metalness and normal maps are untouched by calibration and tagged Non-Color | [T] existing colour-space check |
-| The calibrated surface reads as the same production as the reception counter run | **[V]** `Designs/ProShop/Spike/bible/compare/palette-calibration-worktop.png` — the worktable worktop and the counter run in one frame, front elevation, from `tools/qa/spike-bible-arm.js` pose `2-front-elevation`. Both are medium walnut; if they read as two different woods, calibration failed regardless of what the arithmetic says |
+| The calibrated surface reads as the same production as the reception counter run | **[V]** the first calibrated asset must produce `Designs/ProShop/Spike/bible/compare/palette-calibration-worktop.png` — the worktable worktop and the counter run in one frame, front elevation, from `tools/qa/spike-bible-arm.js` pose `2-front-elevation`, stacked by `Designs/ProShop/Spike/compare_arms.py`. Both are medium walnut; if they read as two different woods, calibration failed regardless of what the arithmetic says. **Not yet produced — no asset has been through calibration** |
 
 ---
 

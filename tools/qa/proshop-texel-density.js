@@ -267,9 +267,18 @@ async (page) => {
     // ======================================================================
     // Aim at the reception counter front face (the ART_BIBLE §1 "best" anchor),
     // straight down -Z from the retail floor, at counter-top height.
-    const COUNTER_TARGET = { lx: -0.8, lz: -0.2, y: 0.85 };
+    // Two targets: the reception counter (the §1 best-in-room anchor, and the
+    // surface the resolution ceiling was derived from) and asset_065's worktop
+    // (the asset rebuilt through the new path, so the ceiling can be checked
+    // against a real product of it rather than only against the thing that set it).
+    const TARGETS = [
+      { id: 'counter', lx: -0.8, lz: -0.2, y: 0.85 },
+      { id: 'worktable-065', lx: 6.3, lz: -1.7, y: 0.96 },
+    ];
     const distanceSweep = [];
-    for (const d of [0.34, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0]) {
+    for (const T of TARGETS) {
+    const COUNTER_TARGET = T;
+    for (const d of [0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0]) {
       const lz = COUNTER_TARGET.lz + d;
       const p = lookAtFrom(COUNTER_TARGET.lx, lz, COUNTER_TARGET.lx, COUNTER_TARGET.lz, COUNTER_TARGET.y);
       const realised = await pose(p.lx, p.lz, p.yaw, p.pitch);
@@ -282,6 +291,7 @@ async (page) => {
         }
       }
       distanceSweep.push({
+        target: T.id,
         standoffYd: d,
         camLocal: realised.camLocal,
         samples: s.length,
@@ -292,6 +302,7 @@ async (page) => {
         texelsPerPixel: s.length ? stats(s, 'texelsPerPixel').median : null,
         mip: s.length ? stats(s, 'mip').median : null,
       });
+    }
     }
 
     // ======================================================================
