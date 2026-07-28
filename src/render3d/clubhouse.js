@@ -9492,6 +9492,50 @@ export function makeClubhouse(ctx) {
     return { nx, nz };
   }
 
+  // NAV-BLOCK DIAGNOSTICS. Every stuck escalation in the walker loop records
+  // what the customer was doing and which colliders boxed it in, so a failed
+  // route is a report with positions instead of a silent freeze. Read through
+  // navBlockDiagnostics(); the QA day runs assert against it.
+  const navBlockLog = [];
+  let navBlocksTotal = 0;
+  function recordNavBlock(c, action, tx, tz, wp) {
+    navBlocksTotal += 1;
+    const near = [];
+    for (const col of custCols) {
+      if (c.mesh.position.x + 0.9 > col.minX && c.mesh.position.x - 0.9 < col.maxX
+        && c.mesh.position.z + 0.9 > col.minZ && c.mesh.position.z - 0.9 < col.maxZ) {
+        near.push({
+          minX: +col.minX.toFixed(2),
+          maxX: +col.maxX.toFixed(2),
+          minZ: +col.minZ.toFixed(2),
+          maxZ: +col.maxZ.toFixed(2),
+          door: col.door === true,
+        });
+        if (near.length >= 6) break;
+      }
+    }
+    const stop = c.stops[c.stopIdx] || null;
+    const entry = {
+      atMinute: +((state.clock?.minutes ?? 0) % 1440).toFixed(1),
+      id: c.customerId ?? c.name,
+      action,
+      stopIdx: c.stopIdx,
+      stopKind: stop?.kind ?? null,
+      fixtureId: stop?.fixtureId ?? null,
+      x: +c.mesh.position.x.toFixed(2),
+      z: +c.mesh.position.z.toFixed(2),
+      tx: +tx.toFixed(2),
+      tz: +tz.toFixed(2),
+      wpx: +((wp?.x ?? tx)).toFixed(2),
+      wpz: +((wp?.z ?? tz)).toFixed(2),
+      colliders: near,
+    };
+    navBlockLog.push(entry);
+    if (navBlockLog.length > 300) navBlockLog.shift();
+    console.warn(`[customer-nav] ${entry.id} ${action} at (${entry.x}, ${entry.z}) `
+      + `→ stop ${entry.stopKind}${entry.fixtureId ? `:${entry.fixtureId}` : ''} (${entry.tx}, ${entry.tz})`);
+  }
+
   // walkable grid around the building; doors are excluded (they open for walkers)
   const nav = makeNav({
     minX: center.x - 16, maxX: center.x + 16,
@@ -9834,14 +9878,44 @@ export function makeClubhouse(ctx) {
           wp.z,
         );
         // stuck detection: 1.2s pinned → one repath against the fresh world;
-        // 3s pinned → sidestep off whatever is holding them and start over
+        // every further 3s pinned climbs an escalation ladder, and every rung is
+        // logged with positions and the surrounding colliders. Rungs 1-2 keep
+        // the old random sidestep; rung 3 nudges the walker onto the nearest
+        // cell the nav grid believes open (wedged in collision the grid can't
+        // see); rung 4 projects the TARGET to its nearest reachable point (the
+        // stand point itself is inside an inflated collider, so arrival could
+        // never happen); rung 5 abandons the stop rather than freeze the day.
         if (step > 0.001 && moved < step * 0.25) {
           c.stuckT = (c.stuckT || 0) + dt;
           if (c.stuckT > 3.0) {
-            const side = Math.random() < 0.5 ? 1 : -1;
-            const sres = resolveCustomer(c, c.mesh.position.x + (wdz / wdist) * 0.6 * side, c.mesh.position.z - (wdx / wdist) * 0.6 * side);
-            c.mesh.position.x = sres.nx;
-            c.mesh.position.z = sres.nz;
+            c.stuckEscalation = (c.stuckEscalation || 0) + 1;
+            const rung = Math.min(5, c.stuckEscalation);
+            recordNavBlock(c, ['sidestep', 'sidestep', 'nudge', 'retarget', 'skip'][rung - 1], tx, tz, wp);
+            if (rung <= 2) {
+              const side = Math.random() < 0.5 ? 1 : -1;
+              const sres = resolveCustomer(c, c.mesh.position.x + (wdz / wdist) * 0.6 * side, c.mesh.position.z - (wdx / wdist) * 0.6 * side);
+              c.mesh.position.x = sres.nx;
+              c.mesh.position.z = sres.nz;
+            } else if (rung === 3) {
+              const open = navFresh().nearestOpenWorld(c.mesh.position.x, c.mesh.position.z, 6);
+              if (open) {
+                const nres = resolveCustomer(c, open.x, open.z);
+                c.mesh.position.x = nres.nx;
+                c.mesh.position.z = nres.nz;
+              }
+            } else if (rung === 4 && stop && stop.kind !== 'counter') {
+              // Queue geometry belongs to the counter; every other stop may move
+              // to the nearest point the grid can actually deliver a walker to.
+              const open = navFresh().nearestOpenWorld(tx, tz, 6);
+              if (open && Math.hypot(open.x - tx, open.z - tz) > 0.05) {
+                stop.x = open.x;
+                stop.z = open.z;
+              }
+            } else if (rung >= 5 && stop && stop.kind !== 'exit' && stop.kind !== 'gone') {
+              if (stop.kind === 'counter') leaveQueue(c);
+              c.stopIdx += 1;
+              c.stuckEscalation = 0;
+            }
             c.pathGoal = null;
             c.stuckT = 0;
             c.repathed = false;
@@ -9853,6 +9927,7 @@ export function makeClubhouse(ctx) {
         } else if (moved > step * 0.6) {
           c.stuckT = 0;
           c.repathed = false;
+          c.stuckEscalation = 0;
         }
       }
       c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
@@ -10431,6 +10506,10 @@ export function makeClubhouse(ctx) {
     // through it, because waiting on the RNG to produce a two-item cash customer is
     // not a test, it is a lottery.
     customers: () => customers,
+    // Every stuck escalation across the session, with positions, targets and the
+    // colliders that boxed the walker in. The live-parity day run reads THIS —
+    // the same evidence the live game logs — instead of inventing its own.
+    navBlockDiagnostics: () => ({ total: navBlocksTotal, recent: navBlockLog.slice(-120) }),
     checkoutQueue: () => counterQueue.map((customer) => ({
       customerId: customer.customerId,
       name: customer.name,

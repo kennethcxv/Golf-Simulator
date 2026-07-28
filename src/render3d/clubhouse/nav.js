@@ -54,6 +54,19 @@ export function makeNav({ minX, maxX, minZ, maxZ, cell = 0.3, radius = 0.32 }) {
     return -1;
   }
 
+  // World-space open queries for callers outside the bake: the centre of the
+  // nearest open cell to a world point (null when everything within maxR cells
+  // is solid), and a point-openness test. The stuck-recovery ladder uses these
+  // to nudge a wedged walker onto ground the grid actually believes in, and to
+  // project an unreachable target to its nearest reachable stand point.
+  function nearestOpenWorld(x, z, maxR = 10) {
+    if (!inGridPt(x, z)) return null;
+    const i = nearestFree(toCX(x), toCZ(z), maxR);
+    if (i < 0) return null;
+    return { x: centerX(cxOf(i)), z: centerZ(czOf(i)) };
+  }
+  const isOpenWorld = (x, z) => inGridPt(x, z) && isFree(toCX(x), toCZ(z));
+
   // grid line-of-sight: sample the segment at sub-cell steps
   function lineFree(x0, z0, x1, z1) {
     const d = Math.hypot(x1 - x0, z1 - z0);
@@ -145,5 +158,12 @@ export function makeNav({ minX, maxX, minZ, maxZ, cell = 0.3, radius = 0.32 }) {
     return out;
   }
 
-  return { rebuild, path, lineFree, _debug: { get blocked() { return blocked; }, w, h } };
+  return {
+    rebuild,
+    path,
+    lineFree,
+    nearestOpenWorld,
+    isOpenWorld,
+    _debug: { get blocked() { return blocked; }, w, h },
+  };
 }

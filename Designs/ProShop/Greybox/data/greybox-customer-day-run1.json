@@ -1,0 +1,69 @@
+{
+  "tag": "run1",
+  "stuckLimitSimSeconds": 1200,
+  "neglected": {
+    "tag": "neglected",
+    "spawned": 10,
+    "sawAny": true,
+    "maxSimultaneous": 10,
+    "customersTracked": 16,
+    "stillInsideAtClose": 4,
+    "stuck": [
+      {
+        "id": "customer_12qcuao_visitor%3A1",
+        "key": "2|shopping|-367,8.5",
+        "heldWallS": 75
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A8",
+        "key": "3|shopping|-367.5,0",
+        "heldWallS": 75
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A0",
+        "key": "4|shopping|-366.5,0",
+        "heldWallS": 75
+      }
+    ],
+    "worstStateHoldWallS": 1086,
+    "simMinutesRun": 600.234719999044,
+    "transactions": 0,
+    "unitsSold": null
+  },
+  "restored": {
+    "tag": "restored",
+    "spawned": 10,
+    "sawAny": true,
+    "maxSimultaneous": 14,
+    "customersTracked": 13,
+    "stillInsideAtClose": 14,
+    "stuck": [
+      {
+        "id": "customer_12qcuao_visitor%3A8",
+        "key": "3|shopping|-367.5,0",
+        "heldWallS": 75
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A1",
+        "key": "2|shopping|-367,8.5",
+        "heldWallS": 75
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A13",
+        "key": "3|shopping|-366,6",
+        "heldWallS": 75
+      },
+      {
+        "id": "customer_12qcuao_visitor%3A15",
+        "key": "3|shopping|-367,8.5",
+        "heldWallS": 75
+      }
+    ],
+    "worstStateHoldWallS": 261.5,
+    "simMinutesRun": 139.47882666661837,
+    "transactions": 0,
+    "unitsSold": null
+  },
+  "errs": [],
+  "ok": false
+}

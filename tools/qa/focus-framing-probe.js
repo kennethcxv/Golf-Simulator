@@ -52,7 +52,7 @@ async (page) => {
     const clubhouse = app.scene3d.clubhouse();
     let corners = null;
     if (which === 'laptop') {
-      corners = clubhouse.screenCorners();
+      corners = clubhouse.laptopScreenCorners();
     } else {
       let mesh = null;
       clubhouse.interior.traverse((node) => {
