@@ -200,18 +200,20 @@ test('F1: the entry-axis strip holds nothing taller than 1.35 yd', () => {
   }
 });
 
-test('F5: the door-to-lounge fan is open where the plan says it is', () => {
+test('F5: the door-to-lounge fan is open at eye-relevant heights, every tier', () => {
   const door = { x: -0.8, z: 5.2 };
+  // Sub-sightline furniture (the 0.4-yd putting strip) sits under every lounge ray;
+  // only fixtures tall enough to occlude an upholstered piece count as crossers.
   const crossers = (target) => v2Fixtures
+    .filter((fixture) => (KIND_HEIGHT[fixture.kind] ?? 1.0) > 1.0)
     .filter((fixture) => segmentCrossesRect(door, target, fixtureRect(fixture)))
     .map((fixture) => fixture.id);
-  // chairB is the arrival hero: nothing crosses its ray at any tier.
   assert.deepEqual(crossers(LOUNGE.chairB), [], 'chairB must read full-height from the door');
-  // chairA is occluded by exactly the tier-2 bag stand and nothing else — at tier 1
-  // (the starter state, where the neglect read matters most) the fan is fully open.
-  const chairACrossers = crossers(LOUNGE.chairA);
-  assert.deepEqual(chairACrossers, ['bagstand']);
-  assert.equal(v2FixtureById.get('bagstand').minTier, 2);
+  assert.deepEqual(crossers(LOUNGE.chairA), [], 'chairA must read full-height from the door');
+  assert.deepEqual(crossers(LOUNGE.coffee), [], 'the coffee table must read from the door');
+  // The fan's only occupant is the putting strip, which the rays pass over.
+  const demo = v2FixtureById.get('putting_demo');
+  assert.ok(KIND_HEIGHT[demo.kind] <= 0.4, 'the strip in the fan must stay sub-sightline');
 });
 
 test('F4: every clutter spot sits at least 0.8 yd off every traffic polyline', () => {

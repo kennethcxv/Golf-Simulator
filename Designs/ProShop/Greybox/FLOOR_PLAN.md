@@ -138,13 +138,15 @@ the shipped `CLUTTER_SPOTS_V2`; a layout test asserts the 0.8-yd clearance.
 cleaning surface (§5): the neglect→restored transformation has to register on arrival,
 so the door→lounge fan must be open. Measured against real fixture half-extents, a
 1.45-yd rail anywhere in the mid-floor band x ≈ 1.0–2.9 cuts either the F1 strip or a
-chair ray — so `rail_outer` leaves the open floor entirely (§5). What remains in the
-fan: nothing at tier 1 (the starter state — the whole suite reads from the door on
-day one, when the neglect read matters most); from tier 2 the bag stand occludes
-`chairA` below ≈ 1.0 yd while **`chairB` stays visible full-height** — the arrival
-hero, already angled toward the room. *Acceptance (greybox, measured):* from the door
-pose (−0.8, 5.2, eye 1.7), silhouette sample visibility per upholstery piece —
-tier-1: every piece ≥ 95 %; tier-2+: `chairB` ≥ 95 %, all pieces reported.
+chair ray — so `rail_outer` leaves the open floor entirely (§5). The first greybox
+boot then measured what the tier assumption had hidden: **the furnished starter
+conveys the bag stand on day one** (no tier-1 grace), and with it in the fan chairA
+read 0 % and chairB 85.7 %. The fix is the §5 swap — the 0.15-yd putting strip takes
+the floor in front of the lounge (the chairs watch the green; every lounge ray passes
+over it) and the bags move west. *Acceptance (greybox, measured):* from the door pose
+(−0.8, 5.2, eye 1.7), silhouette sample visibility per upholstery piece — `chairA`,
+`chairB` and the coffee table each ≥ 95 % at every tier; the flat rug is reported but
+carries no bar (grazing incidence).
 
 ---
 
@@ -179,7 +181,7 @@ Poses are `x, z, ry`. **KEEP** = today's coordinates, unchanged.
 | `table_polos` | KEEP (−6.0, 0.65) | Four-sku apparel table, three browse stops | — |
 | `rail_outer` | **−4.00, 5.20, ry π** | Outerwear browse on the exit path — last-chance apparel between the snack corner and the door; at 1.45 tall it cannot stand anywhere in the open floor without cutting the F1 strip or the F5 lounge fan (both measured) | **MOVED** to the S wall |
 | `hatstand` | KEEP (2.0, −4.95) | Three-sku impulse browse | — |
-| `bagstand` | KEEP (2.05, −2.65) | Tier-2 big-ticket browse | — |
+| `bagstand` | **−5.00, 2.90, ry 0** | Tier-2 big-ticket browse between the apparel table and the club wall (pick clubs → cross-sell the bag). Measurement forced the move: the furnished starter conveys it on day one, and at its old spot, 1.25 yd tall, it owned the door→lounge fan — chairA read 0 %, chairB 85.7 % | **MOVED** west, out of the F5 fan |
 | `shoerack` | KEEP (−5.9, −3.5) | Tier-2 browse; pairs with fitting room | — |
 | `fittingroom` | **−3.55, −2.85, ry π/2** | Tier-3 experience fixture (apparel conversion); booth is 2.05 tall — its east face grazed the F1 strip | **NUDGED** 0.55 west |
 | `feature` | **−1.35, 2.60, ry π** | The decompression-zone power display — the first merchandise you see; tier-2. Faces the entrance; browsed from the aisle side — at ry 0 its browse stand would land inside the door clearway | **MOVED** onto the entry rug (from −4.75, 3.25) |
@@ -187,7 +189,7 @@ Poses are `x, z, ry`. **KEEP** = today's coordinates, unchanged.
 | `snackrack` | KEEP (−6.0, 5.05) | Same; the SW corner is the "one last thing" corner | — |
 | `member_station` | **5.15, 2.15, ry −π/2** | Scorecard sku + service point; belongs beside the till, off its old spot which is now the queue head. z 2.15: at the drafted 2.05 its rect grazed the relocated safety keep-clear by 0.03 yd | **MOVED** to partition face |
 | `tour_vault` | KEEP (4.95, −1.65) | Tier-3 premium experience case, wall-backed | — |
-| `putting_demo` | **−5.00, 2.90, ry 0** | Tier-3 experience; putt toward the window beside the putter studio it upsells; its old pose (2.75, 4.25) is inside the new staff corridor | **MOVED** |
+| `putting_demo` | **1.35, −2.65, ry 0** | Tier-3 experience staged in front of the lounge — the chairs watch the green, and at 0.15/0.4 yd tall the F5 fan sees straight over it at every tier. Its old pose (2.75, 4.25) is inside the new staff corridor; the drafted west spot went to the bags when F5 was measured | **MOVED** |
 | office / stockroom set (`office_desk`, `office_chair`, `office_filing`, `packing_bench`, `backshelf_n/e/e2`) | KEEP | Back-office loop: laptop chair, filing, receiving, restock | — |
 | Lounge suite (`chairA/B`, `coffee`, `rug`, `trophy`, `events`, `photo`) | KEEP (NE corner per `LOUNGE`) | **Cleaning surface — approved with amended justification.** Not decor: upholstery is among the highest-value before/after material in a restoration game, and the lounge is the room's clearest "this place was neglected" read. Two recorded consequences: **(a) fully dirtyable** — the v2 dirt plan covers the whole suite from day one (grime cells under the footprint, the three `lounge:*` cleanup targets with visuals, the crooked chair). No upholstery-level dirt mechanism exists in the codebase today; building one is material work, **recorded here as a Phase 4 requirement** so the grey chairs are understood as stand-ins for dirtyable upholstered heroes. **(b) Entrance-visible** — guaranteed and measured as F5; `rail_outer` left the fan to buy it | — |
 
@@ -210,13 +212,13 @@ Scale: 1 column ≈ 0.5 yd, 1 row ≈ 0.5 yd. North (z −5.49) at top. `·` = o
   z -5.49  W ┌─[BALLS──][ACCESS──][GLOVES─]···[HT]······┬──────────────┐
      -5      │c····························①···········│  STOCKROOM   │ N
      -4      │l··[SHOES──]···················{LNG·window│ [backshelves]│
-     -3      │u··[SHOES──]·[FIT]·······[BAGS]{LNG chairs│ [rcv]═ BACK
+     -3      │u··[SHOES──]·[FIT]··[DEMO════]·{LNG chairs│ [rcv]═ BACK
      -2      │b·····②·····[FIT]···············{LNG·····│·············│ DOOR
      -1      │w······[dsS]·····•FLOOR··········┃[VAULT]·│ [restroom]···│
       0      │a······[dsS]··························⑤│··············│
      +1      │l··[TABLE───]····•panels·→·······③·[safe]├──stock·door──┤
      +2      │l··[TABLE···]······queue③②①···[MEMB]····│    OFFICE    │
-     +3      │··[DEMO────────]··[FEAT]··∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎│ ④·[DESK]····│
+     +3      │··[BAGS───]·······[FEAT]··∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎│ ④·[DESK]····│
      +4      │······⑦·······{rug}·{rug}·R∥··corridor····→··[chair]····│ E
      +5      │[FRIDGE]·[SNACK][RAIL]{mat}·[HUTCH═boards]│··[map]·······│
   z +5.49    └───⑧────────────┤MAIN·DOOR├──────────────┴──────────────┘
@@ -229,8 +231,9 @@ Scale: 1 column ≈ 0.5 yd, 1 row ≈ 0.5 yd. North (z −5.49) at top. `·` = o
   queue ①②③ = (2.82,2.30) (1.64,1.85) (0.46,1.40) — the frame's own local pitch
   •FLOOR / •panels = campaign repair sites (kept fixture-clear)
   ①…⑧ in the open floor = clutter spots (§7 stories) — corners and dead zones
-  {LNG} = lounge suite (KEEP — cleaning surface, F5) · [FIT] booth · [DEMO] strip
-  [RAIL] = outerwear rail on the S wall (F5 moved it out of the lounge fan)
+  {LNG} = lounge suite (KEEP — cleaning surface, F5) · [FIT] booth
+  [DEMO] = putting strip, 0.15 tall — in front of the lounge; the F5 fan sees over it
+  [RAIL] = outerwear rail on the S wall · [BAGS] moved west (both left the F5 fan)
   Entry-axis strip x −2.4..0.9: nothing over 1.35 tall from door to north wall
 ```
 
@@ -258,7 +261,7 @@ enter the corridor — the return closes its west end, the desk its north flank.
 [(-0.8,5.45), (-0.3,2.9), (-0.9,-1.4), (-2.2,-4.7)]   door → aisle → north walls
 [(-0.3,2.9), (1.77,1.68), (2.82,2.30)]                 aisle → queue → service
 [(-0.9,-1.4), (-7.6,-0.6)]                             aisle → club wall
-[(-0.9,-1.4), (2.0,-2.6), (3.6,-3.4)]                  aisle → bags → lounge
+[(-0.9,-1.4), (4.2,-1.55), (3.9,-3.3)]                 aisle → vault corner → lounge
 [(8.1,4.1), (8.1,0.6), (8.45,-3.4)]                    office → stock → receiving (KEEP)
 [(6.4,4.3), (4.3,4.3)]                                 office → till corridor
 ```

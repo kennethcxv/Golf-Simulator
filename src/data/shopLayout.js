@@ -231,7 +231,13 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     // z 2.15, not 2.05: at 2.05 the station's rect grazes the relocated safety
     // keep-clear by 0.03 yd; 2.15 clears it by 0.07 and still leaves 0.31 to the desk.
     member_station: Object.freeze({ x: 5.15, z: 2.15, ry: -Math.PI / 2 }),
-    putting_demo: Object.freeze({ x: -5.00, z: 2.90, ry: 0 }),
+    // The measured F5 swap: the furnished starter conveys the bag stand on day one,
+    // and at (2.05,-2.65) x 1.25 tall it owned the door→lounge fan (chairA 0%,
+    // chairB 85.7% measured). The 0.15-yd putting strip takes that floor — the
+    // lounge chairs watch the green, and the fan sees over it at every tier —
+    // while the bags move west between the apparel table and the club wall.
+    putting_demo: Object.freeze({ x: 1.35, z: -2.65, ry: 0 }),
+    bagstand: Object.freeze({ x: -5.00, z: 2.90, ry: 0 }),
   }),
   // The wordmark hutch moves to the staff side of the corridor, against the S wall:
   // local (0.70, 1.84) at the v2 frame lands it at (4.00, 5.19), z 4.89..5.49.
@@ -261,7 +267,7 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
       [{ x: -0.8, z: 5.45 }, { x: -0.3, z: 2.9 }, { x: -0.9, z: -1.4 }, { x: -2.2, z: -4.7 }], // door → aisle → north walls
       [{ x: -0.3, z: 2.9 }, slotAt(1), slotAt(0)],                                             // aisle → queue → service
       [{ x: -0.9, z: -1.4 }, { x: -7.6, z: -0.6 }],                                            // aisle → club wall
-      [{ x: -0.9, z: -1.4 }, { x: 2.0, z: -2.6 }, { x: 3.6, z: -3.4 }],                        // aisle → bags → lounge
+      [{ x: -0.9, z: -1.4 }, { x: 4.2, z: -1.55 }, { x: 3.9, z: -3.3 }],                       // aisle → vault corner → lounge (east of the putting strip)
       [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],                          // office → stock door → receiving
       [{ x: 6.4, z: 4.3 }, { x: 4.3, z: 4.3 }],                                                // office → till corridor
     ];
