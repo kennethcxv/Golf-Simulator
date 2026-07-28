@@ -197,6 +197,77 @@ export const PARTITIONS = [
   { axis: 'z', at: 2.0, from: 5.7, to: INTERIOR.w / 2, opening: { c: DOOR_STOCK.x, w: DOOR_STOCK.w } },
 ];
 
+// --- pine-hills-v2 layout variant (the Phase 3 greybox seam) --------------------------
+// Approved in Designs/ProShop/Greybox/FLOOR_PLAN.md. The v2 room exists ONLY when the
+// page was entered with ?clubhouse=pine-hills-v2: the variant resolves ONCE, at module
+// load, so in Node and in any browser session without the query every exported value
+// below is byte-identical to the v1 numbers — the existing tests and the live game
+// cannot notice the variant exists. clubhouse.js trusts this same constant for its
+// presentation choice, so the room that draws and the datums that place things can
+// never disagree.
+export const CLUBHOUSE_LAYOUT_VARIANT = (() => {
+  try {
+    return new URLSearchParams(location.search).get('clubhouse') === 'pine-hills-v2'
+      ? 'pine-hills-v2'
+      : null;
+  } catch {
+    return null; // Node / tests: no location, no variant
+  }
+})();
+
+// Everything the v2 layout changes, in one place, frame-independent, so the layout
+// tests can audit the variant from Node without module-state games.
+export const PINE_HILLS_V2_LAYOUT = Object.freeze({
+  // Decision D1: the desk becomes a south-wall counter east of the entrance. At ry 0
+  // the staff side (+local z) faces the south wall, giving the corridor its wall run.
+  frame: Object.freeze({ x: 3.30, z: 3.35, ry: 0 }),
+  // FLOOR_PLAN.md §5 — the five absolute fixture moves (backcounter is frame-local).
+  fixturePoses: Object.freeze({
+    rail_outer: Object.freeze({ x: -4.00, z: 5.20, ry: Math.PI }),
+    fittingroom: Object.freeze({ x: -3.55, z: -2.85, ry: Math.PI / 2 }),
+    // ry PI: the power display faces the entrance, and its browse stand lands on
+    // the aisle side instead of inside the protected door clearway.
+    feature: Object.freeze({ x: -1.35, z: 2.60, ry: Math.PI }),
+    // z 2.15, not 2.05: at 2.05 the station's rect grazes the relocated safety
+    // keep-clear by 0.03 yd; 2.15 clears it by 0.07 and still leaves 0.31 to the desk.
+    member_station: Object.freeze({ x: 5.15, z: 2.15, ry: -Math.PI / 2 }),
+    putting_demo: Object.freeze({ x: -5.00, z: 2.90, ry: 0 }),
+  }),
+  // The wordmark hutch moves to the staff side of the corridor, against the S wall:
+  // local (0.70, 1.84) at the v2 frame lands it at (4.00, 5.19), z 4.89..5.49.
+  backcounterLocal: Object.freeze({ x: 0.70, z: 1.84, ry: 0 }),
+  // The safety campaign facility leaves tour_vault's wall run (FLOOR_PLAN.md §8).
+  safetySite: Object.freeze({ x: 5.30, z: 1.35 }),
+  // FLOOR_PLAN.md §7 — eight authored neglect spots, corners and dead zones only.
+  clutterSpots: Object.freeze([
+    Object.freeze({ x: 1.20, z: -5.05 }),  // unhung apparel stock, gloves/hat-tree nook
+    Object.freeze({ x: -6.30, z: -3.90 }), // shoe boxes mid-unpack beside the shoe wall
+    // x -3.30, not the drafted -1.20: the draft spot sat 0.75 yd off the door→north
+    // leg (F4 needs 0.8) and under the wrong wall besides.
+    Object.freeze({ x: -3.30, z: -4.60 }), // fallen pegboard stock under the accessory wall
+    Object.freeze({ x: 6.70, z: 2.60 }),   // office paperwork pile (kept)
+    Object.freeze({ x: 5.25, z: 0.10 }),   // returns pile against the partition
+    // Deeper into the corner than v1's spot: the new office→till corridor leg passes
+    // the old pose 0.65 yd away.
+    Object.freeze({ x: 6.55, z: 5.20 }),   // office corner pile, beside the filing cabinet
+    Object.freeze({ x: -7.90, z: 4.60 }),  // delivery never shelved, beside the fridge
+    Object.freeze({ x: -8.10, z: -4.80 }), // unopened range-ball delivery, NW corner (kept)
+  ]),
+  // Pure over the queue-slot function so layout tests can audit the shipped polylines
+  // against the v2 frame from Node. FLOOR_PLAN.md §7: one counterclockwise loop; the
+  // office→till corridor leg is new — v2's register is worked from behind the desk.
+  trafficPaths(slotAt) {
+    return [
+      [{ x: -0.8, z: 5.45 }, { x: -0.3, z: 2.9 }, { x: -0.9, z: -1.4 }, { x: -2.2, z: -4.7 }], // door → aisle → north walls
+      [{ x: -0.3, z: 2.9 }, slotAt(1), slotAt(0)],                                             // aisle → queue → service
+      [{ x: -0.9, z: -1.4 }, { x: -7.6, z: -0.6 }],                                            // aisle → club wall
+      [{ x: -0.9, z: -1.4 }, { x: 2.0, z: -2.6 }, { x: 3.6, z: -3.4 }],                        // aisle → bags → lounge
+      [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],                          // office → stock door → receiving
+      [{ x: 6.4, z: 4.3 }, { x: 4.3, z: 4.3 }],                                                // office → till corridor
+    ];
+  },
+});
+
 // --- Pine Hills front desk ----------------------------------------------------------
 // All reception and checkout geometry is authored in this one local frame. At
 // rotation zero, +z is the staff side and -z is the customer side. Pine Hills
@@ -204,21 +275,28 @@ export const PARTITIONS = [
 // entrance while the employee works from the north side of the desk.
 export const METERS_PER_YARD = 0.9144;
 export const FRONT_DESK_DOOR_SETBACK_METERS = 3.3856;
-export const FRONT_DESK_FRAME = Object.freeze({
-  version: 1,
-  x: DOOR_MAIN.x,
-  // The compact shell moved the south wall inward by exactly one yard. Reduce
-  // the wall setback by the same amount so the proven checkout station datum,
-  // camera composition, customer queue, and save-safe interactions do not move.
-  z: INTERIOR.d / 2 - (FRONT_DESK_DOOR_SETBACK_METERS / METERS_PER_YARD),
-  ry: Math.PI,
-  frontLength: 4.2 / METERS_PER_YARD,
-  frontDepth: 0.75 / METERS_PER_YARD,
-  returnLength: 2.1 / METERS_PER_YARD,
-  returnCollisionWidth: 0.798 / METERS_PER_YARD,
-  returnStaffExtent: 1.645 / METERS_PER_YARD,
-  counterTop: 1.055,
-});
+// Pure over its input — layout tests audit the v2 frame from Node by calling this
+// directly; the module-level constant resolves once from the active variant.
+export function deriveFrontDeskFrame(variant = null) {
+  const frame = {
+    version: 1,
+    x: DOOR_MAIN.x,
+    // The compact shell moved the south wall inward by exactly one yard. Reduce
+    // the wall setback by the same amount so the proven checkout station datum,
+    // camera composition, customer queue, and save-safe interactions do not move.
+    z: INTERIOR.d / 2 - (FRONT_DESK_DOOR_SETBACK_METERS / METERS_PER_YARD),
+    ry: Math.PI,
+    frontLength: 4.2 / METERS_PER_YARD,
+    frontDepth: 0.75 / METERS_PER_YARD,
+    returnLength: 2.1 / METERS_PER_YARD,
+    returnCollisionWidth: 0.798 / METERS_PER_YARD,
+    returnStaffExtent: 1.645 / METERS_PER_YARD,
+    counterTop: 1.055,
+  };
+  if (variant === 'pine-hills-v2') Object.assign(frame, PINE_HILLS_V2_LAYOUT.frame);
+  return Object.freeze(frame);
+}
+export const FRONT_DESK_FRAME = deriveFrontDeskFrame(CLUBHOUSE_LAYOUT_VARIANT);
 
 function normalizeAngle(angle) {
   const wrapped = ((angle + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
@@ -295,9 +373,16 @@ export const FRONT_DESK_COLLIDERS = Object.freeze({
 // frame faces PI radians, that moves a board 0.20 yd toward local -Z. Keeping
 // the compensation explicit here aligns both board faces with the key rack and
 // prevents layout edits from silently pulling them back into the desk hardware.
+// Under pine-hills-v2 the free-standing backdrop panel does not exist: the board
+// surface IS the real south wall (interior face minus the shared 0.075 framed-
+// board mount offset), so the key rack and boards land on the wall plane. The
+// +0.20 world-Z compensation is ry-PI-specific and must NOT be applied at ry 0 —
+// the v2 renderer mounts boards at surfaceLocalZ directly.
 export const FRONT_DESK_BACKDROP = Object.freeze({
   width: 4.85,
-  surfaceLocalZ: 1.88,
+  surfaceLocalZ: CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+    ? MODERN_PUBLIC_INTERIOR.d / 2 - 0.075 - PINE_HILLS_V2_LAYOUT.frame.z
+    : 1.88,
   boardWorldZOffset: 0.20,
   edgeInset: 0.06,
   minimumElementGap: 0.07,
@@ -603,24 +688,57 @@ export const FIXTURES = [
   { id: 'packing_bench', kind: 'packingbench', x: 6.30, z: -1.7, ry: 0, skus: [], title: 'Packing bench', zone: 'stockroom', generatedOnly: true },
 ];
 
+// pine-hills-v2 repositions six fixtures (FLOOR_PLAN.md §5) before any consumer reads
+// the array: the builders, colliders, browse sockets, placeable catalog, runtime-asset
+// manifest and campaign anchors all see one consistent layout. Saved player moves in
+// state.shop.layout still win over these defaults, exactly as they do over the v1 poses.
+if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') {
+  for (const fixture of FIXTURES) {
+    const pose = PINE_HILLS_V2_LAYOUT.fixturePoses[fixture.id];
+    if (pose) Object.assign(fixture, pose);
+    if (fixture.id === 'backcounter') {
+      Object.assign(fixture, frontDeskPose(
+        PINE_HILLS_V2_LAYOUT.backcounterLocal.x,
+        PINE_HILLS_V2_LAYOUT.backcounterLocal.z,
+        PINE_HILLS_V2_LAYOUT.backcounterLocal.ry,
+      ));
+    }
+  }
+}
+
+// The safety campaign facility is the one absolute campaign anchor the v2 layout moves
+// (FLOOR_PLAN.md §8): its v1 spot sits under tour_vault's wall run. The frame-derived
+// anchors (frontCounter, registerHardware, laptop, officeChair) follow the desk on
+// their own; campaignWorld.js reads this datum instead of a baked coordinate.
+export const SAFETY_FACILITY_SITE = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? { ...PINE_HILLS_V2_LAYOUT.safetySite }
+  : { x: 5.15, z: -0.85 };
+
 // --- start-state clutter (the "dirty, not nonsensical" rule: piles sit off the
 // aisles in believable neglect spots — corners, dead zones, the stockroom) --------
-export const CLUTTER_SPOTS = [
-  { x: -8.0, z: 4.7 }, { x: -6.3, z: -3.9 }, { x: 4.2, z: 0.6 }, { x: 4.7, z: 3.1 },
-  // The final two piles live against the office partition. The stockroom is an
-  // operational delivery workspace now; legacy piles there blocked receiving
-  // and stole focus through the recycling station.
-  // These employee-room piles still read as neglect, but stay off the only
-  // normal-controls route through the door.
-  { x: -1.2, z: -4.2 }, { x: -8.1, z: -4.8 }, { x: 6.7, z: 2.6 }, { x: 6.3, z: 4.95 },
-];
+export const CLUTTER_SPOTS = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? PINE_HILLS_V2_LAYOUT.clutterSpots.map((spot) => ({ ...spot }))
+  : [
+    { x: -8.0, z: 4.7 }, { x: -6.3, z: -3.9 }, { x: 4.2, z: 0.6 }, { x: 4.7, z: 3.1 },
+    // The final two piles live against the office partition. The stockroom is an
+    // operational delivery workspace now; legacy piles there blocked receiving
+    // and stole focus through the recycling station.
+    // These employee-room piles still read as neglect, but stay off the only
+    // normal-controls route through the door.
+    { x: -1.2, z: -4.2 }, { x: -8.1, z: -4.8 }, { x: 6.7, z: 2.6 }, { x: 6.3, z: 4.95 },
+  ];
 
 // --- traffic paths (the dirt system paints mud/footprint trails along these) -----
 // Each entry is a polyline in building-local yards: the routes real feet take.
-export const TRAFFIC_PATHS = [
-  [{ x: -0.8, z: 5.45 }, { x: -0.8, z: 2.6 }, { x: -0.9, z: -1.4 }, { x: -2.2, z: -4.7 }],  // door → aisle → ball wall
-  [{ x: -0.8, z: 2.6 }, queueSlot(1), queueSlot(0)],                                        // aisle → front-desk queue → service
-  [{ x: -0.9, z: -1.4 }, { x: -7.6, z: -0.6 }],                                             // aisle → club wall
-  [{ x: -0.9, z: -1.4 }, { x: 3.6, z: -3.4 }],                                              // aisle → bags/lounge
-  [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],                           // office → stock door → receiving
-];
+// The v2 room routes one counterclockwise loop (FLOOR_PLAN.md §7): the queue leg
+// derives from the live queueSlot() so it follows the desk frame automatically,
+// and the staff corridor leg is new — v2's till is worked from behind the desk.
+export const TRAFFIC_PATHS = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? PINE_HILLS_V2_LAYOUT.trafficPaths(queueSlot)
+  : [
+    [{ x: -0.8, z: 5.45 }, { x: -0.8, z: 2.6 }, { x: -0.9, z: -1.4 }, { x: -2.2, z: -4.7 }],  // door → aisle → ball wall
+    [{ x: -0.8, z: 2.6 }, queueSlot(1), queueSlot(0)],                                        // aisle → front-desk queue → service
+    [{ x: -0.9, z: -1.4 }, { x: -7.6, z: -0.6 }],                                             // aisle → club wall
+    [{ x: -0.9, z: -1.4 }, { x: 3.6, z: -3.4 }],                                              // aisle → bags/lounge
+    [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],                           // office → stock door → receiving
+  ];

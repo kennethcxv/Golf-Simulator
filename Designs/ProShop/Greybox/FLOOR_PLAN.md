@@ -182,10 +182,10 @@ Poses are `x, z, ry`. **KEEP** = today's coordinates, unchanged.
 | `bagstand` | KEEP (2.05, −2.65) | Tier-2 big-ticket browse | — |
 | `shoerack` | KEEP (−5.9, −3.5) | Tier-2 browse; pairs with fitting room | — |
 | `fittingroom` | **−3.55, −2.85, ry π/2** | Tier-3 experience fixture (apparel conversion); booth is 2.05 tall — its east face grazed the F1 strip | **NUDGED** 0.55 west |
-| `feature` | **−1.35, 2.60** | The decompression-zone power display — the first merchandise you see; tier-2 | **MOVED** onto the entry rug (from −4.75, 3.25) |
+| `feature` | **−1.35, 2.60, ry π** | The decompression-zone power display — the first merchandise you see; tier-2. Faces the entrance; browsed from the aisle side — at ry 0 its browse stand would land inside the door clearway | **MOVED** onto the entry rug (from −4.75, 3.25) |
 | `cold_drinks` | KEEP (−8.55, 4.78) | Grab-and-go on the exit path | — |
 | `snackrack` | KEEP (−6.0, 5.05) | Same; the SW corner is the "one last thing" corner | — |
-| `member_station` | **5.15, 2.05, ry −π/2** | Scorecard sku + service point; belongs beside the till, off its old spot which is now the queue head | **MOVED** to partition face |
+| `member_station` | **5.15, 2.15, ry −π/2** | Scorecard sku + service point; belongs beside the till, off its old spot which is now the queue head. z 2.15: at the drafted 2.05 its rect grazed the relocated safety keep-clear by 0.03 yd | **MOVED** to partition face |
 | `tour_vault` | KEEP (4.95, −1.65) | Tier-3 premium experience case, wall-backed | — |
 | `putting_demo` | **−5.00, 2.90, ry 0** | Tier-3 experience; putt toward the window beside the putter studio it upsells; its old pose (2.75, 4.25) is inside the new staff corridor | **MOVED** |
 | office / stockroom set (`office_desk`, `office_chair`, `office_filing`, `packing_bench`, `backshelf_n/e/e2`) | KEEP | Back-office loop: laptop chair, filing, receiving, restock | — |
@@ -269,12 +269,18 @@ enter the corridor — the return closes its west end, the desk its north flank.
 |---|---|---|
 | ① | (1.20, −5.05) | unhung apparel stock, wall nook between gloves and hat tree |
 | ② | (−6.30, −3.90) | shoe boxes mid-unpack beside the shoe wall |
-| ③ | (−1.20, −4.20) | fallen pegboard stock under the accessory wall |
+| ③ | (−3.30, −4.60) | fallen pegboard stock under the accessory wall |
 | ④ | (6.70, 2.60) | office paperwork pile (KEEP) |
 | ⑤ | (5.25, 0.10) | returns pile against the partition, clear of the panels site |
-| ⑥ | (6.30, 4.95) | office corner pile (KEEP) |
+| ⑥ | (6.55, 5.20) | office corner pile, beside the filing cabinet |
 | ⑦ | (−7.90, 4.60) | delivery never shelved, beside the drinks fridge |
 | ⑧ | (−8.10, −4.80) | unopened range-ball delivery, NW corner (KEEP) |
+
+Two spots moved during the build, when the F4 layout test measured the drafted poses
+at 0.75 yd (③, off the door→north leg) and 0.65 yd (⑥, off the new office→till
+corridor leg); the table above is the shipped `PINE_HILLS_V2_LAYOUT.clutterSpots` and
+is exactly what `tests/pine-hills-v2-layout.test.js` enforces. The circled digits in
+the §6 map are approximate at that scale; this table is authoritative.
 
 Dirt: `reno.grime` grid untouched (same room). The v2 dirt plan re-seeds along
 `TRAFFIC_PATHS_V2` + `DOOR_MAIN` + `MAT` exactly as `clubhouse/dirt.js` does today, and

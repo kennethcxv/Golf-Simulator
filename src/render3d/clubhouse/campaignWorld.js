@@ -18,6 +18,7 @@ import {
   HOURS_SIGN,
   OFFICE,
   REGISTER,
+  SAFETY_FACILITY_SITE,
 } from '../../data/shopLayout.js';
 
 export const CAMPAIGN_FACILITY_SITES = Object.freeze([
@@ -28,7 +29,7 @@ export const CAMPAIGN_FACILITY_SITES = Object.freeze([
   { id: 'stockroomShelves', x: 8.0, z: -2.2, w: 1.9, d: 0.75 },
   { id: 'frontCounter', x: COUNTER.x, z: COUNTER.z, w: COUNTER.len, d: COUNTER.depth },
   { id: 'registerHardware', x: REGISTER.monitor.x, z: REGISTER.monitor.z + 0.35, w: 0.8, d: 0.55 },
-  { id: 'safety', x: 5.15, z: -0.85, w: 0.72, d: 0.5 },
+  { id: 'safety', x: SAFETY_FACILITY_SITE.x, z: SAFETY_FACILITY_SITE.z, w: 0.72, d: 0.5 },
 ]);
 
 const REPAIR_SITES = Object.freeze([

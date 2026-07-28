@@ -21,6 +21,7 @@ import {
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
   FRONT_DESK, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
   COUNTER_TOP, fixtureBrowsePoint, frontDeskPoint,
+  CLUBHOUSE_LAYOUT_VARIANT,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -146,6 +147,7 @@ import { buildDirt } from './clubhouse/dirt.js';
 import { buildShedDirt } from './clubhouse/shedDirt.js';
 import { createShedInterior } from './clubhouse/shedInterior.js';
 import { createPineHillsInterior } from './clubhouse/pineHillsInterior.js';
+import { createPineHillsV2Interior } from './clubhouse/pineHillsV2Interior.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
@@ -545,16 +547,35 @@ export function makeClubhouse(ctx) {
   const baseY = heightAt(center.x, center.z);
   const floorY = baseY + FLOOR_TOP;
   const requestedClubhousePresentation = (() => {
+    // pine-hills-v2 (the Phase 3 greybox, FLOOR_PLAN.md) exists only when the layout
+    // seam saw the query at module load: shopLayout resolved every datum from that
+    // same constant, so accepting the variant from anywhere else (e.g. a saved
+    // property field) would draw the v2 room over v1 coordinates. A save-only
+    // request degrades to the v1 room — the datums it was built against.
+    if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') return 'pine-hills-v2';
     const query = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('clubhouse')
       : null;
     const saved = state?.property?.clubhouseVariant;
     const requested = query || saved;
+    if (requested === 'pine-hills-v2') return 'pine-hills';
     if (requested === 'mountain-lodge' || requested === 'legacy' || requested === 'pine-hills' || requested === 'shed') {
       return requested;
     }
     return 'modern-public';
   })();
+  // The pine-hills-v2 greybox: authored FURNITURE stays off while every functional
+  // asset keeps mounting — the cleaning suite 71-80 plus its socket parent 65, the
+  // office/stockroom wing, the safety lights, the entrance mat. The v2 interior
+  // module stands grey volumes in for what is vetoed here. Veto-only: the built-in
+  // facility/fixture gates still apply to everything else.
+  const greyboxPresentation = requestedClubhousePresentation === 'pine-hills-v2';
+  const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set([
+    61, 62, 63,        // desk shell, hutch cabinet, fitting booth — grey volumes instead
+    67, 68, 69, 70,    // lounge suite — grey volumes instead
+    85, 88, 89, 90,    // counter-top dressing (phone, key rack, clipboard, scorecards)
+    91, 93, 96, 98, 99, // wall/entrance dressing (safety board, camera, bulletin, sanitiser, umbrella stand)
+  ]);
   // The stage-1 maintenance-shed test scene substitutes a small real room for
   // the clubhouse and suppresses all clubhouse dressing. Every shed branch in
   // this file gates on this single boolean; normal boots are untouched.
@@ -929,8 +950,10 @@ export function makeClubhouse(ctx) {
     halfWidth: halfW,
     halfDepth: halfD,
     camera,
-    // The authored Course-1 entrance owns the pine-hills front door.
-    replaceMainEntrance: requestedClubhousePresentation !== 'pine-hills',
+    // The authored Course-1 entrance owns the pine-hills front door — in both
+    // rooms; the v2 greybox changes fixtures, never the entrance systems.
+    replaceMainEntrance: requestedClubhousePresentation !== 'pine-hills'
+      && requestedClubhousePresentation !== 'pine-hills-v2',
   });
   const sheet06Production = createSheet06ProductionRuntime({
     group,
@@ -1143,6 +1166,9 @@ export function makeClubhouse(ctx) {
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     legacyReady: merchReady,
     merch,
+    visibilityForAsset: greyboxPresentation
+      ? (assetNumber) => !GREYBOX_SUPPRESSED_PROP_ASSETS.has(assetNumber)
+      : null,
     hooks: {
       ...hooks,
       assetStateChanged(change) {
@@ -1180,7 +1206,7 @@ export function makeClubhouse(ctx) {
       coolerMounted: false, cleanupTargets: 0, interactions: 0, staticDressingBatch: null,
     }),
     dispose: () => ({ dormant: true }),
-  } : createPineHillsInterior({
+  } : (greyboxPresentation ? createPineHillsV2Interior : createPineHillsInterior)({
     interior,
     state,
     addProp,

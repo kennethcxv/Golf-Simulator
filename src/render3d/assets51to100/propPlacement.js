@@ -674,7 +674,10 @@ export function buildProps({
   let detailedVisible = true;
 
   const passesVisibilityGate = (number) => {
-    if (typeof visibilityForAsset === 'function') return visibilityForAsset(number) !== false;
+    // The callback is a VETO layered over the built-in facility/fixture gates, not a
+    // replacement: a presentation that suppresses furniture (the pine-hills-v2
+    // greybox) must not accidentally un-gate the campaign-installed assets.
+    if (typeof visibilityForAsset === 'function' && visibilityForAsset(number) === false) return false;
     const facilityId = FACILITY_GATED_PROP_ASSETS[number];
     if (facilityId && !facilityInstalled(state, facilityId)) return false;
     const fixtureId = FIXTURE_GATED_PROP_ASSETS[number];

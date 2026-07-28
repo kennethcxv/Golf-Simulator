@@ -15,6 +15,14 @@ async (page) => {
     || path.join(repo, 'Designs', 'ProShop', 'Baseline', 'data'));
   fs.mkdirSync(dataOut, { recursive: true });
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  // BASELINE_VARIANT boots the same seeded empire into a specific clubhouse
+  // presentation (?clubhouse=<variant>) so the A/B rooms are measured by one
+  // instrument in one session. Output is suffixed per variant so a rerun can
+  // never clobber the Phase 0 evidence.
+  const VARIANT = (process.env.BASELINE_VARIANT || '').trim();
+  const bootUrl = VARIANT
+    ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}clubhouse=${encodeURIComponent(VARIANT)}`
+    : baseUrl;
   const MINUTE_OF_DAY = 13 * 60;
   const RUNS = Number(process.env.BASELINE_PERF_RUNS || 3);
 
@@ -23,7 +31,7 @@ async (page) => {
   page.on('console', (m) => { if (m.type() === 'error') errs.push(`CONSOLE: ${m.text()}`); });
 
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.goto(bootUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(700);
   // FIXED SEED. The menu's New Game path seeds with Math.random() (main.js:2829), so every
   // run generated a different golf course — different terrain, flora and golfer counts —
@@ -372,6 +380,7 @@ async (page) => {
   const report = {
     method: 'tools/qa/proshop-baseline-performance.js — see BASELINE_TEST_PROTOCOL.md',
     runsPerScenario: RUNS,
+    requestedVariant: VARIANT || null,
     gpu,
     env,
     loadTimings: {
@@ -385,6 +394,7 @@ async (page) => {
     runs,
     errs: errs.slice(0, 12),
   };
-  fs.writeFileSync(path.join(dataOut, 'baseline-performance.json'), `${JSON.stringify(report, null, 2)}\n`);
+  const outName = VARIANT ? `baseline-performance-${VARIANT}.json` : 'baseline-performance.json';
+  fs.writeFileSync(path.join(dataOut, outName), `${JSON.stringify(report, null, 2)}\n`);
   return report;
 }
