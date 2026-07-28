@@ -546,8 +546,34 @@ def build_64() -> bpy.types.Object:
     return root
 
 
+def _bible_materials_65() -> dict:
+    """SPIKE ARM C — THROWAWAY. Asset-065-local materials per ART_BIBLE section 7/8.
+
+    Deliberately NOT edited into the shared palette in assets_51_100_lib.py, which every
+    asset 61-100 draws from; the spike touches one asset only. Changes applied:
+      hex        -> the bible's section 8 values (medium walnut, charcoal, brass)
+      roughness  -> into the bible's section 7.2 family ranges
+      metalness  -> binary, per "0 or 1, never between" (brass was 0.88)
+    """
+    # Must go through the library's sRGB->linear conversion. glTF baseColorFactor is
+    # LINEAR; passing hex/255 directly renders every colour washed out and far too light
+    # (6B4A2F came back as #ad9377 on the first attempt).
+    rgb = A.hex_to_linear_rgba
+    return {
+        # walnut family 0.55-0.70; bible hex 6B4A2F (shipped 704934, rough 0.49)
+        "medium_walnut": A.material("BIBLE65_MediumWalnut", rgb("6B4A2F"), roughness=0.62),
+        # secondary wood 0.60-0.75 (shipped NaturalOak B98A59, rough 0.54)
+        "natural_oak": A.material("BIBLE65_NaturalOak", rgb("B98A59"), roughness=0.68),
+        # powder-coated metal 0.55-0.70, metalness 0; bible charcoal 2B2E30 (shipped 292C2A)
+        "warm_charcoal": A.material("BIBLE65_WarmCharcoal", rgb("2B2E30"), roughness=0.60),
+        # brass 0.35-0.50, metalness EXACTLY 1; bible hex A8823C (shipped 9B7A3B, 0.32/0.88)
+        "restrained_brass": A.material("BIBLE65_RestrainedBrass", rgb("A8823C"), roughness=0.42, metallic=1.0),
+    }
+
+
 def build_65() -> bpy.types.Object:
     root, p = _root(65, fixture_role="delivery_worktable", full_top_placement_surface=True)
+    p = {**p, **_bible_materials_65()}  # SPIKE ARM C — asset-065-local override
     frame = _group("WorktableFrame", root)
     _placement(root)
     _box("OakWorktop", (1.80, 0.75, 0.085), (0.0, 0.0, 0.8775), p["natural_oak"], frame,
