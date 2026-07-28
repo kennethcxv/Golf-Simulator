@@ -20,10 +20,10 @@ function cloneGltf(source) {
 export class CachedGLTFLoader extends GLTFLoader {
   constructor(manager = DefaultLoadingManager) {
     super(manager);
-    // A GLB carrying KHR_texture_basisu throws at parse time if no KTX2 loader is
-    // attached, so every cached loader gets the shared one when it is ready.
-    // Before `initKTX2(renderer)` has run this is null and nothing is attached —
-    // which is correct, because no KTX2 asset can be requested that early.
+    // Normally null — KTX2 is rejected (TEXTURE_MEMORY_POLICY.md §3) and no shipped
+    // GLB carries KHR_texture_basisu. Leaving it detached is deliberate: GLTFLoader
+    // then throws a legible error at parse time if a compressed asset ever appears,
+    // rather than failing inside a transcoder worker.
     const ktx2 = getKTX2Loader();
     if (ktx2) this.setKTX2Loader(ktx2);
   }

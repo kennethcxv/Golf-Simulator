@@ -1,33 +1,52 @@
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 
-// GPU-compressed textures for the pro-shop asset pass.
+// GPU-compressed textures — EVALUATED AND REJECTED.
 //
-// A 1024² RGBA8 map with its mip chain occupies 5.59 MB of VRAM whatever the PNG
-// or JPEG on disk weighs — the file format only decides download size, because
-// the GPU is handed decoded pixels either way. KTX2/Basis is the one lever that
-// changes the resident figure: the texture stays compressed all the way onto the
-// GPU, so the same map costs 1.40 MB.
+// The measurement stands: KTX2/Basis is the only lever that changes resident VRAM
+// per texel rather than download size, and on asset_065 it took the shipped figure
+// from 12.0 MB to 3.0 MB. It is off anyway, because it cannot run under this app's
+// Content Security Policy.
 //
-// Which block format the transcoder targets is decided by the hardware, not by
-// us. KTX2Loader's priority list is ASTC, then BPTC, then S3TC, so on any desktop
-// with BPTC — which is every GPU this game targets — both ETC1S and UASTC land on
-// BC7 at 1 byte per texel. That is 4x off RGBA8, not the 8x that a BC1 assumption
-// would predict. See KTX2Loader.js FORMAT_OPTIONS.
+// three.js ships Binomial's Emscripten *embind* build of the Basis transcoder, and
+// embind constructs its invoker functions with `new Function` — see
+// vendor/addons/libs/basis/basis_transcoder.js, `craftInvokerFunction`. That needs
+// full 'unsafe-eval' for the whole document. 'wasm-unsafe-eval' is not sufficient;
+// it clears the WebAssembly.instantiate refusal and then the embind violation
+// fires. There is no non-embind build published, KTX2Loader has no worker-free
+// path, and a per-response CSP header confined to the worker fails in the packaged
+// Electron app, which loads from file://.
 //
-// The loader is shared process-wide: it owns a worker pool and a WASM transcoder
-// instance, and standing up a second one would duplicate both.
+// The trade was declined: sharing plus the resolution ceiling already project the
+// twelve-file Tier 1 pass to ~28 MB, so this buys 4x on a number that is not a
+// problem, in exchange for re-enabling eval() app-wide.
+//
+// Full reasoning, measured numbers, and the condition that would reopen this:
+// Designs/ProShop/TEXTURE_MEMORY_POLICY.md §3.
+//
+// This module is kept, dormant, for two reasons. It is the instrument that would
+// re-measure the decision if the reopen condition is ever met, and leaving the
+// loader detached is what turns "a KTX2 asset shipped by mistake" into a clear
+// error at parse time instead of a CSP EvalError from inside a worker.
+
+const REJECTION = 'KTX2 is disabled by decision — see Designs/ProShop/TEXTURE_MEMORY_POLICY.md §3';
 
 let shared = null;
 let supportDetected = false;
 
+/** True only when something has deliberately opted back in for a measurement run. */
+function enabled() {
+  return !!globalThis.__FW_ENABLE_KTX2;
+}
+
 /**
- * Create the shared KTX2 loader and let it query the renderer for which
- * compressed formats this GPU actually supports.
+ * No-op unless `globalThis.__FW_ENABLE_KTX2` is set before the scene is built.
  *
- * Must run before any GLB carrying KHR_texture_basisu is loaded — GLTFLoader
- * throws rather than falling back if the KTX2 loader is missing at parse time.
+ * The opt-in exists so the reopen condition in §3 can be re-measured without a
+ * code change; it still requires the CSP relaxation to actually transcode, and
+ * will throw an EvalError inside the transcoder worker without it.
  */
 export function initKTX2(renderer) {
+  if (!enabled()) return null;
   if (!shared) {
     shared = new KTX2Loader();
     // Relative to the document, matching how every other vendored asset is fetched.
@@ -41,30 +60,34 @@ export function initKTX2(renderer) {
 }
 
 /**
- * The shared loader, or null if support has not been detected yet.
+ * The shared loader, or null.
  *
- * Returning null before detection is deliberate: attaching an undetected loader
- * to a GLTFLoader would let a KTX2 GLB reach the transcoder with no target format
- * and fail deep inside a worker, where the cause is far from obvious.
+ * Null is the normal answer. GLTFLoader throws a legible "no KTX2 loader" error at
+ * parse time when it meets KHR_texture_basisu with nothing attached, which is the
+ * failure we want if a compressed asset ever reaches the runtime by mistake.
  */
 export function getKTX2Loader() {
-  return supportDetected ? shared : null;
+  return enabled() && supportDetected ? shared : null;
 }
 
-/** What the GPU offered, for diagnostics and for the QA harness to assert on. */
+/** State of the format lever, for diagnostics and for the QA harness to assert on. */
 export function ktx2Diagnostics() {
-  if (!shared) return { initialised: false, supportDetected: false };
+  if (!enabled()) {
+    return { initialised: false, supportDetected: false, rejected: true, reason: REJECTION };
+  }
+  if (!shared) return { initialised: false, supportDetected: false, rejected: false };
   const cfg = shared.workerConfig || {};
   return {
     initialised: true,
     supportDetected,
+    rejected: false,
     astc: !!cfg.astcSupported,
     bptc: !!cfg.bptcSupported,
     dxt: !!cfg.dxtSupported,
     etc1: !!cfg.etc1Supported,
     etc2: !!cfg.etc2Supported,
     pvrtc: !!cfg.pvrtcSupported,
-    // The format both ETC1S and UASTC will transcode to on this machine.
+    // The format both ETC1S and UASTC would transcode to on this machine.
     expectedBytesPerTexel: cfg.astcSupported || cfg.bptcSupported ? 1 : 0.5,
   };
 }

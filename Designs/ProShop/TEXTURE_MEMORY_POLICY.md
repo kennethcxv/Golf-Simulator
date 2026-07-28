@@ -70,16 +70,21 @@ prediction `H / (2 d tan(fov/2))` agrees with the ray measurement to within 1 % 
 Adopted ceiling: **768 texels/yd for hero surfaces, 384 standing, 256 background** — see
 `ART_BIBLE.md` §7.3 for the full table and the tile-size derivation.
 
-**Verified at both ends.**
+**Verified against a real surface.**
 
-* The reception counter, the §1 best-in-room anchor, supplies **701 texels/yd** and needs
-  767 at 0.5 yd. The best surface in the room is marginally under-resolved at nose
-  distance, which is what calibrates the hero number.
 * The rebuilt `asset_065` worktop at 512² supplies **1029 texels/yd** against **646**
   required at its closest approach — 1.6× headroom, minimum mip 0.67, so mip 0 is never
   sampled. At 256² it would supply 514 and go under at arm's length.
 
 So 512² is the right ceiling by measurement. It is not a rounding.
+
+> **Correction, 2026-07-27.** This section previously offered a second anchor: that the
+> reception counter supplies **701 texels/yd** against 767 needed. The counter has **no
+> textures at all** (`tools/qa/proshop-counter-material-audit.js`: 0 of 6 materials). The
+> 701 came from an unnamed 1024×640 map behind it — an untextured surface has no UV
+> derivative, so a texel-density sample passes through it to whatever is behind. The
+> ceiling itself is unaffected: the requirement curve is a property of the camera and the
+> display, not of any surface. See `Spike/TEXTURE_VALIDATION.md` addendum.
 
 **What it buys: 4×.**
 
@@ -122,7 +127,46 @@ twelve files.
 
 ---
 
-## 3. Format — KTX2/Basis
+## 3. Format — KTX2/Basis — **REJECTED**
+
+> **Decision, 2026-07-27: rejected. Do not pursue.**
+>
+> Sharing plus the resolution ceiling project the twelve-file Tier 1 pass to **~28 MB**.
+> That is not a problem. The format lever buys 4× on a number that is already fine, and
+> the price is full `'unsafe-eval'` in a shipping Electron application. The trade is not
+> worth taking.
+>
+> **The `'wasm-unsafe-eval'` CSP change has been reverted.** `index.html` carries no eval
+> relaxation of any kind. The KTX2 runtime path is dormant behind an explicit opt-in
+> (`globalThis.__FW_ENABLE_KTX2`) and attaches no loader by default.
+>
+> **Condition that reopens this:** measured texture memory on the full slice exceeding
+> **150 MB**. Measure it with `tools/qa/proshop-texture-infrastructure.js`, which reports
+> resident bytes keyed on texture *sources* at two scopes and evaluates the condition
+> directly; do not reopen on a projection.
+>
+> **Measured position on the day the decision was taken:**
+>
+> | Scope | Resident | Above the §7.3 512 ceiling |
+> |---|---|---|
+> | Slice — clubhouse interior | **148.8 MB** | 43 maps, **81.7 MB** |
+> | Whole scene — incl. course, sky, terrain | 547.0 MB | 84 maps, 463.5 MB |
+>
+> Two things follow, and neither changes the decision.
+>
+> **The slice is 1.2 MB under its own threshold before the Tier 1 pass has started.** It
+> will cross 150 MB during the pass. That is expected and is not a reason to reopen: 81.7 MB
+> of the slice sits above the resolution ceiling this policy already adopted, so the lever
+> that is kept has more headroom left in the room than the lever that was rejected would
+> buy. **Spend the resolution lever on the existing 81.7 MB before reconsidering format.**
+>
+> **The real texture-memory problem in this game is outside the slice.** 256 MB of the
+> scene's 547 MB is twelve 2048² `tripo_image_*` maps on AI-generated course models — one
+> asset family costing more than the entire pro shop. It is out of scope here and named so
+> it is not mistaken for slice cost.
+
+The measurements below are kept because they are what the decision rests on, and because
+a reopen should not have to re-derive them.
 
 **What it is.** The texture stays GPU-compressed all the way onto the card. This is the
 only lever that changes resident bytes per texel; PNG vs JPEG changes download size only,
@@ -145,26 +189,22 @@ an "ETC1S gives 8×" assumption would be wrong on every GPU this game targets.
 **Measured on asset_065:** GLB 10.23 MB → **0.97 MB**; resident 48.0 MB → **3.0 MB**
 combined with the resolution ceiling, a **16×** reduction.
 
-### The blocker
+### The blocker that decided it
 
-**KTX2 cannot be enabled without relaxing this app's Content Security Policy, and that is
-a decision for you, not me.**
+KTX2 cannot run under this app's Content Security Policy. Two distinct violations appear
+when a compressed asset loads, and they need different relaxations:
 
-`index.html` currently sets `script-src 'self' 'sha256-…'`. Two separate CSP violations
-appear when a KTX2 asset loads:
+1. `WebAssembly.instantiate` is refused. Clearing this needs **`'wasm-unsafe-eval'`** —
+   the narrow keyword, which permits WASM compilation only and still forbids JavaScript
+   `eval()` and `Function()`.
+2. With that cleared, the next one fires: `EvalError: Evaluating a string as JavaScript`.
+   This needs full **`'unsafe-eval'`**, document-wide. The cause is specific and not
+   configurable: three.js ships Binomial's Emscripten **embind** build of the Basis
+   transcoder, and embind's `craftInvokerFunction` constructs its invokers dynamically
+   from a string — `vendor/addons/libs/basis/basis_transcoder.js` offset 33264,
+   `newFunc(Function, args)`. It is not three.js's own code.
 
-1. `WebAssembly.instantiate` is refused. Fixed by adding **`'wasm-unsafe-eval'`** — the
-   narrow keyword, which permits WASM compilation only and still forbids JavaScript
-   `eval()` and `Function()`. **This is already committed**, because it is correct
-   regardless and harmless while unused.
-2. `EvalError: Evaluating a string as JavaScript`. This one needs full **`'unsafe-eval'`**.
-   The cause is specific: three.js ships Binomial's Emscripten **embind** build of the
-   Basis transcoder, and embind's `craftInvokerFunction` constructs its invokers with
-   `new Function` — `vendor/addons/libs/basis/basis_transcoder.js` offset 33264,
-   `newFunc(Function, args)`. It is not in three.js's own code and cannot be configured
-   away.
-
-Alternatives considered and rejected:
+Narrower alternatives, all dead ends:
 
 * Confining the relaxation to the transcoder's Web Worker via a per-response CSP header —
   works over HTTP, fails in the packaged Electron app, which loads from `file://` where
@@ -172,19 +212,11 @@ Alternatives considered and rejected:
 * A non-embind Basis build — Binomial does not publish one.
 * Transcoding without the worker — `KTX2Loader` has no such path.
 
-**The exact change, if you want it:**
+So the cost of the format lever is not one line of config; it is re-enabling dynamic code
+evaluation for the entire document, permanently, in a shipping desktop application. Set
+against a 28 MB → 7 MB saving on a budget that was never in danger, it was declined.
 
-```diff
-- script-src 'self' 'wasm-unsafe-eval' 'sha256-DMUMbakyPffSnql8XgUOiWKLXyTzINB6e9E0l4EGHiI='
-+ script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'sha256-DMUMbakyPffSnql8XgUOiWKLXyTzINB6e9E0l4EGHiI='
-```
-
-It is a real relaxation: it re-enables `eval()` and `new Function()` for the whole
-document. The mitigating context is that this is a local Electron app under
-`default-src 'self'` with no remote content and no user-supplied script. The judgement is
-yours; **nothing in the committed tree depends on it.**
-
-**What it buys: 4× — available today, gated on one line.**
+**What it would have bought: 4×. Rejected — the number it improves is not a problem.**
 
 ---
 
@@ -211,13 +243,14 @@ So: **108 map instances, 21 unique maps.**
 | Resolution only (512²) | 108 | 144 MB | 4.0× |
 | Format only (1024² BC7) | 108 | 144 MB | 4.0× |
 | Resolution + format | 108 | 36 MB | 16× |
-| Sharing + resolution | 21 | 28 MB | 20.6× |
+| **Sharing + resolution — SHIPPED** | 21 | **28 MB** | **20.6×** |
 | Sharing + format | 21 | 28 MB | 20.6× |
-| **All three** | 21 | **7 MB** | **82×** |
+| All three | 21 | 7 MB | 82× |
 
-**Without the CSP decision** — sharing + resolution only — the pass lands at **28 MB**.
-That is already affordable, and it is the configuration the committed tree ships.
-KTX2 would take it to 7 MB.
+**The shipped configuration is sharing + resolution: 28 MB.** The two rows involving the
+format lever are retained as the evidence behind the §3 rejection, not as options. The
+reopen threshold of 150 MB sits above every row in the sensitivity table below except the
+degenerate no-reuse case, which is the point of setting it there.
 
 **Sensitivity of the sharing figure.** The 5.1× depends entirely on the family count,
 which is the one assumption I have not measured:
@@ -273,12 +306,23 @@ compression settings are right.** Twelve files can go through it.
 **Shipped on this branch:**
 
 * `asset_065` runtime GLB at **512², uncompressed** — 12.0 MB, down from 48.0 MB.
-  Chosen over the KTX2 build so the tree needs no security decision to work.
 * Cross-file texture sharing, live on every GLB path.
-* The KTX2 loader, transcoder and encode step, complete and validated, **inert** until
-  the CSP question is answered.
+* `tools/blender/pack_ktx2.mjs`, retained for its `--no-compress` resolution path, which
+  is how the 512 ceiling is applied. Its encode path still works and is what a reopen
+  would use.
 * `tests/proshop-texture-budget.test.js` — reads dimensions out of the shipped GLBs and
   fails if anything exceeds 512. Verified by restoring the 1024² asset: the test fails.
+  It also fails if any shipped GLB declares `KHR_texture_basisu`, which is what keeps a
+  compressed asset from reaching a runtime that can no longer transcode one.
+
+**Reverted:**
+
+* The `'wasm-unsafe-eval'` CSP keyword. `index.html` is back to
+  `script-src 'self' 'sha256-…'` and carries a comment pointing here, so the next person
+  who hits the WASM refusal reads the decision before widening the policy.
+* KTX2 runtime attachment. `initKTX2` returns null and `getKTX2Loader` stays null unless
+  `globalThis.__FW_ENABLE_KTX2` is set. A GLB carrying `KHR_texture_basisu` now fails at
+  parse time with a legible GLTFLoader error instead of an `EvalError` inside a worker.
 
 **Deliberately not done:**
 

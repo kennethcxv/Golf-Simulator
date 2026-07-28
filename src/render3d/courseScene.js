@@ -705,10 +705,9 @@ export function makeCourseScene(canvas, state) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.12;
-  // Stand the KTX2 transcoder up here, against this renderer, because the block
-  // format it targets depends on what this GPU supports. It has to exist before
-  // the first GLB that carries KHR_texture_basisu is requested — GLTFLoader
-  // throws rather than falling back if the loader is missing at parse time.
+  // A no-op unless someone has explicitly opted back into the rejected KTX2 lever.
+  // Kept as the call site because the block format a transcoder targets depends on
+  // this renderer, so a re-measurement has to stand it up exactly here.
   initKTX2(renderer);
 
   const scene = new THREE.Scene();
