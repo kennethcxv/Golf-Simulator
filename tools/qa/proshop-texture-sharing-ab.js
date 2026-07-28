@@ -57,10 +57,13 @@ async (page) => {
           if (!m) return;
           SLOTS.forEach((k) => {
             const t = m[k];
-            if (!t || !t.image || seen.has(t.uuid)) return;
+            if (!t || !t.image) return;
+            // Source, not Texture — see proshop-texture-infrastructure.js.
+            const srcKey = t.source?.uuid || t.uuid;
+            if (seen.has(srcKey)) return;
             const w = t.image.width || 0; const h = t.image.height || 0;
             if (!w) return;
-            seen.add(t.uuid);
+            seen.add(srcKey);
             bytes += w * h * (t.isCompressedTexture ? 1 : 4) * (4 / 3);
             sizes[`${w}x${h}`] = (sizes[`${w}x${h}`] || 0) + 1;
           });

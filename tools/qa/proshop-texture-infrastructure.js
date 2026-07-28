@@ -59,10 +59,15 @@ async (page) => {
           if (!mat) return;
           SLOTS.forEach((slot) => {
             const t = mat[slot];
-            if (!t || !t.image || seen.has(t.uuid)) return;
+            if (!t || !t.image) return;
+            // Key on the SOURCE, not the Texture: three.js uploads once per
+            // (Source, parameter key), so two clones of one image that differ only in
+            // their UV transform cost one GPU texture, not two.
+            const srcKey = t.source?.uuid || t.uuid;
+            if (seen.has(srcKey)) return;
             const w = t.image.width || 0; const h = t.image.height || 0;
             if (!w) return;
-            seen.add(t.uuid);
+            seen.add(srcKey);
             const perTexel = t.isCompressedTexture ? 1 : 4;
             if (t.isCompressedTexture) compressed += 1;
             bytes += w * h * perTexel * (4 / 3);

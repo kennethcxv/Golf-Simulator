@@ -29,7 +29,17 @@ Metal032), each contributing albedo, metallicRoughness and normal. All 1024².
 | 512² BC7 | 1 | 0.33 MB | **3.0 MB** |
 
 The 48.0 MB, 12.0 MB and 3.0 MB figures are read from the shipped GLBs, not computed
-from a spreadsheet.
+from a spreadsheet. The shipped 12.0 MB is confirmed independently in the running game:
+`tools/qa/proshop-texture-infrastructure.js` reports asset_065 at **9 sources, 12.00 MB**.
+
+> **Count sources, not textures.** The live probe first reported 16 textures and 21.33 MB
+> for the same asset. That was an instrumentation error. three.js keys GPU uploads on
+> `(Source, texture-parameter key)` — `WebGLTextures` at `three.module.js:11729` — and the
+> parameter key does **not** include `repeat`/`offset`, which are shader uniforms rather
+> than sampler state. The GLB's 12 texture definitions are clones of 9 images differing
+> only in their `KHR_texture_transform`, so they cost **9** uploads, not 12 and not 16.
+> Counting `Texture` instances over-reports. All three probes now key on `source.uuid`,
+> after which the live figure and the file agree exactly.
 
 > **Correction to an earlier number.** I previously projected ~85 MB per asset and
 > ~1.7 GB for a 20-file pass. The measured figure is 48 MB per asset, so the naive

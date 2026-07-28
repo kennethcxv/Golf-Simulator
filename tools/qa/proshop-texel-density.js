@@ -350,16 +350,20 @@ async (page) => {
           if (!m) return;
           SLOTS.forEach((k) => {
             const t = m[k];
-            if (!t || !t.image || seen.has(t.uuid)) return;
+            if (!t || !t.image) return;
+            // Source, not Texture: three.js uploads once per (Source, parameter
+            // key), so UV-transform clones of one image cost one GPU texture.
+            const srcKey = t.source?.uuid || t.uuid;
+            if (seen.has(srcKey)) return;
             const w = t.image.width || 0; const h = t.image.height || 0;
             if (!w) return;
-            seen.add(t.uuid);
+            seen.add(srcKey);
             count += 1;
             const b = w * h * 4 * (4 / 3); // RGBA8 + full mip chain
             bytes += b;
             const key = `${w}x${h}`;
             sizeHist[key] = (sizeHist[key] || 0) + 1;
-            const ident = `${t.name || '(unnamed)'}|${w}x${h}|${k}`;
+            const ident = `${t.name || '(unnamed)'}|${w}x${h}|${k}`;  // name identity, not instance
             if (!byIdentity.has(ident)) byIdentity.set(ident, { n: 0, bytes: b });
             byIdentity.get(ident).n += 1;
           });
