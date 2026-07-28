@@ -24,16 +24,24 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => localStorage.clear());
+  await page.waitForTimeout(700);
+  // FIXED SEED. The menu's New Game path seeds with Math.random() (main.js:2829), so every
+  // run generated a different golf course — different terrain, flora and golfer counts —
+  // and the harness compared scenes rather than code. newStarterEmpire(mode, seed) is the
+  // same call the menu makes, so the starting state is identical in every other respect.
+  const SEED = Number(process.env.BASELINE_PERF_SEED || 20260727);
+  await page.evaluate(async (seed) => {
+    localStorage.clear();
+    const E = await import('/src/sim/empire.js');
+    const empire = E.newStarterEmpire('relaxed', seed);
+    localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
+  }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1200);
 
   // --- load timing ------------------------------------------------------------------
   const tNewGame = Date.now();
-  await page.getByRole('button', { name: /New game/i }).click();
-  await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
-  const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
-  if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
+  await page.getByRole('button', { name: /^Continue/ }).first().click();
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   const tWalkActive = Date.now();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
@@ -310,20 +318,54 @@ async (page) => {
     const key = run.name.split('/')[1];
     (byScenario[key] ||= []).push(run);
   }
-  const summary = Object.entries(byScenario).map(([scenario, rs]) => {
-    const mean = (k) => Math.round((rs.reduce((a, v) => a + v[k], 0) / rs.length) * 100) / 100;
+  // A single number here is a lie: the measured noise floor is CV ~1.4% on a quiet machine
+  // and ~3.1% under load, so every figure carries a confidence interval and a usability
+  // verdict. Method and the empirical noise floor: BASELINE_PERFORMANCE.md section 8.
+  const WARMUP_RUNS = Number(process.env.BASELINE_PERF_WARMUP ?? 1);
+  const CV_TRUST_LIMIT = 2.5; // % — quiet machine measured 1.42, 8-thread load 3.11
+  const summary = Object.entries(byScenario).map(([scenario, all]) => {
+    // The first run of a scenario is consistently ~2.2% slower than later ones (measured
+    // over 10 sessions). Drop it rather than average a known transient into the result.
+    const rs = all.length > WARMUP_RUNS ? all.slice(WARMUP_RUNS) : all;
+    const round = (v, p = 2) => Math.round(v * 10 ** p) / 10 ** p;
+    const stats = (k) => {
+      const xs = rs.map((v) => v[k]);
+      const n = xs.length;
+      const mean = xs.reduce((a, v) => a + v, 0) / n;
+      const sd = n > 1 ? Math.sqrt(xs.reduce((a, v) => a + (v - mean) ** 2, 0) / (n - 1)) : 0;
+      // 95% CI on the mean. t is used rather than 1.96 because n is small.
+      const T95 = { 1: 12.71, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262 };
+      const t = T95[n - 1] ?? 1.96;
+      const ci = n > 1 ? t * (sd / Math.sqrt(n)) : null;
+      return {
+        mean: round(mean, 3),
+        sd: round(sd, 3),
+        cvPct: mean ? round((sd / mean) * 100, 2) : null,
+        ci95: ci === null ? null : round(ci, 3),
+        ci95Pct: ci === null || !mean ? null : round((ci / mean) * 100, 2),
+        n,
+      };
+    };
+    const avgMs = stats('avgMs');
     return {
       scenario,
-      runs: rs.length,
-      avgFps: mean('avgFps'),
-      low1Fps: mean('low1Fps'),
-      avgMs: mean('avgMs'),
-      p1Ms: mean('p1Ms'),
+      runsUsed: rs.length,
+      runsDiscardedAsWarmup: all.length - rs.length,
+      avgMs,
+      p1Ms: stats('p1Ms'),
+      avgFps: stats('avgFps'),
+      low1Fps: stats('low1Fps'),
       worstMsMax: Math.max(...rs.map((v) => v.worstMs)),
-      stutterPctMean: mean('stutterPct'),
+      stutterTotal: rs.reduce((a, v) => a + (v.stutterFrames || 0), 0),
       drawCalls: rs[rs.length - 1].drawCalls,
       triangles: rs[rs.length - 1].triangles,
       heapMB: rs[rs.length - 1].heapMB,
+      // Self-policing: a noisy machine produces a wide spread, and that is detectable
+      // from the data itself without needing to read system CPU.
+      trustworthy: avgMs.cvPct !== null && avgMs.cvPct <= CV_TRUST_LIMIT && rs.length >= 2,
+      note: avgMs.cvPct !== null && avgMs.cvPct > CV_TRUST_LIMIT
+        ? `run-to-run CV ${avgMs.cvPct}% exceeds ${CV_TRUST_LIMIT}% — machine was probably not quiet; do not compare this against another run`
+        : null,
     };
   });
 
