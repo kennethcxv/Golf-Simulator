@@ -31,6 +31,7 @@ import {
   SHELL,
   STAFF_CORRIDOR_MIN,
   deriveFrontDeskFrame,
+  pineHillsV2QueueSlot,
 } from '../src/data/shopLayout.js';
 
 const L = PINE_HILLS_V2_LAYOUT;
@@ -40,14 +41,13 @@ const v2Point = (lx, lz) => ({
   x: V2.x + lx * Math.cos(V2.ry) + lz * Math.sin(V2.ry),
   z: V2.z - lx * Math.sin(V2.ry) + lz * Math.cos(V2.ry),
 });
-const v2Vector = (lx, lz) => ({
-  x: lx * Math.cos(V2.ry) + lz * Math.sin(V2.ry),
-  z: -lx * Math.sin(V2.ry) + lz * Math.cos(V2.ry),
-});
-// Queue choreography is authored frame-local: head (-0.48, -1.05), pitch (-1.18, -0.45).
-const queueBase = v2Point(-0.48, -1.05);
-const queueStep = v2Vector(-1.18, -0.45);
-const v2Slot = (i) => ({ x: queueBase.x + queueStep.x * i, z: queueBase.z + queueStep.z * i });
+// Queue choreography is the shipped pure function (2026-07-28 ruling: line east
+// along the desk face, overflow pocket past it) — auditing through the export
+// means these tests measure exactly what the browser build walks.
+const v2Slot = pineHillsV2QueueSlot;
+// A full house in the resized-day evidence peaks at 11-13 tracked customers:
+// twelve queue indices is every point the live game can hand out under load.
+const QUEUE_INDICES = [...Array(12).keys()];
 
 // The same transformation the module applies: cut, then re-pose, then re-sku.
 const cutSet = new Set(L.cutFixtures);
@@ -274,9 +274,45 @@ test('every stand point is deliverable: clear of all colliders (the item-3 lesso
       }
     }
   }
-  for (const i of [0, 1, 2, 3]) {
+  for (const i of QUEUE_INDICES) {
     clearOf(v2Slot(i), `queue slot ${i}`);
   }
+});
+
+test('the queue ruling: line east along the desk face, exit lane never crossed', () => {
+  const slab = {
+    minX: V2.x - V2.frontLength / 2, maxX: V2.x + V2.frontLength / 2,
+    minZ: V2.z - V2.frontDepth / 2, maxZ: V2.z + V2.frontDepth / 2,
+  };
+  // The leavers' lane: from the head westward along the face, then south
+  // through the desk-end gap to the door. The head itself (slot 0) is the
+  // lane's origin; every other queue point must stay out of it.
+  const exitLane = { minX: 0.20, maxX: 2.60, minZ: 2.20, maxZ: 5.20 };
+  const head = v2Slot(0);
+  for (const i of QUEUE_INDICES) {
+    const p = v2Slot(i);
+    assert.ok(distToRect(p, slab) >= 0.30,
+      `queue slot ${i} presses the desk slab (${distToRect(p, slab).toFixed(2)})`);
+    assert.ok(p.x >= 2.0,
+      `queue slot ${i} at x ${p.x.toFixed(2)} strays into the west half`);
+    if (i === 0) continue;
+    assert.ok(!inBounds(p, exitLane),
+      `queue slot ${i} at (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) stands in the exit lane`);
+  }
+  // The line itself: monotone east (the tail grows AWAY from the door), body
+  // spacing in the tight-retail band, and every line slot on the face band.
+  for (let i = 1; i < L.queue.lineSlots; i++) {
+    const prev = v2Slot(i - 1);
+    const cur = v2Slot(i);
+    assert.ok(cur.x > prev.x + 0.5, `line slot ${i} does not step east`);
+    const spacing = Math.hypot(cur.x - prev.x, cur.z - prev.z);
+    assert.ok(spacing >= 0.60 && spacing <= 1.00,
+      `line spacing ${spacing.toFixed(3)} outside the 0.60-1.00 body band`);
+    assert.ok(cur.z > 2.0 && cur.z < slab.minZ,
+      `line slot ${i} off the desk-face band`);
+  }
+  assert.ok(Math.abs(head.x - 2.82) < 1e-9 && Math.abs(head.z - 2.30) < 1e-9,
+    'the head moved — checkout reach circles and camera poses key off (2.82, 2.30)');
 });
 
 test('the protected clearways stay empty', () => {

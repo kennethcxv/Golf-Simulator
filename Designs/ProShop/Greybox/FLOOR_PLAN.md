@@ -387,3 +387,63 @@ in `../OVERNIGHT_REPORT.md` §12. Layout contract: `tests/pine-hills-v2-layout.t
 (16 tests) now proves every stand point and queue slot ≥0.30 yd clear of every
 collider rect — the stuck-customer class of this room's first build cannot
 statically recur.
+
+---
+
+## 11. Two rulings on the resized room (2026-07-28, user)
+
+Both flags raised by the resize close-out (`OVERNIGHT_REPORT.md` §12) were ruled
+on the following morning. Recorded here so neither is revisited.
+
+### 11a. Queue re-pitch — CHANGED (design change, not a test fix)
+
+**Ruling:** *"Re-pitch the queue south along the desk face. A queue that crosses
+its own exit path is a layout error, not a sim artifact."*
+
+**What was wrong:** the v1 frame-local pitch (−1.18, −0.45) steps the tail WEST
+into the room. In the 70 m² envelope that lays the waiting line directly between
+the head and the door — every leaver wades through it — and at a no-cashier full
+house the linear slots run through the west shelves and out of the room entirely
+(slot 5 = local x −3.08, slot 8 = −6.62; the west wall is at −2.60). The
+resized-day block log's entire residual mass (455/380 events, all `counter`
+stops, all west-shelf colliders) is this geometry.
+
+**The shipped design** (`PINE_HILLS_V2_LAYOUT.queue`, walked by
+`pineHillsV2QueueSlot()` — v1 untouched, byte-identical in Node):
+
+- **Head unchanged** at frame-local (−0.48, −1.05) → room (2.82, 2.30): every
+  checkout reach circle, camera pose and save datum keeps.
+- **Line east along the desk face:** pitch (+0.80, +0.10), slots at (2.82, 2.30)
+  → (3.62, 2.40) → (4.42, 2.50), hugging the face band 0.44–0.64 yd off the
+  slab. The tail now grows AWAY from the exit; the two flows cannot cross. The
+  face runs out at member_station (rect west edge 4.77), so the line holds 3.
+- **Overflow pocket** for indices ≥3 (the no-cashier full house): sunflower
+  packing around (3.40, 1.25) — r = min(0.52 + 0.30√k, 1.05) at k·2.3999632 —
+  nine deterministic unique points on open floor SE of centre, every one ≥0.30
+  from every fixture rect, wall and the desk slab, and none in the exit lane.
+  A full house bunches on open floor instead of extending a line into a wall.
+- Queue spur wear line follows: (−0.60, 2.60) → slot 0 → slot 2.
+- Reported clearance changes: queue spacing 1.263 → 0.806 (tight-retail band);
+  head-to-desk 0.640 unchanged.
+
+**Tests changed, and why (design change):** `tests/pine-hills-v2-layout.test.js`
+previously re-derived the queue from hardcoded locals (−0.48, −1.05)/(−1.18,
+−0.45) and audited slots 0–3. It now imports the shipped `pineHillsV2QueueSlot`
+(the pinned values move because the DESIGN moved — the head-anchor assert
+(2.82, 2.30) stays as the unchanged-choreography proof), audits all twelve
+full-house indices against every collider rect, and adds a new test pinning the
+ruling itself: tail monotone east, spacing 0.60–1.00, line on the face band,
+and no queue point other than the head inside the exit lane rect
+(0.20–2.60 × 2.20–5.20). `tools/qa/proshop-greybox-acceptance.js` measures
+spacing (reports 0.806 now) but pins nothing. `tests/checkout-space.test.js`
+is v1-scoped and unchanged.
+
+### 11b. F5 lounge trade — ACCEPTED, no change
+
+**Ruling:** *"The chairs read 71–100% from the door. Below-knee shading from the
+putting strip does not hurt the before/after read, and moving the strip trades a
+real gameplay surface for a marginal sightline gain."*
+
+The putting strip stays at (1.70, −2.20); the lounge F5 figures stand at
+71.4 / 100 / 85.7 / 71.4 with the shading understood as below-knee only. Not to
+be revisited in Phase 4 layout passes.

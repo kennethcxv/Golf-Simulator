@@ -287,6 +287,30 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // The safety campaign facility keeps its partition-run site (FLOOR_PLAN.md §8).
   safetySite: Object.freeze({ x: 5.30, z: 1.35 }),
 
+  // THE QUEUE RULING (2026-07-28, closes OVERNIGHT_REPORT §12's flag): the v1
+  // frame-local pitch steps WEST into the room, which in the 70 m² envelope
+  // lays the waiting line across the leavers' path to the door and runs slots
+  // ≥5 through the west shelves and out of the room — the resized day run's
+  // entire residual jam class. v2 re-pitches the line EAST along the desk
+  // face: head unchanged at local (-0.48, -1.05) so the proven checkout reach
+  // circles and camera poses hold; the tail now grows AWAY from the exit, and
+  // the two flows can never cross. The face runs out at member_station, so the
+  // line holds three; deeper indices (a no-cashier full house) wait in the
+  // overflow pocket on the open floor south-east of centre.
+  queue: Object.freeze({
+    headLocal: Object.freeze({ x: -0.48, z: -1.05 }),
+    pitchLocal: Object.freeze({ x: 0.80, z: 0.10 }),
+    lineSlots: 3,
+    // Room-absolute sunflower packing: r = min(r0 + rGrow*sqrt(k), rMax) at
+    // angle k*goldenAngle. The nine points a full house uses (k 0-8) are all
+    // ≥0.30 from every fixture rect, wall and the desk slab, and every one is
+    // clear of the exit lane — tests/pine-hills-v2-layout.test.js holds this.
+    overflow: Object.freeze({
+      x: 3.40, z: 1.25, r0: 0.52, rGrow: 0.30, rMax: 1.05,
+      goldenAngle: 2.399963229728653,
+    }),
+  }),
+
   // The lounge keeps its mandate (cleaning surface, entrance-visible) inside the
   // new envelope: NE corner, chairs facing the putting strip, boards on the
   // partition's west face, course photography on the new north wall.
@@ -319,7 +343,7 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   trafficPaths(slotAt) {
     return [
       [{ x: -0.8, z: 4.90 }, { x: -1.30, z: 2.40 }, { x: -1.30, z: -0.20 }, { x: -0.80, z: -2.40 }],
-      [{ x: -0.60, z: 2.60 }, slotAt(1), slotAt(0)],
+      [{ x: -0.60, z: 2.60 }, slotAt(0), slotAt(2)],
       [{ x: -0.80, z: -2.40 }, { x: -0.55, z: -1.38 }, { x: 3.95, z: -1.38 }, { x: 4.30, z: -2.35 }],
       [{ x: 6.4, z: 4.3 }, { x: 4.3, z: 4.3 }],
       [{ x: 8.1, z: 4.1 }, { x: 8.1, z: 0.6 }, { x: 8.45, z: -3.4 }],
@@ -338,6 +362,30 @@ export const PUBLIC_ROOM_BOUNDS = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
     minZ: -MODERN_PUBLIC_INTERIOR.d / 2,
     maxZ: MODERN_PUBLIC_INTERIOR.d / 2,
   });
+
+// Pure over the frozen v2 spec — the layout test audits the shipped queue from
+// Node with this exact function, and the browser build routes queueSlot()
+// through it under the variant, so the audited numbers and the lived ones
+// cannot drift. Line slots transform frame-local head/pitch through the v2
+// frame; overflow points are room-absolute sunflower packing: deterministic,
+// unique, bounded — a full house bunches on open floor instead of extending a
+// line into a wall.
+export function pineHillsV2QueueSlot(i) {
+  const q = PINE_HILLS_V2_LAYOUT.queue;
+  if (i >= q.lineSlots) {
+    const o = q.overflow;
+    const k = i - q.lineSlots;
+    const r = Math.min(o.r0 + o.rGrow * Math.sqrt(k), o.rMax);
+    const a = k * o.goldenAngle;
+    return { x: o.x + Math.cos(a) * r, z: o.z + Math.sin(a) * r };
+  }
+  const f = PINE_HILLS_V2_LAYOUT.frame;
+  const cos = Math.cos(f.ry);
+  const sin = Math.sin(f.ry);
+  const lx = q.headLocal.x + q.pitchLocal.x * i;
+  const lz = q.headLocal.z + q.pitchLocal.z * i;
+  return { x: f.x + lx * cos + lz * sin, z: f.z - lx * sin + lz * cos };
+}
 
 // --- Pine Hills front desk ----------------------------------------------------------
 // All reception and checkout geometry is authored in this one local frame. At
@@ -589,11 +637,19 @@ export const STAFF_CORRIDOR_MIN = 1.1;
 
 const counterCentre = frontDeskPoint(0, 0);
 const registerDatum = frontDeskPoint(-1.2, 0);
-const queueHead = frontDeskPoint(-0.48, -1.05);
-// A live customer has a 0.32 yd body radius.  The slightly wider lateral
-// pitch keeps the second person in line physically clear of the protected
-// entrance rectangle, not merely clear at their centre point.
-const queuePitch = frontDeskVector(-1.18, -0.45);
+// v1: head west of the register, line stepping west into the room; the wider
+// lateral pitch keeps the second person physically clear of the protected
+// entrance rectangle, not merely clear at their centre point. v2 re-pitches
+// the line east along the desk face (the 2026-07-28 ruling — see the layout's
+// queue block): the head does not move, so every checkout reach circle,
+// camera pose and save datum keeps.
+const V2_QUEUE = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2' ? PINE_HILLS_V2_LAYOUT.queue : null;
+const queueHead = V2_QUEUE
+  ? frontDeskPoint(V2_QUEUE.headLocal.x, V2_QUEUE.headLocal.z)
+  : frontDeskPoint(-0.48, -1.05);
+const queuePitch = V2_QUEUE
+  ? frontDeskVector(V2_QUEUE.pitchLocal.x, V2_QUEUE.pitchLocal.z)
+  : frontDeskVector(-1.18, -0.45);
 const staffDatum = frontDeskPoint(-0.10, 0.90);
 
 export const COUNTER = {
@@ -611,6 +667,9 @@ export const COUNTER = {
   staffStand: staffDatum,
 };
 export function queueSlot(i) {
+  // v2: indices past the line hold in the overflow pocket instead of extending
+  // a line that would pierce the west wall (the resized day run's jam class).
+  if (V2_QUEUE && i >= V2_QUEUE.lineSlots) return pineHillsV2QueueSlot(i);
   return { x: COUNTER.queueBase.x + COUNTER.queueStep.x * i, z: COUNTER.queueBase.z + COUNTER.queueStep.z * i };
 }
 
