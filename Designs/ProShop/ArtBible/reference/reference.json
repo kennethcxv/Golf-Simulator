@@ -1,0 +1,72 @@
+{
+  "seed": 20260727,
+  "minuteOfDay": 780,
+  "env": {
+    "fov": 66,
+    "gtao": {
+      "blendIntensity": 1,
+      "radius": 1.5,
+      "renderTarget": "1600x900"
+    },
+    "condition": 10
+  },
+  "shots": [
+    {
+      "id": "best-counter-millwork",
+      "at": [
+        0,
+        4
+      ],
+      "look": [
+        0,
+        1.2
+      ],
+      "pitch": -0.12,
+      "fovOk": true,
+      "cameraFov": 66
+    },
+    {
+      "id": "best-counter-corner",
+      "at": [
+        -2.2,
+        3.4
+      ],
+      "look": [
+        -0.6,
+        1.4
+      ],
+      "pitch": -0.16,
+      "fovOk": true,
+      "cameraFov": 66
+    },
+    {
+      "id": "worst-floor-debris",
+      "at": [
+        -4.5,
+        4.4
+      ],
+      "look": [
+        -4.5,
+        2.6
+      ],
+      "pitch": -0.7,
+      "fovOk": true,
+      "cameraFov": 66
+    },
+    {
+      "id": "worst-snack-packaging",
+      "at": [
+        5.6,
+        4.2
+      ],
+      "look": [
+        7.4,
+        3
+      ],
+      "pitch": -0.22,
+      "fovOk": true,
+      "cameraFov": 66
+    }
+  ],
+  "fovAssertAll": true
+}

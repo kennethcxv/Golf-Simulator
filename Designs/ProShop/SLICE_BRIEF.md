@@ -598,28 +598,43 @@ Use greybox geometry only.
 
 Stop for visual approval before detailed assets are created.
 
-## Phase 4 — Hero assets
+## Phase 4 — Materials and lighting
 
-Build one hero asset per session.
+> **Swapped with hero assets on 2026-07-27.** Materials and lighting now come first.
+>
+> Reason: the lighting spike established that a shadow-casting interior light is still an
+> open question (`ART_BIBLE.md` §3), and that assets read materially differently once
+> directional light and contact occlusion exist. Authoring eight hero assets under lighting
+> that is about to change means approving each of them twice — once under provisional
+> lighting and again after it settles. Doing lighting first means every hero asset is judged
+> once, under final conditions.
+>
+> Consequence for the art bible: it deliberately carries **no** final exposure value, no
+> contrast target and no shadow-softness spec, because those are outputs of this phase
+> rather than inputs to it.
+
+Apply the approved slice material library.
+
+Implement the approved lighting setup — including resolving the interior key-light
+question, gated to the ceiling power state and the panel fault states.
+
+Capture identical before-and-after camera views.
+
+Measure performance before and after, using the confidence-interval protocol in
+`Baseline/BASELINE_PERFORMANCE.md` §8. Do not adopt a budget the harness cannot measure.
+
+## Phase 5 — Hero assets
+
+Build one hero asset per session, under the lighting approved in Phase 4.
 
 Each asset must pass:
 
 * Technical review
 * In-game review
-* Side-by-side comparison
+* Side-by-side comparison against the anchors in `ART_BIBLE.md` §1
 * Human approval
 
 Do not batch all eight assets.
-
-## Phase 5 — Materials and lighting
-
-Apply the approved slice material library.
-
-Implement the approved lighting setup.
-
-Capture identical before-and-after camera views.
-
-Measure performance before and after.
 
 ## Phase 6 — One polished cleaning tool
 
@@ -679,10 +694,12 @@ Work must stop for human visual approval after:
 * Phase 1 system classification
 * Phase 2 art bible
 * Phase 3 greybox
-* Every hero asset
-* Material and lighting pass
+* Material and lighting pass (Phase 4)
+* Every hero asset (Phase 5)
 * First completed broom interaction
 * Final benchmark review
+
+Gate order follows the Phase 4/5 swap recorded in §14.
 
 Silence is not approval.
 
