@@ -76,7 +76,7 @@ export function createGateDefinitions({
     },
     {
       id: 'checkout-card', group: 'checkout',
-      description: 'Strict physical scan, mouse card swipe, receipt, bagging, and customer handoff pass.',
+      description: 'Strict physical scan, mouse card insert, receipt, bagging, and customer handoff pass.',
       steps: [browserStep('checkout-card', 'tools/qa/register-acceptance-card.js', {
         HEADED: '1',
         REGISTER_QA_ROOT: path.join(root, 'checkout'),

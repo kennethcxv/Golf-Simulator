@@ -1,4 +1,7 @@
 async (page) => {
+  // Revived 2026-07-28 (HARNESS_TRUST.md remediation): BASE_URL was an MCP-REPL-era
+  // global no committed runner defines; the committed runner's contract is QA_BASE_URL.
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const fs = process.getBuiltinModule('node:fs');
   // CLUBHOUSE ASSET-PASS HARNESS — reload, stock the retail displays, shoot the
   // same 10 poses every pass, and measure. Before/after are directly comparable

@@ -9,9 +9,12 @@ const DRIVERS = [
   'tools/qa/simplified-register-save-reload.mjs',
   'tools/qa/simplified-register-recovery-accessibility.mjs',
 ];
+// register-recovery-driver.mjs left this list 2026-07-28: it drove the removed
+// swipe register (register.swipeAt) and is archived under tools/qa/archive/ with
+// simplified-register-recovery-accessibility.mjs + simplified-register-save-reload
+// as its live successors (HARNESS_TRUST.md remediation).
 const URL_CONFIGURED_DRIVERS = [
   'tools/qa/register-acceptance-driver.mjs',
-  'tools/qa/register-recovery-driver.mjs',
   ...DRIVERS,
   'tools/qa/simplified-register-performance.mjs',
   'tools/qa/simplified-register-lifecycle-stress.mjs',

@@ -1,4 +1,7 @@
 async (page) => {
+  // Revived 2026-07-28 (HARNESS_TRUST.md remediation): BASE_URL was an MCP-REPL-era
+  // global no committed runner defines; the committed runner's contract is QA_BASE_URL.
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
   // SAVE DURING AN INCOMPLETE TRANSACTION, RELOAD, AND CHECK THE BOOKS.
   //
   // This is the acceptance test for the bug that started the session. pickFromShelf

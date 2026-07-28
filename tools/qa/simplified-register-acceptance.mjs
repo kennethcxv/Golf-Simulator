@@ -267,9 +267,15 @@ async function scanAll(page, shot, mode) {
     const read = await page.evaluate(() => (
       window.__fw.scene3d.clubhouse().register.scanPresentation().lastRead
     ));
-    assert(read?.uid === uid && read.ok && read.mode === 'direct-to-bag'
-      && read.code === 'bagged',
-    `No successful direct-to-bag checkpoint was recorded for ${uid}: ${JSON.stringify(read)}`);
+    // Re-derived 2026-07-28 from the live evidence shape (HARNESS_TRUST.md rule 6):
+    // lastScanEvidence (simplifiedRegisterMode.js) carries the judgeBarcodeRead
+    // verdict — success is { ok: true, code: 'ok' } (src/sim/barcode.js) with the
+    // physical scanHit fact. The old pins (mode === 'direct-to-bag', code ===
+    // 'bagged') asserted fields the shipped register never emitted; this file
+    // failed every good build. Bagged-ness is already asserted physically above
+    // via the transaction item's scanned/bagged flags.
+    assert(read?.uid === uid && read.ok && read.code === 'ok' && read.scanHit,
+      `No successful scan checkpoint was recorded for ${uid}: ${JSON.stringify(read)}`);
     scanReadEvidence.push(read);
     if (index === 0) {
       await page.waitForFunction((id) => {

@@ -1,4 +1,7 @@
 async (page) => {
+  // Revived 2026-07-28 (HARNESS_TRUST.md remediation): BASE_URL was an MCP-REPL-era
+  // global no committed runner defines; the committed runner's contract is QA_BASE_URL.
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
   // THE ACCEPTANCE RECORD, in the running game: order the six kinds through the LAPTOP, watch them
   // land as boxes, partially unpack, take the GAME'S OWN autosave with boxes half-open, reload, and
   // confirm the half-open boxes and every unit came back. Screenshots of the laptop pages that

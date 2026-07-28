@@ -21,7 +21,9 @@ async (managedPage) => {
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
     await page.waitForFunction(() => window.__fw?.screen === 'game' && window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 90000 });
     for (const [name, filename] of [
-      ['checkout', 'register-sale.js'],
+      // register-sale.js drove the removed swipe register and is archived; the
+      // insert-era acceptance wrapper carries the same claim (2026-07-28).
+      ['checkout', 'register-acceptance-card.js'],
       ['delivery', 'delivery-eta.js'],
       ['tractor', 'tractor-production.js'],
     ]) {

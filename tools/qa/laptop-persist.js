@@ -1,4 +1,7 @@
 async (page) => {
+  // Revived 2026-07-28 (HARNESS_TRUST.md remediation): BASE_URL was an MCP-REPL-era
+  // global no committed runner defines; the committed runner's contract is QA_BASE_URL.
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
   // WHAT YOU SET ON THE LAPTOP HAS TO STILL BE TRUE TOMORROW.
   //
   // Every slider on the Pricing page writes straight into the sim — there is no Save button,

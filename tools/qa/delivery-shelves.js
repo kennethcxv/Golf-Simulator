@@ -1,4 +1,7 @@
 async (page) => {
+  // Revived 2026-07-28 (HARNESS_TRUST.md remediation): BASE_URL was an MCP-REPL-era
+  // global no committed runner defines; the committed runner's contract is QA_BASE_URL.
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
   // FULL MUST LOOK FULL. Fill every shelf to its capacity, stand in front of the wall, and count
   // what is actually in the scene graph against what the sim says is on the shelf.
   const errs = [];
