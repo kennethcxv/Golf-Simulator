@@ -29,6 +29,7 @@ import {
   ARCHITECTURE_PAINT_COSTS,
   ARCHITECTURE_REPAIR_SKU,
   ceilingCircuitPowered,
+  ceilingPanelPromptLabel,
   panelRepairKitAvailable,
   restorationAction,
   restorationSnapshot,
@@ -1257,13 +1258,16 @@ export function createPineHillsInterior({
       label: () => {
         const snapshot = restorationSnapshot(state);
         if (snapshot?.targetProgress[targetId] >= 1) return null;
+        // v1 names the fitting by its station id, which stays true in the dark —
+        // no fault word to withhold — so it passes the same name for both cases
+        // and comes out byte-identical to the hand-rolled version it replaced.
         const name = panel.id.toUpperCase();
-        // Same rule as v2: never offer [E] for something that would visibly do
-        // nothing. The circuit gate is invisible from under the panel, so the
-        // prompt has to say which gate is shut.
-        if (!ceilingCircuitPowered(state)) return `${name} — the ceiling circuit is dead`;
-        if (!panelRepairKitAvailable(state)) return `${name} — repair kit required`;
-        return `${name} — [E] repair with clubhouse kit`;
+        return ceilingPanelPromptLabel({
+          faultName: name,
+          unpoweredName: name,
+          powered: ceilingCircuitPowered(state),
+          kitAvailable: panelRepairKitAvailable(state),
+        });
       },
       action: () => {
         if (!ceilingCircuitPowered(state)) {

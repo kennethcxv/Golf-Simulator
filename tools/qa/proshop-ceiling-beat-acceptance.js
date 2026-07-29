@@ -170,6 +170,18 @@ async (page) => {
   const failures = [];
   if (stages.darkStart.light.circuitPowered !== false) failures.push('dark start: circuit was already powered');
   if (stages.darkStart.light.litPanels !== 0) failures.push('dark start: panels are lit');
+  // The prompt has to describe what is overhead, not what the save file calls
+  // it. With zero lit panels nothing can be flickering, so the word must not
+  // appear — this read is why the label is power-conditional.
+  if (/flicker/i.test(stages.darkStart.prompt || '')) {
+    failures.push(`dark start: prompt claims a flicker the player cannot see — "${stages.darkStart.prompt}"`);
+  }
+  if (!/dark/i.test(stages.darkStart.prompt || '')) {
+    failures.push(`dark start: prompt does not describe the unlit fitting — "${stages.darkStart.prompt}"`);
+  }
+  if (/flicker/i.test(stages.poweredNeglected.prompt || '') === false) {
+    failures.push(`powered: the flicker fault is now visible but unnamed — "${stages.poweredNeglected.prompt}"`);
+  }
   if (stages.refusedWhileDark.sim.lightPanels['panel-07'] !== 'dead') {
     failures.push('E on a dead ring reported a repair — the exact lie this gate exists to stop');
   }

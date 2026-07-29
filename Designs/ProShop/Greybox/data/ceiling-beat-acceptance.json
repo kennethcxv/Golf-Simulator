@@ -42,7 +42,7 @@
         "kitsBack": 1,
         "powered": false
       },
-      "prompt": "Flickering ceiling panel — the ceiling circuit is dead"
+      "prompt": "Dark ceiling panel — the ceiling circuit is dead"
     },
     "refusedWhileDark": {
       "sim": {
@@ -100,7 +100,7 @@
           {
             "name": "CeilingPanelLight_panel-03",
             "visible": true,
-            "intensity": 4.468
+            "intensity": 4.249
           },
           {
             "name": "CeilingPanelLight_panel-04",
@@ -115,7 +115,7 @@
           {
             "name": "CeilingPanelLight_panel-08",
             "visible": true,
-            "intensity": 3.734
+            "intensity": 3.672
           }
         ]
       },
@@ -138,10 +138,10 @@
     "flicker": {
       "samples": 24,
       "perPanelSwing": [
-        5.166,
+        5.162,
         0,
         0,
-        5.103
+        5.106
       ],
       "flickeringPanels": 2,
       "deadPanels": 2

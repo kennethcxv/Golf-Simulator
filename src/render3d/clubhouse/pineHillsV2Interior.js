@@ -36,6 +36,7 @@ import {
   ARCHITECTURE_PAINT_COSTS,
   ARCHITECTURE_REPAIR_SKU,
   ceilingCircuitPowered,
+  ceilingPanelPromptLabel,
   panelRepairKitAvailable,
   restorationAction,
   restorationSnapshot,
@@ -675,10 +676,18 @@ export function createPineHillsV2Interior({
   // CEILING_PANEL_RIG). The previous code here targeted ceiling:panel-03,
   // which matches NO sim target (LIGHT_TARGET_TO_PANEL), so the flicker beat
   // was unrepairable in this room.
+  // The sim's two faults, as the SIM names them. These are only true of what is
+  // on screen once the circuit is live: applyPracticalLevels drives every
+  // fitting to zero intensity while the ceiling circuit is dead, and
+  // updateFlicker returns before it animates anything. So at campaign start
+  // both panels are simply dark, and calling one of them "Flickering" describes
+  // a state the player has never seen. Whatever the save file calls it, the
+  // prompt names what is overhead.
   const PANEL_FAULT_LABELS = {
     'panel-02': 'Flickering ceiling panel',
     'panel-07': 'Dead ceiling panel',
   };
+  const PANEL_UNPOWERED_LABEL = 'Dark ceiling panel';
   for (const panel of CEILING_PANEL_RIG.panels.filter(({ simId }) => PANEL_FAULT_LABELS[simId])) {
     const targetId = `ceiling:${panel.simId}`;
     addInteraction({
@@ -690,14 +699,13 @@ export function createPineHillsV2Interior({
       // the room. Two gates stand in front of this repair — the ceiling circuit
       // and a kit — and the player can only see the fitting, so the prompt has
       // to name whichever one is shut.
-      label: () => {
-        const snapshot = restorationSnapshot(state);
-        if (snapshot?.targetProgress[targetId] >= 1) return null;
-        const name = PANEL_FAULT_LABELS[panel.simId];
-        if (!ceilingCircuitPowered(state)) return `${name} — the ceiling circuit is dead`;
-        if (!panelRepairKitAvailable(state)) return `${name} — repair kit required`;
-        return `${name} — [E] repair with clubhouse kit`;
-      },
+      label: () => ceilingPanelPromptLabel({
+        faultName: PANEL_FAULT_LABELS[panel.simId],
+        unpoweredName: PANEL_UNPOWERED_LABEL,
+        powered: ceilingCircuitPowered(state),
+        kitAvailable: panelRepairKitAvailable(state),
+        repaired: restorationSnapshot(state)?.targetProgress[targetId] >= 1,
+      }),
       action: () => {
         if (!ceilingCircuitPowered(state)) {
           hooks.toast?.('The ceiling circuit is dead. Repair the office power and ceiling first.', 'warn');

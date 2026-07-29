@@ -18,6 +18,7 @@ import {
   panelRepairKitAvailable,
   restorationAction,
   restorationSnapshot,
+  ceilingPanelPromptLabel,
 } from '../src/sim/clubhouseRestoration.js';
 
 // A panel repair spends a repair kit, so the fixture has to be stocked or every
@@ -459,4 +460,64 @@ test('a repeat repair on a working panel is a no-op and costs nothing', () => {
   assert.equal(again.ok, true);
   assert.equal(again.changed, false);
   assert.equal(state.shop.inventory.repairkit1.back, afterFirst, 'no kit burned on a no-op');
+});
+
+// A prompt may only name a fault the player can actually see. With the ceiling
+// circuit dead, applyPracticalLevels drives every fitting to zero intensity and
+// updateFlicker returns before it animates anything — so both panels are simply
+// dark and indistinguishable. v2 called one of them "Flickering ceiling panel"
+// anyway, naming a state that does not exist until the circuit is live.
+test('the ceiling prompt never names a fault the dark room cannot show', () => {
+  const dark = ceilingPanelPromptLabel({
+    faultName: 'Flickering ceiling panel',
+    powered: false,
+    kitAvailable: true,
+  });
+  assert.match(dark, /^Dark ceiling panel/, 'an unlit fitting is dark, whatever the sim calls it');
+  assert.doesNotMatch(dark, /Flicker/i, 'nothing flickers on a dead circuit');
+  assert.doesNotMatch(dark, /\[E\]/, 'and it must not offer an action that would visibly do nothing');
+  assert.match(dark, /circuit is dead/, 'the prompt names the gate that is actually shut');
+});
+
+test('the fault name appears only once there is power to make it true', () => {
+  const lit = ceilingPanelPromptLabel({
+    faultName: 'Flickering ceiling panel',
+    powered: true,
+    kitAvailable: true,
+  });
+  assert.equal(lit, 'Flickering ceiling panel — [E] repair with clubhouse kit');
+});
+
+test('the kit gate is reported second, after the circuit gate', () => {
+  // Both shut: the player meets the circuit first, so that is what it says.
+  assert.match(
+    ceilingPanelPromptLabel({ faultName: 'Dead ceiling panel', powered: false, kitAvailable: false }),
+    /circuit is dead/,
+  );
+  assert.equal(
+    ceilingPanelPromptLabel({ faultName: 'Dead ceiling panel', powered: true, kitAvailable: false }),
+    'Dead ceiling panel — repair kit required',
+  );
+});
+
+test('a repaired panel offers no prompt at all', () => {
+  for (const powered of [true, false]) {
+    assert.equal(
+      ceilingPanelPromptLabel({
+        faultName: 'Dead ceiling panel', powered, kitAvailable: true, repaired: true,
+      }),
+      null,
+    );
+  }
+});
+
+// v1 names the fitting by station id, which stays true in the dark, so it passes
+// the same name for both cases and is unchanged by the shared rule.
+test('a room with no fault word in its name is unaffected', () => {
+  assert.equal(
+    ceilingPanelPromptLabel({
+      faultName: 'PANEL-02', unpoweredName: 'PANEL-02', powered: false, kitAvailable: true,
+    }),
+    'PANEL-02 — the ceiling circuit is dead',
+  );
 });

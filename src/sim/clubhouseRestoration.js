@@ -204,6 +204,33 @@ export function panelRepairKitAvailable(state) {
   return availableSupplyUnits(state, ARCHITECTURE_REPAIR_SKU) > 0;
 }
 
+// The prompt under a ceiling fitting, as a pure decision, shared by both rooms.
+//
+// It enforces one rule the rooms kept breaking in different ways: a prompt may
+// only name a fault the player can actually SEE. While the ceiling circuit is
+// dead every fitting is dark — applyPracticalLevels drives them all to zero
+// intensity and updateFlicker returns before it animates anything — so at
+// campaign start the two faults are indistinguishable. v2 named one of them
+// "Flickering ceiling panel" anyway, describing a state that does not exist
+// until the circuit is live and the player has never once observed.
+//
+// The per-panel fault name is therefore withheld until there is power to make
+// it true. The gate order matches the order the player meets the gates.
+export const CEILING_PANEL_UNPOWERED_NAME = 'Dark ceiling panel';
+
+export function ceilingPanelPromptLabel({
+  faultName,
+  unpoweredName = CEILING_PANEL_UNPOWERED_NAME,
+  powered,
+  kitAvailable,
+  repaired = false,
+}) {
+  if (repaired) return null;
+  if (!powered) return `${unpoweredName} — the ceiling circuit is dead`;
+  if (!kitAvailable) return `${faultName} — repair kit required`;
+  return `${faultName} — [E] repair with clubhouse kit`;
+}
+
 const PANEL_FAULT_DEFAULTS = deepFreeze({
   'panel-02': 'flicker',
   'panel-07': 'dead',

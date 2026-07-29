@@ -18,6 +18,7 @@ import { ensureDebris, totalDebris } from './cleaningDebris.js';
 import { ensureWash, exteriorWashScore, surfaceClean } from './washing.js';
 import {
   ARCHITECTURE_COMPONENTS,
+  ceilingCircuitPowered,
   CLUBHOUSE_CLEANUP_MILESTONE_IDS,
   CLUBHOUSE_CLEANUP_TARGET_IDS,
   CLUBHOUSE_LIGHT_TARGET_IDS,
@@ -795,7 +796,7 @@ export function openingReadiness(state) {
     { id: 'laptop', label: 'Pine Hills front-desk tee-sheet usable', ok: laptopReadiness(state).ready, reason: laptopReadiness(state).requirements.find((item) => !item.ok)?.reason || '' },
     { id: 'cleanup-details', label: 'Neglected clubhouse details cleaned', ok: !!restoration?.complete.discreteCleanup, reason: 'Clear each marked mess, scuff, cobweb, and disordered furnishing.' },
     { id: 'cleanup-systems', label: 'Floors, windows, clutter, and debris cleaned', ok: !!restoration?.complete.existingCleanupSystems, reason: 'Finish the floor, windows, general clutter, and loose-debris cleanup.' },
-    { id: 'lighting', label: 'Faulty ceiling lights repaired', ok: !!restoration?.complete.lighting, reason: 'Repair the flickering and dead ceiling panels.' },
+    { id: 'lighting', label: 'Faulty ceiling lights repaired', ok: !!restoration?.complete.lighting, reason: ceilingCircuitPowered(state) ? 'Repair the faulty ceiling panels.' : 'Restore the ceiling circuit, then repair the faulty panels.' },
     {
       id: 'repairs',
       label: 'Structural damage repaired',
@@ -1026,9 +1027,19 @@ function objectiveList(state) {
     objective('lighting-repairs', 'Repair the faulty ceiling lights', {
       complete: !!restoration?.complete.lighting,
       progress: restoration ? restoration.counts.lightsRepaired / restoration.counts.lightsTotal : 0,
-      blocked: entered ? null : 'Enter the clubhouse to inspect the ceiling panels.',
+      // Both gates, in the order the player meets them. Until the circuit is
+      // live every fitting is dark and neither fault is visible or repairable,
+      // so describing one as "flickering" here names a state that does not
+      // exist yet — the same lie the in-room prompt used to tell.
+      blocked: entered
+        ? (ceilingCircuitPowered(state)
+          ? null
+          : 'The ceiling circuit is dead — finish the office power and ceiling repair first.')
+        : 'Enter the clubhouse to inspect the ceiling panels.',
       tool: 'Ceiling light repair interaction',
-      hint: 'Repair panel 02 where it flickers and panel 07 where it is dead.',
+      hint: ceilingCircuitPowered(state)
+        ? 'Repair the panel that flickers and the panel that stays dead.'
+        : 'Both ceiling panels are dark until the circuit is live. Restore power first.',
       zone: 'clubhouse ceiling',
     }),
     objective('structural-repairs', 'Repair the damaged structure', {
