@@ -1,0 +1,262 @@
+{
+  "what": "the main doorway, closed and open, with damage-mesh visibility measured",
+  "pose": {
+    "closed": {
+      "wx": -360.8,
+      "wz": 6.3,
+      "doorWorld": {
+        "x": -360.8,
+        "z": 9.7
+      },
+      "doorNdc": {
+        "x": 0,
+        "y": 0.031,
+        "z": 0.912
+      },
+      "doorInFrame": true,
+      "camera": {
+        "x": -360.8,
+        "z": 6.3
+      },
+      "doorAngles": [
+        {
+          "name": "Shop door",
+          "angle": 0,
+          "target": 1.745
+        },
+        {
+          "name": "Shop door right leaf",
+          "angle": 0,
+          "target": 1.745
+        },
+        {
+          "name": "Stockroom door",
+          "angle": 0,
+          "target": 1.745
+        },
+        {
+          "name": "Receiving door",
+          "angle": 0,
+          "target": 1.745
+        }
+      ]
+    },
+    "open": {
+      "wx": -360.8,
+      "wz": 6.3,
+      "doorWorld": {
+        "x": -360.8,
+        "z": 9.7
+      },
+      "doorNdc": {
+        "x": 0,
+        "y": 0.031,
+        "z": 0.912
+      },
+      "doorInFrame": true,
+      "camera": {
+        "x": -360.8,
+        "z": 6.3
+      },
+      "doorAngles": [
+        {
+          "name": "Shop door",
+          "angle": 1.745,
+          "target": 1.745
+        },
+        {
+          "name": "Shop door right leaf",
+          "angle": 1.745,
+          "target": 1.745
+        },
+        {
+          "name": "Stockroom door",
+          "angle": 0,
+          "target": 1.745
+        },
+        {
+          "name": "Receiving door",
+          "angle": 0,
+          "target": 1.745
+        }
+      ]
+    }
+  },
+  "shots": [
+    "door-planks-closed.png",
+    "door-planks-open.png"
+  ],
+  "damageMeshes": {
+    "closed": [
+      {
+        "name": "COL_Damage_RoofRaycast",
+        "selfVisible": false,
+        "effectivelyVisible": false,
+        "hiddenBy": "COL_Damage_RoofRaycast",
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": 0,
+          "z": 0
+        },
+        "yRange": [
+          5.2,
+          5.29
+        ]
+      },
+      {
+        "name": "COL_Damage_TrimRaycast",
+        "selfVisible": false,
+        "effectivelyVisible": false,
+        "hiddenBy": "COL_Damage_TrimRaycast",
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": 0,
+          "z": 5.77
+        },
+        "yRange": [
+          3.31,
+          3.64
+        ]
+      },
+      {
+        "name": "MESH_BoardedApertureDamage_DATA",
+        "selfVisible": true,
+        "effectivelyVisible": true,
+        "hiddenBy": null,
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": -4.66,
+          "z": 4.83
+        },
+        "yRange": [
+          -0.39,
+          4.62
+        ]
+      },
+      {
+        "name": "MESH_BoardedApertureDamage_DATA_1",
+        "selfVisible": true,
+        "effectivelyVisible": true,
+        "hiddenBy": null,
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": -4.66,
+          "z": 4.83
+        },
+        "yRange": [
+          0.28,
+          4.97
+        ]
+      },
+      {
+        "name": "MESH_BoardedApertureFasteners",
+        "selfVisible": true,
+        "effectivelyVisible": true,
+        "hiddenBy": null,
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": -4.66,
+          "z": 5.68
+        },
+        "yRange": [
+          -0.3,
+          1.83
+        ]
+      }
+    ],
+    "open": [
+      {
+        "name": "COL_Damage_RoofRaycast",
+        "selfVisible": false,
+        "effectivelyVisible": false,
+        "hiddenBy": "COL_Damage_RoofRaycast",
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": 0,
+          "z": 0
+        },
+        "yRange": [
+          5.2,
+          5.29
+        ]
+      },
+      {
+        "name": "COL_Damage_TrimRaycast",
+        "selfVisible": false,
+        "effectivelyVisible": false,
+        "hiddenBy": "COL_Damage_TrimRaycast",
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": 0,
+          "z": 5.77
+        },
+        "yRange": [
+          3.31,
+          3.64
+        ]
+      },
+      {
+        "name": "MESH_BoardedApertureDamage_DATA",
+        "selfVisible": true,
+        "effectivelyVisible": true,
+        "hiddenBy": null,
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": -4.66,
+          "z": 4.83
+        },
+        "yRange": [
+          -0.39,
+          4.62
+        ]
+      },
+      {
+        "name": "MESH_BoardedApertureDamage_DATA_1",
+        "selfVisible": true,
+        "effectivelyVisible": true,
+        "hiddenBy": null,
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": -4.66,
+          "z": 4.83
+        },
+        "yRange": [
+          0.28,
+          4.97
+        ]
+      },
+      {
+        "name": "MESH_BoardedApertureFasteners",
+        "selfVisible": true,
+        "effectivelyVisible": true,
+        "hiddenBy": null,
+        "layerMask": 1,
+        "drawnForCamera": true,
+        "local": {
+          "x": -4.66,
+          "z": 5.68
+        },
+        "yRange": [
+          -0.3,
+          1.83
+        ]
+      }
+    ]
+  },
+  "drawnDamageMeshes": [
+    "MESH_BoardedApertureDamage_DATA",
+    "MESH_BoardedApertureDamage_DATA_1",
+    "MESH_BoardedApertureFasteners"
+  ],
+  "errs": [],
+  "ok": true
+}

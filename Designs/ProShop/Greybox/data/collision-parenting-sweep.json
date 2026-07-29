@@ -7,11 +7,16 @@
       "orphaned": [],
       "doorAndWindow": [
         {
+          "uuid": "3a6a9951-1284-4ad5-bdeb-05ec78ca863d",
           "name": "LegacyWindowDirtFilm_0",
           "local": {
             "x": -7.6,
             "z": 5.58
           },
+          "world": {
+            "x": -367.6,
+            "z": 9.58
+          },
           "size": {
             "w": 2.28,
             "d": 0,
@@ -21,15 +26,28 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "8d9f51fb-a44a-4829-9719-0ed74e65fb7e",
           "name": "LegacyWindowDirtFilm_1",
           "local": {
             "x": -4.4,
             "z": 5.58
           },
+          "world": {
+            "x": -364.4,
+            "z": 9.58
+          },
           "size": {
             "w": 2.28,
             "d": 0,
@@ -39,15 +57,28 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "edaa12a9-1c68-4ec8-9b5f-8697baa39f00",
           "name": "LegacyWindowDirtFilm_2",
           "local": {
             "x": 3,
             "z": -5.58
           },
+          "world": {
+            "x": -357,
+            "z": -1.58
+          },
           "size": {
             "w": 2.28,
             "d": 0,
@@ -57,14 +88,27 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "71615e6a-78bf-4940-a364-954f6341d571",
           "name": "LegacyWindowDirtFilm_3",
           "local": {
             "x": 9.03,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.97,
+            "z": 8.25
           },
           "size": {
             "w": 0,
@@ -75,14 +119,27 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "fc08ec27-3a44-4beb-8446-8041cfd13bb8",
           "name": "COLLISION_DoorFrame_Basic",
           "local": {
             "x": 7.55,
             "z": 2
+          },
+          "world": {
+            "x": -352.45,
+            "z": 6
           },
           "size": {
             "w": 1.16,
@@ -93,14 +150,27 @@
             -0.62,
             1.77
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 36,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "dfef65d8-88d0-4611-bc85-d028f1221753",
           "name": "COLLISION_DoorLeaf_Basic",
           "local": {
             "x": 7.55,
             "z": 2
+          },
+          "world": {
+            "x": -352.45,
+            "z": 6
           },
           "size": {
             "w": 0.92,
@@ -111,14 +181,27 @@
             -0.61,
             1.62
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 12,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "966be1ad-d373-4a03-87b2-77a1c9796077",
           "name": "COLLISION_DoorFrame_Basic",
           "local": {
             "x": 9.07,
             "z": -3.6
+          },
+          "world": {
+            "x": -350.925,
+            "z": 0.4
           },
           "size": {
             "w": 0.26,
@@ -129,14 +212,27 @@
             -0.62,
             1.77
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 36,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "0a091ab9-e7f6-4873-867c-623e78b306d7",
           "name": "COLLISION_DoorLeaf_Basic",
           "local": {
             "x": 9.07,
             "z": -3.6
+          },
+          "world": {
+            "x": -350.925,
+            "z": 0.4
           },
           "size": {
             "w": 0.04,
@@ -147,14 +243,27 @@
             -0.61,
             1.62
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 12,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "a2ea1bc5-80c1-437d-a736-746a032ef6ac",
           "name": "MESH_BoardedApertureDamage_DATA",
           "local": {
             "x": -4.66,
             "z": 4.83
+          },
+          "world": {
+            "x": -364.657,
+            "z": 8.827
           },
           "size": {
             "w": 9.77,
@@ -165,14 +274,27 @@
             -0.39,
             4.62
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 96,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": true
         },
         {
+          "uuid": "952da836-012d-4428-aa74-e0c6c47b5b0f",
           "name": "MESH_BoardedApertureDamage_DATA_1",
           "local": {
             "x": -4.66,
             "z": 4.83
+          },
+          "world": {
+            "x": -364.657,
+            "z": 8.827
           },
           "size": {
             "w": 9.77,
@@ -183,14 +305,27 @@
             0.28,
             4.97
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 168,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": true
         },
         {
+          "uuid": "c5457917-38bc-42a9-b7eb-2e6f1e69ba71",
           "name": "MESH_BoardedApertureFasteners",
           "local": {
             "x": -4.66,
             "z": 5.68
+          },
+          "world": {
+            "x": -364.657,
+            "z": 9.68
           },
           "size": {
             "w": 9.43,
@@ -201,122 +336,27 @@
             -0.3,
             1.83
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
-          "name": "MESH_MainDoor_CreamCasing",
-          "local": {
-            "x": -0.8,
-            "z": 5.7
-          },
-          "size": {
-            "w": 2.25,
-            "d": 0.08,
-            "h": 2.89
-          },
-          "yRange": [
-            -0.69,
-            2.2
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_WindowMid_CreamCasing",
-          "local": {
-            "x": -4.9,
-            "z": 5.68
-          },
-          "size": {
-            "w": 2.72,
-            "d": 0.11,
-            "h": 2.15
-          },
-          "yRange": [
-            0.12,
-            2.27
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_WindowWest_CreamCasing",
-          "local": {
-            "x": -8.3,
-            "z": 5.68
-          },
-          "size": {
-            "w": 2.72,
-            "d": 0.11,
-            "h": 2.15
-          },
-          "yRange": [
-            0.12,
-            2.27
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_EastBelow_EastWindow",
-          "local": {
-            "x": 9.06,
-            "z": 4.6
-          },
-          "size": {
-            "w": 0.25,
-            "d": 2.4,
-            "h": 0.85
-          },
-          "yRange": [
-            -0.62,
-            0.23
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_FrontBelow_WindowMid",
-          "local": {
-            "x": -4.9,
-            "z": 5.62
-          },
-          "size": {
-            "w": 2.4,
-            "d": 0.25,
-            "h": 0.85
-          },
-          "yRange": [
-            -0.62,
-            0.23
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_FrontBelow_WindowWest",
-          "local": {
-            "x": -8.3,
-            "z": 5.62
-          },
-          "size": {
-            "w": 2.4,
-            "d": 0.25,
-            "h": 0.85
-          },
-          "yRange": [
-            -0.62,
-            0.23
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
+          "uuid": "43a2d169-11d1-428b-982a-063fae6ae028",
           "name": "MESH_DeepCreamDoorCasing",
           "local": {
             "x": -0.8,
             "z": 5.74
+          },
+          "world": {
+            "x": -360.8,
+            "z": 9.741
           },
           "size": {
             "w": 1.97,
@@ -327,14 +367,27 @@
             -0.62,
             2.06
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "745cf290-ba71-4d5c-83f6-4f0948fac7cb",
           "name": "MESH_WalnutDoorStops",
           "local": {
             "x": -0.8,
             "z": 5.65
+          },
+          "world": {
+            "x": -360.8,
+            "z": 9.649
           },
           "size": {
             "w": 1.71,
@@ -345,14 +398,27 @@
             -0.58,
             1.91
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "14d39344-b186-4e90-a111-8be206d8f3fa",
           "name": "COL_DoorLeft",
           "local": {
             "x": -1.24,
             "z": 5.74
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.741
           },
           "size": {
             "w": 0.87,
@@ -363,14 +429,27 @@
             -0.58,
             1.97
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "64221d69-1390-448a-a695-6deb28ddff7e",
           "name": "MESH_DoorLeft_Astragal",
           "local": {
             "x": -0.82,
             "z": 5.74
+          },
+          "world": {
+            "x": -360.825,
+            "z": 9.741
           },
           "size": {
             "w": 0.05,
@@ -381,14 +460,27 @@
             -0.58,
             1.94
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "507d8894-88e9-4166-86c3-30fbe6caffb7",
           "name": "MESH_DoorLeft_BrassLeverSet",
           "local": {
             "x": -1,
             "z": 5.82
+          },
+          "world": {
+            "x": -361.004,
+            "z": 9.818
           },
           "size": {
             "w": 0.19,
@@ -399,14 +491,27 @@
             0.34,
             0.67
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
           "hasCollider": false,
+          "bandSamples": 328,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 328,
+          "walkableFraction": 0,
+          "doorPropped": 1,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "df562b4d-b0d2-4972-b836-8dd5cb5d791b",
           "name": "MESH_DoorLeft_DeepSashMoulding",
           "local": {
             "x": -1.24,
             "z": 5.74
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.741
           },
           "size": {
             "w": 0.64,
@@ -417,14 +522,27 @@
             0.23,
             1.83
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 96,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "ea62855c-bc57-43fc-b3f3-7a2bf55f410e",
           "name": "MESH_DoorLeft_Glass",
           "local": {
             "x": -1.24,
             "z": 5.72
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.715
           },
           "size": {
             "w": 0.61,
@@ -435,14 +553,27 @@
             0.28,
             1.78
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "b8f4135e-e97f-475b-87ca-2f5a92764302",
           "name": "MESH_DoorLeft_WalnutMuntins",
           "local": {
             "x": -1.24,
             "z": 5.77
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.766
           },
           "size": {
             "w": 0.61,
@@ -453,14 +584,27 @@
             0.28,
             1.78
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
           "hasCollider": false,
+          "bandSamples": 336,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 192,
+          "walkableFraction": 0,
+          "doorPropped": 0.571,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "3ec9bfed-2905-4a01-9c03-5f74fa77d215",
           "name": "MESH_DoorLeft_WalnutStructure",
           "local": {
             "x": -1.24,
             "z": 5.74
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.741
           },
           "size": {
             "w": 0.87,
@@ -471,14 +615,27 @@
             -0.58,
             1.93
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "0a541a03-0762-47a5-bb69-869c50ac27fb",
           "name": "COL_DoorRight",
           "local": {
             "x": -0.36,
             "z": 5.74
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.741
           },
           "size": {
             "w": 0.87,
@@ -489,14 +646,27 @@
             -0.58,
             1.97
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "41eab2b7-822a-47ed-a24c-9d1883752269",
           "name": "MESH_DoorRight_BrassLeverSet",
           "local": {
             "x": -0.6,
             "z": 5.82
+          },
+          "world": {
+            "x": -360.596,
+            "z": 9.818
           },
           "size": {
             "w": 0.19,
@@ -507,14 +677,27 @@
             0.34,
             0.67
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
           "hasCollider": false,
+          "bandSamples": 328,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 328,
+          "walkableFraction": 0,
+          "doorPropped": 1,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "5374d8bc-a1ae-4b02-a2e8-8d0dbcb2519a",
           "name": "MESH_DoorRight_DeepSashMoulding",
           "local": {
             "x": -0.36,
             "z": 5.74
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.741
           },
           "size": {
             "w": 0.64,
@@ -525,14 +708,27 @@
             0.23,
             1.83
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 96,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "317d1933-105f-486e-b6fa-8f961f6139a3",
           "name": "MESH_DoorRight_Glass",
           "local": {
             "x": -0.36,
             "z": 5.72
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.715
           },
           "size": {
             "w": 0.61,
@@ -543,14 +739,27 @@
             0.28,
             1.78
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "a7ca2c9f-0a08-43bc-86a3-e8507badba90",
           "name": "MESH_DoorRight_WalnutMuntins",
           "local": {
             "x": -0.36,
             "z": 5.77
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.766
           },
           "size": {
             "w": 0.61,
@@ -561,14 +770,27 @@
             0.28,
             1.78
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
           "hasCollider": false,
+          "bandSamples": 336,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 192,
+          "walkableFraction": 0,
+          "doorPropped": 0.571,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "5de1c86a-8573-4914-b546-31db2fd7b382",
           "name": "MESH_DoorRight_WalnutStructure",
           "local": {
             "x": -0.36,
             "z": 5.74
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.741
           },
           "size": {
             "w": 0.87,
@@ -579,14 +801,234 @@
             -0.58,
             1.93
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "b4c72054-ac80-4161-874e-e3efe0f921f8",
+          "name": "MESH_MainDoor_CreamCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.7
+          },
+          "world": {
+            "x": -360.8,
+            "z": 9.7
+          },
+          "size": {
+            "w": 2.25,
+            "d": 0.08,
+            "h": 2.89
+          },
+          "yRange": [
+            -0.69,
+            2.2
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "75dd4a2e-3d1c-4083-bbbc-b192b2fadced",
+          "name": "MESH_WindowMid_CreamCasing",
+          "local": {
+            "x": -4.9,
+            "z": 5.68
+          },
+          "world": {
+            "x": -364.9,
+            "z": 9.684
+          },
+          "size": {
+            "w": 2.72,
+            "d": 0.11,
+            "h": 2.15
+          },
+          "yRange": [
+            0.12,
+            2.27
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "a5c2ee46-af83-4536-8deb-583a6ba790ab",
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "world": {
+            "x": -368.3,
+            "z": 9.684
+          },
+          "size": {
+            "w": 2.72,
+            "d": 0.11,
+            "h": 2.15
+          },
+          "yRange": [
+            0.12,
+            2.27
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 72,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0.375,
+          "doorPropped": 0,
+          "walkableAt": [
+            {
+              "x": -9.62,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.64,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            }
+          ],
+          "standableInside": false
+        },
+        {
+          "uuid": "a8ad49c9-b3e7-4109-9d2d-f86ca8df068a",
+          "name": "MESH_EastBelow_EastWindow",
+          "local": {
+            "x": 9.06,
+            "z": 4.6
+          },
+          "world": {
+            "x": -350.939,
+            "z": 8.6
+          },
+          "size": {
+            "w": 0.25,
+            "d": 2.4,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "48265d29-f6a9-48a0-a50a-22135b43ab71",
+          "name": "MESH_FrontBelow_WindowMid",
+          "local": {
+            "x": -4.9,
+            "z": 5.62
+          },
+          "world": {
+            "x": -364.9,
+            "z": 9.616
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "c8fa7a3b-0d0b-4e42-b81f-1aa6fd04041c",
+          "name": "MESH_FrontBelow_WindowWest",
+          "local": {
+            "x": -8.3,
+            "z": 5.62
+          },
+          "world": {
+            "x": -368.3,
+            "z": 9.616
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "8fd57cea-de95-410b-913d-e26810dd8670",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": -7.6,
             "z": 5.63
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.625
           },
           "size": {
             "w": 2.4,
@@ -597,14 +1039,27 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "f73dbc4d-d19c-4544-bc88-d9f289e8f097",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": -7.6,
             "z": 5.59
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.588
           },
           "size": {
             "w": 1.98,
@@ -615,14 +1070,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "35c1963d-380d-4284-8f02-62aecdd4cb0d",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": -7.6,
             "z": 5.63
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.634
           },
           "size": {
             "w": 2.07,
@@ -633,14 +1101,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "25c402c5-f807-4ed3-82d0-30e157b18a11",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": -7.6,
             "z": 5.67
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.669
           },
           "size": {
             "w": 1.98,
@@ -651,14 +1132,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "5c4a676a-7a71-487f-9976-66e534f4322b",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": -4.4,
             "z": 5.63
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.625
           },
           "size": {
             "w": 2.4,
@@ -669,14 +1163,27 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "5de4e9fe-7256-4e68-b717-3d1aa8cfd0e4",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": -4.4,
             "z": 5.59
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.588
           },
           "size": {
             "w": 1.98,
@@ -687,14 +1194,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "98a1ce20-7070-47ab-a863-fe3541d452d2",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": -4.4,
             "z": 5.63
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.634
           },
           "size": {
             "w": 2.07,
@@ -705,14 +1225,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "d6cd33e4-6c6e-48e1-9f39-92e978f5eb2c",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": -4.4,
             "z": 5.67
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.669
           },
           "size": {
             "w": 1.98,
@@ -723,15 +1256,28 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "950226e5-b5ea-4c46-b1ae-3c12312ca465",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": 3,
             "z": -5.63
           },
+          "world": {
+            "x": -357,
+            "z": -1.625
+          },
           "size": {
             "w": 2.4,
             "d": 0.25,
@@ -741,15 +1287,28 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "31dbfb31-3596-4cae-951c-b81d448dda93",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": 3,
             "z": -5.59
           },
+          "world": {
+            "x": -357,
+            "z": -1.588
+          },
           "size": {
             "w": 1.98,
             "d": 0.01,
@@ -759,14 +1318,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "cb650605-031a-4bfa-81df-00db0874c2e6",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": 3,
             "z": -5.63
+          },
+          "world": {
+            "x": -357,
+            "z": -1.634
           },
           "size": {
             "w": 2.07,
@@ -777,14 +1349,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "1a604a93-c4b3-40bd-be85-b21c6c561834",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": 3,
             "z": -5.67
+          },
+          "world": {
+            "x": -357,
+            "z": -1.669
           },
           "size": {
             "w": 1.98,
@@ -795,14 +1380,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "5c122a0f-3f8e-4e82-94c6-423d7cd8731a",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": 9.08,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.925,
+            "z": 8.25
           },
           "size": {
             "w": 0.25,
@@ -813,14 +1411,27 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "a6e0f747-2745-40e0-be60-c6c6b8ee555a",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": 9.04,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.962,
+            "z": 8.25
           },
           "size": {
             "w": 0.01,
@@ -831,14 +1442,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "425976bb-aab5-409e-aeb7-e68465a451b7",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": 9.08,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.916,
+            "z": 8.25
           },
           "size": {
             "w": 0.08,
@@ -849,14 +1473,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "843ca6bf-a8b4-45de-b4c2-47d4d7b885b1",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": 9.12,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.881,
+            "z": 8.25
           },
           "size": {
             "w": 0.03,
@@ -867,7 +1504,15 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         }
       ],
@@ -891,7 +1536,1254 @@
           "why": "hardware, not a barrier"
         }
       ],
-      "doorMissing": []
+      "doorSwing": {
+        "before": [
+          {
+            "name": "Shop door",
+            "angle": 0,
+            "target": 1.745
+          },
+          {
+            "name": "Shop door right leaf",
+            "angle": 0,
+            "target": 1.745
+          },
+          {
+            "name": "Stockroom door",
+            "angle": 0,
+            "target": 1.745
+          },
+          {
+            "name": "Receiving door",
+            "angle": 0,
+            "target": 1.745
+          }
+        ],
+        "after": [
+          {
+            "name": "Shop door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Shop door right leaf",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Stockroom door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Receiving door",
+            "angle": 1.745,
+            "target": 1.745
+          }
+        ],
+        "opened": 4,
+        "total": 4,
+        "afterPass": [
+          {
+            "name": "Shop door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Shop door right leaf",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Stockroom door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Receiving door",
+            "angle": 1.745,
+            "target": 1.745
+          }
+        ],
+        "heldThroughPass": 4
+      },
+      "doorMotion": [
+        {
+          "name": "LegacyWindowDirtFilm_0",
+          "local": {
+            "x": -7.6,
+            "z": 5.58
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "LegacyWindowDirtFilm_1",
+          "local": {
+            "x": -4.4,
+            "z": 5.58
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "LegacyWindowDirtFilm_2",
+          "local": {
+            "x": 3,
+            "z": -5.58
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "LegacyWindowDirtFilm_3",
+          "local": {
+            "x": 9.03,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 36
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "movedYd": 0.702,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 12
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 36
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "movedYd": 0.702,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 12
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 96
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA_1",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 168
+        },
+        {
+          "name": "MESH_BoardedApertureFasteners",
+          "local": {
+            "x": -4.66,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_DeepCreamDoorCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.74
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_WalnutDoorStops",
+          "local": {
+            "x": -0.8,
+            "z": 5.65
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "COL_DoorLeft",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_DoorLeft_Astragal",
+          "local": {
+            "x": -0.82,
+            "z": 5.74
+          },
+          "movedYd": 1.299,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "local": {
+            "x": -1,
+            "z": 5.82
+          },
+          "movedYd": 1.036,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.866,
+          "doorProppedClosed": 1,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 328
+        },
+        {
+          "name": "MESH_DoorLeft_DeepSashMoulding",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_DoorLeft_Glass",
+          "local": {
+            "x": -1.24,
+            "z": 5.72
+          },
+          "movedYd": 0.67,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutMuntins",
+          "local": {
+            "x": -1.24,
+            "z": 5.77
+          },
+          "movedYd": 0.671,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.429,
+          "doorProppedClosed": 0.571,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 336
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutStructure",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.354,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "COL_DoorRight",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "local": {
+            "x": -0.6,
+            "z": 5.82
+          },
+          "movedYd": 1.036,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.866,
+          "doorProppedClosed": 1,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 328
+        },
+        {
+          "name": "MESH_DoorRight_DeepSashMoulding",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_DoorRight_Glass",
+          "local": {
+            "x": -0.36,
+            "z": 5.72
+          },
+          "movedYd": 0.67,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_DoorRight_WalnutMuntins",
+          "local": {
+            "x": -0.36,
+            "z": 5.77
+          },
+          "movedYd": 0.671,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.429,
+          "doorProppedClosed": 0.571,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 336
+        },
+        {
+          "name": "MESH_DoorRight_WalnutStructure",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_MainDoor_CreamCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.7
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_WindowMid_CreamCasing",
+          "local": {
+            "x": -4.9,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0.375,
+          "walkableFractionOpen": 0.375,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [
+            {
+              "x": -9.62,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.64,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            }
+          ],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_EastBelow_EastWindow",
+          "local": {
+            "x": 9.06,
+            "z": 4.6
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_FrontBelow_WindowMid",
+          "local": {
+            "x": -4.9,
+            "z": 5.62
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_FrontBelow_WindowWest",
+          "local": {
+            "x": -8.3,
+            "z": 5.62
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -7.6,
+            "z": 5.59
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -7.6,
+            "z": 5.67
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -4.4,
+            "z": 5.59
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -4.4,
+            "z": 5.67
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 3,
+            "z": -5.59
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 3,
+            "z": -5.67
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 9.04,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 9.12,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        }
+      ],
+      "doorMissing": [
+        {
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0.375,
+          "walkableFractionOpen": 0.375,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [
+            {
+              "x": -9.62,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.64,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            }
+          ],
+          "bandSamplesOpen": 192
+        }
+      ],
+      "doorThresholds": {
+        "walkableShare": 0.34,
+        "minBandSamples": 8
+      }
     },
     "pine-hills-v2": {
       "candidates": 41,
@@ -900,11 +2792,16 @@
       "orphaned": [],
       "doorAndWindow": [
         {
+          "uuid": "3765eafc-3f8c-421e-be44-27bec3b07c7f",
           "name": "LegacyWindowDirtFilm_0",
           "local": {
             "x": -7.6,
             "z": 5.58
           },
+          "world": {
+            "x": -367.6,
+            "z": 9.58
+          },
           "size": {
             "w": 2.28,
             "d": 0,
@@ -914,15 +2811,28 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "95f4f9bf-96ba-4a99-8879-804aca4785bc",
           "name": "LegacyWindowDirtFilm_1",
           "local": {
             "x": -4.4,
             "z": 5.58
           },
+          "world": {
+            "x": -364.4,
+            "z": 9.58
+          },
           "size": {
             "w": 2.28,
             "d": 0,
@@ -932,15 +2842,28 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "a797bd3f-c973-4db9-912e-08464b49702f",
           "name": "LegacyWindowDirtFilm_2",
           "local": {
             "x": 3,
             "z": -5.58
           },
+          "world": {
+            "x": -357,
+            "z": -1.58
+          },
           "size": {
             "w": 2.28,
             "d": 0,
@@ -950,14 +2873,27 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "69dbccc2-f24e-4145-9a8c-04474f64b07a",
           "name": "LegacyWindowDirtFilm_3",
           "local": {
             "x": 9.03,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.97,
+            "z": 8.25
           },
           "size": {
             "w": 0,
@@ -968,14 +2904,27 @@
             0.29,
             2.07
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 2,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "b9a2b24d-ee7d-446e-a615-7d85f75b0a1c",
           "name": "COLLISION_DoorFrame_Basic",
           "local": {
             "x": 7.55,
             "z": 2
+          },
+          "world": {
+            "x": -352.45,
+            "z": 6
           },
           "size": {
             "w": 1.16,
@@ -986,14 +2935,27 @@
             -0.62,
             1.77
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 36,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "3b26190e-1499-4021-ac9e-55f9c1408b60",
           "name": "COLLISION_DoorLeaf_Basic",
           "local": {
             "x": 7.55,
             "z": 2
+          },
+          "world": {
+            "x": -352.45,
+            "z": 6
           },
           "size": {
             "w": 0.92,
@@ -1004,14 +2966,27 @@
             -0.61,
             1.62
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 12,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "d2456bd2-cd5a-45d9-83b0-74d876b74448",
           "name": "COLLISION_DoorFrame_Basic",
           "local": {
             "x": 9.07,
             "z": -3.6
+          },
+          "world": {
+            "x": -350.925,
+            "z": 0.4
           },
           "size": {
             "w": 0.26,
@@ -1022,14 +2997,27 @@
             -0.62,
             1.77
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 36,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "22bf5310-3eae-4065-9d0e-d3e5919ea51f",
           "name": "COLLISION_DoorLeaf_Basic",
           "local": {
             "x": 9.07,
             "z": -3.6
+          },
+          "world": {
+            "x": -350.925,
+            "z": 0.4
           },
           "size": {
             "w": 0.04,
@@ -1040,14 +3028,27 @@
             -0.61,
             1.62
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
           "hasCollider": true,
+          "bandSamples": 12,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "27e0e938-efb5-4f5f-a6fd-6253e5a790eb",
           "name": "MESH_BoardedApertureDamage_DATA",
           "local": {
             "x": -4.66,
             "z": 4.83
+          },
+          "world": {
+            "x": -364.657,
+            "z": 8.827
           },
           "size": {
             "w": 9.77,
@@ -1058,14 +3059,27 @@
             -0.39,
             4.62
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 96,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": true
         },
         {
+          "uuid": "61a76e96-64aa-4e1b-a9b0-58d6335602ec",
           "name": "MESH_BoardedApertureDamage_DATA_1",
           "local": {
             "x": -4.66,
             "z": 4.83
+          },
+          "world": {
+            "x": -364.657,
+            "z": 8.827
           },
           "size": {
             "w": 9.77,
@@ -1076,14 +3090,27 @@
             0.28,
             4.97
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 168,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": true
         },
         {
+          "uuid": "1b62293f-5f2f-4cc9-9268-c288a333282f",
           "name": "MESH_BoardedApertureFasteners",
           "local": {
             "x": -4.66,
             "z": 5.68
+          },
+          "world": {
+            "x": -364.657,
+            "z": 9.68
           },
           "size": {
             "w": 9.43,
@@ -1094,284 +3121,27 @@
             -0.3,
             1.83
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
-          "name": "MESH_DeepCreamDoorCasing",
-          "local": {
-            "x": -0.8,
-            "z": 5.74
-          },
-          "size": {
-            "w": 1.97,
-            "d": 0.26,
-            "h": 2.68
-          },
-          "yRange": [
-            -0.62,
-            2.06
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_WalnutDoorStops",
-          "local": {
-            "x": -0.8,
-            "z": 5.65
-          },
-          "size": {
-            "w": 1.71,
-            "d": 0.04,
-            "h": 2.49
-          },
-          "yRange": [
-            -0.58,
-            1.91
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "COL_DoorLeft",
-          "local": {
-            "x": -1.24,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.87,
-            "d": 0.09,
-            "h": 2.55
-          },
-          "yRange": [
-            -0.58,
-            1.97
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorLeft_Astragal",
-          "local": {
-            "x": -0.82,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.05,
-            "d": 0.14,
-            "h": 2.52
-          },
-          "yRange": [
-            -0.58,
-            1.94
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorLeft_BrassLeverSet",
-          "local": {
-            "x": -1,
-            "z": 5.82
-          },
-          "size": {
-            "w": 0.19,
-            "d": 0.11,
-            "h": 0.33
-          },
-          "yRange": [
-            0.34,
-            0.67
-          ],
-          "hasCollider": false,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorLeft_DeepSashMoulding",
-          "local": {
-            "x": -1.24,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.64,
-            "d": 0.07,
-            "h": 1.6
-          },
-          "yRange": [
-            0.23,
-            1.83
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorLeft_Glass",
-          "local": {
-            "x": -1.24,
-            "z": 5.72
-          },
-          "size": {
-            "w": 0.61,
-            "d": 0.01,
-            "h": 1.5
-          },
-          "yRange": [
-            0.28,
-            1.78
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorLeft_WalnutMuntins",
-          "local": {
-            "x": -1.24,
-            "z": 5.77
-          },
-          "size": {
-            "w": 0.61,
-            "d": 0.03,
-            "h": 1.5
-          },
-          "yRange": [
-            0.28,
-            1.78
-          ],
-          "hasCollider": false,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorLeft_WalnutStructure",
-          "local": {
-            "x": -1.24,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.87,
-            "d": 0.11,
-            "h": 2.52
-          },
-          "yRange": [
-            -0.58,
-            1.93
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "COL_DoorRight",
-          "local": {
-            "x": -0.36,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.87,
-            "d": 0.09,
-            "h": 2.55
-          },
-          "yRange": [
-            -0.58,
-            1.97
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorRight_BrassLeverSet",
-          "local": {
-            "x": -0.6,
-            "z": 5.82
-          },
-          "size": {
-            "w": 0.19,
-            "d": 0.11,
-            "h": 0.33
-          },
-          "yRange": [
-            0.34,
-            0.67
-          ],
-          "hasCollider": false,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorRight_DeepSashMoulding",
-          "local": {
-            "x": -0.36,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.64,
-            "d": 0.07,
-            "h": 1.6
-          },
-          "yRange": [
-            0.23,
-            1.83
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorRight_Glass",
-          "local": {
-            "x": -0.36,
-            "z": 5.72
-          },
-          "size": {
-            "w": 0.61,
-            "d": 0.01,
-            "h": 1.5
-          },
-          "yRange": [
-            0.28,
-            1.78
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorRight_WalnutMuntins",
-          "local": {
-            "x": -0.36,
-            "z": 5.77
-          },
-          "size": {
-            "w": 0.61,
-            "d": 0.03,
-            "h": 1.5
-          },
-          "yRange": [
-            0.28,
-            1.78
-          ],
-          "hasCollider": false,
-          "standableInside": false
-        },
-        {
-          "name": "MESH_DoorRight_WalnutStructure",
-          "local": {
-            "x": -0.36,
-            "z": 5.74
-          },
-          "size": {
-            "w": 0.87,
-            "d": 0.11,
-            "h": 2.52
-          },
-          "yRange": [
-            -0.58,
-            1.93
-          ],
-          "hasCollider": true,
-          "standableInside": false
-        },
-        {
+          "uuid": "445b38a6-3458-4d29-8f4c-491ed1b1e121",
           "name": "MESH_MainDoor_CreamCasing",
           "local": {
             "x": -0.8,
             "z": 5.7
+          },
+          "world": {
+            "x": -360.8,
+            "z": 9.7
           },
           "size": {
             "w": 2.25,
@@ -1382,15 +3152,28 @@
             -0.69,
             2.2
           ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "83d0e210-5fac-422f-921f-bb5bdc3afd3c",
           "name": "MESH_WindowMid_CreamCasing",
           "local": {
             "x": -4.9,
             "z": 5.68
           },
+          "world": {
+            "x": -364.9,
+            "z": 9.684
+          },
           "size": {
             "w": 2.72,
             "d": 0.11,
@@ -1400,15 +3183,28 @@
             0.12,
             2.27
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "1d31dd3b-86b6-4783-a60a-b7b8bb5dac6f",
           "name": "MESH_WindowWest_CreamCasing",
           "local": {
             "x": -8.3,
             "z": 5.68
           },
+          "world": {
+            "x": -368.3,
+            "z": 9.684
+          },
           "size": {
             "w": 2.72,
             "d": 0.11,
@@ -1418,15 +3214,49 @@
             0.12,
             2.27
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 72,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0.375,
+          "doorPropped": 0,
+          "walkableAt": [
+            {
+              "x": -9.62,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.64,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            }
+          ],
           "standableInside": false
         },
         {
+          "uuid": "5d7bae66-6088-4e58-b9c6-01458d0fe33b",
           "name": "MESH_EastBelow_EastWindow",
           "local": {
             "x": 9.06,
             "z": 4.6
           },
+          "world": {
+            "x": -350.939,
+            "z": 8.6
+          },
           "size": {
             "w": 0.25,
             "d": 2.4,
@@ -1436,15 +3266,28 @@
             -0.62,
             0.23
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "2726b3cd-759c-4694-925d-42bbc88ae560",
           "name": "MESH_FrontBelow_WindowMid",
           "local": {
             "x": -4.9,
             "z": 5.62
           },
+          "world": {
+            "x": -364.9,
+            "z": 9.616
+          },
           "size": {
             "w": 2.4,
             "d": 0.25,
@@ -1454,15 +3297,28 @@
             -0.62,
             0.23
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "c3c178ad-3106-437f-a9bf-b0efc9656997",
           "name": "MESH_FrontBelow_WindowWest",
           "local": {
             "x": -8.3,
             "z": 5.62
           },
+          "world": {
+            "x": -368.3,
+            "z": 9.616
+          },
           "size": {
             "w": 2.4,
             "d": 0.25,
@@ -1472,14 +3328,492 @@
             -0.62,
             0.23
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "8edeb22b-2126-42f8-9429-a793865cb981",
+          "name": "MESH_DeepCreamDoorCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.74
+          },
+          "world": {
+            "x": -360.8,
+            "z": 9.741
+          },
+          "size": {
+            "w": 1.97,
+            "d": 0.26,
+            "h": 2.68
+          },
+          "yRange": [
+            -0.62,
+            2.06
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": true,
+          "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "a446c948-efa6-4290-9b11-af9b92b68992",
+          "name": "MESH_WalnutDoorStops",
+          "local": {
+            "x": -0.8,
+            "z": 5.65
+          },
+          "world": {
+            "x": -360.8,
+            "z": 9.649
+          },
+          "size": {
+            "w": 1.71,
+            "d": 0.04,
+            "h": 2.49
+          },
+          "yRange": [
+            -0.58,
+            1.91
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "85ef9530-1175-4a0a-b954-bb1742eeb693",
+          "name": "COL_DoorLeft",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.09,
+            "h": 2.55
+          },
+          "yRange": [
+            -0.58,
+            1.97
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "25553366-00ca-42aa-be06-90d5c756e22b",
+          "name": "MESH_DoorLeft_Astragal",
+          "local": {
+            "x": -0.82,
+            "z": 5.74
+          },
+          "world": {
+            "x": -360.825,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.05,
+            "d": 0.14,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.94
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "6e1222ef-89f2-4769-bf81-6e327e877120",
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "local": {
+            "x": -1,
+            "z": 5.82
+          },
+          "world": {
+            "x": -361.004,
+            "z": 9.818
+          },
+          "size": {
+            "w": 0.19,
+            "d": 0.11,
+            "h": 0.33
+          },
+          "yRange": [
+            0.34,
+            0.67
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
+          "hasCollider": false,
+          "bandSamples": 328,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 328,
+          "walkableFraction": 0,
+          "doorPropped": 1,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "efb49fc1-6473-4259-ad7b-8e124993462b",
+          "name": "MESH_DoorLeft_DeepSashMoulding",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.64,
+            "d": 0.07,
+            "h": 1.6
+          },
+          "yRange": [
+            0.23,
+            1.83
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 96,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "64476eea-6254-4e8d-8c44-75ed74adb329",
+          "name": "MESH_DoorLeft_Glass",
+          "local": {
+            "x": -1.24,
+            "z": 5.72
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.715
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.01,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "87cc4886-3523-4408-bac4-6b3fa048e899",
+          "name": "MESH_DoorLeft_WalnutMuntins",
+          "local": {
+            "x": -1.24,
+            "z": 5.77
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.766
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.03,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
+          "hasCollider": false,
+          "bandSamples": 336,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 192,
+          "walkableFraction": 0,
+          "doorPropped": 0.571,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "3f808b87-ddf3-4ecf-ac71-8a2706656e47",
+          "name": "MESH_DoorLeft_WalnutStructure",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "world": {
+            "x": -361.237,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.11,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.93
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "290267ea-8be5-4525-b2c4-7d50a2b5f3e4",
+          "name": "COL_DoorRight",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.09,
+            "h": 2.55
+          },
+          "yRange": [
+            -0.58,
+            1.97
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 0,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": null,
+          "doorPropped": null,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "7843ee36-135e-4103-9d7a-0809e929330c",
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "local": {
+            "x": -0.6,
+            "z": 5.82
+          },
+          "world": {
+            "x": -360.596,
+            "z": 9.818
+          },
+          "size": {
+            "w": 0.19,
+            "d": 0.11,
+            "h": 0.33
+          },
+          "yRange": [
+            0.34,
+            0.67
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
+          "hasCollider": false,
+          "bandSamples": 328,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 328,
+          "walkableFraction": 0,
+          "doorPropped": 1,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "af50bdf5-a92a-41a5-8b31-af4734f657ed",
+          "name": "MESH_DoorRight_DeepSashMoulding",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.64,
+            "d": 0.07,
+            "h": 1.6
+          },
+          "yRange": [
+            0.23,
+            1.83
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 192,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 96,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "6b4954d3-93d2-409b-bf19-6f02832a2218",
+          "name": "MESH_DoorRight_Glass",
+          "local": {
+            "x": -0.36,
+            "z": 5.72
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.715
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.01,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "901a5e6f-50bd-424e-900c-04395922b393",
+          "name": "MESH_DoorRight_WalnutMuntins",
+          "local": {
+            "x": -0.36,
+            "z": 5.77
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.766
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.03,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": false,
+          "hasCollider": false,
+          "bandSamples": 336,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 192,
+          "walkableFraction": 0,
+          "doorPropped": 0.571,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "367daa41-e735-4021-a170-9d040965daf6",
+          "name": "MESH_DoorRight_WalnutStructure",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "world": {
+            "x": -360.363,
+            "z": 9.741
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.11,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.93
+          ],
+          "coveredByDoorCollider": true,
+          "coveredByStaticCollider": false,
+          "hasCollider": true,
+          "bandSamples": 48,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 24,
+          "walkableFraction": 0,
+          "doorPropped": 0.5,
+          "walkableAt": [],
+          "standableInside": false
+        },
+        {
+          "uuid": "e5702259-ba75-4036-bc20-c058d72beb7e",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": -7.6,
             "z": 5.63
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.625
           },
           "size": {
             "w": 2.4,
@@ -1490,14 +3824,27 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "ff3d40f6-4f22-47d0-8c71-08da36283021",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": -7.6,
             "z": 5.59
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.588
           },
           "size": {
             "w": 1.98,
@@ -1508,14 +3855,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "8b85b239-e024-4322-9401-4b9e2cf22fcc",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": -7.6,
             "z": 5.63
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.634
           },
           "size": {
             "w": 2.07,
@@ -1526,14 +3886,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "fbd790b7-4996-4abb-a112-e80d5388c32f",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": -7.6,
             "z": 5.67
+          },
+          "world": {
+            "x": -367.6,
+            "z": 9.669
           },
           "size": {
             "w": 1.98,
@@ -1544,14 +3917,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "adf51a6c-8a89-47ec-bce4-ad7720d037d5",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": -4.4,
             "z": 5.63
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.625
           },
           "size": {
             "w": 2.4,
@@ -1562,14 +3948,27 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "016e2a9c-5973-4268-a85b-edca0aa1f23f",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": -4.4,
             "z": 5.59
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.588
           },
           "size": {
             "w": 1.98,
@@ -1580,14 +3979,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "86344537-e077-4cb5-a79b-65b1cd42afec",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": -4.4,
             "z": 5.63
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.634
           },
           "size": {
             "w": 2.07,
@@ -1598,14 +4010,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "57923982-6178-4a87-80ad-0ac932537f72",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": -4.4,
             "z": 5.67
+          },
+          "world": {
+            "x": -364.4,
+            "z": 9.669
           },
           "size": {
             "w": 1.98,
@@ -1616,15 +4041,28 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "c67bba35-b671-4aec-8661-e9aae619049b",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": 3,
             "z": -5.63
           },
+          "world": {
+            "x": -357,
+            "z": -1.625
+          },
           "size": {
             "w": 2.4,
             "d": 0.25,
@@ -1634,15 +4072,28 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "6bcfc98c-0fc5-47b6-9041-4d786cfa3329",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": 3,
             "z": -5.59
           },
+          "world": {
+            "x": -357,
+            "z": -1.588
+          },
           "size": {
             "w": 1.98,
             "d": 0.01,
@@ -1652,14 +4103,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "6ef47715-aa20-4431-b8d6-52676ec749ab",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": 3,
             "z": -5.63
+          },
+          "world": {
+            "x": -357,
+            "z": -1.634
           },
           "size": {
             "w": 2.07,
@@ -1670,14 +4134,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "8c194f86-079c-4118-9d21-a1386ff88324",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": 3,
             "z": -5.67
+          },
+          "world": {
+            "x": -357,
+            "z": -1.669
           },
           "size": {
             "w": 1.98,
@@ -1688,14 +4165,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "3d79b8c6-49fa-4127-b32d-e101aec203c1",
           "name": "MESH_WindowStandard_LayeredCreamCasing",
           "local": {
             "x": 9.08,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.925,
+            "z": 8.25
           },
           "size": {
             "w": 0.25,
@@ -1706,14 +4196,27 @@
             0.23,
             2.13
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "f4f67b56-db26-40a5-a3a4-b2dbe11f65a8",
           "name": "MESH_WindowStandard_UpperLowerGlass",
           "local": {
             "x": 9.04,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.962,
+            "z": 8.25
           },
           "size": {
             "w": 0.01,
@@ -1724,14 +4227,27 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 144,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "ee77728e-e051-4814-b3f0-5a7d2e164a77",
           "name": "MESH_WindowStandard_WalnutDoubleSashes",
           "local": {
             "x": 9.08,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.916,
+            "z": 8.25
           },
           "size": {
             "w": 0.08,
@@ -1742,14 +4258,27 @@
             0.4,
             1.99
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 224,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         },
         {
+          "uuid": "039254d0-2791-4527-a1f0-42551dacffbe",
           "name": "MESH_WindowStandard_WalnutMuntinGrid",
           "local": {
             "x": 9.12,
             "z": 4.25
+          },
+          "world": {
+            "x": -350.881,
+            "z": 8.25
           },
           "size": {
             "w": 0.03,
@@ -1760,7 +4289,15 @@
             0.45,
             1.94
           ],
+          "coveredByDoorCollider": false,
+          "coveredByStaticCollider": true,
           "hasCollider": true,
+          "bandSamples": 240,
+          "walkableSamples": 0,
+          "doorOnlyBlocked": 0,
+          "walkableFraction": 0,
+          "doorPropped": 0,
+          "walkableAt": [],
           "standableInside": false
         }
       ],
@@ -1775,7 +4312,1254 @@
           "why": "hardware, not a barrier"
         }
       ],
-      "doorMissing": []
+      "doorSwing": {
+        "before": [
+          {
+            "name": "Shop door",
+            "angle": 0,
+            "target": 1.745
+          },
+          {
+            "name": "Shop door right leaf",
+            "angle": 0,
+            "target": 1.745
+          },
+          {
+            "name": "Stockroom door",
+            "angle": 0,
+            "target": 1.745
+          },
+          {
+            "name": "Receiving door",
+            "angle": 0,
+            "target": 1.745
+          }
+        ],
+        "after": [
+          {
+            "name": "Shop door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Shop door right leaf",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Stockroom door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Receiving door",
+            "angle": 1.745,
+            "target": 1.745
+          }
+        ],
+        "opened": 4,
+        "total": 4,
+        "afterPass": [
+          {
+            "name": "Shop door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Shop door right leaf",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Stockroom door",
+            "angle": 1.745,
+            "target": 1.745
+          },
+          {
+            "name": "Receiving door",
+            "angle": 1.745,
+            "target": 1.745
+          }
+        ],
+        "heldThroughPass": 4
+      },
+      "doorMotion": [
+        {
+          "name": "LegacyWindowDirtFilm_0",
+          "local": {
+            "x": -7.6,
+            "z": 5.58
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "LegacyWindowDirtFilm_1",
+          "local": {
+            "x": -4.4,
+            "z": 5.58
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "LegacyWindowDirtFilm_2",
+          "local": {
+            "x": 3,
+            "z": -5.58
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "LegacyWindowDirtFilm_3",
+          "local": {
+            "x": 9.03,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 2
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 36
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "movedYd": 0.701,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 12
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 36
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "movedYd": 0.701,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.5,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 12
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 96
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA_1",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 168
+        },
+        {
+          "name": "MESH_BoardedApertureFasteners",
+          "local": {
+            "x": -4.66,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_MainDoor_CreamCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.7
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_WindowMid_CreamCasing",
+          "local": {
+            "x": -4.9,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0.375,
+          "walkableFractionOpen": 0.375,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [
+            {
+              "x": -9.62,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.64,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            }
+          ],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_EastBelow_EastWindow",
+          "local": {
+            "x": 9.06,
+            "z": 4.6
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_FrontBelow_WindowMid",
+          "local": {
+            "x": -4.9,
+            "z": 5.62
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_FrontBelow_WindowWest",
+          "local": {
+            "x": -8.3,
+            "z": 5.62
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_DeepCreamDoorCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.74
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": true
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_WalnutDoorStops",
+          "local": {
+            "x": -0.8,
+            "z": 5.65
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "COL_DoorLeft",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_DoorLeft_Astragal",
+          "local": {
+            "x": -0.82,
+            "z": 5.74
+          },
+          "movedYd": 1.297,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "local": {
+            "x": -1,
+            "z": 5.82
+          },
+          "movedYd": 1.034,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.75,
+          "doorProppedClosed": 1,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 328
+        },
+        {
+          "name": "MESH_DoorLeft_DeepSashMoulding",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.229,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_DoorLeft_Glass",
+          "local": {
+            "x": -1.24,
+            "z": 5.72
+          },
+          "movedYd": 0.669,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutMuntins",
+          "local": {
+            "x": -1.24,
+            "z": 5.77
+          },
+          "movedYd": 0.669,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.214,
+          "doorProppedClosed": 0.571,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 336
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutStructure",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.25,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "COL_DoorRight",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": null,
+          "walkableFractionOpen": null,
+          "doorProppedOpen": null,
+          "doorProppedClosed": null,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 0
+        },
+        {
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "local": {
+            "x": -0.6,
+            "z": 5.82
+          },
+          "movedYd": 1.034,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": false
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.75,
+          "doorProppedClosed": 1,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 328
+        },
+        {
+          "name": "MESH_DoorRight_DeepSashMoulding",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.229,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 192
+        },
+        {
+          "name": "MESH_DoorRight_Glass",
+          "local": {
+            "x": -0.36,
+            "z": 5.72
+          },
+          "movedYd": 0.669,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_DoorRight_WalnutMuntins",
+          "local": {
+            "x": -0.36,
+            "z": 5.77
+          },
+          "movedYd": 0.669,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": false,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.214,
+          "doorProppedClosed": 0.571,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 336
+        },
+        {
+          "name": "MESH_DoorRight_WalnutStructure",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "movedYd": 0.668,
+          "travelsWithDoor": true,
+          "closed": {
+            "door": true,
+            "static": false
+          },
+          "open": {
+            "door": true,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0.25,
+          "doorProppedClosed": 0.5,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 48
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -7.6,
+            "z": 5.59
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -7.6,
+            "z": 5.67
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -4.4,
+            "z": 5.59
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -4.4,
+            "z": 5.67
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 3,
+            "z": -5.59
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 3,
+            "z": -5.67
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 9.04,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 144
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 224
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 9.12,
+            "z": 4.25
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0,
+          "walkableFractionOpen": 0,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [],
+          "bandSamplesOpen": 240
+        }
+      ],
+      "doorMissing": [
+        {
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "movedYd": 0,
+          "travelsWithDoor": false,
+          "closed": {
+            "door": false,
+            "static": true
+          },
+          "open": {
+            "door": false,
+            "static": true
+          },
+          "walkableFractionClosed": 0.375,
+          "walkableFractionOpen": 0.375,
+          "doorProppedOpen": 0,
+          "doorProppedClosed": 0,
+          "walkableAtOpen": [
+            {
+              "x": -9.62,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.64,
+              "z": 5.73
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            },
+            {
+              "x": -9.62,
+              "z": 5.74
+            }
+          ],
+          "bandSamplesOpen": 192
+        }
+      ],
+      "doorThresholds": {
+        "walkableShare": 0.34,
+        "minBandSamples": 8
+      }
     }
   },
   "whitelist": [
@@ -1791,8 +5575,11 @@
     "waived": 2,
     "orphaned": 0,
     "doorFurniture": 96,
-    "doorMissing": 0,
-    "doorWaived": 4
+    "doorMissing": 2,
+    "doorWaived": 4,
+    "doorFixedGeometry": 66,
+    "doorsActuallyOpened": 8
   },
-  "ok": true
+  "doorMotionMeasured": true,
+  "ok": false
 }
