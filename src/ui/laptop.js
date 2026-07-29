@@ -1035,8 +1035,14 @@ export function makeLaptop(app, opts) {
               onclick: () => {
                 closeModal();
                 askConfirm(`Mark ${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} as a no-show? The fee settles once, deposit first.`, 'Mark no-show', () => {
+                  // Positive check, not "not explicitly false": the second form
+                  // reports SUCCESS for a null result, which is the same defect
+                  // one step removed.
                   const res = markReservationNoShow(st, m.r.id, { at: nowAbsMin });
-                  toast(res && res.ok === false ? (res.reason || 'Could not mark it.') : `${m.entry.fullName} marked as a no-show.`, res && res.ok === false ? 'warn' : '');
+                  toast(
+                    res?.ok ? `${m.entry.fullName} marked as a no-show.` : (res?.reason || 'Could not mark it.'),
+                    res?.ok ? '' : 'warn',
+                  );
                 });
               },
             })
@@ -1048,8 +1054,19 @@ export function makeLaptop(app, opts) {
               onclick: () => {
                 closeModal();
                 askConfirm(`Cancel ${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} tee time?`, 'Cancel the booking', () => {
-                  cancelReservation(st, m.r.id);
-                  toast(`${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} spot is open again.`);
+                  // cancelReservation refuses a booking that is not open — one
+                  // already checked in, most often, because the modal can be
+                  // several minutes stale by the time it is confirmed. The
+                  // result used to be discarded and the spot reported open
+                  // regardless. The front desk does this correctly; the laptop
+                  // was the same operation reported two different ways.
+                  const res = cancelReservation(st, m.r.id);
+                  toast(
+                    res?.ok
+                      ? `${m.entry.fullName}'s ${fmtSlot(m.slot.minute)} spot is open again.`
+                      : (res?.reason || 'That booking could not be cancelled.'),
+                    res?.ok ? '' : 'warn',
+                  );
                 });
               },
             })
@@ -1894,7 +1911,7 @@ export function makeLaptop(app, opts) {
           disabled: cashOf() < treatCost ? 'disabled' : undefined,
           onclick: () => askConfirm(`Send the crew over with fungicide for ${formatMoney(treatCost)}?`, 'Treat it', () => {
             const res = treatSection(st, p.section);
-            toast(res && res.ok === false ? (res.reason || 'Could not treat it.') : 'The crew is on it.', res && res.ok === false ? 'warn' : '');
+            toast(res?.ok ? 'The crew is on it.' : (res?.reason || 'Could not treat it.'), res?.ok ? '' : 'warn');
           }),
         }) : recommendation.aerate ? el('button', {
           class: 'lt-mini',
@@ -1902,7 +1919,7 @@ export function makeLaptop(app, opts) {
           disabled: cashOf() < aerateCost ? 'disabled' : undefined,
           onclick: () => askConfirm(`Aerate ${p.section.name || 'this section'} for ${formatMoney(aerateCost)}?`, 'Aerate it', () => {
             const res = aerateSection(st, p.section);
-            toast(res && res.ok === false ? (res.reason || 'Could not aerate it.') : 'Cores pulled — the turf breathes again.', res && res.ok === false ? 'warn' : '');
+            toast(res?.ok ? 'Cores pulled — the turf breathes again.' : (res?.reason || 'Could not aerate it.'), res?.ok ? '' : 'warn');
           }),
         }) : word(recommendation.label, 'warn'));
     };

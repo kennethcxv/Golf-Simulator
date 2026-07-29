@@ -1,0 +1,307 @@
+{
+  "note": "resultCaptured is mechanical. The confirmed/optimistic verdict is made by reading these sites; see the header.",
+  "totalSites": 36,
+  "resultCaptured": 36,
+  "resultDiscarded": 0,
+  "byGroup": {
+    "repairs": 10,
+    "cleaning": 1,
+    "orders": 3,
+    "purchases": 7,
+    "upgrades": 3,
+    "deliveries": 4,
+    "pricing": 4,
+    "bookings": 4
+  },
+  "discarded": [],
+  "sites": [
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsInterior.js",
+      "line": 1226,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, { type: 'set-target-progress', targetId, progress: 1 });"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsInterior.js",
+      "line": 1281,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, { type: 'repair-light', targetId });"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsInterior.js",
+      "line": 1338,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, {"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsInterior.js",
+      "line": 1355,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, {"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsInterior.js",
+      "line": 1537,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, { type: 'set-target-progress', targetId, progress: clamp01(progress) });"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsV2Interior.js",
+      "line": 647,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, { type: 'set-target-progress', targetId, progress: 1 });"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsV2Interior.js",
+      "line": 718,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, { type: 'repair-light', targetId });"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsV2Interior.js",
+      "line": 767,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, {"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsV2Interior.js",
+      "line": 782,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, {"
+    },
+    {
+      "group": "repairs",
+      "mutation": "restorationAction",
+      "file": "src/render3d/clubhouse/pineHillsV2Interior.js",
+      "line": 841,
+      "resultCaptured": true,
+      "code": "const result = restorationAction(state, { type: 'set-target-progress', targetId, progress: clamp01(progress) });"
+    },
+    {
+      "group": "cleaning",
+      "mutation": "clearClutter",
+      "file": "src/render3d/clubhouse.js",
+      "line": 3052,
+      "resultCaptured": true,
+      "code": "const res = clearClutter(state, idx);"
+    },
+    {
+      "group": "deliveries",
+      "mutation": "openFlap",
+      "file": "src/render3d/clubhouse.js",
+      "line": 6398,
+      "resultCaptured": true,
+      "code": "const result = openFlap(state, id, dt * 1.55);"
+    },
+    {
+      "group": "deliveries",
+      "mutation": "flattenBox",
+      "file": "src/render3d/clubhouse.js",
+      "line": 6419,
+      "resultCaptured": true,
+      "code": "const result = flattenBox(state, id, dt * 1.35);"
+    },
+    {
+      "group": "deliveries",
+      "mutation": "cutTape",
+      "file": "src/render3d/clubhouse.js",
+      "line": 7350,
+      "resultCaptured": true,
+      "code": "const r = cutTape(state, b.id, step);"
+    },
+    {
+      "group": "deliveries",
+      "mutation": "takeFromBox",
+      "file": "src/render3d/clubhouse.js",
+      "line": 7460,
+      "resultCaptured": true,
+      "code": "const r = takeFromBox(state, b.id);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "trainStaff",
+      "file": "src/ui/clubPanel.js",
+      "line": 105,
+      "resultCaptured": true,
+      "code": "const res = trainStaff(st, emp.id);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "fireStaff",
+      "file": "src/ui/clubPanel.js",
+      "line": 113,
+      "resultCaptured": true,
+      "code": "const res = fireStaff(st, emp.id);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "hireStaff",
+      "file": "src/ui/clubPanel.js",
+      "line": 129,
+      "resultCaptured": true,
+      "code": "const res = hireStaff(st, c.id);"
+    },
+    {
+      "group": "bookings",
+      "mutation": "cancelReservation",
+      "file": "src/ui/frontDesk.js",
+      "line": 478,
+      "resultCaptured": true,
+      "code": "const result = cancelReservation(app.state, reservation.id);"
+    },
+    {
+      "group": "upgrades",
+      "mutation": "aerateSection",
+      "file": "src/ui/inspectPanel.js",
+      "line": 158,
+      "resultCaptured": true,
+      "code": "const res = aerateSection(st, section);"
+    },
+    {
+      "group": "bookings",
+      "mutation": "bookSlot",
+      "file": "src/ui/laptop.js",
+      "line": 412,
+      "resultCaptured": true,
+      "code": "const result = bookSlot(state, dayAbs, minute, {"
+    },
+    {
+      "group": "bookings",
+      "mutation": "markReservationNoShow",
+      "file": "src/ui/laptop.js",
+      "line": 1041,
+      "resultCaptured": true,
+      "code": "const res = markReservationNoShow(st, m.r.id, { at: nowAbsMin });"
+    },
+    {
+      "group": "bookings",
+      "mutation": "cancelReservation",
+      "file": "src/ui/laptop.js",
+      "line": 1063,
+      "resultCaptured": true,
+      "code": "const res = cancelReservation(st, m.r.id);"
+    },
+    {
+      "group": "orders",
+      "mutation": "submitPurchaseOrders",
+      "file": "src/ui/laptop.js",
+      "line": 1382,
+      "resultCaptured": true,
+      "code": "const result = submitPurchaseOrders(st, {"
+    },
+    {
+      "group": "pricing",
+      "mutation": "setProductMarkup",
+      "file": "src/ui/laptop.js",
+      "line": 1486,
+      "resultCaptured": true,
+      "code": "const result = setProductMarkup(st, cat, v);"
+    },
+    {
+      "group": "pricing",
+      "mutation": "setGreenFee",
+      "file": "src/ui/laptop.js",
+      "line": 1506,
+      "resultCaptured": true,
+      "code": "oninput: (e) => { const result = setGreenFee(st, e.target.value); if (result.ok) paintFee(result.response.value); },"
+    },
+    {
+      "group": "pricing",
+      "mutation": "setRentalPrice",
+      "file": "src/ui/laptop.js",
+      "line": 1521,
+      "resultCaptured": true,
+      "code": "oninput: (e) => { const result = setRentalPrice(st, e.target.value); if (result.ok) paintRent(result.response.value); },"
+    },
+    {
+      "group": "pricing",
+      "mutation": "setMembershipDue",
+      "file": "src/ui/laptop.js",
+      "line": 1537,
+      "resultCaptured": true,
+      "code": "oninput: (event) => { const result = setMembershipDue(st, tier, event.target.value); if (result.ok) repaint(result.respo"
+    },
+    {
+      "group": "orders",
+      "mutation": "cancelOrder",
+      "file": "src/ui/laptop.js",
+      "line": 1594,
+      "resultCaptured": true,
+      "code": "const res = cancelOrder(st, o.id);"
+    },
+    {
+      "group": "upgrades",
+      "mutation": "treatSection",
+      "file": "src/ui/laptop.js",
+      "line": 1913,
+      "resultCaptured": true,
+      "code": "const res = treatSection(st, p.section);"
+    },
+    {
+      "group": "upgrades",
+      "mutation": "aerateSection",
+      "file": "src/ui/laptop.js",
+      "line": 1921,
+      "resultCaptured": true,
+      "code": "const res = aerateSection(st, p.section);"
+    },
+    {
+      "group": "orders",
+      "mutation": "placeOrder",
+      "file": "src/ui/laptop.js",
+      "line": 2269,
+      "resultCaptured": true,
+      "code": "const res = placeOrder(st, s.id, 1);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "trainStaff",
+      "file": "src/ui/laptop.js",
+      "line": 2377,
+      "resultCaptured": true,
+      "code": "const res = trainStaff(st, e.id);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "fireStaff",
+      "file": "src/ui/laptop.js",
+      "line": 2385,
+      "resultCaptured": true,
+      "code": "const res = fireStaff(st, e.id);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "hireStaff",
+      "file": "src/ui/laptop.js",
+      "line": 2400,
+      "resultCaptured": true,
+      "code": "const res = hireStaff(st, c.id);"
+    },
+    {
+      "group": "purchases",
+      "mutation": "buyRentalSets",
+      "file": "src/ui/laptop.js",
+      "line": 2440,
+      "resultCaptured": true,
+      "code": "const res = buyRentalSets(st, 1);"
+    }
+  ]
+}
