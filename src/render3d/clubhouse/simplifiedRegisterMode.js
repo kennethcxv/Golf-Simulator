@@ -878,6 +878,13 @@ export function createRegisterMode(B) {
   let selectedWalkInCustomerId = null;
   let checkInPage = 0;
   let postSaleDisplay = null;
+  // A finished sale is a receipt you glance at, not a screen you dismiss. It used
+  // to sit there until the player pressed "Return to Shop" — which is why the
+  // only way to serve the next person was to leave the station and walk back in.
+  // Held long enough to read the total, then cleared, and cleared instantly the
+  // moment someone is actually waiting.
+  const POST_SALE_HOLD_S = 5.0;
+  let postSaleHold = 0;
   let restorePointerLock = false;
   let pointerRestoreTimer = null;
   let previousFov = null;
@@ -1663,8 +1670,32 @@ export function createRegisterMode(B) {
     return 'Follow the front-desk prompts.';
   }
 
+  function clearPostSale() {
+    if (!postSaleDisplay) return false;
+    postSaleDisplay = null;
+    postSaleHold = 0;
+    activeTab = 'checkout';
+    assignWorkspace('monitor');
+    drawScreen();
+    drawTerm();
+    return true;
+  }
+
   function checkoutActions() {
-    if (postSaleDisplay && !tx) return [{ id: 'exit', label: 'Return to Shop', kind: 'primary' }];
+    if (postSaleDisplay && !tx) {
+      // "Ready for the next customer" leads, because that is what happens next
+      // in a shop. Returning to the floor is the secondary act, not — as it was
+      // — the ONLY thing on offer, which is why serving a second person meant
+      // walking out of the station and back into it.
+      //
+      // Deliberately not a count. The register learns about a retail shopper
+      // when the clubhouse loop hands it one; it cannot see who is queueing, and
+      // a label that guessed would be wrong exactly when the shop is busy.
+      return [
+        { id: 'clear-post-sale', label: 'Ready for the next customer', kind: 'primary' },
+        { id: 'exit', label: 'Return to Shop' },
+      ];
+    }
     if (!tx) return [];
     if (tx.stage === 'scanning') {
       if (unscannedCount(tx) > 0) {
@@ -5397,6 +5428,7 @@ export function createRegisterMode(B) {
       subtotal: item.price,
       scanned: true,
     }));
+    postSaleHold = POST_SALE_HOLD_S;
     postSaleDisplay = {
       number: finishedTx.number,
       customer: finishedCustomer ? (finishedCustomer.fullName || finishedCustomer.name) : 'Guest',
@@ -5434,6 +5466,10 @@ export function createRegisterMode(B) {
     if (action === 'home') {
       activeTab = 'home';
       drawScreen();
+      return true;
+    }
+    if (action === 'clear-post-sale') {
+      clearPostSale();
       return true;
     }
     if (action === 'tab-checkout') {
@@ -6457,6 +6493,13 @@ export function createRegisterMode(B) {
     // Recovery owns this frame, and the resumed state owns the next one. That
     // frame boundary prevents a timed-out animation from both rolling back and
     // advancing again from stale timers/callback state in the same update.
+    // The finished sale clears itself. A receipt on screen with no way past it
+    // but "Return to Shop" is what made the player leave the station between
+    // every customer.
+    if (postSaleDisplay && !tx && postSaleHold > 0) {
+      postSaleHold -= dt;
+      if (postSaleHold <= 0) clearPostSale();
+    }
     if (recoverCheckoutWatchdog()) return;
     if (runCheckoutWatchdogPostResume()) return;
     if (updateCashWatchdogRecovery(animationDt)) return;
