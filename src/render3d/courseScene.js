@@ -9522,6 +9522,68 @@ export function makeCourseScene(canvas, state) {
     // the clubhouse follows the clock: practicals carry the room after dark,
     // daylight fills die at night, the glass glows warm from outside
     if (clubhouseApi && clubhouseApi.setTimeMood) clubhouseApi.setTimeMood(minuteOfDay);
+
+    // THE INTERIOR FILL SCALE — and it has to be the LAST thing in this function.
+    //
+    // AmbientLight and HemisphereLight are constant irradiance terms in three's
+    // standard lighting loop: no shadow map, no volume, no falloff, no occlusion.
+    // There is no "this light does not reach inside that building" in the engine,
+    // and Light.layers cannot substitute — the renderer tests light layers
+    // against the CAMERA, not per object, so layers can only switch the whole
+    // scene at once. Measured contribution at the fixed poses: the hemisphere is
+    // ~40% of interior luma and ~42% of course luma. It is not disproportionately
+    // lighting the sealed room; it lights a windowless interior exactly as much as
+    // open ground, which is the whole problem.
+    //
+    // So: scale it by whether the player is inside. The room is windowless with
+    // one glazed door, so the only outdoors visible from in here is a doorway —
+    // and at the door pose the fill is 7.8% of the frame, so the shot that would
+    // expose the cheat is the one the cheat barely touches. The course, seen from
+    // outside, is untouched: isInside is false and the factor is zero.
+    //
+    // WHY THE LAST LINE. applyTimeWeather runs every frame from main.js and
+    // assigns hemi.intensity unconditionally in all three of its branches above.
+    // Anything that scales it from anywhere else is undone before the next render,
+    // and the symptom is "the change did nothing" rather than an error. This is
+    // also what made the first A/B measurement report the hemisphere contributing
+    // exactly 0.0% at all six poses: it turned off a light that was switched back
+    // on before the frame drew.
+    applyInteriorFill();
+  }
+
+  // How deep inside the threshold the fill has fully faded, in yards.
+  const INTERIOR_FILL_BLEND_YD = 1.5;
+  // Set by measurement, not by eye — see the tuning sweep in
+  // tools/qa/proshop-interior-fill-sweep.js and DARK_STATE_PROPOSAL.md §5.
+  let interiorFillScale = 0.40;
+  let interiorFillLast = 0;
+
+  // 0 outside, 1 well inside, smooth across the threshold. isInside answers a
+  // boolean, so the depth is bisected out of it rather than stepped: a
+  // three-level ramp is visible as banding when you walk through the door.
+  function interiorFillFactor(x, z) {
+    const inside = clubhouseApi?.isInside;
+    if (typeof inside !== 'function') return 0;
+    if (!inside(x, z, 0)) return 0;
+    if (inside(x, z, -INTERIOR_FILL_BLEND_YD)) return 1;
+    let lo = 0;
+    let hi = INTERIOR_FILL_BLEND_YD;
+    for (let i = 0; i < 5; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (inside(x, z, -mid)) lo = mid; else hi = mid;
+    }
+    const u = lo / INTERIOR_FILL_BLEND_YD;
+    return u * u * (3 - 2 * u);
+  }
+
+  function applyInteriorFill() {
+    // The player's own position while walking — during a focus pose (the
+    // register, the laptop) the camera leaves their head, and the light should
+    // follow where the body is, not where the shot is framed from.
+    const px = walk.active ? walk.x : camera.position.x;
+    const pz = walk.active ? walk.z : camera.position.z;
+    interiorFillLast = interiorFillFactor(px, pz);
+    hemi.intensity *= 1 - interiorFillLast * (1 - interiorFillScale);
   }
 
   // --- picking ------------------------------------------------------------------------------------------
@@ -10997,6 +11059,16 @@ export function makeCourseScene(canvas, state) {
     vectorWorldX,
     vectorWorldZ,
     applyTimeWeather,
+    // The interior fill, as a knob and a reading. The knob exists so the scale is
+    // chosen by sweeping it against the legibility floors the measurement
+    // established, rather than by picking a number that "looks dark".
+    interiorFill: {
+      scale: () => interiorFillScale,
+      setScale: (v) => { if (Number.isFinite(v)) interiorFillScale = Math.max(0, Math.min(1, v)); },
+      factor: () => interiorFillLast,
+      hemiIntensity: () => hemi.intensity,
+      blendYd: INTERIOR_FILL_BLEND_YD,
+    },
     heightAt,
     zoneAtWorld,
     bridgeSurfaceAtWorld,

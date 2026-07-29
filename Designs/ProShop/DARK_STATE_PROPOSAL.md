@@ -1,6 +1,9 @@
 # The unpowered room is not dark — measurement and proposal
 
-**Status: PROPOSAL. Nothing here is implemented. Awaiting approval.**
+**Status: APPROVED AND IMPLEMENTED, 2026-07-29.** Option A, hemisphere only,
+scale **0.40**, blended over 1.5 yd at the threshold. §6 below records what the
+shipped version measures — which is not what §5 predicted, and the difference is
+instructive.
 
 Blocker 8. The walk's finding was "the room is not dark enough", and the
 previous session's finding — that the cause is the two global lights rather than
@@ -189,4 +192,67 @@ interior mean from 120 to the mid-80s while keeping p3's ceiling band well clear
 of the legibility floor. That number should be set by re-running the dark-state
 probe at two or three candidate factors, not chosen here.
 
-**Not implemented. Awaiting approval**, per the walk.
+---
+
+## 6. What it actually does, measured (2026-07-29)
+
+Implemented as the last statement of `applyTimeWeather`, for the reason in the
+box above. `interiorFillFactor` bisects `clubhouseApi.isInside` to recover a
+smooth depth across the threshold: the boolean alone gives a three-level ramp
+that reads as banding when you walk through the door.
+
+Swept by `tools/qa/proshop-interior-fill-sweep.js`
+(`Greybox/data/interior-fill-sweep.json`). Scale 1.00 is the negative control —
+it disables the effect and is the behaviour before this change.
+
+| scale | in-room mean | vs control | p3 ceiling band | nav-band contrast |
+|---|---|---|---|---|
+| **1.00** (control) | 107.66 | — | 85.35 | 39.8 |
+| 0.55 | 92.85 | −13.8% | 64.05 | 47.8 |
+| **0.40 (shipped)** | **87.07** | **−19.1%** | **56.13** | **50.5** |
+| 0.30 | 82.90 | −23.0% | 50.13 | 52.3 |
+| 0.20 | 78.47 | −27.1% | 43.89 | 55.3 |
+
+**§5 predicted the wrong number, and for a reason worth keeping.** It said "0.35–
+0.45 takes the interior mean from 120 to the mid-80s". The four-pose mean at 0.40
+is 104.2, not the mid-80s — because p1 stands in the doorway looking out, is
+carried by real daylight through the glazing, and moves only 167.65 → 161.89. §2
+had already said that pose was 7.8% fill-driven; §5 then averaged it in anyway.
+Excluding it, the three poses that are actually inside the room land at **87.07**,
+which is the mid-80s §5 meant. The figure is now reported both ways.
+
+**The contrast goes UP, not down.** This was not predicted at all. Nav-band
+contrast rises 39.8 → 50.5 as the fill falls, because what is being removed is
+flat, unoccluded, everywhere-equal irradiance. The walk's complaint was that the
+room reads flat, not merely that it reads bright, and this addresses the flatness
+directly rather than as a side effect. Both legibility floors (ceiling p95 ≥ 12,
+nav p95−p05 ≥ 6) hold at every scale swept, including 0.20 — they are not the
+binding constraint, so 0.40 is chosen for the level and the contrast rather than
+against a floor.
+
+**The course is untouched, measured at the mechanism.** Outside, the indoorness
+factor is 0 and the hemisphere carries 0.9 at every scale — identical to the
+control. Comparing outdoor screenshots was the indirect version of this question
+and kept failing on 0.05 luma of renderer noise; an end-of-run recapture at the
+control scale reads 0.000 drift, so the wobble is GTAO and cloud animation, not
+the change.
+
+### Four instrument faults, caught before the numbers were used
+
+1. **The shipped scale was read after the sweep had overwritten it**, so the first
+   run reported `shippedScale: 0.2` — the last value the sweep itself had set. An
+   instrument reporting its own footprint as a measurement.
+2. **The clock advanced between captures.** The probe must run at 1× (the shell
+   only learns the circuit is dead when the clubhouse update runs), so the sun
+   moved between frames and the outdoor control drifted 56.56 → 56.62 across the
+   sweep. The clock is now re-pinned before every capture.
+3. **The course check had no scale.** "Must not move" failed on 0.03 of noise
+   until the noise was measured — a back-to-back repeat, plus an end-of-run
+   recapture at the control scale — and then replaced entirely by the exact
+   mechanism check above.
+4. **The nav-band floor was measuring the HUD.** The probe hid `.hud`; the chips
+   are `.hud-min` and the lock hint is `.shop-lockhint`, which sits inside the
+   nav-band crop. White caption text in the band meant the ">= 6 contrast" floor
+   passed on the caption at every scale. A check that cannot fail is not a check.
+   With the overlay hidden the band measures the room — and only then does the
+   contrast-rises-as-fill-falls result appear at all.
