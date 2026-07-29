@@ -8,9 +8,11 @@ names what unblocks it.
 
 ## SIM-TIME-001 — NPC life is wall-clock-bound; game speed compresses only the clock
 
-**Status:** OPEN — quantified 2026-07-28 (per the ruling: "quantify, do not fix
-yet"). Fix gated on a design decision about what game speed *means* for the
-shop simulation.
+**Status:** OPEN — direction RULED 2026-07-28; fix scheduled **before Phase 7
+integration**, not now. The agreed shape is recorded below so it is not
+re-litigated. Standing consequence, effective immediately: **every NPC
+verification runs at 1× only** — a 16× green means nothing for NPC claims;
+runs above 1× are stress regimes and must be tagged as such.
 
 **Symptom:** shop throughput per game day FALLS as game speed rises. A player
 at 16× is penalised against a player at 1×: customers complete fewer visits
@@ -82,16 +84,82 @@ actors' real interaction density.
   what a 1× player experiences. They remain valid as the stress-test regime
   they accidentally were.
 
-**Suspected-fix directions (for the future ruling, not begun):** scale
-`clubhouseApi.update`'s dt by the speed multiplier (full sim-time parity —
-changes walk speed perception at 16×); or scale only decision/dwell/arrival
-cadences while keeping locomotion wall-rate (visual sanity, partial parity);
-or redefine 16× as "cinematic fast-forward" and gate economy fairness
-elsewhere. Each changes what a "day" yields; none is obviously right without
-design intent.
+**RULED fix shape (2026-07-28 — agreed, do not re-litigate):**
 
-**Unblocks:** the wall-vs-sim clock ruling flagged in
-`OVERNIGHT_REPORT.md` §1 (still open).
+- NPC **decisions** — dwell, browse duration, arrival rolls, transaction
+  time — scale with the **game clock**.
+- NPC **locomotion** stays **wall-rate but capped at roughly 4×**.
+- **Full dt scaling is rejected**: at 16× it would move bodies fast enough to
+  tunnel collision — the exact class the corridor seals just closed.
+- **Schedule:** the fix lands **before Phase 7 integration**, not now. Phase 4
+  does not depend on NPC throughput, and the layout is validated at 1× where
+  it matters.
+
+(The other directions considered — full dt parity, or redefining 16× as pure
+cinematic fast-forward — are rejected by this ruling and stay here only as
+history.)
+
+**Unblocks:** nothing — the direction is settled; the remaining work is the
+Phase-7-gated implementation.
+
+---
+
+## NAV-CHURN-001 — crowd churn under a full house: accepted as designed pressure, gated by threshold
+
+**Status:** RULED 2026-07-28. Not a defect to fix — a designed signal with a
+red line. Recorded here so the gate's shape is not re-litigated.
+
+**The ruling (operative lines):** "Eleven customers in 70 m² with nobody
+serving should jam. That pressure is what makes hiring a cashier feel
+necessary, so it stays. Do not exempt the class — that kills the signal.
+Convert the gate to a threshold: fail if any single block exceeds 20 seconds,
+or if the recovery rate drops below a floor you propose and justify. A genuine
+trap must still turn the gate red."
+
+**The gate (implemented in `tools/qa/proshop-greybox-customer-day.js`):**
+
+- A **block episode** opens when a walker nets < 0.15 yd across a
+  12-wall-second window while not at a stop and not queued, and stays open
+  until the walker gets ≥ 0.60 yd from the episode anchor (a real escape —
+  two body radii past shove jitter), arrives, joins the queue, or leaves.
+  Episode time includes the 12-s detection lag (stillness began at window
+  start). Slow-creep pins cannot reset the clock by drifting between windows.
+- **RED: any single episode > 20 wall-seconds** (the ruled cap).
+- **RED: recovery rate below the floor — with ≥ 4 episodes in a leg, at least
+  75% must clear within 15 wall-seconds of onset.** Justification: 15 s is
+  the recovery ladder's own design budget (12-s detection window + one ladder
+  cycle — the constraint the instrument has always documented); an episode
+  past 15 s means the ladder's first cycle failed and a second was needed.
+  That should be the exception (≤ 1 in 4) in a working room; a room where
+  most blocks need multiple ladder cycles is drifting toward trap country
+  even if no single block hits 20 s. Below 4 episodes the cap alone governs —
+  a proportion over 1–3 samples is noise.
+- All thresholds are **wall units at every game speed** — locomotion is
+  wall-rate (SIM-TIME-001), so a block is a wall-time phenomenon.
+- Short jam churn under a full house stays **GREEN by design** — reported
+  (count, p50/p95/max durations, positions) but not failed. Counter-class
+  waiters still inside at close (in queue / counter stop / waiting / paying)
+  are likewise the designed no-cashier signal: reported, not failed.
+
+**Every genuine-trap class still turns the gate red:** a pinned walker trips
+the 20-s cap; systemic ladder thrash trips the recovery floor; a queue that
+outlives patience trips the 12-wall-minute queue bound; a geometry leak trips
+the new containment assertion (no customer center in the staff corridor, east
+of the public bound, or inside a sealed slab — rects derived from the live
+layout); a large-loop pacer still inside at close is outside the
+counter-waiter class and fails.
+
+**Instrument correction this ruling forced into the open:** the residual class
+was previously described as "12-second recovering churn". That was an artifact
+of the old instrument — its per-customer record kept only the worst 12-s
+*detection window*, so every block read as ~12 s regardless of true length.
+requeue3's own nav-block log shows visitor:4 and visitor:8 at fixed
+coordinates near member_station from game-minute ~754 to ~873 at 16× (~7.5
+continuous wall-minutes) before the crowd shifted and both completed their
+visits. Under the episode instrument that is one episode far over the cap.
+Whether the 1× regime (visits complete, crowds thin) reproduces pins of that
+length is exactly what the 1× airtight re-run measures — if it does, the gate
+is now honest enough to say so.
 
 ---
 
