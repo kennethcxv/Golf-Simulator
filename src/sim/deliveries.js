@@ -697,13 +697,62 @@ function normalizedLegacyManifest(manifest, planned, sku) {
   };
 }
 
+// What this order SHOULD have shipped as, reconstructed from its own record.
+//
+// A multi-line order has no single skuId — buildOrderDraft writes
+// `skuId: lines.length === 1 ? lines[0].skuId : null` — so a gate that starts
+// with skuById(order.skuId) rejects every cart of more than one product. That
+// is what it did: the order was refused on every tick, returned no boxes, never
+// decremented remainingUnreceivedQuantity, and so never left state.shop.orders.
+// A zombie in the delivery queue, retried forever, and a shop that could only
+// be restocked one SKU at a time.
+//
+// The manifest was never the problem. buildOrderDraft concatenates one
+// planShipment per line and tags each box with its own skuId and lineId, and
+// arriveOrder's box loop already reads manifestBox.skuId first. Rebuilding the
+// expectation the same way is all that was missing.
+function plannedShipmentFor(order) {
+  const lines = Array.isArray(order.lines) ? order.lines : null;
+  if (!lines || lines.length === 0) {
+    const sku = skuById(order.skuId);
+    if (!sku) return null;
+    const planned = planShipment(sku, order.qty);
+    return planned ? { planned, sku } : null;
+  }
+  const boxes = [];
+  let units = 0;
+  for (const line of lines) {
+    const sku = skuById(line?.skuId);
+    if (!sku) return null;
+    const quantity = line.quantity ?? line.qty;
+    if (!positiveSafeInteger(quantity)) return null;
+    const plan = planShipment(sku, quantity);
+    if (!plan || !Array.isArray(plan.boxes) || plan.boxes.length === 0) return null;
+    for (const box of plan.boxes) boxes.push({ ...box, skuId: sku.id, lineId: line.id });
+    units += quantity;
+  }
+  if (units !== order.qty) return null;
+  return {
+    // Weight is summed from the boxes exactly as buildOrderDraft sums it, rather
+    // than from the per-line plan weights, so the two cannot disagree by a
+    // rounding step.
+    planned: {
+      boxes,
+      boxCount: boxes.length,
+      weight: Math.round(boxes.reduce((sum, box) => sum + box.lb, 0) * 100) / 100,
+    },
+    // A multi-line order has no single sku, and nothing downstream needs one:
+    // every carton carries its own.
+    sku: lines.length === 1 ? skuById(lines[0].skuId) : null,
+  };
+}
+
 function validatedArrival(order) {
   if (!order || typeof order !== 'object' || Array.isArray(order)) return null;
   if (!positiveSafeInteger(order.qty)) return null;
-  const sku = skuById(order.skuId);
-  if (!sku) return null;
-
-  const planned = planShipment(sku, order.qty);
+  const resolved = plannedShipmentFor(order);
+  if (!resolved) return null;
+  const { planned, sku } = resolved;
   // A missing manifest is the supported pre-manifest save path. Keep its
   // deterministic planner fallback, after the strict boundary check above.
   const manifest = order.manifest == null ? planned : order.manifest;
@@ -732,6 +781,14 @@ function validatedArrival(order) {
     if (strictContractManifest) {
       const expected = planned.boxes[index];
       if (!expected || !strictManifestBoxMatches(box, expected)) return null;
+      // Widening the gate to multi-line orders must not open it. Every carton
+      // that names a sku has to name the one its position in the plan says, and
+      // it has to be a sku that exists — otherwise a manifest could route stock
+      // to a product nobody ordered.
+      if (box.skuId !== undefined) {
+        if (!skuById(box.skuId)) return null;
+        if (expected.skuId !== undefined && box.skuId !== expected.skuId) return null;
+      }
     }
     units += box.qty;
     if (!Number.isSafeInteger(units) || units > order.qty) return null;
@@ -739,6 +796,10 @@ function validatedArrival(order) {
   if (units !== order.qty) return null;
 
   if (!strictContractManifest) {
+    // The pre-contract migration path re-plans from ONE sku, so it only applies
+    // to orders that have one. Multi-line orders postdate the packaging
+    // contract and always carry a schema version, so they never reach here.
+    if (!sku) return null;
     return { sku, manifest: normalizedLegacyManifest(manifest, planned, sku) };
   }
   if (manifest.boxes.length !== planned.boxes.length) return null;
@@ -893,9 +954,16 @@ export function arriveOrder(state, order, { maxBoxes = Infinity } = {}) {
   shipment.usedFallback ||= made.some((box) => box.loc === 'receiving-fallback');
   shipment.lastLandedMin = (state.clock && state.clock.minutes) || 0;
   refreshOrderFromLedger(state, arrivalOrder.id);
+  // A multi-line order has no single sku, so `sku` is null here and reading
+  // .name off it threw — the same crash the laptop hit on its own null skuId,
+  // arriving by a different route. Name what actually shipped.
+  const lineCount = Array.isArray(arrivalOrder.lines) ? arrivalOrder.lines.length : 0;
+  const what = sku
+    ? sku.name
+    : (lineCount > 1 ? `${lineCount} products` : 'Mixed shipment');
   notify(state, {
     kind: 'delivery',
-    text: `Delivery arriving: ${sku.name} × ${arrivalOrder.qty} — the van checked in with ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} for receiving.`,
+    text: `Delivery arriving: ${what} × ${arrivalOrder.qty} — the van checked in with ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} for receiving.`,
     dedupeKey: `arrived:${arrivalOrder.id}`,
   });
   return made;
