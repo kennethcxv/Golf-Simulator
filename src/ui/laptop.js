@@ -22,7 +22,7 @@ import { calendarOf } from '../sim/time.js';
 import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
-import { supplierFor } from '../data/suppliers.js';
+import { supplierFor, shippingLeadDays } from '../data/suppliers.js';
 import {
   placeOrder, cancelOrder, orderCost, priceFor, velocity, buyRentalSets,
 } from '../sim/shop.js';
@@ -1286,22 +1286,32 @@ export function makeLaptop(app, opts) {
       render();
     };
 
-    let goods = 0;
-    let freight = 0;
-    let boxCount = 0;
-    for (const [id, qty] of cart) {
-      const sku = skuById(id);
-      const ship = shipOf(sku, qty);
-      const lineGoods = orderCost(sku, qty);
-      goods += lineGoods;
-      freight += ship.fee;
-      boxCount += ship.boxCount;
-    }
-    goods = Math.round(goods * 100) / 100;
-    freight = Math.round(freight * 100) / 100;
-    const total = Math.round((goods + freight) * 100) / 100;
+    // Quote from the same function that builds the real order, for both
+    // services. Summing planShipment(sku, qty).fee per line — what this used to
+    // do — is not what gets charged: freight is priced per SUPPLIER on the
+    // grouped box count, so a basket from one supplier was quoted several base
+    // fees and billed one.
+    const cartLines = [...cart].map(([skuId, quantity]) => ({ skuId, quantity }));
+    const emptyQuote = {
+      ok: true, goods: 0, freight: 0, total: 0, boxes: 0, leadDays: 0, orders: [],
+    };
+    const quoteFor = (speed) => {
+      if (!cartLines.length) return emptyQuote;
+      const quoted = quotePurchaseOrders(st, cartLines, speed);
+      return quoted.ok ? quoted : emptyQuote;
+    };
+    const quoteStandard = quoteFor('standard');
+    const quoteExpress = quoteFor('express');
+    const shipMode = ss.shipping === 'express' ? 'express' : 'standard';
+    const quote = shipMode === 'express' ? quoteExpress : quoteStandard;
+    const goods = quote.goods;
+    const freight = quote.freight;
+    const boxCount = quote.boxes;
+    const total = quote.total;
     const affordable = total <= cashOf();
     const supplierCount = new Set([...cart.keys()].map((id) => supplierFor(skuById(id)).id)).size;
+    // "Tomorrow" is a sentence; "arrives day 41" is a lookup.
+    const arrivalWord = (days) => (days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`);
 
     const cats = ['balls', 'clubs', 'apparel', 'accessories', 'provisions', 'supplies', 'decor'];
     const catBar = el('div', { class: 'lt-tabs' },
@@ -1337,7 +1347,9 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-prodprice' },
           el('span', { class: 'lt-wholesale', text: formatMoney(s.cost) }),
           el('span', { class: 'lt-meta', text: ` → sells ${formatMoney(suggested)}` })),
-        el('div', { class: 'lt-prodmeta', text: `${supplier.name} · ${packagingReady ? `${unitsPerBox(s)} per box` : 'packaging pending'} · arrives in ${LEAD_DAYS[s.cat]}d · have ${owned.shelf + owned.back}` }),
+        // The per-product lead follows the service the basket is set to, or the
+        // card and the shipping chooser contradict each other on one screen.
+        el('div', { class: 'lt-prodmeta', text: `${supplier.name} · ${packagingReady ? `${unitsPerBox(s)} per box` : 'packaging pending'} · arrives ${arrivalWord(shippingLeadDays(LEAD_DAYS[s.cat], shipMode))} · have ${owned.shelf + owned.back}` }),
         locked
           ? el('div', { class: 'lt-lock', text: packagingReady
             ? `🔒 Needs supplier tier ${s.tier}`
@@ -1353,13 +1365,14 @@ export function makeLaptop(app, opts) {
       const result = submitPurchaseOrders(st, {
         idempotencyKey: `laptop-order:${st.seed}:${st.shop.nextOrderId}:${orderIntent++}`,
         lines: [...cart].map(([skuId, quantity]) => ({ skuId, quantity })),
+        shipping: shipMode,
       });
       if (!result.ok) {
         toast(result.reason, 'warn');
         render();
         return;
       }
-      toast(`Order accepted — ${formatMoney(result.cost)}. ${plural(result.boxes, 'box')} to the receiving pad.`);
+      toast(`Order accepted — ${formatMoney(result.cost)}, ${shipMode} delivery arriving ${arrivalWord(quote.leadDays)}. ${plural(result.boxes, 'box')} to the receiving pad.`);
       if (app.audio && app.audio.ready) app.audio.chime();
       cart.clear();
       ts('shop').tab = 'deliveries';
@@ -1369,7 +1382,7 @@ export function makeLaptop(app, opts) {
       // small orders can skip the confirmation if the player turned that off in Settings
       if (prefsOf().confirmOrders === false && total < 100) { placeAll(); return; }
       askConfirm(
-        `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} delivery. ${plural(boxCount, 'box')} to the pad outside.`,
+        `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} ${shipMode} delivery, arriving ${arrivalWord(quote.leadDays)}. ${plural(boxCount, 'box')} to the pad outside.`,
         'Place the order', placeAll,
       );
     };
@@ -1395,6 +1408,36 @@ export function makeLaptop(app, opts) {
         el('span', { class: 'lt-headspace' }),
         el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: `Total ${formatMoney(total)}` }),
         primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
+      // Buying time with money, priced side by side so the trade is one glance
+      // rather than two screens. Both options always show their arrival and
+      // their freight; the difference between them is spelled out on the
+      // express option so the player never has to subtract.
+      cart.size ? el('div', { class: 'lt-shipping' },
+        el('span', { class: 'lt-shiplabel', text: 'Shipping' }),
+        ...[
+          { id: 'standard', label: 'Standard', q: quoteStandard },
+          { id: 'express', label: 'Express', q: quoteExpress },
+        ].map(({ id, label, q }) => {
+          const chosen = shipMode === id;
+          const premium = Math.round((q.freight - quoteStandard.freight) * 100) / 100;
+          const sooner = quoteStandard.leadDays - q.leadDays;
+          return el('button', {
+            class: `lt-shipopt ${chosen ? 'on' : ''}`,
+            onclick: () => { ss.shipping = id; click(); render(); },
+          },
+          el('span', { class: 'lt-shipname', text: label }),
+          el('span', { class: 'lt-shipeta', text: `Arrives ${arrivalWord(q.leadDays)}` }),
+          el('span', { class: 'lt-shipfee', text: formatMoney(q.freight) }),
+          id === 'express'
+            ? el('span', {
+              class: 'lt-shipdelta',
+              text: sooner > 0
+                ? `${sooner} day${sooner === 1 ? '' : 's'} sooner for ${formatMoney(premium)} more`
+                : 'Already the soonest this order can arrive',
+            })
+            : null);
+        }),
+      ) : null,
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
       el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
       catBar,

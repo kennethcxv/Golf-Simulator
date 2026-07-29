@@ -12,7 +12,9 @@
 
 import { SHOP_CATALOG, skuById, LEAD_DAYS } from '../data/shopItems.js';
 import { SHIPMENT_PACKAGING_SCHEMA_VERSION, planShipment } from '../data/boxes.js';
-import { SUPPLIERS, supplierFor, shipFee } from '../data/suppliers.js';
+import {
+  SUPPLIERS, supplierFor, shipFee, shippingLeadDays, shippingSpeed, DEFAULT_SHIPPING_SPEED,
+} from '../data/suppliers.js';
 import { calendarOf } from './time.js';
 import { addExpense, unbill } from './economy.js';
 import { capacityOf } from '../data/fixtureSlots.js';
@@ -692,7 +694,7 @@ function failedOrder(state, lines, reason, idempotencyKey, fingerprint) {
   return { ok: false, reason, orders: [order], charged: 0 };
 }
 
-function buildOrderDraft(state, supplier, inputs, id) {
+function buildOrderDraft(state, supplier, inputs, id, speedId = DEFAULT_SHIPPING_SPEED) {
   const minute = nowOf(state);
   const dayAbs = calendarOf(minute).dayAbs;
   const lines = [];
@@ -719,8 +721,14 @@ function buildOrderDraft(state, supplier, inputs, id) {
     leadDays = Math.max(leadDays, LEAD_DAYS[sku.cat] || 1);
   }
   goods = round2(goods);
-  const shippingCost = shipFee(supplier, boxes.length);
+  const speed = shippingSpeed(speedId);
+  const shippingCost = shipFee(supplier, boxes.length, speed.id);
   const totalCost = round2(goods + shippingCost);
+  // What the player bought with the freight premium, recorded next to what they
+  // paid for it: standardLeadDays is kept so the delivery list can say how much
+  // sooner this one is coming rather than just showing a date.
+  const standardLeadDays = leadDays;
+  leadDays = shippingLeadDays(leadDays, speed.id);
   const arrivesDay = dayAbs + leadDays;
   const numeric = Number.isSafeInteger(id) ? id : lines.length;
   const slot = DELIVERY_SLOTS[(numeric * 7) % DELIVERY_SLOTS.length];
@@ -733,6 +741,10 @@ function buildOrderDraft(state, supplier, inputs, id) {
     id,
     supplierId: supplier.id,
     supplier: supplier.name,
+    shippingSpeed: speed.id,
+    shippingLabel: speed.label,
+    leadDays,
+    standardLeadDays,
     lines,
     skuId: lines.length === 1 ? lines[0].skuId : null,
     qty: quantity,
@@ -782,7 +794,7 @@ function buildOrderDraft(state, supplier, inputs, id) {
 // Submit one player basket. Lines are grouped into one purchase order per
 // supplier so freight base charges happen once per supplier. The entire basket
 // is preflighted before cash or inventory changes, then charged once.
-export function quotePurchaseOrders(state, lines) {
+export function quotePurchaseOrders(state, lines, shipping = DEFAULT_SHIPPING_SPEED) {
   const normalized = normalizedLines(lines);
   if (!normalized.ok) return normalized;
   const groups = new Map();
@@ -796,10 +808,18 @@ export function quotePurchaseOrders(state, lines) {
     groups.get(supplier.id).lines.push(line);
   }
   let nextOrderId = Number.isSafeInteger(state.shop.nextOrderId) ? state.shop.nextOrderId : 1;
-  const orders = [...groups.values()].map((group) => buildOrderDraft(state, group.supplier, group.lines, nextOrderId++));
+  const speed = shippingSpeed(shipping);
+  const orders = [...groups.values()].map(
+    (group) => buildOrderDraft(state, group.supplier, group.lines, nextOrderId++, speed.id),
+  );
   return {
     ok: true,
     orders,
+    shipping: speed.id,
+    shippingLabel: speed.label,
+    // The slowest line decides when the whole cart is usable, so this is the
+    // number the checkout quotes rather than an average.
+    leadDays: orders.reduce((most, order) => Math.max(most, order.leadDays), 0),
     goods: round2(orders.reduce((sum, order) => sum + order.goods, 0)),
     freight: round2(orders.reduce((sum, order) => sum + order.shippingCost, 0)),
     total: round2(orders.reduce((sum, order) => sum + order.totalCost, 0)),
@@ -811,11 +831,18 @@ export function quotePurchaseOrders(state, lines) {
 export function submitPurchaseOrders(state, {
   lines,
   idempotencyKey = null,
+  shipping = DEFAULT_SHIPPING_SPEED,
 } = {}) {
   const lifecycle = ensureInventoryLifecycle(state);
   if (!lifecycle) return { ok: false, reason: 'Shop inventory is unavailable.' };
   const normalized = normalizedLines(lines);
-  const fingerprint = normalized.ok ? payloadFingerprint(normalized.lines) : JSON.stringify(lines || []);
+  // The service is part of what was ordered. Without it, replaying an
+  // idempotency key with express selected would silently hand back the standard
+  // order that key already bought.
+  const speedId = shippingSpeed(shipping).id;
+  const fingerprint = normalized.ok
+    ? `${payloadFingerprint(normalized.lines)}|${speedId}`
+    : JSON.stringify({ lines: lines || [], shipping: speedId });
   if (idempotencyKey && lifecycle.idempotency.orders[idempotencyKey]) {
     const prior = lifecycle.idempotency.orders[idempotencyKey];
     if (prior.fingerprint !== fingerprint) {
@@ -844,7 +871,9 @@ export function submitPurchaseOrders(state, {
 
   // Reserve IDs only in local drafts until every validation succeeds.
   let nextOrderId = Number.isSafeInteger(state.shop.nextOrderId) ? state.shop.nextOrderId : 1;
-  const drafts = [...groups.values()].map((group) => buildOrderDraft(state, group.supplier, group.lines, nextOrderId++));
+  const drafts = [...groups.values()].map(
+    (group) => buildOrderDraft(state, group.supplier, group.lines, nextOrderId++, speedId),
+  );
   const totalCost = round2(drafts.reduce((sum, order) => sum + order.totalCost, 0));
   if (!Number.isFinite(state.cash) || state.cash < totalCost) {
     return failedOrder(state, normalized.lines, 'Not enough cash.', idempotencyKey, fingerprint);

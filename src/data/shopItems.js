@@ -137,7 +137,22 @@ export function skuById(id) {
 }
 
 // supplier lead time in days by category (clubs ship slow)
-export const LEAD_DAYS = { clubs: 4, balls: 2, apparel: 3, accessories: 2, provisions: 1, supplies: 2, decor: 3 };
+// HOW LONG A DELIVERY TAKES, against how long a day takes.
+//
+// The clock runs at 2x real time (balance.gameMinutesPerRealSecond = 1/30), so
+// one game day is 12 real hours at 1x, 3 at 4x, and about 45 real minutes at
+// 16x — and 4x/16x is where the game is actually played. Under the old numbers
+// a set of irons took four days: 3 real hours at the fastest speed the game
+// offers, 12 at a comfortable one. That is several sessions between deciding to
+// stock something and being able to sell it, and it is why ordering read as
+// something you set up and came back to rather than something you did.
+//
+// Halved, and floored at one day: order at open, stock it the following
+// morning, sell it that day. One night is a beat the player can hold in their
+// head; four days is a diary entry. Clubs and fixtures keep two, because they
+// are the expensive, slow-moving lines where planning ahead should still mean
+// something — and because express needs something left to compress.
+export const LEAD_DAYS = { clubs: 2, balls: 1, apparel: 1, accessories: 1, provisions: 1, supplies: 1, decor: 2 };
 
 // shelf capacity per sku by category (one facing); shop equipment/decor never
 // takes a retail facing — it lives in the back until used or placed

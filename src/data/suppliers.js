@@ -51,8 +51,37 @@ export function supplierFor(sku) {
   return BY_CAT[sku.cat] || SUPPLIERS.fairway;
 }
 
+// PAYING FOR TIME.
+//
+// Two services, and the difference has to be legible at the moment of choosing:
+// express takes a day off the wait and costs two and a half times the freight.
+// One multiplier rather than a base-plus-percentage, so the player can see what
+// the second van costs without doing arithmetic — and because it scales with
+// the size of the shipment, rushing a pallet of fixtures costs real money while
+// rushing a couple of boxes of balls does not.
+//
+// A day off is the whole point. Standard is one day for most lines (two for
+// clubs and fixtures), so express usually means "today" against "tomorrow" —
+// the shortest possible sentence for what the money bought.
+export const SHIPPING_SPEEDS = Object.freeze({
+  standard: Object.freeze({ id: 'standard', label: 'Standard', feeMultiplier: 1, daysSaved: 0 }),
+  express: Object.freeze({ id: 'express', label: 'Express', feeMultiplier: 2.5, daysSaved: 1 }),
+});
+
+export const DEFAULT_SHIPPING_SPEED = 'standard';
+
+export function shippingSpeed(id) {
+  return SHIPPING_SPEEDS[id] || SHIPPING_SPEEDS[DEFAULT_SHIPPING_SPEED];
+}
+
 // what freight costs for a shipment of n boxes from this supplier
-export function shipFee(supplier, boxCount) {
+export function shipFee(supplier, boxCount, speedId = DEFAULT_SHIPPING_SPEED) {
   const s = supplier || SUPPLIERS.fairway;
-  return Math.round((s.feeBase + s.feePerBox * Math.max(1, boxCount)) * 100) / 100;
+  const base = s.feeBase + s.feePerBox * Math.max(1, boxCount);
+  return Math.round(base * shippingSpeed(speedId).feeMultiplier * 100) / 100;
+}
+
+// An order never arrives sooner than the same day, however much is paid.
+export function shippingLeadDays(leadDays, speedId = DEFAULT_SHIPPING_SPEED) {
+  return Math.max(0, leadDays - shippingSpeed(speedId).daysSaved);
 }

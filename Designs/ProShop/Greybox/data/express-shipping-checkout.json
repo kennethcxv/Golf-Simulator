@@ -1,0 +1,53 @@
+{
+  "addedProducts": [
+    "Tee bag (50)",
+    "Ball marker set"
+  ],
+  "standardSelected": {
+    "options": [
+      {
+        "name": "Standard",
+        "eta": "Arrives tomorrow",
+        "fee": "$15",
+        "delta": null,
+        "selected": true
+      },
+      {
+        "name": "Express",
+        "eta": "Arrives today",
+        "fee": "$38",
+        "delta": "1 day sooner for $23 more",
+        "selected": false
+      }
+    ],
+    "summary": "2 items1 supplier · 2 boxes · delivery $15Total $21Place Order"
+  },
+  "expressSelected": {
+    "options": [
+      {
+        "name": "Standard",
+        "eta": "Arrives tomorrow",
+        "fee": "$15",
+        "delta": null,
+        "selected": false
+      },
+      {
+        "name": "Express",
+        "eta": "Arrives today",
+        "fee": "$38",
+        "delta": "1 day sooner for $23 more",
+        "selected": true
+      }
+    ],
+    "summary": "2 items1 supplier · 2 boxes · delivery $38Total $43Place Order"
+  },
+  "placed": {
+    "ok": true,
+    "lines": 2,
+    "shippingSpeed": "express",
+    "leadDays": 0,
+    "standardLeadDays": 1,
+    "shippingCost": 37.5
+  },
+  "ok": true
+}
