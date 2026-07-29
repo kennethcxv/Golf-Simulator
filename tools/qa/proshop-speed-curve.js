@@ -4,9 +4,16 @@ async (page) => {
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-speed-curve.js
   //
-  // clubhouseApi.update(dtMs) receives RAW WALL dt (courseScene.js:9651):
-  // game speed compresses the CLOCK only, customers always move at wall rate.
-  // This harness measures what that does to the shop: the SAME 60-game-minute
+  // SUPERSEDED IN PART, 2026-07-29. When this was written clubhouseApi.update
+  // received RAW WALL dt: game speed compressed the CLOCK only and customers
+  // always moved at wall rate, so a fast-forward emptied the shop. That is
+  // SIM-TIME-001 and it is FIXED — decisions now scale with the game clock while
+  // locomotion scales with the speed rung alone. What follows still measures
+  // throughput per rung honestly; it no longer measures a defect.
+  //
+  // Walking speed itself is NOT measured here. tools/qa/proshop-walk-speed.js
+  // owns that, in yards per real second against each body's authored speed.
+  // This harness measures the SAME 60-game-minute
   // mid-day window, on the SAME restored resized room, with the SAME scripted
   // spawn, at 16x / 4x / 1x (BALANCE.speeds idx 3/2/1) — each leg from a fresh
   // boot so no leg contaminates the next. Reported per leg: arrivals,
@@ -259,10 +266,12 @@ async (page) => {
       },
     },
     limitations: {
-      customersMoveInWallTime: true,
-      note: 'clubhouseApi.update receives raw wall dt (courseScene.js:9651); the curve '
-        + 'below IS that defect measured. No cashier is present, so transactions are '
-        + 'structurally zero and visit flow (arrivals/departures/progress) is throughput.',
+      customersMoveInWallTime: false,
+      note: 'SIM-TIME-001 is fixed: NPC decisions scale with the game clock, locomotion '
+        + 'with the speed rung alone (capped at 4x). This curve therefore measures '
+        + 'throughput, not the old defect. No cashier is present, so transactions are '
+        + 'structurally zero and visit flow (arrivals/departures/progress) is throughput — '
+        + 'and at the top rung most bodies end the window queued at an unstaffed till.',
     },
     legs,
     errs: errs.slice(0, 16),

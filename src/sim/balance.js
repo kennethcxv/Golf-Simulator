@@ -134,3 +134,35 @@ export const BALANCE = {
     onsetMult: { relaxed: 0.5, realistic: 1.0 },
   },
 };
+
+// THE TWO TIME MULTIPLIERS, derived in one place so the invariant can be tested
+// rather than trusted.
+//
+// This exists because the invariant was broken silently. The clubhouse used to
+// take a single multiplier and read locomotion off it as `min(mult, CAP)`. That
+// is indistinguishable from correct for as long as the multiplier is 1 — which
+// it was, for as long as the day was twelve real hours. Quartering the day made
+// it 4, and every shopper sprinted at the cap on the DEFAULT rung.
+//
+//   decision   — dwell, browse duration, arrival rolls, patience. Scales with
+//                the RUNG and the DAY LENGTH, so authored seconds keep meaning
+//                what they meant at the baseline rate.
+//   locomotion — how fast bodies move through space. Scales with the RUNG ONLY.
+//                Day length must never reach it: walking is a look, and the
+//                only thing entitled to change it is the player asking for
+//                fast-forward.
+//
+// tests/sim-time-locomotion.test.js drives this with a doctored day length and
+// requires locomotion to sit still while decision moves.
+export function simSpeedMultipliers(speedIdx, balance = BALANCE) {
+  const rung = balance.speeds[speedIdx];
+  // A paused world still reports the multipliers it would resume at — the
+  // clubhouse loop reads these every frame regardless of pause, and 0 would
+  // divide the shop's whole notion of time by nothing.
+  const active = rung || 1;
+  const baseline = balance.npcTimingBaselineGameMinutesPerRealSecond || (1 / 30);
+  return {
+    decision: active * (balance.gameMinutesPerRealSecond / baseline),
+    locomotion: active,
+  };
+}

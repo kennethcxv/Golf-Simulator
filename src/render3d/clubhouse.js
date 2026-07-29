@@ -9633,21 +9633,50 @@ export function makeClubhouse(ctx) {
   // choreography unreadable at speed and buys nothing, since none of them
   // gate throughput.
   const LOCOMOTION_SPEED_CAP = 4;
+  // THE PINNED REFERENCE. Locomotion is a LOOK, not a throughput knob: a customer
+  // crossing the shop must read as a person walking, whatever length the day is.
+  // This constant is what "wall rate" means here, and nothing derived from the
+  // clock may stand in for it.
+  //
+  // That substitution is precisely how this broke on 2026-07-29. setSimSpeed took
+  // ONE multiplier — the day's compression against the authored baseline — and
+  // locomotion read `min(simSpeed, CAP)` off it. While the day was twelve hours
+  // the compression was 1 and the two were indistinguishable. Shortening the day
+  // to three hours made the compression 4, and every shopper began sprinting at
+  // the cap on the DEFAULT rung. A cap is not a rate; reading a rate off a cap
+  // only looks correct while the input happens to be 1.
+  const LOCOMOTION_WALL_RATE = 1;
   let simSpeed = 1;
-  function setSimSpeed(mult) {
-    simSpeed = Number.isFinite(mult) && mult > 0 ? mult : 1;
+  let locomotionSpeed = LOCOMOTION_WALL_RATE;
+  // Two multipliers, passed separately and on purpose.
+  //
+  //   decisionMult   — how fast the shop's DAY runs against the rate the NPC
+  //                    timings were authored at. Day length feeds this one.
+  //   locomotionMult — how fast the player asked the whole world to run. ONLY the
+  //                    speed control feeds this one, and it is capped.
+  //
+  // Omitting the second argument yields wall rate — never a value derived from
+  // the first. A caller that forgets can only ever make people walk at human
+  // speed, which is the failure direction that is safe to ship.
+  function setSimSpeed(decisionMult, locomotionMult) {
+    simSpeed = Number.isFinite(decisionMult) && decisionMult > 0 ? decisionMult : 1;
+    const requested = Number.isFinite(locomotionMult) && locomotionMult > 0
+      ? locomotionMult
+      : LOCOMOTION_WALL_RATE;
+    locomotionSpeed = Math.min(requested, LOCOMOTION_SPEED_CAP);
   }
   const simTimeDiagnostics = () => ({
     simSpeed,
     locomotionCap: LOCOMOTION_SPEED_CAP,
-    locomotionScale: Math.min(simSpeed, LOCOMOTION_SPEED_CAP),
+    locomotionWallRate: LOCOMOTION_WALL_RATE,
+    locomotionScale: locomotionSpeed,
   });
 
   function updateCustomers(dt) {
     // How much of the shop's DAY passed this frame, and how far a body may move
     // in it. The two are deliberately different numbers above 4x.
     const decisionDt = dt * simSpeed;
-    const moveDt = dt * Math.min(simSpeed, LOCOMOTION_SPEED_CAP);
+    const moveDt = dt * locomotionSpeed;
     // Reservation arrivals share the same physical customer loop as retail
     // shoppers. Keep the persisted tee sheet authoritative, then materialize
     // every due party before advancing the floor routes below.

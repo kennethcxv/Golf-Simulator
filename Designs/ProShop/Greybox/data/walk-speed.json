@@ -1,0 +1,400 @@
+{
+  "what": "customer walking speed in yards per REAL second, by speed rung",
+  "ladder": [
+    0,
+    1,
+    2,
+    4
+  ],
+  "authored": {
+    "gameMinutesPerRealSecond": 0.13333333333333333,
+    "npcTimingBaseline": 0.03333333333333333,
+    "multipliers": [
+      {
+        "decision": 4,
+        "locomotion": 1
+      },
+      {
+        "decision": 4,
+        "locomotion": 1
+      },
+      {
+        "decision": 8,
+        "locomotion": 2
+      },
+      {
+        "decision": 16,
+        "locomotion": 4
+      }
+    ]
+  },
+  "protocol": {
+    "sampleWallSeconds": 10,
+    "sampledEvery": "requestAnimationFrame",
+    "statistic": "per-customer p90 of moving intervals (\"how fast when walking\"), then the median across customers",
+    "movingThresholdYdPerS": 0.05,
+    "warpThresholdYd": 1,
+    "minMovingSamplesPerBody": 20,
+    "clock": "performance.now() — wall time, never the game clock",
+    "room": "pine-hills-v2, 10:00, >=8 customers on the floor"
+  },
+  "humanBaselineYdPerS": 1.4,
+  "authoredCustomerSpeeds": {
+    "toCounter": 1.15,
+    "browsing": [
+      1.1,
+      1.6
+    ],
+    "note": "clubhouse.js spawnCustomer: speed = toCounter ? 1.15 : 1.1 + rng*0.5. These are the yd/s a customer SHOULD move at on the 1x rung."
+  },
+  "rungs": {
+    "x1": {
+      "speedIdx": 1,
+      "diagnostics": {
+        "simSpeed": 4,
+        "locomotionCap": 4,
+        "locomotionWallRate": 1,
+        "locomotionScale": 1
+      },
+      "bodiesWalking": 12,
+      "bodiesSeen": 12,
+      "bodiesNeverWalkedFreely": [],
+      "samples": {
+        "moving": 10663,
+        "idle": 6,
+        "warps": 0
+      },
+      "medianWalkYdPerS": 1.46,
+      "slowestWalkYdPerS": 1.23,
+      "fastestWalkYdPerS": 1.91,
+      "medianRatioToIntent": 1.06,
+      "bodies": [
+        {
+          "id": "customer_12qcuao_visitor%3A0",
+          "authoredYdPerS": 1.56,
+          "walkYdPerS": 1.65,
+          "expectedYdPerS": 1.56,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A1",
+          "authoredYdPerS": 1.31,
+          "walkYdPerS": 1.38,
+          "expectedYdPerS": 1.31,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A2",
+          "authoredYdPerS": 1.25,
+          "walkYdPerS": 1.31,
+          "expectedYdPerS": 1.25,
+          "ratioToIntent": 1.04
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A3",
+          "authoredYdPerS": 1.39,
+          "walkYdPerS": 1.47,
+          "expectedYdPerS": 1.39,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A4",
+          "authoredYdPerS": 1.4,
+          "walkYdPerS": 1.46,
+          "expectedYdPerS": 1.4,
+          "ratioToIntent": 1.04
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A5",
+          "authoredYdPerS": 1.26,
+          "walkYdPerS": 1.31,
+          "expectedYdPerS": 1.26,
+          "ratioToIntent": 1.04
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A6",
+          "authoredYdPerS": 1.48,
+          "walkYdPerS": 1.91,
+          "expectedYdPerS": 1.48,
+          "ratioToIntent": 1.29
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A7",
+          "authoredYdPerS": 1.28,
+          "walkYdPerS": 1.35,
+          "expectedYdPerS": 1.28,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A8",
+          "authoredYdPerS": 1.56,
+          "walkYdPerS": 1.64,
+          "expectedYdPerS": 1.56,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A9",
+          "authoredYdPerS": 1.17,
+          "walkYdPerS": 1.23,
+          "expectedYdPerS": 1.17,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A10",
+          "authoredYdPerS": 1.46,
+          "walkYdPerS": 1.54,
+          "expectedYdPerS": 1.46,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A11",
+          "authoredYdPerS": 1.26,
+          "walkYdPerS": 1.36,
+          "expectedYdPerS": 1.26,
+          "ratioToIntent": 1.08
+        }
+      ]
+    },
+    "x2": {
+      "speedIdx": 2,
+      "diagnostics": {
+        "simSpeed": 8,
+        "locomotionCap": 4,
+        "locomotionWallRate": 1,
+        "locomotionScale": 2
+      },
+      "bodiesWalking": 12,
+      "bodiesSeen": 12,
+      "bodiesNeverWalkedFreely": [],
+      "samples": {
+        "moving": 7606,
+        "idle": 3494,
+        "warps": 0
+      },
+      "medianWalkYdPerS": 2.86,
+      "slowestWalkYdPerS": 2.47,
+      "fastestWalkYdPerS": 3.41,
+      "medianRatioToIntent": 1.06,
+      "bodies": [
+        {
+          "id": "customer_12qcuao_visitor%3A0",
+          "authoredYdPerS": 1.56,
+          "walkYdPerS": 3.41,
+          "expectedYdPerS": 3.12,
+          "ratioToIntent": 1.09
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A1",
+          "authoredYdPerS": 1.31,
+          "walkYdPerS": 2.86,
+          "expectedYdPerS": 2.61,
+          "ratioToIntent": 1.1
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A2",
+          "authoredYdPerS": 1.25,
+          "walkYdPerS": 2.66,
+          "expectedYdPerS": 2.51,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A3",
+          "authoredYdPerS": 1.39,
+          "walkYdPerS": 2.93,
+          "expectedYdPerS": 2.79,
+          "ratioToIntent": 1.05
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A4",
+          "authoredYdPerS": 1.4,
+          "walkYdPerS": 2.98,
+          "expectedYdPerS": 2.8,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A5",
+          "authoredYdPerS": 1.26,
+          "walkYdPerS": 2.65,
+          "expectedYdPerS": 2.52,
+          "ratioToIntent": 1.05
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A6",
+          "authoredYdPerS": 1.48,
+          "walkYdPerS": 3.22,
+          "expectedYdPerS": 2.95,
+          "ratioToIntent": 1.09
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A7",
+          "authoredYdPerS": 1.28,
+          "walkYdPerS": 2.81,
+          "expectedYdPerS": 2.56,
+          "ratioToIntent": 1.1
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A8",
+          "authoredYdPerS": 1.56,
+          "walkYdPerS": 3.26,
+          "expectedYdPerS": 3.11,
+          "ratioToIntent": 1.05
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A9",
+          "authoredYdPerS": 1.17,
+          "walkYdPerS": 2.47,
+          "expectedYdPerS": 2.33,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A10",
+          "authoredYdPerS": 1.46,
+          "walkYdPerS": 2.6,
+          "expectedYdPerS": 2.92,
+          "ratioToIntent": 0.89
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A11",
+          "authoredYdPerS": 1.26,
+          "walkYdPerS": 2.63,
+          "expectedYdPerS": 2.51,
+          "ratioToIntent": 1.05
+        }
+      ]
+    },
+    "x4": {
+      "speedIdx": 3,
+      "diagnostics": {
+        "simSpeed": 16,
+        "locomotionCap": 4,
+        "locomotionWallRate": 1,
+        "locomotionScale": 4
+      },
+      "bodiesWalking": 4,
+      "bodiesSeen": 12,
+      "bodiesNeverWalkedFreely": [
+        {
+          "id": "customer_12qcuao_visitor%3A0",
+          "authoredYdPerS": 1.56,
+          "walkYdPerS": 1.9,
+          "expectedYdPerS": 6.24,
+          "ratioToIntent": 0.3
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A1",
+          "authoredYdPerS": 1.31,
+          "walkYdPerS": 0.24,
+          "expectedYdPerS": 5.23,
+          "ratioToIntent": 0.05
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A3",
+          "authoredYdPerS": 1.39,
+          "walkYdPerS": 0,
+          "expectedYdPerS": 5.58,
+          "ratioToIntent": 0
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A4",
+          "authoredYdPerS": 1.4,
+          "walkYdPerS": 2.55,
+          "expectedYdPerS": 5.6,
+          "ratioToIntent": 0.45
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A5",
+          "authoredYdPerS": 1.26,
+          "walkYdPerS": 0,
+          "expectedYdPerS": 5.03,
+          "ratioToIntent": 0
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A7",
+          "authoredYdPerS": 1.28,
+          "walkYdPerS": 1.43,
+          "expectedYdPerS": 5.12,
+          "ratioToIntent": 0.28
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A9",
+          "authoredYdPerS": 1.17,
+          "walkYdPerS": 1.48,
+          "expectedYdPerS": 4.66,
+          "ratioToIntent": 0.32
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A11",
+          "authoredYdPerS": 1.26,
+          "walkYdPerS": 1.29,
+          "expectedYdPerS": 5.02,
+          "ratioToIntent": 0.26
+        }
+      ],
+      "samples": {
+        "moving": 5358,
+        "idle": 5573,
+        "warps": 1
+      },
+      "medianWalkYdPerS": 6.24,
+      "slowestWalkYdPerS": 4.22,
+      "fastestWalkYdPerS": 6.5,
+      "medianRatioToIntent": 1.05,
+      "bodies": [
+        {
+          "id": "customer_12qcuao_visitor%3A2",
+          "authoredYdPerS": 1.25,
+          "walkYdPerS": 5.24,
+          "expectedYdPerS": 5.01,
+          "ratioToIntent": 1.05
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A6",
+          "authoredYdPerS": 1.48,
+          "walkYdPerS": 6.24,
+          "expectedYdPerS": 5.91,
+          "ratioToIntent": 1.06
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A8",
+          "authoredYdPerS": 1.56,
+          "walkYdPerS": 6.5,
+          "expectedYdPerS": 6.23,
+          "ratioToIntent": 1.04
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A10",
+          "authoredYdPerS": 1.46,
+          "walkYdPerS": 4.22,
+          "expectedYdPerS": 5.84,
+          "ratioToIntent": 0.72
+        }
+      ]
+    }
+  },
+  "control": {
+    "description": "each body must travel at its own authored yd/s times the rung's locomotionScale. Ratio 1.0 at every rung, checked against the code's intent rather than against another measurement.",
+    "ratios": {
+      "x1": {
+        "expected": 1,
+        "actual": 1.06,
+        "locomotionScale": 1,
+        "bodiesWalking": 12
+      },
+      "x2": {
+        "expected": 1,
+        "actual": 1.06,
+        "locomotionScale": 2,
+        "bodiesWalking": 12
+      },
+      "x4": {
+        "expected": 1,
+        "actual": 1.05,
+        "locomotionScale": 4,
+        "bodiesWalking": 4
+      }
+    },
+    "holds": true
+  },
+  "errs": [],
+  "ok": true
+}

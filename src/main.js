@@ -3,7 +3,7 @@
 // the 3D course scene, the DOM UI, and the clock. The unit of play is the
 // EMPIRE: one wallet, a property market, and whichever owned club is active.
 
-import { BALANCE } from './sim/balance.js';
+import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
   EMPIRE_VERSION, newStarterEmpire, buyProperty, sellProperty, switchProperty, activeState,
@@ -2366,15 +2366,23 @@ function frame(ts) {
     // the pause menu and the golf-day presentation all move speedIdx from
     // different places and any one of them forgetting would put the shop back
     // where it was.
-    // The multiplier is the ratio of game time to wall time against the rate the
-    // NPC timings were authored at — NOT BALANCE.speeds alone. Using the speed
-    // index by itself was a latent bug: shortening the day by changing
-    // gameMinutesPerRealSecond would have sped the clock and left the shoppers
-    // wall-bound, which is SIM-TIME-001 arriving by the other door.
-    app.scene3d.clubhouse?.()?.setSimSpeed?.(
-      (speed || 1) * (BALANCE.gameMinutesPerRealSecond
-        / (BALANCE.npcTimingBaselineGameMinutesPerRealSecond || (1 / 30))),
-    );
+    // TWO multipliers, and they are not the same number.
+    //
+    // DECISIONS scale with the ratio of game time to wall time against the rate
+    // the NPC timings were authored at — the speed rung AND the day's length.
+    // Using the rung alone was a latent bug: shortening the day would speed the
+    // clock and leave shoppers wall-bound, SIM-TIME-001 by the other door.
+    //
+    // LOCOMOTION scales with the RUNG ONLY. Day length must never reach it. When
+    // it did (2026-07-29, day 12h→3h) every shopper sprinted at the 4x cap on the
+    // default rung, because a compression of 4 was being read as a walk speed of
+    // 4. Walking is a look; the player asking for fast-forward is the only thing
+    // entitled to change it.
+    // The arithmetic lives in balance.js so a test can drive it with a doctored
+    // day length and prove locomotion does not move. Doing it inline here is how
+    // the two numbers got conflated in the first place.
+    const simMult = simSpeedMultipliers(app.speedIdx);
+    app.scene3d.clubhouse?.()?.setSimSpeed?.(simMult.decision, simMult.locomotion);
     if (speed > 0) {
       const golfParties = app.state.golfDay?.parties || [];
       const nearbyShot = app.speedIdx === 1 && golfParties.find((party) => (
