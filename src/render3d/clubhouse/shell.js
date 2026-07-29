@@ -187,8 +187,15 @@ export function buildShell(B) {
     }
     if (c < to) spans.push([c, to]);
     for (const [a, b] of spans) {
-      if (axis === 'x') addCol(colBoxAt((a + b) / 2, at, b - a, SHELL.wallT + 0.12));
-      else addCol(colBoxAt(at, (a + b) / 2, SHELL.wallT + 0.12, b - a));
+      const collider = axis === 'x'
+        ? colBoxAt((a + b) / 2, at, b - a, SHELL.wallT + 0.12)
+        : colBoxAt(at, (a + b) / 2, SHELL.wallT + 0.12, b - a);
+      // The building itself. A doorway clearway necessarily touches the wall the
+      // door is set into, so a clearway audit has to be able to tell the shell
+      // apart from something that was PUT there — otherwise the wall reads as an
+      // obstruction and the real intruders hide behind it.
+      collider.shellWall = true;
+      addCol(collider);
     }
   }
 

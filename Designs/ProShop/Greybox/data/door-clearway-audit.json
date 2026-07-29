@@ -1,0 +1,514 @@
+{
+  "variants": {
+    "pine-hills": {
+      "clearway": {
+        "minX": -2.1,
+        "maxX": 0.5,
+        "minZ": 3.35,
+        "maxZ": 5.65
+      },
+      "clutterSpots": [
+        {
+          "x": -8,
+          "z": 4.7
+        },
+        {
+          "x": -6.3,
+          "z": -3.9
+        },
+        {
+          "x": 4.2,
+          "z": 0.6
+        },
+        {
+          "x": 4.7,
+          "z": 3.1
+        },
+        {
+          "x": -1.2,
+          "z": -4.2
+        },
+        {
+          "x": -8.1,
+          "z": -4.8
+        },
+        {
+          "x": 6.7,
+          "z": 2.6
+        },
+        {
+          "x": 6.3,
+          "z": 4.95
+        }
+      ],
+      "origin": {
+        "x": -360,
+        "z": 4
+      },
+      "blockingColliders": [
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": -5.49,
+            "z": 5.63
+          },
+          "size": {
+            "w": 7.42,
+            "d": 0.37
+          },
+          "nearby": [
+            {
+              "name": "MESH_WindowStandard_LayeredCreamCasing",
+              "type": "Mesh",
+              "dist": 0.05
+            },
+            {
+              "name": "MESH_FieldstoneWaterTable",
+              "type": "Mesh",
+              "dist": 0.08
+            },
+            {
+              "name": "MESH_WindowStandard_WalnutDoubleSashes",
+              "type": "Mesh",
+              "dist": 0.08
+            },
+            {
+              "name": "MESH_FrontAbove_WindowMid",
+              "type": "Mesh",
+              "dist": 0.59
+            },
+            {
+              "name": "MESH_FrontBelow_WindowMid",
+              "type": "Mesh",
+              "dist": 0.59
+            },
+            {
+              "name": "snack_rack",
+              "type": "Group",
+              "dist": 0.6
+            }
+          ]
+        },
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": 4.69,
+            "z": 5.63
+          },
+          "size": {
+            "w": 9.02,
+            "d": 0.37
+          },
+          "nearby": [
+            {
+              "name": "MESH_FrontPier_East",
+              "type": "Mesh",
+              "dist": 0.01
+            },
+            {
+              "name": "SOCKET_Column_E",
+              "type": "Object3D",
+              "dist": 0.55
+            },
+            {
+              "name": "MESH_WaterCoolerBasePlinth",
+              "type": "Mesh",
+              "dist": 0.68
+            },
+            {
+              "name": "MESH_WaterCoolerBody",
+              "type": "Mesh",
+              "dist": 0.7
+            },
+            {
+              "name": "MESH_WaterCoolerJug",
+              "type": "Mesh",
+              "dist": 0.7
+            },
+            {
+              "name": "MESH_WaterCoolerJugShoulder",
+              "type": "Mesh",
+              "dist": 0.7
+            }
+          ]
+        },
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": -1.25,
+            "z": 5.63
+          },
+          "size": {
+            "w": 1.12,
+            "d": 0.24
+          },
+          "nearby": [
+            {
+              "name": "MESH_DoorLeft_Glass",
+              "type": "Mesh",
+              "dist": 0.09
+            },
+            {
+              "name": "MESH_DoorLeft_RaisedLowerPanel",
+              "type": "Mesh",
+              "dist": 0.12
+            },
+            {
+              "name": "MESH_DoorLeft_WalnutMuntins",
+              "type": "Mesh",
+              "dist": 0.14
+            },
+            {
+              "name": "SOCKET_Porch",
+              "type": "Object3D",
+              "dist": 0.28
+            },
+            {
+              "name": "SOCKET_Porch",
+              "type": "Object3D",
+              "dist": 0.28
+            },
+            {
+              "name": "A_054_EXTERIOR_PORCH_AND_STEPS_ROOT",
+              "type": "Object3D",
+              "dist": 0.28
+            }
+          ]
+        },
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": -0.35,
+            "z": 5.63
+          },
+          "size": {
+            "w": 1.12,
+            "d": 0.24
+          },
+          "nearby": [
+            {
+              "name": "MESH_DoorRight_Glass",
+              "type": "Mesh",
+              "dist": 0.09
+            },
+            {
+              "name": "MESH_DoorRight_RaisedLowerPanel",
+              "type": "Mesh",
+              "dist": 0.12
+            },
+            {
+              "name": "MESH_DoorRight_WalnutMuntins",
+              "type": "Mesh",
+              "dist": 0.14
+            },
+            {
+              "name": "MESH_ExitLampBodyLeft",
+              "type": "Mesh",
+              "dist": 0.32
+            },
+            {
+              "name": "MESH_DoorRight_DeepSashMoulding",
+              "type": "Mesh",
+              "dist": 0.34
+            },
+            {
+              "name": "MESH_FrontFascia",
+              "type": "Mesh",
+              "dist": 0.35
+            }
+          ]
+        }
+      ],
+      "walkable": {
+        "freeCells": 240,
+        "totalCells": 288,
+        "crossable": true,
+        "widestGapYd": 2.7,
+        "needYd": 0.68
+      },
+      "grid": [
+        "  3.35 ..................",
+        "   3.5 ..................",
+        "  3.65 ..................",
+        "   3.8 ..................",
+        "  3.95 ..................",
+        "   4.1 ..................",
+        "  4.25 ..................",
+        "   4.4 ..................",
+        "  4.55 ##................",
+        "   4.7 ##................",
+        "  4.85 ##................",
+        "     5 ##................",
+        "  5.15 #####........#####",
+        "   5.3 #####........#####",
+        "  5.45 #####........#####",
+        "   5.6 #####........#####"
+      ],
+      "intruders": []
+    },
+    "pine-hills-v2": {
+      "clearway": {
+        "minX": -2.1,
+        "maxX": 0.5,
+        "minZ": 3.35,
+        "maxZ": 5.65
+      },
+      "clutterSpots": [
+        {
+          "x": 1.55,
+          "z": -4.25
+        },
+        {
+          "x": -2.05,
+          "z": -4.05
+        },
+        {
+          "x": -2.35,
+          "z": 4.85
+        },
+        {
+          "x": 0.95,
+          "z": 4.9
+        },
+        {
+          "x": 2.45,
+          "z": -3.95
+        },
+        {
+          "x": 6.7,
+          "z": 2.6
+        },
+        {
+          "x": 5.25,
+          "z": 0.1
+        },
+        {
+          "x": 6.55,
+          "z": 5.2
+        }
+      ],
+      "origin": {
+        "x": -360,
+        "z": 4
+      },
+      "blockingColliders": [
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": -5.49,
+            "z": 5.63
+          },
+          "size": {
+            "w": 7.42,
+            "d": 0.37
+          },
+          "nearby": [
+            {
+              "name": "MESH_WindowStandard_LayeredCreamCasing",
+              "type": "Mesh",
+              "dist": 0.05
+            },
+            {
+              "name": "MESH_FieldstoneWaterTable",
+              "type": "Mesh",
+              "dist": 0.08
+            },
+            {
+              "name": "MESH_WindowStandard_WalnutDoubleSashes",
+              "type": "Mesh",
+              "dist": 0.08
+            },
+            {
+              "name": "MESH_FrontAbove_WindowMid",
+              "type": "Mesh",
+              "dist": 0.59
+            },
+            {
+              "name": "MESH_FrontBelow_WindowMid",
+              "type": "Mesh",
+              "dist": 0.59
+            },
+            {
+              "name": "MESH_WindowStandard_WalnutMuntinGrid",
+              "type": "Mesh",
+              "dist": 0.72
+            }
+          ]
+        },
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": 4.69,
+            "z": 5.63
+          },
+          "size": {
+            "w": 9.02,
+            "d": 0.37
+          },
+          "nearby": [
+            {
+              "name": "MESH_FrontPier_East",
+              "type": "Mesh",
+              "dist": 0.01
+            },
+            {
+              "name": "MESH_AnimatedDrawerBrassPull",
+              "type": "Mesh",
+              "dist": 0.27
+            },
+            {
+              "name": "PIVOT_CabinetDrawer",
+              "type": "Object3D",
+              "dist": 0.29
+            },
+            {
+              "name": "MESH_AnimatedBaseDrawer",
+              "type": "Mesh",
+              "dist": 0.29
+            },
+            {
+              "name": "SOCKET_CounterProp_02",
+              "type": "Object3D",
+              "dist": 0.4
+            },
+            {
+              "name": "GREY_logoBackdrop",
+              "type": "Mesh",
+              "dist": 0.49
+            }
+          ]
+        },
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": -1.25,
+            "z": 5.63
+          },
+          "size": {
+            "w": 1.12,
+            "d": 0.24
+          },
+          "nearby": [
+            {
+              "name": "MESH_DoorLeft_Glass",
+              "type": "Mesh",
+              "dist": 0.09
+            },
+            {
+              "name": "MESH_DoorLeft_RaisedLowerPanel",
+              "type": "Mesh",
+              "dist": 0.12
+            },
+            {
+              "name": "MESH_DoorLeft_WalnutMuntins",
+              "type": "Mesh",
+              "dist": 0.14
+            },
+            {
+              "name": "SOCKET_Porch",
+              "type": "Object3D",
+              "dist": 0.28
+            },
+            {
+              "name": "SOCKET_Porch",
+              "type": "Object3D",
+              "dist": 0.28
+            },
+            {
+              "name": "A_054_EXTERIOR_PORCH_AND_STEPS_ROOT",
+              "type": "Object3D",
+              "dist": 0.28
+            }
+          ]
+        },
+        {
+          "kind": "prop",
+          "structural": true,
+          "shape": "rect",
+          "local": {
+            "x": -0.35,
+            "z": 5.63
+          },
+          "size": {
+            "w": 1.12,
+            "d": 0.24
+          },
+          "nearby": [
+            {
+              "name": "MESH_DoorRight_Glass",
+              "type": "Mesh",
+              "dist": 0.09
+            },
+            {
+              "name": "MESH_DoorRight_RaisedLowerPanel",
+              "type": "Mesh",
+              "dist": 0.12
+            },
+            {
+              "name": "MESH_DoorRight_WalnutMuntins",
+              "type": "Mesh",
+              "dist": 0.14
+            },
+            {
+              "name": "MESH_ExitLampBodyLeft",
+              "type": "Mesh",
+              "dist": 0.32
+            },
+            {
+              "name": "MESH_DoorRight_DeepSashMoulding",
+              "type": "Mesh",
+              "dist": 0.34
+            },
+            {
+              "name": "MESH_FrontFascia",
+              "type": "Mesh",
+              "dist": 0.35
+            }
+          ]
+        }
+      ],
+      "walkable": {
+        "freeCells": 207,
+        "totalCells": 288,
+        "crossable": true,
+        "widestGapYd": 2.1,
+        "needYd": 0.68
+      },
+      "grid": [
+        "  3.35 ####..............",
+        "   3.5 ####..............",
+        "  3.65 ####..............",
+        "   3.8 ..................",
+        "  3.95 ..................",
+        "   4.1 ................##",
+        "  4.25 ................##",
+        "   4.4 ###.............##",
+        "  4.55 ###.............##",
+        "   4.7 ###.............##",
+        "  4.85 ###.............##",
+        "     5 ###.............##",
+        "  5.15 #####........#####",
+        "   5.3 #####........#####",
+        "  5.45 #####........#####",
+        "   5.6 #####........#####"
+      ],
+      "intruders": []
+    }
+  },
+  "intruderCount": 0,
+  "ok": true
+}

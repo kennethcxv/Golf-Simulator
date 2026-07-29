@@ -15,7 +15,9 @@ import { applyReputationChange } from './reputation.js';
 import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { planShipment } from '../data/boxes.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
-import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
+import {
+  INTERIOR, CLUTTER_SPOTS, WINDOWS, CLEARWAYS, clampOutOfClearways,
+} from '../data/shopLayout.js';
 import {
   PAD_CAPACITY, arriveOrder, openAllBoxes, ensureDeliveries, padCount, receivingFree,
 } from './deliveries.js';
@@ -88,6 +90,37 @@ function startWindows(rng) {
   return WINDOWS.map(() => Math.round(rng.range(0.72, 0.95) * 100) / 100);
 }
 
+// buildClutterPile registers colBoxAt(x, z, 0.9, 0.9), and boxPlacement's
+// activeRenovationBlockers repeats the same 0.90 × 0.90 — that footprint is what
+// makes a stray pile able to seal a doorway.
+export const CLUTTER_PILE_FOOTPRINT = 0.90;
+
+// One seeder for both callers. There used to be two copies of this arithmetic —
+// the fresh-start path and the layout-migration path — and neither knew about
+// the doors. The jitter is what makes neglect read as neglect rather than as a
+// grid, so it stays; it is the RESULT that gets clamped. Clamping the authored
+// spot instead would just let the jitter walk straight back into the doorway.
+export function seedClutterPile(spot, rng, cleared) {
+  const clear = clampOutOfClearways(
+    spot.x + rng.range(-0.4, 0.4),
+    spot.z + rng.range(-0.3, 0.3),
+    CLUTTER_PILE_FOOTPRINT,
+    CLUTTER_PILE_FOOTPRINT,
+  );
+  return {
+    x: Math.round(clear.x * 100) / 100,
+    z: Math.round(clear.z * 100) / 100,
+    ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
+    cleared,
+  };
+}
+
+const pileInAClearway = (c) => Number.isFinite(c?.x) && Number.isFinite(c?.z)
+  && CLEARWAYS.some((r) => c.x + CLUTTER_PILE_FOOTPRINT / 2 > r.minX
+    && c.x - CLUTTER_PILE_FOOTPRINT / 2 < r.maxX
+    && c.z + CLUTTER_PILE_FOOTPRINT / 2 > r.minZ
+    && c.z - CLUTTER_PILE_FOOTPRINT / 2 < r.maxZ);
+
 export function initShopReno(state) {
   const rng = renoRng(state);
   const cells = RENO.grid.w * RENO.grid.h;
@@ -95,12 +128,7 @@ export function initShopReno(state) {
   for (let i = 0; i < cells; i++) {
     grime.push(Math.round(rng.range(RENO.startDirt[0], RENO.startDirt[1]) * 1000) / 1000);
   }
-  const clutter = CLUTTER_SPOTS.map((s) => ({
-    x: Math.round((s.x + rng.range(-0.4, 0.4)) * 100) / 100,
-    z: Math.round((s.z + rng.range(-0.3, 0.3)) * 100) / 100,
-    ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
-    cleared: false,
-  }));
+  const clutter = CLUTTER_SPOTS.map((s) => seedClutterPile(s, rng, false));
   state.shop.reno = {
     layoutVersion: RENO_LAYOUT_VERSION,
     clutterLayout: RENO.clutterLayout,
@@ -162,14 +190,24 @@ export function ensureShopReno(state) {
     const flags = reno.clutter.map((c) => !!c.cleared);
     const allCleared = flags.length > 0 && flags.every(Boolean);
     const rng = renoRng(state);
-    reno.clutter = CLUTTER_SPOTS.map((s, i) => ({
-      x: Math.round((s.x + rng.range(-0.4, 0.4)) * 100) / 100,
-      z: Math.round((s.z + rng.range(-0.3, 0.3)) * 100) / 100,
-      ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
-      cleared: i < flags.length ? flags[i] : allCleared,
-    }));
+    reno.clutter = CLUTTER_SPOTS.map(
+      (s, i) => seedClutterPile(s, rng, i < flags.length ? flags[i] : allCleared),
+    );
     reno.layoutVersion = RENO_LAYOUT_VERSION;
     reno.clutterLayout = RENO.clutterLayout;
+  }
+
+  // Saves made before the seeder knew about the doors are already carrying piles
+  // in the entrance. Clamp those in place rather than reseeding: a reseed would
+  // move every pile in the room, and the only thing wrong with the others is
+  // nothing. Cleared piles are left alone — they have no collider to move.
+  for (const pile of reno.clutter) {
+    if (pile.cleared || !pileInAClearway(pile)) continue;
+    const clear = clampOutOfClearways(
+      pile.x, pile.z, CLUTTER_PILE_FOOTPRINT, CLUTTER_PILE_FOOTPRINT,
+    );
+    pile.x = Math.round(clear.x * 100) / 100;
+    pile.z = Math.round(clear.z * 100) / 100;
   }
 
   // WINDOW FILM (production dirt pass): saves older than the window-grime

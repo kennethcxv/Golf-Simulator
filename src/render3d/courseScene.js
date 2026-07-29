@@ -11036,7 +11036,10 @@ export function makeCourseScene(canvas, state) {
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
       cart, // cart state, same purpose
-      colliders: { trees: treeColliders, structures: structColliders }, // read-only for QA
+      // read-only for QA. `props` is what the clubhouse and the facilities
+      // register into — the list that decides whether a doorway is walkable, and
+      // the one a clearway audit has to read.
+      colliders: { trees: treeColliders, structures: structColliders, props: propColliders },
     },
     dispose,
   };

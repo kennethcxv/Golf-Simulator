@@ -10389,6 +10389,14 @@ export function makeClubhouse(ctx) {
 
   return {
     group, interior,
+    // The building-local origin. Every coordinate in shopLayout is expressed
+    // against this, and colliders are stored in world space, so any audit that
+    // wants to say "this prop is at local (x, z)" needs it. `interior.position`
+    // is NOT a substitute — it is a scene-graph node with its own offset, and
+    // using it as the origin silently reports every collider in the wrong place.
+    center: Object.freeze({ x: center.x, z: center.z }),
+    localToWorld: (lx, lz) => L2W(lx, lz),
+    worldToLocal: (wx, wz) => W2L(wx, wz),
     update, syncCameraVisibility, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     repaintWash: () => washing.repaintAll(),
     rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,

@@ -67,6 +67,45 @@ export const DOOR_CLEARWAY = { minX: -2.1, maxX: 0.5, minZ: 3.35, maxZ: 5.65 };
 // …or inside the receiving doorway (boxes come through here in your arms)
 export const BACKDOOR_CLEARWAY = { minX: 6.9, maxX: 9.15, minZ: -4.6, maxZ: -2.6 };
 
+export const CLEARWAYS = Object.freeze([DOOR_CLEARWAY, BACKDOOR_CLEARWAY]);
+
+// Three systems already refuse to PLACE things in a clearway (layout.js,
+// propertyPlacement.js, boxPlacement.js). None of them police the start-state
+// seeder, which is how the entrance kept ending up blocked: shop.js jitters
+// every authored clutter spot by ±0.4 x / ±0.3 z, and an authored spot chosen to
+// sit just clear of the rect is a coin-flip away from sitting just inside it.
+//
+// So the rule gets a shared enforcer instead of a fourth hand-rolled check.
+// Pushes a footprint out along its axis of least penetration, which keeps a pile
+// against the wall it was authored against rather than flinging it into the room.
+export function clampOutOfClearways(x, z, w, d, clearways = CLEARWAYS) {
+  const EPS = 0.01;
+  let cx = x;
+  let cz = z;
+  const hw = w / 2;
+  const hd = d / 2;
+  // Two passes: clearing one rect can push a footprint into the other.
+  for (let pass = 0; pass < 2; pass += 1) {
+    let moved = false;
+    for (const r of clearways) {
+      if (cx + hw <= r.minX || cx - hw >= r.maxX
+        || cz + hd <= r.minZ || cz - hd >= r.maxZ) continue;
+      const west = (cx + hw) - r.minX;
+      const east = r.maxX - (cx - hw);
+      const north = (cz + hd) - r.minZ;
+      const south = r.maxZ - (cz - hd);
+      const least = Math.min(west, east, north, south);
+      if (least === west) cx -= west + EPS;
+      else if (least === east) cx += east + EPS;
+      else if (least === north) cz -= north + EPS;
+      else cz += south + EPS;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  return { x: cx, z: cz };
+}
+
 // --- windows (mullioned, 2.4 × 1.9, sill 0.85 — real glazed openings) ------------
 // The solid walls are deliberate: W carries the club wall, N-west carries the
 // ball/accessory walls; daylight enters over the porch, the lounge, the office.
@@ -877,11 +916,32 @@ export const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && 
 export const MAT = { x: -0.8, z: 4.95 };               // welcome mat inside the door
 // Reusable hand baskets live just west of the entrance mat. The pickup slot is
 // offset into the aisle so neither customer routing nor the door swing touches it.
-export const BASKET_STATION = {
-  x: -2.35, z: 5.05,
-  pickup: { x: -2.05, z: 4.55 },
+// The v1 datum put the 0.72-wide station at x −2.35, so its west edge reached
+// −2.71 and its east edge −1.99 — 0.11 yd inside DOOR_CLEARWAY. "Clear of the
+// door swing" was true; the clearway is wider than the swing, and that is the
+// whole point of it being a separate rect.
+//
+// v2 cannot simply take the v1 fix. Its west wall is at publicBounds.minX
+// −2.60, leaving a 0.50 yd sliver between wall and clearway — narrower than the
+// station in either orientation. So v2 moves it north out of the clearway's z
+// band instead, still against the west wall and still the first thing a
+// customer passes on the way in.
+// Both exported so a Node test can check the room it is not running as: the
+// module resolves the variant once at load from the query string, so without
+// these the v2 datum is unreachable from the suite.
+export const PINE_HILLS_BASKET_STATION = Object.freeze({
+  x: -2.55, z: 5.05,
+  pickup: Object.freeze({ x: -2.55, z: 4.55 }),
   w: 0.72, d: 0.52,
-};
+});
+export const PINE_HILLS_V2_BASKET_STATION = Object.freeze({
+  x: -2.20, z: 3.02,
+  pickup: Object.freeze({ x: -1.70, z: 3.02 }),
+  w: 0.72, d: 0.52,
+});
+export const BASKET_STATION = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? { ...PINE_HILLS_V2_BASKET_STATION, pickup: { ...PINE_HILLS_V2_BASKET_STATION.pickup } }
+  : { ...PINE_HILLS_BASKET_STATION, pickup: { ...PINE_HILLS_BASKET_STATION.pickup } };
 export const LOGO_RUG = { x: -0.8, z: 3.1, w: 3.6, d: 2.4 }; // club logo rug on the entry axis
 export const HOURS_SIGN = { x: 0.58, z: 6.02 };        // readable between the door trim and porch column
 
