@@ -178,14 +178,77 @@ stand frees. p50 ≈ 18–20 s means these are not ladder failures (the ladder's
 15-s budget was never going to resolve "the stand is occupied"); they are
 wait-your-turn dynamics with nowhere to put the waiting.
 
-**Open decision (for the user, not re-litigated here):** the accepted jam
-class produces single blocks over the ruled 20-s cap at 1×. Options as
-measured: (a) accept the red as the standing signal until a stand-wait
-behaviour exists (NPCs hold at a spaced wait point near an occupied stand —
-sim work, currently unscheduled); (b) raise the cap for browse-stand-adjacent
-episodes specifically (a conditioned threshold, close to the exemption the
-ruling rejected); (c) raise the flat cap. The gate stays as ruled until that
-call is made.
+**Decision — RESOLVED 2026-07-28 (the walk-through's second ruling):** "the
+member_station stack is a missing feature, not a threshold problem. Log it as
+a named defect — NPCs have nowhere to wait for an occupied browse stand — then
+exempt only episodes attributable to that defect, tagged with its ID, with the
+exemption expiring when the defect is fixed. Every other class stays under the
+20s cap and the 75% recovery floor."
+
+So the cap and the floor are **unchanged**. What changed is that the gate now
+*attributes* each episode, and the single class attributable to
+**NAV-WAIT-001** (below) is exempted from the cap and excluded from the floor's
+denominator — tagged with that defect ID in the report so the exemption is
+never silent.
+
+**The exemption expires automatically.** `DEFECT_EXEMPTIONS` in the harness
+keys the waiver to `NAV-WAIT-001` with `expiresWhenFixed: true`. When that
+defect's status here changes from OPEN, the waiver must be deleted in the same
+commit — `tests/proshop-churn-exemption.test.js` fails if this file and the
+harness disagree, in either direction. The exemption cannot outlive the defect
+by accident.
+
+---
+
+## NAV-WAIT-001 — NPCs have nowhere to wait for an occupied browse stand
+
+**Status:** OPEN. Named 2026-07-28 by the walk-through ruling on NAV-CHURN-001.
+A **missing feature**, not a threshold problem and not a nav bug.
+
+**The defect.** A browse stand serves one customer at a time. A customer whose
+chosen stand is occupied has no wait state to enter: it keeps its stand point
+as its goal and keeps walking at it. The result is a stack of bodies in the
+approach band shoving each other and sidestepping off the recovery ladder until
+the stand frees. There is no queue, no spaced hold point, no "come back later" —
+the waiting has nowhere to go, so it happens on top of the stand.
+
+**Measured signature** (1×, 60-game-min peak window, full house, both legs —
+`Greybox/data/greybox-customer-day-airtight1x-*.json`):
+
+- **90 of 95** neglected-leg episodes and **79 of 82** restored-leg episodes are
+  this class.
+- Approach band `lx 2.0–4.5, lz 1.3–2.6` at `member_station`.
+- Durations 20–90 s, **p50 ≈ 18–20 s**. The p50 is the tell: the recovery
+  ladder's budget is 15 s, and no number of ladder cycles resolves "the stand is
+  occupied". These are wait-your-turn dynamics being handled by collision.
+
+**Why it is not the recovery ladder's problem.** The ladder exists to free a
+walker that is *stuck*. These walkers are not stuck — their goal is simply not
+available yet. Escalating them (sidestep, nudge, retarget) is the wrong verb,
+and the sidestepping is what makes the stack look like thrash.
+
+**Gate treatment while open.** Episodes attributable to this defect are tagged
+`NAV-WAIT-001` in the customer-day report and exempted from the 20-s cap and the
+recovery floor's denominator. **Attribution is narrow on purpose** — an episode
+qualifies only if the walker was heading for a stand, stalled inside that
+stand's approach (> 0.22 and ≤ 2.60 yd from it — near it, not at it, not across
+the room), and another body held the stand for ≥ 90% of the episode. Anything
+else — a pin against geometry, a queue overrun, a containment breach — is
+untagged and still fails. Waived episodes are always printed with their count,
+durations, fixtures and the defect ID; the waiver is never silent.
+
+**The exemption expires with the defect.** When this entry leaves OPEN,
+`DEFECT_EXEMPTIONS` in `tools/qa/proshop-greybox-customer-day.js` must lose its
+`NAV-WAIT-001` waiver in the same commit. `tests/proshop-churn-exemption.test.js`
+enforces the pairing in both directions, so a fix that forgets the waiver turns
+the suite red instead of quietly keeping a dead exemption alive.
+
+**Fix shape (unscheduled — sim work, explicitly out of scope for the blocker
+session):** a stand needs an occupancy claim and a small ring of spaced wait
+points. A customer that finds its stand claimed either holds at a wait point
+facing the stand, or re-picks a different destination and returns. The
+acceptance signal is that this class disappears from the episode log rather than
+being exempted from it.
 
 ---
 

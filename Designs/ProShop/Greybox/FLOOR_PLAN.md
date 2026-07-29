@@ -357,6 +357,15 @@ approved by the morning "Continue", and built as commit `00f92eb`.
   inside the authored shell. The space behind them is sealed cavity pending the
   Phase 4+ exterior re-author. Ceiling **2.80 yd = 2.56 m** (was 2.93 m) with four
   exposed beams (2.40 m clear).
+- **Windows: none. Settled 2026-07-28 — the room stays windowless.** The resize
+  sealed all three public-room windows behind the new west and north walls,
+  leaving the glazed main door as the only aperture. The Phase 4 walk-through
+  raised that as an open question and ruled it closed: *the room stays
+  windowless, because the walk wants it darker and a window works against that.*
+  This is a design decision, not an artifact of the resize — do not "restore" a
+  window as a fix, and do not treat the sealed openings as a defect. The office's
+  east window survives in the service wing and is still the `windows` repair
+  site. Recorded in `ART_BIBLE.md` §2.4.
 - **Cut rather than crammed (11):** rack_drivers, rack_irons, rack_putters,
   table_polos, shoerack, bagstand, rail_outer, hatstand, snackrack, cold_drinks,
   shelf_small (gloves SKUs fold into the essentials pegboard). Clubs, apparel

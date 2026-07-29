@@ -31,6 +31,19 @@ async (page) => {
   //        samples is noise, and the cap still catches every real trap.
   //    Short jam churn under a full house stays GREEN by design — that is the
   //    hire-a-cashier pressure signal, reported but not failed.
+  //  - DEFECT ATTRIBUTION (2026-07-28 ruling). The thresholds above are
+  //    unchanged; what changed is WHICH episodes face them. Every episode is
+  //    attributed, and only those attributable to an open, named defect in
+  //    DEFECT_EXEMPTIONS are waived — tagged with the defect id in the report,
+  //    counted, and summarised, so no waiver is silent. Today the one entry is
+  //    NAV-WAIT-001 (NPCs have nowhere to wait for an occupied browse stand),
+  //    and attribution for it requires ALL of: the walker was heading for a
+  //    stand, it stalled in that stand's approach (> 0.22 and <= 2.60 yd from
+  //    it, i.e. near it but not at it), and another body held the stand for
+  //    >= 90% of the episode. A pin against geometry, a queue overrun or a
+  //    containment breach can never qualify. The waiver expires with the
+  //    defect — tests/proshop-churn-exemption.test.js fails if DEFECTS.md and
+  //    this list disagree about whether NAV-WAIT-001 is still open.
   //  - CONTAINMENT is now asserted directly (the airtight claim, previously
   //    only inferred from block positions): no customer center may ever be in
   //    the staff corridor, east of the public bound (service wing), or inside
@@ -74,6 +87,31 @@ async (page) => {
   const LADDER_BUDGET_WALL_S = 15;
   const RECOVERY_FLOOR = 0.75;
   const FLOOR_MIN_EPISODES = 4;
+
+  // ---- Defect-attributed exemptions -------------------------------------
+  // The 2026-07-28 ruling: the browse-stand stack is a MISSING FEATURE, not a
+  // threshold problem. So the cap and the floor are unchanged, and instead each
+  // episode is ATTRIBUTED. Only episodes attributable to an open, named defect
+  // are waived, and they are always printed with that defect's ID — the waiver
+  // is never silent and never a class-wide exemption.
+  //
+  // The waiver dies with the defect: DEFECTS.md is the status authority and
+  // tests/proshop-churn-exemption.test.js fails if that file says FIXED while
+  // this list still carries the ID (and vice versa). An exemption cannot
+  // outlive the thing it excuses by accident.
+  const DEFECT_EXEMPTIONS = Object.freeze([Object.freeze({
+    id: 'NAV-WAIT-001',
+    reason: 'NPCs have nowhere to wait for an occupied browse stand',
+    expiresWhenFixed: true,
+  })]);
+  const EXEMPT_IDS = new Set(DEFECT_EXEMPTIONS.map((d) => d.id));
+  // Attribution is deliberately narrow. A walker qualifies only if it is
+  // BLOCKED IN THE APPROACH TO A STAND SOMEONE ELSE IS STANDING AT, for
+  // essentially the whole episode. A pin against geometry, a queue overrun or a
+  // containment breach never qualifies, whatever else is happening in the room.
+  const STAND_OCCUPIED_YD = 0.45;   // another body this close to the stop point owns it
+  const STAND_APPROACH_YD = 2.60;   // anchor must be in the stand's approach, not across the room
+  const STAND_OCCUPANCY_MIN = 0.90; // the stand must stay claimed for ~the whole episode
   // Designed queue patience runs ~10 REAL minutes (register-feel spec) before a
   // customer gives up; only a queue that outlives that is a navigation claim.
   const QUEUE_BOUND_WALL_MIN = 12;
@@ -164,7 +202,22 @@ async (page) => {
     const startMinute = state.clock.minutes;
     const started = performance.now();
 
+    // Attribute a closed episode to an open defect, or to nothing. Returns the
+    // defect id ONLY when every condition holds: the walker was heading for a
+    // stand, it stalled inside that stand's approach (not at it, not across the
+    // room), and another body held the stand for essentially the whole episode.
+    // Anything short of that is an unattributed block and still faces the cap.
+    const attribute = (epi, samples, occupied) => {
+      if (!cfg.exemptIds.includes('NAV-WAIT-001')) return null;
+      if (!epi.fixtureId || !Number.isFinite(epi.stopX)) return null;
+      if (samples <= 0 || occupied / samples < cfg.standOccupancyMin) return null;
+      const toStand = Math.hypot(epi.anchorX - epi.stopX, epi.anchorZ - epi.stopZ);
+      if (!(toStand > 0.22 && toStand <= cfg.standApproachYd)) return null;
+      return 'NAV-WAIT-001';
+    };
+
     const closeEpisode = (id, epi, wallSecond, clearedBy) => {
+      const defect = attribute(epi, epi.occSamples, epi.occHeld);
       episodes.push({
         id,
         onsetAtWallS: +(epi.onsetWallS - started / 1000).toFixed(1),
@@ -176,6 +229,10 @@ async (page) => {
         phase: epi.phase,
         simMinute: epi.simMinute,
         clearedBy,
+        // null = counts against the cap and the floor. A defect id = waived,
+        // and printed with the id so the waiver is auditable in the report.
+        defect,
+        standHeldFraction: epi.occSamples ? +(epi.occHeld / epi.occSamples).toFixed(2) : null,
       });
       active.delete(id);
     };
@@ -223,6 +280,21 @@ async (page) => {
             : false;
           const epi = active.get(id);
           if (epi) {
+            // Sample who owns the target stand while the episode runs. This is
+            // what separates "waiting for an occupied stand" (NAV-WAIT-001)
+            // from "pinned against geometry", and it can only be measured
+            // while the episode is live, not reconstructed at close.
+            if (Number.isFinite(epi.stopX)) {
+              epi.occSamples += 1;
+              const claimed = list.some((other) => {
+                const oid = other.customerId ?? other.id ?? other.name;
+                if (oid === id) return false;
+                const op = other.mesh?.position;
+                return op
+                  && Math.hypot(op.x - epi.stopX, op.z - epi.stopZ) < cfg.standOccupiedYd;
+              });
+              if (claimed) epi.occHeld += 1;
+            }
             // An open episode ends only on a REAL escape (≥ escapeYd from the
             // anchor), arrival, queue entry, or despawn — a slow creep between
             // detection windows keeps the clock running.
@@ -243,6 +315,12 @@ async (page) => {
                 stopKind: stop?.kind ?? null,
                 fixtureId: stop?.fixtureId ?? null,
                 phase: customer.checkoutPhase ?? null,
+                // The goal the walker could not reach — attribution needs the
+                // stand's position, not just its id.
+                stopX: Number.isFinite(stop?.x) ? stop.x : NaN,
+                stopZ: Number.isFinite(stop?.z) ? stop.z : NaN,
+                occSamples: 0,
+                occHeld: 0,
               });
             }
           }
@@ -280,12 +358,29 @@ async (page) => {
     });
     app.speedIdx = 0;
 
-    const durations = episodes.map((e) => e.durationWallS).sort((a, b) => a - b);
+    // Judged = every episode NOT attributed to an open defect. The cap and the
+    // floor are unchanged; what the ruling changed is which episodes face them.
+    const judged = episodes.filter((e) => !e.defect);
+    const waived = episodes.filter((e) => e.defect);
+    const durations = judged.map((e) => e.durationWallS).sort((a, b) => a - b);
+    const allDurations = episodes.map((e) => e.durationWallS).sort((a, b) => a - b);
     const pct = (q) => (durations.length
       ? durations[Math.min(durations.length - 1, Math.floor(q * durations.length))] : 0);
-    const within15 = episodes.filter((e) => e.durationWallS <= cfg.ladderBudgetWallS).length;
-    const over20 = episodes.filter((e) => e.durationWallS > cfg.blockCapWallS);
-    const recoveryRate = episodes.length ? +(within15 / episodes.length).toFixed(3) : 1;
+    const within15 = judged.filter((e) => e.durationWallS <= cfg.ladderBudgetWallS).length;
+    const over20 = judged.filter((e) => e.durationWallS > cfg.blockCapWallS);
+    const recoveryRate = judged.length ? +(within15 / judged.length).toFixed(3) : 1;
+    // Waived episodes are summarised, never hidden — a silent waiver is how an
+    // exemption turns into a blind spot.
+    const waivedByDefect = {};
+    for (const e of waived) {
+      const bucket = waivedByDefect[e.defect] || (waivedByDefect[e.defect] = {
+        count: 0, overCapS: 0, maxS: 0, fixtures: {},
+      });
+      bucket.count += 1;
+      if (e.durationWallS > cfg.blockCapWallS) bucket.overCapS += 1;
+      bucket.maxS = Math.max(bucket.maxS, e.durationWallS);
+      bucket.fixtures[e.fixtureId || 'unknown'] = (bucket.fixtures[e.fixtureId || 'unknown'] || 0) + 1;
+    }
 
     const diag = clubhouse.navBlockDiagnostics();
     const stillInside = customersOf().map((customer) => {
@@ -309,8 +404,8 @@ async (page) => {
 
     const legFailures = [];
     if (containment.size > 0) legFailures.push(`containment: ${containment.size} zone violations`);
-    if (over20.length > 0) legFailures.push(`block cap: ${over20.length} episodes over ${cfg.blockCapWallS}s (max ${durations[durations.length - 1]}s)`);
-    if (episodes.length >= cfg.floorMinEpisodes && recoveryRate < cfg.recoveryFloor) {
+    if (over20.length > 0) legFailures.push(`block cap: ${over20.length} unattributed episodes over ${cfg.blockCapWallS}s (max ${durations[durations.length - 1]}s)`);
+    if (judged.length >= cfg.floorMinEpisodes && recoveryRate < cfg.recoveryFloor) {
       legFailures.push(`recovery floor: ${(recoveryRate * 100).toFixed(0)}% within ${cfg.ladderBudgetWallS}s (floor ${cfg.recoveryFloor * 100}%)`);
     }
     if (queueViolations.length > 0) legFailures.push(`queue bound: ${queueViolations.length} held past ${cfg.queueBoundWallMin} wall-min`);
@@ -327,13 +422,21 @@ async (page) => {
       maxSimultaneous,
       customersTracked: totalSeen,
       episodes: {
+        // `count` is every episode observed; the judged block is what the
+        // thresholds actually see. Both are reported so the gap between them
+        // is always visible.
         count: episodes.length,
+        maxAllS: allDurations.length ? allDurations[allDurations.length - 1] : 0,
+        judged: judged.length,
         within15s: within15,
         over20s: over20.length,
         recoveryRateWithin15s: recoveryRate,
         p50S: pct(0.5),
         p95S: pct(0.95),
         maxS: durations.length ? durations[durations.length - 1] : 0,
+        waived: waived.length,
+        waivedByDefect,
+        exemptions: cfg.defectExemptions,
         list: episodes.slice(0, 120),
       },
       containment: {
@@ -376,6 +479,11 @@ async (page) => {
     recoveryFloor: RECOVERY_FLOOR,
     floorMinEpisodes: FLOOR_MIN_EPISODES,
     queueBoundWallMin: QUEUE_BOUND_WALL_MIN,
+    defectExemptions: DEFECT_EXEMPTIONS,
+    exemptIds: [...EXEMPT_IDS],
+    standOccupiedYd: STAND_OCCUPIED_YD,
+    standApproachYd: STAND_APPROACH_YD,
+    standOccupancyMin: STAND_OCCUPANCY_MIN,
   }]);
 
   const restoreAll = async () => {

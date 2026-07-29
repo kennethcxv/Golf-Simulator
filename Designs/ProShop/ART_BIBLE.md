@@ -138,6 +138,23 @@ repairs the ceiling**. Then: **`panel-02` flickers** and **`panel-07` is dead** 
 restored lighting states are both shipping states. An asset approved only under full
 lighting has been approved under conditions the player does not start in.
 
+#### The room is windowless, by decision — settled 2026-07-28
+
+The v2 resize sealed all three public-room windows behind the new west and north walls.
+The Phase 4 walk-through raised that as an open question and **ruled that the room stays
+windowless**: the walk wants the neglected state to read darker, and a window works
+against that.
+
+So the public room's entire daylight budget is **one glazed main door**. This is the
+single hardest constraint on how the room can ever be lit, and it is deliberate:
+
+- Do not propose a window as a fix for a dark corner, and do not read the sealed
+  openings as a resize defect. Both are settled. (`Greybox/FLOOR_PLAN.md`.)
+- Daylight is directional and comes from the south, at the door. Anything more than a
+  few yards from it is lit by practicals or not at all.
+- Consequently the ceiling panels are not "extra" light — under power they are the
+  room's light, and in the neglected state their faults *are* the lighting design.
+
 ### 2.5 Material count is not the appearance problem
 
 The scene carries ~815 unique materials against 227 unique textures. That is **per-GLB
