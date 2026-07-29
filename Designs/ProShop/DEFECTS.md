@@ -309,6 +309,59 @@ obstacle at full speed is exactly the case the current test calls healthy.
 
 ---
 
+## TILL-REACH-001 — the staff side of the front desk is a sealed box
+
+**Status: OPEN.** Diagnosed 2026-07-29, not fixed: the fix is a change to the
+approved v2 floor plan and is a design decision, not a repair.
+
+Reported on the walk as two complaints — "the staff side renders black" and "the
+only way in is standing backward on the wrong side and phasing through". They
+are one defect. Measured by `tools/qa/proshop-cashier-station-diagnosis.js`
+(`Greybox/data/cashier-station-pine-hills-v2.json`).
+
+**The staff area is enclosed on all four sides.** A flood fill from the middle of
+the public floor across walkable cells reaches 1479 of 1530 free cells in the
+room. The staff pocket is in the other 51: free floor, no route to it.
+
+| what | collider, building-local |
+|---|---|
+| desk front run, north side | x 0.90 → 5.70, z 2.84 → 3.86 |
+| desk return, west end | x 0.90 → 1.98, z 3.66 → 5.25 |
+| east end | the desk run reaches x 5.70, which IS `PUBLIC_ROOM_BOUNDS.maxX` |
+| south | the exterior wall |
+| the staff standing spot itself | office chair, 0.72 × 0.72 at x 1.94 → 2.66, z 4.04 → 4.76 |
+
+`FRONT_DESK_COLLIDERS.returnRun` carries the comment "closes the east/reception
+end of the work area". In v2 it closes the WEST end, and the front run reaches
+the east wall, so both ends are shut. There is no gate, no flap and no gap.
+
+A clutter pile seeded at (0.96, 4.88) sits in what would otherwise be the only
+remaining approach. The clearway clamp added the same day protects the two
+doorways and knows nothing about this route.
+
+**"Renders black" is a consequence, not a separate bug.** From a legal pose the
+staff side measures mean luma **102.1** against **99.87** for the customer side
+of the same counter under identical conditions — a ratio of 1.02. It is not
+dark. What the walk saw was the camera inside the desk collider after phasing
+through, which is the inside of the counter.
+
+**The decision.** Opening the run needs one of:
+
+1. **Shorten the front run at the east end** to leave a body-width gap between
+   the counter and the east wall. Needs ≥ 0.68 yd; the run currently ends
+   exactly on the room bound, so this shortens the counter.
+2. **Shorten `returnStaffExtent`** so the west end opens between the return and
+   the south wall. The return spans z 3.66 → 5.25 and the wall is at ~5.40, so
+   this also needs the clutter spot at (0.95, 4.90) moved.
+3. **A hinged counter flap** — a section of the front run whose collider is
+   removed while the player is behind it. Most faithful to a real pro shop and
+   the most work.
+
+Whichever is chosen, the office chair's collider has to stop occupying the one
+spot a cashier stands, or the pocket is reachable and still unusable.
+
+---
+
 ## QA-LOCK-001 — concurrent QA chains ran despite the run lock; kills don't kill trees
 
 **Status:** OPEN — observed 2026-07-28 during the remediation session; needs a
