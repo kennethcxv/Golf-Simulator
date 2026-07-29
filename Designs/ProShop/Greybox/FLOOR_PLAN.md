@@ -241,6 +241,9 @@ Key measured clearances: door clearway untouched (nearest fixture corner: desk r
 at x 1.00, 0.50 yd east of it) · feature-to-return pass 1.35 · feature-to-table pass
 2.40 · main north aisle ≥ 2.2 · club-wall browse lane ≥ 1.6 · lounge approach 1.6 ·
 staff corridor 1.13 · hutch-to-return wall gap 0.31 (sealed by the return end panel) ·
+**stock-door lane 0.84** (TILL-REACH-001, 2026-07-29: the hand truck moved off the
+lane to x 6.30; `STOCK_LANE_CLEARWAY` now protects x 6.96–8.06 × z −0.50–2.40 the
+way `DOOR_CLEARWAY` protects the entrance) ·
 rail–snackrack wall gap 0.65 (both wall-backed) · rail browse stand 1.5 yd clear of
 the door clearway.
 
@@ -252,8 +255,13 @@ the door clearway.
 around the feature table → north aisle (x ≈ −0.9) → ball/accessory/glove walls → west
 to the club wall → south past shoes/fitting → east along z ≈ −1.4 past bags/rail →
 queue head (2.82, 2.30) → pay facing the boards → exit west past the outerwear rail
-and the grab-and-go corner. Staff route: office → corridor mouth at (5.65, 4.3) → till; customers cannot
-enter the corridor — the return closes its west end, the desk its north flank.
+and the grab-and-go corner. Staff route: **shop floor → stock-door lane (x ≈ 7.4) → office → corridor mouth at
+(5.65, 4.3) → till**; customers cannot enter the corridor — the return closes its
+west end, the desk its north flank. The first leg is written out because leaving it
+implicit is how it got blocked: the corridor is entered from the office, the office
+only through the stock door, and for one build the lane through that door was
+0.45 yd wide. Every leg of this route is load-bearing and none of it is protected
+by the desk geometry.
 
 **Draft `TRAFFIC_PATHS_V2`** (final polylines land with the dirt plan in the build):
 

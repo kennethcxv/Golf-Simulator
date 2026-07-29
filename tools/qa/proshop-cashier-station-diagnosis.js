@@ -112,38 +112,143 @@ async (page) => {
     const o = ch.center;
     const walk = app.scene3d.walk;
     const radius = walk.state.radius || 0.32;
-    const bounds = L.PUBLIC_ROOM_BOUNDS;
+    // THE WHOLE BUILDING, not PUBLIC_ROOM_BOUNDS.
+    //
+    // The first version of this probe flooded only the public room, whose east
+    // edge is x 5.70 — and the staff corridor's one intended entrance is the
+    // partition mouth at x 5.60–5.80, z 3.86–4.89, which leads EAST into the
+    // office. So the route the floor plan actually specifies (FLOOR_PLAN §7,
+    // "the staff mouth stays open") lay outside the grid, and the probe reported
+    // the corridor sealed because it had walled off the doorway itself.
+    //
+    // That "1479 of 1530 free cells, staff pocket unreachable" number is an
+    // artifact of the grid, not a measurement of the room. Anything derived from
+    // it — including TILL-REACH-001's premise — has to be re-measured here.
+    // …plus a margin OUTSIDE it. Third grid fault, same class as the first two:
+    // bounded at the interior, the flood cannot represent "go out the front and
+    // round the back", so it could not tell an inconvenient route from no route.
+    const MARGIN = 6.0;
+    const bounds = {
+      minX: -L.INTERIOR.w / 2 - MARGIN, maxX: L.INTERIOR.w / 2 + MARGIN,
+      minZ: -L.INTERIOR.d / 2 - MARGIN, maxZ: L.INTERIOR.d / 2 + MARGIN,
+    };
     const step = 0.15;
 
+    // A CLOSED DOOR IS NOT A WALL. walk.isFree() is the right question for "can I
+    // stand here this instant" and the wrong one for "is there a route": every
+    // interior door collides while shut, so a flood over isFree() reports the
+    // office, the stockroom and the staff corridor as sealed rooms. The first
+    // run of this probe did exactly that and the conclusion went into DEFECTS.md.
+    //
+    // So the audit runs twice. `grid` is walkable-now; `gridDoors` additionally
+    // treats a cell as passable when the ONLY things blocking it are door
+    // colliders — the route a player has, given that E opens doors. The second
+    // is the one that answers "is this pocket reachable"; the first is kept
+    // because a pocket only reachable through a door is still worth naming.
+    const doorRects = [];
+    const solidRects = [];
+    for (const key of ['structures', 'props']) {
+      for (const c of walk.colliders?.[key] || []) {
+        if (!Number.isFinite(c?.minX)) continue;
+        (c.door === true ? doorRects : solidRects).push(c);
+      }
+    }
+    const overlaps = (rect, x, z) => x + radius > rect.minX && x - radius < rect.maxX
+      && z + radius > rect.minZ && z - radius < rect.maxZ;
     const free = (lx, lz) => walk.isFree(lx + o.x, lz + o.z, radius);
+    // Blocked, but by nothing except a door leaf.
+    const doorOnly = (lx, lz) => {
+      const x = lx + o.x;
+      const z = lz + o.z;
+      if (!doorRects.some((d) => overlaps(d, x, z))) return false;
+      return !solidRects.some((s) => overlaps(s, x, z));
+    };
     const cols = Math.round((bounds.maxX - bounds.minX) / step) + 1;
     const rows = Math.round((bounds.maxZ - bounds.minZ) / step) + 1;
     const at = (r, c) => ({ x: bounds.minX + c * step, z: bounds.minZ + r * step });
     const grid = [];
+    const gridDoors = [];
     for (let r = 0; r < rows; r += 1) {
       const row = [];
-      for (let c = 0; c < cols; c += 1) { const p = at(r, c); row.push(free(p.x, p.z) ? 1 : 0); }
+      const rowD = [];
+      for (let c = 0; c < cols; c += 1) {
+        const p = at(r, c);
+        const now = free(p.x, p.z);
+        row.push(now ? 1 : 0);
+        rowD.push(now || doorOnly(p.x, p.z) ? 1 : 0);
+      }
       grid.push(row);
+      gridDoors.push(rowD);
     }
 
     // Flood from the middle of the public floor.
-    const start = { x: L.DOOR_MAIN.x, z: bounds.maxZ - 2.0 };
+    const start = { x: L.DOOR_MAIN.x, z: L.PUBLIC_ROOM_BOUNDS.maxZ - 2.0 };
     const sc = Math.round((start.x - bounds.minX) / step);
     const sr = Math.round((start.z - bounds.minZ) / step);
-    const seen = grid.map((row) => row.map(() => false));
-    const queue = [];
-    if (grid[sr]?.[sc]) { queue.push([sr, sc]); seen[sr][sc] = true; }
-    while (queue.length) {
-      const [r, c] = queue.pop();
-      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
-        if (seen[nr][nc] || !grid[nr][nc]) continue;
-        seen[nr][nc] = true;
-        queue.push([nr, nc]);
+    const floodFrom = (g) => {
+      const mark = g.map((row) => row.map(() => false));
+      const queue = [];
+      if (g[sr]?.[sc]) { queue.push([sr, sc]); mark[sr][sc] = true; }
+      while (queue.length) {
+        const [r, c] = queue.pop();
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+          if (mark[nr][nc] || !g[nr][nc]) continue;
+          mark[nr][nc] = true;
+          queue.push([nr, nc]);
+        }
       }
-    }
+      return mark;
+    };
+    const seenNow = floodFrom(grid);
+    // `seen` is the one everything downstream reads: reachable given that the
+    // player can open the doors between here and there.
+    const seen = floodFrom(gridDoors);
+
+    // EVERY POCKET, not just the one that was reported. A single-point check
+    // answers "is the staff chair reachable" and nothing else — it would have
+    // stayed green through a floor plan that sealed some other corner. So the
+    // free cells that the flood did NOT reach are grouped into connected
+    // components and each is reported with its area and bounds. Zero components
+    // above a stray-cell threshold is the actual contract: a walkable pocket
+    // with no route to it is a floor-plan error wherever it is.
+    const unreachablePockets = (() => {
+      const claimed = grid.map((row) => row.map(() => false));
+      const found = [];
+      const cellArea = step * step;
+      for (let r0 = 0; r0 < rows; r0 += 1) {
+        for (let c0 = 0; c0 < cols; c0 += 1) {
+          if (!gridDoors[r0][c0] || seen[r0][c0] || claimed[r0][c0]) continue;
+          const stack = [[r0, c0]];
+          claimed[r0][c0] = true;
+          const cells = [];
+          while (stack.length) {
+            const [r, c] = stack.pop();
+            cells.push([r, c]);
+            for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const nr = r + dr;
+              const nc = c + dc;
+              if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+              if (claimed[nr][nc] || !gridDoors[nr][nc] || seen[nr][nc]) continue;
+              claimed[nr][nc] = true;
+              stack.push([nr, nc]);
+            }
+          }
+          const pts = cells.map(([r, c]) => at(r, c));
+          found.push({
+            cells: cells.length,
+            areaYd2: +(cells.length * cellArea).toFixed(2),
+            minX: +Math.min(...pts.map((p) => p.x)).toFixed(2),
+            maxX: +Math.max(...pts.map((p) => p.x)).toFixed(2),
+            minZ: +Math.min(...pts.map((p) => p.z)).toFixed(2),
+            maxZ: +Math.max(...pts.map((p) => p.z)).toFixed(2),
+          });
+        }
+      }
+      return found.sort((a, b) => b.areaYd2 - a.areaYd2);
+    })();
 
     const staff = L.FRONT_DESK.staffChair;
     const nearestReachableTo = (tx, tz) => {
@@ -163,14 +268,28 @@ async (page) => {
       r: Math.round((staff.z - bounds.minZ) / step),
       c: Math.round((staff.x - bounds.minX) / step),
     };
+    // Where a cashier actually stands to work the till, which is NOT the chair —
+    // the chair is the laptop seat. The original probe targeted the chair and so
+    // measured a cell that is legitimately solid.
+    const stand = L.COUNTER.staffStand;
+    const standCell = {
+      r: Math.round((stand.z - bounds.minZ) / step),
+      c: Math.round((stand.x - bounds.minX) / step),
+    };
     return {
       startedFrom: { x: +start.x.toFixed(2), z: +start.z.toFixed(2) },
       staffChairLocal: { x: +staff.x.toFixed(2), z: +staff.z.toFixed(2) },
+      staffStandLocal: { x: +stand.x.toFixed(2), z: +stand.z.toFixed(2) },
+      staffStandIsFreeFloor: !!grid[standCell.r]?.[standCell.c],
+      staffStandIsReachable: !!seen[standCell.r]?.[standCell.c],
+      unreachablePockets,
       staffCellIsFreeFloor: !!grid[staffCell.r]?.[staffCell.c],
       staffCellIsReachable: !!seen[staffCell.r]?.[staffCell.c],
       nearestReachablePointToStaffChair: nearestReachableTo(staff.x, staff.z),
       reachableCells: seen.flat().filter(Boolean).length,
+      reachableCellsDoorsShut: seenNow.flat().filter(Boolean).length,
       freeCells: grid.flat().filter(Boolean).length,
+      freeCellsWithDoorsOpen: gridDoors.flat().filter(Boolean).length,
       // The desk's neighbourhood as a picture: '.' walkable and reachable,
       // 'o' walkable but cut off, '#' solid, 'S' the staff chair.
       map: (() => {
@@ -184,7 +303,7 @@ async (page) => {
           for (let c = c0; c <= c1; c += 1) {
             const isStaff = r === Math.round((staff.z - bounds.minZ) / step)
               && c === Math.round((staff.x - bounds.minX) / step);
-            line += isStaff ? 'S' : (grid[r][c] ? (seen[r][c] ? '.' : 'o') : '#');
+            line += isStaff ? 'S' : (gridDoors[r][c] ? (seen[r][c] ? '.' : 'o') : '#');
           }
           lines.push(`z=${at(r, c0).z.toFixed(2).padStart(6)} ${line}`);
         }
@@ -225,7 +344,31 @@ async (page) => {
   };
   // Two independent claims, reported separately so a fix to one cannot be read
   // as a fix to both. See DEFECTS.md TILL-REACH-001.
-  out.reachable = reach.staffCellIsReachable;
+  //
+  // The reachability claim is now the general one: no walkable pocket anywhere in
+  // the public room may be cut off, not merely the one that got reported. A stray
+  // cell or two behind a fixture corner is grid noise rather than a pocket, so the
+  // threshold is 0.25 yd² — a quarter of the player's own footprint.
+  const POCKET_MIN_YD2 = 0.25;
+  // One region is unreachable on purpose and says so in the layout: v2 pulled the
+  // west wall in to x −2.60 and left "sealed dead cavity until the exterior shell
+  // is re-authored (Phase 4+)" behind it. Declared by name and reason rather than
+  // filtered by size, so it appears in the output as an allowance instead of
+  // vanishing — a threshold quietly tuned until the red goes away is how an
+  // instrument stops measuring.
+  const ALLOWED = [{
+    name: 'v2 dead cavity west of the pulled-in west wall',
+    why: 'PINE_HILLS_V2_LAYOUT.publicBounds — sealed until the shell is re-authored',
+    minX: -9.0, maxX: -2.60, minZ: -6.0, maxZ: 6.0,
+  }];
+  const allowedFor = (p) => ALLOWED.find((a) => p.minX >= a.minX && p.maxX <= a.maxX
+    && p.minZ >= a.minZ && p.maxZ <= a.maxZ) || null;
+  out.allowedPockets = reach.unreachablePockets
+    .filter((p) => p.areaYd2 >= POCKET_MIN_YD2 && allowedFor(p))
+    .map((p) => ({ ...p, allowedAs: allowedFor(p).name, why: allowedFor(p).why }));
+  out.sealedPockets = reach.unreachablePockets
+    .filter((p) => p.areaYd2 >= POCKET_MIN_YD2 && !allowedFor(p));
+  out.reachable = out.sealedPockets.length === 0 && reach.staffStandIsReachable;
   out.notDark = out.staffVsPublicRatio > 0.35;
   out.ok = out.reachable && out.notDark;
   fs.writeFileSync(path.join(outDir, `cashier-station-${VARIANT}.json`), `${JSON.stringify(out, null, 2)}\n`);

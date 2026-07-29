@@ -309,56 +309,80 @@ obstacle at full speed is exactly the case the current test calls healthy.
 
 ---
 
-## TILL-REACH-001 — the staff side of the front desk is a sealed box
+## TILL-REACH-001 — two pieces of service furniture sealed three rooms
 
-**Status: OPEN.** Diagnosed 2026-07-29, not fixed: the fix is a change to the
-approved v2 floor plan and is a design decision, not a repair.
+**Status: FIXED 2026-07-29.** The diagnosis recorded here on 2026-07-29 was
+wrong, and wrong because of the instrument. Both are recorded below, because the
+instrument fault is the more useful of the two findings.
 
-Reported on the walk as two complaints — "the staff side renders black" and "the
-only way in is standing backward on the wrong side and phasing through". They
-are one defect. Measured by `tools/qa/proshop-cashier-station-diagnosis.js`
-(`Greybox/data/cashier-station-pine-hills-v2.json`).
+**What was reported:** "the staff side renders black" and "the only way in is
+standing backward on the wrong side and phasing through".
 
-**The staff area is enclosed on all four sides.** A flood fill from the middle of
-the public floor across walkable cells reaches 1479 of 1530 free cells in the
-room. The staff pocket is in the other 51: free floor, no route to it.
+**What the first diagnosis said:** the v2 desk seals its own staff side — front
+run to x 5.70 (the east wall), return closing the west end, no gate. Three costed
+options, all of them changes to the approved floor plan.
 
-| what | collider, building-local |
-|---|---|
-| desk front run, north side | x 0.90 → 5.70, z 2.84 → 3.86 |
-| desk return, west end | x 0.90 → 1.98, z 3.66 → 5.25 |
-| east end | the desk run reaches x 5.70, which IS `PUBLIC_ROOM_BOUNDS.maxX` |
-| south | the exterior wall |
-| the staff standing spot itself | office chair, 0.72 × 0.72 at x 1.94 → 2.66, z 4.04 → 4.76 |
+**Why that was wrong — three faults in one flood fill.**
 
-`FRONT_DESK_COLLIDERS.returnRun` carries the comment "closes the east/reception
-end of the work area". In v2 it closes the WEST end, and the front run reaches
-the east wall, so both ends are shut. There is no gate, no flap and no gap.
+1. **The grid stopped at `PUBLIC_ROOM_BOUNDS`** (maxX 5.70). The staff corridor's
+   one designed entrance is the partition mouth at x 5.60–5.80, z 3.76–4.89,
+   which leads EAST into the office — outside the grid. FLOOR_PLAN §7 states the
+   route plainly: "office -> corridor mouth at (5.65, 4.3) -> till". The probe had
+   walled off the doorway and then reported the room sealed.
+2. **A closed door counted as a wall.** `walk.isFree()` is the right question for
+   "can I stand here now" and the wrong one for "is there a route": every interior
+   door collides while shut, so the office, the stockroom and the corridor all read
+   as sealed. The audit now floods twice — walkable-now, and walkable-given-that-E-
+   opens-doors — and reports both.
+3. **The grid stopped at the building.** Bounded to the interior, it could not
+   represent "out the front and round the back", so it could not tell an
+   inconvenient route from no route at all.
 
-A clutter pile seeded at (0.96, 4.88) sits in what would otherwise be the only
-remaining approach. The clearway clamp added the same day protects the two
-doorways and knows nothing about this route.
+**The actual cause.** The collision sweep (607f9c2) gave hulls to eleven props
+that declared collision and never had it. Two of them stand either side of the
+lane through the stock door:
 
-**"Renders black" is a consequence, not a separate bug.** From a legal pose the
-staff side measures mean luma **102.1** against **99.87** for the customer side
-of the same counter under identical conditions — a ratio of 1.02. It is not
-dark. What the walk saw was the camera inside the desk collider after phasing
-through, which is the inside of the counter.
+| prop | hull, building-local | |
+|---|---|---|
+| mop / brooms corner (`STOCKROOM.cleaning`) | x 5.75 -> 6.45, z 1.20 -> 1.70 | |
+| hand truck (`STOCKROOM.handTruck`) | x 6.90 -> 7.54, z 0.24 -> 0.86 | **moved** |
+| east rack | x 8.14 -> 8.76, z -1.30 -> 1.20 | |
 
-**The decision.** Opening the run needs one of:
+Gaps: mop-to-truck **0.45 yd**, truck-to-rack **0.60 yd**. The player is **0.68**.
+The lane closed, and with it the office, the staff corridor and the staff side of
+the till — three rooms, by two pieces of furniture nobody thought of as walls. The
+hand truck's own comment read "It remains reachable without narrowing the door
+lane", which was true while it had no collider and false the moment it got one.
 
-1. **Shorten the front run at the east end** to leave a body-width gap between
-   the counter and the east wall. Needs ≥ 0.68 yd; the run currently ends
-   exactly on the room bound, so this shortens the counter.
-2. **Shorten `returnStaffExtent`** so the west end opens between the return and
-   the south wall. The return spans z 3.66 → 5.25 and the wall is at ~5.40, so
-   this also needs the clutter spot at (0.95, 4.90) moved.
-3. **A hinged counter flap** — a section of the front run whose collider is
-   removed while the player is behind it. Most faithful to a real pro shop and
-   the most work.
+**The fix.** `STOCKROOM.handTruck` (7.15, 0.45) -> (6.30, 0.45), parked against the
+west partition. Its hull now merges with the mop corner's shadow and leaves one
+clean **0.84-yd** lane at x 6.96–7.80, lined up with the stock door's own opening
+(7.04–8.06). Nothing in the floor plan changed; no seal was reopened. Measured
+after: `staffStandIsReachable` true, and the only unreachable region left in the
+whole building is the 53.08 yd² dead cavity west of the v2 wall, which the layout
+declares sealed until the shell is re-authored.
 
-Whichever is chosen, the office chair's collider has to stop occupying the one
-spot a cashier stands, or the pocket is reachable and still unusable.
+**"Renders black" was never a separate bug.** From a legal pose the staff side
+measures mean luma **102.1** against **99.86** for the customer side of the same
+counter under identical conditions — a ratio of 1.02. What the walk saw was the
+camera inside the desk collider after phasing through, which is the inside of the
+counter.
+
+**What now stops it recurring.**
+
+- `STOCK_LANE_CLEARWAY` joins `CLEARWAYS`, so all three placement systems that
+  already refuse to put things in a doorway now refuse this route for free, and
+  the clutter seeder is clamped out of it exhaustively over its jitter box
+  (`tests/door-clearway.test.js`).
+- `tools/qa/proshop-cashier-station-diagnosis.js` no longer checks one point. It
+  groups every unreached free cell into connected components and fails on any
+  pocket >= 0.25 yd² that is not on a declared allow-list — so a floor plan that
+  seals some other corner is caught wherever it happens, and the one deliberate
+  exception is named with its reason instead of being tuned away.
+
+**The general lesson.** The collision sweep had a whitelist-or-fail test for
+*which props own a collider*. It had nothing that asked whether the building was
+still walkable afterwards. Adding collision is a navigation change.
 
 ---
 

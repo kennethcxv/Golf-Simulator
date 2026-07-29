@@ -67,7 +67,19 @@ export const DOOR_CLEARWAY = { minX: -2.1, maxX: 0.5, minZ: 3.35, maxZ: 5.65 };
 // …or inside the receiving doorway (boxes come through here in your arms)
 export const BACKDOOR_CLEARWAY = { minX: 6.9, maxX: 9.15, minZ: -4.6, maxZ: -2.6 };
 
-export const CLEARWAYS = Object.freeze([DOOR_CLEARWAY, BACKDOOR_CLEARWAY]);
+// …and the lane through the stock door, for a reason the two above did not
+// anticipate. TILL-REACH-001: the hand truck and the mop corner both gained real
+// hulls in the collision sweep, and between them they narrowed this lane to 0.45
+// yd against a 0.68-yd body. That cut off the office, the staff corridor and the
+// staff side of the till in one go — three rooms sealed by two pieces of
+// furniture nobody thought of as walls.
+//
+// Aligned to the door's own opening (x 7.04–8.06) with a little either side, and
+// run from the receiving floor through into the office so the approach on both
+// sides stays clear too.
+export const STOCK_LANE_CLEARWAY = { minX: 6.96, maxX: 8.06, minZ: -0.50, maxZ: 2.40 };
+
+export const CLEARWAYS = Object.freeze([DOOR_CLEARWAY, BACKDOOR_CLEARWAY, STOCK_LANE_CLEARWAY]);
 
 // Three systems already refuse to PLACE things in a clearway (layout.js,
 // propertyPlacement.js, boxPlacement.js). None of them police the start-state
@@ -727,9 +739,20 @@ export const STOCKROOM = {
   // Deep enough inside the service room to leave the storage-door capsule
   // route clear, while retaining a full approach lane on the east side.
   packing: { x: 6.30, z: -1.7, ry: 0 },    // the packing bench (tape gun, clipboard)
-  // Ref 42 parks in the rear service bay between the restroom enclosure and
-  // receiving stack. It remains reachable without narrowing the door lane.
-  handTruck: { x: 7.15, z: 0.45 },
+  // Ref 42 parks against the west partition, OUT of the service lane.
+  //
+  // It used to sit at (7.15, 0.45) with the note "remains reachable without
+  // narrowing the door lane", which was true while it had no collider and false
+  // the moment it got one. Measured with a 0.68-yd body: the truck's hull
+  // (6.90–7.54) and the mop corner's (5.75–6.45) left 0.45 yd between them, and
+  // the truck and the east rack (8.14–8.76) left 0.60. Both under a player. The
+  // lane closed, and with it the office, the staff corridor and the staff side
+  // of the till — which is what TILL-REACH-001 was really reporting.
+  //
+  // Against the partition its hull spans 5.98–6.62, merging with the mop
+  // corner's shadow and leaving one clean 0.84-yd lane at x 6.96–7.80, lined up
+  // with the stock door's own opening (7.04–8.06).
+  handTruck: { x: 6.30, z: 0.45 },
   bin: { x: 8.35, z: 1.3 },                // recycling by the stock door, east of the swing
   cleaning: { x: 6.1, z: 1.45 },           // mop bucket / brooms corner
 };
