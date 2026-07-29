@@ -339,6 +339,16 @@ choice is part of deciding, so it belongs above the button you press. It sat
 already scrolled past. Stacked rows, plain-language arrival, the price difference
 on the row, and a freight line and total directly above Place Order.
 
+> **The screenshot you asked for is NOT captured.** `tools/qa/proshop-cart-shipping-shot.js`
+> reaches the ordering desk and confirms the structural half — the cart panel
+> renders and **`totalAboveConfirm: true`**, which is the specific change you
+> asked for — but it cannot get anything *into* the basket: the probe finds zero
+> buttons in the laptop content, so the shipping rows (which only exist when the
+> basket does) were never on screen to photograph. That is a harness fault, not
+> evidence about the UI, and I ran out of session before fixing it. **Treat the
+> shipping rows as unverified visually.** The probe is committed with the fault
+> described in it; it needs one more pass to find the real add-to-basket control.
+
 **Door and window furniture joins the collision sweep — and I could not
 reproduce "door planks are walkable".** Doors had never been checked by anything
 (the orphan pass skips `c.door` outright). Two filters keep the new stage honest:
@@ -399,6 +409,25 @@ its number reached you:
 Four of these nine (1, 2, 3, 7) would have produced a *confident wrong answer*
 rather than an obvious failure. Two of them (1, 2) already had: they are what put
 the wrong diagnosis into `DEFECTS.md`.
+
+---
+
+## 8b. What is committed
+
+Nine commits on `feature/pro-shop-vertical-slice`, each with the suite green:
+
+| | |
+|---|---|
+| `269c085` | modifiers reconcile from the one input the fault cannot suppress |
+| `43cf33f` | TILL-REACH-001 — it was never the desk, it was the hand truck |
+| `2a7b4b0` | dark state: the sky stops reaching inside |
+| `2b5704a` | boxes open on E, three times; the cutter retires |
+| `3b36786` | materials to inventory, laptop search, NPC time splits |
+| `215d2cc` | shipping into the cart, door furniture in the sweep, laptop proposal |
+| `42d1032` | checkout: the finished sale clears itself |
+| `7751141` | the day is three hours, not twelve |
+
+Not pushed — say the word.
 
 ---
 

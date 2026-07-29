@@ -1,0 +1,30 @@
+{
+  "productsAdded": {
+    "clicked": 0,
+    "labelsSeen": []
+  },
+  "standard": {
+    "rows": [],
+    "lines": [
+      "0 items0 suppliers · 0 boxes$0",
+      "Total$0"
+    ],
+    "totalPrecedesConfirm": true,
+    "confirmLabel": "Basket is empty"
+  },
+  "express": {
+    "rows": [],
+    "lines": [
+      "0 items0 suppliers · 0 boxes$0",
+      "Total$0"
+    ],
+    "totalPrecedesConfirm": true,
+    "confirmLabel": "Basket is empty"
+  },
+  "bothOptionsVisible": false,
+  "selectionMoves": false,
+  "totalAboveConfirm": true,
+  "totalChanged": false,
+  "shots": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\Designs\\ProShop\\Greybox\\data\\cart-shipping",
+  "ok": false
+}
