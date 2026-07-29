@@ -8,10 +8,22 @@
 //
 // They exist now:
 //
-//   cut the tape (progressive)  ->  front main flap  ->  back main flap  ->  side flaps  ->  take an armful into
+//   tear the tape + first half of the lid  ->  second half  ->  take an armful into
 //   YOUR HANDS  ->  walk it to a fixture  ->  hold to stock it, one at a time, until the shelf is
 //   full  ->  keep whatever would not fit  ->  flatten the empty  ->  carry it to the bin  ->
 //   recycle it.
+//
+// THE OPENING IS THREE PRESSES AGAIN — and that is not a regression to the state
+// the header above complains about. The objection was never to the press count:
+// it was that one press produced a whole emptied box with its contents teleported
+// to the backroom. Every press below moves one physical thing one step, and the
+// units still only ever exist in one place.
+//
+// What DID go, on 2026-07-29: the box cutter. Opening a carton required equipping
+// a tool and dragging it along a projected on-screen seam at the right speed,
+// holding the button, with a half-cut state persisted if you let go. A previous
+// session's response to "boxes cannot be opened" was to add a prompt explaining
+// the gesture, which left the player exactly as unable to open the box.
 //
 // The load-bearing invariant underneath all of it: a unit exists in exactly one place. In the box,
 // in your hands, in the backroom, or on the shelf. Every verb below moves it from one to another
@@ -28,6 +40,7 @@ import {
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
   tapeUncut, tapePartlyCut, tapeCut, flapsClosed, flapsOpen,
   isFull, isPartial, isEmpty, boxState,
+  beginBoxStep, nextBoxStep, BOX_STEP,
 } from '../src/sim/deliveries.js';
 import {
   carriedGoods, armfulOf, stockFixture, storeInBack, takeFromBack,
@@ -113,7 +126,7 @@ test('you cannot cut a box you are holding — you need both hands', () => {
   assert.ok(cutTape(st, b.id, 1).ok);
 });
 
-test('the flaps open one at a time, and only once the tape is gone', () => {
+test('the lid opens in two halves, and only once the tape is gone', () => {
   const st = landed();
   const b = boxesOf(st)[0];
   cutTape(st, b.id, 1);
@@ -124,21 +137,16 @@ test('the flaps open one at a time, and only once the tape is gone', () => {
   const one = openFlap(st, b.id);
   assert.ok(one.ok);
   assert.equal(one.flap, 0);
-  assert.equal(one.done, false, 'one flap is not open');
+  assert.deepEqual(one.physicalFlaps, [0, 2]);
+  assert.equal(one.done, false, 'half a lid is not an open box');
   assert.ok(!flapsOpen(b));
-  assert.equal(takeFromBox(st, b.id).ok, false, 'and one flap is not enough to reach in');
+  assert.equal(takeFromBox(st, b.id).ok, false, 'and half a lid is not enough to reach in');
 
   const two = openFlap(st, b.id);
   assert.ok(two.ok);
   assert.equal(two.flap, 1);
-  assert.equal(two.done, false, 'both main flaps still leave the side pair closed');
-  assert.ok(!flapsOpen(b));
-
-  const three = openFlap(st, b.id);
-  assert.ok(three.ok);
-  assert.equal(three.flap, 2);
-  assert.deepEqual(three.physicalFlaps, [2, 3]);
-  assert.ok(three.done);
+  assert.deepEqual(two.physicalFlaps, [1, 3]);
+  assert.ok(two.done);
   assert.ok(flapsOpen(b));
   assert.equal(openFlap(st, b.id).ok, false, 'all four physical flaps are already open');
 });
@@ -424,4 +432,68 @@ test('THE LOOP: pad -> stockroom -> cut -> flaps -> hands -> shelf, and not one 
   const inv = st.shop.inventory.balls1;
   assert.equal(inv.shelf + inv.back, 24, 'and all 24 dozen are on the shelf or in the back');
   assert.ok(inv.shelf > 0, 'with some of them actually out where people can buy them');
+});
+
+// --- the three-press gesture ---------------------------------------------------------------------
+//
+// nextBoxStep is what the prompt renders AND what the action dispatches on, so a
+// prompt naming a step the player cannot take stops being expressible.
+
+test('three presses, and the prompt always names the one you are about to make', () => {
+  const st = landed('balls2', 6);
+  const b = boxesOf(st)[0];
+
+  assert.equal(nextBoxStep(b), BOX_STEP.TEAR, 'press 1 tears the tape');
+  const one = beginBoxStep(st, b.id);
+  assert.ok(one.ok);
+  assert.equal(one.tore, true, 'the tape goes with the first press, not on its own');
+  assert.equal(one.phase, 0);
+  assert.ok(tapeCut(b), 'no half-cut state survives a press');
+  openFlap(st, b.id, 1, { stopAfterPhase: one.phase }); // the scene animates this
+
+  assert.equal(nextBoxStep(b), BOX_STEP.FLAP, 'press 2 opens the other half');
+  const two = beginBoxStep(st, b.id);
+  assert.ok(two.ok);
+  assert.equal(two.tore, false, 'the tape only tears once');
+  assert.equal(two.phase, 1);
+  openFlap(st, b.id, 1, { stopAfterPhase: two.phase });
+
+  assert.equal(nextBoxStep(b), BOX_STEP.TAKE, 'press 3 takes an armful');
+  assert.equal(beginBoxStep(st, b.id).ok, false, 'and it is not another flap');
+  assert.ok(takeFromBox(st, b.id).ok);
+});
+
+test('the prompt names the state you are in, not the one the sim calls it', () => {
+  const st = landed('balls2', 2);
+  const b = boxesOf(st)[0];
+  // Hands full is a real state with a real reason, and it is not "take an armful".
+  cutTape(st, b.id, 1);
+  openFlap(st, b.id);
+  openFlap(st, b.id);
+  assert.equal(nextBoxStep(b, { handsFull: true }), BOX_STEP.BLOCKED);
+  assert.equal(nextBoxStep(b, { handsFull: false }), BOX_STEP.TAKE);
+  // A surface that cannot unpack asks you to carry it, rather than offering a
+  // step that would be refused.
+  assert.equal(nextBoxStep(b, { canUnpack: false }), BOX_STEP.PICK_UP);
+});
+
+test('an empty box asks to be flattened, and a flat one to be carried', () => {
+  const st = landed('balls2', 1);
+  const b = boxesOf(st)[0];
+  cutTape(st, b.id, 1);
+  openFlap(st, b.id);
+  openFlap(st, b.id);
+  takeFromBox(st, b.id);
+  assert.equal(nextBoxStep(b), BOX_STEP.FLATTEN, 'empty, so the next press folds it');
+  flattenBox(st, b.id, 1);
+  assert.equal(nextBoxStep(b), BOX_STEP.CARRY, 'flat, so the next press picks it up');
+});
+
+test('a carried box refuses every step — you need both hands', () => {
+  const st = landed();
+  const b = boxesOf(st)[0];
+  b.loc = 'carried';
+  const r = beginBoxStep(st, b.id);
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /down first/i);
 });

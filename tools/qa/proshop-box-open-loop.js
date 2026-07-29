@@ -121,7 +121,105 @@ async (page) => {
     };
   });
 
+  // THE GESTURE, through the player's own path: stand in front of the carton,
+  // read the prompt the game is showing, press E. Not the sim's verbs and not the
+  // prop object — the walk controller's focus and a real keyboard event, because
+  // "the player cannot open the box" was never a claim about the sim.
+  out.gesture = await page.evaluate(async () => {
+    const D = await import('/src/sim/deliveries.js');
+    const st = window.__fw.state;
+    const box = D.boxesOf(st).find((b) => !b.flat && (b.qty || 0) > 0);
+    if (!box) return { ok: false, reason: 'no carton to open' };
+    box.loc = 'world';
+    box.surfaceId = 'floor:clubhouse';
+    box.x = 0.4; box.z = 1.2; box.ry = 0;
+    window.__fw.scene3d.clubhouse().rebuildBoxes?.();
+    await new Promise((r) => setTimeout(r, 600));
+    // Stand a yard south of it, looking NORTH at it. At yaw 0 the walk basis maps
+    // forward to -z, so yaw 0 faces the carton; the first run used PI and focused
+    // the laptop behind the player instead, then pressed E and opened it.
+    const o = window.__fw.scene3d.clubhouse().center;
+    const w = window.__fw.scene3d.walk.state;
+    w.x = 0.4 + o.x; w.z = 2.3 + o.z; w.yaw = 0; w.pitch = -0.35;
+    await new Promise((r) => setTimeout(r, 700));
+    const focus = window.__fw.scene3d.walk.getFocus?.();
+    const label = window.__fw.scene3d.walk.getFocusLabel?.() ?? null;
+    // Refuse to press anything until the carton is what is actually focused. A
+    // gesture harness that presses E at whatever happens to be under the
+    // crosshair measures the room, not the gesture.
+    if (!focus || !/case|carton|tape/i.test(label || '')) {
+      return { ok: false, reason: `focused "${label}", not the carton`, label };
+    }
+    return {
+      ok: true, boxId: box.id, focusedLabel: label,
+      standing: { x: +(w.x - o.x).toFixed(2), z: +(w.z - o.z).toFixed(2) },
+    };
+  });
+
+  if (out.gesture.ok) {
+    const readState = () => page.evaluate(async () => {
+      const D = await import('/src/sim/deliveries.js');
+      const st = window.__fw.state;
+      const walk = window.__fw.scene3d.walk;
+      const box = D.boxesOf(st).find((b) => !b.flat && (b.qty || 0) > 0);
+      const focus = walk.getFocus?.();
+      return {
+        label: walk.getFocusLabel?.() ?? null,
+        focused: !!focus,
+        // A carton must never ask for a tool again. One property read, and it is
+        // the whole point of the change.
+        tool: focus?.kind === 'prop' ? (focus.prop.tool ?? null) : null,
+        hasDragVerb: focus?.kind === 'prop' ? typeof focus.prop.drag === 'function' : null,
+        hasHoldVerb: focus?.kind === 'prop' ? typeof focus.prop.hold === 'function' : null,
+        tapeCut: box ? D.tapeCut(box) : null,
+        flapsOpen: box ? D.flapsOpen(box) : null,
+        carried: st.shop.carry?.qty || 0,
+      };
+    });
+
+    const steps = [];
+    for (let i = 0; i < 4; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const before = await readState();
+      if (!before.focused) { steps.push({ ...before, pressed: false }); break; }
+      // eslint-disable-next-line no-await-in-loop
+      await page.keyboard.press('e');
+      // eslint-disable-next-line no-await-in-loop
+      await page.waitForTimeout(1500);
+      // eslint-disable-next-line no-await-in-loop
+      const after = await readState();
+      steps.push({
+        promptBefore: before.label,
+        tool: before.tool,
+        hasDragVerb: before.hasDragVerb,
+        hasHoldVerb: before.hasHoldVerb,
+        tapeCutAfter: after.tapeCut,
+        flapsOpenAfter: after.flapsOpen,
+        tookSomething: after.carried > before.carried,
+      });
+      if (after.carried > before.carried) break;
+    }
+    out.gesture.steps = steps;
+    out.gesture.presses = steps.length;
+  }
+
+  const g = out.gesture;
+  out.threePresses = g.ok && g.presses === 3 && g.steps[2].tookSomething === true;
+  out.noToolRequired = g.ok && g.steps.every((s) => s.tool === null);
+  out.noDragGesture = g.ok && g.steps.every((s) => !s.hasDragVerb && !s.hasHoldVerb);
+  // Each press must name what IT does, and the three must be different.
+  out.promptNamesEachStep = g.ok && g.steps.length === 3
+    && /tear the tape/i.test(g.steps[0].promptBefore || '')
+    && /other flap/i.test(g.steps[1].promptBefore || '')
+    && /armful/i.test(g.steps[2].promptBefore || '');
+  // And each press must move exactly one mechanical thing.
+  out.oneStepPerPress = g.ok && g.steps.length === 3
+    && g.steps[0].tapeCutAfter === true && g.steps[0].flapsOpenAfter === false
+    && g.steps[1].flapsOpenAfter === true;
+
   out.ok = out.placeableButNotOpenable.length === 0
+    && out.threePresses && out.noToolRequired && out.noDragGesture
+    && out.promptNamesEachStep && out.oneStepPerPress
     && out.delivery.ok === true
     && out.delivery.openableWhereItLanded === true
     && out.delivery.openableOnSalesFloor === true

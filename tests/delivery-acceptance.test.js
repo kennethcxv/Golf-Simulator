@@ -127,7 +127,7 @@ test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — con
   for (const id of partials) {
     const box = boxesOf(st).find((b) => b.skuId === id);
     cutTape(st, box.id, 1);
-    openFlap(st, box.id); openFlap(st, box.id); openFlap(st, box.id);
+    openFlap(st, box.id); openFlap(st, box.id);
     const t = takeFromBox(st, box.id);
     assert.ok(t.ok);
     storeInBack(st);   // put the armful in the back so we can open the next box
@@ -162,7 +162,7 @@ test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — con
     if (!box) break;
     if (!boxesOf(st).find((b) => b.id === box.id).tape) cutTape(st, box.id, 1);
     if (box.tape < 1) cutTape(st, box.id, 1);
-    for (let phase = 0; phase < 3 && !flapsOpen(box); phase += 1) openFlap(st, box.id);
+    for (let phase = 0; phase < 2 && !flapsOpen(box); phase += 1) openFlap(st, box.id);
     const t = takeFromBox(st, box.id);
     if (!t.ok) break;
     const held = carriedGoods(st);

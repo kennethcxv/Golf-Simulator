@@ -72,10 +72,9 @@ test('one persisted club connects supplier, stocking, guests, sales, books, staf
   assert.equal(state.shop.orders.length, 0);
   assert.equal(unitsOf(state, 'balls1'), 12, 'arrival moved the same units into cartons');
 
-  // Carton -> cut tape -> four flaps -> two armfuls -> the correct fixture.
+  // Carton -> tear the tape -> both halves of the lid -> two armfuls -> the fixture.
   for (const box of [...boxesOf(state)]) {
     assert.equal(cutTape(state, box.id, 1).ok, true);
-    assert.equal(openFlap(state, box.id).ok, true);
     assert.equal(openFlap(state, box.id).ok, true);
     assert.equal(openFlap(state, box.id).ok, true);
     while (box.qty > 0) {

@@ -196,5 +196,49 @@
     "openableOnStockroomFloor": true,
     "openableOnHandTruck": true
   },
+  "gesture": {
+    "ok": true,
+    "boxId": 1,
+    "focusedLabel": "Range-rock dozen case · 54 inside — [E] tear the tape open · [X] reposition closed carton",
+    "standing": {
+      "x": 0.4,
+      "z": 2.3
+    },
+    "steps": [
+      {
+        "promptBefore": "Range-rock dozen case · 54 inside — [E] tear the tape open · [X] reposition closed carton",
+        "tool": null,
+        "hasDragVerb": false,
+        "hasHoldVerb": false,
+        "tapeCutAfter": true,
+        "flapsOpenAfter": false,
+        "tookSomething": false
+      },
+      {
+        "promptBefore": "Range-rock dozen — [E] open the other flap",
+        "tool": null,
+        "hasDragVerb": false,
+        "hasHoldVerb": false,
+        "tapeCutAfter": true,
+        "flapsOpenAfter": true,
+        "tookSomething": false
+      },
+      {
+        "promptBefore": "Range-rock dozen ×54 in the case — [E] take an armful",
+        "tool": null,
+        "hasDragVerb": false,
+        "hasHoldVerb": false,
+        "tapeCutAfter": true,
+        "flapsOpenAfter": true,
+        "tookSomething": true
+      }
+    ],
+    "presses": 3
+  },
+  "threePresses": true,
+  "noToolRequired": true,
+  "noDragGesture": true,
+  "promptNamesEachStep": true,
+  "oneStepPerPress": true,
   "ok": true
 }

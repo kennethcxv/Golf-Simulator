@@ -162,17 +162,19 @@ test('20 cartons survive progressive unboxing, save/reload, flattening, and recy
     state = checkpoint(state, `cycle ${arrivals} cut complete`, sizeSamples);
     box = currentBox(state, boxId);
 
+    // Two phases since 2026-07-29: each press lifts a main flap and the side
+    // flap beside it, so half the lid moves per press. Partial amounts still
+    // persist mid-arc, which is what this stress run is really pinning.
     assert.equal(openFlap(state, boxId, 0.5).ok, true);
     assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING);
-    assert.deepEqual(box.flapProgress, [0.5, 0, 0, 0]);
-    state = checkpoint(state, `cycle ${arrivals} opening front flap`, sizeSamples);
+    assert.deepEqual(box.flapProgress, [0.5, 0, 0.5, 0]);
+    state = checkpoint(state, `cycle ${arrivals} opening the first half`, sizeSamples);
     box = currentBox(state, boxId);
 
     assert.equal(openFlap(state, boxId, 0.5).ok, true);
-    assert.equal(openFlap(state, boxId, 1).ok, true);
     assert.equal(openFlap(state, boxId, 0.5).ok, true);
-    assert.deepEqual(box.flapProgress, [1, 1, 0.5, 0.5]);
-    state = checkpoint(state, `cycle ${arrivals} opening side flaps`, sizeSamples);
+    assert.deepEqual(box.flapProgress, [1, 0.5, 1, 0.5]);
+    state = checkpoint(state, `cycle ${arrivals} opening the second half`, sizeSamples);
     box = currentBox(state, boxId);
 
     assert.equal(openFlap(state, boxId, 0.5).done, true);

@@ -1194,9 +1194,18 @@ export function cutTape(state, id, amount = 1) {
 }
 
 // --- the flaps -----------------------------------------------------------------------------------
-// Medium-carton sequence: front main flap, back main flap, then both side
-// flaps. Incremental amounts let the scene author a smooth deterministic arc.
-export function openFlap(state, id, amount = 1) {
+// TWO phases, one per press (2026-07-29). Each press has to be a visible
+// mechanical step the player can point at, so the carton opens in halves: the
+// front main flap takes one side flap with it, the back main flap takes the
+// other. Three phases meant one press did nothing visible on its own.
+//
+// `options.stopAfterPhase` bounds a single press: the scene animates a phase
+// smoothly over several frames and must stop at the end of it rather than
+// running the whole carton open. Without the bound one E press opened
+// everything, which is the behaviour this replaced.
+export const FLAP_PHASES = Object.freeze([Object.freeze([0, 2]), Object.freeze([1, 3])]);
+
+export function openFlap(state, id, amount = 1, options = {}) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
@@ -1204,9 +1213,12 @@ export function openFlap(state, id, amount = 1) {
   box.flapProgress = normalizeFlaps(
     Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
   );
-  const phases = [[0], [1], [2, 3]];
+  const phases = FLAP_PHASES;
   const i = phases.findIndex((phase) => phase.some((flap) => box.flapProgress[flap] < 1));
   if (i < 0) return { ok: false, reason: 'All four flaps are open.', done: true };
+  if (Number.isFinite(options.stopAfterPhase) && i > options.stopAfterPhase) {
+    return { ok: false, reason: 'That flap is open.', done: true, phaseComplete: true, flap: i };
+  }
   const step = Number.isFinite(amount) ? Math.max(0, amount) : 0;
   if (step <= 0) return { ok: false, reason: 'Keep opening the flap.' };
   for (const flap of phases[i]) {
@@ -1229,6 +1241,76 @@ export function openFlap(state, id, amount = 1) {
     progress: box.openingProgress,
     done,
   };
+}
+
+// --- opening a box, as three presses ---------------------------------------------------------------
+//
+// THE WHOLE GESTURE (2026-07-29). Look at a box, press E: one half of the lid
+// opens. Press E: the other half opens. Press E: you take an armful out. That is
+// it — no cutter, no tool to equip, nothing to drag, no aiming.
+//
+// What it replaced: a box-cutter tool that had to be equipped, then dragged along
+// a projected seam on screen at the right speed, holding the button, with the
+// half-cut state persisted if you let go. It was undiscoverable enough that a
+// previous session's fix for "boxes cannot be opened" was to add a prompt saying
+// how — which is not a fix, because the player still could not do it.
+//
+// The tape does not get its own press. Tearing the tape and lifting the first
+// flap is one motion for a person and is one press here; the sim still records
+// cutProgress because saves and renderers read it, and because the tape is a real
+// visual that has to stop being there once you have opened the box.
+//
+// `nextBoxStep` is the same decision the prompt renders, so the label and the
+// action can never disagree about what the next press does. That divergence is
+// its own recurring bug class: a prompt describing a state the player cannot act
+// on.
+export const BOX_STEP = Object.freeze({
+  CARRY: 'carry',       // already flat — pick it up for the recycling
+  FLATTEN: 'flatten',   // empty — fold it down
+  PICK_UP: 'pick-up',   // cannot be opened on this surface — carry it somewhere it can
+  TEAR: 'tear',         // press 1: tape + the first half of the lid
+  FLAP: 'flap',         // press 2: the other half
+  TAKE: 'take',         // press 3: an armful
+  BLOCKED: 'blocked',   // hands full, or nothing left to do
+});
+
+export function nextBoxStep(box, { canUnpack = true, handsFull = false } = {}) {
+  if (!box) return null;
+  if (box.flat) return BOX_STEP.CARRY;
+  if ((box.qty || 0) <= 0) return BOX_STEP.FLATTEN;
+  if (!canUnpack) return BOX_STEP.PICK_UP;
+  if (!flapsOpen(box)) {
+    const flaps = flapValues(box);
+    return FLAP_PHASES[0].every((f) => flaps[f] >= 1) ? BOX_STEP.FLAP : BOX_STEP.TEAR;
+  }
+  return handsFull ? BOX_STEP.BLOCKED : BOX_STEP.TAKE;
+}
+
+// Which flap phase a press should drive, and the tape torn if this is the first.
+// Returns the phase index so the caller can bound its animation to it; the
+// caller does the per-frame openFlap calls so the arc stays smooth.
+export function beginBoxStep(state, id) {
+  const box = findBox(state, id);
+  if (!box) return { ok: false, reason: 'No box there.' };
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
+  if (box.flat) return { ok: false, reason: 'It is already flattened.' };
+  if ((box.qty || 0) <= 0) return { ok: false, reason: 'It is empty.' };
+  if (flapsOpen(box)) return { ok: false, reason: 'It is already open.', done: true };
+
+  // First press tears the tape. Full travel in one go: a partly-cut box was a
+  // state the old drag gesture produced and nothing else ever will.
+  let tore = false;
+  if (!tapeCut(box)) {
+    const cut = cutTape(state, id, 1);
+    if (!cut.ok) return cut;
+    tore = true;
+  }
+  box.flapProgress = normalizeFlaps(
+    Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
+  );
+  const phase = FLAP_PHASES.findIndex((p) => p.some((flap) => box.flapProgress[flap] < 1));
+  if (phase < 0) return { ok: false, reason: 'It is already open.', done: true };
+  return { ok: true, phase, tore, flaps: [...FLAP_PHASES[phase]] };
 }
 
 // --- reaching in ----------------------------------------------------------------------------------

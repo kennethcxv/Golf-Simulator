@@ -32,7 +32,6 @@ function openFully(state, box) {
   assert.ok(cutTape(state, box.id, 1).ok);
   assert.ok(openFlap(state, box.id).ok);
   assert.ok(openFlap(state, box.id).ok);
-  assert.ok(openFlap(state, box.id).ok);
 }
 
 test('hero box follows the legal sealed-to-cut-complete lifecycle with three persisted tape segments', () => {
@@ -63,31 +62,47 @@ test('hero box follows the legal sealed-to-cut-complete lifecycle with three per
   assert.deepEqual(box.tapeSegments, { centre: 1, left: 1, right: 1 });
 });
 
-test('front, back, then side opening phases persist all four physical flaps', () => {
+// TWO phases now, one per E press (2026-07-29). Each half of the lid is a main
+// flap plus the side flap next to it, so every press moves something the player
+// can see. The old three-phase split had a press that opened one small side
+// flap and read as nothing happening.
+test('the lid opens in two halves, and all four physical flaps persist', () => {
   const state = landed();
   const box = boxesOf(state)[0];
   cutTape(state, box.id, 1);
 
   const first = openFlap(state, box.id);
-  assert.deepEqual(first.physicalFlaps, [0]);
-  assert.deepEqual(box.flapProgress, [1, 0, 0, 0]);
+  assert.deepEqual(first.physicalFlaps, [0, 2]);
+  assert.deepEqual(box.flapProgress, [1, 0, 1, 0]);
   assert.deepEqual(box.flaps, [1, 0], 'the shipped two-input mirror remains compatible');
-  assert.equal(box.openingProgress, 0.25);
+  assert.equal(box.openingProgress, 0.5);
+  assert.equal(first.done, false, 'half a lid is not an open box');
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING);
 
   const second = openFlap(state, box.id);
-  assert.deepEqual(second.physicalFlaps, [1]);
-  assert.deepEqual(box.flapProgress, [1, 1, 0, 0]);
-  assert.deepEqual(box.flaps, [1, 1]);
-  assert.equal(box.openingProgress, 0.5);
-  assert.equal(second.done, false);
-
-  const third = openFlap(state, box.id);
-  assert.deepEqual(third.physicalFlaps, [2, 3]);
-  assert.ok(third.done);
+  assert.deepEqual(second.physicalFlaps, [1, 3]);
+  assert.ok(second.done);
   assert.deepEqual(box.flapProgress, [1, 1, 1, 1]);
   assert.equal(box.openingProgress, 1);
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPEN);
+});
+
+// The scene animates a phase over several frames. Without a bound, one press ran
+// the whole carton open — silently restoring the single-press behaviour the
+// three-press gesture replaced, with the prompt still promising two more steps.
+test('a press is bounded to its own phase and cannot run the carton open', () => {
+  const state = landed();
+  const box = boxesOf(state)[0];
+  cutTape(state, box.id, 1);
+  let guard = 200;
+  let result = { ok: true };
+  while (result.ok && guard-- > 0) result = openFlap(state, box.id, 0.2, { stopAfterPhase: 0 });
+  assert.equal(result.phaseComplete, true, 'it must stop, not grind on forever');
+  assert.deepEqual(box.flapProgress, [1, 0, 1, 0], 'phase 1 finished; phase 2 untouched');
+  assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING, 'still opening, not open');
+  // …and the next press picks up exactly where it stopped.
+  assert.ok(openFlap(state, box.id, 1, { stopAfterPhase: 1 }).done);
+  assert.deepEqual(box.flapProgress, [1, 1, 1, 1]);
 });
 
 test('partial depletion and emptying conserve every unit while advancing explicit states', () => {

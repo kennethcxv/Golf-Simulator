@@ -270,7 +270,7 @@ test('mixed starter cartons expose one conserved SKU at a time through normal un
   const box = state.shop.deliveries.boxes.find((entry) => entry.starterCartonId === 'balls-accessories');
   assert.ok(box);
   assert.equal(cutTape(state, box.id, 1).ok, true);
-  for (let flap = 0; flap < 3; flap += 1) {
+  for (let flap = 0; flap < 2; flap += 1) {
     assert.equal(openFlap(state, box.id, 1).ok, true);
   }
 

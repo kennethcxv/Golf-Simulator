@@ -74,7 +74,7 @@ function openPhysicalBox(state, box) {
   assert.equal(cutTape(state, box.id, 0.45).ok, true);
   assert.ok(box.tape > 0 && box.tape < 1, 'partial cut is retained');
   assert.equal(cutTape(state, box.id, 1).ok, true);
-  assert.equal(openFlap(state, box.id).ok, true);
+  // Two presses open the lid (the two halves); a third has nothing left to do.
   assert.equal(openFlap(state, box.id).ok, true);
   assert.equal(openFlap(state, box.id).ok, true);
   assert.equal(flapsOpen(box), true);
@@ -214,7 +214,6 @@ test('matrix: delivery while away and every required save point preserve identit
   assert.equal(box.tape, 0.43, 'save during opening preserves the seam progress');
   assertReconciled(state, 'save-mid-cut-after-reload');
   assert.equal(cutTape(state, box.id, 1).ok, true);
-  openFlap(state, box.id);
   openFlap(state, box.id);
   openFlap(state, box.id);
   assert.equal(takeFromBox(state, box.id, 5).ok, true);

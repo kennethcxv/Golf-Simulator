@@ -38,8 +38,9 @@ import {
 import { buildPropertyFurnitureVisual } from './clubhouse/propertyFurnitureVisuals.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
-  cutTape, openFlap, takeFromBox, flattenBox, recycleCarriedBox,
-  tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
+  openFlap, takeFromBox, flattenBox, recycleCarriedBox,
+  tapeCut, flapsOpen, isEmpty, boxState,
+  beginBoxStep, nextBoxStep, BOX_STEP,
   deliveryEquipmentPlacementForCarriedBox,
   handTruckPlacementForCarriedBox, stockingCartPlacementForCarriedBox, PAD_CAPACITY,
 } from '../sim/deliveries.js';
@@ -6401,15 +6402,17 @@ export function makeClubhouse(ctx) {
         boxOpeningPhases.delete(id);
         continue;
       }
-      const result = openFlap(state, id, dt * 1.55);
+      // Bounded to the phase THIS press started. Unbounded, one E press ran the
+      // whole carton open, which is the behaviour the three-press gesture
+      // replaced — the animation would have quietly restored it.
+      const target = boxOpeningPhases.get(id);
+      const result = openFlap(state, id, dt * 1.55, { stopAfterPhase: target });
       if (!result.ok) {
         boxOpeningAnimations.delete(id);
         boxOpeningPhases.delete(id);
+        if (result.phaseComplete) refreshBoxVisual(id);
         continue;
       }
-      const priorPhase = boxOpeningPhases.get(id);
-      if (priorPhase != null && priorPhase !== result.flap) sfx('flap');
-      boxOpeningPhases.set(id, result.flap);
       refreshBoxVisual(id);
       if (result.done) {
         boxOpeningAnimations.delete(id);
@@ -7341,31 +7344,11 @@ export function makeClubhouse(ctx) {
   // hold-to-cut is never torn down mid-cut.
   function boxPropFor(id) {
     const box = () => boxesOf(state).find((b) => b.id === id);
-    let lastCutBeat = -1;
     const pickUp = (b) => {
       const r = pickUpBox(state, b.id);
       if (!r.ok) { say(r.reason, 'warn'); return; }
       sfx('boxup');
       rebuildBoxes();
-    };
-    const advanceCut = (amount) => {
-      const b = box();
-      const step = Number(amount);
-      if (!b || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)
-        || !(step > 0) || !Number.isFinite(step)) return;
-      const r = cutTape(state, b.id, step);
-      if (r.ok) {
-        const cutBeat = Math.floor((Number(b.tape) || 0) * 10);
-        if (cutBeat !== lastCutBeat || r.done) {
-          lastCutBeat = cutBeat;
-          sfx('tapeCut');
-        }
-        if (r.done) {
-          sfx('tapeRelease');
-          tutorialFlag(state, 'boxCut');
-        }
-        refreshBoxVisual(b.id);
-      }
     };
     const prop = addProp({
       x: 0, z: 0, r: 1.9,
@@ -7400,33 +7383,37 @@ export function makeClubhouse(ctx) {
           // never the fix. The rule was.
           return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
         }
-        if (tapeUncut(b)) return `${name} case · ${b.qty} inside — [LMB] drag along tape · [E] hold alternative`;
-        if (!tapeCut(b)) return `${name} — [LMB] drag along tape · [E] hold alternative`;
-        if (!flapsOpen(b)) return boxOpeningAnimations.has(b.id)
-          ? `${name} — opening all four flaps...`
-          : `${name} — [E] open the carton`;
+        // One source of truth for "what does the next press do": nextBoxStep
+        // decides, and action() below asks the same question. The prompt
+        // describing a step the player cannot actually take is its own recurring
+        // bug, and it stops being possible when both read the same function.
+        if (boxOpeningAnimations.has(b.id)) {
+          return boxOpeningPhases.get(b.id) === 0
+            ? `${name} — tearing the tape...`
+            : `${name} — opening the carton...`;
+        }
         const held = carriedGoods(state);
-        if (held && held.skuId !== b.skuId) return `${name} ×${b.qty}, open — put down what you're holding first`;
-        return `${name} ×${b.qty} in the case — [E] take an armful`;
+        const handsFull = !!(held && held.skuId !== b.skuId);
+        switch (nextBoxStep(b, { canUnpack: true, handsFull })) {
+          case BOX_STEP.TEAR:
+            return `${name} case · ${b.qty} inside — [E] tear the tape open`;
+          case BOX_STEP.FLAP:
+            return `${name} — [E] open the other flap`;
+          case BOX_STEP.BLOCKED:
+            return `${name} ×${b.qty}, open — put down what you're holding first`;
+          case BOX_STEP.TAKE:
+          default:
+            return `${name} ×${b.qty} in the case — [E] take an armful`;
+        }
       },
-      get tool() {
-        const b = box();
-        if (!b || carriedBox(state)) return null;
-        if (fallbackBoxCovered(b)) return null;
-        return unpackHere(prop, b) && !b.flat && !tapeCut(b) && !isEmpty(b) ? 'boxcutter' : null;
-      },
-      get toolProgress() {
-        const b = box();
-        return b ? Math.max(0, Math.min(1, Number(b.tape) || 0)) : 0;
-      },
-      get toolPath() {
-        const b = box();
-        if (!b) return null;
-        const view = boxViews.get(b.id);
-        return typeof view?.toolPathAtProgress === 'function'
-          ? view.toolPathAtProgress(b.tape)
-          : null;
-      },
+      // NO TOOL. A carton used to demand the box cutter be equipped and then
+      // dragged along a projected seam at the right speed; `tool`, `toolProgress`
+      // and `toolPath` were that contract and they are all gone. Opening a box is
+      // three E presses now and nothing else.
+      //
+      // This is also what retires the cutter as an item: it was never in the tool
+      // wheel, and the only way to hold one was for a prop to ask for it here.
+      // With nothing asking, it cannot be equipped. See OVERNIGHT_REPORT_2.md.
       get secondaryLabel() {
         const b = box();
         return canRepositionClosedCarton(prop, b) ? 'reposition closed carton' : null;
@@ -7436,8 +7423,6 @@ export function makeClubhouse(ctx) {
         if (!canRepositionClosedCarton(prop, b)) return;
         pickUp(b);
       },
-      drag: (amount) => advanceCut(amount),
-      hold: (dt) => advanceCut(dt * 0.5),
       action: () => {
         const b = box();
         if (!b) return;
@@ -7454,13 +7439,17 @@ export function makeClubhouse(ctx) {
           return;
         }
         if (!unpackHere(prop, b)) { pickUp(b); return; }
-        if (!tapeCut(b)) return;              // cutting is the hold verb; a tap does nothing here
         if (!flapsOpen(b)) {
-          if (!boxOpeningAnimations.has(b.id)) {
-            boxOpeningAnimations.add(b.id);
-            boxOpeningPhases.set(b.id, 0);
-            sfx('flap');
-          }
+          if (boxOpeningAnimations.has(b.id)) return; // a press mid-animation is not a second step
+          const step = beginBoxStep(state, b.id);
+          if (!step.ok) { if (step.reason) say(step.reason, 'warn'); return; }
+          boxOpeningAnimations.add(b.id);
+          boxOpeningPhases.set(b.id, step.phase);
+          // Each press gets its own sound, because each press is its own
+          // mechanical event: the tape gives once, the second flap does not.
+          sfx(step.tore ? 'tapeRelease' : 'flap');
+          if (step.tore) tutorialFlag(state, 'boxCut');
+          refreshBoxVisual(b.id);
           return;
         }
         const r = takeFromBox(state, b.id);

@@ -190,8 +190,13 @@ test('carton lifecycle routes semantic cues at the physical transition edges', (
     new URL('../src/render3d/clubhouse.js', import.meta.url),
     'utf8',
   );
-  assert.match(source, /cutBeat\s*!==\s*lastCutBeat\s*\|\|\s*r\.done[\s\S]{0,160}sfx\(['"]tapeCut['"]\)/);
-  assert.match(source, /if\s*\(r\.done\)\s*\{[\s\S]{0,100}sfx\(['"]tapeRelease['"]\)/);
+  // The tape used to have a cue PER TENTH of a drag, plus a release at the end,
+  // because it was cut by degrees. It is torn in one press now, so there is one
+  // cue: tapeRelease, on the press that tears it. Each press gets exactly one
+  // sound, which is what makes each press read as its own mechanical event.
+  assert.match(source, /sfx\(step\.tore \? ['"]tapeRelease['"] : ['"]flap['"]\)/);
+  assert.doesNotMatch(source, /sfx\(['"]tapeCut['"]\)/,
+    'the per-tenth drag cue belongs to a gesture that no longer exists');
   assert.match(source, /boxFlattenAnimations\.add\(b\.id\)[\s\S]{0,100}sfx\(['"]boxFlatten['"]\)/);
   assert.match(source, /takeFromBox\(state,\s*b\.id\)[\s\S]{0,180}sfx\(['"]itemRemoval['"]\)/);
   assert.doesNotMatch(
