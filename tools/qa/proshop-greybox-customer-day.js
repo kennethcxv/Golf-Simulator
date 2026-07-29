@@ -125,8 +125,10 @@ async (page) => {
         // East of the public bound = the service wing. 5.60 is the partition
         // band's west face; a customer center past it is inside or beyond the
         // partition line (the staff mouth included — no customer path exists
-        // east of publicBounds.maxX).
-        { name: 'service-wing', minX: 5.60, maxX: 99, minZ: seal.zFrom, maxZ: 99 },
+        // east of publicBounds.maxX). z-bounded to the building's interior
+        // band: arrivals legally walk the porch OUTSIDE the south wall, so an
+        // open-ended rect would false-flag the door approach.
+        { name: 'service-wing', minX: 5.60, maxX: V2.publicBounds.maxX + 6, minZ: seal.zFrom, maxZ: V2.publicBounds.maxZ + V2.wallT },
         // Sealed slabs — inside any of these means the walker pierced a solid.
         { name: 'seal-east-stub', ...inset({ minX: seal.x - seal.t / 2, maxX: seal.x + seal.t / 2, minZ: seal.zFrom, maxZ: seal.zTo }, 0.02) },
         { name: 'seal-return-back', ...inset(west.returnBackFill, 0.05) },

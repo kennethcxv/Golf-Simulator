@@ -157,9 +157,35 @@ requeue3's own nav-block log shows visitor:4 and visitor:8 at fixed
 coordinates near member_station from game-minute ~754 to ~873 at 16× (~7.5
 continuous wall-minutes) before the crowd shifted and both completed their
 visits. Under the episode instrument that is one episode far over the cap.
-Whether the 1× regime (visits complete, crowds thin) reproduces pins of that
-length is exactly what the 1× airtight re-run measures — if it does, the gate
-is now honest enough to say so.
+
+**Measured at 1× on the sealed room (2026-07-28, the airtight re-run —
+`greybox-customer-day-airtight1x-{neglected,restored}.json`, 60 game-min peak
+window, full house, exclusive):**
+
+| Leg | Episodes | Over 20 s cap | Max | p50 | Recovery ≤15 s | Containment | Queue | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| neglected | 95 | **43** | 93.6 s | 17.8 s | 27% | **0** | 0 | **RED** (cap + floor) |
+| restored | 82 | **41** | 75.3 s | 20.1 s | 17% | **0** | 0 | **RED** (cap + floor) |
+
+The airtight claim itself is **confirmed** — zero containment violations,
+zero queue violations, every episode cleared organically (none active at
+window end), all visits completed or legitimately mid-visit. The red is
+entirely the churn class, honestly measured for the first time: **90/95 and
+79/82 episodes are the member_station stand crowd** — customers stacked in
+the approach band (lx 2.0–4.5, lz 1.3–2.6) waiting for one browse stand with
+no wait behaviour, shoving and ladder-sidestepping for 20–90 s until the
+stand frees. p50 ≈ 18–20 s means these are not ladder failures (the ladder's
+15-s budget was never going to resolve "the stand is occupied"); they are
+wait-your-turn dynamics with nowhere to put the waiting.
+
+**Open decision (for the user, not re-litigated here):** the accepted jam
+class produces single blocks over the ruled 20-s cap at 1×. Options as
+measured: (a) accept the red as the standing signal until a stand-wait
+behaviour exists (NPCs hold at a spaced wait point near an occupied stand —
+sim work, currently unscheduled); (b) raise the cap for browse-stand-adjacent
+episodes specifically (a conditioned threshold, close to the exemption the
+ruling rejected); (c) raise the flat cap. The gate stays as ruled until that
+call is made.
 
 ---
 

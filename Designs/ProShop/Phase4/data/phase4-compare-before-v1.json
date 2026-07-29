@@ -1,0 +1,550 @@
+{
+  "tag": "before",
+  "variant": "v1",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "minuteOfDay": 780,
+  "states": [
+    {
+      "label": "dark",
+      "lighting": {
+        "campaignEnabled": true,
+        "ceilingRestored": false,
+        "panelTargets": {
+          "ceiling:panel-02": 0,
+          "ceiling:panel-07": 0
+        },
+        "visibleLights": 9,
+        "visiblePanelMeshes": 71,
+        "exposure": 1.12,
+        "toneMapping": 4
+      }
+    },
+    {
+      "label": "powered",
+      "lighting": {
+        "campaignEnabled": true,
+        "ceilingRestored": true,
+        "panelTargets": {
+          "ceiling:panel-02": 1,
+          "ceiling:panel-07": 1
+        },
+        "visibleLights": 19,
+        "visiblePanelMeshes": 71,
+        "exposure": 1.12,
+        "toneMapping": 4
+      }
+    },
+    {
+      "label": "restored",
+      "lighting": {
+        "campaignEnabled": true,
+        "ceilingRestored": true,
+        "panelTargets": {
+          "ceiling:panel-02": 1,
+          "ceiling:panel-07": 1
+        },
+        "visibleLights": 19,
+        "visiblePanelMeshes": 71,
+        "exposure": 1.12,
+        "toneMapping": 4
+      }
+    }
+  ],
+  "renderStatsAtLastPose": {
+    "drawCallsPerFrame": 1529,
+    "trianglesDrawnPerFrame": 7888038,
+    "uniqueMaterials": 801,
+    "uniqueTextures": 240,
+    "uniqueTextureSources": 233,
+    "texturesInMemory": 303,
+    "geometriesInMemory": 1655,
+    "programs": 290
+  },
+  "shots": [
+    {
+      "id": "01-entrance-looking-inward",
+      "state": "dark",
+      "file": "01-entrance-looking-inward--dark.png",
+      "at": [
+        -0.8,
+        4.6
+      ],
+      "look": [
+        -0.8,
+        -3
+      ],
+      "pitch": -0.03,
+      "insideRoom": true,
+      "yaw": 0
+    },
+    {
+      "id": "02-wide-room-overview",
+      "state": "dark",
+      "file": "02-wide-room-overview--dark.png",
+      "at": [
+        -7,
+        3.6
+      ],
+      "look": [
+        4,
+        -2.2
+      ],
+      "pitch": -0.05,
+      "insideRoom": true,
+      "yaw": -1.0855693342275603
+    },
+    {
+      "id": "03-checkout-focal-view",
+      "state": "dark",
+      "file": "03-checkout-focal-view--dark.png",
+      "at": [
+        0,
+        4.2
+      ],
+      "look": [
+        0,
+        0.8
+      ],
+      "pitch": -0.04,
+      "insideRoom": true,
+      "yaw": 0
+    },
+    {
+      "id": "04-checkout-interaction-view",
+      "state": "dark",
+      "file": "04-checkout-interaction-view--dark.png",
+      "at": [
+        0,
+        0.2
+      ],
+      "look": [
+        0,
+        3.4
+      ],
+      "pitch": -0.16,
+      "insideRoom": true,
+      "yaw": -3.141592653589793
+    },
+    {
+      "id": "05-laptop-workstation",
+      "state": "dark",
+      "file": "05-laptop-workstation--dark.png",
+      "at": [
+        0.9,
+        0.1
+      ],
+      "look": [
+        0.95,
+        2.4
+      ],
+      "pitch": -0.3,
+      "insideRoom": true,
+      "yaw": -3.1198569467479955
+    },
+    {
+      "id": "06-main-merchandise-wall",
+      "state": "dark",
+      "file": "06-main-merchandise-wall--dark.png",
+      "at": [
+        -3.2,
+        1.4
+      ],
+      "look": [
+        -3.6,
+        -4.4
+      ],
+      "pitch": -0.02,
+      "insideRoom": true,
+      "yaw": 0.06885648930105046
+    },
+    {
+      "id": "07-cleaning-route",
+      "state": "dark",
+      "file": "07-cleaning-route--dark.png",
+      "at": [
+        -7.4,
+        4.1
+      ],
+      "look": [
+        3.6,
+        3
+      ],
+      "pitch": -0.3,
+      "insideRoom": true,
+      "yaw": -1.4711276743037347
+    },
+    {
+      "id": "08-customer-route",
+      "state": "dark",
+      "file": "08-customer-route--dark.png",
+      "at": [
+        -0.8,
+        5
+      ],
+      "look": [
+        0.2,
+        1.6
+      ],
+      "pitch": -0.1,
+      "insideRoom": true,
+      "yaw": -0.2860514417173182
+    },
+    {
+      "id": "09-floor-dirt-read",
+      "state": "dark",
+      "file": "09-floor-dirt-read--dark.png",
+      "at": [
+        -4,
+        -1
+      ],
+      "look": [
+        -8,
+        -1
+      ],
+      "pitch": -0.66,
+      "insideRoom": true,
+      "yaw": 1.5707963267948966
+    },
+    {
+      "id": "10-back-of-room-clutter",
+      "state": "dark",
+      "file": "10-back-of-room-clutter--dark.png",
+      "at": [
+        4.6,
+        1.2
+      ],
+      "look": [
+        7.6,
+        3.4
+      ],
+      "pitch": -0.12,
+      "insideRoom": true,
+      "yaw": -2.20354516179708
+    },
+    {
+      "id": "01-entrance-looking-inward",
+      "state": "powered",
+      "file": "01-entrance-looking-inward--powered.png",
+      "at": [
+        -0.8,
+        4.6
+      ],
+      "look": [
+        -0.8,
+        -3
+      ],
+      "pitch": -0.03,
+      "insideRoom": true,
+      "yaw": 0
+    },
+    {
+      "id": "02-wide-room-overview",
+      "state": "powered",
+      "file": "02-wide-room-overview--powered.png",
+      "at": [
+        -7,
+        3.6
+      ],
+      "look": [
+        4,
+        -2.2
+      ],
+      "pitch": -0.05,
+      "insideRoom": true,
+      "yaw": -1.0855693342275603
+    },
+    {
+      "id": "03-checkout-focal-view",
+      "state": "powered",
+      "file": "03-checkout-focal-view--powered.png",
+      "at": [
+        0,
+        4.2
+      ],
+      "look": [
+        0,
+        0.8
+      ],
+      "pitch": -0.04,
+      "insideRoom": true,
+      "yaw": 0
+    },
+    {
+      "id": "04-checkout-interaction-view",
+      "state": "powered",
+      "file": "04-checkout-interaction-view--powered.png",
+      "at": [
+        0,
+        0.2
+      ],
+      "look": [
+        0,
+        3.4
+      ],
+      "pitch": -0.16,
+      "insideRoom": true,
+      "yaw": -3.141592653589793
+    },
+    {
+      "id": "05-laptop-workstation",
+      "state": "powered",
+      "file": "05-laptop-workstation--powered.png",
+      "at": [
+        0.9,
+        0.1
+      ],
+      "look": [
+        0.95,
+        2.4
+      ],
+      "pitch": -0.3,
+      "insideRoom": true,
+      "yaw": -3.1198569467479955
+    },
+    {
+      "id": "06-main-merchandise-wall",
+      "state": "powered",
+      "file": "06-main-merchandise-wall--powered.png",
+      "at": [
+        -3.2,
+        1.4
+      ],
+      "look": [
+        -3.6,
+        -4.4
+      ],
+      "pitch": -0.02,
+      "insideRoom": true,
+      "yaw": 0.06885648930105046
+    },
+    {
+      "id": "07-cleaning-route",
+      "state": "powered",
+      "file": "07-cleaning-route--powered.png",
+      "at": [
+        -7.4,
+        4.1
+      ],
+      "look": [
+        3.6,
+        3
+      ],
+      "pitch": -0.3,
+      "insideRoom": true,
+      "yaw": -1.4711276743037347
+    },
+    {
+      "id": "08-customer-route",
+      "state": "powered",
+      "file": "08-customer-route--powered.png",
+      "at": [
+        -0.8,
+        5
+      ],
+      "look": [
+        0.2,
+        1.6
+      ],
+      "pitch": -0.1,
+      "insideRoom": true,
+      "yaw": -0.2860514417173182
+    },
+    {
+      "id": "09-floor-dirt-read",
+      "state": "powered",
+      "file": "09-floor-dirt-read--powered.png",
+      "at": [
+        -4,
+        -1
+      ],
+      "look": [
+        -8,
+        -1
+      ],
+      "pitch": -0.66,
+      "insideRoom": true,
+      "yaw": 1.5707963267948966
+    },
+    {
+      "id": "10-back-of-room-clutter",
+      "state": "powered",
+      "file": "10-back-of-room-clutter--powered.png",
+      "at": [
+        4.6,
+        1.2
+      ],
+      "look": [
+        7.6,
+        3.4
+      ],
+      "pitch": -0.12,
+      "insideRoom": true,
+      "yaw": -2.20354516179708
+    },
+    {
+      "id": "01-entrance-looking-inward",
+      "state": "restored",
+      "file": "01-entrance-looking-inward--restored.png",
+      "at": [
+        -0.8,
+        4.6
+      ],
+      "look": [
+        -0.8,
+        -3
+      ],
+      "pitch": -0.03,
+      "insideRoom": true,
+      "yaw": 0
+    },
+    {
+      "id": "02-wide-room-overview",
+      "state": "restored",
+      "file": "02-wide-room-overview--restored.png",
+      "at": [
+        -7,
+        3.6
+      ],
+      "look": [
+        4,
+        -2.2
+      ],
+      "pitch": -0.05,
+      "insideRoom": true,
+      "yaw": -1.0855693342275603
+    },
+    {
+      "id": "03-checkout-focal-view",
+      "state": "restored",
+      "file": "03-checkout-focal-view--restored.png",
+      "at": [
+        0,
+        4.2
+      ],
+      "look": [
+        0,
+        0.8
+      ],
+      "pitch": -0.04,
+      "insideRoom": true,
+      "yaw": 0
+    },
+    {
+      "id": "04-checkout-interaction-view",
+      "state": "restored",
+      "file": "04-checkout-interaction-view--restored.png",
+      "at": [
+        0,
+        0.2
+      ],
+      "look": [
+        0,
+        3.4
+      ],
+      "pitch": -0.16,
+      "insideRoom": true,
+      "yaw": -3.141592653589793
+    },
+    {
+      "id": "05-laptop-workstation",
+      "state": "restored",
+      "file": "05-laptop-workstation--restored.png",
+      "at": [
+        0.9,
+        0.1
+      ],
+      "look": [
+        0.95,
+        2.4
+      ],
+      "pitch": -0.3,
+      "insideRoom": true,
+      "yaw": -3.1198569467479955
+    },
+    {
+      "id": "06-main-merchandise-wall",
+      "state": "restored",
+      "file": "06-main-merchandise-wall--restored.png",
+      "at": [
+        -3.2,
+        1.4
+      ],
+      "look": [
+        -3.6,
+        -4.4
+      ],
+      "pitch": -0.02,
+      "insideRoom": true,
+      "yaw": 0.06885648930105046
+    },
+    {
+      "id": "07-cleaning-route",
+      "state": "restored",
+      "file": "07-cleaning-route--restored.png",
+      "at": [
+        -7.4,
+        4.1
+      ],
+      "look": [
+        3.6,
+        3
+      ],
+      "pitch": -0.3,
+      "insideRoom": true,
+      "yaw": -1.4711276743037347
+    },
+    {
+      "id": "08-customer-route",
+      "state": "restored",
+      "file": "08-customer-route--restored.png",
+      "at": [
+        -0.8,
+        5
+      ],
+      "look": [
+        0.2,
+        1.6
+      ],
+      "pitch": -0.1,
+      "insideRoom": true,
+      "yaw": -0.2860514417173182
+    },
+    {
+      "id": "09-floor-dirt-read",
+      "state": "restored",
+      "file": "09-floor-dirt-read--restored.png",
+      "at": [
+        -4,
+        -1
+      ],
+      "look": [
+        -8,
+        -1
+      ],
+      "pitch": -0.66,
+      "insideRoom": true,
+      "yaw": 1.5707963267948966
+    },
+    {
+      "id": "10-back-of-room-clutter",
+      "state": "restored",
+      "file": "10-back-of-room-clutter--restored.png",
+      "at": [
+        4.6,
+        1.2
+      ],
+      "look": [
+        7.6,
+        3.4
+      ],
+      "pitch": -0.12,
+      "insideRoom": true,
+      "yaw": -2.20354516179708
+    }
+  ],
+  "errs": [],
+  "ok": true
+}
