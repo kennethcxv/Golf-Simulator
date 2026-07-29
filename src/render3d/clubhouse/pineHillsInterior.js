@@ -853,6 +853,7 @@ export function createPineHillsInterior({
   state,
   addProp,
   removeProp,
+  addCol = null,
   L2W = (x, z) => ({ x, z }),
   getFixtureAnchor = () => null,
   getRuntimeAssetRoot = () => null,
@@ -867,6 +868,25 @@ export function createPineHillsInterior({
   interior.add(group);
   const assetRoots = new Map();
   const failures = [];
+
+  // A collider fitted to what actually loaded. Same rule as the runtime asset
+  // sheet (propPlacement.collisionIsOwnedElsewhere): the box follows the mesh,
+  // so a re-export cannot leave a solid standing where nothing is.
+  const solidHull = (root, inset = 0.06) => {
+    if (typeof addCol !== 'function' || !root) return null;
+    root.updateMatrixWorld(true);
+    const hull = new THREE.Box3().setFromObject(root, true);
+    if (hull.isEmpty() || !Number.isFinite(hull.min.x)) return null;
+    const collider = {
+      minX: hull.min.x + inset,
+      maxX: hull.max.x - inset,
+      minZ: hull.min.z + inset,
+      maxZ: hull.max.z - inset,
+    };
+    if (collider.maxX <= collider.minX || collider.maxZ <= collider.minZ) return null;
+    addCol(collider);
+    return collider;
+  };
   const interactionProps = [];
   const boardTextures = [];
   const staticDressingRoots = [];
@@ -1449,6 +1469,10 @@ export function createPineHillsInterior({
     }),
     load('waterCooler', PINE_HILLS_INTERIOR_ASSETS.waterCooler, (root) => {
       mountLocal(group, root, { x: 4.58, z: 4.92, ry: Math.PI }, 0);
+      // A 1.5 yd appliance the player walked straight through. Floor plants and
+      // the umbrella stand stay walk-through on purpose — soft decor you brush
+      // past — but a water cooler is furniture.
+      solidHull(root);
     }),
     load('wasteBin', PINE_HILLS_INTERIOR_ASSETS.wasteBin, (root) => {
       mountLocal(group, root, { x: 3.72, z: 5.50, ry: Math.PI }, 0);

@@ -1,0 +1,37 @@
+{
+  "variants": {
+    "pine-hills": {
+      "candidates": 66,
+      "colliders": 88,
+      "missing": [],
+      "orphaned": [],
+      "waived": [
+        {
+          "name": "AssetRuntime_99_umbrella_stand",
+          "why": "PROP_PLACEMENTS declares collision: 'none'"
+        },
+        {
+          "name": "PineHills_floorPlant_2",
+          "why": "soft decor; a shoulder passes through the fronds"
+        }
+      ]
+    },
+    "pine-hills-v2": {
+      "candidates": 41,
+      "colliders": 81,
+      "missing": [],
+      "orphaned": [],
+      "waived": []
+    }
+  },
+  "whitelist": [
+    "/umbrella_stand/i",
+    "/floorPlant/i"
+  ],
+  "totals": {
+    "missing": 0,
+    "waived": 2,
+    "orphaned": 0
+  },
+  "ok": true
+}

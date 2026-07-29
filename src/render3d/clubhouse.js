@@ -1210,6 +1210,11 @@ export function makeClubhouse(ctx) {
     state,
     addProp,
     removeProp,
+    // PROP_PLACEMENTS declares who owns each asset's collider; until these were
+    // threaded through, nothing read that field and every declared hull was
+    // inert (propPlacement.collisionIsOwnedElsewhere).
+    addCol,
+    removeCol,
     L2W,
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     legacyReady: merchReady,
@@ -1259,6 +1264,7 @@ export function makeClubhouse(ctx) {
     state,
     addProp,
     removeProp,
+    addCol,
     L2W,
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     getRuntimeAssetRoot: (assetNumber) => props61to100.getRoot(assetNumber),

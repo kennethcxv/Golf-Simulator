@@ -643,12 +643,37 @@ function interactionLabel(placement, stateRecord) {
  * The returned detach/sync pair brackets that rebuild so GLB resources never get disposed with a
  * retired anchor and the authored fixture follows the persisted pose on the next frame.
  */
+// WHO OWNS THE COLLIDER, per PROP_PLACEMENTS `collision`.
+//
+// The field reads like a contract and, until 2026-07-29, had no consumer:
+// nothing anywhere read placement.collision. Eleven placements declared a hull
+// and none of them got one. Whatever colliders those assets had came from a
+// hand-written colBoxAt somewhere else, which is why coverage differed between
+// the two room variants — the collision sweep found the fitting room and the
+// lounge coffee table solid in neither room and the lounge armchair solid in
+// only one.
+//
+// 'none'          nothing needed: small decor, wall fittings, tools on a bench.
+// 'fixture-anchor' the fixture system already put a box here.
+// 'existing-*'     the analytic layout already put a box here.
+// anything else    THIS placement needs its own hull, fitted below.
+//
+// The default is deliberately "needs a hull": a new asset declaring
+// `collision: 'display-case'` gets one automatically rather than silently
+// getting nothing, which is the failure this whole field was supposed to prevent.
+export function collisionIsOwnedElsewhere(collision) {
+  if (!collision || collision === 'none') return true;
+  return collision === 'fixture-anchor' || String(collision).startsWith('existing-');
+}
+
 export function buildProps({
   interior,
   loader,
   state = null,
   addProp = null,
   removeProp = null,
+  addCol = null,
+  removeCol = null,
   L2W = (x, z) => ({ x, z }),
   getFixtureAnchor = null,
   legacyReady = Promise.resolve(),
@@ -902,6 +927,32 @@ export function buildProps({
         ? (manifest.interactionSockets.find((name) => /Grip|Carry/i.test(name)) || 'SOCKET_PLACEMENT')
         : (manifest.interactionSockets.find((name) => /Handle|Trigger|Switch|Grip/i.test(name)) || 'SOCKET_PLACEMENT'));
       registerWalkProp(entry, { tool: placement.tool || null, socket: focusSocket });
+    }
+
+    // The declared hull, fitted to what actually loaded rather than to a number
+    // typed next to the placement — an authored box drifts the moment the mesh
+    // is re-exported, and this class of defect is expensive enough already.
+    entry.collider = null;
+    if (typeof addCol === 'function' && !collisionIsOwnedElsewhere(placement.collision)) {
+      root.updateMatrixWorld(true);
+      const hull = new THREE.Box3().setFromObject(root, true);
+      if (!hull.isEmpty() && Number.isFinite(hull.min.x)) {
+        // Inset slightly: a body should be able to brush past a chair arm
+        // without the collider claiming the air around it.
+        const inset = 0.06;
+        const collider = {
+          minX: hull.min.x + inset,
+          maxX: hull.max.x - inset,
+          minZ: hull.min.z + inset,
+          maxZ: hull.max.z - inset,
+          assetNumber: placement.n,
+          collisionKind: placement.collision,
+        };
+        if (collider.maxX > collider.minX && collider.maxZ > collider.minZ) {
+          addCol(collider);
+          entry.collider = collider;
+        }
+      }
     }
 
     const entries = placedByNumber.get(placement.n) || [];
@@ -1158,6 +1209,11 @@ export function buildProps({
       if (disposed) return;
       disposed = true;
       for (const prop of interactionProps) removeProp?.(prop);
+      // Colliders outlive the geometry unless they are taken out here, and an
+      // invisible box the player bumps into is the orphan half of this defect.
+      for (const entry of [...placedByNumber.values()].flat()) {
+        if (entry.collider) removeCol?.(entry.collider);
+      }
       for (const controller of mixers) controller.dispose();
       const resources = { geometries: new Set(), materials: new Set(), textures: new Set() };
       const roots = [...placedByNumber.values()].flat().map((entry) => entry.root);
