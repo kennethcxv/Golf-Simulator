@@ -16,8 +16,23 @@ async (page) => {
   // binding and the movement basis are intact", NOT "the key works when the
   // player presses it". The real-hand path is instrumented separately by
   // ?keydebug=1 (src/debug/keyCapture.js) with tools/qa/key-capture-control.js
-  // as its synthetic baseline. Do not cite this file as evidence that an input
-  // works in play until that gap is closed and this note is rewritten.
+  // as its synthetic baseline.
+  //
+  // WHAT IT MISSED, AND NOW CHECKS (2026-07-29). The ?keydebug=1 capture came
+  // back with walkHeld holding ["meta"] and a MetaLeft keydown that never got a
+  // keyup: the Windows key handed focus to the shell, the release landed there,
+  // and the page carried a phantom modifier for the rest of the session. This
+  // file could never have seen it, because a sweep that only presses and
+  // releases W/A/S/D cleanly never strands anything — every state it tests is
+  // one it created itself.
+  //
+  // So the sweep is no longer the whole harness. Before it runs, a modifier is
+  // deliberately stranded (a keydown with no keyup, the way the OS does it) and
+  // the run then proves three things a stale modifier would fail: the page
+  // drops the phantom on the next genuine keypress, each of the three interrupt
+  // signals releases everything, and W/A/S/D still move with a phantom present.
+  // Remove the strand stage and this file goes back to being unable to see the
+  // bug that shipped.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
@@ -66,6 +81,122 @@ async (page) => {
     return rows;
   };
 
+  // Strand a modifier exactly the way the shell does: deliver the keydown, never
+  // deliver the keyup. The dispatch is synthetic because the real cause (an OS
+  // focus steal) cannot be driven from CDP — but the RECOVERY below is measured
+  // through genuine CDP key events, which is the half that matters.
+  const strandMeta = () => page.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Meta', code: 'MetaLeft', metaKey: true, bubbles: true,
+    }));
+    return window.__fw.scene3d.walk.heldKeys();
+  });
+  const heldNow = () => page.evaluate(() => ({
+    held: window.__fw.scene3d.walk.heldKeys(),
+    phantoms: window.__fw.scene3d.walk.phantomModifiers?.() ?? null,
+  }));
+
+  // Which of these actually discriminate, measured against the unfixed build on
+  // 2026-07-29: the two phantom checks and visibilitychange go red without the
+  // fix. The blur and pointer-lock checks stay green either way, because
+  // main.js's resetCameraInput() already reaches into walk.clearKeys on both —
+  // they are regression guards for that path, not evidence for this one. Said
+  // out loud here so a future reader does not read six greens as six proofs.
+  const strandedModifierChecks = async () => {
+    const checks = [];
+    const record = (name, ok, detail) => checks.push({ name, ok, ...detail });
+
+    // 1. The strand itself must take, or the rest of this stage proves nothing.
+    const stranded = await strandMeta();
+    record('modifier can be stranded', stranded.includes('meta'), { held: stranded });
+
+    // 2. The next GENUINE keypress carries the OS's real modifier state, so the
+    //    page must notice the disagreement and drop its phantom.
+    await page.keyboard.press('d');
+    await page.waitForTimeout(80);
+    const after = await heldNow();
+    record('a phantom modifier is dropped on the next real keydown',
+      !after.held.includes('meta'), { held: after.held, phantoms: after.phantoms });
+    record('the phantom is reported, not silently swallowed',
+      Array.isArray(after.phantoms) && after.phantoms.includes('Meta'), { phantoms: after.phantoms });
+
+    // 3. Each interrupt signal releases everything. Pointer-lock loss is the one
+    //    the real capture proved blur does not cover.
+    // Each signal has to be measured ALONE. Two things conspire against that.
+    // Calling exitPointerLock() for real makes Chrome blur the page when the
+    // lock bubble goes away, and that blur can arrive a beat late — landing
+    // inside a later check and clearing the keys for the wrong reason. The
+    // 2026-07-29 negative-control run caught this twice: "pointer-lock loss
+    // releases every held key" reported green against a build with no
+    // pointer-lock handling at all, because a stray blur did the work.
+    //
+    // So: settle the real lock off well before any check, order the genuine blur
+    // FIRST (its own co-firing blur is then harmless), and count blurs during
+    // every check so a masked result is visible instead of quietly green.
+    await page.evaluate(() => { if (document.pointerLockElement) document.exitPointerLock(); });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      window.__parityBlurs = 0;
+      if (!window.__parityBlurHook) {
+        window.__parityBlurHook = true;
+        window.addEventListener('blur', () => { window.__parityBlurs += 1; });
+      }
+    });
+
+    for (const [name, expectsBlur, fire] of [
+      ['window blur', true, () => page.evaluate(() => window.dispatchEvent(new Event('blur')))],
+      ['visibilitychange to hidden', false, () => page.evaluate(() => {
+        const own = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+        Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+        delete document.visibilityState;
+        if (own) Object.defineProperty(Document.prototype, 'visibilityState', own);
+      })],
+      ['pointer-lock loss', false, () => page.evaluate(() => {
+        document.dispatchEvent(new Event('pointerlockchange'));
+      })],
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      const heldAfterStrand = await page.evaluate(() => {
+        window.__parityBlurs = 0;
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', bubbles: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Meta', code: 'MetaLeft', metaKey: true, bubbles: true,
+        }));
+        return window.__fw.scene3d.walk.heldKeys();
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await fire();
+      // eslint-disable-next-line no-await-in-loop
+      await page.waitForTimeout(120);
+      // eslint-disable-next-line no-await-in-loop
+      const state = await page.evaluate(() => ({
+        held: window.__fw.scene3d.walk.heldKeys(),
+        blurs: window.__parityBlurs,
+      }));
+      // A stray blur means this signal was not the thing that cleared the keys,
+      // so the check proved nothing — that is a failure of the instrument and is
+      // reported as a failure, not smoothed over.
+      const attributable = expectsBlur || state.blurs === 0;
+      // And the setup has to have taken. A check that starts from an already
+      // empty held-set proves nothing about the signal under test — it would
+      // report green on a build that ignores the signal entirely.
+      const strandTook = heldAfterStrand.length > 0;
+      record(`${name} releases every held key`, state.held.length === 0 && attributable && strandTook, {
+        heldAfterStrand,
+        held: state.held,
+        strayBlurs: expectsBlur ? undefined : state.blurs,
+        attributable,
+        strandTook,
+      });
+    }
+
+    // 4. And movement must not be hostage to a phantom: with meta stranded, D
+    //    still strafes. This is the player-visible half of the defect.
+    await strandMeta();
+    return checks;
+  };
+
   const boot = async (variant) => {
     const query = variant === 'pine-hills-v2' ? '?clubhouse=pine-hills-v2' : '';
     await page.setViewportSize({ width: 1600, height: 900 });
@@ -89,9 +220,14 @@ async (page) => {
 
   // At yaw 0 the walk basis maps W to -z, S to +z, A to -x, D to +x.
   const expected = { w: [0, -1], a: [-1, 0], s: [0, 1], d: [1, 0] };
-  const out = { stands: STANDS, variants: {}, verdicts: [] };
+  const out = {
+    stands: STANDS, variants: {}, verdicts: [], strandedModifier: {},
+  };
   for (const variant of ['pine-hills', 'pine-hills-v2']) {
     await boot(variant);
+    // Runs BEFORE the sweep and leaves a phantom modifier stranded, so the sweep
+    // below is measured with one held — movement must not be hostage to it.
+    out.strandedModifier[variant] = await strandedModifierChecks();
     const rows = await sweep(STANDS[variant]);
     out.variants[variant] = rows;
     for (const row of rows) {
@@ -106,7 +242,10 @@ async (page) => {
       });
     }
   }
-  out.ok = out.verdicts.every((v) => v.ok);
+  const strandChecks = Object.values(out.strandedModifier).flat();
+  out.strandedModifierOk = strandChecks.length > 0 && strandChecks.every((c) => c.ok);
+  out.strandedModifierFailures = strandChecks.filter((c) => !c.ok);
+  out.ok = out.verdicts.every((v) => v.ok) && out.strandedModifierOk;
   fs.writeFileSync(path.join(outDir, 'walk-input-parity.json'), `${JSON.stringify(out, null, 2)}\n`);
   return out;
 }

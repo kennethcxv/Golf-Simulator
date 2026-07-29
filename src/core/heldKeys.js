@@ -30,6 +30,51 @@ export function isTextEntryTarget(target) {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
+//   4. A modifier can go down on the page and come up somewhere else. Tapping the Windows key
+//      hands focus to the shell, so the keyup lands there and the page keeps 'meta' held for the
+//      rest of the session. Clearing on focus loss is necessary but not sufficient — pointer lock
+//      can drop without the window ever blurring, which is exactly how a real capture caught
+//      walkHeld sitting on ["meta"] with a MetaLeft keydown and no matching keyup.
+//
+//      Every keyboard event carries the OS's own view of the modifiers, so the next keydown can
+//      settle the disagreement: if the event says the modifier is up and we still think it is
+//      down, ours is a phantom and gets dropped. This is also a live diagnostic — a modifier the
+//      event still reports as DOWN is genuinely stuck below the browser, where no page code can
+//      reach it, and the returned list distinguishes the two cases.
+//
+//      Lock-state modifiers (CapsLock, NumLock, ScrollLock) are deliberately absent:
+//      getModifierState reports whether the lock is ON, not whether the key is held, so they
+//      cannot be reconciled this way.
+export const HELD_MODIFIERS = Object.freeze(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta']);
+
+// Works against either a createHeldKeys instance or a plain Set — the walk controller uses a raw
+// Set and full-lowercase spellings ('meta'), the overview camera uses this module's normalise
+// ('Meta'), so both spellings are probed.
+const releaseKey = (held, key) => {
+  if (typeof held.up === 'function') held.up(key);
+  else if (typeof held.delete === 'function') held.delete(key);
+};
+
+export function reconcileModifiers(held, event) {
+  if (!held || typeof held.has !== 'function') return [];
+  if (!event || typeof event.getModifierState !== 'function') return [];
+  const dropped = [];
+  for (const modifier of HELD_MODIFIERS) {
+    const spellings = [modifier, modifier.toLowerCase()].filter((s) => held.has(s));
+    if (!spellings.length) continue;
+    let stillDown;
+    try {
+      stillDown = event.getModifierState(modifier);
+    } catch {
+      stillDown = true; // an event that cannot answer is not evidence of a phantom
+    }
+    if (stillDown !== false) continue;
+    for (const spelling of spellings) releaseKey(held, spelling);
+    dropped.push(modifier);
+  }
+  return dropped;
+}
+
 export function createHeldKeys(tracked) {
   const watch = new Set(tracked.map(normalise));
   const held = new Set();

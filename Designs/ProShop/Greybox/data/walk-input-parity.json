@@ -14,21 +14,21 @@
       {
         "key": "w",
         "dx": 0,
-        "dz": -0.935
+        "dz": -0.945
       },
       {
         "key": "a",
-        "dx": -2.069,
+        "dx": -2.078,
         "dz": 0
       },
       {
         "key": "s",
         "dx": 0,
-        "dz": 1.559
+        "dz": 1.54
       },
       {
         "key": "d",
-        "dx": 2.068,
+        "dx": 2.107,
         "dz": 0
       }
     ],
@@ -36,21 +36,21 @@
       {
         "key": "w",
         "dx": 0,
-        "dz": -1.247
+        "dz": -1.257
       },
       {
         "key": "a",
-        "dx": -2.04,
+        "dx": -2.059,
         "dz": 0
       },
       {
         "key": "s",
         "dx": 0,
-        "dz": 2.069
+        "dz": 2.078
       },
       {
         "key": "d",
-        "dx": 2.068,
+        "dx": 2.069,
         "dz": 0
       }
     ]
@@ -59,51 +59,173 @@
     {
       "variant": "pine-hills",
       "key": "w",
-      "moved": 0.935,
+      "moved": 0.945,
       "ok": true
     },
     {
       "variant": "pine-hills",
       "key": "a",
-      "moved": 2.069,
+      "moved": 2.078,
       "ok": true
     },
     {
       "variant": "pine-hills",
       "key": "s",
-      "moved": 1.559,
+      "moved": 1.54,
       "ok": true
     },
     {
       "variant": "pine-hills",
       "key": "d",
-      "moved": 2.068,
+      "moved": 2.107,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "w",
-      "moved": 1.247,
+      "moved": 1.257,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "a",
-      "moved": 2.04,
+      "moved": 2.059,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "s",
-      "moved": 2.069,
+      "moved": 2.078,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "d",
-      "moved": 2.068,
+      "moved": 2.069,
       "ok": true
     }
   ],
+  "strandedModifier": {
+    "pine-hills": [
+      {
+        "name": "modifier can be stranded",
+        "ok": true,
+        "held": [
+          "meta"
+        ]
+      },
+      {
+        "name": "a phantom modifier is dropped on the next real keydown",
+        "ok": true,
+        "held": [],
+        "phantoms": [
+          "Meta"
+        ]
+      },
+      {
+        "name": "the phantom is reported, not silently swallowed",
+        "ok": true,
+        "phantoms": [
+          "Meta"
+        ]
+      },
+      {
+        "name": "window blur releases every held key",
+        "ok": true,
+        "heldAfterStrand": [
+          "w",
+          "meta"
+        ],
+        "held": [],
+        "attributable": true,
+        "strandTook": true
+      },
+      {
+        "name": "visibilitychange to hidden releases every held key",
+        "ok": true,
+        "heldAfterStrand": [
+          "w",
+          "meta"
+        ],
+        "held": [],
+        "strayBlurs": 0,
+        "attributable": true,
+        "strandTook": true
+      },
+      {
+        "name": "pointer-lock loss releases every held key",
+        "ok": true,
+        "heldAfterStrand": [
+          "w",
+          "meta"
+        ],
+        "held": [],
+        "strayBlurs": 0,
+        "attributable": true,
+        "strandTook": true
+      }
+    ],
+    "pine-hills-v2": [
+      {
+        "name": "modifier can be stranded",
+        "ok": true,
+        "held": [
+          "meta"
+        ]
+      },
+      {
+        "name": "a phantom modifier is dropped on the next real keydown",
+        "ok": true,
+        "held": [],
+        "phantoms": [
+          "Meta"
+        ]
+      },
+      {
+        "name": "the phantom is reported, not silently swallowed",
+        "ok": true,
+        "phantoms": [
+          "Meta"
+        ]
+      },
+      {
+        "name": "window blur releases every held key",
+        "ok": true,
+        "heldAfterStrand": [
+          "w",
+          "meta"
+        ],
+        "held": [],
+        "attributable": true,
+        "strandTook": true
+      },
+      {
+        "name": "visibilitychange to hidden releases every held key",
+        "ok": true,
+        "heldAfterStrand": [
+          "w",
+          "meta"
+        ],
+        "held": [],
+        "strayBlurs": 0,
+        "attributable": true,
+        "strandTook": true
+      },
+      {
+        "name": "pointer-lock loss releases every held key",
+        "ok": true,
+        "heldAfterStrand": [
+          "w",
+          "meta"
+        ],
+        "held": [],
+        "strayBlurs": 0,
+        "attributable": true,
+        "strandTook": true
+      }
+    ]
+  },
+  "strandedModifierOk": true,
+  "strandedModifierFailures": [],
   "ok": true
 }

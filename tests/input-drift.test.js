@@ -13,6 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget,
+  reconcileModifiers, HELD_MODIFIERS,
 } from '../src/core/heldKeys.js';
 
 test('a key released while Shift is held still clears (the stranded-key bug)', () => {
@@ -113,6 +114,68 @@ test('keys pressed over the world still reach the camera', () => {
   assert.equal(isTextEntryTarget(null), false);
   assert.equal(isTextEntryTarget(undefined), false);
   assert.equal(isTextEntryTarget({}), false);
+});
+
+// Rule 4: the stranded MODIFIER. A real ?keydebug=1 capture caught walkHeld
+// sitting on ["meta"] with a MetaLeft keydown and no matching keyup — the
+// Windows key handed focus to the shell, which swallowed the release. Every
+// keyboard event carries the OS's own modifier state, so the next keydown can
+// tell a page-side phantom from a modifier that is genuinely still down.
+const keyEvent = (modifiers) => ({
+  getModifierState: (name) => !!modifiers[name],
+});
+
+test('a modifier the OS says is up is dropped from a plain Set (the walk controller shape)', () => {
+  const held = new Set(['meta', 'w']); // courseScene stores full-lowercase spellings
+  const dropped = reconcileModifiers(held, keyEvent({}));
+  assert.deepEqual(dropped, ['Meta']);
+  assert.equal(held.has('meta'), false, 'the phantom must not survive the next keypress');
+  assert.equal(held.has('w'), true, 'movement keys are not modifiers and are never touched');
+});
+
+test('a modifier the OS still reports as down is kept', () => {
+  // This is the case where the key is genuinely stuck BELOW the browser. Page
+  // code must not paper over it: the held state is accurate and the report is
+  // the only signal that something outside the page is eating keys.
+  const held = new Set(['shift']);
+  const dropped = reconcileModifiers(held, keyEvent({ Shift: true }));
+  assert.deepEqual(dropped, []);
+  assert.equal(held.has('shift'), true);
+});
+
+test('reconcile works against a createHeldKeys instance and its normalised spelling', () => {
+  const held = createHeldKeys([...OVERVIEW_KEYS, 'Meta', 'Shift']);
+  held.down('Meta');
+  held.down('Shift');
+  held.down('d');
+  const dropped = reconcileModifiers(held, keyEvent({ Shift: true }));
+  assert.deepEqual(dropped, ['Meta']);
+  assert.equal(held.has('Meta'), false);
+  assert.equal(held.has('Shift'), true, 'a modifier still down stays down');
+  assert.equal(held.has('d'), true);
+});
+
+test('every held modifier is reconcilable, and lock states are excluded', () => {
+  for (const modifier of ['Shift', 'Control', 'Alt', 'Meta']) {
+    const held = new Set([modifier.toLowerCase()]);
+    reconcileModifiers(held, keyEvent({}));
+    assert.equal(held.size, 0, `${modifier} must be reconcilable`);
+  }
+  // getModifierState('CapsLock') reports whether the LOCK is on, not whether the
+  // key is held, so reconciling it would drop or strand it at random.
+  for (const lock of ['CapsLock', 'NumLock', 'ScrollLock']) {
+    assert.equal(HELD_MODIFIERS.includes(lock), false, `${lock} is a lock state, not a held key`);
+  }
+});
+
+test('an event that cannot answer never invents a phantom', () => {
+  const held = new Set(['meta']);
+  assert.deepEqual(reconcileModifiers(held, {}), [], 'no getModifierState: no evidence, no drop');
+  assert.equal(held.has('meta'), true);
+  const throws = { getModifierState() { throw new Error('unsupported'); } };
+  assert.deepEqual(reconcileModifiers(held, throws), []);
+  assert.equal(held.has('meta'), true, 'a throwing query is not proof the modifier is up');
+  assert.deepEqual(reconcileModifiers(null, keyEvent({})), []);
 });
 
 test('a key released while a field has focus still clears', () => {

@@ -22,7 +22,7 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
-import { isTextEntryTarget } from '../core/heldKeys.js';
+import { isTextEntryTarget, reconcileModifiers } from '../core/heldKeys.js';
 import { ownedWasher } from '../sim/washing.js';
 import { chargeGolfCart } from '../sim/golfCartFleet.js';
 import { makeFpHands, GRIPS } from './fpHands.js';
@@ -5784,6 +5784,11 @@ export function makeCourseScene(canvas, state) {
   };
 
   const walkHeld = new Set();
+  // Modifiers dropped by the reconcile in walkKeyDown: each entry is one time the
+  // page believed a modifier was down and the OS disagreed. Kept for diagnostics
+  // (?keydebug=1 reads it) because a phantom modifier is invisible in play — it
+  // has no on-screen effect until an OS hotkey starts eating keys.
+  const walkPhantomModifiers = [];
   const treeColliders = []; // {x, z, r}
   const structColliders = []; // {minX, maxX, minZ, maxZ}
 
@@ -7855,7 +7860,16 @@ export function makeCourseScene(canvas, state) {
     updateCutterPlayerArm(wantsContact && cutterContactBlend > 0.05);
   }
 
+  // Modifiers stranded by a release the page never saw. Runs before the
+  // text-entry filter: a phantom held while the player types is still a phantom,
+  // and this is the only chance to see the OS's real answer (heldKeys.js rule 4).
+  function walkReconcileModifiers(e) {
+    const dropped = reconcileModifiers(walkHeld, e);
+    if (dropped.length) walkPhantomModifiers.push(...dropped);
+  }
+
   function walkKeyDown(e) {
+    walkReconcileModifiers(e);
     // A key typed into a form control (a laptop search field, a save-name box)
     // is text, not movement. Filter key-DOWN only — the matching release below
     // must always clear, or a field grabbing focus mid-press strands the key in
@@ -7870,6 +7884,7 @@ export function makeCourseScene(canvas, state) {
     walkHeld.add(key);
   }
   function walkKeyUp(e) {
+    walkReconcileModifiers(e);
     const key = e.key.toLowerCase();
     walkHeld.delete(key);
     if (key === 'e') {
@@ -7877,6 +7892,21 @@ export function makeCourseScene(canvas, state) {
       holdPressProp = null;
     }
   }
+  // Everything the player is physically holding, released. Called from all three
+  // ways input can be interrupted without the matching keyup ever arriving:
+  // window blur, tab/window visibility, and pointer-lock loss.
+  //
+  // Two of those were already covered, but not from here: main.js's
+  // resetCameraInput() reaches in through walk.clearKeys (which IS this
+  // function) on both blur and pointerlockchange. visibilitychange was the real
+  // gap — main.js's handler only recovers the register — and the walk
+  // controller owning its own release is the right locus regardless, so all
+  // three now bind locally. main.js's toolChanged hook is an audio release and
+  // was already written for the pointer-lock case.
+  //
+  // None of this is sufficient on its own: a Windows-key tap can strand 'meta'
+  // without ever firing any of the three, which is what the ?keydebug=1 capture
+  // caught. That case is handled by the reconcile above, not here.
   function walkBlur() {
     walkHeld.clear();
     holdPressProp = null;
@@ -7885,12 +7915,16 @@ export function makeCourseScene(canvas, state) {
     walkSetSoaping(false);
     walkHooks.toolChanged?.(walkTool || null, walkTool || null);
   }
+  function walkVisibilityChange() {
+    if (document.visibilityState === 'hidden') walkBlur();
+  }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
   // cause of a sudden 180 spin after an alt-tab, a click-back, or a re-lock.
   let walkLockGuard = 0;
   function walkLockChange() {
     if (document.pointerLockElement === canvas) walkLockGuard = 2;
+    else walkBlur(); // lock lost: whatever was down was released somewhere we cannot see
   }
 
   function dragBoxCutterAlongFocusedPath(movementX, movementY) {
@@ -7979,6 +8013,7 @@ export function makeCourseScene(canvas, state) {
     window.addEventListener('keydown', walkKeyDown);
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
+    document.addEventListener('visibilitychange', walkVisibilityChange);
     document.addEventListener('mousemove', walkMouseMove);
     document.addEventListener('pointerlockchange', walkLockChange);
     walkLockGuard = 2; // guard the initial lock too
@@ -7995,6 +8030,7 @@ export function makeCourseScene(canvas, state) {
     window.removeEventListener('keydown', walkKeyDown);
     window.removeEventListener('keyup', walkKeyUp);
     window.removeEventListener('blur', walkBlur);
+    document.removeEventListener('visibilitychange', walkVisibilityChange);
     document.removeEventListener('mousemove', walkMouseMove);
     document.removeEventListener('pointerlockchange', walkLockChange);
     if (document.pointerLockElement === canvas) document.exitPointerLock();
@@ -10935,6 +10971,13 @@ export function makeCourseScene(canvas, state) {
       // apart from "the key arrived and the walker ignored it" — the exact
       // ambiguity that let two D-key harnesses pass a broken D key.
       heldKeys: () => [...walkHeld],
+      // Diagnostics for the stranded-modifier class: how many phantoms the
+      // reconcile has caught, and which. Non-empty means the page WAS carrying a
+      // modifier the OS had already released.
+      phantomModifiers: () => [...walkPhantomModifiers],
+      // Test/diagnostic seam: force the same release the three interrupt signals
+      // do, so a harness can prove the clear happens without faking a real blur.
+      releaseAllInput: () => walkBlur(),
       hooks: walkHooks,
       placeCart: (x, z, yaw) => {
         tractorPark.x = x;

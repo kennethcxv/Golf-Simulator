@@ -7,7 +7,17 @@
 //   1. W/A/S/D through genuine keydown/keyup move the player along the correct
 //      axes (the walk-input-parity claim, in the desktop shell),
 //   2. a canvas click engages pointer lock in the shell (recorded and gated —
-//      mouse-look's entire input path depends on it).
+//      mouse-look's entire input path depends on it),
+//   3. a modifier stranded down — keydown delivered, keyup swallowed by the OS —
+//      does not survive (2026-07-29).
+//
+// (3) is the class this file missed. It measured D as green while D did not
+// strafe under a real hand, because the actual cause was a phantom 'meta' left
+// in walkHeld by a Windows-key tap whose release went to the shell. A sweep
+// that presses and releases cleanly can only ever test states it created
+// itself, so the strand is now made deliberately and the recovery measured.
+// The desktop shell is where this matters most: it is the build with OS
+// accelerators sitting between the keyboard and the page.
 //
 //   node tools/qa/electron-walk-input.mjs
 //
@@ -80,6 +90,45 @@ try {
   // an Escape here opens the PAUSE MENU, which swallows every key (the
   // chain-3c run measured exactly that: lock true, all four keys at 0).
 
+  // A modifier stranded the way the OS strands it: keydown delivered, keyup
+  // never. The strand is dispatched from page script because no automation
+  // driver can make Windows eat a keyup — but the recovery is measured through
+  // genuine keyboard events, which is the half that has to work.
+  const strandMeta = () => window.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Meta', code: 'MetaLeft', metaKey: true, bubbles: true,
+    }));
+    return window.__fw.scene3d.walk.heldKeys();
+  });
+  report.strandedModifier = [];
+  {
+    const record = (name, ok, detail) => report.strandedModifier.push({ name, ok, ...detail });
+    const stranded = await strandMeta();
+    record('modifier can be stranded', stranded.includes('meta'), { held: stranded });
+
+    await window.keyboard.press('d');
+    await window.waitForTimeout(80);
+    const after = await window.evaluate(() => ({
+      held: window.__fw.scene3d.walk.heldKeys(),
+      phantoms: window.__fw.scene3d.walk.phantomModifiers?.() ?? null,
+    }));
+    record('a phantom modifier is dropped on the next real keydown',
+      !after.held.includes('meta'), { held: after.held, phantoms: after.phantoms });
+    record('the phantom is reported, not silently swallowed',
+      Array.isArray(after.phantoms) && after.phantoms.includes('Meta'), { phantoms: after.phantoms });
+
+    // Pointer-lock loss is the signal blur does not cover, and this shell holds
+    // a real lock — so here it is exercised for real rather than dispatched.
+    await strandMeta();
+    await window.evaluate(() => { if (document.pointerLockElement) document.exitPointerLock(); });
+    await window.waitForTimeout(120);
+    const afterUnlock = await window.evaluate(() => window.__fw.scene3d.walk.heldKeys());
+    record('pointer-lock loss releases every held key', afterUnlock.length === 0, { held: afterUnlock });
+
+    // Leave one stranded across the sweep: movement must not be hostage to it.
+    await strandMeta();
+  }
+
   // The walk-input sweep, at the arrival spawn (open ground), yaw zeroed so the
   // W/A/S/D axis mapping is deterministic: W → -z, A → -x, S → +z, D → +x.
   const expected = { w: [0, -1], a: [-1, 0], s: [0, 1], d: [1, 0] };
@@ -120,8 +169,11 @@ try {
   }
 
   await window.screenshot({ path: path.join(OUT, 'electron-walk-input.png'), animations: 'disabled' });
+  report.strandedModifierOk = report.strandedModifier.length > 0
+    && report.strandedModifier.every((check) => check.ok);
   report.pass = report.verdicts.every((verdict) => verdict.ok)
     && report.lockEngaged === true
+    && report.strandedModifierOk
     && report.pageErrors.length === 0;
 } catch (error) {
   report.processErrors.push(error.stack || error.message);
