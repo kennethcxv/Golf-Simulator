@@ -177,11 +177,59 @@ async (page) => {
       });
     }
 
+    // --- DOOR AND WINDOW FURNITURE ------------------------------------------
+    //
+    // The walk reported "door planks are walkable", which is the same class as
+    // the eleven props: geometry that reads as solid and has no hull. Doors were
+    // excluded from every pass above — the orphan test skips `c.door` outright —
+    // so nothing here has ever been checked.
+    //
+    // Two filters keep this honest rather than noisy:
+    //
+    //   HEIGHT. A transom, a header, a glazing bar above the opening is
+    //   SUPPOSED to be walk-through: a body passes under it. Only geometry whose
+    //   vertical span overlaps a standing body (0.10 to 1.70) can be a defect.
+    //
+    //   THE OPENING. An OPEN door leaf has swung out of the doorway and the
+    //   doorway is then correctly walkable — that is the door working. So the
+    //   test is not "is the doorway blocked" but "does this piece of geometry
+    //   have a collider on it", asked at the leaf's own current position.
+    const BODY_MIN_Y = 0.10;
+    const BODY_MAX_Y = 1.70;
+    const FURNITURE = /door|leaf|plank|board|shutter|window|glaz|mullion|jamb|casement|sash/i;
+    const NOT_FURNITURE = /floor|ceiling|batch_|scoreboard|keyboard|billboard|dashboard|cardboard|tee.?board|events?.?board|wordmark/i;
+    const doorAndWindow = [];
+    ch.group.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const name = o.name || '';
+      if (!FURNITURE.test(name) || NOT_FURNITURE.test(name)) return;
+      const b = new THREE.Box3().setFromObject(o, true);
+      if (b.isEmpty() || !Number.isFinite(b.min.x)) return;
+      if (b.max.y < BODY_MIN_Y || b.min.y > BODY_MAX_Y) return; // over or under a body
+      const w = b.max.x - b.min.x;
+      const d = b.max.z - b.min.z;
+      if (w < 0.06 && d < 0.06) return;                          // trim, not a barrier
+      const cx = (b.min.x + b.max.x) / 2;
+      const cz = (b.min.z + b.max.z) / 2;
+      // Is ANY collider — door-flagged or not — covering this piece?
+      const covered = (cols.props || []).some((c) => c.minX !== undefined
+        && c.maxX > b.min.x && c.minX < b.max.x && c.maxZ > b.min.z && c.minZ < b.max.z);
+      doorAndWindow.push({
+        name,
+        local: { x: +(cx - origin.x).toFixed(2), z: +(cz - origin.z).toFixed(2) },
+        size: { w: +w.toFixed(2), d: +d.toFixed(2), h: +(b.max.y - b.min.y).toFixed(2) },
+        yRange: [+b.min.y.toFixed(2), +b.max.y.toFixed(2)],
+        hasCollider: covered,
+        standableInside: !blockedAt(cx, cz),
+      });
+    });
+
     return {
       candidates: candidates.length,
       colliders: (cols.props || []).length,
       missing,
       orphaned,
+      doorAndWindow,
     };
   });
 
@@ -200,7 +248,18 @@ async (page) => {
     { pattern: /floorPlant/i, why: 'soft decor; a shoulder passes through the fronds' },
   ];
 
-  const out = { variants: {}, whitelist: WALK_THROUGH_BY_DESIGN.map((w) => String(w.pattern)) };
+  // Door and window furniture that is walk-through ON PURPOSE, same
+  // whitelist-or-fail discipline as the props above.
+  const DOOR_WALK_THROUGH_BY_DESIGN = [
+    { pattern: /porch|threshold|sill|mat/i, why: 'you step over it, not into it' },
+    { pattern: /handle|knob|hinge|pull|lever|latch/i, why: 'hardware, not a barrier' },
+  ];
+
+  const out = {
+    variants: {},
+    whitelist: WALK_THROUGH_BY_DESIGN.map((w) => String(w.pattern)),
+    doorWhitelist: DOOR_WALK_THROUGH_BY_DESIGN.map((w) => String(w.pattern)),
+  };
   for (const variant of ['pine-hills', 'pine-hills-v2']) {
     // eslint-disable-next-line no-await-in-loop
     await boot(variant);
@@ -215,14 +274,25 @@ async (page) => {
     result.missing = result.missing.filter(
       (m) => !WALK_THROUGH_BY_DESIGN.some((w) => w.pattern.test(m.name)),
     );
+    result.doorWaived = result.doorAndWindow.filter(
+      (m) => DOOR_WALK_THROUGH_BY_DESIGN.some((w) => w.pattern.test(m.name)),
+    ).map((m) => ({
+      name: m.name,
+      why: DOOR_WALK_THROUGH_BY_DESIGN.find((w) => w.pattern.test(m.name)).why,
+    }));
+    result.doorMissing = result.doorAndWindow.filter((m) => !m.hasCollider && m.standableInside
+      && !DOOR_WALK_THROUGH_BY_DESIGN.some((w) => w.pattern.test(m.name)));
     out.variants[variant] = result;
   }
   out.totals = {
     missing: Object.values(out.variants).reduce((n, v) => n + v.missing.length, 0),
     waived: Object.values(out.variants).reduce((n, v) => n + v.waived.length, 0),
     orphaned: Object.values(out.variants).reduce((n, v) => n + v.orphaned.length, 0),
+    doorFurniture: Object.values(out.variants).reduce((n, v) => n + v.doorAndWindow.length, 0),
+    doorMissing: Object.values(out.variants).reduce((n, v) => n + v.doorMissing.length, 0),
+    doorWaived: Object.values(out.variants).reduce((n, v) => n + v.doorWaived.length, 0),
   };
-  out.ok = out.totals.missing === 0 && out.totals.orphaned === 0;
+  out.ok = out.totals.missing === 0 && out.totals.orphaned === 0 && out.totals.doorMissing === 0;
   fs.writeFileSync(path.join(outDir, 'collision-parenting-sweep.json'), `${JSON.stringify(out, null, 2)}\n`);
   return out;
 }

@@ -1444,42 +1444,56 @@ export function makeLaptop(app, opts) {
             onclick: addOpeningBundle,
           })),
       ) : null,
-      el('div', { class: 'lt-ordersummary' },
-        el('span', { style: 'font-weight:600', text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
-        meta(`${supplierCount} supplier${supplierCount === 1 ? '' : 's'} · ${plural(boxCount, 'box')} · delivery ${formatMoney(freight)}`),
-        el('span', { class: 'lt-headspace' }),
-        el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: `Total ${formatMoney(total)}` }),
-        primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
-      // Buying time with money, priced side by side so the trade is one glance
-      // rather than two screens. Both options always show their arrival and
-      // their freight; the difference between them is spelled out on the
-      // express option so the player never has to subtract.
-      cart.size ? el('div', { class: 'lt-shipping' },
-        el('span', { class: 'lt-shiplabel', text: 'Shipping' }),
-        ...[
-          { id: 'standard', label: 'Standard', q: quoteStandard },
-          { id: 'express', label: 'Express', q: quoteExpress },
-        ].map(({ id, label, q }) => {
-          const chosen = shipMode === id;
-          const premium = Math.round((q.freight - quoteStandard.freight) * 100) / 100;
-          const sooner = quoteStandard.leadDays - q.leadDays;
-          return el('button', {
-            class: `lt-shipopt ${chosen ? 'on' : ''}`,
-            onclick: () => { ss.shipping = id; click(); render(); },
-          },
-          el('span', { class: 'lt-shipname', text: label }),
-          el('span', { class: 'lt-shipeta', text: `Arrives ${arrivalWord(q.leadDays)}` }),
-          el('span', { class: 'lt-shipfee', text: formatMoney(q.freight) }),
-          id === 'express'
-            ? el('span', {
-              class: 'lt-shipdelta',
-              text: sooner > 0
+      // THE CART. Amazon's shape, and for Amazon's reason: the shipping choice
+      // is part of deciding, so it belongs above the button you press, not
+      // below it. It used to sit under the total, which meant changing it
+      // silently changed a number you had already scrolled past.
+      //
+      // Stacked rows rather than side-by-side chips, so both options are read
+      // top to bottom with their arrival, their freight and — on the row — what
+      // choosing it costs or saves against the other. The player never subtracts.
+      el('div', { class: 'lt-cart' },
+        el('div', { class: 'lt-cartline' },
+          el('span', { style: 'font-weight:600', text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
+          meta(`${supplierCount} supplier${supplierCount === 1 ? '' : 's'} · ${plural(boxCount, 'box')}`),
+          el('span', { class: 'lt-headspace' }),
+          el('span', { class: 'lt-cartsub', text: formatMoney(goods) })),
+        cart.size ? el('div', { class: 'lt-shipping' },
+          el('div', { class: 'lt-shiplabel', text: 'Delivery speed' }),
+          ...[
+            { id: 'standard', label: 'Standard', q: quoteStandard },
+            { id: 'express', label: 'Express', q: quoteExpress },
+          ].map(({ id, label, q }) => {
+            const chosen = shipMode === id;
+            const premium = Math.round((q.freight - quoteStandard.freight) * 100) / 100;
+            const sooner = quoteStandard.leadDays - q.leadDays;
+            const trade = id === 'standard'
+              ? 'The usual wait, the usual price'
+              : sooner > 0
                 ? `${sooner} day${sooner === 1 ? '' : 's'} sooner for ${formatMoney(premium)} more`
-                : 'Already the soonest this order can arrive',
-            })
-            : null);
-        }),
-      ) : null,
+                : 'Already the soonest this order can arrive';
+            return el('button', {
+              class: `lt-shiprow ${chosen ? 'on' : ''}`,
+              role: 'radio',
+              'aria-checked': chosen ? 'true' : 'false',
+              onclick: () => { ss.shipping = id; click(); render(); },
+            },
+            el('span', { class: 'lt-shipmark', text: chosen ? '●' : '○' }),
+            el('span', { class: 'lt-shipbody' },
+              el('span', { class: 'lt-shipname', text: `${label} — arrives ${arrivalWord(q.leadDays)}` }),
+              el('span', { class: 'lt-shiptrade', text: trade })),
+            el('span', { class: 'lt-shipfee', text: formatMoney(q.freight) }));
+          }),
+        ) : null,
+        cart.size ? el('div', { class: 'lt-cartline lt-cartfreight' },
+          el('span', { text: `${shipMode === 'express' ? 'Express' : 'Standard'} delivery` }),
+          el('span', { class: 'lt-headspace' }),
+          el('span', { text: formatMoney(freight) })) : null,
+        el('div', { class: 'lt-cartline lt-carttotal' },
+          el('span', { style: 'font-weight:700', text: 'Total' }),
+          el('span', { class: 'lt-headspace' }),
+          el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: formatMoney(total) })),
+        primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
       el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
       catBar,
