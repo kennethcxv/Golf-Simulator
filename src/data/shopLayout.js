@@ -602,11 +602,22 @@ export const CLUBHOUSE_CEILING_PANELS = Object.freeze([
 // hasExactKeys in clubhouseRestoration.js).
 export const PINE_HILLS_V2_CEILING_RIG = Object.freeze({
   y: PINE_HILLS_V2_LAYOUT.ceilingY,
+  // TWO FAULTED RUNS, NOT TWO FAULTED FITTINGS.
+  //
+  // The sim owns exactly two light faults (ceiling:panel-02 flicker,
+  // ceiling:panel-07 dead) and the save validator pins that shape, so the room
+  // cannot invent a third. But nothing says one fault may only drive one
+  // fitting. Wiring the four v2 panels onto those two targets in PAIRS gives
+  // the powered-but-neglected room two flickering fittings and two dead ones
+  // instead of one of each beside two healthy lights — which is the difference
+  // between "a couple of bulbs need doing" and a room nobody has maintained.
+  // Each pair reads as a circuit run: service the run and both fittings come
+  // back. Repairing is still exactly two beats, and the save is untouched.
   panels: Object.freeze([
     Object.freeze({ id: 'panel-03', simId: 'panel-02', x: -0.2, z: -2.55, w: 2.45, d: 0.68 }),
-    Object.freeze({ id: 'panel-04', simId: 'panel-04', x: 3.7, z: -2.55, w: 2.45, d: 0.68 }),
+    Object.freeze({ id: 'panel-04', simId: 'panel-07', x: 3.7, z: -2.55, w: 2.45, d: 0.68 }),
     Object.freeze({ id: 'panel-07', simId: 'panel-07', x: -0.2, z: 2.65, w: 2.45, d: 0.68 }),
-    Object.freeze({ id: 'panel-08', simId: 'panel-08', x: 3.7, z: 2.65, w: 2.45, d: 0.68 }),
+    Object.freeze({ id: 'panel-08', simId: 'panel-02', x: 3.7, z: 2.65, w: 2.45, d: 0.68 }),
   ]),
   // The interior key light (ART_BIBLE §3) was RESOLVED in Phase 4 as: none.
   // A panel-motivated steep directional was prototyped, gated to power ×

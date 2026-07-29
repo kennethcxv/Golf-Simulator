@@ -1,0 +1,197 @@
+{
+  "stages": {
+    "darkStart": {
+      "light": {
+        "circuitPowered": false,
+        "repairComplete": false,
+        "litPanels": 0,
+        "panels": [
+          {
+            "name": "CeilingPanelLight_panel-03",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-04",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-07",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-08",
+            "visible": false,
+            "intensity": 0
+          }
+        ]
+      },
+      "sim": {
+        "lightPanels": {
+          "panel-01": "working",
+          "panel-02": "flicker",
+          "panel-03": "working",
+          "panel-04": "working",
+          "panel-05": "working",
+          "panel-06": "working",
+          "panel-07": "dead",
+          "panel-08": "working"
+        },
+        "kitsBack": 1,
+        "powered": false
+      },
+      "prompt": "Flickering ceiling panel — the ceiling circuit is dead"
+    },
+    "refusedWhileDark": {
+      "sim": {
+        "lightPanels": {
+          "panel-01": "working",
+          "panel-02": "flicker",
+          "panel-03": "working",
+          "panel-04": "working",
+          "panel-05": "working",
+          "panel-06": "working",
+          "panel-07": "dead",
+          "panel-08": "working"
+        },
+        "kitsBack": 1,
+        "powered": false
+      },
+      "light": {
+        "circuitPowered": false,
+        "repairComplete": false,
+        "litPanels": 0,
+        "panels": [
+          {
+            "name": "CeilingPanelLight_panel-03",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-04",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-07",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-08",
+            "visible": false,
+            "intensity": 0
+          }
+        ]
+      },
+      "toast": [
+        "!Not available ×2The ceiling circuit is dead. Repair the office power and ceiling first.×",
+        "✓Objective🎯 Enter the closed clubhouse — done.×"
+      ]
+    },
+    "poweredNeglected": {
+      "light": {
+        "circuitPowered": true,
+        "repairComplete": true,
+        "litPanels": 2,
+        "panels": [
+          {
+            "name": "CeilingPanelLight_panel-03",
+            "visible": true,
+            "intensity": 4.468
+          },
+          {
+            "name": "CeilingPanelLight_panel-04",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-07",
+            "visible": false,
+            "intensity": 0
+          },
+          {
+            "name": "CeilingPanelLight_panel-08",
+            "visible": true,
+            "intensity": 3.734
+          }
+        ]
+      },
+      "sim": {
+        "lightPanels": {
+          "panel-01": "working",
+          "panel-02": "flicker",
+          "panel-03": "working",
+          "panel-04": "working",
+          "panel-05": "working",
+          "panel-06": "working",
+          "panel-07": "dead",
+          "panel-08": "working"
+        },
+        "kitsBack": 4,
+        "powered": true
+      },
+      "prompt": "Flickering ceiling panel — [E] repair with clubhouse kit"
+    },
+    "flicker": {
+      "samples": 24,
+      "perPanelSwing": [
+        5.166,
+        0,
+        0,
+        5.103
+      ],
+      "flickeringPanels": 2,
+      "deadPanels": 2
+    },
+    "repaired": {
+      "light": {
+        "circuitPowered": true,
+        "repairComplete": true,
+        "litPanels": 4,
+        "panels": [
+          {
+            "name": "CeilingPanelLight_panel-03",
+            "visible": true,
+            "intensity": 4.417
+          },
+          {
+            "name": "CeilingPanelLight_panel-04",
+            "visible": true,
+            "intensity": 4.417
+          },
+          {
+            "name": "CeilingPanelLight_panel-07",
+            "visible": true,
+            "intensity": 4.417
+          },
+          {
+            "name": "CeilingPanelLight_panel-08",
+            "visible": true,
+            "intensity": 4.417
+          }
+        ]
+      },
+      "sim": {
+        "lightPanels": {
+          "panel-01": "working",
+          "panel-02": "working",
+          "panel-03": "working",
+          "panel-04": "working",
+          "panel-05": "working",
+          "panel-06": "working",
+          "panel-07": "working",
+          "panel-08": "working"
+        },
+        "kitsBack": 2,
+        "powered": true
+      },
+      "prompt": null
+    }
+  },
+  "failures": [],
+  "ok": true,
+  "shots": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\Designs\\ProShop\\Greybox\\data\\ceiling-beat"
+}

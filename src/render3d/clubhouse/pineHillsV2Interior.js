@@ -35,6 +35,8 @@ import {
   ARCHITECTURE_FINISH_OPTIONS,
   ARCHITECTURE_PAINT_COSTS,
   ARCHITECTURE_REPAIR_SKU,
+  ceilingCircuitPowered,
+  panelRepairKitAvailable,
   restorationAction,
   restorationSnapshot,
 } from '../../sim/clubhouseRestoration.js';
@@ -121,15 +123,6 @@ const STRUCTURAL_WORK_SITES = Object.freeze([
   { id: 'shell', x: -10.8, z: 0.1, aimY: 1.3 },
 ]);
 const STRUCTURAL_REPAIR_HOLD_SECONDS = 3.2;
-
-function repairKitAvailable(state) {
-  const line = state?.shop?.inventory?.repairkit1;
-  if ((Number(line?.shelf) || 0) + (Number(line?.back) || 0) > 0) return true;
-  if (state?.shop?.carry?.skuId === 'repairkit1' && Number(state.shop.carry.qty) > 0) return true;
-  return (state?.shop?.deliveries?.boxes || []).some((box) => (
-    box?.skuId === 'repairkit1' && Number(box?.qty ?? box?.quantity) > 0
-  ));
-}
 
 function setPatternVisible(root, pattern, visible) {
   root?.traverse((object) => {
@@ -693,15 +686,24 @@ export function createPineHillsV2Interior({
       z: panel.z,
       r: 1.45,
       aimY: CEILING_Y - 0.08,
+      // The prompt never offers [E] unless pressing it would actually change
+      // the room. Two gates stand in front of this repair — the ceiling circuit
+      // and a kit — and the player can only see the fitting, so the prompt has
+      // to name whichever one is shut.
       label: () => {
         const snapshot = restorationSnapshot(state);
         if (snapshot?.targetProgress[targetId] >= 1) return null;
-        return repairKitAvailable(state)
-          ? `${PANEL_FAULT_LABELS[panel.simId]} — [E] repair with clubhouse kit`
-          : `${PANEL_FAULT_LABELS[panel.simId]} — repair kit required`;
+        const name = PANEL_FAULT_LABELS[panel.simId];
+        if (!ceilingCircuitPowered(state)) return `${name} — the ceiling circuit is dead`;
+        if (!panelRepairKitAvailable(state)) return `${name} — repair kit required`;
+        return `${name} — [E] repair with clubhouse kit`;
       },
       action: () => {
-        if (!repairKitAvailable(state)) {
+        if (!ceilingCircuitPowered(state)) {
+          hooks.toast?.('The ceiling circuit is dead. Repair the office power and ceiling first.', 'warn');
+          return;
+        }
+        if (!panelRepairKitAvailable(state)) {
           hooks.toast?.('Bring the inherited clubhouse repair kit to service this panel.', 'warn');
           return;
         }
@@ -709,6 +711,8 @@ export function createPineHillsV2Interior({
         if (result.changed) {
           refresh();
           onRestoration(result);
+        } else if (!result.ok && result.reason) {
+          hooks.toast?.(result.reason, 'warn');
         }
       },
     });

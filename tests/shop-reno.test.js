@@ -220,8 +220,13 @@ test('decor finish is capped and all six restoration shares are required to reac
       type: 'set-target-progress', targetId, progress: 1,
     }).ok, true);
   }
+  // A panel repair spends a kit like any other repair, so stock the backroom
+  // before claiming the lighting share.
+  state.shop.inventory.repairkit1.back = (state.shop.inventory.repairkit1.back || 0)
+    + CLUBHOUSE_LIGHT_TARGET_IDS.length;
   for (const targetId of CLUBHOUSE_LIGHT_TARGET_IDS) {
-    assert.equal(restorationAction(state, { type: 'repair-light', targetId }).ok, true);
+    const result = restorationAction(state, { type: 'repair-light', targetId });
+    assert.equal(result.ok, true, `${targetId}: ${result.reason || ''}`);
   }
   for (const groupId of CLUBHOUSE_RESTOCK_GROUP_IDS) {
     assert.equal(restorationAction(state, {

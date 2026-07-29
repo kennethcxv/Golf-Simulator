@@ -92,6 +92,9 @@ import {
   repairComplete,
 } from '../sim/campaign.js';
 import { starterRetailPresentation } from '../sim/clubhouseStarterStock.js';
+// One predicate for "is the ceiling ring live". It used to be open-coded in
+// four places here and nowhere the sim could see it.
+import { ceilingCircuitPowered as ceilingCircuitPoweredSim } from '../sim/clubhouseRestoration.js';
 import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
@@ -1077,7 +1080,10 @@ export function makeClubhouse(ctx) {
   }
   let ceilingCircuitPowered = null;
   const updateFlicker = (dt) => {
-    const powered = !state.campaign?.enabled || repairComplete(state, 'ceiling');
+    // Shared with the sim's repair-light gate — see clubhouseRestoration.js.
+    // When the renderer owned its own copy of this rule, the sim could report a
+    // panel repaired while this side kept the ring dark.
+    const powered = ceilingCircuitPoweredSim(state);
     if (powered !== ceilingCircuitPowered) {
       ceilingCircuitPowered = powered;
       shell.lighting.setCeilingCircuitPowered(powered);
@@ -3342,7 +3348,7 @@ export function makeClubhouse(ctx) {
     const built = DECOR_BUILDERS[skuId](pose, ghost, {
       componentStates: placement?.componentStates || {},
       lightState: placement?.lightState || null,
-      circuitPowered: () => !state.campaign?.enabled || repairComplete(state, 'ceiling'),
+      circuitPowered: () => ceilingCircuitPoweredSim(state),
       onComponentStateChange: ({ name, open, type }) => {
         if (placementId) setPlacementComponentState(state, placementId, name, open);
         if (hooks.sfx) hooks.sfx(open ? 'drawerOpen' : 'drawerClose');
@@ -3355,7 +3361,7 @@ export function makeClubhouse(ctx) {
         if (placementId) setPlacementLightPower(state, placementId, isOn);
         if (hooks.sfx) hooks.sfx('lightSwitch');
         if (hooks.toast) {
-          const powered = !state.campaign?.enabled || repairComplete(state, 'ceiling');
+          const powered = ceilingCircuitPoweredSim(state);
           hooks.toast(powered || !isOn
             ? `${sku.name} switched ${isOn ? 'on' : 'off'}.`
             : `${sku.name} is switched on, but the clubhouse ceiling circuit has no power.`,

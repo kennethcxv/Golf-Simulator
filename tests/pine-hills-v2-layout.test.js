@@ -504,13 +504,29 @@ test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside 
   const rig = PINE_HILLS_V2_CEILING_RIG;
   assert.equal(rig.y, L.ceilingY, 'the rig hangs from the v2 lid');
   assert.equal(rig.panels.length, 4, 'exactly the four in-envelope stations');
+  const ids = rig.panels.map((panel) => panel.id);
+  assert.equal(new Set(ids).size, 4, 'position keys are unique — these name meshes');
+  // Sim keys are deliberately NOT unique. The sim owns exactly two light
+  // faults and the save shape is pinned, so the only way to make the neglected
+  // room read as neglected is to hang more than one fitting off each fault:
+  // two flickering and two dead, wired as circuit runs. Repair is still two
+  // beats and the save never learns about it.
   const simIds = rig.panels.map((panel) => panel.simId);
-  assert.equal(new Set(simIds).size, 4, 'sim keys are unique');
-  // Both authored faults must be visible and repairable in the room: the
-  // sim's flicker panel (panel-02, cavity station in v2) drives the
-  // in-envelope panel-03 station; the dead panel-07 sits at its own station.
-  assert.ok(simIds.includes('panel-02'), 'the flicker beat is in-envelope');
-  assert.ok(simIds.includes('panel-07'), 'the dead-panel beat is in-envelope');
+  assert.deepEqual(
+    Object.fromEntries(['panel-02', 'panel-07'].map(
+      (sim) => [sim, simIds.filter((id) => id === sim).length],
+    )),
+    { 'panel-02': 2, 'panel-07': 2 },
+    'both faults drive a pair of fittings — the abandoned read',
+  );
+  assert.equal(simIds.filter((id) => id !== 'panel-02' && id !== 'panel-07').length, 0,
+    'no fitting is healthy in the neglected room');
+  // The two runs must be diagonal, not split north/south: a room where one
+  // half flickers and the other half is dark reads as a lighting design, and a
+  // room where they alternate reads as failure.
+  const flicker = rig.panels.filter((panel) => panel.simId === 'panel-02');
+  assert.notEqual(flicker[0].x, flicker[1].x, 'the flickering pair is diagonal in x');
+  assert.notEqual(flicker[0].z, flicker[1].z, 'the flickering pair is diagonal in z');
   for (const panel of rig.panels) {
     assert.ok(panel.x - panel.w / 2 >= B.minX && panel.x + panel.w / 2 <= B.maxX
       && panel.z - panel.d / 2 >= B.minZ && panel.z + panel.d / 2 <= B.maxZ,

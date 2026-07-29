@@ -67,10 +67,6 @@ function completeRestoration(state, { skipLight = null } = {}) {
       type: 'set-target-progress', targetId, progress: 1,
     }).ok, true);
   }
-  for (const targetId of CLUBHOUSE_LIGHT_TARGET_IDS) {
-    if (targetId === skipLight) continue;
-    assert.equal(restorationAction(state, { type: 'repair-light', targetId }).ok, true);
-  }
   for (const milestoneId of CLUBHOUSE_CLEANUP_MILESTONE_IDS) {
     assert.equal(restorationAction(state, {
       type: 'complete-cleanup-milestone', milestoneId,
@@ -91,6 +87,17 @@ function completeRestoration(state, { skipLight = null } = {}) {
     assert.equal(removal.ok, true, `${job.id} removal: ${removal.reason || ''}`);
     const install = workCampaignRepair(state, job.id);
     assert.equal(install.ok, true, `${job.id} install: ${install.reason || ''}`);
+  }
+  // Lights come LAST, and deliberately so: the `ceiling` job is "Office power
+  // and ceiling", so until it is installed the ring is dead and a panel repair
+  // correctly refuses. This is the order a player has to work in. Each panel
+  // also spends its own kit.
+  state.shop.inventory.repairkit1.back = (state.shop.inventory.repairkit1.back || 0)
+    + CLUBHOUSE_LIGHT_TARGET_IDS.length;
+  for (const targetId of CLUBHOUSE_LIGHT_TARGET_IDS) {
+    if (targetId === skipLight) continue;
+    const result = restorationAction(state, { type: 'repair-light', targetId });
+    assert.equal(result.ok, true, `${targetId}: ${result.reason || ''}`);
   }
 }
 

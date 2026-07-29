@@ -13,16 +13,22 @@ import {
   CLUBHOUSE_RESTORATION_VERSION,
   STARTER_RESTOCK_VERSION_PLACEHOLDER,
   defaultClubhouseRestorationState,
+  ceilingCircuitPowered,
   ensureClubhouseRestoration,
+  panelRepairKitAvailable,
   restorationAction,
   restorationSnapshot,
 } from '../src/sim/clubhouseRestoration.js';
 
-const minimalState = (propertyId = 'pine-hills-test') => ({
+// A panel repair spends a repair kit, so the fixture has to be stocked or every
+// light beat refuses for want of supplies. `back` is what consumeSupplyUnit
+// draws from; a kit on the retail shelf is merchandise, not tooling.
+const minimalState = (propertyId = 'pine-hills-test', repairKits = 8) => ({
   seed: 4107,
   property: { id: propertyId },
   club: { reputation: 30 },
   shop: {
+    inventory: { repairkit1: { shelf: 0, back: repairKits } },
     reno: {
       grime: [0.8, 0.65],
       windows: [0.9],
@@ -364,4 +370,93 @@ test('aggregate state, processed IDs, and detached snapshots survive a JSON save
   assert.equal(loadedReno.restockMilestones.balls, true);
   assert.equal(loadedReno.cleanupMilestones.windows, true);
   assert.equal(loadedReno.architecture.components.floor.restored, false);
+});
+
+// ---------------------------------------------------------------------------
+// BLOCKER 1 — the ceiling repair used to report success while doing nothing
+// visible. Three separate holes, all here so the sim can never reopen them.
+// ---------------------------------------------------------------------------
+
+const campaignState = (ceilingRestored, repairKits = 4) => {
+  const state = minimalState('property-circuit', repairKits);
+  state.campaign = { enabled: true };
+  const reno = ensureClubhouseRestoration(state);
+  if (ceilingRestored) {
+    restorationAction(state, { type: 'repair-component', component: 'ceiling', progress: 1 });
+  }
+  return { state, reno };
+};
+
+test('a panel repair refuses while the ceiling circuit is dead', () => {
+  // The failure the walk hit: pressing E reported "Dead ceiling light repaired"
+  // and the room stayed dark, because powering the ring is a DIFFERENT repair.
+  // Succeeding invisibly is the bug; refusing with the reason is the fix.
+  const { state } = campaignState(false);
+  assert.equal(ceilingCircuitPowered(state), false);
+  const result = restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-07' });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /ceiling circuit is dead/i);
+  // and nothing moved: not the panel, not the target, not the supplies
+  const snapshot = restorationSnapshot(state);
+  assert.equal(snapshot.lightPanels['panel-07'], 'dead');
+  assert.equal(snapshot.targetProgress['ceiling:panel-07'], 0);
+  assert.equal(state.shop.inventory.repairkit1.back, 4);
+});
+
+test('once the circuit is live the same repair lands', () => {
+  const { state } = campaignState(true);
+  assert.equal(ceilingCircuitPowered(state), true);
+  const result = restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-07' });
+  assert.equal(result.ok, true);
+  assert.equal(result.changed, true);
+  assert.equal(restorationSnapshot(state).lightPanels['panel-07'], 'working');
+});
+
+test('free play has power — the circuit gate is a campaign beat, not a tax', () => {
+  const state = minimalState('property-freeplay');
+  assert.equal(state.campaign, undefined);
+  assert.equal(ceilingCircuitPowered(state), true);
+  assert.equal(restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-02' }).ok, true);
+});
+
+test('each panel repair spends one kit — one kit does not service the building', () => {
+  // Before this, repair-light consumed nothing: the first kit a player ever
+  // owned repaired every panel forever, and the "kit required" prompt was
+  // decoration.
+  // Two kits: powering the ring is itself a structural repair and spends one,
+  // so this leaves exactly one for the panels — enough for the first, not the
+  // second. Lighting the room fully costs three kits in total.
+  const { state } = campaignState(true, 2);
+  const before = state.shop.inventory.repairkit1.back;
+  assert.equal(before, 1, 'the ceiling repair already spent one');
+  const first = restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-02' });
+  assert.equal(first.ok, true);
+  assert.equal(first.consumedFrom, 'backroom');
+  assert.equal(state.shop.inventory.repairkit1.back, before - 1);
+
+  const second = restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-07' });
+  assert.equal(second.ok, false, 'the second panel needs its own kit');
+  assert.equal(restorationSnapshot(state).lightPanels['panel-07'], 'dead');
+});
+
+test('a kit in an unopened delivery box is not available', () => {
+  // repairKitAvailable() used to count boxed stock, so a kit the player could
+  // not physically reach satisfied the gate — while boxes could not even be
+  // opened. Availability now means the same thing consumption means.
+  const state = minimalState('property-boxed', 0);
+  state.shop.deliveries = { boxes: [{ skuId: 'repairkit1', qty: 6 }] };
+  assert.equal(panelRepairKitAvailable(state), false);
+
+  state.shop.carry = { skuId: 'repairkit1', qty: 1 };
+  assert.equal(panelRepairKitAvailable(state), true, 'unpacked and in hand counts');
+});
+
+test('a repeat repair on a working panel is a no-op and costs nothing', () => {
+  const { state } = campaignState(true, 3);
+  restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-02' });
+  const afterFirst = state.shop.inventory.repairkit1.back;
+  const again = restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-02' });
+  assert.equal(again.ok, true);
+  assert.equal(again.changed, false);
+  assert.equal(state.shop.inventory.repairkit1.back, afterFirst, 'no kit burned on a no-op');
 });

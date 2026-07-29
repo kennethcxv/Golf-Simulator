@@ -1145,13 +1145,24 @@ export function buildShell(B) {
       if (!ceilingCircuitPowered) return;
       if (panelState('panel-02') !== 'flicker') return;
       flickT += dt;
-      const p = panelEntries.find((panel) => panel.simId === 'panel-02');
-      if (!p) return;
-      const drop = Math.sin(flickT * 13.1) * Math.sin(flickT * 4.7 + 2.1) < -0.55;
+      // Every fitting on the faulty run flickers, not just the first one found.
+      // v1 wires exactly one panel to this sim id, so this is identical there;
+      // v2 pairs two fittings per run to make the neglected room read as
+      // neglected (shopLayout's PINE_HILLS_V2_CEILING_RIG).
+      const faulty = panelEntries.filter((panel) => panel.simId === 'panel-02');
+      if (!faulty.length) return;
       const scale = (0.92 + 0.20 * (1 - moodDayF)) * tierProfile.practicalScale;
-      p.light.intensity = p.base * scale
-        * (drop ? 0.04 : 0.84 + 0.16 * Math.sin(flickT * 31));
-      p.faceMaterial.emissiveIntensity = drop ? 0.04 : 1.25 * scale;
+      for (let i = 0; i < faulty.length; i += 1) {
+        const p = faulty[i];
+        // Phase-offset per fitting: two lamps on one bad ballast stutter
+        // together but not in lockstep, and a synchronised blink reads as an
+        // effect rather than as failing hardware.
+        const t = flickT + i * 0.37;
+        const drop = Math.sin(t * 13.1) * Math.sin(t * 4.7 + 2.1) < -0.55;
+        p.light.intensity = p.base * scale
+          * (drop ? 0.04 : 0.84 + 0.16 * Math.sin(t * 31));
+        p.faceMaterial.emissiveIntensity = drop ? 0.04 : 1.25 * scale;
+      }
     },
   };
   lighting.setShopTier();

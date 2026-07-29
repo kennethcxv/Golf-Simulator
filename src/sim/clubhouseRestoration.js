@@ -1,6 +1,6 @@
 import { applyReputationChange } from './reputation.js';
 import { addExpense } from './economy.js';
-import { consumeSupplyUnit } from './supplyUnits.js';
+import { availableSupplyUnits, consumeSupplyUnit } from './supplyUnits.js';
 
 // CLUBHOUSE RESTORATION STATE
 //
@@ -177,6 +177,32 @@ const LIGHT_TARGET_TO_PANEL = deepFreeze({
   'ceiling:panel-02': 'panel-02',
   'ceiling:panel-07': 'panel-07',
 });
+
+// THE CEILING CIRCUIT IS A SEPARATE GATE FROM THE PANEL ITSELF.
+//
+// The campaign's `ceiling` component is literally "Office power and ceiling"
+// (CAMPAIGN_REPAIR_JOBS): until it is repaired, the ceiling ring has no power
+// and no panel can light, whatever state the panel is in. That gate used to
+// live only in the renderer (clubhouse.js), where the sim could not see it —
+// so `repair-light` would happily report "Dead ceiling light repaired" while
+// the room stayed pitch dark, because the OTHER gate was still shut. One
+// predicate, exported, is what stops those two from drifting again.
+//
+// Deliberately not routed through campaign.js's repairComplete(): that module
+// imports this one, and this is the same read without the cycle.
+export function ceilingCircuitPowered(state) {
+  if (!state?.campaign?.enabled) return true; // free play has working power
+  return !!ensureClubhouseArchitecture(state)?.components?.ceiling?.restored;
+}
+
+// A panel repair spends one physical repair kit, exactly as a structural repair
+// does. `availableSupplyUnits` is the authority on what counts: the backroom
+// shelving plus what is in your hands. A kit sealed inside an unopened delivery
+// box is NOT available — it has to be unboxed first, which is the whole point
+// of a delivery having to be opened.
+export function panelRepairKitAvailable(state) {
+  return availableSupplyUnits(state, ARCHITECTURE_REPAIR_SKU) > 0;
+}
 
 const PANEL_FAULT_DEFAULTS = deepFreeze({
   'panel-02': 'flicker',
@@ -878,13 +904,30 @@ export function restorationAction(state, action) {
     if (reno.targetProgress[targetId] >= 1 && reno.lightPanels[panelId] === 'working') {
       return successfulAction(type, false, { targetId, panelId, panelState: 'working' });
     }
+    // Refuse rather than "succeed" invisibly. Servicing a fitting on a dead
+    // ring changes nothing the player can see, and reporting that as a repair
+    // is the lie this gate exists to stop.
+    if (!ceilingCircuitPowered(state)) {
+      return invalid('The ceiling circuit is dead — repair the office power and ceiling first.');
+    }
+    // A panel costs a kit, like every other repair. Without this the first kit
+    // the player ever owns services every panel in the building forever.
+    const consumed = consumeSupplyUnit(state, ARCHITECTURE_REPAIR_SKU);
+    if (!consumed.ok) return invalid(consumed.reason);
     try {
       reno.targetProgress[targetId] = 1;
       reno.lightPanels[panelId] = 'working';
     } catch {
+      // Conserve the spent kit if the state refused the mutation, matching
+      // repair-component's discipline — a refused write must not eat supplies.
+      try {
+        state.shop.inventory[ARCHITECTURE_REPAIR_SKU].back += 1;
+      } catch { /* the same read-only state also blocked the consumption */ }
       return invalid('Clubhouse restoration state is read-only.');
     }
-    const result = successfulAction(type, true, { targetId, panelId, panelState: 'working' });
+    const result = successfulAction(type, true, {
+      targetId, panelId, panelState: 'working', consumedFrom: consumed.from,
+    });
     result.awards.push(
       awardReputation(
         state,

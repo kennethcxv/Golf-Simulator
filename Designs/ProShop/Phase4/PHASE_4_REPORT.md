@@ -26,14 +26,36 @@ The greybox room was **lit entirely by sources the player could never see**:
 | Retail accent at (−7.8, −1.25) | Same — cavity-side, bleeding through the west wall | Moved to the west retail run, in-envelope |
 | Fill at (3.0, −4.0) | Faked daylight from the north window the resize walled off | Dropped; a door-glazing fill replaces it at the room's one real aperture |
 
-**The flicker beat was also dead in v2 and nobody knew.** The sim owns exactly two light
-targets — `ceiling:panel-02` (flicker) and `ceiling:panel-07` (dead) — and panel-02's
-authored station is cavity-side after the resize. The v2 module's repair interaction
-targeted `ceiling:panel-03`, which matches no sim target at all, so the flickering-light
-repair could never be completed in this room. Panel rows now carry `simId` beside `id`:
-the sim's panel-02 state drives the in-envelope panel-03 station, and the repair
-interactions target the real ids. The save shape is untouched (its validator pins exact
-key sets).
+**The FLICKER beat — and only the flicker beat — was dead in v2.** The sim owns exactly
+two light targets — `ceiling:panel-02` (flicker) and `ceiling:panel-07` (dead) — and
+panel-02's authored station is cavity-side after the resize. The v2 module's repair
+interaction targeted `ceiling:panel-03`, which matches no sim target at all, so the
+flickering-light repair could never be completed in this room. Panel rows now carry
+`simId` beside `id`: the sim's panel-02 state drives the in-envelope panel-03 station,
+and the repair interactions target the real ids. The save shape is untouched (its
+validator pins exact key sets).
+
+> **Correction, 2026-07-28 — read this before citing the paragraph above.**
+> The pre-Phase-4 code filtered `id === 'panel-03' || id === 'panel-07'`, so the
+> **dead-panel beat (`ceiling:panel-07`) was correctly targeted before Phase 4 and is
+> unchanged by it.** Phase 4 fixed the flicker beat's wiring and nothing else about
+> these repairs. Any summary of this phase that says "a dead campaign beat was
+> repaired" is describing the flicker beat; it must not be read as covering the dead
+> panel.
+>
+> That distinction matters because the dead-panel repair was independently broken the
+> whole time, and this phase did not find it. Pressing E on it reported "Dead ceiling
+> light repaired" while the room stayed dark — the panel state really did change, but
+> the ceiling **circuit** is gated separately on the structural `ceiling` component
+> ("Office power and ceiling"), and with the ring dead no panel can light whatever
+> state it is in. Two further holes sat beside it: `repair-light` consumed no repair
+> kit at all, so one kit serviced every panel forever, and the interaction's
+> availability check counted kits sealed inside unopened delivery boxes.
+>
+> Phase 4 verified that panels *render* and that the dark start survives; it never
+> verified that completing a panel repair *changes what the player sees*. All three
+> holes were found by the walk-through and fixed under Blocker 1 — see
+> `../PLAYTEST_FINDINGS.md` PT-20.
 
 ---
 
