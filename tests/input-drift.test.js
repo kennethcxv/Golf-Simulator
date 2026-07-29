@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget,
-  reconcileModifiers, HELD_MODIFIERS, heldModifierNames,
+  reconcileModifiers, HELD_MODIFIERS, heldModifierNames, observedModifiers,
 } from '../src/core/heldKeys.js';
 
 test('a key released while Shift is held still clears (the stranded-key bug)', () => {
@@ -220,5 +220,54 @@ test('every reconcilable modifier can also be named for the readout', () => {
   for (const m of HELD_MODIFIERS) {
     assert.deepEqual(heldModifierNames(new Set([m.toLowerCase()])), [m],
       `${m} is reconcilable but invisible — a modifier that cannot be shown cannot be diagnosed`);
+  }
+});
+
+// RULE 6 — WHAT THE OS SAYS, WHICH IS NOT WHAT THE PAGE BELIEVES (2026-07-29).
+//
+// Third report of a stranded Meta, and the reason the previous two fixes did not
+// hold: every instrument pointed at this watched `heldModifierNames`, which is
+// populated only by keydowns the page received. In an OS-level strand the shell
+// consumes Win+X before the browser is handed anything, so the page records no
+// keydown, the held-set stays empty, reconcileModifiers has nothing to iterate,
+// and the readout is correctly, uselessly blank while every key is eaten.
+//
+// The distinguishing fact, measured live: a plain mousemove reports
+// getModifierState('Meta') === true while Windows holds it, with no keydown ever
+// having reached the page. So the OS's answer is always available — it was just
+// never read except as a comparison against something the page already believed.
+test('observedModifiers reports what the OS holds, with no held-set involved', () => {
+  assert.deepEqual(observedModifiers(keyEvent({ Meta: true })), ['Meta'],
+    'the case reconcileModifiers structurally cannot see: OS down, page believes nothing');
+  assert.deepEqual(observedModifiers(keyEvent({ Shift: true, Control: true })), ['Shift', 'Control'],
+    'canonical order, so the readout does not reshuffle between events');
+  assert.deepEqual(observedModifiers(keyEvent({})), [],
+    'an event that answers "nothing down" is information, and is reported as such');
+});
+
+test('an event that cannot answer is told apart from one that answers nothing', () => {
+  // [] means "the OS says nothing is held". null means "this event cannot say".
+  // Collapsing the two would let a HUD clear a live warning on the first event
+  // that happened not to carry modifier state.
+  assert.equal(observedModifiers(null), null);
+  assert.equal(observedModifiers({}), null, 'no getModifierState is no information');
+  assert.deepEqual(observedModifiers(keyEvent({})), [], 'and this is not the same thing');
+});
+
+test('one modifier that throws does not blind the readout to the others', () => {
+  const partial = {
+    getModifierState: (name) => {
+      if (name === 'AltGraph') throw new Error('cannot answer');
+      return name === 'Meta';
+    },
+  };
+  assert.deepEqual(observedModifiers(partial), ['Meta'],
+    'a stuck Meta must still be reportable when a sibling query fails');
+});
+
+test('every reconcilable modifier can also be observed from the OS', () => {
+  for (const m of HELD_MODIFIERS) {
+    assert.deepEqual(observedModifiers(keyEvent({ [m]: true })), [m],
+      `${m} can be held by the OS and must be nameable when it is`);
   }
 });

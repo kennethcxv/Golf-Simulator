@@ -22,7 +22,9 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
-import { isTextEntryTarget, reconcileModifiers, heldModifierNames } from '../core/heldKeys.js';
+import {
+  isTextEntryTarget, reconcileModifiers, heldModifierNames, observedModifiers,
+} from '../core/heldKeys.js';
 import { ownedWasher } from '../sim/washing.js';
 import { chargeGolfCart } from '../sim/golfCartFleet.js';
 import { makeFpHands, GRIPS } from './fpHands.js';
@@ -5793,6 +5795,10 @@ export function makeCourseScene(canvas, state) {
   // actually doing the work, so "mousemove clears it" is a reading rather than
   // an assumption about which listener fired.
   let walkLastReconcileSource = null;
+  // The OS's own answer, refreshed from every event that carries getModifierState.
+  // Distinct from walkHeld on purpose: walkHeld is what the page believes, this is
+  // what is actually eating the player's keys.
+  let walkOsModifiers = [];
   const treeColliders = []; // {x, z, r}
   const structColliders = []; // {minX, maxX, minZ, maxZ}
 
@@ -7874,6 +7880,13 @@ export function makeCourseScene(canvas, state) {
   // waiting for never arrives. Looking around does arrive, constantly, and
   // needs no deliberate act from a player who cannot see the problem.
   function walkReconcileModifiers(e, source) {
+    // What the OS says, recorded whether or not the page believes anything. This
+    // is the half that was missing for three reports of the same bug: a reconcile
+    // can only DROP what the page already holds, so an OS-level strand — where
+    // the shell eats the keydown and walkHeld never learns of it — was invisible
+    // to every instrument pointed at it. See heldKeys.js rule 6.
+    const observed = observedModifiers(e);
+    if (observed) walkOsModifiers = observed;
     const dropped = reconcileModifiers(walkHeld, e);
     if (!dropped.length) return;
     walkPhantomModifiers.push(...dropped);
@@ -7969,8 +7982,16 @@ export function makeCourseScene(canvas, state) {
   const WALK_FOCUS_POLL_MS = 500;
   let walkFocusPoll = 0;
   function walkFocusBackstop() {
-    if (!walk.active || !walkHeld.size) return;
+    if (!walk.active) return;
     if (typeof document.hasFocus !== 'function' || document.hasFocus()) return;
+    // No keyboard means no reading of the keyboard. A "Meta down" observed before
+    // focus left would otherwise sit on the HUD as a live fault after the player
+    // has already cleared it somewhere else. The next event repopulates it.
+    walkOsModifiers = [];
+    // The held-set check comes AFTER the clear above, and is only here to keep
+    // walkBlur's tool-changed hook from firing every tick while the window is in
+    // the background. Clearing everything on lost focus is the whole point.
+    if (!walkHeld.size) return;
     walkBlur();
     walkLastReconcileSource = 'focus-backstop';
   }
@@ -11122,6 +11143,11 @@ export function makeCourseScene(canvas, state) {
       // still in here is a modifier the OS agrees is down — genuinely stuck below
       // the browser, not a page-side phantom.
       heldModifiers: () => heldModifierNames(walkHeld),
+      // What the OPERATING SYSTEM reports as held, from the last event that could
+      // answer. Anything in here that the walker does not bind is eating the
+      // player's keys right now, and no page code can release it — the only
+      // remedy is the player tapping the physical key.
+      osModifiers: () => [...walkOsModifiers],
       lastReconcileSource: () => walkLastReconcileSource,
       // Test seam: strand a modifier the way a Windows-key tap does — down on the
       // page, released somewhere the page never sees. Nothing in production calls

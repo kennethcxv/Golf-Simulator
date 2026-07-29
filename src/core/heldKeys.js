@@ -69,6 +69,35 @@ export function heldModifierNames(held) {
   return HELD_MODIFIERS.filter((m) => held.has(m) || held.has(m.toLowerCase()));
 }
 
+//   6. THE PAGE'S BELIEF IS THE WRONG QUANTITY TO WATCH.
+//
+//      reconcileModifiers only ever DROPS: it iterates the modifiers the held-set already
+//      contains, and skips any it does not. So a modifier the page never recorded a keydown for
+//      is structurally invisible to it — and that is exactly the OS-level strand. When Windows
+//      believes Win is down it consumes Win+X in the shell, the browser is handed no keydown at
+//      all, walkHeld stays empty, and a readout built on "what does the walker believe is held"
+//      reports nothing while every keypress is being eaten. Correctly, and uselessly.
+//
+//      Measured 2026-07-29: with the OS holding Meta and the page never having seen a keydown,
+//      a plain mousemove reports getModifierState('Meta') === true. The OS's answer is available
+//      on every event; it was simply never read except as a comparison against something the
+//      page already believed.
+//
+//      No page code can RELEASE a modifier the OS is holding. What it can do is say so, which is
+//      the difference between "D stopped working" and "Windows is holding the Windows key".
+//      Returns null — not [] — when the event cannot answer, so a caller can tell "nothing is
+//      down" apart from "this event carries no information".
+export function observedModifiers(event) {
+  if (!event || typeof event.getModifierState !== 'function') return null;
+  const down = [];
+  for (const modifier of HELD_MODIFIERS) {
+    try {
+      if (event.getModifierState(modifier)) down.push(modifier);
+    } catch { /* an event that cannot answer for one modifier can still answer for others */ }
+  }
+  return down;
+}
+
 // Works against either a createHeldKeys instance or a plain Set — the walk controller uses a raw
 // Set and full-lowercase spellings ('meta'), the overview camera uses this module's normalise
 // ('Meta'), so both spellings are probed.

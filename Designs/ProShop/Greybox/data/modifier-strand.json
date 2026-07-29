@@ -1,0 +1,170 @@
+{
+  "what": "page-side vs OS-side modifier strand, and what the HUD shows in each",
+  "findings": {
+    "pageSideStrandIsPlanted": true,
+    "pageSideStrandClearedByMouseMove": true,
+    "pageSideClearedBy": "mousemove",
+    "pageSideChipWarnedWhileStranded": true,
+    "pageSideChipClearedAfter": true,
+    "osStrandVisibleToController": false,
+    "osStrandVisibleViaOsReports": true,
+    "osStrandWarnedOnHud": true,
+    "osStrandChipOnScreen": true,
+    "osStrandChipBox": {
+      "x": 1313.015625,
+      "y": 76,
+      "width": 274.984375,
+      "height": 25,
+      "vw": 1600,
+      "vh": 900
+    },
+    "osStrandChipText": "⚠ Meta held by the system — tap and release it",
+    "osReleaseClearedHud": true,
+    "pointerLockEngaged": true,
+    "lockedStrandClearedByMouseMove": true,
+    "lockedClearedBy": "mousemove",
+    "reloadRestoredStaleHeldSet": false
+  },
+  "steps": [
+    {
+      "label": "A1 page-side strand planted",
+      "controllerBelieves": [
+        "Meta"
+      ],
+      "osReports": [],
+      "lastReconcileSource": null,
+      "pointerLocked": false,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": true,
+        "stuck": true,
+        "text": "⚠ Meta held — keys may not reach the game"
+      }
+    },
+    {
+      "label": "A2 after mouse move, no keys pressed",
+      "controllerBelieves": [],
+      "osReports": [],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": false,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": false,
+        "stuck": false,
+        "text": "⇧ "
+      }
+    },
+    {
+      "label": "B1 OS holds Meta, controller set cleared",
+      "controllerBelieves": [],
+      "osReports": [
+        "Meta"
+      ],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": false,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": true,
+        "stuck": true,
+        "text": "⚠ Meta held by the system — tap and release it"
+      }
+    },
+    {
+      "label": "B2 after mouse move while OS holds Meta",
+      "controllerBelieves": [],
+      "osReports": [
+        "Meta"
+      ],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": false,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": true,
+        "stuck": true,
+        "text": "⚠ Meta held by the system — tap and release it"
+      }
+    },
+    {
+      "label": "B3 after OS releases Meta",
+      "controllerBelieves": [],
+      "osReports": [],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": false,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": false,
+        "stuck": false,
+        "text": "⇧ "
+      }
+    },
+    {
+      "label": "C1 pointer lock requested",
+      "controllerBelieves": [],
+      "osReports": [],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": true,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": false,
+        "stuck": false,
+        "text": "⇧ "
+      }
+    },
+    {
+      "label": "C2 stranded while locked",
+      "controllerBelieves": [
+        "Meta"
+      ],
+      "osReports": [],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": true,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": true,
+        "stuck": true,
+        "text": "⚠ Meta held — keys may not reach the game"
+      }
+    },
+    {
+      "label": "C3 after mouse move while locked",
+      "controllerBelieves": [],
+      "osReports": [],
+      "lastReconcileSource": "mousemove",
+      "pointerLocked": true,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": false,
+        "stuck": false,
+        "text": "⇧ "
+      }
+    },
+    {
+      "label": "D1 after a reload with a modifier stranded",
+      "controllerBelieves": [],
+      "osReports": [],
+      "lastReconcileSource": null,
+      "pointerLocked": false,
+      "documentHasFocus": true,
+      "chip": {
+        "present": true,
+        "visible": false,
+        "stuck": false,
+        "text": "⇧ "
+      }
+    }
+  ],
+  "interpretation": {
+    "pageSide": "WORKS. A phantom the page invented is cleared by looking around, with no key pressed.",
+    "osSide": "VISIBLE. The player can see that a modifier is eating their keys."
+  },
+  "errs": [],
+  "ok": true
+}
