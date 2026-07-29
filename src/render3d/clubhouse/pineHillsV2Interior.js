@@ -47,6 +47,7 @@ import {
   pineHillsInteractionWorldY,
   pineHillsRestorationObjectName,
 } from './pineHillsInterior.js';
+import { makeV2ArchitectureMaterials } from './materials.js';
 
 // The resized room's ceiling (OVERNIGHT_REPORT.md §3, item 10): 2.80 yd = 2.56 m
 // under the original 2.93 m shell, with exposed grey beams just below it.
@@ -346,75 +347,127 @@ export function createPineHillsV2Interior({
     return chair;
   };
   // --- the resized envelope: new west/north walls, dropped ceiling, beams ----------
-  // Grey architecture at final dimensions (OVERNIGHT_REPORT.md §3). The two wall
+  // Phase 4: the architecture wears its real materials (ART_BIBLE §7/§8) while
+  // every FIXTURE volume stays grey — that is Phase 5's line. The two wall
   // COLLIDERS are builder-owned — clubhouse.js registers them at these same
-  // datums; everything here is visual.
+  // datums; everything here is visual. Mesh/group NAMES are unchanged (the
+  // greybox acceptance pins presence by name).
+  const archMaterials = makeV2ArchitectureMaterials();
   {
     const envelope = PINE_HILLS_V2_LAYOUT.publicBounds;
     const wallT = PINE_HILLS_V2_LAYOUT.wallT;
     const archRoot = new THREE.Group();
     archRoot.name = 'GreyboxResizeArchitecture';
     group.add(archRoot);
-    const westWall = new THREE.Mesh(
-      box(wallT, CEILING_Y, envelope.maxZ - (envelope.minZ - wallT)), grey,
-    );
-    westWall.name = 'GREY_WestWall';
-    westWall.position.set(
-      envelope.minX - wallT / 2, CEILING_Y / 2, (envelope.minZ - wallT + envelope.maxZ) / 2,
-    );
-    westWall.receiveShadow = true;
-    const northWall = new THREE.Mesh(
-      box(envelope.maxX - (envelope.minX - wallT), CEILING_Y, wallT), grey,
-    );
-    northWall.name = 'GREY_NorthWall';
-    northWall.position.set(
-      (envelope.minX - wallT + envelope.maxX) / 2, CEILING_Y / 2, envelope.minZ - wallT / 2,
-    );
-    northWall.receiveShadow = true;
-    // One grey lid over the public envelope, and the four exposed beams that make
-    // 2.56 m read as pressure instead of paint. Beam stations clear the door wall.
-    const ceilingLid = new THREE.Mesh(
-      box(envelope.maxX - envelope.minX, 0.06, envelope.maxZ - envelope.minZ), greyDark,
-    );
+    // §8 wall language: sage panelling below the chair rail, warm cream above,
+    // walnut rail and skirting proud of the face. RAIL_TOP = 1.0 is the v1
+    // wainscot's own RAIL_Y, so the new walls and the v1 south wall carry one
+    // construction line around the room. Bands are real geometry — GTAO only
+    // grounds a crevice that exists (§2.1). uv1 mirrors uv on every band so
+    // the Phase 5 dirt mask (aoMap, channel 1) lands without material rework.
+    const RAIL_TOP = 1.0;
+    const RAIL_H = 0.08;
+    const SKIRT_H = 0.12;
+    const withUv1 = (mesh) => {
+      mesh.geometry.setAttribute('uv1', mesh.geometry.attributes.uv);
+      return mesh;
+    };
+    const bandedWall = (name, { runLength, thickness, centerX, centerZ, axis }) => {
+      const wall = new THREE.Group();
+      wall.name = name;
+      const sizes = (h, extra) => (axis === 'x'
+        ? [thickness + extra, h, runLength]
+        : [runLength, h, thickness + extra]);
+      const piece = (material, h, yCenter, extra = 0) => {
+        const mesh = withUv1(new THREE.Mesh(box(...sizes(h, extra)), material));
+        mesh.position.set(0, yCenter, 0);
+        mesh.receiveShadow = true;
+        wall.add(mesh);
+        return mesh;
+      };
+      piece(archMaterials.surface('sage', runLength, RAIL_TOP), RAIL_TOP, RAIL_TOP / 2);
+      piece(
+        archMaterials.surface('cream', runLength, CEILING_Y - RAIL_TOP),
+        CEILING_Y - RAIL_TOP, RAIL_TOP + (CEILING_Y - RAIL_TOP) / 2,
+      );
+      piece(archMaterials.surface('walnut', runLength, RAIL_H), RAIL_H, RAIL_TOP + RAIL_H / 2, 0.04);
+      piece(archMaterials.surface('walnut', runLength, SKIRT_H), SKIRT_H, SKIRT_H / 2, 0.03);
+      wall.position.set(centerX, 0, centerZ);
+      return wall;
+    };
+    const westWall = bandedWall('GREY_WestWall', {
+      runLength: envelope.maxZ - (envelope.minZ - wallT),
+      thickness: wallT,
+      centerX: envelope.minX - wallT / 2,
+      centerZ: (envelope.minZ - wallT + envelope.maxZ) / 2,
+      axis: 'x',
+    });
+    const northWall = bandedWall('GREY_NorthWall', {
+      runLength: envelope.maxX - (envelope.minX - wallT),
+      thickness: wallT,
+      centerX: (envelope.minX - wallT + envelope.maxX) / 2,
+      centerZ: envelope.minZ - wallT / 2,
+      axis: 'z',
+    });
+    // One cream lid over the public envelope, and the four exposed dark-walnut
+    // beams (§8: beam faces) that make 2.56 m read as pressure instead of
+    // paint. The faint emissive is the kit ceiling's faked-bounce idiom,
+    // restrained — the dark start still reads dark.
+    const ceilingLid = withUv1(new THREE.Mesh(
+      box(envelope.maxX - envelope.minX, 0.06, envelope.maxZ - envelope.minZ),
+      archMaterials.surface(
+        'ceilingPaint',
+        envelope.maxX - envelope.minX,
+        envelope.maxZ - envelope.minZ,
+        { emissive: 0xfff2dc, emissiveIntensity: 0.06 },
+      ),
+    ));
     ceilingLid.name = 'GREY_Ceiling';
     ceilingLid.position.set(
       (envelope.minX + envelope.maxX) / 2, CEILING_Y + 0.03, (envelope.minZ + envelope.maxZ) / 2,
     );
+    ceilingLid.receiveShadow = true;
     archRoot.add(westWall, northWall, ceilingLid);
     const beams = PINE_HILLS_V2_LAYOUT.beams;
+    const beamMaterial = archMaterials.surface('walnutDark', envelope.maxX - envelope.minX, 0.5);
     beams.zStations.forEach((zStation, index) => {
       const beam = new THREE.Mesh(
-        box(envelope.maxX - envelope.minX, beams.depth, beams.width), grey,
+        box(envelope.maxX - envelope.minX, beams.depth, beams.width), beamMaterial,
       );
       beam.name = `GREY_CeilingBeam_${index + 1}`;
       beam.position.set((envelope.minX + envelope.maxX) / 2, CEILING_Y - beams.depth / 2, zStation);
       beam.receiveShadow = true;
       archRoot.add(beam);
+      greyStaticRoots.set(beam.name, beam);
     });
     greyStaticRoots.set('GREY_WestWall', westWall);
     greyStaticRoots.set('GREY_NorthWall', northWall);
     greyStaticRoots.set('GREY_Ceiling', ceilingLid);
-    // The corridor seal: partition line continued to the desk, as §6 draws it.
+    // The corridor seal: partition line continued to the desk, as §6 draws it —
+    // banded like the walls it joins.
     const seal = PINE_HILLS_V2_LAYOUT.corridorSeal;
-    const sealWall = new THREE.Mesh(
-      box(seal.t, CEILING_Y, seal.zTo - seal.zFrom), grey,
-    );
-    sealWall.name = 'GREY_CorridorSeal';
-    sealWall.position.set(seal.x, CEILING_Y / 2, (seal.zFrom + seal.zTo) / 2);
-    sealWall.receiveShadow = true;
+    const sealWall = bandedWall('GREY_CorridorSeal', {
+      runLength: seal.zTo - seal.zFrom,
+      thickness: seal.t,
+      centerX: seal.x,
+      centerZ: (seal.zFrom + seal.zTo) / 2,
+      axis: 'x',
+    });
     archRoot.add(sealWall);
     greyStaticRoots.set('GREY_CorridorSeal', sealWall);
     // The west seal: cabinet-height fillets closing the Z-channel behind the
-    // return (see the layout's corridorWestSeal note).
+    // return (see the layout's corridorWestSeal note). Cabinetry: medium
+    // walnut, grain up the panel.
     const westSeal = PINE_HILLS_V2_LAYOUT.corridorWestSeal;
     for (const [name, rect] of [
       ['GREY_ReturnBackFill', westSeal.returnBackFill],
       ['GREY_HutchGapFill', westSeal.hutchGapFill],
       ['GREY_HutchEastFill', westSeal.hutchEastFill],
     ]) {
-      const fill = new THREE.Mesh(
-        box(rect.maxX - rect.minX, 2.20, rect.maxZ - rect.minZ), greyDark,
-      );
+      const fill = withUv1(new THREE.Mesh(
+        box(rect.maxX - rect.minX, 2.20, rect.maxZ - rect.minZ),
+        archMaterials.surface('walnut', rect.maxX - rect.minX, 2.20),
+      ));
       fill.name = name;
       fill.position.set(
         (rect.minX + rect.maxX) / 2, 1.10, (rect.minZ + rect.maxZ) / 2,
@@ -846,6 +899,17 @@ export function createPineHillsV2Interior({
     },
     getRoot: (key) => greyRootFor(key) || greyRootFor(`GREY_${key}`),
     roots: () => [...greyStaticRoots.values(), ...greyFixtureRoots.values()],
+    // Phase 5 dirt hook: every architecture material carries an aoMap (channel
+    // uv1, authored on every band). Passing null restores the neutral no-op
+    // mask. No dirt is AUTHORED here — this is the mount point.
+    setArchitectureDirtMask(texture) {
+      const mask = texture || archMaterials.neutralMask;
+      for (const material of archMaterials.materials) {
+        material.aoMap = mask;
+        material.needsUpdate = true;
+      }
+      return archMaterials.materials.length;
+    },
     diagnostics: () => ({
       greybox: true,
       expected: 0,
@@ -857,6 +921,7 @@ export function createPineHillsV2Interior({
       interactions: interactionProps.length,
       staticDressingBatch: null,
       greyVolumes: greyStaticRoots.size + greyFixtureRoots.size,
+      architectureMaterials: archMaterials.materials.length,
       suppressedLegacy: [...suppressedLegacy],
       hiddenFixtureAnchors: [...hiddenAnchorIds],
     }),
@@ -869,6 +934,7 @@ export function createPineHillsV2Interior({
       ownedGeometries.clear();
       for (const material of ownedMaterials) material.dispose();
       ownedMaterials.clear();
+      archMaterials.dispose();
       greyStaticRoots.clear();
       greyFixtureRoots.clear();
       neglectRoots.clear();

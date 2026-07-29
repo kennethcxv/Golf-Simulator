@@ -820,3 +820,88 @@ export function makeClubhouseMaterials(clubName) {
     signTexture: makeSignTexture,
   };
 }
+
+// V2 ARCHITECTURE KIT (Phase 4) — the pro-shop slice's architecture surfaces,
+// procedural like the rest of the kit but fed the ART_BIBLE §8 palette hexes
+// directly, so the shipped mean lands on palette at the source (§7.4.1's
+// multiply-drift belongs to photo sources; here the maker IS the map).
+// Roughness ranges follow §7.2; everything is dielectric. Only the v2
+// interior module calls this, so v1 never pays for the canvases.
+export function makeV2ArchitectureMaterials() {
+  // family -> { canvas, roughness lo/hi, tile (yd per repeat), normal strength/scale }
+  // Tiles hold §7.3 texel classes: 256² canvases at 0.33–1.33 yd, 512² walnut
+  // at 0.60 — every surface supplies at or above its class requirement without
+  // exceeding 2× (the same probe that measures the room verifies this).
+  const families = {
+    cream: { canvas: makePlasterCreamTexture({ base: '#e8dfc9' }).image, lo: 0.85, hi: 0.96, tile: 0.67, normal: 1.0, ns: 0.4 },
+    sage: { canvas: makePaintTexture({ seed: 21, base: '#9fb09a', grain: 0.05 }), lo: 0.60, hi: 0.80, tile: 0.33, normal: 0.8, ns: 0.3 },
+    ceilingPaint: { canvas: makePaintTexture({ seed: 22, base: '#e8dfc9', grain: 0.03 }), lo: 0.88, hi: 0.98, tile: 1.33, normal: 0, ns: 0 },
+    walnut: { canvas: makeWalnutTexture({ seed: 63, base: '#6b4a2f', hi: '#7d5a3a', lo: '#583c25' }).image, lo: 0.55, hi: 0.70, tile: 0.60, normal: 1.8, ns: 0.55 },
+    walnutDark: { canvas: makeWalnutTexture({ seed: 64, base: '#3e2a1b', hi: '#4c3826', lo: '#2d2014' }).image, lo: 0.55, hi: 0.70, tile: 0.60, normal: 1.8, ns: 0.55 },
+  };
+  // Derived maps are built ONCE per family; per-surface clones share the GPU
+  // upload (three keys uploads on Source, and repeat is a shader uniform).
+  const familyMaps = new Map();
+  const mapsFor = (name) => {
+    if (familyMaps.has(name)) return familyMaps.get(name);
+    const f = families[name];
+    const maps = {
+      map: finish(f.canvas),
+      rough: roughnessFrom(f.canvas, f.lo, f.hi),
+      normal: f.normal ? normalFrom(f.canvas, f.normal) : null,
+    };
+    for (const tex of Object.values(maps)) if (tex) ownedTextures.push(tex);
+    familyMaps.set(name, maps);
+    return maps;
+  };
+  // The Phase 5 dirt hook: a 1×1 white aoMap is a no-op until a real mask
+  // replaces it. Meshes carry uv1 so the mask lands without material rework.
+  const neutralCanvas = makeCanvas(1);
+  const neutralContext = neutralCanvas.getContext('2d');
+  neutralContext.fillStyle = '#ffffff';
+  neutralContext.fillRect(0, 0, 1, 1);
+  const neutralMask = new THREE.CanvasTexture(neutralCanvas);
+  const materials = [];
+  const ownedTextures = [neutralMask];
+  // spanX/spanY in yards along the surface's own UV axes; repeats derive from
+  // the family tile so texel density is a property of the surface, not a
+  // hand-set constant. Thin runs (rails, skirting) keep one repeat across so
+  // grain runs along the length.
+  const surface = (name, spanX, spanY, { emissive = null, emissiveIntensity = 0 } = {}) => {
+    const f = families[name];
+    const maps = mapsFor(name);
+    const rx = Math.max(1, Math.round(spanX / f.tile));
+    const ry = Math.max(1, Math.round(spanY / f.tile));
+    const cloneMap = (tex) => {
+      const c = tex.clone();
+      c.repeat.set(rx, ry);
+      ownedTextures.push(c);
+      return c;
+    };
+    const material = new THREE.MeshStandardMaterial({
+      map: cloneMap(maps.map),
+      roughnessMap: cloneMap(maps.rough),
+      roughness: 1,
+      metalness: 0,
+      aoMap: neutralMask,
+    });
+    if (maps.normal) {
+      material.normalMap = cloneMap(maps.normal);
+      material.normalScale = new THREE.Vector2(f.ns, f.ns);
+    }
+    if (emissive) {
+      material.emissive = new THREE.Color(emissive);
+      material.emissiveIntensity = emissiveIntensity;
+    }
+    materials.push(material);
+    return material;
+  };
+  const dispose = () => {
+    for (const material of materials) material.dispose();
+    materials.length = 0;
+    for (const tex of ownedTextures) tex.dispose();
+    ownedTextures.length = 0;
+    familyMaps.clear();
+  };
+  return { surface, neutralMask, materials, dispose };
+}
