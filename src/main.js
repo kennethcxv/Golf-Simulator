@@ -2984,3 +2984,15 @@ boot();
 app.autosave = autosave;
 window.__fw = app;
 app.editorUi = () => editorUi; // QA hook: drive the editor from tooling
+
+// ?keydebug=1 — watch a REAL keypress travel from the OS to the walker. Off by
+// default and dynamically imported, so the normal build never loads it. This
+// exists because a key can pass every synthetic harness and still do nothing
+// under a real hand, and nothing else in the app can tell those apart.
+// The flag is read inline rather than imported, so the overlay module is never
+// fetched or parsed unless it is actually asked for.
+if (new URLSearchParams(window.location.search).get('keydebug') === '1') {
+  import('./debug/keyCapture.js')
+    .then(({ startKeyCapture }) => startKeyCapture(app))
+    .catch((e) => console.error('key capture failed to start', e));
+}

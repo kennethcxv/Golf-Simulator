@@ -10885,6 +10885,11 @@ export function makeCourseScene(canvas, state) {
         return walkFocusPromptLabel(walkFocus.label, requestedTool, walkTool, secondary);
       },
       getFocus: () => walkFocus,
+      // Read-only view of the movement key set. Until this existed, nothing
+      // outside this closure could tell "the browser never delivered the key"
+      // apart from "the key arrived and the walker ignored it" — the exact
+      // ambiguity that let two D-key harnesses pass a broken D key.
+      heldKeys: () => [...walkHeld],
       hooks: walkHooks,
       placeCart: (x, z, yaw) => {
         tractorPark.x = x;

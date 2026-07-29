@@ -8,6 +8,16 @@ async (page) => {
   // position delta measured, from the door clearway (open floor in both rooms).
   // Catches: a dead binding, an intercepted key, a latched key cancelling its
   // opposite, and variant-conditional input divergence.
+  //
+  // WHAT THIS DOES NOT PROVE (2026-07-28, the hard way). "Synthesized" is a
+  // CDP-dispatched event: no OS keyboard, no layout mapping, no shell
+  // accelerator, and no competing listener racing it. This file was green 8/8
+  // on D while D did not strafe under a real hand. So a pass here means "the
+  // binding and the movement basis are intact", NOT "the key works when the
+  // player presses it". The real-hand path is instrumented separately by
+  // ?keydebug=1 (src/debug/keyCapture.js) with tools/qa/key-capture-control.js
+  // as its synthetic baseline. Do not cite this file as evidence that an input
+  // works in play until that gap is closed and this note is rewritten.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
