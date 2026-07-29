@@ -410,6 +410,7 @@ export function createPineHillsV2Interior({
     for (const [name, rect] of [
       ['GREY_ReturnBackFill', westSeal.returnBackFill],
       ['GREY_HutchGapFill', westSeal.hutchGapFill],
+      ['GREY_HutchEastFill', westSeal.hutchEastFill],
     ]) {
       const fill = new THREE.Mesh(
         box(rect.maxX - rect.minX, 2.20, rect.maxZ - rect.minZ), greyDark,

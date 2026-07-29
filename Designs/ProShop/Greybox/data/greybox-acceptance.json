@@ -13,7 +13,7 @@
         "cleanupTargets": 12,
         "interactions": 14,
         "staticDressingBatch": null,
-        "greyVolumes": 21,
+        "greyVolumes": 24,
         "suppressedLegacy": [
           "PineHillsFrontDeskReturn",
           "TieredMemberLounge",
@@ -164,6 +164,18 @@
           {
             "name": "GREY_CorridorSeal",
             "found": true
+          },
+          {
+            "name": "GREY_ReturnBackFill",
+            "found": true
+          },
+          {
+            "name": "GREY_HutchGapFill",
+            "found": true
+          },
+          {
+            "name": "GREY_HutchEastFill",
+            "found": true
           }
         ],
         "legacyHidden": [
@@ -186,7 +198,7 @@
         "registerHardwareVisible": true,
         "tierIndex": 0
       },
-      "visibleMeshCount": 629
+      "visibleMeshCount": 632
     },
     "v1": {
       "variant": null,
@@ -340,6 +352,18 @@
           },
           {
             "name": "GREY_CorridorSeal",
+            "found": false
+          },
+          {
+            "name": "GREY_ReturnBackFill",
+            "found": false
+          },
+          {
+            "name": "GREY_HutchGapFill",
+            "found": false
+          },
+          {
+            "name": "GREY_HutchEastFill",
             "found": false
           }
         ],

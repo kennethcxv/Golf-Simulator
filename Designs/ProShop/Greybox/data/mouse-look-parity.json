@@ -2,14 +2,72 @@
   "variants": {
     "pine-hills": {
       "variant": "pine-hills",
-      "lockEngaged": false,
-      "blocked": "pointer-lock-unavailable"
+      "lockEngaged": true,
+      "settings": {
+        "yaw": 0,
+        "pitch": 0,
+        "sens": 1,
+        "invertY": false
+      },
+      "expect": {
+        "deltaMax": 140,
+        "yawRight400": -0.8399999999999997,
+        "yawLeft400": 0.8399999999999997,
+        "pitchDown250": -0.475,
+        "spikeSingle": -0.294
+      },
+      "relockEngaged": true,
+      "measured": {
+        "yawRight": -0.8399999999999997,
+        "yawLeft": 0.8399999999999997,
+        "pitchDown": -0.4750000000000001,
+        "yawSpike": -0.294,
+        "yawAfterRelockSpike": 0
+      },
+      "checks": {
+        "yawMatchesShippedMath": true,
+        "yawSymmetric": true,
+        "pitchMatchesShippedMath": true,
+        "pitchStableOnHorizontal": true,
+        "spikeClamped": true,
+        "relockGuardSwallows": true
+      },
+      "ok": true
     },
     "pine-hills-v2": {
       "variant": "pine-hills-v2",
-      "lockEngaged": false,
-      "blocked": "pointer-lock-unavailable"
+      "lockEngaged": true,
+      "settings": {
+        "yaw": 0,
+        "pitch": 0,
+        "sens": 1,
+        "invertY": false
+      },
+      "expect": {
+        "deltaMax": 140,
+        "yawRight400": -0.8399999999999997,
+        "yawLeft400": 0.8399999999999997,
+        "pitchDown250": -0.475,
+        "spikeSingle": -0.294
+      },
+      "relockEngaged": true,
+      "measured": {
+        "yawRight": -0.8399999999999997,
+        "yawLeft": 0.8399999999999997,
+        "pitchDown": -0.4750000000000001,
+        "yawSpike": -0.294,
+        "yawAfterRelockSpike": 0
+      },
+      "checks": {
+        "yawMatchesShippedMath": true,
+        "yawSymmetric": true,
+        "pitchMatchesShippedMath": true,
+        "pitchStableOnHorizontal": true,
+        "spikeClamped": true,
+        "relockGuardSwallows": true
+      },
+      "ok": true
     }
   },
-  "ok": false
+  "ok": true
 }

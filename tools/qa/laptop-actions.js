@@ -48,17 +48,46 @@ async (page) => {
   }
 
   async function seatAtLaptop() {
-    await page.evaluate(() => {
+    // Live-laptop stand (2026-07-28): the fixed (8.45, 4.5) office stand
+    // predates the laptop's move to the front desk.
+    await page.evaluate(async () => {
       const app = window.__fw;
+      const L = await import('/src/data/shopLayout.js');
       const o = app.scene3d.clubhouse().interior.position;
       const w = app.scene3d.walk.state;
-      w.x = 8.45 + o.x; w.z = 4.5 + o.z; w.yaw = -Math.PI / 2; w.pitch = -0.05;
+      const laptop = L.FRONT_DESK.laptop;
+      const seat = { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
+      w.x = seat.x + o.x;
+      w.z = seat.z + o.z;
+      const dx = laptop.x - seat.x;
+      const dz = laptop.z - seat.z;
+      const horizontal = Math.hypot(dx, dz) || 0.001;
+      w.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+      w.pitch = Math.atan2(1.06 - 1.62, horizontal);
     });
     await page.waitForTimeout(500);
   }
   async function openLaptop() {
     await page.keyboard.press('e');
-    await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+    // The chair diagonal's [E] focus is flaky; retry once square-on north.
+    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+      .then(() => true).catch(() => false);
+    if (!opened) {
+      await page.evaluate(async () => {
+        const app = window.__fw;
+        const L = await import('/src/data/shopLayout.js');
+        const o = app.scene3d.clubhouse().interior.position;
+        const w = app.scene3d.walk.state;
+        const laptop = L.FRONT_DESK.laptop;
+        w.x = laptop.x + o.x;
+        w.z = laptop.z + 0.95 + o.z;
+        w.yaw = Math.atan2(0, 1); // face -z, straight at the laptop
+        w.pitch = Math.atan2(1.06 - 1.62, 0.95);
+      });
+      await page.waitForTimeout(600);
+      await page.keyboard.press('e');
+      await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+    }
     await page.waitForFunction(() => { const r = document.querySelector('.laptop-screen'); return r && r.style.display !== 'none'; }, null, { timeout: 15000 });
     await page.waitForFunction(() => {
       const f = document.querySelector('.lt-frame');
@@ -86,8 +115,16 @@ async (page) => {
     const r = b.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   })()`);
+  // The old Suppliers/Pricing desks are tabs under Pro Shop now (laptop.js
+  // PAGE_ALIAS); Notifications folded into Home.
+  const tabTo = (label) => clickGlass(`(() => {
+    const b = [...document.querySelectorAll('.lt-tabs-big .lt-tab')].find((x) => x.textContent.trim() === ${JSON.stringify(label)});
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  })()`);
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });
   await bootIntoClub();
   await page.evaluate(() => {
@@ -103,13 +140,35 @@ async (page) => {
   await page.keyboard.press('e');
   await page.waitForTimeout(700); // lid mid-swing, boot screen up
   await page.screenshot({ path: `${OUT}/02-laptop-opening.png` });
+  // The chair diagonal's [E] focus is flaky (laptop-look landed it, this file
+  // missed it in the same session). Retry once from the square-on north stand.
+  {
+    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+      .then(() => true).catch(() => false);
+    if (!opened) {
+      await page.evaluate(async () => {
+        const app = window.__fw;
+        const L = await import('/src/data/shopLayout.js');
+        const o = app.scene3d.clubhouse().interior.position;
+        const w = app.scene3d.walk.state;
+        const laptop = L.FRONT_DESK.laptop;
+        w.x = laptop.x + o.x;
+        w.z = laptop.z + 0.95 + o.z;
+        w.yaw = Math.atan2(0, 1); // face -z, straight at the laptop
+        w.pitch = Math.atan2(1.06 - 1.62, 0.95);
+      });
+      await page.waitForTimeout(600);
+      await page.keyboard.press('e');
+    }
+  }
   await page.waitForFunction(() => { const r = document.querySelector('.laptop-screen'); return r && r.style.display !== 'none'; }, null, { timeout: 15000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/03-laptop-live.png` });
 
   // --- 1. place a supplier order through the glass -------------------------------------------
   const before = await page.evaluate(() => ({ cash: window.__fw.state.cash, orders: window.__fw.state.shop.orders.length }));
-  await navTo('Suppliers');
+  await navTo('Pro Shop');
+  await tabTo('Orders & Suppliers');
   // six clicks of the first product's [+]
   for (let i = 0; i < 6; i++) {
     const ok = await clickGlass(`(() => {
@@ -121,12 +180,12 @@ async (page) => {
     if (!ok) fail('supplier: no [+] button on the glass');
   }
   const quoted = await page.evaluate(() => {
-    const b = [...document.querySelectorAll('.lt-primary')].find((x) => /^Place order/.test(x.textContent.trim()));
+    const b = [...document.querySelectorAll('.lt-primary')].find((x) => /^Place Order/i.test(x.textContent.trim()));
     return b ? b.textContent.trim() : null;
   });
-  if (!quoted) fail('supplier: no Place order button after adding items');
+  if (!quoted) fail('supplier: no Place Order button after adding items');
   await clickGlass(`(() => {
-    const b = [...document.querySelectorAll('.lt-primary')].find((x) => /^Place order/.test(x.textContent.trim()));
+    const b = [...document.querySelectorAll('.lt-primary')].find((x) => /^Place Order/i.test(x.textContent.trim()));
     const r = b.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   })()`);
@@ -166,7 +225,7 @@ async (page) => {
   });
   if (!notif.first) fail('no notification after the delivery window');
   log.push({ step: 'notification', ...notif });
-  await navTo('Notifications');
+  await navTo('Home');
   await page.screenshot({ path: `${OUT}/05-notifications.png` });
   const opened = await clickGlass(`(() => {
     const b = [...document.querySelectorAll('.lt-order button')].find((x) => x.textContent.trim() === 'Open');
@@ -178,7 +237,8 @@ async (page) => {
   log.push({ step: 'notification-open', clicked: opened, landedOn: afterOpen });
 
   // --- 3. move a price with the mouse; the shop follows --------------------------------------
-  await navTo('Pricing');
+  await navTo('Pro Shop');
+  await tabTo('Pricing');
   const markupBefore = await page.evaluate(() => window.__fw.state.shop.markup.balls);
   const slid = await clickGlass(`(() => {
     const rows = [...document.querySelectorAll('.lt-row')];

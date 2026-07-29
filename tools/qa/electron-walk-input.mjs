@@ -63,6 +63,12 @@ try {
     null, { timeout: 120_000 },
   );
   await window.waitForTimeout(2500);
+  // A fresh campaign opens the guide overlay; while it is up, walk keys are
+  // swallowed (first Electron run measured all four keys at 0 movement). Only
+  // the button click — a blind Escape here opens the PAUSE menu and the later
+  // lock-engagement click lands on the overlay instead of the canvas.
+  await window.getByRole('button', { name: /Hide the guide/i }).click({ timeout: 3000 }).catch(() => {});
+  await window.waitForTimeout(600);
 
   // Pointer lock in the shell: the entire mouse-look path gates on it.
   await window.mouse.move(800, 450);
@@ -70,10 +76,9 @@ try {
   report.lockEngaged = await window.waitForFunction(
     () => document.pointerLockElement?.tagName === 'CANVAS', null, { timeout: 5000 },
   ).then(() => true).catch(() => false);
-  if (report.lockEngaged) {
-    await window.keyboard.press('Escape');
-    await window.waitForFunction(() => !document.pointerLockElement, null, { timeout: 5000 }).catch(() => {});
-  }
+  // Keep the lock held for the sweep — walk keys work under pointer lock, and
+  // an Escape here opens the PAUSE MENU, which swallows every key (the
+  // chain-3c run measured exactly that: lock true, all four keys at 0).
 
   // The walk-input sweep, at the arrival spawn (open ground), yaw zeroed so the
   // W/A/S/D axis mapping is deterministic: W → -z, A → -x, S → +z, D → +x.

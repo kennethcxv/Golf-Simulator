@@ -271,7 +271,7 @@ async (page) => {
     const names = (list) => list.map((name) => ({ name, found: !!interior.getObjectByName(name) }));
     const contract = {
       backdropAbsent: !interior.getObjectByName('PineHillsFrontDeskBackdrop'),
-      greyPresent: names(['GREY_frontCounter', 'GREY_backcounter', 'GREY_chairB', 'GREY_teeTimeBoard', 'GREY_WestWall', 'GREY_NorthWall', 'GREY_Ceiling', 'GREY_CeilingBeam_1', 'GREY_CorridorSeal', 'GREY_ReturnBackFill', 'GREY_HutchGapFill']),
+      greyPresent: names(['GREY_frontCounter', 'GREY_backcounter', 'GREY_chairB', 'GREY_teeTimeBoard', 'GREY_WestWall', 'GREY_NorthWall', 'GREY_Ceiling', 'GREY_CeilingBeam_1', 'GREY_CorridorSeal', 'GREY_ReturnBackFill', 'GREY_HutchGapFill', 'GREY_HutchEastFill']),
       legacyHidden: names(['LegacyCheckoutCounter', 'LegacyCheckoutProductionCounter', 'PineHillsFrontDeskReturn'])
         .map((entry) => ({
           ...entry,

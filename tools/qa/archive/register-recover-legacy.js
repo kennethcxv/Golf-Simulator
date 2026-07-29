@@ -35,8 +35,8 @@ async (page) => {
       await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
       const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
       if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
-      await page.getByRole('heading', { name: 'PROPERTY MARKET' }).waitFor();
-      await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+      // The old PROPERTY MARKET / Buy screen is gone: the modern flow boots
+      // the starter empire straight into the walk (starter-loop is the proof).
     }
     await page.waitForFunction(() => window.__fw && window.__fw.scene3d
       && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
@@ -50,7 +50,8 @@ async (page) => {
     }, null, { timeout: 40000 });
     await page.waitForTimeout(2200);
     await page.getByRole('button', { name: 'Hide the guide' }).click().catch(() => {});
-    await page.evaluate(() => window.__fw.scene3d.clubhouse().prepareCheckoutQa());
+    // prepareCheckoutQa() no longer exists (2026-07-28); the fixture below does
+    // its own stock/clock/pose prep and sendToCounter is the live diagnostic.
   };
   // WAIT FOR THE CAMERA TO ACTUALLY ARRIVE. isActive() flips true the instant [E] is
   // pressed, but the cashier pose BLENDS in over 0.4s — and headless rAF is throttled,
@@ -80,7 +81,7 @@ async (page) => {
   await boot();
 
   // a clean, known starting position
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const app = window.__fw;
     const inv = app.state.shop.inventory;
     for (const id of Object.keys(inv)) {
@@ -94,8 +95,21 @@ async (page) => {
     c.minutes = Math.floor(c.minutes / 1440) * 1440 + 14 * 60;
     app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
     app.scene3d.clubhouse().rebuildStock();
+    // Live stand (2026-07-28): the hardcoded (2.80-8, 5.10+228) predated BOTH
+    // the interior's world offset AND the desk move itself — two stale layers.
+    // COUNTER.staffStand is the layout's canonical cashier position; face the
+    // register the way the acceptance driver does.
+    const L = await import('/src/data/shopLayout.js');
+    const o = app.scene3d.clubhouse().interior.position;
     const st = app.scene3d.walk.state;
-    st.x = 2.80 - 8; st.z = 5.10 + 228; st.yaw = 0; st.pitch = -0.18;
+    const stand = L.COUNTER.staffStand;
+    st.x = stand.x + o.x;
+    st.z = stand.z + o.z;
+    const dx = L.COUNTER.registerX - stand.x;
+    const dz = L.COUNTER.registerZ - stand.z;
+    const horizontal = Math.hypot(dx, dz) || 0.001;
+    st.yaw = Math.atan2(-dx / horizontal, -dz / horizontal);
+    st.pitch = -0.18;
   });
   await page.waitForTimeout(700);
   const before = await books();
@@ -103,7 +117,10 @@ async (page) => {
 
   // a shopper takes two units off the shelf and queues up
   await page.evaluate(() => window.__fw.scene3d.clubhouse().sendToCounter(['balls3', 'glove1'], 'cash'));
-  await page.waitForFunction(() => !!window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 15000 });
+  // The fixture customer physically walks to the counter and places goods
+  // before a transaction exists; through a crowded v1 floor that can exceed
+  // the old 15 s (the acceptance driver budgets 12 s placing + 15 s tx).
+  await page.waitForFunction(() => !!window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 45000 });
   await page.waitForTimeout(1200);
   const mid = await books();
   log.push({

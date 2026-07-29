@@ -341,7 +341,11 @@ test('the corridor seal closes the partition-to-desk hole', () => {
   assert.ok(Math.abs(seal.x - partition.at) < 1e-6, 'seal off the partition line');
   assert.ok(seal.zFrom <= partition.to + 1e-6, 'seal leaves a gap at the partition end');
   assert.ok(seal.zTo >= slabFaceZ - 1e-6, 'seal leaves a gap at the desk face');
-  assert.ok(seal.zTo < 3.8, 'seal reaches into the staff corridor');
+  // The stub must reach the desk's STAFF edge (the T-seam the 1× curve leg
+  // found) but never cover the staff mouth at z 3.86.
+  const deskStaffEdge = V2.z + V2.frontDepth / 2;
+  assert.ok(seal.zTo >= deskStaffEdge - 0.02, 'seal stops short of the desk staff edge');
+  assert.ok(seal.zTo < 3.86, 'seal covers the staff mouth');
   const member = fixtureRectOf(byId.get('member_station'));
   assert.ok(seal.x - seal.t / 2 >= member.maxX + 0.05,
     'seal presses member_station');
@@ -365,6 +369,12 @@ test('the corridor seal closes the partition-to-desk hole', () => {
   assert.ok(gapFill.maxX >= hutch.minX - 0.02, 'gapFill-hutch seam');
   assert.ok(gapFill.minZ <= hutch.minZ + 0.02, 'gapFill hutch-face seam');
   assert.ok(gapFill.maxZ >= B.maxZ - 0.02, 'gapFill south-wall seam');
+  // The hutch-east sliver: flush hutch-east → partition band, hutch face → wall.
+  const eastFill = westSeal.hutchEastFill;
+  assert.ok(eastFill.minX <= hutch.maxX + 0.02, 'hutchEastFill-hutch seam');
+  assert.ok(eastFill.maxX >= seal.x + seal.t / 2 - 1e-6, 'hutchEastFill-partition seam');
+  assert.ok(eastFill.minZ <= hutch.minZ + 0.02, 'hutchEastFill hutch-face seam');
+  assert.ok(eastFill.maxZ >= B.maxZ - 0.02, 'hutchEastFill south-wall seam');
 });
 
 test('the staff corridor behind the desk survives the resize untouched', () => {

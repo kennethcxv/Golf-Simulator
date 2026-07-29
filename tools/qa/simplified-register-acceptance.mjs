@@ -257,6 +257,24 @@ async function scanAll(page, shot, mode) {
     // One click owns ring-up and the visible move into the bag. There is no
     // centring, rotation puzzle, scanner pass, or second bagging gesture.
     await page.mouse.click(product.x, product.y);
+    if (index === 0 || index === 1) {
+      // Observe the VISIBLE flight before waiting on the sim flags: the
+      // one-click redesign flips scanned/bagged at motion COMPLETION, so a
+      // flags-first wait always resolves after the animation is gone and the
+      // old phaseT-window beat could never run (third dead layer, found when
+      // the re-derived pins finally let this file reach it). Any 'bag'-phase
+      // frame with the read landed proves the item is mid-flight into the bag.
+      await page.waitForFunction((id) => {
+        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
+        return presentation.active && presentation.uid === id
+          && presentation.phase === 'bag'
+          && presentation.lastRead?.uid === id
+          && presentation.lastRead.ok;
+      }, uid, { timeout: 5000 }).catch(() => {
+        throw new Error(`no visible bag flight observed for ${uid}`);
+      });
+      await shot(index === 0 ? '06-first-product-to-bag.png' : '06b-mid-bagging.png');
+    }
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       const item = tx?.items.find((candidate) => candidate.uid === id);
@@ -277,32 +295,6 @@ async function scanAll(page, shot, mode) {
     assert(read?.uid === uid && read.ok && read.code === 'ok' && read.scanHit,
       `No successful scan checkpoint was recorded for ${uid}: ${JSON.stringify(read)}`);
     scanReadEvidence.push(read);
-    if (index === 0) {
-      await page.waitForFunction((id) => {
-        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
-        return presentation.active && presentation.uid === id
-          // 'bag' is the live scan-motion phase (pickup → scan-approach →
-          // scan-hold → scan-exit → bag); the old 'bagging' pin belonged to
-          // the TRANSACTION stage machine and never existed on this one.
-          && presentation.phase === 'bag'
-          && presentation.phaseT >= 0.12 && presentation.phaseT <= 0.88
-          && presentation.lastRead?.uid === id
-          && presentation.lastRead.ok;
-      }, uid, { timeout: 5000 });
-      await shot('06-first-product-to-bag.png');
-    }
-    if (index === 1) {
-      await page.waitForFunction((id) => {
-        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
-        return presentation.active && presentation.uid === id
-          // 'bag' is the live scan-motion phase (pickup → scan-approach →
-          // scan-hold → scan-exit → bag); the old 'bagging' pin belonged to
-          // the TRANSACTION stage machine and never existed on this one.
-          && presentation.phase === 'bag'
-          && presentation.phaseT >= 0.18 && presentation.phaseT <= 0.82;
-      }, uid, { timeout: 5000 });
-      await shot('06b-mid-bagging.png');
-    }
     // Do not aim through a product that is still leaving the reader. The next
     // click is armed only after the flow reaches its stable physical checkpoint.
     await page.waitForFunction(() => {

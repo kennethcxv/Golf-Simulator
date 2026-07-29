@@ -24,6 +24,7 @@ archive.
 | `register-recovery.js` | Wrapper of the archived recovery driver | as above |
 | `pine-hills-joined-tee-card-acceptance.mjs` | Joined tee-time + card acceptance on the swipe register | `simplified-reservation-card-acceptance.mjs` |
 | `pine-hills-joined-tee-card.js` | Wrapper of the archived tee-card acceptance | as above |
+| `register-recover-legacy.js` (was `register-recover.js`) | Revival attempted 2026-07-28 through SIX drift layers (undefined BASE_URL, retired "New Empire" menu route, removed PROPERTY MARKET screen, stale (−8,+228) world offset, pre-move desk stand, and finally a drag-to-scan choreography the one-click register no longer has). Its claim — save during an incomplete transaction survives reload with the books intact — is held against the live contract by the successor | `simplified-register-save-reload.js` (+ `tests/simplified-register-save-reload-matrix.test.js`, both in the integration `save-reload` gate) |
 
 The `qa/` evidence folders these files produced in their era remain valid as
 history of that era's build, but are **unreproducible** with today's code — do

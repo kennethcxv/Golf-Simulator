@@ -48,19 +48,22 @@ async (page) => {
     locked: document.pointerLockElement?.tagName === 'CANVAS',
   }));
   const engageLock = async () => {
-    // requestPointerLock is refused when the document is unfocused — a
-    // background headed window fails exactly like headless without this.
-    await page.bringToFront().catch(() => {});
-    await page.mouse.move(800, 450);
-    await page.mouse.click(800, 450);
-    try {
-      await page.waitForFunction(
-        () => document.pointerLockElement?.tagName === 'CANVAS', null, { timeout: 5000 },
-      );
-      return true;
-    } catch {
-      return false;
+    // requestPointerLock is refused when the document is unfocused (a
+    // background headed window fails exactly like headless), and Chrome
+    // enforces a ~1.5 s cooldown after an unlock. Three focused attempts
+    // cover both the first-boot focus glitch and the cooldown.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await page.bringToFront().catch(() => {});
+      await page.waitForTimeout(400);
+      await page.mouse.move(800, 450);
+      await page.mouse.click(800, 450);
+      const locked = await page.waitForFunction(
+        () => document.pointerLockElement?.tagName === 'CANVAS', null, { timeout: 3000 },
+      ).then(() => true).catch(() => false);
+      if (locked) return true;
+      await page.waitForTimeout(1200);
     }
+    return false;
   };
   const look = () => page.evaluate(() => {
     const w = window.__fw.scene3d.walk.state;
@@ -148,7 +151,17 @@ async (page) => {
     // swallow it (the literal 180-spin-after-alt-tab class).
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.pointerLockElement, null, { timeout: 5000 });
-    result.relockEngaged = await engageLock();
+    // Escape in walk mode unlocks AND opens the pause menu, so a canvas
+    // re-click hits the overlay, not the game. The realistic relock path is
+    // the RESUME one: a second Escape resumes and main.js re-requests the lock
+    // itself when the pause had it (the exact alt-tab/menu flow the guard
+    // exists for). Chrome's ~1.5 s post-unlock cooldown still applies first.
+    await page.waitForTimeout(1700);
+    await page.keyboard.press('Escape');
+    result.relockEngaged = await page.waitForFunction(
+      () => document.pointerLockElement?.tagName === 'CANVAS', null, { timeout: 4000 },
+    ).then(() => true).catch(() => false);
+    if (!result.relockEngaged) result.relockEngaged = await engageLock();
     cursor = { x: 800, y: 450 };
     await zeroLook();
     await page.mouse.move(1400, 450);

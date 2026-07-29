@@ -322,7 +322,11 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // run shows customers body-shoved through that 0.94-yd hole and pinned in
   // the staff corridor for game-hours. This stub is the drawn wall segment,
   // v2-only (PARTITIONS itself is shared with v1 and untouchable).
-  corridorSeal: Object.freeze({ x: 5.70, t: 0.20, zFrom: 2.00, zTo: 2.94 }),
+  // zTo runs to the desk's STAFF edge (3.76), not just the customer face: the
+  // exclusive 1× curve leg caught one body in the wing pocket east of the desk
+  // — the last sub-capsule seams are the stub-to-desk T and the hutch-east
+  // sliver (filled below). The staff mouth (z 3.86–4.89) stays open.
+  corridorSeal: Object.freeze({ x: 5.70, t: 0.20, zFrom: 2.00, zTo: 3.76 }),
 
   // THE WEST SEAL (sealed-room day run, same day): with the east hole closed,
   // walkers still surfaced inside the corridor. The route decodes to a Z-shaped
@@ -336,6 +340,10 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   corridorWestSeal: Object.freeze({
     returnBackFill: Object.freeze({ minX: 1.00, maxX: 1.88, minZ: 5.15, maxZ: 5.49 }),
     hutchGapFill: Object.freeze({ minX: 1.88, maxX: 2.40, minZ: 4.89, maxZ: 5.49 }),
+    // The hutch-east sliver (hutch ends 5.60, partition band 5.60–5.80): a
+    // 0.10-yd corridor↔wing seam over the south band. Sub-capsule, and the 1×
+    // curve leg proved once more that sub-capsule is not sealed.
+    hutchEastFill: Object.freeze({ minX: 5.60, maxX: 5.80, minZ: 4.89, maxZ: 5.49 }),
   }),
 
   // The lounge keeps its mandate (cleaning surface, entrance-visible) inside the
