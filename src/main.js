@@ -2449,6 +2449,10 @@ function frame(ts) {
           toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
         } else if (ev.kind === 'arrived') {
           toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          // A carton is the only thing in the game opened by hold-and-drag, and
+          // the entire retail loop is behind it. Teach it the moment there is
+          // actually a box to open; the lesson retires itself on the first cut.
+          triggerContextTutorial(app.state, 'delivery-carton');
           const clubhouse = app.scene3d && app.scene3d.clubhouse
             ? app.scene3d.clubhouse() : null;
           const presented = clubhouse && clubhouse.presentDeliveryArrival

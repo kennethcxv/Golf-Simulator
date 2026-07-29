@@ -192,6 +192,15 @@ export const CONTEXTUAL_TUTORIALS = [
     completeFlag: 'maintenanceUsed',
   },
   {
+    // The unboxing loop is a hold-and-drag gesture, which nothing else in the
+    // game uses — a player who never discovers it cannot stock a shelf, so the
+    // whole retail loop is behind it. Fired when the FIRST delivery lands,
+    // which is the only moment it is guaranteed to be relevant.
+    id: 'delivery-carton', context: 'walk', title: 'Open the delivery',
+    hint: 'Look at a sealed carton: the box cutter comes out on its own and a dashed cut line appears along the tape. Hold the left mouse button and drag along that line to slice it open — or hold E if you prefer. Then press E to fold the flaps back and again to take an armful.',
+    completeFlag: 'boxCut',
+  },
+  {
     id: 'structural-repair', context: 'walk', title: 'Repair the damage',
     hint: 'Damaged clubhouse components show a repair prompt. With clubhouse repair components in the backroom or your hands, hold E at the damage until the work completes.',
     completeFlag: 'repairedComponent',

@@ -7624,6 +7624,34 @@ export function makeCourseScene(canvas, state) {
   cutterGuideRibbon.name = 'BoxCutterActiveTapeRibbon';
   cutterGuideRibbon.visible = false;
   cutterGuideRibbon.frustumCulled = false;
+  // THE SEAM HAS TO SAY "DRAG ALONG ME".
+  //
+  // A static gold ribbon reads as decoration — it marks the tape but never
+  // suggests the gesture, and hold-and-drag is used by nothing else in the
+  // game. A short bright pip sweeping start-to-end is the affordance: motion
+  // along an axis is read as an instruction to move along that axis, without
+  // any text. It rides the same path data the drag solver uses, so it can
+  // never point somewhere the cut will not go.
+  const cutterGuidePip = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({
+      color: 0xfff0c2,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      depthTest: true,
+      toneMapped: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    }),
+  );
+  cutterGuidePip.name = 'BoxCutterActiveTapePip';
+  cutterGuidePip.visible = false;
+  cutterGuidePip.frustumCulled = false;
+  cutterGuidePip.renderOrder = 19;
+  scene.add(cutterGuidePip);
+  let cutterGuidePhase = 0;
   cutterGuideRibbon.renderOrder = 17;
   scene.add(cutterGuideRibbon);
   // The cutter itself is pinned to the authored world-space tape path. Build a
@@ -7758,8 +7786,13 @@ export function makeCourseScene(canvas, state) {
       slider.position.lerpVectors(slider.userData.cutterRetracted, slider.userData.cutterExtended, cutterBladeBlend);
     }
 
-    cutterGuide.visible = !!wantsContact;
-    cutterGuideRibbon.visible = !!wantsContact;
+    // The guide appears as soon as the box is LOOKED AT — the auto-tool has not
+    // necessarily swapped yet, and a cut line that only shows up after you are
+    // already holding the cutter teaches nobody how to get there.
+    const offersCutter = !!path && (walkTool === 'boxcutter' || focusedProp?.tool === 'boxcutter');
+    cutterGuide.visible = offersCutter;
+    cutterGuideRibbon.visible = offersCutter;
+    cutterGuidePip.visible = offersCutter && !walk.reducedMotion;
     if (!path) {
       updateCutterPlayerArm(false);
       cutter.position.lerp(cutterRestLocal, Math.min(1, dt * 12));
@@ -7792,6 +7825,18 @@ export function makeCourseScene(canvas, state) {
         cutterGuideUnitZ,
         cutterGuideDirection.multiplyScalar(1 / cutterGuideLength),
       );
+    }
+    if (cutterGuidePip.visible) {
+      // ~1.6 s per sweep: slow enough to read as a guide rather than a strobe.
+      cutterGuidePhase = (cutterGuidePhase + dt * 0.62) % 1;
+      cutterGuidePip.position.lerpVectors(cutterPathStartWorld, cutterPathEndWorld, cutterGuidePhase);
+      cutterGuidePip.position.y += 0.0075;
+      cutterGuidePip.quaternion.copy(cutterGuideRibbon.quaternion);
+      cutterGuidePip.scale.set(0.019, 0.0032, Math.max(0.012, cutterGuideLength * 0.16));
+      // Fade in and out at the ends so the pip reads as a stroke along the
+      // seam instead of an object teleporting back to the start.
+      const edge = Math.min(cutterGuidePhase, 1 - cutterGuidePhase);
+      cutterGuidePip.material.opacity = 0.95 * Math.min(1, edge / 0.12);
     }
     cutterContactWorld.lerpVectors(cutterPathStartWorld, cutterPathEndWorld, progress);
     heldRoot.updateMatrixWorld(true);

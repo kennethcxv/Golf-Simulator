@@ -7387,7 +7387,13 @@ export function makeClubhouse(ctx) {
           const zone = b.loc === 'pad' ? 'Pad delivery: '
             : b.loc === 'receiving-fallback' ? 'Safe receiving: '
               : b.surface && b.surface.startsWith('reserve-rack:') ? 'Stored carton: ' : '';
-          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
+          // "I can place it but I cannot open it" — a carton only opens on a
+          // work surface (bench, worktop, stock shelf, stocking cart), never on
+          // the floor or the pad. Saying only "[E] pick up" left the player with
+          // a box they could set down anywhere and open nowhere, with nothing
+          // on screen explaining the difference.
+          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''}`
+            + ' — [E] pick up · open it on a bench, worktop, stock shelf or stocking cart';
         }
         if (tapeUncut(b)) return `${name} case · ${b.qty} inside — [LMB] drag along tape · [E] hold alternative`;
         if (!tapeCut(b)) return `${name} — [LMB] drag along tape · [E] hold alternative`;

@@ -1,0 +1,113 @@
+{
+  "speedIdx": 1,
+  "checks": [
+    {
+      "name": "a first-delivery lesson exists",
+      "pass": true,
+      "detail": "\"Look at a sealed carton: the box cutter comes out on its own and a dashed cut line appears along the tape. Hold the left mouse button and drag along that line to slice it open — or hold E if you prefer. Then press E to fold the flaps back and again to take an armful.\""
+    },
+    {
+      "name": "the lesson fires when a delivery lands",
+      "pass": true,
+      "detail": "fired=true"
+    },
+    {
+      "name": "the lesson retires on the first real cut",
+      "pass": true,
+      "detail": "flag=boxCut"
+    },
+    {
+      "name": "the lesson names the gesture, not just the key",
+      "pass": true,
+      "detail": "Look at a sealed carton: the box cutter comes out on its own and a dashed cut line appears along the tape. Hold the left mouse button and drag along that line to slice it open — or hold E if you prefer. Then press E to fold the flaps back and again to take an armful."
+    },
+    {
+      "name": "looking at a sealed carton offers the cutter",
+      "pass": true,
+      "detail": "tool=boxcutter label=Range-rock dozen case · 54 inside — tap [E] once to equip the box cutter · [X] reposition closed carton"
+    },
+    {
+      "name": "a cut line is drawn on the box",
+      "pass": true,
+      "detail": "{\"BoxCutterActiveTapeGuide\":{\"visible\":true},\"BoxCutterActiveTapePip\":{\"visible\":true},\"BoxCutterActiveTapeRibbon\":{\"visible\":true}}"
+    },
+    {
+      "name": "the cut line MOVES — a static mark is decoration, not an instruction",
+      "pass": true,
+      "detail": "{\"visible\":true}"
+    },
+    {
+      "name": "the pip sweeps along the seam",
+      "pass": true,
+      "detail": "{\"seamLength\":0.3864,\"walked\":0.8763,\"samples\":20,\"wallMs\":2272,\"rafFrames\":514,\"pipVisibleAtEnd\":true,\"pipAt\":[-353.03,-0.6322]}"
+    },
+    {
+      "name": "a carton that cannot be opened here says why",
+      "pass": true,
+      "detail": "label unreadable from outside (prop list not exposed) — checked in source instead"
+    }
+  ],
+  "failures": [],
+  "sealedBox": {
+    "id": 1,
+    "loc": "stock",
+    "surface": null,
+    "tape": 0,
+    "canUnpack": true
+  },
+  "aimedAt": {
+    "x": -367.3,
+    "y": -0.6223496913909912,
+    "z": -0.40000000000000036
+  },
+  "focus": {
+    "label": "Range-rock dozen case · 54 inside — tap [E] once to equip the box cutter · [X] reposition closed carton",
+    "tool": "boxcutter"
+  },
+  "guide": {
+    "BoxCutterActiveTapeGuide": {
+      "visible": true
+    },
+    "BoxCutterActiveTapePip": {
+      "visible": true
+    },
+    "BoxCutterActiveTapeRibbon": {
+      "visible": true
+    }
+  },
+  "pipTravel": {
+    "seamLength": 0.3864,
+    "walked": 0.8763,
+    "samples": 20,
+    "wallMs": 2272,
+    "rafFrames": 514,
+    "pipVisibleAtEnd": true,
+    "pipAt": [
+      -353.03,
+      -0.6322
+    ]
+  },
+  "boxCapabilities": [
+    {
+      "id": 1,
+      "loc": "stock",
+      "surface": null,
+      "canUnpack": true
+    },
+    {
+      "id": 2,
+      "loc": "world",
+      "surface": null,
+      "canUnpack": false
+    },
+    {
+      "id": 3,
+      "loc": "world",
+      "surface": null,
+      "canUnpack": false
+    }
+  ],
+  "blockedLabel": null,
+  "ok": true,
+  "shots": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\Designs\\ProShop\\Greybox\\data\\box-discoverability"
+}
