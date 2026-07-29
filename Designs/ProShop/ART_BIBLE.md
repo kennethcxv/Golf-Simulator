@@ -157,12 +157,35 @@ inventory is dominated by 256² (78 textures), then 1024² (23), 512² (21), 128
 
 ---
 
-## 3. UNRESOLVED — interior key light
+## 3. Interior key light — RESOLVED (Phase 4, 2026-07-28): there is none
 
-**This is the largest open question in the slice, and it is deliberately not settled here.**
+> **Resolution.** The v2 room ships with **no interior key light**. Its light is the
+> four-panel ceiling rig (§2.4's power and fault states intact) plus GTAO. Two candidate
+> classes were each killed by their own §3 condition, with measurements:
+>
+> 1. **Panel-motivated steep directional** — prototyped gated to
+>    `ceilingPowered × workingFraction × panelScale`, measured at contact/face crops
+>    (`tools/qa/proshop-phase4-keylight-probe.js`,
+>    `Phase4/data/phase4-keylight-probe.json`). It added +4–8 luma **globally**, biased
+>    to floors (wide pose: +4.1 on contact, floor and wall alike; route pose: floor
+>    +7.4 vs wall face +2.7). That is the Arm-2 failure — lighter everywhere,
+>    form-flattening — because with interior casters stripped (§2.2 stands) a steep
+>    uncast directional can only re-shade by N·L, and floors win.
+> 2. **Door-motivated raking daylight key** — the only direction this windowless room
+>    can motivate (§ the resize sealed every public-room window; the glazed main door
+>    is the one aperture). A daylight key **cannot gate to `ceilingPowered`** without
+>    being physically wrong, which fails the gating requirement outright — the
+>    authorized leave-it-out branch.
+>
+> What §3 originally wanted from a key — cast shadow and true directional form —
+> requires either VSM or selective interior casting, both rejected elsewhere in this
+> bible. If Phase 5 hero assets prove starved of form under the rig, THAT evidence
+> reopens this section; nothing else does.
+
+The history below is retained because its measurements are what the resolution stands on.
 
 The lighting spike's Arm 3 added a warm shadow-casting directional light inside the room. It
-was **not adopted**, and it is **deferred to Phase 5**.
+was **not adopted**.
 
 ### What is actually known, stated precisely
 
@@ -207,15 +230,30 @@ them form. The shipped AO is the whole of the first job and none of the second.
    regression Arm 3 carried.
 5. Re-measured on the contact crops, not on whole-frame metrics.
 
-### What this blocks
+### What this unblocked — the three §12 deferrals, now settled (Phase 4)
 
-**No shadow-softness spec, no final exposure value, and no final contrast target appear in
-this bible.** All three depend on whether a shadow-casting interior light exists. Writing
-them now would mean re-approving every asset judged against them.
+With the key-light question closed, the three values this bible withheld are settled and
+recorded in §12:
 
-> **Any asset approved before this resolves is being judged under provisional lighting.**
-> Record that on its approval. Expect a re-review of material response and wear levels after
-> Phase 5, and do not treat a Phase-4 approval as final for anything lighting-dependent.
+* **Shadow softness — settled: none exists, by construction.** No interior light casts
+  (§2.2 policy stands; the panel RectAreaLights cannot); sun shadows are plain PCF
+  (§2.3: r185 coerces `PCFSoftShadowMap` → PCF and `shadow.radius` is inert). Softness
+  is not a tunable in this configuration and no spec pretends otherwise.
+* **Final exposure — settled: ACESFilmic, `toneMappingExposure = 1.12`** (unchanged from
+  the Phase 0 rig). Judged at the fixed poses across all three lighting states: panel
+  faces stay unclipped, the dark start keeps usable floor detail, and no state needed a
+  per-state grade.
+* **Contrast target — settled as measured anchors** (powered, 13:00, fixed poses,
+  key-light probe key-off crops — i.e. the shipped room): open oak floor **72–182**
+  sRGB luma across panel proximity; warm-cream wall field **~172**; sage band **~99**;
+  fixture-base contact bands sit **up to ~56 below** their adjacent open floor where
+  occlusion exists (checkout pose: contact 100 vs floor 157). A lighting or grade
+  change that pushes these anchors more than ~15 steps, clips the panel faces, or
+  erases the contact-vs-floor gap is off-target and needs a re-approval.
+
+**Hero-asset consequence:** Phase 5 assets are judged under THIS lighting — final, not
+provisional. The provisional-lighting flag in §11 is retired for approvals made after
+2026-07-28; earlier approvals keep their flag until re-reviewed.
 
 ---
 
@@ -736,9 +774,9 @@ Follow `ANTI_SLOP_CHECKLIST.md`. This bible adds three slice-specific requiremen
 
 | Deferred | Why | Unblocks when |
 |---|---|---|
-| Shadow softness | Not achievable under PCF; §2.3 | VSM is evaluated, or never |
-| Final exposure value | Depends on whether a shadow-casting interior light exists | §3 resolves |
-| Final contrast / tonemapping target | Same | §3 resolves |
+| ~~Shadow softness~~ | **SETTLED (Phase 4): none exists by construction** — no interior caster (§2.2), sun is plain PCF with `shadow.radius` inert (§2.3). See §3's settlement block | — |
+| ~~Final exposure value~~ | **SETTLED (Phase 4): ACESFilmic, exposure 1.12**, judged across all three lighting states at the fixed poses | — |
+| ~~Final contrast / tonemapping target~~ | **SETTLED (Phase 4) as measured anchors** — floor 72–182, cream ~172, sage ~99, contact bands up to ~56 under adjacent floor; drift > ~15 steps or clipped panel faces = re-approval. See §3 | — |
 | Minimum-spec polygon and texture budgets | Every measurement is from one RTX 5080 | A second machine is measured |
 | Material consolidation targets | Hygiene, not appearance; §2.5 | Independent of this slice |
 

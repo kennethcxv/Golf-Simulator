@@ -537,6 +537,7 @@ test('phase 4 seam guard: under Node the rig and placements resolve to the v1 va
   // The suite runs with the variant OFF — these pin v1 byte-identity.
   assert.equal(CLUBHOUSE_LAYOUT_VARIANT, null);
   assert.equal(CEILING_PANEL_RIG.y, SHELL.h);
+  assert.equal(CEILING_PANEL_RIG.key, undefined, 'v1 declares no interior key light');
   assert.equal(CEILING_PANEL_RIG.panels.length, CLUBHOUSE_CEILING_PANELS.length);
   for (const [index, panel] of CEILING_PANEL_RIG.panels.entries()) {
     const authored = CLUBHOUSE_CEILING_PANELS[index];

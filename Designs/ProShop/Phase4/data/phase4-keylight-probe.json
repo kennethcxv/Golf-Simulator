@@ -1,0 +1,239 @@
+{
+  "hook": "__FW_KEY_LIGHT_SCALE",
+  "poses": [
+    {
+      "id": "p04-checkout",
+      "at": [
+        0,
+        0.2
+      ],
+      "look": [
+        0,
+        3.4
+      ],
+      "pitch": -0.16,
+      "crops": {
+        "deskBaseContact": {
+          "x": 600,
+          "y": 620,
+          "w": 400,
+          "h": 60
+        },
+        "floorOpen": {
+          "x": 240,
+          "y": 780,
+          "w": 300,
+          "h": 80
+        },
+        "deskFace": {
+          "x": 620,
+          "y": 470,
+          "w": 360,
+          "h": 100
+        }
+      }
+    },
+    {
+      "id": "p11-wide",
+      "at": [
+        -2.3,
+        -4.1
+      ],
+      "look": [
+        4.6,
+        3.2
+      ],
+      "pitch": -0.05,
+      "crops": {
+        "tableBaseContact": {
+          "x": 760,
+          "y": 660,
+          "w": 320,
+          "h": 50
+        },
+        "floorOpen": {
+          "x": 420,
+          "y": 760,
+          "w": 360,
+          "h": 90
+        },
+        "wallFace": {
+          "x": 120,
+          "y": 420,
+          "w": 260,
+          "h": 160
+        }
+      }
+    },
+    {
+      "id": "p13-route",
+      "at": [
+        -0.6,
+        4.8
+      ],
+      "look": [
+        -0.9,
+        -4.2
+      ],
+      "pitch": -0.3,
+      "crops": {
+        "fixtureBaseContact": {
+          "x": 300,
+          "y": 600,
+          "w": 340,
+          "h": 60
+        },
+        "floorOpen": {
+          "x": 700,
+          "y": 640,
+          "w": 360,
+          "h": 100
+        },
+        "sageBandFace": {
+          "x": 780,
+          "y": 420,
+          "w": 420,
+          "h": 70
+        }
+      }
+    }
+  ],
+  "measures": [
+    {
+      "pose": "p04-checkout",
+      "keyScale": 0,
+      "keyState": {
+        "intensity": 0,
+        "visible": true
+      },
+      "crops": {
+        "deskBaseContact": 100.3,
+        "floorOpen": 156.81,
+        "deskFace": 90.69
+      }
+    },
+    {
+      "pose": "p11-wide",
+      "keyScale": 0,
+      "keyState": {
+        "intensity": 0,
+        "visible": true
+      },
+      "crops": {
+        "tableBaseContact": 182.34,
+        "floorOpen": 182.38,
+        "wallFace": 171.9
+      }
+    },
+    {
+      "pose": "p13-route",
+      "keyScale": 0,
+      "keyState": {
+        "intensity": 0,
+        "visible": true
+      },
+      "crops": {
+        "fixtureBaseContact": 109.22,
+        "floorOpen": 72.42,
+        "sageBandFace": 99.13
+      }
+    },
+    {
+      "pose": "p04-checkout",
+      "keyScale": 1,
+      "keyState": {
+        "intensity": 0.649,
+        "visible": true
+      },
+      "crops": {
+        "deskBaseContact": 106.84,
+        "floorOpen": 164.68,
+        "deskFace": 93.19
+      }
+    },
+    {
+      "pose": "p11-wide",
+      "keyScale": 1,
+      "keyState": {
+        "intensity": 0.649,
+        "visible": true
+      },
+      "crops": {
+        "tableBaseContact": 186.44,
+        "floorOpen": 186.51,
+        "wallFace": 176.05
+      }
+    },
+    {
+      "pose": "p13-route",
+      "keyScale": 1,
+      "keyState": {
+        "intensity": 0.649,
+        "visible": true
+      },
+      "crops": {
+        "fixtureBaseContact": 114.56,
+        "floorOpen": 79.86,
+        "sageBandFace": 101.83
+      }
+    }
+  ],
+  "deltas": [
+    {
+      "pose": "p04-checkout",
+      "off": {
+        "deskBaseContact": 100.3,
+        "floorOpen": 156.81,
+        "deskFace": 90.69
+      },
+      "on": {
+        "deskBaseContact": 106.84,
+        "floorOpen": 164.68,
+        "deskFace": 93.19
+      },
+      "delta": {
+        "deskBaseContact": 6.54,
+        "floorOpen": 7.87,
+        "deskFace": 2.5
+      }
+    },
+    {
+      "pose": "p11-wide",
+      "off": {
+        "tableBaseContact": 182.34,
+        "floorOpen": 182.38,
+        "wallFace": 171.9
+      },
+      "on": {
+        "tableBaseContact": 186.44,
+        "floorOpen": 186.51,
+        "wallFace": 176.05
+      },
+      "delta": {
+        "tableBaseContact": 4.1,
+        "floorOpen": 4.13,
+        "wallFace": 4.15
+      }
+    },
+    {
+      "pose": "p13-route",
+      "off": {
+        "fixtureBaseContact": 109.22,
+        "floorOpen": 72.42,
+        "sageBandFace": 99.13
+      },
+      "on": {
+        "fixtureBaseContact": 114.56,
+        "floorOpen": 79.86,
+        "sageBandFace": 101.83
+      },
+      "delta": {
+        "fixtureBaseContact": 5.34,
+        "floorOpen": 7.44,
+        "sageBandFace": 2.7
+      }
+    }
+  ],
+  "errs": [],
+  "ok": true
+}

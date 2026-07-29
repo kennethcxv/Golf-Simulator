@@ -608,6 +608,17 @@ export const PINE_HILLS_V2_CEILING_RIG = Object.freeze({
     Object.freeze({ id: 'panel-07', simId: 'panel-07', x: -0.2, z: 2.65, w: 2.45, d: 0.68 }),
     Object.freeze({ id: 'panel-08', simId: 'panel-08', x: 3.7, z: 2.65, w: 2.45, d: 0.68 }),
   ]),
+  // The interior key light (ART_BIBLE §3) was RESOLVED in Phase 4 as: none.
+  // A panel-motivated steep directional was prototyped, gated to power ×
+  // panel health, and measured at contact/face crops
+  // (tools/qa/proshop-phase4-keylight-probe.js, Phase4/data/
+  // phase4-keylight-probe.json): it added +4–8 luma globally with the gain
+  // biased to FLOORS (p11 wide: +4.1 on every crop; p13: floor +7.4 vs wall
+  // face +2.7) — a form-flattening wash, §3's Arm-2 failure, not form. The
+  // one raking alternative this windowless room can motivate is the glazed
+  // door, and a daylight key cannot gate to ceilingPowered without being
+  // physically wrong — the directive's leave-it-out branch. The rig's four
+  // panels + GTAO are the room's light.
 });
 
 export const CEILING_PANEL_RIG = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
