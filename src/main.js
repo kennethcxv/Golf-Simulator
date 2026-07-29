@@ -2360,6 +2360,13 @@ function frame(ts) {
   if (app.screen === 'game' && app.state && app.scene3d) {
     keyboardCamera(dtMs);
     const speed = BALANCE.speeds[app.speedIdx];
+    // SIM-TIME-001. The clubhouse loop is handed raw wall dt, so it has no way
+    // to know the day is running 16x faster unless it is told. Pushed every
+    // frame rather than on the speed control, because pause/resume, the editor,
+    // the pause menu and the golf-day presentation all move speedIdx from
+    // different places and any one of them forgetting would put the shop back
+    // where it was.
+    app.scene3d.clubhouse?.()?.setSimSpeed?.(speed || 1);
     if (speed > 0) {
       const golfParties = app.state.golfDay?.parties || [];
       const nearbyShot = app.speedIdx === 1 && golfParties.find((party) => (

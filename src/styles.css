@@ -2457,3 +2457,21 @@ body.register-mode .view-toggle { display: none !important; }
 
 .slot-card[data-state="saving"] { border-color: var(--brass); }
 .slot-card[data-state="error"] { border-color: #9a4d45; }
+
+/* Laptop search — one field in the toolbar, everything in it. Sized to sit
+   between the breadcrumbs and the clock without pushing either off. */
+.lt-search {
+  flex: 1 1 180px;
+  min-width: 120px;
+  max-width: 320px;
+  margin: 0 10px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.82em;
+  color: var(--lt-ink);
+  background: #fff;
+  border: 1px solid var(--lt-edge);
+  border-radius: 999px;
+}
+.lt-search:focus { outline: 2px solid var(--lt-blue); outline-offset: -1px; }
+.lt-search::placeholder { color: #97a1b0; }

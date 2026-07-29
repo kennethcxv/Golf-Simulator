@@ -74,7 +74,12 @@ export const SHOP_CATALOG = [
   { id: 'vac1', cat: 'supplies', tier: 1, name: 'Shop vacuum', cost: 140, msrp: 0, lb: 17 },
   // Reopening supplies are ordinary physical supplier SKUs. Their cartons,
   // carrying, back-stock, and installation all use inventory conservation.
-  { id: 'repairkit1', cat: 'supplies', tier: 1, name: 'Clubhouse repair components', cost: 38, msrp: 0, lb: 18, campaign: true },
+  // `keywords` exists because the game calls this two different things. The
+  // catalogue says "Clubhouse repair components"; the prompt over a broken
+  // fitting says "repair with clubhouse kit". A player who has only ever read
+  // the prompt searches for "kit" and finds nothing, which is a naming bug the
+  // search should not be asked to guess its way around.
+  { id: 'repairkit1', cat: 'supplies', tier: 1, name: 'Clubhouse repair components', cost: 38, msrp: 0, lb: 18, campaign: true, keywords: ['kit', 'clubhouse kit', 'repair kit'] },
   { id: 'desk1', cat: 'supplies', tier: 1, name: 'Office desk flat-pack', cost: 260, msrp: 0, lb: 74, campaign: true },
   { id: 'chair1', cat: 'supplies', tier: 1, name: 'Office task chair', cost: 85, msrp: 0, lb: 24, campaign: true },
   { id: 'laptop1', cat: 'supplies', tier: 1, name: 'Club office laptop', cost: 480, msrp: 0, lb: 8, fragile: true, campaign: true },

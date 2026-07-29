@@ -139,20 +139,49 @@ export function installConstructionFinish(state, categoryId, finishId, qualityId
   return { ok: true, changed: true, cost: 0, variant };
 }
 
+// BUYING IS NOT FITTING (2026-07-29). This used to do both: pay for a finish and
+// set it as installed in the same call, so ordering vinyl meant the floor was
+// already vinyl before anyone had laid it. Buying a material now puts the
+// material in your materials; installConstructionFinish is the separate act that
+// applies it, and it already required ownership.
+//
+// The two are different decisions in a shop sim — you can stock a finish you are
+// not ready to fit, and compare two you own — and the placement half already
+// existed. Only the coupling had to go.
 export function purchaseConstructionFinish(state, categoryId, finishId, qualityId) {
   const variant = constructionFinishVariant(categoryId, finishId, qualityId);
   if (!variant) return invalid('Unknown construction finish or quality level.');
   const construction = ensureConstructionFinishes(state);
   if (!construction) return invalid('Construction finish state is unavailable.');
   if (construction.owned.includes(variant.id)) {
-    return installConstructionFinish(state, categoryId, finishId, qualityId);
+    // Deliberately NOT an install. A "buy" that quietly fits the floor is how the
+    // coupling got here; the caller asks for an install when it means one.
+    return { ...invalid('You already have this material — fit it from your materials.'), owned: true };
   }
   if (!Number.isFinite(state.cash) || state.cash < variant.cost) {
     return invalid('Not enough cash for this construction package.');
   }
   spend(state, 'works', variant.cost);
   construction.owned.push(variant.id);
-  construction.installed[categoryId] = { finishId, qualityId };
   recordHistory(state, construction, 'purchase', variant, variant.cost);
-  return { ok: true, changed: true, cost: variant.cost, variant };
+  return { ok: true, changed: true, cost: variant.cost, variant, installed: false };
+}
+
+// Everything bought and not yet fitted, per category — the materials store.
+export function ownedConstructionFinishes(state, categoryId = null) {
+  const construction = ensureConstructionFinishes(state);
+  if (!construction) return [];
+  const out = [];
+  for (const id of construction.owned) {
+    const [cat, finishId, qualityId] = id.split(':');
+    if (categoryId && cat !== categoryId) continue;
+    const variant = constructionFinishVariant(cat, finishId, qualityId);
+    if (!variant) continue;
+    const current = construction.installed[cat];
+    out.push({
+      ...variant,
+      installed: !!current && current.finishId === finishId && current.qualityId === qualityId,
+    });
+  }
+  return out;
 }

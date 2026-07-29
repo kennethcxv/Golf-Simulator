@@ -17,6 +17,7 @@
 // change is counted and greens are mowed out in the world, by hands.
 
 import { el, toast } from './ui.js';
+import { rankSearchEntries } from './laptopSearch.js';
 import { formatMoney } from '../core/utils.js';
 import { calendarOf } from '../sim/time.js';
 import {
@@ -105,7 +106,9 @@ import {
   ensureConstructionFinishes,
   installedConstructionFinish,
   ownsConstructionFinish,
+  ownedConstructionFinishes,
   purchaseConstructionFinish,
+  installConstructionFinish,
 } from '../sim/constructionFinishes.js';
 import {
   GOLF_CART_TIERS,
@@ -491,6 +494,28 @@ export function makeLaptop(app, opts) {
       el('span', { class: 'lt-navicon' }, icon('power')), el('span', { text: 'Close Laptop' })),
   );
 
+  // SEARCH. Twenty-four pages, 114 products, five quality grades across eight
+  // finish families and nine course upgrades: by the time a player knows what
+  // they want, finding which desk sells it is the work. One field, everything in
+  // it, matched on name, id, category and — where the game uses a different word
+  // for something than its catalogue entry does — an explicit keyword list.
+  let query = '';
+  const searchInput = el('input', {
+    class: 'lt-search',
+    type: 'search',
+    placeholder: 'Search products, upgrades, materials…',
+    'aria-label': 'Search the catalogue and upgrades',
+  });
+  searchInput.addEventListener('input', () => { query = searchInput.value.trim(); render(); });
+  searchInput.addEventListener('keydown', (e) => {
+    e.stopPropagation(); // typing 'w' in here is text, not a walk key
+    if (e.key === 'Escape' && query) {
+      query = '';
+      searchInput.value = '';
+      render();
+    }
+  });
+
   const statusBack = el('button', { class: 'lt-crumb', title: 'Back', text: '‹', onclick: () => back() });
   const statusHome = el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') });
   const statusName = el('span', { class: 'lt-statusname' });
@@ -499,7 +524,7 @@ export function makeLaptop(app, opts) {
   const statusShop = el('span', { class: 'lt-chip' });
   const statusCash = el('span', { class: 'lt-cash' });
   const statusbar = el('div', { class: 'lt-status' },
-    statusBack, statusHome, statusName, statusDate, statusTime, statusShop, statusCash);
+    statusBack, statusHome, statusName, searchInput, statusDate, statusTime, statusShop, statusCash);
   const frame = el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content));
   const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
@@ -2295,7 +2320,11 @@ export function makeLaptop(app, opts) {
       const variant = constructionFinishVariant(category.id, family.id, quality.id);
       const owned = ownsConstructionFinish(st, category.id, family.id, quality.id);
       const isInstalled = installed?.id === variant.id;
-      const buttonLabel = owned ? 'Install' : `Buy — ${formatMoney(variant.cost)}`;
+      // "Fit", not "Install", and only for material you already have. Buying is a
+      // separate button with a separate confirmation, because it is now a
+      // separate thing: the money buys the material, fitting it is a later
+      // decision you make in the room.
+      const buttonLabel = owned ? 'Fit it' : `Buy — ${formatMoney(variant.cost)}`;
       return el('div', { class: 'lt-order' },
         el('span', { class: 'lt-alerticon', text: quality.level >= 5 ? '✦' : quality.level >= 3 ? '◆' : '▦' }),
         el('div', { class: 'lt-orderbody' },
@@ -2308,18 +2337,24 @@ export function makeLaptop(app, opts) {
             disabled: !owned && cashOf() < variant.cost ? 'disabled' : undefined,
             onclick: () => askConfirm(
               owned
-                ? `Install the ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} package? The owned package can be refitted at no charge.`
-                : `Purchase and install ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} for ${formatMoney(variant.cost)}?`,
-              owned ? 'Install it' : 'Purchase finish',
+                ? `Fit the ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} package? You already own the material; fitting is free and can be redone.`
+                : `Buy ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} for ${formatMoney(variant.cost)}? It goes into your materials — fit it when you are ready.`,
+              owned ? 'Fit it' : 'Buy the material',
               () => {
-                const res = purchaseConstructionFinish(st, category.id, family.id, quality.id);
+                const res = owned
+                  ? installConstructionFinish(st, category.id, family.id, quality.id)
+                  : purchaseConstructionFinish(st, category.id, family.id, quality.id);
                 if (res.ok) {
-                  app.scene3d?.clubhouse?.()?.rebuildReno?.();
+                  if (owned) app.scene3d?.clubhouse?.()?.rebuildReno?.();
                   click();
                   render();
                 }
                 toast(
-                  res.ok ? `${variant.finishLabel} — ${variant.qualityLabel} installed.` : res.reason,
+                  res.ok
+                    ? (owned
+                      ? `${variant.finishLabel} — ${variant.qualityLabel} fitted.`
+                      : `${variant.finishLabel} — ${variant.qualityLabel} delivered to your materials.`)
+                    : res.reason,
                   res.ok ? '' : 'warn',
                 );
               },
@@ -2335,7 +2370,7 @@ export function makeLaptop(app, opts) {
       ),
       el('div', { class: 'lt-shop-tier-grid' }, ...SHOP_TIER_ORDER.map(shopTierCard)),
       sect('Construction finishes — municipal to luxury country club'),
-      note('Choose a construction family and one of five material grades. Every package is permanent once purchased; owned packages can be refitted without paying twice.'),
+      note('Choose a construction family and one of five material grades. Buying puts the material in your store; fitting it is a separate, free step you can redo whenever you like.'),
       categoryTabs,
       qualityTabs,
       row(meta(`Installed ${category.label.toLowerCase()}: ${installed?.finishLabel || 'None'} — ${installed?.qualityLabel || 'Unknown'}. Viewing ${quality.label.toLowerCase()} workmanship: ${quality.visual}.`)),
@@ -2928,10 +2963,87 @@ export function makeLaptop(app, opts) {
     });
   }
 
+  // Everything the laptop can take you to, flattened. Built per keystroke rather
+  // than cached: it depends on unlock tier and ownership, and a stale index that
+  // offers a locked page is worse than a slower one. ~200 entries is nothing.
+  function searchIndex(st) {
+    const out = [];
+    const add = (kind, label, detail, target, keywords = []) => out.push({
+      kind, label, detail, target, keywords: keywords.filter(Boolean).map((k) => String(k).toLowerCase()),
+    });
+
+    for (const n of NAV) add('Page', n.label, 'Open this desk', { page: n.id }, [n.id]);
+
+    for (const sku of SHOP_CATALOG) {
+      add('Product', sku.name, `${sku.cat} · ${formatMoney(sku.cost)} wholesale`,
+        { page: 'shop', tab: 'order' }, [sku.id, sku.cat, ...(sku.keywords || [])]);
+    }
+
+    for (const [id, u] of Object.entries(UPGRADES)) {
+      add('Upgrade', u.name, u.blurb, { page: 'upgrades', tab: 'course' }, [id, u.cat]);
+    }
+
+    for (const [key, spec] of Object.entries(AMENITIES)) {
+      add('Amenity', spec.name || key, spec.blurb || 'Clubhouse amenity',
+        { page: 'upgrades', tab: 'clubhouse' }, [key]);
+    }
+
+    // Materials, one entry per family rather than per family x grade: forty
+    // near-identical rows for "vinyl" is a worse answer than one that takes you
+    // to the grade ladder.
+    for (const category of CONSTRUCTION_FINISH_CATEGORIES) {
+      for (const family of category.finishes) {
+        const owned = CONSTRUCTION_QUALITY_LEVELS
+          .filter((q) => ownsConstructionFinish(st, category.id, family.id, q.id))
+          .map((q) => q.label);
+        add('Material', `${family.label} ${category.label.toLowerCase()}`,
+          owned.length ? `In your materials: ${owned.join(', ')}` : family.description,
+          { page: 'upgrades', tab: 'clubhouse' }, [family.id, category.id, category.label]);
+      }
+    }
+    return out;
+  }
+
+  const searchResults = (st, q) => rankSearchEntries(searchIndex(st), q);
+
+  function pageSearch(st) {
+    const hits = searchResults(st, query);
+    paint(
+      head(`Search — "${query}"`, hits.length
+        ? `${hits.length} match${hits.length === 1 ? '' : 'es'} across the catalogue, upgrades and materials.`
+        : 'Nothing matches. Try a product name, a material, or what the thing does.'),
+      ...(hits.length ? [el('div', { class: 'lt-orderlist' }, ...hits.map((hit) => el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: hit.kind === 'Product' ? '▦' : hit.kind === 'Upgrade' ? '▲' : hit.kind === 'Material' ? '◆' : hit.kind === 'Amenity' ? '✦' : '▸' }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: hit.label }),
+          el('div', { class: 'lt-prodmeta', text: `${hit.kind} · ${hit.detail}` })),
+        el('button', {
+          class: 'lt-mini',
+          text: 'Go',
+          onclick: () => {
+            query = '';
+            searchInput.value = '';
+            if (hit.target.tab) ts(hit.target.page).tab = hit.target.tab;
+            go(hit.target.page);
+          },
+        }),
+      )))] : [empty('No matches')]),
+    );
+  }
+
   function render() {
     if (root.style.display === 'none' || !app.state) return;
     refreshStatus();
     for (const [id, b] of Object.entries(navBtns)) b.classList.toggle('on', id === page);
+    // A live query owns the screen. It is not a page — there is nothing to go
+    // "back" to from a search, and clearing the field returns you to where you
+    // were, which is what a search field in a toolbar is expected to do.
+    if (query) {
+      try { pageSearch(app.state); } catch (e) {
+        paint(head('Search failed'), errBox(String(e && e.message ? e.message : e)));
+      }
+      return;
+    }
     const fn = PAGES[page];
     if (!fn) {
       paint(head('Not found'), errBox(`There is no application called "${page}".`),

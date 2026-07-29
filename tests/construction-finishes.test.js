@@ -16,6 +16,7 @@ import {
   installedConstructionFinish,
   ownsConstructionFinish,
   purchaseConstructionFinish,
+  ownedConstructionFinishes,
 } from '../src/sim/constructionFinishes.js';
 
 function state(cash = 1_000_000) {
@@ -77,26 +78,64 @@ test('construction state starts municipal, owns installed packages and remains i
   }
 });
 
-test('purchase bills once, installs immediately and a later owned install is free', () => {
+// BUYING IS NOT FITTING (2026-07-29). Buying vinyl gives you vinyl; the floor
+// changes when you lay it. This test used to assert the opposite — "installs
+// immediately" — which is the coupling itself, written down as a requirement.
+test('buying a material bills once and does NOT change the room', () => {
   const st = state();
   const marble = constructionFinishVariant('flooring', 'marble', 'premium');
   const before = st.cash;
+  const floorBefore = installedConstructionFinish(st, 'flooring').id;
+
   const bought = purchaseConstructionFinish(st, 'flooring', 'marble', 'premium');
   assert.equal(bought.ok, true);
   assert.equal(bought.cost, marble.cost);
+  assert.equal(bought.installed, false, 'the material arrives; it is not fitted');
   assert.equal(st.cash, before - marble.cost);
   assert.equal(st.ledger.today.expense.works, marble.cost);
-  assert.equal(installedConstructionFinish(st, 'flooring').id, marble.id);
-  assert.equal(ownsConstructionFinish(st, 'flooring', 'marble', 'premium'), true);
+  assert.equal(ownsConstructionFinish(st, 'flooring', 'marble', 'premium'), true,
+    'it is in your materials');
+  assert.equal(installedConstructionFinish(st, 'flooring').id, floorBefore,
+    'and the floor is exactly what it was');
 
-  const concrete = installConstructionFinish(st, 'flooring', 'concrete', 'municipal');
-  assert.equal(concrete.ok, true);
-  assert.equal(concrete.cost, 0);
-  const reinstall = purchaseConstructionFinish(st, 'flooring', 'marble', 'premium');
-  assert.equal(reinstall.ok, true);
-  assert.equal(reinstall.cost, 0);
-  assert.equal(st.cash, before - marble.cost);
-  assert.equal(st.shop.reno.constructionFinishes.purchaseHistory.length, 3);
+  // Fitting is the separate act, free, and it is what changes the room.
+  const fitted = installConstructionFinish(st, 'flooring', 'marble', 'premium');
+  assert.equal(fitted.ok, true);
+  assert.equal(fitted.cost, 0);
+  assert.equal(installedConstructionFinish(st, 'flooring').id, marble.id);
+  assert.equal(st.cash, before - marble.cost, 'fitting costs nothing extra');
+});
+
+test('buying something you already own is refused, not silently re-fitted', () => {
+  // The old behaviour routed a second "buy" into an install. A button labelled
+  // Buy must never fit a floor.
+  const st = state();
+  assert.equal(purchaseConstructionFinish(st, 'flooring', 'marble', 'premium').ok, true);
+  installConstructionFinish(st, 'flooring', 'marble', 'premium');
+  const floorNow = installedConstructionFinish(st, 'flooring').id;
+  installConstructionFinish(st, 'flooring', 'concrete', 'municipal');
+
+  const again = purchaseConstructionFinish(st, 'flooring', 'marble', 'premium');
+  assert.equal(again.ok, false);
+  assert.equal(again.owned, true);
+  assert.match(again.reason, /already have this material/i);
+  assert.notEqual(installedConstructionFinish(st, 'flooring').id, floorNow,
+    'and it did not quietly put the marble back down');
+});
+
+test('the materials store lists what you own and what is currently fitted', () => {
+  const st = state();
+  purchaseConstructionFinish(st, 'flooring', 'marble', 'premium');
+  purchaseConstructionFinish(st, 'flooring', 'hardwood', 'premium');
+  const owned = ownedConstructionFinishes(st, 'flooring');
+  const ids = owned.map((v) => `${v.finishId}:${v.qualityId}`);
+  assert.ok(ids.includes('marble:premium'));
+  assert.ok(ids.includes('hardwood:premium'));
+  assert.equal(owned.filter((v) => v.installed).length, 1,
+    'exactly one flooring is on the floor at a time');
+  installConstructionFinish(st, 'flooring', 'marble', 'premium');
+  const after = ownedConstructionFinishes(st, 'flooring');
+  assert.equal(after.find((v) => v.finishId === 'marble').installed, true);
 });
 
 test('invalid, unowned and unaffordable changes are rejected without mutation', () => {

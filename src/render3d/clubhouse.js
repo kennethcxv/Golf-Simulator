@@ -9606,7 +9606,48 @@ export function makeClubhouse(ctx) {
   // pick a product up, and corrupt the exactly-once inventory/held assertions. The harness
   // turns this off for the duration of a scripted checkout; it defaults on for normal play.
   let organicWalkins = !shedPresentation; // no random customers walk into a maintenance shed
+
+  // SIM-TIME-001. The clubhouse loop receives raw WALL dt at every game speed,
+  // so before this every NPC quantity was wall-bound while the clock alone
+  // sped up. Measured consequence (Greybox/data/speed-curve.json, one game hour
+  // from 10:00): 1x completed 10 of 11 visits, 4x completed 0 of 11, 16x
+  // completed 0 of 10. Speeding the clock made the shop EMPTIER, and every
+  // above-1x day measurement in the repo describes an arrival-starved day.
+  //
+  // The ruled split (DEFECTS.md, 2026-07-28 — agreed, not re-litigated):
+  //
+  //   DECISIONS scale with the game clock. How long a shopper dwells at a
+  //   fixture, how often someone walks in, how long they will wait before
+  //   giving up: these are "how much of the day passed", and the day is what
+  //   the speed control changes.
+  //
+  //   LOCOMOTION stays wall-rate, capped at ~4x. Bodies move faster as the day
+  //   compresses, but never fast enough to step past a collider between frames.
+  //
+  //   FULL dt SCALING IS REJECTED. At 16x a customer walking 1.4 yd/s would
+  //   cover 0.37 yd per frame at 60fps, against a 0.32-yd body radius — it
+  //   tunnels, which is the exact class the corridor seals just closed.
+  //
+  // ANIMATION IS NOT A DECISION and stays on wall dt: character rigs, the
+  // impatient beat, the bag-acceptance hold. Scaling those would make the
+  // choreography unreadable at speed and buys nothing, since none of them
+  // gate throughput.
+  const LOCOMOTION_SPEED_CAP = 4;
+  let simSpeed = 1;
+  function setSimSpeed(mult) {
+    simSpeed = Number.isFinite(mult) && mult > 0 ? mult : 1;
+  }
+  const simTimeDiagnostics = () => ({
+    simSpeed,
+    locomotionCap: LOCOMOTION_SPEED_CAP,
+    locomotionScale: Math.min(simSpeed, LOCOMOTION_SPEED_CAP),
+  });
+
   function updateCustomers(dt) {
+    // How much of the shop's DAY passed this frame, and how far a body may move
+    // in it. The two are deliberately different numbers above 4x.
+    const decisionDt = dt * simSpeed;
+    const moveDt = dt * Math.min(simSpeed, LOCOMOTION_SPEED_CAP);
     // Reservation arrivals share the same physical customer loop as retail
     // shoppers. Keep the persisted tee sheet authoritative, then materialize
     // every due party before advancing the floor routes below.
@@ -9616,7 +9657,11 @@ export function makeClubhouse(ctx) {
     const targetCount = open
       ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, shopCustomerCapacity(state))
       : 0;
-    if (organicWalkins && open && customers.length < targetCount && Math.random() < dt * 0.15) {
+    // Arrivals per GAME hour, not per wall second. This was the single biggest
+    // contributor to the empty fast-forward shop: the roll fired on wall time,
+    // so a 16x game hour rolled 1/16th as many times as a 1x one.
+    if (organicWalkins && open && customers.length < targetCount
+        && Math.random() < Math.min(0.9, decisionDt * 0.15)) {
       spawnCustomer(false, null, { allowWalkInRequest: true });
     }
     if (!open) {
@@ -9675,7 +9720,10 @@ export function makeClubhouse(ctx) {
       // independent patience fuse may abandon the order, return stock, or write a review.
       if (c.checkoutApproachArmed && c.checkoutFlow
           && ['CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier'].includes(c.checkoutFlow.state)) {
-        c.preServiceWait = (c.preServiceWait || 0) + dt;
+        // Patience is authored in real minutes but is a decision about the
+        // shop's day: at 16x a customer must not wait sixteen game-hours for a
+        // cashier just because the wall clock says ten minutes.
+        c.preServiceWait = (c.preServiceWait || 0) + decisionDt;
         if (c.preServiceWait > PATIENCE_FULL) {
           beginCustomerImpatientBeat(c);
           continue;
@@ -9864,7 +9912,7 @@ export function makeClubhouse(ctx) {
             else if (stop.kind === 'fixture') char.setMode(c.hasBasket ? 'BasketBrowse' : 'Browse');
             else char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
           }
-          c.linger -= dt;
+          c.linger -= decisionDt; // browse dwell is game-clock time
         } else {
           if (stop.kind === 'basket') {
             if (!takeBasket(c)) {
@@ -9916,7 +9964,7 @@ export function makeClubhouse(ctx) {
         const wdx = wp.x - c.mesh.position.x;
         const wdz = wp.z - c.mesh.position.z;
         const wdist = Math.hypot(wdx, wdz) || 1;
-        const step = Math.min(wdist, c.speed * dt);
+        const step = Math.min(wdist, c.speed * moveDt); // capped: see LOCOMOTION_SPEED_CAP
         const res = resolveCustomer(c, c.mesh.position.x + (wdx / wdist) * step, c.mesh.position.z + (wdz / wdist) * step);
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         c.mesh.position.x = res.nx;
@@ -10807,6 +10855,11 @@ export function makeClubhouse(ctx) {
     },
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run
+    // SIM-TIME-001: the game-speed multiplier, pushed in from the frame loop.
+    // The clubhouse cannot read it — it is handed raw wall dt — and that is
+    // exactly why every NPC quantity used to be wall-bound.
+    setSimSpeed,
+    simTimeDiagnostics,
     clearWalkins: () => { // QA: empty the floor (returns every held cart to the shelf) so a scripted run starts clean
       for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
     },
