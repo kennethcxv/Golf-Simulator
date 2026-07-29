@@ -400,3 +400,54 @@ test('opening-day management headlines distinguish history, sentiment, and shelf
   assert.match(lap.root.textContent, /Course Crew/);
   lap.close();
 });
+
+// BLOCKER 3 — "the shop page could not be drawn: Cannot read properties of
+// undefined (reading 'cat')", reported while ordering, with the order itself
+// reported as received.
+//
+// The seed is in planOrder: a shipment carrying more than one line names no
+// single product, so it stores `skuId: null`. That is the NORMAL shape of
+// ordering several things at once. Every consumer that did `skuById(o.skuId)`
+// then got undefined and read `.cat`/`.name` straight off it, and the whole
+// page went down — after the order had already committed, which is why the
+// notification said "orders received" while the screen showed a crash.
+test('a multi-line order draws — its skuId is null by design, not by accident', async () => {
+  const { submitPurchaseOrders } = await import('../src/sim/inventoryLifecycle.js');
+  const st = newGame('relaxed', 71);
+  st.cash = 5000;
+
+  const res = submitPurchaseOrders(st, {
+    lines: [
+      { skuId: 'balls1', quantity: 2 },
+      { skuId: 'chips1', quantity: 2 },
+      { skuId: 'towel1', quantity: 1 },
+    ],
+  });
+  assert.equal(res.ok, true, res.reason || '');
+
+  const order = st.shop.orders[st.shop.orders.length - 1];
+  // Pin the shape that caused it, so a future "fix" upstream is a deliberate
+  // decision rather than a silent change under the page code.
+  assert.equal(order.skuId, null, 'a mixed shipment names no single sku');
+  assert.equal(order.lines.length, 3);
+
+  const lap = openLaptop(st);
+  lap.go('shop');
+  assert.equal(crashCard(lap.root), null, 'the shop page must draw with a mixed order pending');
+  lap.go('deliveries');
+  assert.equal(crashCard(lap.root), null, 'the deliveries tab hosts the order rows — it must draw too');
+  // and it must actually SAY something useful about the shipment
+  assert.match(lap.root.textContent, /3 items × 5 units/);
+  lap.close();
+});
+
+test('a single-line order still names its product', () => {
+  const st = newGame('relaxed', 72);
+  st.cash = 5000;
+  assert.equal(placeOrder(st, 'balls1', 3).ok, true);
+  const lap = openLaptop(st);
+  lap.go('deliveries');
+  assert.equal(crashCard(lap.root), null);
+  assert.doesNotMatch(lap.root.textContent, /items × \d+ units/, 'a one-product order is named, not summarised');
+  lap.close();
+});

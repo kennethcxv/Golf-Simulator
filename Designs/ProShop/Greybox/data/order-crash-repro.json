@@ -1,0 +1,113 @@
+{
+  "reproduced": true,
+  "crashedSteps": [
+    {
+      "label": "deliveries tab after ordering",
+      "errText": "⚠ The shop page could not be drawn: Cannot read properties of undefined (reading 'cat')"
+    }
+  ],
+  "ordersAfter": [
+    {
+      "id": 1,
+      "skuId": null,
+      "qty": 5,
+      "status": "received"
+    }
+  ],
+  "orderLanded": true,
+  "redrawCrashed": false,
+  "deliveriesCrashed": true,
+  "catCrashStacks": [],
+  "queuedLines": [
+    "Bag towel",
+    "Ball marker set",
+    "Brass divot tool",
+    "Bunker Bites Potato Chips",
+    "Cabretta glove",
+    "Cheddar club crackers",
+    "Club polo",
+    "Clubhouse cola"
+  ],
+  "submitted": {
+    "ok": true,
+    "reason": null,
+    "orderSkuId": null,
+    "orderLines": [
+      "balls1",
+      "chips1",
+      "towel1"
+    ]
+  },
+  "steps": [
+    {
+      "label": "pro shop opened (Inventory tab)",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "tab: Orders & Suppliers",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "tab: Pricing",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "tab: Deliveries",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "tab: Inventory",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "queued 8 lines: Bag towel | Ball marker set | Brass divot tool | Bunker Bites Potato Chips | Cabretta glove | Cheddar club crackers | Club polo | Clubhouse cola",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "order tab with cart",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 0
+    },
+    {
+      "label": "submitted a 3-line order (skuId=null)",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 1
+    },
+    {
+      "label": "pro shop re-drawn after ordering",
+      "title": "Pro Shop",
+      "crashed": false,
+      "errText": null,
+      "orderCount": 1
+    },
+    {
+      "label": "deliveries tab after ordering",
+      "title": "Something went wrong",
+      "crashed": true,
+      "errText": "⚠ The shop page could not be drawn: Cannot read properties of undefined (reading 'cat')",
+      "orderCount": 1
+    }
+  ]
+}

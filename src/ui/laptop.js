@@ -580,12 +580,17 @@ export function makeLaptop(app, opts) {
     return overlay;
   }
 
+  // A MIXED ORDER HAS NO SINGLE SKU. planOrder() sets `skuId: null` whenever a
+  // shipment carries more than one line, which is the normal shape of "order
+  // various things at once" — so every consumer that resolves an order's skuId
+  // gets undefined back and must still draw something. Crashing here took the
+  // whole page down while the order itself had already committed.
   const thumbOf = (sku) => {
     const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
-    const url = ch && ch.productThumb ? ch.productThumb(sku) : null;
+    const url = sku && ch && ch.productThumb ? ch.productThumb(sku) : null;
     return url
       ? el('img', { class: 'lt-prodimg', src: url, alt: sku.name, loading: 'lazy' })
-      : el('div', { class: 'lt-prodicon', text: CAT_ICON[sku.cat] || '📦' });
+      : el('div', { class: 'lt-prodicon', text: (sku && CAT_ICON[sku.cat]) || '📦' });
   };
 
   // The active property's state.cash is the empire wallet authority. empire.cash
@@ -1506,11 +1511,16 @@ export function makeLaptop(app, opts) {
       const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
       // A blocked driver unloaded nothing, so the player can still turn that van away.
       const canCancel = !!o.blocked || (o.status !== 'arriving' && o.status !== 'delivered');
-      const man = o.manifest || shipOf(sku, o.qty);
+      // Mixed shipments name their lines instead of a product.
+      const lineCount = (o.lines || []).length;
+      const title = sku
+        ? `${sku.name} × ${o.qty}`
+        : `${lineCount || o.qty} item${(lineCount || o.qty) === 1 ? '' : 's'} × ${o.qty} units`;
+      const man = o.manifest || (sku ? shipOf(sku, o.qty) : { boxCount: (o.boxes || []).length || lineCount || 1 });
       return el('div', { class: 'lt-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
+          el('div', { class: 'lt-ordername', text: title }),
           el('div', { class: 'lt-prodmeta', text: `${supplier.name} · ${plural(man.boxCount, 'box')} · ${when}, ${hour12(o.window.open)}–${hour12(o.window.close)} · paid ${formatMoney(o.cost)}` })),
         chip(s.label, s.tone),
         canCancel
@@ -1518,7 +1528,7 @@ export function makeLaptop(app, opts) {
             class: 'lt-mini lt-cancel',
             text: 'Cancel',
             onclick: () => askConfirm(
-              `Cancel ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
+              `Cancel ${title}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
               'Cancel the order',
               () => {
                 const res = cancelOrder(st, o.id);
@@ -1536,15 +1546,27 @@ export function makeLaptop(app, opts) {
       const s = ORDER_STATUS[status];
       const mine = boxes.filter((b) => b.orderId === sh.orderId);
       const left = mine.reduce((a, b) => a + b.qty, 0);
+      const shipTitle = sku
+        ? `${sku.name} × ${sh.units}`
+        : `Mixed shipment × ${sh.units} units`;
       return el('div', { class: 'lt-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
+          el('div', { class: 'lt-ordername', text: shipTitle }),
           el('div', { class: 'lt-prodmeta', text: left ? `${supplier.name} · ${left} still in the cardboard — your boxes are outside or in the back` : `${supplier.name} · all unpacked` })),
         chip(s.label, s.tone),
+        // A mixed shipment has no single sku to re-add, so it offers the lines
+        // it actually carried rather than a button that would queue `null`.
         el('button', {
           class: 'lt-mini', text: 'Reorder',
-          onclick: () => { cart.set(sh.skuId, (cart.get(sh.skuId) || 0) + sh.units); ts('shop').tab = 'order'; click(); render(); },
+          onclick: () => {
+            const lines = sku ? [{ skuId: sh.skuId, quantity: sh.units }] : (sh.lines || []);
+            for (const line of lines) {
+              if (!line?.skuId) continue;
+              cart.set(line.skuId, (cart.get(line.skuId) || 0) + (line.quantity || 0));
+            }
+            ts('shop').tab = 'order'; click(); render();
+          },
         }));
     };
 
