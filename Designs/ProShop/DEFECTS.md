@@ -252,6 +252,63 @@ being exempted from it.
 
 ---
 
+## NAV-PUSH-001 — the recovery ladder cannot see a walker that is sliding
+
+**Status:** OPEN — diagnosed 2026-07-28 (Blocker 9). **Not fixed in that
+session**: the ruling was "report why it did not fire — that answer matters more
+than the fix", and NPC behaviour tuning was explicitly out of scope.
+
+**Reported symptom:** customers stall against the player or an object and keep
+pushing forward indefinitely instead of repathing.
+
+**Why the ladder does not fire.** Three separate reasons, all in
+`clubhouse.js:9944-9987`, and all of them are about the ladder's *inputs*, not
+its rungs:
+
+1. **`moved` is displacement, not progress.** The trigger compares the distance
+   the walker actually covered against the step it wanted. A walker pushed
+   sideways around an obstacle covers its full step every frame while getting no
+   closer to its waypoint, so `moved > step * 0.6` resets the timer forever.
+   The player's collider makes this the *normal* case rather than an edge case:
+   `resolveCustomer` (clubhouse.js:9531) does not slide a walker along the
+   player, it projects them radially onto a 0.72-yd circle — a purely tangential
+   displacement that reads to the ladder as healthy walking.
+2. **There is a dead band between the two thresholds.** The timer accumulates
+   only below `step * 0.25` and resets only above `step * 0.6`. Between those,
+   neither branch runs: `stuckT` is frozen, so a walker grinding along at a
+   third of its speed is invisible to the ladder indefinitely — it is neither
+   stuck nor recovering, by construction.
+3. **The player is not in the nav grid.** `navFresh()` rebuilds from
+   `custCols` (static colliders) only; the player is applied afterwards, inside
+   collision resolution. So even when a repath *does* fire, the grid believes
+   the player's cell is open and returns the same line through them. The one
+   rung that could help — rung 3's nudge to the nearest grid-open cell — is
+   consulting a map that does not contain the obstacle.
+
+**Measured live at 1×** (`Greybox/data/npc-block-diagnosis.json`,
+`tools/qa/proshop-npc-block-diagnosis.js`, 40 wall-seconds, player planted on
+the walker's line to its stop):
+
+| | |
+|---|---|
+| max `stuckT` reached | **1.88 s** (repath threshold 1.2 s — fired once) |
+| max escalation rung | **0** (rung 1 needs 3.0 s) |
+| frames within one body length | 18 |
+| net progress toward the stop | **+8.99 yd — it arrived** |
+
+**What this run does NOT show, stated plainly:** a single blocker on open floor
+does not trap anyone. The walker slid around the 0.72-yd push circle, repathed
+once, and completed its stop. So the indefinite push the walk reported needs
+*confinement* — a doorway, a corridor mouth, a fixture gap — where sliding
+around is not available and reason 2's dead band keeps the timer frozen. That
+repro is not yet captured, and the fix should not be designed until it is.
+
+**Do not fix reasons 1-3 by lowering the thresholds.** The correct signal is
+*progress toward the current waypoint*, not displacement; a walker circling an
+obstacle at full speed is exactly the case the current test calls healthy.
+
+---
+
 ## QA-LOCK-001 — concurrent QA chains ran despite the run lock; kills don't kill trees
 
 **Status:** OPEN — observed 2026-07-28 during the remediation session; needs a
