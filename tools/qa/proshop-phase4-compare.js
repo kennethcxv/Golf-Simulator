@@ -18,8 +18,19 @@ async (page) => {
   //   powered   — ceiling repaired + both repairable panels serviced
   //   restored  — everything restored (the day harness's restore block)
   //
-  // Settings match the Phase 0 baseline exactly: 1600x900, DPR 1, 13:00 pinned,
-  // clock paused, 14 s toast settle, 750 ms per-pose settle.
+  // Settings match the Phase 0 baseline: 1600x900, DPR 1, 13:00 pinned, clock
+  // paused, 750 ms per-pose settle.
+  //
+  // DETERMINISM (added after the first before/after pair was unusable): the
+  // menu's New Game path seeds the world with Math.random()
+  // (BASELINE_PERFORMANCE §8), so two runs of IDENTICAL code render different
+  // terrain, different grime seeding and different customer positions — the
+  // v1 control frames moved a median 46% of pixels between two runs of an
+  // unchanged v1. This harness now boots a pinned-seed empire from
+  // localStorage and, per pose, hides customers, closes doors and hides the
+  // notification centre — the same discipline as
+  // proshop-artbible-reference.js. Without this the deliverable comparison
+  // measures the seed, not the work.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
@@ -35,6 +46,7 @@ async (page) => {
 
   const VIEWPORT = { width: 1600, height: 900 };
   const MINUTE_OF_DAY = 13 * 60;
+  const SEED = Number(process.env.PHASE4_SEED || 20260727);
 
   // Phase 0 baseline poses (BASELINE_CAMERA_TRANSFORMS.md). In v2 the resize
   // seals everything west of x -2.60 and north of z -4.60, which strands poses
@@ -83,13 +95,16 @@ async (page) => {
   const query = VARIANT === 'v2' ? '?clubhouse=pine-hills-v2' : '';
   await page.setViewportSize(VIEWPORT);
   await page.goto(`${baseUrl}${query}`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => localStorage.clear());
+  await page.waitForTimeout(600);
+  await page.evaluate(async (seed) => {
+    localStorage.clear();
+    const E = await import('/src/sim/empire.js');
+    const empire = E.newStarterEmpire('relaxed', seed);
+    localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
+  }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: /New game/i }).click();
-  await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
-  const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
-  if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
+  await page.getByRole('button', { name: /^Continue/ }).first().click();
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
@@ -142,6 +157,13 @@ async (page) => {
         const o = ch.interior.position;
         const w = s3.walk;
         w.clearKeys();
+        // Suppress everything that moves between runs but is not the subject.
+        const cs = typeof ch.customers === 'function' ? ch.customers() : ch.customers;
+        if (Array.isArray(cs)) cs.forEach((cust) => { if (cust?.mesh) cust.mesh.visible = false; });
+        const doors = ch.doors || ch.doorApi?.doors || null;
+        if (Array.isArray(doors)) doors.forEach((d) => { if (d) { d.open = false; d.swingTarget = 0; d.angle = 0; } });
+        const nc = document.querySelector('.notification-center');
+        if (nc) nc.style.display = 'none';
         const c = app.state.clock;
         c.minutes = Math.floor(c.minutes / 1440) * 1440 + minuteOfDay;
         s3.applyTimeWeather(minuteOfDay, app.state.weather);

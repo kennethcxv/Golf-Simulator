@@ -1,5 +1,11 @@
 # Phase 4 — Materials and lighting on the v2 architecture (working plan)
 
+> **Superseded by `PHASE_4_REPORT.md`.** This is the plan as authored before the work;
+> it is kept for the record. Where the two differ, the report is what shipped — most
+> notably: texel repeats are solved from the §7.3 class requirement rather than set from
+> per-family tiles, and the interior key light was measured and **rejected** rather than
+> adopted.
+
 Authorized 2026-07-28 (swapped order per SLICE_BRIEF §14). Scope: the room's
 **architecture only** — walls, floor, ceiling, beams, trim, door/window
 reveals. **Fixtures stay grey** (Phase 5). No room resize. No SIM-TIME-001 fix.

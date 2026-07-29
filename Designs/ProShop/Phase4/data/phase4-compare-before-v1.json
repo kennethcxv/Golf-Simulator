@@ -54,14 +54,14 @@
     }
   ],
   "renderStatsAtLastPose": {
-    "drawCallsPerFrame": 1529,
-    "trianglesDrawnPerFrame": 7888038,
-    "uniqueMaterials": 801,
-    "uniqueTextures": 240,
-    "uniqueTextureSources": 233,
-    "texturesInMemory": 303,
-    "geometriesInMemory": 1655,
-    "programs": 290
+    "drawCallsPerFrame": 1897,
+    "trianglesDrawnPerFrame": 8002269,
+    "uniqueMaterials": 836,
+    "uniqueTextures": 255,
+    "uniqueTextureSources": 248,
+    "texturesInMemory": 323,
+    "geometriesInMemory": 1771,
+    "programs": 298
   },
   "shots": [
     {
