@@ -45,7 +45,29 @@ export function isTextEntryTarget(target) {
 //      Lock-state modifiers (CapsLock, NumLock, ScrollLock) are deliberately absent:
 //      getModifierState reports whether the lock is ON, not whether the key is held, so they
 //      cannot be reconciled this way.
+//
+//   5. Reconciling on key-DOWN alone cannot recover from the case rule 4 was written for.
+//      A stranded modifier turns ordinary letters into OS hotkeys, and the OS consumes them
+//      before the page sees anything — so the very keydown the reconcile was waiting for is the
+//      one that never arrives. The page can sit in the phantom state indefinitely while the
+//      player presses D and nothing at all happens.
+//
+//      So reconcile from every event that carries getModifierState, not just keydown.
+//      MouseEvent, PointerEvent and WheelEvent all implement it, and mousemove is the one the
+//      player generates constantly without meaning to: looking around clears the phantom within
+//      a frame or two of it appearing, with no key pressed at all.
+//
+//      What survives a reconcile is the *other* case, and it is worth telling apart. A modifier
+//      the event still reports DOWN is genuinely held below the browser — no page code can
+//      release it, so the only honest response is to show the player it is there.
 export const HELD_MODIFIERS = Object.freeze(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta']);
+
+// Which modifiers a held-set currently believes are down, in canonical spelling. Both spellings
+// are probed for the same reason releaseKey below probes both.
+export function heldModifierNames(held) {
+  if (!held || typeof held.has !== 'function') return [];
+  return HELD_MODIFIERS.filter((m) => held.has(m) || held.has(m.toLowerCase()));
+}
 
 // Works against either a createHeldKeys instance or a plain Set — the walk controller uses a raw
 // Set and full-lowercase spellings ('meta'), the overview camera uses this module's normalise

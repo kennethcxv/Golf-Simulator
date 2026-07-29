@@ -14,21 +14,21 @@
       {
         "key": "w",
         "dx": 0,
-        "dz": -0.945
+        "dz": -0.935
       },
       {
         "key": "a",
-        "dx": -2.078,
+        "dx": -2.097,
         "dz": 0
       },
       {
         "key": "s",
         "dx": 0,
-        "dz": 1.54
+        "dz": 1.559
       },
       {
         "key": "d",
-        "dx": 2.107,
+        "dx": 2.153,
         "dz": 0
       }
     ],
@@ -36,21 +36,21 @@
       {
         "key": "w",
         "dx": 0,
-        "dz": -1.257
+        "dz": -1.247
       },
       {
         "key": "a",
-        "dx": -2.059,
+        "dx": -2.04,
         "dz": 0
       },
       {
         "key": "s",
         "dx": 0,
-        "dz": 2.078
+        "dz": 2.097
       },
       {
         "key": "d",
-        "dx": 2.069,
+        "dx": 2.096,
         "dz": 0
       }
     ]
@@ -59,49 +59,49 @@
     {
       "variant": "pine-hills",
       "key": "w",
-      "moved": 0.945,
+      "moved": 0.935,
       "ok": true
     },
     {
       "variant": "pine-hills",
       "key": "a",
-      "moved": 2.078,
+      "moved": 2.097,
       "ok": true
     },
     {
       "variant": "pine-hills",
       "key": "s",
-      "moved": 1.54,
+      "moved": 1.559,
       "ok": true
     },
     {
       "variant": "pine-hills",
       "key": "d",
-      "moved": 2.107,
+      "moved": 2.153,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "w",
-      "moved": 1.257,
+      "moved": 1.247,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "a",
-      "moved": 2.059,
+      "moved": 2.04,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "s",
-      "moved": 2.078,
+      "moved": 2.097,
       "ok": true
     },
     {
       "variant": "pine-hills-v2",
       "key": "d",
-      "moved": 2.069,
+      "moved": 2.096,
       "ok": true
     }
   ],
@@ -115,10 +115,42 @@
         ]
       },
       {
+        "name": "modifier still stranded going into the mouse check",
+        "ok": true,
+        "held": [
+          "meta"
+        ]
+      },
+      {
+        "name": "a phantom modifier clears on mouse movement alone, no key pressed",
+        "ok": true,
+        "held": [],
+        "modifiers": [],
+        "source": "mousemove"
+      },
+      {
+        "name": "and it was the mousemove reconcile that cleared it",
+        "ok": true,
+        "source": "mousemove"
+      },
+      {
+        "name": "the HUD readout is empty once the phantom is gone",
+        "ok": true,
+        "modifiers": []
+      },
+      {
+        "name": "a stranded modifier is visible in the walk controller's readout",
+        "ok": true,
+        "modifiers": [
+          "Meta"
+        ]
+      },
+      {
         "name": "a phantom modifier is dropped on the next real keydown",
         "ok": true,
         "held": [],
         "phantoms": [
+          "Meta",
           "Meta"
         ]
       },
@@ -126,7 +158,32 @@
         "name": "the phantom is reported, not silently swallowed",
         "ok": true,
         "phantoms": [
+          "Meta",
           "Meta"
+        ]
+      },
+      {
+        "name": "walk keys are swallowed while pointer-locked",
+        "ok": true,
+        "skipped": false,
+        "pointerLocked": true,
+        "seen": [
+          {
+            "key": "w",
+            "prevented": true
+          },
+          {
+            "key": "a",
+            "prevented": true
+          },
+          {
+            "key": "s",
+            "prevented": true
+          },
+          {
+            "key": "d",
+            "prevented": true
+          }
         ]
       },
       {
@@ -174,10 +231,42 @@
         ]
       },
       {
+        "name": "modifier still stranded going into the mouse check",
+        "ok": true,
+        "held": [
+          "meta"
+        ]
+      },
+      {
+        "name": "a phantom modifier clears on mouse movement alone, no key pressed",
+        "ok": true,
+        "held": [],
+        "modifiers": [],
+        "source": "mousemove"
+      },
+      {
+        "name": "and it was the mousemove reconcile that cleared it",
+        "ok": true,
+        "source": "mousemove"
+      },
+      {
+        "name": "the HUD readout is empty once the phantom is gone",
+        "ok": true,
+        "modifiers": []
+      },
+      {
+        "name": "a stranded modifier is visible in the walk controller's readout",
+        "ok": true,
+        "modifiers": [
+          "Meta"
+        ]
+      },
+      {
         "name": "a phantom modifier is dropped on the next real keydown",
         "ok": true,
         "held": [],
         "phantoms": [
+          "Meta",
           "Meta"
         ]
       },
@@ -185,7 +274,32 @@
         "name": "the phantom is reported, not silently swallowed",
         "ok": true,
         "phantoms": [
+          "Meta",
           "Meta"
+        ]
+      },
+      {
+        "name": "walk keys are swallowed while pointer-locked",
+        "ok": true,
+        "skipped": false,
+        "pointerLocked": true,
+        "seen": [
+          {
+            "key": "w",
+            "prevented": true
+          },
+          {
+            "key": "a",
+            "prevented": true
+          },
+          {
+            "key": "s",
+            "prevented": true
+          },
+          {
+            "key": "d",
+            "prevented": true
+          }
         ]
       },
       {
@@ -227,5 +341,7 @@
   },
   "strandedModifierOk": true,
   "strandedModifierFailures": [],
+  "strandedModifierSkipped": [],
+  "strandedModifierTally": "24/24 measured, 0 skipped",
   "ok": true
 }

@@ -9,7 +9,8 @@
 //   2. a canvas click engages pointer lock in the shell (recorded and gated —
 //      mouse-look's entire input path depends on it),
 //   3. a modifier stranded down — keydown delivered, keyup swallowed by the OS —
-//      does not survive (2026-07-29).
+//      does not survive (2026-07-29), and specifically does not survive MOUSE
+//      MOVEMENT ALONE, which is the only input the fault cannot suppress.
 //
 // (3) is the class this file missed. It measured D as green while D did not
 // strafe under a real hand, because the actual cause was a phantom 'meta' left
@@ -106,6 +107,59 @@ try {
     const stranded = await strandMeta();
     record('modifier can be stranded', stranded.includes('meta'), { held: stranded });
 
+    // THE CASE A KEYPRESS CANNOT REACH. A stranded modifier is what stops the
+    // keydown arriving in the first place — the shell claims the chord and the
+    // page sees nothing — so a repair that waits for a keypress waits forever.
+    // This presses nothing: strand, move the mouse, require the phantom gone.
+    // Runs before the keydown check so the keydown cannot pre-clear it and hand
+    // this a false pass.
+    await window.mouse.move(760, 430);
+    await window.mouse.move(790, 452);
+    await window.waitForTimeout(120);
+    const afterMouse = await window.evaluate(() => ({
+      held: window.__fw.scene3d.walk.heldKeys(),
+      modifiers: window.__fw.scene3d.walk.heldModifiers?.() ?? null,
+      source: window.__fw.scene3d.walk.lastReconcileSource?.() ?? null,
+    }));
+    record('a phantom modifier clears on mouse movement alone, no key pressed',
+      !afterMouse.held.includes('meta'), afterMouse);
+    record('and it was the mousemove reconcile that cleared it',
+      afterMouse.source === 'mousemove', { source: afterMouse.source });
+
+    // And while stranded it must be visible. In the desktop shell this is the
+    // only signal the player gets: there is no address bar, no tab, nothing else
+    // on screen to hint that a modifier is stuck.
+    const visible = await window.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Meta', code: 'MetaLeft', metaKey: true, bubbles: true,
+      }));
+      return window.__fw.scene3d.walk.heldModifiers?.() ?? null;
+    });
+    record('a stranded modifier is visible in the walk controller\'s readout',
+      Array.isArray(visible) && visible.includes('Meta'), { modifiers: visible });
+
+    // Walk keys must not reach the shell's accelerators while the player is in
+    // the world. This shell holds a real pointer lock, so unlike the browser
+    // harness the check is always applicable here.
+    const swallowed = await window.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      const seen = [];
+      const probe = (e) => seen.push({ key: e.key, prevented: e.defaultPrevented });
+      window.addEventListener('keydown', probe);
+      const locked = document.pointerLockElement === canvas;
+      for (const key of ['w', 'a', 's', 'd']) {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key, code: `Key${key.toUpperCase()}`, bubbles: true, cancelable: true,
+        }));
+      }
+      window.removeEventListener('keydown', probe);
+      return { locked, seen };
+    });
+    record('walk keys are swallowed while pointer-locked',
+      !swallowed.locked || swallowed.seen.every((s) => s.prevented),
+      { pointerLocked: swallowed.locked, seen: swallowed.seen, applicable: swallowed.locked });
+
+    await strandMeta();
     await window.keyboard.press('d');
     await window.waitForTimeout(80);
     const after = await window.evaluate(() => ({

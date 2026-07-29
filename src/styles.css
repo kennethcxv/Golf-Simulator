@@ -1723,6 +1723,15 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 .hud-min .hud-clock:hover { border-color: #8ed072; }
 .hud-min .hud-clock.paused { color: #e0a33c; border-color: #e0a33c; }
 
+/* held-modifier readout. Plain while it is only reporting a normal Shift; an
+   alert once a modifier the walker never binds is down, because that state is
+   the fault itself and the player has no other way to see it. */
+.hud-min .hud-modifiers { font-size: 0.74rem; letter-spacing: 0.04em; }
+.hud-min .hud-modifiers.stuck {
+  color: #f0b429; border-color: rgba(240, 180, 41, 0.75);
+  background: rgba(48, 34, 8, 0.92); font-weight: 700;
+}
+
 .hud-context {
   margin-top: 4px;
   max-width: 310px;

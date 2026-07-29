@@ -22,7 +22,7 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
-import { isTextEntryTarget, reconcileModifiers } from '../core/heldKeys.js';
+import { isTextEntryTarget, reconcileModifiers, heldModifierNames } from '../core/heldKeys.js';
 import { ownedWasher } from '../sim/washing.js';
 import { chargeGolfCart } from '../sim/golfCartFleet.js';
 import { makeFpHands, GRIPS } from './fpHands.js';
@@ -5784,11 +5784,15 @@ export function makeCourseScene(canvas, state) {
   };
 
   const walkHeld = new Set();
-  // Modifiers dropped by the reconcile in walkKeyDown: each entry is one time the
-  // page believed a modifier was down and the OS disagreed. Kept for diagnostics
-  // (?keydebug=1 reads it) because a phantom modifier is invisible in play — it
-  // has no on-screen effect until an OS hotkey starts eating keys.
+  // Modifiers dropped by the reconcile: each entry is one time the page believed
+  // a modifier was down and the OS disagreed. Kept for diagnostics (?keydebug=1
+  // and the HUD chip read it) because a phantom modifier is invisible in play —
+  // it has no on-screen effect until an OS hotkey starts eating keys.
   const walkPhantomModifiers = [];
+  // Which event type last caught a phantom. Names the instrument that is
+  // actually doing the work, so "mousemove clears it" is a reading rather than
+  // an assumption about which listener fired.
+  let walkLastReconcileSource = null;
   const treeColliders = []; // {x, z, r}
   const structColliders = []; // {minX, maxX, minZ, maxZ}
 
@@ -7862,20 +7866,45 @@ export function makeCourseScene(canvas, state) {
 
   // Modifiers stranded by a release the page never saw. Runs before the
   // text-entry filter: a phantom held while the player types is still a phantom,
-  // and this is the only chance to see the OS's real answer (heldKeys.js rule 4).
-  function walkReconcileModifiers(e) {
+  // and every event carrying getModifierState is a chance to see the OS's real
+  // answer (heldKeys.js rules 4 and 5).
+  //
+  // Bound to mousemove above all. Keydown alone cannot fix this: a stranded
+  // Meta turns D into Win+D, the OS eats it, and the keydown the reconcile was
+  // waiting for never arrives. Looking around does arrive, constantly, and
+  // needs no deliberate act from a player who cannot see the problem.
+  function walkReconcileModifiers(e, source) {
     const dropped = reconcileModifiers(walkHeld, e);
-    if (dropped.length) walkPhantomModifiers.push(...dropped);
+    if (!dropped.length) return;
+    walkPhantomModifiers.push(...dropped);
+    walkLastReconcileSource = source || e?.type || null;
   }
 
+  // Keys the walker consumes. While pointer-locked these are swallowed outright
+  // so that a modifier stuck BELOW the browser — the case no page code can
+  // release — cannot turn a movement key into a browser shortcut mid-stride.
+  // Escape and the F-keys are deliberately absent: the player must always be
+  // able to break out, and Escape is what releases the lock.
+  const WALK_CONSUMED_KEYS = new Set([
+    'w', 'a', 's', 'd', 'e', 'q', 'r', 'f', 'shift', ' ', 'tab',
+    'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+  ]);
+
   function walkKeyDown(e) {
-    walkReconcileModifiers(e);
+    walkReconcileModifiers(e, 'keydown');
     // A key typed into a form control (a laptop search field, a save-name box)
     // is text, not movement. Filter key-DOWN only — the matching release below
     // must always clear, or a field grabbing focus mid-press strands the key in
     // walkHeld and the walker drifts forever (heldKeys.js rule 3).
     if (isTextEntryTarget(e.target)) return;
     const key = e.key.toLowerCase();
+    // Swallow the walk keys while the player is actually in the world. This is
+    // the mitigation for the half of the bug the page cannot repair: preventDefault
+    // stops the page-level default and any shortcut the browser allows a page to
+    // claim. It cannot stop a browser-RESERVED chord (Ctrl+W, Ctrl+T, Ctrl+N in
+    // Chrome) — only the Keyboard Lock API can, and that needs fullscreen and
+    // makes Escape a press-and-hold. See OVERNIGHT_REPORT_2.md.
+    if (document.pointerLockElement === canvas && WALK_CONSUMED_KEYS.has(key)) e.preventDefault();
     if (key === 'e' && !walkHeld.has(key)) {
       holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold
         ? walkFocus.prop
@@ -7884,13 +7913,20 @@ export function makeCourseScene(canvas, state) {
     walkHeld.add(key);
   }
   function walkKeyUp(e) {
-    walkReconcileModifiers(e);
+    walkReconcileModifiers(e, 'keyup');
     const key = e.key.toLowerCase();
+    if (document.pointerLockElement === canvas && WALK_CONSUMED_KEYS.has(key)) e.preventDefault();
     walkHeld.delete(key);
     if (key === 'e') {
       contextToolRequiresRelease = false;
       holdPressProp = null;
     }
+  }
+  // Pointer and wheel events inherit getModifierState from MouseEvent, so they
+  // reconcile too. Cheap, and they cover the player who clicks or scrolls
+  // without moving the mouse far enough to fire a movement.
+  function walkPointerEvent(e) {
+    walkReconcileModifiers(e, e?.type || 'pointer');
   }
   // Everything the player is physically holding, released. Called from all three
   // ways input can be interrupted without the matching keyup ever arriving:
@@ -7917,6 +7953,26 @@ export function makeCourseScene(canvas, state) {
   }
   function walkVisibilityChange() {
     if (document.visibilityState === 'hidden') walkBlur();
+  }
+
+  // BACKSTOP. A timer carries no event, so it cannot ask getModifierState — there
+  // is no way to reconcile from a tick, and pretending otherwise would be the
+  // eleventh instrument measuring the wrong thing. What it CAN settle is the
+  // precondition the whole class depends on: whether this document still has the
+  // keyboard at all.
+  //
+  // Tapping the Windows key hands focus to the shell. The blur event is the
+  // normal signal, but blur is not guaranteed — it is missed when focus moves to
+  // browser chrome, and a page that never gets it holds its keys forever.
+  // document.hasFocus() is a poll of the same fact that does not depend on an
+  // event arriving, so a lost keyboard is caught within one tick either way.
+  const WALK_FOCUS_POLL_MS = 500;
+  let walkFocusPoll = 0;
+  function walkFocusBackstop() {
+    if (!walk.active || !walkHeld.size) return;
+    if (typeof document.hasFocus !== 'function' || document.hasFocus()) return;
+    walkBlur();
+    walkLastReconcileSource = 'focus-backstop';
   }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
@@ -7968,6 +8024,10 @@ export function makeCourseScene(canvas, state) {
   }
 
   function walkMouseMove(e) {
+    // BEFORE the pointer-lock gate on purpose. A phantom modifier is most likely
+    // to be picked up exactly when the lock has just been lost and regained, and
+    // the reconcile must not be gated on the state the bug interferes with.
+    walkReconcileModifiers(e, 'mousemove');
     if (document.pointerLockElement !== canvas) return;
     if (walkLockGuard > 0) { walkLockGuard -= 1; return; }
     if (dragBoxCutterAlongFocusedPath(e.movementX, e.movementY)) return;
@@ -8015,7 +8075,12 @@ export function makeCourseScene(canvas, state) {
     window.addEventListener('blur', walkBlur);
     document.addEventListener('visibilitychange', walkVisibilityChange);
     document.addEventListener('mousemove', walkMouseMove);
+    document.addEventListener('pointerdown', walkPointerEvent);
+    document.addEventListener('pointerup', walkPointerEvent);
+    document.addEventListener('wheel', walkPointerEvent, { passive: true });
     document.addEventListener('pointerlockchange', walkLockChange);
+    clearInterval(walkFocusPoll);
+    walkFocusPoll = setInterval(walkFocusBackstop, WALK_FOCUS_POLL_MS);
     walkLockGuard = 2; // guard the initial lock too
   }
 
@@ -8032,7 +8097,12 @@ export function makeCourseScene(canvas, state) {
     window.removeEventListener('blur', walkBlur);
     document.removeEventListener('visibilitychange', walkVisibilityChange);
     document.removeEventListener('mousemove', walkMouseMove);
+    document.removeEventListener('pointerdown', walkPointerEvent);
+    document.removeEventListener('pointerup', walkPointerEvent);
+    document.removeEventListener('wheel', walkPointerEvent);
     document.removeEventListener('pointerlockchange', walkLockChange);
+    clearInterval(walkFocusPoll);
+    walkFocusPoll = 0;
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     camera.fov = 46; // hand the camera back to the management rig
     camera.near = 1;
@@ -10975,6 +11045,17 @@ export function makeCourseScene(canvas, state) {
       // reconcile has caught, and which. Non-empty means the page WAS carrying a
       // modifier the OS had already released.
       phantomModifiers: () => [...walkPhantomModifiers],
+      // What the walk controller believes is held RIGHT NOW, canonically spelled.
+      // This is what the HUD chip renders. After a reconcile has run, anything
+      // still in here is a modifier the OS agrees is down — genuinely stuck below
+      // the browser, not a page-side phantom.
+      heldModifiers: () => heldModifierNames(walkHeld),
+      lastReconcileSource: () => walkLastReconcileSource,
+      // Test seam: strand a modifier the way a Windows-key tap does — down on the
+      // page, released somewhere the page never sees. Nothing in production calls
+      // this; it exists so a probe can reproduce the bug rather than simulate a
+      // fix. Named with the same word the defect uses.
+      strandModifier: (name = 'meta') => { walkHeld.add(String(name).toLowerCase()); },
       // Test/diagnostic seam: force the same release the three interrupt signals
       // do, so a harness can prove the clear happens without faking a real blur.
       releaseAllInput: () => walkBlur(),

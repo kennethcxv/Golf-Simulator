@@ -22,6 +22,19 @@ export function makeHud(app, handlers) {
     onclick: () => handlers.setSpeed((app.speedIdx + 1) % BALANCE.speeds.length),
   });
 
+  // MODIFIER CHIP — the walk controller's held-modifier belief, on screen.
+  //
+  // A phantom modifier has no visible effect until an OS hotkey starts eating
+  // keys, so the player experiences it as "D stopped working" with nothing to
+  // look at. This is the missing instrument: whatever the walker thinks is held,
+  // you can see.
+  //
+  // Shift is shown plainly because holding it to run is normal and a chip that
+  // lights up every sprint would train you to ignore it. Ctrl, Alt and Meta are
+  // shown as an alert because the walker binds none of them — any of the three
+  // being down is, by itself, the fault.
+  const modifiers = el('div', { class: 'hud-chip hud-modifiers', style: 'display:none' });
+
   const contextIcon = el('span', { class: 'hud-context-icon', 'aria-hidden': 'true' });
   const contextTitle = el('span', { class: 'hud-context-title' });
   const contextDetail = el('span', { class: 'hud-context-detail' });
@@ -29,11 +42,16 @@ export function makeHud(app, handlers) {
     contextIcon,
     el('span', { class: 'hud-context-copy' }, contextTitle, contextDetail),
   );
-  const root = el('div', { class: 'hud-min' }, cash, clock, context);
+  const root = el('div', { class: 'hud-min' }, cash, clock, modifiers, context);
+
+  // Nothing in the walker uses these three, so believing one is down is the bug
+  // rather than a state the bug produces.
+  const UNBOUND_MODIFIERS = ['Control', 'Alt', 'AltGraph', 'Meta'];
 
   let lastClock = '';
   let lastCash = '';
   let lastContext = '';
+  let lastModifiers = '';
   function update() {
     if (!app.state) return;
     const mode = handlers.getPresentationMode?.() || 'walk';
@@ -53,6 +71,25 @@ export function makeHud(app, handlers) {
     if (cashLine !== lastCash) {
       lastCash = cashLine;
       cash.textContent = cashLine;
+    }
+
+    let held = [];
+    try { held = app.scene3d?.walk?.heldModifiers?.() || []; } catch { held = []; }
+    const modLine = held.join('+');
+    if (modLine !== lastModifiers) {
+      lastModifiers = modLine;
+      const stuck = held.filter((m) => UNBOUND_MODIFIERS.includes(m));
+      modifiers.style.display = held.length ? '' : 'none';
+      modifiers.classList.toggle('stuck', stuck.length > 0);
+      modifiers.textContent = stuck.length
+        // Named as the consequence, not the state: "Meta held" means nothing to a
+        // player, "keys may not reach the game" is the thing they are seeing.
+        ? `⚠ ${stuck.join(' + ')} held — keys may not reach the game`
+        : `⇧ ${held.join(' + ')}`;
+      modifiers.title = stuck.length
+        ? 'A modifier is down that nothing in the game uses. Tap and release it, or click the '
+          + 'game window, to clear it.'
+        : 'Modifier keys the game currently sees as held.';
     }
   }
 

@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget,
-  reconcileModifiers, HELD_MODIFIERS,
+  reconcileModifiers, HELD_MODIFIERS, heldModifierNames,
 } from '../src/core/heldKeys.js';
 
 test('a key released while Shift is held still clears (the stranded-key bug)', () => {
@@ -187,4 +187,38 @@ test('a key released while a field has focus still clears', () => {
   assert.equal(keys.has('d'), true);
   keys.up('d'); // dispatched with an INPUT target; keyup is never filtered
   assert.equal(keys.has('d'), false, 'a stranded key pans the overview forever');
+});
+
+// THE HUD READOUT (2026-07-29). The reconcile can only repair a phantom the
+// page created; a modifier genuinely held below the browser survives it by
+// design, and the player's only signal that anything is wrong is this list.
+// So what it reports has to be exactly what the walker believes, in both the
+// spellings the two call sites use.
+test('the held-modifier readout reports both spellings, canonically', () => {
+  assert.deepEqual(heldModifierNames(new Set(['meta', 'w'])), ['Meta'],
+    'the walk controller stores full-lowercase; the readout is canonical');
+  assert.deepEqual(heldModifierNames(new Set(['Shift'])), ['Shift'],
+    'the overview camera stores normalised spellings');
+  assert.deepEqual(heldModifierNames(new Set(['w', 'a', 's', 'd'])), [],
+    'movement keys are not modifiers and must never light the indicator');
+  assert.deepEqual(heldModifierNames(null), []);
+  assert.deepEqual(heldModifierNames({}), [], 'anything without has() reports nothing, not a throw');
+});
+
+test('a modifier the OS still holds survives the reconcile and stays on the readout', () => {
+  // The two halves of the defect, told apart. A phantom is dropped; a genuinely
+  // stuck modifier is kept AND reported, because no page code can release it and
+  // the only useful response is to show the player it is there.
+  const held = new Set(['meta', 'control']);
+  const dropped = reconcileModifiers(held, keyEvent({ Control: true }));
+  assert.deepEqual(dropped, ['Meta'], 'only the one the OS disagrees about');
+  assert.deepEqual(heldModifierNames(held), ['Control'],
+    'the survivor is what the HUD must show — it is the half no fix can reach');
+});
+
+test('every reconcilable modifier can also be named for the readout', () => {
+  for (const m of HELD_MODIFIERS) {
+    assert.deepEqual(heldModifierNames(new Set([m.toLowerCase()])), [m],
+      `${m} is reconcilable but invisible — a modifier that cannot be shown cannot be diagnosed`);
+  }
 });

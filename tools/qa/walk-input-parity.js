@@ -33,6 +33,15 @@ async (page) => {
   // signals releases everything, and W/A/S/D still move with a phantom present.
   // Remove the strand stage and this file goes back to being unable to see the
   // bug that shipped.
+  //
+  // AND WHAT *THAT* MISSED (2026-07-29, second pass). Every check above waits
+  // for a keypress to trigger the repair — which is precisely what a stranded
+  // modifier prevents, because the OS claims Win+D and the browser never sees
+  // the keydown. The fix was measured by the one input the fault cannot
+  // suppress, and so is this file: check 1b strands a modifier, presses
+  // NOTHING, moves the mouse, and requires the phantom to be gone. It also
+  // names the listener that cleared it, so the check cannot pass on a stray
+  // blur while mousemove stays broken.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
@@ -110,8 +119,52 @@ async (page) => {
     const stranded = await strandMeta();
     record('modifier can be stranded', stranded.includes('meta'), { held: stranded });
 
+    // 1b. THE CHECK THE FIRST FIX FAILED. Reconciling on keydown looks sufficient
+    //     until you notice that a stranded modifier is what stops the keydown
+    //     from arriving: with Meta down the OS claims Win+D and the browser never
+    //     sees a D keydown at all, so the page waits for a repair signal that the
+    //     fault itself is suppressing. This check presses NOTHING. It strands the
+    //     modifier and then does the one thing a player does without deciding to
+    //     — move the mouse — and requires the phantom to be gone.
+    //
+    //     Ordered before the keydown check below deliberately: run it after, and
+    //     the keydown would already have cleared the phantom and this would pass
+    //     on an unfixed build.
+    const strandedForMouse = await strandMeta();
+    record('modifier still stranded going into the mouse check',
+      strandedForMouse.includes('meta'), { held: strandedForMouse });
+    await page.mouse.move(760, 430);
+    await page.mouse.move(790, 452);
+    await page.waitForTimeout(120);
+    const afterMouse = await page.evaluate(() => ({
+      held: window.__fw.scene3d.walk.heldKeys(),
+      modifiers: window.__fw.scene3d.walk.heldModifiers?.() ?? null,
+      source: window.__fw.scene3d.walk.lastReconcileSource?.() ?? null,
+    }));
+    record('a phantom modifier clears on mouse movement alone, no key pressed',
+      !afterMouse.held.includes('meta'), afterMouse);
+    // Naming the listener that did it, so a pass cannot be produced by some other
+    // path (a stray blur, a focus poll) while mousemove stays broken.
+    record('and it was the mousemove reconcile that cleared it',
+      afterMouse.source === 'mousemove', { source: afterMouse.source });
+    record('the HUD readout is empty once the phantom is gone',
+      Array.isArray(afterMouse.modifiers) && afterMouse.modifiers.length === 0,
+      { modifiers: afterMouse.modifiers });
+
+    // 1c. And while it IS stranded, the player must be able to see it. This is
+    //     the instrument the week-long version of this bug lacked entirely.
+    const visible = await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Meta', code: 'MetaLeft', metaKey: true, bubbles: true,
+      }));
+      return window.__fw.scene3d.walk.heldModifiers?.() ?? null;
+    });
+    record('a stranded modifier is visible in the walk controller\'s readout',
+      Array.isArray(visible) && visible.includes('Meta'), { modifiers: visible });
+
     // 2. The next GENUINE keypress carries the OS's real modifier state, so the
     //    page must notice the disagreement and drop its phantom.
+    await strandMeta();
     await page.keyboard.press('d');
     await page.waitForTimeout(80);
     const after = await heldNow();
@@ -119,6 +172,42 @@ async (page) => {
       !after.held.includes('meta'), { held: after.held, phantoms: after.phantoms });
     record('the phantom is reported, not silently swallowed',
       Array.isArray(after.phantoms) && after.phantoms.includes('Meta'), { phantoms: after.phantoms });
+
+    // 2b. The other half of the defect is the half no page code can repair: a
+    //     modifier genuinely down at the OS level turns W into a browser chord.
+    //     preventDefault is the mitigation, and it only applies under pointer
+    //     lock — outside it, the page has no business eating the player's keys.
+    //
+    //     This browser context does not reliably grant pointer lock, so the
+    //     check is SKIPPED rather than passed when the lock is absent. A vacuous
+    //     green here would read as "swallowing verified" in the tally and it is
+    //     not — the measured version of this check lives in the Electron
+    //     harness, which holds a real lock. First run after it was written:
+    //     pointerLocked false in both variants, i.e. skipped, not proved.
+    await page.mouse.click(800, 450).catch(() => {});
+    await page.waitForTimeout(250);
+    const swallowed = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      const seen = [];
+      const probe = (e) => seen.push({ key: e.key, prevented: e.defaultPrevented });
+      window.addEventListener('keydown', probe);
+      const locked = document.pointerLockElement === canvas;
+      for (const key of ['w', 'a', 's', 'd']) {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key, code: `Key${key.toUpperCase()}`, bubbles: true, cancelable: true,
+        }));
+      }
+      window.removeEventListener('keydown', probe);
+      return { locked, seen };
+    });
+    checks.push({
+      name: 'walk keys are swallowed while pointer-locked',
+      ok: swallowed.locked ? swallowed.seen.every((s) => s.prevented) : true,
+      skipped: !swallowed.locked,
+      skipReason: swallowed.locked ? undefined : 'this browser context never granted pointer lock',
+      pointerLocked: swallowed.locked,
+      seen: swallowed.seen,
+    });
 
     // 3. Each interrupt signal releases everything. Pointer-lock loss is the one
     //    the real capture proved blur does not cover.
@@ -243,8 +332,16 @@ async (page) => {
     }
   }
   const strandChecks = Object.values(out.strandedModifier).flat();
-  out.strandedModifierOk = strandChecks.length > 0 && strandChecks.every((c) => c.ok);
-  out.strandedModifierFailures = strandChecks.filter((c) => !c.ok);
+  // Skipped checks are counted as skipped, never as passes. A tally that folds
+  // "could not be measured" into "measured and fine" is how a harness reports
+  // green on a thing it never touched.
+  const measured = strandChecks.filter((c) => !c.skipped);
+  out.strandedModifierOk = measured.length > 0 && measured.every((c) => c.ok);
+  out.strandedModifierFailures = measured.filter((c) => !c.ok);
+  out.strandedModifierSkipped = strandChecks.filter((c) => c.skipped)
+    .map((c) => ({ name: c.name, skipReason: c.skipReason }));
+  out.strandedModifierTally = `${measured.filter((c) => c.ok).length}/${measured.length} measured, `
+    + `${strandChecks.length - measured.length} skipped`;
   out.ok = out.verdicts.every((v) => v.ok) && out.strandedModifierOk;
   fs.writeFileSync(path.join(outDir, 'walk-input-parity.json'), `${JSON.stringify(out, null, 2)}\n`);
   return out;
