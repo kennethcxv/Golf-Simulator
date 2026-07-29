@@ -1,0 +1,109 @@
+{
+  "tag": "after",
+  "circuitPowered": false,
+  "poses": 4,
+  "darkStartMeanLuma": 120.46,
+  "ceilingBandMeanLuma": 131.69,
+  "navBandMeanLuma": 107.87,
+  "panelFacesStillReadable": true,
+  "navBandStillHasShape": true,
+  "rows": [
+    {
+      "pose": "p1-door-in",
+      "whole": {
+        "mean": 167.65,
+        "min": 2.2,
+        "max": 250.1,
+        "p05": 48.3,
+        "p95": 231.9
+      },
+      "ceilingBand": {
+        "mean": 180.4,
+        "min": 8.1,
+        "max": 237.7,
+        "p05": 87.5,
+        "p95": 234.9
+      },
+      "navBand": {
+        "mean": 136.58,
+        "min": 2.2,
+        "max": 233.1,
+        "p05": 31.9,
+        "p95": 217.1
+      }
+    },
+    {
+      "pose": "p2-retail-wall",
+      "whole": {
+        "mean": 100.78,
+        "min": 0,
+        "max": 245,
+        "p05": 3.9,
+        "p95": 157.5
+      },
+      "ceilingBand": {
+        "mean": 111.51,
+        "min": 1.4,
+        "max": 215.9,
+        "p05": 2.9,
+        "p95": 150.2
+      },
+      "navBand": {
+        "mean": 91.07,
+        "min": 0,
+        "max": 184.4,
+        "p05": 9.2,
+        "p95": 158.5
+      }
+    },
+    {
+      "pose": "p3-under-faulted-run",
+      "whole": {
+        "mean": 98.69,
+        "min": 0.4,
+        "max": 217.2,
+        "p05": 2.7,
+        "p95": 139.5
+      },
+      "ceilingBand": {
+        "mean": 85.35,
+        "min": 24.8,
+        "max": 215.9,
+        "p05": 30.6,
+        "p95": 137.5
+      },
+      "navBand": {
+        "mean": 115.72,
+        "min": 33.9,
+        "max": 200.1,
+        "p05": 34.9,
+        "p95": 137.5
+      }
+    },
+    {
+      "pose": "p4-desk-approach",
+      "whole": {
+        "mean": 114.73,
+        "min": 0,
+        "max": 250.9,
+        "p05": 14,
+        "p95": 221.9
+      },
+      "ceilingBand": {
+        "mean": 149.48,
+        "min": 4.9,
+        "max": 250.9,
+        "p05": 11.7,
+        "p95": 237.1
+      },
+      "navBand": {
+        "mean": 88.09,
+        "min": 0,
+        "max": 228.4,
+        "p05": 9.6,
+        "p95": 162.5
+      }
+    }
+  ],
+  "shots": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\Designs\\ProShop\\Greybox\\data\\dark-state"
+}

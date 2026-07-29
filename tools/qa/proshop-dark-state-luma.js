@@ -4,25 +4,28 @@ async (page) => {
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-dark-state-luma.js
   //
-  // STATUS 2026-07-28: this instrument is COMPLETE and the tuning it exists to
-  // measure is NOT DONE. It is committed alone, deliberately.
+  // STATUS 2026-07-29: the probe now reaches a genuinely unpowered room, and
+  // the measurement it exists for is in Designs/ProShop/DARK_STATE_PROPOSAL.md.
+  // The tuning is still NOT DONE and is awaiting approval.
   //
-  // Two lessons are baked into it. First, it refuses to run against a powered
-  // room: an earlier revision paused the game, and because the shell only
-  // learns the circuit is dead when the clubhouse update runs (it initialises
-  // to `true`), it captured four "dark start" frames of a fully LIT room and
-  // produced a confident 10% improvement that was noise between two lit
-  // captures. Second, the reason the room is not dark is now known and is not
-  // where it was looked for: HemisphereLight (1.4) and AmbientLight are GLOBAL
-  // terms with no occlusion, so they light a sealed windowless clubhouse
-  // exactly as brightly as the fairway. The interior daylight fills, which were
-  // the obvious suspect, are a minor term beside them.
+  // Three lessons are baked in. First, it refuses to run against a powered room:
+  // an earlier revision paused the game and captured four "dark start" frames of
+  // a fully LIT room, producing a confident 10% improvement that was noise
+  // between two lit captures.
   //
-  // The fix is therefore a change to world lighting, gated on being inside an
-  // unpowered room — too broad to land unverified at the end of a session, and
-  // this probe still cannot reach the unpowered state from a starter boot, so
-  // there is no measurement to justify it with yet. Reaching that state is the
-  // first job of whoever picks this up.
+  // Second — and this is why it could not run at all for a day — it now waits on
+  // the CONDITION rather than on a clock. ceilingLightingDiagnostics reports the
+  // SHELL's flag, which initialises to `true` and only becomes false once the
+  // clubhouse update has run updateFlicker. tools/qa/dark-state-power-diagnosis.js
+  // measured the gap: the sim says unpowered from the first frame after boot
+  // while the shell takes seconds to catch up, and a fixed 1200 ms wait landed
+  // inside it. The sim is read first, then the shell is polled until it agrees.
+  //
+  // Third, the reason the room is not dark is measured, not guessed:
+  // tools/qa/proshop-world-light-contribution.js. The global HemisphereLight
+  // supplies ~40% of interior luma — and ~42% of COURSE luma, because it is
+  // unoccluded and lights both about equally. The interior daylight fills, the
+  // obvious suspect, are a minor term beside it.
   //
   // Reports mean luma per pose plus two things the walk explicitly asked to
   // protect: the panel faces must stay readable as pale shapes (so the repair
@@ -147,17 +150,41 @@ async (page) => {
     return ch.ceilingLightingDiagnostics?.().circuitPowered ?? null;
   });
 
-  // Give the clubhouse update a few frames to push the real circuit state into
-  // the shell before asserting on it.
-  await page.waitForTimeout(1200);
-  const settled = await page.evaluate(() => (
-    window.__fw.scene3d.clubhouse().ceilingLightingDiagnostics?.().circuitPowered ?? null
-  ));
+  // WAIT FOR THE CONDITION, NOT FOR A CLOCK (2026-07-29).
+  //
+  // The shell's circuit flag initialises to `true` and only becomes false when
+  // the clubhouse update runs updateFlicker, which pushes the sim's answer
+  // across. Measured by tools/qa/dark-state-power-diagnosis.js: the SIM says
+  // unpowered from the first frame after boot — campaign enabled, ceiling
+  // component unrestored — while the SHELL still says powered, and takes a few
+  // seconds of running to catch up.
+  //
+  // A fixed 1200 ms wait landed inside that gap, which is why this probe
+  // reported "circuitPowered=true" and refused to run at all. The refusal was
+  // correct; the wait was not. Polling both sides until they agree removes the
+  // race, and the assertion below then means what it says.
+  const simPowered = await page.evaluate(async () => {
+    const R = await import('/src/sim/clubhouseRestoration.js');
+    return R.ceilingCircuitPowered(window.__fw.state);
+  });
   void powered;
-  if (settled !== false) {
-    throw new Error(`dark-state probe requires an UNPOWERED room; circuitPowered=${settled}. `
+  if (simPowered !== false) {
+    throw new Error(`dark-state probe requires an UNPOWERED room; the SIM reports powered=${simPowered}. `
       + 'Every luma number from a powered capture is meaningless for this measurement.');
   }
+  // Poll the SHELL until it agrees. Deliberately a plain predicate with no
+  // dynamic import: an earlier revision awaited an import() inside
+  // waitForFunction and simply never resolved, which reads exactly like "the
+  // room is powered" and is not.
+  const agreed = await page.waitForFunction(
+    () => window.__fw.scene3d.clubhouse().ceilingLightingDiagnostics?.().circuitPowered === false,
+    null, { timeout: 30000, polling: 250 },
+  ).then(() => true).catch(() => false);
+  if (!agreed) {
+    throw new Error('dark-state probe: the sim reports the ceiling circuit dead but the shell never '
+      + 'caught up within 30 s. Nothing measured here would be attributable.');
+  }
+  const settled = { sim: simPowered, shell: false };
 
   const POSES = [
     { id: 'p1-door-in', x: -0.8, z: 4.2, yaw: Math.PI, pitch: -0.02 },
@@ -199,7 +226,7 @@ async (page) => {
   const meanOf = (key) => +(rows.reduce((a, r) => a + r[key].mean, 0) / rows.length).toFixed(2);
   const out = {
     tag: TAG,
-    circuitPowered: settled,
+    circuitPowered: settled.sim,
     poses: rows.length,
     darkStartMeanLuma: meanOf('whole'),
     ceilingBandMeanLuma: meanOf('ceilingBand'),
