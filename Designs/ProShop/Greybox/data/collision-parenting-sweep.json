@@ -5,6 +5,872 @@
       "colliders": 88,
       "missing": [],
       "orphaned": [],
+      "doorAndWindow": [
+        {
+          "name": "LegacyWindowDirtFilm_0",
+          "local": {
+            "x": -7.6,
+            "z": 5.58
+          },
+          "size": {
+            "w": 2.28,
+            "d": 0,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "LegacyWindowDirtFilm_1",
+          "local": {
+            "x": -4.4,
+            "z": 5.58
+          },
+          "size": {
+            "w": 2.28,
+            "d": 0,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "LegacyWindowDirtFilm_2",
+          "local": {
+            "x": 3,
+            "z": -5.58
+          },
+          "size": {
+            "w": 2.28,
+            "d": 0,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "LegacyWindowDirtFilm_3",
+          "local": {
+            "x": 9.03,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0,
+            "d": 2.28,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "size": {
+            "w": 1.16,
+            "d": 0.26,
+            "h": 2.4
+          },
+          "yRange": [
+            -0.62,
+            1.77
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "size": {
+            "w": 0.92,
+            "d": 0.04,
+            "h": 2.23
+          },
+          "yRange": [
+            -0.61,
+            1.62
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "size": {
+            "w": 0.26,
+            "d": 1.16,
+            "h": 2.4
+          },
+          "yRange": [
+            -0.62,
+            1.77
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "size": {
+            "w": 0.04,
+            "d": 0.92,
+            "h": 2.23
+          },
+          "yRange": [
+            -0.61,
+            1.62
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "size": {
+            "w": 9.77,
+            "d": 1.83,
+            "h": 5
+          },
+          "yRange": [
+            -0.39,
+            4.62
+          ],
+          "hasCollider": true,
+          "standableInside": true
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA_1",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "size": {
+            "w": 9.77,
+            "d": 1.83,
+            "h": 4.7
+          },
+          "yRange": [
+            0.28,
+            4.97
+          ],
+          "hasCollider": true,
+          "standableInside": true
+        },
+        {
+          "name": "MESH_BoardedApertureFasteners",
+          "local": {
+            "x": -4.66,
+            "z": 5.68
+          },
+          "size": {
+            "w": 9.43,
+            "d": 0.01,
+            "h": 2.14
+          },
+          "yRange": [
+            -0.3,
+            1.83
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_MainDoor_CreamCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.7
+          },
+          "size": {
+            "w": 2.25,
+            "d": 0.08,
+            "h": 2.89
+          },
+          "yRange": [
+            -0.69,
+            2.2
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowMid_CreamCasing",
+          "local": {
+            "x": -4.9,
+            "z": 5.68
+          },
+          "size": {
+            "w": 2.72,
+            "d": 0.11,
+            "h": 2.15
+          },
+          "yRange": [
+            0.12,
+            2.27
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "size": {
+            "w": 2.72,
+            "d": 0.11,
+            "h": 2.15
+          },
+          "yRange": [
+            0.12,
+            2.27
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_EastBelow_EastWindow",
+          "local": {
+            "x": 9.06,
+            "z": 4.6
+          },
+          "size": {
+            "w": 0.25,
+            "d": 2.4,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_FrontBelow_WindowMid",
+          "local": {
+            "x": -4.9,
+            "z": 5.62
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_FrontBelow_WindowWest",
+          "local": {
+            "x": -8.3,
+            "z": 5.62
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DeepCreamDoorCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.74
+          },
+          "size": {
+            "w": 1.97,
+            "d": 0.26,
+            "h": 2.68
+          },
+          "yRange": [
+            -0.62,
+            2.06
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WalnutDoorStops",
+          "local": {
+            "x": -0.8,
+            "z": 5.65
+          },
+          "size": {
+            "w": 1.71,
+            "d": 0.04,
+            "h": 2.49
+          },
+          "yRange": [
+            -0.58,
+            1.91
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COL_DoorLeft",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.09,
+            "h": 2.55
+          },
+          "yRange": [
+            -0.58,
+            1.97
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_Astragal",
+          "local": {
+            "x": -0.82,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.05,
+            "d": 0.14,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "local": {
+            "x": -1,
+            "z": 5.82
+          },
+          "size": {
+            "w": 0.19,
+            "d": 0.11,
+            "h": 0.33
+          },
+          "yRange": [
+            0.34,
+            0.67
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_DeepSashMoulding",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.64,
+            "d": 0.07,
+            "h": 1.6
+          },
+          "yRange": [
+            0.23,
+            1.83
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_Glass",
+          "local": {
+            "x": -1.24,
+            "z": 5.72
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.01,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutMuntins",
+          "local": {
+            "x": -1.24,
+            "z": 5.77
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.03,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutStructure",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.11,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.93
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COL_DoorRight",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.09,
+            "h": 2.55
+          },
+          "yRange": [
+            -0.58,
+            1.97
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "local": {
+            "x": -0.6,
+            "z": 5.82
+          },
+          "size": {
+            "w": 0.19,
+            "d": 0.11,
+            "h": 0.33
+          },
+          "yRange": [
+            0.34,
+            0.67
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_DeepSashMoulding",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.64,
+            "d": 0.07,
+            "h": 1.6
+          },
+          "yRange": [
+            0.23,
+            1.83
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_Glass",
+          "local": {
+            "x": -0.36,
+            "z": 5.72
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.01,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_WalnutMuntins",
+          "local": {
+            "x": -0.36,
+            "z": 5.77
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.03,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_WalnutStructure",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.11,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.93
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -7.6,
+            "z": 5.59
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.01,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.07,
+            "d": 0.08,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -7.6,
+            "z": 5.67
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.03,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -4.4,
+            "z": 5.59
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.01,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.07,
+            "d": 0.08,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -4.4,
+            "z": 5.67
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.03,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 3,
+            "z": -5.59
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.01,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "size": {
+            "w": 2.07,
+            "d": 0.08,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 3,
+            "z": -5.67
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.03,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.25,
+            "d": 2.4,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 9.04,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.01,
+            "d": 1.98,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.08,
+            "d": 2.07,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 9.12,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.03,
+            "d": 1.98,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        }
+      ],
       "waived": [
         {
           "name": "AssetRuntime_99_umbrella_stand",
@@ -14,24 +880,919 @@
           "name": "PineHills_floorPlant_2",
           "why": "soft decor; a shoulder passes through the fronds"
         }
-      ]
+      ],
+      "doorWaived": [
+        {
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "why": "hardware, not a barrier"
+        },
+        {
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "why": "hardware, not a barrier"
+        }
+      ],
+      "doorMissing": []
     },
     "pine-hills-v2": {
       "candidates": 41,
       "colliders": 81,
       "missing": [],
       "orphaned": [],
-      "waived": []
+      "doorAndWindow": [
+        {
+          "name": "LegacyWindowDirtFilm_0",
+          "local": {
+            "x": -7.6,
+            "z": 5.58
+          },
+          "size": {
+            "w": 2.28,
+            "d": 0,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "LegacyWindowDirtFilm_1",
+          "local": {
+            "x": -4.4,
+            "z": 5.58
+          },
+          "size": {
+            "w": 2.28,
+            "d": 0,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "LegacyWindowDirtFilm_2",
+          "local": {
+            "x": 3,
+            "z": -5.58
+          },
+          "size": {
+            "w": 2.28,
+            "d": 0,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "LegacyWindowDirtFilm_3",
+          "local": {
+            "x": 9.03,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0,
+            "d": 2.28,
+            "h": 1.78
+          },
+          "yRange": [
+            0.29,
+            2.07
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "size": {
+            "w": 1.16,
+            "d": 0.26,
+            "h": 2.4
+          },
+          "yRange": [
+            -0.62,
+            1.77
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 7.55,
+            "z": 2
+          },
+          "size": {
+            "w": 0.92,
+            "d": 0.04,
+            "h": 2.23
+          },
+          "yRange": [
+            -0.61,
+            1.62
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorFrame_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "size": {
+            "w": 0.26,
+            "d": 1.16,
+            "h": 2.4
+          },
+          "yRange": [
+            -0.62,
+            1.77
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COLLISION_DoorLeaf_Basic",
+          "local": {
+            "x": 9.07,
+            "z": -3.6
+          },
+          "size": {
+            "w": 0.04,
+            "d": 0.92,
+            "h": 2.23
+          },
+          "yRange": [
+            -0.61,
+            1.62
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "size": {
+            "w": 9.77,
+            "d": 1.83,
+            "h": 5
+          },
+          "yRange": [
+            -0.39,
+            4.62
+          ],
+          "hasCollider": true,
+          "standableInside": true
+        },
+        {
+          "name": "MESH_BoardedApertureDamage_DATA_1",
+          "local": {
+            "x": -4.66,
+            "z": 4.83
+          },
+          "size": {
+            "w": 9.77,
+            "d": 1.83,
+            "h": 4.7
+          },
+          "yRange": [
+            0.28,
+            4.97
+          ],
+          "hasCollider": true,
+          "standableInside": true
+        },
+        {
+          "name": "MESH_BoardedApertureFasteners",
+          "local": {
+            "x": -4.66,
+            "z": 5.68
+          },
+          "size": {
+            "w": 9.43,
+            "d": 0.01,
+            "h": 2.14
+          },
+          "yRange": [
+            -0.3,
+            1.83
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DeepCreamDoorCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.74
+          },
+          "size": {
+            "w": 1.97,
+            "d": 0.26,
+            "h": 2.68
+          },
+          "yRange": [
+            -0.62,
+            2.06
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WalnutDoorStops",
+          "local": {
+            "x": -0.8,
+            "z": 5.65
+          },
+          "size": {
+            "w": 1.71,
+            "d": 0.04,
+            "h": 2.49
+          },
+          "yRange": [
+            -0.58,
+            1.91
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COL_DoorLeft",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.09,
+            "h": 2.55
+          },
+          "yRange": [
+            -0.58,
+            1.97
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_Astragal",
+          "local": {
+            "x": -0.82,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.05,
+            "d": 0.14,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "local": {
+            "x": -1,
+            "z": 5.82
+          },
+          "size": {
+            "w": 0.19,
+            "d": 0.11,
+            "h": 0.33
+          },
+          "yRange": [
+            0.34,
+            0.67
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_DeepSashMoulding",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.64,
+            "d": 0.07,
+            "h": 1.6
+          },
+          "yRange": [
+            0.23,
+            1.83
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_Glass",
+          "local": {
+            "x": -1.24,
+            "z": 5.72
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.01,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutMuntins",
+          "local": {
+            "x": -1.24,
+            "z": 5.77
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.03,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorLeft_WalnutStructure",
+          "local": {
+            "x": -1.24,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.11,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.93
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "COL_DoorRight",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.09,
+            "h": 2.55
+          },
+          "yRange": [
+            -0.58,
+            1.97
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "local": {
+            "x": -0.6,
+            "z": 5.82
+          },
+          "size": {
+            "w": 0.19,
+            "d": 0.11,
+            "h": 0.33
+          },
+          "yRange": [
+            0.34,
+            0.67
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_DeepSashMoulding",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.64,
+            "d": 0.07,
+            "h": 1.6
+          },
+          "yRange": [
+            0.23,
+            1.83
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_Glass",
+          "local": {
+            "x": -0.36,
+            "z": 5.72
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.01,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_WalnutMuntins",
+          "local": {
+            "x": -0.36,
+            "z": 5.77
+          },
+          "size": {
+            "w": 0.61,
+            "d": 0.03,
+            "h": 1.5
+          },
+          "yRange": [
+            0.28,
+            1.78
+          ],
+          "hasCollider": false,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_DoorRight_WalnutStructure",
+          "local": {
+            "x": -0.36,
+            "z": 5.74
+          },
+          "size": {
+            "w": 0.87,
+            "d": 0.11,
+            "h": 2.52
+          },
+          "yRange": [
+            -0.58,
+            1.93
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_MainDoor_CreamCasing",
+          "local": {
+            "x": -0.8,
+            "z": 5.7
+          },
+          "size": {
+            "w": 2.25,
+            "d": 0.08,
+            "h": 2.89
+          },
+          "yRange": [
+            -0.69,
+            2.2
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowMid_CreamCasing",
+          "local": {
+            "x": -4.9,
+            "z": 5.68
+          },
+          "size": {
+            "w": 2.72,
+            "d": 0.11,
+            "h": 2.15
+          },
+          "yRange": [
+            0.12,
+            2.27
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowWest_CreamCasing",
+          "local": {
+            "x": -8.3,
+            "z": 5.68
+          },
+          "size": {
+            "w": 2.72,
+            "d": 0.11,
+            "h": 2.15
+          },
+          "yRange": [
+            0.12,
+            2.27
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_EastBelow_EastWindow",
+          "local": {
+            "x": 9.06,
+            "z": 4.6
+          },
+          "size": {
+            "w": 0.25,
+            "d": 2.4,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_FrontBelow_WindowMid",
+          "local": {
+            "x": -4.9,
+            "z": 5.62
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_FrontBelow_WindowWest",
+          "local": {
+            "x": -8.3,
+            "z": 5.62
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 0.85
+          },
+          "yRange": [
+            -0.62,
+            0.23
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -7.6,
+            "z": 5.59
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.01,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -7.6,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.07,
+            "d": 0.08,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -7.6,
+            "z": 5.67
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.03,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": -4.4,
+            "z": 5.59
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.01,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": -4.4,
+            "z": 5.63
+          },
+          "size": {
+            "w": 2.07,
+            "d": 0.08,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": -4.4,
+            "z": 5.67
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.03,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "size": {
+            "w": 2.4,
+            "d": 0.25,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 3,
+            "z": -5.59
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.01,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 3,
+            "z": -5.63
+          },
+          "size": {
+            "w": 2.07,
+            "d": 0.08,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 3,
+            "z": -5.67
+          },
+          "size": {
+            "w": 1.98,
+            "d": 0.03,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_LayeredCreamCasing",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.25,
+            "d": 2.4,
+            "h": 1.9
+          },
+          "yRange": [
+            0.23,
+            2.13
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_UpperLowerGlass",
+          "local": {
+            "x": 9.04,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.01,
+            "d": 1.98,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutDoubleSashes",
+          "local": {
+            "x": 9.08,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.08,
+            "d": 2.07,
+            "h": 1.59
+          },
+          "yRange": [
+            0.4,
+            1.99
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        },
+        {
+          "name": "MESH_WindowStandard_WalnutMuntinGrid",
+          "local": {
+            "x": 9.12,
+            "z": 4.25
+          },
+          "size": {
+            "w": 0.03,
+            "d": 1.98,
+            "h": 1.49
+          },
+          "yRange": [
+            0.45,
+            1.94
+          ],
+          "hasCollider": true,
+          "standableInside": false
+        }
+      ],
+      "waived": [],
+      "doorWaived": [
+        {
+          "name": "MESH_DoorLeft_BrassLeverSet",
+          "why": "hardware, not a barrier"
+        },
+        {
+          "name": "MESH_DoorRight_BrassLeverSet",
+          "why": "hardware, not a barrier"
+        }
+      ],
+      "doorMissing": []
     }
   },
   "whitelist": [
     "/umbrella_stand/i",
     "/floorPlant/i"
   ],
+  "doorWhitelist": [
+    "/porch|threshold|sill|mat/i",
+    "/handle|knob|hinge|pull|lever|latch/i"
+  ],
   "totals": {
     "missing": 0,
     "waived": 2,
-    "orphaned": 0
+    "orphaned": 0,
+    "doorFurniture": 96,
+    "doorMissing": 0,
+    "doorWaived": 4
   },
   "ok": true
 }

@@ -1,11 +1,12 @@
 // PAYING FOR TIME.
 //
-// Lead times were set against nothing in particular. The clock runs at 2x real
-// time (balance.gameMinutesPerRealSecond = 1/30), so one game day is 12 real
-// hours at 1x, 3 at 4x and about 45 real minutes at 16x — and 4x/16x is where
-// the game is actually played. A four-day club order was therefore 3 real hours
-// at the fastest speed the game offers and 12 at a comfortable one: several
-// sessions between deciding to stock something and being able to sell it.
+// Lead times were set against nothing in particular. Two changes since have
+// attacked the wait from both ends: the leads halved (2026-07-29 morning) and
+// the DAY quartered (2026-07-29 overnight, gameMinutesPerRealSecond 1/30 ->
+// 4/30). A game day is now 3 real hours at 1x, 45 minutes at 4x, ~11 at 16x. It
+// was twelve real hours at 1x, and a four-day club order was therefore 3 real
+// hours at the fastest speed the game offered: several sessions between
+// deciding to stock something and being able to sell it.
 //
 // Halved and floored at one day, with express taking one more day off for two
 // and a half times the freight. Standard is usually "tomorrow", express is

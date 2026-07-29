@@ -53,8 +53,45 @@ export const BALANCE = {
   // Speed 1 is TWO game seconds per real second — a lived-in pace where a tee time
   // booked for 1:30 is actually reachable, not five wall-seconds per game hour.
   // 4× and 16× remain the skip gears.
-  gameMinutesPerRealSecond: 1 / 30,
-  speeds: [0, 1, 4, 16],
+  // THE DAY LENGTH (2026-07-29). Was 1/30 — one game minute per 30 real
+  // seconds, 2x real time, a **12-real-hour day** at the default speed. A
+  // one-day delivery therefore took twelve real hours to arrive unless the
+  // player sat on fast-forward, and fast-forward was itself broken until
+  // SIM-TIME-001 was fixed in this session.
+  //
+  // 4/30 makes the default day **3 real hours** (45 real minutes at 16x). The
+  // justification is the delivery loop, which is the thing the length is for:
+  // notice an empty shelf -> order -> wait -> carry the boxes in -> stock it.
+  // For that loop to close inside one sitting the wait has to be minutes, not
+  // an evening. At 16x a standard one-day lead now lands in ~45 real minutes
+  // and an express order the same game day, typically 10-20.
+  //
+  // NPC_TIMING_BASELINE below is what keeps this honest: change this number and
+  // NPC decisions follow it automatically. Without that link, shortening the day
+  // would have re-created SIM-TIME-001 by the other route — the clock faster,
+  // the shoppers not.
+  gameMinutesPerRealSecond: 4 / 30,
+  // The rate the NPC dwell/patience/arrival numbers were authored against. The
+  // clubhouse scales its decision dt by (actual / baseline), so those authored
+  // seconds keep meaning what they meant when they were chosen.
+  npcTimingBaselineGameMinutesPerRealSecond: 1 / 30,
+  // THE LADDER MOVED WITH THE DAY (2026-07-29), and it had to.
+  //
+  // These rungs are COMPRESSIONS of the baseline NPC clock, not abstract
+  // numbers. The measured healthy ceiling is 16x compression: at that point a
+  // game hour completes 10 of 11 visits. At 64x it completes **5 of 11** —
+  // measured, not predicted — because NPC locomotion is capped at 4x by the
+  // SIM-TIME-001 ruling (uncapped, bodies tunnel colliders) and past a certain
+  // compression the walking simply does not fit in the day.
+  //
+  // Quartering the day multiplied every rung by 4. Left at [0,1,4,16] the top
+  // rung would have become 64x — a fast-forward that empties the shop, which is
+  // the exact defect SIM-TIME-001 was raised for, re-created by the other route.
+  //
+  // So the rungs divide by the same 4. Compressions are now 4x / 8x / 16x, days
+  // of 3h / 90min / 45min. The fastest day is EXACTLY as fast as it was before
+  // this change; what moved is the default, from twelve real hours to three.
+  speeds: [0, 1, 2, 4],
 
   // --- turf simulation --------------------------------------------------------
   turf: {

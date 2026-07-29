@@ -144,13 +144,16 @@ export function skuById(id) {
 // supplier lead time in days by category (clubs ship slow)
 // HOW LONG A DELIVERY TAKES, against how long a day takes.
 //
-// The clock runs at 2x real time (balance.gameMinutesPerRealSecond = 1/30), so
-// one game day is 12 real hours at 1x, 3 at 4x, and about 45 real minutes at
-// 16x — and 4x/16x is where the game is actually played. Under the old numbers
-// a set of irons took four days: 3 real hours at the fastest speed the game
-// offers, 12 at a comfortable one. That is several sessions between deciding to
-// stock something and being able to sell it, and it is why ordering read as
-// something you set up and came back to rather than something you did.
+// UPDATED 2026-07-29 — the day itself got shorter. gameMinutesPerRealSecond
+// went 1/30 -> 4/30, so a game day is now **3 real hours at 1x**, 45 minutes at
+// 4x and about 11 at 16x. It used to be twelve real hours at 1x.
+//
+// Under the ORIGINAL numbers a set of irons took four days: 3 real hours at the
+// fastest speed the game offered and twelve at a comfortable one. That is
+// several sessions between deciding to stock something and being able to sell
+// it, and it is why ordering read as something you set up and came back to
+// rather than something you did. Two changes have since attacked it from both
+// ends — the leads halved (below) and the day quartered.
 //
 // Halved, and floored at one day: order at open, stock it the following
 // morning, sell it that day. One night is a beat the player can hold in their

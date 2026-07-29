@@ -16,341 +16,9 @@
     "note": "clubhouseApi.update receives raw wall dt (courseScene.js:9651); the curve below IS that defect measured. No cashier is present, so transactions are structurally zero and visit flow (arrivals/departures/progress) is throughput."
   },
   "legs": {
-    "x16": {
-      "speed": 16,
-      "wallSecondsRun": 113.9,
-      "simMinutesRun": 60.1,
-      "spawned": 10,
-      "customersTracked": 10,
-      "organicArrivals": 0,
-      "departures": 0,
-      "stillMidVisitAtWindowEnd": [
-        {
-          "id": "customer_12qcuao_visitor%3A0",
-          "stopIdx": 5,
-          "stopKind": "counter",
-          "phase": "waiting",
-          "lx": 2.67,
-          "lz": 2.39
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A1",
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 4.09,
-          "lz": 1.8
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A2",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.53,
-          "lz": 0.79
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A3",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 4.36,
-          "lz": 2.34
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A4",
-          "stopIdx": 5,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 3.5,
-          "lz": 1.68
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A5",
-          "stopIdx": 5,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 2.79,
-          "lz": 1.42
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A6",
-          "stopIdx": 6,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.19,
-          "lz": -0.03
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A7",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.7,
-          "lz": 2.25
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A8",
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 5.69,
-          "lz": 2.5
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A9",
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 6,
-          "lz": 3.24
-        }
-      ],
-      "stopsAdvancedTotal": 39,
-      "maxSimultaneous": 10,
-      "queuePeak": 6,
-      "queueViolations": [],
-      "frozen": [
-        {
-          "id": "customer_12qcuao_visitor%3A4",
-          "simMinute": 651.6,
-          "x": -355.9,
-          "z": 5.8,
-          "stopIdx": 5,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.084,
-          "spanWallS": 12.2,
-          "lx": 4.1,
-          "lz": 1.8
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A9",
-          "simMinute": 618.7,
-          "x": -361.18,
-          "z": 12.36,
-          "stopIdx": 0,
-          "stopKind": "walk",
-          "fixtureId": null,
-          "phase": "shopping",
-          "netYd": 0.116,
-          "spanWallS": 12.2,
-          "lx": -1.18,
-          "lz": 8.36
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A1",
-          "simMinute": 637.4,
-          "x": -355.9,
-          "z": 5.82,
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.079,
-          "spanWallS": 12.2,
-          "lx": 4.1,
-          "lz": 1.82
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A8",
-          "simMinute": 637.1,
-          "x": -356.9,
-          "z": 6.17,
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.007,
-          "spanWallS": 12.2,
-          "lx": 3.1,
-          "lz": 2.17
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A5",
-          "simMinute": 637.1,
-          "x": -355.49,
-          "z": 5.37,
-          "stopIdx": 4,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.005,
-          "spanWallS": 12.2,
-          "lx": 4.51,
-          "lz": 1.37
-        }
-      ],
-      "navBlocks": 49,
-      "transactions": 0
-    },
     "x4": {
       "speed": 4,
-      "wallSecondsRun": 450,
-      "simMinutesRun": 60,
-      "spawned": 10,
-      "customersTracked": 11,
-      "organicArrivals": 1,
-      "departures": 0,
-      "stillMidVisitAtWindowEnd": [
-        {
-          "id": "customer_12qcuao_visitor%3A0",
-          "stopIdx": 5,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 2.48,
-          "lz": 2.56
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A1",
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 4.01,
-          "lz": 1.87
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A2",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 2.67,
-          "lz": 1.26
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A3",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "waiting",
-          "lx": 2.98,
-          "lz": 2.22
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A4",
-          "stopIdx": 5,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 2.01,
-          "lz": 2.09
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A5",
-          "stopIdx": 5,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.93,
-          "lz": 1.23
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A6",
-          "stopIdx": 6,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.53,
-          "lz": 0.79
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A7",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 4.39,
-          "lz": 2.34
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A8",
-          "stopIdx": 6,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 2.55,
-          "lz": 1.81
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A9",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.9,
-          "lz": 0.32
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A10",
-          "stopIdx": 4,
-          "stopKind": "counter",
-          "phase": "shopping",
-          "lx": 3.13,
-          "lz": 0.29
-        }
-      ],
-      "stopsAdvancedTotal": 49,
-      "maxSimultaneous": 11,
-      "queuePeak": 9,
-      "queueViolations": [],
-      "frozen": [
-        {
-          "id": "customer_12qcuao_visitor%3A9",
-          "simMinute": 617.4,
-          "x": -356.73,
-          "z": 5.33,
-          "stopIdx": 3,
-          "stopKind": "fixture",
-          "fixtureId": "feature",
-          "phase": "shopping",
-          "netYd": 0,
-          "spanWallS": 12.2,
-          "lx": 3.27,
-          "lz": 1.33
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A1",
-          "simMinute": 646.2,
-          "x": -356.07,
-          "z": 5.95,
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.126,
-          "spanWallS": 12.3,
-          "lx": 3.93,
-          "lz": 1.95
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A5",
-          "simMinute": 606.7,
-          "x": -359.4,
-          "z": 4.85,
-          "stopIdx": 4,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.147,
-          "spanWallS": 12.1,
-          "lx": 0.6,
-          "lz": 0.85
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A4",
-          "simMinute": 646.2,
-          "x": -357.48,
-          "z": 5.83,
-          "stopIdx": 5,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0.001,
-          "spanWallS": 12.3,
-          "lx": 2.52,
-          "lz": 1.83
-        }
-      ],
-      "navBlocks": 227,
-      "transactions": 0
-    },
-    "x1": {
-      "speed": 1,
-      "wallSecondsRun": 1800.1,
+      "wallSecondsRun": 114,
       "simMinutesRun": 60,
       "spawned": 10,
       "customersTracked": 11,
@@ -358,122 +26,183 @@
       "departures": 10,
       "stillMidVisitAtWindowEnd": [
         {
-          "id": "customer_12qcuao_visitor%3A1",
-          "stopIdx": 2,
-          "stopKind": "fixture",
-          "phase": "shopping",
-          "lx": 6.1,
-          "lz": 3.2
+          "id": "customer_12qcuao_visitor%3A10",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "phase": "waiting",
+          "lx": 2.7,
+          "lz": 2.23
         }
       ],
-      "stopsAdvancedTotal": 70,
+      "stopsAdvancedTotal": 74,
+      "maxSimultaneous": 10,
+      "queuePeak": 8,
+      "queueViolations": [],
+      "frozen": [
+        {
+          "id": "customer_12qcuao_visitor%3A4",
+          "simMinute": 616,
+          "x": -357.82,
+          "z": 6.56,
+          "stopIdx": 5,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "phase": "shopping",
+          "netYd": 0.006,
+          "spanWallS": 12.3,
+          "lx": 2.18,
+          "lz": 2.56
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A1",
+          "simMinute": 616,
+          "x": -357.67,
+          "z": 5.84,
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "phase": "shopping",
+          "netYd": 0.002,
+          "spanWallS": 12.3,
+          "lx": 2.33,
+          "lz": 1.84
+        }
+      ],
+      "navBlocks": 10,
+      "transactions": 0
+    },
+    "x1": {
+      "speed": 1,
+      "wallSecondsRun": 450,
+      "simMinutesRun": 60,
+      "spawned": 10,
+      "customersTracked": 12,
+      "organicArrivals": 2,
+      "departures": 11,
+      "stillMidVisitAtWindowEnd": [
+        {
+          "id": "customer_12qcuao_visitor%3A11",
+          "stopIdx": 4,
+          "stopKind": "counter",
+          "phase": "waiting",
+          "lx": 2.65,
+          "lz": 2.27
+        }
+      ],
+      "stopsAdvancedTotal": 80,
       "maxSimultaneous": 11,
       "queuePeak": 8,
       "queueViolations": [],
       "frozen": [
         {
-          "id": "customer_12qcuao_visitor%3A1",
-          "simMinute": 604,
-          "x": -355.94,
-          "z": 5.82,
+          "id": "customer_12qcuao_visitor%3A8",
+          "simMinute": 618.4,
+          "x": -357.88,
+          "z": 6.58,
           "stopIdx": 2,
           "stopKind": "fixture",
           "fixtureId": "member_station",
           "phase": "shopping",
-          "netYd": 0.007,
-          "spanWallS": 12.3,
-          "lx": 4.06,
-          "lz": 1.82
+          "netYd": 0.006,
+          "spanWallS": 12.2,
+          "lx": 2.12,
+          "lz": 2.58
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A1",
+          "simMinute": 619,
+          "x": -356.69,
+          "z": 5.31,
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "phase": "shopping",
+          "netYd": 0.019,
+          "spanWallS": 12.2,
+          "lx": 3.31,
+          "lz": 1.31
         },
         {
           "id": "customer_12qcuao_visitor%3A9",
-          "simMinute": 624.1,
-          "x": -357.14,
-          "z": 6.32,
-          "stopIdx": 5,
-          "stopKind": "exit",
-          "fixtureId": null,
-          "phase": "leaving",
-          "netYd": 0.136,
+          "simMinute": 618.4,
+          "x": -355.12,
+          "z": 6.66,
+          "stopIdx": 2,
+          "stopKind": "fixture",
+          "fixtureId": "member_station",
+          "phase": "shopping",
+          "netYd": 0.104,
           "spanWallS": 12.2,
-          "lx": 2.86,
-          "lz": 2.32
+          "lx": 4.88,
+          "lz": 2.66
         },
         {
           "id": "customer_12qcuao_visitor%3A10",
-          "simMinute": 601.7,
-          "x": -356.34,
-          "z": 6.39,
+          "simMinute": 606.9,
+          "x": -356.85,
+          "z": 6.5,
           "stopIdx": 3,
           "stopKind": "fixture",
           "fixtureId": "member_station",
           "phase": "shopping",
-          "netYd": 0.088,
+          "netYd": 0.067,
           "spanWallS": 12.1,
-          "lx": 3.66,
-          "lz": 2.39
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A8",
-          "simMinute": 602.8,
-          "x": -356.52,
-          "z": 6.55,
-          "stopIdx": 3,
-          "stopKind": "fixture",
-          "fixtureId": "shelf_balls",
-          "phase": "shopping",
-          "netYd": 0.142,
-          "spanWallS": 12.2,
-          "lx": 3.48,
-          "lz": 2.55
+          "lx": 3.15,
+          "lz": 2.5
         },
         {
           "id": "customer_12qcuao_visitor%3A4",
-          "simMinute": 607.6,
-          "x": -355.94,
-          "z": 5.82,
+          "simMinute": 615.8,
+          "x": -356.74,
+          "z": 5.78,
           "stopIdx": 5,
           "stopKind": "fixture",
           "fixtureId": "member_station",
           "phase": "shopping",
-          "netYd": 0.077,
-          "spanWallS": 12.3,
-          "lx": 4.06,
-          "lz": 1.82
-        },
-        {
-          "id": "customer_12qcuao_visitor%3A5",
-          "simMinute": 607.5,
-          "x": -357.09,
-          "z": 5.67,
-          "stopIdx": 4,
-          "stopKind": "fixture",
-          "fixtureId": "member_station",
-          "phase": "shopping",
-          "netYd": 0,
-          "spanWallS": 12.3,
-          "lx": 2.91,
-          "lz": 1.67
+          "netYd": 0.013,
+          "spanWallS": 12.1,
+          "lx": 3.26,
+          "lz": 1.78
         },
         {
           "id": "customer_12qcuao_visitor%3A3",
-          "simMinute": 620.8,
-          "x": -357.07,
-          "z": 6.34,
+          "simMinute": 621,
+          "x": -356.35,
+          "z": 6.22,
           "stopIdx": 5,
           "stopKind": "exit",
           "fixtureId": null,
           "phase": "leaving",
-          "netYd": 0.131,
-          "spanWallS": 12,
-          "lx": 2.93,
-          "lz": 2.34
+          "netYd": 0.042,
+          "spanWallS": 12.1,
+          "lx": 3.65,
+          "lz": 2.22
+        },
+        {
+          "id": "customer_12qcuao_visitor%3A5",
+          "simMinute": 624.9,
+          "x": -357.24,
+          "z": 6.15,
+          "stopIdx": 6,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "phase": "leaving",
+          "netYd": 0.084,
+          "spanWallS": 12.1,
+          "lx": 2.76,
+          "lz": 2.15
         }
       ],
-      "navBlocks": 505,
+      "navBlocks": 44,
       "transactions": 0
     }
   },
   "errs": [],
+  "ladder": [
+    0,
+    1,
+    2,
+    4
+  ],
   "ok": true
 }

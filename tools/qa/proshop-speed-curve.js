@@ -26,13 +26,28 @@ async (page) => {
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const SEED = Number(process.env.GREYBOX_SEED || 20260727);
   const VARIANT = String(process.env.GREYBOX_DAY_VARIANT || 'pine-hills-v2');
-  const SPEEDS = String(process.env.GREYBOX_SPEED_LIST || '16,4,1')
-    .split(',').map((value) => Number(value.trim())).filter((value) => [1, 4, 16].includes(value));
+  // Requested as MULTIPLIERS, resolved to indices against the live ladder — not
+  // against a hard-coded {1:1, 4:2, 16:3}, which is what this file had. The
+  // 2026-07-29 day-length change moved BALANCE.speeds from [0,1,4,16] to
+  // [0,1,2,4], and the hard-coded map silently made "run at 4x" mean index 2,
+  // which is now 2x. The harness would have reported the wrong rung's numbers
+  // under the right rung's name.
+  const SPEEDS = String(process.env.GREYBOX_SPEED_LIST || 'top,mid,1')
+    .split(',').map((value) => value.trim()).filter(Boolean);
   const WINDOW_GAME_MINUTES = Number(process.env.GREYBOX_WINDOW_MINUTES || 60);
   const FREEZE_WINDOW_WALL_S = 12;
   const FREEZE_EPSILON_YD = 0.15;
   const QUEUE_BOUND_WALL_MIN = 12;
-  const SPEED_IDX = { 1: 1, 4: 2, 16: 3 }; // BALANCE.speeds = [0, 1, 4, 16]
+  // Filled from the page once it boots, so it can never disagree with the ladder
+  // the game is actually running.
+  let LADDER = [0, 1, 2, 4];
+  const speedIndexFor = (token) => {
+    if (token === 'top') return LADDER.length - 1;
+    if (token === 'mid') return Math.max(1, LADDER.length - 2);
+    const wanted = Number(token);
+    const idx = LADDER.indexOf(wanted);
+    return idx > 0 ? idx : 1;
+  };
 
   const errs = [];
   page.on('pageerror', (e) => errs.push(`PAGEERROR: ${e.message}`));
@@ -211,12 +226,22 @@ async (page) => {
       navBlocks: diag.total - blocksBefore,
       transactions: state.shop?.transactionHistory?.length ?? null,
     };
-  }, [speed, SPEED_IDX[speed], WINDOW_GAME_MINUTES, FREEZE_WINDOW_WALL_S, FREEZE_EPSILON_YD, QUEUE_BOUND_WALL_MIN]);
+  }, [LADDER[speedIndexFor(speed)], speedIndexFor(speed), WINDOW_GAME_MINUTES,
+    FREEZE_WINDOW_WALL_S, FREEZE_EPSILON_YD, QUEUE_BOUND_WALL_MIN]);
 
   const legs = {};
+  // Read the live ladder before anything is labelled with it.
+  LADDER = await (async () => {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.readyState === 'complete');
+    return page.evaluate(async () => {
+      const B = await import('/src/sim/balance.js');
+      return B.BALANCE.speeds;
+    });
+  })();
   for (const speed of SPEEDS) {
     await boot();
-    legs[`x${speed}`] = await runLeg(speed);
+    legs[`x${LADDER[speedIndexFor(speed)]}`] = await runLeg(speed);
     await page.screenshot({ path: path.join(outDir, `speed-curve-x${speed}-end.png`) });
   }
 
@@ -241,8 +266,10 @@ async (page) => {
     },
     legs,
     errs: errs.slice(0, 16),
-    ok: SPEEDS.every((speed) => legs[`x${speed}`]?.customersTracked > 0
-      && Math.abs(legs[`x${speed}`].simMinutesRun - WINDOW_GAME_MINUTES) < WINDOW_GAME_MINUTES * 0.2)
+    ladder: LADDER,
+    ok: SPEEDS.every((speed) => legs[`x${LADDER[speedIndexFor(speed)]}`]?.customersTracked > 0
+      && Math.abs(legs[`x${LADDER[speedIndexFor(speed)]}`].simMinutesRun - WINDOW_GAME_MINUTES)
+        < WINDOW_GAME_MINUTES * 0.2)
       && errs.length === 0,
   };
   fs.writeFileSync(path.join(outDir, 'speed-curve.json'), `${JSON.stringify(result, null, 2)}\n`);

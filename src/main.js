@@ -2366,7 +2366,15 @@ function frame(ts) {
     // the pause menu and the golf-day presentation all move speedIdx from
     // different places and any one of them forgetting would put the shop back
     // where it was.
-    app.scene3d.clubhouse?.()?.setSimSpeed?.(speed || 1);
+    // The multiplier is the ratio of game time to wall time against the rate the
+    // NPC timings were authored at — NOT BALANCE.speeds alone. Using the speed
+    // index by itself was a latent bug: shortening the day by changing
+    // gameMinutesPerRealSecond would have sped the clock and left the shoppers
+    // wall-bound, which is SIM-TIME-001 arriving by the other door.
+    app.scene3d.clubhouse?.()?.setSimSpeed?.(
+      (speed || 1) * (BALANCE.gameMinutesPerRealSecond
+        / (BALANCE.npcTimingBaselineGameMinutesPerRealSecond || (1 / 30))),
+    );
     if (speed > 0) {
       const golfParties = app.state.golfDay?.parties || [];
       const nearbyShot = app.speedIdx === 1 && golfParties.find((party) => (
