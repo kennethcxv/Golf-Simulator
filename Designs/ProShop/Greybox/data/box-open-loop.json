@@ -1,0 +1,200 @@
+{
+  "atStart": [],
+  "surfaces": [
+    {
+      "id": "floor:clubhouse",
+      "kind": "floor",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:table_polos:top",
+      "kind": "fixture-surface",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m01:l01",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m01:l02",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m01:l03",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m01:l04",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m02:l01",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m02:l02",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m02:l03",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backshelf_e2:m02:l04",
+      "kind": "storage-shelf",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "station:packing:top",
+      "kind": "unpacking-station",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "fixture:backcounter:worktop:east",
+      "kind": "approved-counter",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "pallet:receiving:0",
+      "kind": "pallet",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "pallet:receiving:1",
+      "kind": "pallet",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "pallet:receiving:2",
+      "kind": "pallet",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "pallet:receiving:3",
+      "kind": "pallet",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "pallet:receiving:4",
+      "kind": "pallet",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_SOCKET_01",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_SOCKET_02",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_SOCKET_03",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_SOCKET_04",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_SOCKET_05",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_SOCKET_06",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_stocking_cart:STOCK_BOX_SOCKET_TOP",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    },
+    {
+      "id": "equipment:delivery_hand_truck:LOAD_ORIGIN",
+      "kind": "equipment-socket",
+      "placeBox": true,
+      "canUnpack": true,
+      "unpackPolicy": null
+    }
+  ],
+  "placeableButNotOpenable": [],
+  "delivery": {
+    "ok": true,
+    "orderLines": 2,
+    "orderSkuId": null,
+    "cartonsLanded": 3,
+    "skusLanded": [
+      "balls1",
+      "towel1"
+    ],
+    "whereItLanded": {
+      "loc": "pad",
+      "surfaceId": null
+    },
+    "openableWhereItLanded": true,
+    "openableOnSalesFloor": true,
+    "openableOnStockroomFloor": true,
+    "openableOnHandTruck": true
+  },
+  "ok": true
+}

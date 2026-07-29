@@ -75,6 +75,20 @@ const surface = (spec) => Object.freeze({
   ...spec,
 });
 
+// THE RULE, since 2026-07-29: if a box can rest here, it can be opened here.
+//
+// It used to be that seven of these surfaces accepted a carton and then refused
+// to let the player open it — including the two a delivery actually meets
+// first, the receiving pallet it lands on and the floor. The game invited the
+// action and then declined it, with nothing visible to distinguish a carton on
+// a pallet from the same carton on a bench, and the result was a core loop the
+// player could not enter. The old set was not even self-consistent: the
+// stocking cart's transport sockets opened boxes while the hand truck's
+// identical one did not.
+//
+// Restricting where a box opens is a workflow preference. Blocking the loop is
+// not a workflow preference. If a surface is stable enough to place a carton
+// on, it is stable enough to cut one open on.
 const floor = surface({
   id: FLOOR_BOX_SURFACE_ID,
   kind: 'floor',
@@ -84,7 +98,7 @@ const floor = surface({
   bounds: freezeBounds(-INTERIOR.w / 2, INTERIOR.w / 2, -INTERIOR.d / 2, INTERIOR.d / 2),
   maxHeight: SHELL.h,
   capacity: null,
-  unpackPolicy: 'stockroom-bounds',
+  capabilities: capabilities({ canUnpack: true }),
 });
 
 const apparelTable = surface({
@@ -172,6 +186,9 @@ const pallets = deliveryPalletCentres().map((centre) => surface({
   ),
   maxHeight: DELIVERY_PALLET_STAGING.maxStackTop - DELIVERY_PALLET_STAGING.height,
   capacity: DELIVERY_PALLET_STAGING.maxBoxesPerPallet,
+  // The pallet is where a delivery LANDS. It was the first surface the player
+  // met and the first one to refuse them.
+  capabilities: capabilities({ canUnpack: true }),
   palletIndex: centre.palletIndex,
 }));
 
@@ -219,9 +236,9 @@ const handTruckSurface = surface({
   ),
   maxHeight: HAND_TRUCK_BOX_SOCKET.maxH,
   capacity: 1,
-  // LOAD_ORIGIN is a transport socket, not a work surface. Move the carton
-  // onto an approved table, counter, shelf or station before opening it.
-  capabilities: capabilities({ canUnpack: false }),
+  // LOAD_ORIGIN is a transport socket — and so are the stocking cart's, which
+  // have always opened boxes. One rule now covers both.
+  capabilities: capabilities({ canUnpack: true }),
   equipmentId: HAND_TRUCK_EQUIPMENT_ID,
   socketId: HAND_TRUCK_BOX_SOCKET_ID,
   conflicts: HAND_TRUCK_BOX_SOCKET.conflicts,

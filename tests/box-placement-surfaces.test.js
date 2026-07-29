@@ -320,13 +320,33 @@ test('capabilities derive from the saved box surface without parallel state', ()
   })).canUnpack, true, 'the approved back-counter bay supports unpacking');
   assert.equal(boxPlacementCapabilities(state, carton(4, {
     loc: 'equipment', equipmentId: 'delivery_hand_truck', socketId: 'LOAD_ORIGIN',
-  })).canUnpack, false, 'the hand-truck socket is transport-only');
+  })).canUnpack, true, 'a transport socket opens boxes, exactly like the stocking cart');
   assert.equal(boxPlacementCapabilities(state, carton(5, {
     loc: 'world', surfaceId: FLOOR_BOX_SURFACE_ID, x: 8.65, z: -5.1, ry: 0,
-  })).canUnpack, true, 'stockroom floor retains the existing unpacking rule');
+  })).canUnpack, true, 'stockroom floor');
   assert.equal(boxPlacementCapabilities(state, carton(6, {
     loc: 'world', surfaceId: FLOOR_BOX_SURFACE_ID, x: 0, z: 2, ry: 0,
-  })).canUnpack, false);
+  })).canUnpack, true, 'and the sales floor — the invisible stockroom line is gone');
+});
+
+// The rule, as one assertion. Seven surfaces used to accept a carton and then
+// refuse to open it, including the receiving pallet a delivery lands on and the
+// floor — the two a player meets first. Nothing on screen distinguished them
+// from a bench, so the loop simply dead-ended.
+test('every surface that accepts a box also opens it', () => {
+  const refuses = BOX_PLACEMENT_SURFACE_TEMPLATES
+    .filter((t) => t.capabilities.placeBox && !t.capabilities.canUnpack)
+    .map((t) => t.id);
+  assert.deepEqual(refuses, [], 'a box that can be put down must be openable where it sits');
+});
+
+test('no surface carries a positional unpacking policy any more', () => {
+  // The floor used to open boxes only inside STOCKROOM.bounds: an invisible
+  // line across an unbroken floor, with the same carton and the same cutter
+  // working on one side of it and not the other.
+  for (const t of BOX_PLACEMENT_SURFACE_TEMPLATES) {
+    assert.equal(t.unpackPolicy, undefined, `${t.id} still has a positional unpack policy`);
+  }
 });
 
 test('legacy world boxes resolve to the identity floor surface and target snapping is explicit', () => {

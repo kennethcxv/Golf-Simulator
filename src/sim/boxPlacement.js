@@ -1460,15 +1460,11 @@ export function boxPlacementCapabilities(state, box, options = {}) {
   const surfaceId = surfaceIdForTarget(target);
   const surface = surfaceById(state, surfaceId, options);
   if (!surface) return { surfaceId, placeBox: false, pickUpBox: false, canUnpack: false };
-  let canUnpack = !!surface.capabilities.canUnpack;
-  if (surface.unpackPolicy === 'stockroom-bounds' && target.kind === 'surface') {
-    const pose = resolveSurfacePose(state, target, options);
-    canUnpack = !!pose.ok
-      && pose.pose.x >= STOCKROOM.bounds.minX
-      && pose.pose.x <= STOCKROOM.bounds.maxX
-      && pose.pose.z >= STOCKROOM.bounds.minZ
-      && pose.pose.z <= STOCKROOM.bounds.maxZ;
-  }
+  // No positional policy any more. The floor used to open boxes only inside
+  // STOCKROOM.bounds, which is an invisible line across an unbroken floor: the
+  // same carton, the same cutter, opens on one side of it and not the other.
+  // A surface's own capability is now the whole answer.
+  const canUnpack = !!surface.capabilities.canUnpack;
   return {
     surfaceId,
     placeBox: !!surface.capabilities.placeBox && surface.available,
