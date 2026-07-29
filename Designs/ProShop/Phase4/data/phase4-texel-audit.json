@@ -1,0 +1,435 @@
+{
+  "targets": [
+    {
+      "id": "west-wall-sage-band",
+      "cls": "standing",
+      "requiredTexelsPerYard": 384,
+      "resolved": true,
+      "camLocal": [
+        -1.3,
+        1.75,
+        3.4
+      ],
+      "driftYd": 0,
+      "attemptsUsed": 2,
+      "samples": 156,
+      "hit": [
+        "GREY_WestWall_SageBand"
+      ],
+      "tex": [
+        "V2Arch_sage_map 256x256"
+      ],
+      "distYd": 1.81,
+      "pixelsPerYardAtProbe": 325.8,
+      "texelsPerYard": 383.78,
+      "minMip": 0.03,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "west-wall-cream-field",
+      "cls": "background",
+      "requiredTexelsPerYard": 256,
+      "resolved": true,
+      "camLocal": [
+        -1.3,
+        1.75,
+        3.4
+      ],
+      "driftYd": 0,
+      "attemptsUsed": 2,
+      "samples": 169,
+      "hit": [
+        "GREY_WestWall_CreamField"
+      ],
+      "tex": [
+        "V2Arch_cream_map 256x256"
+      ],
+      "distYd": 1.35,
+      "pixelsPerYardAtProbe": 505.83,
+      "texelsPerYard": 255.98,
+      "minMip": -1.04,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "west-wall-chair-rail",
+      "cls": "hero",
+      "requiredTexelsPerYard": 768,
+      "resolved": true,
+      "camLocal": [
+        -1.3,
+        1.75,
+        3.4
+      ],
+      "driftYd": 0,
+      "attemptsUsed": 1,
+      "samples": 36,
+      "hit": [
+        "GREY_WestWall_ChairRail"
+      ],
+      "tex": [
+        "V2Arch_walnut_map 512x512"
+      ],
+      "distYd": 1.47,
+      "pixelsPerYardAtProbe": 444.8,
+      "texelsPerYard": 767.79,
+      "minMip": 0.77,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "west-wall-skirting",
+      "cls": "hero",
+      "requiredTexelsPerYard": 768,
+      "resolved": true,
+      "camLocal": [
+        -1.3,
+        1.75,
+        3.4
+      ],
+      "driftYd": 0,
+      "attemptsUsed": 1,
+      "samples": 24,
+      "hit": [
+        "GREY_WestWall_Skirting"
+      ],
+      "tex": [
+        "V2Arch_walnut_map 512x512"
+      ],
+      "distYd": 2.11,
+      "pixelsPerYardAtProbe": 293.37,
+      "texelsPerYard": 764.42,
+      "minMip": 0.77,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "north-wall-cream-field",
+      "cls": "background",
+      "requiredTexelsPerYard": 256,
+      "resolved": true,
+      "camLocal": [
+        1.67,
+        1.75,
+        -3.2
+      ],
+      "driftYd": 0.13,
+      "attemptsUsed": 1,
+      "samples": 273,
+      "hit": [
+        "GREY_NorthWall_CreamField"
+      ],
+      "tex": [
+        "V2Arch_cream_map 256x256"
+      ],
+      "distYd": 1.45,
+      "pixelsPerYardAtProbe": 472.99,
+      "texelsPerYard": 255.97,
+      "minMip": -0.94,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "north-wall-sage-band",
+      "cls": "standing",
+      "requiredTexelsPerYard": 384,
+      "resolved": true,
+      "camLocal": [
+        1.67,
+        1.75,
+        -3.2
+      ],
+      "driftYd": 0.13,
+      "attemptsUsed": 1,
+      "samples": 186,
+      "hit": [
+        "GREY_NorthWall_SageBand"
+      ],
+      "tex": [
+        "V2Arch_sage_map 256x256"
+      ],
+      "distYd": 1.83,
+      "pixelsPerYardAtProbe": 333.39,
+      "texelsPerYard": 383.54,
+      "minMip": 0.08,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "ceiling-lid",
+      "cls": "outofreach",
+      "requiredTexelsPerYard": 192,
+      "resolved": true,
+      "camLocal": [
+        1,
+        1.75,
+        0.44
+      ],
+      "driftYd": 0.04,
+      "attemptsUsed": 1,
+      "samples": 273,
+      "hit": [
+        "GREY_Ceiling"
+      ],
+      "tex": [
+        "V2Arch_ceilingPaint_map 256x256"
+      ],
+      "distYd": 1.07,
+      "pixelsPerYardAtProbe": 649.93,
+      "texelsPerYard": 191.99,
+      "minMip": -1.79,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "ceiling-beam-face",
+      "cls": "outofreach",
+      "requiredTexelsPerYard": 192,
+      "resolved": true,
+      "camLocal": [
+        1,
+        1.75,
+        1.05
+      ],
+      "driftYd": 0,
+      "attemptsUsed": 1,
+      "samples": 252,
+      "hit": [
+        "GREY_CeilingBeam_3"
+      ],
+      "tex": [
+        "V2Arch_walnutDark_map 512x512"
+      ],
+      "distYd": 1.05,
+      "pixelsPerYardAtProbe": 595.56,
+      "texelsPerYard": 191.93,
+      "minMip": -1.76,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "corridor-seal-field",
+      "cls": "background",
+      "requiredTexelsPerYard": 256,
+      "resolved": true,
+      "camLocal": [
+        5.1,
+        1.75,
+        2.5
+      ],
+      "driftYd": 0.38,
+      "attemptsUsed": 1,
+      "samples": 273,
+      "hit": [
+        "GREY_CorridorSeal_CreamField"
+      ],
+      "tex": [
+        "V2Arch_cream_map 256x256"
+      ],
+      "distYd": 0.58,
+      "pixelsPerYardAtProbe": 1112.51,
+      "texelsPerYard": 255.88,
+      "minMip": -2.25,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    },
+    {
+      "id": "west-seal-fillet",
+      "cls": "hero",
+      "requiredTexelsPerYard": 768,
+      "resolved": true,
+      "camLocal": [
+        3,
+        1.75,
+        4.55
+      ],
+      "driftYd": 0.54,
+      "attemptsUsed": 8,
+      "samples": 27,
+      "hit": [
+        "GREY_HutchEastFill"
+      ],
+      "tex": [
+        "V2Arch_walnut_map 512x512"
+      ],
+      "distYd": 2.68,
+      "pixelsPerYardAtProbe": 259.2,
+      "texelsPerYard": 767.76,
+      "minMip": 1.53,
+      "meetsRequirement": true,
+      "withinTwiceRequirement": true
+    }
+  ],
+  "textureSources": {
+    "count": 138,
+    "residentMBRGBA8WithMips": 109.92,
+    "architecture": {
+      "count": 15,
+      "residentMB": 10.67,
+      "oversize": [],
+      "sizes": [
+        {
+          "name": "V2Arch_walnut_map",
+          "size": "512x512",
+          "uses": 9
+        },
+        {
+          "name": "V2Arch_walnut_normal",
+          "size": "512x512",
+          "uses": 9
+        },
+        {
+          "name": "V2Arch_walnut_rough",
+          "size": "512x512",
+          "uses": 9
+        },
+        {
+          "name": "V2Arch_walnutDark_map",
+          "size": "512x512",
+          "uses": 4
+        },
+        {
+          "name": "V2Arch_walnutDark_normal",
+          "size": "512x512",
+          "uses": 4
+        },
+        {
+          "name": "V2Arch_walnutDark_rough",
+          "size": "512x512",
+          "uses": 4
+        },
+        {
+          "name": "V2Arch_sage_map",
+          "size": "256x256",
+          "uses": 3
+        },
+        {
+          "name": "V2Arch_sage_normal",
+          "size": "256x256",
+          "uses": 3
+        },
+        {
+          "name": "V2Arch_sage_rough",
+          "size": "256x256",
+          "uses": 3
+        },
+        {
+          "name": "V2Arch_cream_map",
+          "size": "256x256",
+          "uses": 3
+        },
+        {
+          "name": "V2Arch_cream_normal",
+          "size": "256x256",
+          "uses": 3
+        },
+        {
+          "name": "V2Arch_cream_rough",
+          "size": "256x256",
+          "uses": 3
+        },
+        {
+          "name": "V2Arch_ceilingPaint_map",
+          "size": "256x256",
+          "uses": 1
+        },
+        {
+          "name": "V2Arch_ceilingPaint_rough",
+          "size": "256x256",
+          "uses": 1
+        },
+        {
+          "name": "V2Arch_neutralDirtMask",
+          "size": "1x1",
+          "uses": 20
+        }
+      ]
+    },
+    "inherited": {
+      "count": 123,
+      "residentMB": 99.25,
+      "oversize": [
+        {
+          "name": "(unnamed)",
+          "size": "1536x1024",
+          "uses": 1
+        },
+        {
+          "name": "OakSlat",
+          "size": "1024x1024",
+          "uses": 31
+        },
+        {
+          "name": "(unnamed)",
+          "size": "1024x640",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "1024x640",
+          "uses": 1
+        },
+        {
+          "name": "KitWalnut",
+          "size": "1024x512",
+          "uses": 25
+        },
+        {
+          "name": "(unnamed)",
+          "size": "640x760",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "512x640",
+          "uses": 1
+        },
+        {
+          "name": "PineHillsPackageLabel_balls1",
+          "size": "640x448",
+          "uses": 1
+        },
+        {
+          "name": "PineHillsPackageLabel_balls2",
+          "size": "640x448",
+          "uses": 1
+        },
+        {
+          "name": "PineHillsPackageLabel_balls3",
+          "size": "640x448",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "600x400",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "1024x160",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "640x240",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "1024x96",
+          "uses": 1
+        },
+        {
+          "name": "(unnamed)",
+          "size": "1024x96",
+          "uses": 1
+        }
+      ]
+    }
+  },
+  "errs": [],
+  "notes": [],
+  "failures": [],
+  "ok": true
+}

@@ -378,20 +378,28 @@ export function createPineHillsV2Interior({
       const sizes = (h, extra) => (axis === 'x'
         ? [thickness + extra, h, runLength]
         : [runLength, h, thickness + extra]);
-      const piece = (material, h, yCenter, extra = 0) => {
+      // Every band is named: a texel or material probe that reports
+      // "(unnamed)" cannot tell the reader which surface it measured, and
+      // §7.3's gate is explicitly "read the hit field".
+      const piece = (suffix, material, h, yCenter, extra = 0) => {
         const mesh = withUv1(new THREE.Mesh(box(...sizes(h, extra)), material));
+        mesh.name = `${name}_${suffix}`;
         mesh.position.set(0, yCenter, 0);
         mesh.receiveShadow = true;
         wall.add(mesh);
         return mesh;
       };
-      piece(archMaterials.surface('sage', runLength, RAIL_TOP), RAIL_TOP, RAIL_TOP / 2);
+      // §7.3 classes: the panelling below the rail is reached at standing
+      // distance; the field above it is background; rail and skirting are
+      // trim at arm's length and take the hero requirement.
+      piece('SageBand', archMaterials.surface('sage', runLength, RAIL_TOP, { cls: 'standing' }), RAIL_TOP, RAIL_TOP / 2);
       piece(
-        archMaterials.surface('cream', runLength, CEILING_Y - RAIL_TOP),
+        'CreamField',
+        archMaterials.surface('cream', runLength, CEILING_Y - RAIL_TOP, { cls: 'background' }),
         CEILING_Y - RAIL_TOP, RAIL_TOP + (CEILING_Y - RAIL_TOP) / 2,
       );
-      piece(archMaterials.surface('walnut', runLength, RAIL_H), RAIL_H, RAIL_TOP + RAIL_H / 2, 0.04);
-      piece(archMaterials.surface('walnut', runLength, SKIRT_H), SKIRT_H, SKIRT_H / 2, 0.03);
+      piece('ChairRail', archMaterials.surface('walnut', runLength, RAIL_H, { cls: 'hero' }), RAIL_H, RAIL_TOP + RAIL_H / 2, 0.04);
+      piece('Skirting', archMaterials.surface('walnut', runLength, SKIRT_H, { cls: 'hero' }), SKIRT_H, SKIRT_H / 2, 0.03);
       wall.position.set(centerX, 0, centerZ);
       return wall;
     };
@@ -419,7 +427,7 @@ export function createPineHillsV2Interior({
         'ceilingPaint',
         envelope.maxX - envelope.minX,
         envelope.maxZ - envelope.minZ,
-        { emissive: 0xfff2dc, emissiveIntensity: 0.06 },
+        { cls: 'outofreach', emissive: 0xfff2dc, emissiveIntensity: 0.06 },
       ),
     ));
     ceilingLid.name = 'GREY_Ceiling';
@@ -429,7 +437,11 @@ export function createPineHillsV2Interior({
     ceilingLid.receiveShadow = true;
     archRoot.add(westWall, northWall, ceilingLid);
     const beams = PINE_HILLS_V2_LAYOUT.beams;
-    const beamMaterial = archMaterials.surface('walnutDark', envelope.maxX - envelope.minX, 0.5);
+    // The beam presents an 8.30 × 0.22 face; the requirement-solved repeat is
+    // what keeps that thin face off 1,400 texels/yd (see materials.js).
+    const beamMaterial = archMaterials.surface(
+      'walnutDark', envelope.maxX - envelope.minX, beams.width, { cls: 'outofreach' },
+    );
     beams.zStations.forEach((zStation, index) => {
       const beam = new THREE.Mesh(
         box(envelope.maxX - envelope.minX, beams.depth, beams.width), beamMaterial,
@@ -464,9 +476,16 @@ export function createPineHillsV2Interior({
       ['GREY_HutchGapFill', westSeal.hutchGapFill],
       ['GREY_HutchEastFill', westSeal.hutchEastFill],
     ]) {
+      // Size the repeat to the LARGEST face the piece presents, not to its x
+      // extent: the hutch-east sliver is 0.20 wide by 0.60 deep and the
+      // corridor sees its depth face, so keying off the width under-supplied
+      // that face by 3x (measured 443 texels/yd — exactly sqrt(256 x 768),
+      // the geometric mean of a mismatched axis pair).
+      const fillW = rect.maxX - rect.minX;
+      const fillD = rect.maxZ - rect.minZ;
       const fill = withUv1(new THREE.Mesh(
-        box(rect.maxX - rect.minX, 2.20, rect.maxZ - rect.minZ),
-        archMaterials.surface('walnut', rect.maxX - rect.minX, 2.20),
+        box(fillW, 2.20, fillD),
+        archMaterials.surface('walnut', Math.max(fillW, fillD), 2.20, { cls: 'hero' }),
       ));
       fill.name = name;
       fill.position.set(

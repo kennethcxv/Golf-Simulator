@@ -828,17 +828,16 @@ export function makeClubhouseMaterials(clubName) {
 // Roughness ranges follow §7.2; everything is dielectric. Only the v2
 // interior module calls this, so v1 never pays for the canvases.
 export function makeV2ArchitectureMaterials() {
-  // family -> { canvas, roughness lo/hi, tile (yd per repeat), normal strength/scale }
-  // Tiles hold §7.3 texel classes: 256² canvases at 0.33–1.33 yd, 512² walnut
-  // at 0.60 — every surface supplies at or above its class requirement without
-  // exceeding 2× (the same probe that measures the room verifies this).
+  // family -> { canvas, roughness lo/hi, normal strength/scale }
   const families = {
-    cream: { canvas: makePlasterCreamTexture({ base: '#e8dfc9' }).image, lo: 0.85, hi: 0.96, tile: 0.67, normal: 1.0, ns: 0.4 },
-    sage: { canvas: makePaintTexture({ seed: 21, base: '#9fb09a', grain: 0.05 }), lo: 0.60, hi: 0.80, tile: 0.33, normal: 0.8, ns: 0.3 },
-    ceilingPaint: { canvas: makePaintTexture({ seed: 22, base: '#e8dfc9', grain: 0.03 }), lo: 0.88, hi: 0.98, tile: 1.33, normal: 0, ns: 0 },
-    walnut: { canvas: makeWalnutTexture({ seed: 63, base: '#6b4a2f', hi: '#7d5a3a', lo: '#583c25' }).image, lo: 0.55, hi: 0.70, tile: 0.60, normal: 1.8, ns: 0.55 },
-    walnutDark: { canvas: makeWalnutTexture({ seed: 64, base: '#3e2a1b', hi: '#4c3826', lo: '#2d2014' }).image, lo: 0.55, hi: 0.70, tile: 0.60, normal: 1.8, ns: 0.55 },
+    cream: { canvas: makePlasterCreamTexture({ base: '#e8dfc9' }).image, lo: 0.85, hi: 0.96, normal: 1.0, ns: 0.4 },
+    sage: { canvas: makePaintTexture({ seed: 21, base: '#9fb09a', grain: 0.05 }), lo: 0.60, hi: 0.80, normal: 0.8, ns: 0.3 },
+    ceilingPaint: { canvas: makePaintTexture({ seed: 22, base: '#e8dfc9', grain: 0.03 }), lo: 0.88, hi: 0.98, normal: 0, ns: 0 },
+    walnut: { canvas: makeWalnutTexture({ seed: 63, base: '#6b4a2f', hi: '#7d5a3a', lo: '#583c25' }).image, lo: 0.55, hi: 0.70, normal: 1.8, ns: 0.55 },
+    walnutDark: { canvas: makeWalnutTexture({ seed: 64, base: '#3e2a1b', hi: '#4c3826', lo: '#2d2014' }).image, lo: 0.55, hi: 0.70, normal: 1.8, ns: 0.55 },
   };
+  // ART_BIBLE §7.3 class requirements, in texels per yard.
+  const TEXEL_CLASS = { hero: 768, standing: 384, background: 256, outofreach: 192 };
   // Derived maps are built ONCE per family; per-surface clones share the GPU
   // upload (three keys uploads on Source, and repeat is a shader uniform).
   const familyMaps = new Map();
@@ -850,7 +849,13 @@ export function makeV2ArchitectureMaterials() {
       rough: roughnessFrom(f.canvas, f.lo, f.hi),
       normal: f.normal ? normalFrom(f.canvas, f.normal) : null,
     };
-    for (const tex of Object.values(maps)) if (tex) ownedTextures.push(tex);
+    // Named so a texel/material probe reports which map it sampled rather
+    // than "(unnamed)" — the same evidence discipline as the mesh names.
+    for (const [slot, tex] of Object.entries(maps)) {
+      if (!tex) continue;
+      tex.name = `V2Arch_${name}_${slot}`;
+      ownedTextures.push(tex);
+    }
     familyMaps.set(name, maps);
     return maps;
   };
@@ -861,17 +866,28 @@ export function makeV2ArchitectureMaterials() {
   neutralContext.fillStyle = '#ffffff';
   neutralContext.fillRect(0, 0, 1, 1);
   const neutralMask = new THREE.CanvasTexture(neutralCanvas);
+  neutralMask.name = 'V2Arch_neutralDirtMask';
   const materials = [];
   const ownedTextures = [neutralMask];
-  // spanX/spanY in yards along the surface's own UV axes; repeats derive from
-  // the family tile so texel density is a property of the surface, not a
-  // hand-set constant. Thin runs (rails, skirting) keep one repeat across so
-  // grain runs along the length.
-  const surface = (name, spanX, spanY, { emissive = null, emissiveIntensity = 0 } = {}) => {
+  // spanX/spanY are the surface's real extent in yards along its own UV axes.
+  // Repeats are SOLVED from the §7.3 class requirement rather than set by
+  // hand: repeat = required × span / mapSize supplies exactly `required`
+  // texels per yard on that axis, whatever the span. Repeats are deliberately
+  // fractional — a box face maps the whole 0–1 UV across its own extent, so a
+  // 0.22-yd beam face at repeat 1 would supply 2,300 texels/yd (measured:
+  // 1,417 against a 192 requirement, the first texel audit's headline
+  // finding). Fractional repeats are the only way a thin face lands on its
+  // class, and on noise-like procedural maps the partial tile is invisible.
+  const surface = (name, spanX, spanY, {
+    cls = 'standing', emissive = null, emissiveIntensity = 0,
+  } = {}) => {
     const f = families[name];
     const maps = mapsFor(name);
-    const rx = Math.max(1, Math.round(spanX / f.tile));
-    const ry = Math.max(1, Math.round(spanY / f.tile));
+    const required = TEXEL_CLASS[cls] || TEXEL_CLASS.standing;
+    const mapW = f.canvas.width;
+    const mapH = f.canvas.height;
+    const rx = (required * spanX) / mapW;
+    const ry = (required * spanY) / mapH;
     const cloneMap = (tex) => {
       const c = tex.clone();
       c.repeat.set(rx, ry);
