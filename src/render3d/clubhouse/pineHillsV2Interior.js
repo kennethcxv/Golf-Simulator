@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 
 import {
-  CLUBHOUSE_CEILING_PANELS,
+  CEILING_PANEL_RIG,
   PINE_HILLS_V2_LAYOUT,
   COUNTER_TOP,
   FRONT_DESK_BACKDROP,
@@ -603,8 +603,19 @@ export function createPineHillsV2Interior({
     });
   }
 
-  for (const panel of CLUBHOUSE_CEILING_PANELS.filter(({ id }) => id === 'panel-03' || id === 'panel-07')) {
-    const targetId = `ceiling:${panel.id}`;
+  // The repairable panels, at the v2 rig's own stations. `simId` is the
+  // sim/save key — the only two repair targets that exist are
+  // ceiling:panel-02 (flicker) and ceiling:panel-07 (dead), and in v2 the
+  // flicker panel renders at the old panel-03 station (shopLayout's
+  // CEILING_PANEL_RIG). The previous code here targeted ceiling:panel-03,
+  // which matches NO sim target (LIGHT_TARGET_TO_PANEL), so the flicker beat
+  // was unrepairable in this room.
+  const PANEL_FAULT_LABELS = {
+    'panel-02': 'Flickering ceiling panel',
+    'panel-07': 'Dead ceiling panel',
+  };
+  for (const panel of CEILING_PANEL_RIG.panels.filter(({ simId }) => PANEL_FAULT_LABELS[simId])) {
+    const targetId = `ceiling:${panel.simId}`;
     addInteraction({
       x: panel.x,
       z: panel.z,
@@ -614,8 +625,8 @@ export function createPineHillsV2Interior({
         const snapshot = restorationSnapshot(state);
         if (snapshot?.targetProgress[targetId] >= 1) return null;
         return repairKitAvailable(state)
-          ? `${panel.id.toUpperCase()} — [E] repair with clubhouse kit`
-          : `${panel.id.toUpperCase()} — repair kit required`;
+          ? `${PANEL_FAULT_LABELS[panel.simId]} — [E] repair with clubhouse kit`
+          : `${PANEL_FAULT_LABELS[panel.simId]} — repair kit required`;
       },
       action: () => {
         if (!repairKitAvailable(state)) {

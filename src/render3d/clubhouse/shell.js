@@ -9,8 +9,8 @@ import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import {
   SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
-  PARTITIONS, STOCKROOM, HOURS_SIGN, CLUBHOUSE_CEILING_PANELS, FRONT_DESK,
-  shopLightingTier,
+  PARTITIONS, STOCKROOM, HOURS_SIGN, CEILING_PANEL_RIG, SHELL_LIGHT_PLACEMENTS,
+  FRONT_DESK, shopLightingTier,
 } from '../../data/shopLayout.js';
 import { roundedBox, makeSignTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
 import { shopTierIndex } from '../../sim/shopProgression.js';
@@ -894,7 +894,7 @@ export function buildShell(B) {
   // pulled a body-length into the room with short throw — point lights don't
   // shadow, so anything nearer the wall bleeds onto the exterior siding.
   const fills = [];
-  for (const [fx, fz] of [[-6.6, 3.4], [3.0, -4.0], [8.3, 4.2]]) {
+  for (const [fx, fz] of SHELL_LIGHT_PLACEMENTS.daylightFills) {
     const f = new THREE.PointLight(0xeaf2ff, 0, 5.5, 2.0);
     f.position.set(fx, 2.2, fz);
     interior.add(f);
@@ -911,13 +911,18 @@ export function buildShell(B) {
   panelRig.userData.sharedUniformOwner = 'RectAreaLightUniformsLib';
   interior.add(panelRig);
   const panelEntries = [];
-  for (const panel of CLUBHOUSE_CEILING_PANELS) {
+  // The rig hangs from the variant's ceiling — the v1 shell plane (SHELL.h,
+  // so v1 output is unchanged) or the v2 greybox lid at 2.80. Panel rows carry
+  // `simId`: the save/sim key their fault state, flicker and repair semantics
+  // run on; in v1 it always equals the position id.
+  const PANEL_RIG_Y = CEILING_PANEL_RIG.y;
+  for (const panel of CEILING_PANEL_RIG.panels) {
     const housing = new THREE.Mesh(
       roundedBox(panel.w + 0.11, 0.055, panel.d + 0.11, 0.025),
       new THREE.MeshStandardMaterial({ color: 0x7b6855, roughness: 0.72 }),
     );
     housing.name = `CeilingPanelHousing_${panel.id}`;
-    housing.position.set(panel.x, CEIL_Y - 0.025, panel.z);
+    housing.position.set(panel.x, PANEL_RIG_Y - 0.025, panel.z);
     panelRig.add(housing);
     const faceMaterial = new THREE.MeshStandardMaterial({
       color: 0xfff2dc,
@@ -927,7 +932,7 @@ export function buildShell(B) {
     });
     const face = new THREE.Mesh(new THREE.BoxGeometry(panel.w, 0.025, panel.d), faceMaterial);
     face.name = `CeilingPanelFace_${panel.id}`;
-    face.position.set(panel.x, CEIL_Y - 0.063, panel.z);
+    face.position.set(panel.x, PANEL_RIG_Y - 0.063, panel.z);
     panelRig.add(face);
     const light = new THREE.RectAreaLight(
       PINE_HILLS_CEILING_PANEL_LIGHTING.color,
@@ -936,7 +941,7 @@ export function buildShell(B) {
       panel.d * PINE_HILLS_CEILING_PANEL_LIGHTING.heightScale,
     );
     light.name = `CeilingPanelLight_${panel.id}`;
-    light.position.set(panel.x, CEIL_Y - 0.09, panel.z);
+    light.position.set(panel.x, PANEL_RIG_Y - 0.09, panel.z);
     light.rotation.x = -Math.PI / 2;
     light.castShadow = false;
     light.userData.lightingBackend = PINE_HILLS_CEILING_PANEL_LIGHTING.backend;
@@ -958,7 +963,7 @@ export function buildShell(B) {
   // Reception and retail each receive one modest, non-shadowed warm accent.
   const accentEntries = [
     { id: 'reception', x: FRONT_DESK.logoBackdrop.x + 0.2, z: FRONT_DESK.logoBackdrop.z + 0.8, base: 7.6 },
-    { id: 'retail', x: -7.8, z: -1.25, base: 7.2 },
+    { id: 'retail', x: SHELL_LIGHT_PLACEMENTS.retailAccent.x, z: SHELL_LIGHT_PLACEMENTS.retailAccent.z, base: 7.2 },
   ].map((accent) => {
     const light = new THREE.PointLight(0xffcf9b, 0, 5.8, 2.0);
     light.name = `PineHillsAccent_${accent.id}`;
@@ -1063,7 +1068,7 @@ export function buildShell(B) {
     const panelScale = (0.92 + 0.20 * (1 - moodDayF))
       * panelFinishScale * tierProfile.practicalScale;
     for (const panel of panelEntries) {
-      const stateNow = panelState(panel.id);
+      const stateNow = panelState(panel.simId);
       const on = ceilingCircuitPowered && stateNow !== 'dead';
       panel.light.visible = on;
       panel.light.intensity = on ? panel.base * panelScale : 0;
@@ -1140,7 +1145,7 @@ export function buildShell(B) {
       if (!ceilingCircuitPowered) return;
       if (panelState('panel-02') !== 'flicker') return;
       flickT += dt;
-      const p = panelEntries.find((panel) => panel.id === 'panel-02');
+      const p = panelEntries.find((panel) => panel.simId === 'panel-02');
       if (!p) return;
       const drop = Math.sin(flickT * 13.1) * Math.sin(flickT * 4.7 + 2.1) < -0.55;
       const scale = (0.92 + 0.20 * (1 - moodDayF)) * tierProfile.practicalScale;

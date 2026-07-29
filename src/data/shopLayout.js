@@ -585,6 +585,65 @@ export const CLUBHOUSE_CEILING_PANELS = Object.freeze([
   Object.freeze({ id: 'panel-08', x: 3.7, z: 2.65, w: 2.45, d: 0.68 }),
 ]);
 
+// THE V2 CEILING RIG (Phase 4). Only four of the eight authored panel stations
+// fall inside the v2 public envelope — 01/02/05/06 sit at x −7.5 / −4.1,
+// west of the resized wall, in sealed cavity — and the v1 rig hangs at the
+// 3.2-yd shell ceiling, ABOVE the v2 lid at 2.80. The greybox room was
+// receiving all of its light through an opaque ceiling from fixtures the
+// player can never see. The v2 rig hangs the four in-envelope stations from
+// the v2 lid instead.
+//
+// `id` is the POSITION key (mesh names, render budget, diagnostics); `simId`
+// is the SAVE/SIM key (fault state, flicker, repair target). They differ in
+// exactly one row: the sim's flickering panel is panel-02, whose authored
+// station is cavity-side in v2, so its state drives the in-envelope panel-03
+// station — the campaign's flicker beat stays visible and repairable without
+// touching the sim's target table or the save shape (both are pinned by
+// hasExactKeys in clubhouseRestoration.js).
+export const PINE_HILLS_V2_CEILING_RIG = Object.freeze({
+  y: PINE_HILLS_V2_LAYOUT.ceilingY,
+  panels: Object.freeze([
+    Object.freeze({ id: 'panel-03', simId: 'panel-02', x: -0.2, z: -2.55, w: 2.45, d: 0.68 }),
+    Object.freeze({ id: 'panel-04', simId: 'panel-04', x: 3.7, z: -2.55, w: 2.45, d: 0.68 }),
+    Object.freeze({ id: 'panel-07', simId: 'panel-07', x: -0.2, z: 2.65, w: 2.45, d: 0.68 }),
+    Object.freeze({ id: 'panel-08', simId: 'panel-08', x: 3.7, z: 2.65, w: 2.45, d: 0.68 }),
+  ]),
+});
+
+export const CEILING_PANEL_RIG = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? PINE_HILLS_V2_CEILING_RIG
+  : Object.freeze({
+    y: SHELL.h,
+    panels: Object.freeze(CLUBHOUSE_CEILING_PANELS.map(
+      (panel) => Object.freeze({ ...panel, simId: panel.id }),
+    )),
+  });
+
+// Variant-resolved shell light placements (Phase 4). v2 drops the two
+// placements the resize orphaned — the west daylight fill sits in sealed
+// cavity and the (3.0, −4.0) fill fakes the north window that is now walled
+// off — keeps the office fill (the service wing keeps its real east window),
+// adds a door-glazing fill at the one aperture the public room still has, and
+// moves the retail accent from the cavity onto the west retail run.
+export const PINE_HILLS_V2_SHELL_LIGHTS = Object.freeze({
+  daylightFills: Object.freeze([
+    Object.freeze([-0.8, 4.35]),
+    Object.freeze([8.3, 4.2]),
+  ]),
+  retailAccent: Object.freeze({ x: -2.0, z: -0.55 }),
+});
+
+export const SHELL_LIGHT_PLACEMENTS = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
+  ? PINE_HILLS_V2_SHELL_LIGHTS
+  : Object.freeze({
+    daylightFills: Object.freeze([
+      Object.freeze([-6.6, 3.4]),
+      Object.freeze([3.0, -4.0]),
+      Object.freeze([8.3, 4.2]),
+    ]),
+    retailAccent: Object.freeze({ x: -7.8, z: -1.25 }),
+  });
+
 // Exact Blender-to-layout datums for the two-piece 4.20 m reception shell.
 // Asset 61 contributes 2.93 m; the supplemental module contributes 1.27 m
 // plus the staff return. Both remain at authored scale and meet at one seam.

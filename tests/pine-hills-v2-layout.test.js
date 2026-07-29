@@ -17,6 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BACKDOOR_CLEARWAY,
+  CEILING_PANEL_RIG,
   CLUBHOUSE_CEILING_PANELS,
   CLUBHOUSE_LAYOUT_VARIANT,
   DOOR_CLEARWAY,
@@ -26,10 +27,13 @@ import {
   LOUNGE,
   MODERN_PUBLIC_INTERIOR,
   PARTITIONS,
+  PINE_HILLS_V2_CEILING_RIG,
   PINE_HILLS_V2_LAYOUT,
+  PINE_HILLS_V2_SHELL_LIGHTS,
   PLAYER_DIAM,
   PUBLIC_ROOM_BOUNDS,
   SHELL,
+  SHELL_LIGHT_PLACEMENTS,
   STAFF_CORRIDOR_MIN,
   deriveFrontDeskFrame,
   pineHillsV2QueueSlot,
@@ -494,6 +498,63 @@ test('the greybox ceiling repair pair sits inside the envelope', () => {
   }
   const orphan = CLUBHOUSE_CEILING_PANELS.find((entry) => entry.id === 'panel-02');
   assert.ok(orphan.x < B.minX, 'panel-02 is cavity-side — the module must not expose it');
+});
+
+test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside the envelope', () => {
+  const rig = PINE_HILLS_V2_CEILING_RIG;
+  assert.equal(rig.y, L.ceilingY, 'the rig hangs from the v2 lid');
+  assert.equal(rig.panels.length, 4, 'exactly the four in-envelope stations');
+  const simIds = rig.panels.map((panel) => panel.simId);
+  assert.equal(new Set(simIds).size, 4, 'sim keys are unique');
+  // Both authored faults must be visible and repairable in the room: the
+  // sim's flicker panel (panel-02, cavity station in v2) drives the
+  // in-envelope panel-03 station; the dead panel-07 sits at its own station.
+  assert.ok(simIds.includes('panel-02'), 'the flicker beat is in-envelope');
+  assert.ok(simIds.includes('panel-07'), 'the dead-panel beat is in-envelope');
+  for (const panel of rig.panels) {
+    assert.ok(panel.x - panel.w / 2 >= B.minX && panel.x + panel.w / 2 <= B.maxX
+      && panel.z - panel.d / 2 >= B.minZ && panel.z + panel.d / 2 <= B.maxZ,
+    `${panel.id} face inside the public envelope`);
+    for (const station of L.beams.zStations) {
+      assert.ok(Math.abs(panel.z - station) >= panel.d / 2 + L.beams.width / 2,
+        `${panel.id} clears the beam at z ${station}`);
+    }
+  }
+});
+
+test('phase 4: v2 shell light placements are in-building and the cavity leaks are gone', () => {
+  for (const [fx, fz] of PINE_HILLS_V2_SHELL_LIGHTS.daylightFills) {
+    // Either inside the public envelope or in the service wing (the office
+    // keeps its real east window); never west of the new wall.
+    assert.ok(fx >= B.minX, `fill (${fx}, ${fz}) sits in sealed cavity`);
+    assert.ok(fz >= B.minZ && fz <= SHELL.d, `fill (${fx}, ${fz}) outside the building band`);
+  }
+  const accent = PINE_HILLS_V2_SHELL_LIGHTS.retailAccent;
+  assert.ok(inBounds(accent, B), 'retail accent inside the public envelope');
+});
+
+test('phase 4 seam guard: under Node the rig and placements resolve to the v1 values', () => {
+  // The suite runs with the variant OFF — these pin v1 byte-identity.
+  assert.equal(CLUBHOUSE_LAYOUT_VARIANT, null);
+  assert.equal(CEILING_PANEL_RIG.y, SHELL.h);
+  assert.equal(CEILING_PANEL_RIG.panels.length, CLUBHOUSE_CEILING_PANELS.length);
+  for (const [index, panel] of CEILING_PANEL_RIG.panels.entries()) {
+    const authored = CLUBHOUSE_CEILING_PANELS[index];
+    assert.equal(panel.id, authored.id);
+    assert.equal(panel.simId, authored.id, 'v1 sim key === position key');
+    assert.equal(panel.x, authored.x);
+    assert.equal(panel.z, authored.z);
+  }
+  assert.deepEqual(
+    SHELL_LIGHT_PLACEMENTS.daylightFills.map((fill) => [...fill]),
+    [[-6.6, 3.4], [3.0, -4.0], [8.3, 4.2]],
+    'the v1 daylight fills are untouched',
+  );
+  assert.deepEqual(
+    { ...SHELL_LIGHT_PLACEMENTS.retailAccent },
+    { x: -7.8, z: -1.25 },
+    'the v1 retail accent is untouched',
+  );
 });
 
 test('the west door clearway margin holds against the new wall', () => {
