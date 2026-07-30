@@ -314,6 +314,9 @@ export function makeFpHands() {
   let show = 0; // 0..1, hands rising into frame
   let recoil = 0; // 0..1, decays
   let breathe = 0;
+  // Phase 6: a full-arm rig (the broom's viewmodel) replaces the short stub
+  // forearm + cuff; while it owns the frame the stubs stay hidden.
+  let armStubsSuppressed = false;
 
   // What the held RIG should do because of the trigger. The caller owns heldRoot; writing recoil
   // here would slide the hands along the tool they are gripping.
@@ -367,9 +370,19 @@ export function makeFpHands() {
       const g = GRIPS[tool];
       pose = g;
       root.scale.setScalar(g.handScale || 1);
-      right.forearm.visible = true;
-      right.sleeve.visible = true;
+      right.forearm.visible = !armStubsSuppressed;
+      right.sleeve.visible = !armStubsSuppressed;
       applyGrips(authored, true);
+    },
+
+    // Phase 6: hide/show the stub forearms + cuffs on BOTH hands while a
+    // full-arm viewmodel rig owns them.
+    setArmStubsVisible(on) {
+      armStubsSuppressed = !on;
+      for (const hand of [right, left]) {
+        hand.forearm.visible = !!on;
+        hand.sleeve.visible = !!on;
+      }
     },
 
     // Authored equip/work clips animate the socket hierarchy after the tool is equipped. Keep

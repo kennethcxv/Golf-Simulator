@@ -86,6 +86,8 @@ import {
 import { floraWindEligible, floraWindStrength } from './floraWind.js';
 import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
+import { createBroomViewmodel } from './broomViewmodel.js';
+import { BROOM_FEEL } from '../data/broomFeel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 import { GOLF_CART_TIERS, golfCartTier } from '../data/golfCarts.js';
 import { CLUBHOUSE_VARIANT_REQUEST, DOOR_MAIN, SHELL } from '../data/shopLayout.js';
@@ -6464,6 +6466,62 @@ export function makeCourseScene(canvas, state) {
     group.userData.cleaningRestRotationZ = group.rotation.z;
     group.userData.cleaningToolId = id;
   }
+
+  // PHASE 6 — the broom renders through its own viewmodel rig: real arms, its
+  // own lens on layer BROOM_FEEL.camera.layer, a pitch-following head planted
+  // on the boards, and a collider clamp so bristles stop AT furniture faces.
+  // The other cleaning tools stay on the legacy floor-anchored path until the
+  // broom is approved as the standard they copy.
+  //
+  // The clamp asks the same AABB/circle sets the player walks against, and
+  // reports which face said no so the head can tilt to the surface it is
+  // actually working. Water and golfers are omitted on purpose: a broom head
+  // does not collide with a pond edge or a person the way a walking body does.
+  function broomColliderQuery(x, z, r) {
+    for (const group of [structColliders, propColliders]) {
+      for (const c of group) {
+        if (c.minX !== undefined) {
+          if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) {
+            // nearest-face normal: the axis with the shallowest penetration
+            const left = (x + r) - c.minX;
+            const right = c.maxX - (x - r);
+            const near = (z + r) - c.minZ;
+            const far = c.maxZ - (z - r);
+            const smallest = Math.min(left, right, near, far);
+            if (smallest === left) return { blocked: true, nx: -1, nz: 0 };
+            if (smallest === right) return { blocked: true, nx: 1, nz: 0 };
+            if (smallest === near) return { blocked: true, nx: 0, nz: -1 };
+            return { blocked: true, nx: 0, nz: 1 };
+          }
+        } else {
+          const dx = x - c.x;
+          const dz = z - c.z;
+          const rr = (c.r || 0.4) + r;
+          if (dx * dx + dz * dz < rr * rr) {
+            const len = Math.hypot(dx, dz) || 1;
+            return { blocked: true, nx: dx / len, nz: dz / len };
+          }
+        }
+      }
+    }
+    return { blocked: false, nx: 0, nz: 0 };
+  }
+  const broomVm = createBroomViewmodel({
+    camera,
+    renderer,
+    scene,
+    broomGroup: heldGroups.broom,
+    fpHands,
+    colliderQuery: broomColliderQuery,
+    floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
+  });
+  // The viewmodel pass renders with the world's lights: every light learns the
+  // broom layer once per equip (idempotent, and catches lights created since).
+  function enableBroomLightLayer() {
+    scene.traverse((object) => {
+      if (object.isLight) object.layers.enable(BROOM_FEEL.camera.layer);
+    });
+  }
   const dustpanLoadVisual = new THREE.Group();
   dustpanLoadVisual.name = 'DustpanCollectedDebris';
   dustpanLoadVisual.position.set(0, -0.035, -1.50);
@@ -7112,6 +7170,10 @@ export function makeCourseScene(canvas, state) {
     } else {
       fpHands.setTool(null);
     }
+    // Phase 6: the broom (with the hands ALREADY re-parented into it, so the
+    // layer sweep catches them) leaves the world pass for its viewmodel pass.
+    if (tool === 'broom') enableBroomLightLayer();
+    broomVm.setActive(tool === 'broom');
     const pushed = tool === 'greensMower' || tool === 'spreader';
     if (tool && !pushed) {
       heldRoot.visible = true;
@@ -8127,6 +8189,9 @@ export function makeCourseScene(canvas, state) {
     for (const id of FLOOR_ANCHORED_TOOLS) {
       const g = heldGroups[id];
       if (!g || !g.visible) continue;
+      // Phase 6: the broom's pose is owned by its viewmodel rig (pitch-driven
+      // reach with the head planted, not a floor-plane re-solve).
+      if (id === 'broom' && broomVm.isActive()) continue;
       g.rotation.x = CLEANING_TOOLS[id].worldPitch - walk.pitch;
       // FLOOR-CONTACT SOLVE. The fixed world pitch keeps the head aimed down, but the head can still
       // hover or clip depending on stance and the equip/bob height. Sample the flat interior floor
@@ -8142,6 +8207,21 @@ export function makeCourseScene(canvas, state) {
         socketWorld(g, contactSocket, _toolContact);
         g.position.y = rest.y + Math.max(-0.06, Math.min(0.06, floorY - _toolContact.y));
       }
+    }
+    // Phase 6: the broom viewmodel rig owns the broom pose. It runs BEFORE the
+    // cleaning block so the contact socket resolves from the rig-posed group,
+    // and its sub-2° eased contact kick rides the camera for this frame only
+    // (the walk update rewrites camera pitch next frame).
+    const broomPose = broomVm.isActive() ? broomVm.update(dt, {
+      pitch: walk.pitch,
+      yaw: walk.yaw,
+      using: walkSpraying,
+      moving: walkMoving,
+      phase: time * BROOM_RATE,
+      reducedMotion: walk.reducedMotion,
+    }) : null;
+    if (broomPose && broomPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
+      camera.rotation.x -= broomPose.cameraKickRad;
     }
     if (walkSpraying && CLEANING_TOOLS[walkTool] && !CLEANING_TOOLS[walkTool].external
       && !cart.mounted && clubhouseApi && clubhouseApi.cleanWithTool) {
@@ -8196,11 +8276,14 @@ export function makeCourseScene(canvas, state) {
               group.position.z = rest.z + second;
               group.position.y = rest.y;
             }
-          } else {
-            // Mop / broom: a lateral push-pull across the boards.
+          } else if (!(walkTool === 'broom' && broomVm.isActive())) {
+            // Mop: a lateral push-pull across the boards. (The broom's stroke
+            // motion is composed by its viewmodel rig from the same phase.)
             group.position.x = rest.x + Math.sin(phase) * span;
           }
-          group.rotation.z = group.userData.cleaningRestRotationZ + cosPhase * 0.035;
+          if (!(walkTool === 'broom' && broomVm.isActive())) {
+            group.rotation.z = group.userData.cleaningRestRotationZ + cosPhase * 0.035;
+          }
           dirX = Math.cos(walk.yaw) * sign;
           dirZ = -Math.sin(walk.yaw) * sign;
           // CONTACT-PHASE GATE (corrected polarity). x = rest.x + sin(phase)·span ⇒ tool speed ∝
@@ -8216,6 +8299,13 @@ export function makeCourseScene(canvas, state) {
             strokeGateAccum = 0;
           } else {
             strokeGateAccum += dt;
+            gatedDt = 0;
+          }
+          // Phase 6: a CARRIED broom cleans nothing. Until the rig's pose has
+          // blended onto the boards, contact dt banks instead of landing —
+          // sweeping only counts where the bristles visibly are.
+          if (walkTool === 'broom' && broomPose && !broomPose.planted && gatedDt > 0) {
+            strokeGateAccum += gatedDt;
             gatedDt = 0;
           }
           // A stroke reversal is a phase sign flip (a turnaround). Route it through the hooks object
@@ -9550,6 +9640,8 @@ export function makeCourseScene(canvas, state) {
       renderer.render(scene, camera);
     }
     clubhouseApi?.renderDeliveryCarryOverlay?.();
+    // Phase 6: the broom's own pass, last — nearest to the face.
+    broomVm.render();
   }
 
   function resize() {
@@ -9558,6 +9650,7 @@ export function makeCourseScene(canvas, state) {
     renderer.setSize(wpx, hpx, false);
     camera.aspect = wpx / hpx;
     camera.updateProjectionMatrix();
+    broomVm.resize(camera.aspect);
     const pr = renderer.getPixelRatio();
     composer.setPixelRatio(pr);
     composer.setSize(wpx, hpx);
@@ -10868,6 +10961,10 @@ export function makeCourseScene(canvas, state) {
         viewmodels: toolViewmodels.diagnostics(),
         effects: clubhouseApi?.cleaningEffectsDiagnostics?.() || null,
       }),
+      // Phase 6: the broom rig's acceptance numbers (head NDC at the current
+      // pitch, reach, clamp state, tilt, intensity). Null-safe for QA that
+      // probes before the rig exists.
+      broomDiagnostics: () => broomVm.diagnostics(),
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks
