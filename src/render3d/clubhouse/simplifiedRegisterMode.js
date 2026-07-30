@@ -246,7 +246,19 @@ function frontDeskEuler(localPitch = 0, localYaw = 0, localRoll = 0) {
   );
 }
 
-const RECEIPT_PRINTER_QUATERNION = frontDeskQuaternion(-0.42, 0, 0);
+// The printed FACE aims at the cashier while the paper feeds. Measured
+// 2026-07-30 across two takes of 12c-receipt-printing-closeup.png: with the
+// authored quaternion the strip faced the customer, so the printer close-up —
+// which looks from the staff side, where the player is — read the BACK of the
+// paper: mirrored text. Composing PI into the Euler's second slot un-mirrored
+// it but turned the print upside down (the slots do not compose to a clean
+// about-vertical spin once the plane is pitched), so the flip is a LOCAL-Y
+// post-multiply: the pitched strip spins about its own long axis like a
+// revolving door — face swaps sides, print stays upright. The handoff
+// quaternion below still turns the face to the customer as it travels.
+const RECEIPT_PRINTER_QUATERNION = frontDeskQuaternion(-0.42, 0, 0).multiply(
+  new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI),
+);
 const RECEIPT_HANDOFF_QUATERNION = frontDeskQuaternion(-0.12, 0.5, -0.28);
 
 const DRAWER_BILLS = [1, 5, 10, 20, 50];
@@ -3925,7 +3937,9 @@ export function createRegisterMode(B) {
     }
     if (method === 'card') {
       if (checkoutFlowState() === 'ChoosingPayment') flowTo('CardPresented', 'customer-presented-card');
-      poseCustomerForCheckout('Present');
+      // The HELD reach — customers.js re-asserts PayCard on every PAYING frame,
+      // and the two must be the same pose or the arm pops between frames.
+      poseCustomerForCheckout('PayCard');
       createCardMesh();
       // The customer presents the card; the reader then inserts it itself. No
       // detached cashier hand or pointer-driven card gesture appears.
@@ -3937,7 +3951,7 @@ export function createRegisterMode(B) {
       setWorkspace('card');
     } else {
       if (checkoutFlowState() === 'ChoosingPayment') flowTo('CashPresented', 'customer-presented-cash');
-      poseCustomerForCheckout('Present');
+      poseCustomerForCheckout('PayCash');
       // The customer holds their cash out across the counter. The player CLICKS
       // the handful: it slides into the register, the drawer opens on its
       // own, and the change count begins — no dragging, no sorting mini-game.
@@ -4044,7 +4058,7 @@ export function createRegisterMode(B) {
     if (cardMesh) cardMesh.removeFromParent();
     cardMesh = null;
     if (checkoutFlowState() === 'ChoosingPayment') flowTo('CashPresented', 'customer-presented-cash-after-decline');
-    poseCustomerForCheckout('Present');
+    poseCustomerForCheckout('PayCash');
     createTender();
     // Match the normal cash route: first present the customer's tender in the
     // shared counter frame. Only the acceptance click opens the drawer and
@@ -4364,7 +4378,7 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'CardDeclined') {
       flowTo('CardPresented', 'customer-presented-replacement-card');
     }
-    poseCustomerForCheckout('Present');
+    poseCustomerForCheckout('PayCard');
     createCardMesh();
     cardU = 0;
     cardPresentationTimer = 0.52;
@@ -4792,6 +4806,15 @@ export function createRegisterMode(B) {
     const texture = new THREE.CanvasTexture(textureCanvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
+    // MEASURED 2026-07-30 (12c crop): the strip rendered as a coherent receipt
+    // rotated 180° in its own plane — header at the slot, every line inverted.
+    // Rotating the MESH cannot fix that: the geometry is anchored at its bottom
+    // edge, so any in-plane flip swings the paper down into the printer.
+    // Rotate the TEXTURE about its centre instead — content turns in place,
+    // anchors and curl untouched, and both the staff-facing print and the
+    // customer-facing handoff read upright because both look at the front face.
+    texture.center.set(0.5, 0.5);
+    texture.rotation = Math.PI;
     return texture;
   }
 
@@ -6426,7 +6449,19 @@ export function createRegisterMode(B) {
   // Which preset the current checkout state deserves. Workspaces map directly;
   // the monitor workspace splits by what the player is actually doing there.
   function poseKey() {
-    if (deliveryPhase && deliveryPhase !== 'released') return 'fulfillment';
+    if (deliveryPhase && deliveryPhase !== 'released') {
+      // PRINTING IS ITS OWN SHOT. Reported 2026-07-29: "Move it close to the
+      // player so printing and handing over are actually visible." In the wide
+      // fulfilment frame the printer sits at the frame's edge and the 1.1 s
+      // feed read as nothing happening. While the paper is feeding (and while
+      // the torn receipt waits to be taken) the camera closes on the printer
+      // itself; the drag across to the customer returns to the fulfilment
+      // frame, which holds printer, bag and customer together.
+      if (['receipt-print', 'receipt-ready', 'receipt-ready-manual'].includes(deliveryPhase)) {
+        return 'receiptPrint';
+      }
+      return 'fulfillment';
+    }
     if (workspace === 'scan') return 'scan';
     if (workspace === 'card') {
       // Briefly acknowledge the customer presentation, then use one fixed,
@@ -6554,8 +6589,39 @@ export function createRegisterMode(B) {
       // The reader stays seated; only the camera closes in for a readable view.
       return derivedCardTerminalPose();
     }
+    if (key === 'receiptPrint') return derivedReceiptPrintPose();
     if (key === 'checkin') return derivedCheckinPose();
     return POSES[key] || POSES.overview;
+  }
+
+  // THE PRINTER CLOSE-UP, derived from the printer's own output socket the same
+  // way the check-in and card poses derive from their hardware. Eye pulled back
+  // toward the staff side and raised, looking just above the slot so the strip
+  // fills the frame as it feeds. Falls back to the fulfilment frame until the
+  // printer mounts.
+  function derivedReceiptPrintPose() {
+    const anchor = printerOutputSocket || printerRoll;
+    if (!anchor) {
+      const p = fulfillmentHandoffPose(
+        customerLocalPosition(), REGISTER.printer, COUNTER_TOP,
+        REGISTER.bag, REGISTER.scannedStaging,
+      );
+      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
+    }
+    root.updateMatrixWorld(true);
+    const slot = anchor.getWorldPosition(new THREE.Vector3());
+    // Staff side of the desk, biased a touch toward the room centre so the
+    // customer's receiving side stays in frame for the tear-off.
+    const eyeWorld = slot.clone()
+      .add(frontDeskOffsetVector3(0.14, 0, 0.62))
+      .add(new THREE.Vector3(0, 0.34, 0));
+    const lookWorld = slot.clone().add(new THREE.Vector3(0, 0.10, 0));
+    const toLocal = (v) => ({
+      x: v.x - interior.position.x,
+      y: v.y - interior.position.y,
+      z: v.z - interior.position.z,
+    });
+    return { pose: poseBetween(toLocal(eyeWorld), toLocal(lookWorld)), fov: 46 };
   }
 
   function updateCamera(dt) {

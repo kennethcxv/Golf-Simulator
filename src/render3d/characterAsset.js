@@ -485,6 +485,21 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.62;
       lean = 0.13;
       headTilt = 0.08;
+    } else if (char.mode === 'PayCash' || char.mode === 'PayCard') {
+      // THE HAND THE MONEY IS IN. customers.js has set these two modes on every
+      // PAYING frame since the checkout shipped, and neither existed here — the
+      // unknown name fell through to the default slack-arms pose, so the tender
+      // fan hung in the air with the arm at the customer's side (reported
+      // 2026-07-29: "Cash is floating: the customer's hand must be attached to
+      // the cash as it is placed"). Same reach as Present, but HELD — no
+      // breathing term — because the presented fan and the invisible click
+      // target are laid out once at the grip point and a bobbing wrist would
+      // detach them by a couple of centimetres.
+      shR = -1.12;
+      shL = -0.14;
+      elb = -0.62;
+      lean = 0.13;
+      headTilt = 0.08;
     } else if (char.mode === 'Receive') {
       shR = -1.05;
       shL = -0.10;

@@ -913,6 +913,12 @@ async function cashRoute(page, shot) {
     window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
   ), null, { timeout: 10000 });
   await shot('12b-receipt-printing.png');
+  // The print phase now owns a derived close-up on the printer (0.30 s camera
+  // tween inside a 1.10 s feed). 12b above deliberately fires at phase entry so
+  // the phase itself is never missed; this second frame waits out the tween and
+  // is the one that shows the paper feeding, close, as the walk report asked.
+  await page.waitForTimeout(450);
+  await shot('12c-receipt-printing-closeup.png');
   await shot('12-exact-change-confirmed.png');
   return {
     start: drawerTravelStart,
