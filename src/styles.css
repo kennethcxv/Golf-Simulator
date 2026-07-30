@@ -2488,6 +2488,29 @@ body.register-mode .view-toggle { display: none !important; }
   border: 1px solid var(--lt-edge); border-radius: 10px; background: #fff;
   padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;
 }
+
+/* The browse page's basket strip: a count and the way through to the Cart screen. No
+   totals, because the money belongs on the screen where it can be acted on. */
+.lt-cartstrip {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  border: 1px solid var(--lt-edge); border-radius: 10px; background: #fff; padding: 10px 14px;
+}
+.lt-cartstripcount { font-weight: 600; color: var(--lt-ink); }
+
+/* Cart line items. One row per line so the total is auditable: which product, how many,
+   at what unit cost, and what the line comes to. */
+.lt-cartitems { display: flex; flex-direction: column; gap: 6px; }
+.lt-cartitem {
+  display: flex; align-items: center; gap: 10px;
+  border-top: 1px solid var(--lt-edge); padding-top: 8px;
+}
+.lt-cartitems > .lt-cartitem:first-child { border-top: 0; padding-top: 0; }
+.lt-cartitembody { flex: 1 1 auto; min-width: 0; }
+.lt-cartitemname { font-weight: 600; color: var(--lt-ink); }
+.lt-cartitemsum {
+  font-weight: 700; color: var(--lt-ink); font-variant-numeric: tabular-nums;
+  min-width: 72px; text-align: right;
+}
 .lt-cartline { display: flex; align-items: baseline; gap: 8px; font-size: 0.86em; }
 .lt-cartsub, .lt-cartfreight { color: var(--lt-dim); }
 .lt-carttotal { border-top: 1px solid var(--lt-edge); padding-top: 8px; font-size: 1.0em; }

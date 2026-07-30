@@ -1201,7 +1201,21 @@ export function makeLaptop(app, opts) {
   function pageShop() {
     const st = app.state;
     const ss = ts('shop', { tab: 'stock', cat: 'all' });
-    const tabs = [['stock', 'Inventory'], ['order', 'Orders & Suppliers'], ['prices', 'Pricing'], ['deliveries', 'Deliveries']];
+    // A SEPARATE CART SCREEN. Reported 2026-07-29: "Rework ordering into a real cart flow:
+    // browse and add items to cart on one screen, then a SEPARATE cart screen showing the
+    // line items, delivery choice, subtotal, taxes and total. Not all on one page."
+    //
+    // The basket used to sit at the top of the browse page with the grid beneath it, so
+    // choosing a delivery speed changed a total the player had already scrolled past and the
+    // line items were never listed at all — only a count. Browsing and reviewing are two
+    // different jobs and they now have two screens.
+    const tabs = [
+      ['stock', 'Inventory'],
+      ['order', 'Orders & Suppliers'],
+      ['cart', cart.size ? `Cart (${cart.size})` : 'Cart'],
+      ['prices', 'Pricing'],
+      ['deliveries', 'Deliveries'],
+    ];
 
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
       class: `lt-tab ${ss.tab === v ? 'on' : ''}`, text: label,
@@ -1209,9 +1223,10 @@ export function makeLaptop(app, opts) {
     })));
 
     const body = ss.tab === 'order' ? shopOrderTab(st, ss)
-      : ss.tab === 'prices' ? shopPricesTab(st)
-        : ss.tab === 'deliveries' ? shopDeliveriesTab(st)
-          : shopStockTab(st, ss);
+      : ss.tab === 'cart' ? shopCartTab(st, ss)
+        : ss.tab === 'prices' ? shopPricesTab(st)
+          : ss.tab === 'deliveries' ? shopDeliveriesTab(st)
+            : shopStockTab(st, ss);
 
     paint(
       head('Pro Shop', 'Review inventory, buy from real suppliers, and set prices here. Boxes still ride the van, land outside, and get carried in and shelved by hand.'),
@@ -1271,7 +1286,9 @@ export function makeLaptop(app, opts) {
         el('td', { class: 'lt-num' }, el('button', {
           class: 'lt-mini',
           text: 'Order',
-          onclick: () => { cart.set(m.sku.id, (cart.get(m.sku.id) || 0) + suggestedQty(m)); ss.tab = 'order'; click(); render(); },
+          // Restocking from Inventory adds to the cart and hands the player the review
+          // screen, not the browse grid: they already know what they want.
+          onclick: () => { cart.set(m.sku.id, (cart.get(m.sku.id) || 0) + suggestedQty(m)); ss.tab = 'cart'; click(); render(); },
         })));
     });
 
@@ -1300,6 +1317,45 @@ export function makeLaptop(app, opts) {
       note('Stocking is physical — carry goods from the storage room to the displays. "Shelve it" means the stock is already in the back.'),
     ];
   }
+
+  // ONE QUOTE FOR BOTH SCREENS. The browse strip and the cart screen must never disagree
+  // about what is in the basket, and quoting twice is how they would: freight is priced per
+  // SUPPLIER on the grouped box count, so any re-derivation from the cart alone is wrong.
+  // This is the same function that builds the real order.
+  function cartQuote(st, ss) {
+    const cartLines = [...cart].map(([skuId, quantity]) => ({ skuId, quantity }));
+    const emptyQuote = {
+      ok: true, goods: 0, freight: 0, tax: 0, taxRate: 0, total: 0, boxes: 0, leadDays: 0, orders: [],
+    };
+    const quoteFor = (speed) => {
+      if (!cartLines.length) return emptyQuote;
+      const quoted = quotePurchaseOrders(st, cartLines, speed);
+      return quoted.ok ? quoted : emptyQuote;
+    };
+    const quoteStandard = quoteFor('standard');
+    const quoteExpress = quoteFor('express');
+    const shipMode = ss.shipping === 'express' ? 'express' : 'standard';
+    const quote = shipMode === 'express' ? quoteExpress : quoteStandard;
+    return {
+      cartLines,
+      quoteStandard,
+      quoteExpress,
+      quote,
+      shipMode,
+      goods: quote.goods,
+      freight: quote.freight,
+      tax: quote.tax || 0,
+      taxRate: quote.taxRate || 0,
+      total: quote.total,
+      boxCount: quote.boxes,
+      affordable: quote.total <= cashOf(),
+      unitsInCart: [...cart.values()].reduce((sum, qty) => sum + qty, 0),
+      supplierCount: new Set([...cart.keys()].map((id) => supplierFor(skuById(id)).id)).size,
+    };
+  }
+
+  // "Tomorrow" is a sentence; "arrives day 41" is a lookup.
+  const arrivalWord = (days) => (days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`);
 
   function shopOrderTab(st, ss) {
     const campaignActive = !!st.campaign?.enabled && !st.campaign.businessOpen;
@@ -1339,32 +1395,8 @@ export function makeLaptop(app, opts) {
       render();
     };
 
-    // Quote from the same function that builds the real order, for both
-    // services. Summing planShipment(sku, qty).fee per line — what this used to
-    // do — is not what gets charged: freight is priced per SUPPLIER on the
-    // grouped box count, so a basket from one supplier was quoted several base
-    // fees and billed one.
-    const cartLines = [...cart].map(([skuId, quantity]) => ({ skuId, quantity }));
-    const emptyQuote = {
-      ok: true, goods: 0, freight: 0, total: 0, boxes: 0, leadDays: 0, orders: [],
-    };
-    const quoteFor = (speed) => {
-      if (!cartLines.length) return emptyQuote;
-      const quoted = quotePurchaseOrders(st, cartLines, speed);
-      return quoted.ok ? quoted : emptyQuote;
-    };
-    const quoteStandard = quoteFor('standard');
-    const quoteExpress = quoteFor('express');
-    const shipMode = ss.shipping === 'express' ? 'express' : 'standard';
-    const quote = shipMode === 'express' ? quoteExpress : quoteStandard;
-    const goods = quote.goods;
-    const freight = quote.freight;
-    const boxCount = quote.boxes;
-    const total = quote.total;
-    const affordable = total <= cashOf();
-    const supplierCount = new Set([...cart.keys()].map((id) => supplierFor(skuById(id)).id)).size;
-    // "Tomorrow" is a sentence; "arrives day 41" is a lookup.
-    const arrivalWord = (days) => (days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`);
+    // The browse page needs only the basket's shape — the money lives on the Cart screen.
+    const { shipMode, unitsInCart } = cartQuote(st, ss);
 
     const cats = ['balls', 'clubs', 'apparel', 'accessories', 'provisions', 'supplies', 'decor'];
     const catBar = el('div', { class: 'lt-tabs' },
@@ -1414,6 +1446,91 @@ export function makeLaptop(app, opts) {
       );
     });
 
+    return [
+      campaignActive ? el('div', { class: 'lt-card lt-opening-order' },
+        el('div', { class: 'lt-minihead' }, icon('target'), el('span', { text: 'Reopening order' })),
+        el('div', { class: 'lt-listsub', text: bundleMissing.length
+          ? 'One click adds only what is still missing: repair components, counter, shelving, safety kit, balls, and tees.'
+          : 'Required supply quantities and two starter product lines are already accounted for.' }),
+        el('div', { class: 'lt-cardfoot' },
+          el('span', { class: 'lt-word ok', text: bundleMissing.length ? `${bundleMissing.reduce((sum, item) => sum + item.missing, 0)} units missing` : 'Ready' }),
+          el('button', {
+            class: 'lt-mini',
+            text: bundleMissing.length ? 'Add missing bundle' : 'Bundle accounted for',
+            disabled: bundleMissing.length ? undefined : 'disabled',
+            onclick: addOpeningBundle,
+          })),
+      ) : null,
+      // BROWSING ONLY. What the basket costs, what it weighs, when it lands and which
+      // delivery it takes are all decisions, and decisions belong on the screen where you
+      // make them — the Cart tab. This strip is a receipt-in-passing: how much is in the
+      // basket and the way through to it. No totals, because a total the player cannot act
+      // on next to a grid they are still shopping is what made the old page confusing.
+      el('div', { class: 'lt-cartstrip' },
+        el('span', { class: 'lt-cartstripcount', text: cart.size
+          ? `${cart.size} line${cart.size === 1 ? '' : 's'} in the cart · ${unitsInCart} unit${unitsInCart === 1 ? '' : 's'}`
+          : 'Nothing in the cart yet' }),
+        el('span', { class: 'lt-headspace' }),
+        primaryBtn(cart.size ? 'Review cart' : 'Cart is empty', () => { ss.tab = 'cart'; click(); render(); }, !cart.size)),
+      el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
+      catBar,
+      cards.length ? el('div', { class: 'lt-grid' }, ...cards) : empty('No products match that search.'),
+    ];
+  }
+
+  // THE CART SCREEN -- line items, delivery choice, and the money, in that order.
+  //
+  // Reported 2026-07-29: "a SEPARATE cart screen showing the line items, delivery choice,
+  // subtotal, taxes and total. Not all on one page."
+  //
+  // Order on the page is the argument: what you are buying, then how it gets here, then what
+  // it costs, then the button. The delivery choice sits ABOVE the totals because choosing it
+  // changes them -- under the total it silently altered a number the player had already read.
+  function shopCartTab(st, ss) {
+    const {
+      quote, quoteStandard, quoteExpress, shipMode,
+      goods, freight, tax, taxRate, total, boxCount, affordable, unitsInCart, supplierCount,
+    } = cartQuote(st, ss);
+
+    if (!cart.size) {
+      return [
+        empty('The cart is empty. Add products from Orders & Suppliers.'),
+        el('div', { class: 'lt-cartstrip' },
+          el('span', { class: 'lt-headspace' }),
+          primaryBtn('Browse products', () => { ss.tab = 'order'; click(); render(); })),
+      ];
+    }
+
+    const setQty = (skuId, next) => {
+      const q = Math.max(0, Math.min(99, next));
+      if (q === 0) cart.delete(skuId); else cart.set(skuId, q);
+      render();
+    };
+
+    // ONE ROW PER LINE, with the arithmetic shown. The browse page only ever said "4 items";
+    // a review screen has to say which four, how many of each, at what unit cost, and what
+    // that line comes to -- otherwise the total is unauditable.
+    const lineRows = [...cart].map(([skuId, quantity]) => {
+      const sku = skuById(skuId);
+      const supplier = supplierFor(sku);
+      return el('div', { class: 'lt-cartitem' },
+        thumbOf(sku),
+        el('div', { class: 'lt-cartitembody' },
+          el('div', { class: 'lt-cartitemname', text: sku.name }),
+          el('div', { class: 'lt-prodmeta', text: `${supplier.name} · ${CAT_LABEL[sku.cat]} · ${formatMoney(sku.cost)} each` })),
+        el('div', { class: 'lt-qtyrow' },
+          el('button', { class: 'lt-qbtn', text: '−', onclick: () => setQty(skuId, quantity - 1) }),
+          el('span', { class: 'lt-qty', text: String(quantity) }),
+          el('button', { class: 'lt-qbtn', text: '+', onclick: () => setQty(skuId, quantity + 1) })),
+        el('span', { class: 'lt-cartitemsum', text: formatMoney(sku.cost * quantity) }),
+        el('button', {
+          class: 'lt-mini',
+          text: 'Remove',
+          title: `Remove ${sku.name} from the cart`,
+          onclick: () => { cart.delete(skuId); click(); render(); },
+        }));
+    });
+
     const placeAll = () => {
       const result = submitPurchaseOrders(st, {
         idempotencyKey: `laptop-order:${st.seed}:${st.shop.nextOrderId}:${orderIntent++}`,
@@ -1440,36 +1557,31 @@ export function makeLaptop(app, opts) {
       );
     };
 
+    const money = (label, value, cls = '') => el('div', { class: `lt-cartline ${cls}` },
+      el('span', { text: label }),
+      el('span', { class: 'lt-headspace' }),
+      el('span', { text: formatMoney(value) }));
+
+    const taxPercent = `${(taxRate * 100).toFixed(2).replace(/\.?0+$/, '')}%`;
+
     return [
-      campaignActive ? el('div', { class: 'lt-card lt-opening-order' },
-        el('div', { class: 'lt-minihead' }, icon('target'), el('span', { text: 'Reopening order' })),
-        el('div', { class: 'lt-listsub', text: bundleMissing.length
-          ? 'One click adds only what is still missing: repair components, counter, shelving, safety kit, balls, and tees.'
-          : 'Required supply quantities and two starter product lines are already accounted for.' }),
-        el('div', { class: 'lt-cardfoot' },
-          el('span', { class: 'lt-word ok', text: bundleMissing.length ? `${bundleMissing.reduce((sum, item) => sum + item.missing, 0)} units missing` : 'Ready' }),
-          el('button', {
-            class: 'lt-mini',
-            text: bundleMissing.length ? 'Add missing bundle' : 'Bundle accounted for',
-            disabled: bundleMissing.length ? undefined : 'disabled',
-            onclick: addOpeningBundle,
-          })),
-      ) : null,
-      // THE CART. Amazon's shape, and for Amazon's reason: the shipping choice
-      // is part of deciding, so it belongs above the button you press, not
-      // below it. It used to sit under the total, which meant changing it
-      // silently changed a number you had already scrolled past.
-      //
-      // Stacked rows rather than side-by-side chips, so both options are read
-      // top to bottom with their arrival, their freight and — on the row — what
-      // choosing it costs or saves against the other. The player never subtracts.
       el('div', { class: 'lt-cart' },
         el('div', { class: 'lt-cartline' },
-          el('span', { style: 'font-weight:600', text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
+          el('span', { style: 'font-weight:600', text: `${cart.size} line${cart.size === 1 ? '' : 's'} · ${unitsInCart} unit${unitsInCart === 1 ? '' : 's'}` }),
           meta(`${supplierCount} supplier${supplierCount === 1 ? '' : 's'} · ${plural(boxCount, 'box')}`),
           el('span', { class: 'lt-headspace' }),
-          el('span', { class: 'lt-cartsub', text: formatMoney(goods) })),
-        cart.size ? el('div', { class: 'lt-shipping' },
+          el('button', {
+            class: 'lt-mini',
+            text: 'Keep shopping',
+            onclick: () => { ss.tab = 'order'; click(); render(); },
+          })),
+        el('div', { class: 'lt-cartitems' }, ...lineRows)),
+
+      // Stacked rows rather than side-by-side chips, so both options are read top to bottom
+      // with their arrival, their freight and -- on the row -- what choosing it costs or saves
+      // against the other. The player never subtracts.
+      el('div', { class: 'lt-cart' },
+        el('div', { class: 'lt-shipping' },
           el('div', { class: 'lt-shiplabel', text: 'Delivery speed' }),
           ...[
             { id: 'standard', label: 'Standard', q: quoteStandard },
@@ -1494,21 +1606,25 @@ export function makeLaptop(app, opts) {
               el('span', { class: 'lt-shipname', text: `${label} — arrives ${arrivalWord(q.leadDays)}` }),
               el('span', { class: 'lt-shiptrade', text: trade })),
             el('span', { class: 'lt-shipfee', text: formatMoney(q.freight) }));
-          }),
-        ) : null,
-        cart.size ? el('div', { class: 'lt-cartline lt-cartfreight' },
-          el('span', { text: `${shipMode === 'express' ? 'Express' : 'Standard'} delivery` }),
+          }))),
+
+      el('div', { class: 'lt-cart' },
+        money('Subtotal', goods),
+        money(`${shipMode === 'express' ? 'Express' : 'Standard'} delivery`, freight),
+        // The tax line is ALWAYS here. It reads BALANCE.wholesaleSalesTaxRate, which is 0
+        // until someone decides to charge it -- a review screen that shows tax only when tax
+        // happens to be non-zero teaches the player it does not exist.
+        el('div', { class: 'lt-cartline' },
+          el('span', { text: taxRate > 0 ? `Sales tax (${taxPercent})` : 'Sales tax (none on wholesale)' }),
           el('span', { class: 'lt-headspace' }),
-          el('span', { text: formatMoney(freight) })) : null,
+          el('span', { text: formatMoney(tax) })),
         el('div', { class: 'lt-cartline lt-carttotal' },
           el('span', { style: 'font-weight:700', text: 'Total' }),
           el('span', { class: 'lt-headspace' }),
           el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: formatMoney(total) })),
-        primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
-      !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
-      el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
-      catBar,
-      cards.length ? el('div', { class: 'lt-grid' }, ...cards) : empty('No products match that search.'),
+        meta(`Arrives ${arrivalWord(quote.leadDays)} · ${plural(boxCount, 'box')} to the receiving pad · cash on hand ${formatMoney(cashOf())}`),
+        primaryBtn('Place Order', placeOrderFlow, !affordable)),
+      !affordable ? errBox(`That cart is ${formatMoney(total - cashOf())} more than you have.`) : null,
     ];
   }
 

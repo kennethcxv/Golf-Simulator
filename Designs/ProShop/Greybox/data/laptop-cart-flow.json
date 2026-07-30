@@ -1,0 +1,63 @@
+{
+  "what": "the laptop ordering split: browse screen, cart screen, and what moved between them",
+  "browse": {
+    "hasStrip": true,
+    "stripText": "2 lines in the cart · 3 units",
+    "hasProductGrid": true,
+    "showsSubtotal": false,
+    "showsTax": false,
+    "showsTotalRow": false,
+    "showsDeliveryChooser": false,
+    "showsPlaceOrder": false,
+    "lineItemRows": 0
+  },
+  "cartScreen": {
+    "lineItemRows": 2,
+    "lineItemNames": [
+      "Fairline driver",
+      "Fairline iron set"
+    ],
+    "lineItemSums": [
+      "$95",
+      "$480"
+    ],
+    "hasDeliveryChooser": true,
+    "deliveryOptions": [
+      "Standard — arrives in 2 days",
+      "Express — arrives tomorrow"
+    ],
+    "subtotalLine": "Subtotal$575",
+    "taxLine": "Sales tax (none on wholesale)$0",
+    "totalLine": "Total$614",
+    "hasPlaceOrder": true,
+    "hasProductGrid": false,
+    "keepShopping": true
+  },
+  "afterExpress": {
+    "totalLine": "Total$673",
+    "chosen": "Express — arrives tomorrow"
+  },
+  "findings": {
+    "cartListsLineItems": true,
+    "cartHasDeliveryChoice": true,
+    "cartHasSubtotal": true,
+    "cartHasTax": true,
+    "cartHasTotal": true,
+    "cartHasPlaceOrder": true,
+    "browseHasNoMoney": true,
+    "browseStillHasTheGrid": true,
+    "browseShowsBasketCount": true,
+    "cartHasNoProductGrid": true,
+    "cartCanReturnToBrowsing": true,
+    "totalRespondsToDelivery": true,
+    "totalBefore": "Total$614",
+    "totalAfterExpress": "Total$673"
+  },
+  "shots": [
+    "laptop-cart-1-browse.png",
+    "laptop-cart-2-cart.png",
+    "laptop-cart-3-express.png"
+  ],
+  "errs": [],
+  "ok": true
+}

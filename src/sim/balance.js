@@ -6,6 +6,21 @@ export const BALANCE = {
   // --- starting conditions ------------------------------------------------
   startingCash: { relaxed: 100000, realistic: 60000 },
 
+  // WHOLESALE SALES TAX on supplier orders, as a fraction of goods plus freight.
+  //
+  // ZERO ON PURPOSE. The laptop's cart screen shows a tax line because a purchase
+  // review that hides one is not a purchase review (walk report §7, 2026-07-29) —
+  // and the line reads THIS number rather than a hardcoded zero, so the feature is
+  // wired end to end and one edit here turns it on.
+  //
+  // It is not turned on here because it is not a presentation change. Every order
+  // in the game gets more expensive, and the opening bundle, the starting cash,
+  // the reopening requirements and the economy tests were all tuned against a
+  // total of goods + freight. Re-tuning the economy is a decision, not a
+  // side effect of adding a row to a screen. Measured: at 0.06 the 27-line
+  // reopening bundle goes from $4,486.75 to $4,755.95.
+  wholesaleSalesTaxRate: 0,
+
   // --- course works: per-cell conversion costs (one cell = 8x8 yd) --------
   // Greens are deliberately the big-ticket item (real construction is too).
   zoneCost: {

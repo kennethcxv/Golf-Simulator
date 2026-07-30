@@ -16,6 +16,7 @@ import {
   SUPPLIERS, supplierFor, shipFee, shippingLeadDays, shippingSpeed, DEFAULT_SHIPPING_SPEED,
 } from '../data/suppliers.js';
 import { calendarOf } from './time.js';
+import { BALANCE } from './balance.js';
 import { addExpense, unbill } from './economy.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 
@@ -723,7 +724,12 @@ function buildOrderDraft(state, supplier, inputs, id, speedId = DEFAULT_SHIPPING
   goods = round2(goods);
   const speed = shippingSpeed(speedId);
   const shippingCost = shipFee(supplier, boxes.length, speed.id);
-  const totalCost = round2(goods + shippingCost);
+  // Tax is charged on goods plus freight and reported as its own field so the cart screen
+  // can show the line rather than folding it into the total. The rate is 0 by default — see
+  // BALANCE.wholesaleSalesTaxRate for why turning it on is a balance decision.
+  const taxRate = Number(BALANCE.wholesaleSalesTaxRate) || 0;
+  const tax = round2((goods + shippingCost) * taxRate);
+  const totalCost = round2(goods + shippingCost + tax);
   // What the player bought with the freight premium, recorded next to what they
   // paid for it: standardLeadDays is kept so the delivery list can say how much
   // sooner this one is coming rather than just showing a date.
@@ -752,6 +758,8 @@ function buildOrderDraft(state, supplier, inputs, id, speedId = DEFAULT_SHIPPING
     goods,
     fee: shippingCost,
     shippingCost,
+    tax,
+    taxRate,
     cost: totalCost,
     totalCost,
     createdMin: minute,
@@ -822,6 +830,11 @@ export function quotePurchaseOrders(state, lines, shipping = DEFAULT_SHIPPING_SP
     leadDays: orders.reduce((most, order) => Math.max(most, order.leadDays), 0),
     goods: round2(orders.reduce((sum, order) => sum + order.goods, 0)),
     freight: round2(orders.reduce((sum, order) => sum + order.shippingCost, 0)),
+    // Summed, not recomputed: a basket spanning two suppliers is two drafts, each taxed on
+    // its own goods and freight, and re-deriving the tax from the cart totals would round
+    // differently from what is actually charged.
+    tax: round2(orders.reduce((sum, order) => sum + (order.tax || 0), 0)),
+    taxRate: Number(BALANCE.wholesaleSalesTaxRate) || 0,
     total: round2(orders.reduce((sum, order) => sum + order.totalCost, 0)),
     boxes: orders.reduce((sum, order) => sum + order.manifest.boxCount, 0),
     weight: round2(orders.reduce((sum, order) => sum + order.manifest.weight, 0)),
