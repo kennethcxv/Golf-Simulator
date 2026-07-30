@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { BALANCE } from '../src/sim/balance.js';
 import { newGame } from '../src/sim/state.js';
 import { quotePurchaseOrders } from '../src/sim/inventoryLifecycle.js';
+import { tabLabel, tabsOf } from '../src/ui/laptopSearch.js';
 
 const laptop = readFileSync(new URL('../src/ui/laptop.js', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
@@ -27,7 +28,12 @@ const slice = (from, to) => {
 };
 
 test('the Pro Shop has a Cart tab that reports what is in it', () => {
-  assert.match(laptop, /\['cart', cart\.size \? `Cart \(\$\{cart\.size\}\)` : 'Cart'\]/);
+  // The tab EXISTS in the page map that both the tab bar and the search paths read, and the
+  // only thing the page decides for itself is the badge. The literal tab array this used to
+  // grep for is gone — it was the second copy of the labels the sidebar already held.
+  assert.deepEqual(tabsOf('shop').map(([id]) => id), ['stock', 'order', 'cart', 'prices', 'deliveries']);
+  assert.equal(tabLabel('shop', 'cart'), 'Cart');
+  assert.match(laptop, /v === 'cart' && cart\.size \? `Cart \(\$\{cart\.size\}\)` : label/);
   assert.match(laptop, /ss\.tab === 'cart' \? shopCartTab\(st, ss\)/);
 });
 

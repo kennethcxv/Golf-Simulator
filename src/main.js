@@ -2927,6 +2927,10 @@ function boot() {
       return result;
     },
   });
+  // The laptop component itself, reachable from window.__fw — the drivers already read
+  // app.laptopOpen for the door state, and tools/qa/laptop-search-navigate.js needs the
+  // instrument side too (searchIndexKinds, lastSearchReveal).
+  app.laptop = laptopUi;
   editorUi = makeCourseEditor(app, {
     onExit: () => exitEditor(),
     isPaused: () => isPauseOpen(),

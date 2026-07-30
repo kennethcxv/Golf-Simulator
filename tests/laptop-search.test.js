@@ -36,7 +36,10 @@ test('an exact keyword outranks a name that merely contains the word', () => {
   const hits = rankSearchEntries(entries, 'kit');
   assert.equal(hits[0].label, 'Clubhouse repair components');
   assert.equal(hits[0].score, SEARCH_SCORE.EXACT_KEYWORD);
-  assert.equal(hits[1].score, SEARCH_SCORE.LABEL_SUBSTRING);
+  // "Commercial shelving kit" ends in the word — a prefix of a WORD, which now has its own
+  // tier below both exact kinds and above a mid-word substring.
+  assert.equal(hits[1].score, SEARCH_SCORE.LABEL_WORD_PREFIX);
+  assert.ok(hits[0].score > hits[1].score, 'an exact keyword must still win');
 });
 
 test('the ranking is total and stable — the same query never reshuffles', () => {
@@ -62,16 +65,10 @@ test('search is case- and whitespace-insensitive', () => {
   assert.equal(rankSearchEntries(catalogEntries, '  KIT ')[0].label, 'Clubhouse repair components');
 });
 
-test('scoring is ordered the way the ranking claims', () => {
-  const e = { label: 'Range balls', detail: 'a bucket of practice balls', keywords: ['balls1'] };
-  assert.equal(scoreSearchEntry(e, 'range balls'), SEARCH_SCORE.EXACT_LABEL);
-  assert.equal(scoreSearchEntry(e, 'balls1'), SEARCH_SCORE.EXACT_KEYWORD);
-  assert.equal(scoreSearchEntry(e, 'range'), SEARCH_SCORE.LABEL_PREFIX);
-  assert.equal(scoreSearchEntry(e, 'balls'), SEARCH_SCORE.LABEL_SUBSTRING);
-  assert.equal(scoreSearchEntry(e, 'lls1'), SEARCH_SCORE.KEYWORD_SUBSTRING);
-  assert.equal(scoreSearchEntry(e, 'practice'), SEARCH_SCORE.DETAIL_SUBSTRING);
-  assert.equal(scoreSearchEntry(e, 'nothing here'), 0);
-});
+// The tier-by-tier scoring table lives in tests/laptop-search-index.test.js, alongside the
+// assertion that the tiers are strictly descending. It was here first; it moved when the
+// ranking grew word-prefix tiers, because two copies of a score table disagree on the next
+// change and only one of them is read.
 
 test('every product in the catalogue is reachable by its own name', () => {
   // A search that cannot find an item the player can see in the shop is worse

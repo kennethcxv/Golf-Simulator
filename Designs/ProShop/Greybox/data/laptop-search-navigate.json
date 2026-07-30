@@ -1,0 +1,199 @@
+{
+  "what": "the rebuilt laptop search: live results, page paths, filters, and the jump that lands and flashes",
+  "seeded": {
+    "hired": true,
+    "employees": 1,
+    "booked": true,
+    "ordered": true,
+    "orders": 1
+  },
+  "indexAtOpen": {
+    "size": 325,
+    "kinds": {
+      "Page": 26,
+      "Product": 189,
+      "Upgrade": 9,
+      "Amenity": 3,
+      "Material": 35,
+      "Equipment": 6,
+      "Staff": 1,
+      "Candidate": 5,
+      "Booking": 1,
+      "Delivery": 1,
+      "Ledger": 25,
+      "Property": 1,
+      "Hole": 3,
+      "Turf": 7,
+      "Setting": 13
+    }
+  },
+  "indexShape": {
+    "size": 325,
+    "kinds": {
+      "Page": 26,
+      "Product": 189,
+      "Upgrade": 9,
+      "Amenity": 3,
+      "Material": 35,
+      "Equipment": 6,
+      "Staff": 1,
+      "Candidate": 5,
+      "Booking": 1,
+      "Delivery": 1,
+      "Ledger": 25,
+      "Property": 1,
+      "Hole": 3,
+      "Turf": 7,
+      "Setting": 13
+    }
+  },
+  "growth": [
+    {
+      "typed": "t",
+      "rows": 60,
+      "submitted": false
+    },
+    {
+      "typed": "to",
+      "rows": 60,
+      "submitted": false
+    },
+    {
+      "typed": "tow",
+      "rows": 1,
+      "submitted": false
+    },
+    {
+      "typed": "towe",
+      "rows": 1,
+      "submitted": false
+    },
+    {
+      "typed": "towel",
+      "rows": 1,
+      "submitted": false
+    }
+  ],
+  "liveRows": [
+    {
+      "crumbs": [
+        "Pro Shop",
+        "Inventory"
+      ],
+      "name": "Bag towel",
+      "kind": "Product"
+    }
+  ],
+  "filters": [
+    {
+      "label": "All 1",
+      "on": true
+    },
+    {
+      "label": "Catalogue 1",
+      "on": false
+    }
+  ],
+  "filterEffect": {
+    "chipLabel": "Catalogue 1",
+    "before": 1,
+    "after": 1,
+    "kindsAfter": [
+      "Product"
+    ],
+    "narrowed": true
+  },
+  "settingsHit": {
+    "crumbs": [
+      "Settings",
+      "Checkout"
+    ],
+    "name": "Automatic exact change",
+    "rank": 0
+  },
+  "landing": {
+    "pageId": "settings",
+    "reveal": {
+      "anchor": "Automatic exact change",
+      "found": true,
+      "selector": "div",
+      "text": "Automatic exact change"
+    },
+    "flashText": "Automatic exact changeCounts the fewest exact pieces the current drawer can safely provide",
+    "insideViewport": true,
+    "boxTop": 423,
+    "boxBottom": 457,
+    "viewTop": 212,
+    "viewBottom": 729,
+    "searchFieldCleared": true
+  },
+  "productRow": {
+    "crumbs": [
+      "Pro Shop",
+      "Inventory"
+    ],
+    "rank": 0
+  },
+  "productLanding": {
+    "pageId": "shop",
+    "reveal": {
+      "anchor": "Pine Hills visor",
+      "found": true,
+      "selector": "td",
+      "text": "Pine Hills visor"
+    },
+    "flashText": "Pine Hills visorApparel2 / 4$20Low stockOrder",
+    "insideViewport": true,
+    "scrollTop": 562
+  },
+  "bookingHit": {
+    "found": true,
+    "crumbs": [
+      "Bookings"
+    ],
+    "detail": "9:00 AM tomorrow · 2 players · booked",
+    "landed": {
+      "pageId": "reservations",
+      "reveal": {
+        "anchor": "Marguerite Alcazar",
+        "found": true,
+        "selector": "td",
+        "text": "Marguerite Alcazar"
+      },
+      "flashText": "9:00 AMMarguerite Alcazar2 playersWaitingView"
+    }
+  },
+  "findings": {
+    "laptopOpened": true,
+    "searchFieldVisible": true,
+    "liveWhileTyping": true,
+    "everyRowNamesItsPage": true,
+    "filtersOffered": true,
+    "filterNarrows": true,
+    "settingFound": true,
+    "settingPathIsRight": true,
+    "settingNavigated": true,
+    "settingRevealed": true,
+    "settingFlashedTheRightRow": true,
+    "settingScrolledIntoView": true,
+    "queryClearedOnJump": true,
+    "productFound": true,
+    "productNavigated": true,
+    "productRevealed": true,
+    "productScrolledIntoView": true,
+    "indexReachesEveryKind": true,
+    "moneyOnTheRoadIndexed": true,
+    "worldSeeded": true,
+    "bookingFoundByName": true
+  },
+  "shots": [
+    "laptop-search-1-live.png",
+    "laptop-search-2-filtered.png",
+    "laptop-search-3-setting.png",
+    "laptop-search-4-landed.png",
+    "laptop-search-5-product.png",
+    "laptop-search-6-booking.png"
+  ],
+  "errs": [],
+  "ok": true
+}

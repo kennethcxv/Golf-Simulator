@@ -17,7 +17,9 @@
 // change is counted and greens are mowed out in the world, by hands.
 
 import { el, toast } from './ui.js';
-import { rankSearchEntries } from './laptopSearch.js';
+import {
+  formatPagePath, navEntries, pagePathOf, rankSearchEntries, searchGroups, tabsOf,
+} from './laptopSearch.js';
 import { formatMoney } from '../core/utils.js';
 import { calendarOf } from '../sim/time.js';
 import {
@@ -51,7 +53,7 @@ import {
   createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
 } from '../sim/customerIdentity.js';
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
-import { arrearsOf } from '../sim/property.js';
+import { arrearsOf, weeklyCharge, CYCLE_DAYS } from '../sim/property.js';
 import {
   ROLE, hireStaff, fireStaff, trainStaff, staffDailyWages, refreshMarketIfDue, groundsCrewHours,
 } from '../sim/staff.js';
@@ -91,7 +93,7 @@ import {
   shopProgressionSummary, tryCompleteShopExpansion,
 } from '../sim/shopProgression.js';
 import { shopExpansionLayoutSafety } from '../sim/layout.js';
-import { ZONE, HOLE_STATUS, TURF_ZONES } from '../sim/constants.js';
+import { ZONE, ZONE_NAMES, HOLE_STATUS, TURF_ZONES } from '../sim/constants.js';
 import {
   SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
 } from './laptopWidgets.js';
@@ -154,6 +156,43 @@ const ORDER_STATUS = {
   partial: { label: 'Half unpacked', tone: 'warn' },
   unpacked: { label: 'Unpacked', tone: 'ok' },
 };
+
+// EVERY LINE THE BOOKS CAN CARRY, in the words the Finances table prints. Hoisted to
+// module scope from inside businessFinancesTab because search indexes them too, and two
+// copies of a label map is exactly how a search result comes to name a row that the page
+// it navigates to calls something else.
+const REV_LABEL = {
+  greenFees: 'Tee-time payment', dues: 'Membership dues', outings: 'Outing', range: 'Range',
+  restaurant: 'Grill room', lessons: 'Lesson', shopSales: 'Pro-shop sale', rentals: 'Rental',
+  fittings: 'Club fitting', reciprocal: 'Reciprocal', events: 'Event',
+};
+const EXP_LABEL = {
+  wagesStaff: 'Employee pay', wagesDayLabor: 'Day labour', water: 'Water', fertilizer: 'Fertiliser',
+  chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
+  severance: 'Severance', training: 'Training', shopOrders: 'Stock order',
+  rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
+  cashOverShort: 'Register over/short',
+};
+const LEDGER_LABEL = { ...REV_LABEL, ...EXP_LABEL };
+
+// EVERY SWITCH IN SETTINGS, so "mute" and "exact change" are findable without knowing
+// which of the two tabs they live on. The label is what the row prints, which is what
+// revealAnchor() then looks for on arrival.
+const SETTING_ROWS = Object.freeze([
+  { tab: 'general', label: 'Volume', detail: 'Master output for the whole game', keywords: ['sound', 'audio', 'loud', 'quiet'] },
+  { tab: 'general', label: 'Mute everything', detail: 'Silence the whole game, laptop included', keywords: ['mute', 'silence', 'sound', 'audio'] },
+  { tab: 'general', label: 'Laptop sounds', detail: 'Clicks and chimes on this screen', keywords: ['ui', 'click', 'chime', 'sound'] },
+  { tab: 'general', label: 'Text size', detail: 'Scale this screen up or down', keywords: ['scale', 'zoom', 'font', 'display', 'accessibility'] },
+  { tab: 'general', label: 'Notification badge', detail: 'Show the red unread count on the bell', keywords: ['notifications', 'bell', 'badge', 'alerts'] },
+  { tab: 'general', label: 'Confirm every purchase', detail: 'When off, stock orders under $100 skip the confirmation', keywords: ['confirm', 'orders', 'purchase'] },
+  { tab: 'general', label: 'Club name', detail: 'What the course is called', keywords: ['name', 'rename', 'club', 'course'] },
+  { tab: 'general', label: 'Hours', detail: 'When the clubhouse opens and closes', keywords: ['hours', 'open', 'close', 'schedule'] },
+  { tab: 'checkout', label: 'Larger POS text and targets', detail: 'Enlarges register copy and click areas', keywords: ['accessibility', 'register', 'pos', 'large', 'text'] },
+  { tab: 'checkout', label: 'Reduced checkout camera motion', detail: 'Stable camera cuts, no head sway at the register', keywords: ['accessibility', 'motion', 'camera', 'sway', 'sick'] },
+  { tab: 'checkout', label: 'Faster checkout animations', detail: 'Shortens the choreography without skipping steps', keywords: ['accessibility', 'speed', 'fast', 'animation'] },
+  { tab: 'checkout', label: 'Automatic exact change', detail: 'Counts the fewest exact pieces the drawer can provide', keywords: ['change', 'cash', 'drawer', 'exact', 'accessibility'] },
+  { tab: 'checkout', label: 'Confirm cash purchases', detail: 'When off, exact change hands over automatically', keywords: ['confirm', 'cash', 'register'] },
+]);
 
 // --- the line-icon set — inline SVG, stroke follows the text color ---------------------------
 // Each glyph is a few strokes on a 24-box; ['c', cx, cy, r] draws a circle.
@@ -301,16 +340,11 @@ const exactMoney = (v) => {
 const conditionWord = (h) => (h >= 70 ? 'Good' : h >= 45 ? 'Fair' : 'Poor');
 const conditionTone = (h) => (h >= 70 ? 'ok' : h >= 45 ? 'warn' : 'bad');
 
-// THE WHOLE SIDEBAR. Seven entries, no groups, no scroll.
-const NAV = [
-  { id: 'home', icon: 'home', label: 'Home' },
-  { id: 'reservations', icon: 'calendar', label: 'Bookings' },
-  { id: 'shop', icon: 'bag', label: 'Pro Shop' },
-  { id: 'course', icon: 'flag', label: 'Course' },
-  { id: 'upgrades', icon: 'up', label: 'Upgrades' },
-  { id: 'finances', icon: 'dollar', label: 'Business' },
-  { id: 'settings', icon: 'gear', label: 'Settings' },
-];
+// THE WHOLE SIDEBAR. Seven entries, no groups, no scroll — read from the page map in
+// laptopSearch.js rather than written out again here, because a search result has to
+// name the page it lives on and a second copy of these labels would drift the first
+// time a tab was renamed.
+const NAV = navEntries();
 
 // Every retired desk forwards to the page (and tab) that absorbed its job, so old links —
 // notification targets, saved prefs, muscle memory — keep landing somewhere sensible.
@@ -503,8 +537,8 @@ export function makeLaptop(app, opts) {
   const searchInput = el('input', {
     class: 'lt-search',
     type: 'search',
-    placeholder: 'Search products, upgrades, materials…',
-    'aria-label': 'Search the catalogue and upgrades',
+    placeholder: 'Search the whole laptop…',
+    'aria-label': 'Search every page, product, person and setting in the laptop',
   });
   searchInput.addEventListener('input', () => { query = searchInput.value.trim(); render(); });
   searchInput.addEventListener('keydown', (e) => {
@@ -1209,13 +1243,9 @@ export function makeLaptop(app, opts) {
     // choosing a delivery speed changed a total the player had already scrolled past and the
     // line items were never listed at all — only a count. Browsing and reviewing are two
     // different jobs and they now have two screens.
-    const tabs = [
-      ['stock', 'Inventory'],
-      ['order', 'Orders & Suppliers'],
-      ['cart', cart.size ? `Cart (${cart.size})` : 'Cart'],
-      ['prices', 'Pricing'],
-      ['deliveries', 'Deliveries'],
-    ];
+    // Labels come from the page map; only the Cart badge is decided here, because
+    // only the Cart badge depends on what is in the cart.
+    const tabs = tabsOf('shop').map(([v, label]) => [v, v === 'cart' && cart.size ? `Cart (${cart.size})` : label]);
 
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
       class: `lt-tab ${ss.tab === v ? 'on' : ''}`, text: label,
@@ -1824,7 +1854,7 @@ export function makeLaptop(app, opts) {
   function pageCourse() {
     const st = app.state;
     const cs = ts('course', { tab: 'overview' });
-    const tabs = [['overview', 'Overview'], ['fleet', 'Cart Fleet'], ['tasks', 'Tasks'], ['holes', 'Holes']];
+    const tabs = tabsOf('course');
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
       class: `lt-tab ${cs.tab === v ? 'on' : ''}`, text: label,
       onclick: () => { cs.tab = v; click(); render(); },
@@ -2234,7 +2264,7 @@ export function makeLaptop(app, opts) {
   function pageUpgrades() {
     const st = app.state;
     const us = ts('upgrades', { tab: 'course' });
-    const tabs = [['course', 'Course'], ['clubhouse', 'Renovations'], ['staff', 'Staff'], ['equipment', 'Equipment']];
+    const tabs = tabsOf('upgrades');
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
       class: `lt-tab ${us.tab === v ? 'on' : ''}`, text: label,
       onclick: () => { us.tab = v; click(); render(); },
@@ -2636,10 +2666,7 @@ export function makeLaptop(app, opts) {
   function pageFinances() {
     const st = app.state;
     const bs = ts('finances', { tab: 'finances', win: 'week' });
-    const tabs = [
-      ['finances', 'Finances'], ['reviews', 'Reviews'],
-      ['memberships', 'Memberships'], ['marketing', 'Marketing'],
-    ];
+    const tabs = tabsOf('finances');
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([value, label]) => el('button', {
       class: `lt-tab ${bs.tab === value ? 'on' : ''}`,
       text: label,
@@ -2672,18 +2699,6 @@ export function makeLaptop(app, opts) {
     pts.push({ label: 'Today', rev: revToday, exp: expToday });
 
     const txAll = Array.isArray(st.ledger?.txLog) ? st.ledger.txLog : [];
-    const REV_LABEL = {
-      greenFees: 'Tee-time payment', dues: 'Membership dues', outings: 'Outing', range: 'Range',
-      restaurant: 'Grill room', lessons: 'Lesson', shopSales: 'Pro-shop sale', rentals: 'Rental',
-      fittings: 'Club fitting', reciprocal: 'Reciprocal', events: 'Event',
-    };
-    const EXP_LABEL = {
-      wagesStaff: 'Employee pay', wagesDayLabor: 'Day labour', water: 'Water', fertilizer: 'Fertiliser',
-      chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
-      severance: 'Severance', training: 'Training', shopOrders: 'Stock order',
-      rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
-      cashOverShort: 'Register over/short',
-    };
     const txRow = (t) => {
       const c = calendarOf(t.m);
       const label = t.kind === 'rev' ? (REV_LABEL[t.key] || t.key) : (EXP_LABEL[t.key] || t.key);
@@ -2967,7 +2982,7 @@ export function makeLaptop(app, opts) {
     });
 
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' },
-      ...[['general', 'General'], ['checkout', 'Checkout']].map(([value, label]) => el('button', {
+      ...tabsOf('settings').map(([value, label]) => el('button', {
         class: `lt-tab ${settingsState.tab === value ? 'on' : ''}`,
         text: label,
         onclick: () => { settingsState.tab = value; click(); render(); },
@@ -3104,29 +3119,70 @@ export function makeLaptop(app, opts) {
     });
   }
 
-  // Everything the laptop can take you to, flattened. Built per keystroke rather
-  // than cached: it depends on unlock tier and ownership, and a stale index that
-  // offers a locked page is worse than a slower one. ~200 entries is nothing.
+  // EVERYTHING THE LAPTOP CAN SHOW YOU, FLATTENED — with the place it lives.
+  //
+  // Reported 2026-07-29: "What shipped only searches orderable products. I want it to
+  // search everything inside the laptop: products, upgrades, amenities, materials,
+  // staff, bookings, orders and deliveries, finance lines, course sections, property
+  // upgrades, settings, and the pages themselves."
+  //
+  // Built per keystroke rather than cached. It depends on unlock tier, ownership, who
+  // works here and what is on the tee sheet — a stale index that offers a page you
+  // cannot open, or a booking that was cancelled two minutes ago, is worse than a
+  // slower one. The count is measured by tests/laptop-search-index.test.js; on a
+  // furnished starter it is a few hundred entries, which is nothing to sort.
+  //
+  // Every entry carries a TARGET: page, tab, and the on-screen text to reveal once we
+  // get there. `anchor` is what revealAnchor() looks for after navigation — the label
+  // as the page actually prints it, which is not always the search label.
   function searchIndex(st) {
     const out = [];
-    const add = (kind, label, detail, target, keywords = []) => out.push({
-      kind, label, detail, target, keywords: keywords.filter(Boolean).map((k) => String(k).toLowerCase()),
-    });
+    const add = (kind, label, detail, target, keywords = []) => {
+      const entry = {
+        kind,
+        label: String(label || ''),
+        detail: String(detail || ''),
+        target,
+        path: pagePathOf(target.page, target.tab, target.pathExtra),
+        keywords: keywords.filter(Boolean).map((k) => String(k).toLowerCase()),
+      };
+      if (entry.label) out.push(entry);
+      return entry;
+    };
 
-    for (const n of NAV) add('Page', n.label, 'Open this desk', { page: n.id }, [n.id]);
-
-    for (const sku of SHOP_CATALOG) {
-      add('Product', sku.name, `${sku.cat} · ${formatMoney(sku.cost)} wholesale`,
-        { page: 'shop', tab: 'order' }, [sku.id, sku.cat, ...(sku.keywords || [])]);
+    // --- the pages themselves, and every tab on them -----------------------------
+    // Apple's Settings search returns the panes as well as the switches inside them,
+    // and it is the fastest way to cross the laptop: type "deliv", press the row.
+    for (const n of NAV) {
+      add('Page', n.label, 'Open this desk', { page: n.id }, [n.id]);
+      for (const [tab, label] of tabsOf(n.id)) {
+        add('Page', label, `${n.label} tab`, { page: n.id, tab }, [tab, n.id, n.label]);
+      }
     }
 
+    // --- the catalogue ------------------------------------------------------------
+    for (const sku of SHOP_CATALOG) {
+      // On hand is read through inventoryPosition, the accessor the Inventory tab uses.
+      // A raw st.shop.stock lookup would have been a second, wrong derivation.
+      let onHand = 0;
+      try { onHand = Number(inventoryPosition(st, sku.id).onHand) || 0; } catch { onHand = 0; }
+      add('Product', sku.name,
+        `${CAT_LABEL[sku.cat] || sku.cat} · ${formatMoney(sku.cost)} wholesale${onHand ? ` · ${onHand} on hand` : ''}`,
+        { page: 'shop', tab: onHand ? 'stock' : 'order', anchor: sku.name },
+        [sku.id, sku.cat, sku.brand, ...(sku.keywords || [])]);
+    }
+
+    // --- upgrades, amenities, materials, equipment --------------------------------
     for (const [id, u] of Object.entries(UPGRADES)) {
-      add('Upgrade', u.name, u.blurb, { page: 'upgrades', tab: 'course' }, [id, u.cat]);
+      add('Upgrade', u.name, hasUpgrade(st, id) ? 'Already built' : u.blurb,
+        { page: 'upgrades', tab: 'course', anchor: u.name }, [id, u.cat]);
     }
 
     for (const [key, spec] of Object.entries(AMENITIES)) {
-      add('Amenity', spec.name || key, spec.blurb || 'Clubhouse amenity',
-        { page: 'upgrades', tab: 'clubhouse' }, [key]);
+      const level = st.club?.amenities?.[key] || 0;
+      add('Amenity', spec.name || key,
+        level ? `Level ${level} · ${spec.blurb || 'Clubhouse amenity'}` : (spec.blurb || 'Clubhouse amenity'),
+        { page: 'upgrades', tab: 'clubhouse', anchor: spec.name || key }, [key, 'amenity']);
     }
 
     // Materials, one entry per family rather than per family x grade: forty
@@ -3139,36 +3195,218 @@ export function makeLaptop(app, opts) {
           .map((q) => q.label);
         add('Material', `${family.label} ${category.label.toLowerCase()}`,
           owned.length ? `In your materials: ${owned.join(', ')}` : family.description,
-          { page: 'upgrades', tab: 'clubhouse' }, [family.id, category.id, category.label]);
+          { page: 'upgrades', tab: 'clubhouse', anchor: family.label },
+          [family.id, category.id, category.label, 'material', 'finish']);
       }
     }
+
+    for (const tier of GOLF_CART_TIERS) {
+      add('Equipment', `${tier.name} golf cart`, tier.summary || 'Golf cart tier',
+        { page: 'course', tab: 'fleet', anchor: tier.name }, [tier.id, tier.name, 'cart', 'fleet', 'buggy']);
+    }
+    add('Equipment', 'Rental club sets', `${st.shop?.rentalFleet?.sets || 0} sets in the fleet`,
+      { page: 'upgrades', tab: 'equipment', anchor: 'Rental club sets' }, ['rentals', 'clubs', 'hire']);
+
+    // --- who works here, and who wants to ----------------------------------------
+    for (const e of st.staff?.employees || []) {
+      add('Staff', e.name, `${ROLE_LABEL[e.role] || e.role} · ${formatMoney(e.wage)}/day${e.trainingDays > 0 ? ' · training' : ''}`,
+        { page: 'upgrades', tab: 'staff', anchor: e.name }, [e.role, ROLE_LABEL[e.role], 'employee', 'staff']);
+    }
+    for (const c of st.staff?.market || []) {
+      add('Candidate', c.name, `Available to hire — ${ROLE_LABEL[c.role] || c.role} at ${formatMoney(c.wage)}/day`,
+        { page: 'upgrades', tab: 'staff', anchor: c.name }, [c.role, ROLE_LABEL[c.role], 'hire', 'candidate']);
+    }
+
+    // --- the tee sheet, across the whole booking horizon --------------------------
+    // Names come from the customer directory, so searching a guest finds the booking
+    // even when the reservation itself stored an abbreviation.
+    const cal = calendarOf(st.clock.minutes);
+    for (let day = 0; day < TEE_SHEET.horizonDays; day++) {
+      const dayAbs = cal.dayAbs + day;
+      let sheet;
+      try { sheet = laptopReservationSheet(st, dayAbs); } catch { continue; }
+      const when = day === 0 ? 'today' : day === 1 ? 'tomorrow' : `in ${day} days`;
+      for (const slot of sheet.slots) {
+        for (const entry of slot.reservations) {
+          add('Booking', entry.fullName,
+            `${fmtSlot(slot.minute)} ${when} · ${entry.groupSize} player${entry.groupSize === 1 ? '' : 's'} · ${entry.reservation.status}`,
+            { page: 'reservations', tab: null, day, anchor: entry.fullName },
+            ['booking', 'tee time', 'reservation', entry.reservation.status, fmtSlot(slot.minute)]);
+        }
+      }
+    }
+
+    // --- money on the road, and money on the floor -------------------------------
+    for (const o of st.shop?.orders || []) {
+      const sku = skuById(o.skuId);
+      const title = sku ? `${sku.name} × ${o.qty}` : `Order ${o.id}`;
+      const status = ORDER_STATUS[o.status] || { label: o.status };
+      add('Order', title, `${status.label} · ${formatMoney(o.cost)} · order ${o.id}`,
+        { page: 'shop', tab: 'deliveries', anchor: title },
+        [String(o.id), o.status, 'order', 'delivery', 'shipment', sku?.id]);
+    }
+    for (const shipment of shipmentsOf(st)) {
+      const label = `Shipment ${shipment.id}`;
+      add('Delivery', label, `${shipmentStatus(st, shipment)} · ${(shipment.boxIds || []).length} boxes on the pad`,
+        { page: 'shop', tab: 'deliveries', anchor: label },
+        [String(shipment.id), 'shipment', 'pad', 'boxes', 'unpack']);
+    }
+
+    // --- the books ---------------------------------------------------------------
+    // One entry per LINE KIND rather than per posted transaction: a season's ledger is
+    // thousands of rows and none of them is a destination. What a player searches for
+    // is "where do I see fertiliser costs", and the answer is a page.
+    for (const [key, label] of Object.entries(LEDGER_LABEL)) {
+      const today = Number(st.ledger?.today?.revenue?.[key] ?? st.ledger?.today?.expense?.[key] ?? 0);
+      add('Ledger', label, today ? `${formatMoney(today)} so far today` : 'Nothing posted today',
+        { page: 'finances', tab: 'finances', anchor: label }, [key, 'ledger', 'transaction', 'money']);
+    }
+    add('Property', 'Property bill', `${formatMoney(weeklyCharge(st))} every ${CYCLE_DAYS} days${arrearsOf(st) > 0 ? ` · ${formatMoney(arrearsOf(st))} behind` : ''}`,
+      { page: 'finances', tab: 'finances', anchor: 'Property' }, ['rent', 'lease', 'arrears', 'bill']);
+
+    // --- the course, hole by hole and section by section -------------------------
+    for (const hole of st.course?.holes || []) {
+      const n = (hole.index ?? 0) + 1;
+      add('Hole', `Hole ${n}`, `Par ${holePar(hole)} · ${Math.round(holeDistanceYd(hole))} yd`,
+        { page: 'course', tab: 'holes', anchor: `Hole ${n}` }, [String(n), 'hole', 'par', 'yardage']);
+    }
+    for (const zone of TURF_ZONES) {
+      const label = ZONE_NAMES[zone] || String(zone);
+      add('Turf', label, 'Condition, moisture and disease for this surface',
+        { page: 'course', tab: 'tasks', anchor: label }, [String(zone), 'turf', 'grass', 'condition', 'mow']);
+    }
+
+    // --- every switch in Settings -------------------------------------------------
+    for (const setting of SETTING_ROWS) {
+      add('Setting', setting.label, setting.detail,
+        { page: 'settings', tab: setting.tab, anchor: setting.label }, setting.keywords);
+    }
+
     return out;
   }
 
-  const searchResults = (st, q) => rankSearchEntries(searchIndex(st), q);
+  // WHAT THE PLAYER SEARCHED, WHERE IT LIVES, AND WHAT TO FLASH WHEN WE ARRIVE.
+  let searchFilter = 'all';
+  let lastReveal = null;      // {anchor, found, selector, text} — read by the QA driver
+
+  // The order matters: a section heading is a better landing place than a table cell
+  // that happens to contain the same word, and an exact text match beats a partial
+  // one at every level. Everything here is a class the pages already draw.
+  const ANCHOR_SELECTORS = [
+    '.lt-sect', '.lt-minihead', '.lt-ordername', '.lt-prodname', '.lt-cartitemname',
+    '.lt-upname', '.lt-mulabel', '.lt-statlabel', '.lt-h1', 'th', 'td', 'button', 'span', 'div',
+  ];
+
+  /**
+   * Scroll the named thing into view and flash it. Returns the element or null —
+   * null is a real answer and is recorded, because "navigated but the row was not
+   * there" must not read the same as "navigated and found it".
+   */
+  function revealAnchor(anchor) {
+    lastReveal = { anchor: anchor || null, found: false, selector: null, text: null };
+    if (!anchor) return null;
+    const needle = String(anchor).trim().toLowerCase();
+    if (!needle) return null;
+    for (const pass of ['exact', 'partial']) {
+      for (const selector of ANCHOR_SELECTORS) {
+        for (const node of content.querySelectorAll(selector)) {
+          const text = (node.textContent || '').trim().toLowerCase();
+          if (!text || text.length > 240) continue;
+          const hit = pass === 'exact' ? text === needle : text.includes(needle);
+          if (!hit) continue;
+          // THE TIGHTEST CONTAINER, NOT THE CARD.
+          //
+          // Measured 2026-07-29 (laptop-search-navigate.json): searching "exact change" found
+          // the right div and then flashed its enclosing .lt-card — all five checkout
+          // switches at once, which points at nothing. closest() returns the NEAREST ancestor
+          // matching any selector, so a page-section class in this list beats every row class
+          // below it. .lt-card is therefore not in it, and a match with no row around it
+          // marks only itself.
+          const target = node.closest('.lt-order, .lt-product, .lt-cartitem, .lt-row, label, tr') || node;
+          target.classList.add('lt-searchhit');
+          lastReveal = { anchor, found: true, selector, text: (node.textContent || '').trim().slice(0, 120) };
+          if (typeof target.scrollIntoView === 'function') {
+            try { target.scrollIntoView({ block: 'center' }); } catch { target.scrollIntoView(); }
+          }
+          setTimeout(() => target.classList.remove('lt-searchhit'), 2600);
+          return target;
+        }
+      }
+    }
+    return null;
+  }
+
+  function openSearchHit(hit) {
+    const target = hit.target || {};
+    query = '';
+    searchInput.value = '';
+    if (target.tab) ts(target.page).tab = target.tab;
+    if (Number.isFinite(target.day)) teeDay = target.day;
+    // go() renders synchronously — including when the page does not change, because
+    // clearing `query` above means the search screen has to be replaced either way.
+    go(target.page);
+    revealAnchor(target.anchor || null);
+  }
+
+  const KIND_MARK = {
+    Page: '▸', Product: '▦', Upgrade: '▲', Amenity: '✦', Material: '◆', Equipment: '⛭',
+    Staff: '☻', Candidate: '☺', Booking: '◷', Order: '⬓', Delivery: '⬔', Ledger: '§',
+    Property: '⌂', Hole: '⚑', Turf: '❋', Setting: '⚙',
+  };
+
+  // A RESULT ROW IS A LOCATION, NOT A NAME.
+  //
+  // Reported 2026-07-29: "Fix the UI so a result reads as a location, not a bare row."
+  // So the crumbs are the first thing in the row's text block, in their own type, and
+  // the row is a single button — the whole thing is the target, not a "Go" chip at the
+  // far right that the player has to aim at.
+  function searchResultRow(hit) {
+    const crumbs = el('div', { class: 'lt-hitpath' });
+    (hit.path || []).forEach((part, i) => {
+      if (i) crumbs.appendChild(el('span', { class: 'lt-hitsep', text: '›' }));
+      crumbs.appendChild(el('span', { class: `lt-hitcrumb ${i === (hit.path.length - 1) ? 'lt-hitcrumblast' : ''}`, text: part }));
+    });
+    return el('button', {
+      class: 'lt-hit',
+      title: `Open ${formatPagePath(hit.target.page, hit.target.tab, hit.target.pathExtra)}`,
+      onclick: () => openSearchHit(hit),
+    },
+    el('span', { class: 'lt-hitmark', text: KIND_MARK[hit.kind] || '▸' }),
+    el('span', { class: 'lt-hitbody' },
+      crumbs,
+      el('span', { class: 'lt-hitname', text: hit.label }),
+      hit.detail ? el('span', { class: 'lt-hitdetail', text: hit.detail }) : null),
+    el('span', { class: 'lt-hitkind', text: hit.kind }),
+    el('span', { class: 'lt-hitgo', text: '›' }));
+  }
 
   function pageSearch(st) {
-    const hits = searchResults(st, query);
+    const index = searchIndex(st);
+    const groups = searchGroups(index, query);
+    // A filter the current query cannot satisfy must not silently return nothing —
+    // fall back to All and say so on the chip strip.
+    const available = new Set(groups.map((g) => g.id));
+    const droppedFilter = searchFilter !== 'all' && !available.has(searchFilter) ? searchFilter : null;
+    if (droppedFilter) searchFilter = 'all';
+    const hits = rankSearchEntries(index, query, { filter: searchFilter });
+    const total = groups.find((g) => g.id === 'all')?.count || 0;
+
     paint(
-      head(`Search — "${query}"`, hits.length
-        ? `${hits.length} match${hits.length === 1 ? '' : 'es'} across the catalogue, upgrades and materials.`
-        : 'Nothing matches. Try a product name, a material, or what the thing does.'),
-      ...(hits.length ? [el('div', { class: 'lt-orderlist' }, ...hits.map((hit) => el('div', { class: 'lt-order' },
-        el('span', { class: 'lt-alerticon', text: hit.kind === 'Product' ? '▦' : hit.kind === 'Upgrade' ? '▲' : hit.kind === 'Material' ? '◆' : hit.kind === 'Amenity' ? '✦' : '▸' }),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: hit.label }),
-          el('div', { class: 'lt-prodmeta', text: `${hit.kind} · ${hit.detail}` })),
-        el('button', {
-          class: 'lt-mini',
-          text: 'Go',
-          onclick: () => {
-            query = '';
-            searchInput.value = '';
-            if (hit.target.tab) ts(hit.target.page).tab = hit.target.tab;
-            go(hit.target.page);
-          },
-        }),
-      )))] : [empty('No matches')]),
+      head(`Search — “${query}”`, total
+        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. Every result says the page it lives on; opening one goes there and flashes it.`
+        : 'Nothing matches. Try a product, a person, a page, a material, or what the thing does.'),
+      total ? el('div', { class: 'lt-hitfilters' }, ...groups.map((g) => el('button', {
+        class: `lt-tab ${searchFilter === g.id ? 'on' : ''}`,
+        text: `${g.label} ${g.count}`,
+        onclick: () => { searchFilter = g.id; click(); render(); },
+      }))) : null,
+      droppedFilter ? row(meta('That filter has nothing under this query — showing everything.')) : null,
+      hits.length
+        ? el('div', { class: 'lt-hitlist' }, ...hits.map(searchResultRow))
+        : empty(total ? 'Nothing under that filter.' : 'No matches'),
+      hits.length && hits.length < total
+        ? row(meta(`Showing the ${hits.length} closest of ${total}. Keep typing to narrow it.`))
+        : null,
     );
   }
 
@@ -3257,6 +3495,22 @@ export function makeLaptop(app, opts) {
     },
     isOpen: () => root.style.display !== 'none',
     pageId: () => page,
+    // Search instrumentation for tools/qa/laptop-search-navigate.js. lastSearchReveal()
+    // reports found:false when navigation landed but the row was not on the page, so a
+    // silent miss cannot be mistaken for a hit.
+    searchIndexSize: () => (app.state ? searchIndex(app.state).length : 0),
+    searchIndexKinds: () => {
+      const counts = {};
+      if (!app.state) return counts;
+      for (const entry of searchIndex(app.state)) counts[entry.kind] = (counts[entry.kind] || 0) + 1;
+      return counts;
+    },
+    lastSearchReveal: () => (lastReveal ? { ...lastReveal } : null),
+    searchFilterId: () => searchFilter,
+    // The same function a result row calls. Exposed so a driver can jump straight to a
+    // target — and so the reveal can be pointed at text that is deliberately not there,
+    // which is the only way to prove found:false is reachable.
+    openSearchResult: (hit) => openSearchHit(hit),
     go,
     back,
     setScale,
