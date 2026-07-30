@@ -721,12 +721,8 @@ def build_52() -> bpy.types.Object:
         triangle_budget=70000,
     )
     surface = _surface_materials("damaged_wood", "weathered_board_wood")
-    # Boarded apertures live beneath the deep porch shadow in game.  A direct,
-    # high-roughness pair keeps the salvage boards legible there without the
-    # pale interior response of the shared projected weathered-wood texture.
-    boarded_warm = A.material("S06_BoardedDamageWarm", (0.26, 0.17, 0.09, 1.0), roughness=0.95)
-    boarded_cool = A.material("S06_BoardedDamageCool", (0.18, 0.15, 0.11, 1.0), roughness=0.97)
-    board_fastener = A.material("S06_BoardFastener", (0.055, 0.047, 0.038, 1.0), roughness=0.70, metallic=0.42)
+    # The three boarding materials went with the boarded apertures (see below). Nothing
+    # else used them, and an unused material still ships in the GLB.
     heavy_weather = A.material("S06_HeavyExteriorWeathering", (0.018, 0.030, 0.018, 0.76), roughness=0.96, alpha=0.76, double_sided=True)
     roof_mold = A.material("S06_RoofMoldAndTar", (0.012, 0.016, 0.010, 0.88), roughness=0.98, alpha=0.88, double_sided=True)
     moss_mat = A.material("S06_HeavyMoss", (0.018, 0.085, 0.020, 1.0), roughness=0.99)
@@ -784,38 +780,24 @@ def build_52() -> bpy.types.Object:
     moss_parts.append(_box("RoofRidgeMoss", (4.8, 0.12, 0.035), (-1.4, 0.0, SHELL_H - 0.0175), moss_mat, roof, bevel=0.014, properties={**common, "damage_kind": "ridge_moss"}))
     _join_meshes("HeavyRoofMoss", moss_parts, parent=roof, properties={**common, "damage_kind": "moss"})
 
-    # Boarded apertures, missing fascia and dormer boards are separately repairable damage modules.
-    board_parts: list[bpy.types.Object] = []
-    fastener_parts: list[bpy.types.Object] = []
-    board_y = FRONT_Y + 0.025
-    board_height = 0.145
-    for label, x0, x1, z0, z1 in (
-        ("WestWindow", -8.68452, -6.49452, FLOOR_Z + 0.77724, FLOOR_Z + 2.51724),
-        ("MidWindow", -5.57556, -3.38556, FLOOR_Z + 0.77724, FLOOR_Z + 2.51724),
-        ("MainDoor", DOOR_X - 0.90, DOOR_X + 0.90, FLOOR_Z, FLOOR_Z + 2.45),
-    ):
-        count = 4 if label == "MainDoor" else 3
-        for index in range(count):
-            z = z0 + (index + 0.5) * (z1 - z0) / count
-            board_parts.append(_box(f"Boarded{label}_{index}", (x1 - x0 + 0.08, 0.05, board_height), ((x0 + x1) / 2.0, board_y, z), boarded_cool if index % 2 else boarded_warm, trim, rotation=(0.0, (-0.025 if index % 2 else 0.018), 0.0), bevel=0.010, properties={**common, "damage_kind": "boarded_aperture", "repairable": True, "weathered_board_height_m": board_height}))
-            for fastener_index, x in enumerate((x0 + 0.13, x1 - 0.13)):
-                fastener_parts.append(A.cylinder(
-                    f"BoardFastener_{label}_{index}_{fastener_index}",
-                    0.016,
-                    0.010,
-                    (x, board_y + 0.031, z),
-                    board_fastener,
-                    vertices=10,
-                    rotation=(math.pi / 2.0, 0.0, 0.0),
-                    parent=trim,
-                    bevel=0.0015,
-                    properties={**common, "damage_kind": "board_fastener", "repairable": True},
-                ))
-    for dormer_name, x, width, z in (("West", -6.45, 1.08, 4.98), ("Entry", DOOR_X, 1.45, 4.94)):
-        for index in range(2):
-            board_parts.append(_box(f"BoardedDormer{dormer_name}_{index}", (width, 0.045, board_height), (x, -3.60, z + index * 0.32), boarded_cool if index else boarded_warm, trim, rotation=(0.0, 0.035 if index else -0.025, 0.0), bevel=0.010, properties={**common, "damage_kind": "boarded_aperture", "repairable": True, "weathered_board_height_m": board_height}))
-    _join_meshes("BoardedApertureDamage", board_parts, parent=trim, properties={**common, "damage_kind": "boarded_aperture", "repairable": True, "board_surface_variants": 2})
-    _join_meshes("BoardedApertureFasteners", fastener_parts, parent=trim, properties={**common, "damage_kind": "board_fastener", "repairable": True, "fastener_count": len(fastener_parts)})
+    # THE BOARDED APERTURES ARE DELETED. Removed 2026-07-29 on the report "Still
+    # walk-through, and I do not want them at all. Delete the boarded-aperture geometry
+    # rather than giving it a collider."
+    #
+    # They were a repairable damage module boarding the west window, the middle window and
+    # the MAIN DOOR aperture. The main-door set is what made them indefensible: boards fixed
+    # to an aperture do not swing, so once both leaves opened, three planks hung across an
+    # empty doorway (measured: movedYd 0.000 with the leaves held at their full 1.745 rad).
+    # Giving them their own collider would have made a solid-looking barrier genuinely solid
+    # across the entrance the player trades through -- correct collision, wrong building.
+    #
+    # Deleted from the BUILDER, not merely pruned from the shipped GLB, so a rebuild cannot
+    # bring them back; tests/assets-51-60-production.test.js pins the absence. The dormer
+    # boards go with them: same module, same damage_kind, and boarded dormers over
+    # unboarded windows read as an oversight rather than a choice.
+    #
+    # Kept: HeavyRoofMoss, AlignedRoofMoldPatches, WarpedMissingTrim and the rest of the
+    # dilapidated overlay. Only the boarding is gone.
     broken_trim = [
         _box("BrokenFasciaWest", (4.10, 0.07, 0.18), (-6.45, FRONT_Y + 0.035, EAVE_H + 0.03), surface["damaged_wood"], trim, rotation=(0.0, 0.035, 0.0), bevel=0.008, properties={**common, "damage_kind": "missing_trim"}),
         _box("BrokenFasciaEast", (3.25, 0.07, 0.18), (5.85, FRONT_Y + 0.035, EAVE_H - 0.06), surface["damaged_wood"], trim, rotation=(0.0, -0.045, 0.0), bevel=0.008, properties={**common, "damage_kind": "missing_trim"}),

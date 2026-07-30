@@ -610,17 +610,31 @@ test('Assets 55-60 export separable top-level runtime variants with exactly one 
   }
 });
 
-test('Asset 52 boarded apertures retain readable salvage-board and fastener detail', () => {
+test('Asset 52 has no boarded apertures — deleted 2026-07-29, and it stays deleted', () => {
+  // Reported: "Still walk-through, and I do not want them at all. Delete the
+  // boarded-aperture geometry rather than giving it a collider."
+  //
+  // The module boarded the west window, the middle window and the MAIN DOOR aperture. The
+  // door set is what made it indefensible: boards fixed to an aperture do not swing, so
+  // once both leaves opened, three planks hung across an empty doorway (measured movedYd
+  // 0.000 with the leaves held at 1.745 rad). This test exists because the geometry comes
+  // out of a Blender builder — the deletion lives in tools/blender/build_assets_51_60.py,
+  // and without an assertion here the next rebuild could quietly restore it.
   const exteriorDamage = SHEET06.find(({ assetNumber }) => assetNumber === 52);
   for (const representation of ['canonicalGlb', 'runtimeGlb']) {
     const { json } = parseGlb(exactProductionPaths(exteriorDamage)[representation]);
-    const boards = json.nodes[nodeIndex(json, 'MESH_BoardedApertureDamage')];
-    const fasteners = json.nodes[nodeIndex(json, 'MESH_BoardedApertureFasteners')];
-    assert.equal(boards.extras?.damage_kind, 'boarded_aperture');
-    assert.equal(boards.extras?.board_surface_variants, 2);
-    assert.equal(fasteners.extras?.damage_kind, 'board_fastener');
-    assert.equal(fasteners.extras?.fastener_count, 20);
-    assert.equal(fasteners.extras?.repairable, true);
+    const names = (json.nodes || []).map((node) => node.name || '');
+    const boarding = names.filter((name) => /Board(ed|Fastener)/i.test(name));
+    assert.deepEqual(boarding, [], `asset 52 ${representation} still ships boarding: ${boarding.join(', ')}`);
+    // Nothing may carry the damage kinds either — a renamed node with the same extras is
+    // the same geometry.
+    const kinds = (json.nodes || []).map((node) => node.extras?.damage_kind).filter(Boolean);
+    assert.equal(kinds.includes('boarded_aperture'), false);
+    assert.equal(kinds.includes('board_fastener'), false);
+    // The rest of the dilapidated overlay is untouched: only the boarding was removed.
+    for (const kept of ['MESH_HeavyRoofMoss', 'MESH_AlignedRoofMoldPatches', 'MESH_WarpedMissingTrim']) {
+      assert.ok(names.some((name) => name === kept), `${kept} must survive the boarding deletion`);
+    }
   }
 });
 

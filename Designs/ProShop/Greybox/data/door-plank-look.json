@@ -119,54 +119,6 @@
           3.31,
           3.64
         ]
-      },
-      {
-        "name": "MESH_BoardedApertureDamage_DATA",
-        "selfVisible": true,
-        "effectivelyVisible": true,
-        "hiddenBy": null,
-        "layerMask": 1,
-        "drawnForCamera": true,
-        "local": {
-          "x": -4.66,
-          "z": 4.83
-        },
-        "yRange": [
-          -0.39,
-          4.62
-        ]
-      },
-      {
-        "name": "MESH_BoardedApertureDamage_DATA_1",
-        "selfVisible": true,
-        "effectivelyVisible": true,
-        "hiddenBy": null,
-        "layerMask": 1,
-        "drawnForCamera": true,
-        "local": {
-          "x": -4.66,
-          "z": 4.83
-        },
-        "yRange": [
-          0.28,
-          4.97
-        ]
-      },
-      {
-        "name": "MESH_BoardedApertureFasteners",
-        "selfVisible": true,
-        "effectivelyVisible": true,
-        "hiddenBy": null,
-        "layerMask": 1,
-        "drawnForCamera": true,
-        "local": {
-          "x": -4.66,
-          "z": 5.68
-        },
-        "yRange": [
-          -0.3,
-          1.83
-        ]
       }
     ],
     "open": [
@@ -201,62 +153,10 @@
           3.31,
           3.64
         ]
-      },
-      {
-        "name": "MESH_BoardedApertureDamage_DATA",
-        "selfVisible": true,
-        "effectivelyVisible": true,
-        "hiddenBy": null,
-        "layerMask": 1,
-        "drawnForCamera": true,
-        "local": {
-          "x": -4.66,
-          "z": 4.83
-        },
-        "yRange": [
-          -0.39,
-          4.62
-        ]
-      },
-      {
-        "name": "MESH_BoardedApertureDamage_DATA_1",
-        "selfVisible": true,
-        "effectivelyVisible": true,
-        "hiddenBy": null,
-        "layerMask": 1,
-        "drawnForCamera": true,
-        "local": {
-          "x": -4.66,
-          "z": 4.83
-        },
-        "yRange": [
-          0.28,
-          4.97
-        ]
-      },
-      {
-        "name": "MESH_BoardedApertureFasteners",
-        "selfVisible": true,
-        "effectivelyVisible": true,
-        "hiddenBy": null,
-        "layerMask": 1,
-        "drawnForCamera": true,
-        "local": {
-          "x": -4.66,
-          "z": 5.68
-        },
-        "yRange": [
-          -0.3,
-          1.83
-        ]
       }
     ]
   },
-  "drawnDamageMeshes": [
-    "MESH_BoardedApertureDamage_DATA",
-    "MESH_BoardedApertureDamage_DATA_1",
-    "MESH_BoardedApertureFasteners"
-  ],
+  "drawnDamageMeshes": [],
   "errs": [],
   "ok": true
 }
