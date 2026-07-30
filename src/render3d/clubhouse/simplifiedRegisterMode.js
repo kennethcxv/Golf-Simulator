@@ -169,19 +169,10 @@ export function advanceTerminalBusyDots(elapsedSeconds, deltaSeconds) {
 }
 // the reader's cancel-the-run X, top-right of the screen, in canvas pixels
 const TERM_X_BOX = { x0: TERM_CANVAS_W - 70, y0: 12, x1: TERM_CANVAS_W - 14, y1: 68 };
-const TERM_KEYPAD = Object.freeze([
-  ...['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((label, index) => ({
-    id: `digit:${label}`,
-    label,
-    x0: 58 + (index % 3) * 136,
-    y0: 188 + Math.floor(index / 3) * 62,
-    x1: 174 + (index % 3) * 136,
-    y1: 240 + Math.floor(index / 3) * 62,
-  })),
-  { id: 'clear', label: 'CLR', x0: 58, y0: 374, x1: 174, y1: 430 },
-  { id: 'digit:0', label: '0', x0: 194, y0: 374, x1: 310, y1: 430 },
-  { id: 'confirm', label: 'OK', x0: 330, y0: 374, x1: 446, y1: 430 },
-]);
+// The keypad the screen used to draw is gone (2026-07-29): presses land on the
+// GLB's Terminal_Key_* meshes, mapped in collectTerminalKeys below. Only the
+// cancel-the-run X remains a screen element (TERM_X_BOX above) — it is a screen
+// affordance, not a key.
 const REST_Y = COUNTER_TOP + 0.012;
 const CARRY_Y = COUNTER_TOP + 0.115;
 const BAG_REACH = 0.34;
@@ -769,6 +760,69 @@ export function createRegisterMode(B) {
   let termObject = null;
   let termScreenPlane = null;
   let cardSocketNode = null;
+
+  // THE PHYSICAL KEYPAD. The GLB models every key — Terminal_Key_0..9 and the
+  // Back/Cancel/Confirm buttons, each with a t_glyph_* face — and pressing them
+  // raycasts to those meshes. The keypad the screen used to draw is gone:
+  // reported 2026-07-29, "the player presses the physical number keys modelled
+  // in Blender. The display shows the amount and prompts, not the digits."
+  const terminalKeyByAction = new Map();   // action -> [key mesh, glyph mesh]
+  const terminalKeyPickables = [];
+  const terminalKeyPulses = new Map();     // action -> seconds remaining
+  const TERMINAL_KEY_PULSE_S = 0.14;
+
+  function terminalKeyActionForName(name) {
+    const digit = /^(?:Terminal_|t_glyph_)Key_(\d)$/.exec(name || '');
+    if (digit) return `digit:${digit[1]}`;
+    const button = /^(?:Terminal_|t_glyph_)(Confirm|Cancel|Back)Button$/.exec(name || '');
+    if (!button) return null;
+    return button[1] === 'Confirm' ? 'confirm' : button[1] === 'Back' ? 'backspace' : 'clear';
+  }
+
+  function collectTerminalKeys(terminal) {
+    terminalKeyByAction.clear();
+    terminalKeyPickables.length = 0;
+    terminal.traverse((node) => {
+      if (!node.isMesh) return;
+      const action = terminalKeyActionForName(node.name);
+      if (!action) return;
+      node.userData.terminalKeyAction = action;
+      terminalKeyPickables.push(node);
+      const list = terminalKeyByAction.get(action) || [];
+      list.push(node);
+      terminalKeyByAction.set(action, list);
+      if (!node.userData.terminalKeyBaseScale) {
+        node.userData.terminalKeyBaseScale = node.scale.clone();
+      }
+    });
+  }
+
+  // A pressed key visibly gives: a short scale dip on the key AND its glyph.
+  // Scale rather than translation because the deck is sloped and the exporter
+  // owns the key's local axes — a scale pulse reads as a press from any angle.
+  function pulseTerminalKey(action) {
+    if (terminalKeyByAction.has(action)) terminalKeyPulses.set(action, TERMINAL_KEY_PULSE_S);
+  }
+
+  function updateTerminalKeyPulses(dt) {
+    if (!terminalKeyPulses.size) return;
+    for (const [action, left] of [...terminalKeyPulses]) {
+      const next = left - dt;
+      const meshes = terminalKeyByAction.get(action) || [];
+      if (next <= 0) {
+        for (const mesh of meshes) mesh.scale.copy(mesh.userData.terminalKeyBaseScale);
+        terminalKeyPulses.delete(action);
+        continue;
+      }
+      // dip to 0.85 at the middle of the pulse, back out by the end
+      const t = 1 - next / TERMINAL_KEY_PULSE_S;
+      const dip = 1 - 0.15 * Math.sin(Math.PI * Math.min(1, t));
+      for (const mesh of meshes) {
+        mesh.scale.copy(mesh.userData.terminalKeyBaseScale).multiplyScalar(dip);
+      }
+      terminalKeyPulses.set(action, next);
+    }
+  }
 
   // The authored counter scanner is the one physical read source. Products
   // commit only while their visible barcode crosses this socket's +Z ray.
@@ -1949,33 +2003,32 @@ export function createRegisterMode(B) {
       ctx.font = '600 26px Arial, sans-serif';
       ctx.fillText('CARD INSERTS AUTOMATICALLY', W / 2, H * 0.78);
     } else if (stage === 'card-entry') {
-      ctx.fillStyle = '#f5efdb';
-      ctx.textAlign = 'left';
+      // THE DISPLAY SHOWS THE AMOUNT AND PROMPTS, NOT THE DIGITS BEING ENTERED.
+      //
+      // Reported 2026-07-29: "Numbers must NOT appear on the reader's display.
+      // The player presses the physical number keys modelled in Blender." So the
+      // canvas keypad this branch used to draw is gone — presses raycast the
+      // Terminal_Key_* meshes on the deck — and the running entry shows as one
+      // dot per pressed digit, like a PIN pad. The one number on the glass is
+      // the TOTAL, which is the prompt: key exactly this.
+      ctx.fillStyle = '#9db3a4';
       ctx.font = '700 34px Arial, sans-serif';
-      ctx.fillText('PAYMENT', 30, 42);
+      ctx.fillText('ENTER AMOUNT', W / 2, H * 0.16);
       ctx.fillStyle = '#8bc5ff';
-      ctx.font = '700 28px Arial, sans-serif';
-      ctx.fillText(`TOTAL  $${totalOf(tx).toFixed(2)}`, 30, 86);
+      ctx.font = '800 64px Arial, sans-serif';
+      ctx.fillText(`$${totalOf(tx).toFixed(2)}`, W / 2, H * 0.38);
+      const pressed = String(tx.cardEntryDigits || '').length;
       ctx.fillStyle = '#f5efdb';
-      ctx.font = '800 46px Arial, sans-serif';
-      ctx.fillText(`$${cardEnteredAmount(tx).toFixed(2)}`, 30, 139);
-      ctx.textAlign = 'center';
+      ctx.font = '800 58px Arial, sans-serif';
+      ctx.fillText(pressed ? '\u2022'.repeat(Math.min(pressed, 8)) : '\u2013 \u2013 \u2013', W / 2, H * 0.60);
       if (tx.cardEntryError) {
         ctx.fillStyle = '#ff9a8f';
-        ctx.font = '700 20px Arial, sans-serif';
-        ctx.fillText(tx.cardEntryError, W / 2, 168);
-      }
-      for (const key of TERM_KEYPAD) {
-        const confirm = key.id === 'confirm';
-        const clear = key.id === 'clear';
-        ctx.fillStyle = confirm ? '#237a4b' : clear ? '#9c3d34' : '#27352e';
-        ctx.fillRect(key.x0, key.y0, key.x1 - key.x0, key.y1 - key.y0);
-        ctx.strokeStyle = confirm ? '#74d79d' : clear ? '#ff9a8f' : '#627568';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(key.x0 + 1, key.y0 + 1, key.x1 - key.x0 - 2, key.y1 - key.y0 - 2);
-        ctx.fillStyle = '#fff8e7';
-        ctx.font = `800 ${key.label.length > 1 ? 24 : 31}px Arial, sans-serif`;
-        ctx.fillText(key.label, (key.x0 + key.x1) / 2, (key.y0 + key.y1) / 2 + 1);
+        ctx.font = '700 26px Arial, sans-serif';
+        ctx.fillText(tx.cardEntryError.toUpperCase(), W / 2, H * 0.80);
+      } else {
+        ctx.fillStyle = '#5f6f64';
+        ctx.font = '600 26px Arial, sans-serif';
+        ctx.fillText('KEY THE TOTAL \u00b7 GREEN CONFIRMS', W / 2, H * 0.80);
       }
     } else if (stage === 'card-busy') {
       const dots = '.'.repeat(1 + (Math.floor(termDotsTimer * 3) % 3));
@@ -2083,15 +2136,24 @@ export function createRegisterMode(B) {
 
   function terminalKeyAt(event) {
     if (!tx || tx.stage !== 'card-entry') return null;
-    const uv = terminalScreenUV(event);
-    if (!uv) return null;
-    const px = uv.u * TERM_CANVAS_W;
-    const py = uv.v * TERM_CANVAS_H;
-    const pad = accessibilityPrefs.largeTextAndTargets ? 10 : 0;
-    return TERM_KEYPAD.find((key) => (
-      px >= key.x0 - pad && px <= key.x1 + pad
-      && py >= key.y0 - pad && py <= key.y1 + pad
-    )) || null;
+    if (!terminalKeyPickables.length) return null;
+    // The keys are MESHES on the reader's deck, so a press is a raycast against
+    // them — not a UV lookup on the screen canvas, which no longer draws keys.
+    const cast = (offsetX, offsetY) => {
+      setNdc({ clientX: event.clientX + offsetX, clientY: event.clientY + offsetY });
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(terminalKeyPickables, false)[0];
+      return hit ? hit.object.userData.terminalKeyAction : null;
+    };
+    let action = cast(0, 0);
+    if (!action && accessibilityPrefs.largeTextAndTargets) {
+      // the accessibility pad: accept a near-miss within ~10 px in a small cross
+      for (const [dx, dy] of [[-10, 0], [10, 0], [0, -10], [0, 10], [-7, -7], [7, 7], [-7, 7], [7, -7]]) {
+        action = cast(dx, dy);
+        if (action) break;
+      }
+    }
+    return action ? { id: action } : null;
   }
 
   function handleTerminalKey(action) {
@@ -2121,6 +2183,7 @@ export function createRegisterMode(B) {
     } else if (action !== 'confirm') {
       sfx('uiTick');
     }
+    if (result?.ok) pulseTerminalKey(action); // the physical key visibly gives
     drawTerm();
     drawScreen();
     return true;
@@ -2242,6 +2305,7 @@ export function createRegisterMode(B) {
 
     // The authored card socket anchors the automatic chip insertion path.
     cardSocketNode = terminal.getObjectByName('CARD_INSERT_SOCKET') || null;
+    collectTerminalKeys(terminal);
     refreshCardInsertPath();
     drawTerm();
   }
@@ -6420,6 +6484,57 @@ export function createRegisterMode(B) {
     return { pose: poseBetween(toLocal(eyeWorld), toLocal(centre)), fov: fallback.fov };
   }
 
+  // CARD ENTRY, DERIVED FROM THE READER'S OWN BOUNDING BOX (walk item: "camera
+  // derived from the reader's bounding box"). The authored cardTerminalPose
+  // offsets were tuned against one hardware scale and drifted whenever the
+  // terminal GLB or TERMINAL_HARDWARE_SCALE moved. This measures the mounted
+  // reader: eye on the screen quad's forward normal, standoff solved so the
+  // reader's own height takes CARD_READER_FRAC of the frame, look pulled a
+  // quarter-height below centre so the physical keypad — the thing the player
+  // now has to press — sits in the middle of the view. Falls back to the
+  // authored pose until the terminal mounts.
+  const CARD_READER_FRAC = 0.56;
+  function derivedCardTerminalPose() {
+    const fallbackPose = cardTerminalPose(CARD_STATION, COUNTER_TOP);
+    const fallback = {
+      pose: poseBetween(fallbackPose.eye, fallbackPose.look),
+      fov: fallbackPose.fov,
+    };
+    if (!termObject || !termScreenPlane) return fallback;
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(termObject);
+    if (box.isEmpty()) return fallback;
+    const centre = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const subjectH = Math.max(size.y, 0.12);
+    const normal = new THREE.Vector3(0, 0, 1)
+      .transformDirection(termScreenPlane.matrixWorld).normalize();
+    // The screen must face the cashier; if an export flip points it into the
+    // desk, the authored pose's own view direction picks the right side.
+    const fb = fallback.pose;
+    const intended = new THREE.Vector3(
+      -Math.sin(fb.yaw) * Math.cos(fb.pitch),
+      Math.sin(fb.pitch),
+      -Math.cos(fb.yaw) * Math.cos(fb.pitch),
+    );
+    if (normal.dot(intended) > 0) normal.negate();
+    const fov = fallback.fov || 48;
+    const dist = Math.max(
+      0.34,
+      (subjectH / CARD_READER_FRAC) / (2 * Math.tan(THREE.MathUtils.degToRad(fov) / 2)),
+    );
+    const eyeWorld = centre.clone()
+      .addScaledVector(normal, dist)
+      .add(new THREE.Vector3(0, subjectH * 0.62, 0));
+    const lookWorld = centre.clone().add(new THREE.Vector3(0, -subjectH * 0.25, 0));
+    const toLocal = (v) => ({
+      x: v.x - interior.position.x,
+      y: v.y - interior.position.y,
+      z: v.z - interior.position.z,
+    });
+    return { pose: poseBetween(toLocal(eyeWorld), toLocal(lookWorld)), fov };
+  }
+
   // The card flow's two poses are computed live: handoff frames the actual
   // customer and entry closes in on the reader at its fixed counter station.
   // All other states keep their static presets.
@@ -6437,8 +6552,7 @@ export function createRegisterMode(B) {
     }
     if (key === 'card') {
       // The reader stays seated; only the camera closes in for a readable view.
-      const p = cardTerminalPose(CARD_STATION, COUNTER_TOP);
-      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
+      return derivedCardTerminalPose();
     }
     if (key === 'checkin') return derivedCheckinPose();
     return POSES[key] || POSES.overview;
@@ -6516,6 +6630,7 @@ export function createRegisterMode(B) {
   }
 
   function update(dt) {
+    updateTerminalKeyPulses(dt);
     const animationDt = checkoutAnimationDelta(dt, accessibilityPrefs);
     // Settings are inaccessible while the register owns input, but a renderer
     // refresh can still replace the live value. Reassert without recapturing;
@@ -6658,15 +6773,23 @@ export function createRegisterMode(B) {
   }
 
   function cardKeyScreenPoint(actionId) {
-    if (!termScreenPlane) return null;
-    const key = TERM_KEYPAD.find((entry) => entry.id === actionId);
-    if (!key) return null;
-    const cx = (key.x0 + key.x1) / 2;
-    const cy = (key.y0 + key.y1) / 2;
-    const lx = (cx / TERM_CANVAS_W - 0.5) * TERM_SCREEN_W;
-    const ly = (0.5 - cy / TERM_CANVAS_H) * TERM_SCREEN_H;
+    // The projection of the PHYSICAL key mesh — same contract every driver
+    // already clicks, new target. The Terminal_* body is preferred over its
+    // t_glyph_* face so the point lands on the cap, not the paint.
+    //
+    // Two driver families ask by LABEL ('OK') rather than by action id
+    // ('confirm') — the old canvas-table lookup silently returned null for
+    // those, which is a wrong answer dressed as an empty one. Normalise both.
+    const id = String(actionId ?? '');
+    const action = /^\d$/.test(id) ? `digit:${id}`
+      : id === 'OK' ? 'confirm'
+        : id === 'CLR' || id === 'X' ? 'clear'
+          : id;
+    const meshes = terminalKeyByAction.get(action);
+    if (!meshes || !meshes.length) return null;
+    const mesh = meshes.find((entry) => entry.name.startsWith('Terminal_')) || meshes[0];
     root.updateMatrixWorld(true);
-    const world = termScreenPlane.localToWorld(new THREE.Vector3(lx, ly, 0.003));
+    const world = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
     world.project(camera);
     const rect = canvas.getBoundingClientRect();
     return {

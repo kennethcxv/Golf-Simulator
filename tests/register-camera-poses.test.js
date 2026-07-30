@@ -331,7 +331,16 @@ test('mixed working frame does not replace fulfillment, card, or cash views', ()
   const dynamicPose = functionBody(registerSource, 'dynamicPose');
   assert.match(dynamicPose, /key === 'fulfillment'[\s\S]*?fulfillmentHandoffPose/);
   assert.match(dynamicPose, /key === 'cardTake'[\s\S]*?cardHandoffPose/);
-  assert.match(dynamicPose, /key === 'card'[\s\S]*?cardTerminalPose/);
+  // 2026-07-30: the card view derives from the mounted reader's own bounding
+  // box (derivedCardTerminalPose), with cardTerminalPose kept as its fallback
+  // until the terminal GLB lands — so the authored pose must still be reachable
+  // INSIDE the derivation, not on the dynamicPose switch.
+  assert.match(dynamicPose, /key === 'card'[\s\S]*?derivedCardTerminalPose/);
+  const derived = functionBody(registerSource, 'derivedCardTerminalPose');
+  assert.match(derived, /cardTerminalPose\(CARD_STATION, COUNTER_TOP\)/,
+    'the authored pose remains the fallback before the reader mounts');
+  assert.match(derived, /setFromObject\(termObject\)/,
+    'and the live pose is measured from the reader itself');
 });
 
 test('register prop choreography keeps world offsets and orientations in the desk frame', () => {
