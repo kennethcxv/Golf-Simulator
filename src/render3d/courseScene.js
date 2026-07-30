@@ -5799,6 +5799,21 @@ export function makeCourseScene(canvas, state) {
   // Distinct from walkHeld on purpose: walkHeld is what the page believes, this is
   // what is actually eating the player's keys.
   let walkOsModifiers = [];
+  // MOVEMENT INTENT, counted per frame while a probe is watching. Reported 2026-07-29:
+  // "The tell I cannot explain is that Shift CHANGES the outcome." Deciding whether a key
+  // was eaten before the page, filtered inside it, or accepted-and-then-blocked needs the
+  // middle of that chain visible, and the movement block is the only place that knows it
+  // saw the key. Off by default and untouched on a normal frame.
+  const walkMoveIntent = {
+    recording: false,
+    frames: 0,
+    movingFrames: 0,
+    right: 0,
+    left: 0,
+    forward: 0,
+    back: 0,
+    last: null,
+  };
   const treeColliders = []; // {x, z, r}
   const structColliders = []; // {minX, maxX, minZ, maxZ}
 
@@ -7898,9 +7913,25 @@ export function makeCourseScene(canvas, state) {
   // release — cannot turn a movement key into a browser shortcut mid-stride.
   // Escape and the F-keys are deliberately absent: the player must always be
   // able to break out, and Escape is what releases the lock.
+  //
+  // THE RULE IS "EVERY KEY THE GAME ACTS ON IN WALK MODE", and the set used to hold only
+  // the movement half of it. Measured 2026-07-29 (six-key-cases-chromium.json): X — the
+  // secondary-interact verb, the key the player opens boxes with — reached the listener
+  // with preventDefault NEVER called, while D and W were swallowed correctly. A verb the
+  // game consumes and the page also lets through is the definition of a key that does two
+  // things at once. The single-letter verbs main.js binds in the walk branch are all here
+  // now: x b j l i g c m v alongside e q r f.
+  //
+  // Safe because the text-entry filter runs FIRST: a key typed into the laptop search box
+  // or a save-name field returns before this line, so Ctrl+C in a text field still copies.
+  // While pointer-locked with no focused field there is nothing to copy, cut or paste.
+  // This still cannot stop a browser-RESERVED chord (Ctrl+W, Ctrl+T, Ctrl+L) — only the
+  // Keyboard Lock API can, and that is declined (needs fullscreen, makes Escape a
+  // press-and-hold). It does stop everything the page is allowed to claim.
   const WALK_CONSUMED_KEYS = new Set([
-    'w', 'a', 's', 'd', 'e', 'q', 'r', 'f', 'shift', ' ', 'tab',
+    'w', 'a', 's', 'd', 'shift', ' ', 'tab',
     'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+    'e', 'q', 'r', 'f', 'x', 'b', 'j', 'l', 'i', 'g', 'c', 'm', 'v',
   ]);
 
   function walkKeyDown(e) {
@@ -8338,6 +8369,21 @@ export function makeCourseScene(canvas, state) {
       if (walkHeld.has('a')) mx -= 1;
       if (walkHeld.has('d')) mx += 1;
       walkMoving = !!(mx || mz);
+      // DID THE MOVEMENT HANDLER RUN, and what did it want? The one question about the
+      // input chain that cannot be answered from outside this closure: position delta is
+      // a proxy that reads identically for "the key never arrived" and "the key arrived
+      // and a wall was in the way". Recorded as intent, before collision has an opinion.
+      if (walkMoveIntent.recording) {
+        walkMoveIntent.frames += 1;
+        if (mx || mz) {
+          walkMoveIntent.movingFrames += 1;
+          walkMoveIntent.last = { mx, mz };
+          if (mx > 0) walkMoveIntent.right += 1;
+          if (mx < 0) walkMoveIntent.left += 1;
+          if (mz < 0) walkMoveIntent.forward += 1;
+          if (mz > 0) walkMoveIntent.back += 1;
+        }
+      }
       if (mx || mz) {
         const len = Math.hypot(mx, mz);
         const s = (walk.speed * run * load * dt) / len;
@@ -11157,6 +11203,28 @@ export function makeCourseScene(canvas, state) {
       // Test/diagnostic seam: force the same release the three interrupt signals
       // do, so a harness can prove the clear happens without faking a real blur.
       releaseAllInput: () => walkBlur(),
+      // WHAT THE MOVEMENT BLOCK SAW. A probe watching from outside can tell whether a
+      // key reached the page and whether it landed in walkHeld, but not whether the
+      // per-frame movement code then acted on it — position delta conflates "never
+      // arrived" with "arrived and a collider was in the way". Counted only between
+      // begin() and end(); zero cost otherwise.
+      moveIntent: {
+        begin() {
+          Object.assign(walkMoveIntent, {
+            recording: true, frames: 0, movingFrames: 0, right: 0, left: 0, forward: 0, back: 0, last: null,
+          });
+        },
+        read: () => ({
+          frames: walkMoveIntent.frames,
+          movingFrames: walkMoveIntent.movingFrames,
+          right: walkMoveIntent.right,
+          left: walkMoveIntent.left,
+          forward: walkMoveIntent.forward,
+          back: walkMoveIntent.back,
+          last: walkMoveIntent.last ? { ...walkMoveIntent.last } : null,
+        }),
+        end() { walkMoveIntent.recording = false; },
+      },
       hooks: walkHooks,
       placeCart: (x, z, yaw) => {
         tractorPark.x = x;

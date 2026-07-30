@@ -4,6 +4,7 @@
 // EMPIRE: one wallet, a property market, and whichever owned club is active.
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
+import { devSessionActive } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
   EMPIRE_VERSION, newStarterEmpire, buyProperty, sellProperty, switchProperty, activeState,
@@ -3022,4 +3023,18 @@ if (new URLSearchParams(window.location.search).get('keydebug') === '1') {
   import('./debug/keyCapture.js')
     .then(({ startKeyCapture }) => startKeyCapture(app))
     .catch((e) => console.error('key capture failed to start', e));
+}
+
+// The six-case input probe, attached in development sessions only. It must be reachable
+// identically from a Chromium driver and from the Electron shell driver, because the whole
+// question is browser-versus-desktop — and a measurement that arrives by two different
+// routes is two measurements. Nothing is installed until a driver calls arm(); the object
+// here is inert.
+if (devSessionActive()) {
+  import('./debug/inputProbe.js')
+    .then(({ createInputProbe, SIX_KEY_CASES }) => {
+      app.inputProbe = createInputProbe(app);
+      app.inputProbe.cases = SIX_KEY_CASES;
+    })
+    .catch((e) => console.error('input probe failed to load', e));
 }

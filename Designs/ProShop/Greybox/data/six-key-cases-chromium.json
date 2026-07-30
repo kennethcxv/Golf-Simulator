@@ -1,0 +1,1298 @@
+{
+  "what": "six key cases, pointer-locked, measured through the shared input probe",
+  "stance": {
+    "x": -358.4,
+    "z": 5.2
+  },
+  "lock": {
+    "locked": true,
+    "lockedOnCanvas": true,
+    "lockedTag": "CANVAS"
+  },
+  "findings": {
+    "runtime": "chromium",
+    "pointerLockEngaged": true,
+    "probeArmed": true,
+    "secondaryWrapped": true,
+    "everyCaseReachedThePage": true,
+    "everyCaseReachedTheWalkListener": true,
+    "everyCaseWasTrusted": true,
+    "shiftChangesD": {
+      "delivery": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "preventDefault": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "heldSet": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "movementRan": {
+        "plain": false,
+        "shifted": false,
+        "same": true
+      },
+      "direction": {
+        "plain": null,
+        "shifted": null,
+        "same": true
+      }
+    },
+    "shiftChangesW": {
+      "delivery": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "preventDefault": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "heldSet": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "movementRan": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "direction": {
+        "plain": {
+          "mx": 0,
+          "mz": -1
+        },
+        "shifted": {
+          "mx": 0,
+          "mz": -1
+        },
+        "same": true
+      }
+    },
+    "shiftChangesX": {
+      "delivery": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "preventDefault": {
+        "plain": true,
+        "shifted": true,
+        "same": true
+      },
+      "secondary": {
+        "plain": 1,
+        "shifted": 1,
+        "same": true
+      }
+    },
+    "everyWalkVerbIsPreventDefaulted": true,
+    "xIsPreventDefaulted": true,
+    "wasdIsPreventDefaulted": true
+  },
+  "limitations": {
+    "cdpBypassesBrowserShortcuts": true,
+    "provesPageSideChain": true,
+    "canExhibitBrowserLevelSteal": false,
+    "canExhibitOsLevelSteal": false
+  },
+  "table": [
+    {
+      "case": "D alone",
+      "key": "d",
+      "code": "KeyD",
+      "modifiersReported": [],
+      "flags": {
+        "shift": false,
+        "ctrl": false,
+        "alt": false,
+        "meta": false
+      },
+      "isTrusted": true,
+      "reachedPage": true,
+      "reachedWalkListener": true,
+      "preventDefaultCalled": true,
+      "landedInHeldSet": true,
+      "heldDuringPress": [
+        "d"
+      ],
+      "movementRan": false,
+      "movementFramesWithIntent": 0,
+      "movementFramesObserved": 49,
+      "movementWanted": null,
+      "interactSecondaryCalls": 0,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "osModifiers": []
+    },
+    {
+      "case": "Shift+D",
+      "key": "D",
+      "code": "KeyD",
+      "modifiersReported": [
+        "Shift"
+      ],
+      "flags": {
+        "shift": true,
+        "ctrl": false,
+        "alt": false,
+        "meta": false
+      },
+      "isTrusted": true,
+      "reachedPage": true,
+      "reachedWalkListener": true,
+      "preventDefaultCalled": true,
+      "landedInHeldSet": true,
+      "heldDuringPress": [
+        "shift",
+        "d"
+      ],
+      "movementRan": false,
+      "movementFramesWithIntent": 0,
+      "movementFramesObserved": 57,
+      "movementWanted": null,
+      "interactSecondaryCalls": 0,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "osModifiers": []
+    },
+    {
+      "case": "W alone",
+      "key": "w",
+      "code": "KeyW",
+      "modifiersReported": [],
+      "flags": {
+        "shift": false,
+        "ctrl": false,
+        "alt": false,
+        "meta": false
+      },
+      "isTrusted": true,
+      "reachedPage": true,
+      "reachedWalkListener": true,
+      "preventDefaultCalled": true,
+      "landedInHeldSet": true,
+      "heldDuringPress": [
+        "w"
+      ],
+      "movementRan": true,
+      "movementFramesWithIntent": 34,
+      "movementFramesObserved": 53,
+      "movementWanted": {
+        "mx": 0,
+        "mz": -1
+      },
+      "interactSecondaryCalls": 0,
+      "movedYd": 1.209,
+      "pointerLocked": true,
+      "osModifiers": []
+    },
+    {
+      "case": "Shift+W",
+      "key": "W",
+      "code": "KeyW",
+      "modifiersReported": [
+        "Shift"
+      ],
+      "flags": {
+        "shift": true,
+        "ctrl": false,
+        "alt": false,
+        "meta": false
+      },
+      "isTrusted": true,
+      "reachedPage": true,
+      "reachedWalkListener": true,
+      "preventDefaultCalled": true,
+      "landedInHeldSet": true,
+      "heldDuringPress": [
+        "shift",
+        "w"
+      ],
+      "movementRan": true,
+      "movementFramesWithIntent": 41,
+      "movementFramesObserved": 61,
+      "movementWanted": {
+        "mx": 0,
+        "mz": -1
+      },
+      "interactSecondaryCalls": 0,
+      "movedYd": 1.2754,
+      "pointerLocked": true,
+      "osModifiers": []
+    },
+    {
+      "case": "X alone",
+      "key": "x",
+      "code": "KeyX",
+      "modifiersReported": [],
+      "flags": {
+        "shift": false,
+        "ctrl": false,
+        "alt": false,
+        "meta": false
+      },
+      "isTrusted": true,
+      "reachedPage": true,
+      "reachedWalkListener": true,
+      "preventDefaultCalled": true,
+      "landedInHeldSet": true,
+      "heldDuringPress": [
+        "x"
+      ],
+      "movementRan": false,
+      "movementFramesWithIntent": 0,
+      "movementFramesObserved": 52,
+      "movementWanted": null,
+      "interactSecondaryCalls": 1,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "osModifiers": []
+    },
+    {
+      "case": "Shift+X",
+      "key": "X",
+      "code": "KeyX",
+      "modifiersReported": [
+        "Shift"
+      ],
+      "flags": {
+        "shift": true,
+        "ctrl": false,
+        "alt": false,
+        "meta": false
+      },
+      "isTrusted": true,
+      "reachedPage": true,
+      "reachedWalkListener": true,
+      "preventDefaultCalled": true,
+      "landedInHeldSet": true,
+      "heldDuringPress": [
+        "shift",
+        "x"
+      ],
+      "movementRan": false,
+      "movementFramesWithIntent": 0,
+      "movementFramesObserved": 55,
+      "movementWanted": null,
+      "interactSecondaryCalls": 1,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "osModifiers": []
+    }
+  ],
+  "detail": [
+    {
+      "case": "D alone",
+      "events": [
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "d",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "d",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "d",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "d",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        }
+      ],
+      "reachedCapture": true,
+      "reachedBubble": true,
+      "preventDefaultCalled": true,
+      "heldDuringPress": [
+        "d"
+      ],
+      "heldAfter": [],
+      "moveIntent": {
+        "frames": 49,
+        "movingFrames": 0,
+        "right": 0,
+        "left": 0,
+        "forward": 0,
+        "back": 0,
+        "last": null
+      },
+      "interactSecondaryCalls": 0,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "walkActive": true,
+      "heldModifiers": [],
+      "osModifiers": [],
+      "during": {
+        "heldKeys": [
+          "d"
+        ],
+        "heldModifiers": [],
+        "osModifiers": [],
+        "pointerLocked": true
+      },
+      "expectedCode": "KeyD",
+      "holdModifier": null
+    },
+    {
+      "case": "Shift+D",
+      "events": [
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "D",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "D",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "D",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "D",
+          "code": "KeyD",
+          "keyCode": 68,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        }
+      ],
+      "reachedCapture": true,
+      "reachedBubble": true,
+      "preventDefaultCalled": true,
+      "heldDuringPress": [
+        "shift",
+        "d"
+      ],
+      "heldAfter": [],
+      "moveIntent": {
+        "frames": 57,
+        "movingFrames": 0,
+        "right": 0,
+        "left": 0,
+        "forward": 0,
+        "back": 0,
+        "last": null
+      },
+      "interactSecondaryCalls": 0,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "walkActive": true,
+      "heldModifiers": [],
+      "osModifiers": [],
+      "during": {
+        "heldKeys": [
+          "shift",
+          "d"
+        ],
+        "heldModifiers": [
+          "Shift"
+        ],
+        "osModifiers": [
+          "Shift"
+        ],
+        "pointerLocked": true
+      },
+      "expectedCode": "KeyD",
+      "holdModifier": "Shift"
+    },
+    {
+      "case": "W alone",
+      "events": [
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "w",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "w",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "w",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "w",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        }
+      ],
+      "reachedCapture": true,
+      "reachedBubble": true,
+      "preventDefaultCalled": true,
+      "heldDuringPress": [
+        "w"
+      ],
+      "heldAfter": [],
+      "moveIntent": {
+        "frames": 53,
+        "movingFrames": 34,
+        "right": 0,
+        "left": 0,
+        "forward": 34,
+        "back": 0,
+        "last": {
+          "mx": 0,
+          "mz": -1
+        }
+      },
+      "interactSecondaryCalls": 0,
+      "movedYd": 1.209,
+      "pointerLocked": true,
+      "walkActive": true,
+      "heldModifiers": [],
+      "osModifiers": [],
+      "during": {
+        "heldKeys": [
+          "w"
+        ],
+        "heldModifiers": [],
+        "osModifiers": [],
+        "pointerLocked": true
+      },
+      "expectedCode": "KeyW",
+      "holdModifier": null
+    },
+    {
+      "case": "Shift+W",
+      "events": [
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "W",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "W",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "W",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "W",
+          "code": "KeyW",
+          "keyCode": 87,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        }
+      ],
+      "reachedCapture": true,
+      "reachedBubble": true,
+      "preventDefaultCalled": true,
+      "heldDuringPress": [
+        "shift",
+        "w"
+      ],
+      "heldAfter": [],
+      "moveIntent": {
+        "frames": 61,
+        "movingFrames": 41,
+        "right": 0,
+        "left": 0,
+        "forward": 41,
+        "back": 0,
+        "last": {
+          "mx": 0,
+          "mz": -1
+        }
+      },
+      "interactSecondaryCalls": 0,
+      "movedYd": 1.2754,
+      "pointerLocked": true,
+      "walkActive": true,
+      "heldModifiers": [],
+      "osModifiers": [],
+      "during": {
+        "heldKeys": [
+          "shift",
+          "w"
+        ],
+        "heldModifiers": [
+          "Shift"
+        ],
+        "osModifiers": [
+          "Shift"
+        ],
+        "pointerLocked": true
+      },
+      "expectedCode": "KeyW",
+      "holdModifier": "Shift"
+    },
+    {
+      "case": "X alone",
+      "events": [
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "x",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "x",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "x",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "x",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        }
+      ],
+      "reachedCapture": true,
+      "reachedBubble": true,
+      "preventDefaultCalled": true,
+      "heldDuringPress": [
+        "x"
+      ],
+      "heldAfter": [],
+      "moveIntent": {
+        "frames": 52,
+        "movingFrames": 0,
+        "right": 0,
+        "left": 0,
+        "forward": 0,
+        "back": 0,
+        "last": null
+      },
+      "interactSecondaryCalls": 1,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "walkActive": true,
+      "heldModifiers": [],
+      "osModifiers": [],
+      "during": {
+        "heldKeys": [
+          "x"
+        ],
+        "heldModifiers": [],
+        "osModifiers": [],
+        "pointerLocked": true
+      },
+      "expectedCode": "KeyX",
+      "holdModifier": null
+    },
+    {
+      "case": "Shift+X",
+      "events": [
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keydown",
+          "key": "X",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keydown",
+          "key": "X",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "X",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "X",
+          "code": "KeyX",
+          "keyCode": 88,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": true,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [
+            "Shift"
+          ],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-capture",
+          "type": "keyup",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": false,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        },
+        {
+          "phase": "window-bubble",
+          "type": "keyup",
+          "key": "Shift",
+          "code": "ShiftLeft",
+          "keyCode": 16,
+          "repeat": false,
+          "isTrusted": true,
+          "flags": {
+            "shift": false,
+            "ctrl": false,
+            "alt": false,
+            "meta": false
+          },
+          "modifiersReported": [],
+          "defaultPrevented": true,
+          "target": "BODY",
+          "activeElement": "BODY",
+          "pointerLocked": true
+        }
+      ],
+      "reachedCapture": true,
+      "reachedBubble": true,
+      "preventDefaultCalled": true,
+      "heldDuringPress": [
+        "shift",
+        "x"
+      ],
+      "heldAfter": [],
+      "moveIntent": {
+        "frames": 55,
+        "movingFrames": 0,
+        "right": 0,
+        "left": 0,
+        "forward": 0,
+        "back": 0,
+        "last": null
+      },
+      "interactSecondaryCalls": 1,
+      "movedYd": 0,
+      "pointerLocked": true,
+      "walkActive": true,
+      "heldModifiers": [],
+      "osModifiers": [],
+      "during": {
+        "heldKeys": [
+          "shift",
+          "x"
+        ],
+        "heldModifiers": [
+          "Shift"
+        ],
+        "osModifiers": [
+          "Shift"
+        ],
+        "pointerLocked": true
+      },
+      "expectedCode": "KeyX",
+      "holdModifier": "Shift"
+    }
+  ],
+  "errs": [],
+  "ok": true
+}
