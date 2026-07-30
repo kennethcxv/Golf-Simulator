@@ -41,7 +41,7 @@ async (page) => {
         editor: 'J, visible Playtest/Exit buttons, right-mouse orbit, left-mouse shot, Escape',
         walking: 'W + Shift + ArrowLeft/ArrowRight',
         driving: 'E to mount/dismount, W + A/D to steer',
-        delivery: 'time speed key 3, E hold/tap for cutter, flaps, take, and stocking',
+        delivery: 'time speed key 3, E presses for tape, flaps, take, and stocking',
         saveLoad: 'Escape pause menu, Save game/Load game, Slot 1 controls',
         menu: 'Escape, Office, Exit to main menu, Continue',
         customers: 'documented debug spawn fixture, normal locomotion, speed 3 through closing time',
@@ -900,22 +900,21 @@ async (page) => {
     await measure('delivery-box-opening', {
       minimumMs: 7000,
       action: async () => {
-        // First tap equips the sealed carton's contextual cutter. The deliberate
-        // hold begins only after that key has been released once.
+        // Ported off the box-cutter equip 2026-07-30 — cartons tear on a
+        // press, no tool. The first press tears the tape outright and
+        // animates the wide flap pair; the next prompt is the settle signal
+        // (a press mid-animation is deliberately ignored).
         await page.keyboard.press('e');
-        await page.waitForFunction(
-          () => window.__fw.scene3d.walk.getTool() === 'boxcutter',
-          null,
-          { timeout: 3000 },
-        );
-        await page.keyboard.down('e');
-        await page.waitForTimeout(2300);
-        await page.keyboard.up('e');
         await page.waitForFunction(() => {
           const box = window.__fw.state.shop.deliveries.boxes
             .find((entry) => entry.skuId === 'balls1');
           return !!box && box.tape >= 1;
         }, null, { timeout: 5000 });
+        await page.waitForFunction(
+          () => /open the other flap/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+          null,
+          { timeout: 6000 },
+        );
         await page.keyboard.press('e');
         await page.waitForTimeout(1700);
         await page.waitForFunction(() => {

@@ -1,8 +1,12 @@
 async (page) => {
   // Durable Asset Sheet 05, reference-48 golf-club carton recovery probe.
   //
-  // A documented fixture establishes one repeatable two-driver delivery. CUTTING
-  // and OPENING are reached through the player-facing E-key route. The normal
+  // A documented fixture establishes one repeatable two-driver delivery.
+  // TAPE_TORN and OPENING are reached through the player-facing three-press
+  // E-key route: press one tears the tape through its full travel and folds the
+  // wide flap pair open, press two folds the other pair, press three takes an
+  // armful. (ported off the box-cutter equip 2026-07-30 — cartons tear on a
+  // press; proshop-box-open-loop.js owns the gesture contract) The normal
   // take action intentionally fills the two-club armful, which would move a
   // two-unit carton directly from OPEN to EMPTY. To exercise the durable
   // PARTIALLY_EMPTIED state honestly, the checkpoint fixture calls the same
@@ -431,30 +435,26 @@ async (page) => {
     return file;
   }
 
-  async function equipCutter() {
-    const focused = await waitForFocus(/box cutter|finish the cut|cut the tape/i);
-    if (focused.tool !== 'boxcutter') {
-      await page.keyboard.press('e');
-      await page.waitForFunction(() => window.__fw?.scene3d?.walk?.getTool?.() === 'boxcutter');
-      await page.waitForTimeout(150);
+  // Press one of the three-press gesture: the tape tears through its FULL
+  // travel in a single press and the wide flap pair folds open. There is no
+  // tool to equip and nothing to hold; the settled between-press state is the
+  // durable one a save can honestly capture.
+  // (ported off the box-cutter equip 2026-07-30 — cartons tear on a press;
+  // proshop-box-open-loop.js owns the gesture contract)
+  async function tearTape(boxId) {
+    const focused = await waitForFocus(/tear the tape/i);
+    if (focused.tool !== null) {
+      throw new Error(`Cartons open bare-handed, but a tool is equipped: ${focused.tool}.`);
     }
-  }
-
-  async function holdEUntil(boxId, condition, timeout = 6000) {
-    await page.keyboard.down('e');
-    try {
-      await page.waitForFunction(({ id, wanted }) => {
-        const box = window.__fw?.state?.shop?.deliveries?.boxes?.find((candidate) => candidate.id === id);
-        if (!box) return false;
-        const cut = box.cutProgress ?? box.tape ?? 0;
-        if (wanted === 'mid-cut') return cut >= 0.40 && cut <= 0.65;
-        if (wanted === 'cut') return cut >= 0.999;
-        return false;
-      }, { id: boxId, wanted: condition }, { timeout });
-    } finally {
-      await page.keyboard.up('e').catch(() => {});
-    }
-    await page.waitForTimeout(100);
+    await page.keyboard.press('e');
+    await page.waitForFunction((id) => {
+      const box = window.__fw?.state?.shop?.deliveries?.boxes?.find((candidate) => candidate.id === id);
+      return !!box && (box.cutProgress ?? box.tape ?? 0) >= 1;
+    }, boxId, { timeout: 6000 });
+    // The prompt only advances to the second-press wording once the bounded
+    // first flap phase has finished; waiting for it pins the settled state.
+    await waitForFocus(/other flap/i);
+    await page.waitForTimeout(150);
   }
 
   async function stockCurrentClub() {
@@ -490,21 +490,21 @@ async (page) => {
 
   const checkpoints = {};
 
-  // CUTTING: release while the persisted segmented-tape path is incomplete.
-  await equipCutter();
-  await holdEUntil(fixtureCase.id, 'mid-cut');
-  checkpoints.cutting = { saved: await autosaveSnapshot(fixtureCase.id) };
-  await capture('01-cutting-before-reload.png');
+  // TAPE_TORN: exactly one E press. The tape reaches full travel in that press
+  // (a fractional cut is no longer reachable through player input) and the wide
+  // flap pair folds open; save the settled between-press state.
+  await tearTape(fixtureCase.id);
+  checkpoints.tapeTorn = { saved: await autosaveSnapshot(fixtureCase.id) };
+  await capture('01-tape-torn-before-reload.png');
   await reloadAndContinue();
-  checkpoints.cutting.reloaded = await liveSnapshot(fixtureCase.id);
-  checkpoints.cutting.reloadedVisual = await visualSnapshot(fixtureCase.id);
+  checkpoints.tapeTorn.reloaded = await liveSnapshot(fixtureCase.id);
+  checkpoints.tapeTorn.reloadedVisual = await visualSnapshot(fixtureCase.id);
   await setCamera(cameras.box);
-  await capture('02-cutting-after-reload.png');
+  await capture('02-tape-torn-after-reload.png');
 
-  await equipCutter();
-  await holdEUntil(fixtureCase.id, 'cut');
-
-  // OPENING: autosave while the independent authored flaps are in motion.
+  // OPENING: the second press folds the other flap pair; autosave while those
+  // independent authored flaps are in motion.
+  await waitForFocus(/other flap/i);
   await page.keyboard.press('e');
   await page.waitForFunction((id) => {
     const box = window.__fw?.state?.shop?.deliveries?.boxes?.find((candidate) => candidate.id === id);
@@ -520,7 +520,9 @@ async (page) => {
   await setCamera(cameras.box);
   await capture('04-opening-after-reload.png');
 
-  await waitForFocus(/open the carton/i);
+  // The frozen mid-press flap phase is finished by the same second-press
+  // prompt after the reload.
+  await waitForFocus(/other flap/i);
   await page.keyboard.press('e');
   await page.waitForFunction((id) => {
     const box = window.__fw?.state?.shop?.deliveries?.boxes?.find((candidate) => candidate.id === id);
@@ -622,12 +624,12 @@ async (page) => {
     visualGone: !window.__fw.scene3d.scene.getObjectByName(`DeliveryBox_${id}`),
   }), fixtureCase.id);
 
-  const cuttingSaved = checkpoints.cutting.saved;
+  const tapeTornSaved = checkpoints.tapeTorn.saved;
   const openingSaved = checkpoints.opening.saved;
   const partialSaved = checkpoints.partiallyEmptied.saved;
   const allCheckpointSnapshots = [
-    cuttingSaved,
-    checkpoints.cutting.reloaded,
+    tapeTornSaved,
+    checkpoints.tapeTorn.reloaded,
     openingSaved,
     checkpoints.opening.reloaded,
     partialSaved,
@@ -635,7 +637,7 @@ async (page) => {
   ];
   const allVisuals = [
     initialVisual,
-    checkpoints.cutting.reloadedVisual,
+    checkpoints.tapeTorn.reloadedVisual,
     checkpoints.opening.reloadedVisual,
     checkpoints.partiallyEmptied.reloadedVisual,
   ];
@@ -673,14 +675,21 @@ async (page) => {
     === partialSaved.delivery.arrivedOrderIds.length;
 
   const assertions = {
-    cuttingPersisted: cuttingSaved.box.lifecycle === 'CUTTING'
-      && cuttingSaved.box.cutProgress >= 0.35
-      && cuttingSaved.box.cutProgress <= 0.70
-      && cuttingSaved.box.cutProgress === cuttingSaved.box.tape,
-    cuttingReloadExact: same(cuttingSaved.box, checkpoints.cutting.reloaded.box)
-      && same(cuttingSaved.carry, checkpoints.cutting.reloaded.carry)
-      && same(cuttingSaved.inventory, checkpoints.cutting.reloaded.inventory)
-      && same(cuttingSaved.delivery, checkpoints.cutting.reloaded.delivery),
+    // One press = full tape travel through all three authored segments, the
+    // wide flap pair (FLAP_PHASES[0] = indices 2, 3) fully open, the other
+    // pair untouched. flapProgress round-trips exactly via tapeTornReloadExact.
+    tapeTornPersisted: tapeTornSaved.box.lifecycle === 'OPENING'
+      && tapeTornSaved.box.tape === 1
+      && tapeTornSaved.box.cutProgress === tapeTornSaved.box.tape
+      && Object.values(tapeTornSaved.box.tapeSegments).every((segment) => segment === 1)
+      && tapeTornSaved.box.flapProgress[2] >= 0.999
+      && tapeTornSaved.box.flapProgress[3] >= 0.999
+      && tapeTornSaved.box.flapProgress[0] === 0
+      && tapeTornSaved.box.flapProgress[1] === 0,
+    tapeTornReloadExact: same(tapeTornSaved.box, checkpoints.tapeTorn.reloaded.box)
+      && same(tapeTornSaved.carry, checkpoints.tapeTorn.reloaded.carry)
+      && same(tapeTornSaved.inventory, checkpoints.tapeTorn.reloaded.inventory)
+      && same(tapeTornSaved.delivery, checkpoints.tapeTorn.reloaded.delivery),
     openingPersisted: openingSaved.box.lifecycle === 'OPENING'
       && openingSaved.box.openingProgress > 0.20
       && openingSaved.box.openingProgress < 0.80
@@ -713,9 +722,12 @@ async (page) => {
       && snapshot.box.model === 'delivery_golf_club_box'
       && snapshot.box.cap === fixtureQty
       && snapshot.box.initialQty === fixtureQty),
+    // Press one half-opens the lid down the middle, so the reconstructed
+    // tape-torn carton already reveals both packed drivers; only the untouched
+    // sealed fixture hides them.
     authoredClubVisualReconstructed: allVisuals.every(exactClubVisual)
       && initialVisual.visibleProducts === 0
-      && checkpoints.cutting.reloadedVisual.visibleProducts === 0
+      && checkpoints.tapeTorn.reloadedVisual.visibleProducts === 2
       && checkpoints.opening.reloadedVisual.visibleProducts === 2
       && checkpoints.partiallyEmptied.reloadedVisual.visibleProducts === 1,
     sameBoxAndOrderAcrossReloads: allCheckpointSnapshots.every((snapshot) => snapshot.box.id === fixtureCase.id
@@ -756,7 +768,7 @@ async (page) => {
       && completed.recycled === 1
       && completed.trash === 0
       && completed.visualGone,
-    ownAutosaveKeyUsed: [cuttingSaved, openingSaved, partialSaved]
+    ownAutosaveKeyUsed: [tapeTornSaved, openingSaved, partialSaved]
       .every((snapshot) => snapshot.storageKey === 'golfempire:autosave'
         && snapshot.rawBytes > 0
         && snapshot.rawSha256.length === 64

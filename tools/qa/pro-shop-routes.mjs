@@ -517,23 +517,30 @@ async function unpackBox(skuId) {
     });
   }
   await faceLocal([local.x, local.z], 0.045);
+  // Ported off the box-cutter equip 2026-07-30 — cartons tear on a press, no
+  // tool. Three presses: tape, other flap pair, armful.
   const sealed = await focus();
-  if (sealed.tool !== 'boxcutter') throw new Error(`Box cutter did not equip for ${skuId}: ${JSON.stringify(sealed)}`);
-  await page.keyboard.down('e');
-  await page.waitForTimeout(1_850);
-  await page.keyboard.up('e');
-  await page.waitForTimeout(250);
+  if (sealed.tool !== null) throw new Error(`A carton press must not involve a tool for ${skuId}: ${JSON.stringify(sealed)}`);
+  if (!/tear the tape/i.test(sealed.label || '')) throw new Error(`Sealed ${skuId} carton did not offer the tear press: ${JSON.stringify(sealed)}`);
+  // Each press animates a flap phase and ignores input until it settles; the
+  // next prompt is the settle signal.
   await page.keyboard.press('e');
-  await page.waitForTimeout(250);
+  await page.waitForFunction(
+    () => /open the other flap/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+    null, { timeout: 6000 },
+  );
   await page.keyboard.press('e');
-  await page.waitForTimeout(250);
+  await page.waitForFunction(
+    () => /take an armful/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+    null, { timeout: 6000 },
+  );
   await page.keyboard.press('e');
   await page.waitForFunction(async (wanted) => {
     const stocking = await import('/src/sim/stocking.js');
     return stocking.carriedGoods(window.__fw.state)?.skuId === wanted;
   }, skuId);
   const hands = await carried();
-  steps.push({ step: `cut, opened, and took ${skuId} from its carton`, control: 'hold E + E + E + E', sealed, hands });
+  steps.push({ step: `tore, opened, and took ${skuId} from its carton`, control: 'E + E + E', sealed, hands });
   return local;
 }
 

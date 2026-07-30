@@ -1,9 +1,12 @@
 async (page) => {
   // THE PHYSICAL LOOP, PROVEN THROUGH THE RUNNING GAME with real key presses. Rather than guess
   // where a box stacked, I place one at a known spot in the stockroom and stand facing it, then
-  // drive the whole chain: cutter equips -> HOLD E cuts the tape -> tap opens each flap -> tap
-  // takes an armful into the arms -> carry to the ball wall -> HOLD E stocks it. The sim is checked
-  // at every step and the console must stay clean.
+  // drive the whole chain: press E tears the tape -> press E folds the other flap pair -> press E
+  // takes an armful into the arms -> carry to the ball wall -> HOLD E stocks it. The sim is
+  // checked at every step and the console must stay clean.
+  // (Ported off the box-cutter equip/hold-E-cut choreography 2026-07-30 — the tool was deleted;
+  // cartons open in three presses with no equip. tools/qa/proshop-box-open-loop.js owns the
+  // gesture-contract claims; this driver owns the delivery->stock chain around it.)
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const errs = [];
@@ -148,36 +151,56 @@ async (page) => {
     clubhouse.refreshCondition?.();
     del.arriveOrder(st, { id: 999, skuId: 'balls1', qty: 12, manifest: { supplier: 'Fairway Supply Co.', boxes: [{ kind: 'ballcase', qty: 12, w: 0.52, h: 0.34, d: 0.42, lb: 18.7, fragile: false }], boxCount: 1, weight: 18.7, fee: 9 } });
     const hero = del.boxesOf(st).find((b) => b.orderId === 999);
-    del.pickUpBox(st, hero.id);
-    del.putDownBox(st, hero.id, { x: 7.4, z: -5.2, ry: 0 });
-    clubhouse.rebuildBoxes();
+    // SELF-VALIDATING world placement: hardcoded spots go stale whenever the
+    // room is relaid (the old putDownBox({x:7.4,z:-5.2}) failed silently and
+    // left the carton in the player's arms), and a spot proven in one variant
+    // is unproven in another. Try candidates until one SURVIVES rebuildBoxes'
+    // own reconciliation — the game's occupancy rules stay the referee.
+    const candidates = [
+      { x: 0.4, z: 1.2 }, { x: 7.4, z: -5.2 }, { x: 6.5, z: -1.5 },
+      { x: 2.0, z: 3.0 }, { x: -2.0, z: 2.0 }, { x: 0.0, z: -2.0 },
+    ];
+    let stagedAt = null;
+    for (const spot of candidates) {
+      hero.loc = 'world';
+      hero.surfaceId = 'floor:clubhouse';
+      hero.x = spot.x; hero.z = spot.z; hero.ry = 0;
+      clubhouse.rebuildBoxes();
+      const staged = del.boxesOf(st).find((b) => b.orderId === 999);
+      if (staged.loc === 'world') { stagedAt = spot; break; }
+    }
+    if (st.shop.carry) throw new Error(`Fixture left goods in hand: ${JSON.stringify(st.shop.carry)}`);
+    if (!stagedAt) {
+      throw new Error(`Hero carton did not stage at any candidate spot: ${JSON.stringify(candidates)}`);
+    }
+    window.__deliveryLoopStagedAt = stagedAt;
   });
+  const stagedAt = await page.evaluate(() => window.__deliveryLoopStagedAt);
 
-  // 2. stand facing the hero case; the box cutter should appear
-  await goTo(7.4, -4.1, 0, -0.28);
+  // 2. stand facing the hero case; the press prompt should offer the tear, with NO tool
+  await goTo(stagedAt.x, stagedAt.z + 1.1, 0, -0.35);
   const sealed = await focus();
-  if (sealed.tool !== 'boxcutter' && /equip the box cutter/i.test(sealed.label || '')) {
-    await page.keyboard.press('e');
-    await page.waitForTimeout(300);
-  }
-  const equipped = await focus();
   log.push({
-    step: '2. facing the sealed case and equipping the cutter',
+    step: '2. facing the sealed case — press prompt offered, no tool involved',
     initialLabel: sealed.label,
-    ...equipped,
-    cutterEquipped: equipped.tool === 'boxcutter',
+    ...sealed,
+    pressPromptOffered: /tear the tape/i.test(sealed.label || ''),
+    noToolInvolved: sealed.tool === null,
   });
-  await page.screenshot({ path: `${OUT}/loop-2-cutter.png` });
+  await page.screenshot({ path: `${OUT}/loop-2-sealed-prompt.png` });
 
-  // 3. HOLD E to cut
-  await page.keyboard.down('e');
-  await page.waitForTimeout(2250);
-  await page.keyboard.up('e');
-  await page.waitForTimeout(200);
+  // 3. first press tears the tape (synchronously) and animates the wide flap
+  // pair open. A press during that animation is deliberately ignored, so the
+  // settle signal is the NEXT prompt appearing — never a flat timeout.
+  await page.keyboard.press('e');
+  await page.waitForFunction(
+    () => /open the other flap/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+    null, { timeout: 6000 },
+  );
   let b = await ballBox();
-  log.push({ step: '3. held E — tape', tape: b.tape, cut: b.tape >= 1 });
+  log.push({ step: '3. press one — tape', tape: b.tape, cut: b.tape >= 1 });
 
-  // 4. one normal action starts the deterministic four-flap sequence
+  // 4. second press folds the remaining flap pair open
   await page.keyboard.press('e');
   await page.waitForFunction(() => {
     const box = window.__fw.state.shop.deliveries.boxes.find((entry) => entry.skuId === 'balls1');
@@ -188,7 +211,12 @@ async (page) => {
   log.push({ step: '4. flaps', flaps: b.flaps, open: b.flaps[0] >= 1 && b.flaps[1] >= 1 });
   await page.screenshot({ path: `${OUT}/loop-3-open.png` });
 
-  // 5. tap to take an armful into the arms
+  // 5. tap to take an armful into the arms (gated on the armful prompt — the
+  // flap animation from press two must settle first)
+  await page.waitForFunction(
+    () => /take an armful/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+    null, { timeout: 6000 },
+  );
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.state.shop.carry?.skuId === 'balls1', null, { timeout: 3000 });
   await page.waitForTimeout(300);
@@ -219,7 +247,11 @@ async (page) => {
   await page.screenshot({ path: `${OUT}/loop-5-stocked.png` });
 
   // 7. take the remaining armful and finish the same carton/fixture route.
-  await goTo(7.4, -4.1, 0, -0.28);
+  await goTo(stagedAt.x, stagedAt.z + 1.1, 0, -0.35);
+  await page.waitForFunction(
+    () => /take an armful/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+    null, { timeout: 6000 },
+  );
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.state.shop.carry?.skuId === 'balls1', null, { timeout: 3000 });
   const secondHands = await hands();

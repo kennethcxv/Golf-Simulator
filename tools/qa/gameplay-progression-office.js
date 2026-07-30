@@ -516,27 +516,24 @@ async (page) => {
     const initial = snapshot.boxes.find((entry) => entry.skuId === skuId);
     if (!initial) throw new Error(`Missing inherited ${skuId} carton.`);
 
+    // Ported off the box-cutter equip 2026-07-30 — cartons tear on a press, no
+    // tool. proshop-box-open-loop.js owns the gesture contract; this driver
+    // owns the campaign chain around it.
     await focusBox(skuId);
-    await press('e', `equip cutter for ${skuId}`);
-    await page.waitForTimeout(240);
-    for (let cutPass = 0; cutPass < 2; cutPass += 1) {
-      let pose = await readPose();
-      if (pose.tool !== 'boxcutter') {
-        await focusBox(skuId);
-        await press('e', `re-equip cutter for ${skuId}`);
-        await page.waitForTimeout(240);
-        pose = await readPose();
-      }
-      if (pose.tool !== 'boxcutter') {
-        throw new Error(`Contextual cutter did not remain equipped for ${skuId}: ${JSON.stringify(pose)}`);
-      }
-      await holdKey('e', 2250, `cut ${skuId} carton tape`);
-      await page.waitForTimeout(220);
-      snapshot = await campaignSnapshot();
-      if ((snapshot.boxes.find((entry) => entry.skuId === skuId)?.tape || 0) >= 0.999) break;
+    const sealedPose = await readPose();
+    if (sealedPose.tool !== null) {
+      throw new Error(`A carton press must not involve a tool for ${skuId}: ${JSON.stringify(sealedPose)}`);
     }
+    await press('e', `tear ${skuId} carton tape`);
+    // Press one tears synchronously then animates the wide flap pair; the
+    // "other flap" prompt is the settle signal (mid-animation presses are
+    // deliberately ignored).
+    await page.waitForFunction(
+      () => /open the other flap/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+      null, { timeout: 6000 },
+    );
     const cut = (await campaignSnapshot()).boxes.find((entry) => entry.skuId === skuId);
-    if ((cut?.tape || 0) < 0.999) throw new Error(`Tape did not fully cut for ${skuId}: ${JSON.stringify(cut)}`);
+    if ((cut?.tape || 0) < 0.999) throw new Error(`Tape did not tear on one press for ${skuId}: ${JSON.stringify(cut)}`);
 
     await focusBox(skuId);
     await press('e', `open ${skuId} carton flaps`);

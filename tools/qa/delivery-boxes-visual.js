@@ -51,16 +51,16 @@ async (page) => {
   await goTo(7.4, -1.9, 0, -0.62);
   await page.screenshot({ path: `${OUT}/box-open-contents.png` });
 
-  // 3. the box cutter in hand at the sealed case (verify it equipped)
+  // 3. the sealed case offering its tear press (no tool since 2026-07-30)
   await goTo(6.4, -1.5, 0, -0.42);
   await page.waitForTimeout(400);
   const cut = await page.evaluate(() => ({ label: window.__fw.scene3d.walk.getFocusLabel(), tool: window.__fw.scene3d.walk.getTool() }));
-  await page.screenshot({ path: `${OUT}/box-cutter-hand.png` });
+  await page.screenshot({ path: `${OUT}/box-sealed-prompt.png` });
 
   // 4. an armful of product in the arms
   await page.evaluate(() => { window.__fw.state.shop.carry = { skuId: 'balls3', qty: 6 }; window.__fw.scene3d.clubhouse().rebuildBoxes(); });
   await goTo(7.4, -1.9, 0, -0.12);
   await page.screenshot({ path: `${OUT}/box-armful.png` });
 
-  return { cutterShot: cut, errs: errs.slice(0, 5), errCount: errs.length };
+  return { sealedPromptShot: cut, errs: errs.slice(0, 5), errCount: errs.length };
 }

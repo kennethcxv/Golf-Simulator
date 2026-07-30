@@ -1822,9 +1822,12 @@ export function createRegisterMode(B) {
     }
     if (deliveryPhase === 'receipt-deliver') return 'The receipt is being handed to the customer.';
     if (deliveryPhase === 'bag-deliver') return 'The bag is being handed to the customer.';
+    // No receipt prints since the 2026-07-30 TCG pass — the sim files the
+    // order silently while this brief stage runs, so the instruction must not
+    // promise paper that never appears.
     if (tx.stage === 'receipt') return deliveryPhase === 'receipt-ready-manual'
       ? 'Take the printed receipt and place it in the shopping bag.'
-      : 'Payment is accepted. Wait for the receipt to finish printing.';
+      : 'Payment is accepted. The register is filing the order.';
     if (tx.stage === 'bagging') {
       const hasSeparateHandoff = tx.items.some((item) => !item.bagged
         && itemMeshes.get(item.uid)?.userData?.catalogVisual?.separateHandoff);

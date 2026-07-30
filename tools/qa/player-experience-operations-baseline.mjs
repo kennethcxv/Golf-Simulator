@@ -61,7 +61,7 @@ await page.evaluate(() => window.__fw.autosave());
 
 const result = { delivery: null, cleaning: {}, placement: {}, frontDesk: {}, maintenance: {} };
 
-// Delivery, box cutter, flaps, armful, and stocking are already encoded in the
+// Delivery, tape press, flaps, armful, and stocking are already encoded in the
 // repository's normal-control QA route. Configure only its URL and output path.
 const deliverySource = await fs.readFile(path.join(ROOT, 'tools', 'qa', 'delivery-loop.js'), 'utf8');
 const deliveryOut = OUT.replaceAll('\\', '/');

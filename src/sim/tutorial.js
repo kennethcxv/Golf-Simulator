@@ -87,15 +87,15 @@ export const TUTORIAL_STEPS = [
   {
     id: 'box-cut',
     chapter: 'Receiving',
-    title: 'Cut the case open',
-    hint: 'Set it on a stockroom surface, tap E once to equip the box cutter, then hold LMB and drag along the highlighted tape. Holding E is the accessible alternative.',
+    title: 'Tear the case open',
+    hint: 'Set it on a stockroom surface and press E to tear the tape.',
     check: (st) => !!st.tutorial.flags.boxCut,
   },
   {
     id: 'unbox',
     chapter: 'Receiving',
     title: 'Unpack it',
-    hint: 'After the tape is cut, press E to fold all four flaps open, then press E again to take an armful.',
+    hint: 'After the tape tears, press E to fold the other flap pair open, then press E again to take an armful.',
     check: (st) => !!(st.shop && st.shop.deliveries && (st.shop.deliveries.openedTotal || 0) > 0),
   },
   {
@@ -192,12 +192,13 @@ export const CONTEXTUAL_TUTORIALS = [
     completeFlag: 'maintenanceUsed',
   },
   {
-    // The unboxing loop is a hold-and-drag gesture, which nothing else in the
-    // game uses — a player who never discovers it cannot stock a shelf, so the
-    // whole retail loop is behind it. Fired when the FIRST delivery lands,
-    // which is the only moment it is guaranteed to be relevant.
+    // A player who never opens a carton cannot stock a shelf, so the whole
+    // retail loop is behind this hint. Fired when the FIRST delivery lands,
+    // which is the only moment it is guaranteed to be relevant. (The
+    // hold-and-drag cutter gesture this used to teach was deleted 2026-07-30 —
+    // cartons tear on a press now.)
     id: 'delivery-carton', context: 'walk', title: 'Open the delivery',
-    hint: 'Look at a sealed carton: the box cutter comes out on its own and a dashed cut line appears along the tape. Hold the left mouse button and drag along that line to slice it open — or hold E if you prefer. Then press E to fold the flaps back and again to take an armful.',
+    hint: 'Look at a sealed carton and press E to tear the tape. Press E again to fold the flaps back, and again to take an armful.',
     completeFlag: 'boxCut',
   },
   {

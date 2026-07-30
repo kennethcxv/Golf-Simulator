@@ -208,23 +208,25 @@ async (page) => {
   );
   await shot('04-worktable-sealed.png', 'Sealed carton placed at the purpose-built worktable.');
   await waitFocus(/cut the tape/);
-  for (let pass = 0; pass < 4; pass += 1) {
+  // Ported off the box-cutter hold 2026-07-30 — one press tears the tape.
+  for (let pass = 0; pass < 2; pass += 1) {
     const tape = await page.evaluate(async (id) => {
       const delivery = await import('/src/sim/deliveries.js');
       return delivery.findBox(window.__fw.state, id)?.tape || 0;
     }, heroId);
     if (tape >= 1) break;
-    await hold('e', 900, `run authored cutter down the top seam (pass ${pass + 1})`);
+    await press('e', `tear the tape (pass ${pass + 1})`);
+    await page.waitForTimeout(350);
   }
   const tapeCut = await page.evaluate(async (id) => {
     const delivery = await import('/src/sim/deliveries.js');
     return (delivery.findBox(window.__fw.state, id)?.tape || 0) >= 1;
   }, heroId);
-  requireTruth(tapeCut, 'trusted cutter holds did not complete the top seam');
+  requireTruth(tapeCut, 'the tear press did not cut the tape');
   // Reassert the fixed inspection pose after the hold. The normal collision
   // solver can nudge a stationary camera a few centimetres from the table.
   await setCamera({ lx: 6.9, lz: 0.75, yaw: 0, pitch: -0.35 });
-  await waitFocus(/open a flap/);
+  await waitFocus(/open the other flap/);
   for (let index = 0; index < 3; index += 1) {
     const opened = await page.evaluate(async (id) => {
       const delivery = await import('/src/sim/deliveries.js');

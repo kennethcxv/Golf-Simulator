@@ -469,10 +469,11 @@ async (page) => {
     label: window.__fw.scene3d.walk.getFocusLabel?.(),
     tool: window.__fw.scene3d.walk.getTool?.(),
   }));
-  await capture('03-sealed-box-cutter.png', 'Sealed hero case and automatically equipped cutter from player camera.');
-  await hold('e', 1800, 'cut the carton tape along the interaction seam');
+  // Ported off the box-cutter equip 2026-07-30 — cartons tear on a press.
+  await capture('03-sealed-box-prompt.png', 'Sealed hero case offering the tear press from player camera.');
+  await press('e', 'tear the carton tape in one press');
   await page.waitForFunction(
-    () => /open a flap/i.test(window.__fw.scene3d.walk.getFocusLabel?.() || ''),
+    () => /open the other flap/i.test(window.__fw.scene3d.walk.getFocusLabel?.() || ''),
     null,
     { timeout: 5000 },
   );
@@ -609,7 +610,7 @@ async (page) => {
       && (await page.viewportSize()).height === viewport.height,
     normalLaptopEntry: result.inputActions.some((entry) => entry.description === 'open the physical laptop'),
     sealedBoxFocused: /(box|case|carton)/i.test(result.sealedFocus?.label || ''),
-    cutterVisiblePath: result.sealedFocus?.tool === 'boxcutter',
+    pressFlowNoTool: result.sealedFocus?.tool === null,
     tapeCut: result.openState?.tape >= 1,
     bothFlapsOpen: result.openState?.flaps?.every((value) => value >= 1),
     visibleContentsRemain: result.openState?.qty > 0,

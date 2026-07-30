@@ -25,6 +25,7 @@ archive.
 | `pine-hills-joined-tee-card-acceptance.mjs` | Joined tee-time + card acceptance on the swipe register | `simplified-reservation-card-acceptance.mjs` |
 | `pine-hills-joined-tee-card.js` | Wrapper of the archived tee-card acceptance | as above |
 | `register-recover-legacy.js` (was `register-recover.js`) | Revival attempted 2026-07-28 through SIX drift layers (undefined BASE_URL, retired "New Empire" menu route, removed PROPERTY MARKET screen, stale (−8,+228) world offset, pre-move desk stand, and finally a drag-to-scan choreography the one-click register no longer has). Its claim — save during an incomplete transaction survives reload with the books intact — is held against the live contract by the successor | `simplified-register-save-reload.js` (+ `tests/simplified-register-save-reload-matrix.test.js`, both in the integration `save-reload` gate) |
+| `proshop-box-discoverability.js` | Interrogates the cutter-era guide nodes (`BoxCutterActiveTapeRibbon`/`Pip`, the dashed cut line) that were deleted with the box cutter on 2026-07-30 — every probe in the file reads scene objects that no longer exist. Its question (can a first-time player learn the unboxing gesture?) is answered differently now: the gesture is three E presses whose prompts name each step | `proshop-box-open-loop.js` (asserts `promptNamesEachStep`: "tear the tape" → "other flap" → "armful", no tool, one step per press) |
 
 The `qa/` evidence folders these files produced in their era remain valid as
 history of that era's build, but are **unreproducible** with today's code — do

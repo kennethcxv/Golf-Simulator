@@ -1,11 +1,15 @@
 async (page) => {
   // Generalized delivery-carton placement acceptance.
+  // (ported off the box-cutter equip 2026-07-30 — cartons tear on a press;
+  // proshop-box-open-loop.js owns the gesture contract)
   //
   // `--bootstrap` supplies the documented empire/property fixture. This probe
   // then establishes two real delivery boxes: one stationary floor blocker and
   // one sealed accessories carton. Every tested transition after that fixture
-  // uses the same keyboard/mouse routes as a player: E pickup/activate/commit,
-  // R rotate, Escape cancel, X reposition, and an authored-path LMB cutter drag.
+  // uses the same keyboard/mouse routes as a player: E activate/commit and the
+  // three carton-open presses, R rotate, Escape cancel, X pick up/reposition.
+  // Every surface this route commits to opens cartons in the live rules, so E
+  // on a sealed carton is always press one of the open — X is the pickup verb.
 
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -45,7 +49,7 @@ async (page) => {
   const placementCueGreen = 0xf0c75e;
   const handTruckCamera = Object.freeze({ distance: 1.85, approach: [0.18, 1] });
   const palletJackCamera = Object.freeze({ distance: 1.75, approach: [1, 0] });
-  const cutterCamera = Object.freeze({ distance: 1.28, approach: [0, 1] });
+  const pressPromptCamera = Object.freeze({ distance: 1.28, approach: [0, 1] });
 
   const diagnostics = [];
   const diagnosticCounts = {
@@ -709,249 +713,23 @@ async (page) => {
     });
   }
 
-  async function cutterVisualSnapshot(boxId) {
-    return page.evaluate((id) => {
-      const scene = window.__fw.scene3d.scene;
-      const camera = window.__fw.scene3d.camera;
-      const visual = scene.getObjectByName('DeliveryBoxCutterVisual');
-      const cutter = visual?.parent || null;
-      const root = scene.getObjectByName(`DeliveryBox_${id}`)
-        || scene.getObjectByName(`DeliveryBoxFallback_${id}`);
-      if (!visual || !cutter || !root) throw new Error('Missing cutter or live carton visual.');
-      visual.updateWorldMatrix(true, true);
-      root.updateWorldMatrix(true, true);
-      const blade = cutter.userData.deliveryCutterBlade || null;
-      const contact = cutter.userData.deliveryCutterContact || blade || null;
-      const visibleInHierarchy = (object) => {
-        let cursor = object;
-        while (cursor) {
-          if (!cursor.visible) return false;
-          if (cursor === scene) return true;
-          cursor = cursor.parent;
-        }
-        return false;
-      };
-      let skinOrCuffMeshCount = 0;
-      let visibleMeshCount = 0;
-      const projected = [];
-      cutter.traverse((object) => {
-        if (!object.isMesh) return;
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        if (materials.some((material) => {
-          const hex = material?.color?.getHex?.();
-          return hex === 0xd9a97e || hex === 0x2f4a35;
-        })) skinOrCuffMeshCount += 1;
-        if (!visibleInHierarchy(object)) return;
-        visibleMeshCount += 1;
-        if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
-        const bounds = object.geometry.boundingBox;
-        if (!bounds) return;
-        for (const x of [bounds.min.x, bounds.max.x]) {
-          for (const y of [bounds.min.y, bounds.max.y]) {
-            for (const z of [bounds.min.z, bounds.max.z]) {
-              const point = bounds.min.clone().set(x, y, z).applyMatrix4(object.matrixWorld).project(camera);
-              projected.push({
-                x: (point.x * 0.5 + 0.5) * innerWidth,
-                y: (-point.y * 0.5 + 0.5) * innerHeight,
-              });
-            }
-          }
-        }
-      });
-      const boxWorld = root.getWorldPosition(root.position.clone());
-      const contactWorld = contact?.getWorldPosition(contact.position.clone()) || null;
-      const minX = projected.length ? Math.min(...projected.map((entry) => entry.x)) : null;
-      const maxX = projected.length ? Math.max(...projected.map((entry) => entry.x)) : null;
-      const minY = projected.length ? Math.min(...projected.map((entry) => entry.y)) : null;
-      const maxY = projected.length ? Math.max(...projected.map((entry) => entry.y)) : null;
-      const visibleTapeSegments = [];
-      root.traverse((object) => {
-        if (/^TAPE_CENTER_SEG_/i.test(object.name || '') && visibleInHierarchy(object)) {
-          visibleTapeSegments.push(object.name);
-        }
-      });
-      return {
-        tool: window.__fw.scene3d.walk.getTool?.() || null,
-        authoredModel: !!visual.getObjectByName('DeliveryBoxCutterAuthored'),
-        fallbackModel: !!visual.getObjectByName('DeliveryBoxCutterLoadingFallback')?.children?.length,
-        visibleMeshCount,
-        skinOrCuffMeshCount,
-        bladeVisible: !!blade && visibleInHierarchy(blade),
-        contactVisible: !!contact && visibleInHierarchy(contact),
-        contactToBoxHorizontal: contactWorld
-          ? +Math.hypot(contactWorld.x - boxWorld.x, contactWorld.z - boxWorld.z).toFixed(5)
-          : null,
-        contactAboveBoxOrigin: contactWorld ? +(contactWorld.y - boxWorld.y).toFixed(5) : null,
-        screenBounds: projected.length ? {
-          left: +minX.toFixed(2), top: +minY.toFixed(2),
-          width: +(maxX - minX).toFixed(2), height: +(maxY - minY).toFixed(2),
-        } : null,
-        visibleTapeSegmentCount: visibleTapeSegments.length,
-        visibleTapeSegments,
-      };
-    }, boxId);
-  }
-
-  async function cutterPathProjection() {
+  // The box cutter is deleted (2026-07-30): a carton opens with three bare E
+  // presses and asks for no tool, no drag, no hold. This probe reads what the
+  // walk controller believes about the focused carton so every step that opens
+  // one can assert the press flow stays tool-free. The full gesture contract
+  // lives in tools/qa/proshop-box-open-loop.js.
+  async function pressFlowFocusProbe() {
     return page.evaluate(() => {
-      const app = window.__fw;
-      const scene = app.scene3d.scene;
-      const camera = app.scene3d.camera;
-      const canvas = document.querySelector('canvas');
-      const guide = scene.getObjectByName('BoxCutterActiveTapeGuide');
-      const ribbon = scene.getObjectByName('BoxCutterActiveTapeRibbon');
-      const attribute = guide?.geometry?.getAttribute?.('position');
-      if (!guide?.visible || !ribbon?.visible || !attribute || attribute.count < 2 || !canvas) {
-        throw new Error('The live authored box-cutter tape guide is unavailable.');
-      }
-      guide.updateWorldMatrix(true, false);
-      camera.updateMatrixWorld(true);
-      const Vector3 = camera.position.constructor;
-      const project = (index) => {
-        const world = new Vector3(
-          attribute.getX(index), attribute.getY(index), attribute.getZ(index),
-        ).applyMatrix4(guide.matrixWorld);
-        const clip = world.clone().project(camera);
-        return {
-          world: { x: world.x, y: world.y, z: world.z },
-          clip: { x: clip.x, y: clip.y, z: clip.z },
-          x: (clip.x * 0.5 + 0.5) * (canvas.clientWidth || canvas.width || innerWidth),
-          y: (0.5 - clip.y * 0.5) * (canvas.clientHeight || canvas.height || innerHeight),
-        };
-      };
-      const start = project(0);
-      const end = project(1);
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const length = Math.hypot(dx, dy);
-      if (!(length > 0.001) || !Number.isFinite(length)) {
-        throw new Error(`Authored cutter path projected to ${length} pixels.`);
-      }
+      const walk = window.__fw.scene3d.walk;
+      const focus = walk.getFocus?.();
       return {
-        guide: guide.name,
-        ribbon: {
-          name: ribbon.name,
-          visible: ribbon.visible,
-          width: ribbon.scale.x,
-          thickness: ribbon.scale.y,
-          length: ribbon.scale.z,
-          opacity: ribbon.material?.opacity ?? null,
-          depthTest: ribbon.material?.depthTest ?? null,
-        },
-        start,
-        end,
-        dx,
-        dy,
-        length,
-        unitX: dx / length,
-        unitY: dy / length,
-        normalizationPixels: Math.max(24, length),
-        canvas: { width: canvas.clientWidth, height: canvas.clientHeight },
+        label: walk.getFocusLabel?.() ?? null,
+        focusKind: focus?.kind ?? null,
+        equippedTool: walk.getTool?.() ?? null,
+        propTool: focus?.kind === 'prop' ? (focus.prop.tool ?? null) : null,
+        hasDragVerb: focus?.kind === 'prop' ? typeof focus.prop.drag === 'function' : false,
+        hasHoldVerb: focus?.kind === 'prop' ? typeof focus.prop.hold === 'function' : false,
       };
-    });
-  }
-
-  async function installCutterDragInputTrace(projection) {
-    await page.evaluate((pathProjection) => {
-      window.__boxCutterDragInputTrace?.cleanup?.();
-      const trace = {
-        expectedUnit: { x: pathProjection.unitX, y: pathProjection.unitY },
-        lmbDownCount: 0,
-        lmbUpCount: 0,
-        eKeyDownCount: 0,
-        eKeyUpCount: 0,
-        pointerHeld: false,
-        moves: [],
-        cameraBefore: {
-          yaw: window.__fw.scene3d.walk.state.yaw,
-          pitch: window.__fw.scene3d.walk.state.pitch,
-        },
-      };
-      const onPointerDown = (event) => {
-        if (event.button !== 0) return;
-        trace.lmbDownCount += 1;
-        trace.pointerHeld = true;
-        queueMicrotask(() => {
-          trace.sprayingAfterDown = !!window.__fw.scene3d.walk.isSpraying?.();
-        });
-      };
-      const onPointerUp = (event) => {
-        if (event.button !== 0) return;
-        trace.lmbUpCount += 1;
-        trace.pointerHeld = false;
-        // The production listener runs earlier on window during bubbling, so
-        // defer the release-state sample until that handler has completed.
-        queueMicrotask(() => {
-          trace.sprayingAfterUp = !!window.__fw.scene3d.walk.isSpraying?.();
-        });
-      };
-      const onMouseMove = (event) => {
-        if (!trace.pointerHeld) return;
-        const movementX = Number(event.movementX) || 0;
-        const movementY = Number(event.movementY) || 0;
-        const along = movementX * trace.expectedUnit.x + movementY * trace.expectedUnit.y;
-        const cross = movementX * trace.expectedUnit.y - movementY * trace.expectedUnit.x;
-        trace.moves.push({
-          movementX,
-          movementY,
-          along,
-          cross,
-          spraying: !!window.__fw.scene3d.walk.isSpraying?.(),
-        });
-      };
-      const onKeyDown = (event) => {
-        if (event.key.toLowerCase() === 'e') trace.eKeyDownCount += 1;
-      };
-      const onKeyUp = (event) => {
-        if (event.key.toLowerCase() === 'e') trace.eKeyUpCount += 1;
-      };
-      trace.cleanup = () => {
-        document.removeEventListener('pointerdown', onPointerDown, true);
-        window.removeEventListener('pointerup', onPointerUp, true);
-        document.removeEventListener('mousemove', onMouseMove, true);
-        document.removeEventListener('keydown', onKeyDown, true);
-        document.removeEventListener('keyup', onKeyUp, true);
-      };
-      document.addEventListener('pointerdown', onPointerDown, true);
-      window.addEventListener('pointerup', onPointerUp, true);
-      document.addEventListener('mousemove', onMouseMove, true);
-      document.addEventListener('keydown', onKeyDown, true);
-      document.addEventListener('keyup', onKeyUp, true);
-      window.__boxCutterDragInputTrace = trace;
-    }, projection);
-  }
-
-  async function finishCutterDragInputTrace() {
-    await page.waitForTimeout(0);
-    return page.evaluate(() => {
-      const trace = window.__boxCutterDragInputTrace;
-      if (!trace) throw new Error('Missing box-cutter drag input trace.');
-      trace.cameraAfter = {
-        yaw: window.__fw.scene3d.walk.state.yaw,
-        pitch: window.__fw.scene3d.walk.state.pitch,
-      };
-      trace.sprayingAtFinish = !!window.__fw.scene3d.walk.isSpraying?.();
-      trace.cleanup?.();
-      delete trace.cleanup;
-      const forwardMovementEvents = trace.moves.filter((move) => move.along > 0).length;
-      const backwardMovementEvents = trace.moves.filter((move) => move.along < 0).length;
-      const alongPixels = trace.moves.reduce((sum, move) => sum + move.along, 0);
-      const crossPixels = trace.moves.reduce((sum, move) => sum + Math.abs(move.cross), 0);
-      const result = {
-        ...trace,
-        movementEventCount: trace.moves.length,
-        forwardMovementEvents,
-        backwardMovementEvents,
-        alongPixels,
-        crossPixels,
-        crossToForwardRatio: crossPixels / Math.max(0.001, alongPixels),
-        cameraDelta: {
-          yaw: trace.cameraAfter.yaw - trace.cameraBefore.yaw,
-          pitch: trace.cameraAfter.pitch - trace.cameraBefore.pitch,
-        },
-      };
-      delete window.__boxCutterDragInputTrace;
-      return result;
     });
   }
 
@@ -1231,7 +1009,7 @@ async (page) => {
         && committed.lifecycle === 'SEALED'
         && committed.tape === 0
         && committed.cutProgress === 0,
-      `${step} commit mutated the sealed carton before explicit cutter equip/drag: `
+      `${step} commit mutated the sealed carton before a deliberate open press: `
         + `qty=${committed.qty}, lifecycle=${committed.lifecycle}, tape=${committed.tape}, `
         + `cutProgress=${committed.cutProgress}.`,
     );
@@ -1348,17 +1126,19 @@ async (page) => {
 
   const pickupSurfaceId = `pallet:receiving:${fixture.candidate.padPalletIndex}`;
   await aimAtBox(fixture.candidate.id, { distance: 1.52, approach: [0, 1] });
-  const initialFocus = await waitForFocus(/Delivery: .*\[E\] pick up/i);
+  // The receiving pallet opens cartons in the live rules, so the sealed carton
+  // offers the first open press on E and carries on X.
+  const initialFocus = await waitForFocus(/tear the tape open.*\[X\] reposition closed carton/i);
   await capture('00-staged-pallet-pickup.png',
-    'Deterministic sealed accessories carton staged on an authored receiving pallet before normal E pickup.');
+    'Deterministic sealed accessories carton staged on an authored receiving pallet before normal X pickup.');
   const idlePerformance = await measure('idle-staged-placement-scene', { samples: 2, durationMs: 1000 });
-  await page.keyboard.press('e');
+  await page.keyboard.press('x');
   await page.waitForFunction((id) => (
     window.__fw.state.shop.deliveries.boxes.find((box) => box.id === id)?.loc === 'carried'
   ), fixture.candidate.id);
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().boxPlacement.isActive());
-  await capture('01-normal-e-pickup-carry.png',
-    'Normal E pickup carries the exact real-scale sealed carton and automatically enters placement mode.');
+  await capture('01-normal-x-pickup-carry.png',
+    'Normal X pickup carries the exact real-scale sealed carton and automatically enters placement mode.');
   const carryProfileEvidence = await page.evaluate((id) => {
     const root = window.__fw.scene3d.scene.getObjectByName(`DeliveryBox_${id}`)
       || window.__fw.scene3d.scene.getObjectByName(`DeliveryBoxFallback_${id}`);
@@ -1461,8 +1241,8 @@ async (page) => {
   `floor commit mutated sealed state: ${JSON.stringify(floorCommitted)}.`);
 
   const floorPickup = await normalPickup({
-    key: 'e',
-    focusPattern: /\[E\] pick up/i,
+    key: 'x',
+    focusPattern: /tear the tape open.*\[X\] reposition closed carton/i,
     approach: { distance: 1.42, approach: [0, 1] },
   });
   const table = await normalCommit({
@@ -1493,7 +1273,7 @@ async (page) => {
 
   const tablePickup = await normalPickup({
     key: 'x',
-    focusPattern: /tap \[E\] once to equip the box cutter.*\[X\] reposition closed carton/i,
+    focusPattern: /tear the tape open.*\[X\] reposition closed carton/i,
     approach: { distance: 1.42, approach: [0, 1] },
   });
   const shelf = await normalCommit({
@@ -1519,40 +1299,21 @@ async (page) => {
     description: 'The approved unpacking bench accepts the sealed carton across its honest clear worktop.',
   });
 
-  // Warm the contextual cutter through the packing bench's stable normal tool
-  // path before the matched baseline, then holster with normal F.
+  // There is no tool to warm any more: the open verb is a bare E press. Read
+  // the press prompt at the packing bench and prove it involves no equipped
+  // tool and no drag or hold verb, without pressing anything — the carton must
+  // stay sealed for the rest of the placement route.
   await aimAtBox(fixture.candidate.id, { distance: 1.85, approach: [0, 1] });
-  const baselineCutterPrewarmFocus = await waitForFocus(
-    /tap \[E\] once to equip the box cutter.*\[X\] reposition closed carton/i,
+  const baselinePressPromptFocus = await waitForFocus(
+    /tear the tape open.*\[X\] reposition closed carton/i,
   );
-  await page.keyboard.down('e');
-  await page.waitForFunction(() => window.__fw.scene3d.walk.getTool?.() === 'boxcutter', null, {
-    timeout: 7000,
-  });
-  await aimAtBox(fixture.candidate.id, { distance: 1.85, approach: [0, 1] });
-  const baselineCutterEquippedFocus = await waitForFocus(
-    /\[LMB\] drag along tape.*\[E\] hold alternative.*\[X\] reposition closed carton/i,
-  );
-  await page.waitForTimeout(800);
-  const baselineCutterEquippedResources = await resourceCensus();
-  const baselineCutterEquipped = await candidateSnapshot(fixture.candidate.id);
-  await page.keyboard.up('e');
-  await page.waitForTimeout(160);
-  await page.keyboard.press('f');
-  await page.waitForFunction(() => window.__fw.scene3d.walk.getTool?.() == null);
-  const baselineCutterHolsterToast = await page.evaluate(() => [...document.querySelectorAll('.toast')]
-    .map((element) => element.textContent || '')
-    .find((text) => /Box cutter put away/i.test(text)) || null);
-  const baselineCutterHolsterFocus = await waitForFocus(
-    /tap \[E\] once to equip the box cutter.*\[X\] reposition closed carton/i,
-  );
-  await page.waitForTimeout(500);
-  const baselineCutterHolstered = await candidateSnapshot(fixture.candidate.id);
-  requireTruth(baselineCutterEquipped.lifecycle === 'SEALED'
-      && baselineCutterEquipped.tape === 0
-      && baselineCutterHolstered.lifecycle === 'SEALED'
-      && baselineCutterHolstered.tape === 0,
-  'Normal cutter prewarm mutated the sealed carton.');
+  const baselinePressPromptProbe = await pressFlowFocusProbe();
+  const baselinePressPromptResources = await resourceCensus();
+  const baselinePressPromptState = await candidateSnapshot(fixture.candidate.id);
+  requireTruth(baselinePressPromptState.lifecycle === 'SEALED'
+      && baselinePressPromptState.tape === 0
+      && baselinePressPromptProbe.equippedTool === null,
+  'Reading the press-open prompt mutated the sealed carton or equipped a tool.');
 
   const packingPickup = await normalPickup({
     key: 'x',
@@ -1578,7 +1339,7 @@ async (page) => {
 
   const backcounterPickup = await normalPickup({
     key: 'x',
-    focusPattern: /tap \[E\] once to equip the box cutter.*\[X\] reposition closed carton/i,
+    focusPattern: /tear the tape open.*\[X\] reposition closed carton/i,
     approach: { distance: 1.42, approach: [0, -1] },
   });
   const pallet = await normalCommit({
@@ -1588,12 +1349,12 @@ async (page) => {
     expected: { loc: 'pad', palletIndex: 3 },
     screenshot: '11-receiving-pallet-committed.png',
     description: 'Close carton-focused evidence shows the conserved delivery carton on pallet lane 3, not the pallet jack.',
-    committedFocusPattern: /Delivery: .*\[E\] pick up/i,
+    committedFocusPattern: /tear the tape open.*\[X\] reposition closed carton/i,
   });
 
   const palletPickup = await normalPickup({
-    key: 'e',
-    focusPattern: /Delivery: .*\[E\] pick up/i,
+    key: 'x',
+    focusPattern: /tear the tape open.*\[X\] reposition closed carton/i,
     approach: { distance: 1.52, approach: [0, 1] },
   });
   const cart = await normalCommit({
@@ -1628,13 +1389,14 @@ async (page) => {
   });
 
   // Prove carton and parent equipment remain independently targetable in 3D.
-  // The hand truck is transport-only: its carton uses normal E pickup and never
-  // exposes cutter or X-unpacking verbs.
+  // The hand-truck socket opens cartons under the live one-rule surface policy,
+  // so the carton focus offers the first open press and X reposition while the
+  // handle keeps its own separate E balance control.
   await aimAtBox(fixture.candidate.id, handTruckCamera);
-  const handTruckCartonFocus = await waitForFocus(/Tee bag .*\[E\] pick up/i);
+  const handTruckCartonFocus = await waitForFocus(/Tee bag case .*\[E\] tear the tape open/i);
   const handTruckCartonPrompt = await promptLayout();
   await capture('13a-hand-truck-carton-e-focus.png',
-    'Open-aisle carton focus proves transport-only E pickup with no cutter or X verb and no foreground clutter.');
+    'Open-aisle carton focus offers the tear press and X reposition with no tool and no foreground clutter.');
 
   await aimAtEquipmentNode('delivery_hand_truck', 'INTERACTION_TARGET', {
     ...handTruckCamera,
@@ -1666,7 +1428,7 @@ async (page) => {
   ));
   const afterTiltState = await candidateSnapshot(fixture.candidate.id);
   await aimAtBox(fixture.candidate.id, handTruckCamera);
-  const handTruckCartonFocusAfterTilt = await waitForFocus(/Tee bag .*\[E\] pick up/i);
+  const handTruckCartonFocusAfterTilt = await waitForFocus(/Tee bag case .*\[E\] tear the tape open/i);
 
   // With the conserved carton still on the hand truck, the separate stocking
   // cart control must remain reachable and report its empty deck through E.
@@ -1687,164 +1449,54 @@ async (page) => {
   const afterStockingCartControlState = await candidateSnapshot(fixture.candidate.id);
 
   await aimAtBox(fixture.candidate.id, handTruckCamera);
-  await waitForFocus(/Tee bag .*\[E\] pick up/i);
+  await waitForFocus(/Tee bag case .*\[E\] tear the tape open/i);
 
   const saved = await autosaveSnapshot(fixture.candidate.id);
   await reloadAndContinue();
   const reloadToastSettlement = await waitForToastSilenceAfterReload();
   const reloaded = await candidateSnapshot(fixture.candidate.id);
   await aimAtBox(fixture.candidate.id, handTruckCamera);
-  const reloadedFocus = await waitForFocus(/Tee bag .*\[E\] pick up/i);
+  const reloadedFocus = await waitForFocus(/Tee bag case .*\[E\] tear the tape open/i);
   await capture('14-hand-truck-after-save-reload.png',
-    'After reload toast expiry, the open-aisle view restores the exact sealed transport-only carton on LOAD_ORIGIN.');
+    'After reload toast expiry, the open-aisle view restores the exact sealed carton on LOAD_ORIGIN.');
 
   const postReloadPickup = await normalPickup({
-    key: 'e',
-    focusPattern: /Tee bag .*\[E\] pick up/i,
+    key: 'x',
+    focusPattern: /tear the tape open.*\[X\] reposition closed carton/i,
     approach: handTruckCamera,
   });
 
-  const packingForCut = await normalCommit({
-    step: 'packing-for-cut',
+  const packingAfterReload = await normalCommit({
+    step: 'packing-after-reload',
     surfaceId: surfaceIds.packing,
     approach: { distance: 1.85, approach: [0, 1] },
     expected: { loc: 'world', surface: surfaceIds.packing },
-    screenshot: '15-packing-before-explicit-cutter.png',
-    description: 'After reload, normal E places the carton on the unpacking bench still exactly uncut.',
+    screenshot: '15-packing-before-press-open.png',
+    description: 'After reload, normal E places the carton on the unpacking bench still exactly sealed.',
   });
-  await aimAtBox(fixture.candidate.id, cutterCamera);
-  const cutterFocus = await waitForFocus(/tap \[E\] once to equip the box cutter.*\[X\] reposition closed carton/i);
-  const compactCutterPrompt = await promptLayout();
+  // The deliberate cutter equip / LMB seam drag / F holster choreography lived
+  // here; the tool is deleted and the carton now opens with three bare E
+  // presses. The presses themselves run at the final hand-truck stop so the
+  // same conserved carton stays sealed through the rest of the placement
+  // route. This beat only proves the press prompt's shape: one E tear action,
+  // X reposition, no tool, no drag or hold verb, and no state leak from
+  // merely reading it.
+  await aimAtBox(fixture.candidate.id, pressPromptCamera);
+  const pressOpenFocus = await waitForFocus(/tear the tape open.*\[X\] reposition closed carton/i);
+  const compactPressPrompt = await promptLayout();
   const sealedInteriorVisibility = await candidateVisualVisibility(fixture.candidate.id);
-  await capture('15b-compact-pre-equip-prompt.png',
-    'The concise pre-equip prompt presents one E equip action and X reposition on a single unwrapped line.');
-  const beforeCutterEquip = await candidateSnapshot(fixture.candidate.id);
-  await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.scene3d.walk.getTool?.() === 'boxcutter');
-  let equippedCutterFocus = await waitForFocus(
-    /\[LMB\] drag along tape.*\[E\] hold alternative.*\[X\] reposition closed carton/i,
-  );
-  await page.waitForTimeout(450);
-  // Pointer lock deliberately suppresses its first two relative-movement
-  // events. Exhaust that safety guard before the measured drag, then restore
-  // the exact deterministic camera because these are mouse-look events when a
-  // browser has already consumed the guard.
-  await page.mouse.move(801, 450);
-  await page.mouse.move(800, 450);
-  await aimAtBox(fixture.candidate.id, cutterCamera);
-  equippedCutterFocus = await waitForFocus(
-    /\[LMB\] drag along tape.*\[E\] hold alternative.*\[X\] reposition closed carton/i,
-  );
-  await page.waitForTimeout(180);
-  const cutterProjection = await cutterPathProjection();
-  const afterCutterEquip = await candidateSnapshot(fixture.candidate.id);
-  const equippedCutterVisual = await cutterVisualSnapshot(fixture.candidate.id);
-  requireTruth(afterCutterEquip.tape === 0
-      && afterCutterEquip.cutProgress === 0
-      && afterCutterEquip.lifecycle === 'SEALED',
-  `Equipping the cutter leaked into cutting: ${JSON.stringify(afterCutterEquip)}.`);
-  await capture('16-box-cutter-equipped-no-cut.png',
-    'Before the drag, a deliberate E tap has only equipped the cutter: tape and cut progress remain exactly zero.');
-
-  await installCutterDragInputTrace(cutterProjection);
-  const cutterDragCursor = { x: 800, y: 450 };
-  // Each relative event travels 22% of the projected normalization length.
-  // Runtime caps that to 0.12 tape progress, so two measured events provide a
-  // visible mid-drag beat and four remain safely inside the first 0.60 seam.
-  const cutterDragPixelsPerEvent = cutterProjection.normalizationPixels * 0.22;
-  const moveCutterForward = async (count) => {
-    for (let index = 0; index < count; index += 1) {
-      cutterDragCursor.x += cutterProjection.unitX * cutterDragPixelsPerEvent;
-      cutterDragCursor.y += cutterProjection.unitY * cutterDragPixelsPerEvent;
-      await page.mouse.move(cutterDragCursor.x, cutterDragCursor.y);
-      await page.waitForTimeout(45);
-    }
-  };
-  let midDragCut = null;
-  let afterLmbDownBeforeMove = null;
-  let cutterSprayingDuringDrag = false;
-  try {
-    await page.mouse.down({ button: 'left' });
-    await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === true, null, {
-      timeout: 3000,
-    });
-    cutterSprayingDuringDrag = await page.evaluate(() => (
-      window.__fw.scene3d.walk.isSpraying?.() === true
-    ));
-    await page.waitForTimeout(90);
-    afterLmbDownBeforeMove = await candidateSnapshot(fixture.candidate.id);
-    requireTruth(afterLmbDownBeforeMove.tape === 0
-        && afterLmbDownBeforeMove.cutProgress === 0
-        && afterLmbDownBeforeMove.lifecycle === 'SEALED',
-    `Stationary LMB down advanced the cutter before a drag: ${JSON.stringify(afterLmbDownBeforeMove)}.`);
-    await moveCutterForward(2);
-    await page.waitForFunction((id) => {
-      const box = window.__fw.state.shop.deliveries.boxes.find((entry) => entry.id === id);
-      return box?.lifecycle === 'CUTTING' && box.tape > 0 && box.tape < 0.6;
-    }, fixture.candidate.id, { timeout: 3000 });
-    midDragCut = await candidateSnapshot(fixture.candidate.id);
-    await capture('16b-lmb-drag-mid-cut.png',
-      'Mid-drag with LMB still held: the cutter follows the projected authored seam and tape has partially separated.');
-    await moveCutterForward(2);
-    await page.waitForFunction(({ id, earlierTape }) => {
-      const box = window.__fw.state.shop.deliveries.boxes.find((entry) => entry.id === id);
-      return box?.lifecycle === 'CUTTING' && box.tape > earlierTape && box.tape < 0.6;
-    }, { id: fixture.candidate.id, earlierTape: midDragCut.tape }, { timeout: 3000 });
-  } finally {
-    await page.mouse.up({ button: 'left' }).catch(() => {});
-    await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === false, null, {
-      timeout: 3000,
-    }).catch(() => {});
-  }
-  await page.waitForTimeout(100);
-  const afterDeliberateCut = await candidateSnapshot(fixture.candidate.id);
-  const cutterDragInput = await finishCutterDragInputTrace();
-  const cuttingInteriorVisibility = await candidateVisualVisibility(fixture.candidate.id);
-  const cuttingCutterVisual = await cutterVisualSnapshot(fixture.candidate.id);
-  requireTruth(midDragCut?.tape > 0
-      && afterDeliberateCut.tape > midDragCut.tape
-      && afterDeliberateCut.tape < 1
-      && afterDeliberateCut.cutProgress === afterDeliberateCut.tape
-      && afterDeliberateCut.lifecycle === 'CUTTING',
-  `Normal LMB drag did not create a progressive partial cut: mid=${JSON.stringify(midDragCut)}, `
-    + `after=${JSON.stringify(afterDeliberateCut)}.`);
-  await capture('17-deliberate-hold-cuts-tape.png',
-    'After LMB release, the drag has advanced farther along the authored tape while the E hold alternative was never used.');
-
-  const afterCutToolBeforeHolster = await page.evaluate(() => (
-    window.__fw.scene3d.walk.getTool?.() || null
-  ));
-  const beforeFHolsterState = await candidateSnapshot(fixture.candidate.id);
-  await page.keyboard.press('f');
-  await page.waitForFunction(() => window.__fw.scene3d.walk.getTool?.() == null);
-  await page.waitForFunction(() => [...document.querySelectorAll('.toast')]
-    .some((element) => /Box cutter put away/i.test(element.textContent || '')), null, {
-    timeout: 3000,
-  });
-  const cutterHolsterToast = await page.evaluate(() => [...document.querySelectorAll('.toast')]
-    .map((element) => element.textContent || '')
-    .find((text) => /Box cutter put away/i.test(text)) || null);
-  const afterFHolsterFocus = await waitForFocus(
-    /tap \[E\] once to equip the box cutter.*\[X\] reposition closed carton/i,
-  );
-  await page.waitForTimeout(360);
-  const afterFHolsterState = await candidateSnapshot(fixture.candidate.id);
-  const afterCutToolHolster = {
-    key: 'f',
-    before: afterCutToolBeforeHolster,
-    after: await page.evaluate(() => window.__fw.scene3d.walk.getTool?.() || null),
-    toast: cutterHolsterToast,
-    focus: afterFHolsterFocus,
-    lifecycleUnchanged: beforeFHolsterState.lifecycle === afterFHolsterState.lifecycle
-      && beforeFHolsterState.tape === afterFHolsterState.tape
-      && beforeFHolsterState.cutProgress === afterFHolsterState.cutProgress,
-  };
-  await capture('17b-box-cutter-f-holstered.png',
-    'Normal F puts the contextual cutter away without changing the partial tape cut.');
-  const postCutPickup = await normalPickup({
+  const packingPressProbe = await pressFlowFocusProbe();
+  await capture('15b-compact-press-prompt.png',
+    'The concise press prompt presents one E tear action and X reposition on a single unwrapped line.');
+  const packingPromptState = await candidateSnapshot(fixture.candidate.id);
+  requireTruth(packingPromptState.lifecycle === 'SEALED'
+      && packingPromptState.tape === 0
+      && packingPromptState.cutProgress === 0,
+  `Reading the press prompt leaked into opening: ${JSON.stringify(packingPromptState)}.`);
+  const postPromptPickup = await normalPickup({
     key: 'x',
     focusPattern: /\[X\] reposition closed carton/i,
-    approach: cutterCamera,
+    approach: pressPromptCamera,
   });
   await aimAtSurface(surfaceIds.floor, {
     local: floorValidTarget,
@@ -1854,7 +1506,7 @@ async (page) => {
   await waitForPlacement(surfaceIds.floor, true);
   await collectGarbage();
   const baselineRendererWarmup = await warmRendererResources('before-matched-churn-baseline');
-  const baselinePerformance = await measure('matched-cutting-green-preview-before-churn');
+  const baselinePerformance = await measure('matched-sealed-green-preview-before-churn');
   await collectGarbage();
   const churnBefore = await resourceCensus();
   for (let cycle = 0; cycle < 12; cycle += 1) {
@@ -1891,10 +1543,62 @@ async (page) => {
   }, fixture.candidate.id);
   await page.waitForTimeout(300);
   await aimAtBox(fixture.candidate.id, handTruckCamera);
-  const finalHandTruckFocus = await waitForFocus(/Tee bag .*\[E\] pick up/i);
+  const finalHandTruckFocus = await waitForFocus(/Tee bag case .*\[E\] tear the tape open/i);
   await capture('19-final-hand-truck-restored.png',
-    'Final open-aisle E commit restores the transport-only hand-truck carton while preserving the partial cut.');
-  const finalState = await candidateSnapshot(fixture.candidate.id);
+    'Final open-aisle E commit restores the hand-truck carton still sealed and offering the first open press.');
+  const finalCommitState = await candidateSnapshot(fixture.candidate.id);
+
+  // THE THREE-PRESS OPEN, on the equipment the carton was committed to. The
+  // hand-truck socket opens cartons in the live rules, so the placement
+  // driver's own conserved carton finishes with the real gesture: press one
+  // tears the tape and opens the first flap pair, press two folds the other
+  // pair, press three takes an armful into the arms. No tool is ever
+  // equipped and nothing is dragged; proshop-box-open-loop.js owns the full
+  // gesture contract.
+  const pressSteps = [];
+  const pressStep = async ({ pattern, waitAfter, screenshot, description }) => {
+    await aimAtBox(fixture.candidate.id, handTruckCamera);
+    const focus = await waitForFocus(pattern);
+    const probe = await pressFlowFocusProbe();
+    const before = await candidateSnapshot(fixture.candidate.id);
+    await page.keyboard.press('e');
+    await waitAfter();
+    const after = await candidateSnapshot(fixture.candidate.id);
+    pressSteps.push({ focus, probe, before, after });
+    await capture(screenshot, description);
+    return { focus, probe, before, after };
+  };
+  await pressStep({
+    pattern: /Tee bag case .*\[E\] tear the tape open/i,
+    waitAfter: () => page.waitForFunction((id) => {
+      const box = window.__fw.state.shop.deliveries.boxes.find((entry) => entry.id === id);
+      const flaps = box?.flapProgress || [];
+      return box?.tape >= 1 && flaps[2] >= 0.999 && flaps[3] >= 0.999;
+    }, fixture.candidate.id, { timeout: 7000 }),
+    screenshot: '19b-press-one-tears-tape.png',
+    description: 'Press one tears the tape and opens the first flap pair with no tool equipped.',
+  });
+  await pressStep({
+    pattern: /\[E\] open the other flap/i,
+    waitAfter: () => page.waitForFunction((id) => {
+      const box = window.__fw.state.shop.deliveries.boxes.find((entry) => entry.id === id);
+      const flaps = box?.flapProgress || [];
+      return flaps.length >= 4 && flaps.every((value) => value >= 0.999);
+    }, fixture.candidate.id, { timeout: 7000 }),
+    screenshot: '19c-press-two-opens-other-flaps.png',
+    description: 'Press two folds the other flap pair open; the carton contents are now reachable.',
+  });
+  await pressStep({
+    pattern: /\[E\] take an armful/i,
+    waitAfter: () => page.waitForFunction(() => (
+      window.__fw.state.shop.carry?.skuId === 'tees1'
+      && window.__fw.state.shop.carry.qty > 0
+    ), null, { timeout: 7000 }),
+    screenshot: '19d-press-three-takes-armful.png',
+    description: 'Press three takes an armful into the arms straight off the hand truck.',
+  });
+  const armfulTaken = pressSteps[2].after.carryGoods;
+  const finalOpenState = pressSteps[2].after;
 
   const exactSavedFields = [
     'id', 'orderId', 'skuId', 'box', 'qty', 'initialQty', 'loc',
@@ -2030,7 +1734,8 @@ async (page) => {
       && fixture.blocker.surfaceId === surfaceIds.floor
       && fixture.blocker.x === floorBlockerTarget.x
       && fixture.blocker.z === floorBlockerTarget.z,
-    normalEPickupFromDeliveryPallet: /Delivery: .*\[E\] pick up/i.test(initialFocus)
+    normalXPickupFromDeliveryPallet:
+      /tear the tape open.*\[X\] reposition closed carton/i.test(initialFocus)
       && !/pallet jack/i.test(initialFocus)
       && pickupSurfaceId.startsWith('pallet:receiving:'),
     palletJackHandleGripTargetAndNormalEPump:
@@ -2139,7 +1844,7 @@ async (page) => {
     approvedBackcounterCommit: ordinaryCommitMatches(routeByStep.get('backcounter'), surfaceIds.backcounter),
     receivingPalletCommit: routeByStep.get('pallet')?.state.loc === 'pad'
       && routeByStep.get('pallet')?.state.padPalletIndex === 3
-      && /Delivery: .*\[E\] pick up/i.test(pallet.committedFocus || '')
+      && /tear the tape open/i.test(pallet.committedFocus || '')
       && !/pallet jack/i.test(pallet.committedFocus || ''),
     stockingCartCommit: routeByStep.get('cart')?.state.loc === 'equipment'
       && routeByStep.get('cart')?.state.equipmentId === 'delivery_stocking_cart'
@@ -2153,13 +1858,14 @@ async (page) => {
         && state.tape === 0
         && state.cutProgress === 0),
     normalXRepositionsEveryUnpackingSurface: [
-      tablePickup, shelfPickup, packingPickup, backcounterPickup, cartPickup, postCutPickup,
+      floorPickup, tablePickup, shelfPickup, packingPickup,
+      backcounterPickup, palletPickup, cartPickup, postReloadPickup, postPromptPickup,
     ].every((entry) => /\[X\] reposition closed carton/i.test(entry.label)
       && entry.key.toLowerCase() === 'x'
       && entry.state.loc === 'carried'),
     compactUnpackingPromptsDoNotWrap: [
       tablePickup.prompt, shelfPickup.prompt, packingPickup.prompt,
-      backcounterPickup.prompt, cartPickup.prompt, compactCutterPrompt,
+      backcounterPickup.prompt, cartPickup.prompt, compactPressPrompt,
     ].every((prompt) => prompt.visible && prompt.lineCount === 1 && !prompt.wraps),
     stockingCartCartonAndEquipmentControlsIndependentlyReachable:
       /\[X\] reposition closed carton/i.test(cartPickup.label)
@@ -2168,8 +1874,8 @@ async (page) => {
       && afterStockingCartControlState.loc === 'equipment'
       && afterStockingCartControlState.equipmentId === 'delivery_hand_truck',
     handTruckCartonAndHandleControlsIndependentlyReachable:
-      /Tee bag .*\[E\] pick up/i.test(handTruckCartonFocus)
-      && !/box cutter|\[X\]/i.test(handTruckCartonFocus)
+      /Tee bag case .*\[E\] tear the tape open/i.test(handTruckCartonFocus)
+      && /\[X\] reposition closed carton/i.test(handTruckCartonFocus)
       && handTruckCartonPrompt.visible
       && !handTruckCartonPrompt.wraps
       && /tip it back and check the load balance/i.test(handTruckHandleFocus)
@@ -2177,8 +1883,8 @@ async (page) => {
       && handTruckDuringTilt.active
       && handTruckDuringTilt.runtimeTiltAxis === '+X'
       && handTruckAfterTilt.cycles === handTruckBeforeTilt.cycles + 1
-      && /Tee bag .*\[E\] pick up/i.test(handTruckCartonFocusAfterTilt)
-      && !/box cutter|\[X\]/i.test(handTruckCartonFocusAfterTilt)
+      && /Tee bag case .*\[E\] tear the tape open/i.test(handTruckCartonFocusAfterTilt)
+      && /\[X\] reposition closed carton/i.test(handTruckCartonFocusAfterTilt)
       && afterTiltState.loc === 'equipment'
       && afterTiltState.equipmentId === 'delivery_hand_truck'
       && afterTiltState.qty === 12
@@ -2194,7 +1900,7 @@ async (page) => {
       && /checking the axle balance/i.test(handTruckFocusTrace.activeLabels[0] || ''),
     allPickupsKeptSameConservedBox: [
       floorPickup, tablePickup, shelfPickup, packingPickup,
-      backcounterPickup, palletPickup, cartPickup, postReloadPickup, postCutPickup,
+      backcounterPickup, palletPickup, cartPickup, postReloadPickup, postPromptPickup,
     ].every((entry) => entry.state.id === fixture.candidate.id
       && entry.state.qty === 12
       && entry.state.loc === 'carried'),
@@ -2213,102 +1919,53 @@ async (page) => {
       && reloaded.lifecycle === 'SEALED'
       && reloaded.tape === 0
       && reloaded.cutProgress === 0
-      && /Tee bag .*\[E\] pick up/i.test(reloadedFocus)
-      && !/box cutter|\[X\]/i.test(reloadedFocus)
+      && /Tee bag case .*\[E\] tear the tape open/i.test(reloadedFocus)
+      && /\[X\] reposition closed carton/i.test(reloadedFocus)
       && reloadToastSettlement.remainingToasts === 0,
-    // Keep this established result key for cross-iteration consumers. Its
-    // acceptance route is now the primary LMB drag; E remains only the unused
-    // accessibility fallback advertised in the equipped prompt.
-    cutterEquipReleaseGateAndDeliberateHold:
-      /tap \[E\] once to equip the box cutter/i.test(cutterFocus)
-      && !/hold \[E\]/i.test(cutterFocus)
-      && /\[LMB\] drag along tape/i.test(equippedCutterFocus)
-      && /\[E\] hold alternative/i.test(equippedCutterFocus)
-      && beforeCutterEquip.lifecycle === 'SEALED'
-      && beforeCutterEquip.tape === 0
-      && beforeCutterEquip.cutProgress === 0
-      && afterCutterEquip.lifecycle === 'SEALED'
-      && afterCutterEquip.tape === 0
-      && afterCutterEquip.cutProgress === 0
-      && afterLmbDownBeforeMove.lifecycle === 'SEALED'
-      && afterLmbDownBeforeMove.tape === 0
-      && afterLmbDownBeforeMove.cutProgress === 0
-      && midDragCut.lifecycle === 'CUTTING'
-      && midDragCut.tape > 0
-      && midDragCut.tape < afterDeliberateCut.tape
-      && afterDeliberateCut.lifecycle === 'CUTTING'
-      && afterDeliberateCut.tape > 0
-      && afterDeliberateCut.tape < 1
-      && afterDeliberateCut.cutProgress === afterDeliberateCut.tape,
-    lmbDragAlongAuthoredTapeNotEFallback:
-      cutterProjection.guide === 'BoxCutterActiveTapeGuide'
-      && cutterProjection.ribbon.name === 'BoxCutterActiveTapeRibbon'
-      && cutterProjection.ribbon.visible
-      && cutterProjection.ribbon.width === 0.012
-      && cutterProjection.ribbon.thickness === 0.0025
-      && cutterProjection.ribbon.length > 0
-      && cutterProjection.ribbon.opacity === 0.58
-      && cutterProjection.ribbon.depthTest === true
-      && cutterProjection.length > 0
-      && cutterProjection.start.clip.z >= -1
-      && cutterProjection.start.clip.z <= 1
-      && cutterProjection.end.clip.z >= -1
-      && cutterProjection.end.clip.z <= 1
-      && cutterSprayingDuringDrag
-      && cutterDragInput.lmbDownCount === 1
-      && cutterDragInput.lmbUpCount === 1
-      && cutterDragInput.sprayingAtFinish === false
-      && cutterDragInput.eKeyDownCount === 0
-      && cutterDragInput.eKeyUpCount === 0
-      && cutterDragInput.movementEventCount >= 4
-      && cutterDragInput.forwardMovementEvents === cutterDragInput.movementEventCount
-      && cutterDragInput.backwardMovementEvents === 0
-      && cutterDragInput.moves.every((move) => move.spraying)
-      && cutterDragInput.alongPixels > 0
-      && cutterDragInput.crossToForwardRatio <= 0.15
-      && Math.abs(cutterDragInput.cameraDelta.yaw) <= 1e-8
-      && Math.abs(cutterDragInput.cameraDelta.pitch) <= 1e-8
-      && afterCutterEquip.tape === 0
-      && afterLmbDownBeforeMove.tape === 0
-      && midDragCut.tape > afterLmbDownBeforeMove.tape
-      && afterDeliberateCut.tape > midDragCut.tape
-      && afterDeliberateCut.tape < 0.6,
-    boxCutterIsToolOnlyWithVisibleBodyBladeAndTapeContact:
-      equippedCutterVisual.tool === 'boxcutter'
-      && equippedCutterVisual.authoredModel
-      && !equippedCutterVisual.fallbackModel
-      && equippedCutterVisual.visibleMeshCount >= 3
-      && equippedCutterVisual.skinOrCuffMeshCount === 0
-      && equippedCutterVisual.bladeVisible
-      && equippedCutterVisual.contactVisible
-      && equippedCutterVisual.contactToBoxHorizontal <= 0.30
-      && equippedCutterVisual.contactAboveBoxOrigin >= 0.20
-      && equippedCutterVisual.contactAboveBoxOrigin <= 0.45
-      && equippedCutterVisual.screenBounds?.width >= 24
-      && equippedCutterVisual.screenBounds?.height >= 12
-      && equippedCutterVisual.visibleTapeSegmentCount > 0
-      && cuttingCutterVisual.skinOrCuffMeshCount === 0
-      && cuttingCutterVisual.visibleTapeSegmentCount < equippedCutterVisual.visibleTapeSegmentCount,
-    normalFHolstersBoxCutterWithoutMutatingCut:
-      afterCutToolHolster.key === 'f'
-      && afterCutToolHolster.before === 'boxcutter'
-      && afterCutToolHolster.after === null
-      && /Box cutter put away/i.test(afterCutToolHolster.toast || '')
-      && /tap \[E\] once to equip the box cutter/i.test(afterCutToolHolster.focus || '')
-      && afterCutToolHolster.lifecycleUnchanged,
-    cutterResidencyMatchedThroughNormalEquipAndFHolster:
-      /tap \[E\] once to equip the box cutter/i.test(baselineCutterPrewarmFocus)
-      && baselineCutterEquipped.lifecycle === 'SEALED'
-      && baselineCutterEquipped.tape === 0
-      && baselineCutterHolstered.lifecycle === 'SEALED'
-      && baselineCutterHolstered.tape === 0
-      && /Box cutter put away/i.test(baselineCutterHolsterToast || '')
-      && /tap \[E\] once to equip the box cutter/i.test(baselineCutterHolsterFocus || ''),
-    insertsAndProductsStayHiddenThroughClosedFlapCutting:
+    // The box cutter is deleted (2026-07-30): cartons tear on a press, and
+    // tools/qa/proshop-box-open-loop.js owns the full gesture contract. These
+    // two asserts keep this driver's own carton honest: no tool at any carton
+    // step, and the three presses each advance exactly one mechanical step.
+    pressFlowNoTool:
+      baselinePressPromptProbe.equippedTool === null
+      && baselinePressPromptProbe.propTool === null
+      && !baselinePressPromptProbe.hasDragVerb
+      && !baselinePressPromptProbe.hasHoldVerb
+      && packingPressProbe.equippedTool === null
+      && packingPressProbe.propTool === null
+      && !packingPressProbe.hasDragVerb
+      && !packingPressProbe.hasHoldVerb
+      && pressSteps.length === 3
+      && pressSteps.every((step) => step.probe.equippedTool === null
+        && step.probe.propTool === null
+        && !step.probe.hasDragVerb
+        && !step.probe.hasHoldVerb),
+    threePressOpen:
+      pressSteps.length === 3
+      && /tear the tape open/i.test(pressSteps[0].focus)
+      && pressSteps[0].before.lifecycle === 'SEALED'
+      && pressSteps[0].before.tape === 0
+      && pressSteps[0].after.tape >= 1
+      && pressSteps[0].after.flapProgress[2] >= 0.999
+      && pressSteps[0].after.flapProgress[3] >= 0.999
+      && pressSteps[0].after.flapProgress[0] < 0.001
+      && pressSteps[0].after.flapProgress[1] < 0.001
+      && pressSteps[0].after.qty === 12
+      && pressSteps[0].after.carryGoods === null
+      && /open the other flap/i.test(pressSteps[1].focus)
+      && pressSteps[1].after.flapProgress.every((value) => value >= 0.999)
+      && pressSteps[1].after.qty === 12
+      && pressSteps[1].after.carryGoods === null
+      && /take an armful/i.test(pressSteps[2].focus)
+      && armfulTaken?.skuId === 'tees1'
+      && armfulTaken.qty > 0
+      && pressSteps[2].after.qty === 12 - armfulTaken.qty
+      && pressSteps.every((step) => step.after.loc === 'equipment'
+        && step.after.equipmentId === 'delivery_hand_truck'
+        && step.after.socketId === 'LOAD_ORIGIN'),
+    insertsAndProductsStayHiddenWhileSealed:
       sealedInteriorVisibility.allPackingHidden
-      && sealedInteriorVisibility.allProductsHidden
-      && cuttingInteriorVisibility.allPackingHidden
-      && cuttingInteriorVisibility.allProductsHidden,
+      && sealedInteriorVisibility.allProductsHidden,
     oneReusableGhostAllocation: churnPlacement.allocations?.geometries === 3
       && churnPlacement.allocations?.materials === 3
       && churnPlacement.metrics?.rotations >= 12
@@ -2318,15 +1975,22 @@ async (page) => {
       && churnAfter.rendererTextures === churnBefore.rendererTextures
       && churnAfter.visibleTextures === churnBefore.visibleTextures,
     matchedPerformanceWithinGate: performanceGate,
-    finalNormalCommitRestoresHandTruckAndPreservesDeliberateCut: finalState.loc === 'equipment'
-      && finalState.equipmentId === 'delivery_hand_truck'
-      && finalState.socketId === 'LOAD_ORIGIN'
-      && finalState.qty === 12
-      && finalState.lifecycle === 'CUTTING'
-      && finalState.tape === afterDeliberateCut.tape
-      && finalState.cutProgress === afterDeliberateCut.cutProgress
-      && /Tee bag .*\[E\] pick up/i.test(finalHandTruckFocus)
-      && !/box cutter|\[X\]/i.test(finalHandTruckFocus),
+    finalNormalCommitRestoresHandTruckStillSealed: finalCommitState.loc === 'equipment'
+      && finalCommitState.equipmentId === 'delivery_hand_truck'
+      && finalCommitState.socketId === 'LOAD_ORIGIN'
+      && finalCommitState.qty === 12
+      && finalCommitState.lifecycle === 'SEALED'
+      && finalCommitState.tape === 0
+      && finalCommitState.cutProgress === 0
+      && /Tee bag case .*\[E\] tear the tape open/i.test(finalHandTruckFocus)
+      && /\[X\] reposition closed carton/i.test(finalHandTruckFocus),
+    cartonOpensWhereItSitsOnTheHandTruck: finalOpenState.loc === 'equipment'
+      && finalOpenState.equipmentId === 'delivery_hand_truck'
+      && finalOpenState.socketId === 'LOAD_ORIGIN'
+      && finalOpenState.tape >= 1
+      && finalOpenState.flapProgress.every((value) => value >= 0.999)
+      && ['OPEN', 'PARTIALLY_EMPTIED'].includes(finalOpenState.lifecycle)
+      && finalOpenState.qty === 12 - armfulTaken.qty,
     pointerLockHeldForAllEvidence: captures.every((entry) => entry.pointerLocked),
     noConsoleOrPageErrors: diagnosticCounts.consoleError === 0
       && diagnosticCounts.pageError === 0,
@@ -2347,15 +2011,13 @@ async (page) => {
       viewport: '1600x900 at device scale factor 1',
       cameraMethod: 'documented deterministic player-position/aim fixture; all state transitions use normal keyboard/mouse input',
     },
-    fixtureBoundary: 'The fixture clears deliveries and legacy renovation piles through their production simulation mutations, removes the two polo display stacks, creates one real sealed tees carton and one real sealed blocker carton through arriveOrder, and commits only the blocker through the production simulation verb. From the first candidate E pickup onward, no box state is injected: normal E, R, Escape, X, F, and a pointer-locked LMB drag drive every transition, including cutter equip/release/drag/holster, pallet-jack pumping, and hand-truck controls. The drag vector is resolved from the live authored tape guide; camera targets use live scene nodes and fixed approach offsets only make evidence repeatable.',
+    fixtureBoundary: 'The fixture clears deliveries and legacy renovation piles through their production simulation mutations, removes the two polo display stacks, creates one real sealed tees carton and one real sealed blocker carton through arriveOrder, and commits only the blocker through the production simulation verb. From the first candidate X pickup onward, no box state is injected: normal E, R, Escape, and X drive every transition, including the three-press carton open, pallet-jack pumping, and hand-truck controls. No tool is ever equipped and nothing is dragged. Camera targets use live scene nodes and fixed approach offsets only make evidence repeatable.',
     controls: {
-      pickupActivateCommit: 'E',
+      activateCommit: 'E',
       rotate: 'R',
       cancelKeepCarrying: 'Escape',
-      repositionFromUnpackingSurface: 'X',
-      cutTapePrimary: 'LMB down, relative mouse movement along the live projected authored tape path, LMB up',
-      cutTapeAccessibilityFallback: 'E hold is advertised but explicitly unused during the measured drag trace',
-      holsterContextualCutter: 'F',
+      pickUpOrReposition: 'X — the carry verb for any carton; sealed cartons on every route surface offer E as press one of the open, never pickup',
+      openCarton: 'three E presses on the focused carton: tear the tape, open the other flap pair, take an armful — no tool, no drag, no hold',
       pointerLock: 'normal canvas mouse click',
     },
     surfaceIds,
@@ -2392,15 +2054,11 @@ async (page) => {
         frontFocus: cartonFrontFocus,
         label: cartonLabelEvidence,
       },
-      baselineCutterPrewarm: {
-        focus: baselineCutterPrewarmFocus,
-        equippedFocus: baselineCutterEquippedFocus,
-        equipped: baselineCutterEquipped,
-        equippedResources: baselineCutterEquippedResources,
-        holstered: baselineCutterHolstered,
-        holsterKey: 'f',
-        holsterToast: baselineCutterHolsterToast,
-        holsterFocus: baselineCutterHolsterFocus,
+      pressPromptBaseline: {
+        focus: baselinePressPromptFocus,
+        probe: baselinePressPromptProbe,
+        resources: baselinePressPromptResources,
+        state: baselinePressPromptState,
       },
       floorPickup,
       tablePickup,
@@ -2410,9 +2068,8 @@ async (page) => {
       palletPickup,
       cartPickup,
       postReloadPickup,
-      postCutPickup,
-      afterCutToolHolster,
-      packingForCut,
+      postPromptPickup,
+      packingAfterReload,
       equipmentControls: {
         stockingCartControlFocus,
         stockingCartToast,
@@ -2426,25 +2083,16 @@ async (page) => {
         handTruckCartonFocusAfterTilt,
         handTruckCartonPrompt,
       },
-      cutter: {
-        focus: cutterFocus,
-        compactPrompt: compactCutterPrompt,
-        equippedFocus: equippedCutterFocus,
-        beforeEquip: beforeCutterEquip,
-        afterEquip: afterCutterEquip,
-        afterLmbDownBeforeMove,
-        projection: cutterProjection,
-        midDrag: midDragCut,
-        afterDrag: afterDeliberateCut,
-        inputTrace: cutterDragInput,
-        sprayingDuringDrag: cutterSprayingDuringDrag,
-        // Backward-compatible evidence alias retained for existing consumers.
-        afterDeliberateHold: afterDeliberateCut,
-        equippedVisual: equippedCutterVisual,
-        cuttingVisual: cuttingCutterVisual,
-        fHolster: afterCutToolHolster,
+      pressOpen: {
+        promptFocus: pressOpenFocus,
+        compactPrompt: compactPressPrompt,
+        promptProbe: packingPressProbe,
+        promptState: packingPromptState,
+        finalCommitState,
+        steps: pressSteps,
+        armfulTaken,
+        finalOpenState,
         sealedInteriorVisibility,
-        cuttingInteriorVisibility,
       },
     },
     commits: route,
@@ -2456,7 +2104,7 @@ async (page) => {
       exactFieldsMatch: saveFieldsMatch,
     },
     performance: {
-      methodology: 'Chrome 1600x900 DPR1. Gated FPS and exact resource deltas compare identical CUTTING lifecycle, fixed green floor preview, camera, tool-holstered state, quantities, and document immediately before versus after twelve normal Escape/E/R cycles. A separate route/reload block compares the prewarmed SEALED route baseline to final CUTTING state, allowing deliberate lifecycle removal while rejecting visible growth and bounding renderer reload residency. Three 1.2 s rAF samples provide median average FPS/1% low and worst frame; Three scene/renderer census and CDP heap/listener counters cover resources.',
+      methodology: 'Chrome 1600x900 DPR1. Gated FPS and exact resource deltas compare identical SEALED lifecycle, fixed green floor preview, camera, tool-free state, quantities, and document immediately before versus after twelve normal Escape/E/R cycles. A separate route/reload block compares the prewarmed SEALED route baseline to the same SEALED carton after reload, rejecting visible growth and bounding renderer reload residency. The three-press carton open runs only after every measurement. Three 1.2 s rAF samples provide median average FPS/1% low and worst frame; Three scene/renderer census and CDP heap/listener counters cover resources.',
       rendererWarmup: {
         rationale: 'Before each matched sample, one read-only render temporarily disables frustum culling for visible renderables, then restores it. This makes renderer residency comparable instead of counting first camera-coverage uploads as route growth.',
         baseline: baselineRendererWarmup,
@@ -2467,7 +2115,7 @@ async (page) => {
       after: afterPerformance,
       delta: performanceDelta,
       routeReload: {
-        interpretation: 'Separate non-identical lifecycle evidence: SEALED before route/reload versus deliberately CUTTING after. Visible removals are allowed; visible growth is rejected. Renderer geometry/program growth is bounded and renderer texture growth is capped at +4.',
+        interpretation: 'Same-lifecycle evidence: the carton is SEALED on both sides of the route/reload. Visible removals are allowed; visible growth is rejected. Renderer geometry/program growth is bounded and renderer texture growth is capped at +4.',
         baselineWarmup: routeBaselineRendererWarmup,
         baseline: routeBaselinePerformance,
         after: afterPerformance,
@@ -2486,7 +2134,7 @@ async (page) => {
         low1FpsRetention: 'at least 75%',
         worstFrame: 'no more than max(50 ms, 1.5x matched baseline)',
         rendererResources: 'matched same-document renderer geometry/program/texture and visible mesh/geometry/material/texture counts must remain exact; route/reload permits at most +4 renderer geometries, +4 resident renderer textures, and +2 programs while rejecting visible growth',
-        textureRationale: 'The +4 route/reload allowance covers renderer-owned resident texture reinitialization only. Visible textures remain exact across reload; visible geometry/material/mesh counts may decrease only for the deliberate lifecycle change. All renderer and visible resource counts remain exact across twelve same-document cycles. No texture-byte measurement or byte-level claim is made.',
+        textureRationale: 'The +4 route/reload allowance covers renderer-owned resident texture reinitialization only. Visible textures remain exact across reload; visible geometry/material/mesh counts must not grow. All renderer and visible resource counts remain exact across twelve same-document cycles. No texture-byte measurement or byte-level claim is made.',
         eventListeners: 'at most +4 across reload and zero growth across 12 same-document lifecycle cycles',
         heap: 'at most +16 MiB across reload and +4 MiB after forced-GC lifecycle churn',
         promptUpdates: 'at most 4 DOM prompt mutations/second while the target stays fixed',

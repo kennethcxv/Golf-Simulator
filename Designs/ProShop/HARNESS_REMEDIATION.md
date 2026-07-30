@@ -63,6 +63,43 @@ Three of the archived files (`pro-shop-checkout`, `player-experience-checkout-ba
 plus wrapper `pine-hills-joined-tee-card.js`) were **transitively dead loaders the
 audit's count of 14 missed** — found by tracing references before moving files.
 
+**2026-07-30 addendum — the box-cutter deletion class.** One more archive under
+the same pattern: `proshop-box-discoverability.js` (interrogates the deleted
+cutter guide nodes wholesale; successor `proshop-box-open-loop.js`, README row
+added). The other fifteen cutter-era drivers were **ported in place**, not
+archived, because their claims (placement grids, per-SKU stocking, save/reload
+durability, campaign progression, perf profiles) outlive the gesture that
+carried them — only the open choreography changed to the three-press flow. The
+three save-reload drivers' mid-cut CUTTING checkpoint (cutProgress 0.35–0.70)
+is no longer reachable through player input (one press cuts to 1.0), so that
+checkpoint became TAPE_TORN (after exactly one press); what each reload compare
+asserts is unchanged. Reference-traced before moving anything, per §A: the two
+test-pinned drivers (`sku-stock-lifecycle-qa.js`, `pine-hills-starter-stock-cooler-acceptance.js`)
+and the eval-loaded `delivery-loop.js` were all ports for exactly that reason.
+
+**Verification runs surfaced a SECOND, pre-existing drift layer.** Running the
+ports end-to-end found the press-flow choreography needed settle gates (a
+press mid-flap-animation is deliberately ignored; the next prompt is the
+settle signal — fixed across the ports the same day), and then three of the
+four representative drivers stalled at FIXTURE STAGING on world coordinates
+that predate the 2026-07-28 Phase-3 relayout — the same "stale world offset"
+class §A recorded on `register-recover-legacy.js`:
+
+| Driver | Staging failure (verbatim) | Failing site |
+|---|---|---|
+| `club-box-save-reload.js` | "Could not place the staged club carton." | `stageClubBox` |
+| `sku-stock-lifecycle-qa.js` | "Fixture could not place balls1: That spot is occupied by the Backroom shelving." | `stageExactCase` |
+| `box-placement-surfaces-qa.js` | "Could not place blocker fixture carton: That spot is occupied by the checkout counter." | `stageFixture` |
+| `delivery-loop.js` | `putDownBox({x:7.4,z:-5.2})` failed silently against the relaid room, leaving the carton in the player's arms — the "sealed carton" beat framed a CARRY prompt | fixture evaluate before step 2 — staging is now SELF-VALIDATING (candidate spots tried until one survives rebuildBoxes' own reconciliation, hard guards on carry/loc), verified reaching 'world'. Still open: the STANCE frames the room, not the carton — the next pass derives the camera stance from the staged carton's rendered transform instead of its sim coordinates |
+
+The staging-coordinate refresh — deriving spots and stances from the live
+layout instead of constants — is the next reconciliation unit for all four
+run-verified drivers. The cutter-era stall that made every one of them
+unrunnable-by-design is closed everywhere: the press-flow choreography, the
+prompts, and the no-tool contracts are in place, parse-clean, and suite-green;
+what remains is the same world-coordinate refresh the register family already
+went through once (§A, `register-recover-legacy.js`).
+
 ## B. Fixed in place
 
 | File | Before | After | Green change? |

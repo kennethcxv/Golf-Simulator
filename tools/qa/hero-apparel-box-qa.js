@@ -3,9 +3,12 @@ async (page) => {
   //
   // The documented fixture below establishes one repeatable delivery and fixed
   // player-camera poses. Every lifecycle transition after staging is exercised
-  // through the game's normal pointer/keyboard path: drag LMB along each
-  // authored tape segment, tap E to open/take/flatten/carry/recycle, and hold E
-  // at the apparel table to stock.
+  // through the game's normal pointer/keyboard path: three E presses open the
+  // carton (press one tears the tape and swings the wide flap pair, press two
+  // folds the other pair, press three takes an armful), tap E to
+  // flatten/carry/recycle, and hold E at the apparel table to stock.
+  // (Ported off the box-cutter equip 2026-07-30 — cartons tear on a press;
+  // proshop-box-open-loop.js owns the gesture contract.)
   //
   // Run through tools/qa/run-playwright.cjs; see
   // qa/box_system_master/hero_apparel/QA_PROTOCOL.md for the four-pass protocol.
@@ -186,7 +189,6 @@ async (page) => {
       const box = window.__fw?.state?.shop?.deliveries?.boxes?.find((candidate) => candidate.id === boxId);
       if (wanted === 'gone') return !box;
       if (!box) return false;
-      if (wanted === 'mid-cut') return (box.cutProgress ?? box.tape ?? 0) >= 0.35;
       if (wanted === 'cut') return (box.cutProgress ?? box.tape ?? 0) >= 1;
       if (wanted === 'opening') return (box.openingProgress || 0) > 0.05 && (box.openingProgress || 0) < 0.95;
       if (wanted === 'open') return (box.flapProgress || []).length === 4 && box.flapProgress.every((value) => value >= 0.999);
@@ -252,12 +254,10 @@ async (page) => {
     await page.waitForFunction((id) => {
       const scene = window.__fw?.scene3d?.scene;
       const root = scene?.getObjectByName(`DeliveryBox_${id}`);
-      const cutter = scene?.getObjectByName('DeliveryBoxCutterAuthored');
       const names = [];
       root?.traverse((object) => { if (object.name) names.push(object.name); });
       return !!(
         root
-        && cutter
         && root.getObjectByName('BOX_FLAP_FRONT')
         && root.getObjectByName('BOX_FLAP_BACK')
         && root.getObjectByName('BOX_FLAP_LEFT')
@@ -274,13 +274,11 @@ async (page) => {
     return page.evaluate((boxId) => {
       const scene = window.__fw.scene3d.scene;
       const root = scene.getObjectByName(`DeliveryBox_${boxId}`);
-      const cutter = scene.getObjectByName('DeliveryBoxCutterAuthored');
       const recycling = scene.getObjectByName('DeliveryRecyclingStationAuthored');
       const names = [];
       root?.traverse((object) => { if (object.name) names.push(object.name); });
       return {
         authoredBox: !!root,
-        authoredCutter: !!cutter,
         authoredRecycling: !!recycling,
         flatBundle: !!root?.getObjectByName('BOX_FLAT_BUNDLE'),
         fourFlaps: ['FRONT', 'BACK', 'LEFT', 'RIGHT'].every((side) => !!root?.getObjectByName(`BOX_FLAP_${side}`)),
@@ -293,185 +291,32 @@ async (page) => {
     }, id);
   }
 
-  async function holdEUntilBox(id, condition, timeout) {
-    await page.keyboard.down('e');
-    try {
-      await waitForBox(id, condition, timeout);
-    } finally {
-      await page.keyboard.up('e').catch(() => {});
-    }
-    await page.waitForTimeout(120);
-  }
-
-  async function equipCutter() {
-    await waitForFocus(/tap \[E\] once to equip the box cutter/i);
-    await page.keyboard.press('e');
-    await page.waitForFunction(() => window.__fw?.scene3d?.walk?.getTool?.() === 'boxcutter');
-    await page.waitForTimeout(380);
-  }
-
-  async function cutterPathProjection() {
-    return page.evaluate(() => {
-      const scene = window.__fw.scene3d.scene;
-      const camera = window.__fw.scene3d.camera;
-      const canvas = document.querySelector('canvas');
-      const guide = scene.getObjectByName('BoxCutterActiveTapeGuide');
-      const position = guide?.geometry?.getAttribute?.('position');
-      if (!guide?.visible || !position || position.count < 2 || !canvas) {
-        throw new Error('The live authored box-cutter tape guide is unavailable.');
-      }
-      guide.updateWorldMatrix(true, false);
-      camera.updateMatrixWorld(true);
-      const Vector3 = camera.position.constructor;
-      const project = (index) => {
-        const world = new Vector3(
-          position.getX(index), position.getY(index), position.getZ(index),
-        ).applyMatrix4(guide.matrixWorld);
-        const clip = world.clone().project(camera);
-        return {
-          x: (clip.x * 0.5 + 0.5) * (canvas.clientWidth || canvas.width || innerWidth),
-          y: (0.5 - clip.y * 0.5) * (canvas.clientHeight || canvas.height || innerHeight),
-        };
-      };
-      const start = project(0);
-      const end = project(1);
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const length = Math.hypot(dx, dy);
-      if (!(length > 0.001) || !Number.isFinite(length)) {
-        throw new Error(`Authored cutter path projected to ${length} pixels.`);
-      }
+  async function pressState(id) {
+    return page.evaluate(async (boxId) => {
+      const D = await import('/src/sim/deliveries.js');
+      const st = window.__fw.state;
+      const walk = window.__fw.scene3d.walk;
+      const box = D.findBox(st, boxId);
       return {
-        start,
-        end,
-        length,
-        unitX: dx / length,
-        unitY: dy / length,
-        normalizationPixels: Math.max(24, length),
+        label: walk.getFocusLabel?.() ?? null,
+        tool: walk.getTool?.() ?? null,
+        tapeCut: box ? D.tapeCut(box) : null,
+        flapsOpen: box ? D.flapsOpen(box) : null,
+        carried: st.shop.carry?.qty || 0,
       };
-    });
+    }, id);
   }
 
-  async function installCutterDragTrace() {
-    await page.evaluate(() => {
-      window.__heroCutterDragTrace?.cleanup?.();
-      const trace = {
-        lmbDownCount: 0,
-        lmbUpCount: 0,
-        eKeyDownCount: 0,
-        eKeyUpCount: 0,
-        movementEventCount: 0,
-        sprayingMovementCount: 0,
-        pointerHeld: false,
-      };
-      const onPointerDown = (event) => {
-        if (event.button !== 0) return;
-        trace.lmbDownCount += 1;
-        trace.pointerHeld = true;
-      };
-      const onPointerUp = (event) => {
-        if (event.button !== 0) return;
-        trace.lmbUpCount += 1;
-        trace.pointerHeld = false;
-      };
-      const onMouseMove = () => {
-        if (!trace.pointerHeld) return;
-        trace.movementEventCount += 1;
-        if (window.__fw.scene3d.walk.isSpraying?.()) trace.sprayingMovementCount += 1;
-      };
-      const onKeyDown = (event) => {
-        if (event.key.toLowerCase() === 'e') trace.eKeyDownCount += 1;
-      };
-      const onKeyUp = (event) => {
-        if (event.key.toLowerCase() === 'e') trace.eKeyUpCount += 1;
-      };
-      trace.cleanup = () => {
-        document.removeEventListener('pointerdown', onPointerDown, true);
-        window.removeEventListener('pointerup', onPointerUp, true);
-        document.removeEventListener('mousemove', onMouseMove, true);
-        document.removeEventListener('keydown', onKeyDown, true);
-        document.removeEventListener('keyup', onKeyUp, true);
-      };
-      document.addEventListener('pointerdown', onPointerDown, true);
-      window.addEventListener('pointerup', onPointerUp, true);
-      document.addEventListener('mousemove', onMouseMove, true);
-      document.addEventListener('keydown', onKeyDown, true);
-      document.addEventListener('keyup', onKeyUp, true);
-      window.__heroCutterDragTrace = trace;
-    });
-  }
-
-  async function finishCutterDragTrace() {
-    await page.waitForTimeout(0);
-    return page.evaluate(() => {
-      const trace = window.__heroCutterDragTrace;
-      if (!trace) throw new Error('Missing hero cutter-drag trace.');
-      trace.cleanup?.();
-      delete trace.cleanup;
-      delete window.__heroCutterDragTrace;
-      return trace;
-    });
-  }
-
-  async function dragCutterUntilCut(id, { captureMid = false, traceInput = false, primeGuard = false } = {}) {
-    if (primeGuard) {
-      // Pointer lock discards its first two relative events. Consume that guard,
-      // then restore the deterministic evidence camera before measuring input.
-      await page.mouse.move(801, 450);
-      await page.mouse.move(800, 450);
-    } else {
-      // Playwright retains its last logical pointer coordinate under pointer
-      // lock. Recenter between soak cycles so the first measured delta is the
-      // authored path step rather than a jump from the previous carton.
-      await page.mouse.move(800, 450);
-    }
-    await setCamera(cameras.box);
-    await waitForFocus(/\[LMB\] drag along tape.*\[E\] hold alternative/i);
-    await page.waitForTimeout(180);
-    if (traceInput) await installCutterDragTrace();
-    const cursor = { x: 800, y: 450 };
-    let midCaptured = false;
-    let stationary = null;
-    let steps = 0;
-    try {
-      await page.mouse.down({ button: 'left' });
-      await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === true, null, {
-        timeout: 3000,
-      });
-      await page.waitForTimeout(90);
-      stationary = await boxSnapshot(id);
-      if (stationary.cutProgress !== 0 || stationary.lifecycle !== 'SEALED') {
-        throw new Error(`Stationary LMB advanced the cutter: ${JSON.stringify(stationary)}.`);
-      }
-      while (steps < 60) {
-        const projection = await cutterPathProjection();
-        const pixels = projection.normalizationPixels * 0.24;
-        cursor.x += projection.unitX * pixels;
-        cursor.y += projection.unitY * pixels;
-        await page.mouse.move(cursor.x, cursor.y);
-        await page.waitForTimeout(45);
-        steps += 1;
-        const snapshot = await boxSnapshot(id);
-        if (captureMid && !midCaptured && snapshot.cutProgress >= 0.35 && snapshot.cutProgress < 1) {
-          midCaptured = true;
-          await capture('03-mid-cut.png', id,
-            'LMB remains held while the blade follows the authored seam and segmented tape separates behind it.', 'box');
-        }
-        if (snapshot.cutProgress >= 1) break;
-      }
-    } finally {
-      await page.mouse.up({ button: 'left' }).catch(() => {});
-      await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === false, null, {
-        timeout: 3000,
-      }).catch(() => {});
-    }
-    await waitForBox(id, 'cut', 3000);
-    if (captureMid && !midCaptured) throw new Error('LMB cut completed without a capturable partial-tape state.');
-    return {
-      stationary,
-      steps,
-      input: traceInput ? await finishCutterDragTrace() : null,
-    };
+  async function openCartonByPresses(id) {
+    // Press one tears the tape in a single press and swings the wide flap pair
+    // open; press two folds the other pair. No tool, no equip, no drag —
+    // proshop-box-open-loop.js owns the gesture contract.
+    await waitForFocus(/tear the tape open/i);
+    await page.keyboard.press('e');
+    await waitForBox(id, 'cut', 5000);
+    await waitForFocus(/open the other flap/i);
+    await page.keyboard.press('e');
+    await waitForBox(id, 'open', 5000);
   }
 
   async function waitForStableScene() {
@@ -774,45 +619,92 @@ async (page) => {
   const hero = await stageHero({ orderId: heroOrderId, qty: heroQty, resetDelivery: true });
   const assets = await assetContract(hero.id);
   await setCamera(cameras.box);
-  await waitForFocus(/tap \[E\] once to equip the box cutter/i);
-  await capture('01-sealed.png', hero.id, 'Sealed medium apparel carton before the player equips a tool.', 'box');
+  await waitForFocus(/tear the tape open/i);
+  await capture('01-sealed.png', hero.id, 'Sealed medium apparel carton; the focus prompt offers the first press and there is no tool to equip.', 'box');
 
   const performance = {};
   performance.preCycle = await measure('identical-sealed-hero-before-cycles');
-  await equipCutter();
-  await capture('02-cutter-contact.png', hero.id, 'Authored cutter equipped and settled at the seam start.', 'box');
 
-  const mainCutterDrag = await dragCutterUntilCut(hero.id, {
-    captureMid: true,
-    traceInput: true,
-    primeGuard: true,
-  });
-  await page.waitForTimeout(180);
-  await capture('04-cut-complete.png', hero.id,
-    'A complete LMB pass has cut every authored seam segment before the carton opens.', 'box');
+  // THE HEADLINE: three E presses open the carton with no tool. One state read
+  // per press, shaped like tools/qa/proshop-box-open-loop.js, which owns the
+  // gesture contract.
+  const pressSteps = [];
 
-  await setCamera(cameras.boxOpen);
+  // Press one: tear the tape (the wide flap pair swings on the same press).
+  await waitForFocus(/tear the tape open/i);
+  const beforeTear = await pressState(hero.id);
   await page.keyboard.press('e');
-  await page.waitForFunction((boxId) => {
-    const box = window.__fw.state.shop.deliveries.boxes.find((candidate) => candidate.id === boxId);
-    return (box?.flapProgress?.[0] || 0) > 0.78 && (box?.flapProgress?.[1] || 0) < 0.20;
-  }, hero.id, { timeout: 3000 });
-  await capture('05-opening.png', hero.id, 'Front main flap lifts first in the deterministic opening sequence.', 'boxOpen');
+  await waitForBox(hero.id, 'cut', 4000);
+  await capture('02-tape-press.png', hero.id,
+    'The first E press tears every authored seam segment in one motion — no tool is equipped.', 'box');
   await page.waitForFunction((boxId) => {
     const box = window.__fw.state.shop.deliveries.boxes.find((candidate) => candidate.id === boxId);
     return (box?.flapProgress?.[2] || 0) > 0.25;
   }, hero.id, { timeout: 4000 });
-  await capture('05b-side-flaps-opening.png', hero.id, 'Side flaps unfold only after both main flaps clear the product view.', 'boxOpen');
+  await capture('03-wide-pair-opening.png', hero.id,
+    'The same first press swings the wide facing flap pair on its authored hinges.', 'box');
+  await page.waitForFunction((boxId) => {
+    const box = window.__fw.state.shop.deliveries.boxes.find((candidate) => candidate.id === boxId);
+    return (box?.flapProgress?.[2] || 0) >= 0.999 && (box?.flapProgress?.[3] || 0) >= 0.999;
+  }, hero.id, { timeout: 4000 });
+  const afterTear = await pressState(hero.id);
+  pressSteps.push({
+    press: 1,
+    promptBefore: beforeTear.label,
+    tool: beforeTear.tool,
+    tapeCutAfter: afterTear.tapeCut,
+    flapsOpenAfter: afterTear.flapsOpen,
+    tookSomething: afterTear.carried > beforeTear.carried,
+  });
+  await capture('04-wide-pair-open.png', hero.id,
+    'Press one complete: tape torn and the wide pair open; the narrow pair still closes the carton.', 'box');
+
+  // Press two: fold the other flap pair open.
+  await setCamera(cameras.boxOpen);
+  await waitForFocus(/open the other flap/i);
+  const beforeFlap = await pressState(hero.id);
+  await page.keyboard.press('e');
+  await page.waitForFunction((boxId) => {
+    const box = window.__fw.state.shop.deliveries.boxes.find((candidate) => candidate.id === boxId);
+    return (box?.flapProgress?.[0] || 0) > 0.25;
+  }, hero.id, { timeout: 4000 });
+  await capture('05-other-flap-press.png', hero.id, 'The second E press folds the narrow flap pair on its authored hinges.', 'boxOpen');
+  await page.waitForFunction((boxId) => {
+    const box = window.__fw.state.shop.deliveries.boxes.find((candidate) => candidate.id === boxId);
+    return (box?.flapProgress?.[0] || 0) > 0.78;
+  }, hero.id, { timeout: 4000 });
+  await capture('05b-narrow-pair-opening.png', hero.id, 'The narrow pair clears the packed contents as the second press finishes.', 'boxOpen');
   await waitForBox(hero.id, 'open', 4000);
+  const afterFlap = await pressState(hero.id);
+  pressSteps.push({
+    press: 2,
+    promptBefore: beforeFlap.label,
+    tool: beforeFlap.tool,
+    tapeCutAfter: afterFlap.tapeCut,
+    flapsOpenAfter: afterFlap.flapsOpen,
+    tookSomething: afterFlap.carried > beforeFlap.carried,
+  });
   await setCamera(cameras.boxOpen);
   await capture('06-open-full-contents.png', hero.id, 'Open carton with actual folded catalog products, tissue, inserts, and tags visible.', 'boxOpen');
 
-  // The production eight-unit carton and two-garment apparel armful expose the
-  // complete honest sequence: 8 -> 6 -> 4 -> 2 -> 0. Every take and stock is a
-  // normal E action; no quantity is injected between captures.
+  // Press three: take an armful. The production eight-unit carton and
+  // two-garment apparel armful expose the complete honest sequence:
+  // 8 -> 6 -> 4 -> 2 -> 0. Every take and stock is a normal E action; no
+  // quantity is injected between captures.
+  await waitForFocus(/take an armful/i);
+  const beforeTake = await pressState(hero.id);
   await page.keyboard.press('e');
   await waitForBox(hero.id, 'qty:6');
   await waitCarry(2);
+  const afterTake = await pressState(hero.id);
+  pressSteps.push({
+    press: 3,
+    promptBefore: beforeTake.label,
+    tool: beforeTake.tool,
+    tapeCutAfter: afterTake.tapeCut,
+    flapsOpenAfter: afterTake.flapsOpen,
+    tookSomething: afterTake.carried > beforeTake.carried,
+  });
   await capture('07-three-quarter-and-carried-armful.png', hero.id, 'First two-garment armful leaves the real carton at three-quarter fill.', 'boxOpen');
   await stockCurrentArmful();
   await capture('08-first-armful-stocked.png', hero.id, 'First armful lands on the real apparel table through the normal hold-E stock path.', 'apparelTable');
@@ -884,12 +776,10 @@ async (page) => {
     const orderId = 920000 + index;
     const staged = await stageHero({ orderId, qty: units, resetDelivery });
     await setCamera(cameras.box);
-    await equipCutter();
-    const cut = await dragCutterUntilCut(staged.id);
-    await page.keyboard.press('e');
-    await waitForBox(staged.id, 'open', 4000);
+    await openCartonByPresses(staged.id);
     let remaining = units;
     while (remaining > 0) {
+      await waitForFocus(/take an armful/i);
       await page.keyboard.press('e');
       const carried = Math.min(2, remaining);
       remaining -= carried;
@@ -910,7 +800,7 @@ async (page) => {
     await chooseRecyclingFocus();
     await page.keyboard.press('e');
     await waitForBox(staged.id, 'gone', 4000);
-    return { index, orderId, cutSteps: cut.steps, recycled: true };
+    return { index, orderId, recycled: true };
   }
 
   await collectGarbage();
@@ -930,11 +820,11 @@ async (page) => {
   // retained views/listeners/resources now show up as post-twenty-cycle growth.
   const postHero = await stageHero({ orderId: heroOrderId, qty: heroQty, resetDelivery: true });
   await setCamera(cameras.box);
-  await waitForFocus(/tap \[E\] once to equip the box cutter/i);
+  await waitForFocus(/tear the tape open/i);
   await waitForStableScene();
   performance.postTwentyCycles = await measure('identical-sealed-hero-after-20-normal-cycles');
   await capture('18-post-20-cycles-identical-sealed.png', postHero.id,
-    'Identical sealed fixture after twenty full normal-control LMB-cut lifecycle cycles.', 'box');
+    'Identical sealed fixture after twenty full normal-control press-open lifecycle cycles.', 'box');
 
   const qualityContract = await page.evaluate(() => {
     const scene3d = window.__fw.scene3d;
@@ -1001,19 +891,23 @@ async (page) => {
 
   const assertions = {
     viewport1600x900Dpr1: viewportContract.innerWidth === 1600 && viewportContract.innerHeight === 900 && viewportContract.devicePixelRatio === 1,
-    authoredAssets: assets.authoredBox && assets.authoredCutter && assets.authoredRecycling && assets.flatBundle
+    authoredAssets: assets.authoredBox && assets.authoredRecycling && assets.flatBundle
       && assets.fourFlaps && assets.fourWalls
       && assets.contentSlots === 8 && assets.actualProducts === 8 && assets.tapeSegments >= 10 && assets.shippingLabel,
-    cutterEquippedOnlyAfterPlayerInput:
-      captures.find((entry) => entry.file.endsWith('01-sealed.png'))?.focus?.tool == null
-      && captures.find((entry) => entry.file.endsWith('02-cutter-contact.png'))?.focus?.tool === 'boxcutter',
-    mouseDragIsPrimaryCutInput: mainCutterDrag.steps > 0
-      && mainCutterDrag.input?.lmbDownCount === 1
-      && mainCutterDrag.input?.lmbUpCount === 1
-      && mainCutterDrag.input?.movementEventCount > 0
-      && mainCutterDrag.input?.sprayingMovementCount > 0
-      && mainCutterDrag.input?.eKeyDownCount === 0
-      && mainCutterDrag.input?.eKeyUpCount === 0,
+    // THE HEADLINE, asserted (shape from tools/qa/proshop-box-open-loop.js):
+    // three presses open the carton, no tool is required, each press names
+    // itself, and each press moves exactly one mechanical thing.
+    threePresses: pressSteps.length === 3 && pressSteps[2].tookSomething === true,
+    noToolRequired: pressSteps.length === 3
+      && pressSteps.every((step) => step.tool === null)
+      && captures.every((entry) => (entry.focus?.tool ?? null) === null),
+    promptNamesEachStep: pressSteps.length === 3
+      && /tear the tape/i.test(pressSteps[0].promptBefore || '')
+      && /other flap/i.test(pressSteps[1].promptBefore || '')
+      && /armful/i.test(pressSteps[2].promptBefore || ''),
+    oneStepPerPress: pressSteps.length === 3
+      && pressSteps[0].tapeCutAfter === true && pressSteps[0].flapsOpenAfter === false
+      && pressSteps[1].flapsOpenAfter === true && pressSteps[1].tookSomething === false,
     quantityVisuals: [
       ['06-open-full-contents.png', 8],
       ['07-three-quarter-and-carried-armful.png', 6],
@@ -1024,8 +918,8 @@ async (page) => {
     pointerLockHeldThroughout: captures.every((entry) => entry.actualCamera.pointerLocked),
     mainRouteConservedUnits: mainRoute.shelf === heroQty && mainRoute.back === 0 && !mainRoute.carry,
     mainRouteDisposedExactlyOnce: mainRoute.liveBoxes === 0 && mainRoute.recycled === 1 && mainRoute.trash === 0,
-    twentySequentialLmbCyclesDisposed: stressCycles.length === 20
-      && stressCycles.every((cycle) => cycle.cutSteps > 0 && cycle.recycled)
+    twentySequentialPressCyclesDisposed: stressCycles.length === 20
+      && stressCycles.every((cycle) => cycle.recycled)
       && stressState.liveBoxes === 0 && stressState.recycled === 20
       && stressState.trash === 0 && !stressState.carry,
     noListenerGrowthAfterTwentyCycles: countersAfterStress.jsEventListeners <= countersBeforeStress.jsEventListeners,
@@ -1078,7 +972,7 @@ async (page) => {
     heroFixture: { skuId: 'polo1', orderId: heroOrderId, qty: heroQty, boxKind: 'apparel', spot: heroSpot },
     assets,
     captures,
-    mainCutterDrag,
+    mainPressFlow: { presses: pressSteps.length, steps: pressSteps },
     mainRoute,
     recyclingFocus,
     stress: { cycles: stressCycles, state: stressState, countersBefore: countersBeforeStress, countersAfter: countersAfterStress },

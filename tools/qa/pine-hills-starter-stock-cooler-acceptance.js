@@ -1124,147 +1124,47 @@ async (page) => {
     return { chosen, runtimeDiagnostics, focus, placed };
   }
 
-  async function equipCutter(boxId) {
-    const focused = await focusCarton(
-      boxId,
-      /tap \[E\] once to equip the box cutter/i,
-      { distance: 1.18 },
-    );
-    const before = await focusInfo();
-    if (before.tool === 'boxcutter') return { alreadyEquipped: true, focused, before };
-    await page.keyboard.press('e');
-    await page.waitForFunction(() => (
-      window.__fw?.scene3d?.walk?.getTool?.() === 'boxcutter'
-    ), null, { timeout: 4000 });
-    await page.waitForTimeout(250);
-    return { alreadyEquipped: false, focused, before, after: await focusInfo() };
-  }
-
-  async function cutterPathProjection() {
-    return page.evaluate(() => {
-      const app = window.__fw;
-      const guide = app.scene3d.scene.getObjectByName('BoxCutterActiveTapeGuide');
-      const positions = guide?.geometry?.getAttribute?.('position');
-      const canvas = document.querySelector('canvas');
-      if (!guide?.visible || !positions || positions.count < 2 || !canvas) {
-        throw new Error('Live authored BoxCutterActiveTapeGuide is unavailable.');
-      }
-      guide.updateWorldMatrix(true, false);
-      app.scene3d.camera.updateMatrixWorld(true);
-      const Vector3 = app.scene3d.camera.position.constructor;
-      const project = (index) => {
-        const world = new Vector3(
-          positions.getX(index),
-          positions.getY(index),
-          positions.getZ(index),
-        ).applyMatrix4(guide.matrixWorld);
-        const clip = world.project(app.scene3d.camera);
-        return {
-          x: (clip.x * 0.5 + 0.5) * (canvas.clientWidth || innerWidth),
-          y: (0.5 - clip.y * 0.5) * (canvas.clientHeight || innerHeight),
-        };
-      };
-      const start = project(0);
-      const end = project(1);
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const length = Math.hypot(dx, dy);
-      if (!(length > 0.001) || !Number.isFinite(length)) {
-        throw new Error(`Authored CUT_PATH projected to ${length}px.`);
-      }
-      return {
-        start,
-        end,
-        unitX: dx / length,
-        unitY: dy / length,
-        length,
-        normalizationPixels: Math.max(24, length),
-      };
-    });
-  }
-
+  // Ported off the box-cutter equip/drag 2026-07-30 — cartons tear on a
+  // single E press, no tool, no drag, no held-E fallback.
+  // tools/qa/proshop-box-open-loop.js owns the gesture contract; this driver
+  // holds the starter-stock and cooler claims around it.
   async function cutCartonThroughNormalControls(boxId, evidenceStem = 'starter-carton') {
     const result = {
       primary: {
-        control: 'held LMB movement along live BoxCutterActiveTapeGuide',
+        control: 'single E press on the focused sealed carton',
         attempted: true,
         completed: false,
-        steps: 0,
         error: null,
       },
-      fallback: null,
       completedBy: null,
     };
-    await focusCarton(
+    const focused = await focusCarton(
       boxId,
-      /\[LMB\] drag along tape.*\[E\] hold alternative/i,
+      /tear the tape/i,
       { distance: 1.10 },
     );
-    const cursor = { x: viewport.width / 2, y: viewport.height / 2 };
-    try {
-      await page.mouse.down({ button: 'left' });
-      await page.waitForFunction(() => (
-        window.__fw.scene3d.walk.isSpraying?.() === true
-      ), null, { timeout: 3000 });
-      while (result.primary.steps < 110) {
-        const projection = await cutterPathProjection();
-        const pixels = projection.normalizationPixels * 0.22;
-        cursor.x += projection.unitX * pixels;
-        cursor.y += projection.unitY * pixels;
-        await page.mouse.move(cursor.x, cursor.y);
-        await page.waitForTimeout(42);
-        result.primary.steps += 1;
-        const snapshot = await boxSnapshot(boxId);
-        if (!result.primary.midCutScreenshot
-          && snapshot.cutProgress >= 0.35
-          && snapshot.cutProgress < 0.96) {
-          result.primary.midCutScreenshot = (await capture(
-            `${evidenceStem}-mid-normal-cutter-drag`,
-            { cutProgress: snapshot.cutProgress },
-          )).file;
-        }
-        if (snapshot.cutProgress >= 0.999) break;
-      }
-    } catch (error) {
-      result.primary.error = errorRecord('lmb-cutter', error);
-    } finally {
-      await page.mouse.up({ button: 'left' }).catch(() => {});
-      await page.waitForFunction(() => (
-        window.__fw?.scene3d?.walk?.isSpraying?.() === false
-      ), null, { timeout: 3000 }).catch(() => {});
+    const before = await focusInfo();
+    if (before.tool !== null) {
+      throw new Error(`A carton press must not involve a tool: ${JSON.stringify(before)}`);
     }
-    const afterPrimary = await boxSnapshot(boxId);
-    result.primary.cutProgress = afterPrimary.cutProgress;
-    result.primary.completed = afterPrimary.cutProgress >= 0.999;
-    if (result.primary.completed) {
-      result.completedBy = 'lmb-authored-guide';
-      return result;
-    }
-
-    result.fallback = {
-      control: 'held E - production cutter alternative shown in the focus label',
-      attempted: true,
-      completed: false,
-      startingProgress: afterPrimary.cutProgress,
-    };
-    await focusCarton(
-      boxId,
-      /\[LMB\] drag along tape.*\[E\] hold alternative/i,
-      { distance: 1.10 },
-    );
-    await page.keyboard.down('e');
+    result.primary.focusLabel = focused?.label ?? before.label ?? null;
     try {
+      await page.keyboard.press('e');
       await page.waitForFunction((id) => {
         const box = window.__fw.state.shop.deliveries.boxes.find((entry) => entry.id === id);
         return !!box && (box.cutProgress ?? box.tape ?? 0) >= 0.999;
       }, boxId, { timeout: 5000 });
-    } finally {
-      await page.keyboard.up('e').catch(() => {});
+      result.primary.tornScreenshot = (await capture(
+        `${evidenceStem}-tape-torn-one-press`,
+        { cutProgress: (await boxSnapshot(boxId)).cutProgress },
+      )).file;
+    } catch (error) {
+      result.primary.error = errorRecord('press-tear', error);
     }
-    const afterFallback = await boxSnapshot(boxId);
-    result.fallback.cutProgress = afterFallback.cutProgress;
-    result.fallback.completed = afterFallback.cutProgress >= 0.999;
-    if (result.fallback.completed) result.completedBy = 'held-e-supported-fallback';
+    const afterPrimary = await boxSnapshot(boxId);
+    result.primary.cutProgress = afterPrimary.cutProgress;
+    result.primary.completed = afterPrimary.cutProgress >= 0.999;
+    if (result.primary.completed) result.completedBy = 'single-e-press';
     return result;
   }
 
@@ -1656,23 +1556,21 @@ async (page) => {
     ), null, { timeout: 4000 });
     route.placement = await placeCarriedCartonInStockroom(boxId);
     route.controls.push({ action: 'E commit green stockroom placement' });
-    // Normalize the synthetic pointer before equipping. Doing this after E can
-    // create one large pointer-lock look delta from the previous carton's cut
-    // path, legitimately drop focus, and make the contextual cutter auto-stow.
+    // Normalize the synthetic pointer before the tear press. A large
+    // pointer-lock look delta left over from the previous carton can
+    // legitimately drop focus mid-sequence.
     await page.mouse.move(viewport.width / 2, viewport.height / 2);
-    await focusCarton(boxId, /box cutter|drag along tape/i, { distance: 1.24 });
+    await focusCarton(boxId, /tear the tape/i, { distance: 1.24 });
     await capture(`${stem}-stockroom-placement`);
-    route.cutterEquip = await equipCutter(boxId);
-    route.controls.push({ action: 'E equip box cutter' });
     route.cutter = await cutCartonThroughNormalControls(boxId, stem);
     requireCheck(
       `${route.initial.starterCartonId}-cut-through-normal-control`,
       !!route.cutter.completedBy,
-      `Normal cutter controls did not cut starter carton ${route.initial.starterCartonId}.`,
+      `The tear press did not cut starter carton ${route.initial.starterCartonId}.`,
       { cutter: route.cutter, box: await boxSnapshot(boxId) },
     );
     route.controls.push({ action: route.cutter.completedBy });
-    const openFocus = await focusCarton(boxId, /\[E\] open the carton/i, { distance: 1.18 });
+    const openFocus = await focusCarton(boxId, /open the other flap/i, { distance: 1.18 });
     route.controls.push({ action: 'E open all four flaps', focus: openFocus.focus });
     await page.keyboard.press('e');
     route.opened = await waitForBox(boxId, 'open', 9000);
@@ -2221,8 +2119,8 @@ async (page) => {
         'No inventory, lot, carton lifecycle, carry, shelf, or cooler-door value is injected.',
       ],
       normalControls: [
-        'E opens/closes the cooler and all three cartons, picks up and places each carton, equips the cutter, opens all flaps, and takes every armful.',
-        'Held LMB follows the live authored cutter guide; held E is used only as the production-labelled cutter fallback.',
+        'E opens/closes the cooler and all three cartons, picks up and places each carton, tears each tape in one press, opens all flaps, and takes every armful.',
+        'Cartons open with three E presses and no tool (the box cutter was deleted 2026-07-30).',
         'Held E stocks every starter SKU on the authoritative fixture for balls, accessories, apparel, headwear, drinks, and snacks.',
         'P > Save game > Save here > Replace and save and P > Load game > Load > Load game exercise the deliberate mid-restock slot checkpoint.',
       ],
@@ -2230,7 +2128,7 @@ async (page) => {
         'Cooler contract: pause menu -> Save game -> Save here (slot 1) -> Resume -> pause menu -> Load game -> Load -> visible Load game confirmation.',
         'Mid-restock contract: pause menu -> Save game -> Save here (slot 1) -> visible Replace and save confirmation -> Resume -> pause menu -> Load game -> Load -> visible Load game confirmation.',
       ],
-      cutterFallbackPolicy: 'If both normal cutter controls fail, the driver records the exact box/carry/focus remainder and performs no simulation shortcut.',
+      cutterFallbackPolicy: 'If the tear press fails, the driver records the exact box/carry/focus remainder and performs no simulation shortcut.',
     },
     viewport,
     fixture,

@@ -228,8 +228,10 @@ async (page) => {
       if (!audio || typeof audio.startCapture !== 'function') {
         throw new Error('The production audio/video capture API is unavailable.');
       }
+      // The four blade cues left with the box cutter (2026-07-30); the three
+      // carton presses own material-distinct cues instead.
       const cueNames = [
-        'boxup', 'boxdown', 'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
+        'boxup', 'boxdown', 'boxTapeTear', 'boxFlapFold', 'boxContentsShift',
         'flap', 'itemRemoval', 'stock', 'fullShelf', 'boxFlatten', 'disposal',
       ];
       window.__boxLifecycleAudioCueTrace = [];
@@ -481,51 +483,16 @@ async (page) => {
     };
   }
 
-  async function equipCutter() {
+  // Ported off the box-cutter equip 2026-07-30 — cartons tear on a press, no
+  // tool, no drag. proshop-box-open-loop.js owns the gesture contract; this
+  // driver holds the per-SKU stocking claims around it.
+  async function awaitTearPrompt() {
+    const focus = await waitForFocus(/tear the tape/i);
     const current = await focusInfo();
-    if (current.tool === 'boxcutter') return { alreadyEquipped: true, focus: current };
-    const focus = await waitForFocus(/tap \[E\] once to equip the box cutter/i);
-    await page.keyboard.press('e');
-    await page.waitForFunction(() => window.__fw?.scene3d?.walk?.getTool?.() === 'boxcutter', null, { timeout: 3000 });
-    await page.waitForTimeout(260);
-    return { alreadyEquipped: false, focus };
-  }
-
-  async function cutterPathProjection() {
-    return page.evaluate(() => {
-      const scene = window.__fw.scene3d.scene;
-      const camera = window.__fw.scene3d.camera;
-      const canvasElement = document.querySelector('canvas');
-      const guide = scene.getObjectByName('BoxCutterActiveTapeGuide');
-      const positions = guide?.geometry?.getAttribute?.('position');
-      if (!guide?.visible || !positions || positions.count < 2 || !canvasElement) {
-        throw new Error('Live authored cutter guide is unavailable.');
-      }
-      guide.updateWorldMatrix(true, false);
-      camera.updateMatrixWorld(true);
-      const Vector3 = camera.position.constructor;
-      const project = (index) => {
-        const world = new Vector3(
-          positions.getX(index), positions.getY(index), positions.getZ(index),
-        ).applyMatrix4(guide.matrixWorld);
-        const clip = world.clone().project(camera);
-        return {
-          x: (clip.x * 0.5 + 0.5) * (canvasElement.clientWidth || innerWidth),
-          y: (0.5 - clip.y * 0.5) * (canvasElement.clientHeight || innerHeight),
-        };
-      };
-      const start = project(0);
-      const end = project(1);
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const length = Math.hypot(dx, dy);
-      if (!(length > 0.001) || !Number.isFinite(length)) throw new Error(`CUT_PATH projected to ${length}px.`);
-      return {
-        unitX: dx / length,
-        unitY: dy / length,
-        normalizationPixels: Math.max(24, length),
-      };
-    });
+    if (current.tool !== null) {
+      throw new Error(`A carton press must not involve a tool: ${JSON.stringify(current)}`);
+    }
+    return { focus, tool: current.tool };
   }
 
   const captures = [];
@@ -570,16 +537,10 @@ async (page) => {
         const height = Math.max(0, maxY - minY);
         return { minX, minY, maxX, maxY, width, height, area: width * height };
       })();
-      const cutterRoot = window.__fw.scene3d.scene.getObjectByName('DeliveryBoxCutterAuthored');
-      let cutterVisible = !!cutterRoot;
-      for (let object = cutterRoot; object && cutterVisible; object = object.parent) {
-        cutterVisible = object.visible !== false;
-      }
-      const cutterArm = window.__fw.scene3d.scene.getObjectByName('BoxCutterPlayerArm');
-      let cutterArmVisible = !!cutterArm;
-      for (let object = cutterArm; object && cutterArmVisible; object = object.parent) {
-        cutterArmVisible = object.visible !== false;
-      }
+      // The held cutter and its player arm were deleted with the tool
+      // (2026-07-30); any residue reappearing in the scene is a regression.
+      const cutterResidue = !!window.__fw.scene3d.scene.getObjectByName('DeliveryBoxCutterAuthored')
+        || !!window.__fw.scene3d.scene.getObjectByName('BoxCutterPlayerArm');
       const stockDisplay = window.__fw.scene3d.clubhouse().stockDisplayDiagnostics()
         .displays.find((display) => display.fixtureId === fixtureId && display.stockId === skuId) || null;
       return {
@@ -592,10 +553,7 @@ async (page) => {
           });
           return count;
         })(),
-        cutter: !!window.__fw.scene3d.scene.getObjectByName('DeliveryBoxCutterAuthored'),
-        cutterVisible,
-        cutterArmVisible,
-        cutterArmSegments: cutterArm?.children.filter((object) => object.visible).length || 0,
+        noCutterResidue: !cutterResidue,
         projectedBoxBounds,
         recycling: !!window.__fw.scene3d.scene.getObjectByName('DeliveryRecyclingStationAuthored'),
         fourFlaps: ['FRONT', 'BACK', 'LEFT', 'RIGHT'].every((side) => !!root?.getObjectByName(`BOX_FLAP_${side}`)),
@@ -632,54 +590,27 @@ async (page) => {
     return entry;
   }
 
-  async function dragCutterUntilCut(spec, boxId) {
-    await page.mouse.move(800, 450);
+  async function pressToTear(spec, boxId) {
     await setCamera(await boxCamera(boxId, { close: true }));
-    await waitForFocus(/\[LMB\] drag along tape.*\[E\] hold alternative/i);
+    await awaitTearPrompt();
     const inputBefore = await inputTrace();
-    const cursor = { x: 800, y: 450 };
-    let steps = 0;
-    let midCapture = null;
-    await page.mouse.down({ button: 'left' });
-    try {
-      await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === true, null, { timeout: 3000 });
-      const stationary = await boxSnapshot(boxId);
-      if (stationary.cutProgress !== 0 || stationary.lifecycle !== 'SEALED') {
-        throw new Error(`Stationary LMB advanced ${spec.skuId}: ${JSON.stringify(stationary)}.`);
-      }
-      while (steps < 100) {
-        const projection = await cutterPathProjection();
-        const pixels = projection.normalizationPixels * 0.24;
-        cursor.x += projection.unitX * pixels;
-        cursor.y += projection.unitY * pixels;
-        await page.mouse.move(cursor.x, cursor.y);
-        await page.waitForTimeout(42);
-        steps += 1;
-        const snapshot = await boxSnapshot(boxId);
-        if (!midCapture && snapshot.cutProgress >= 0.55 && snapshot.cutProgress < 0.95) {
-          midCapture = await capture(
-            spec,
-            boxId,
-            'mid-cut',
-            'Normal held-LMB travel follows the authored tape path; segmented tape is only partially separated.',
-          );
-        }
-        if (snapshot.cutProgress >= 0.999) break;
-      }
-    } finally {
-      await page.mouse.up({ button: 'left' }).catch(() => {});
-      await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === false, null, { timeout: 3000 }).catch(() => {});
+    const stationary = await boxSnapshot(boxId);
+    if (stationary.cutProgress !== 0 || stationary.lifecycle !== 'SEALED') {
+      throw new Error(`${spec.skuId} carton was not sealed at the tear press: ${JSON.stringify(stationary)}.`);
     }
+    await page.keyboard.press('e');
     await waitForBox(boxId, 'cut', 4000);
-    if (!midCapture) throw new Error(`${spec.skuId} cut completed without a visible partial-cut evidence frame.`);
+    const tornCapture = await capture(
+      spec,
+      boxId,
+      'tape-torn',
+      'One E press tore the tape outright; no tool, no drag, the carton still closed until the flap press.',
+    );
     return {
-      steps,
-      midCapture: midCapture.file,
-      midTapeState: midCapture.box.tapeSegments,
-      midProjectedBounds: midCapture.visual.projectedBoxBounds,
-      midCutterVisible: midCapture.visual.cutterVisible,
-      midCutterArmVisible: midCapture.visual.cutterArmVisible,
-      midCutterArmSegments: midCapture.visual.cutterArmSegments,
+      tornCapture: tornCapture.file,
+      tornTapeState: tornCapture.box.tapeSegments,
+      tornProjectedBounds: tornCapture.visual.projectedBoxBounds,
+      tornNoCutterResidue: tornCapture.visual.noCutterResidue,
       inputBefore,
       inputAfter: await inputTrace(),
     };
@@ -774,7 +705,7 @@ async (page) => {
       if (index === 0) lifecycleMediaStarted = await startLifecycleMediaCapture();
       const normalPlacement = await repositionThroughNormalControls(staged.id);
       await setCamera(await boxCamera(staged.id));
-      await waitForFocus(/tap \[E\] once to equip the box cutter/i);
+      await waitForFocus(/tear the tape/i);
       await capture(
         spec,
         staged.id,
@@ -782,10 +713,10 @@ async (page) => {
         'The sealed exact-SKU carton was picked up with X and committed to a green production placement with E.',
       );
 
-      const cutterEquip = await equipCutter();
-      const cutter = await dragCutterUntilCut(spec, staged.id);
+      const tearPrompt = await awaitTearPrompt();
+      const cutter = await pressToTear(spec, staged.id);
       await setCamera(await boxCamera(staged.id, { open: true }));
-      await waitForFocus(/\[E\] open the carton/i);
+      await waitForFocus(/open the other flap/i);
       await page.keyboard.press('e');
       await waitForBox(staged.id, 'open', 5000);
       const openedQuantity = await quantitySnapshot(spec.skuId, staged.id, 'open-full');
@@ -911,19 +842,13 @@ async (page) => {
           && normalPlacement.usedNormalPlacementCommit
           && normalPlacement.placed.loc === 'world'
           && normalPlacement.placed.surfaceId === 'floor:clubhouse',
-        authoredLmbCut: cutter.steps > 0
-          && cutter.inputAfter.pointerDown - cutter.inputBefore.pointerDown === 1
-          && cutter.inputAfter.pointerUp - cutter.inputBefore.pointerUp === 1
-          && cutter.inputAfter.heldLmbMoves > cutter.inputBefore.heldLmbMoves
-          && cutter.midTapeState.centre === 1
-          && cutter.midTapeState.left === 0
-          && cutter.midTapeState.right === 0
-          && cutter.midCutterVisible
-          && cutter.midCutterArmVisible
-          && cutter.midCutterArmSegments === 3
-          && cutter.midProjectedBounds?.width >= 180
-          && cutter.midProjectedBounds?.height >= 180
-          && cutter.midProjectedBounds?.area >= 35000,
+        pressTearNoTool: tearPrompt.tool === null
+          && cutter.inputAfter.keyDown.e - cutter.inputBefore.keyDown.e === 1
+          && cutter.inputAfter.pointerDown === cutter.inputBefore.pointerDown
+          && cutter.tornNoCutterResidue
+          && cutter.tornProjectedBounds?.width >= 180
+          && cutter.tornProjectedBounds?.height >= 180
+          && cutter.tornProjectedBounds?.area >= 35000,
         invalidFixtureBlocked: !!invalidFixture
           && !invalidFixture.exposedStockAction
           && invalidFixture.visibleBlockedFeedback
@@ -951,7 +876,7 @@ async (page) => {
         spec,
         staged,
         normalPlacement,
-        cutterEquip,
+        tearPrompt,
         cutter,
         stockingTrips,
         invalidFixture,
@@ -985,9 +910,11 @@ async (page) => {
     pointerLocked: document.pointerLockElement === document.querySelector('canvas'),
   }), targetSkuIds);
   const finalInputTrace = await inputTrace();
+  // The blade cues left with the cutter (2026-07-30): the first press tears
+  // (boxTapeTear), the second folds (boxFlapFold), the armful shifts contents.
   const requiredAudioCueOrder = [
-    'boxup', 'boxdown', 'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
-    'flap', 'itemRemoval', 'stock', 'boxFlatten', 'disposal',
+    'boxup', 'boxdown', 'boxTapeTear', 'boxFlapFold', 'boxContentsShift',
+    'itemRemoval', 'stock', 'boxFlatten', 'disposal',
   ];
   const audioCueOrderIndices = requiredAudioCueOrder.map((name) => (
     lifecycleMediaCapture?.cueTrace.findIndex((entry) => entry.name === name) ?? -1
@@ -1002,10 +929,10 @@ async (page) => {
       finalState.inventory[spec.skuId].shelf === spec.expectedQty
       && finalState.inventory[spec.skuId].back === 0
     )),
+    // The held-LMB clauses left with the cutter (2026-07-30): opening is three
+    // E presses, so the audit is key-driven and pointer use stays balanced.
     realInputAudit: (finalInputTrace.keyDown.x || 0) >= cases.length
-      && finalInputTrace.pointerDown >= cases.length
       && finalInputTrace.pointerDown === finalInputTrace.pointerUp
-      && finalInputTrace.heldLmbMoves > 0
       && (finalInputTrace.keyDown.e || 0) > cases.length * 5,
     fortyEvidenceScreenshots: captures.length === cases.length * 8,
     pointerLockHeld: finalState.pointerLocked && captures.every((entry) => entry.focus.pointerLocked),
