@@ -119,7 +119,9 @@ const NEXT = new Map([
   [CUSTOMER_STATE.PAYING, new Set([CUSTOMER_STATE.RECEIVING_BAG_AND_RECEIPT, CUSTOMER_STATE.WAITING_FOR_CASHIER, CUSTOMER_STATE.LEAVING])],
   [CUSTOMER_STATE.RECEIVING_BAG_AND_RECEIPT, new Set([CUSTOMER_STATE.LEAVING])],
   [CUSTOMER_STATE.FRONT_DESK_INQUIRY, new Set([CUSTOMER_STATE.CHECK_IN, CUSTOMER_STATE.LEAVING])],
-  [CUSTOMER_STATE.CHECK_IN, new Set([CUSTOMER_STATE.LEAVING])],
+  // CHECK_IN may flow into shopping: a combined visit (walk report B6) checks
+  // in for the round AND picks up goods before leaving — one guest, two tills.
+  [CUSTOMER_STATE.CHECK_IN, new Set([CUSTOMER_STATE.LEAVING, CUSTOMER_STATE.CHOOSING_ACTIVITY])],
   [CUSTOMER_STATE.LOUNGE_USE, new Set([CUSTOMER_STATE.CHOOSING_ACTIVITY, CUSTOMER_STATE.LEAVING])],
   [CUSTOMER_STATE.LEAVING, new Set([CUSTOMER_STATE.EXITING, CUSTOMER_STATE.DESPAWNED])],
   [CUSTOMER_STATE.EXITING, new Set([CUSTOMER_STATE.DESPAWNED])],
@@ -183,6 +185,7 @@ function normalizeCustomer(customer, state) {
   customer.stateEnteredAt ??= state.clock?.minutes || 0;
   customer.stateHistory = Array.isArray(customer.stateHistory) ? customer.stateHistory.slice(-MAX_STATE_HISTORY) : [];
   customer.cart = Array.isArray(customer.cart) ? customer.cart : [];
+  customer.requestedTeeMinute ??= null;
   customer.currentPath = Array.isArray(customer.currentPath) ? customer.currentPath : [];
   customer.position ||= null;
   customer.target ||= null;
@@ -332,12 +335,20 @@ export function planCustomerArrivals(state, dayAbs = calendarOf(state.clock.minu
     minute += interval;
     if (minute >= 1200) break;
     const intent = arrivalIntent(rng);
+    // A walk-in golfer arrives WITH a time in mind, the way people do — "have
+    // you got anything around 4?" — snapped to the half hour because that is
+    // how the ask is phrased, not to what happens to be open. The scheduler
+    // (resolveTeeTimeRequest) is what reconciles the ask with the sheet.
+    const requestedTeeMinute = intent === CUSTOMER_INTENT.WALK_IN_TEE_TIME
+      ? Math.min(19 * 60, Math.round((minute + 45 + rng.int(300)) / 30) * 30)
+      : null;
     pushArrival(sim, {
       dayAbs,
       scheduledMinute: dayStart + minute,
       intendedMinute: dayStart + minute,
       intent,
       desiredSkuId: intent === CUSTOMER_INTENT.SPECIFIC_ITEM ? wantedSku(state, rng) : null,
+      requestedTeeMinute,
       name: genName(rng),
       arrivalOffsetMin: 0,
     });
@@ -414,6 +425,7 @@ function makeCustomer(state, arrival, nowMinute, partyIndex = 0) {
     name: partyIndex === 0 ? arrival.name : `${arrival.name} · guest ${partyIndex + 1}`,
     intent,
     desiredSkuId: arrival.desiredSkuId || null,
+    requestedTeeMinute: partyIndex === 0 ? (arrival.requestedTeeMinute ?? null) : null,
     reservationId: arrival.reservationId || null,
     partyId: arrival.partyId || null,
     partyIndex,
@@ -774,6 +786,22 @@ export function markCheckoutCompleted(state, customerOrId) {
   };
   customer.cart = [];
   return transitionCustomer(state, customer, CUSTOMER_STATE.RECEIVING_BAG_AND_RECEIPT, 'checkout completion event received', state.clock.minutes, { force: true });
+}
+
+/** A walk-in whose ask cannot be met inside the window leaves, saying why. */
+export function walkInRequestDeclined(state, customerOrId, reason = '') {
+  const customer = typeof customerOrId === 'string' ? customerById(state, customerOrId) : customerOrId;
+  if (!customer) return { ok: false };
+  if (reason) customer.reasons.push(reason);
+  customer.experience.checkInSuccess = 0;
+  return transitionCustomer(
+    state,
+    customer,
+    CUSTOMER_STATE.LEAVING,
+    reason || 'no tee time near their ask',
+    state.clock.minutes,
+    { force: true },
+  );
 }
 
 export function markCheckInCompleted(state, customerOrId, ok, reason = '') {

@@ -10,6 +10,7 @@ import { calendarOf, formatDate } from '../sim/time.js';
 import {
   addGuestToReservation,
   availableSlots,
+  resolveTeeTimeRequest,
   beginReservationPayment,
   cancelReservation,
   cancelReservationPayment,
@@ -28,6 +29,9 @@ import {
   reservationById,
 } from '../sim/reservations.js';
 import { el, toast } from './ui.js';
+import {
+  CUSTOMER_INTENT, CUSTOMER_STATE, customerSimulationOf, customerById, walkInRequestDeclined,
+} from '../sim/customerSimulation.js';
 import { DEFAULT_CLUB_NAME } from '../sim/state.js';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US', {
@@ -524,9 +528,32 @@ export function makeFrontDesk(app, options = {}) {
     );
   }
 
+  // Who is standing at the desk asking, and for when. Null when the head of
+  // the service queue is not a walk-in golfer.
+  function waitingWalkInAsk() {
+    const sim = customerSimulationOf(app.state);
+    const entity = customerById(app.state, sim.serviceQueue?.[0]);
+    if (!entity || entity.state !== CUSTOMER_STATE.FRONT_DESK_INQUIRY) return null;
+    if (entity.intent !== CUSTOMER_INTENT.WALK_IN_TEE_TIME) return null;
+    return {
+      id: entity.id,
+      name: entity.name,
+      requestedTeeMinute: Number.isFinite(entity.requestedTeeMinute) ? entity.requestedTeeMinute : null,
+    };
+  }
+
   function walkInPanel() {
     const cal = calendarOf(app.state.clock.minutes);
     const partySize = Number(walkInDraft.partySize);
+    const asker = waitingWalkInAsk();
+    // The customer's name fills the holder automatically — they are standing
+    // right there saying it — and their ask decides the DEFAULT slot through
+    // the scheduler, replacing the old first-open-slot-of-the-day default that
+    // turned a 4:00 request into 8:30.
+    if (asker && !walkInDraft.holder.trim()) walkInDraft.holder = asker.name;
+    const resolved = asker && asker.requestedTeeMinute != null
+      ? resolveTeeTimeRequest(app.state, cal.dayAbs, asker.requestedTeeMinute, { partySize })
+      : null;
     const slots = [];
     for (let offset = 0; offset <= Math.min(2, app.state.reservations.config.horizonDays); offset++) {
       const dayAbs = cal.dayAbs + offset;
@@ -537,7 +564,12 @@ export function makeFrontDesk(app, options = {}) {
         });
       }
     }
-    if (!slots.some((slot) => slot.value === walkInDraft.slotValue)) walkInDraft.slotValue = slots[0]?.value || '';
+    if (!slots.some((slot) => slot.value === walkInDraft.slotValue)) {
+      const preferred = resolved?.ok ? `${cal.dayAbs}:${resolved.slot.minute}` : null;
+      walkInDraft.slotValue = (preferred && slots.some((slot) => slot.value === preferred))
+        ? preferred
+        : slots[0]?.value || '';
+    }
     let createButton = null;
     const holder = el('input', {
       class: 'fd-input', type: 'text', placeholder: 'Reservation holder', value: walkInDraft.holder,
@@ -554,14 +586,28 @@ export function makeFrontDesk(app, options = {}) {
       value: String(index + 1), text: `${index + 1} player${index ? 's' : ''}`,
       selected: index + 1 === partySize ? 'selected' : undefined,
     })));
+    const asked = asker?.requestedTeeMinute;
     const slot = el('select', {
       class: 'fd-select', 'aria-label': 'Available walk-in slot',
       onchange: (event) => { walkInDraft.slotValue = event.target.value; },
-    }, ...slots.map((entry) => el('option', {
-      value: entry.value,
-      text: entry.label,
-      selected: entry.value === walkInDraft.slotValue ? 'selected' : undefined,
-    })));
+    }, ...slots.map((entry) => {
+      // Each option says how far it sits from the ask, so the offer the player
+      // is about to make reads as one ("15 min later"), not as a guess.
+      let label = entry.label;
+      if (asked != null) {
+        const [entryDay, entryMinute] = entry.value.split(':').map(Number);
+        if (entryDay === cal.dayAbs) {
+          const delta = entryMinute - asked;
+          label += delta === 0 ? ' · exactly their ask'
+            : ` · ${Math.abs(delta)} min ${delta > 0 ? 'later' : 'earlier'}`;
+        }
+      }
+      return el('option', {
+        value: entry.value,
+        text: label,
+        selected: entry.value === walkInDraft.slotValue ? 'selected' : undefined,
+      });
+    }));
     const immediate = el('input', {
       type: 'checkbox',
       checked: walkInDraft.checkInImmediately ? 'checked' : undefined,
@@ -575,14 +621,21 @@ export function makeFrontDesk(app, options = {}) {
         return;
       }
       const [dayAbs, minute] = walkInDraft.slotValue.split(':').map(Number);
+      const liveAsker = waitingWalkInAsk();
       const result = createWalkInBooking(app.state, {
         holder: walkInDraft.holder,
         partySize,
         dayAbs,
         minute,
         checkInImmediately: walkInDraft.checkInImmediately,
+        requestedMinute: liveAsker?.requestedTeeMinute ?? undefined,
       });
       if (!result.ok) {
+        // A DECLINE is the customer's answer, not a validation error: the slot
+        // was more than an hour from their ask, they pass, and they leave.
+        if (result.declined && liveAsker) {
+          walkInRequestDeclined(app.state, liveAsker.id, result.reason);
+        }
         setNotice(result.reason, 'bad');
         render();
         return;
@@ -597,7 +650,19 @@ export function makeFrontDesk(app, options = {}) {
       render();
     }, 'primary', !slots.length || !walkInDraft.holder.trim());
 
+    const askBanner = asker ? el('div', { class: 'fd-notice' },
+      el('strong', { text: asker.requestedTeeMinute != null
+        ? `${asker.name} is asking for ${fmtSlot(asker.requestedTeeMinute)}`
+        : `${asker.name} wants a tee time` }),
+      el('span', {
+        text: asker.requestedTeeMinute == null ? 'Any open slot suits them.'
+          : resolved?.exact ? 'That exact time is open.'
+            : resolved?.ok ? `Nearest open is ${fmtSlot(resolved.slot.minute)} (${Math.abs(resolved.deltaMin)} min ${resolved.deltaMin > 0 ? 'later' : 'earlier'}) — they will take anything within an hour.`
+              : resolved?.reason || 'Nothing near that time is open.',
+      })) : null;
+
     return el('div', { class: 'fd-walkin-panel' },
+      askBanner,
       el('div', { class: 'fd-walkin-head' },
         el('span', { class: 'fd-kicker', text: 'REAL-TIME AVAILABILITY' }),
         el('h2', { text: 'Create walk-in booking' }),

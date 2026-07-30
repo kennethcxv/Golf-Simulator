@@ -630,6 +630,40 @@ export function availableSlots(state, dayAbs, options = {}) {
   ));
 }
 
+/**
+ * THE SCHEDULER ANSWERS THE CUSTOMER'S ASK. Walk report B6 (decision granted:
+ * "extend the scheduler"): a 4:00 request used to return 8:30 because nothing
+ * carried the ask — the desk defaulted to the first open slot of the day.
+ * Given a requested minute this returns the slot that honours it:
+ *   exact  — the requested slot is open
+ *   offer  — the nearest open slot within ±windowMin (the customer may accept
+ *            or decline; deltaMin is signed, later is positive)
+ *   none   — nothing within the window (nearest is reported for the record)
+ */
+export function resolveTeeTimeRequest(state, dayAbs, requestedMinute, options = {}) {
+  const partySize = Math.max(1, Number(options.partySize || 1));
+  const windowMin = Number.isFinite(options.windowMin) ? options.windowMin : 60;
+  const asked = Math.floor(Number(requestedMinute));
+  if (!Number.isFinite(asked)) return { ok: false, none: true, reason: 'No time was asked for.' };
+  const slots = availableSlots(state, dayAbs, { partySize, walkIn: options.walkIn !== false });
+  if (!slots.length) return { ok: false, none: true, reason: 'No open tee times remain.' };
+  let best = null;
+  for (const slot of slots) {
+    const delta = Math.abs(slot.minute - asked);
+    if (!best || delta < best.absDelta) best = { slot, absDelta: delta };
+  }
+  const deltaMin = best.slot.minute - asked;
+  if (best.absDelta === 0) return { ok: true, exact: true, slot: best.slot, deltaMin: 0 };
+  if (best.absDelta <= windowMin) return { ok: true, exact: false, slot: best.slot, deltaMin };
+  return {
+    ok: false,
+    none: false,
+    nearest: best.slot,
+    deltaMin,
+    reason: `Nothing within an hour of ${fmtSlot(asked)} — the closest open time is ${fmtSlot(best.slot.minute)}.`,
+  };
+}
+
 function validateBooking(state, dayAbs, minute, partySize, options = {}, exceptId = null) {
   const config = configOf(state);
   const todayAbs = calendarOf(nowOf(state)).dayAbs;
@@ -1463,6 +1497,21 @@ export function createWalkInBooking(state, input = {}) {
   let minute = input.minute;
   if (minute == null) minute = availableSlots(state, dayAbs, { partySize, walkIn: true })[0]?.minute;
   if (minute == null) return { ok: false, reason: 'No real slot has enough capacity.' };
+  // THE ASK IS ENFORCED, NOT ADVISORY. A walk-in who wanted 4:00 does not take
+  // 8:30 because the desk clicked the default: booking further than the window
+  // from their request is DECLINED by the customer, and the caller shows why.
+  if (Number.isFinite(Number(input.requestedMinute))) {
+    const asked = Math.floor(Number(input.requestedMinute));
+    const windowMin = Number.isFinite(input.requestWindowMin) ? input.requestWindowMin : 60;
+    const delta = Math.abs(Math.floor(minute) - asked);
+    if (delta > windowMin) {
+      return {
+        ok: false,
+        declined: true,
+        reason: `${holder || 'The customer'} asked for ${fmtSlot(asked)} — ${fmtSlot(Math.floor(minute))} is more than an hour off, and they pass.`,
+      };
+    }
+  }
   const result = bookSlot(state, dayAbs, Math.floor(minute), {
     ...input,
     holder,

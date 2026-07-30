@@ -939,7 +939,23 @@ export function createCustomerView(B, options) {
       actor.character.setMode('Receive');
       if (actor.stateTimer > 1.2) {
         leaveServiceQueue(state, entity);
-        setState(actor, CUSTOMER_STATE.LEAVING, 'front-desk service completed');
+        // THE COMBINED VISIT (walk report B6): checked-in golfers do not all
+        // march straight out — a steady share turn into the shop and buy before
+        // their round, which is the tee-time-plus-purchase visit. Deterministic
+        // per guest (id hash), so a reload cannot re-roll the decision, and
+        // gated on the shop actually having stock to browse.
+        const wantsShop = entity.shopAfterCheckIn ?? (
+          [...String(entity.id)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 100 < 45
+        );
+        entity.shopAfterCheckIn = wantsShop;
+        const shelvesStocked = Object.values(state.shop?.inventory || {})
+          .some((line) => (line?.shelf || 0) > 0);
+        if (wantsShop && shelvesStocked) {
+          entity.maxActivities = Math.max(entity.maxActivities || 0, 2);
+          setState(actor, CUSTOMER_STATE.CHOOSING_ACTIVITY, 'picking up a few things before the round');
+        } else {
+          setState(actor, CUSTOMER_STATE.LEAVING, 'front-desk service completed');
+        }
       }
     } else if (stateName === CUSTOMER_STATE.LOUNGE_USE) {
       let target = null;
