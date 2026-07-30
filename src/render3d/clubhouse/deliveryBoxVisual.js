@@ -15,7 +15,6 @@ import {
   explicitCatalogProductVisual,
 } from './catalogProductVisual.js';
 import {
-  authoredCutterPathSegment,
   authoredTapeMeshVisible,
   createAuthoredCutterPathContract,
 } from './authoredCutterPath.js';
@@ -1081,28 +1080,6 @@ export function createDeliveryBoxVisual({ box, sku, merch, mats }) {
     : [];
   const liveRootVisibility = new Map(liveRoots.map((object) => [object, object.visible]));
 
-  function toolPathAtProgress(progress) {
-    const local = authoredCutterPathSegment(cutterPath, progress);
-    if (!local) return null;
-    assetRoot.updateWorldMatrix(true, false);
-    const start = assetRoot.localToWorld(new THREE.Vector3(
-      local.start.x,
-      local.start.y,
-      local.start.z,
-    ));
-    const end = assetRoot.localToWorld(new THREE.Vector3(
-      local.end.x,
-      local.end.y,
-      local.end.z,
-    ));
-    return Object.freeze({
-      start: Object.freeze({ x: start.x, y: start.y, z: start.z }),
-      end: Object.freeze({ x: end.x, y: end.y, z: end.z }),
-      progress: local.progress,
-      span: local.span,
-    });
-  }
-
   function update(nextBox) {
     const tape = Math.max(0, Math.min(1, Number(nextBox.tape) || 0));
     const flapValues = normalizedFourFlaps(nextBox.flapProgress || nextBox.flaps);
@@ -1179,8 +1156,6 @@ export function createDeliveryBoxVisual({ box, sku, merch, mats }) {
     layoutRoot,
     contentBatchRoot: content.batchRoot,
     contentBatches: content.batches,
-    cutterPath,
-    toolPathAtProgress,
     authored: true,
     update,
     dispose() {

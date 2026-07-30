@@ -113,13 +113,6 @@ const LEGACY_GRIPS = {
     support: null,
     recoil: 0.025,
   },
-  // held low and forward, the way you hold a knife you are about to draw toward you down a seam
-  boxcutter: {
-    grip: { pos: [0.026, -0.012, 0.110], rot: [-0.12, 0, 0.10], pose: 'pinch' },
-    support: null,
-    recoil: 0.06,
-    handScale: 0.78,
-  },
   // Checkout reuses the same hands as every other first-person verb. The mount
   // follows the pointer; these poses only describe whether one hand pinches a
   // card/note or both hands cradle a product/carrier.
@@ -346,8 +339,7 @@ export function makeFpHands() {
       const entryPitch = primaryPose === 'flat' ? 0.82
         : primaryPose === 'hook' ? 0.64
           : primaryPose === 'trigger' ? 0.50 : 0.34;
-      if (tool === 'boxcutter') right.group.rotation.set(...primary.rot);
-      else right.group.rotation.set(entryPitch, 0.22, (primary.rot?.[2] || 0) - 0.06);
+      right.group.rotation.set(entryPitch, 0.22, (primary.rot?.[2] || 0) - 0.06);
     }
     if (support) {
       const supportPose = support.pose || g.support?.pose || 'wrap';
@@ -375,10 +367,8 @@ export function makeFpHands() {
       const g = GRIPS[tool];
       pose = g;
       root.scale.setScalar(g.handScale || 1);
-      // The cutter travels onto a world-space seam. Its normal camera-local
-      // forearm is replaced there by the bent arm bridge in courseScene.
-      right.forearm.visible = tool !== 'boxcutter';
-      right.sleeve.visible = tool !== 'boxcutter';
+      right.forearm.visible = true;
+      right.sleeve.visible = true;
       applyGrips(authored, true);
     },
 

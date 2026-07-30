@@ -215,7 +215,7 @@
         "tookSomething": false
       },
       {
-        "promptBefore": "Range-rock dozen — [E] open the other flap",
+        "promptBefore": "Range-rock dozen — [E] open the other flap · [X] pick the carton up",
         "tool": null,
         "hasDragVerb": false,
         "hasHoldVerb": false,
@@ -224,7 +224,7 @@
         "tookSomething": false
       },
       {
-        "promptBefore": "Range-rock dozen ×54 in the case — [E] take an armful",
+        "promptBefore": "Range-rock dozen ×54 in the case — [E] take an armful · [X] pick the carton up",
         "tool": null,
         "hasDragVerb": false,
         "hasHoldVerb": false,

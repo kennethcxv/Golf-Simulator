@@ -72,7 +72,9 @@ test('cashier production manifest covers checkout sources, counter, trays, and r
     'vendor/models/checkout/cash_drawer.glb',
     'vendor/models/checkout/receipt_printer.glb',
     'vendor/models/checkout/shopping_bag.glb',
-    'vendor/models/clubhouse/delivery_box_cutter.glb',
+    // delivery_box_cutter.glb left this REQUIRED list 2026-07-30 with the cutter
+    // tool itself — the asset stays in the library (and the vendor deepEqual
+    // below still fingerprints it), but nothing in production loads it.
     'vendor/models/clubhouse/delivery_van.glb',
     'vendor/models/clubhouse/polo_hanging.glb',
     'vendor/textures/roof_nor.jpg',

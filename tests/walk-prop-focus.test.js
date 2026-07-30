@@ -12,15 +12,13 @@ assert.ok(sliceStart >= 0 && sliceEnd > sliceStart, '3D walk-focus scoring slice
 const scoringSource = source.slice(sliceStart, sliceEnd)
   .replace('export function walkPropFocusScore3d', 'function walkPropFocusScore3d')
   .replace('export function walkPropRetainsFocus', 'function walkPropRetainsFocus')
-  .replace('export function walkFocusPromptLabel', 'function walkFocusPromptLabel')
-  .replace('export function projectedToolDragDelta', 'function projectedToolDragDelta');
+  .replace('export function walkFocusPromptLabel', 'function walkFocusPromptLabel');
 const {
   walkPropFocusScore3d,
   walkPropRetainsFocus,
   walkFocusPromptLabel,
-  projectedToolDragDelta,
 } = Function(
-  `${scoringSource}\nreturn { walkPropFocusScore3d, walkPropRetainsFocus, walkFocusPromptLabel, projectedToolDragDelta };`,
+  `${scoringSource}\nreturn { walkPropFocusScore3d, walkPropRetainsFocus, walkFocusPromptLabel };`,
 )();
 
 const CAMERA = Object.freeze({ x: 0, y: 1.70, z: 0 });
@@ -76,45 +74,21 @@ test('an active articulated prop retains focus only inside its authored reach', 
   assert.equal(walkPropRetainsFocus({ ...prop, retainFocus: () => { throw new Error('disposed'); } }, 1), false);
 });
 
-test('sealed-carton prompt gives one cutter instruction while preserving reposition', () => {
-  const sealed = walkFocusPromptLabel(
-    'Accessory case · 8 inside — [LMB] drag along tape · [E] hold alternative',
-    'boxcutter',
-    null,
-    'reposition closed carton',
-  );
-  assert.equal(
-    sealed,
-    'Accessory case · 8 inside — tap [E] once to equip the box cutter'
-      + ' · [X] reposition closed carton',
-  );
-  assert.doesNotMatch(sealed, /hold \[E\]/i);
-
-  const partial = walkFocusPromptLabel(
-    'Accessory — [LMB] drag along tape · [E] hold alternative',
-    'boxcutter',
-    null,
-  );
-  assert.equal(partial, 'Accessory — tap [E] once to equip the box cutter');
-
+// The cutter-prompt rewrite test and projectedToolDragDelta retired 2026-07-30
+// with the box cutter itself — cartons tear on a press, so no prompt is ever
+// rewritten toward an equip and no pointer-lock drag maps to cut progress.
+test('the prompt composer passes labels through unchanged, whatever tool is in hand', () => {
   assert.equal(
     walkFocusPromptLabel(
-      'Accessory case · 8 inside — [LMB] drag along tape · [E] hold alternative',
-      'boxcutter',
-      'boxcutter',
+      'Accessory case · 8 inside — press [E] to tear the tape',
+      'shelf-feeder',
+      null,
       'reposition closed carton',
     ),
-    'Accessory case · 8 inside — [LMB] drag along tape · [E] hold alternative'
+    'Accessory case · 8 inside — press [E] to tear the tape'
       + ' · [X] reposition closed carton',
-    'once equipped, the focus exposes drag-first cutting and the hold fallback',
+    'a requested-but-unequipped contextual tool must not rewrite the label',
   );
-});
-
-test('pointer-lock cutter progress follows only the projected forward tape direction', () => {
-  assert.equal(projectedToolDragDelta(10, 20, 110, 20, 50, 0), 0.5);
-  assert.equal(projectedToolDragDelta(10, 20, 110, 20, -50, 0), 0, 'backtracking does not cut');
-  assert.equal(projectedToolDragDelta(10, 20, 110, 20, 0, 50), 0, 'cross-track motion does not cut');
-  assert.equal(projectedToolDragDelta(0, 100, 0, 0, 0, -25), 0.25, 'screen Y orientation is respected');
-  assert.equal(projectedToolDragDelta(0, 0, 0, 0, 50, 0), 0, 'degenerate projections are inert');
-  assert.equal(projectedToolDragDelta(0, 0, 100, 0, Number.NaN, 0), 0, 'invalid mouse deltas are inert');
+  assert.equal(walkFocusPromptLabel('Accessory', null, null), 'Accessory');
+  assert.equal(walkFocusPromptLabel(null, null, null), '');
 });

@@ -20,7 +20,6 @@ export const CHECKOUT_CUE_APIS = Object.freeze([
 // while this list gives routing/tests one authoritative production contract.
 export const DELIVERY_CUE_APIS = Object.freeze([
   'truck', 'boxup', 'boxdown',
-  'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
   'flap', 'product', 'itemRemoval',
   'boxTapeTear', 'boxFlapFold', 'boxContentsShift',
   'stock', 'fullShelf', 'boxFlatten', 'disposal',
@@ -1118,90 +1117,6 @@ export function makeAudio(preferences = null) {
     osc.stop(t0 + 0.14);
   }
 
-  // Slider/stop detent as the authored blade visibly extends from its channel.
-  function cutterExtend() {
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const pitch = varied(1, 0.035);
-    burst({
-      dur: 0.11, band: 2250, q: 1.1, peak: 0.016, attack: 0.008,
-      hp: 850, pitchVariation: 0.04,
-    });
-    const detent = ctx.createOscillator();
-    detent.type = 'triangle';
-    detent.frequency.setValueAtTime(980 * pitch, t0 + 0.045);
-    detent.frequency.exponentialRampToValueAtTime(620 * pitch, t0 + 0.09);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t0 + 0.04);
-    g.gain.linearRampToValueAtTime(0.022, t0 + 0.052);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.105);
-    detent.connect(g).connect(sfxBus);
-    detent.start(t0 + 0.04);
-    detent.stop(t0 + 0.11);
-  }
-
-  // The first restrained metal/tape tick occurs only when the animated blade
-  // actually reaches the authored cut path; courseScene supplies the edge.
-  function bladeContact() {
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const pitch = varied(1, 0.05);
-    burst({
-      dur: 0.052, band: 4700, q: 1.3, peak: 0.016, attack: 0.002,
-      hp: 2400, pitchVariation: 0.055,
-    });
-    const tick = ctx.createOscillator();
-    tick.type = 'sine';
-    tick.frequency.setValueAtTime(2200 * pitch, t0);
-    tick.frequency.exponentialRampToValueAtTime(1550 * pitch, t0 + 0.035);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.011, t0);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.042);
-    tick.connect(g).connect(sfxBus);
-    tick.start(t0);
-    tick.stop(t0 + 0.045);
-  }
-
-  // The blade down the seam: a short bright zip. The carton interaction emits
-  // it only on real progress beats, so stationary LMB produces no fake scrape.
-  function tapeCut() {
-    const b = burst({
-      dur: 0.09, band: 3600, q: 1.2, peak: 0.028, attack: 0.004,
-      hp: 1500, pitchVariation: 0.06,
-    });
-    if (b) b.g.gain.exponentialRampToValueAtTime(0.0001, b.t0 + 0.09);
-  }
-
-  // Completion is a peel/release, not one more cutting zip. A descending noise
-  // colour and delayed soft snap make it readable without an arcade flourish.
-  function tapeRelease() {
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const dur = 0.24;
-    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    const peel = ctx.createBufferSource();
-    peel.buffer = buf;
-    const f = ctx.createBiquadFilter();
-    f.type = 'bandpass';
-    f.Q.value = 0.85;
-    f.frequency.setValueAtTime(varied(3100, 0.045), t0);
-    f.frequency.exponentialRampToValueAtTime(varied(1150, 0.045), t0 + 0.22);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(0.032, t0 + 0.018);
-    g.gain.linearRampToValueAtTime(0.018, t0 + 0.11);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    peel.connect(f).connect(g).connect(sfxBus);
-    peel.start(t0);
-    peel.stop(t0 + dur);
-    burst({
-      dur: 0.075, delay: 0.07, band: 760, q: 0.8, peak: 0.018,
-      attack: 0.003, pitchVariation: 0.045,
-    });
-  }
-
   // a cardboard flap folding open: a low crinkle with a soft pop
   function flap() {
     burst({
@@ -1886,11 +1801,9 @@ export function makeAudio(preferences = null) {
         await ctx.resume().catch(() => {});
       }
     },
-    // the delivery-to-shelf loop. `tape` and `recycle` are compatibility
-    // aliases while production call sites move to the semantic names.
+    // the delivery-to-shelf loop. `recycle` is a compatibility alias while
+    // production call sites move to the semantic name.
     truck, boxup, boxdown,
-    cutterExtend, bladeContact, tapeCut, tapeRelease,
-    tape: tapeCut,
     flap, product, itemRemoval, stock, fullShelf, boxFlatten, disposal,
     // the three presses that open a carton - one sound each, built from different materials
     boxTapeTear, boxFlapFold, boxContentsShift,

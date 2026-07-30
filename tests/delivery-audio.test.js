@@ -59,7 +59,6 @@ class FakeAudioContext {
 FakeAudioContext.latest = null;
 
 const NEW_PHYSICAL_CUES = Object.freeze([
-  'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
   'itemRemoval', 'boxFlatten', 'disposal',
 ]);
 
@@ -93,9 +92,11 @@ function graphShape(context, cueTime) {
 }
 
 test('delivery audio exposes every semantic cue and preserves shipped aliases', () => {
+  // The four blade cues (cutterExtend/bladeContact/tapeCut/tapeRelease) and the
+  // `tape` alias left with the box cutter, 2026-07-30 — cartons tear on a press
+  // and the presses own their own material-distinct cues below.
   const expected = [
     'truck', 'boxup', 'boxdown',
-    'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
     'flap', 'product', 'itemRemoval',
     // the three carton presses, added 2026-07-29 — tests/box-open-sound.test.js holds their contents
     'boxTapeTear', 'boxFlapFold', 'boxContentsShift',
@@ -105,7 +106,7 @@ test('delivery audio exposes every semantic cue and preserves shipped aliases', 
   const fixture = setupAudio();
   try {
     for (const cue of expected) assert.equal(typeof fixture.audio[cue], 'function', cue);
-    assert.equal(fixture.audio.tape, fixture.audio.tapeCut, 'legacy tape alias remains exact');
+    assert.equal(fixture.audio.tape, undefined, 'the blade-era tape alias is gone');
     assert.equal(fixture.audio.recycle, fixture.audio.disposal, 'legacy recycle alias remains exact');
   } finally {
     fixture.restore();
@@ -140,51 +141,19 @@ test('new physical cues are distinct restrained one-shot graphs', () => {
   }
 });
 
-test('physical pitch variation is bounded and actually changes repeated cut colour', () => {
-  const fixture = setupAudio();
-  const previousRandom = Math.random;
-  try {
-    const cutBandAt = (randomValue) => {
-      Math.random = () => randomValue;
-      fixture.context.nodes.length = 0;
-      fixture.audio.tapeCut();
-      return fixture.context.nodes.find((node) => node.kind === 'filter').frequency.value;
-    };
-    const low = cutBandAt(0);
-    const high = cutBandAt(1);
-    assert.ok(low < high, `cut colour varies (${low} < ${high})`);
-    assert.ok(low >= 3600 * 0.94 - 1e-9, 'lower cut pitch stays inside -6%');
-    assert.ok(high <= 3600 * 1.06 + 1e-9, 'upper cut pitch stays inside +6%');
-  } finally {
-    Math.random = previousRandom;
-    fixture.restore();
-  }
-});
+// The tapeCut pitch-bounds test and the course cutter-routing shape test retired
+// 2026-07-30 with the box cutter itself: the blade cues no longer exist, and
+// pitch-variation discipline for the live carton cues is owned by
+// tests/box-open-sound.test.js ("Pitch-vary so repeats do not grate").
 
-test('box cutter and unknown tools cannot create a continuous fallback loop', () => {
+test('unknown tools cannot create a continuous fallback loop', () => {
   const fixture = setupAudio();
   try {
-    fixture.audio.setToolLoop('boxcutter');
-    assert.equal(sources(fixture.context).length, 0, 'stationary box-cutter LMB is silent');
     fixture.audio.setToolLoop('future-unknown-tool');
-    assert.equal(sources(fixture.context).length, 0, 'unknown tools also remain silent');
+    assert.equal(sources(fixture.context).length, 0, 'unknown tools remain silent');
   } finally {
     fixture.restore();
   }
-});
-
-test('course cutter routing is transition-local and contact uses hysteresis', () => {
-  const source = fs.readFileSync(
-    new URL('../src/render3d/courseScene.js', import.meta.url),
-    'utf8',
-  );
-  assert.match(source, /previousTool\s*=\s*walkTool/);
-  assert.match(source,
-    /tool\s*===\s*['"]boxcutter['"]\s*&&\s*previousTool\s*!==\s*['"]boxcutter['"][\s\S]{0,180}sfx\(['"]cutterExtend['"]\)/);
-  assert.match(source, /let\s+cutterContactCueArmed\s*=\s*true/);
-  assert.match(source,
-    /wantsContact\s*&&\s*cutterContactBlend\s*>=\s*0\.82\s*&&\s*cutterContactCueArmed[\s\S]{0,180}sfx\(['"]bladeContact['"]\)/);
-  assert.match(source, /cutterContactBlend\s*<=\s*0\.15[\s\S]{0,100}cutterContactCueArmed\s*=\s*true/);
 });
 
 test('carton lifecycle routes semantic cues at the physical transition edges', () => {
