@@ -1,0 +1,102 @@
+{
+  "what": "the laptop search field: shipped versus rendering, measured and shot",
+  "seated": {
+    "seat": {
+      "x": 2.3,
+      "z": 4.4
+    },
+    "laptop": {
+      "x": 1.5799999999999998,
+      "z": 3.43
+    }
+  },
+  "opened": {
+    "laptopOpen": true,
+    "screenPresent": true,
+    "screenDisplay": ""
+  },
+  "measure": {
+    "inDom": true,
+    "placeholder": "Search products, upgrades, materials…",
+    "fieldBox": {
+      "x": 592.6,
+      "y": 186.3,
+      "width": 271.4,
+      "height": 19.2
+    },
+    "fieldStyle": {
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1",
+      "flexBasis": "180px",
+      "minWidth": "120px",
+      "width": "311.203px",
+      "background": "rgb(255, 255, 255)",
+      "overflow": "clip"
+    },
+    "screenBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1600,
+      "height": 900
+    },
+    "statusBox": {
+      "x": 500,
+      "y": 170.9,
+      "width": 746.5,
+      "height": 41.4
+    },
+    "statusChildren": [
+      {
+        "cls": "lt-statusslot",
+        "w": 59.5
+      },
+      {
+        "cls": "lt-search",
+        "w": 271.4
+      },
+      {
+        "cls": "lt-statusslot lt-statustrail",
+        "w": 349.4
+      }
+    ],
+    "hiddenBy": null,
+    "clippedBy": null,
+    "topmostAtCentre": {
+      "cls": "lt-search",
+      "isTheField": true
+    },
+    "viewport": {
+      "w": 1600,
+      "h": 900
+    }
+  },
+  "typed": {
+    "value": "towel",
+    "resultRows": 0,
+    "bodyText": "HomeDay 1 · 9:01 AMClosed$77,000Cash balanceSearch — \"towel\"?▦Bag towelProduct · accessories · $6 wholesaleGo"
+  },
+  "findings": {
+    "shipped": true,
+    "renderedWithARealBox": true,
+    "fieldBox": {
+      "x": 592.6,
+      "y": 186.3,
+      "width": 271.4,
+      "height": 19.2
+    },
+    "hiddenByAncestor": null,
+    "clippedByAncestor": null,
+    "coveredBy": null,
+    "laptopOpened": true,
+    "acceptsTyping": true,
+    "searchProducedResults": true
+  },
+  "shots": [
+    "laptop-search-full.png",
+    "laptop-search-field.png",
+    "laptop-search-typed.png"
+  ],
+  "errs": [],
+  "ok": true
+}

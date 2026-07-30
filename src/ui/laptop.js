@@ -516,15 +516,22 @@ export function makeLaptop(app, opts) {
     }
   });
 
-  const statusBack = el('button', { class: 'lt-crumb', title: 'Back', text: '‹', onclick: () => back() });
-  const statusHome = el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') });
-  const statusName = el('span', { class: 'lt-statusname' });
-  const statusDate = el('span');
-  const statusTime = el('span');
-  const statusShop = el('span', { class: 'lt-chip' });
-  const statusCash = el('span', { class: 'lt-cash' });
-  const statusbar = el('div', { class: 'lt-status' },
-    statusBack, statusHome, statusName, searchInput, statusDate, statusTime, statusShop, statusCash);
+  // THE STATUS BAR HAS THREE SLOTS, AND ONLY TWO OF THEM ARE REBUILT.
+  //
+  // Measured 2026-07-29 (laptop-search.json): the laptop opened, the status bar rendered
+  // 746 px wide with seven children, and .lt-search was not among them. The field shipped,
+  // was constructed, was appended here — and then refreshStatus() called
+  // statusbar.replaceChildren(...) with a list that did not include it, so the first status
+  // refresh deleted it. "Did it ship or is it not rendering" had a third answer: it shipped
+  // and was removed on the first frame.
+  //
+  // Re-adding it to that list would not be enough either. refreshStatus runs on every
+  // render, render runs on every keystroke in the field, and replaceChildren detaches and
+  // re-attaches its children — so the field would lose focus after one character. The search
+  // input therefore sits in its own slot BETWEEN two rebuilt ones and is never replaced.
+  const statusLead = el('div', { class: 'lt-statusslot' });
+  const statusTrail = el('div', { class: 'lt-statusslot lt-statustrail' });
+  const statusbar = el('div', { class: 'lt-status' }, statusLead, searchInput, statusTrail);
   const frame = el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content));
   const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
@@ -712,9 +719,13 @@ export function makeLaptop(app, opts) {
     const cal = calendarOf(st.clock.minutes);
     const unread = unreadCount(st);
     const showBadge = prefsOf().notifBadge !== false;
-    statusbar.replaceChildren(
+    // Two slots, not one: the search field lives between them and must survive this call.
+    // See the note beside statusbar's construction.
+    statusLead.replaceChildren(
       el('button', { class: 'lt-crumb', title: 'Back', disabled: history.length ? undefined : 'disabled', onclick: () => back() }, icon('back')),
       el('span', { class: 'lt-statusname', text: (NAV.find((n) => n.id === page) || NAV[0]).label }),
+    );
+    statusTrail.replaceChildren(
       el('span', { text: `Day ${cal.dayOfSeason} · ${clock12(cal.minuteOfDay)}` }),
       el('span', { class: `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`, text: shopIsOpen(st) ? 'Open' : 'Closed' }),
       el('span', { class: 'lt-headspace' }),

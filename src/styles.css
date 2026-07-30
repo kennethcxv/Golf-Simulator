@@ -2458,6 +2458,11 @@ body.register-mode .view-toggle { display: none !important; }
 .slot-card[data-state="saving"] { border-color: var(--brass); }
 .slot-card[data-state="error"] { border-color: #9a4d45; }
 
+/* The status bar's two rebuilt slots. The search field sits between them and is never
+   replaced, so typing in it does not detach the element it is typed into. */
+.lt-statusslot { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.lt-statustrail { flex: 1 1 auto; }
+
 /* Laptop search — one field in the toolbar, everything in it. Sized to sit
    between the breadcrumbs and the clock without pushing either off. */
 .lt-search {
