@@ -43,6 +43,9 @@ async (page) => {
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const SEED = Number(process.env.GREYBOX_SEED || 20260727);
   const TAG = process.env.DARK_STATE_TAG || 'after';
+  // The B8 sweep: override the live interior-fill scale for this run so one
+  // probe can measure the whole ladder. Unset = whatever the build ships.
+  const SCALE = process.env.DARK_STATE_SCALE ? Number(process.env.DARK_STATE_SCALE) : null;
 
   function decodePng(buffer) {
     let pos = 8;
@@ -186,6 +189,11 @@ async (page) => {
   }
   const settled = { sim: simPowered, shell: false };
 
+  if (Number.isFinite(SCALE)) {
+    await page.evaluate((v) => window.__fw.scene3d.interiorFill.setScale(v), SCALE);
+  }
+  const appliedScale = await page.evaluate(() => window.__fw.scene3d.interiorFill.scale());
+
   const POSES = [
     { id: 'p1-door-in', x: -0.8, z: 4.2, yaw: Math.PI, pitch: -0.02 },
     { id: 'p2-retail-wall', x: -1.2, z: 0.6, yaw: -Math.PI / 2, pitch: 0.02 },
@@ -226,6 +234,7 @@ async (page) => {
   const meanOf = (key) => +(rows.reduce((a, r) => a + r[key].mean, 0) / rows.length).toFixed(2);
   const out = {
     tag: TAG,
+    interiorFillScale: appliedScale,
     circuitPowered: settled.sim,
     poses: rows.length,
     darkStartMeanLuma: meanOf('whole'),

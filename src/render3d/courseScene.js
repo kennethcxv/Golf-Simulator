@@ -9620,9 +9620,19 @@ export function makeCourseScene(canvas, state) {
 
   // How deep inside the threshold the fill has fully faded, in yards.
   const INTERIOR_FILL_BLEND_YD = 1.5;
-  // Set by measurement, not by eye — see the tuning sweep in
-  // tools/qa/proshop-interior-fill-sweep.js and DARK_STATE_PROPOSAL.md §5.
-  let interiorFillScale = 0.40;
+  // Set by measurement, not by eye. B8 sweep 2026-07-30 (unpowered room, four
+  // poses, tools/qa/proshop-dark-state-luma.js with DARK_STATE_SCALE):
+  //   scale 0.40 -> whole 104.65   ceiling band 117.19   nav band 90.25
+  //   scale 0.28 -> whole 100.72   ceiling band 113.47   nav band 85.95
+  //   scale 0.18 -> whole  97.23   ceiling band 110.23   nav band 82.12
+  //   scale 0.10 -> whole  94.27   ceiling band 107.46   nav band 78.86
+  // Panel faces stayed readable (ceiling p95 >= 12) and the nav band kept shape
+  // (p95-p05 >= 6) at EVERY step, so the floor of the ladder ships. The same
+  // table is the honest limit of this lever: the whole remaining range moves
+  // the room only ~10%, because what still lights an unpowered interior is sun
+  // and sky through the glazing, not the hemisphere fill — going genuinely
+  // dark needs occlusion or aperture work, not a smaller scale here.
+  let interiorFillScale = 0.10;
   let interiorFillLast = 0;
 
   // 0 outside, 1 well inside, smooth across the threshold. isInside answers a
