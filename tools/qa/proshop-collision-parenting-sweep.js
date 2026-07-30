@@ -232,6 +232,29 @@ async (page) => {
       if (w < 0.06 && d < 0.06) return;                          // trim, not a barrier
       const cx = (b.min.x + b.max.x) / 2;
       const cz = (b.min.z + b.max.z) / 2;
+      // EFFECTIVE VISIBILITY, WALKED UP THE PARENT CHAIN — measured 2026-07-29.
+      //
+      // The one doorMissing this sweep kept reporting, MESH_WindowWest_CreamCasing at 37.5%
+      // walk-through, turned out to be asset 51's PARKED ORIGINAL: suppressed under
+      // SHEET06_PRODUCTION_EXTERIOR_STAGING with visible=false, left at the live building's
+      // coordinates, its box poking 0.46 yd past the west corner onto the lawn. The three
+      // "walkable" band probes were that sliver. The VISIBLE replacement (asset 55's
+      // window-0-s instance) measures 0/336 walkable — fully solid.
+      //
+      // visible=false prunes the whole subtree at render time, so a mesh that is effectively
+      // invisible cannot be seen and must NOT demand a collider — a collider for it is an
+      // invisible fence, the orphan defect this sweep's other half exists to catch. This is
+      // NOT the batching caveat at the top of the file: batched props hide via layers.mask=0
+      // with visible=true, and those stay judged, because they are real objects that draw.
+      let effectiveVisible = true;
+      let hiddenBy = null;
+      for (let parent = o; parent; parent = parent.parent) {
+        if (parent.visible === false) {
+          effectiveVisible = false;
+          hiddenBy = parent.name || parent.type;
+          break;
+        }
+      }
       // WALKABILITY IS SAMPLED ON THE GEOMETRY, NOT AT THE BOUNDING-BOX CENTRE.
       //
       // MESH_BoardedApertureDamage_DATA is ONE mesh 9.77 yd wide: Blender joins
@@ -284,6 +307,8 @@ async (page) => {
         // contract worth resting a defect report on.
         uuid: o.uuid,
         name,
+        effectiveVisible,
+        hiddenBy,
         local: { x: +(cx - origin.x).toFixed(2), z: +(cz - origin.z).toFixed(2) },
         world: { x: +cx.toFixed(3), z: +cz.toFixed(3) },
         size: { w: +w.toFixed(2), d: +d.toFixed(2), h: +(b.max.y - b.min.y).toFixed(2) },
@@ -461,6 +486,8 @@ async (page) => {
       const travelsWithDoor = moved != null && moved > MOVED_YD;
       return {
         name: closed.name,
+        effectiveVisible: closed.effectiveVisible,
+        hiddenBy: closed.hiddenBy,
         local: closed.local,
         movedYd: moved == null ? null : +moved.toFixed(3),
         travelsWithDoor,
@@ -490,12 +517,28 @@ async (page) => {
     // surface standing in open floor is.
     const WALKABLE_SHARE = 0.34;
     const MIN_BAND_SAMPLES = 8; // too few to characterise; reported, never judged
-    result.doorMissing = result.doorMotion.filter((m) => (
+    const wouldFlag = (m) => (
       !m.travelsWithDoor
       && m.bandSamplesOpen >= MIN_BAND_SAMPLES
       && m.walkableFractionOpen != null && m.walkableFractionOpen >= WALKABLE_SHARE
       && !DOOR_WALK_THROUGH_BY_DESIGN.some((w) => w.pattern.test(m.name))
-    ));
+    );
+    result.doorMissing = result.doorMotion.filter((m) => m.effectiveVisible !== false && wouldFlag(m));
+    // Parked invisible geometry, reported so it cannot silently pile up, never gated: it does
+    // not render, so it neither needs a collider nor may claim one of its own.
+    result.doorHiddenParked = result.doorMotion
+      .filter((m) => m.effectiveVisible === false)
+      .map((m) => ({
+        name: m.name,
+        hiddenBy: m.hiddenBy,
+        local: m.local,
+        walkableFractionOpen: m.walkableFractionOpen,
+        wouldHaveFlagged: wouldFlag(m),
+      }));
+    // THE CONTROL ON THE CLASSIFICATION ITSELF. If effectiveVisible were computed wrong and
+    // everything read hidden, doorMissing would be trivially zero forever. The sweep must
+    // still be judging a real population of visible furniture.
+    result.doorVisibleJudged = result.doorMotion.filter((m) => m.effectiveVisible !== false).length;
     result.doorThresholds = { walkableShare: WALKABLE_SHARE, minBandSamples: MIN_BAND_SAMPLES };
     out.variants[variant] = result;
   }
@@ -506,6 +549,8 @@ async (page) => {
     doorFurniture: Object.values(out.variants).reduce((n, v) => n + v.doorAndWindow.length, 0),
     doorMissing: Object.values(out.variants).reduce((n, v) => n + v.doorMissing.length, 0),
     doorWaived: Object.values(out.variants).reduce((n, v) => n + v.doorWaived.length, 0),
+    doorHiddenParked: Object.values(out.variants).reduce((n, v) => n + v.doorHiddenParked.length, 0),
+    doorVisibleJudged: Object.values(out.variants).reduce((n, v) => n + v.doorVisibleJudged, 0),
     doorFixedGeometry: Object.values(out.variants)
       .reduce((n, v) => n + v.doorMotion.filter((m) => !m.travelsWithDoor).length, 0),
     doorsActuallyOpened: Object.values(out.variants)
@@ -518,7 +563,10 @@ async (page) => {
     .every((v) => (v.doorSwing?.opened || 0) > 0
       && (v.doorSwing?.heldThroughPass || 0) === (v.doorSwing?.opened || 0));
   out.ok = out.totals.missing === 0 && out.totals.orphaned === 0
-    && out.totals.doorMissing === 0 && out.doorMotionMeasured;
+    && out.totals.doorMissing === 0 && out.doorMotionMeasured
+    // the visibility classification must leave a real judged population per variant, or a
+    // bug in it would hide every defect behind a green doorMissing: 0
+    && Object.values(out.variants).every((v) => v.doorVisibleJudged >= 30);
   fs.writeFileSync(path.join(outDir, 'collision-parenting-sweep.json'), `${JSON.stringify(out, null, 2)}\n`);
   return out;
 }

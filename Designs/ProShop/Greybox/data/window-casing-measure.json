@@ -1,0 +1,684 @@
+{
+  "pine-hills": {
+    "origin": {
+      "x": -360,
+      "z": 4
+    },
+    "floorY": -0.622,
+    "shell": {
+      "w": 18.4,
+      "d": 11.5,
+      "halfW": 9.2,
+      "halfD": 5.75
+    },
+    "wallTransect": {
+      "onWallPlane": [
+        {
+          "from": -9.58,
+          "to": -5.5
+        }
+      ],
+      "justOutside": [
+        {
+          "from": -9.58,
+          "to": -5.5
+        }
+      ],
+      "bodyOutside": []
+    },
+    "visibleWestWalkable": {
+      "samples": 336,
+      "free": 0,
+      "fraction": 0,
+      "box": {
+        "minX": -8.798,
+        "maxX": -6.402,
+        "minZ": 5.499,
+        "maxZ": 5.751
+      }
+    },
+    "hiddenWestWalkable": {
+      "samples": 165,
+      "free": 3,
+      "fraction": 0.018,
+      "box": {
+        "minX": -9.662,
+        "maxX": -6.938,
+        "minZ": 5.627,
+        "maxZ": 5.741
+      },
+      "freeAt": [
+        {
+          "x": -9.64,
+          "z": 5.64
+        },
+        {
+          "x": -9.64,
+          "z": 5.68
+        },
+        {
+          "x": -9.64,
+          "z": 5.72
+        }
+      ]
+    },
+    "found": [
+      {
+        "name": "MESH_MainDoor_CreamCasing",
+        "visibleChain": [
+          "MESH_MainDoor_CreamCasing[hidden]",
+          "LOD0_ExteriorDetails",
+          "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -361.926,
+          "maxX": -359.674,
+          "minY": -0.693,
+          "maxY": 2.199,
+          "minZ": 9.659,
+          "maxZ": 9.741
+        },
+        "localBox": {
+          "minX": -1.926,
+          "maxX": 0.326,
+          "minZ": 5.659,
+          "maxZ": 5.741
+        }
+      },
+      {
+        "name": "MESH_WindowMid_CreamCasing",
+        "visibleChain": [
+          "MESH_WindowMid_CreamCasing[hidden]",
+          "LOD0_ExteriorDetails",
+          "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -366.262,
+          "maxX": -363.538,
+          "minY": 0.118,
+          "maxY": 2.273,
+          "minZ": 9.627,
+          "maxZ": 9.741
+        },
+        "localBox": {
+          "minX": -6.262,
+          "maxX": -3.538,
+          "minZ": 5.627,
+          "maxZ": 5.741
+        }
+      },
+      {
+        "name": "MESH_WindowWest_CreamCasing",
+        "visibleChain": [
+          "MESH_WindowWest_CreamCasing[hidden]",
+          "LOD0_ExteriorDetails",
+          "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -369.662,
+          "maxX": -366.938,
+          "minY": 0.118,
+          "maxY": 2.273,
+          "minZ": 9.627,
+          "maxZ": 9.741
+        },
+        "localBox": {
+          "minX": -9.662,
+          "maxX": -6.938,
+          "minZ": 5.627,
+          "maxZ": 5.741
+        }
+      },
+      {
+        "name": "MESH_WindowArched_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowArched_LayeredCreamCasing",
+          "LOD0_WindowArched[hidden]",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -370.848,
+          "maxX": -369.152,
+          "minY": -256.922,
+          "maxY": -255.019,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -10.848,
+          "maxX": -9.152,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowNarrow_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowNarrow_LayeredCreamCasing",
+          "LOD0_WindowNarrow[hidden]",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -370.601,
+          "maxX": -369.399,
+          "minY": -256.922,
+          "maxY": -255.019,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -10.601,
+          "maxX": -9.399,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -371.198,
+          "maxX": -368.802,
+          "minY": -256.922,
+          "maxY": -255.019,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -11.198,
+          "maxX": -8.802,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowWide_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowWide_LayeredCreamCasing",
+          "LOD0_WindowWide[hidden]",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -371.198,
+          "maxX": -368.802,
+          "minY": -256.922,
+          "maxY": -255.479,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -11.198,
+          "maxX": -8.802,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-0-s-m7p6_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-0-s-m7p6",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -368.798,
+          "maxX": -366.402,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": 9.499,
+          "maxZ": 9.751
+        },
+        "localBox": {
+          "minX": -8.798,
+          "maxX": -6.402,
+          "minZ": 5.499,
+          "maxZ": 5.751
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-1-s-m4p4_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-1-s-m4p4",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -365.598,
+          "maxX": -363.202,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": 9.499,
+          "maxZ": 9.751
+        },
+        "localBox": {
+          "minX": -5.598,
+          "maxX": -3.202,
+          "minZ": 5.499,
+          "maxZ": 5.751
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-2-n-3_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-2-n-3",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -358.198,
+          "maxX": -355.802,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": -1.751,
+          "maxZ": -1.499
+        },
+        "localBox": {
+          "minX": 1.802,
+          "maxX": 4.198,
+          "minZ": -5.751,
+          "maxZ": -5.499
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-3-e-4p25_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-3-e-4p25",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -351.051,
+          "maxX": -350.799,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": 7.052,
+          "maxZ": 9.448
+        },
+        "localBox": {
+          "minX": 8.949,
+          "maxX": 9.201,
+          "minZ": 3.052,
+          "maxZ": 5.448
+        }
+      }
+    ]
+  },
+  "pine-hills-v2": {
+    "origin": {
+      "x": -360,
+      "z": 4
+    },
+    "floorY": -0.622,
+    "shell": {
+      "w": 18.4,
+      "d": 11.5,
+      "halfW": 9.2,
+      "halfD": 5.75
+    },
+    "wallTransect": {
+      "onWallPlane": [
+        {
+          "from": -9.58,
+          "to": -5.5
+        }
+      ],
+      "justOutside": [
+        {
+          "from": -9.58,
+          "to": -5.5
+        }
+      ],
+      "bodyOutside": []
+    },
+    "visibleWestWalkable": {
+      "samples": 336,
+      "free": 0,
+      "fraction": 0,
+      "box": {
+        "minX": -8.798,
+        "maxX": -6.402,
+        "minZ": 5.499,
+        "maxZ": 5.751
+      }
+    },
+    "hiddenWestWalkable": {
+      "samples": 165,
+      "free": 3,
+      "fraction": 0.018,
+      "box": {
+        "minX": -9.662,
+        "maxX": -6.938,
+        "minZ": 5.627,
+        "maxZ": 5.741
+      },
+      "freeAt": [
+        {
+          "x": -9.64,
+          "z": 5.64
+        },
+        {
+          "x": -9.64,
+          "z": 5.68
+        },
+        {
+          "x": -9.64,
+          "z": 5.72
+        }
+      ]
+    },
+    "found": [
+      {
+        "name": "MESH_MainDoor_CreamCasing",
+        "visibleChain": [
+          "MESH_MainDoor_CreamCasing[hidden]",
+          "LOD0_ExteriorDetails",
+          "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -361.926,
+          "maxX": -359.674,
+          "minY": -0.693,
+          "maxY": 2.199,
+          "minZ": 9.659,
+          "maxZ": 9.741
+        },
+        "localBox": {
+          "minX": -1.926,
+          "maxX": 0.326,
+          "minZ": 5.659,
+          "maxZ": 5.741
+        }
+      },
+      {
+        "name": "MESH_WindowMid_CreamCasing",
+        "visibleChain": [
+          "MESH_WindowMid_CreamCasing[hidden]",
+          "LOD0_ExteriorDetails",
+          "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -366.262,
+          "maxX": -363.538,
+          "minY": 0.118,
+          "maxY": 2.273,
+          "minZ": 9.627,
+          "maxZ": 9.741
+        },
+        "localBox": {
+          "minX": -6.262,
+          "maxX": -3.538,
+          "minZ": 5.627,
+          "maxZ": 5.741
+        }
+      },
+      {
+        "name": "MESH_WindowWest_CreamCasing",
+        "visibleChain": [
+          "MESH_WindowWest_CreamCasing[hidden]",
+          "LOD0_ExteriorDetails",
+          "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -369.662,
+          "maxX": -366.938,
+          "minY": 0.118,
+          "maxY": 2.273,
+          "minZ": 9.627,
+          "maxZ": 9.741
+        },
+        "localBox": {
+          "minX": -9.662,
+          "maxX": -6.938,
+          "minZ": 5.627,
+          "maxZ": 5.741
+        }
+      },
+      {
+        "name": "MESH_WindowArched_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowArched_LayeredCreamCasing",
+          "LOD0_WindowArched[hidden]",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -370.848,
+          "maxX": -369.152,
+          "minY": -256.922,
+          "maxY": -255.019,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -10.848,
+          "maxX": -9.152,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowNarrow_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowNarrow_LayeredCreamCasing",
+          "LOD0_WindowNarrow[hidden]",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -370.601,
+          "maxX": -369.399,
+          "minY": -256.922,
+          "maxY": -255.019,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -10.601,
+          "maxX": -9.399,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -371.198,
+          "maxX": -368.802,
+          "minY": -256.922,
+          "maxY": -255.019,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -11.198,
+          "maxX": -8.802,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowWide_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowWide_LayeredCreamCasing",
+          "LOD0_WindowWide[hidden]",
+          "A_055_CLUBHOUSE_WINDOWS_SET_ROOT[hidden]",
+          "SHEET06_PRODUCTION_EXTERIOR_STAGING",
+          "LegacyClubhouseShellAndExterior",
+          "Scene"
+        ],
+        "worldBox": {
+          "minX": -371.198,
+          "maxX": -368.802,
+          "minY": -256.922,
+          "maxY": -255.479,
+          "minZ": -28.126,
+          "maxZ": -27.874
+        },
+        "localBox": {
+          "minX": -11.198,
+          "maxX": -8.802,
+          "minZ": -32.126,
+          "maxZ": -31.874
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-0-s-m7p6_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-0-s-m7p6",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -368.798,
+          "maxX": -366.402,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": 9.499,
+          "maxZ": 9.751
+        },
+        "localBox": {
+          "minX": -8.798,
+          "maxX": -6.402,
+          "minZ": 5.499,
+          "maxZ": 5.751
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-1-s-m4p4_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-1-s-m4p4",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -365.598,
+          "maxX": -363.202,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": 9.499,
+          "maxZ": 9.751
+        },
+        "localBox": {
+          "minX": -5.598,
+          "maxX": -3.202,
+          "minZ": 5.499,
+          "maxZ": 5.751
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-2-n-3_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-2-n-3",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -358.198,
+          "maxX": -355.802,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": -1.751,
+          "maxZ": -1.499
+        },
+        "localBox": {
+          "minX": 1.802,
+          "maxX": 4.198,
+          "minZ": -5.751,
+          "maxZ": -5.499
+        }
+      },
+      {
+        "name": "MESH_WindowStandard_LayeredCreamCasing",
+        "visibleChain": [
+          "MESH_WindowStandard_LayeredCreamCasing",
+          "LOD0_WindowStandard",
+          "SHEET06_55_clubhouse-window-3-e-4p25_METRIC_TO_GAME_UNITS",
+          "SHEET06_55_clubhouse-window-3-e-4p25",
+          "SHEET06_ASSET_55_PRODUCTION_ASSEMBLY",
+          "SHEET06_PRODUCTION_EXTERIOR_LIVE"
+        ],
+        "worldBox": {
+          "minX": -351.051,
+          "maxX": -350.799,
+          "minY": 0.228,
+          "maxY": 2.131,
+          "minZ": 7.052,
+          "maxZ": 9.448
+        },
+        "localBox": {
+          "minX": 8.949,
+          "maxX": 9.201,
+          "minZ": 3.052,
+          "maxZ": 5.448
+        }
+      }
+    ]
+  }
+}
