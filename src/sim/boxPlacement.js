@@ -27,6 +27,7 @@ import {
   PLAYER_DIAM,
   STAFF_CORRIDOR_MIN,
   STOCKROOM,
+  envelopeEntersSealedDeadCavity,
   frontDeskRect,
   fixtureRect,
   queueSlot,
@@ -172,9 +173,12 @@ function fourFlapProgress(box) {
     ? box.flapProgress
     : (Array.isArray(box?.flaps) ? box.flaps : []);
   if (source.length >= 4) return [0, 1, 2, 3].map((index) => Number(source[index]) || 0);
-  const front = Number(source[0]) || 0;
-  const back = Number(source[1]) || 0;
-  return [front, back, front, back];
+  // Two legacy values are one per opening PHASE, and each expands to the opposite pair
+  // that phase covers: [0] -> FRONT+BACK, [1] -> LEFT+RIGHT. See FLAP_PHASES in
+  // src/sim/deliveries.js — the old [a, b, a, b] spelling assumed adjacent pairing.
+  const firstPhase = Number(source[0]) || 0;
+  const secondPhase = Number(source[1]) || 0;
+  return [secondPhase, secondPhase, firstPhase, firstPhase];
 }
 
 function lifecycleImpliesOpenFlaps(box) {
@@ -1329,6 +1333,22 @@ function previewOrdinarySurface(state, box, target, options) {
   }
 
   if (surface.id === FLOOR_BOX_SURFACE_ID) {
+    // THE FLOOR SURFACE IS THE V1 SHELL. Its bounds are ±INTERIOR/2, which in the v2 room
+    // includes the strip the resize sealed behind the west and north walls — real floor
+    // coordinates no player can stand on. containsEnvelope above happily accepts them.
+    //
+    // Measured 2026-07-29: two of the three starter cartons were filed with
+    // `validated: true` at (−7.30, −4.40) and (−7.00, 5.00), both inside that cavity, and
+    // reported as boxes the player could not get to. A bounds check that answers a narrower
+    // question than its name implies is the same class of defect as the door waiver that
+    // tested containment instead of motion.
+    if (envelopeEntersSealedDeadCavity(localEnvelope)) {
+      return fail(
+        BOX_PLACEMENT_CODES.WALL,
+        'That part of the floor is sealed behind a wall.',
+        { surfaceId: surface.id, surface, envelope: localEnvelope },
+      );
+    }
     if (crossesPartition(localEnvelope)) {
       return fail(
         BOX_PLACEMENT_CODES.WALL,

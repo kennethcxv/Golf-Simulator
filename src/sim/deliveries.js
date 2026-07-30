@@ -130,8 +130,14 @@ function tapeSegmentsAt(progress) {
 function normalizeFlaps(flaps, legacyOpened = false) {
   if (!Array.isArray(flaps)) return legacyOpened ? [1, 1, 1, 1] : [0, 0, 0, 0];
   if (flaps.length === 2) {
-    // The shipped controls opened two opposing pairs. Preserve that pose across four panels.
-    return [clamp01(flaps[0]), clamp01(flaps[1]), clamp01(flaps[0]), clamp01(flaps[1])];
+    // The shipped controls opened one PAIR per value, so each legacy value expands to the
+    // pair its PHASE covers. FLAP_PHASES is [[2, 3], [0, 1]], so flaps[0] (phase one) is
+    // LEFT+RIGHT and flaps[1] (phase two) is FRONT+BACK — hence [b, b, a, a].
+    //
+    // This used to interleave as [a, b, a, b], correct only while the phases paired adjacent
+    // flaps [0, 2] and [1, 3]. Spelled wrongly, an old save's lid reopens from the wrong
+    // pair. tests/box-lifecycle.test.js pins all three expansions against each other.
+    return [clamp01(flaps[1]), clamp01(flaps[1]), clamp01(flaps[0]), clamp01(flaps[0])];
   }
   return [0, 1, 2, 3].map((i) => clamp01(flaps[i]));
 }
@@ -186,9 +192,12 @@ function migrateBox(box) {
     Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
     legacyOpened,
   );
-  // `flaps` remains the shipped two-value compatibility mirror for the two
-  // main panels; new visuals persist all four physical values above.
-  box.flaps = [box.flapProgress[0], box.flapProgress[1]];
+  // `flaps` remains the shipped two-value compatibility mirror; new visuals persist all
+  // four physical values above. One representative per PHASE, in phase order: FLAP_PHASES
+  // is [[2, 3], [0, 1]], so [2] is phase one and [0] is phase two. A 4 -> 2 -> 4 round trip
+  // through normalizeFlaps therefore returns the same pose. Mirroring two flaps from the
+  // SAME phase would lose the second press entirely.
+  box.flaps = [box.flapProgress[2], box.flapProgress[0]];
   box.openingProgress = clamp01(
     Number.isFinite(box.openingProgress)
       ? box.openingProgress
@@ -1195,15 +1204,42 @@ export function cutTape(state, id, amount = 1) {
 
 // --- the flaps -----------------------------------------------------------------------------------
 // TWO phases, one per press (2026-07-29). Each press has to be a visible
-// mechanical step the player can point at, so the carton opens in halves: the
-// front main flap takes one side flap with it, the back main flap takes the
-// other. Three phases meant one press did nothing visible on its own.
+// mechanical step the player can point at, so the carton opens in halves.
+// Three phases meant one press did nothing visible on its own.
+//
+// OPPOSITE FLAPS FIRST, AND THE WIDE PAIR FIRST. The panel order is
+// [FRONT, BACK, LEFT, RIGHT] — see FLAP_NAMES in
+// render3d/clubhouse/deliveryBoxVisual.js, where 0/1 hinge about X at ∓Z and 2/3
+// hinge about Z at ∓X.
+//
+// Reported 2026-07-29: "open the two OPPOSITE flaps first, then the other two, so
+// the contents are revealed from directly above rather than from one side."
+//
+// Two corrections, in that order:
+//
+//   [[0, 2], [1, 3]] — the original — is FRONT+LEFT then BACK+RIGHT: two ADJACENT
+//   panels. The lid peels back from one corner and the contents come into view
+//   from the side, half-hidden behind the two still standing.
+//
+//   [[0, 1], [2, 3]] fixed the adjacency but not the report. Looked at from above
+//   (box-flaps-1-first-pair.png), FRONT and BACK are the NARROW panels on this
+//   carton: lifting both leaves LEFT and RIGHT — the wide pair that meets in the
+//   middle — still closing the box, so the first press reveals nothing at all.
+//
+// [[2, 3], [0, 1]] is the wide facing pair first. The lid splits down the middle
+// and the player looks straight in, which is what the report asked for; the two
+// narrow panels follow on the second press.
+//
+// Anything that maps four panels onto the legacy two-value `flaps` mirror has to
+// group them the same way: one representative per PHASE, not per axis. See
+// normalizeFlaps above, boxPlacement.fourFlapProgress and
+// deliveryBoxVisual.normalizedFourFlaps.
 //
 // `options.stopAfterPhase` bounds a single press: the scene animates a phase
 // smoothly over several frames and must stop at the end of it rather than
 // running the whole carton open. Without the bound one E press opened
 // everything, which is the behaviour this replaced.
-export const FLAP_PHASES = Object.freeze([Object.freeze([0, 2]), Object.freeze([1, 3])]);
+export const FLAP_PHASES = Object.freeze([Object.freeze([2, 3]), Object.freeze([0, 1])]);
 
 export function openFlap(state, id, amount = 1, options = {}) {
   const box = findBox(state, id);
@@ -1224,7 +1260,7 @@ export function openFlap(state, id, amount = 1, options = {}) {
   for (const flap of phases[i]) {
     box.flapProgress[flap] = Math.min(1, box.flapProgress[flap] + step);
   }
-  box.flaps = [box.flapProgress[0], box.flapProgress[1]];
+  box.flaps = [box.flapProgress[2], box.flapProgress[0]]; // one per phase, phase order
   box.openingProgress = box.flapProgress.reduce((sum, flap) => sum + flap, 0)
     / box.flapProgress.length;
   advanceLifecycle(box, BOX_LIFECYCLE.OPENING);

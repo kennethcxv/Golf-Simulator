@@ -137,7 +137,10 @@ test('the lid opens in two halves, and only once the tape is gone', () => {
   const one = openFlap(st, b.id);
   assert.ok(one.ok);
   assert.equal(one.flap, 0);
-  assert.deepEqual(one.physicalFlaps, [0, 2]);
+  // The WIDE facing pair first, so the lid splits down the middle and the player looks
+  // straight in. See FLAP_PHASES in src/sim/deliveries.js for the two corrections behind
+  // this ordering, and tools/qa/proshop-box-flap-order-look.js for the shots.
+  assert.deepEqual(one.physicalFlaps, [2, 3]);
   assert.equal(one.done, false, 'half a lid is not an open box');
   assert.ok(!flapsOpen(b));
   assert.equal(takeFromBox(st, b.id).ok, false, 'and half a lid is not enough to reach in');
@@ -145,7 +148,7 @@ test('the lid opens in two halves, and only once the tape is gone', () => {
   const two = openFlap(st, b.id);
   assert.ok(two.ok);
   assert.equal(two.flap, 1);
-  assert.deepEqual(two.physicalFlaps, [1, 3]);
+  assert.deepEqual(two.physicalFlaps, [0, 1]);
   assert.ok(two.done);
   assert.ok(flapsOpen(b));
   assert.equal(openFlap(st, b.id).ok, false, 'all four physical flaps are already open');

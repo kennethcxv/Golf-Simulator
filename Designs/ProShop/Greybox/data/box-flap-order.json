@@ -1,0 +1,181 @@
+{
+  "what": "the carton opening order, from directly above, at three states",
+  "setup": {
+    "ok": true,
+    "boxId": 1,
+    "world": {
+      "x": -360.95,
+      "z": 2.5
+    }
+  },
+  "findings": {
+    "authoredVisualPresent": true,
+    "sealedHasNothingLifted": true,
+    "liftedAfterFirstPress": [
+      2,
+      3
+    ],
+    "firstPressLiftsAFacingPair": true,
+    "firstPressLiftsExactlyTwo": true,
+    "allFourLiftedAfterSecondPress": true,
+    "sealedIsShut": false,
+    "openingExposedAfterFirstPress": true,
+    "overheadHitSealed": "Mesh",
+    "overheadHitAfterFirst": "INSERT_DIVIDER_Y_01",
+    "simAfterFirst": [
+      0,
+      0,
+      1,
+      1
+    ],
+    "simAfterSecond": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "shots": [
+    {
+      "label": "sealed",
+      "file": "box-flaps-0-sealed.png",
+      "simFlapProgress": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "simLifecycle": "SEALED",
+      "nodes": [
+        {
+          "name": "BOX_FLAP_FRONT",
+          "index": 0,
+          "angle": 0,
+          "lifted": false
+        },
+        {
+          "name": "BOX_FLAP_BACK",
+          "index": 1,
+          "angle": 0,
+          "lifted": false
+        },
+        {
+          "name": "BOX_FLAP_LEFT",
+          "index": 2,
+          "angle": 0,
+          "lifted": false
+        },
+        {
+          "name": "BOX_FLAP_RIGHT",
+          "index": 3,
+          "angle": 0,
+          "lifted": false
+        }
+      ],
+      "overhead": {
+        "firstHit": "Mesh",
+        "hingeY": -0.284,
+        "hitY": -0.596,
+        "insideByYd": 0.312,
+        "openingExposed": true
+      },
+      "authoredVisual": true
+    },
+    {
+      "label": "after press 1",
+      "file": "box-flaps-1-first-pair.png",
+      "simFlapProgress": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "simLifecycle": "OPENING",
+      "nodes": [
+        {
+          "name": "BOX_FLAP_FRONT",
+          "index": 0,
+          "angle": 0,
+          "lifted": false
+        },
+        {
+          "name": "BOX_FLAP_BACK",
+          "index": 1,
+          "angle": 0,
+          "lifted": false
+        },
+        {
+          "name": "BOX_FLAP_LEFT",
+          "index": 2,
+          "angle": 2.136,
+          "lifted": true
+        },
+        {
+          "name": "BOX_FLAP_RIGHT",
+          "index": 3,
+          "angle": 2.136,
+          "lifted": true
+        }
+      ],
+      "overhead": {
+        "firstHit": "INSERT_DIVIDER_Y_01",
+        "hingeY": -0.284,
+        "hitY": -0.452,
+        "insideByYd": 0.168,
+        "openingExposed": true
+      },
+      "authoredVisual": true
+    },
+    {
+      "label": "after press 2",
+      "file": "box-flaps-2-all-open.png",
+      "simFlapProgress": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "simLifecycle": "OPEN",
+      "nodes": [
+        {
+          "name": "BOX_FLAP_FRONT",
+          "index": 0,
+          "angle": 2.136,
+          "lifted": true
+        },
+        {
+          "name": "BOX_FLAP_BACK",
+          "index": 1,
+          "angle": 2.136,
+          "lifted": true
+        },
+        {
+          "name": "BOX_FLAP_LEFT",
+          "index": 2,
+          "angle": 2.136,
+          "lifted": true
+        },
+        {
+          "name": "BOX_FLAP_RIGHT",
+          "index": 3,
+          "angle": 2.136,
+          "lifted": true
+        }
+      ],
+      "overhead": {
+        "firstHit": "BOX_CONTENT_INSTANCES_balls1_03_material_3",
+        "hingeY": -0.355,
+        "hitY": -0.46,
+        "insideByYd": 0.105,
+        "openingExposed": true
+      },
+      "authoredVisual": true
+    }
+  ],
+  "errs": [],
+  "ok": true,
+  "notGated": {
+    "sealedIsShut": false,
+    "why": "the overhead ray misreads a sealed lid; verified visually in box-flaps-0-sealed.png"
+  }
+}

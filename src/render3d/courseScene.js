@@ -7931,7 +7931,7 @@ export function makeCourseScene(canvas, state) {
   const WALK_CONSUMED_KEYS = new Set([
     'w', 'a', 's', 'd', 'shift', ' ', 'tab',
     'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-    'e', 'q', 'r', 'f', 'x', 'b', 'j', 'l', 'i', 'g', 'c', 'm', 'v',
+    'e', 'q', 'r', 'f', 'x', 'b', 'j', 'l', 'i', 'g', 'c', 'm', 'v', 'z',
   ]);
 
   function walkKeyDown(e) {

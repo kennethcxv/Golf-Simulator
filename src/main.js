@@ -2161,6 +2161,31 @@ window.addEventListener('keydown', (e) => {
       case 'x': case 'X':
         if (app.scene3d.walk.interactSecondary) app.scene3d.walk.interactSecondary(e.repeat);
         break;
+      // Z SETS DOWN WHAT YOU ARE HOLDING — the inverse of X, which picks a carton up.
+      // Reported 2026-07-29: "Add a button to put a held item down." A carton prompt already
+      // said "put down what you're holding first" and no key did it.
+      //
+      // The carton lands one pace ahead of the player rather than underfoot, so it does not
+      // materialise inside the body and immediately shove them.
+      case 'z': case 'Z': {
+        if (e.repeat) break;
+        e.preventDefault();
+        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+        if (!ch?.setDownCarried) break;
+        const w = app.scene3d.walk.state;
+        const ahead = 0.85;
+        const result = ch.setDownCarried(
+          w.x - Math.sin(w.yaw) * ahead,
+          w.z - Math.cos(w.yaw) * ahead,
+          w.yaw,
+        );
+        if (result?.ok) {
+          if (result.message) toast(result.message);
+        } else if (result?.reason) {
+          toast(result.reason, 'warn');
+        }
+        break;
+      }
       case 'j': case 'J': // the drafting table: open the course editor from your feet
         enterEditor();
         break;
@@ -2729,11 +2754,11 @@ function updateWalkOverlay(dtMs = 16.7) {
   }
   const lockText = learned
     ? (placement?.hasCarriedBox()
-      ? 'Click to resume · Carrying carton: E place · R rotate · Esc keep carrying'
+      ? 'Click to resume · Carrying carton: E place · R rotate · Z set down · Esc keep carrying'
       : 'Click to resume looking')
     : (placement?.hasCarriedBox()
-      ? 'Click to look around · WASD walk · E place · R rotate · Esc keep carrying'
-      : 'Click to look · WASD move · Shift run · E interact · tap/hold F tools · J course editor · Tab overview · P pause');
+      ? 'Click to look around · WASD walk · E place · R rotate · Z set down · Esc keep carrying'
+      : 'Click to look · WASD move · Shift run · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause');
   if (lockText !== ovLast.lockText) {
     ovLast.lockText = lockText;
     setPromptText(ovEl.lockHint, lockText);
@@ -2934,13 +2959,13 @@ function boot() {
 
   walkPrompt = el('div', { class: 'shop-prompt', text: '' });
   walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
-  walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · tap/hold F tools · P pause' });
+  walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · P pause' });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · tap/hold F tools · J course editor · Tab overview · P pause' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause' }),
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the

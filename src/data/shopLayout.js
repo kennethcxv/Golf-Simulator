@@ -735,6 +735,43 @@ export const FRONT_DESK_ASSETS = Object.freeze({
   scale: 1 / METERS_PER_YARD,
 });
 
+// FLOOR THE V2 RESIZE SEALED BEHIND A WALL.
+//
+// The v2 room pulls the west wall to x −2.60 and the north wall to z −4.60. The v1 shell is
+// unchanged, so the strip between the two is dead cavity — real floor coordinates, inside
+// the building, that no player can stand on and no route can cross.
+//
+// Anything that validates a floor position has to know. Measured 2026-07-29
+// (starter-carton-reach.json): two of the three starter cartons were placed at their
+// authored v1 coordinates (−7.30, −4.40) and (−7.00, 5.00), the floor surface accepted both
+// because its bounds are ±INTERIOR/2 — the V1 shell — and both were filed with
+// `validated: true` while sitting behind the west wall. The player reported it as a box
+// they could not reach.
+//
+// Derived from the same publicBounds the walls are built from, and from the service
+// partition, so a floor point is dead exactly when it is (a) west of the public room or
+// (b) north of it on the public side of the partition. The service wing keeps its proven
+// datums and is unaffected. In v1 there is no cavity and this is always false.
+export function inSealedDeadCavity(localX, localZ) {
+  if (CLUBHOUSE_LAYOUT_VARIANT !== 'pine-hills-v2') return false;
+  const b = PINE_HILLS_V2_LAYOUT.publicBounds;
+  if (localX < b.minX) return true;
+  if (localZ < b.minZ && localX < 5.7) return true; // 5.7 = the service partition, STOCKROOM.bounds.minX
+  return false;
+}
+
+// The same question for a footprint rather than a point: any corner in the cavity means the
+// carton is partly inside a wall, which is not a placement.
+export function envelopeEntersSealedDeadCavity(envelope) {
+  if (!envelope || CLUBHOUSE_LAYOUT_VARIANT !== 'pine-hills-v2') return false;
+  for (const x of [envelope.minX, envelope.maxX]) {
+    for (const z of [envelope.minZ, envelope.maxZ]) {
+      if (inSealedDeadCavity(x, z)) return true;
+    }
+  }
+  return false;
+}
+
 export const STOCKROOM = {
   bounds: { minX: 5.7, maxX: MODERN_PUBLIC_INTERIOR.w / 2, minZ: -MODERN_PUBLIC_INTERIOR.d / 2, maxZ: 2.0 },
   receivingInside: { x: 7.65, z: -4.50 },  // set-down stack, clear of the restroom pod and freight lane

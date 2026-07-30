@@ -42,7 +42,11 @@ test('empty open cartons retain only the permanent bottom insert until flattenin
 });
 
 test('legacy two-flap saves expand to four authored hinge poses without resealing', () => {
-  assert.deepEqual(normalizedFourFlaps([1, 0.25]), [1, 0.25, 1, 0.25]);
+  // One legacy value per opening PHASE, expanded to the facing pair that phase covers.
+  // FLAP_PHASES is [[2, 3], [0, 1]], so [0] is LEFT+RIGHT and [1] is FRONT+BACK. The old
+  // [a, b, a, b] interleave was correct only while the phases paired adjacent flaps, which
+  // made the lid peel back from a corner (reported 2026-07-29).
+  assert.deepEqual(normalizedFourFlaps([1, 0.25]), [0.25, 0.25, 1, 1]);
   assert.deepEqual(normalizedFourFlaps([1, 1]), [1, 1, 1, 1]);
   assert.deepEqual(normalizedFourFlaps(null), [0, 0, 0, 0]);
 });

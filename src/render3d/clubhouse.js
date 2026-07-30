@@ -122,7 +122,7 @@ import {
   buildCatalogProductProxy, catalogCheckoutLayout, catalogProductVisual,
 } from './clubhouse/catalogProductVisual.js';
 import {
-  canBuildDeliveryBoxVisual, createDeliveryBoxVisual,
+  canBuildDeliveryBoxVisual, createDeliveryBoxVisual, normalizedFourFlaps,
 } from './clubhouse/deliveryBoxVisual.js';
 import {
   deliveryBoxCarryCollisionRadius,
@@ -5978,15 +5978,33 @@ export function makeClubhouse(ctx) {
         }
       }
     } else {
-      const fl = box.flaps || [0, 0];
-      for (const [i, sign] of [[0, -1], [1, 1]]) {
+      // FOUR flaps, in the authored panel order [FRONT, BACK, LEFT, RIGHT], read straight
+      // off flapProgress. This fallback carton used to have two, driven from the legacy
+      // two-value `flaps` mirror — which meant that once FLAP_PHASES paired opposite
+      // flaps (FRONT+BACK, then LEFT+RIGHT), the first press opened both panels this
+      // carton had and the second press had nothing left to move. A press that does
+      // nothing visible is the exact failure the two-phase gesture was built to avoid.
+      const fl = Array.isArray(box.flapProgress) && box.flapProgress.length >= 4
+        ? box.flapProgress
+        : normalizedFourFlaps(box.flaps);
+      for (const [i, axis, sign] of [[0, 'z', -1], [1, 'z', 1], [2, 'x', -1], [3, 'x', 1]]) {
         const amount = Math.max(0, Math.min(1, fl[i] || 0));
+        const along = axis === 'z' ? d : w;
+        const across = axis === 'z' ? w : d;
         const flap = new THREE.Group();
-        const panel = ownedMesh(new THREE.BoxGeometry(w * 0.98, 0.012, d * 0.49), cardboardDark);
-        panel.position.z = -sign * d * 0.245;
+        const panel = ownedMesh(
+          axis === 'z'
+            ? new THREE.BoxGeometry(across * 0.98, 0.012, along * 0.49)
+            : new THREE.BoxGeometry(along * 0.49, 0.012, across * 0.98),
+          cardboardDark,
+        );
+        panel.position[axis] = -sign * along * 0.245;
         flap.add(panel);
-        flap.position.set(0, h, sign * d * 0.5);
-        flap.rotation.x = -sign * amount * (Math.PI * 0.58);
+        flap.position.set(axis === 'x' ? sign * w * 0.5 : 0, h, axis === 'z' ? sign * d * 0.5 : 0);
+        // Hinge about the edge the panel sits on: front/back swing on X, sides on Z, and
+        // the side pair's sign is inverted so both fold outward rather than inward.
+        if (axis === 'z') flap.rotation.x = -sign * amount * (Math.PI * 0.58);
+        else flap.rotation.z = sign * amount * (Math.PI * 0.58);
         g.add(flap);
       }
       if (flapsOpen(box) && box.qty > 0) g.add(contentsInBox(box, w, h, d));
@@ -7306,6 +7324,19 @@ export function makeClubhouse(ctx) {
     return boxPlacementCapabilities(state, b).canUnpack;
   }
 
+  // Can this carton go into the player's arms at all? Deliberately broader than
+  // canRepositionClosedCarton below: open, part-emptied and flattened cartons are all
+  // carryable, and pickUpBox is what refuses the cases that genuinely cannot be (arms
+  // already full, a carton buried under another on the pallet). The only rules here are the
+  // ones a prompt has to know before the press: mid-animation, in transit, or already gone.
+  function canCarryCarton(prop, b) {
+    if (!b || b.loc === 'carried' || carriedBox(state) || carriedGoods(state)) return false;
+    if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return false;
+    if (boxOpeningAnimations.has(b.id) || boxFlattenAnimations.has(b.id)
+      || deliveryBoxTransfers.has(b.id) || recyclingDrop?.id === b.id) return false;
+    return true;
+  }
+
   function canRepositionClosedCarton(prop, b) {
     if (!b || b.loc === 'carried' || carriedBox(state) || carriedGoods(state)) return false;
     if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return false;
@@ -7401,7 +7432,9 @@ export function makeClubhouse(ctx) {
           case BOX_STEP.FLAP:
             return `${name} — [E] open the other flap`;
           case BOX_STEP.BLOCKED:
-            return `${name} ×${b.qty}, open — put down what you're holding first`;
+            // NAME THE KEY. This prompt used to say "put down what you're holding first"
+            // when no key put anything down — an instruction the player could not follow.
+            return `${name} ×${b.qty}, open — [Z] set down what you're holding first`;
           case BOX_STEP.TAKE:
           default:
             return `${name} ×${b.qty} in the case — [E] take an armful`;
@@ -7415,13 +7448,23 @@ export function makeClubhouse(ctx) {
       // This is also what retires the cutter as an item: it was never in the tool
       // wheel, and the only way to hold one was for a prop to ask for it here.
       // With nothing asking, it cannot be equipped. See OVERNIGHT_REPORT_2.md.
+      // X IS THE CARRY VERB. Reported 2026-07-29: "Add a button to pick a box up."
+      //
+      // It used to offer only `reposition closed carton`, which required the carton to be
+      // sealed AND non-empty — so an opened carton in the wrong place could not be moved at
+      // all, and the only way to shift one was to empty it. X now picks up any carton the
+      // sim will let you carry and lets pickUpBox be the authority on whether that is
+      // allowed, rather than duplicating a narrower rule here. Z is the inverse (see
+      // main.js): X into your arms, Z back onto the floor.
       get secondaryLabel() {
         const b = box();
-        return canRepositionClosedCarton(prop, b) ? 'reposition closed carton' : null;
+        if (!canCarryCarton(prop, b)) return null;
+        if (canRepositionClosedCarton(prop, b)) return 'reposition closed carton';
+        return b.flat ? 'pick up the flattened carton' : 'pick the carton up';
       },
       secondaryAction: () => {
         const b = box();
-        if (!canRepositionClosedCarton(prop, b)) return;
+        if (!canCarryCarton(prop, b)) return;
         pickUp(b);
       },
       action: () => {
@@ -10568,6 +10611,45 @@ export function makeClubhouse(ctx) {
         position: root.getWorldPosition(new THREE.Vector3()),
         quaternion: root.getWorldQuaternion(new THREE.Quaternion()),
         visible: root.visible,
+      };
+    },
+    // SET DOWN WHAT YOU ARE HOLDING. Reported 2026-07-29: "Add a button to put a held item
+    // down." Before this, a full pair of arms was a dead end — the carton prompt said "put
+    // down what you're holding first" and there was no key that did it. A prompt naming an
+    // action the player cannot take is the same defect the box-cutter prompt was.
+    //
+    // Two things can be in your arms and never both (pickUpBox enforces that), so this is
+    // one verb with two branches:
+    //
+    //   a carried CARTON -> the floor, one pace ahead, through the ordinary placement
+    //     validator. A refused spot reports the validator's own reason rather than a generic
+    //     failure, so "that would go through the wall" reaches the player.
+    //   an ARMFUL of goods -> the backroom shelving, via the existing storeInBack path.
+    //     Not a new destination and not a deletion: the units stay in inventory and can be
+    //     fetched again. There is no floor entity for loose product, so inventing one here
+    //     would be a bigger change than the report asks for.
+    setDownCarried: (aheadX, aheadZ, ry = 0) => {
+      const box = carriedBox(state);
+      if (box) {
+        const local = W2L(aheadX, aheadZ);
+        const result = putDownBox(state, box.id, { x: local.x, z: local.z, ry });
+        if (result.ok) {
+          sfx('boxdown');
+          rebuildBoxes();
+          return { ok: true, kind: 'carton', message: 'Set the carton down.' };
+        }
+        return { ok: false, kind: 'carton', reason: result.reason || 'There is no room for it here.' };
+      }
+      const goods = carriedGoods(state);
+      if (!goods) return { ok: false, kind: 'none', reason: 'Your hands are empty.' };
+      const stored = storeInBack(state);
+      if (!stored.ok) return { ok: false, kind: 'goods', reason: stored.reason || 'Those cannot be put away here.' };
+      const sku = SHOP_CATALOG.find((s) => s.id === goods.skuId);
+      return {
+        ok: true,
+        kind: 'goods',
+        moved: stored.moved,
+        message: `Put ${stored.moved} × ${sku ? sku.name : goods.skuId} on the backroom shelving.`,
       };
     },
     carrySpeedFactor: () => carrySpeedFactor(state),

@@ -14,6 +14,8 @@ import {
   deliveryShelfSurfaceId,
 } from '../data/boxPlacementSurfaces.js';
 import { previewBoxPlacement } from './boxPlacement.js';
+import { PUBLIC_ROOM_BOUNDS, fixtureRect } from '../data/shopLayout.js';
+import { placedFixtures } from './layout.js';
 import {
   BOX_LIFECYCLE,
   BOX_SCHEMA_VERSION,
@@ -247,14 +249,97 @@ function applyStarterCartonPlacement(carton, result, spec, kind) {
   return true;
 }
 
+// FLOOR SPOTS DERIVED FROM WHERE THE FIXTURES ACTUALLY ARE.
+//
+// `preferredFloorTargets` above are authored v1 coordinates. The v2 room cuts eleven
+// fixtures and moves the survivors — shelf_balls goes from (−7.20, −5.05) to (−2.25, −1.55)
+// — so every authored target for the balls and drinks cartons lands west of the v2 west
+// wall, in floor the resize sealed off. Measured 2026-07-29: two of three starter cartons
+// were behind a wall, filed `validated: true`, and reported as boxes the player could not
+// reach. (boxPlacement now rejects the cavity, which is the other half of that fix.)
+//
+// So when the authored spots fail, ask the room where its fixtures are and stand the carton
+// beside one. Ring offsets in yards around the fixture's own rect, nearest first; the
+// placement validator decides which is legal, exactly as it does for a player's drop.
+const CARTON_RING_OFFSETS = freeze([
+  { dx: 0, dz: 0.95 }, { dx: 0.95, dz: 0 }, { dx: 0, dz: -0.95 }, { dx: -0.95, dz: 0 },
+  { dx: 0.85, dz: 0.85 }, { dx: -0.85, dz: 0.85 }, { dx: 0.85, dz: -0.85 }, { dx: -0.85, dz: -0.85 },
+  { dx: 0, dz: 1.5 }, { dx: 1.5, dz: 0 }, { dx: 0, dz: -1.5 }, { dx: -1.5, dz: 0 },
+]);
+
+function derivedFloorTargets(state, spec) {
+  const fixtures = placedFixtures(state);
+  const targets = [];
+  for (const fixtureId of spec.nearFixtureIds) {
+    const fixture = fixtures.find((entry) => entry.id === fixtureId);
+    if (!fixture) continue; // cut by this variant
+    const rect = fixtureRect(fixture);
+    const cx = (rect.minX + rect.maxX) / 2;
+    const cz = (rect.minZ + rect.maxZ) / 2;
+    const halfW = (rect.maxX - rect.minX) / 2;
+    const halfD = (rect.maxZ - rect.minZ) / 2;
+    for (const offset of CARTON_RING_OFFSETS) {
+      targets.push({
+        x: cx + offset.dx + Math.sign(offset.dx) * halfW,
+        z: cz + offset.dz + Math.sign(offset.dz) * halfD,
+        ry: 0,
+      });
+    }
+  }
+  return targets;
+}
+
+// LAST RESORT ON THE PUBLIC FLOOR, scanned from the active room rather than authored.
+//
+// A carton whose fixtures the variant cut has nothing to stand beside: in v2 both
+// cold_drinks and snackrack are gone, so the drinks carton fell all the way through to a
+// stockroom shelf — off the retail floor, invisible from the shop, and (measured) with no
+// approach at all. It is still a delivery the player is meant to open, so it belongs on the
+// floor of the room they are standing in.
+//
+// A coarse grid over PUBLIC_ROOM_BOUNDS, walked from the middle outwards so the carton lands
+// in open retail floor rather than jammed into a corner. Every candidate still goes through
+// previewBoxPlacement, so fixtures, reserved rects, the queue and the sealed cavity all
+// still get their say.
+function publicFloorFallbackTargets() {
+  const b = PUBLIC_ROOM_BOUNDS;
+  const inset = 0.85; // keep a carton off the skirting and out of the wall band
+  const midX = (b.minX + b.maxX) / 2;
+  const midZ = (b.minZ + b.maxZ) / 2;
+  const targets = [];
+  for (let x = b.minX + inset; x <= b.maxX - inset; x += 0.7) {
+    for (let z = b.minZ + inset; z <= b.maxZ - inset; z += 0.7) {
+      targets.push({ x: +x.toFixed(2), z: +z.toFixed(2), ry: 0 });
+    }
+  }
+  targets.sort((p, q) => (
+    Math.hypot(p.x - midX, p.z - midZ) - Math.hypot(q.x - midX, q.z - midZ)
+  ));
+  return targets;
+}
+
 function placeStarterCarton(state, carton, spec) {
-  for (const pose of spec.preferredFloorTargets) {
+  const attempt = (pose, kind) => {
     const result = previewBoxPlacement(state, carton, {
       kind: 'surface',
       surfaceId: FLOOR_BOX_SURFACE_ID,
       ...pose,
     });
-    if (applyStarterCartonPlacement(carton, result, spec, 'retail-adjacent-floor')) return;
+    return applyStarterCartonPlacement(carton, result, spec, kind);
+  };
+
+  // The authored spots first, so v1 placement is byte-identical to what shipped.
+  for (const pose of spec.preferredFloorTargets) {
+    if (attempt(pose, 'retail-adjacent-floor')) return;
+  }
+  // Then beside whichever of this carton's fixtures the active room still has.
+  for (const pose of derivedFloorTargets(state, spec)) {
+    if (attempt(pose, 'fixture-derived-floor')) return;
+  }
+  // Then anywhere legal on the public retail floor — a delivery the player opens belongs in
+  // the room they are standing in, even when the variant cut the fixtures it was aimed at.
+  for (const pose of publicFloorFallbackTargets()) {
+    if (attempt(pose, 'public-floor-fallback')) return;
   }
 
   const fallback = previewBoxPlacement(state, carton, spec.shelfSurfaceId);

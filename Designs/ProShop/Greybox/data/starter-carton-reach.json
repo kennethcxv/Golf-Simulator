@@ -1,0 +1,673 @@
+{
+  "what": "starter cartons: collider footprint versus the carton, and a walked approach from eight bearings",
+  "survey": {
+    "total": 3,
+    "publicBounds": {
+      "minX": -2.6,
+      "maxX": 5.7,
+      "minZ": -4.6,
+      "maxZ": 5.49
+    },
+    "starter": [
+      {
+        "id": 1,
+        "skuId": "balls1",
+        "label": "BALLS / ACCESSORIES",
+        "loc": "world",
+        "surfaceId": "floor:clubhouse",
+        "starterPlacement": {
+          "kind": "fixture-derived-floor",
+          "validated": true,
+          "nearFixtureIds": [
+            "shelf_balls",
+            "shelf_acc"
+          ]
+        },
+        "local": {
+          "x": -0.95,
+          "z": -1.5
+        },
+        "insidePublicRoom": true,
+        "world": {
+          "x": -360.95,
+          "z": 2.5
+        },
+        "ry": 0,
+        "dims": {
+          "w": 0.52,
+          "d": 0.42,
+          "h": 0.35
+        },
+        "lifecycle": "SEALED"
+      },
+      {
+        "id": 2,
+        "skuId": "polo1",
+        "label": "APPAREL / HEADWEAR",
+        "loc": "world",
+        "surfaceId": "floor:clubhouse",
+        "starterPlacement": {
+          "kind": "retail-adjacent-floor",
+          "validated": true,
+          "nearFixtureIds": [
+            "shelf_small",
+            "hatstand"
+          ]
+        },
+        "local": {
+          "x": 0.5,
+          "z": -4.35
+        },
+        "insidePublicRoom": true,
+        "world": {
+          "x": -359.5,
+          "z": -0.35
+        },
+        "ry": 0,
+        "dims": {
+          "w": 0.6,
+          "d": 0.4,
+          "h": 0.37
+        },
+        "lifecycle": "SEALED"
+      },
+      {
+        "id": 3,
+        "skuId": "water1",
+        "label": "DRINKS / SNACKS",
+        "loc": "world",
+        "surfaceId": "floor:clubhouse",
+        "starterPlacement": {
+          "kind": "public-floor-fallback",
+          "validated": true,
+          "nearFixtureIds": [
+            "cold_drinks",
+            "snackrack"
+          ]
+        },
+        "local": {
+          "x": 1.75,
+          "z": 0.45
+        },
+        "insidePublicRoom": true,
+        "world": {
+          "x": -358.25,
+          "z": 4.45
+        },
+        "ry": 0,
+        "dims": {
+          "w": 0.5,
+          "d": 0.38,
+          "h": 0.31
+        },
+        "lifecycle": "SEALED"
+      }
+    ]
+  },
+  "colliderReport": [
+    {
+      "id": 1,
+      "hasOwnCollider": true,
+      "collider": {
+        "w": 0.52,
+        "d": 0.42,
+        "offsetYd": 0
+      },
+      "expected": {
+        "w": 0.52,
+        "d": 0.42
+      },
+      "oversizedByYd": {
+        "w": 0,
+        "d": 0
+      },
+      "neighboursWithin1p5": 1
+    },
+    {
+      "id": 2,
+      "hasOwnCollider": true,
+      "collider": {
+        "w": 0.6,
+        "d": 0.4,
+        "offsetYd": 0
+      },
+      "expected": {
+        "w": 0.6,
+        "d": 0.4
+      },
+      "oversizedByYd": {
+        "w": 0,
+        "d": 0
+      },
+      "neighboursWithin1p5": 4
+    },
+    {
+      "id": 3,
+      "hasOwnCollider": true,
+      "collider": {
+        "w": 0.5,
+        "d": 0.38,
+        "offsetYd": 0
+      },
+      "expected": {
+        "w": 0.5,
+        "d": 0.38
+      },
+      "oversizedByYd": {
+        "w": 0,
+        "d": 0
+      },
+      "neighboursWithin1p5": 0
+    }
+  ],
+  "reach": [
+    {
+      "id": 1,
+      "label": "BALLS / ACCESSORIES",
+      "closestYd": 0.56,
+      "closestFrom": 0,
+      "bearingsThatPrompt": [
+        0,
+        135
+      ],
+      "promptSeen": "Range-rock dozen case · 54 inside — [E] tear the tape open · [X] reposition closed carton",
+      "perBearing": [
+        {
+          "bearing": 0,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -360.95,
+            "z": 5.7
+          },
+          "endedAtYd": 0.56,
+          "at": {
+            "x": -360.95,
+            "z": 3.06
+          },
+          "focusKind": "prop",
+          "focusLabel": "Range-rock dozen case · 54 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Range-rock dozen case · 54 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 1
+        },
+        {
+          "bearing": 45,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -358.69,
+            "z": 4.76
+          },
+          "endedAtYd": 1.74,
+          "at": {
+            "x": -361.03,
+            "z": 4.24
+          },
+          "focusKind": "prop",
+          "focusLabel": "Damaged flooring - blocked: Vacuum and mop the lobby and sales floor to 60% first.",
+          "focusAtYd": 1.35,
+          "promptText": "Damaged flooring - blocked: Vacuum and mop the lobby and sales floor to 60% first.",
+          "boxId": 1
+        },
+        {
+          "bearing": 90,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -357.75,
+            "z": 2.5
+          },
+          "endedAtYd": 2.9,
+          "at": {
+            "x": -358.05,
+            "z": 2.5
+          },
+          "focusKind": null,
+          "focusLabel": null,
+          "focusAtYd": null,
+          "promptText": null,
+          "boxId": 1
+        },
+        {
+          "bearing": 135,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -358.69,
+            "z": 0.24
+          },
+          "endedAtYd": 0.74,
+          "at": {
+            "x": -360.21,
+            "z": 2.43
+          },
+          "focusKind": "prop",
+          "focusLabel": "Range-rock dozen case · 54 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Range-rock dozen case · 54 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 1
+        },
+        {
+          "bearing": 180,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -360.95,
+            "z": -0.7
+          },
+          "endedAtYd": 0.74,
+          "at": {
+            "x": -360.21,
+            "z": 2.45
+          },
+          "focusKind": null,
+          "focusLabel": null,
+          "focusAtYd": null,
+          "promptText": null,
+          "boxId": 1
+        },
+        {
+          "bearing": 225,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -363.21,
+            "z": 0.24
+          },
+          "endedAtYd": 2.31,
+          "at": {
+            "x": -363.21,
+            "z": 2.98
+          },
+          "focusKind": "prop",
+          "focusLabel": "Damaged flooring - blocked: Vacuum and mop the lobby and sales floor to 60% first.",
+          "focusAtYd": 1.35,
+          "promptText": "Damaged flooring - blocked: Vacuum and mop the lobby and sales floor to 60% first.",
+          "boxId": 1
+        },
+        {
+          "bearing": 270,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -364.15,
+            "z": 2.5
+          },
+          "endedAtYd": 2.26,
+          "at": {
+            "x": -363.21,
+            "z": 2.5
+          },
+          "focusKind": "prop",
+          "focusLabel": "Golf balls — Range-rock dozen 7/15 · Tour-soft dozen 7/15 · Pro-V dozen 7/15 — backroom empty",
+          "focusAtYd": 1.3,
+          "promptText": "Golf balls — Range-rock dozen 7/15 · Tour-soft dozen 7/15 · Pro-V dozen 7/15 — backroom empty",
+          "boxId": 1
+        },
+        {
+          "bearing": 315,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -363.21,
+            "z": 4.76
+          },
+          "endedAtYd": 2.24,
+          "at": {
+            "x": -363.19,
+            "z": 2.49
+          },
+          "focusKind": "prop",
+          "focusLabel": "Golf balls — Range-rock dozen 7/15 · Tour-soft dozen 7/15 · Pro-V dozen 7/15 — backroom empty",
+          "focusAtYd": 1.3,
+          "promptText": "Golf balls — Range-rock dozen 7/15 · Tour-soft dozen 7/15 · Pro-V dozen 7/15 — backroom empty",
+          "boxId": 1
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "APPAREL / HEADWEAR",
+      "closestYd": 0.92,
+      "closestFrom": 45,
+      "bearingsThatPrompt": [
+        45,
+        135,
+        180,
+        225
+      ],
+      "promptSeen": "Club polo case · 31 inside — [E] tear the tape open · [X] reposition closed carton",
+      "perBearing": [
+        {
+          "bearing": 0,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -359.5,
+            "z": 2.85
+          },
+          "endedAtYd": 1.78,
+          "at": {
+            "x": -359.5,
+            "z": 1.43
+          },
+          "focusKind": "prop",
+          "focusLabel": "Old clutter — [E] haul it out",
+          "focusAtYd": 1.17,
+          "promptText": "Old clutter — [E] haul it out",
+          "boxId": 2
+        },
+        {
+          "bearing": 45,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -357.24,
+            "z": 1.91
+          },
+          "endedAtYd": 0.92,
+          "at": {
+            "x": -359.22,
+            "z": 0.53
+          },
+          "focusKind": "prop",
+          "focusLabel": "Club polo case · 31 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Club polo case · 31 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 2
+        },
+        {
+          "bearing": 90,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -356.3,
+            "z": -0.35
+          },
+          "endedAtYd": 0.92,
+          "at": {
+            "x": -359.22,
+            "z": 0.53
+          },
+          "focusKind": "prop",
+          "focusLabel": "Dark ceiling panel — the ceiling circuit is dead",
+          "focusAtYd": 1.93,
+          "promptText": "Dark ceiling panel — the ceiling circuit is dead",
+          "boxId": 2
+        },
+        {
+          "bearing": 135,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -357.24,
+            "z": -2.61
+          },
+          "endedAtYd": 1.81,
+          "at": {
+            "x": -359.43,
+            "z": -2.16
+          },
+          "focusKind": "prop",
+          "focusLabel": "Club polo case · 31 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Club polo case · 31 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 2
+        },
+        {
+          "bearing": 180,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -359.5,
+            "z": -3.55
+          },
+          "endedAtYd": 1.81,
+          "at": {
+            "x": -359.5,
+            "z": -2.16
+          },
+          "focusKind": "prop",
+          "focusLabel": "Club polo case · 31 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Club polo case · 31 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 2
+        },
+        {
+          "bearing": 225,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -361.76,
+            "z": -2.61
+          },
+          "endedAtYd": 1.83,
+          "at": {
+            "x": -359.57,
+            "z": -2.18
+          },
+          "focusKind": "prop",
+          "focusLabel": "Club polo case · 31 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Club polo case · 31 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 2
+        },
+        {
+          "bearing": 270,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -362.7,
+            "z": -0.35
+          },
+          "endedAtYd": 1.93,
+          "at": {
+            "x": -358.9,
+            "z": -2.18
+          },
+          "focusKind": null,
+          "focusLabel": null,
+          "focusAtYd": null,
+          "promptText": null,
+          "boxId": 2
+        },
+        {
+          "bearing": 315,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -361.76,
+            "z": 1.91
+          },
+          "endedAtYd": 1.79,
+          "at": {
+            "x": -359.34,
+            "z": 1.43
+          },
+          "focusKind": "prop",
+          "focusLabel": "Old clutter — [E] haul it out",
+          "focusAtYd": 1.17,
+          "promptText": "Old clutter — [E] haul it out",
+          "boxId": 2
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "label": "DRINKS / SNACKS",
+      "closestYd": 0.54,
+      "closestFrom": 315,
+      "bearingsThatPrompt": [
+        45,
+        90,
+        135,
+        270,
+        315
+      ],
+      "promptSeen": "Fairway Spring Water case · 28 inside — [E] tear the tape open · [X] reposition closed carton",
+      "perBearing": [
+        {
+          "bearing": 0,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -358.25,
+            "z": 7.65
+          },
+          "endedAtYd": 3.21,
+          "at": {
+            "x": -359.34,
+            "z": 1.43
+          },
+          "focusKind": "prop",
+          "focusLabel": "Old clutter — [E] haul it out",
+          "focusAtYd": 4.45,
+          "promptText": "Old clutter — [E] haul it out",
+          "boxId": 3
+        },
+        {
+          "bearing": 45,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -355.99,
+            "z": 6.71
+          },
+          "endedAtYd": 0.6,
+          "at": {
+            "x": -357.66,
+            "z": 4.33
+          },
+          "focusKind": "prop",
+          "focusLabel": "Fairway Spring Water case · 28 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Fairway Spring Water case · 28 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 3
+        },
+        {
+          "bearing": 90,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -355.05,
+            "z": 4.45
+          },
+          "endedAtYd": 0.64,
+          "at": {
+            "x": -357.65,
+            "z": 4.67
+          },
+          "focusKind": "prop",
+          "focusLabel": "Fairway Spring Water case · 28 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Fairway Spring Water case · 28 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 3
+        },
+        {
+          "bearing": 135,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -355.99,
+            "z": 2.19
+          },
+          "endedAtYd": 0.58,
+          "at": {
+            "x": -358.05,
+            "z": 3.91
+          },
+          "focusKind": "prop",
+          "focusLabel": "Fairway Spring Water case · 28 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Fairway Spring Water case · 28 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 3
+        },
+        {
+          "bearing": 180,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -358.25,
+            "z": 1.25
+          },
+          "endedAtYd": 2,
+          "at": {
+            "x": -358.25,
+            "z": 2.45
+          },
+          "focusKind": null,
+          "focusLabel": null,
+          "focusAtYd": null,
+          "promptText": null,
+          "boxId": 3
+        },
+        {
+          "bearing": 225,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -360.51,
+            "z": 2.19
+          },
+          "endedAtYd": 2,
+          "at": {
+            "x": -358.14,
+            "z": 2.45
+          },
+          "focusKind": null,
+          "focusLabel": null,
+          "focusAtYd": null,
+          "promptText": null,
+          "boxId": 3
+        },
+        {
+          "bearing": 270,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -361.45,
+            "z": 4.45
+          },
+          "endedAtYd": 0.6,
+          "at": {
+            "x": -358.85,
+            "z": 4.45
+          },
+          "focusKind": "prop",
+          "focusLabel": "Fairway Spring Water case · 28 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Fairway Spring Water case · 28 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 3
+        },
+        {
+          "bearing": 315,
+          "startedAtYd": 3.2,
+          "placed": {
+            "x": -360.51,
+            "z": 6.71
+          },
+          "endedAtYd": 0.54,
+          "at": {
+            "x": -358.24,
+            "z": 4.99
+          },
+          "focusKind": "prop",
+          "focusLabel": "Fairway Spring Water case · 28 inside — [E] tear the tape open",
+          "focusAtYd": 0,
+          "promptText": "Fairway Spring Water case · 28 inside — [E] tear the tape open · [X] reposition closed carton",
+          "boxId": 3
+        }
+      ]
+    }
+  ],
+  "findings": {
+    "starterCartonCount": 3,
+    "everyFloorCartonHasItsOwnCollider": true,
+    "floorCartonIds": [
+      1,
+      2,
+      3
+    ],
+    "nonFloorCartons": [],
+    "oversizedColliders": [],
+    "cartonsOutsidePublicRoom": [],
+    "unreachableCartons": [],
+    "closestByCarton": [
+      {
+        "id": 1,
+        "closestYd": 0.56,
+        "prompts": 2
+      },
+      {
+        "id": 2,
+        "closestYd": 0.92,
+        "prompts": 4
+      },
+      {
+        "id": 3,
+        "closestYd": 0.54,
+        "prompts": 5
+      }
+    ]
+  },
+  "errs": [],
+  "ok": true
+}

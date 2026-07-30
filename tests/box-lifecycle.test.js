@@ -11,6 +11,7 @@ import {
   boxLifecycleState,
   canTransitionBoxState,
   cutTape,
+  FLAP_PHASES,
   openFlap,
   takeFromBox,
   flattenBox,
@@ -62,29 +63,53 @@ test('hero box follows the legal sealed-to-cut-complete lifecycle with three per
   assert.deepEqual(box.tapeSegments, { centre: 1, left: 1, right: 1 });
 });
 
-// TWO phases now, one per E press (2026-07-29). Each half of the lid is a main
-// flap plus the side flap next to it, so every press moves something the player
-// can see. The old three-phase split had a press that opened one small side
-// flap and read as nothing happening.
-test('the lid opens in two halves, and all four physical flaps persist', () => {
+// TWO phases, one per E press (2026-07-29). Each press moves half the lid, so every
+// press is something the player can see; the earlier three-phase split had a press that
+// opened one small side flap and read as nothing happening.
+//
+// OPPOSITE FLAPS FIRST (2026-07-29, second pass). Panels are [FRONT, BACK, LEFT, RIGHT].
+// The first pairing was [0, 2] = FRONT+LEFT, two ADJACENT flaps, so the lid peeled back
+// from a corner and the contents came into view from the side. Reported: "open the two
+// OPPOSITE flaps first, then the other two, so the contents are revealed from directly
+// above rather than from one side."
+test('the first press opens the two WIDE OPPOSITE flaps, so you look straight in', () => {
   const state = landed();
   const box = boxesOf(state)[0];
   cutTape(state, box.id, 1);
 
   const first = openFlap(state, box.id);
-  assert.deepEqual(first.physicalFlaps, [0, 2]);
-  assert.deepEqual(box.flapProgress, [1, 0, 1, 0]);
+  assert.deepEqual(first.physicalFlaps, [2, 3], 'LEFT and RIGHT — the wide facing pair');
+  assert.deepEqual(box.flapProgress, [0, 0, 1, 1]);
+  // One representative per PHASE, in phase order: [2] is phase one, [0] is phase two.
+  // Mirroring two flaps from the same phase would have lost the second press entirely.
   assert.deepEqual(box.flaps, [1, 0], 'the shipped two-input mirror remains compatible');
   assert.equal(box.openingProgress, 0.5);
   assert.equal(first.done, false, 'half a lid is not an open box');
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING);
 
   const second = openFlap(state, box.id);
-  assert.deepEqual(second.physicalFlaps, [1, 3]);
+  assert.deepEqual(second.physicalFlaps, [0, 1], 'FRONT and BACK — the narrow pair, second');
   assert.ok(second.done);
   assert.deepEqual(box.flapProgress, [1, 1, 1, 1]);
   assert.equal(box.openingProgress, 1);
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPEN);
+});
+
+test('each phase is a facing pair, in the authored panel order', () => {
+  // The property that matters, stated independently of the numbers above: 0/1 hinge about
+  // X at ∓Z and 2/3 hinge about Z at ∓X (FLAP_NAMES in deliveryBoxVisual.js), so a phase
+  // pairs opposites exactly when its two indices are both < 2 or both >= 2. Which pair goes
+  // FIRST is a visual fact and is measured in tools/qa/proshop-box-flap-order-look.js.
+  for (const phase of FLAP_PHASES) {
+    assert.equal(phase.length, 2);
+    assert.equal(
+      (phase[0] < 2) === (phase[1] < 2),
+      true,
+      `phase ${JSON.stringify(phase)} pairs an X-hinged flap with a Z-hinged one — adjacent, not opposite`,
+    );
+  }
+  // And between them the two phases cover all four panels exactly once.
+  assert.deepEqual([...FLAP_PHASES.flat()].sort(), [0, 1, 2, 3]);
 });
 
 // The scene animates a phase over several frames. Without a bound, one press ran
@@ -98,7 +123,7 @@ test('a press is bounded to its own phase and cannot run the carton open', () =>
   let result = { ok: true };
   while (result.ok && guard-- > 0) result = openFlap(state, box.id, 0.2, { stopAfterPhase: 0 });
   assert.equal(result.phaseComplete, true, 'it must stop, not grind on forever');
-  assert.deepEqual(box.flapProgress, [1, 0, 1, 0], 'phase 1 finished; phase 2 untouched');
+  assert.deepEqual(box.flapProgress, [0, 0, 1, 1], 'phase 1 finished; phase 2 untouched');
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING, 'still opening, not open');
   // …and the next press picks up exactly where it stopped.
   assert.ok(openFlap(state, box.id, 1, { stopAfterPhase: 1 }).done);
@@ -180,7 +205,10 @@ test('pre-schema saves migrate cut progress and two flap values without resealin
   const [opening, cutting] = boxesOf(loaded);
   assert.equal(loaded.shop.deliveries.schemaVersion, DELIVERIES_SCHEMA_VERSION);
   assert.equal(opening.schemaVersion, BOX_SCHEMA_VERSION);
-  assert.deepEqual(opening.flapProgress, [1, 0.25, 1, 0.25]);
+  // A legacy value is one per PHASE, so each expands to the facing pair its phase covers:
+  // [0] -> LEFT+RIGHT (phase one), [1] -> FRONT+BACK (phase two). The old [a, b, a, b]
+  // interleave was correct only while the phases paired adjacent flaps.
+  assert.deepEqual(opening.flapProgress, [0.25, 0.25, 1, 1]);
   assert.deepEqual(opening.flaps, [1, 0.25]);
   assert.equal(opening.openingProgress, 0.625);
   assert.equal(boxLifecycleState(opening), BOX_LIFECYCLE.OPENING);

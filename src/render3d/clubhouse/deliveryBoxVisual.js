@@ -177,11 +177,14 @@ export function smoothDeliveryProgress(value) {
 export function normalizedFourFlaps(flaps) {
   const source = Array.isArray(flaps) ? flaps : [];
   if (source.length >= 4) return source.slice(0, 4).map((value) => Math.max(0, Math.min(1, Number(value) || 0)));
-  // Legacy cartons had two long flaps. Treat each open legacy flap as its
-  // adjacent long/short pair so an old save never visually reseals itself.
-  const front = Math.max(0, Math.min(1, Number(source[0]) || 0));
-  const back = Math.max(0, Math.min(1, Number(source[1]) || 0));
-  return [front, back, front, back];
+  // Legacy cartons had two values, one per opening PHASE. FLAP_PHASES in
+  // src/sim/deliveries.js is [[2, 3], [0, 1]], so the first value is LEFT+RIGHT (the wide
+  // pair that meets in the middle) and the second is FRONT+BACK. Expanding in phase order
+  // keeps an old save from visually resealing itself or reopening from the wrong pair;
+  // interleaving as [a, b, a, b] was correct only while the phases paired adjacent flaps.
+  const firstPhase = Math.max(0, Math.min(1, Number(source[0]) || 0));
+  const secondPhase = Math.max(0, Math.min(1, Number(source[1]) || 0));
+  return [secondPhase, secondPhase, firstPhase, firstPhase];
 }
 
 export function visibleContentsForBox(box, socketCount) {
