@@ -129,6 +129,7 @@ import {
   deliveryBoxCarryProfile,
 } from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
+import { BROOM_FEEL } from '../data/broomFeel.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildShedShell } from './clubhouse/shedShell.js';
 import { SHED_ROOM } from '../data/shedLayout.js';
@@ -5019,7 +5020,7 @@ export function makeClubhouse(ctx) {
   let cleanClock = 0;
   let moteFade = 0;
 
-  function showCleaningMotes(kind, wx, wz, dirX = 0, dirZ = 0, dt = 0.016) {
+  function showCleaningMotes(kind, wx, wz, dirX = 0, dirZ = 0, dt = 0.016, surface = null) {
     const styles = {
       suction: { color: 0xb7a88c, size: 0.045 },
       sweep: { color: 0x9f8a68, size: 0.052 },
@@ -5027,7 +5028,15 @@ export function makeClubhouse(ctx) {
       cloth: { color: 0xb8ddca, size: 0.032 },
       sponge: { color: 0xf0eee1, size: 0.038 },
     };
-    const style = styles[kind] || styles.sweep;
+    let style = styles[kind] || styles.sweep;
+    // Phase 6: sweep motes answer the surface being worked — carpet kicks
+    // pale fibre fluff, boards kick dry grit. The caller supplies the surface
+    // (it owns the gate's LOCAL point; cleaningSurfaceAt is local-frame), and
+    // only the broom's kind consults the one tuning file, so every other tool
+    // keeps its authored style untouched.
+    if (kind === 'sweep' && surface) {
+      style = BROOM_FEEL.particles.surface[surface] || style;
+    }
     motes.material.color.set(style.color);
     motes.material.size = style.size;
     motes.visible = true;
@@ -5373,7 +5382,7 @@ export function makeClubhouse(ctx) {
         // a broom moves debris; it never deletes it
         did = sweepAt(state, l.x, l.z, dirX, dirZ, def.radius, dt).moved;
         if (did > 0) refreshDebrisVisual();
-        if (did > 0) showCleaningMotes('sweep', wx, wz, dirX, dirZ, dt);
+        if (did > 0) showCleaningMotes('sweep', wx, wz, dirX, dirZ, dt, cleaningSurfaceAt(l.x, l.z));
         return finish({ did, kind: 'sweep' });
       }
       case TOOL_CLASS.SCOOP: {

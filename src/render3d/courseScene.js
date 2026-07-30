@@ -8223,6 +8223,11 @@ export function makeCourseScene(canvas, state) {
     if (broomPose && broomPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
       camera.rotation.x -= broomPose.cameraKickRad;
     }
+    // The audio layers ride the rig's feel: intensity every frame, with the
+    // contact edge defined as "bristles in the fast window AND planted".
+    if (broomPose) {
+      walkHooks.onBroomFeel?.(broomPose.intensity, broomPose.inContact && broomPose.planted);
+    }
     if (walkSpraying && CLEANING_TOOLS[walkTool] && !CLEANING_TOOLS[walkTool].external
       && !cart.mounted && clubhouseApi && clubhouseApi.cleanWithTool) {
       // Every cleaning tool works at the point ON THE TOOL — the contact pad under a mop head, the

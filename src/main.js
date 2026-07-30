@@ -770,6 +770,18 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     if (audio.ready && audio.strokeAccent) audio.strokeAccent(toolId, intensity);
   };
   app.scene3d.walk.hooks.onSprayPulse = () => { if (audio.ready && audio.sprayPulse) audio.sprayPulse(); };
+  // Phase 6 — the broom's three audio layers ride the rig's live intensity:
+  // a start transient on the contact edge, the loop's gain/pulse following the
+  // stroke, and a soft tail on release. Edge state lives here because audio
+  // owns the layers and the renderer only reports feel.
+  let broomContactWas = false;
+  app.scene3d.walk.hooks.onBroomFeel = (intensity, inContact) => {
+    if (!audio.ready) return;
+    audio.setToolLoopIntensity?.('broom', intensity);
+    if (inContact && !broomContactWas && audio.broomStart) audio.broomStart();
+    if (!inContact && broomContactWas && audio.broomStop) audio.broomStop();
+    broomContactWas = inContact;
+  };
   // Switching, stowing, focus loss, and mode changes are all trigger releases. The renderer owns
   // those lifecycle edges, so it tells audio here instead of waiting for a pointerup that may
   // never arrive (alt-tab and rapid belt cycling are the common cases).

@@ -3,6 +3,8 @@
 // so physical actions remain legible without arcade volume. Shared player
 // preferences own volume, accessibility, and lifecycle policy.
 
+import { BROOM_FEEL } from '../data/broomFeel.js';
+
 export const CHECKOUT_CUE_APIS = Object.freeze([
   'productPlace', 'productPickup', 'productRotate',
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
@@ -1520,6 +1522,7 @@ export function makeAudio(preferences = null) {
   // continuous in-use loops, one per tool, crossfaded by setToolLoop(kind|null)
   const toolLoops = {}; // kind -> gain node
   const toolLoopOsc = {}; // kind -> a driven oscillator (vacuum motor hum) setToolLoop can swell
+  const toolLoopVoice = {}; // kind -> { lfo, baseRate } for intensity-ridden hand loops
   let activeToolLoop = null;
   function ensureToolLoop(kind) {
     if (!ctx || toolLoops[kind]) return toolLoops[kind];
@@ -1627,6 +1630,9 @@ export function makeAudio(preferences = null) {
         pulse.gain.value = 1 - v.depth * 0.5;
         src.connect(filter).connect(pulse).connect(gain);
         lfo.start();
+        // Phase 6: keep a handle on the pulse LFO so stroke intensity can
+        // ride the loop's rhythm (a harder pass pulses faster and louder).
+        toolLoopVoice[kind] = { lfo, baseRate: v.rate };
       }
       if (kind === 'mop') {
         // A second, low-passed tap of the same noise gives the wet mop its weight — the heavy
@@ -1677,6 +1683,68 @@ export function makeAudio(preferences = null) {
         toolLoopOsc.vacuum.frequency.setTargetAtTime(VACUUM_HUM_HZ, ctx.currentTime, 0.25);
       }
     }
+  }
+
+  // Phase 6 — the broom's three audio layers. The loop (HAND_VOICES.broom via
+  // setToolLoop) is the middle layer; these add the start transient as the
+  // bristles first bite, per-frame intensity riding the loop's gain and pulse
+  // rate, and a soft release tail as they lift. All numbers from
+  // BROOM_FEEL.audio — the one tuning file.
+  function setToolLoopIntensity(kind, intensity) {
+    if (!ctx || activeToolLoop !== kind || !toolLoops[kind]) return;
+    const level = TOOL_LOOP_LEVEL[kind] || 0.04;
+    const a = BROOM_FEEL.audio;
+    const i = Math.max(0, Math.min(1, Number(intensity) || 0));
+    toolLoops[kind].gain.setTargetAtTime(level * (1 + a.loopGainSlope * i), ctx.currentTime, 0.08);
+    const voice = toolLoopVoice[kind];
+    if (voice) {
+      voice.lfo.frequency.setTargetAtTime(
+        a.loopRateBase + a.loopRateSlope * i, ctx.currentTime, 0.10,
+      );
+    }
+  }
+
+  function broomStart() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // the first bite: a short, bright scratch of noise through the broom band
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.10), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let s = 0; s < data.length; s++) data[s] = (Math.random() * 2 - 1) * (1 - s / data.length);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 1700;
+    band.Q.value = 1.1;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(BROOM_FEEL.audio.startGain, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    src.connect(band).connect(gain).connect(sfxBus);
+    src.start(t);
+    src.stop(t + 0.10);
+  }
+
+  function broomStop() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // the lift: a softer, darker brush fading over the configured tail
+    const tail = BROOM_FEEL.audio.stopTail;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * tail), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let s = 0; s < data.length; s++) data[s] = (Math.random() * 2 - 1) * (1 - s / data.length);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 1100;
+    band.Q.value = 0.8;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(BROOM_FEEL.audio.startGain * 0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + tail);
+    src.connect(band).connect(gain).connect(sfxBus);
+    src.start(t);
+    src.stop(t + tail + 0.02);
   }
 
   // called ~once per second with live game context
@@ -1775,6 +1843,9 @@ export function makeAudio(preferences = null) {
     ballLanding,
     starterCall,
     setToolLoop,
+    setToolLoopIntensity,
+    broomStart,
+    broomStop,
     toolLoopDiagnostics: () => ({
       active: activeToolLoop,
       created: Object.keys(toolLoops).sort(),
