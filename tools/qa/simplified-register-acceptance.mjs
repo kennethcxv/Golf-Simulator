@@ -164,6 +164,22 @@ async function monitorClick(page, action) {
   return point;
 }
 
+// The offered card waits in the customer's hand until the player clicks it
+// (playtest 2026-07-30) — hover outline, click, THEN the chip insertion runs
+// and the reader lifts to the face. Every fresh presentation needs this click.
+async function clickOfferedCard(page) {
+  await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    const point = register.presentedCardScreenPoint();
+    return tx?.stage === 'card-ready' && point?.inView && point.clickable;
+  }, null, { timeout: 9000 });
+  const point = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint()
+  ));
+  await page.mouse.click(point.x, point.y);
+}
+
 async function waitCamera(page, workspace) {
   await page.evaluate(() => { window.__simplifiedAcceptanceCameraProbe = null; });
   await page.waitForFunction((wanted) => {
@@ -342,14 +358,14 @@ async function insertCardGesture(page, shot, {
   processingLabel,
   exerciseModalExit = false,
 }) {
+  await clickOfferedCard(page);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-entry'
       && tx.checkoutFlow?.state === 'CardAmountEntry';
   }, null, { timeout: 7000 });
-  // Card presentation and insertion are a short automatic visual beat. The
-  // player arrives at one stable, readable terminal keypad with no swipe or
-  // floating cashier hand.
+  // After the click, insertion is a short automatic visual beat, the camera
+  // HOLDS the working frame, and the reader itself floats up for amount entry.
   await waitCamera(page, 'card');
   if (handoffLabel) await shot(handoffLabel);
 
@@ -397,6 +413,19 @@ async function insertCardGesture(page, shot, {
     'Escape/right-click mutated the pre-authorization card transaction.');
     await shot('09a-escape-and-right-click-blocked.png');
 
+    // The reader LIFTS to the face over ~0.5 s (playtest 2026-07-30 stillness
+    // redesign). A point sampled mid-lift is stale by the time the click lands
+    // — wait until the projected X holds still, then sample and click.
+    await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const point = register.cardXScreenPoint();
+      if (!point || !point.inView) return false;
+      const previous = window.__cardXStability || null;
+      window.__cardXStability = { x: point.x, y: point.y, stable: previous
+        && Math.abs(previous.x - point.x) < 0.4 && Math.abs(previous.y - point.y) < 0.4
+        ? (previous.stable || 0) + 1 : 0 };
+      return window.__cardXStability.stable >= 4;
+    }, null, { timeout: 8000, polling: 80 });
     const xBefore = await page.evaluate(() => (
       window.__fw.scene3d.clubhouse().register.cardXScreenPoint()
     ));
@@ -405,13 +434,41 @@ async function insertCardGesture(page, shot, {
     // The X is the ONE exit: click it and the run drops back to the post-scan
     // beat with the basket intact, then the same customer preference restarts.
     await page.mouse.click(xBefore.x, xBefore.y);
+    const cancelState = await page.evaluate(async (point) => {
+      const THREE = await import('/vendor/three.module.js');
+      const app = window.__fw;
+      const register = app.scene3d.clubhouse().register;
+      const tx = register.getTx();
+      const canvas = document.querySelector('canvas');
+      const rect = canvas.getBoundingClientRect();
+      const ndc = new THREE.Vector2(
+        ((point.x - rect.left) / rect.width) * 2 - 1,
+        -(((point.y - rect.top) / rect.height) * 2 - 1),
+      );
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(ndc, app.scene3d.camera);
+      let plane = null;
+      app.scene3d.scene.traverse((o) => { if (o.name === 'TerminalLiveScreen') plane = o; });
+      const hit = plane ? ray.intersectObject(plane, false)[0] : null;
+      return {
+        stage: tx?.stage, workspace: register.workspace(),
+        xNow: register.cardXScreenPoint(),
+        havePlane: !!plane,
+        planeVisible: plane ? plane.visible : null,
+        hit: hit ? { u: +hit.uv.x.toFixed(3), v: +(1 - hit.uv.y).toFixed(3), dist: +hit.distance.toFixed(3) } : null,
+        game: register.debugTerminalXAt ? register.debugTerminalXAt(point.x, point.y) : null,
+      };
+    }, xBefore);
     await page.waitForFunction(() => {
       const register = window.__fw.scene3d.clubhouse().register;
       const tx = register.getTx();
       return register.workspace() === 'monitor' && tx && tx.stage === 'scanning'
         && tx.items.every((item) => item.scanned && item.bagged);
-    }, null, { timeout: 4000 });
+    }, null, { timeout: 4000 }).catch((error) => {
+      throw new Error(`X-cancel did not return to scanning: ${JSON.stringify(cancelState)} :: ${error.message}`);
+    });
     if (cancelledLabel) await shot(cancelledLabel);
+    await clickOfferedCard(page);
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx && tx.stage === 'card-entry'
@@ -421,8 +478,8 @@ async function insertCardGesture(page, shot, {
     if (representedLabel) await shot(representedLabel);
   }
 
-  // Presentation and insertion are automatic; the player never clicks,
-  // swipes, or sees a floating cashier hand for the card.
+  // After the player's accept click, insertion itself is automatic — no swipe,
+  // no floating cashier hand.
   const insertion = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.insertAt()
   ));

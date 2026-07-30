@@ -930,7 +930,12 @@ export const REGISTER = {
   monitor: frontDeskPose(0.52, 0.22, 0),
   cardterm: frontDeskPose(0.10, -0.16, 0),
   scanner: frontDeskPose(-0.20, 0.02, Math.PI + 0.22),
-  printer: frontDeskPose(1.08, 0.28, Math.PI - 0.18),
+  // Playtest 2026-07-30: the printer lived at x 1.08 — hidden behind the POS
+  // from the one working frame, so printing read as nothing happening (and the
+  // camera close-up that compensated made the player dizzy). It now sits LEFT
+  // of the POS on screen (+x renders screen-right in the working frame, so
+  // left means smaller x), behind the reader's seat, inside the static frame.
+  printer: frontDeskPose(0.14, 0.36, Math.PI - 0.06),
   custdisplay: frontDeskPose(0.94, -0.10, Math.PI),
   bag: frontDeskPose(-0.50, 0.24, 0),
   bagstand: frontDeskPose(1.30, 0.30, 0),

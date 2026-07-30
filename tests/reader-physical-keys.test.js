@@ -1,14 +1,10 @@
-// THE READER'S KEYS ARE THE MODELLED ONES, AND ITS DISPLAY NEVER SHOWS A DIGIT.
+// THE READER'S KEYS ARE THE MODELLED ONES, AND THE GLASS SHOWS THE TYPED AMOUNT.
 //
-// Reported 2026-07-29: "The card reader: Numbers must NOT appear on the reader's display. The
-// player presses the physical number keys modelled in Blender. The display shows the amount
-// and prompts, not the digits being entered."
-//
-// What a headless test can hold: the GLB really carries the key meshes, presses raycast to
-// them, the canvas keypad is gone, and the entry branch of the display draws dots — never
-// cardEnteredAmount, never the digit string. Whether it LOOKS right is held by the card
-// acceptance run (qa/.../acceptance/card/10-card-amount-entry*.png): amount and prompt on the
-// glass, four dots after four presses, keys on the deck below.
+// 2026-07-29: "the player presses the physical number keys modelled in Blender" — presses
+// raycast the Terminal_Key_* meshes; the canvas draws no keypad. 2026-07-30 playtest reversed
+// the no-digits half: the running amount renders live as it is typed, because with the reader
+// floating at the player's face, hiding the entry made keying the total feel like guesswork.
+// Whether it LOOKS right is held by the card acceptance run (qa/.../acceptance/card).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -60,20 +56,18 @@ test('a press is a raycast against the key meshes, not a screen-canvas lookup', 
   assert.ok(!source.includes('TERM_KEYPAD'), 'the canvas keypad table is deleted, not orphaned');
 });
 
-test('the entry display shows the amount, a prompt, and dots — never the entered digits', () => {
+test('the entry display shows the total AND the typed amount; the keypad stays physical', () => {
+  // Playtest 2026-07-30 reversed the dots-like-a-PIN-pad take: with the reader
+  // floating at the face, hiding the entry made keying the total feel like
+  // guesswork. The digits render live; the keys remain the modelled ones.
   const start = source.indexOf("} else if (stage === 'card-entry') {");
   const end = source.indexOf("} else if (stage === 'card-busy') {", start);
   assert.ok(start >= 0 && end > start, 'could not slice the entry branch of drawTerm');
   const entry = source.slice(start, end);
-  assert.match(entry, /ENTER AMOUNT/);
-  assert.match(entry, /totalOf\(tx\)/, 'the amount due is the one number on the glass');
-  assert.match(entry, /\\u2022/, 'progress is dots');
-  // The two ways digits used to reach the glass, both banned.
-  assert.ok(!entry.includes('cardEnteredAmount'), 'the running amount must not render');
-  assert.ok(!/fillText\(`?\$\{tx\.cardEntryDigits/.test(entry), 'the digit string must not render');
-  assert.ok(!entry.includes('fillRect(key'), 'no drawn keypad');
+  assert.match(entry, /totalOf\(tx\)/, 'the amount due stays on the glass');
+  assert.match(entry, /cardEnteredAmount\(tx\)/, 'the running amount renders as typed');
+  assert.ok(!entry.includes('fillRect(key'), 'still no drawn keypad — presses are mesh raycasts');
 });
-
 test('a successful press visibly gives, and the pulse restores the authored scale', () => {
   assert.match(sliceFn('handleTerminalKey'), /pulseTerminalKey\(action\)/);
   const pulses = sliceFn('updateTerminalKeyPulses');

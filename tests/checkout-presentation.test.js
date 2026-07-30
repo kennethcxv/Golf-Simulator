@@ -38,16 +38,23 @@ test('the held reach does not breathe, because the fan is laid out once at the g
   assert.ok(!branch.includes('Math.sin'), 'and holds still — a bobbing wrist detaches the cash');
 });
 
-test('the print phase owns a derived printer close-up, and the drag returns to fulfilment', () => {
+test('the checkout camera holds one frame; only the drawer and check-in move it', () => {
+  // Playtest 2026-07-30 reversed the 2026-07-29 derived-pose work: "there is
+  // too much movement going on... it makes the player dizzy." poseKey may now
+  // return only cash / checkin / overview — no fulfilment pan, no receipt
+  // close-up, no card-terminal cut. The reader floats to the player instead,
+  // and its anchor freezes at lift-off with the cursor sway disabled, because
+  // a floated device that chases the head cannot be clicked.
   const poseKey = register.slice(register.indexOf('function poseKey()'), register.indexOf('function derivedCheckinPose'));
-  assert.match(poseKey, /'receipt-print', 'receipt-ready', 'receipt-ready-manual'/);
-  assert.match(poseKey, /return 'receiptPrint'/);
-  assert.match(register, /function derivedReceiptPrintPose\(\)/);
-  const start = register.indexOf('function derivedReceiptPrintPose()');
-  const next = register.indexOf('\n  function ', start);
-  const derived = register.slice(start, next > start ? next : undefined);
-  assert.match(derived, /printerOutputSocket \|\| printerRoll/, 'derived from the printer hardware itself');
-  assert.match(derived, /fulfillmentHandoffPose/, 'with the fulfilment frame as the fallback');
+  for (const gone of ["'fulfillment'", "'receiptPrint'", "'cardTake'", "return 'card'", "'scan'"]) {
+    assert.ok(!poseKey.includes(gone), `poseKey still routes to ${gone}`);
+  }
+  assert.match(poseKey, /return 'cash'/);
+  assert.match(poseKey, /return 'checkin'/);
+  assert.match(poseKey, /return 'overview'/);
+  assert.match(register, /function updateTerminalFloat\(/);
+  assert.match(register, /terminalFloatAnchor/, 'the float anchor freezes at lift-off');
+  assert.match(register, /\|\| terminalShouldFloat\(\)/, 'cursor sway is disabled while the reader floats');
 });
 
 test('the receipt content turns in place; the mesh anchor and the handoff stay authored', () => {

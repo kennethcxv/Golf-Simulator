@@ -58,9 +58,7 @@ import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 import {
   billFit, billLayout, clipFillRatio, coinLayout,
 } from './drawerMoneyLayout.js';
-import {
-  cardHandoffPose, cardTerminalPose, fulfillmentHandoffPose,
-} from './registerCameraPoses.js';
+
 import { createScopedBooleanOverride } from './scopedBooleanOverride.js';
 import { suppressInteriorSunShadows } from './interiorShadowPolicy.js';
 
@@ -205,9 +203,15 @@ const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
 export const CARD_HELD_PITCH = 0.62;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
-  // Match the reference composition: a low, open kraft carrier at far left,
-  // never a tall box obscuring the products or customer.
-  pitch: Math.PI * 0.49,
+  // UPRIGHT. Reported 2026-07-29 (§5): "bag upright with items parented into
+  // it." The old pitch (PI x 0.49 ~ 88 deg) laid the carrier on its side to
+  // match a reference composition — which read as a collapsed bag during the
+  // exact phase the monitor says "place it in the bag". Items were already
+  // parented at ANCHOR_BagContents; standing the group up puts them INSIDE a
+  // standing bag instead of spilling sideways with it. The whisker of pitch
+  // left tips the mouth toward the cashier so the opening reads from the
+  // working camera.
+  pitch: 0.10,
   scale: 0.62,
   counterLift: 0.035,
 });
@@ -778,6 +782,77 @@ export function createRegisterMode(B) {
   // raycasts to those meshes. The keypad the screen used to draw is gone:
   // reported 2026-07-29, "the player presses the physical number keys modelled
   // in Blender. The display shows the amount and prompts, not the digits."
+  // THE READER COMES TO THE PLAYER. Playtest 2026-07-30: the camera cut to the
+  // terminal made the player dizzy — so the camera now holds the working frame
+  // and the READER lifts off the counter and floats in front of the current
+  // eye for amount entry, then settles back onto its seat when the payment
+  // resolves. The keys ride with it (they are its children), so the physical
+  // keypad works at the face exactly as it does on the counter.
+  const TERMINAL_FLOAT_RATE = 6.5;          // 1/s toward the target
+  const TERMINAL_FLOAT_DISTANCE = 0.46;     // metres in front of the eye
+  const TERMINAL_FLOAT_DROP = 0.10;         // below eye line, so it reads as held up
+  let terminalFloat = 0;                    // 0 seated .. 1 at the face
+  let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
+  let termSeatPosition = null;
+  let termSeatQuaternion = null;
+  let cardMeshOnTerminal = false;
+
+  function terminalShouldFloat() {
+    return !!(active && tx && tx.method === 'card'
+      && ['card-entry', 'card-busy', 'card-declined'].includes(tx.stage));
+  }
+
+  function updateTerminalFloat(dt) {
+    if (!termObject || !termSeatPosition) return;
+    const target = terminalShouldFloat() ? 1 : 0;
+    const step = 1 - Math.exp(-TERMINAL_FLOAT_RATE * dt);
+    terminalFloat += (target - terminalFloat) * step;
+    if (terminalFloat < 0.001 && target === 0) {
+      if (terminalFloat !== 0) {
+        terminalFloat = 0;
+        termObject.position.copy(termSeatPosition);
+        termObject.quaternion.copy(termSeatQuaternion);
+        if (cardMeshOnTerminal && cardMesh) { root.attach(cardMesh); cardMeshOnTerminal = false; }
+      }
+      terminalFloatAnchor = null;
+      cardMeshOnTerminal = cardMeshOnTerminal && !!cardMesh;
+      return;
+    }
+    // The inserted card must ride the reader, or it stays behind mid-air.
+    if (target === 1 && cardMesh && !cardMeshOnTerminal) {
+      termObject.attach(cardMesh);
+      cardMeshOnTerminal = true;
+    }
+    // THE ANCHOR FREEZES AT LIFT-OFF. The first take recomputed the face point
+    // every frame so the reader tracked head sway — which meant it also chased
+    // the cursor, and any projected key/X point went stale the moment the mouse
+    // moved toward it: the acceptance click on the reader's X sampled a point,
+    // travelled, and landed on the key the reader had swayed onto. A floated
+    // device that HOLDS STILL is both calmer and clickable.
+    if (!terminalFloatAnchor) {
+      root.updateMatrixWorld(true);
+      const eye = camera.getWorldPosition(new THREE.Vector3());
+      const forward = camera.getWorldDirection(new THREE.Vector3());
+      const targetWorld = eye.clone()
+        .addScaledVector(forward, TERMINAL_FLOAT_DISTANCE)
+        .add(new THREE.Vector3(0, -TERMINAL_FLOAT_DROP, 0));
+      // Matrix4.lookAt(eye, target) points +Z from target TOWARD eye — and the
+      // exporter turns the reader's screen face to +Z, so the EYE argument must
+      // be the camera for the glass (and the keys) to face the player. An
+      // earlier take had them swapped and showed the back of the device.
+      const lookMatrix = new THREE.Matrix4().lookAt(eye, targetWorld, new THREE.Vector3(0, 1, 0));
+      const faceWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
+      const rootQuatInv = root.getWorldQuaternion(new THREE.Quaternion()).invert();
+      terminalFloatAnchor = {
+        position: root.worldToLocal(targetWorld.clone()),
+        quaternion: rootQuatInv.clone().multiply(faceWorldQuat),
+      };
+    }
+    const ease = THREE.MathUtils.smoothstep(terminalFloat, 0, 1);
+    termObject.position.lerpVectors(termSeatPosition, terminalFloatAnchor.position, ease);
+    termObject.quaternion.slerpQuaternions(termSeatQuaternion, terminalFloatAnchor.quaternion, ease);
+  }
+
   const terminalKeyByAction = new Map();   // action -> [key mesh, glyph mesh]
   const terminalKeyPickables = [];
   const terminalKeyPulses = new Map();     // action -> seconds remaining
@@ -1419,6 +1494,7 @@ export function createRegisterMode(B) {
       cardMesh = null;
       createCardMesh();
       cardPresentationTimer = 0.55;
+    cardAccepted = false;
       setWorkspace('card');
       return { ok: true };
     }
@@ -2013,34 +2089,30 @@ export function createRegisterMode(B) {
       ctx.fillText(`TOTAL  $${totalOf(tx).toFixed(2)}`, W / 2, H * 0.58);
       ctx.fillStyle = '#5f6f64';
       ctx.font = '600 26px Arial, sans-serif';
-      ctx.fillText('CARD INSERTS AUTOMATICALLY', W / 2, H * 0.78);
+      ctx.fillText('CLICK THE OFFERED CARD TO TAKE IT', W / 2, H * 0.78);
     } else if (stage === 'card-entry') {
-      // THE DISPLAY SHOWS THE AMOUNT AND PROMPTS, NOT THE DIGITS BEING ENTERED.
-      //
-      // Reported 2026-07-29: "Numbers must NOT appear on the reader's display.
-      // The player presses the physical number keys modelled in Blender." So the
-      // canvas keypad this branch used to draw is gone — presses raycast the
-      // Terminal_Key_* meshes on the deck — and the running entry shows as one
-      // dot per pressed digit, like a PIN pad. The one number on the glass is
-      // the TOTAL, which is the prompt: key exactly this.
+      // THE GLASS SHOWS THE AMOUNT DUE AND THE AMOUNT BEING TYPED. The dots-
+      // like-a-PIN-pad take (2026-07-29) lasted one playtest: with the reader
+      // floating at the face, hiding the entry made keying the total feel like
+      // guesswork. The keypad stays physical — the canvas draws no keys — but
+      // the running figure renders live as it is typed (2026-07-30 ruling).
       ctx.fillStyle = '#9db3a4';
-      ctx.font = '700 34px Arial, sans-serif';
-      ctx.fillText('ENTER AMOUNT', W / 2, H * 0.16);
-      ctx.fillStyle = '#8bc5ff';
-      ctx.font = '800 64px Arial, sans-serif';
-      ctx.fillText(`$${totalOf(tx).toFixed(2)}`, W / 2, H * 0.38);
-      const pressed = String(tx.cardEntryDigits || '').length;
+      ctx.font = '700 30px Arial, sans-serif';
+      ctx.fillText(`TOTAL  $${totalOf(tx).toFixed(2)}`, W / 2, H * 0.16);
+      const typed = String(tx.cardEntryDigits || '').length
+        ? `$${cardEnteredAmount(tx).toFixed(2)}`
+        : '$0.00';
       ctx.fillStyle = '#f5efdb';
-      ctx.font = '800 58px Arial, sans-serif';
-      ctx.fillText(pressed ? '\u2022'.repeat(Math.min(pressed, 8)) : '\u2013 \u2013 \u2013', W / 2, H * 0.60);
+      ctx.font = '800 78px Arial, sans-serif';
+      ctx.fillText(typed, W / 2, H * 0.46);
       if (tx.cardEntryError) {
         ctx.fillStyle = '#ff9a8f';
         ctx.font = '700 26px Arial, sans-serif';
-        ctx.fillText(tx.cardEntryError.toUpperCase(), W / 2, H * 0.80);
+        ctx.fillText(tx.cardEntryError.toUpperCase(), W / 2, H * 0.74);
       } else {
         ctx.fillStyle = '#5f6f64';
         ctx.font = '600 26px Arial, sans-serif';
-        ctx.fillText('KEY THE TOTAL \u00b7 GREEN CONFIRMS', W / 2, H * 0.80);
+        ctx.fillText('KEY THE TOTAL \u00b7 GREEN CONFIRMS', W / 2, H * 0.74);
       }
     } else if (stage === 'card-busy') {
       const dots = '.'.repeat(1 + (Math.floor(termDotsTimer * 3) % 3));
@@ -2142,8 +2214,15 @@ export function createRegisterMode(B) {
     const px = uv.u * TERM_CANVAS_W;
     const py = uv.v * TERM_CANVAS_H;
     const pad = accessibilityPrefs.largeTextAndTargets ? 18 : 0;
+    // The hit region reaches the glass's top edge. Measured 2026-07-30 on the
+    // floated reader: a click at the projected centre of the drawn X (canvas
+    // y 40) ray-hits the plane at y≈5 — a stable ~35 px vertical offset between
+    // the forward projection and the pick ray whose root cause did not yield
+    // to instrumentation this pass. Accepting the whole top-right corner strip
+    // is visually the same target and tolerant of the offset in either
+    // direction; nothing else is drawn in that corner.
     return px >= TERM_X_BOX.x0 - pad && px <= TERM_X_BOX.x1 + pad
-      && py >= TERM_X_BOX.y0 - pad && py <= TERM_X_BOX.y1 + pad;
+      && py >= 0 && py <= TERM_X_BOX.y1 + pad;
   }
 
   function terminalKeyAt(event) {
@@ -2315,6 +2394,9 @@ export function createRegisterMode(B) {
       termScreenPlane = plane;
     }
 
+    termSeatPosition = terminal.position.clone();
+    termSeatQuaternion = terminal.quaternion.clone();
+    terminalFloat = 0;
     // The authored card socket anchors the automatic chip insertion path.
     cardSocketNode = terminal.getObjectByName('CARD_INSERT_SOCKET') || null;
     collectTerminalKeys(terminal);
@@ -2361,8 +2443,22 @@ export function createRegisterMode(B) {
     return ray.intersectObject(termObject, true).length > 0;
   }
 
+  // Set by clicking the offered card; nothing inserts until the player takes it.
+  let cardAccepted = false;
+
+  function acceptPresentedCard() {
+    if (!tx || tx.stage !== 'card-ready' || cardAccepted) return false;
+    cardAccepted = true;
+    sfx('cardTap');
+    return beginAutomaticCardInsert();
+  }
+
   function beginAutomaticCardInsert() {
     if (!tx || tx.stage !== 'card-ready' || !cardMesh) return false;
+    // THE PLAYER TAKES THE CARD. The insertion used to start on a timer, which
+    // made the whole card route a cutscene; now the offered card waits in the
+    // customer's hand — outlined under the cursor — until it is clicked.
+    if (!cardAccepted) return false;
     refreshCardInsertPath();
     if (checkoutFlowState() === 'CardInsertReady'
         && !flowTo('CardInserting', 'automatic-card-insertion-started')) return false;
@@ -3893,7 +3989,11 @@ export function createRegisterMode(B) {
     base.add(brandPanel);
     base.position.copy(cardReady);
     base.quaternion.copy(HELD_QUAT);
-    const data = { pick: false, kind: 'payment-card' };
+    // Pickable: the player accepts the offered card by clicking it (playtest
+    // 2026-07-30 — hover shows an outline, the click starts the insertion and
+    // lifts the reader). Pick stays true through presentation; the accept
+    // handler itself checks the stage.
+    const data = { pick: true, kind: 'payment-card' };
     base.userData = data;
     base.traverse((o) => { if (o.isMesh) o.userData = { ...o.userData, ...data }; });
     suppressInteriorSunShadows(base);
@@ -3944,6 +4044,7 @@ export function createRegisterMode(B) {
       // The customer presents the card; the reader then inserts it itself. No
       // detached cashier hand or pointer-driven card gesture appears.
       cardPresentationTimer = 0.55;
+    cardAccepted = false;
       cardInsertTimer = 0;
       cardU = 0;
       cardMessage = '';
@@ -4382,6 +4483,7 @@ export function createRegisterMode(B) {
     createCardMesh();
     cardU = 0;
     cardPresentationTimer = 0.52;
+    cardAccepted = false;
     cardInsertTimer = 0;
     cardMessage = '';
     cardEjectTimer = 0;
@@ -5733,12 +5835,15 @@ export function createRegisterMode(B) {
     ];
     // the drawer money itself is a click target: any part of the $5 stack IS
     // the $5 well, not just the invisible hotspot floating over it
+    // The OFFERED card is a click target while it waits in the customer's hand
+    // — the accept click is what starts the insertion (playtest 2026-07-30).
+    const offeredCard = tx && tx.stage === 'card-ready' && cardMesh ? [cardMesh] : [];
     const candidates = workspace === 'scan'
       ? counterItems
       : workspace === 'cash'
         ? [...presentedCash, ...selectedChangeMeshes, ...slotHotspots, ...slotLabels,
           ...(drawerMoney ? [drawerMoney] : []), ...fulfillment]
-        : [...presentedCash, ...counterItems, ...fulfillment];
+        : [...presentedCash, ...offeredCard, ...counterItems, ...fulfillment];
     // items already dropped into the bag are hidden, not removed — they must
     // not keep swallowing clicks (the raycaster tests invisible meshes too)
     const hits = ray.intersectObjects(candidates, true).filter((hit) => {
@@ -5805,6 +5910,9 @@ export function createRegisterMode(B) {
         }
       } else if (kind === 'money') {
         target = object;
+      } else if (kind === 'payment-card' && tx?.stage === 'card-ready') {
+        // the offered card reads as clickable before it is clicked
+        target = cardMesh || object;
       }
     }
     if (target) {
@@ -5856,6 +5964,12 @@ export function createRegisterMode(B) {
         sfx('uiTick');
         cancelCardAtTerminal();
         return true;
+      }
+      // The offered card: outlined on hover, clicked to take. Only then does
+      // the chip insertion begin and the reader lift to the face.
+      const picked = physicalPick(event);
+      if (picked?.userData.kind === 'payment-card' && tx?.stage === 'card-ready') {
+        return acceptPresentedCard();
       }
       const terminalKey = terminalKeyAt(event);
       if (terminalKey) return handleTerminalKey(terminalKey.id);
@@ -6449,32 +6563,16 @@ export function createRegisterMode(B) {
   // Which preset the current checkout state deserves. Workspaces map directly;
   // the monitor workspace splits by what the player is actually doing there.
   function poseKey() {
-    if (deliveryPhase && deliveryPhase !== 'released') {
-      // PRINTING IS ITS OWN SHOT. Reported 2026-07-29: "Move it close to the
-      // player so printing and handing over are actually visible." In the wide
-      // fulfilment frame the printer sits at the frame's edge and the 1.1 s
-      // feed read as nothing happening. While the paper is feeding (and while
-      // the torn receipt waits to be taken) the camera closes on the printer
-      // itself; the drag across to the customer returns to the fulfilment
-      // frame, which holds printer, bag and customer together.
-      if (['receipt-print', 'receipt-ready', 'receipt-ready-manual'].includes(deliveryPhase)) {
-        return 'receiptPrint';
-      }
-      return 'fulfillment';
-    }
-    if (workspace === 'scan') return 'scan';
-    if (workspace === 'card') {
-      // Briefly acknowledge the customer presentation, then use one fixed,
-      // readable terminal pose for insertion, amount entry, and processing.
-      const waiting = tx && tx.stage === 'card-present' && cardPresentationTimer > 0;
-      return waiting ? 'cardTake' : 'card';
-    }
-    if (workspace === 'cash') {
-      return 'cash';
-    }
-    // Before physical delivery starts, the paid receipt remains in the stable
-    // working frame. Active receipt/bag transfer is owned by fulfillment above.
-    if (activeTab === 'check-in') return 'checkin';
+    // THE CAMERA HOLDS STILL. Playtest 2026-07-30: "there is too much movement
+    // going on... it makes the player dizzy." The fulfilment pan, the receipt
+    // close-up and the card-terminal cut are all gone — scanning, payment
+    // presentation, printing and the handovers share the one working frame, and
+    // what needs attention comes TO the player (the reader lifts to the face
+    // for card entry; the printer now sits beside the POS in frame). The only
+    // camera moves left are the top-down drawer view — counting change on the
+    // counter genuinely needs it — and the check-in glass.
+    if (workspace === 'cash') return 'cash';
+    if (activeTab === 'check-in' && !(deliveryPhase && deliveryPhase !== 'released')) return 'checkin';
     return 'overview';
   }
 
@@ -6517,6 +6615,11 @@ export function createRegisterMode(B) {
       z: v.z - interior.position.z,
     });
     return { pose: poseBetween(toLocal(eyeWorld), toLocal(centre)), fov: fallback.fov };
+  }
+
+  function dynamicPose(key) {
+    if (key === 'checkin') return derivedCheckinPose();
+    return POSES[key] || POSES.overview;
   }
 
   // CARD ENTRY, DERIVED FROM THE READER'S OWN BOUNDING BOX (walk item: "camera
@@ -6574,22 +6677,6 @@ export function createRegisterMode(B) {
   // customer and entry closes in on the reader at its fixed counter station.
   // All other states keep their static presets.
   function dynamicPose(key) {
-    if (key === 'fulfillment') {
-      const p = fulfillmentHandoffPose(
-        customerLocalPosition(), REGISTER.printer, COUNTER_TOP,
-        REGISTER.bag, REGISTER.scannedStaging,
-      );
-      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
-    }
-    if (key === 'cardTake') {
-      const p = cardHandoffPose(customerLocalPosition(), COUNTER_TOP);
-      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
-    }
-    if (key === 'card') {
-      // The reader stays seated; only the camera closes in for a readable view.
-      return derivedCardTerminalPose();
-    }
-    if (key === 'receiptPrint') return derivedReceiptPrintPose();
     if (key === 'checkin') return derivedCheckinPose();
     return POSES[key] || POSES.overview;
   }
@@ -6678,7 +6765,13 @@ export function createRegisterMode(B) {
     // Scanner goods and monitor buttons stay fixed unless the player holds the
     // explicit Shift glance modifier. Hardware-focused workspaces retain the
     // eased neck motion used to glance between props.
-    if ((workspace === 'scan' || workspace === 'monitor') && !workingGlanceActive) {
+    // …and NOT while the reader floats at the face. The floated terminal holds
+    // one frozen anchor (playtest 2026-07-30: stillness), so a swaying camera
+    // under it makes every projected key drift as the cursor travels toward it
+    // — measured: the acceptance click on the reader's X sampled a stable point
+    // and the sway then moved the glass 34 px before the click landed.
+    if (((workspace === 'scan' || workspace === 'monitor') && !workingGlanceActive)
+      || terminalShouldFloat()) {
       lookYaw = 0;
       lookPitch = 0;
       lookTargetYaw = 0;
@@ -6697,6 +6790,7 @@ export function createRegisterMode(B) {
 
   function update(dt) {
     updateTerminalKeyPulses(dt);
+    updateTerminalFloat(dt);
     const animationDt = checkoutAnimationDelta(dt, accessibilityPrefs);
     // Settings are inaccessible while the register owns input, but a renderer
     // refresh can still replace the live value. Reassert without recapturing;
@@ -6887,7 +6981,10 @@ export function createRegisterMode(B) {
     };
   }
   const presentedCashScreenPoint = () => meshScreenPoint(tenderHandful);
-  const presentedCardScreenPoint = () => meshScreenPoint(cardMesh);
+  const presentedCardScreenPoint = () => {
+    const point = meshScreenPoint(cardMesh);
+    return point ? { ...point, clickable: !!(tx && tx.stage === 'card-ready') } : null;
+  };
   const cardTerminalScreenPoint = () => meshScreenPoint(termScreenPlane);
   const insertAt = () => ({
     start: { x: cardInsertStart.x, y: cardInsertStart.y, z: cardInsertStart.z },
@@ -6981,6 +7078,16 @@ export function createRegisterMode(B) {
     simplified: true,
     presentedCashScreenPoint,
     presentedCardScreenPoint,
+    // QA-only: the game's own X hit-test and screen UV at a page point, so a
+    // driver can measure the exact math a real click runs instead of rebuilding
+    // it outside and diverging (which is how a probe blamed the wrong canvas).
+    debugTerminalXAt: (x, y) => ({
+      hit: terminalXHitAt({ clientX: x, clientY: y }),
+      uv: terminalScreenUV({ clientX: x, clientY: y }),
+      canvasRect: (() => { const r = canvas.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })(),
+      xBox: TERM_X_BOX,
+      canvasSize: { w: TERM_CANVAS_W, h: TERM_CANVAS_H },
+    }),
     cardTerminalScreenPoint,
     insertAt,
     root,

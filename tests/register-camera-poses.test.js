@@ -1,6 +1,7 @@
-// Framing invariants for the card-payment camera. The handoff frames the
-// customer, then the entry camera moves close enough to read a reader that stays
-// physically seated on the counter. The reader itself never rises or floats.
+// Framing invariants for the checkout camera. Since the 2026-07-30 stillness
+// playtest the camera holds ONE working frame (plus the drawer view and the
+// check-in glass); the card reader now floats to the player for amount entry.
+// The pure pose functions below remain tested as geometry.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -154,20 +155,12 @@ test('handoff and terminal poses share one desk-local direction with no 180 spin
   assert.ok(Math.abs(handoff.eye.x - terminal.eye.x) < 1.2, 'eyes are near each other in x');
 });
 
-test('card presentation keeps the customer-facing pose until automatic insertion begins', () => {
+test('poseKey never cuts to the card: the reader floats instead (2026-07-30 stillness)', () => {
   const poseKey = functionBody(registerSource, 'poseKey');
-  assert.match(
-    poseKey,
-    /tx\.stage === 'card-present' && cardPresentationTimer > 0/,
-    'the customer presentation beat remains part of the card-take camera condition',
-  );
-  assert.match(
-    poseKey,
-    /return waiting \? 'cardTake' : 'card'/,
-    'the camera moves to the terminal only after the customer handoff clears',
-  );
+  assert.ok(!poseKey.includes("'cardTake'") && !poseKey.includes("return 'card'"),
+    'the card workspace must not own a camera pose — the terminal lifts to the player');
+  assert.match(registerSource, /function terminalShouldFloat\(/);
 });
-
 test('fixed register views and fallback payment handoffs follow the rotated desk frame', () => {
   const poseStart = registerSource.indexOf('const MIXED_POSE');
   const poseEnd = registerSource.indexOf('const CAMERA_TWEEN_SECONDS', poseStart);
@@ -311,38 +304,25 @@ test('mixed working camera contains the full bag, staged goods, and enlarged POS
   }
 });
 
-test('mixed working frame does not replace fulfillment, card, or cash views', () => {
+test('one working frame; only the drawer and check-in own another pose', () => {
   const posesStart = registerSource.indexOf('const POSES =');
   const posesEnd = registerSource.indexOf('const CAMERA_TWEEN_SECONDS', posesStart);
   const poses = registerSource.slice(posesStart, posesEnd);
   assert.match(poses, /overview: MIXED_POSE/);
-  assert.match(poses, /scan: MIXED_POSE/);
   assert.match(poses, /cash: \{ pose: poseBetween\(/,
     'the drawer retains its dedicated top-down hardware view');
-
+  // Playtest 2026-07-30: fulfilment, receipt and card cuts are gone. poseKey may
+  // return only cash / checkin / overview.
   const poseKey = functionBody(registerSource, 'poseKey');
-  const fulfillment = poseKey.indexOf("return 'fulfillment'");
-  const scan = poseKey.indexOf("return 'scan'");
-  const card = poseKey.indexOf("workspace === 'card'");
-  const cash = poseKey.indexOf("workspace === 'cash'");
-  assert.ok(fulfillment >= 0 && fulfillment < scan && scan < card && card < cash,
-    'fulfillment keeps highest precedence and payment workspaces remain state-specific');
-
+  for (const gone of ["'fulfillment'", "'receiptPrint'", "'cardTake'", "return 'scan'"]) {
+    assert.ok(!poseKey.includes(gone), `poseKey still routes to ${gone}`);
+  }
   const dynamicPose = functionBody(registerSource, 'dynamicPose');
-  assert.match(dynamicPose, /key === 'fulfillment'[\s\S]*?fulfillmentHandoffPose/);
-  assert.match(dynamicPose, /key === 'cardTake'[\s\S]*?cardHandoffPose/);
-  // 2026-07-30: the card view derives from the mounted reader's own bounding
-  // box (derivedCardTerminalPose), with cardTerminalPose kept as its fallback
-  // until the terminal GLB lands — so the authored pose must still be reachable
-  // INSIDE the derivation, not on the dynamicPose switch.
-  assert.match(dynamicPose, /key === 'card'[\s\S]*?derivedCardTerminalPose/);
-  const derived = functionBody(registerSource, 'derivedCardTerminalPose');
-  assert.match(derived, /cardTerminalPose\(CARD_STATION, COUNTER_TOP\)/,
-    'the authored pose remains the fallback before the reader mounts');
-  assert.match(derived, /setFromObject\(termObject\)/,
-    'and the live pose is measured from the reader itself');
+  assert.match(dynamicPose, /key === 'checkin'[\s\S]*?derivedCheckinPose/);
+  for (const gone of ['fulfillmentHandoffPose', 'cardHandoffPose', 'derivedCardTerminalPose']) {
+    assert.ok(!dynamicPose.includes(gone), `dynamicPose still routes through ${gone}`);
+  }
 });
-
 test('register prop choreography keeps world offsets and orientations in the desk frame', () => {
   const offsetHelper = functionBody(registerSource, 'frontDeskOffsetVector3');
   assert.match(offsetHelper, /frontDeskVector\(localX, localZ\)/,
@@ -493,23 +473,7 @@ test('receipt printing accepts only geometry whose long edge follows the feed ax
   assert.equal(receiptGeometryUsesFeedAxis({ x: 0.075, y: Number.NaN, z: 0.03 }), false);
 });
 
-test('fulfilment frames the bag, paid goods, right-side printer, and customer palms from the staff side', () => {
-  const pose = fulfillmentHandoffPose(
-    CUSTOMER, REGISTER.printer, COUNTER_TOP, REGISTER.bag, REGISTER.scannedStaging,
-  );
-  const eye = frontDeskLocalPoint(pose.eye.x, pose.eye.z);
-  const look = frontDeskLocalPoint(pose.look.x, pose.look.z);
-  const customer = frontDeskLocalPoint(CUSTOMER.x, CUSTOMER.z);
-  const printer = frontDeskLocalPoint(REGISTER.printer.x, REGISTER.printer.z);
-  const bag = frontDeskLocalPoint(REGISTER.bag.x, REGISTER.bag.z);
-  assert.ok(eye.z > 1.3 && eye.z < 1.55,
-    'the fulfilment eye stays behind the counter without pulling back across the room');
-  assert.ok(look.z < eye.z, 'the view looks across the counter');
-  assert.ok(look.x > Math.min(customer.x, printer.x, bag.x)
-    && look.x < Math.max(customer.x, printer.x, bag.x),
-  'the aim sits inside the full bag/customer/printer span in desk space');
-  assert.ok(pose.look.y > COUNTER_TOP && pose.look.y < COUNTER_TOP + 0.30,
-    'the aim follows the receipt and handoff height');
-  assert.ok(pose.fov >= 51 && pose.fov <= 53,
-    'the bag, printer, and both customer grips fit a close working frame');
-});
+// The fulfilment projection test retired 2026-07-30: the runtime no longer uses
+// fulfillmentHandoffPose (the camera holds the working frame through printing and
+// handover), and pinning an unused pose against the moved printer datum would be
+// pinning dead code. registerCameraPoses.js keeps the function for reference.
