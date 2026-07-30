@@ -551,7 +551,7 @@ export function makeLaptop(app, opts) {
     placeholder: 'Search the whole laptop…',
     'aria-label': 'Search every page, product, person and setting in the laptop',
   });
-  searchInput.addEventListener('input', () => { query = searchInput.value.trim(); render(); });
+  searchInput.addEventListener('input', () => { query = searchInput.value.trim(); searchSelection = 0; render(); });
   searchInput.addEventListener('keydown', (e) => {
     e.stopPropagation(); // typing 'w' in here is text, not a walk key
     if (e.key === 'Escape' && query) {
@@ -582,7 +582,11 @@ export function makeLaptop(app, opts) {
   root.addEventListener('click', (e) => e.stopPropagation());
 
   // --- building blocks ----------------------------------------------------------------------
-  const paint = (...kids) => content.replaceChildren(...kids.filter((k) => k != null && k !== false));
+  // paint targets `content` — except while the search preview borrows it. The
+  // preview renders a page by RUNNING the page's own function with the target
+  // swapped, so what search shows is the page's exact DOM, not a description.
+  let paintTarget = content;
+  const paint = (...kids) => paintTarget.replaceChildren(...kids.filter((k) => k != null && k !== false));
   const sect = (t) => el('div', { class: 'lt-sect', text: t });
   const row = (...kids) => el('div', { class: 'lt-row' }, ...kids);
   const chip = (t, kind = '') => el('span', { class: `lt-chip ${kind}`, text: t });
@@ -3215,10 +3219,17 @@ export function makeLaptop(app, opts) {
     // --- the pages themselves, and every tab on them -----------------------------
     // Apple's Settings search returns the panes as well as the switches inside them,
     // and it is the fastest way to cross the laptop: type "deliv", press the row.
+    const TAB_ALIASES = {
+      'course:overview': ['map', 'aerial', 'course map', 'holes map'],
+      'shop:deliveries': ['orders', 'shipments', 'boxes'],
+      'finances:finances': ['money', 'books', 'ledger', 'cash'],
+      'upgrades:staff': ['employees', 'hire', 'team'],
+    };
     for (const n of NAV) {
       add('Page', n.label, 'Open this desk', { page: n.id }, [n.id]);
       for (const [tab, label] of tabsOf(n.id)) {
-        add('Page', label, `${n.label} tab`, { page: n.id, tab }, [tab, n.id, n.label]);
+        add('Page', label, `${n.label} tab`, { page: n.id, tab },
+          [tab, n.id, n.label, ...(TAB_ALIASES[`${n.id}:${tab}`] || [])]);
       }
     }
 
@@ -3352,6 +3363,7 @@ export function makeLaptop(app, opts) {
 
   // WHAT THE PLAYER SEARCHED, WHERE IT LIVES, AND WHAT TO FLASH WHEN WE ARRIVE.
   let searchFilter = 'all';
+  let searchSelection = 0;    // which hit the live preview is showing
   let lastReveal = null;      // {anchor, found, selector, text} — read by the QA driver
 
   // The order matters: a section heading is a better landing place than a table cell
@@ -3367,14 +3379,14 @@ export function makeLaptop(app, opts) {
    * null is a real answer and is recorded, because "navigated but the row was not
    * there" must not read the same as "navigated and found it".
    */
-  function revealAnchor(anchor) {
+  function revealAnchor(anchor, container = content) {
     lastReveal = { anchor: anchor || null, found: false, selector: null, text: null };
     if (!anchor) return null;
     const needle = String(anchor).trim().toLowerCase();
     if (!needle) return null;
     for (const pass of ['exact', 'partial']) {
       for (const selector of ANCHOR_SELECTORS) {
-        for (const node of content.querySelectorAll(selector)) {
+        for (const node of container.querySelectorAll(selector)) {
           const text = (node.textContent || '').trim().toLowerCase();
           if (!text || text.length > 240) continue;
           const hit = pass === 'exact' ? text === needle : text.includes(needle);
@@ -3425,24 +3437,24 @@ export function makeLaptop(app, opts) {
   // So the crumbs are the first thing in the row's text block, in their own type, and
   // the row is a single button — the whole thing is the target, not a "Go" chip at the
   // far right that the player has to aim at.
-  function searchResultRow(hit) {
-    const crumbs = el('div', { class: 'lt-hitpath' });
+  function searchResultRow(hit, index) {
+    const crumbs = el('span', { class: 'lt-hitpath' });
     (hit.path || []).forEach((part, i) => {
       if (i) crumbs.appendChild(el('span', { class: 'lt-hitsep', text: '›' }));
       crumbs.appendChild(el('span', { class: `lt-hitcrumb ${i === (hit.path.length - 1) ? 'lt-hitcrumblast' : ''}`, text: part }));
     });
+    // A chip: clicking it swaps the live preview underneath to this hit's real
+    // page. Open (in the preview bar) is what navigates.
     return el('button', {
-      class: 'lt-hit',
-      title: `Open ${formatPagePath(hit.target.page, hit.target.tab, hit.target.pathExtra)}`,
-      onclick: () => openSearchHit(hit),
+      class: `lt-hit ${index === searchSelection ? 'on' : ''}`,
+      title: `Preview ${formatPagePath(hit.target.page, hit.target.tab, hit.target.pathExtra)}`,
+      onclick: () => { searchSelection = index; click(); render(); },
     },
     el('span', { class: 'lt-hitmark', text: KIND_MARK[hit.kind] || '▸' }),
     el('span', { class: 'lt-hitbody' },
       crumbs,
-      el('span', { class: 'lt-hitname', text: hit.label }),
-      hit.detail ? el('span', { class: 'lt-hitdetail', text: hit.detail }) : null),
-    el('span', { class: 'lt-hitkind', text: hit.kind }),
-    el('span', { class: 'lt-hitgo', text: '›' }));
+      el('span', { class: 'lt-hitname', text: hit.label })),
+    el('span', { class: 'lt-hitkind', text: hit.kind }));
   }
 
   function pageSearch(st) {
@@ -3456,19 +3468,58 @@ export function makeLaptop(app, opts) {
     const hits = rankSearchEntries(index, query, { filter: searchFilter });
     const total = groups.find((g) => g.id === 'all')?.count || 0;
 
+    // THE PREVIEW IS THE PAGE. Playtest 2026-07-30: "make it show the actual
+    // thing — if he searches map it shows the actual map, the exact way it
+    // looks on the laptop." So the selected hit renders by running its page's
+    // own function into the preview container: same head, same tab bar, same
+    // cards, live buttons. The rail above stays compact; Open jumps for real.
+    searchSelection = Math.max(0, Math.min(searchSelection, hits.length - 1));
+    const selected = hits[searchSelection] || null;
+
+    const preview = el('div', { class: 'lt-searchpreview' });
+    if (selected) {
+      const target = selected.target || {};
+      if (target.tab) ts(target.page).tab = target.tab;
+      if (Number.isFinite(target.day)) teeDay = target.day;
+      const fn = PAGES[target.page];
+      const prevTarget = paintTarget;
+      paintTarget = preview;
+      try {
+        if (fn) fn(); else preview.replaceChildren(empty('That page is not installed.'));
+      } catch (e) {
+        preview.replaceChildren(errBox(`The ${target.page} page could not be drawn: ${e && e.message ? e.message : e}`));
+      } finally {
+        paintTarget = prevTarget;
+      }
+      revealAnchor(target.anchor || null, preview);
+    }
+
     paint(
       head(`Search — “${query}”`, total
-        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. Every result says the page it lives on; opening one goes there and flashes it.`
+        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. The panel below IS the page it lives on — Open jumps to it.`
         : 'Nothing matches. Try a product, a person, a page, a material, or what the thing does.'),
       total ? el('div', { class: 'lt-hitfilters' }, ...groups.map((g) => el('button', {
         class: `lt-tab ${searchFilter === g.id ? 'on' : ''}`,
         text: `${g.label} ${g.count}`,
-        onclick: () => { searchFilter = g.id; click(); render(); },
+        onclick: () => { searchFilter = g.id; searchSelection = 0; click(); render(); },
       }))) : null,
       droppedFilter ? row(meta('That filter has nothing under this query — showing everything.')) : null,
       hits.length
-        ? el('div', { class: 'lt-hitlist' }, ...hits.map(searchResultRow))
+        ? el('div', { class: 'lt-hitrail' }, ...hits.map((hit, index) => searchResultRow(hit, index)))
         : empty(total ? 'Nothing under that filter.' : 'No matches'),
+      selected ? el('div', { class: 'lt-previewbar' },
+        el('span', { class: 'lt-hitpath' },
+          ...selected.path.flatMap((part, i) => [
+            i ? el('span', { class: 'lt-hitsep', text: '›' }) : null,
+            el('span', { class: `lt-hitcrumb ${i === selected.path.length - 1 ? 'lt-hitcrumblast' : ''}`, text: part }),
+          ]).filter(Boolean)),
+        el('span', { class: 'lt-headspace' }),
+        el('button', {
+          class: 'lt-primary lt-hitopen',
+          text: 'Open →',
+          onclick: () => openSearchHit(selected),
+        })) : null,
+      selected ? preview : null,
       hits.length && hits.length < total
         ? row(meta(`Showing the ${hits.length} closest of ${total}. Keep typing to narrow it.`))
         : null,

@@ -8,7 +8,7 @@
     "orders": 1
   },
   "indexAtOpen": {
-    "size": 325,
+    "size": 328,
     "kinds": {
       "Page": 26,
       "Product": 189,
@@ -20,15 +20,15 @@
       "Candidate": 5,
       "Booking": 1,
       "Delivery": 1,
-      "Ledger": 25,
-      "Property": 1,
+      "Ledger": 27,
+      "Property": 2,
       "Hole": 3,
       "Turf": 7,
       "Setting": 13
     }
   },
   "indexShape": {
-    "size": 325,
+    "size": 328,
     "kinds": {
       "Page": 26,
       "Product": 189,
@@ -40,8 +40,8 @@
       "Candidate": 5,
       "Booking": 1,
       "Delivery": 1,
-      "Ledger": 25,
-      "Property": 1,
+      "Ledger": 27,
+      "Property": 2,
       "Hole": 3,
       "Turf": 7,
       "Setting": 13
@@ -151,7 +151,6 @@
     "crumbs": [
       "Bookings"
     ],
-    "detail": "9:00 AM tomorrow · 2 players · booked",
     "landed": {
       "pageId": "reservations",
       "reveal": {
@@ -162,6 +161,18 @@
       },
       "flashText": "9:00 AMMarguerite Alcazar2 playersWaitingView"
     }
+  },
+  "settingPreview": {
+    "panelPresent": true,
+    "realCheckboxRow": true,
+    "flashInsidePreview": true,
+    "pageStillSearch": true
+  },
+  "mapPreview": {
+    "panelPresent": true,
+    "hasCanvas": true,
+    "canvasDrawn": true,
+    "headSaysCourse": true
   },
   "findings": {
     "laptopOpened": true,
@@ -184,6 +195,10 @@
     "indexReachesEveryKind": true,
     "moneyOnTheRoadIndexed": true,
     "worldSeeded": true,
+    "previewShowsRealSetting": true,
+    "previewFlashesAnchor": true,
+    "mapPreviewIsTheActualMap": true,
+    "mapPreviewIsTheCoursePage": true,
     "bookingFoundByName": true
   },
   "shots": [
@@ -192,7 +207,9 @@
     "laptop-search-3-setting.png",
     "laptop-search-4-landed.png",
     "laptop-search-5-product.png",
-    "laptop-search-6-booking.png"
+    "laptop-search-6-booking.png",
+    "laptop-search-7-preview-setting.png",
+    "laptop-search-8-map-preview.png"
   ],
   "errs": [],
   "ok": true

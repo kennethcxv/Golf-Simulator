@@ -290,40 +290,53 @@ test('typing produces results with no submit, and every row names its page', () 
   assert.equal(crumbs[0], 'Pro Shop', `the top hit for "deliveries" should live in the Pro Shop, not ${crumbs}`);
 });
 
-test('selecting a result navigates to its page, its tab, and flashes the row', () => {
+test('a chip previews the REAL page; Open navigates and flashes the row', () => {
+  // 2026-07-30: "make it show the actual thing." A chip click renders the
+  // destination page's own DOM into the preview panel — same builder, live
+  // buttons — and the Open button is what navigates.
   const lap = openLaptop(livedInClub());
   typeQuery(lap, 'Pine Hills cap');
   const rows = collect(lap.root, 'lt-hit');
   const target = rows.find((r) => r.textContent.includes('Pine Hills cap'));
   assert.ok(target, 'the cap must be findable by its own name');
   target.click();
-  assert.equal(lap.pageId(), 'shop', 'the cap lives in the Pro Shop');
+  assert.ok(collect(lap.root, 'lt-searchpreview').length === 1, 'the preview panel renders');
+  const preview = collect(lap.root, 'lt-searchpreview')[0];
+  assert.match(preview.textContent, /Pine Hills cap/, 'the preview carries the real inventory row');
+  const open = collect(lap.root, 'lt-hitopen')[0];
+  assert.ok(open, 'the preview bar offers Open');
+  open.click();
+  assert.equal(lap.pageId(), 'shop', 'Open navigates to the Pro Shop');
   const reveal = lap.lastSearchReveal();
-  assert.ok(reveal, 'the reveal must be recorded');
   assert.equal(reveal.anchor, 'Pine Hills cap');
   assert.equal(reveal.found, true, `navigated but never found the row: ${JSON.stringify(reveal)}`);
-  // …and something on the page carries the flash class.
-  const flashed = collect(lap.root, 'lt-searchhit');
-  assert.ok(flashed.length >= 1, 'the destination row must be marked');
-  assert.match(flashed[0].textContent, /Pine Hills cap/);
 });
-
-test('a settings switch is findable by what it does and lands on the right tab', () => {
+test('a settings switch previews as the real checkbox row and Open lands on its tab', () => {
   const lap = openLaptop(livedInClub());
   typeQuery(lap, 'exact change');
   const rows = collect(lap.root, 'lt-hit');
   const target = rows.find((r) => r.textContent.includes('Automatic exact change'));
   assert.ok(target, '"exact change" must find the checkout switch');
-  // Read the crumbs as elements, not as the row's flattened text: in the real DOM they are
-  // flex items separated by gap, and the mini DOM joins textContent with no separator.
   const crumbs = target.querySelectorAll('.lt-hitcrumb').map((n) => n.textContent);
   assert.deepEqual(crumbs, ['Settings', 'Checkout']);
   target.click();
+  const preview = collect(lap.root, 'lt-searchpreview')[0];
+  assert.ok(preview, 'the preview panel renders');
+  // The REAL row: a label wrapping an actual checkbox input, not a description.
+  let realRow = false;
+  walk(preview, (node) => {
+    if (node.tagName === 'label' && node.textContent.includes('Automatic exact change')) {
+      walk(node, (child) => {
+        if (child.tagName === 'input' && child.attrs.type === 'checkbox') realRow = true;
+      });
+    }
+  });
+  assert.ok(realRow, 'the preview carries the actual switch, checkbox and all');
+  assert.ok(collect(preview, 'lt-searchhit').length >= 1, 'and the anchor flashes inside the preview');
+  collect(lap.root, 'lt-hitopen')[0].click();
   assert.equal(lap.pageId(), 'settings');
-  const reveal = lap.lastSearchReveal();
-  assert.equal(reveal.found, true, `the switch was not on the page it claimed: ${JSON.stringify(reveal)}`);
+  assert.equal(lap.lastSearchReveal().found, true);
 });
-
 test('NEGATIVE CONTROL — an anchor that is not on the destination reports found:false', () => {
   // The instrument has to be able to say no. If revealAnchor claimed a hit for anything, all
   // three tests above would pass with the highlight wired to nothing at all.

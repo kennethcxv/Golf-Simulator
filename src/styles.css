@@ -2585,6 +2585,28 @@ body.register-mode .view-toggle { display: none !important; }
 }
 .lt-hitgo { color: var(--lt-dim); flex: 0 0 auto; font-size: 1.1em; }
 
+/* THE PREVIEW IS THE PAGE (2026-07-30). The rail compacts into chips; the panel
+   below renders the selected hit's real page DOM — same head, same cards. */
+.lt-hitrail {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.lt-hitrail .lt-hit { width: auto; flex: 0 0 auto; max-width: 240px; padding: 6px 10px; }
+.lt-hitrail .lt-hit.on { border-color: var(--lt-blue); background: var(--lt-bluebg); }
+.lt-hitrail .lt-hitname { max-width: 170px; }
+.lt-previewbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin-top: 4px;
+  background: var(--lt-panel); border: 1px solid var(--lt-edge);
+  border-bottom: 0; border-radius: 8px 8px 0 0;
+}
+.lt-previewbar .lt-primary { padding: 6px 14px; }
+.lt-searchpreview {
+  border: 1px solid var(--lt-edge); border-radius: 0 0 8px 8px;
+  background: var(--lt-bg); padding: 12px 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
 /* The landing flash. Selecting a result navigates and then marks the row it meant, because
    arriving on a page of forty rows without being told which one is not an answer. */
 .lt-searchhit {
