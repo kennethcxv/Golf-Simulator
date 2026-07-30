@@ -47,6 +47,7 @@ import {
   pickFromShelf,
   returnToShelf,
 } from '../src/sim/checkout.js';
+import { salesTaxOn, salesTaxRate } from '../src/sim/salesTax.js';
 
 function setup(seed = 7100) {
   const state = newGame('relaxed', seed);
@@ -289,8 +290,12 @@ test('matrix: partial/full shelf, leftovers, abandonment and paid sale stay cons
     { uid: 'sale-b', skuId: 'balls2', price: 28 },
   ], 'Matrix customer');
   assert.equal(sale.ok, true);
-  assert.equal(sale.total, 56);
-  assert.equal(state.cash, cash + 56);
+  // The customer pays goods + this property's sales tax; the shop earns the goods. Both halves
+  // are checked so a change to either the rate or the split lands here.
+  assert.equal(sale.net, 56, 'two units at 28 is what the shop earned');
+  assert.equal(sale.tax, salesTaxOn(56, salesTaxRate(state)));
+  assert.equal(sale.total, Math.round((56 + sale.tax) * 100) / 100);
+  assert.equal(Math.round((state.cash - cash) * 100) / 100, sale.total, 'cash rose by the ticket');
   assert.equal(inventoryPosition(state, 'balls2').sold, 2);
   assert.equal(inventoryPosition(state, 'balls2').customerHeld, 0);
   assertReconciled(state, 'successful-mixed-item-sale');

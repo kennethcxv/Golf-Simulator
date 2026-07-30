@@ -81,6 +81,11 @@ export function createReservationCheckInTx(state, reservationId, {
     prefer: method,
     rng,
   });
+  // NO SALES TAX ON THE GREEN FEE. The brief scoped the tax to pro-shop sales — tangible
+  // merchandise — and createTx defaults taxRate to 0, so this ticket charges the fee and
+  // nothing else. Whether a round of golf is a taxable service varies by state and is not a
+  // thing to guess at inside a check-in.
+  //
   // It is a virtual line on the shared monitor, not a physical product.  Marking
   // it scanned lets the existing requestPayment/card/cash APIs run unchanged.
   tx.items[0].scanned = true;

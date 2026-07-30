@@ -11,6 +11,7 @@ import {
   preflightLedgerEntry,
   recordOutcome,
 } from './economy.js';
+import { accrueSalesTax, preflightSalesTaxAccrual, salesTaxOn, salesTaxRate } from './salesTax.js';
 import { skuById } from '../data/shopItems.js';
 import { shelfCapacity, skuDisplayIsPlaced } from './shop.js';
 import {
@@ -377,11 +378,24 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
   if (state.ledger?.processedIds?.[saleKey]) {
     return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
   }
+  // TAX GOES ON TOP, exactly as at the physical register.
+  //
+  // `total` above is the GOODS — shelf prices, which are pre-tax, same as register.subtotal().
+  // The customer pays goods + tax, revenue is the goods, and the tax is the state's. An earlier
+  // draft of this backed the tax OUT of `total` instead, which silently reinterpreted shelf
+  // prices as tax-inclusive and understated every sale by the tax.
+  const saleRevenue = total;
+  const taxRate = Number.isFinite(Number(options.taxRate)) ? Math.max(0, Number(options.taxRate)) : salesTaxRate(state);
+  const saleTax = Number.isFinite(Number(options.tax))
+    ? Math.round(Number(options.tax) * 100) / 100
+    : salesTaxOn(saleRevenue, taxRate);
+  const ticketTotal = Math.round((saleRevenue + saleTax) * 100) / 100;
+  const taxKey = `checkout:${id}:salestax`;
   const revenuePreflight = preflightLedgerEntry(state, {
     direction: 'revenue',
     lineKey: 'shopSales',
     category: 'shopSales',
-    amount: total,
+    amount: saleRevenue,
     idempotencyKey: saleKey,
     relatedId: id,
   });
@@ -424,7 +438,14 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
     if (index >= 0) heldLedger.splice(index, 1);
     forgetHeldAllocations(state, held.uid);
   }
-  const bank = addRevenue(state, 'shopSales', total, {
+  if (saleTax > 0) {
+    const taxPreflight = preflightSalesTaxAccrual(state, saleTax, { idempotencyKey: taxKey, relatedId: id });
+    if (!taxPreflight.ok) return taxPreflight;
+    if (taxPreflight.duplicate) {
+      return { ok: false, reason: 'The sales tax was already booked without this sale.', duplicate: true };
+    }
+  }
+  const bank = addRevenue(state, 'shopSales', saleRevenue, {
     idempotencyKey: saleKey,
     relatedId: id,
     description: `Register sale â€” ${who}`,
@@ -435,6 +456,17 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
   });
   if (!bank.ok || bank.duplicate) {
     return { ok: false, reason: bank.duplicate ? 'Already banked.' : bank.reason, duplicate: !!bank.duplicate };
+  }
+  if (saleTax > 0) {
+    accrueSalesTax(state, saleTax, {
+      idempotencyKey: taxKey,
+      relatedId: id,
+      description: `Sales tax collected — ${who}`,
+      source: 'checkout',
+      customerCount: 1,
+      taxableSales: saleRevenue,
+      metadata: { taxRate, ticketTotal },
+    });
   }
   if (goodsCost > 0) {
     const cogs = addCostOfGoods(state, goodsCost, {
@@ -450,7 +482,7 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
   }
   const live = liveSales(state);
   live.units += items.length;
-  live.revenue = Math.round((live.revenue + total) * 100) / 100;
+  live.revenue = Math.round((live.revenue + saleRevenue) * 100) / 100; // goods, not the state's cut
   if (!state.shop.salesToday) state.shop.salesToday = {};
   for (const item of items) {
     state.shop.salesToday[item.skuId] = (state.shop.salesToday[item.skuId] || 0) + 1;
@@ -459,7 +491,7 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
     idempotencyKey: `checkout:${id}:completed`,
     type: 'checkoutCompleted',
     count: 1,
-    amount: total,
+    amount: ticketTotal,
     relatedId: id,
     reason: `${who} completed a register purchase with ${items.length} item${items.length === 1 ? '' : 's'}.`,
     metadata: { units: items.length },
@@ -468,8 +500,16 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
     const s = skuById(i.skuId);
     return s ? s.name : i.skuId;
   });
-  state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
+  state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(ticketTotal)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();
   if (generatedTransactionId) state.shop.nextTransactionId = nextTransactionId + 1;
-  return { ok: true, total, transactionId: id, ledgerEntryId: bank.entry?.id || null };
+  return {
+    ok: true,
+    total: ticketTotal,   // what the customer handed over
+    goods: saleRevenue,   // what the shop earned
+    net: saleRevenue,
+    tax: saleTax,
+    transactionId: id,
+    ledgerEntryId: bank.entry?.id || null,
+  };
 }

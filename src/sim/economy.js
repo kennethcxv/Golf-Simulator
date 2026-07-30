@@ -52,6 +52,10 @@ export const LEDGER_LABELS = {
   checkoutShortage: 'Checkout shortage',
   bookingRefunds: 'Booking refunds',
   costOfGoods: 'Cost of goods sold',
+  // Held for the state, not earned. Both post with profitImpact 0 and no revenue/expense
+  // aggregate, so they move CASH without ever touching the day's profit — see sim/salesTax.js.
+  salesTaxCollected: 'Sales tax collected',
+  salesTaxRemitted: 'Sales tax remitted',
 };
 
 const CAPITAL_LINES = new Set(['works', 'rentalFleet', 'equipment']);

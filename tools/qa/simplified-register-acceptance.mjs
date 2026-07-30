@@ -72,6 +72,7 @@ async function setupFixture(page, mode) {
     const before = {
       cash: app.state.cash,
       ledgerShopSales: app.state.ledger?.today?.revenue?.shopSales || 0,
+      salesTaxOwed: Math.round((app.state.salesTax?.owed || 0) * 100) / 100,
       reviews: app.state.club?.reviews?.length || 0,
       reputation: app.state.club?.reputation || 0,
       units: (shop.salesLive || {}).units || 0,
@@ -535,16 +536,39 @@ async function cashRoute(page, shot) {
   }, null, { timeout: 7000 });
   const cashFacts = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
+    const tax = await import('/src/sim/salesTax.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
+      subtotal: register.subtotal(tx),
+      net: register.netOf(tx),
+      tax: register.taxOf(tx),
+      taxRate: tx.taxRate,
+      jurisdiction: tax.taxJurisdictionLabel(window.__fw.state),
       total: register.cashTotalOf(tx),
       tendered: register.stackTotal(tx.tendered),
       change: register.changeDue(tx),
     };
   });
-  assert(cashFacts.total === 35.72, `Expected exact cash total $35.72, got $${cashFacts.total}.`);
-  assert(cashFacts.tendered === 40, `Expected $40.00 tender, got $${cashFacts.tendered}.`);
-  assert(cashFacts.change === 4.28, `Expected $4.28 change, got $${cashFacts.change}.`);
+  // THE THREE FIXED SKUS COME TO $35.72 IN GOODS, AND THE CUSTOMER PAYS THAT PLUS SALES TAX.
+  //
+  // This used to assert $35.72 as the total. From 2026-07-29 the till adds the property's
+  // state rate (data/salesTax.js), and on the bootstrapped Pine Hills that is North Carolina
+  // at 7% — so the goods figure is the constant and the ticket is derived from it. Asserting
+  // both is the point: a broken split shows as goods drifting, a broken rate as tax drifting.
+  assert(cashFacts.net === 35.72, `Expected $35.72 of goods, got $${cashFacts.net}.`);
+  const expectedTax = Math.round(Math.round(cashFacts.net * 100) * cashFacts.taxRate) / 100;
+  assert(cashFacts.tax === expectedTax,
+    `Expected $${expectedTax.toFixed(2)} tax at ${(cashFacts.taxRate * 100).toFixed(2)}% (${cashFacts.jurisdiction}), got $${cashFacts.tax}.`);
+  const expectedTotal = Math.round((cashFacts.net + expectedTax) * 100) / 100;
+  assert(cashFacts.total === expectedTotal,
+    `Expected exact cash total $${expectedTotal.toFixed(2)}, got $${cashFacts.total}.`);
+  // The wallet step is driven off the total, so the tender and change follow from it rather
+  // than from a memorised pair. What must hold is that the customer covers the ticket and the
+  // change is exactly the difference — which is where the sub-dollar coins now come from.
+  assert(cashFacts.tendered >= cashFacts.total,
+    `The customer handed over $${cashFacts.tendered}, less than the $${cashFacts.total} ticket.`);
+  assert(cashFacts.change === Math.round((cashFacts.tendered - cashFacts.total) * 100) / 100,
+    `Change $${cashFacts.change} is not the difference between $${cashFacts.tendered} and $${cashFacts.total}.`);
   // the cash is offered IN the customer's hand inside the mixed working frame —
   // the camera only moves once the drawer actually opens
   const handful = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint());
@@ -658,14 +682,28 @@ async function cashRoute(page, shot) {
   }, null, { timeout: 8000 });
   await shot('10-received-cash-sorted.png');
 
-  const plan = await page.evaluate(async () => {
+  const changePlan = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return register.makeChangeFrom(register.drawerContents(tx, window.__fw.state.shop.drawer), register.changeDue(tx));
+    const due = register.changeDue(tx);
+    const plan = register.makeChangeFrom(register.drawerContents(tx, window.__fw.state.shop.drawer), due);
+    const coinPieces = Object.entries(plan || {})
+      .filter(([denom]) => Number(denom) < 1)
+      .reduce((sum, [, count]) => sum + count, 0);
+    return { due, plan, coinPieces, planTotal: register.stackTotal(plan || {}) };
   });
+  const plan = changePlan.plan;
   assert(plan, 'The drawer cannot make the required change.');
-  assert(JSON.stringify(plan) === JSON.stringify({ 1: 4, 0.2: 1, 0.05: 1, 0.01: 3 }),
-    `Expected the exact $4.28 plan, got ${JSON.stringify(plan)}.`);
+  // THE PLAN MUST ADD UP, AND IT MUST INCLUDE COINS.
+  //
+  // This used to pin the literal {1:4, 0.2:1, 0.05:1, 0.01:3} — the $4.28 that an untaxed
+  // $35.72 ticket produced. The ticket is now taxed, so the plan is derived; what is asserted
+  // instead is the property that made the tax worth adding. Reported 2026-07-29: "I have never
+  // once had to give change under a dollar." A whole-dollar-only plan here is a regression.
+  assert(Math.abs(changePlan.planTotal - changePlan.due) < 0.005,
+    `The change plan totals $${changePlan.planTotal} against $${changePlan.due} due.`);
+  assert(changePlan.coinPieces > 0,
+    `A taxed ticket must produce sub-dollar change; the plan for $${changePlan.due} was all notes: ${JSON.stringify(plan)}.`);
 
   const givingFacts = () => page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
@@ -743,17 +781,30 @@ async function cashRoute(page, shot) {
     await page.waitForTimeout(180);
   };
 
-  // Count $4.27 first: one cent under keeps the visible Done button disabled.
-  await selectFromSlot(1, 4);
-  await selectFromSlot(0.2);
-  await selectFromSlot(0.05);
-  await selectFromSlot(0.01, 2);
+  // ONE CENT UNDER, DERIVED — because the amount owed is no longer a constant.
+  //
+  // This block used to count a literal $4.27 out of the drawer, which was one cent under the
+  // $4.28 an untaxed $35.72 ticket produced. The ticket is taxed from 2026-07-29, so the plan
+  // for (required - 1) is asked of the register itself and clicked through. What is tested is
+  // unchanged: short by exactly one cent must keep Done disabled.
+  const requiredCents = (await givingFacts()).requiredCents;
+  const underPlan = await page.evaluate(async (cents) => {
+    const register = await import('/src/sim/register.js');
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return register.makeChangeFrom(
+      register.drawerContents(tx, window.__fw.state.shop.drawer), cents / 100,
+    );
+  }, requiredCents - 1);
+  assert(underPlan, `The drawer cannot make ${requiredCents - 1} cents to test the short state.`);
+  for (const [rawDenom, count] of Object.entries(underPlan)) {
+    await selectFromSlot(Number(rawDenom), count);
+  }
   const under = await givingFacts();
   assert(under.stage === 'cash-drawer' && under.drawerOpen && under.deposited,
     `Under-change setup left the active drawer: ${JSON.stringify(under)}.`);
-  assert(under.givingState === 'short' && under.requiredCents === 428
-      && under.givingCents === 427 && under.deltaCents === -1,
-  `Expected $4.27 to be one cent short: ${JSON.stringify(under)}.`);
+  assert(under.givingState === 'short' && under.requiredCents === requiredCents
+      && under.givingCents === requiredCents - 1 && under.deltaCents === -1,
+  `Expected ${requiredCents - 1} cents to be one cent short: ${JSON.stringify(under)}.`);
   await shot('10b-change-under-by-one-cent.png');
   const underDone = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.monitorHotspots()
@@ -762,7 +813,7 @@ async function cashRoute(page, shot) {
   assert(underDone?.disabled, 'Done was enabled while the selected change was short.');
   const underRejected = await givingFacts();
   assert(underRejected.stage === 'cash-drawer' && underRejected.drawerOpen
-      && underRejected.givingState === 'short' && underRejected.givingCents === 427,
+      && underRejected.givingState === 'short' && underRejected.givingCents === requiredCents - 1,
   `Short change escaped the open drawer: ${JSON.stringify(underRejected)}.`);
   await shot('10c-under-change-done-disabled.png');
   // Let the short-change toast finish before photographing the allowed and
@@ -776,7 +827,7 @@ async function cashRoute(page, shot) {
   await selectFromSlot(0.01);
   const allowedOver = await givingFacts();
   assert(allowedOver.stage === 'cash-drawer' && allowedOver.drawerOpen
-      && allowedOver.givingState === 'over' && allowedOver.givingCents === 928
+      && allowedOver.givingState === 'over' && allowedOver.givingCents === requiredCents + 500
       && allowedOver.deltaCents === 500,
   `The exact $5.00 over-change boundary was not allowed: ${JSON.stringify(allowedOver)}.`);
   await shot('10d-over-change-at-five-dollar-limit.png');
@@ -784,7 +835,7 @@ async function cashRoute(page, shot) {
   await selectFromSlot(0.01);
   const excess = await givingFacts();
   assert(excess.stage === 'cash-drawer' && excess.drawerOpen
-      && excess.givingState === 'excess' && excess.givingCents === 929
+      && excess.givingState === 'excess' && excess.givingCents === requiredCents + 501
       && excess.deltaCents === 501,
   `The $5.01 over-change boundary was not excessive: ${JSON.stringify(excess)}.`);
   await shot('10e-excess-change-over-five-dollar-limit.png');
@@ -795,7 +846,7 @@ async function cashRoute(page, shot) {
   assert(excessDone?.disabled, 'Done was enabled above the maximum allowed extra change.');
   const excessRejected = await givingFacts();
   assert(excessRejected.stage === 'cash-drawer' && excessRejected.drawerOpen
-      && excessRejected.givingState === 'excess' && excessRejected.givingCents === 929,
+      && excessRejected.givingState === 'excess' && excessRejected.givingCents === requiredCents + 501,
   `Excess change escaped the open drawer: ${JSON.stringify(excessRejected)}.`);
   await shot('10f-excess-change-done-disabled.png');
 
@@ -804,13 +855,13 @@ async function cashRoute(page, shot) {
   await cashMonitorClick('undo-change');
   const undone = await givingFacts();
   assert(undone.stage === 'cash-drawer' && undone.drawerOpen
-      && undone.givingState === 'over' && undone.givingCents === 928
+      && undone.givingState === 'over' && undone.givingCents === requiredCents + 500
       && undone.deltaCents === 500,
   `Undo did not restore the allowed over-change boundary: ${JSON.stringify(undone)}.`);
   await shot('10g-undo-restored-allowed-change.png');
 
-  // Clear through the monitor, then count the actual $4.28 owed from the
-  // physical labeled slots and finish with the visible Done action.
+  // Clear through the monitor, then count the actual amount owed from the physical labeled
+  // slots and finish with the visible Done action.
   await cashMonitorClick('clear-change');
   const cleared = await givingFacts();
   assert(cleared.stage === 'cash-drawer' && cleared.drawerOpen
@@ -824,10 +875,10 @@ async function cashRoute(page, shot) {
   }
   const exact = await givingFacts();
   assert(exact.stage === 'cash-drawer' && exact.drawerOpen
-      && exact.givingState === 'exact' && exact.givingCents === 428
+      && exact.givingState === 'exact' && exact.givingCents === requiredCents
       && exact.deltaCents === 0,
-  `The final $4.28 count is not exact: ${JSON.stringify(exact)}.`);
-  await shot('11-exact-four-twenty-eight-selected.png');
+  `The final ${requiredCents}-cent count is not exact: ${JSON.stringify(exact)}.`);
+  await shot('11-exact-change-selected.png');
   await cashMonitorClick('confirm-change');
   const handoffInFlight = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cashHandoffPresentation()
@@ -850,7 +901,9 @@ async function cashRoute(page, shot) {
   }, null, { timeout: 6000 });
   const confirmed = await givingFacts();
   assert(['receipt', 'bagging', 'done'].includes(confirmed.stage)
-      && !confirmed.drawerOpen && confirmed.changeGiven === 4.28 && confirmed.lost === 0,
+      && !confirmed.drawerOpen
+      && Math.round(confirmed.changeGiven * 100) === requiredCents
+      && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
   // Receipt printing is intentionally short. Wait for it as soon as the
   // customer owns the change bundle; taking another full-resolution PNG first
@@ -891,6 +944,7 @@ async function finalSnapshot(page, customerName) {
       } : null,
       cash: app.state.cash,
       ledgerShopSales: app.state.ledger?.today?.revenue?.shopSales || 0,
+      salesTaxOwed: Math.round((app.state.salesTax?.owed || 0) * 100) / 100,
       reviews: app.state.club?.reviews?.length || 0,
       reputation: app.state.club?.reputation || 0,
       latestReview: app.state.club?.reviews?.[0] || null,
@@ -1087,10 +1141,22 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     (final.ledgerShopSales - fixture.before.ledgerShopSales) * 100,
   ) / 100;
   const reviewCountDelta = final.reviews - fixture.before.reviews;
+  // THE TICKET, THE REVENUE AND THE LIABILITY ARE THREE NUMBERS NOW.
+  //
+  // Reported 2026-07-29: "The tax is not the player's money — it accrues as a liability and is
+  // remitted." So cash rises by the whole ticket, shopSales rises by the GOODS only, and the
+  // difference is exactly the tax that is being held. This used to assert ledger === ticket,
+  // which was the same claim as cash === ticket said twice; now it is the split.
+  const saleTax = Math.round((Number(final.ticket.tax) || 0) * 100) / 100;
+  const saleNet = Math.round((Number(final.ticket.net) ?? (saleTotal - saleTax)) * 100) / 100;
   assert(cashDelta === saleTotal,
     `Cash changed by ${cashDelta}, but the accepted ticket was ${saleTotal}.`);
-  assert(ledgerShopSalesDelta === saleTotal,
-    `Shop-sales ledger changed by ${ledgerShopSalesDelta}, but the accepted ticket was ${saleTotal}.`);
+  assert(ledgerShopSalesDelta === saleNet,
+    `Shop-sales ledger changed by ${ledgerShopSalesDelta}, but the goods were ${saleNet}.`);
+  assert(Math.round((saleNet + saleTax) * 100) / 100 === saleTotal,
+    `The ticket ${saleTotal} is not goods ${saleNet} plus tax ${saleTax}.`);
+  assert(Math.round((final.salesTaxOwed - fixture.before.salesTaxOwed) * 100) / 100 === saleTax,
+    `The sales-tax liability moved by ${final.salesTaxOwed - fixture.before.salesTaxOwed}, not by the ${saleTax} charged.`);
   assert(reviewCountDelta === 1, `Successful checkout should create exactly one review; delta was ${reviewCountDelta}.`);
   assert(final.latestReview && Number.isFinite(final.latestReview.stars)
       && typeof final.latestReview.text === 'string' && final.latestReview.text.length > 0
@@ -1099,6 +1165,9 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   const businessOutcome = {
     cashDelta,
     ledgerShopSalesDelta,
+    saleNet,
+    saleTax,
+    salesTaxOwed: final.salesTaxOwed,
     reviewCountDelta,
     reputationDelta: Math.round((final.reputation - fixture.before.reputation) * 10) / 10,
     latestReview: final.latestReview,

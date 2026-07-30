@@ -10,6 +10,7 @@ import { pickFromShelf, returnToShelf, checkoutSale, liveSales } from '../src/si
 import { priceFor } from '../src/sim/shop.js';
 import { skuById } from '../src/data/shopItems.js';
 import { capacityOf } from '../src/data/fixtureSlots.js';
+import { salesTaxOwed } from '../src/sim/salesTax.js';
 
 test('a live pick physically leaves the shelf; an empty shelf refuses the pick', () => {
   const st = newGame('relaxed', 42);
@@ -79,10 +80,15 @@ test('ringing a sale pays real revenue into the books and logs it', () => {
   ];
   const res = checkoutSale(st, items, 'Walk-in');
   assert.ok(res.ok);
-  const total = items.reduce((a, i) => a + i.price, 0);
-  assert.ok(Math.abs(res.total - total) < 0.01, 'the register total is the sum of the basket');
-  assert.ok(Math.abs(st.cash - cashBefore - total) < 0.01, 'cash landed');
-  assert.ok((st.ledger.today.revenue.shopSales || 0) >= total - 0.01, 'booked under shopSales');
+  const goods = items.reduce((a, i) => a + i.price, 0);
+  // THE TICKET AND THE REVENUE ARE NOT THE SAME NUMBER any more. Shelf prices are pre-tax;
+  // the customer pays goods + the property's sales tax, and only the goods are income.
+  assert.ok(Math.abs(res.net - goods) < 0.01, 'the shop earns the sum of the basket');
+  assert.ok(Math.abs(res.total - (goods + res.tax)) < 0.01, 'the customer pays the basket plus tax');
+  assert.ok(Math.abs(st.cash - cashBefore - res.total) < 0.01, 'cash landed, tax included');
+  assert.ok(Math.abs((st.ledger.today.revenue.shopSales || 0) - goods) < 0.01,
+    'shopSales is the goods, never the tax');
+  assert.ok(Math.abs(salesTaxOwed(st) - res.tax) < 0.01, 'the tax is held for the state');
   const live = liveSales(st);
   assert.equal(live.units, 2, 'live counter tracks the units');
   assert.ok(st.shop.log.length > 0, 'notable-sales log heard about it');

@@ -31,6 +31,7 @@ import { ensureDebris } from './cleaningDebris.js';
 import { ensureLayout } from './layout.js';
 import { ensureClubhouseRestoration } from './clubhouseRestoration.js';
 import { ensureProperty, tickProperty } from './property.js';
+import { tickSalesTax } from './salesTax.js';
 import {
   initReservations, ensureReservations, reservationsDailyTick,
   generateOnlineReservations, processReservationTimeline, ensureReservationHorizon,
@@ -421,6 +422,10 @@ export function dailyTick(state) {
     if (state.reservations) reservationsDailyTick(state, todayAbs);
     // the rent falls due whether or not it was a good week; it is announced two days out
     state.lastPropertyEvent = tickProperty(state, todayAbs);
+    // Sales tax rides the same 7-day cycle as the property bill: collected all week at the
+    // till, paid to the state on the cycle day. It was never income, so remitting it does not
+    // move profit — only cash.
+    state.lastSalesTaxEvent = tickSalesTax(state, todayAbs);
     const indicators = closeDayIndicators(state, closingDay);
     closeBooks(state, closingDay, indicators);
   }

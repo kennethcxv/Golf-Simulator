@@ -16,6 +16,7 @@ import {
 import { liveSales, consumeHeldBatch } from './checkout.js';
 import { recordSale } from './shop.js';
 import { skuById } from '../data/shopItems.js';
+import { accrueSalesTax, preflightSalesTaxAccrual } from './salesTax.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents. The drawer carries five coin
@@ -130,7 +131,10 @@ export function retailTransactionId(state, ticketNumber = state?.shop?.nextTrans
   return `retail:${propertyId}:${number}`;
 }
 
-export function createTx({ id = null, items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
+export function createTx({
+  id = null, items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null,
+  taxRate = 0, taxLabel = null,
+} = {}) {
   return {
     id: id == null ? `transient-${nextTransientTxId++}` : String(id),
     items: items.map((it) => ({
@@ -145,6 +149,11 @@ export function createTx({ id = null, items = [], mode = 'relaxed', discount = 0
     mode,
     discount,
     prefer,
+    // WHERE THIS TILL IS. The rate is frozen onto the ticket at creation rather than read from
+    // state per call: a sale that started at 7% must finish at 7%, and the receipt has to
+    // reconcile to the number the customer was shown when they agreed to pay.
+    taxRate: Number.isFinite(Number(taxRate)) ? Math.max(0, Number(taxRate)) : 0,
+    taxLabel: taxLabel == null ? null : String(taxLabel),
     stage: 'scanning',
     method: null,
     // card
@@ -223,8 +232,25 @@ export function discountOf(tx) {
   return dollars(cents(subtotal(tx) * (tx.discount || 0)));
 }
 
-export function totalOf(tx) {
+/** Goods after discount — the shop's money, and the base the tax is charged on. */
+export function netOf(tx) {
   return dollars(cents(subtotal(tx)) - cents(discountOf(tx)));
+}
+
+/**
+ * SALES TAX, ON THE CUSTOMER'S SIDE OF THE TILL.
+ *
+ * Charged on the discounted net, because a discount reduces the taxable sale price — the state
+ * taxes what was actually paid for the goods, not the list price. Computed in cents.
+ */
+export function taxOf(tx) {
+  const rate = Number(tx.taxRate) || 0;
+  if (!(rate > 0)) return 0;
+  return dollars(Math.round(cents(netOf(tx)) * rate));
+}
+
+export function totalOf(tx) {
+  return dollars(cents(netOf(tx)) + cents(taxOf(tx)));
 }
 
 export function cashTotalOf(tx) {
@@ -1266,6 +1292,17 @@ export function completeSale(state, tx, who = 'A customer') {
   if (!Number.isFinite(total) || total <= 0) {
     return { ok: false, reason: 'The sale total must be positive and finite.' };
   }
+  // THE SHOP'S MONEY AND THE STATE'S MONEY ARE POSTED SEPARATELY.
+  //
+  // `total` is what the customer handed over; only `saleRevenue` is income. For a cash sale
+  // the ticket is rounded to the cent the drawer can actually make, and that rounding belongs
+  // to the goods line, not to the tax — the tax figure is the one printed on the receipt and
+  // owed to the state, so it is taken first and revenue is whatever is left.
+  const saleTax = Math.round(taxOf(tx) * 100) / 100;
+  const saleRevenue = Math.round((total - saleTax) * 100) / 100;
+  if (!(saleRevenue > 0)) {
+    return { ok: false, reason: 'The goods total must be positive once tax is separated out.' };
+  }
   const saleKey = `checkout:${tx.id}:sale`;
   const saleMeta = {
     idempotencyKey: saleKey,
@@ -1285,7 +1322,7 @@ export function completeSale(state, tx, who = 'A customer') {
     ...saleMeta,
     direction: 'revenue',
     lineKey: 'shopSales',
-    amount: total,
+    amount: saleRevenue,
   });
   if (!salePreflight.ok) return salePreflight;
   if (salePreflight.duplicate) {
@@ -1347,15 +1384,41 @@ export function completeSale(state, tx, who = 'A customer') {
     }
   }
 
+  const taxKey = `checkout:${tx.id}:salestax`;
+  if (saleTax > 0) {
+    const taxPreflight = preflightSalesTaxAccrual(state, saleTax, {
+      idempotencyKey: taxKey, relatedId: tx.id,
+    });
+    if (!taxPreflight.ok) return taxPreflight;
+    if (taxPreflight.duplicate) {
+      return { ok: false, reason: 'The sales tax was already booked without this sale.', duplicate: true };
+    }
+  }
+
   const consumed = consumeHeldBatch(state, tx.items);
   if (!consumed.ok) return consumed;
   commitDrawer(state, drawerCommit.contents);
 
-  const bank = addRevenue(state, 'shopSales', total, saleMeta);
+  const bank = addRevenue(state, 'shopSales', saleRevenue, {
+    ...saleMeta,
+    metadata: { ...saleMeta.metadata, tax: saleTax, taxRate: Number(tx.taxRate) || 0, ticketTotal: total },
+  });
   if (!bank.ok) return bank;
   if (bank.duplicate) {
     tx.banked = true;
     return { ok: false, reason: 'Already banked.', duplicate: true };
+  }
+
+  if (saleTax > 0) {
+    accrueSalesTax(state, saleTax, {
+      idempotencyKey: taxKey,
+      relatedId: tx.id,
+      description: `Sales tax collected — ${customerName}`,
+      source: 'checkout',
+      customerCount: 1,
+      taxableSales: saleRevenue,
+      metadata: { taxRate: Number(tx.taxRate) || 0, ticketTotal: total },
+    });
   }
 
   if (cogsMeta) {
@@ -1381,7 +1444,7 @@ export function completeSale(state, tx, who = 'A customer') {
 
   const live = liveSales(state);
   live.units += tx.items.length;
-  live.revenue = round2(live.revenue + total);
+  live.revenue = round2(live.revenue + saleRevenue); // the goods, not the state's cut
 
   // The held batch was consumed before banking; now feed the same items into the
   // per-SKU velocity tally used by Inventory and Analytics.
@@ -1421,6 +1484,9 @@ export function completeSale(state, tx, who = 'A customer') {
     customerId,
     method: tx.method,
     total,
+    net: saleRevenue,
+    tax: saleTax,
+    taxRate: Number(tx.taxRate) || 0,
     cash: drawerCommit.cash,
     lost: tx.lost || 0,
     tendered: tx.method === 'cash' ? tx.tenderedTotal : null,
@@ -1433,7 +1499,7 @@ export function completeSale(state, tx, who = 'A customer') {
   });
   if (history.length > 100) history.length = 100;
 
-  return { ok: true, total, cash: drawerCommit.cash, lost: tx.lost };
+  return { ok: true, total, net: saleRevenue, tax: saleTax, cash: drawerCommit.cash, lost: tx.lost };
 }
 
 // --- the scan volume ----------------------------------------------------------------

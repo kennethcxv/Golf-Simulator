@@ -23,6 +23,9 @@ import {
   paintBunkerBlob, shapeHoleElevation, finishCourse,
 } from './courseShaping.js';
 import { makeRng, clamp } from '../core/utils.js';
+import {
+  GENERATED_JURISDICTION_RING, PROPERTY_JURISDICTIONS, DEFAULT_PROPERTY_JURISDICTION,
+} from '../data/salesTax.js';
 
 export const STARTING_PROPERTY_ID = 'willow-creek';
 export const STARTING_PROPERTY_NAME = 'Pine Hills Municipal Golf';
@@ -421,6 +424,10 @@ export function generateMarketplace(seed = 1) {
       startingMembers: a.startingMembers,
       startingReputation: a.startingReputation,
       clubhouseVariant: a.clubhouseVariant || null,
+      // WHERE IT IS. Hand-picked per course in data/salesTax.js to fit what the blurb already
+      // says about the land, and spread across the roster so buying the next course is a
+      // decision about more than acreage.
+      taxJurisdiction: PROPERTY_JURISDICTIONS[a.id] || DEFAULT_PROPERTY_JURISDICTION,
     };
     const course = buildPropertyCourse(record);
     record.design = round1(courseDesignRating(course));
@@ -693,6 +700,11 @@ export function generateListing(seed, opts = {}) {
     startingMembers: intIn(rng, t.members),
     startingReputation: Math.round(floatIn(rng, t.rep)),
     archetype: t.key,
+    // WHERE IT IS. The authored roster has hand-picked home states (data/salesTax.js); a
+    // generated listing rolls from the ring, so a run of new listings still spans zero-tax to
+    // high-tax rather than clustering on one rate.
+    taxJurisdiction: GENERATED_JURISDICTION_RING[rng.int(GENERATED_JURISDICTION_RING.length)]
+      || DEFAULT_PROPERTY_JURISDICTION,
   };
   const course = buildPropertyCourse(record);
   record.design = round1(courseDesignRating(course));

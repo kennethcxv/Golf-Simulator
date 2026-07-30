@@ -36,6 +36,7 @@ import {
   STARTING_PROPERTY_ID,
   STARTING_PROPERTY_NAME,
 } from './marketplace.js';
+import { jurisdictionForProperty } from '../data/salesTax.js';
 import { appraiseProperty, appraisalBreakdown } from './valuation.js';
 import { bindPropertyInventory } from './propertyInventory.js';
 import {
@@ -243,6 +244,10 @@ export function initPropertyState(property, mode) {
   // The listing decides which authored clubhouse presentation this property
   // renders (e.g. the starter's dilapidated-capable Pine Hills kit).
   state.property.clubhouseVariant = property.clubhouseVariant || null;
+  // …and which state the register is in. Stamped from the listing so the rate travels with
+  // the deed: editing the table later cannot silently re-tax a course somebody already owns.
+  state.property.taxJurisdiction = property.taxJurisdiction
+    || jurisdictionForProperty({ id: property.id }).code;
   seedTurfToCondition(state, property);
   seedMembership(state, property);
   seedReputation(state, property.startingReputation);
@@ -742,6 +747,9 @@ function legacyEmpireFromState(st) {
   st.property.id = record.id;
   st.property.tierId = record.tierId;
   st.property.clubhouseVariant = record.clubhouseVariant || st.property.clubhouseVariant || null;
+  st.property.taxJurisdiction = st.property.taxJurisdiction
+    || record.taxJurisdiction || jurisdictionForProperty({ id: record.id }).code;
+  record.taxJurisdiction = st.property.taxJurisdiction;
   if (!st.property.acquisitionCost) st.property.acquisitionCost = record.askingPrice;
   const market = generateMarketplace(st.seed).filter((p) => p.id !== 'willow-creek');
   for (const p of market) p.listedDay = joinDay; // listed "today" — a fair fresh start

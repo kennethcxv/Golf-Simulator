@@ -55,6 +55,11 @@ import {
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
 import { arrearsOf, weeklyCharge, CYCLE_DAYS } from '../sim/property.js';
 import {
+  ensureSalesTax, salesTaxOwed, salesTaxRate, taxJurisdictionOf, taxJurisdictionLabel,
+  SALES_TAX_CYCLE_DAYS,
+} from '../sim/salesTax.js';
+import { formatTaxRate } from '../data/salesTax.js';
+import {
   ROLE, hireStaff, fireStaff, trainStaff, staffDailyWages, refreshMarketIfDue, groundsCrewHours,
 } from '../sim/staff.js';
 import {
@@ -172,8 +177,14 @@ const EXP_LABEL = {
   severance: 'Severance', training: 'Training', shopOrders: 'Stock order',
   rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
   cashOverShort: 'Register over/short',
+  salesTaxRemitted: 'Sales tax paid to the state',
 };
-const LEDGER_LABEL = { ...REV_LABEL, ...EXP_LABEL };
+// Cash in that is not revenue. It lands in the transactions table like anything else, so it
+// needs a name a player understands — "why did cash go up more than revenue did".
+const NEUTRAL_LABEL = {
+  salesTaxCollected: 'Sales tax collected',
+};
+const LEDGER_LABEL = { ...REV_LABEL, ...EXP_LABEL, ...NEUTRAL_LABEL };
 
 // EVERY SWITCH IN SETTINGS, so "mute" and "exact change" are findable without knowing
 // which of the two tabs they live on. The label is what the row prints, which is what
@@ -2701,7 +2712,7 @@ export function makeLaptop(app, opts) {
     const txAll = Array.isArray(st.ledger?.txLog) ? st.ledger.txLog : [];
     const txRow = (t) => {
       const c = calendarOf(t.m);
-      const label = t.kind === 'rev' ? (REV_LABEL[t.key] || t.key) : (EXP_LABEL[t.key] || t.key);
+      const label = LEDGER_LABEL[t.key] || t.key;
       return el('tr', { title: `Balance after: ${exactMoney(t.bal)}` },
         el('td', { class: 'lt-listsub', text: `Day ${c.dayOfSeason} · ${clock12(c.minuteOfDay)}` }),
         el('td', {}, el('span', { style: 'font-weight:600', text: t.kind === 'refund' ? `${label} — refunded` : label })),
@@ -2724,6 +2735,7 @@ export function makeLaptop(app, opts) {
         stat("Today's Profit", `${revToday - expToday >= 0 ? '+' : ''}${formatMoney(revToday - expToday)}`, null, revToday - expToday >= 0 ? 'ok' : 'bad'),
       ),
       owed > 0 ? errBox(`${formatMoney(owed)} behind on the property, and it accrues interest. It comes out of the next bill you can cover.`) : null,
+      salesTaxCard(st),
       el('div', { class: 'lt-cols2' },
         card(
           el('div', { class: 'lt-minihead' },
@@ -2760,6 +2772,45 @@ export function makeLaptop(app, opts) {
           el('tbody', {}, ...rows)))
         : empty('Money movements appear here as they happen.'),
     ];
+  }
+
+  // SALES TAX IS A LIABILITY SITTING INSIDE THE CASH BALANCE.
+  //
+  // Reported 2026-07-29: "The tax is not the player's money — it accrues as a liability and is
+  // remitted, visible in Finances."
+  //
+  // Which makes this the one card on the page whose number the player must NOT read as theirs.
+  // It says the jurisdiction, the rate, what has been collected, what is still held, and when
+  // it leaves — and it is here even at 0%, because "Oregon: the register adds nothing" is the
+  // information a player buying a second course needs.
+  function salesTaxCard(st) {
+    const tax = ensureSalesTax(st);
+    const j = taxJurisdictionOf(st);
+    const rate = salesTaxRate(st);
+    const held = salesTaxOwed(st);
+    const cal = calendarOf(st.clock.minutes);
+    const dueIn = Math.max(0, (tax?.nextRemitDay ?? SALES_TAX_CYCLE_DAYS) - cal.dayAbs);
+    return card(
+      el('div', { class: 'lt-minihead' },
+        el('span', { text: 'Sales Tax' }),
+        el('span', { class: 'lt-headspace' }),
+        chip(`${j.state} · ${formatTaxRate(rate)}`, rate > 0 ? '' : 'ok')),
+      // EXACT MONEY, NOT ROUNDED. Measured 2026-07-29 (laptop-sales-tax-card.json): three sales
+      // held $5.46 for the state and the card printed "$5" — formatMoney rounds to the dollar,
+      // which is fine for a price and wrong for a liability whose whole reason to exist is the
+      // cents. exactMoney keeps them and still says "$5" when it really is five dollars.
+      rate > 0
+        ? row(el('span', { class: 'lt-mulabel', text: 'Held for the state' }),
+          el('span', { class: `lt-num ${held > 0 ? 'lt-neg' : ''}`, text: exactMoney(held) }))
+        : row(meta(`${j.state} levies no general sales tax, so the register adds nothing and there is nothing to remit.`)),
+      rate > 0 ? row(el('span', { class: 'lt-mulabel', text: 'Collected all-time' }),
+        el('span', { class: 'lt-num', text: exactMoney(tax?.collected || 0) })) : null,
+      rate > 0 ? row(el('span', { class: 'lt-mulabel', text: 'Remitted all-time' }),
+        el('span', { class: 'lt-num', text: exactMoney(tax?.remitted || 0) })) : null,
+      rate > 0
+        ? meta(`${j.locality} · charged on merchandise at checkout, not on green fees. Paid to the state ${dueIn === 0 ? 'at midnight tonight' : dueIn === 1 ? 'tomorrow at midnight' : `in ${dueIn} days`}. This money is inside your cash balance and is not yours.`)
+        : meta(`${j.locality} — nothing is withheld from a ticket here.`),
+    );
   }
 
   function businessReviewsTab(st) {
@@ -3263,6 +3314,9 @@ export function makeLaptop(app, opts) {
     }
     add('Property', 'Property bill', `${formatMoney(weeklyCharge(st))} every ${CYCLE_DAYS} days${arrearsOf(st) > 0 ? ` · ${formatMoney(arrearsOf(st))} behind` : ''}`,
       { page: 'finances', tab: 'finances', anchor: 'Property' }, ['rent', 'lease', 'arrears', 'bill']);
+    add('Property', 'Sales tax', `${taxJurisdictionLabel(st)} · ${exactMoney(salesTaxOwed(st))} collected and not yet remitted`,
+      { page: 'finances', tab: 'finances', anchor: 'Sales tax' },
+      ['tax', 'liability', 'remit', 'state', taxJurisdictionOf(st).state, taxJurisdictionOf(st).code]);
 
     // --- the course, hole by hole and section by section -------------------------
     for (const hole of st.course?.holes || []) {

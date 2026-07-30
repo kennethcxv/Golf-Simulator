@@ -25,8 +25,9 @@ import {
   handOverChange, changeGivingState, MAX_EXTRA_CHANGE_CENTS,
   printReceipt, takeReceipt, packReceipt, bagItem, allBagged,
   handOverGoods, completeSale, voidTx, newDrawer, migrateDrawer, drawerContents,
-  stackTotal, makeChange, makeChangeFrom, segmentHitsBox,
+  stackTotal, makeChange, makeChangeFrom, segmentHitsBox, netOf, taxOf,
 } from '../../sim/register.js';
+import { salesTaxRate, taxJurisdictionLabel } from '../../sim/salesTax.js';
 import {
   createCheckoutFlow, transitionCheckout, checkoutStateTimedOut,
   recoverTimedOutCheckout, resumeCheckout,
@@ -1728,6 +1729,8 @@ export function createRegisterMode(B) {
     return [];
   }
 
+  const finiteOr = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+
   function monitorModel() {
     if (activeTab === 'home') {
       return {
@@ -1845,6 +1848,15 @@ export function createRegisterMode(B) {
       itemsRemaining: tx ? unscannedCount(tx) : 0,
       subtotal: tx ? subtotal(tx) : (display.subtotal || display.total || 0),
       discount: tx ? discountOf(tx) : 0,
+      // SALES TAX ON THE CUSTOMER-FACING SUMMARY.
+      //
+      // Measured 2026-07-29 (qa/.../cash/12b-receipt-printing.png): the monitor read
+      // SUBTOTAL $35.72, DISCOUNT $0.00, TOTAL $38.22 — the customer was being asked for
+      // $2.50 that nothing on the screen accounted for. The line is always sent, including at
+      // 0%, so the label can say the jurisdiction either way.
+      tax: tx ? taxOf(tx) : finiteOr(display.tax, 0),
+      taxRate: tx ? (Number(tx.taxRate) || 0) : (Number(display.taxRate) || 0),
+      taxLabel: tx ? (tx.taxLabel || null) : (display.taxLabel || null),
       total: tx ? dueOf(tx) : (display.total || 0),
       payment: tx ? (tx.method || null) : display.method,
       customerChoice: paymentChoiceVisible() ? (tx ? preferredPayment() : display.method) : null,
@@ -3508,6 +3520,10 @@ export function createRegisterMode(B) {
       mode: state.mode,
       discount: customer.discount || 0,
       prefer: customer.payMethod || customer.paymentPreference || 'card',
+      // Where the course is. Merchandise is taxable; the rate is frozen onto the ticket so the
+      // number on the reader, the number on the receipt and the number banked are one number.
+      taxRate: salesTaxRate(state),
+      taxLabel: taxJurisdictionLabel(state),
     });
     tx.number = transactionNumber;
     tx.checkoutFlow = customer.checkoutFlow || createCheckoutFlow({
@@ -4648,6 +4664,18 @@ export function createRegisterMode(B) {
     };
     money('SUBTOTAL', subtotal(tx));
     if (discountOf(tx) > 0) money('DISCOUNT', -discountOf(tx));
+    // SALES TAX ON THE RECEIPT, always — a receipt that only prints the line when tax happens
+    // to be non-zero teaches the player it does not exist, and in Oregon the $0.00 line IS the
+    // information. The jurisdiction is named because it explains the number above it.
+    money(tx.taxRate > 0 ? `SALES TAX ${(tx.taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%` : 'SALES TAX', taxOf(tx));
+    if (tx.taxLabel) {
+      ctx.font = '600 13px Arial, sans-serif';
+      ctx.fillStyle = '#5d6a60';
+      ctx.textAlign = 'left';
+      ctx.fillText(String(tx.taxLabel).toUpperCase(), 20, y);
+      ctx.fillStyle = '#2a332c';
+      y += 19;
+    }
     money('TOTAL', dueOf(tx), true);
     ctx.textAlign = 'left';
     ctx.fillText(tx.method === 'cash' ? 'PAID · CASH' : 'PAID · CARD (APPROVED)', 20, y);
@@ -5433,7 +5461,10 @@ export function createRegisterMode(B) {
       number: finishedTx.number,
       customer: finishedCustomer ? (finishedCustomer.fullName || finishedCustomer.name) : 'Guest',
       total: dueOf(finishedTx),
-      subtotal: totalOf(finishedTx),
+      subtotal: subtotal(finishedTx),
+      tax: taxOf(finishedTx),
+      taxRate: Number(finishedTx.taxRate) || 0,
+      taxLabel: finishedTx.taxLabel || null,
       method: finishedTx.method,
       items: displayItems,
     };

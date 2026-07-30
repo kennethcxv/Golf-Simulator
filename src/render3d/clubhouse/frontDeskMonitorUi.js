@@ -594,40 +594,49 @@ export function createFrontDeskMonitorUi(canvas) {
     const lines = wrapLines(ctx, instruction, 278, 2);
     lines.forEach((line, index) => ctx.fillText(line, 686, statusY + 53 + index * 18));
 
+    // SUBTOTAL, DISCOUNT, SALES TAX, then the total. Three lines where there were two, so the
+    // block below TOTAL shifts down by one row height — hence taxOffset threaded through the
+    // rest of this column rather than each y being nudged by hand.
     summaryRow('Subtotal', money(data.subtotal), 670, 351 + choiceOffset);
     const discount = Math.abs(finite(data.discount));
     summaryRow('Discount', discount > 0 ? `-${money(discount)}` : money(0), 670, 377 + choiceOffset);
+    const taxRate = finite(data.taxRate);
+    const taxLabel = taxRate > 0
+      ? `Sales tax ${(taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`
+      : 'Sales tax (none in state)';
+    summaryRow(taxLabel, money(finite(data.tax)), 670, 403 + choiceOffset);
+    const taxOffset = 26;
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(670, 390 + choiceOffset);
-    ctx.lineTo(976, 390 + choiceOffset);
+    ctx.moveTo(670, 390 + choiceOffset + taxOffset);
+    ctx.lineTo(976, 390 + choiceOffset + taxOffset);
     ctx.stroke();
     // Prominent total block, matching the reference's emphasis.
     setFont(ctx, 20, 800);
     ctx.fillStyle = COLORS.charcoal;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('TOTAL', 670, 421 + choiceOffset);
+    ctx.fillText('TOTAL', 670, 421 + choiceOffset + taxOffset);
     setFont(ctx, 38, 800);
     ctx.fillStyle = COLORS.green;
     ctx.textAlign = 'right';
-    ctx.fillText(money(data.total), 976, 424 + choiceOffset);
+    ctx.fillText(money(data.total), 976, 424 + choiceOffset + taxOffset);
 
     if (data.payment || data.paymentMethod) {
-      summaryRow('Payment', text(data.payment ?? data.paymentMethod).toUpperCase(), 670, 446 + choiceOffset);
+      summaryRow('Payment', text(data.payment ?? data.paymentMethod).toUpperCase(), 670, 446 + choiceOffset + taxOffset);
     }
     if (data.tendered !== undefined || data.amountPaid !== undefined) {
-      summaryRow('Tendered', money(data.tendered ?? data.amountPaid), 670, 472 + choiceOffset);
+      summaryRow('Tendered', money(data.tendered ?? data.amountPaid), 670, 472 + choiceOffset + taxOffset);
     }
     if (data.changeDue !== undefined) {
-      summaryRow('Change due', money(data.changeDue), 670, 498 + choiceOffset, false, COLORS.green);
+      summaryRow('Change due', money(data.changeDue), 670, 498 + choiceOffset + taxOffset, false, COLORS.green);
     }
     if (data.selectedChange !== undefined || data.selected !== undefined) {
-      summaryRow('Selected', money(data.selectedChange ?? data.selected), 670, 524 + choiceOffset);
+      summaryRow('Selected', money(data.selectedChange ?? data.selected), 670, 524 + choiceOffset + taxOffset);
     }
 
-    drawActionGrid(data.actions, 670, 546 + choiceOffset, 306, choice ? 38 : 50);
+    drawActionGrid(data.actions, 670, 546 + choiceOffset + taxOffset, 306, choice ? 38 : 50);
   }
 
   function drawCheckout(model) {
