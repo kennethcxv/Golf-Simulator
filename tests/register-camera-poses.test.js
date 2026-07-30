@@ -361,12 +361,23 @@ test('register prop choreography keeps world offsets and orientations in the des
   assert.match(createCardMesh, /base\.quaternion\.copy\(HELD_QUAT\)/,
     'a newly created card already faces the rotated cashier side');
   const resetBagAtCounter = functionBody(registerSource, 'resetBagAtCounter');
-  assert.match(resetBagAtCounter, /frontDeskQuaternion\(CHECKOUT_BAG_PRESENTATION\.pitch\)/,
-    'the counter bag resets in its desk-relative loading orientation');
+  // 2026-07-30 round 2: the bag lies on its side (pitch + roll), so build,
+  // reset and the mouth point all read ONE quaternion builder — a reset through
+  // a different euler than the build is how a re-used bag comes back upright.
+  assert.match(resetBagAtCounter, /bagCounterQuaternion\(\)/,
+    'the counter bag resets through the shared side-lying orientation');
+  assert.match(
+    registerSource,
+    /const bagCounterQuaternion = \(\) => frontDeskQuaternion\([\s\S]{0,90}?CHECKOUT_BAG_PRESENTATION\.pitch, 0, CHECKOUT_BAG_PRESENTATION\.roll,/,
+    'and that builder carries both the pitch and the roll',
+  );
   const updateDelivery = functionBody(registerSource, 'updateDelivery');
-  assert.match(updateDelivery, /RECEIPT_PRINTER_QUATERNION/);
+  // The receipt legs were cut 2026-07-30 round 2; the bag transfer is the one
+  // delivery left, and its orientation still rotates with the desk.
   assert.match(updateDelivery, /frontDeskQuaternion\(/,
-    'receipt and bag delivery orientations rotate with the desk');
+    'bag delivery orientation rotates with the desk');
+  assert.ok(!updateDelivery.includes("'receipt-ready'") && !updateDelivery.includes("'receipt-deliver'"),
+    'no receipt delivery leg survives in the machine');
 });
 
 test('card recovery uses the declared cardReady vector and drawer travel stays staff-facing', () => {

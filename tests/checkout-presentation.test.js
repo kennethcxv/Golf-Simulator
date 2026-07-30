@@ -57,12 +57,17 @@ test('the checkout camera holds one frame; only the drawer and check-in move it'
   assert.match(register, /\|\| terminalShouldFloat\(\)/, 'cursor sway is disabled while the reader floats');
 });
 
-test('the receipt content turns in place; the mesh anchor and the handoff stay authored', () => {
-  // Measured 2026-07-30: the strip rendered as a coherent receipt rotated 180° in its own
-  // plane. Rotating the MESH cannot fix that — the geometry anchors at its bottom edge, so
-  // any in-plane flip swings the paper down into the printer. The texture rotates instead.
-  assert.match(register, /texture\.center\.set\(0\.5, 0\.5\);\s*\n\s*texture\.rotation = Math\.PI;/);
-  assert.match(register, /RECEIPT_PRINTER_QUATERNION = frontDeskQuaternion\(-0\.42, 0, 0\)\.multiply\(/);
-  assert.match(register, /RECEIPT_HANDOFF_QUATERNION = frontDeskQuaternion\(-0\.12, 0\.5, -0\.28\)/,
-    'the handoff turn to the customer is unchanged');
+test('there is no physical receipt: the paperwork files silently, the bag is the delivery', () => {
+  // Playtest 2026-07-30 round 2: "just remove the whole receipt thing." The sim
+  // contract survives — printReceipt/takeReceipt/packReceipt still run so
+  // canComplete holds and reloads recover — but nothing prints, nothing is
+  // handed, and the delivery machine goes straight to the bag.
+  const begin = register.slice(register.indexOf('function beginAutomaticReceipt'), register.indexOf('function finishAutomaticFulfillment'));
+  assert.match(begin, /printReceipt\(tx\)/, 'the sim receipt still files');
+  assert.match(begin, /finishAutomaticFulfillment\(\)/, 'and hands straight to fulfilment');
+  assert.ok(!begin.includes('ensureReceiptMesh'), 'no paper mesh is created');
+  assert.ok(!begin.includes("deliveryPhase = 'receipt-print'"), 'no print phase runs');
+  const fulfil = register.slice(register.indexOf('function finishAutomaticFulfillment'), register.indexOf('function setBagPickable'));
+  assert.match(fulfil, /beginBagDeliveryOrRelease\(\)/, 'fulfilment lands on the bag transfer');
+  assert.ok(!fulfil.includes("deliveryPhase = 'receipt-ready'"), 'no receipt-ready leg');
 });

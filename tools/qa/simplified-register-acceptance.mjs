@@ -283,8 +283,10 @@ async function scanAll(page, shot, mode) {
       // frame with the read landed proves the item is mid-flight into the bag.
       await page.waitForFunction((id) => {
         const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
+        // 2026-07-30 round 2: the five-phase arc became one 'slide' into the
+        // side-lying bag; any committed frame of it IS the visible flight.
         return presentation.active && presentation.uid === id
-          && presentation.phase === 'bag'
+          && presentation.phase === 'slide'
           && presentation.lastRead?.uid === id
           && presentation.lastRead.ok;
       }, uid, { timeout: 5000 }).catch(() => {
@@ -309,7 +311,10 @@ async function scanAll(page, shot, mode) {
     // 'bagged') asserted fields the shipped register never emitted; this file
     // failed every good build. Bagged-ness is already asserted physically above
     // via the transaction item's scanned/bagged flags.
-    assert(read?.uid === uid && read.ok && read.code === 'ok' && read.scanHit,
+    // 2026-07-30 round 2: the ring-up is a click-slide with no scanner pass, so
+    // the evidence honestly carries scannerSource 'click-slide' and no ray
+    // facts. What must hold is the commit itself.
+    assert(read?.uid === uid && read.ok && read.code === 'ok' && read.scannerSource === 'click-slide',
       `No successful scan checkpoint was recorded for ${uid}: ${JSON.stringify(read)}`);
     scanReadEvidence.push(read);
     // Do not aim through a product that is still leaving the reader. The next
@@ -425,7 +430,14 @@ async function insertCardGesture(page, shot, {
         && Math.abs(previous.x - point.x) < 0.4 && Math.abs(previous.y - point.y) < 0.4
         ? (previous.stable || 0) + 1 : 0 };
       return window.__cardXStability.stable >= 4;
-    }, null, { timeout: 8000, polling: 80 });
+    }, null, { timeout: 8000, polling: 80 }).catch(async (error) => {
+      const state = await page.evaluate(() => ({
+        x: window.__fw.scene3d.clubhouse().register.cardXScreenPoint(),
+        stage: window.__fw.scene3d.clubhouse().register.getTx()?.stage,
+        stability: window.__cardXStability || null,
+      }));
+      throw new Error(`X never stabilised: ${JSON.stringify(state)} :: ${error.message}`);
+    });
     const xBefore = await page.evaluate(() => (
       window.__fw.scene3d.clubhouse().register.cardXScreenPoint()
     ));
@@ -962,26 +974,13 @@ async function cashRoute(page, shot) {
       && Math.round(confirmed.changeGiven * 100) === requiredCents
       && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
-  // Receipt printing is intentionally short. Wait for it as soon as the
-  // customer owns the change bundle; taking another full-resolution PNG first
-  // can consume the entire 1.1-second authored print phase on a busy host and
-  // turn a completed sale into a false timeout.
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-  ), null, { timeout: 10000 });
-  await shot('12b-receipt-printing.png');
-  // The print phase now owns a derived close-up on the printer (0.30 s camera
-  // tween inside a 1.10 s feed). 12b above deliberately fires at phase entry so
-  // the phase itself is never missed; this second frame waits out the tween and
-  // is the one that shows the paper feeding, close, as the walk report asked.
-  await page.waitForTimeout(450);
-  await shot('12c-receipt-printing-closeup.png');
+  // NO RECEIPT since 2026-07-30 round 2 — the paperwork is filed in the sim and
+  // the delivery goes straight to the bag. The shared tail below owns that wait.
   await shot('12-exact-change-confirmed.png');
   return {
     start: drawerTravelStart,
     midpoint: drawerTravelMidpoint,
     cashHandoff,
-    receiptPrintCaptured: true,
   };
 }
 
@@ -1141,14 +1140,6 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   let deliveryHandoffEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
-  if (mode === 'card') {
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-    ), null, { timeout: 10000 });
-  } else {
-    assert(cashDrawerTravelEvidence?.receiptPrintCaptured === true,
-      'Cash route did not retain the physical receipt-print phase.');
-  }
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';
@@ -1187,8 +1178,8 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     await page.waitForTimeout(320);
     await shot('13-receipt-handover.png');
   }
-  // The sale banks ITSELF once the receipt and bag reach the customer — there is
-  // no finalize click in the automatic flow. Wait for the transaction to clear.
+  // The sale banks ITSELF once the bag reaches the customer — there is no
+  // finalize click, and since 2026-07-30 no physical receipt either.
   await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 14000 });
   await shot('14-transaction-complete.png');
 

@@ -18,7 +18,10 @@ const ACTIVE_SIMPLIFIED_CUES = Object.freeze([
   'scanSuccess', 'scanInvalid', 'posAdd',
   'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle', 'drawerUnlock', 'drawerOpen', 'drawerClose',
-  'changeSelect', 'changeHandoff', 'receiptPrint', 'receiptTear',
+  'changeSelect', 'changeHandoff',
+  // receiptPrint / receiptTear retired 2026-07-30 round 2: the physical receipt
+  // was removed outright — the sim files the paperwork silently and the
+  // delivery goes straight to the bag. The zero-route asserts below hold it.
   'bagItem', 'bagHandoff',
   'checkoutComplete',
 ]);
@@ -215,9 +218,15 @@ test('bagging and automatic receipt cues remain transition-local one-shots', () 
   assert.equal(cueCalls(commitScanMotion, 'scanSuccess').length, 1);
   assert.equal(cueCalls(updateBagDropMotions, 'bagItem').length, 1,
     'a compact product landing in the bag owns one physical bag impact/rustle cue');
-  assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1);
-  assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 2,
-    'retail-manual and reservation-auto branches each own one exclusive tear edge');
+  // The receipt is gone (2026-07-30 round 2): its two cues must never route.
+  assert.equal(cueCalls(registerSource, 'receiptPrint').length, 0,
+    'no paper prints, so nothing may play the print cue');
+  assert.equal(cueCalls(registerSource, 'receiptTear').length, 0,
+    'and nothing tears what does not exist');
+  assert.ok(beginAutomaticReceipt.includes('finishAutomaticFulfillment'),
+    'the silent paperwork still routes through the fulfilment verbs');
+  assert.ok(finishAutomaticFulfillment.includes('beginBagDeliveryOrRelease'),
+    'and lands straight on the bag transfer');
   assert.equal(cueCalls(updateDelivery, 'bagHandoff').length, 1,
     'the authored bag-handle ownership transfer owns one handoff cue');
 });

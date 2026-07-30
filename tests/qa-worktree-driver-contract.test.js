@@ -48,22 +48,9 @@ test('register acceptance follows the active clubhouse transform instead of a le
   assert.doesNotMatch(registerAcceptanceDriver, /walk\.z = 5\.35 \+ 228;/);
 });
 
-test('cash acceptance captures the short receipt phase before another full-frame screenshot', () => {
-  const routeStart = simplifiedRegisterAcceptanceDriver.indexOf('async function cashRoute');
-  const routeEnd = simplifiedRegisterAcceptanceDriver.indexOf(
-    '\nasync function finalSnapshot',
-    routeStart,
-  );
-  const route = simplifiedRegisterAcceptanceDriver.slice(routeStart, routeEnd);
-  const confirmed = route.indexOf('const confirmed = await givingFacts();');
-  const receiptWait = route.indexOf("deliveryPhase() === 'receipt-print'", confirmed);
-  const receiptShot = route.indexOf("await shot('12b-receipt-printing.png');", receiptWait);
-  const confirmedShot = route.indexOf("await shot('12-exact-change-confirmed.png');", confirmed);
-  assert.ok(confirmed >= 0 && receiptWait > confirmed && receiptShot > receiptWait
-      && confirmedShot > receiptShot,
-  'cash evidence must enter and capture receipt-print before another PNG can consume it');
-});
-
+// The receipt-phase capture-order test retired 2026-07-30 round 2: the physical
+// receipt was removed from the checkout outright, so the cash route no longer
+// enters a receipt-print phase for the driver to photograph.
 test('front-desk cash evidence accepts the presented handful before opening the drawer view', () => {
   const routeStart = frontDeskLifecycleDriver.indexOf('async function completeCashService');
   const routeEnd = frontDeskLifecycleDriver.indexOf('async function walkInScenario', routeStart);

@@ -174,6 +174,8 @@ const TERM_X_BOX = { x0: TERM_CANVAS_W - 70, y0: 12, x1: TERM_CANVAS_W - 14, y1:
 const REST_Y = COUNTER_TOP + 0.012;
 const CARRY_Y = COUNTER_TOP + 0.115;
 const BAG_REACH = 0.34;
+const SLIDE_DURATION = 0.55; // click-to-bag slide (2026-07-30 round 2)
+const TERMINAL_PARK_DEPTH = 0.46; // the reader hides under the counter between card sales
 const CARD_TIME = 1.15;
 const RECEIPT_TIME = 1.1;
 const RECEIPT_READY_HOLD = 0.42;
@@ -203,15 +205,14 @@ const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
 export const CARD_HELD_PITCH = 0.62;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
-  // UPRIGHT. Reported 2026-07-29 (§5): "bag upright with items parented into
-  // it." The old pitch (PI x 0.49 ~ 88 deg) laid the carrier on its side to
-  // match a reference composition — which read as a collapsed bag during the
-  // exact phase the monitor says "place it in the bag". Items were already
-  // parented at ANCHOR_BagContents; standing the group up puts them INSIDE a
-  // standing bag instead of spilling sideways with it. The whisker of pitch
-  // left tips the mouth toward the cashier so the opening reads from the
-  // working camera.
-  pitch: 0.10,
+  // ON ITS SIDE, MOUTH TOWARD THE ITEMS. Playtest 2026-07-30 round 2, against
+  // Designs/CashRegister/Final: the upright take stood in the way of the goods.
+  // The carrier lies on its flank at counter-left with its OPENING facing +x —
+  // straight at the items the customer laid out — and a clicked item slides
+  // left into that mouth. Roll -PI/2 about the desk's z maps the bag's local
+  // +y (the mouth) onto desk +x while the brand face keeps facing the cashier.
+  pitch: 0,
+  roll: -Math.PI / 2,
   scale: 0.62,
   counterLift: 0.035,
 });
@@ -790,16 +791,21 @@ export function createRegisterMode(B) {
   // keypad works at the face exactly as it does on the counter.
   const TERMINAL_FLOAT_RATE = 6.5;          // 1/s toward the target
   const TERMINAL_FLOAT_DISTANCE = 0.46;     // metres in front of the eye
-  const TERMINAL_FLOAT_DROP = 0.10;         // below eye line, so it reads as held up
+  const TERMINAL_FLOAT_DROP = 0.17;         // below eye line — at 0.10 the glass's X grazed 70 px above the viewport
   let terminalFloat = 0;                    // 0 seated .. 1 at the face
+  let termCentreOffsetY = 0.10;             // origin(base) -> device centre, measured at attach
   let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
   let termSeatPosition = null;
   let termSeatQuaternion = null;
   let cardMeshOnTerminal = false;
 
   function terminalShouldFloat() {
-    return !!(active && tx && tx.method === 'card'
-      && ['card-entry', 'card-busy', 'card-declined'].includes(tx.stage));
+    // From the moment the player TAKES the offered card until the payment
+    // resolves. Not during the offer itself — the parked reader would rise
+    // into the middle of the screen in front of the card being clicked.
+    if (!active || !tx || tx.method !== 'card') return false;
+    if (['card-entry', 'card-busy', 'card-declined'].includes(tx.stage)) return true;
+    return tx.stage === 'card-ready' && cardAccepted;
   }
 
   function updateTerminalFloat(dt) {
@@ -807,15 +813,20 @@ export function createRegisterMode(B) {
     const target = terminalShouldFloat() ? 1 : 0;
     const step = 1 - Math.exp(-TERMINAL_FLOAT_RATE * dt);
     terminalFloat += (target - terminalFloat) * step;
+    if (target === 0 && cardMeshOnTerminal) {
+      // Re-root the card the moment the stow begins, not when it lands: the
+      // eject/stow animations lerp root-local vectors, and a card still
+      // parented to a gliding terminal would run them in the wrong frame.
+      if (cardMesh) root.attach(cardMesh);
+      cardMeshOnTerminal = false;
+    }
     if (terminalFloat < 0.001 && target === 0) {
       if (terminalFloat !== 0) {
         terminalFloat = 0;
         termObject.position.copy(termSeatPosition);
         termObject.quaternion.copy(termSeatQuaternion);
-        if (cardMeshOnTerminal && cardMesh) { root.attach(cardMesh); cardMeshOnTerminal = false; }
       }
       terminalFloatAnchor = null;
-      cardMeshOnTerminal = cardMeshOnTerminal && !!cardMesh;
       return;
     }
     // The inserted card must ride the reader, or it stays behind mid-air.
@@ -833,15 +844,22 @@ export function createRegisterMode(B) {
       root.updateMatrixWorld(true);
       const eye = camera.getWorldPosition(new THREE.Vector3());
       const forward = camera.getWorldDirection(new THREE.Vector3());
+      const flatForward = new THREE.Vector3(forward.x, 0, forward.z);
+      if (flatForward.lengthSq() < 1e-6) flatForward.set(0, 0, -1);
+      flatForward.normalize();
+      // targetWorld is where the device's CENTRE should hang; the origin (its
+      // base) goes centre-offset lower so the glass sits at the eye line.
       const targetWorld = eye.clone()
-        .addScaledVector(forward, TERMINAL_FLOAT_DISTANCE)
-        .add(new THREE.Vector3(0, -TERMINAL_FLOAT_DROP, 0));
-      // Matrix4.lookAt(eye, target) points +Z from target TOWARD eye — and the
-      // exporter turns the reader's screen face to +Z, so the EYE argument must
-      // be the camera for the glass (and the keys) to face the player. An
-      // earlier take had them swapped and showed the back of the device.
-      const lookMatrix = new THREE.Matrix4().lookAt(eye, targetWorld, new THREE.Vector3(0, 1, 0));
-      const faceWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
+        .addScaledVector(flatForward, TERMINAL_FLOAT_DISTANCE)
+        .add(new THREE.Vector3(0, -TERMINAL_FLOAT_DROP - termCentreOffsetY, 0));
+      // STRAIGHT, not slanted (playtest 2026-07-30 round 2): the device stands
+      // upright with its glass square to the player — a yaw-only facing, no
+      // pitch or roll. The earlier full lookAt tilted the whole reader toward
+      // the eye line and it read as askew. The exporter turns the screen face
+      // to +Z, so +Z must aim back along the flattened view direction.
+      const yaw = Math.atan2(-flatForward.x, -flatForward.z);
+      const faceWorldQuat = new THREE.Quaternion()
+        .setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
       const rootQuatInv = root.getWorldQuaternion(new THREE.Quaternion()).invert();
       terminalFloatAnchor = {
         position: root.worldToLocal(targetWorld.clone()),
@@ -950,6 +968,9 @@ export function createRegisterMode(B) {
   let bagContentsNode = null;
   let bagHandoffNode = null;
   const BAG_COUNTER_SCALE = CHECKOUT_BAG_PRESENTATION.scale;
+  const bagCounterQuaternion = () => frontDeskQuaternion(
+    CHECKOUT_BAG_PRESENTATION.pitch, 0, CHECKOUT_BAG_PRESENTATION.roll,
+  );
   const bagHandoffLocal = new THREE.Vector3(0, 0.30, 0);
   const bagDeliverAnchorFrom = new THREE.Vector3();
   const bagDeliverAnchorAt = new THREE.Vector3();
@@ -962,7 +983,9 @@ export function createRegisterMode(B) {
     REGISTER.bag.z,
   ).add(frontDeskOffsetVector3(0, 0, -0.16));
   const bagMouth = new THREE.Vector3(0, 0.36 * BAG_COUNTER_SCALE, 0)
-    .applyQuaternion(frontDeskQuaternion(CHECKOUT_BAG_PRESENTATION.pitch))
+    .applyQuaternion(frontDeskQuaternion(
+      CHECKOUT_BAG_PRESENTATION.pitch, 0, CHECKOUT_BAG_PRESENTATION.roll,
+    ))
     .add(BAG_POS);
 
   const itemResources = createRegisterItemResources();
@@ -2096,15 +2119,17 @@ export function createRegisterMode(B) {
       // floating at the face, hiding the entry made keying the total feel like
       // guesswork. The keypad stays physical — the canvas draws no keys — but
       // the running figure renders live as it is typed (2026-07-30 ruling).
+      // The TOTAL is the prompt — sized up (playtest 2026-07-30 round 2:
+      // "make the total a bit bigger so it's easier for the user").
       ctx.fillStyle = '#9db3a4';
-      ctx.font = '700 30px Arial, sans-serif';
-      ctx.fillText(`TOTAL  $${totalOf(tx).toFixed(2)}`, W / 2, H * 0.16);
+      ctx.font = '700 44px Arial, sans-serif';
+      ctx.fillText(`TOTAL  $${totalOf(tx).toFixed(2)}`, W / 2, H * 0.17);
       const typed = String(tx.cardEntryDigits || '').length
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
       ctx.fillStyle = '#f5efdb';
       ctx.font = '800 78px Arial, sans-serif';
-      ctx.fillText(typed, W / 2, H * 0.46);
+      ctx.fillText(typed, W / 2, H * 0.48);
       if (tx.cardEntryError) {
         ctx.fillStyle = '#ff9a8f';
         ctx.font = '700 26px Arial, sans-serif';
@@ -2365,8 +2390,11 @@ export function createRegisterMode(B) {
   }
 
   function attachTerm(terminal) {
-    // Bring the authored reader into the same visible work plane as the POS.
-    terminal.position.set(CARD_STATION.x, COUNTER_TOP, CARD_STATION.z);
+    // THE READER PARKS UNDER THE COUNTER (playtest 2026-07-30 round 2, TCG
+    // reference): seated through the desk's opening below its old station so
+    // the counter stays clear, rising to the player's face when a card payment
+    // starts. The cabinet under the top hides it completely while parked.
+    terminal.position.set(CARD_STATION.x, COUNTER_TOP - TERMINAL_PARK_DEPTH, CARD_STATION.z);
     terminal.scale.multiplyScalar(TERMINAL_HARDWARE_SCALE);
     termObject = terminal;
     suppressLegacyCheckoutBrandNodes(terminal, 'paymentTerminal');
@@ -2397,6 +2425,16 @@ export function createRegisterMode(B) {
     termSeatPosition = terminal.position.clone();
     termSeatQuaternion = terminal.quaternion.clone();
     terminalFloat = 0;
+    // The float aims the device's CENTRE at the eye line, so measure where the
+    // centre sits relative to the origin. The origin is the BASE (it stood on
+    // the counter), and floating the base to eye height put the glass ~0.45 m
+    // above the viewport — measured 2026-07-30: the X projected at page
+    // y = -441 and the acceptance stability gate starved forever.
+    terminal.updateWorldMatrix(true, true);
+    const termBox = new THREE.Box3().setFromObject(terminal);
+    termCentreOffsetY = termBox.isEmpty()
+      ? 0.10
+      : termBox.getCenter(new THREE.Vector3()).y - terminal.getWorldPosition(new THREE.Vector3()).y;
     // The authored card socket anchors the automatic chip insertion path.
     cardSocketNode = terminal.getObjectByName('CARD_INSERT_SOCKET') || null;
     collectTerminalKeys(terminal);
@@ -2459,6 +2497,11 @@ export function createRegisterMode(B) {
     // made the whole card route a cutscene; now the offered card waits in the
     // customer's hand — outlined under the cursor — until it is clicked.
     if (!cardAccepted) return false;
+    // …and the reader must be UP first: it parks under the counter, and the
+    // insert path is sampled from its socket, so inserting mid-rise would aim
+    // the card at a point the socket has already left. updateCard retries this
+    // every frame until the rise settles.
+    if (terminalShouldFloat() && terminalFloat < 0.95) return false;
     refreshCardInsertPath();
     if (checkoutFlowState() === 'CardInsertReady'
         && !flowTo('CardInserting', 'automatic-card-insertion-started')) return false;
@@ -2971,7 +3014,7 @@ export function createRegisterMode(B) {
     if (!bagGroup) return;
     bagGroup.visible = true;
     bagGroup.position.copy(BAG_POS);
-    bagGroup.quaternion.copy(frontDeskQuaternion(CHECKOUT_BAG_PRESENTATION.pitch));
+    bagGroup.quaternion.copy(bagCounterQuaternion());
     bagGroup.scale.setScalar(BAG_COUNTER_SCALE);
   }
 
@@ -3006,7 +3049,7 @@ export function createRegisterMode(B) {
       checkoutOwner: 'register',
     };
     builtBag.position.copy(BAG_POS);
-    builtBag.quaternion.copy(frontDeskQuaternion(CHECKOUT_BAG_PRESENTATION.pitch));
+    builtBag.quaternion.copy(bagCounterQuaternion());
     builtBag.scale.setScalar(BAG_COUNTER_SCALE);
     root.add(builtBag);
     const fallback = new THREE.Mesh(
@@ -4286,14 +4329,22 @@ export function createRegisterMode(B) {
 
   function commitScanMotion(motion) {
     if (motion.committed) return true;
-    const { judgment } = scanReadFor(motion);
-    if (!judgment.ok) {
-      return rejectScanMotion(
-        motion,
-        BARCODE_MSG[judgment.code] || 'The scanner could not read that barcode.',
-      );
-    }
+    // No barcode judgment since the 2026-07-30 round-2 slide: the item never
+    // passes the scanner, the register beep IS the scan. The evidence record
+    // stays truthful about that — source 'click-slide', no ray facts claimed.
     const result = scanItem(tx, motion.uid);
+    if (result.ok) {
+      lastScanEvidence = {
+        uid: motion.uid,
+        skuId: motion.item.skuId,
+        barcode: motion.barcode,
+        scannerSource: 'click-slide',
+        phase: motion.phase,
+        ok: true,
+        code: 'ok',
+        capturedAtMs: performance.now(),
+      };
+    }
     if (!result.ok) return rejectScanMotion(motion, result.reason);
     motion.item.staged = true;
     motion.committed = true;
@@ -4324,20 +4375,9 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'ProductHeld') {
       flowTo('ProductScanning', `moving-product-to-reader:${item.uid}`);
     }
-    const scanPose = scanPoseFor(mesh);
-    if (!scanPose) {
-      return rejectScanMotion({
-        mesh,
-        uid: item.uid,
-        from: mesh.position.clone(),
-        fromQuaternion: mesh.quaternion.clone(),
-        fromScale: mesh.scale.clone(),
-      }, 'This product has no readable barcode mount.');
-    }
     hoverBox.visible = false;
     hoveredItem = null;
     sfx('productPickup');
-    setScannerFeedback('active', 0.62);
     const separateHandoff = !!mesh.userData.catalogVisual?.separateHandoff;
     const oversizeCount = tx.items.filter((candidate) => candidate.bagged
       && itemMeshes.get(candidate.uid)?.userData?.catalogVisual?.separateHandoff).length;
@@ -4345,8 +4385,14 @@ export function createRegisterMode(B) {
     const destination = separateHandoff
       ? new THREE.Vector3(oversizePoint.x, REST_Y, oversizePoint.z)
       : bagMouth.clone();
+    // ONE SLIDE, LEFT, INTO THE MOUTH. Playtest 2026-07-30 round 2 (reference:
+    // TCG Card Shop Simulator / Bookshop): the five-phase pickup -> barcode
+    // alignment -> reader pass -> bag arc read as ceremony. A click now rings
+    // the item up and slides it straight into the side-lying bag; the register
+    // beep IS the scan. The barcode pose requirement went with the arc — an
+    // item without a readable mount is still sellable by hand.
     scanMotion = {
-      phase: 'pickup',
+      phase: 'slide',
       destinationKind: separateHandoff ? 'oversize' : 'bag',
       mesh,
       item,
@@ -4354,18 +4400,14 @@ export function createRegisterMode(B) {
       barcode: mesh.userData.barcode,
       committed: false,
       elapsed: 0,
-      duration: scanDuration(),
+      duration: SLIDE_DURATION,
       from: mesh.position.clone(),
       to: destination,
       fromQuaternion: mesh.quaternion.clone(),
       fromScale: mesh.scale.clone(),
-      scanEntry: scanPose.entry,
-      scanCenter: scanPose.center,
-      scanExit: scanPose.exit,
-      scanQuaternion: scanPose.quaternion,
       toQuaternion: separateHandoff
         ? frontDeskQuaternion(-0.9, Math.PI * 0.6, 0.4)
-        : frontDeskQuaternion(0, 0.10, 0),
+        : frontDeskQuaternion(0, 0, CHECKOUT_BAG_PRESENTATION.roll),
     };
     return true;
   }
@@ -4374,42 +4416,26 @@ export function createRegisterMode(B) {
     if (!scanMotion) return;
     const motion = scanMotion;
     motion.elapsed = Math.min(motion.duration, motion.elapsed + dt);
-    const choreography = scanChoreographyAt(motion.elapsed);
-    motion.phase = choreography.phase;
-    const eased = THREE.MathUtils.smoothstep(choreography.phaseT, 0, 1);
-    motion.mesh.scale.copy(motion.fromScale);
-    if (choreography.phase === 'pickup') {
-      motion.mesh.position.lerpVectors(motion.from, motion.scanEntry, eased);
-      motion.mesh.position.y += Math.sin(choreography.phaseT * Math.PI) * 0.10;
-      motion.mesh.quaternion.slerpQuaternions(
-        motion.fromQuaternion, motion.scanQuaternion, eased,
-      );
-    } else if (choreography.phase === 'scan-approach') {
-      motion.mesh.position.lerpVectors(motion.scanEntry, motion.scanCenter, eased);
-      motion.mesh.quaternion.copy(motion.scanQuaternion);
-    } else if (choreography.phase === 'scan-hold') {
-      motion.mesh.position.copy(motion.scanCenter);
-      motion.mesh.quaternion.copy(motion.scanQuaternion);
-    } else if (choreography.phase === 'scan-exit') {
-      motion.mesh.position.lerpVectors(motion.scanCenter, motion.scanExit, eased);
-      motion.mesh.quaternion.copy(motion.scanQuaternion);
-    } else {
-      motion.mesh.position.lerpVectors(motion.scanExit, motion.to, eased);
-      motion.mesh.position.y += Math.sin(choreography.phaseT * Math.PI) * 0.20;
-      motion.mesh.quaternion.slerpQuaternions(
-        motion.scanQuaternion, motion.toQuaternion, eased,
-      );
-    }
-    if (choreography.shouldCommitScan && !motion.committed) {
+    // The whole gesture is one lateral slide from the counter into the bag's
+    // mouth (or across to the oversize staging spot). The ring-up commits at
+    // mid-slide — the POS beep is the scan.
+    const t = motion.duration > 0 ? motion.elapsed / motion.duration : 1;
+    const eased = THREE.MathUtils.smoothstep(t, 0, 1);
+    motion.phase = 'slide';
+    motion.mesh.position.lerpVectors(motion.from, motion.to, eased);
+    motion.mesh.position.y += Math.sin(t * Math.PI) * 0.07;
+    motion.mesh.quaternion.slerpQuaternions(
+      motion.fromQuaternion, motion.toQuaternion, eased,
+    );
+    if (t >= 0.42 && !motion.committed) {
       if (!commitScanMotion(motion)) return;
     }
-    // Compact goods scale down only while descending through the bag opening.
-    if (motion.destinationKind === 'bag' && choreography.phase === 'bag'
-        && choreography.phaseT > 0.60) {
-      const s = 1 - ((choreography.phaseT - 0.60) / 0.40) * 0.52;
-      motion.mesh.scale.copy(motion.fromScale).multiplyScalar(s);
+    // Compact goods scale down as they pass through the mouth.
+    if (motion.destinationKind === 'bag' && t > 0.62) {
+      const shrink = 1 - ((t - 0.62) / 0.38) * 0.52;
+      motion.mesh.scale.copy(motion.fromScale).multiplyScalar(shrink);
     }
-    if (!choreography.complete) return;
+    if (motion.elapsed < motion.duration) return;
     scanMotion = null;
     const bagResult = bagScannedItem(tx, motion.uid);
     if (!bagResult.ok) toast(bagResult.reason, 'warn');
@@ -5008,19 +5034,19 @@ export function createRegisterMode(B) {
       flowTo('ReceiptPrinting', 'automatic-receipt-started');
     }
     if (checkoutFlowState() !== 'ReceiptPrinting') return false;
+    // NO PHYSICAL RECEIPT. Playtest 2026-07-30 round 2: "just remove the whole
+    // receipt thing." The sim still files it — printReceipt here, take/pack in
+    // finishAutomaticFulfillment, so canComplete's contract holds and a reload
+    // recovers the same durable flow states — but no paper prints, nothing is
+    // handed, and the delivery goes straight to the bag.
     const printed = printReceipt(tx);
     if (!printed.ok && !tx.receiptPrinted) {
       toast(printed.reason, 'warn');
       return false;
     }
-    // Stand the paper proud of the slot so it never feeds through the housing.
-    ensureReceiptMesh({ resetToPrinter: true });
-    deliveryPhase = 'receipt-print';
-    receiptTimer = RECEIPT_TIME;
     setWorkspace('monitor');
-    sfx('receiptPrint');
     drawScreen();
-    return true;
+    return finishAutomaticFulfillment();
   }
 
   function finishAutomaticFulfillment() {
@@ -5067,7 +5093,6 @@ export function createRegisterMode(B) {
       }
       autoFulfilled = true;
       deliveryPhase = null;
-      sfx('receiptTear');
       return beginBagDeliveryOrRelease();
     }
 
@@ -5111,15 +5136,11 @@ export function createRegisterMode(B) {
         return false;
       }
     }
-    ensureReceiptMesh({ fullyExposed: true });
     autoFulfilled = true;
-    // The sim-side order is complete (receipt packed, goods bagged). Now the
-    // PHYSICAL delivery runs: receipt to the customer, then the bag, and only
-    // then does finalize bank the sale.
-    deliveryPhase = 'receipt-ready';
-    deliveryTimer = RECEIPT_READY_HOLD;
-    sfx('receiptTear');
+    // The sim-side order is complete (receipt filed, goods bagged). The one
+    // physical delivery left is the bag itself.
     drawScreen();
+    beginBagDeliveryOrRelease();
     return true;
   }
 
@@ -6364,55 +6385,9 @@ export function createRegisterMode(B) {
   //   → released (finalizeTimer banks the sale and the customer leaves).
   function updateDelivery(dt) {
     if (!tx || !deliveryPhase || deliveryPhase === 'released') return;
-    if (deliveryPhase === 'receipt-print') return; // updateReceipt owns this leg
     deliveryTimer = Math.max(0, deliveryTimer - dt);
-    if (deliveryPhase === 'receipt-ready') {
-      if (deliveryTimer === 0 && receiptMesh) {
-        poseCustomerForCheckout('Receive');
-        deliveryPhase = 'receipt-deliver';
-        deliveryTimer = RECEIPT_DELIVER_TIME;
-        deliveryFrom = receiptMesh.position.clone();
-        deliveryTo = customerAnchor(1.18, 'R');
-      }
-      return;
-    }
-    if (deliveryPhase === 'receipt-deliver') {
-      if (receiptMesh) {
-        // Character nod/bob motion continues during the transfer. Refresh the
-        // authored palm endpoint so the last delivery frame cannot snap.
-        deliveryTo.copy(customerAnchor(1.18, 'R'));
-        const t = 1 - deliveryTimer / RECEIPT_DELIVER_TIME;
-        const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-        // a real hand-over arc: up out of the printer, OVER the register gear, down to
-        // the customer — a quadratic bezier whose apex clears the tallest thing between
-        // the slot and the hand (the straight lerp used to cut through the housing)
-        const apexY = Math.max(deliveryFrom.y, deliveryTo.y) + 0.28;
-        const inv = 1 - eased;
-        const midX = (deliveryFrom.x + deliveryTo.x) / 2;
-        const midZ = (deliveryFrom.z + deliveryTo.z) / 2;
-        receiptMesh.position.set(
-          inv * inv * deliveryFrom.x + 2 * inv * eased * midX + eased * eased * deliveryTo.x,
-          inv * inv * deliveryFrom.y + 2 * inv * eased * apexY + eased * eased * deliveryTo.y,
-          inv * inv * deliveryFrom.z + 2 * inv * eased * midZ + eased * eased * deliveryTo.z,
-        );
-        receiptMesh.quaternion.slerpQuaternions(
-          RECEIPT_PRINTER_QUATERNION,
-          RECEIPT_HANDOFF_QUATERNION,
-          eased,
-        );
-      }
-      if (deliveryTimer === 0) {
-        attachReceiptToCustomer();
-        deliveryPhase = 'receipt-customer-hold';
-        deliveryTimer = RECEIPT_CUSTOMER_HOLD;
-        drawScreen();
-      }
-      return;
-    }
-    if (deliveryPhase === 'receipt-customer-hold') {
-      if (deliveryTimer === 0) beginBagDeliveryOrRelease();
-      return;
-    }
+    // The receipt legs (print -> ready -> deliver -> customer-hold) were cut
+    // 2026-07-30 round 2; payment goes straight to the bag transfer below.
     if (deliveryPhase === 'bag-deliver') {
       if (bagGroup) {
         const t = 1 - deliveryTimer / BAG_DELIVER_TIME;
