@@ -1,7 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { BALANCE } from '../src/sim/balance.js';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
+
+// ROUND MECHANICS AT BASELINE COMPRESSION. D1 (2026-07-30) prices route travel
+// so bodies hold the authored WALL rate on any day length — on the shipped
+// 4x-compressed day a route therefore spans 4x the game minutes, which is the
+// ruling's intended day-economics change, not a defect. This file tests the
+// ROUND MACHINERY (starter, practice, carts, marshals, scorecards), whose
+// minute expectations were authored against the baseline day; it pins the
+// baseline so those mechanics stay tested independently of day length.
+// tests/golfer-pace.test.js owns the compression behaviour itself.
+BALANCE.gameMinutesPerRealSecond = BALANCE.npcTimingBaselineGameMinutesPerRealSecond;
 import {
   beginReservationPayment,
   bookSlot,

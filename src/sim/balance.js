@@ -169,6 +169,30 @@ export const BALANCE = {
 //
 // tests/sim-time-locomotion.test.js drives this with a doctored day length and
 // requires locomotion to sit still while decision moves.
+/**
+ * D1 — GOLFERS GET THE SAME CLOCK SPLIT AS SHOPPERS. On-course bodies read
+ * their position off game minutes (updateRoutePosition), so the 12h -> 3h day
+ * made every golfer sprint at 4x the authored rates on the DEFAULT rung
+ * (measured: 1.93 -> 7.73 yd/s on foot, 3.50 -> 14.00 in a cart). The ruled
+ * split: decisions on the game clock, locomotion wall-rate capped.
+ *
+ * Route durations are priced in game minutes, and the clock burns
+ * compression x rung game minutes per wall second — so stretching a route's
+ * game-minute duration by this factor holds the BODY at the authored wall
+ * rate. The rung term lets fast-forward move bodies up to the same x4 cap the
+ * shoppers use (rung/min(rung,4) cancels below the cap, prices the excess in
+ * above it). Same discipline as simSpeedMultipliers: the arithmetic lives here
+ * so a test can drive it with a doctored day length and prove the wall rate
+ * does not move.
+ */
+export const GOLFER_LOCOMOTION_SPEED_CAP = 4;
+export function golferPaceScale(speedRung = 1, balance = BALANCE) {
+  const baseline = balance.npcTimingBaselineGameMinutesPerRealSecond || balance.gameMinutesPerRealSecond;
+  const compression = balance.gameMinutesPerRealSecond / baseline;
+  const rung = Math.max(1, Number(speedRung) || 1);
+  return compression * (rung / Math.min(rung, GOLFER_LOCOMOTION_SPEED_CAP));
+}
+
 export function simSpeedMultipliers(speedIdx, balance = BALANCE) {
   const rung = balance.speeds[speedIdx];
   // A paused world still reports the multipliers it would resume at — the

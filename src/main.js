@@ -2409,6 +2409,9 @@ function frame(ts) {
     // the two numbers got conflated in the first place.
     const simMult = simSpeedMultipliers(app.speedIdx);
     app.scene3d.clubhouse?.()?.setSimSpeed?.(simMult.decision, simMult.locomotion);
+    // The golfers' pace pricing (sim/golfDay routeDuration) needs the live
+    // rung; golfDay ticks receive minutes only, so it rides the state.
+    if (app.state.golfDay) app.state.golfDay.speedRung = BALANCE.speeds[app.speedIdx] || 1;
     if (speed > 0) {
       const golfParties = app.state.golfDay?.parties || [];
       const nearbyShot = app.speedIdx === 1 && golfParties.find((party) => (

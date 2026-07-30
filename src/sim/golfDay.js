@@ -5,6 +5,7 @@
 // advance a second, cosmetic golfer simulation.
 
 import { clamp } from '../core/utils.js';
+import { golferPaceScale } from './balance.js';
 import { calendarOf } from './time.js';
 import { holePar } from './course.js';
 import { courseAggregates } from './rounds.js';
@@ -524,9 +525,16 @@ function removePracticeOccupant(day, partyId) {
   day.practice.range.bucketsAvailable = Math.max(0, 8 - day.practice.range.bucketsInUse.length);
 }
 
-function routeDuration(route, transport, multiplier = 1) {
+function routeDuration(state, route, transport, multiplier = 1) {
   const speed = transport === 'ride' ? CART_YD_PER_MIN : WALK_YD_PER_MIN;
-  return clamp(routeDistance(route) / speed * multiplier, 0.12, 8);
+  // WALK/CART_YD_PER_MIN are WALL rates authored against the baseline day.
+  // golferPaceScale stretches the game-minute duration by the day compression
+  // (and any fast-forward beyond the x4 cap) so the body on screen moves at
+  // the authored rate whatever length the day is — D1, the same clock split
+  // the shoppers ruled in. The 8-minute ceiling scales with it, or a long
+  // walk on a compressed day would clamp back into a sprint.
+  const pace = golferPaceScale(state?.golfDay?.speedRung ?? 1);
+  return clamp(routeDistance(route) / speed * multiplier * pace, 0.12, 8 * pace);
 }
 
 function openHoles(state) {
@@ -1025,7 +1033,7 @@ function beginRoute(state, party, route, destination, minute, nextState, multipl
   party.routeStartedMinute = minute;
   party.routeTransport = routeTransport;
   const marshalPaceFactor = Number(party.pace?.paceBoostUntilMinute) > minute ? 0.88 : 1;
-  party.routeEndsMinute = round2(minute + routeDuration(party.route, routeTransport, multiplier * marshalPaceFactor));
+  party.routeEndsMinute = round2(minute + routeDuration(state, party.route, routeTransport, multiplier * marshalPaceFactor));
   setRoundState(state, party, nextState, minute, party.routeEndsMinute - minute);
 }
 
@@ -1769,7 +1777,7 @@ function processParty(state, party, minute) {
         party.transport === 'ride' ? 'cart' : 'walk',
         { parkNearGoal: true },
       );
-      const duration = routeDuration(route, party.transport);
+      const duration = routeDuration(state, route, party.transport);
       const searchMinutes = golfer.lie?.kind === 'rough'
         ? round1(clamp((party.courseSnapshot.roughHeightMm - 45) / 55, 0.15, 1.6))
         : 0;
@@ -1818,7 +1826,7 @@ function processParty(state, party, minute) {
       party.holeIndex++;
       const nextHole = currentRouteHole(state, party);
       const route = day.routeNetwork.holes[completedIndex]?.transition?.[party.transport === 'ride' ? 'cart' : 'walk'];
-      const duration = routeDuration(route, party.transport);
+      const duration = routeDuration(state, route, party.transport);
       party.pace.travelMinutes = round1(party.pace.travelMinutes + duration);
       beginRoute(state, party, route, nextHole.tee, minute, ROUND_STATE.TRAVELING_NEXT_HOLE);
       break;
