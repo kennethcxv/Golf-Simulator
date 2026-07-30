@@ -1,0 +1,687 @@
+{
+  "durationMs": 46506,
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "minuteOfDay": 780,
+  "beatsMirrorBaseline": true,
+  "tableApproach": null,
+  "cleaningLanded": true,
+  "pre": {
+    "cleaningKitOwned": true,
+    "toolAtStart": null,
+    "debrisCount": 18,
+    "debrisTotal": 3.93
+  },
+  "post": {
+    "toolAtEnd": null,
+    "debrisCount": 18,
+    "debrisTotal": 3.93,
+    "toolViewmodel": {
+      "loadResults": [
+        {
+          "id": "washer",
+          "ok": true
+        },
+        {
+          "id": "vacuum",
+          "ok": true
+        },
+        {
+          "id": "mop",
+          "ok": true
+        },
+        {
+          "id": "broom",
+          "ok": true
+        },
+        {
+          "id": "dustpan",
+          "ok": true
+        },
+        {
+          "id": "spray",
+          "ok": true
+        },
+        {
+          "id": "cloth",
+          "ok": true
+        },
+        {
+          "id": "sponge",
+          "ok": true
+        },
+        {
+          "id": "trashbag",
+          "ok": true
+        }
+      ],
+      "authoredCount": 9,
+      "authored": 9,
+      "equippedTool": null,
+      "activeTools": [],
+      "animated": [
+        "washer",
+        "broom",
+        "vacuum",
+        "mop",
+        "dustpan",
+        "spray",
+        "cloth",
+        "sponge",
+        "trashbag"
+      ],
+      "playing": [],
+      "clips": {
+        "washer": [
+          "WasherWand_Equip",
+          "WasherWand_Recoil",
+          "WasherWand_Unequip",
+          "WasherWand_TriggerDown",
+          "WasherWand_TriggerUp"
+        ],
+        "broom": [
+          "Broom_BristleContact",
+          "Broom_Equip",
+          "Broom_SweepLeft",
+          "Broom_SweepRight",
+          "Broom_Unequip"
+        ],
+        "vacuum": [
+          "Vacuum_Equip",
+          "Vacuum_FloorHeadContact",
+          "Vacuum_Start",
+          "Vacuum_Stop",
+          "Vacuum_StrokeLeft",
+          "Vacuum_StrokeRight",
+          "Vacuum_Unequip"
+        ],
+        "mop": [
+          "Mop_Equip",
+          "Mop_HeadCompress",
+          "Mop_StrokeLeft",
+          "Mop_StrokeRight",
+          "Mop_Unequip"
+        ],
+        "dustpan": [
+          "Dustpan_Empty",
+          "Dustpan_Equip",
+          "Dustpan_PickUp",
+          "Dustpan_SetDown",
+          "Dustpan_Unequip"
+        ],
+        "spray": [
+          "SprayBottle_Equip",
+          "SprayBottle_Unequip",
+          "SprayBottle_Trigger"
+        ],
+        "cloth": [
+          "Cloth_Equip",
+          "Cloth_Unequip",
+          "Cloth_Wipe"
+        ],
+        "sponge": [
+          "Sponge_Equip",
+          "Sponge_Scrub",
+          "Sponge_Unequip"
+        ],
+        "trashbag": [
+          "TrashBag_Dispose",
+          "TrashBag_Equip",
+          "TrashBag_Swallow",
+          "TrashBag_Tie",
+          "TrashBag_Unequip"
+        ]
+      },
+      "tools": {
+        "washer": {
+          "clips": [
+            "WasherWand_Equip",
+            "WasherWand_Recoil",
+            "WasherWand_Unequip",
+            "WasherWand_TriggerDown",
+            "WasherWand_TriggerUp"
+          ],
+          "played": [],
+          "active": false
+        },
+        "broom": {
+          "clips": [
+            "Broom_BristleContact",
+            "Broom_Equip",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "played": [
+            "Broom_Equip",
+            "Broom_BristleContact",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "active": false
+        },
+        "vacuum": {
+          "clips": [
+            "Vacuum_Equip",
+            "Vacuum_FloorHeadContact",
+            "Vacuum_Start",
+            "Vacuum_Stop",
+            "Vacuum_StrokeLeft",
+            "Vacuum_StrokeRight",
+            "Vacuum_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "mop": {
+          "clips": [
+            "Mop_Equip",
+            "Mop_HeadCompress",
+            "Mop_StrokeLeft",
+            "Mop_StrokeRight",
+            "Mop_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "dustpan": {
+          "clips": [
+            "Dustpan_Empty",
+            "Dustpan_Equip",
+            "Dustpan_PickUp",
+            "Dustpan_SetDown",
+            "Dustpan_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "spray": {
+          "clips": [
+            "SprayBottle_Equip",
+            "SprayBottle_Unequip",
+            "SprayBottle_Trigger"
+          ],
+          "played": [],
+          "active": false
+        },
+        "cloth": {
+          "clips": [
+            "Cloth_Equip",
+            "Cloth_Unequip",
+            "Cloth_Wipe"
+          ],
+          "played": [],
+          "active": false
+        },
+        "sponge": {
+          "clips": [
+            "Sponge_Equip",
+            "Sponge_Scrub",
+            "Sponge_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "trashbag": {
+          "clips": [
+            "TrashBag_Dispose",
+            "TrashBag_Equip",
+            "TrashBag_Swallow",
+            "TrashBag_Tie",
+            "TrashBag_Unequip"
+          ],
+          "played": [],
+          "active": false
+        }
+      }
+    },
+    "broom": {
+      "vmActive": false,
+      "fov": 50,
+      "layer": 29,
+      "reach": 1.118,
+      "drawReach": 0.2,
+      "workBlend": 1,
+      "clamped": true,
+      "tilt": 0,
+      "intensity": 0,
+      "headNdc": {
+        "x": 0.246,
+        "y": -1.639
+      }
+    }
+  },
+  "samples": [
+    {
+      "label": "level-pitch-hold",
+      "tool": "broom",
+      "using": false,
+      "did": null,
+      "blocked": null,
+      "reason": null,
+      "targetLocal": [
+        360,
+        -4
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.414,
+        "drawReach": 1.414,
+        "workBlend": 0,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0,
+        "headNdc": {
+          "x": 0.196,
+          "y": -0.855
+        }
+      }
+    },
+    {
+      "label": "first-contact",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.18,
+        3.28
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.118,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.852,
+        "headNdc": {
+          "x": 0.181,
+          "y": -0.772
+        }
+      }
+    },
+    {
+      "label": "sweep-push-0",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.11,
+        2.61
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.691,
+        "headNdc": {
+          "x": 0.273,
+          "y": -1.873
+        }
+      }
+    },
+    {
+      "label": "sweep-push-1",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.14,
+        2.61
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.745,
+        "headNdc": {
+          "x": 0.255,
+          "y": -1.869
+        }
+      }
+    },
+    {
+      "label": "sweep-push-2",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.13,
+        2.62
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.787,
+        "headNdc": {
+          "x": 0.257,
+          "y": -1.869
+        }
+      }
+    },
+    {
+      "label": "sweep-push-3",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.14,
+        2.62
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.814,
+        "headNdc": {
+          "x": 0.25,
+          "y": -1.872
+        }
+      }
+    },
+    {
+      "label": "sweep-push-4",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.16,
+        2.62
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.846,
+        "headNdc": {
+          "x": 0.242,
+          "y": -1.87
+        }
+      }
+    },
+    {
+      "label": "turn-0.55",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.14,
+        2.36
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.395,
+        "headNdc": {
+          "x": 0.32,
+          "y": -1.871
+        }
+      }
+    },
+    {
+      "label": "turn--0.55",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.26,
+        2.77
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.854,
+        "headNdc": {
+          "x": 0.178,
+          "y": -1.865
+        }
+      }
+    },
+    {
+      "label": "turn-0.3",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.31,
+        2.55
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.607,
+        "headNdc": {
+          "x": 0.158,
+          "y": -1.878
+        }
+      }
+    },
+    {
+      "label": "turn-0",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.25,
+        2.6
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.318,
+        "headNdc": {
+          "x": 0.177,
+          "y": -1.87
+        }
+      }
+    },
+    {
+      "label": "near-wall",
+      "tool": "broom",
+      "using": true,
+      "did": 0.26,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -7.18,
+        4.09
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.118,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.378,
+        "headNdc": {
+          "x": 0.1,
+          "y": -0.773
+        }
+      }
+    },
+    {
+      "label": "near-wall-turned",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -6.74,
+        3.39
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.118,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.881,
+        "headNdc": {
+          "x": 0.244,
+          "y": -0.772
+        }
+      }
+    },
+    {
+      "label": "table-edge",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -7.6,
+        0.54
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.2,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.373,
+        "headNdc": {
+          "x": 0.183,
+          "y": -1.862
+        }
+      }
+    }
+  ],
+  "beats": [
+    {
+      "name": "idle-hands-free",
+      "atMs": 93
+    },
+    {
+      "name": "equip-broom",
+      "atMs": 3095
+    },
+    {
+      "name": "idle-holding",
+      "atMs": 6304
+    },
+    {
+      "name": "walking",
+      "atMs": 9837
+    },
+    {
+      "name": "begin-surface-contact",
+      "atMs": 14262
+    },
+    {
+      "name": "continuous-sweeping",
+      "atMs": 16879
+    },
+    {
+      "name": "direction-changes",
+      "atMs": 24438
+    },
+    {
+      "name": "cleaning-near-wall",
+      "atMs": 30495
+    },
+    {
+      "name": "sweeping-table-edge",
+      "atMs": 37045
+    },
+    {
+      "name": "stop-use",
+      "atMs": 40876
+    },
+    {
+      "name": "unequip",
+      "atMs": 43492
+    },
+    {
+      "name": "end",
+      "atMs": 46501
+    }
+  ]
+}

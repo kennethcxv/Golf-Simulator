@@ -43,22 +43,51 @@ async (page) => {
   }, null, { timeout: 120000 });
   await page.waitForTimeout(2500);
 
-  const SWEEP_STANDOFF = 1.6;
+  // 1.35 not the baseline's 1.6: the eased working reach settles near 1.12,
+  // and the sweep radius (0.66) must cover the cluster from first contact.
+  const SWEEP_STANDOFF = 1.35;
   const SWEEP_PITCH = -0.82;
-  await page.evaluate(({ minuteOfDay, pitch, standoff }) => {
+  // Derive the sweep lane from the LIVE debris and the LIVE colliders — the
+  // baseline's hardcoded strip predates the v2 relayout, and standing there
+  // now faces the counter: the clamp (correctly) pulled the head to the feet
+  // and the whole working section swept the wrong spot.
+  const lane = await page.evaluate(({ minuteOfDay, pitch, standoff }) => {
     const app = window.__fw;
     const s3 = app.scene3d;
     const o = s3.clubhouse().interior.position;
     const w = s3.walk;
     w.clearKeys();
-    w.state.x = o.x - 5.6; w.state.z = o.z + 2.8 + standoff;
-    w.state.yaw = 0;
-    w.state.pitch = pitch;
     app.speedIdx = 0;
     const c = app.state.clock;
     c.minutes = Math.floor(c.minutes / 1440) * 1440 + minuteOfDay;
     s3.applyTimeWeather(minuteOfDay, app.state.weather);
+    const debris = app.state.shop.reno.debris || [];
+    const directions = [
+      { dx: 0, dz: 1, yaw: 0 }, { dx: 0, dz: -1, yaw: Math.PI },
+      { dx: 1, dz: 0, yaw: Math.PI / 2 }, { dx: -1, dz: 0, yaw: -Math.PI / 2 },
+    ];
+    for (const cluster of debris) {
+      for (const direction of directions) {
+        const sx = cluster.x + direction.dx * standoff;
+        const sz = cluster.z + direction.dz * standoff;
+        const stanceFree = w.isFree(o.x + sx, o.z + sz, 0.4);
+        const headFree = [0.5, 1.0, 1.4].every((ahead) => w.isFree(
+          o.x + sx - direction.dx * ahead, o.z + sz - direction.dz * ahead, 0.25,
+        ));
+        if (stanceFree && headFree) {
+          w.state.x = o.x + sx; w.state.z = o.z + sz;
+          w.state.yaw = direction.yaw;
+          w.state.pitch = pitch;
+          return {
+            cluster: { x: +cluster.x.toFixed(2), z: +cluster.z.toFixed(2), kind: cluster.kind },
+            stance: { x: +sx.toFixed(2), z: +sz.toFixed(2), yaw: +direction.yaw.toFixed(2) },
+          };
+        }
+      }
+    }
+    return null;
   }, { minuteOfDay: MINUTE_OF_DAY, pitch: SWEEP_PITCH, standoff: SWEEP_STANDOFF });
+  if (!lane) throw new Error('No debris cluster has an open approach lane; cannot stage the sweep beats.');
   await page.waitForTimeout(1500);
   await page.mouse.click(800, 450);
 
@@ -134,14 +163,18 @@ async (page) => {
   await page.waitForTimeout(1200);
 
   // ---- 6. continuous sweeping ----------------------------------------------------
+  // A push broom PUSHES the pile forward — short forward presses drive the
+  // head through the cluster and keep the pile in reach, where the baseline's
+  // long strafe (authored for the old debris ROW) walks off a lone cluster.
   mark('continuous-sweeping');
-  await page.keyboard.down('d');
   for (let i = 0; i < 5; i++) {
-    await page.waitForTimeout(1100);
-    await sampleCleaning(`sweep-strafe-${i}`);
+    await page.keyboard.down('w');
+    await page.waitForTimeout(650);
+    await page.keyboard.up('w');
+    await page.waitForTimeout(650);
+    await sampleCleaning(`sweep-push-${i}`);
   }
-  await page.keyboard.up('d');
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(900);
 
   // ---- 7. direction changes ------------------------------------------------------
   mark('direction-changes');
@@ -183,8 +216,9 @@ async (page) => {
     const app = window.__fw;
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk;
-    const cols = app.scene3d.colliders?.props || [];
-    // the nearest broad prop AABB to the sales-floor centre = a table/counter face
+    // counters/desks may register as structures rather than props; search both
+    const groups = app.scene3d.colliders || {};
+    const cols = [...(groups.props || []), ...(groups.structures || [])];
     const seed = { x: -1.0, z: 0.6 };
     let best = null;
     for (const col of cols) {
