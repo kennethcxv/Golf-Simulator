@@ -2511,6 +2511,20 @@ body.register-mode .view-toggle { display: none !important; }
   font-weight: 700; color: var(--lt-ink); font-variant-numeric: tabular-nums;
   min-width: 72px; text-align: right;
 }
+/* THE CART IS TWO COLUMNS so the money never leaves the lid.
+   Reported 2026-07-29: with a full cart the stacked layout pushed Place Order below the
+   640 px fold. The items are the left column and scroll with the page; the rail (delivery
+   chooser, totals, the button) is sticky against .lt-content, the laptop's one scroller —
+   however many lines are in the basket, the button that spends the money stays on screen. */
+.lt-cartsplit {
+  display: grid; grid-template-columns: minmax(0, 1fr) 296px;
+  gap: 10px; align-items: start;
+}
+.lt-cartmaincol { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lt-cartrail {
+  display: flex; flex-direction: column; gap: 10px;
+  position: sticky; top: 0;
+}
 .lt-cartline { display: flex; align-items: baseline; gap: 8px; font-size: 0.86em; }
 .lt-cartsub, .lt-cartfreight { color: var(--lt-dim); }
 .lt-carttotal { border-top: 1px solid var(--lt-edge); padding-top: 8px; font-size: 1.0em; }

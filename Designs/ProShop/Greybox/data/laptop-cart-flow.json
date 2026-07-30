@@ -37,6 +37,14 @@
     "totalLine": "Total$673",
     "chosen": "Express — arrives tomorrow"
   },
+  "foldCheck": {
+    "lines": 8,
+    "buttonBottom": 620,
+    "viewBottom": 729,
+    "inViewAtTop": true,
+    "contentScrollable": true,
+    "inViewAtBottom": true
+  },
   "findings": {
     "cartListsLineItems": true,
     "cartHasDeliveryChoice": true,
@@ -51,12 +59,17 @@
     "cartCanReturnToBrowsing": true,
     "totalRespondsToDelivery": true,
     "totalBefore": "Total$614",
-    "totalAfterExpress": "Total$673"
+    "totalAfterExpress": "Total$673",
+    "fullCartHasManyLines": true,
+    "placeOrderAboveTheFold": true,
+    "theCheckHadSomethingToProve": true,
+    "placeOrderStaysWhileScrolling": true
   },
   "shots": [
     "laptop-cart-1-browse.png",
     "laptop-cart-2-cart.png",
-    "laptop-cart-3-express.png"
+    "laptop-cart-3-express.png",
+    "laptop-cart-4-full-fold.png"
   ],
   "errs": [],
   "ok": true

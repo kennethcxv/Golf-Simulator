@@ -1605,9 +1605,19 @@ export function makeLaptop(app, opts) {
 
     const taxPercent = `${(taxRate * 100).toFixed(2).replace(/\.?0+$/, '')}%`;
 
+    // TWO COLUMNS: WHAT YOU ARE BUYING, AND WHAT IT COSTS.
+    //
+    // Reported 2026-07-29: "Place Order sits below the lid's fold with a full cart. Fix it —
+    // a confirm button you have to scroll to find is the same defect as the shipping options
+    // sitting under the total." Stacked cards meant every line item pushed the money further
+    // down; on a 640 px lid, four lines buried it. Now the line items are the left column and
+    // the delivery chooser, totals and Place Order live in a right-hand rail that sticks to
+    // the top of the scroll — however long the cart, the button stays on screen.
     return [
-      el('div', { class: 'lt-cart' },
-        el('div', { class: 'lt-cartline' },
+      el('div', { class: 'lt-cartsplit' },
+        el('div', { class: 'lt-cartmaincol' },
+          el('div', { class: 'lt-cart' },
+            el('div', { class: 'lt-cartline' },
           el('span', { style: 'font-weight:600', text: `${cart.size} line${cart.size === 1 ? '' : 's'} · ${unitsInCart} unit${unitsInCart === 1 ? '' : 's'}` }),
           meta(`${supplierCount} supplier${supplierCount === 1 ? '' : 's'} · ${plural(boxCount, 'box')}`),
           el('span', { class: 'lt-headspace' }),
@@ -1616,14 +1626,16 @@ export function makeLaptop(app, opts) {
             text: 'Keep shopping',
             onclick: () => { ss.tab = 'order'; click(); render(); },
           })),
-        el('div', { class: 'lt-cartitems' }, ...lineRows)),
+            el('div', { class: 'lt-cartitems' }, ...lineRows)),
+          !affordable ? errBox(`That cart is ${formatMoney(total - cashOf())} more than you have.`) : null),
 
-      // Stacked rows rather than side-by-side chips, so both options are read top to bottom
-      // with their arrival, their freight and -- on the row -- what choosing it costs or saves
-      // against the other. The player never subtracts.
-      el('div', { class: 'lt-cart' },
-        el('div', { class: 'lt-shipping' },
-          el('div', { class: 'lt-shiplabel', text: 'Delivery speed' }),
+        el('div', { class: 'lt-cartrail' },
+          // Stacked rows rather than side-by-side chips, so both options are read top to bottom
+          // with their arrival, their freight and -- on the row -- what choosing it costs or
+          // saves against the other. The player never subtracts.
+          el('div', { class: 'lt-cart' },
+            el('div', { class: 'lt-shipping' },
+              el('div', { class: 'lt-shiplabel', text: 'Delivery speed' }),
           ...[
             { id: 'standard', label: 'Standard', q: quoteStandard },
             { id: 'express', label: 'Express', q: quoteExpress },
@@ -1647,25 +1659,24 @@ export function makeLaptop(app, opts) {
               el('span', { class: 'lt-shipname', text: `${label} — arrives ${arrivalWord(q.leadDays)}` }),
               el('span', { class: 'lt-shiptrade', text: trade })),
             el('span', { class: 'lt-shipfee', text: formatMoney(q.freight) }));
-          }))),
+              }))),
 
-      el('div', { class: 'lt-cart' },
-        money('Subtotal', goods),
-        money(`${shipMode === 'express' ? 'Express' : 'Standard'} delivery`, freight),
-        // The tax line is ALWAYS here. It reads BALANCE.wholesaleSalesTaxRate, which is 0
-        // until someone decides to charge it -- a review screen that shows tax only when tax
-        // happens to be non-zero teaches the player it does not exist.
-        el('div', { class: 'lt-cartline' },
-          el('span', { text: taxRate > 0 ? `Sales tax (${taxPercent})` : 'Sales tax (none on wholesale)' }),
-          el('span', { class: 'lt-headspace' }),
-          el('span', { text: formatMoney(tax) })),
-        el('div', { class: 'lt-cartline lt-carttotal' },
-          el('span', { style: 'font-weight:700', text: 'Total' }),
-          el('span', { class: 'lt-headspace' }),
-          el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: formatMoney(total) })),
-        meta(`Arrives ${arrivalWord(quote.leadDays)} · ${plural(boxCount, 'box')} to the receiving pad · cash on hand ${formatMoney(cashOf())}`),
-        primaryBtn('Place Order', placeOrderFlow, !affordable)),
-      !affordable ? errBox(`That cart is ${formatMoney(total - cashOf())} more than you have.`) : null,
+          el('div', { class: 'lt-cart' },
+            money('Subtotal', goods),
+            money(`${shipMode === 'express' ? 'Express' : 'Standard'} delivery`, freight),
+            // The tax line is ALWAYS here. It reads BALANCE.wholesaleSalesTaxRate, which is 0
+            // until someone decides to charge it -- a review screen that shows tax only when
+            // tax happens to be non-zero teaches the player it does not exist.
+            el('div', { class: 'lt-cartline' },
+              el('span', { text: taxRate > 0 ? `Sales tax (${taxPercent})` : 'Sales tax (none on wholesale)' }),
+              el('span', { class: 'lt-headspace' }),
+              el('span', { text: formatMoney(tax) })),
+            el('div', { class: 'lt-cartline lt-carttotal' },
+              el('span', { style: 'font-weight:700', text: 'Total' }),
+              el('span', { class: 'lt-headspace' }),
+              el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: formatMoney(total) })),
+            meta(`Arrives ${arrivalWord(quote.leadDays)} · ${plural(boxCount, 'box')} to the receiving pad · cash on hand ${formatMoney(cashOf())}`),
+            primaryBtn('Place Order', placeOrderFlow, !affordable)))),
     ];
   }
 

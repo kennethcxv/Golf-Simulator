@@ -167,6 +167,45 @@ async (page) => {
     await page.screenshot({ path: path.join(outDir, 'laptop-cart-3-express.png') });
   }
 
+  // THE FOLD, MEASURED WITH A FULL CART.
+  //
+  // Reported 2026-07-29: "Place Order sits below the lid's fold with a full cart. Fix it — a
+  // confirm button you have to scroll to find is the same defect as the shipping options
+  // sitting under the total." So: load the basket up to eight lines, reset the scroll, and
+  // compare the button's box against the scroller's box. Then scroll to the bottom and check
+  // it is STILL in view — that is the sticky rail doing its job, not a short page.
+  // The express step left us ON the cart screen; the + buttons live on browse.
+  await clickText('Keep shopping');
+  const addAll = page.locator('.lt-product .lt-qbtn', { hasText: '+' });
+  const addable = await addAll.count();
+  for (let i = 2; i < Math.min(addable, 8); i += 1) {
+    await addAll.nth(i).click({ timeout: 8000 });
+    await page.waitForTimeout(140);
+  }
+  await clickText('Review cart');
+  const foldCheck = await page.evaluate(() => {
+    const content = document.querySelector('.lt-content');
+    content.scrollTop = 0;
+    const button = [...document.querySelectorAll('.lt-primary')]
+      .find((b) => b.textContent === 'Place Order');
+    const box = button?.getBoundingClientRect?.() || null;
+    const view = content?.getBoundingClientRect?.() || null;
+    const atTop = {
+      lines: document.querySelectorAll('.lt-cartitem').length,
+      buttonBottom: box ? Math.round(box.bottom) : null,
+      viewBottom: view ? Math.round(view.bottom) : null,
+      inViewAtTop: !!(box && view && box.top >= view.top - 2 && box.bottom <= view.bottom + 2),
+      contentScrollable: content.scrollHeight > content.clientHeight + 4,
+    };
+    content.scrollTop = content.scrollHeight;
+    const box2 = button?.getBoundingClientRect?.() || null;
+    return {
+      ...atTop,
+      inViewAtBottom: !!(box2 && view && box2.top >= view.top - 2 && box2.bottom <= view.bottom + 2),
+    };
+  });
+  await page.screenshot({ path: path.join(outDir, 'laptop-cart-4-full-fold.png') });
+
   const findings = {
     // The cart screen HAS the five things the brief lists.
     cartListsLineItems: cartScreen.lineItemRows > 0,
@@ -186,6 +225,12 @@ async (page) => {
     totalRespondsToDelivery: !!afterExpress && afterExpress.totalLine !== before,
     totalBefore: before,
     totalAfterExpress: afterExpress?.totalLine ?? null,
+    // Full cart: the button is inside the lid before any scroll, the page has real overflow
+    // (so the check is not passing on a short page), and the rail sticks when scrolled.
+    fullCartHasManyLines: foldCheck.lines >= 6,
+    placeOrderAboveTheFold: foldCheck.inViewAtTop,
+    theCheckHadSomethingToProve: foldCheck.contentScrollable,
+    placeOrderStaysWhileScrolling: foldCheck.inViewAtBottom,
   };
 
   const result = {
@@ -193,8 +238,9 @@ async (page) => {
     browse,
     cartScreen,
     afterExpress,
+    foldCheck,
     findings,
-    shots: ['laptop-cart-1-browse.png', 'laptop-cart-2-cart.png', 'laptop-cart-3-express.png'],
+    shots: ['laptop-cart-1-browse.png', 'laptop-cart-2-cart.png', 'laptop-cart-3-express.png', 'laptop-cart-4-full-fold.png'],
     errs: errs.slice(0, 12),
     ok: Object.entries(findings)
       .filter(([key]) => !key.startsWith('total') || key === 'totalRespondsToDelivery')

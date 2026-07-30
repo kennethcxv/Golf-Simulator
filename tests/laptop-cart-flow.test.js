@@ -53,6 +53,26 @@ test('the cart screen carries all five things the brief lists', () => {
   );
 });
 
+test('the money lives in a sticky rail so Place Order never leaves the lid', () => {
+  // Reported 2026-07-29: "Place Order sits below the lid's fold with a full cart. Fix it — a
+  // confirm button you have to scroll to find is the same defect as the shipping options
+  // sitting under the total." The structural half is held here (items column + rail, with the
+  // chooser, totals and button all inside the rail); the geometric half — button box inside
+  // the 640 px scroller with eight lines in the basket, before AND after scrolling — is
+  // measured live by tools/qa/laptop-cart-flow.js.
+  const cartTab = slice('function shopCartTab(st, ss) {', 'function shopPricesTab(st) {');
+  assert.match(cartTab, /lt-cartsplit/);
+  assert.match(cartTab, /lt-cartmaincol/);
+  const rail = cartTab.slice(cartTab.indexOf("class: 'lt-cartrail'"));
+  assert.ok(rail.includes('lt-shipping'), 'the delivery chooser rides the rail');
+  assert.ok(rail.includes("money('Subtotal'"), 'so do the totals');
+  assert.ok(rail.includes("primaryBtn('Place Order'"), 'and the button that spends the money');
+  assert.ok(!rail.includes('lt-cartitem'), 'the line items do NOT — they are the column that scrolls');
+  // The stickiness itself is CSS, and a class with no position:sticky behind it is decor.
+  assert.match(styles, /\.lt-cartrail \{[^}]*position: sticky/s);
+  assert.match(styles, /\.lt-cartsplit \{[^}]*grid-template-columns/s);
+});
+
 test('the browse screen no longer carries the money', () => {
   const orderTab = slice('function shopOrderTab(st, ss) {', 'function shopCartTab(st, ss) {');
   for (const gone of ['lt-shipping', 'lt-carttotal', "primaryBtn('Place Order'", 'Sales tax', 'submitPurchaseOrders']) {
