@@ -61,5 +61,8 @@ test('the flap animation is bounded to the phase its press started', () => {
 });
 
 test('each press gets its own sound, because each is its own mechanical event', () => {
-  assert.match(clubhouseSource, /sfx\(step\.tore \? 'tapeRelease' : 'flap'\)/);
+  // 2026-07-29: the two generic cues became the dedicated carton pair — adhesive stick-slip
+  // for the tearing press, board flex for the folding press. tests/box-open-sound.test.js
+  // holds what is inside them; this holds only that the two presses stay distinct.
+  assert.match(clubhouseSource, /sfx\(step\.tore \? 'boxTapeTear' : 'boxFlapFold'\)/);
 });

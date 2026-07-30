@@ -1,0 +1,279 @@
+{
+  "what": "the three carton presses, rendered offline and measured: length, attacks, colour, and how far apart they are",
+  "findings": {
+    "tearLongerThanBefore": true,
+    "tearHasMoreEvents": true,
+    "foldLongerThanBefore": true,
+    "foldHasMoreEvents": true,
+    "shiftHasMoreEvents": true,
+    "everyCueHasMultipleAttacks": true,
+    "threeCuesAreDistinct": true,
+    "repeatsDiffer": true,
+    "pinnedRandomCollapsesTakes": true,
+    "freeRandomKeepsTakesApart": true
+  },
+  "closestPair": 0.4847,
+  "worstSelfDistance": 0.1707,
+  "pinnedMaxDiff": 9.313e-10,
+  "pinnedFirstDiff": 13248,
+  "freeMaxDiff": 0.01548,
+  "pairs": {
+    "boxTapeTear vs boxFlapFold": 0.57,
+    "boxTapeTear vs boxContentsShift": 0.4847,
+    "boxFlapFold vs boxContentsShift": 0.9112
+  },
+  "cues": {
+    "boxTapeTear": {
+      "a": {
+        "durationMs": 419,
+        "peak": 0.01492,
+        "rms": 0.001277,
+        "transients": 3,
+        "meanZcr": 0.1377,
+        "zcrDrift": -0.0938
+      },
+      "b": {
+        "durationMs": 418,
+        "peak": 0.01425,
+        "rms": 0.001251,
+        "transients": 2,
+        "meanZcr": 0.1454,
+        "zcrDrift": -0.1017
+      },
+      "sampleIdentical": false,
+      "selfDistance": 0.1707
+    },
+    "boxFlapFold": {
+      "a": {
+        "durationMs": 404,
+        "peak": 0.01613,
+        "rms": 0.001677,
+        "transients": 2,
+        "meanZcr": 0.0325,
+        "zcrDrift": 0.0303
+      },
+      "b": {
+        "durationMs": 406,
+        "peak": 0.01551,
+        "rms": 0.001675,
+        "transients": 2,
+        "meanZcr": 0.0286,
+        "zcrDrift": 0.0191
+      },
+      "sampleIdentical": false,
+      "selfDistance": 0.0398
+    },
+    "boxContentsShift": {
+      "a": {
+        "durationMs": 348,
+        "peak": 0.01012,
+        "rms": 0.001112,
+        "transients": 5,
+        "meanZcr": 0.1091,
+        "zcrDrift": -0.1802
+      },
+      "b": {
+        "durationMs": 347,
+        "peak": 0.00889,
+        "rms": 0.001197,
+        "transients": 4,
+        "meanZcr": 0.103,
+        "zcrDrift": -0.1715
+      },
+      "sampleIdentical": false,
+      "selfDistance": 0.1706
+    }
+  },
+  "previous": {
+    "tapeRelease": {
+      "a": {
+        "durationMs": 193,
+        "peak": 0.00824,
+        "rms": 0.000698,
+        "transients": 1,
+        "meanZcr": 0.2108,
+        "zcrDrift": -0.0524
+      },
+      "b": {
+        "durationMs": 196,
+        "peak": 0.00756,
+        "rms": 0.000706,
+        "transients": 1,
+        "meanZcr": 0.2037,
+        "zcrDrift": -0.0376
+      },
+      "sampleIdentical": false,
+      "selfDistance": 0.0552
+    },
+    "flap": {
+      "a": {
+        "durationMs": 140,
+        "peak": 0.00569,
+        "rms": 0.000344,
+        "transients": 1,
+        "meanZcr": 0.1348,
+        "zcrDrift": -0.0125
+      },
+      "b": {
+        "durationMs": 129,
+        "peak": 0.00767,
+        "rms": 0.000358,
+        "transients": 1,
+        "meanZcr": 0.1367,
+        "zcrDrift": -0.0057
+      },
+      "sampleIdentical": false,
+      "selfDistance": 0.0362
+    },
+    "itemRemoval": {
+      "a": {
+        "durationMs": 128,
+        "peak": 0.00939,
+        "rms": 0.000693,
+        "transients": 1,
+        "meanZcr": 0.1107,
+        "zcrDrift": -0.1185
+      },
+      "b": {
+        "durationMs": 125,
+        "peak": 0.00937,
+        "rms": 0.000692,
+        "transients": 1,
+        "meanZcr": 0.1108,
+        "zcrDrift": -0.099
+      },
+      "sampleIdentical": false,
+      "selfDistance": 0.0654
+    }
+  },
+  "envelopes": {
+    "boxTapeTear": [
+      0.00191,
+      0.00381,
+      0.00581,
+      0.00386,
+      0.00227,
+      0.00183,
+      0.00261,
+      0.00127,
+      0.00116,
+      0.00075,
+      0.00211,
+      0.00135,
+      0.00138,
+      0.00101,
+      0.00092,
+      0.00063,
+      0.00061,
+      0.00083,
+      0.00091,
+      0.0011,
+      0.00098,
+      0.00078,
+      0.00046,
+      0.0005,
+      0.00051,
+      0.00054,
+      0.00297,
+      0.00439,
+      0.00252,
+      0.00166,
+      0.00097,
+      0.00058,
+      0.00037,
+      0.00023,
+      0.00014,
+      0.00008,
+      0.00006,
+      0.00003,
+      0.00002,
+      0.00001
+    ],
+    "boxFlapFold": [
+      0.00057,
+      0.0015,
+      0.0027,
+      0.00337,
+      0.00464,
+      0.00411,
+      0.00371,
+      0.00351,
+      0.0034,
+      0.00301,
+      0.00278,
+      0.00199,
+      0.00162,
+      0.00131,
+      0.00089,
+      0.00057,
+      0.00047,
+      0.00015,
+      0.00009,
+      0.00002,
+      0.00001,
+      0.00002,
+      0.00604,
+      0.00669,
+      0.00455,
+      0.00314,
+      0.00196,
+      0.00129,
+      0.00084,
+      0.00058,
+      0.00041,
+      0.00026,
+      0.00016,
+      0.00012,
+      0.00007,
+      0.00005,
+      0.00004,
+      0.00002,
+      0.00001,
+      0
+    ],
+    "boxContentsShift": [
+      0.00066,
+      0.00157,
+      0.00242,
+      0.00189,
+      0.00126,
+      0.00103,
+      0.00239,
+      0.00257,
+      0.00146,
+      0.00093,
+      0.00064,
+      0.0004,
+      0.00115,
+      0.00241,
+      0.00089,
+      0.00034,
+      0.00014,
+      0.0026,
+      0.00315,
+      0.00144,
+      0.00078,
+      0.00224,
+      0.00523,
+      0.00338,
+      0.00172,
+      0.00097,
+      0.00054,
+      0.00029,
+      0.00017,
+      0.00009,
+      0.00005,
+      0.00003,
+      0.00002,
+      0.00002,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "errs": [],
+  "ok": true
+}

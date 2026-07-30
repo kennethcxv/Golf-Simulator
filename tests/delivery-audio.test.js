@@ -97,6 +97,8 @@ test('delivery audio exposes every semantic cue and preserves shipped aliases', 
     'truck', 'boxup', 'boxdown',
     'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
     'flap', 'product', 'itemRemoval',
+    // the three carton presses, added 2026-07-29 — tests/box-open-sound.test.js holds their contents
+    'boxTapeTear', 'boxFlapFold', 'boxContentsShift',
     'stock', 'fullShelf', 'boxFlatten', 'disposal',
   ];
   assert.deepEqual(DELIVERY_CUE_APIS, expected);
@@ -192,13 +194,16 @@ test('carton lifecycle routes semantic cues at the physical transition edges', (
   );
   // The tape used to have a cue PER TENTH of a drag, plus a release at the end,
   // because it was cut by degrees. It is torn in one press now, so there is one
-  // cue: tapeRelease, on the press that tears it. Each press gets exactly one
-  // sound, which is what makes each press read as its own mechanical event.
-  assert.match(source, /sfx\(step\.tore \? ['"]tapeRelease['"] : ['"]flap['"]\)/);
+  // cue on the press that tears it — boxTapeTear since 2026-07-29, when the three
+  // carton presses got dedicated material-distinct cues. Each press gets exactly
+  // one sound, which is what makes each press read as its own mechanical event.
+  assert.match(source, /sfx\(step\.tore \? ['"]boxTapeTear['"] : ['"]boxFlapFold['"]\)/);
   assert.doesNotMatch(source, /sfx\(['"]tapeCut['"]\)/,
     'the per-tenth drag cue belongs to a gesture that no longer exists');
   assert.match(source, /boxFlattenAnimations\.add\(b\.id\)[\s\S]{0,100}sfx\(['"]boxFlatten['"]\)/);
-  assert.match(source, /takeFromBox\(state,\s*b\.id\)[\s\S]{0,180}sfx\(['"]itemRemoval['"]\)/);
+  // 420 not 180: the routing comment explaining why this is not itemRemoval sits between the
+  // call and the cue, and the window has to span it while still binding the two together.
+  assert.match(source, /takeFromBox\(state,\s*b\.id\)[\s\S]{0,420}sfx\(['"]boxContentsShift['"]\)/);
   assert.doesNotMatch(
     source.match(/function startRecyclingDrop[\s\S]*?\n\s*\}/)?.[0] || '',
     /sfx\(['"](?:recycle|disposal)['"]\)/,

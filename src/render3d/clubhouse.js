@@ -7489,16 +7489,22 @@ export function makeClubhouse(ctx) {
           if (!step.ok) { if (step.reason) say(step.reason, 'warn'); return; }
           boxOpeningAnimations.add(b.id);
           boxOpeningPhases.set(b.id, step.phase);
-          // Each press gets its own sound, because each press is its own
-          // mechanical event: the tape gives once, the second flap does not.
-          sfx(step.tore ? 'tapeRelease' : 'flap');
+          // Each press gets its own sound, because each press is its own mechanical event:
+          // the tape gives once, the second flap does not. Reported 2026-07-29 as "the sound
+          // is thin" — the two cues used here were a 0.24 s hiss and a single 0.18 s noise
+          // burst. They are now built from different materials (adhesive stick-slip vs board
+          // resonance), which is why they cannot read as two volumes of one noise.
+          sfx(step.tore ? 'boxTapeTear' : 'boxFlapFold');
           if (step.tore) tutorialFlag(state, 'boxCut');
           refreshBoxVisual(b.id);
           return;
         }
         const r = takeFromBox(state, b.id);
         if (!r.ok) { say(r.reason, 'warn'); return; }
-        sfx('itemRemoval');
+        // The third press: a hand goes in and the stack is disturbed. itemRemoval is the
+        // generic "a unit left a fixture" cue and is still right everywhere else; reaching
+        // into a carton has goods knocking each other, which that cue does not contain.
+        sfx('boxContentsShift');
         tutorialFlag(state, 'boxCarried');
         if (r.left <= 0) say(`${r.taken} × ${name} — the case is empty.`);
         rebuildBoxes();

@@ -22,6 +22,7 @@ export const DELIVERY_CUE_APIS = Object.freeze([
   'truck', 'boxup', 'boxdown',
   'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
   'flap', 'product', 'itemRemoval',
+  'boxTapeTear', 'boxFlapFold', 'boxContentsShift',
   'stock', 'fullShelf', 'boxFlatten', 'disposal',
 ]);
 
@@ -1209,6 +1210,212 @@ export function makeAudio(preferences = null) {
     });
   }
 
+  // === THE THREE PRESSES THAT OPEN A CARTON ===============================================
+  //
+  // Reported 2026-07-29: "The gesture is good. The sound is thin. Tape tearing, cardboard
+  // flexing, flaps folding over, contents shifting when you reach in. Each of the three
+  // presses should sound different and mechanical. Pitch-vary so repeats do not grate."
+  //
+  // Three presses, three sounds, and they are built from different MATERIALS on purpose:
+  //
+  //   press 1  adhesive stick-slip + the wide flaps swinging up and slapping
+  //   press 2  board resonance bending + creases crackling + the flap hitting the wall
+  //   press 3  packaging rustle + goods knocking each other + one thing lifting clear
+  //
+  // Nothing here shares a generator with the press either side of it, so they cannot come out
+  // sounding like three volumes of the same noise. Every frequency goes through varied() and
+  // every scattered event gets a jittered offset, so two presses of the same button are never
+  // the same waveform.
+
+  // Amplitude stick-slip: the reason tape reads as TEARING rather than as a swept hiss. Real
+  // adhesive releases in dozens of tiny grabs, and a smooth envelope over noise cannot say
+  // that. `steps` ramps across the span at jittered levels.
+  function stickSlip(gain, t0, span, level, steps = 9) {
+    let t = t0;
+    const dt = span / steps;
+    for (let i = 0; i < steps; i++) {
+      const decay = 1 - (i / steps) * 0.55;                 // the tear runs out of energy
+      const grab = level * decay * (0.45 + Math.random() * 0.75);
+      gain.gain.linearRampToValueAtTime(Math.max(0.0002, grab), t + dt * 0.4);
+      gain.gain.linearRampToValueAtTime(Math.max(0.0002, grab * 0.3), t + dt);
+      t += dt;
+    }
+    return t;
+  }
+
+  // A short filtered-noise sweep - the air moving as a panel swings. Distinct from burst()'s
+  // fixed band because a flap in motion changes colour as it goes over.
+  function airSwing({ delay = 0, dur = 0.14, from = 900, to = 320, peak = 0.02 }) {
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 0.7;
+    f.frequency.setValueAtTime(varied(from, 0.06), t0);
+    f.frequency.exponentialRampToValueAtTime(varied(to, 0.06), t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + dur * 0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + dur);
+  }
+
+  // A struck cardboard panel: a damped low tone that drops. Cardboard has a real note in it,
+  // and leaving it out is most of why the old flap() sounded like paper instead of a box.
+  function boardKnock({ delay = 0, from = 150, to = 92, peak = 0.04, dur = 0.16, type = 'triangle' }) {
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const pitch = varied(1, 0.05);
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from * pitch, t0);
+    osc.frequency.exponentialRampToValueAtTime(to * pitch, t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.01);
+  }
+
+  // PRESS ONE - the tape gives, then the two wide flaps come up and slap the sides.
+  function boxTapeTear() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const dur = 0.34;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const tear = ctx.createBufferSource();
+    tear.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 0.7;
+    // Bright at the start where the adhesive is fighting, darker as the seam runs.
+    f.frequency.setValueAtTime(varied(3600, 0.05), t0);
+    f.frequency.exponentialRampToValueAtTime(varied(880, 0.05), t0 + 0.3);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.034, t0 + 0.012);
+    const tearEnd = stickSlip(g, t0 + 0.012, 0.25, 0.034, 10);
+    g.gain.exponentialRampToValueAtTime(0.0001, Math.max(tearEnd + 0.02, t0 + dur));
+    tear.connect(f).connect(g).connect(sfxBus);
+    tear.start(t0);
+    tear.stop(t0 + dur);
+    // the carton rocking as the seam parts
+    boardKnock({ delay: 0.02, from: 128, to: 74, peak: 0.03, dur: 0.13 });
+    // both wide flaps swinging up, a beat apart, then the board slap as they go over
+    airSwing({ delay: 0.16 + Math.random() * 0.02, dur: 0.15, from: 1150, to: 380, peak: 0.021 });
+    airSwing({ delay: 0.235 + Math.random() * 0.025, dur: 0.14, from: 980, to: 330, peak: 0.017 });
+    burst({
+      dur: 0.11, delay: 0.30, band: 620, q: 0.6, peak: 0.03, attack: 0.004,
+      pitchVariation: 0.055,
+    });
+    boardKnock({ delay: 0.305, from: 172, to: 104, peak: 0.026, dur: 0.14 });
+  }
+
+  // PRESS TWO - no adhesive left. This is the board itself bending, the creases letting go,
+  // and the narrow pair folding down against the outside wall.
+  function boxFlapFold() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const flexPitch = varied(1, 0.055);
+    // the panel FLEXING: a bend, not an impact - slow attack, and it rises before it falls
+    const flex = ctx.createOscillator();
+    flex.type = 'triangle';
+    flex.frequency.setValueAtTime(126 * flexPitch, t0);
+    flex.frequency.linearRampToValueAtTime(168 * flexPitch, t0 + 0.09);
+    flex.frequency.exponentialRampToValueAtTime(88 * flexPitch, t0 + 0.28);
+    // THE FLEX HAS TO GET OUT OF THE WAY. Measured 2026-07-29 (box-open-sound-shape.json):
+    // at peak 0.036 running to 0.30 s this oscillator carried the whole cue - 1 attack, RMS
+    // more than double either sibling - and the creases and the slap were inaudible under it.
+    // It is quieter now and it ENDS at 0.20 s, before the flap lands, so the cue reads as
+    // three events rather than one hum with decoration.
+    const flexGain = ctx.createGain();
+    flexGain.gain.setValueAtTime(0.0001, t0);
+    flexGain.gain.linearRampToValueAtTime(0.021, t0 + 0.05);
+    flexGain.gain.linearRampToValueAtTime(0.012, t0 + 0.13);
+    flexGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+    flex.connect(flexGain).connect(sfxBus);
+    flex.start(t0);
+    flex.stop(t0 + 0.22);
+    // creases letting go - three small irregular crackles, never on a grid
+    for (let i = 0; i < 3; i++) {
+      burst({
+        dur: 0.045 + Math.random() * 0.03,
+        delay: 0.035 + i * 0.05 + Math.random() * 0.03,
+        band: 2300 + i * 700,
+        q: 1.5,
+        peak: 0.021 + Math.random() * 0.010,
+        attack: 0.003,
+        hp: 1200,
+        pitchVariation: 0.08,
+      });
+    }
+    // and the flap arriving on the side of the box - the loudest thing in the cue, because it
+    // is the moment the player is watching
+    airSwing({ delay: 0.135, dur: 0.12, from: 860, to: 300, peak: 0.020 });
+    burst({
+      dur: 0.14, delay: 0.255, band: 500, q: 0.55, peak: 0.046, attack: 0.004,
+      pitchVariation: 0.05,
+    });
+    boardKnock({ delay: 0.257, from: 158, to: 96, peak: 0.042, dur: 0.18 });
+  }
+
+  // PRESS THREE - a hand goes in. Packaging slides, the goods knock each other as the stack
+  // is disturbed, and one of them comes clear.
+  function boxContentsShift() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    // the reach: polybag and tissue against a hand, two bands so it is not one hiss
+    burst({
+      dur: 0.19, band: 3300, q: 0.7, peak: 0.024, attack: 0.03, hp: 1500,
+      pitchVariation: 0.06,
+    });
+    burst({
+      dur: 0.22, delay: 0.05, band: 1900, q: 0.85, peak: 0.019, attack: 0.035, hp: 800,
+      pitchVariation: 0.06,
+    });
+    // the stack settling: small knocks at scattered times, levels and pitches - this is the
+    // part that says "there are OBJECTS in there"
+    const knocks = 3 + (Math.random() < 0.5 ? 0 : 1);
+    for (let i = 0; i < knocks; i++) {
+      const delay = 0.06 + i * 0.052 + Math.random() * 0.045;
+      boardKnock({
+        delay,
+        from: 210 + Math.random() * 160,
+        to: 118 + Math.random() * 60,
+        peak: 0.014 + Math.random() * 0.013,
+        dur: 0.06 + Math.random() * 0.04,
+      });
+      burst({
+        dur: 0.05, delay: delay + 0.004, band: 1400 + Math.random() * 1300, q: 1.2,
+        peak: 0.009 + Math.random() * 0.007, attack: 0.003, hp: 700, pitchVariation: 0.07,
+      });
+    }
+    // ...and the unit lifting clear of the others
+    const lift = ctx.createOscillator();
+    const liftPitch = varied(1, 0.05);
+    lift.type = 'triangle';
+    lift.frequency.setValueAtTime(255 * liftPitch, t0 + 0.24);
+    lift.frequency.exponentialRampToValueAtTime(152 * liftPitch, t0 + 0.35);
+    const lg = ctx.createGain();
+    lg.gain.setValueAtTime(0.0001, t0 + 0.24);
+    lg.gain.linearRampToValueAtTime(0.024, t0 + 0.262);
+    lg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.37);
+    lift.connect(lg).connect(sfxBus);
+    lift.start(t0 + 0.24);
+    lift.stop(t0 + 0.39);
+  }
+
   // taking or handling product: a light paper rustle
   function product() {
     burst({
@@ -1685,6 +1892,8 @@ export function makeAudio(preferences = null) {
     cutterExtend, bladeContact, tapeCut, tapeRelease,
     tape: tapeCut,
     flap, product, itemRemoval, stock, fullShelf, boxFlatten, disposal,
+    // the three presses that open a carton - one sound each, built from different materials
+    boxTapeTear, boxFlapFold, boxContentsShift,
     recycle: disposal,
     get ready() {
       return !!ctx;
