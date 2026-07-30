@@ -22,6 +22,7 @@ import {
   FRONT_DESK, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
   COUNTER_TOP, fixtureBrowsePoint, frontDeskPoint,
   CLUBHOUSE_LAYOUT_VARIANT,
+  CLUBHOUSE_VARIANT_REQUEST,
   PINE_HILLS_V2_LAYOUT,
 } from '../data/shopLayout.js';
 import {
@@ -553,16 +554,16 @@ export function makeClubhouse(ctx) {
   const floorY = baseY + FLOOR_TOP;
   const requestedClubhousePresentation = (() => {
     // pine-hills-v2 (the Phase 3 greybox, FLOOR_PLAN.md) exists only when the layout
-    // seam saw the query at module load: shopLayout resolved every datum from that
-    // same constant, so accepting the variant from anywhere else (e.g. a saved
-    // property field) would draw the v2 room over v1 coordinates. A save-only
-    // request degrades to the v1 room — the datums it was built against.
+    // seam resolved it at module load: shopLayout derived every datum from that same
+    // constant, so accepting the variant from anywhere else (e.g. a saved property
+    // field) would draw the v2 room over v1 coordinates. A save-only request degrades
+    // to the v1 room — the datums it was built against.
     if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') return 'pine-hills-v2';
-    const query = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('clubhouse')
-      : null;
-    const saved = state?.property?.clubhouseVariant;
-    const requested = query || saved;
+    // The same resolution shopLayout already performed, not a second read of the
+    // query: query, launch flag and persisted dev setting all reach the room the same
+    // way, and a presentation that re-derived only one of them would silently ignore
+    // the other two.
+    const requested = CLUBHOUSE_VARIANT_REQUEST.variant || state?.property?.clubhouseVariant;
     if (requested === 'pine-hills-v2') return 'pine-hills';
     if (requested === 'mountain-lodge' || requested === 'legacy' || requested === 'pine-hills' || requested === 'shed') {
       return requested;

@@ -25,6 +25,8 @@
 //   └────────────────┤ MAIN DOOR ├─────────────────┴──────────────┘
 //                    SOUTH (z = +6.5) — porch, welcome mat, hours sign
 
+import { resolveClubhouseVariant } from './clubhouseVariant.js';
+
 export const SHELL = {
   // Compact municipal starter: approximately 1,900 sq ft. Larger optional
   // clubhouse models own their dimensions inside their variant adapters.
@@ -249,22 +251,25 @@ export const PARTITIONS = [
 ];
 
 // --- pine-hills-v2 layout variant (the Phase 3 greybox seam) --------------------------
-// Approved in Designs/ProShop/Greybox/FLOOR_PLAN.md. The v2 room exists ONLY when the
-// page was entered with ?clubhouse=pine-hills-v2: the variant resolves ONCE, at module
-// load, so in Node and in any browser session without the query every exported value
-// below is byte-identical to the v1 numbers — the existing tests and the live game
-// cannot notice the variant exists. clubhouse.js trusts this same constant for its
-// presentation choice, so the room that draws and the datums that place things can
-// never disagree.
-export const CLUBHOUSE_LAYOUT_VARIANT = (() => {
-  try {
-    return new URLSearchParams(location.search).get('clubhouse') === 'pine-hills-v2'
-      ? 'pine-hills-v2'
-      : null;
-  } catch {
-    return null; // Node / tests: no location, no variant
-  }
-})();
+// Approved in Designs/ProShop/Greybox/FLOOR_PLAN.md. The v2 room exists ONLY when this
+// session asked for it, and the variant resolves ONCE, at module load, so in Node and in
+// any session that did not ask every exported value below is byte-identical to the v1
+// numbers — the existing tests and the live game cannot notice the variant exists.
+// clubhouse.js reads CLUBHOUSE_VARIANT_REQUEST below for its presentation choice rather
+// than resolving again, so the room that draws and the datums that place things can never
+// disagree.
+//
+// The request can arrive from a URL query, an Electron launch flag, or a persisted dev
+// setting — see src/data/clubhouseVariant.js for why there are three and why they all
+// have to be readable synchronously.
+export const CLUBHOUSE_VARIANT_REQUEST = Object.freeze(resolveClubhouseVariant());
+
+// Only pine-hills-v2 moves DATUMS. The other selectable variants are presentation-only,
+// so they must resolve to null here or they would shift coordinates nobody authored
+// against them.
+export const CLUBHOUSE_LAYOUT_VARIANT = CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v2'
+  ? 'pine-hills-v2'
+  : null;
 
 // Everything the v2 layout changes, in one place, frame-independent, so the layout
 // tests can audit the variant from Node without module-state games.

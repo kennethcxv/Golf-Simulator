@@ -1,4 +1,10 @@
 import { QUALITY_PRESETS } from '../core/preferences.js';
+import {
+  SELECTABLE_CLUBHOUSE_VARIANTS,
+  devSessionActive,
+  storeClubhouseVariant,
+} from '../data/clubhouseVariant.js';
+import { CLUBHOUSE_VARIANT_REQUEST } from '../data/shopLayout.js';
 import { el, notify } from './ui.js';
 
 const pct = (value) => `${Math.round(Number(value) * 100)}%`;
@@ -223,11 +229,73 @@ export function makeSettingsPanel({
     );
   }
 
+  // --- Developer -----------------------------------------------------------------
+  // The packaged app has no address bar, so ?clubhouse=pine-hills-v2 made the greybox
+  // room reachable only from a browser tab — which is where most of the reported input
+  // bugs (X closing a tab, Shift+W reloading) actually live. This tab exists so the
+  // shipping runtime can be tested. It appears only in a development session; see
+  // isDevSession in src/data/clubhouseVariant.js.
+  const VARIANT_LABELS = {
+    'pine-hills-v2': 'Pine Hills v2 — Phase 3 greybox',
+    'pine-hills': 'Pine Hills — v1 authored room',
+    'modern-public': 'Modern municipal (default)',
+    'mountain-lodge': 'Mountain lodge',
+    legacy: 'Legacy envelope',
+  };
+  const SOURCE_LABELS = {
+    query: 'the ?clubhouse= query on the URL',
+    'launch-flag': 'the --clubhouse launch flag',
+    setting: 'this saved setting',
+    default: 'the default (no room was requested)',
+  };
+
+  function developerPage() {
+    const active = CLUBHOUSE_VARIANT_REQUEST.variant;
+    const source = CLUBHOUSE_VARIANT_REQUEST.source;
+    // The room in force RIGHT NOW, and what put it there. Reported rather than assumed:
+    // the query still outranks the setting, so a session entered with a query will not
+    // change room until the query is gone, and saying so beats a control that looks
+    // like it did nothing.
+    const status = el('div', { class: 'setting-native-status', role: 'status' },
+      el('div', { class: 'setting-label', text: `Now drawing: ${VARIANT_LABELS[active] || VARIANT_LABELS['modern-public']}` }),
+      description(`From ${SOURCE_LABELS[source] || source}.`),
+    );
+
+    let pending = active || '';
+    const select = el('select', {
+      'aria-label': 'Clubhouse room',
+      onchange: (event) => { pending = event.currentTarget.value; },
+    },
+    el('option', { value: '', text: VARIANT_LABELS['modern-public'], selected: pending ? null : true }),
+    ...SELECTABLE_CLUBHOUSE_VARIANTS.filter((id) => id !== 'modern-public').map((id) => el('option', {
+      value: id, text: VARIANT_LABELS[id] || id, selected: pending === id ? true : null,
+    })));
+
+    const applyRoom = () => {
+      const result = storeClubhouseVariant(pending || null);
+      if (!result.ok) {
+        notify({ message: 'The room choice could not be saved. Check that the game can write to local storage.', category: 'invalid' });
+        return;
+      }
+      // Every clubhouse datum was frozen at module load, so the room can only change on
+      // a fresh load. Reloading is the point of the button rather than a side effect.
+      globalThis.location?.reload?.();
+    };
+
+    return section('Developer', 'Not player-facing. Visible because this is a development session.',
+      status,
+      row('Clubhouse room', 'Which clubhouse the next load builds. Saved, so plain `npm run dev` keeps returning to it.', select),
+      row('Apply', 'Saves the choice and reloads — the floor plan resolves once, at load, so nothing changes until then.',
+        el('button', { type: 'button', class: 'primary', text: 'Save and reload', onclick: applyRoom })),
+    );
+  }
+
   const pages = {
     audio: audioPage,
     camera: cameraPage,
     display: displayPage,
     accessibility: accessibilityPage,
+    ...(devSessionActive() ? { developer: developerPage } : {}),
   };
 
   function render() {
@@ -240,7 +308,16 @@ export function makeSettingsPanel({
     content.replaceChildren(pages[active]());
   }
 
-  for (const [id, label] of [['audio', 'Audio'], ['camera', 'Camera'], ['display', 'Display'], ['accessibility', 'Accessibility']]) {
+  // Driven off `pages` so the Developer tab cannot be present in one list and missing
+  // from the other — the arrow-key handler indexes the same keys.
+  const TAB_LABELS = {
+    audio: 'Audio',
+    camera: 'Camera',
+    display: 'Display',
+    accessibility: 'Accessibility',
+    developer: 'Developer',
+  };
+  for (const [id, label] of Object.keys(pages).map((id) => [id, TAB_LABELS[id] || id])) {
     tabs.append(el('button', {
       type: 'button', role: 'tab', class: 'settings-tab', text: label, 'data-page': id,
       onclick: () => { active = id; render(); audio?.uiTick?.(); },

@@ -21,6 +21,32 @@ if (DEV) {
   app.commandLine.appendSwitch('remote-debugging-port', '9225');
 }
 
+// WHICH CLUBHOUSE ROOM THIS LAUNCH ASKS FOR, e.g.
+//   npm run dev -- --clubhouse=pine-hills-v2
+// The packaged app has no address bar, so the greybox room used to be unreachable outside
+// a browser tab. Renderer argv is the one channel that arrives before the first page
+// script runs, which is what src/data/shopLayout.js needs: it freezes every datum at
+// module load and cannot wait for an IPC round-trip. The persisted Developer-tab setting
+// covers the sticky case; this covers a one-shot run that leaves nothing behind.
+//
+// Validated here as well as in the renderer: only these names may cross into argv.
+const SELECTABLE_CLUBHOUSE_VARIANTS = [
+  'pine-hills-v2', 'pine-hills', 'modern-public', 'mountain-lodge', 'legacy',
+];
+const requestedClubhouse = (() => {
+  const flag = process.argv.find((arg) => arg.startsWith('--clubhouse='));
+  const value = flag ? flag.slice('--clubhouse='.length) : null;
+  if (value && !SELECTABLE_CLUBHOUSE_VARIANTS.includes(value)) {
+    console.warn(`[main] ignoring --clubhouse=${value}; expected one of ${SELECTABLE_CLUBHOUSE_VARIANTS.join(', ')}`);
+    return null;
+  }
+  return value;
+})();
+const rendererArguments = [
+  ...(DEV ? ['--fw-dev'] : []),
+  ...(requestedClubhouse ? [`--fw-clubhouse=${requestedClubhouse}`] : []),
+];
+
 let win = null;
 let store = null;
 const TRUSTED_RENDERER_URL = trustedRendererUrl(__dirname);
@@ -60,6 +86,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      additionalArguments: rendererArguments,
     },
   });
   win.webContents.on('will-navigate', (event, url) => {

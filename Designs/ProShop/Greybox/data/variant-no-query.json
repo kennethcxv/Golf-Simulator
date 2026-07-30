@@ -1,0 +1,95 @@
+{
+  "what": "pine-hills-v2 reached from a persisted setting with no query string, controlled both sides",
+  "findings": {
+    "noStageUsedAQuery": true,
+    "controlIsNotV2": true,
+    "settingBuiltV2": true,
+    "settingWasTheReason": true,
+    "ceilingMeasuredBothStages": true,
+    "westWallMeasuredBothStages": true,
+    "ceilingLowerInV2": true,
+    "westWallCloserInV2": true,
+    "controlsAgree": true,
+    "ceilingYd": {
+      "control": 1.34,
+      "v2": 1.2
+    },
+    "westWallYd": {
+      "control": 10.81,
+      "v2": 3.9
+    }
+  },
+  "stages": [
+    {
+      "stage": "A control — bare url, no saved setting",
+      "url": "http://localhost:8457/",
+      "urlHasQuery": false,
+      "storedSetting": null,
+      "request": {
+        "variant": null,
+        "source": "default"
+      },
+      "layoutVariant": null,
+      "ceilingHit": {
+        "distanceYd": 1.34,
+        "name": "SHEET06_58_straight_0_MESH_DarkWalnutScarfJointBeam_INSTANCES"
+      },
+      "westWallHit": {
+        "distanceYd": 10.81,
+        "name": "Cube"
+      },
+      "greyWestWall": false,
+      "publicMinX": -8.94,
+      "publicMinZ": -5.49
+    },
+    {
+      "stage": "B saved setting, still a bare url",
+      "url": "http://localhost:8457/",
+      "urlHasQuery": false,
+      "storedSetting": "pine-hills-v2",
+      "request": {
+        "variant": "pine-hills-v2",
+        "source": "setting"
+      },
+      "layoutVariant": "pine-hills-v2",
+      "ceilingHit": {
+        "distanceYd": 1.2,
+        "name": "GREY_Ceiling"
+      },
+      "westWallHit": {
+        "distanceYd": 3.9,
+        "name": "GREY_shelf_balls"
+      },
+      "greyWestWall": true,
+      "publicMinX": -2.6,
+      "publicMinZ": -4.6
+    },
+    {
+      "stage": "C control — setting cleared",
+      "url": "http://localhost:8457/",
+      "urlHasQuery": false,
+      "storedSetting": null,
+      "request": {
+        "variant": null,
+        "source": "default"
+      },
+      "layoutVariant": null,
+      "ceilingHit": {
+        "distanceYd": 1.34,
+        "name": "SHEET06_58_straight_0_MESH_DarkWalnutScarfJointBeam_INSTANCES"
+      },
+      "westWallHit": {
+        "distanceYd": 10.81,
+        "name": "Cube"
+      },
+      "greyWestWall": false,
+      "publicMinX": -8.94,
+      "publicMinZ": -5.49
+    }
+  ],
+  "shots": [
+    "variant-no-query-v2.png"
+  ],
+  "errs": [],
+  "ok": true
+}

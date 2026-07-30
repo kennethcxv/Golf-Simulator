@@ -2,7 +2,21 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+// The renderer's own argv, filtered to the flags main.cjs plants deliberately
+// (webPreferences.additionalArguments). This is a synchronous read available before any
+// page script runs, which is the only kind src/data/shopLayout.js can use: it freezes
+// every clubhouse datum at module-eval time, so a launch flag delivered by IPC would
+// arrive after the room had already been decided. Copied to a plain array so nothing
+// downstream can reach the live process object.
+const FORWARDED_FLAG_PREFIXES = ['--fw-dev', '--fw-clubhouse='];
+const launchArgs = Object.freeze(
+  (process.argv || [])
+    .filter((arg) => typeof arg === 'string' && FORWARDED_FLAG_PREFIXES.some((p) => arg.startsWith(p)))
+    .map(String),
+);
+
 contextBridge.exposeInMainWorld('fairwayNative', {
+  launchArgs,
   save: (key, json) => ipcRenderer.invoke('fw:save', key, json),
   load: (key) => ipcRenderer.invoke('fw:load', key),
   loadStatus: (key, options) => ipcRenderer.invoke('fw:load-status', key, options),

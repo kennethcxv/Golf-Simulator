@@ -88,7 +88,7 @@ import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 import { GOLF_CART_TIERS, golfCartTier } from '../data/golfCarts.js';
-import { DOOR_MAIN, SHELL } from '../data/shopLayout.js';
+import { CLUBHOUSE_VARIANT_REQUEST, DOOR_MAIN, SHELL } from '../data/shopLayout.js';
 import {
   gradePremiumClubhouseTerrain,
   premiumClubhouseTerrainGradeAlpha,
@@ -1700,10 +1700,10 @@ export function makeCourseScene(canvas, state) {
 
   function modernPublicClubhouseTerrainGrade() {
     if (['resortStyle', 'premiumPrivate'].includes(state.property?.tierId)) return null;
-    const query = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('clubhouse')
-      : null;
-    const requested = query || state.property?.clubhouseVariant;
+    // Same resolution the layout seam used — see src/data/clubhouseVariant.js. Reading
+    // only the query here would grade the terrain for a room the launch flag or the
+    // persisted dev setting had already changed.
+    const requested = CLUBHOUSE_VARIANT_REQUEST.variant || state.property?.clubhouseVariant;
     if (requested === 'mountain-lodge' || requested === 'legacy') return null;
     const structure = course.structures?.[0];
     if (!structure) return null;
