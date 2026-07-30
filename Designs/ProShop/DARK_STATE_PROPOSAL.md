@@ -237,6 +237,89 @@ and kept failing on 0.05 luma of renderer noise; an end-of-run recapture at the
 control scale reads 0.000 drift, so the wobble is GTAO and cloud animation, not
 the change.
 
+## 7. B8 follow-up — what carries the REMAINING luma at 0.10 (2026-07-30)
+
+The fill lever shipped at its floor (0.10) and the whole remaining range moves
+the room ~10%, so before choosing a next lever the remaining light was
+decomposed one contributor at a time. Instrument:
+`tools/qa/proshop-dark-state-carriers.js` (pin-the-property discipline from §1,
+extended to the sun and to EVERY light in the scene). Data:
+`Greybox/data/dark-state-carriers.json`, captures under
+`Greybox/data/dark-state-carriers/`.
+
+Two instrument faults were caught by eyeballing the `none` captures before
+trusting the numbers, both inherited from cloning the older §2 probe: the weak
+HUD hide-list (fault 4 of §6 reproduced — chips and the lock hint were back in
+the crops) and, worse, an ASSUMED light inventory. The first run pinned only
+sun/hemi/ambient and its "nothing left" captures still showed a readable room:
+the clubhouse's own lights were never in the pin set. The probe now discovers
+and classifies every light it finds, and its `none` variant pins all of them.
+
+### The decomposition (whole-frame mean, unpowered, shipped 0.10 fill)
+
+| pose | shipped | sun | hemi/fill | ambient | interior lights | floor (nothing left) |
+|---|---|---|---|---|---|---|
+| p1 door-in | 162.4 | 8.9% | 0.7% | 1.8% | **46.1%** | 8.6 (5.3%) |
+| p2 retail wall | 68.1 | **32.9%** | 7.7% | 21.7% | 7.0% | 15.4 (22.6%) |
+| p3 under the faulted run | 50.9 | 7.5% | 15.4% | **49.1%** | −0.1% | 13.3 (26.2%) |
+| p4 desk approach | 101.9 | 22.1% | 2.0% | 5.1% | **39.6%** | 8.2 (8.0%) |
+| interior mean | 95.8 | 17.9% | 6.5% | 19.4% | 23.2% | 15.5% |
+| c1 porch (the bill) | 54.1 | 16.2% | 52.8% | 10.2% | 5.5% | — |
+| c2 fairway (the bill) | 128.1 | 14.7% | 15.3% | 2.7% | 0.1% | — |
+
+Built-in control: `fill-0` (setScale(0), hemi live) equals `no-hemi` (hemi
+pinned) within 0.05 luma at all four interior poses — confirming the fill IS
+the hemisphere's indoor value, one lever with two ends — while the course
+poses split them by 19–29 luma exactly as the mechanism predicts.
+
+### The headline is an honesty bug, not a tuning lever
+
+The largest named carrier indoors is the room's own lights while the circuit
+is DEAD. The inventory names them: **two unnamed PointLights at intensity
+9.735 under `LegacyClubhouseInterior`** — the legacy pendant fixtures built by
+`makePendantMesh` (clubhouse.js:3214, `PointLight(0xffe2b0, 9, 9, 1.7)`,
+`emissiveIntensity 1.2`), which have no power gating at all. Everything else
+already behaves: the four `CeilingPanelLight_*` RectAreaLights read 0 (p3,
+looking straight at them, shows interior-lights ≈ 0%), the v2 shell's
+practicals are gated by `applyPracticalLevels` (`on = ceilingCircuitPowered ?
+1 : 0`, shell.js:1050), `PineHillsAccent_*` sit at 0, and the three
+`AssetRuntimeLight_*` (desk lamp 83, exit sign 94, emergency light 95) are
+`emissive-only` — `layers.disableAll()` keeps them out of the light loop, and
+as safety fixtures the two emergency ones are legitimately non-circuit anyway.
+The two pendants carry 46% of the door pose and 40% of the desk pose.
+
+### Levers, priced (no ruling assumed; nothing implemented)
+
+- **L0 — gate the two legacy pendants on the circuit, like everything else.**
+  Correctness, not tuning: −46%/−40% at p1/p4, ~0 course cost (2.8% control),
+  small build (the same gating `applyPracticalLevels` already does). The only
+  question is whether those legacy pendants should exist in pine-hills-v2 at
+  all or die with the legacy interior set.
+- **L1 — extend the interiorFill mechanism to the AMBIENT.** After B8 the
+  ambient (0.16, never touched — §2 measured it minor in a much brighter room)
+  became the ceiling's dominant light: 49.1% of p3, 21.7% of p2. Same
+  machinery as Option A, same class of error: the view through the glazing
+  loses its ambient share (2.7–10.2% of course luma) while the player is
+  inside. RISK: the ambient is now what keeps the panel faces readable — the
+  p3 ceiling-band floor (p95 ≥ 12) must be re-swept before any scale ships.
+- **L2 — sun through the glazing.** 32.9% of the retail wall, 22.1% of the
+  desk. Two shapes: (a) an indoorness scale on `sun.intensity` — cheap, but
+  SAID PLAINLY: the course seen through every window and the open door dims by
+  its sun share (~15%) while you stand inside, and p1 is mostly that view;
+  (b) aperture occlusion (shadow-casting glazing or shadow-only planes in the
+  window openings) — no through-glass cost, but it also deletes the sun
+  patches from the POWERED room unless made conditional, and it must not
+  fight `fitSunShadow`'s ownership of the sun target.
+- **L3 — the floor (glazing view + emissives, 15.5% mean) is not a lighting
+  lever.** Once L0/L1 land, whole-frame means at window-facing poses are
+  carried by the bright course seen THROUGH the glass — which is a dark room
+  reading correctly. The band metrics, not the frame mean, are the honest
+  targets from here; dimming the view itself is aperture/art (blinds, dirty
+  glazing) and changes what the course looks like through windows, which is
+  the point of that lever and its whole cost.
+- **Option B (per-material irradiance factor, §4-B) remains the correct
+  deep answer** for hemi+ambient at real cost, unchanged by this measurement.
+
 ### Four instrument faults, caught before the numbers were used
 
 1. **The shipped scale was read after the sweep had overwritten it**, so the first
