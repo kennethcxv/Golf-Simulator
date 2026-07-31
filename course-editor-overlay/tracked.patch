@@ -1,0 +1,1968 @@
+diff --git a/src/render3d/courseScene.js b/src/render3d/courseScene.js
+index c6ba9c4..865595e 100644
+--- a/src/render3d/courseScene.js
++++ b/src/render3d/courseScene.js
+@@ -18,6 +18,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+ import { ZONE, HOLE_STATUS, CELL_YD, ZONE_TEX_SCALE } from '../sim/constants.js';
+ import { holeNumber } from '../sim/course.js';
+ import { BALANCE } from '../sim/balance.js';
++import { OBJECT_CATALOG } from '../sim/courseEditor.js';
+ import { clamp } from '../core/utils.js';
+ import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
+ import { ownedWasher } from '../sim/washing.js';
+@@ -44,6 +45,7 @@ import {
+   SURFACE_COVERAGE_MIN_AA_YD,
+   SURFACE_FIRST_CUT_YD,
+   SURFACE_GREEN_FRINGE_YD,
++  VISUAL_FIELD_REGION_PADDING_CELLS,
+ } from './visualField.js';
+ import { buildRelief, reliefAt, getGeom, mowAngleAt } from '../sim/courseVec.js';
+ import {
+@@ -555,6 +557,13 @@ export function makeCourseScene(canvas, state) {
+     'terrainNormals',
+     'terrainRefresh',
+     'turfPack',
++    'reliefBuild',
++    'waterRebuild',
++    'floraRebuild',
++    'objectRebuild',
++    'pathRebuild',
++    'holeFurniture',
++    'flowField',
+   ];
+   const editorPerformanceStats = Object.create(null);
+ 
+@@ -919,6 +928,67 @@ export function makeCourseScene(canvas, state) {
+     }
+   }
+ 
++  const nextCourseSceneFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
++
++  // Feature stamps can dirty a much wider surface band than a brush tick. Keep
++  // the exact same evaluators and texture data, but solve the padded rectangle
++  // in strips across frames. The visual field is completed first; distance
++  // strips then read a fully current neighbourhood and upload both textures
++  // together, so there are no seams or mixed-field frames.
++  async function updateZoneFieldBatched(st, rect, {
++    padding = VISUAL_FIELD_REGION_PADDING_CELLS,
++    chunkRows = 6,
++  } = {}) {
++    if (!rect) {
++      updateZoneField(st);
++      return { strips: 1, batched: false };
++    }
++    const pad = Math.max(0, Number(padding) || 0);
++    const bounded = {
++      x0: Math.max(0, rect.x0 - pad),
++      y0: Math.max(0, rect.y0 - pad),
++      x1: Math.min(st.course.w - 1, rect.x1 + pad),
++      y1: Math.min(st.course.h - 1, rect.y1 + pad),
++    };
++    const rows = Math.max(1, Number(chunkRows) || 1);
++    const strips = [];
++    let y0 = bounded.y0;
++    while (y0 < bounded.y1) {
++      const y1 = Math.min(bounded.y1, y0 + rows);
++      strips.push({ x0: bounded.x0, y0, x1: bounded.x1, y1 });
++      y0 = y1;
++    }
++    if (!strips.length) strips.push(bounded);
++
++    for (const strip of strips) {
++      if (sceneDisposed) return { strips: 0, batched: true, disposed: true };
++      const started = performance.now();
++      computeVisualField(st.course, visField, strip);
++      const units = Math.max(0, Math.ceil((strip.x1 - strip.x0) * FIELD_SCALE))
++        * Math.max(0, Math.ceil((strip.y1 - strip.y0) * FIELD_SCALE));
++      recordEditorPerformance('visualField', started, units, true);
++      await nextCourseSceneFrame();
++    }
++
++    for (const strip of strips) {
++      if (sceneDisposed) return { strips: 0, batched: true, disposed: true };
++      const distanceStarted = performance.now();
++      computeSurfaceDistanceField(visField, surfaceDistanceField, strip);
++      const dirty = surfaceDistanceField.updatedRect;
++      const units = (dirty.tx1 - dirty.tx0 + 1) * (dirty.ty1 - dirty.ty0 + 1);
++      recordEditorPerformance('surfaceDistanceField', distanceStarted, units, true);
++      const uploadStarted = performance.now();
++      uploadDataTextureRegion(zoneHiTex, zoneHiUploadSource, dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1);
++      uploadDataTextureRegion(
++        surfaceDistanceTex, surfaceDistanceUploadSource,
++        dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1,
++      );
++      recordEditorPerformance('visualFieldUpload', uploadStarted, units, true);
++      await nextCourseSceneFrame();
++    }
++    return { strips: strips.length, batched: true };
++  }
++
+   function zoneAtWorld(x, z) {
+     const fx = (x + worldW / 2) / CELL_YD;
+     const fy = (z + worldH / 2) / CELL_YD;
+@@ -1535,7 +1605,9 @@ export function makeCourseScene(canvas, state) {
+   // over the base rolling land, at the terrain-mesh resolution — no cell steps.
+   let relief = null;
+   function rebuildRelief() {
++    const started = performance.now();
+     relief = course.vec ? buildRelief(course, (cx, cy) => rawHeightAtCellCoords(cx, cy) / ELEV_FT_TO_YD) : null;
++    recordEditorPerformance('reliefBuild', started, relief?.feats?.length || 0);
+   }
+ 
+   function terrainHeightAtVertex(vx, vy) {
+@@ -1777,6 +1849,7 @@ export function makeCourseScene(canvas, state) {
+   }
+ 
+   function rebuildWater() {
++    const started = performance.now();
+     for (const m of waterMeshes) {
+       scene.remove(m);
+       if (typeof m.dispose === 'function') m.dispose();
+@@ -1926,6 +1999,7 @@ export function makeCourseScene(canvas, state) {
+       scene.add(water);
+       waterMeshes.push(water);
+     }
++    recordEditorPerformance('waterRebuild', started, waterMeshes.length);
+   }
+ 
+   // --- trees --------------------------------------------------------------------------------
+@@ -2366,7 +2440,8 @@ export function makeCourseScene(canvas, state) {
+ 
+   function rebuildTrees() {
+     const token = ++treeBuildToken;
+-    loadFloraAssets().then((assets) => {
++    const started = performance.now();
++    return loadFloraAssets().then((assets) => {
+       if (sceneDisposed || token !== treeBuildToken) return; // superseded or lifetime ended
+       if (assets && assets.size) {
+         rebuildFloraFromModels(assets);
+@@ -2374,7 +2449,11 @@ export function makeCourseScene(canvas, state) {
+         console.warn('flora models unavailable — procedural fallback in use');
+         rebuildTreesProcedural();
+       }
+-      freezeStaticCourse(); // freshly planted forests are still furniture
++      // Only the flora subtree was replaced. Walking every static course node
++      // here made one planted tree re-freeze terrain, paths, water, environment,
++      // and props that had not changed.
++      freezeStatic(treeGroup);
++      recordEditorPerformance('floraRebuild', started, floraLodSnapshot.totalInstances || 0);
+     });
+   }
+ 
+@@ -2615,6 +2694,7 @@ export function makeCourseScene(canvas, state) {
+   // GLBs from vendor/models/course/<type>.glb are preferred; a procedural
+   // factory covers every type so the editor never places an invisible thing.
+   let objectGroup = null;
++  const objectTypeGroups = new Map();
+   const objectGlbCache = new Map(); // type -> { parts: [{geometry, material}] } | 'missing'
+   const proceduralObjectCache = new Map();
+   let objectGlbPending = 0;
+@@ -2822,7 +2902,8 @@ export function makeCourseScene(canvas, state) {
+           } catch {
+             objectGlbCache.set(type, 'missing');
+           }
+-          if (--objectGlbPending === 0) rebuildObjects();
++          objectGlbPending = Math.max(0, objectGlbPending - 1);
++          rebuildObjects([type]);
+         },
+         undefined,
+         () => {
+@@ -2831,7 +2912,8 @@ export function makeCourseScene(canvas, state) {
+             return;
+           }
+           objectGlbCache.set(type, 'missing');
+-          if (--objectGlbPending === 0) rebuildObjects();
++          objectGlbPending = Math.max(0, objectGlbPending - 1);
++          rebuildObjects([type]);
+         },
+       );
+     }
+@@ -2839,6 +2921,42 @@ export function makeCourseScene(canvas, state) {
+     return proceduralObjectCache.get(type);
+   }
+ 
++  let editorObjectGpuPrewarm = null;
++
++  function buildEditorObjectGpuPrewarmRepresentatives() {
++    if (editorObjectGpuPrewarm) return editorObjectGpuPrewarm;
++    editorObjectGpuPrewarm = new THREE.Group();
++    editorObjectGpuPrewarm.name = 'EditorObjectGpuPrewarm';
++    const identity = new THREE.Matrix4();
++    for (const type of new Set(OBJECT_CATALOG.map((entry) => entry.type))) {
++      if (FLORA_IDS.has(type)) continue;
++      const { parts } = objectParts(type);
++      for (const part of parts) {
++        const mesh = new THREE.InstancedMesh(part.geometry, part.material, 1);
++        mesh.name = `EditorObjectGpuPrewarm:${type}`;
++        mesh.setMatrixAt(0, identity);
++        mesh.instanceMatrix.needsUpdate = true;
++        mesh.position.set(0, -200, 0);
++        mesh.castShadow = true;
++        mesh.frustumCulled = false;
++        editorObjectGpuPrewarm.add(mesh);
++      }
++    }
++    scene.add(editorObjectGpuPrewarm);
++    return editorObjectGpuPrewarm;
++  }
++
++  function releaseEditorObjectGpuPrewarmRepresentatives() {
++    if (!editorObjectGpuPrewarm) return;
++    scene.remove(editorObjectGpuPrewarm);
++    editorObjectGpuPrewarm.traverse((object) => {
++      // Release only the per-representative instance buffer. Geometry and
++      // materials belong to the editor caches and stay resident for placement.
++      if (object.isInstancedMesh) object.dispose();
++    });
++    editorObjectGpuPrewarm = null;
++  }
++
+   function buildTeeSignLabel(object) {
+     const nearest = (course.holes || []).reduce((best, hole) => {
+       if (!hole.tee) return best;
+@@ -2908,22 +3026,44 @@ export function makeCourseScene(canvas, state) {
+     return mesh;
+   }
+ 
+-  function rebuildObjects() {
+-    if (objectGroup) {
++  function disposeObjectGroup(group) {
++    if (!group) return;
++    group.traverse((o) => {
++      if (o.isInstancedMesh) o.dispose();
++      if (o.userData.courseLabel) {
++        o.geometry?.dispose();
++        o.material?.map?.dispose();
++        o.material?.dispose();
++      }
++    });
++  }
++
++  function rebuildObjects(types = null) {
++    const started = performance.now();
++    const requested = types ? new Set(types.filter((type) => !FLORA_IDS.has(type))) : null;
++    const full = !objectGroup || !requested;
++    if (full && objectGroup) {
+       scene.remove(objectGroup);
+-      objectGroup.traverse((o) => {
+-        if (o.isInstancedMesh) o.dispose();
+-        if (o.userData.courseLabel) {
+-          o.geometry?.dispose();
+-          o.material?.map?.dispose();
+-          o.material?.dispose();
+-        }
+-      });
++      disposeObjectGroup(objectGroup);
++    }
++    if (full) {
++      objectGroup = new THREE.Group();
++      objectGroup.name = 'CourseObjects';
++      objectTypeGroups.clear();
++      scene.add(objectGroup);
++    } else {
++      for (const type of requested) {
++        const previous = objectTypeGroups.get(type);
++        if (!previous) continue;
++        objectGroup.remove(previous);
++        disposeObjectGroup(previous);
++        objectTypeGroups.delete(type);
++      }
+     }
+-    objectGroup = new THREE.Group();
+     const byType = new Map();
+     for (const o of course.objects || []) {
+       if (FLORA_IDS.has(o.type)) continue; // flora (trees/shrubs/rocks/reeds) has its own pipeline
++      if (requested && !requested.has(o.type)) continue;
+       if (!byType.has(o.type)) byType.set(o.type, []);
+       byType.get(o.type).push(o);
+     }
+@@ -2933,6 +3073,8 @@ export function makeCourseScene(canvas, state) {
+     const v = new THREE.Vector3();
+     const sc = new THREE.Vector3();
+     for (const [type, list] of byType) {
++      const typeGroup = new THREE.Group();
++      typeGroup.name = `CourseObjects:${type}`;
+       const { parts, unitScale = 1 } = objectParts(type);
+       for (const part of parts) {
+         const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+@@ -2947,19 +3089,23 @@ export function makeCourseScene(canvas, state) {
+           m.compose(v.set(x, heightAt(x, z), z), q, sc.set(s, s, s));
+           im.setMatrixAt(i, m);
+         });
+-        objectGroup.add(im);
++        typeGroup.add(im);
+       }
+       if (type === 'tee_sign') {
+         for (const object of list) {
+           const label = buildTeeSignLabel(object);
+-          if (label) objectGroup.add(label);
++          if (label) typeGroup.add(label);
+         }
+       }
++      objectGroup.add(typeGroup);
++      objectTypeGroups.set(type, typeGroup);
++      freezeStatic(typeGroup);
+     }
+-    scene.add(objectGroup);
+     // The manifest and individual GLBs finish asynchronously, so this rebuild can
+     // replace the group after rebuildAll() performed its static-course freeze.
+-    freezeStatic(objectGroup);
++    if (full) freezeStatic(objectGroup);
++    const rebuiltCount = [...byType.values()].reduce((total, list) => total + list.length, 0);
++    recordEditorPerformance('objectRebuild', started, rebuiltCount);
+   }
+ 
+   // nearest placed object to a world point (for the Select tool)
+@@ -3183,6 +3329,7 @@ export function makeCourseScene(canvas, state) {
+   }
+ 
+   function rebuildPaths() {
++    const started = performance.now();
+     if (pathGroup) {
+       scene.remove(pathGroup);
+       pathGroup.traverse((o) => {
+@@ -3201,6 +3348,7 @@ export function makeCourseScene(canvas, state) {
+     }
+     rebuildBridgeSurfaceIndex();
+     scene.add(pathGroup);
++    recordEditorPerformance('pathRebuild', started, course.paths?.length || 0);
+   }
+ 
+   // --- structures: a real little clubhouse ------------------------------------------------
+@@ -3320,6 +3468,7 @@ export function makeCourseScene(canvas, state) {
+ 
+   function updateHoles() {
+     if (sceneDisposed) return;
++    const started = performance.now();
+     if (holeGroup) {
+       scene.remove(holeGroup);
+       const sharedHoleResources = mergeSceneResources(
+@@ -3426,6 +3575,7 @@ export function makeCourseScene(canvas, state) {
+       }
+     }
+     scene.add(holeGroup);
++    recordEditorPerformance('holeFurniture', started, course.holes.length);
+   }
+ 
+   // --- golfers out on the course (visual reflection of real play volume) ---------------
+@@ -5297,12 +5447,26 @@ export function makeCourseScene(canvas, state) {
+       ghost = new THREE.Group();
+       const { parts } = ghostPartsFor(type);
+       for (const p of parts) {
+-        const mesh = new THREE.Mesh(p.geometry, p.material.clone());
+-        mesh.material.transparent = true;
+-        mesh.material.opacity = 0.8;
+-        mesh.material.depthTest = false;
+-        mesh.material.depthWrite = false;
+-        mesh.material.emissiveIntensity = 0.7;
++        // Non-flora objects render as InstancedMesh after placement. Preview
++        // them through the same shader variant so the first real prop does not
++        // compile USE_INSTANCING on the commit frame.
++        const exactInstancedPreview = !type.startsWith('tree_');
++        const mesh = exactInstancedPreview
++          ? new THREE.InstancedMesh(p.geometry, p.material, 1)
++          : new THREE.Mesh(p.geometry, p.material.clone());
++        if (mesh.isInstancedMesh) {
++          mesh.setMatrixAt(0, new THREE.Matrix4());
++          mesh.instanceMatrix.needsUpdate = true;
++          mesh.castShadow = true;
++          mesh.frustumCulled = false;
++          mesh.userData.exactPlacementMaterial = true;
++        } else {
++          mesh.material.transparent = true;
++          mesh.material.opacity = 0.8;
++          mesh.material.depthTest = false;
++          mesh.material.depthWrite = false;
++          mesh.material.emissiveIntensity = 0.7;
++        }
+         mesh.renderOrder = 997;
+         ghost.add(mesh);
+       }
+@@ -5330,7 +5494,9 @@ export function makeCourseScene(canvas, state) {
+           : 2.2 * scale;
+         o.scale.setScalar(footprint);
+       } else if (o.isMesh) {
+-        o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
++        if (!o.userData.exactPlacementMaterial) {
++          o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
++        }
+         o.scale.setScalar(type.startsWith('tree_') ? 7.3 * scale : scale);
+       }
+     });
+@@ -5543,6 +5709,7 @@ export function makeCourseScene(canvas, state) {
+   // packed into auxData alpha (recomputed only when holes or zones change).
+   const flowField = new Float32Array(W * H); // angle / 2π, 0..1
+   function rebuildFlowField() {
++    const started = performance.now();
+     const holes = course.holes.filter((h) => h.tee && h.pin);
+     const segs = [];
+     for (const h of holes) {
+@@ -5576,6 +5743,7 @@ export function makeCourseScene(canvas, state) {
+         flowField[y * W + x] = norm / (Math.PI * 2);
+       }
+     }
++    recordEditorPerformance('flowField', started, W * H);
+   }
+   rebuildFlowField();
+ 
+@@ -6046,6 +6214,25 @@ export function makeCourseScene(canvas, state) {
+   // the editor's cheap incremental refresh after a stroke: terrain heights +
+   // water + paths follow the land; trees/objects only when asked. zoneRect
+   // limits the visual-field recompute to the edited cells.
++  function pathTouchesTerrainRect(path, rect) {
++    if (!rect) return true;
++    const points = path?.pts || [];
++    if (!points.length) return false;
++    const padding = 3 + (Number(path.width) || 0) / (CELL_YD * 2);
++    let x0 = Infinity;
++    let y0 = Infinity;
++    let x1 = -Infinity;
++    let y1 = -Infinity;
++    for (const point of points) {
++      x0 = Math.min(x0, point.x);
++      y0 = Math.min(y0, point.y);
++      x1 = Math.max(x1, point.x);
++      y1 = Math.max(y1, point.y);
++    }
++    return x1 + padding >= rect.x0 && x0 - padding <= rect.x1
++      && y1 + padding >= rect.y0 && y0 - padding <= rect.y1;
++  }
++
+   function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrain = true, terrainRect = null, turf = true } = {}) {
+     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
+     // terrainRect scopes the mesh rebuild to an edited region, and it is honoured
+@@ -6056,8 +6243,9 @@ export function makeCourseScene(canvas, state) {
+     // (rebuildAll) pass no rect and still get the full pass.
+     if (terrain) rebuildTerrainHeights(terrainRect);
+     if (water) rebuildWater();
+-    const rebuiltPaths = paths
+-      || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled));
++    const rebuiltPaths = paths || ((water || reReliefsculpt) && course.paths?.some(
++      (path) => pathBridgeEnabled(path) && pathTouchesTerrainRect(path, terrainRect),
++    ));
+     if (rebuiltPaths) rebuildPaths();
+     if (objects) {
+       rebuildTrees();
+@@ -6079,6 +6267,7 @@ export function makeCourseScene(canvas, state) {
+     sceneDisposed = true;
+     gtao.render = gtaoRender;
+     treeBuildToken += 1;
++    releaseEditorObjectGpuPrewarmRepresentatives();
+     if (walk.active) walkExit();
+     const clubhouse = clubhouseApi?.dispose ? clubhouseApi.dispose() : null;
+     while (golfers.length) removeGolfer(golfers.length - 1);
+@@ -6525,6 +6714,15 @@ export function makeCourseScene(canvas, state) {
+     step('Loading models');
+     await whenAssetsIdle(8000);
+     if (!alive()) return false;
++    // The course contains only the object types already placed in this save.
++    // Prime every editor catalog type as well, then wait for any catalog GLBs
++    // that call initiated before compiling behind the loading veil.
++    for (const { type } of OBJECT_CATALOG) {
++      if (!FLORA_IDS.has(type)) objectParts(type);
++    }
++    await whenAssetsIdle(8000);
++    if (!alive()) return false;
++    buildEditorObjectGpuPrewarmRepresentatives();
+     // DefaultLoadingManager deliberately fails open after eight seconds. Give
+     // checkout's exact cash prototypes their own bounded readiness handshake so
+     // a slow local GLB decode cannot turn an empty representative root into a
+@@ -6667,6 +6865,7 @@ export function makeCourseScene(canvas, state) {
+     // the opaque veil. Keep the GPU residency, but remove their scene nodes
+     // before the first player frame and before lifecycle baselines are sampled.
+     clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives?.({ drawn: true });
++    releaseEditorObjectGpuPrewarmRepresentatives();
+     return true;
+   }
+ 
+@@ -6687,9 +6886,11 @@ export function makeCourseScene(canvas, state) {
+     rebuildAll,
+     refreshGround,
+     updateZoneField,
++    updateZoneFieldBatched,
+     editorPerformanceSnapshot,
+     resetEditorPerformanceStats,
+     rebuildObjects,
++    isFloraObjectType: (type) => FLORA_IDS.has(type),
+     rebuildPaths,
+     rebuildStructures,
+     rebuildTrees,
+diff --git a/src/render3d/visualField.js b/src/render3d/visualField.js
+index efbec49..d4568c0 100644
+--- a/src/render3d/visualField.js
++++ b/src/render3d/visualField.js
+@@ -67,6 +67,7 @@ KERNEL[ZONE.SEMI] = { sigma: 0.75, weight: 0.6 }; // first cut: a narrow mown st
+ const INV = KERNEL.map((k) => (k ? 1 / (2.2 * k.sigma * 2.2 * k.sigma) : 0));
+ const WEIGHT = KERNEL.map((k) => (k ? k.weight : 0));
+ const REACH = 2;
++export const VISUAL_FIELD_REGION_PADDING_CELLS = REACH + 1.2;
+ 
+ function hash2(x, y) {
+   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0;
+@@ -463,7 +464,7 @@ function fillLegacyBoundaryDistance(field, tx0, ty0, tx1, ty1) {
+ }
+ 
+ // dirty-rect update after edits: pad by kernel reach + warp amplitude
+-export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, padding = REACH + 1.2) {
++export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, padding = VISUAL_FIELD_REGION_PADDING_CELLS) {
+   const PAD = Math.max(0, Number(padding) || 0);
+   return computeVisualField(course, field, {
+     x0: Math.max(0, cx0 - PAD),
+@@ -473,7 +474,7 @@ export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, paddi
+   });
+ }
+ 
+-export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1, padding = REACH + 1.2) {
++export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1, padding = VISUAL_FIELD_REGION_PADDING_CELLS) {
+   const PAD = Math.max(0, Number(padding) || 0);
+   return computeSurfaceDistanceField(field, distance, {
+     x0: Math.max(0, cx0 - PAD),
+diff --git a/src/sim/courseEditor.js b/src/sim/courseEditor.js
+index 957bc4b..a71910f 100644
+--- a/src/sim/courseEditor.js
++++ b/src/sim/courseEditor.js
+@@ -20,7 +20,7 @@ import { paintPathCells, splinePoints } from './courseShaping.js';
+ import { turfOnZonesChanged } from './turf.js';
+ import { spend } from './economy.js';
+ import {
+-  ensurePaint, invalidateGeom, deriveZones, evaluateSurface, getGeom, vecId,
++  ensurePaint, invalidateGeom, deriveZones, deriveZonesRegion, evaluateSurface, getGeom, vecId,
+   makeVecGreen, makeVecBunker, makeVecPond, makeVecTee,
+ } from './courseVec.js';
+ import { CELL_YD } from './constants.js';
+@@ -169,7 +169,11 @@ function pathOp(state, session, label, mutate, { chargeNewPavement = false } = {
+   if (course.vec) {
+     // vector courses rasterize PATH from the spline geometry — re-derive
+     invalidateGeom(course);
+-    deriveZones(course);
++    const pathRect = changedVectorRect(pathsBefore, course.paths);
++    if (pathRect) deriveZonesRegion(course, paddedRect(
++      pathRect, pathZonePadding(pathsBefore, course.paths),
++    ));
++    else deriveZones(course);
+   } else {
+     repaintPathZones(course);
+   }
+@@ -265,6 +269,58 @@ function changedVectorRect(before, after) {
+   };
+ }
+ 
++function paddedRect(rect, padding) {
++  return rect ? {
++    x0: rect.x0 - padding,
++    y0: rect.y0 - padding,
++    x1: rect.x1 + padding,
++    y1: rect.y1 + padding,
++  } : null;
++}
++
++function pathZonePadding(...pathLists) {
++  let maxWidthYd = 0;
++  for (const paths of pathLists) {
++    for (const path of paths || []) maxWidthYd = Math.max(maxWidthYd, Number(path.width) || 0);
++  }
++  return Math.max(4, Math.ceil(maxWidthYd / (CELL_YD * 2) + 2));
++}
++
++// Calculate the complete possible influence beyond the changed control points.
++// Widths are serialized in yards, while deriveZonesRegion consumes cells. This
++// stays data-driven so imported/authored courses with wider-than-UI corridors
++// still get byte-identical regional derivation.
++function vectorZonePadding(...vectors) {
++  let maxInfluenceYd = 0;
++  let maxRoughYd = 26;
++  for (const vector of vectors) {
++    for (const hole of vector?.holes || []) maxRoughYd = Math.max(maxRoughYd, Number(hole.roughW) || 0);
++  }
++  for (const vector of vectors) {
++    for (const hole of vector?.holes || []) {
++      const corridorYd = Math.max(0, ...(hole.width || []).map((stop) => Number(stop.w) || 0));
++      maxInfluenceYd = Math.max(maxInfluenceYd, corridorYd + maxRoughYd + 24);
++      const green = hole.green;
++      if (green) {
++        maxInfluenceYd = Math.max(
++          maxInfluenceYd,
++          (Number(green.fringe) || 1) + (Number(green.apron) || 0) + maxRoughYd + 24,
++        );
++      }
++      for (const tee of hole.tees || []) {
++        maxInfluenceYd = Math.max(
++          maxInfluenceYd,
++          Math.max(Number(tee.w) || 0, Number(tee.d) || 0) / 2 + maxRoughYd + 24,
++        );
++      }
++    }
++    for (const stream of vector?.streams || []) {
++      maxInfluenceYd = Math.max(maxInfluenceYd, (Number(stream.w) || 0) / 2 + 2);
++    }
++  }
++  return Math.max(4, Math.ceil(maxInfluenceYd / CELL_YD + 2));
++}
++
+ function snapshotHoleRecords(course, holeIds) {
+   return [...new Set(holeIds || [])].map((holeId) => {
+     const hole = course.holes.find((candidate) => candidate.id === holeId);
+@@ -301,8 +357,12 @@ function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } =
+   if (jsonEqual(vecBefore, vecAfter) && jsonEqual(holesBefore, holesAfter) && !paintChanged) {
+     return { ok: true, cost: 0, cells: 0, unchanged: true };
+   }
++  const vectorRect = changedVectorRect(vecBefore, vecAfter);
+   invalidateGeom(course);
+-  deriveZones(course);
++  if (vectorRect) deriveZonesRegion(course, paddedRect(
++    vectorRect, vectorZonePadding(vecBefore, vecAfter),
++  ));
++  else deriveZones(course);
+   const cells = [];
+   const changed = [];
+   for (let i = 0; i < course.zones.length; i++) {
+@@ -315,7 +375,7 @@ function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } =
+   const cost = Math.round(mutCost + extraCost);
+   pushOp(state, session, {
+     kind: 'vec', label, cost, cells,
+-    rect: changedVectorRect(vecBefore, vecAfter),
++    rect: vectorRect,
+     vecBefore, vecAfter,
+     paintBeforePresent: !!paintBefore,
+     paintAfterPresent: !!course.paint,
+@@ -2201,6 +2261,16 @@ export function opCellRect(state, op) {
+   return Number.isFinite(x0) ? { x0, y0, x1, y1 } : null;
+ }
+ 
++function opObjectTypes(op) {
++  if (!op || !String(op.kind || '').startsWith('object-')) return [];
++  const types = [];
++  if (op.object?.type) types.push(op.object.type);
++  if (op.before?.type) types.push(op.before.type);
++  if (op.after?.type) types.push(op.after.type);
++  for (const object of op.objects || []) if (object?.type) types.push(object.type);
++  return [...new Set(types)];
++}
++
+ export function undo(state, session) {
+   const op = session.undo.pop();
+   if (!op) return { ok: false };
+@@ -2209,7 +2279,7 @@ export function undo(state, session) {
+   session.redo.push(op);
+   session.bill = Math.max(0, session.bill - op.cost);
+   refreshChangedCells(state, session);
+-  return { ok: true, label: op.label, kind: op.kind, rect };
++  return { ok: true, label: op.label, kind: op.kind, rect, objectTypes: opObjectTypes(op) };
+ }
+ 
+ export function redo(state, session) {
+@@ -2220,7 +2290,7 @@ export function redo(state, session) {
+   session.undo.push(op);
+   session.bill += op.cost;
+   refreshChangedCells(state, session);
+-  return { ok: true, label: op.label, kind: op.kind, rect };
++  return { ok: true, label: op.label, kind: op.kind, rect, objectTypes: opObjectTypes(op) };
+ }
+ 
+ // --- apply / discard --------------------------------------------------------------------
+@@ -2278,10 +2348,12 @@ export function discardSession(state, session) {
+   // Preserve only the renderer-facing invalidation metadata. Returning compact
+   // summaries lets the UI restore the visible course in bounded regional work
+   // instead of paying one whole-course rebuild after the data is rolled back.
+-  const operations = session.undo.map((op) => ({
+-    kind: op.kind,
+-    rect: opCellRect(state, op),
+-  }));
++  const operations = session.undo.map((op) => {
++    const summary = { kind: op.kind, rect: opCellRect(state, op) };
++    const objectTypes = opObjectTypes(op);
++    if (objectTypes.length) summary.objectTypes = objectTypes;
++    return summary;
++  });
+ 
+   // Roll back directly rather than calling undo(): undo() recomputes the net
+   // changed-cell set after every operation. That turns a long-session Discard
+diff --git a/src/sim/courseVec.js b/src/sim/courseVec.js
+index 5a75b7e..ff33c23 100644
+--- a/src/sim/courseVec.js
++++ b/src/sim/courseVec.js
+@@ -338,6 +338,13 @@ function widthAt(stops, t) {
+ // Sampled/derived geometry for fast repeated evaluation. Rebuild whenever
+ // course.vec changes (editor ops call invalidateGeom).
+ const geomCache = new WeakMap();
++// The organic warp lattice depends only on course dimensions + vector seed.
++// Feature editing used to rebuild its three 481x321 FBM channels every time a
++// green, tee, bunker, water, stream, or path changed even though none of those
++// operations can alter the lattice. Keep it beside (rather than inside) the
++// invalidated geometry cache so normal editor invalidation reuses this immutable
++// data while a new course/seed still receives its own field.
++const warpCache = new WeakMap();
+ 
+ export function invalidateGeom(course) {
+   geomCache.delete(course);
+@@ -346,14 +353,40 @@ export function invalidateGeom(course) {
+ export function getGeom(course) {
+   let g = geomCache.get(course);
+   if (g && g.rev === course.vec && g.pathsRev === course.paths) return g;
+-  g = buildGeom(course.vec, course.w, course.h, course.paths || []);
++  const seed = course.vec?.seed || 7;
++  let warp = warpCache.get(course);
++  if (!warp || warp.w !== course.w || warp.h !== course.h || warp.seed !== seed) {
++    warp = buildWarpLattice(course.w, course.h, seed);
++    warpCache.set(course, warp);
++  }
++  g = buildGeom(course.vec, course.w, course.h, course.paths || [], warp);
+   g.rev = course.vec;
+   g.pathsRev = course.paths;
+   geomCache.set(course, g);
+   return g;
+ }
+ 
+-function buildGeom(vec, W, H, coursePaths) {
++function buildWarpLattice(W, H, seed) {
++  const WS = 4;
++  const ww = W * WS + 1;
++  const wh = H * WS + 1;
++  const warpX = new Float32Array(ww * wh);
++  const warpY = new Float32Array(ww * wh);
++  const warpR = new Float32Array(ww * wh);
++  for (let y = 0; y < wh; y++) {
++    const gy = y / WS;
++    for (let x = 0; x < ww; x++) {
++      const gx = x / WS;
++      const o = y * ww + x;
++      warpX[o] = (fbm2(gx * 0.55 + seed * 11.3, gy * 0.55 + seed * 7.7) - 0.5) * 2;
++      warpY[o] = (fbm2(gx * 0.55 - seed * 5.1, gy * 0.55 + seed * 13.9) - 0.5) * 2;
++      warpR[o] = (fbm2(gx * 0.23 + seed * 3.1, gy * 0.23 - seed * 1.7) - 0.5) * 2.4;
++    }
++  }
++  return { w: W, h: H, seed, WS, ww, wh, warpX, warpY, warpR };
++}
++
++function buildGeom(vec, W, H, coursePaths, warp) {
+   const holes = (vec.holes || []).map((h) => {
+     const line = sampleOpen(h.line, 0.35);
+     const arcs = prefixArcs(line);
+@@ -488,23 +521,9 @@ function buildGeom(vec, W, H, coursePaths) {
+ 
+   // ---- shared warp lattice at quarter-cell resolution: one smooth vector
+   // field + one ragged-edge channel, bilinearly sampled by every evaluation.
+-  const seed = vec.seed || 7;
+-  const WS = 4;
+-  const ww = W * WS + 1;
+-  const wh = H * WS + 1;
+-  const warpX = new Float32Array(ww * wh);
+-  const warpY = new Float32Array(ww * wh);
+-  const warpR = new Float32Array(ww * wh);
+-  for (let y = 0; y < wh; y++) {
+-    const gy = y / WS;
+-    for (let x = 0; x < ww; x++) {
+-      const gx = x / WS;
+-      const o = y * ww + x;
+-      warpX[o] = (fbm2(gx * 0.55 + seed * 11.3, gy * 0.55 + seed * 7.7) - 0.5) * 2;
+-      warpY[o] = (fbm2(gx * 0.55 - seed * 5.1, gy * 0.55 + seed * 13.9) - 0.5) * 2;
+-      warpR[o] = (fbm2(gx * 0.23 + seed * 3.1, gy * 0.23 - seed * 1.7) - 0.5) * 2.4;
+-    }
+-  }
++  const {
++    seed, WS, ww, wh, warpX, warpY, warpR,
++  } = warp;
+ 
+   return {
+     holes, waters, streams, beds, mounds, paths, lawns, bins, bw, bh, BIN,
+@@ -822,26 +841,49 @@ export function rasterizeField(course, scale) {
+ // Write course.zones from the vectors (cell centers; pins/tee markers pinned).
+ // Structures keep their OUT footprint. Returns the course for chaining.
+ export function deriveZones(course) {
++  deriveZonesRegion(course, { x0: 0, y0: 0, x1: course.w - 1, y1: course.h - 1 });
++  return course;
++}
++
++// Re-derive an inclusive cell rectangle after a bounded vector/path edit. The
++// evaluator itself is identical to deriveZones; this function only avoids
++// revisiting cells whose complete input set is unchanged. Structures and hole
++// anchors are clipped through the same rectangle so regional and full passes
++// remain byte-identical.
++export function deriveZonesRegion(course, rect) {
++  if (!rect) return deriveZones(course);
+   const geom = getGeom(course);
+   const paint = course.paint || null;
+   const { w, h, zones } = course;
+-  for (let y = 0; y < h; y++) {
+-    for (let x = 0; x < w; x++) {
++  const x0 = clamp(Math.floor(rect.x0), 0, w - 1);
++  const y0 = clamp(Math.floor(rect.y0), 0, h - 1);
++  const x1 = clamp(Math.ceil(rect.x1), 0, w - 1);
++  const y1 = clamp(Math.ceil(rect.y1), 0, h - 1);
++  if (x1 < x0 || y1 < y0) return course;
++
++  for (let y = y0; y <= y1; y++) {
++    for (let x = x0; x <= x1; x++) {
+       zones[y * w + x] = evalPacked(course, geom, x + 0.5, y + 0.5, paint) & 0xff;
+     }
+   }
+-  // structures stamp OUT
+   for (const s of course.structures || []) {
+-    for (let y = s.y; y < s.y + s.h; y++) {
+-      for (let x = s.x; x < s.x + s.w; x++) {
+-        if (x >= 0 && y >= 0 && x < w && y < h) zones[y * w + x] = ZONE.OUT;
+-      }
++    const sx0 = Math.max(x0, s.x);
++    const sy0 = Math.max(y0, s.y);
++    const sx1 = Math.min(x1, s.x + s.w - 1);
++    const sy1 = Math.min(y1, s.y + s.h - 1);
++    for (let y = sy0; y <= sy1; y++) {
++      for (let x = sx0; x <= sx1; x++) zones[y * w + x] = ZONE.OUT;
+     }
+   }
+-  // validation anchors: the active pin must sit on green cells, tees on tee cells
+   for (const hole of course.holes) {
+-    if (hole.pin) zones[Math.round(hole.pin.y) * w + Math.round(hole.pin.x)] = ZONE.GREEN;
+-    if (hole.tee) zones[Math.round(hole.tee.y) * w + Math.round(hole.tee.x)] = ZONE.TEE;
++    for (const [anchor, zone] of [[hole.pin, ZONE.GREEN], [hole.tee, ZONE.TEE]]) {
++      if (!anchor) continue;
++      const x = Math.round(anchor.x);
++      const y = Math.round(anchor.y);
++      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && x >= 0 && y >= 0 && x < w && y < h) {
++        zones[y * w + x] = zone;
++      }
++    }
+   }
+   return course;
+ }
+diff --git a/src/ui/courseEditor.js b/src/ui/courseEditor.js
+index 70aeb90..ad8e969 100644
+--- a/src/ui/courseEditor.js
++++ b/src/ui/courseEditor.js
+@@ -348,6 +348,7 @@ export function makeCourseEditor(app, hooks) {
+   let hover = null; // last raycastGround hit
+   let hoverPreviewFrame = null;
+   let pendingHoverPreview = null;
++  let regionalRefreshBusy = false;
+   let pt = null; // playtest session
+   let ptPower = null; // {t, dir} while charging
+   let ptLeftAim = null; // left drag becomes aim; a stationary hold remains power
+@@ -865,18 +866,22 @@ export function makeCourseEditor(app, hooks) {
+     ui.billChip.title = bill > 0 ? `Pending works: ${formatMoney(bill)}` : '';
+     const canPay = bill <= state().cash;
+     ui.applyBtn.style.display = dirty ? '' : 'none';
+-    ui.applyBtn.disabled = !dirty;
++    ui.applyBtn.disabled = regionalRefreshBusy || !dirty;
+     ui.applyBtn.textContent = bill > 0 && !canPay ? 'Insufficient cash' : 'Build';
+     ui.applyBtn.classList.toggle('danger', bill > 0 && !canPay);
+     ui.discardBtn.style.display = dirty ? '' : 'none';
+-    ui.discardBtn.disabled = !dirty;
+-    ui.undoBtn.disabled = !(session && session.undo.length);
+-    ui.redoBtn.disabled = !(session && session.redo.length);
++    ui.discardBtn.disabled = regionalRefreshBusy || !dirty;
++    ui.undoBtn.disabled = regionalRefreshBusy || !(session && session.undo.length);
++    ui.redoBtn.disabled = regionalRefreshBusy || !(session && session.redo.length);
++    ui.saveBtn.disabled = regionalRefreshBusy;
++    ui.playtestBtn.disabled = regionalRefreshBusy;
++    ui.holeChip.disabled = regionalRefreshBusy;
++    ui.cameraSel.disabled = regionalRefreshBusy;
+     // startFlyover needs a hole with both a tee and a pin; say so on the button
+     // rather than letting the click quietly do nothing.
+     const flyable = selectedHole();
+     const canFly = !!(flyable && flyable.tee && flyable.pin);
+-    ui.flyoverBtn.disabled = !canFly && !flyover;
++    ui.flyoverBtn.disabled = regionalRefreshBusy || (!canFly && !flyover);
+     ui.flyoverBtn.classList.toggle('on', !!flyover);
+     ui.flyoverBtn.title = flyover
+       ? 'Stop the flyover and return to the previous camera'
+@@ -1070,7 +1075,7 @@ export function makeCourseEditor(app, hooks) {
+     const res = previewObjectGesture(state(), gesture, patch);
+     if (res.ok) {
+       objectControlError = null;
+-      rebuildObjectVisuals();
++      rebuildObjectVisuals([selected.type]);
+     } else {
+       objectControlError = res.reason || 'That transform would overlap another object.';
+     }
+@@ -1221,7 +1226,7 @@ export function makeCourseEditor(app, hooks) {
+             onclick: () => {
+               const res = duplicateObject(state(), session, selected.id);
+               if (res.ok) {
+-                refreshObjects();
++                refreshObjects([res.object.type]);
+                 toast('Copied — drag it into place.');
+                 setSelected(res.object);
+               } else toast(res.reason || 'There is no clear space for a copy.', 'warn');
+@@ -1231,9 +1236,10 @@ export function makeCourseEditor(app, hooks) {
+             class: 'danger',
+             text: 'Remove',
+             onclick: () => {
++              const removedType = selected.type;
+               removeObject(state(), session, selected.id);
+               setSelected(null);
+-              refreshObjects();
++              refreshObjects([removedType]);
+             },
+           }),
+         ));
+@@ -2302,6 +2308,71 @@ export function makeCourseEditor(app, hooks) {
+ 
+   const nextEditorFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+ 
++  function queueRegionalGroundRefresh(options) {
++    if (regionalRefreshBusy) return false;
++    regionalRefreshBusy = true;
++    const sc = scene();
++    sc.setEditorFeaturePreview?.(null);
++    refreshTop();
++    void (async () => {
++      try {
++        // Let the pointer action, history mutation, bill, and controls paint
++        // immediately. Geometry, high-resolution fields, and their uploads then
++        // occupy separate bounded frames rather than one long input task.
++        await nextEditorFrame();
++        const terrainRect = options.terrainRect;
++        const terrainStrips = [];
++        if (terrainRect) {
++          let y0 = terrainRect.y0;
++          while (y0 < terrainRect.y1) {
++            const y1 = Math.min(terrainRect.y1, y0 + 6);
++            terrainStrips.push({ ...terrainRect, y0, y1 });
++            y0 = y1;
++          }
++        }
++        if (!terrainStrips.length) terrainStrips.push(terrainRect || null);
++        for (let index = 0; index < terrainStrips.length; index++) {
++          sc.refreshGround(state(), {
++            relief: Boolean(options.relief) && index === 0,
++            terrain: options.terrain !== false,
++            terrainRect: terrainStrips[index],
++            zones: false,
++            turf: false,
++          });
++          await nextEditorFrame();
++        }
++        if (options.water || options.objects || options.paths || options.holes || options.flow) {
++          sc.refreshGround(state(), {
++            water: options.water,
++            objects: options.objects,
++            paths: options.paths,
++            holes: options.holes,
++            flow: options.flow,
++            terrain: false,
++            zones: false,
++            turf: false,
++          });
++          await nextEditorFrame();
++        }
++        if (sc.updateZoneFieldBatched) {
++          await sc.updateZoneFieldBatched(state(), options.zoneRect);
++        } else {
++          sc.updateZoneField(state(), options.zoneRect);
++        }
++        sc.updateTurf(state(), options.zoneRect);
++      } catch (error) {
++        console.error('course editor regional refresh failed', error);
++        toast('The edit was saved, but its preview could not finish rendering.', 'warn');
++      } finally {
++        regionalRefreshBusy = false;
++        refreshTop();
++        renderToolPanel();
++        refreshHoverPreview();
++      }
++    })();
++    return true;
++  }
++
+   function discardRefreshTiles(operations, kinds, padding = 0, { fullOnMissing = true } = {}) {
+     const course = state().course;
+     const keys = new Set();
+@@ -2347,7 +2418,11 @@ export function makeCourseEditor(app, hooks) {
+     const terrain = terrainTiles.length > 0;
+     const paths = hasKind((kind) => kind === 'path' || terrainKinds.has(kind));
+     const water = hasKind((kind) => terrainKinds.has(kind));
+-    const objects = hasKind((kind) => kind.startsWith('object-'));
++    const objectOperations = list.filter((operation) => operation.kind.startsWith('object-'));
++    const objectTypes = [...new Set(objectOperations.flatMap((operation) => operation.objectTypes || []))];
++    const broadObjects = objectOperations.some((operation) => !operation.objectTypes?.length);
++    const floraTypes = objectTypes.filter((type) => scene().isFloraObjectType?.(type));
++    const propTypes = objectTypes.filter((type) => !scene().isFloraObjectType?.(type));
+     const holes = hasKind((kind) => kind === 'hole' || kind.startsWith('hole-') || terrainKinds.has(kind));
+     const flow = hasKind((kind) => kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete'
+       || kind === 'vec' || kind === 'stamp');
+@@ -2364,16 +2439,34 @@ export function makeCourseEditor(app, hooks) {
+       await nextEditorFrame();
+     }
+ 
+-    if (water || paths || objects || holes || flow) {
++    if (water) {
+       scene().refreshGround(state(), {
+-        terrain: false,
+-        zones: false,
+-        turf: false,
+-        water,
+-        paths,
+-        objects,
+-        holes,
+-        flow,
++        terrain: false, zones: false, turf: false, water: true,
++      });
++      await nextEditorFrame();
++    }
++    if (paths) {
++      scene().refreshGround(state(), {
++        terrain: false, zones: false, turf: false, paths: true,
++      });
++      await nextEditorFrame();
++    }
++    if (broadObjects) {
++      rebuildObjectVisuals();
++      await nextEditorFrame();
++    } else {
++      if (propTypes.length) {
++        scene().rebuildObjects(propTypes);
++        await nextEditorFrame();
++      }
++      if (floraTypes.length) {
++        scene().rebuildTrees();
++        await nextEditorFrame();
++      }
++    }
++    if (holes || flow) {
++      scene().refreshGround(state(), {
++        terrain: false, zones: false, turf: false, holes, flow,
+       });
+       await nextEditorFrame();
+     }
+@@ -2451,7 +2544,7 @@ export function makeCourseEditor(app, hooks) {
+     renderToolPanel();
+   }
+ 
+-  function refreshHistoryOp({ kind, rect = null }) {
++  function refreshHistoryOp({ kind, rect = null, objectTypes = [] }) {
+     if (selectedPathId != null && !selectedPath()) clearPathSelection();
+ 
+     if (kind === 'paint' || kind === 'vector-paint') {
+@@ -2479,7 +2572,7 @@ export function makeCourseEditor(app, hooks) {
+ 
+     if (kind === 'object-add' || kind === 'object-remove'
+       || kind === 'object-move' || kind === 'object-scatter') {
+-      rebuildObjectVisuals();
++      rebuildObjectVisuals(objectTypes.length ? objectTypes : null);
+       finishHistoryRefresh();
+       return;
+     }
+@@ -2512,14 +2605,17 @@ export function makeCourseEditor(app, hooks) {
+     fullRefresh(rect);
+   }
+ 
+-  function refreshObjects() {
+-    rebuildObjectVisuals();
++  function refreshObjects(types = null) {
++    rebuildObjectVisuals(types);
+     refreshTop();
+   }
+ 
+-  function rebuildObjectVisuals() {
+-    scene().rebuildObjects();
+-    scene().rebuildTrees();
++  function rebuildObjectVisuals(types = null) {
++    const list = types ? [...new Set(types.filter(Boolean))] : null;
++    const needsFlora = !list || list.some((type) => scene().isFloraObjectType?.(type));
++    const needsProps = !list || list.some((type) => !scene().isFloraObjectType?.(type));
++    if (needsProps) scene().rebuildObjects(list);
++    if (needsFlora) scene().rebuildTrees();
+   }
+ 
+   function fullRefresh(rect = null) {
+@@ -2807,6 +2903,7 @@ export function makeCourseEditor(app, hooks) {
+ 
+   function onPointerDown(e) {
+     if (!active || pt) return;
++    if (regionalRefreshBusy && e.target === scene().renderer.domElement) return;
+     if (flyover) {
+       // Let the native selector open during flight. Its change handler cancels
+       // without restoring the old preset, then applies the user's new choice.
+@@ -2846,6 +2943,7 @@ export function makeCourseEditor(app, hooks) {
+         if (obj) {
+           draggingObj = {
+             kind: 'object',
++            type: obj.type,
+             gesture: beginObjectGesture(state(), obj.id, 'Move object'),
+           };
+         }
+@@ -2878,7 +2976,7 @@ export function makeCourseEditor(app, hooks) {
+         const res = stampTee(state(), session, hole.id, opt.tee.teeKey, point.x, point.y, aim.x, aim.y);
+         if (!res.ok) toast(res.reason || 'Cannot build here.', 'warn');
+         else {
+-          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6), terrainRect: zr(point.x, point.y, 6 + RELIEF_PAD_CELLS) });
++          queueRegionalGroundRefresh({ holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6), terrainRect: zr(point.x, point.y, 6 + RELIEF_PAD_CELLS) });
+           refreshTop();
+           renderToolPanel();
+           toast(`${opt.tee.teeKey[0].toUpperCase()}${opt.tee.teeKey.slice(1)} tee built (${formatMoney(res.cost)} pending).`);
+@@ -2922,7 +3020,7 @@ export function makeCourseEditor(app, hooks) {
+           holeId: hole.id,
+         });
+         if (res.ok) {
+-          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3), terrainRect: zr(point.x, point.y, r * 1.8 + 3 + RELIEF_PAD_CELLS) });
++          queueRegionalGroundRefresh({ relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3), terrainRect: zr(point.x, point.y, r * 1.8 + 3 + RELIEF_PAD_CELLS) });
+           refreshTop();
+           renderToolPanel();
+         } else toast(res.reason || 'The green needs open ground.', 'warn');
+@@ -2948,7 +3046,7 @@ export function makeCourseEditor(app, hooks) {
+           holeId: hole.id,
+         });
+         if (res.ok) {
+-          scene().refreshGround(state(), { relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3 + RELIEF_PAD_CELLS) });
++          queueRegionalGroundRefresh({ relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3 + RELIEF_PAD_CELLS) });
+           refreshTop();
+           renderToolPanel();
+         } else {
+@@ -2975,7 +3073,7 @@ export function makeCourseEditor(app, hooks) {
+           angle: (opt.water.rot * Math.PI) / 180,
+         });
+         if (res.ok) {
+-          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3 + RELIEF_PAD_CELLS) });
++          queueRegionalGroundRefresh({ water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3 + RELIEF_PAD_CELLS) });
+           refreshTop();
+           renderToolPanel();
+         } else {
+@@ -2992,7 +3090,7 @@ export function makeCourseEditor(app, hooks) {
+           });
+           if (!res.ok) toast(res.reason, 'warn');
+           else {
+-            refreshObjects();
++            refreshObjects(types);
+             toast(`${res.count} planted (${formatMoney(res.cost)} pending).`);
+           }
+           break;
+@@ -3000,7 +3098,7 @@ export function makeCourseEditor(app, hooks) {
+         const rot = opt.objects.randomRot ? Math.random() * Math.PI * 2 : 0;
+         const res = addObject(state(), session, opt.objects.type, target.x, target.y, { rot, scale: opt.objects.scale });
+         if (!res.ok) toast(res.reason, 'warn');
+-        else refreshObjects();
++        else refreshObjects([res.object.type]);
+         break;
+       }
+       case 'paths': {
+@@ -3135,7 +3233,7 @@ export function makeCourseEditor(app, hooks) {
+     else if (draggingObj?.kind === 'object' && (e.buttons & 1) && g.inBounds) {
+       const target = objectPlacementPoint(g);
+       const res = previewObjectGesture(state(), draggingObj.gesture, { x: target.x, y: target.y });
+-      if (res.ok) rebuildObjectVisuals();
++      if (res.ok) rebuildObjectVisuals([draggingObj.type]);
+     }
+   }
+ 
+@@ -3299,7 +3397,7 @@ export function makeCourseEditor(app, hooks) {
+         const obj = scene().pickObject(g.point.x, g.point.z, 3);
+         if (obj) {
+           removeObject(state(), session, obj.id);
+-          refreshObjects();
++          refreshObjects([obj.type]);
+         }
+       } else if (tool === 'paint' && stroke) {
+         // handled as erase-drag; nothing on click
+@@ -3930,6 +4028,7 @@ export function makeCourseEditor(app, hooks) {
+       tool: () => tool,
+       setTool,
+       power: () => ptPower,
++      refreshBusy: () => regionalRefreshBusy,
+     },
+   };
+ }
+diff --git a/tools/qa/course-editor-stroke-perf.js b/tools/qa/course-editor-stroke-perf.js
+index 001cc06..caae6c2 100644
+--- a/tools/qa/course-editor-stroke-perf.js
++++ b/tools/qa/course-editor-stroke-perf.js
+@@ -220,11 +220,32 @@ async (page) => {
+   const box = await canvas.boundingBox();
+   const cx = box.x + box.width * 0.55;
+   const cy = box.y + box.height * 0.55;
++  const elevationFingerprint = () => page.evaluate(() => {
++    const elevation = window.__fw.state.course.elevation;
++    const bytes = new Uint8Array(elevation.buffer, elevation.byteOffset, elevation.byteLength);
++    let hash = 2166136261;
++    for (let index = 0; index < bytes.length; index += 1) hash = Math.imul(hash ^ bytes[index], 16777619);
++    return { length: elevation.length, hash: hash >>> 0 };
++  });
++  const terrainDataBefore = await elevationFingerprint();
+ 
+   await page.evaluate(() => {
+     window.__courseGpuProbe?.reset?.();
+     window.__fw.scene3d.resetEditorPerformanceStats?.();
+-    window.__strokeProbe = { deltas: [], running: true, last: performance.now() };
++    const canvas = document.querySelector('canvas');
++    window.__strokeProbe = {
++      deltas: [], inputToFrameMs: [], running: true, last: performance.now(),
++    };
++    const onPointerMove = () => {
++      const probe = window.__strokeProbe;
++      if (!probe?.running) return;
++      const inputAt = performance.now();
++      requestAnimationFrame(() => {
++        if (probe.running) probe.inputToFrameMs.push(performance.now() - inputAt);
++      });
++    };
++    window.__strokeProbe.onPointerMove = onPointerMove;
++    canvas?.addEventListener('pointermove', onPointerMove, { capture: true });
+     const tick = (now) => {
+       const p = window.__strokeProbe;
+       if (!p.running) return;
+@@ -252,11 +273,14 @@ async (page) => {
+   const drag = await page.evaluate(() => {
+     const p = window.__strokeProbe;
+     p.running = false;
++    document.querySelector('canvas')?.removeEventListener('pointermove', p.onPointerMove, { capture: true });
+     const d = p.deltas;
+     const o = d.slice().sort((a, b) => a - b);
+     const mean = d.reduce((a, b) => a + b, 0) / Math.max(1, d.length);
+     const slowCount = Math.max(1, Math.ceil(o.length * 0.01));
+     const slowMean = o.slice(-slowCount).reduce((a, b) => a + b, 0) / slowCount;
++    const input = p.inputToFrameMs.slice().sort((a, b) => a - b);
++    const inputMean = p.inputToFrameMs.reduce((sum, value) => sum + value, 0) / Math.max(1, p.inputToFrameMs.length);
+     return {
+       frames: d.length,
+       averageFps: +(1000 / mean).toFixed(2),
+@@ -266,9 +290,17 @@ async (page) => {
+       worstFrameMs: +o[o.length - 1].toFixed(3),
+       framesOver33ms: d.filter((x) => x > 33).length,
+       framesOver100ms: d.filter((x) => x > 100).length,
++      inputToFrame: {
++        samples: input.length,
++        meanMs: +inputMean.toFixed(3),
++        medianMs: +(input[Math.floor(input.length / 2)] || 0).toFixed(3),
++        p99Ms: +(input[Math.min(input.length - 1, Math.floor(input.length * 0.99))] || 0).toFixed(3),
++        maxMs: +(input.at(-1) || 0).toFixed(3),
++      },
+       rawFrameDeltasMs: d.map((x) => +x.toFixed(2)),
+     };
+   });
++  const terrainDataAfter = await elevationFingerprint();
+ 
+   const terrainGpu = await page.evaluate(() => {
+     const probe = window.__courseGpuProbe;
+@@ -286,52 +318,76 @@ async (page) => {
+   // ---- 3. correctness: a SCOPED undo must leave no stale geometry ---------
+   // The whole scoped-refresh approach fails silently if a rect is too small:
+   // the data rolls back but the mesh keeps the old land outside the window.
+-  // Compare the mesh after a scoped undo against a forced full rebuild.
+-  // undo through the real toolbar control, not a test hook
+-  const undoBtn = page.locator('.ced-top button', { hasText: 'Undo' }).first();
+-  const undoClicked = await undoBtn.count() > 0;
+-  if (undoClicked) await undoBtn.click({ force: true }).catch(() => {});
+-  await page.evaluate(() => new Promise((r) => {
+-    let n = 6;
+-    const t = () => (--n <= 0 ? r() : requestAnimationFrame(t));
+-    requestAnimationFrame(t);
+-  }));
+-
+-  const undoIntegrity = await page.evaluate(async (clicked) => {
+-    if (!clicked) return { skipped: 'undo control not found' };
++  // Compare the mesh after scoped undo and redo against forced full rebuilds.
++  // Both actions go through the real toolbar controls, not test hooks.
++  const compareTerrainMeshToFull = (phaseLabel) => page.evaluate(async (label) => {
+     const scene = window.__fw.scene3d;
+     const st = window.__fw.state;
+-
+-    // Reach the geometry through the rendered scene graph rather than a hook.
+     let terrain = null;
+-    scene.scene.traverse((o) => {
+-      if (!terrain && o.isMesh && o.geometry?.attributes?.position?.count > 100000) terrain = o;
++    scene.scene.traverse((object) => {
++      if (!terrain && object.isMesh && object.geometry?.attributes?.position?.count > 100000) terrain = object;
+     });
+-    if (!terrain) return { skipped: 'terrain mesh not found' };
++    if (!terrain) return { phase: label, skipped: 'terrain mesh not found' };
+     const snapshot = () => Float32Array.from(terrain.geometry.attributes.position.array);
+-
+-    const afterScopedUndo = snapshot();
+-
+-    // force the canonical full rebuild
++    const afterScopedRefresh = snapshot();
+     scene.refreshGround(st, {
+       water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
+     });
+-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
++    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+     const afterFullRebuild = snapshot();
+-
+     let maxDelta = 0;
+     let differing = 0;
+-    for (let i = 0; i < afterFullRebuild.length; i++) {
+-      const d = Math.abs(afterScopedUndo[i] - afterFullRebuild[i]);
+-      if (d > 1e-4) differing += 1;
+-      if (d > maxDelta) maxDelta = d;
++    for (let index = 0; index < afterFullRebuild.length; index += 1) {
++      const delta = Math.abs(afterScopedRefresh[index] - afterFullRebuild[index]);
++      if (delta > 1e-4) differing += 1;
++      if (delta > maxDelta) maxDelta = delta;
+     }
+     return {
++      phase: label,
+       vertexComponents: afterFullRebuild.length,
+       differingComponents: differing,
+       maxDeltaYd: +maxDelta.toFixed(6),
+     };
+-  }, undoClicked);
++  }, phaseLabel);
++  const settleHistory = () => page.evaluate(() => new Promise((resolve) => {
++    let frames = 6;
++    const tick = () => (--frames <= 0 ? resolve() : requestAnimationFrame(tick));
++    requestAnimationFrame(tick);
++  }));
++
++  const undoBtn = page.locator('.ced-top button', { hasText: 'Undo' }).first();
++  const undoClicked = await undoBtn.count() > 0;
++  const undoStarted = Date.now();
++  if (undoClicked) await undoBtn.click({ force: true }).catch(() => {});
++  await settleHistory();
++  const undoDurationMs = Date.now() - undoStarted;
++  const terrainDataAfterUndo = await elevationFingerprint();
++  const undoIntegrity = undoClicked
++    ? await compareTerrainMeshToFull('undo')
++    : { phase: 'undo', skipped: 'undo control not found' };
++
++  const redoBtn = page.locator('.ced-top button', { hasText: 'Redo' }).first();
++  const redoClicked = await redoBtn.count() > 0;
++  const redoStarted = Date.now();
++  if (redoClicked) await redoBtn.click({ force: true }).catch(() => {});
++  await settleHistory();
++  const redoDurationMs = Date.now() - redoStarted;
++  const terrainDataAfterRedo = await elevationFingerprint();
++  const redoIntegrity = redoClicked
++    ? await compareTerrainMeshToFull('redo')
++    : { phase: 'redo', skipped: 'redo control not found' };
++  const terrainDataIntegrity = {
++    changedByStroke: terrainDataAfter.hash !== terrainDataBefore.hash,
++    undoRestoredExact: terrainDataAfterUndo.length === terrainDataBefore.length
++      && terrainDataAfterUndo.hash === terrainDataBefore.hash,
++    redoRestoredExact: terrainDataAfterRedo.length === terrainDataAfter.length
++      && terrainDataAfterRedo.hash === terrainDataAfter.hash,
++    before: terrainDataBefore,
++    after: terrainDataAfter,
++    afterUndo: terrainDataAfterUndo,
++    afterRedo: terrainDataAfterRedo,
++  };
++  const historyTimings = { undoDurationMs, redoDurationMs };
+ 
+   // ---- 4. real paint drag + input-to-next-frame latency -------------------
+   await page.evaluate(() => {
+@@ -432,8 +488,19 @@ async (page) => {
+   await page.screenshot({ path: `${outDir}/paint_stroke.png` });
+ 
+   return {
+-    ok: diagnostics.pageErrors.length === 0
+-      && (undoIntegrity.skipped ? true : undoIntegrity.differingComponents === 0),
++    ok: diagnostics.console.length === 0
++      && diagnostics.pageErrors.length === 0
++      && drag.framesOver100ms === 0
++      && paintDrag.framesOver100ms === 0
++      && drag.inputToFrame.samples > 0
++      && paintDrag.inputToFrame.samples > 0
++      && !undoIntegrity.skipped
++      && undoIntegrity.differingComponents === 0
++      && !redoIntegrity.skipped
++      && redoIntegrity.differingComponents === 0
++      && terrainDataIntegrity.changedByStroke
++      && terrainDataIntegrity.undoRestoredExact
++      && terrainDataIntegrity.redoRestoredExact,
+     phase,
+     synthetic,
+     drag,
+@@ -443,6 +510,9 @@ async (page) => {
+     paintGpu,
+     paintRuntimeCosts,
+     undoIntegrity,
++    redoIntegrity,
++    terrainDataIntegrity,
++    historyTimings,
+     diagnostics,
+   };
+ }
+diff --git a/tools/qa/course-editor-utility-controls.js b/tools/qa/course-editor-utility-controls.js
+index c85f938..23cb20a 100644
+--- a/tools/qa/course-editor-utility-controls.js
++++ b/tools/qa/course-editor-utility-controls.js
+@@ -1,5 +1,6 @@
+ // Runtime audit for the Course Editor's utility controls and transaction shell.
+-// Every mutation is made through visible controls and is discarded before exit.
++// The first mutation sweep is made through visible controls and discarded
++// exactly. A final small edit is then built, saved, and reloaded.
+ async (page) => {
+   const fs = process.getBuiltinModule('node:fs');
+   const path = process.getBuiltinModule('node:path');
+@@ -23,6 +24,7 @@ async (page) => {
+   const checkpoints = [];
+   const captures = [];
+   const actionTimings = [];
++  const runtimeActions = [];
+   let sequence = 0;
+   let expectedNavigation = true;
+ 
+@@ -64,6 +66,67 @@ async (page) => {
+     actionTimings.push({ label, durationMs: Date.now() - started });
+     return value;
+   };
++  const measureRuntimeAction = async (label, action, settleFrames = 10) => {
++    await page.evaluate(() => {
++      window.__courseUtilityFrameProbe = { running: true, last: performance.now(), deltas: [] };
++      const tick = (now) => {
++        const probe = window.__courseUtilityFrameProbe;
++        if (!probe?.running) return;
++        const delta = now - probe.last;
++        probe.last = now;
++        if (delta > 0) probe.deltas.push(delta);
++        requestAnimationFrame(tick);
++      };
++      requestAnimationFrame(tick);
++    });
++    const rendererBefore = await page.evaluate(
++      () => window.__fw.scene3d.editorPerformanceSnapshot?.() || {},
++    );
++    const started = Date.now();
++    const value = await action();
++    await waitFrames(settleFrames);
++    await page.waitForFunction(
++      () => !window.__fw.editorUi?.()?.qa?.refreshBusy?.(),
++      null,
++      { timeout: 15000 },
++    );
++    await waitFrames(2);
++    const result = await page.evaluate(() => {
++      const probe = window.__courseUtilityFrameProbe;
++      probe.running = false;
++      const ordered = probe.deltas.slice().sort((left, right) => left - right);
++      const mean = probe.deltas.reduce((sum, entry) => sum + entry, 0) / Math.max(1, probe.deltas.length);
++      return {
++        frames: probe.deltas.length,
++        averageFps: +(1000 / Math.max(0.001, mean)).toFixed(2),
++        worstFrameMs: +(ordered.at(-1) || 0).toFixed(2),
++        framesOver100ms: probe.deltas.filter((entry) => entry > 100).length,
++        rawFrameDeltasMs: probe.deltas.map((entry) => +entry.toFixed(2)),
++      };
++    });
++    result.label = label;
++    result.durationMs = Date.now() - started;
++    const rendererAfter = await page.evaluate(
++      () => window.__fw.scene3d.editorPerformanceSnapshot?.() || {},
++    );
++    result.rendererCosts = {};
++    for (const [key, after] of Object.entries(rendererAfter)) {
++      const before = rendererBefore[key] || {};
++      const calls = (after.calls || 0) - (before.calls || 0);
++      if (calls <= 0) continue;
++      const totalMs = (after.totalMs || 0) - (before.totalMs || 0);
++      result.rendererCosts[key] = {
++        calls,
++        totalMs: +totalMs.toFixed(3),
++        averageMs: +(totalMs / calls).toFixed(3),
++        units: (after.units || 0) - (before.units || 0),
++        lastMs: after.lastMs || 0,
++      };
++    }
++    runtimeActions.push(result);
++    actionTimings.push({ label, durationMs: result.durationMs });
++    return { value, performance: result };
++  };
+   const capture = async (name, description) => {
+     sequence += 1;
+     const filePath = path.join(outDir, `${String(sequence).padStart(2, '0')}_${name}.png`);
+@@ -185,6 +248,152 @@ async (page) => {
+       || candidates[0];
+     return [first, second, third];
+   });
++  const selectHoleByIndex = async (index) => {
++    await page.locator('.ced-holechip').click();
++    const modal = page.locator('.ced-modal');
++    await modal.waitFor({ state: 'visible', timeout: 5000 });
++    const cards = modal.locator('.ced-holecard:not(.add)');
++    requireTruth(await cards.count() > index, `Hole card ${index + 1} is unavailable.`);
++    await cards.nth(index).click();
++    await modal.getByRole('button', { name: 'Frame it', exact: true }).click();
++    await settle(12);
++    return page.evaluate((holeIndex) => {
++      const hole = window.__fw.state.course.holes[holeIndex];
++      return hole ? { id: hole.id, name: hole.name, index: holeIndex } : null;
++    }, index);
++  };
++  const featureCandidate = (feature, options = {}, avoid = []) => page.evaluate(
++    async ({ featureKind, placementOptions, avoided }) => {
++      const { featurePlacementOk } = await import('/src/sim/courseEditor.js');
++      const app = window.__fw;
++      const course = app.state.course;
++      const scene = app.scene3d;
++      const rect = scene.renderer.domElement.getBoundingClientRect();
++      const candidates = [];
++      for (let screenY = Math.max(rect.top + 145, 165); screenY <= Math.min(rect.bottom - 70, 800); screenY += 28) {
++        for (let screenX = Math.max(rect.left + 390, 410); screenX <= rect.right - 55; screenX += 34) {
++          const hit = scene.raycastGround(screenX, screenY);
++          if (!hit?.inBounds) continue;
++          const point = { x: hit.fx + (course.vec ? 0.5 : 0), y: hit.fy + (course.vec ? 0.5 : 0) };
++          if (avoided.some((entry) => Math.hypot(point.x - entry.x, point.y - entry.y) < (entry.radius || 5))) continue;
++          const exactOptions = { ...placementOptions };
++          if (featureKind === 'tee') {
++            const hole = course.holes.find((entry) => entry.id === placementOptions.holeId);
++            if (!hole) continue;
++            const markerOffset = course.vec ? 0.5 : 0;
++            const pin = hole.pin
++              ? { x: hole.pin.x + markerOffset, y: hole.pin.y + markerOffset }
++              : { x: point.x + 4, y: point.y };
++            const angle = Math.atan2(pin.y - point.y, pin.x - point.x);
++            exactOptions.aimX = point.x + Math.cos(angle) * 4;
++            exactOptions.aimY = point.y + Math.sin(angle) * 4;
++          }
++          const legal = featurePlacementOk(course, featureKind, point.x, point.y, exactOptions);
++          if (!legal.ok) continue;
++          const score = Math.hypot(screenX - rect.width * 0.65, screenY - rect.height * 0.53);
++          candidates.push({ x: screenX, y: screenY, point, score });
++        }
++      }
++      candidates.sort((left, right) => left.score - right.score);
++      return candidates[0] || null;
++    },
++    { featureKind: feature, placementOptions: options, avoided: avoid },
++  );
++  const objectCandidate = (type, scale = 1, avoid = []) => page.evaluate(
++    async ({ objectType, objectScale, avoided }) => {
++      const { objectPlacementOk } = await import('/src/sim/courseEditor.js');
++      const app = window.__fw;
++      const course = app.state.course;
++      const scene = app.scene3d;
++      const rect = scene.renderer.domElement.getBoundingClientRect();
++      const candidates = [];
++      for (let screenY = Math.max(rect.top + 145, 165); screenY <= Math.min(rect.bottom - 70, 800); screenY += 28) {
++        for (let screenX = Math.max(rect.left + 390, 410); screenX <= rect.right - 55; screenX += 34) {
++          const hit = scene.raycastGround(screenX, screenY);
++          if (!hit?.inBounds) continue;
++          const point = { x: hit.fx, y: hit.fy };
++          if (avoided.some((entry) => Math.hypot(point.x - entry.x, point.y - entry.y) < (entry.radius || 4))) continue;
++          const legal = objectPlacementOk(course, objectType, point.x, point.y, { scale: objectScale });
++          if (!legal.ok) continue;
++          const score = Math.hypot(screenX - rect.width * 0.65, screenY - rect.height * 0.53);
++          candidates.push({ x: screenX, y: screenY, point, score });
++        }
++      }
++      candidates.sort((left, right) => left.score - right.score);
++      return candidates[0] || null;
++    },
++    { objectType: type, objectScale: scale, avoided: avoid },
++  );
++  const paintCandidate = () => page.evaluate(async () => {
++    const { ZONE } = await import('/src/sim/constants.js');
++    const app = window.__fw;
++    const course = app.state.course;
++    const scene = app.scene3d;
++    const rect = scene.renderer.domElement.getBoundingClientRect();
++    let best = null;
++    for (let screenY = Math.max(rect.top + 145, 165); screenY <= Math.min(rect.bottom - 70, 800); screenY += 28) {
++      for (let screenX = Math.max(rect.left + 390, 410); screenX <= rect.right - 55; screenX += 34) {
++        const hit = scene.raycastGround(screenX, screenY);
++        if (!hit?.inBounds) continue;
++        const x = Math.max(0, Math.min(course.w - 1, Math.round(hit.fx)));
++        const y = Math.max(0, Math.min(course.h - 1, Math.round(hit.fy)));
++        if (course.zones[y * course.w + x] === ZONE.FAIRWAY) continue;
++        const score = Math.hypot(screenX - rect.width * 0.65, screenY - rect.height * 0.53);
++        if (!best || score < best.score) best = { x: screenX, y: screenY, point: { x: hit.fx, y: hit.fy }, score };
++      }
++    }
++    return best;
++  });
++  const greenPinCandidate = (holeId, pinKey) => page.evaluate(async ({ selectedHoleId, key }) => {
++    const THREE = await import('three');
++    const { getZone } = await import('/src/sim/course.js');
++    const { ZONE } = await import('/src/sim/constants.js');
++    const app = window.__fw;
++    const course = app.state.course;
++    const scene = app.scene3d;
++    const hole = course.holes.find((candidate) => candidate.id === selectedHoleId);
++    const vectorHole = course.vec?.holes?.find((candidate) => candidate.id === hole?.vecId);
++    const points = vectorHole?.green?.pts || [];
++    if (!points.length) return null;
++    const minX = Math.min(...points.map((point) => point.x));
++    const maxX = Math.max(...points.map((point) => point.x));
++    const minY = Math.min(...points.map((point) => point.y));
++    const maxY = Math.max(...points.map((point) => point.y));
++    const rect = scene.renderer.domElement.getBoundingClientRect();
++    const prior = hole.pins?.[key];
++    let best = null;
++    for (let y = Math.max(0, Math.ceil(minY - 0.5)); y <= Math.min(course.h - 1, Math.floor(maxY - 0.5)); y += 1) {
++      for (let x = Math.max(0, Math.ceil(minX - 0.5)); x <= Math.min(course.w - 1, Math.floor(maxX - 0.5)); x += 1) {
++        if (getZone(course, x, y) !== ZONE.GREEN) continue;
++        if (prior && Math.hypot(prior.x - x, prior.y - y) < 0.8) continue;
++        const worldX = scene.worldX(x);
++        const worldZ = scene.worldZ(y);
++        const ndc = new THREE.Vector3(worldX, scene.heightAt(worldX, worldZ) + 0.015, worldZ).project(scene.camera);
++        const screenX = rect.left + ((ndc.x + 1) * rect.width) / 2;
++        const screenY = rect.top + ((1 - ndc.y) * rect.height) / 2;
++        const hit = scene.raycastGround(screenX, screenY);
++        if (!hit || Math.hypot(hit.fx - x, hit.fy - y) > 0.9) continue;
++        if (screenX < 350 || screenX > rect.right - 35 || screenY < 105 || screenY > rect.bottom - 55) continue;
++        const score = Math.hypot(screenX - rect.width * 0.65, screenY - rect.height * 0.5);
++        if (!best || score < best.score) best = { x: screenX, y: screenY, cell: { x, y }, prior, score };
++      }
++    }
++    return best;
++  }, { selectedHoleId: holeId, key: pinKey });
++  const transactionSnapshot = () => page.evaluate(() => {
++    const app = window.__fw;
++    const session = app.editorUi().session();
++    return {
++      cash: app.state.cash,
++      bill: session?.bill || 0,
++      undo: session?.undo?.length || 0,
++      redo: session?.redo?.length || 0,
++      holes: app.state.course.holes.length,
++      objects: app.state.course.objects.length,
++      waters: app.state.course.vec?.waters?.length || 0,
++      bunkers: (app.state.course.vec?.holes || []).reduce((sum, hole) => sum + (hole.bunkers?.length || 0), 0),
++    };
++  });
+   const sampleIdle = (durationMs = 1400) => page.evaluate((duration) => new Promise((resolve) => {
+     const deltas = [];
+     let last = performance.now();
+@@ -317,12 +526,15 @@ async (page) => {
+         await page.mouse.up();
+         await settle(8);
+       });
++      const fairway = await paintCandidate();
++      requireTruth(fairway, 'No visible non-fairway ground was available for explicit Fairway paint.');
+       await useTool('Paint');
+-      await page.locator('.ced-tool-panel').getByRole('button', { name: 'Dirt', exact: true }).click();
+-      await measureAction('utility paint stroke', async () => {
+-        await page.mouse.move(points[1].x, points[1].y);
++      const fairwayButton = page.locator('.ced-tool-panel').getByRole('button', { name: 'Fairway', exact: true });
++      await fairwayButton.click();
++      await measureAction('utility fairway paint stroke', async () => {
++        await page.mouse.move(fairway.x, fairway.y);
+         await page.mouse.down();
+-        await page.mouse.move(points[1].x + 28, points[1].y + 8, { steps: 8 });
++        await page.mouse.move(fairway.x + 28, fairway.y + 8, { steps: 8 });
+         await page.mouse.up();
+         await settle(8);
+       });
+@@ -330,7 +542,197 @@ async (page) => {
+       const dirtyVisible = await page.getByRole('button', { name: 'Discard', exact: true }).first().isVisible();
+       requireTruth(JSON.stringify(afterStrokes) !== JSON.stringify(baseline), 'Terrain/Paint strokes changed no course data.');
+       requireTruth(dirtyVisible, 'Pending-work controls did not appear after live strokes.');
+-      return { afterStrokes, dirtyVisible };
++      requireTruth(await fairwayButton.evaluate((node) => node.classList.contains('on')),
++        'Fairway was not retained as the active paint surface.');
++      return { afterStrokes, dirtyVisible, paintSurface: 'Fairway', fairway };
++    });
++
++    await checkpoint('tee green bunker pond flora props pin and select complete live', async () => {
++      const selectedHole = await selectHoleByIndex(4);
++      requireTruth(selectedHole, 'The Millpond fixture could not be selected for stamp coverage.');
++      const avoid = await page.evaluate((holeId) => {
++        const course = window.__fw.state.course;
++        const hole = course.holes.find((entry) => entry.id === holeId);
++        const vectorHole = course.vec?.holes?.find((entry) => entry.id === hole?.vecId);
++        const points = [];
++        for (const tee of Object.values(hole?.tees || {})) if (tee) points.push({ x: tee.x, y: tee.y, radius: 5 });
++        if (vectorHole?.green) points.push({ x: vectorHole.green.cx, y: vectorHole.green.cy, radius: 6 });
++        return points;
++      }, selectedHole.id);
++
++      await useTool('Tee');
++      const teeHole = page.locator('.ced-tool-panel .ced-row').filter({ hasText: 'Hole' }).locator('select').first();
++      await teeHole.selectOption(String(selectedHole.id));
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Forward', exact: true }).click();
++      const teeCandidate = await featureCandidate('tee', { holeId: selectedHole.id }, avoid);
++      requireTruth(teeCandidate, 'No visible legal tee stamp candidate was found.');
++      const teeBefore = await page.evaluate((holeId) => {
++        const hole = window.__fw.state.course.holes.find((entry) => entry.id === holeId);
++        return JSON.parse(JSON.stringify({ tee: hole?.tees?.forward, bill: window.__fw.editorUi().session().bill }));
++      }, selectedHole.id);
++      const teePreviewRun = await measureRuntimeAction(
++        'tee placement preview', () => page.mouse.move(teeCandidate.x, teeCandidate.y), 6,
++      );
++      const teeRun = await measureRuntimeAction('forward tee stamp', () => page.mouse.click(teeCandidate.x, teeCandidate.y));
++      const teeAfter = await page.evaluate((holeId) => {
++        const hole = window.__fw.state.course.holes.find((entry) => entry.id === holeId);
++        return JSON.parse(JSON.stringify({ tee: hole?.tees?.forward, bill: window.__fw.editorUi().session().bill }));
++      }, selectedHole.id);
++      requireTruth(JSON.stringify(teeAfter.tee) !== JSON.stringify(teeBefore.tee) && teeAfter.bill > teeBefore.bill,
++        'The visible tee stamp did not move the tee and add a pending cost.', { teeBefore, teeAfter, teeCandidate });
++
++      await useTool('Green');
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Draw', exact: true }).click();
++      const greenCandidate = await featureCandidate('green', { r: 30 / 16, elong: 1.35, angle: 0 }, [
++        ...avoid, { ...teeCandidate.point, radius: 6 },
++      ]);
++      requireTruth(greenCandidate, 'No visible legal green stamp candidate was found.');
++      const greenBefore = await page.evaluate((holeId) => {
++        const course = window.__fw.state.course;
++        const hole = course.holes.find((entry) => entry.id === holeId);
++        const vectorHole = course.vec?.holes?.find((entry) => entry.id === hole?.vecId);
++        return JSON.parse(JSON.stringify({ green: vectorHole?.green, bill: window.__fw.editorUi().session().bill }));
++      }, selectedHole.id);
++      const greenPreviewRun = await measureRuntimeAction(
++        'green placement preview', () => page.mouse.move(greenCandidate.x, greenCandidate.y), 6,
++      );
++      const greenRun = await measureRuntimeAction('green stamp', () => page.mouse.click(greenCandidate.x, greenCandidate.y));
++      const greenAfter = await page.evaluate((holeId) => {
++        const course = window.__fw.state.course;
++        const hole = course.holes.find((entry) => entry.id === holeId);
++        const vectorHole = course.vec?.holes?.find((entry) => entry.id === hole?.vecId);
++        return JSON.parse(JSON.stringify({ green: vectorHole?.green, bill: window.__fw.editorUi().session().bill }));
++      }, selectedHole.id);
++      requireTruth(JSON.stringify(greenAfter.green?.pts) !== JSON.stringify(greenBefore.green?.pts)
++        && greenAfter.bill > greenBefore.bill,
++      'The visible green stamp did not author a new boundary and pending cost.', { greenBefore, greenAfter, greenCandidate });
++
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'A', exact: true }).click();
++      const pinCandidate = await greenPinCandidate(selectedHole.id, 'A');
++      requireTruth(pinCandidate, 'No visible legal pin-A candidate was found on the stamped green.');
++      const pinPreviewRun = await measureRuntimeAction(
++        'pin placement preview', () => page.mouse.move(pinCandidate.x, pinCandidate.y), 6,
++      );
++      const pinRun = await measureRuntimeAction('pin A placement', () => page.mouse.click(pinCandidate.x, pinCandidate.y));
++      const pinAfter = await page.evaluate((holeId) => {
++        const hole = window.__fw.state.course.holes.find((entry) => entry.id === holeId);
++        return JSON.parse(JSON.stringify({ pin: hole?.pins?.A, activePin: hole?.activePin }));
++      }, selectedHole.id);
++      requireTruth(!!pinAfter.pin && pinAfter.activePin === 'A', 'Pin A was not authored and selected.', { pinAfter, pinCandidate });
++
++      await useTool('Bunker');
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Draw', exact: true }).click();
++      const bunkerCandidate = await featureCandidate('bunker', {
++        r: 14 / 16, lobes: 3, stretch: 1.12, angle: 0,
++      }, [...avoid, { ...teeCandidate.point, radius: 5 }, { ...greenCandidate.point, radius: 6 }]);
++      requireTruth(bunkerCandidate, 'No visible legal bunker stamp candidate was found.');
++      const bunkerBefore = await transactionSnapshot();
++      const bunkerPreviewRun = await measureRuntimeAction(
++        'bunker placement preview', () => page.mouse.move(bunkerCandidate.x, bunkerCandidate.y), 6,
++      );
++      const bunkerRun = await measureRuntimeAction('bunker stamp', () => page.mouse.click(bunkerCandidate.x, bunkerCandidate.y));
++      const bunkerAfter = await transactionSnapshot();
++      requireTruth(bunkerAfter.bunkers === bunkerBefore.bunkers + 1 && bunkerAfter.bill > bunkerBefore.bill,
++        'The visible bunker stamp did not add one charged bunker.', { bunkerBefore, bunkerAfter, bunkerCandidate });
++
++      await useTool('Water');
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Draw', exact: true }).click();
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Pond', exact: true }).click();
++      const pondCandidate = await featureCandidate('water', {
++        r: 36 / 16, elong: 1.15, angle: 0,
++      }, [
++        ...avoid,
++        { ...teeCandidate.point, radius: 6 },
++        { ...greenCandidate.point, radius: 7 },
++        { ...bunkerCandidate.point, radius: 5 },
++      ]);
++      requireTruth(pondCandidate, 'No visible legal pond stamp candidate was found.');
++      const pondBefore = await transactionSnapshot();
++      const pondPreviewRun = await measureRuntimeAction(
++        'pond placement preview', () => page.mouse.move(pondCandidate.x, pondCandidate.y), 6,
++      );
++      const pondRun = await measureRuntimeAction('pond stamp', () => page.mouse.click(pondCandidate.x, pondCandidate.y));
++      const pondAfter = await transactionSnapshot();
++      requireTruth(pondAfter.waters === pondBefore.waters + 1 && pondAfter.bill > pondBefore.bill,
++        'The visible pond stamp did not add one charged water body.', { pondBefore, pondAfter, pondCandidate });
++
++      await useTool('Objects');
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Trees', exact: true }).click();
++      await page.locator('.ced-tool-panel .ced-objgrid').getByRole('button', { name: 'Oak', exact: true }).click();
++      const treeCandidate = await objectCandidate('tree_oak', 1, [
++        { ...greenCandidate.point, radius: 6 }, { ...pondCandidate.point, radius: 7 },
++      ]);
++      requireTruth(treeCandidate, 'No visible legal Flora placement candidate was found.');
++      const treeBefore = await transactionSnapshot();
++      const treePreviewRun = await measureRuntimeAction(
++        'flora placement preview', () => page.mouse.move(treeCandidate.x, treeCandidate.y), 6,
++      );
++      const treeRun = await measureRuntimeAction('flora oak placement', () => page.mouse.click(treeCandidate.x, treeCandidate.y));
++      const treeAfter = await transactionSnapshot();
++      requireTruth(treeAfter.objects === treeBefore.objects + 1 && treeAfter.bill > treeBefore.bill,
++        'The Flora action did not add one charged Oak.', { treeBefore, treeAfter, treeCandidate });
++
++      await page.locator('.ced-tool-panel .ced-seg').getByRole('button', { name: 'Props', exact: true }).click();
++      await page.locator('.ced-tool-panel .ced-objgrid').getByRole('button', { name: 'Bench', exact: true }).click();
++      const benchCandidate = await objectCandidate('bench', 1, [
++        { ...treeCandidate.point, radius: 5 }, { ...greenCandidate.point, radius: 6 }, { ...pondCandidate.point, radius: 7 },
++      ]);
++      requireTruth(benchCandidate, 'No visible legal Props placement candidate was found.');
++      const benchBefore = await transactionSnapshot();
++      const benchPreviewRun = await measureRuntimeAction(
++        'prop placement preview', () => page.mouse.move(benchCandidate.x, benchCandidate.y), 6,
++      );
++      const benchRun = await measureRuntimeAction('prop bench placement', () => page.mouse.click(benchCandidate.x, benchCandidate.y));
++      const benchAfter = await transactionSnapshot();
++      requireTruth(benchAfter.objects === benchBefore.objects + 1 && benchAfter.bill > benchBefore.bill,
++        'The Props action did not add one charged Bench.', { benchBefore, benchAfter, benchCandidate });
++
++      await page.mouse.move(benchCandidate.x, benchCandidate.y);
++      await settle(3);
++      const rejectedBefore = await transactionSnapshot();
++      const rejectedRun = await measureRuntimeAction('rejected prop placement', () => page.mouse.click(benchCandidate.x, benchCandidate.y));
++      const rejectedAfter = await transactionSnapshot();
++      requireTruth(rejectedAfter.objects === rejectedBefore.objects && rejectedAfter.bill === rejectedBefore.bill,
++        'A rejected collision changed inventory or pending cost.', { rejectedBefore, rejectedAfter });
++
++      await useTool('Select');
++      await page.mouse.click(benchCandidate.x, benchCandidate.y);
++      await settle(5);
++      const selectedText = (await page.locator('.ced-tool-panel').textContent())?.trim();
++      requireTruth(/Bench/.test(selectedText), 'Select did not acquire the newly placed Bench.', { selectedText, benchCandidate });
++      await capture('live_stamp_and_catalog_actions',
++        'Tee, green, pin, bunker, pond, Flora, Props, rejection, and Select exercised through visible controls.');
++
++      const runs = [
++        teePreviewRun, teeRun,
++        greenPreviewRun, greenRun,
++        pinPreviewRun, pinRun,
++        bunkerPreviewRun, bunkerRun,
++        pondPreviewRun, pondRun,
++        treePreviewRun, treeRun,
++        benchPreviewRun, benchRun,
++        rejectedRun,
++      ]
++        .map((entry) => entry.performance);
++      requireTruth(runs.every((entry) => entry.framesOver100ms === 0),
++        'A standard stamp/catalog action produced a frame over 100 ms.', runs);
++      return {
++        selectedHole,
++        checks: {
++          teeStamped: true,
++          greenStamped: true,
++          pinAPlaced: true,
++          bunkerStamped: true,
++          pondStamped: true,
++          floraPlaced: true,
++          propPlaced: true,
++          rejectedActionFree: true,
++          selectAcquiredProp: true,
++          noFrameOver100ms: true,
++        },
++        candidates: { teeCandidate, greenCandidate, pinCandidate, bunkerCandidate, pondCandidate, treeCandidate, benchCandidate },
++        runs,
++      };
+     });
+ 
+     await checkpoint('hole settings reorder duplicate delete add undo and redo', async () => {
+@@ -464,12 +866,115 @@ async (page) => {
+       return { exact, baseline, afterDiscard, discardFrames, discardRuntimeCosts };
+     });
+ 
++    let buildPerformance = null;
++    let savePerformance = null;
++    await checkpoint('Build charges once and visible Save reloads exact built work', async () => {
++      const cleanStart = await transactionSnapshot();
++      requireTruth(cleanStart.bill === 0 && cleanStart.undo === 0,
++        'The Build audit did not start from a clean discarded session.', cleanStart);
++      const buildPaint = await paintCandidate();
++      requireTruth(buildPaint, 'No visible ground was available for the Build audit.');
++      await useTool('Paint');
++      await page.locator('.ced-tool-panel').getByRole('button', { name: 'Fairway', exact: true }).click();
++      const paintRun = await measureRuntimeAction('build-audit fairway stroke', async () => {
++        await page.mouse.move(buildPaint.x, buildPaint.y);
++        await page.mouse.down();
++        await page.mouse.move(buildPaint.x + 22, buildPaint.y + 6, { steps: 7 });
++        await page.mouse.up();
++      });
++      const pending = await transactionSnapshot();
++      const buildButton = page.getByRole('button', { name: 'Build', exact: true }).first();
++      requireTruth(pending.bill > 0 && pending.undo > 0 && await buildButton.isVisible() && await buildButton.isEnabled(),
++        'A successful edit did not expose an enabled Build transaction.', { pending, paintRun: paintRun.performance });
++
++      const buildRun = await measureRuntimeAction('top-level Build transaction', () => buildButton.click(), 12);
++      buildPerformance = buildRun.performance;
++      const built = await transactionSnapshot();
++      const buildStillVisible = await buildButton.isVisible().catch(() => false);
++      requireTruth(built.cash === pending.cash - pending.bill,
++        'Build did not charge the exact pending bill once.', { pending, built });
++      requireTruth(built.bill === 0 && built.undo === 0 && built.redo === 0 && !buildStillVisible,
++        'Build did not settle history, cost, and control state.', { built, buildStillVisible });
++      requireTruth(buildPerformance.framesOver100ms === 0,
++        'Build produced a frame over 100 ms.', buildPerformance);
++      const builtFingerprint = await fingerprint();
++      await capture('built_transaction', 'Top-level Build charged the exact bill and settled all pending controls.');
++
++      await page.locator('.ced-top-btn[title="Save the course"]').click();
++      const saveModal = page.locator('.ced-modal');
++      await saveModal.waitFor({ state: 'visible', timeout: 5000 });
++      const saveButton = saveModal.getByRole('button', { name: 'Save', exact: true });
++      requireTruth(await saveButton.isVisible(), 'A settled course did not expose the plain Save action.');
++      const saveRun = await measureRuntimeAction('visible Save transaction', async () => {
++        await saveButton.click();
++        await saveModal.waitFor({ state: 'hidden', timeout: 10000 });
++      }, 12);
++      savePerformance = saveRun.performance;
++      requireTruth(savePerformance.framesOver100ms === 0,
++        'Visible Save produced a frame over 100 ms.', savePerformance);
++
++      expectedNavigation = true;
++      await page.reload({ waitUntil: 'domcontentloaded' });
++      await page.waitForFunction(() => document.readyState === 'complete');
++      const continueAfterReload = page.getByRole('button', { name: 'Continue', exact: true });
++      await continueAfterReload.waitFor({ state: 'visible', timeout: 30000 });
++      await page.waitForFunction(() => {
++        const button = [...document.querySelectorAll('button')]
++          .find((candidate) => candidate.textContent.trim() === 'Continue');
++        return !!button && !button.disabled;
++      }, null, { timeout: 90000 });
++      await continueAfterReload.click();
++      await page.waitForFunction(() => window.__fw?.scene3d?.renderer && window.__fw?.editorUi?.(), null, { timeout: 90000 });
++      await page.waitForFunction(() => {
++        const veil = document.querySelector('.load-veil');
++        return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';
++      }, null, { timeout: 90000 });
++      await page.keyboard.press('j');
++      await page.waitForFunction(() => window.__fw.editorUi().isActive(), null, { timeout: 15000 });
++      await page.locator('.ced-root').waitFor({ state: 'visible' });
++      await settle(12);
++      expectedNavigation = false;
++      const reloadedFingerprint = await fingerprint();
++      requireTruth(JSON.stringify(reloadedFingerprint) === JSON.stringify(builtFingerprint),
++        'Visible Save/reload drifted from the exact built fingerprint.', { builtFingerprint, reloadedFingerprint });
++      const reloadSession = await transactionSnapshot();
++      requireTruth(reloadSession.bill === 0 && reloadSession.undo === 0 && reloadSession.redo === 0,
++        'Reload reopened with stale pending transaction state.', reloadSession);
++      await capture('built_save_reload', 'Built Fairway edit preserved exactly after visible Save and normal reload.');
++      return {
++        checks: {
++          dirtyBuildEnabled: true,
++          exactSingleCharge: true,
++          settledBuildControls: true,
++          buildFrameBounded: true,
++          plainSaveUsed: true,
++          saveFrameBounded: true,
++          exactReload: true,
++          cleanReloadSession: true,
++        },
++        cleanStart,
++        pending,
++        built,
++        buildPaint,
++        performance: { paint: paintRun.performance, build: buildPerformance, save: savePerformance },
++        builtFingerprint,
++        reloadedFingerprint,
++      };
++    });
++
+     const finalPerformance = await sampleIdle();
+-    await capture('after_exact_discard', 'After: exact clean baseline restored without leaving the editor.');
++    await capture('after_complete_utility_audit', 'After: all utility, transaction, Build, Save, and reload checks complete.');
++    const discardCheckpoint = checkpoints.find((item) => item.name === 'discard is exact and frame bounded');
++    const buildCheckpoint = checkpoints.find((item) => item.name === 'Build charges once and visible Save reloads exact built work');
+     const checks = {
+-      allCheckpointsPassed: checkpoints.length === 6 && checkpoints.every((item) => item.ok),
+-      exactDiscard: checkpoints.at(-1)?.evidence?.exact === true,
++      allCheckpointsPassed: checkpoints.length === 8 && checkpoints.every((item) => item.ok),
++      exactDiscard: discardCheckpoint?.evidence?.exact === true,
+       discardFrameBounded: discardFrames?.framesOver100ms === 0,
++      buildTransactionExact: buildCheckpoint?.evidence?.checks?.exactSingleCharge === true,
++      buildFrameBounded: buildPerformance?.framesOver100ms === 0,
++      saveReloadExact: buildCheckpoint?.evidence?.checks?.exactReload === true,
++      saveFrameBounded: savePerformance?.framesOver100ms === 0,
++      standardActionsFrameBounded: runtimeActions.every((item) => item.framesOver100ms === 0),
+       idleFrameBounded: finalPerformance.framesOver100ms === 0,
+       consoleErrorsClean: diagnostics.consoleErrors.length === 0,
+       pageErrorsClean: diagnostics.pageErrors.length === 0,
+@@ -488,6 +993,7 @@ async (page) => {
+       checkpoints,
+       performance: {
+         actionTimings,
++        runtimeActions,
+         discard: discardFrames,
+         discardRuntimeCosts,
+         finalIdle: finalPerformance,
+@@ -513,7 +1019,7 @@ async (page) => {
+       finishedAt: new Date().toISOString(),
+       fatal: { message: error?.message || String(error), stack: error?.stack || null, evidence: error?.evidence },
+       checkpoints,
+-      performance: { actionTimings },
++      performance: { actionTimings, runtimeActions },
+       diagnostics,
+       artifacts: { outputDirectory: outDir, videoDirectory, captures },
+     };
