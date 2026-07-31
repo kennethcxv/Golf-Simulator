@@ -59,9 +59,15 @@ export const BROOM_FEEL = Object.freeze({
   // block only says where the hands sit and how the tool is carried.
   compose: Object.freeze({
     // Where the UPPER (primary) hand sits, in camera space — close enough to
-    // read as YOUR hand rather than a distant nub. Solved against a 50° lens at
-    // 16:9, it lands near NDC (0.42, −0.72): low and right, framing the work.
-    gripAnchor: [0.24, -0.22, -0.56],
+    // read as YOUR hand rather than a distant nub, far enough that the tool is
+    // held out in front of you rather than tucked against your chest.
+    //
+    // Round 4: pushed out from z −0.56 to −0.72 ("a tad bit too close to the
+    // person… a bit more extended out"). The x and y are re-solved for the new
+    // depth so the hands hold their SCREEN position (~NDC 0.51, −0.80 through a
+    // 50° lens at 16:9) — the rig reads further away without the composition
+    // moving, which is what "a tad more out" has to mean.
+    gripAnchor: [0.30, -0.27, -0.72],
     // radians the head is carried LEFT of the view centre, so the handle lies
     // diagonally across the lower frame instead of pointing away from the lens
     bearingOffset: -0.20,
@@ -69,7 +75,10 @@ export const BROOM_FEEL = Object.freeze({
     // truly resting on the boards is ~1.6 yd below the eye and no honest pose
     // shows it through a 50° lens, so a carried broom rides shallow; the drop
     // grows to the real floor distance as the view pitches down to the work.
-    carryDrop: 0.34,
+    // Round 4: 0.34 -> 0.30. A shallower hang spends more of the fixed handle
+    // on REACH than on drop, so the head sits further ahead and stays framed
+    // when the view comes up level or above.
+    carryDrop: 0.30,
     // roll of each hand about the shaft, radians — the two hands oppose each
     // other on the handle the way they do on a real broom
     handRollUpper: 0.10,

@@ -9444,9 +9444,20 @@ export function makeCourseScene(canvas, state) {
   // cheap tests a frame, where running the smooth depth solve per sample would
   // be ~96. The result is a coverage fraction, eased over time so walking past
   // an open door does not strobe the whole scene.
-  const VIEW_SAMPLE_DIST = [1.2, 2.6, 4.2, 6.0];
-  const VIEW_SAMPLE_YAW = [-0.42, -0.15, 0.15, 0.42];
-  const VIEW_FILL_EASE = 0.12; // per frame, ~0.25 s to settle
+  // Round 4: the first pass ramped in VISIBLE steps on the approach — measured
+  // hemi 1.00 -> 0.78 -> 0.55 -> 0.33 -> 0.10 walking in from 6 yd, because a
+  // 4x4 fan can only report a handful of distinct coverage values and the raw
+  // fraction was used directly. The fan is finer now, and coverage is pushed
+  // through a saturating curve: once the interior occupies a MEANINGFUL part of
+  // the frame the room is fully dark, so approaching and stepping through the
+  // door changes nothing. The remaining fade lives out where the doorway is a
+  // small feature of the image and the room is not what you are looking at —
+  // which is also the only place a global lever can honestly be paid for.
+  const VIEW_SAMPLE_DIST = [1.0, 1.9, 2.9, 4.0, 5.2, 6.6];
+  const VIEW_SAMPLE_YAW = [-0.46, -0.30, -0.14, 0, 0.14, 0.30, 0.46];
+  const VIEW_COVER_LO = 0.07;  // below this the interior is a sliver: leave it lit
+  const VIEW_COVER_HI = 0.34;  // at this much interior in frame the room is fully dark
+  const VIEW_FILL_EASE = 0.09; // per frame, ~0.35 s to settle — gradual, not steppy
   const _fillViewDir = new THREE.Vector3();
   let viewInsideEased = 0;
   let viewBlendEnabled = true;
@@ -9469,7 +9480,14 @@ export function makeCourseScene(canvas, state) {
         if (inside(camera.position.x + fx * d, camera.position.z + fz * d, 0)) hit += 1;
       }
     }
-    return total ? hit / total : 0;
+    if (!total) return 0;
+    // saturating response: a sliver of doorway is not "you are looking at the
+    // room", but a third of the frame is, and everything past that is the same
+    // answer — which is what removes the ramp you could see while walking in
+    const cover = hit / total;
+    const t = Math.max(0, Math.min(1,
+      (cover - VIEW_COVER_LO) / Math.max(1e-4, VIEW_COVER_HI - VIEW_COVER_LO)));
+    return t * t * (3 - 2 * t);
   }
 
   function applyInteriorFill() {
@@ -9478,7 +9496,13 @@ export function makeCourseScene(canvas, state) {
     // follow where the body is, not where the shot is framed from.
     const px = walk.active ? walk.x : camera.position.x;
     const pz = walk.active ? walk.z : camera.position.z;
-    const standing = interiorFillFactor(px, pz);
+    // INSIDE IS INSIDE. This used to ramp over the 1.5 yd nearest any boundary,
+    // which measures distance to the CLOSEST wall — so standing near an interior
+    // wall, or in a shallow part of the room, quietly brightened everything
+    // (measured: 3 yd in, hard against a side wall, the fill fell to 0.38 and
+    // the hemisphere came back up to 0.60). The soft approach is the view term's
+    // job now, so the position term is a plain answer.
+    const standing = interiorFillFactor(px, pz) > 0 ? 1 : 0;
     // Standing inside always wins outright; looking in from outside pulls the
     // fill down by however much of the view the interior actually occupies.
     const want = viewBlendEnabled
