@@ -338,6 +338,13 @@ function widthAt(stops, t) {
 // Sampled/derived geometry for fast repeated evaluation. Rebuild whenever
 // course.vec changes (editor ops call invalidateGeom).
 const geomCache = new WeakMap();
+// The organic warp lattice depends only on course dimensions + vector seed.
+// Feature editing used to rebuild its three 481x321 FBM channels every time a
+// green, tee, bunker, water, stream, or path changed even though none of those
+// operations can alter the lattice. Keep it beside (rather than inside) the
+// invalidated geometry cache so normal editor invalidation reuses this immutable
+// data while a new course/seed still receives its own field.
+const warpCache = new WeakMap();
 
 export function invalidateGeom(course) {
   geomCache.delete(course);
@@ -346,14 +353,40 @@ export function invalidateGeom(course) {
 export function getGeom(course) {
   let g = geomCache.get(course);
   if (g && g.rev === course.vec && g.pathsRev === course.paths) return g;
-  g = buildGeom(course.vec, course.w, course.h, course.paths || []);
+  const seed = course.vec?.seed || 7;
+  let warp = warpCache.get(course);
+  if (!warp || warp.w !== course.w || warp.h !== course.h || warp.seed !== seed) {
+    warp = buildWarpLattice(course.w, course.h, seed);
+    warpCache.set(course, warp);
+  }
+  g = buildGeom(course.vec, course.w, course.h, course.paths || [], warp);
   g.rev = course.vec;
   g.pathsRev = course.paths;
   geomCache.set(course, g);
   return g;
 }
 
-function buildGeom(vec, W, H, coursePaths) {
+function buildWarpLattice(W, H, seed) {
+  const WS = 4;
+  const ww = W * WS + 1;
+  const wh = H * WS + 1;
+  const warpX = new Float32Array(ww * wh);
+  const warpY = new Float32Array(ww * wh);
+  const warpR = new Float32Array(ww * wh);
+  for (let y = 0; y < wh; y++) {
+    const gy = y / WS;
+    for (let x = 0; x < ww; x++) {
+      const gx = x / WS;
+      const o = y * ww + x;
+      warpX[o] = (fbm2(gx * 0.55 + seed * 11.3, gy * 0.55 + seed * 7.7) - 0.5) * 2;
+      warpY[o] = (fbm2(gx * 0.55 - seed * 5.1, gy * 0.55 + seed * 13.9) - 0.5) * 2;
+      warpR[o] = (fbm2(gx * 0.23 + seed * 3.1, gy * 0.23 - seed * 1.7) - 0.5) * 2.4;
+    }
+  }
+  return { w: W, h: H, seed, WS, ww, wh, warpX, warpY, warpR };
+}
+
+function buildGeom(vec, W, H, coursePaths, warp) {
   const holes = (vec.holes || []).map((h) => {
     const line = sampleOpen(h.line, 0.35);
     const arcs = prefixArcs(line);
@@ -488,23 +521,9 @@ function buildGeom(vec, W, H, coursePaths) {
 
   // ---- shared warp lattice at quarter-cell resolution: one smooth vector
   // field + one ragged-edge channel, bilinearly sampled by every evaluation.
-  const seed = vec.seed || 7;
-  const WS = 4;
-  const ww = W * WS + 1;
-  const wh = H * WS + 1;
-  const warpX = new Float32Array(ww * wh);
-  const warpY = new Float32Array(ww * wh);
-  const warpR = new Float32Array(ww * wh);
-  for (let y = 0; y < wh; y++) {
-    const gy = y / WS;
-    for (let x = 0; x < ww; x++) {
-      const gx = x / WS;
-      const o = y * ww + x;
-      warpX[o] = (fbm2(gx * 0.55 + seed * 11.3, gy * 0.55 + seed * 7.7) - 0.5) * 2;
-      warpY[o] = (fbm2(gx * 0.55 - seed * 5.1, gy * 0.55 + seed * 13.9) - 0.5) * 2;
-      warpR[o] = (fbm2(gx * 0.23 + seed * 3.1, gy * 0.23 - seed * 1.7) - 0.5) * 2.4;
-    }
-  }
+  const {
+    seed, WS, ww, wh, warpX, warpY, warpR,
+  } = warp;
 
   return {
     holes, waters, streams, beds, mounds, paths, lawns, bins, bw, bh, BIN,
@@ -822,26 +841,49 @@ export function rasterizeField(course, scale) {
 // Write course.zones from the vectors (cell centers; pins/tee markers pinned).
 // Structures keep their OUT footprint. Returns the course for chaining.
 export function deriveZones(course) {
+  deriveZonesRegion(course, { x0: 0, y0: 0, x1: course.w - 1, y1: course.h - 1 });
+  return course;
+}
+
+// Re-derive an inclusive cell rectangle after a bounded vector/path edit. The
+// evaluator itself is identical to deriveZones; this function only avoids
+// revisiting cells whose complete input set is unchanged. Structures and hole
+// anchors are clipped through the same rectangle so regional and full passes
+// remain byte-identical.
+export function deriveZonesRegion(course, rect) {
+  if (!rect) return deriveZones(course);
   const geom = getGeom(course);
   const paint = course.paint || null;
   const { w, h, zones } = course;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
+  const x0 = clamp(Math.floor(rect.x0), 0, w - 1);
+  const y0 = clamp(Math.floor(rect.y0), 0, h - 1);
+  const x1 = clamp(Math.ceil(rect.x1), 0, w - 1);
+  const y1 = clamp(Math.ceil(rect.y1), 0, h - 1);
+  if (x1 < x0 || y1 < y0) return course;
+
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
       zones[y * w + x] = evalPacked(course, geom, x + 0.5, y + 0.5, paint) & 0xff;
     }
   }
-  // structures stamp OUT
   for (const s of course.structures || []) {
-    for (let y = s.y; y < s.y + s.h; y++) {
-      for (let x = s.x; x < s.x + s.w; x++) {
-        if (x >= 0 && y >= 0 && x < w && y < h) zones[y * w + x] = ZONE.OUT;
-      }
+    const sx0 = Math.max(x0, s.x);
+    const sy0 = Math.max(y0, s.y);
+    const sx1 = Math.min(x1, s.x + s.w - 1);
+    const sy1 = Math.min(y1, s.y + s.h - 1);
+    for (let y = sy0; y <= sy1; y++) {
+      for (let x = sx0; x <= sx1; x++) zones[y * w + x] = ZONE.OUT;
     }
   }
-  // validation anchors: the active pin must sit on green cells, tees on tee cells
   for (const hole of course.holes) {
-    if (hole.pin) zones[Math.round(hole.pin.y) * w + Math.round(hole.pin.x)] = ZONE.GREEN;
-    if (hole.tee) zones[Math.round(hole.tee.y) * w + Math.round(hole.tee.x)] = ZONE.TEE;
+    for (const [anchor, zone] of [[hole.pin, ZONE.GREEN], [hole.tee, ZONE.TEE]]) {
+      if (!anchor) continue;
+      const x = Math.round(anchor.x);
+      const y = Math.round(anchor.y);
+      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && x >= 0 && y >= 0 && x < w && y < h) {
+        zones[y * w + x] = zone;
+      }
+    }
   }
   return course;
 }

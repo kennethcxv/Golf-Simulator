@@ -348,6 +348,7 @@ export function makeCourseEditor(app, hooks) {
   let hover = null; // last raycastGround hit
   let hoverPreviewFrame = null;
   let pendingHoverPreview = null;
+  let regionalRefreshBusy = false;
   let pt = null; // playtest session
   let ptPower = null; // {t, dir} while charging
   let ptLeftAim = null; // left drag becomes aim; a stationary hold remains power
@@ -865,18 +866,22 @@ export function makeCourseEditor(app, hooks) {
     ui.billChip.title = bill > 0 ? `Pending works: ${formatMoney(bill)}` : '';
     const canPay = bill <= state().cash;
     ui.applyBtn.style.display = dirty ? '' : 'none';
-    ui.applyBtn.disabled = !dirty;
+    ui.applyBtn.disabled = regionalRefreshBusy || !dirty;
     ui.applyBtn.textContent = bill > 0 && !canPay ? 'Insufficient cash' : 'Build';
     ui.applyBtn.classList.toggle('danger', bill > 0 && !canPay);
     ui.discardBtn.style.display = dirty ? '' : 'none';
-    ui.discardBtn.disabled = !dirty;
-    ui.undoBtn.disabled = !(session && session.undo.length);
-    ui.redoBtn.disabled = !(session && session.redo.length);
+    ui.discardBtn.disabled = regionalRefreshBusy || !dirty;
+    ui.undoBtn.disabled = regionalRefreshBusy || !(session && session.undo.length);
+    ui.redoBtn.disabled = regionalRefreshBusy || !(session && session.redo.length);
+    ui.saveBtn.disabled = regionalRefreshBusy;
+    ui.playtestBtn.disabled = regionalRefreshBusy;
+    ui.holeChip.disabled = regionalRefreshBusy;
+    ui.cameraSel.disabled = regionalRefreshBusy;
     // startFlyover needs a hole with both a tee and a pin; say so on the button
     // rather than letting the click quietly do nothing.
     const flyable = selectedHole();
     const canFly = !!(flyable && flyable.tee && flyable.pin);
-    ui.flyoverBtn.disabled = !canFly && !flyover;
+    ui.flyoverBtn.disabled = regionalRefreshBusy || (!canFly && !flyover);
     ui.flyoverBtn.classList.toggle('on', !!flyover);
     ui.flyoverBtn.title = flyover
       ? 'Stop the flyover and return to the previous camera'
@@ -1070,7 +1075,7 @@ export function makeCourseEditor(app, hooks) {
     const res = previewObjectGesture(state(), gesture, patch);
     if (res.ok) {
       objectControlError = null;
-      rebuildObjectVisuals();
+      rebuildObjectVisuals([selected.type]);
     } else {
       objectControlError = res.reason || 'That transform would overlap another object.';
     }
@@ -1221,7 +1226,7 @@ export function makeCourseEditor(app, hooks) {
             onclick: () => {
               const res = duplicateObject(state(), session, selected.id);
               if (res.ok) {
-                refreshObjects();
+                refreshObjects([res.object.type]);
                 toast('Copied — drag it into place.');
                 setSelected(res.object);
               } else toast(res.reason || 'There is no clear space for a copy.', 'warn');
@@ -1231,9 +1236,10 @@ export function makeCourseEditor(app, hooks) {
             class: 'danger',
             text: 'Remove',
             onclick: () => {
+              const removedType = selected.type;
               removeObject(state(), session, selected.id);
               setSelected(null);
-              refreshObjects();
+              refreshObjects([removedType]);
             },
           }),
         ));
@@ -2302,6 +2308,71 @@ export function makeCourseEditor(app, hooks) {
 
   const nextEditorFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
+  function queueRegionalGroundRefresh(options) {
+    if (regionalRefreshBusy) return false;
+    regionalRefreshBusy = true;
+    const sc = scene();
+    sc.setEditorFeaturePreview?.(null);
+    refreshTop();
+    void (async () => {
+      try {
+        // Let the pointer action, history mutation, bill, and controls paint
+        // immediately. Geometry, high-resolution fields, and their uploads then
+        // occupy separate bounded frames rather than one long input task.
+        await nextEditorFrame();
+        const terrainRect = options.terrainRect;
+        const terrainStrips = [];
+        if (terrainRect) {
+          let y0 = terrainRect.y0;
+          while (y0 < terrainRect.y1) {
+            const y1 = Math.min(terrainRect.y1, y0 + 6);
+            terrainStrips.push({ ...terrainRect, y0, y1 });
+            y0 = y1;
+          }
+        }
+        if (!terrainStrips.length) terrainStrips.push(terrainRect || null);
+        for (let index = 0; index < terrainStrips.length; index++) {
+          sc.refreshGround(state(), {
+            relief: Boolean(options.relief) && index === 0,
+            terrain: options.terrain !== false,
+            terrainRect: terrainStrips[index],
+            zones: false,
+            turf: false,
+          });
+          await nextEditorFrame();
+        }
+        if (options.water || options.objects || options.paths || options.holes || options.flow) {
+          sc.refreshGround(state(), {
+            water: options.water,
+            objects: options.objects,
+            paths: options.paths,
+            holes: options.holes,
+            flow: options.flow,
+            terrain: false,
+            zones: false,
+            turf: false,
+          });
+          await nextEditorFrame();
+        }
+        if (sc.updateZoneFieldBatched) {
+          await sc.updateZoneFieldBatched(state(), options.zoneRect);
+        } else {
+          sc.updateZoneField(state(), options.zoneRect);
+        }
+        sc.updateTurf(state(), options.zoneRect);
+      } catch (error) {
+        console.error('course editor regional refresh failed', error);
+        toast('The edit was saved, but its preview could not finish rendering.', 'warn');
+      } finally {
+        regionalRefreshBusy = false;
+        refreshTop();
+        renderToolPanel();
+        refreshHoverPreview();
+      }
+    })();
+    return true;
+  }
+
   function discardRefreshTiles(operations, kinds, padding = 0, { fullOnMissing = true } = {}) {
     const course = state().course;
     const keys = new Set();
@@ -2347,7 +2418,11 @@ export function makeCourseEditor(app, hooks) {
     const terrain = terrainTiles.length > 0;
     const paths = hasKind((kind) => kind === 'path' || terrainKinds.has(kind));
     const water = hasKind((kind) => terrainKinds.has(kind));
-    const objects = hasKind((kind) => kind.startsWith('object-'));
+    const objectOperations = list.filter((operation) => operation.kind.startsWith('object-'));
+    const objectTypes = [...new Set(objectOperations.flatMap((operation) => operation.objectTypes || []))];
+    const broadObjects = objectOperations.some((operation) => !operation.objectTypes?.length);
+    const floraTypes = objectTypes.filter((type) => scene().isFloraObjectType?.(type));
+    const propTypes = objectTypes.filter((type) => !scene().isFloraObjectType?.(type));
     const holes = hasKind((kind) => kind === 'hole' || kind.startsWith('hole-') || terrainKinds.has(kind));
     const flow = hasKind((kind) => kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete'
       || kind === 'vec' || kind === 'stamp');
@@ -2364,16 +2439,34 @@ export function makeCourseEditor(app, hooks) {
       await nextEditorFrame();
     }
 
-    if (water || paths || objects || holes || flow) {
+    if (water) {
       scene().refreshGround(state(), {
-        terrain: false,
-        zones: false,
-        turf: false,
-        water,
-        paths,
-        objects,
-        holes,
-        flow,
+        terrain: false, zones: false, turf: false, water: true,
+      });
+      await nextEditorFrame();
+    }
+    if (paths) {
+      scene().refreshGround(state(), {
+        terrain: false, zones: false, turf: false, paths: true,
+      });
+      await nextEditorFrame();
+    }
+    if (broadObjects) {
+      rebuildObjectVisuals();
+      await nextEditorFrame();
+    } else {
+      if (propTypes.length) {
+        scene().rebuildObjects(propTypes);
+        await nextEditorFrame();
+      }
+      if (floraTypes.length) {
+        scene().rebuildTrees();
+        await nextEditorFrame();
+      }
+    }
+    if (holes || flow) {
+      scene().refreshGround(state(), {
+        terrain: false, zones: false, turf: false, holes, flow,
       });
       await nextEditorFrame();
     }
@@ -2451,7 +2544,7 @@ export function makeCourseEditor(app, hooks) {
     renderToolPanel();
   }
 
-  function refreshHistoryOp({ kind, rect = null }) {
+  function refreshHistoryOp({ kind, rect = null, objectTypes = [] }) {
     if (selectedPathId != null && !selectedPath()) clearPathSelection();
 
     if (kind === 'paint' || kind === 'vector-paint') {
@@ -2479,7 +2572,7 @@ export function makeCourseEditor(app, hooks) {
 
     if (kind === 'object-add' || kind === 'object-remove'
       || kind === 'object-move' || kind === 'object-scatter') {
-      rebuildObjectVisuals();
+      rebuildObjectVisuals(objectTypes.length ? objectTypes : null);
       finishHistoryRefresh();
       return;
     }
@@ -2512,14 +2605,17 @@ export function makeCourseEditor(app, hooks) {
     fullRefresh(rect);
   }
 
-  function refreshObjects() {
-    rebuildObjectVisuals();
+  function refreshObjects(types = null) {
+    rebuildObjectVisuals(types);
     refreshTop();
   }
 
-  function rebuildObjectVisuals() {
-    scene().rebuildObjects();
-    scene().rebuildTrees();
+  function rebuildObjectVisuals(types = null) {
+    const list = types ? [...new Set(types.filter(Boolean))] : null;
+    const needsFlora = !list || list.some((type) => scene().isFloraObjectType?.(type));
+    const needsProps = !list || list.some((type) => !scene().isFloraObjectType?.(type));
+    if (needsProps) scene().rebuildObjects(list);
+    if (needsFlora) scene().rebuildTrees();
   }
 
   function fullRefresh(rect = null) {
@@ -2807,6 +2903,7 @@ export function makeCourseEditor(app, hooks) {
 
   function onPointerDown(e) {
     if (!active || pt) return;
+    if (regionalRefreshBusy && e.target === scene().renderer.domElement) return;
     if (flyover) {
       // Let the native selector open during flight. Its change handler cancels
       // without restoring the old preset, then applies the user's new choice.
@@ -2846,6 +2943,7 @@ export function makeCourseEditor(app, hooks) {
         if (obj) {
           draggingObj = {
             kind: 'object',
+            type: obj.type,
             gesture: beginObjectGesture(state(), obj.id, 'Move object'),
           };
         }
@@ -2878,7 +2976,7 @@ export function makeCourseEditor(app, hooks) {
         const res = stampTee(state(), session, hole.id, opt.tee.teeKey, point.x, point.y, aim.x, aim.y);
         if (!res.ok) toast(res.reason || 'Cannot build here.', 'warn');
         else {
-          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6), terrainRect: zr(point.x, point.y, 6 + RELIEF_PAD_CELLS) });
+          queueRegionalGroundRefresh({ holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6), terrainRect: zr(point.x, point.y, 6 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
           toast(`${opt.tee.teeKey[0].toUpperCase()}${opt.tee.teeKey.slice(1)} tee built (${formatMoney(res.cost)} pending).`);
@@ -2922,7 +3020,7 @@ export function makeCourseEditor(app, hooks) {
           holeId: hole.id,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3), terrainRect: zr(point.x, point.y, r * 1.8 + 3 + RELIEF_PAD_CELLS) });
+          queueRegionalGroundRefresh({ relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3), terrainRect: zr(point.x, point.y, r * 1.8 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else toast(res.reason || 'The green needs open ground.', 'warn');
@@ -2948,7 +3046,7 @@ export function makeCourseEditor(app, hooks) {
           holeId: hole.id,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3 + RELIEF_PAD_CELLS) });
+          queueRegionalGroundRefresh({ relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else {
@@ -2975,7 +3073,7 @@ export function makeCourseEditor(app, hooks) {
           angle: (opt.water.rot * Math.PI) / 180,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3 + RELIEF_PAD_CELLS) });
+          queueRegionalGroundRefresh({ water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else {
@@ -2992,7 +3090,7 @@ export function makeCourseEditor(app, hooks) {
           });
           if (!res.ok) toast(res.reason, 'warn');
           else {
-            refreshObjects();
+            refreshObjects(types);
             toast(`${res.count} planted (${formatMoney(res.cost)} pending).`);
           }
           break;
@@ -3000,7 +3098,7 @@ export function makeCourseEditor(app, hooks) {
         const rot = opt.objects.randomRot ? Math.random() * Math.PI * 2 : 0;
         const res = addObject(state(), session, opt.objects.type, target.x, target.y, { rot, scale: opt.objects.scale });
         if (!res.ok) toast(res.reason, 'warn');
-        else refreshObjects();
+        else refreshObjects([res.object.type]);
         break;
       }
       case 'paths': {
@@ -3135,7 +3233,7 @@ export function makeCourseEditor(app, hooks) {
     else if (draggingObj?.kind === 'object' && (e.buttons & 1) && g.inBounds) {
       const target = objectPlacementPoint(g);
       const res = previewObjectGesture(state(), draggingObj.gesture, { x: target.x, y: target.y });
-      if (res.ok) rebuildObjectVisuals();
+      if (res.ok) rebuildObjectVisuals([draggingObj.type]);
     }
   }
 
@@ -3299,7 +3397,7 @@ export function makeCourseEditor(app, hooks) {
         const obj = scene().pickObject(g.point.x, g.point.z, 3);
         if (obj) {
           removeObject(state(), session, obj.id);
-          refreshObjects();
+          refreshObjects([obj.type]);
         }
       } else if (tool === 'paint' && stroke) {
         // handled as erase-drag; nothing on click
@@ -3930,6 +4028,7 @@ export function makeCourseEditor(app, hooks) {
       tool: () => tool,
       setTool,
       power: () => ptPower,
+      refreshBusy: () => regionalRefreshBusy,
     },
   };
 }

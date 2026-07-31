@@ -220,11 +220,32 @@ async (page) => {
   const box = await canvas.boundingBox();
   const cx = box.x + box.width * 0.55;
   const cy = box.y + box.height * 0.55;
+  const elevationFingerprint = () => page.evaluate(() => {
+    const elevation = window.__fw.state.course.elevation;
+    const bytes = new Uint8Array(elevation.buffer, elevation.byteOffset, elevation.byteLength);
+    let hash = 2166136261;
+    for (let index = 0; index < bytes.length; index += 1) hash = Math.imul(hash ^ bytes[index], 16777619);
+    return { length: elevation.length, hash: hash >>> 0 };
+  });
+  const terrainDataBefore = await elevationFingerprint();
 
   await page.evaluate(() => {
     window.__courseGpuProbe?.reset?.();
     window.__fw.scene3d.resetEditorPerformanceStats?.();
-    window.__strokeProbe = { deltas: [], running: true, last: performance.now() };
+    const canvas = document.querySelector('canvas');
+    window.__strokeProbe = {
+      deltas: [], inputToFrameMs: [], running: true, last: performance.now(),
+    };
+    const onPointerMove = () => {
+      const probe = window.__strokeProbe;
+      if (!probe?.running) return;
+      const inputAt = performance.now();
+      requestAnimationFrame(() => {
+        if (probe.running) probe.inputToFrameMs.push(performance.now() - inputAt);
+      });
+    };
+    window.__strokeProbe.onPointerMove = onPointerMove;
+    canvas?.addEventListener('pointermove', onPointerMove, { capture: true });
     const tick = (now) => {
       const p = window.__strokeProbe;
       if (!p.running) return;
@@ -252,11 +273,14 @@ async (page) => {
   const drag = await page.evaluate(() => {
     const p = window.__strokeProbe;
     p.running = false;
+    document.querySelector('canvas')?.removeEventListener('pointermove', p.onPointerMove, { capture: true });
     const d = p.deltas;
     const o = d.slice().sort((a, b) => a - b);
     const mean = d.reduce((a, b) => a + b, 0) / Math.max(1, d.length);
     const slowCount = Math.max(1, Math.ceil(o.length * 0.01));
     const slowMean = o.slice(-slowCount).reduce((a, b) => a + b, 0) / slowCount;
+    const input = p.inputToFrameMs.slice().sort((a, b) => a - b);
+    const inputMean = p.inputToFrameMs.reduce((sum, value) => sum + value, 0) / Math.max(1, p.inputToFrameMs.length);
     return {
       frames: d.length,
       averageFps: +(1000 / mean).toFixed(2),
@@ -266,9 +290,17 @@ async (page) => {
       worstFrameMs: +o[o.length - 1].toFixed(3),
       framesOver33ms: d.filter((x) => x > 33).length,
       framesOver100ms: d.filter((x) => x > 100).length,
+      inputToFrame: {
+        samples: input.length,
+        meanMs: +inputMean.toFixed(3),
+        medianMs: +(input[Math.floor(input.length / 2)] || 0).toFixed(3),
+        p99Ms: +(input[Math.min(input.length - 1, Math.floor(input.length * 0.99))] || 0).toFixed(3),
+        maxMs: +(input.at(-1) || 0).toFixed(3),
+      },
       rawFrameDeltasMs: d.map((x) => +x.toFixed(2)),
     };
   });
+  const terrainDataAfter = await elevationFingerprint();
 
   const terrainGpu = await page.evaluate(() => {
     const probe = window.__courseGpuProbe;
@@ -286,52 +318,76 @@ async (page) => {
   // ---- 3. correctness: a SCOPED undo must leave no stale geometry ---------
   // The whole scoped-refresh approach fails silently if a rect is too small:
   // the data rolls back but the mesh keeps the old land outside the window.
-  // Compare the mesh after a scoped undo against a forced full rebuild.
-  // undo through the real toolbar control, not a test hook
-  const undoBtn = page.locator('.ced-top button', { hasText: 'Undo' }).first();
-  const undoClicked = await undoBtn.count() > 0;
-  if (undoClicked) await undoBtn.click({ force: true }).catch(() => {});
-  await page.evaluate(() => new Promise((r) => {
-    let n = 6;
-    const t = () => (--n <= 0 ? r() : requestAnimationFrame(t));
-    requestAnimationFrame(t);
-  }));
-
-  const undoIntegrity = await page.evaluate(async (clicked) => {
-    if (!clicked) return { skipped: 'undo control not found' };
+  // Compare the mesh after scoped undo and redo against forced full rebuilds.
+  // Both actions go through the real toolbar controls, not test hooks.
+  const compareTerrainMeshToFull = (phaseLabel) => page.evaluate(async (label) => {
     const scene = window.__fw.scene3d;
     const st = window.__fw.state;
-
-    // Reach the geometry through the rendered scene graph rather than a hook.
     let terrain = null;
-    scene.scene.traverse((o) => {
-      if (!terrain && o.isMesh && o.geometry?.attributes?.position?.count > 100000) terrain = o;
+    scene.scene.traverse((object) => {
+      if (!terrain && object.isMesh && object.geometry?.attributes?.position?.count > 100000) terrain = object;
     });
-    if (!terrain) return { skipped: 'terrain mesh not found' };
+    if (!terrain) return { phase: label, skipped: 'terrain mesh not found' };
     const snapshot = () => Float32Array.from(terrain.geometry.attributes.position.array);
-
-    const afterScopedUndo = snapshot();
-
-    // force the canonical full rebuild
+    const afterScopedRefresh = snapshot();
     scene.refreshGround(st, {
       water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
     });
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const afterFullRebuild = snapshot();
-
     let maxDelta = 0;
     let differing = 0;
-    for (let i = 0; i < afterFullRebuild.length; i++) {
-      const d = Math.abs(afterScopedUndo[i] - afterFullRebuild[i]);
-      if (d > 1e-4) differing += 1;
-      if (d > maxDelta) maxDelta = d;
+    for (let index = 0; index < afterFullRebuild.length; index += 1) {
+      const delta = Math.abs(afterScopedRefresh[index] - afterFullRebuild[index]);
+      if (delta > 1e-4) differing += 1;
+      if (delta > maxDelta) maxDelta = delta;
     }
     return {
+      phase: label,
       vertexComponents: afterFullRebuild.length,
       differingComponents: differing,
       maxDeltaYd: +maxDelta.toFixed(6),
     };
-  }, undoClicked);
+  }, phaseLabel);
+  const settleHistory = () => page.evaluate(() => new Promise((resolve) => {
+    let frames = 6;
+    const tick = () => (--frames <= 0 ? resolve() : requestAnimationFrame(tick));
+    requestAnimationFrame(tick);
+  }));
+
+  const undoBtn = page.locator('.ced-top button', { hasText: 'Undo' }).first();
+  const undoClicked = await undoBtn.count() > 0;
+  const undoStarted = Date.now();
+  if (undoClicked) await undoBtn.click({ force: true }).catch(() => {});
+  await settleHistory();
+  const undoDurationMs = Date.now() - undoStarted;
+  const terrainDataAfterUndo = await elevationFingerprint();
+  const undoIntegrity = undoClicked
+    ? await compareTerrainMeshToFull('undo')
+    : { phase: 'undo', skipped: 'undo control not found' };
+
+  const redoBtn = page.locator('.ced-top button', { hasText: 'Redo' }).first();
+  const redoClicked = await redoBtn.count() > 0;
+  const redoStarted = Date.now();
+  if (redoClicked) await redoBtn.click({ force: true }).catch(() => {});
+  await settleHistory();
+  const redoDurationMs = Date.now() - redoStarted;
+  const terrainDataAfterRedo = await elevationFingerprint();
+  const redoIntegrity = redoClicked
+    ? await compareTerrainMeshToFull('redo')
+    : { phase: 'redo', skipped: 'redo control not found' };
+  const terrainDataIntegrity = {
+    changedByStroke: terrainDataAfter.hash !== terrainDataBefore.hash,
+    undoRestoredExact: terrainDataAfterUndo.length === terrainDataBefore.length
+      && terrainDataAfterUndo.hash === terrainDataBefore.hash,
+    redoRestoredExact: terrainDataAfterRedo.length === terrainDataAfter.length
+      && terrainDataAfterRedo.hash === terrainDataAfter.hash,
+    before: terrainDataBefore,
+    after: terrainDataAfter,
+    afterUndo: terrainDataAfterUndo,
+    afterRedo: terrainDataAfterRedo,
+  };
+  const historyTimings = { undoDurationMs, redoDurationMs };
 
   // ---- 4. real paint drag + input-to-next-frame latency -------------------
   await page.evaluate(() => {
@@ -432,8 +488,19 @@ async (page) => {
   await page.screenshot({ path: `${outDir}/paint_stroke.png` });
 
   return {
-    ok: diagnostics.pageErrors.length === 0
-      && (undoIntegrity.skipped ? true : undoIntegrity.differingComponents === 0),
+    ok: diagnostics.console.length === 0
+      && diagnostics.pageErrors.length === 0
+      && drag.framesOver100ms === 0
+      && paintDrag.framesOver100ms === 0
+      && drag.inputToFrame.samples > 0
+      && paintDrag.inputToFrame.samples > 0
+      && !undoIntegrity.skipped
+      && undoIntegrity.differingComponents === 0
+      && !redoIntegrity.skipped
+      && redoIntegrity.differingComponents === 0
+      && terrainDataIntegrity.changedByStroke
+      && terrainDataIntegrity.undoRestoredExact
+      && terrainDataIntegrity.redoRestoredExact,
     phase,
     synthetic,
     drag,
@@ -443,6 +510,9 @@ async (page) => {
     paintGpu,
     paintRuntimeCosts,
     undoIntegrity,
+    redoIntegrity,
+    terrainDataIntegrity,
+    historyTimings,
     diagnostics,
   };
 }

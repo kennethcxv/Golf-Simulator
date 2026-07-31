@@ -67,6 +67,7 @@ KERNEL[ZONE.SEMI] = { sigma: 0.75, weight: 0.6 }; // first cut: a narrow mown st
 const INV = KERNEL.map((k) => (k ? 1 / (2.2 * k.sigma * 2.2 * k.sigma) : 0));
 const WEIGHT = KERNEL.map((k) => (k ? k.weight : 0));
 const REACH = 2;
+export const VISUAL_FIELD_REGION_PADDING_CELLS = REACH + 1.2;
 
 function hash2(x, y) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0;
@@ -463,7 +464,7 @@ function fillLegacyBoundaryDistance(field, tx0, ty0, tx1, ty1) {
 }
 
 // dirty-rect update after edits: pad by kernel reach + warp amplitude
-export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, padding = REACH + 1.2) {
+export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, padding = VISUAL_FIELD_REGION_PADDING_CELLS) {
   const PAD = Math.max(0, Number(padding) || 0);
   return computeVisualField(course, field, {
     x0: Math.max(0, cx0 - PAD),
@@ -473,7 +474,7 @@ export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, paddi
   });
 }
 
-export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1, padding = REACH + 1.2) {
+export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1, padding = VISUAL_FIELD_REGION_PADDING_CELLS) {
   const PAD = Math.max(0, Number(padding) || 0);
   return computeSurfaceDistanceField(field, distance, {
     x0: Math.max(0, cx0 - PAD),

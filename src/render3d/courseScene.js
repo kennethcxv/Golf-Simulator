@@ -18,6 +18,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ZONE, HOLE_STATUS, CELL_YD, ZONE_TEX_SCALE } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
+import { OBJECT_CATALOG } from '../sim/courseEditor.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
 import { ownedWasher } from '../sim/washing.js';
@@ -44,6 +45,7 @@ import {
   SURFACE_COVERAGE_MIN_AA_YD,
   SURFACE_FIRST_CUT_YD,
   SURFACE_GREEN_FRINGE_YD,
+  VISUAL_FIELD_REGION_PADDING_CELLS,
 } from './visualField.js';
 import { buildRelief, reliefAt, getGeom, mowAngleAt } from '../sim/courseVec.js';
 import {
@@ -555,6 +557,13 @@ export function makeCourseScene(canvas, state) {
     'terrainNormals',
     'terrainRefresh',
     'turfPack',
+    'reliefBuild',
+    'waterRebuild',
+    'floraRebuild',
+    'objectRebuild',
+    'pathRebuild',
+    'holeFurniture',
+    'flowField',
   ];
   const editorPerformanceStats = Object.create(null);
 
@@ -917,6 +926,67 @@ export function makeCourseScene(canvas, state) {
         false,
       );
     }
+  }
+
+  const nextCourseSceneFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+  // Feature stamps can dirty a much wider surface band than a brush tick. Keep
+  // the exact same evaluators and texture data, but solve the padded rectangle
+  // in strips across frames. The visual field is completed first; distance
+  // strips then read a fully current neighbourhood and upload both textures
+  // together, so there are no seams or mixed-field frames.
+  async function updateZoneFieldBatched(st, rect, {
+    padding = VISUAL_FIELD_REGION_PADDING_CELLS,
+    chunkRows = 6,
+  } = {}) {
+    if (!rect) {
+      updateZoneField(st);
+      return { strips: 1, batched: false };
+    }
+    const pad = Math.max(0, Number(padding) || 0);
+    const bounded = {
+      x0: Math.max(0, rect.x0 - pad),
+      y0: Math.max(0, rect.y0 - pad),
+      x1: Math.min(st.course.w - 1, rect.x1 + pad),
+      y1: Math.min(st.course.h - 1, rect.y1 + pad),
+    };
+    const rows = Math.max(1, Number(chunkRows) || 1);
+    const strips = [];
+    let y0 = bounded.y0;
+    while (y0 < bounded.y1) {
+      const y1 = Math.min(bounded.y1, y0 + rows);
+      strips.push({ x0: bounded.x0, y0, x1: bounded.x1, y1 });
+      y0 = y1;
+    }
+    if (!strips.length) strips.push(bounded);
+
+    for (const strip of strips) {
+      if (sceneDisposed) return { strips: 0, batched: true, disposed: true };
+      const started = performance.now();
+      computeVisualField(st.course, visField, strip);
+      const units = Math.max(0, Math.ceil((strip.x1 - strip.x0) * FIELD_SCALE))
+        * Math.max(0, Math.ceil((strip.y1 - strip.y0) * FIELD_SCALE));
+      recordEditorPerformance('visualField', started, units, true);
+      await nextCourseSceneFrame();
+    }
+
+    for (const strip of strips) {
+      if (sceneDisposed) return { strips: 0, batched: true, disposed: true };
+      const distanceStarted = performance.now();
+      computeSurfaceDistanceField(visField, surfaceDistanceField, strip);
+      const dirty = surfaceDistanceField.updatedRect;
+      const units = (dirty.tx1 - dirty.tx0 + 1) * (dirty.ty1 - dirty.ty0 + 1);
+      recordEditorPerformance('surfaceDistanceField', distanceStarted, units, true);
+      const uploadStarted = performance.now();
+      uploadDataTextureRegion(zoneHiTex, zoneHiUploadSource, dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1);
+      uploadDataTextureRegion(
+        surfaceDistanceTex, surfaceDistanceUploadSource,
+        dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1,
+      );
+      recordEditorPerformance('visualFieldUpload', uploadStarted, units, true);
+      await nextCourseSceneFrame();
+    }
+    return { strips: strips.length, batched: true };
   }
 
   function zoneAtWorld(x, z) {
@@ -1535,7 +1605,9 @@ export function makeCourseScene(canvas, state) {
   // over the base rolling land, at the terrain-mesh resolution — no cell steps.
   let relief = null;
   function rebuildRelief() {
+    const started = performance.now();
     relief = course.vec ? buildRelief(course, (cx, cy) => rawHeightAtCellCoords(cx, cy) / ELEV_FT_TO_YD) : null;
+    recordEditorPerformance('reliefBuild', started, relief?.feats?.length || 0);
   }
 
   function terrainHeightAtVertex(vx, vy) {
@@ -1777,6 +1849,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   function rebuildWater() {
+    const started = performance.now();
     for (const m of waterMeshes) {
       scene.remove(m);
       if (typeof m.dispose === 'function') m.dispose();
@@ -1926,6 +1999,7 @@ export function makeCourseScene(canvas, state) {
       scene.add(water);
       waterMeshes.push(water);
     }
+    recordEditorPerformance('waterRebuild', started, waterMeshes.length);
   }
 
   // --- trees --------------------------------------------------------------------------------
@@ -2366,7 +2440,8 @@ export function makeCourseScene(canvas, state) {
 
   function rebuildTrees() {
     const token = ++treeBuildToken;
-    loadFloraAssets().then((assets) => {
+    const started = performance.now();
+    return loadFloraAssets().then((assets) => {
       if (sceneDisposed || token !== treeBuildToken) return; // superseded or lifetime ended
       if (assets && assets.size) {
         rebuildFloraFromModels(assets);
@@ -2374,7 +2449,11 @@ export function makeCourseScene(canvas, state) {
         console.warn('flora models unavailable — procedural fallback in use');
         rebuildTreesProcedural();
       }
-      freezeStaticCourse(); // freshly planted forests are still furniture
+      // Only the flora subtree was replaced. Walking every static course node
+      // here made one planted tree re-freeze terrain, paths, water, environment,
+      // and props that had not changed.
+      freezeStatic(treeGroup);
+      recordEditorPerformance('floraRebuild', started, floraLodSnapshot.totalInstances || 0);
     });
   }
 
@@ -2615,6 +2694,7 @@ export function makeCourseScene(canvas, state) {
   // GLBs from vendor/models/course/<type>.glb are preferred; a procedural
   // factory covers every type so the editor never places an invisible thing.
   let objectGroup = null;
+  const objectTypeGroups = new Map();
   const objectGlbCache = new Map(); // type -> { parts: [{geometry, material}] } | 'missing'
   const proceduralObjectCache = new Map();
   let objectGlbPending = 0;
@@ -2822,7 +2902,8 @@ export function makeCourseScene(canvas, state) {
           } catch {
             objectGlbCache.set(type, 'missing');
           }
-          if (--objectGlbPending === 0) rebuildObjects();
+          objectGlbPending = Math.max(0, objectGlbPending - 1);
+          rebuildObjects([type]);
         },
         undefined,
         () => {
@@ -2831,12 +2912,49 @@ export function makeCourseScene(canvas, state) {
             return;
           }
           objectGlbCache.set(type, 'missing');
-          if (--objectGlbPending === 0) rebuildObjects();
+          objectGlbPending = Math.max(0, objectGlbPending - 1);
+          rebuildObjects([type]);
         },
       );
     }
     if (!proceduralObjectCache.has(type)) proceduralObjectCache.set(type, proceduralObjectParts(type));
     return proceduralObjectCache.get(type);
+  }
+
+  let editorObjectGpuPrewarm = null;
+
+  function buildEditorObjectGpuPrewarmRepresentatives() {
+    if (editorObjectGpuPrewarm) return editorObjectGpuPrewarm;
+    editorObjectGpuPrewarm = new THREE.Group();
+    editorObjectGpuPrewarm.name = 'EditorObjectGpuPrewarm';
+    const identity = new THREE.Matrix4();
+    for (const type of new Set(OBJECT_CATALOG.map((entry) => entry.type))) {
+      if (FLORA_IDS.has(type)) continue;
+      const { parts } = objectParts(type);
+      for (const part of parts) {
+        const mesh = new THREE.InstancedMesh(part.geometry, part.material, 1);
+        mesh.name = `EditorObjectGpuPrewarm:${type}`;
+        mesh.setMatrixAt(0, identity);
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.position.set(0, -200, 0);
+        mesh.castShadow = true;
+        mesh.frustumCulled = false;
+        editorObjectGpuPrewarm.add(mesh);
+      }
+    }
+    scene.add(editorObjectGpuPrewarm);
+    return editorObjectGpuPrewarm;
+  }
+
+  function releaseEditorObjectGpuPrewarmRepresentatives() {
+    if (!editorObjectGpuPrewarm) return;
+    scene.remove(editorObjectGpuPrewarm);
+    editorObjectGpuPrewarm.traverse((object) => {
+      // Release only the per-representative instance buffer. Geometry and
+      // materials belong to the editor caches and stay resident for placement.
+      if (object.isInstancedMesh) object.dispose();
+    });
+    editorObjectGpuPrewarm = null;
   }
 
   function buildTeeSignLabel(object) {
@@ -2908,22 +3026,44 @@ export function makeCourseScene(canvas, state) {
     return mesh;
   }
 
-  function rebuildObjects() {
-    if (objectGroup) {
+  function disposeObjectGroup(group) {
+    if (!group) return;
+    group.traverse((o) => {
+      if (o.isInstancedMesh) o.dispose();
+      if (o.userData.courseLabel) {
+        o.geometry?.dispose();
+        o.material?.map?.dispose();
+        o.material?.dispose();
+      }
+    });
+  }
+
+  function rebuildObjects(types = null) {
+    const started = performance.now();
+    const requested = types ? new Set(types.filter((type) => !FLORA_IDS.has(type))) : null;
+    const full = !objectGroup || !requested;
+    if (full && objectGroup) {
       scene.remove(objectGroup);
-      objectGroup.traverse((o) => {
-        if (o.isInstancedMesh) o.dispose();
-        if (o.userData.courseLabel) {
-          o.geometry?.dispose();
-          o.material?.map?.dispose();
-          o.material?.dispose();
-        }
-      });
+      disposeObjectGroup(objectGroup);
     }
-    objectGroup = new THREE.Group();
+    if (full) {
+      objectGroup = new THREE.Group();
+      objectGroup.name = 'CourseObjects';
+      objectTypeGroups.clear();
+      scene.add(objectGroup);
+    } else {
+      for (const type of requested) {
+        const previous = objectTypeGroups.get(type);
+        if (!previous) continue;
+        objectGroup.remove(previous);
+        disposeObjectGroup(previous);
+        objectTypeGroups.delete(type);
+      }
+    }
     const byType = new Map();
     for (const o of course.objects || []) {
       if (FLORA_IDS.has(o.type)) continue; // flora (trees/shrubs/rocks/reeds) has its own pipeline
+      if (requested && !requested.has(o.type)) continue;
       if (!byType.has(o.type)) byType.set(o.type, []);
       byType.get(o.type).push(o);
     }
@@ -2933,6 +3073,8 @@ export function makeCourseScene(canvas, state) {
     const v = new THREE.Vector3();
     const sc = new THREE.Vector3();
     for (const [type, list] of byType) {
+      const typeGroup = new THREE.Group();
+      typeGroup.name = `CourseObjects:${type}`;
       const { parts, unitScale = 1 } = objectParts(type);
       for (const part of parts) {
         const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
@@ -2947,19 +3089,23 @@ export function makeCourseScene(canvas, state) {
           m.compose(v.set(x, heightAt(x, z), z), q, sc.set(s, s, s));
           im.setMatrixAt(i, m);
         });
-        objectGroup.add(im);
+        typeGroup.add(im);
       }
       if (type === 'tee_sign') {
         for (const object of list) {
           const label = buildTeeSignLabel(object);
-          if (label) objectGroup.add(label);
+          if (label) typeGroup.add(label);
         }
       }
+      objectGroup.add(typeGroup);
+      objectTypeGroups.set(type, typeGroup);
+      freezeStatic(typeGroup);
     }
-    scene.add(objectGroup);
     // The manifest and individual GLBs finish asynchronously, so this rebuild can
     // replace the group after rebuildAll() performed its static-course freeze.
-    freezeStatic(objectGroup);
+    if (full) freezeStatic(objectGroup);
+    const rebuiltCount = [...byType.values()].reduce((total, list) => total + list.length, 0);
+    recordEditorPerformance('objectRebuild', started, rebuiltCount);
   }
 
   // nearest placed object to a world point (for the Select tool)
@@ -3183,6 +3329,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   function rebuildPaths() {
+    const started = performance.now();
     if (pathGroup) {
       scene.remove(pathGroup);
       pathGroup.traverse((o) => {
@@ -3201,6 +3348,7 @@ export function makeCourseScene(canvas, state) {
     }
     rebuildBridgeSurfaceIndex();
     scene.add(pathGroup);
+    recordEditorPerformance('pathRebuild', started, course.paths?.length || 0);
   }
 
   // --- structures: a real little clubhouse ------------------------------------------------
@@ -3320,6 +3468,7 @@ export function makeCourseScene(canvas, state) {
 
   function updateHoles() {
     if (sceneDisposed) return;
+    const started = performance.now();
     if (holeGroup) {
       scene.remove(holeGroup);
       const sharedHoleResources = mergeSceneResources(
@@ -3426,6 +3575,7 @@ export function makeCourseScene(canvas, state) {
       }
     }
     scene.add(holeGroup);
+    recordEditorPerformance('holeFurniture', started, course.holes.length);
   }
 
   // --- golfers out on the course (visual reflection of real play volume) ---------------
@@ -5297,12 +5447,26 @@ export function makeCourseScene(canvas, state) {
       ghost = new THREE.Group();
       const { parts } = ghostPartsFor(type);
       for (const p of parts) {
-        const mesh = new THREE.Mesh(p.geometry, p.material.clone());
-        mesh.material.transparent = true;
-        mesh.material.opacity = 0.8;
-        mesh.material.depthTest = false;
-        mesh.material.depthWrite = false;
-        mesh.material.emissiveIntensity = 0.7;
+        // Non-flora objects render as InstancedMesh after placement. Preview
+        // them through the same shader variant so the first real prop does not
+        // compile USE_INSTANCING on the commit frame.
+        const exactInstancedPreview = !type.startsWith('tree_');
+        const mesh = exactInstancedPreview
+          ? new THREE.InstancedMesh(p.geometry, p.material, 1)
+          : new THREE.Mesh(p.geometry, p.material.clone());
+        if (mesh.isInstancedMesh) {
+          mesh.setMatrixAt(0, new THREE.Matrix4());
+          mesh.instanceMatrix.needsUpdate = true;
+          mesh.castShadow = true;
+          mesh.frustumCulled = false;
+          mesh.userData.exactPlacementMaterial = true;
+        } else {
+          mesh.material.transparent = true;
+          mesh.material.opacity = 0.8;
+          mesh.material.depthTest = false;
+          mesh.material.depthWrite = false;
+          mesh.material.emissiveIntensity = 0.7;
+        }
         mesh.renderOrder = 997;
         ghost.add(mesh);
       }
@@ -5330,7 +5494,9 @@ export function makeCourseScene(canvas, state) {
           : 2.2 * scale;
         o.scale.setScalar(footprint);
       } else if (o.isMesh) {
-        o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
+        if (!o.userData.exactPlacementMaterial) {
+          o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
+        }
         o.scale.setScalar(type.startsWith('tree_') ? 7.3 * scale : scale);
       }
     });
@@ -5543,6 +5709,7 @@ export function makeCourseScene(canvas, state) {
   // packed into auxData alpha (recomputed only when holes or zones change).
   const flowField = new Float32Array(W * H); // angle / 2π, 0..1
   function rebuildFlowField() {
+    const started = performance.now();
     const holes = course.holes.filter((h) => h.tee && h.pin);
     const segs = [];
     for (const h of holes) {
@@ -5576,6 +5743,7 @@ export function makeCourseScene(canvas, state) {
         flowField[y * W + x] = norm / (Math.PI * 2);
       }
     }
+    recordEditorPerformance('flowField', started, W * H);
   }
   rebuildFlowField();
 
@@ -6046,6 +6214,25 @@ export function makeCourseScene(canvas, state) {
   // the editor's cheap incremental refresh after a stroke: terrain heights +
   // water + paths follow the land; trees/objects only when asked. zoneRect
   // limits the visual-field recompute to the edited cells.
+  function pathTouchesTerrainRect(path, rect) {
+    if (!rect) return true;
+    const points = path?.pts || [];
+    if (!points.length) return false;
+    const padding = 3 + (Number(path.width) || 0) / (CELL_YD * 2);
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const point of points) {
+      x0 = Math.min(x0, point.x);
+      y0 = Math.min(y0, point.y);
+      x1 = Math.max(x1, point.x);
+      y1 = Math.max(y1, point.y);
+    }
+    return x1 + padding >= rect.x0 && x0 - padding <= rect.x1
+      && y1 + padding >= rect.y0 && y0 - padding <= rect.y1;
+  }
+
   function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrain = true, terrainRect = null, turf = true } = {}) {
     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
     // terrainRect scopes the mesh rebuild to an edited region, and it is honoured
@@ -6056,8 +6243,9 @@ export function makeCourseScene(canvas, state) {
     // (rebuildAll) pass no rect and still get the full pass.
     if (terrain) rebuildTerrainHeights(terrainRect);
     if (water) rebuildWater();
-    const rebuiltPaths = paths
-      || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled));
+    const rebuiltPaths = paths || ((water || reReliefsculpt) && course.paths?.some(
+      (path) => pathBridgeEnabled(path) && pathTouchesTerrainRect(path, terrainRect),
+    ));
     if (rebuiltPaths) rebuildPaths();
     if (objects) {
       rebuildTrees();
@@ -6079,6 +6267,7 @@ export function makeCourseScene(canvas, state) {
     sceneDisposed = true;
     gtao.render = gtaoRender;
     treeBuildToken += 1;
+    releaseEditorObjectGpuPrewarmRepresentatives();
     if (walk.active) walkExit();
     const clubhouse = clubhouseApi?.dispose ? clubhouseApi.dispose() : null;
     while (golfers.length) removeGolfer(golfers.length - 1);
@@ -6525,6 +6714,15 @@ export function makeCourseScene(canvas, state) {
     step('Loading models');
     await whenAssetsIdle(8000);
     if (!alive()) return false;
+    // The course contains only the object types already placed in this save.
+    // Prime every editor catalog type as well, then wait for any catalog GLBs
+    // that call initiated before compiling behind the loading veil.
+    for (const { type } of OBJECT_CATALOG) {
+      if (!FLORA_IDS.has(type)) objectParts(type);
+    }
+    await whenAssetsIdle(8000);
+    if (!alive()) return false;
+    buildEditorObjectGpuPrewarmRepresentatives();
     // DefaultLoadingManager deliberately fails open after eight seconds. Give
     // checkout's exact cash prototypes their own bounded readiness handshake so
     // a slow local GLB decode cannot turn an empty representative root into a
@@ -6667,6 +6865,7 @@ export function makeCourseScene(canvas, state) {
     // the opaque veil. Keep the GPU residency, but remove their scene nodes
     // before the first player frame and before lifecycle baselines are sampled.
     clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives?.({ drawn: true });
+    releaseEditorObjectGpuPrewarmRepresentatives();
     return true;
   }
 
@@ -6687,9 +6886,11 @@ export function makeCourseScene(canvas, state) {
     rebuildAll,
     refreshGround,
     updateZoneField,
+    updateZoneFieldBatched,
     editorPerformanceSnapshot,
     resetEditorPerformanceStats,
     rebuildObjects,
+    isFloraObjectType: (type) => FLORA_IDS.has(type),
     rebuildPaths,
     rebuildStructures,
     rebuildTrees,

@@ -20,7 +20,7 @@ import { paintPathCells, splinePoints } from './courseShaping.js';
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
 import {
-  ensurePaint, invalidateGeom, deriveZones, evaluateSurface, getGeom, vecId,
+  ensurePaint, invalidateGeom, deriveZones, deriveZonesRegion, evaluateSurface, getGeom, vecId,
   makeVecGreen, makeVecBunker, makeVecPond, makeVecTee,
 } from './courseVec.js';
 import { CELL_YD } from './constants.js';
@@ -169,7 +169,11 @@ function pathOp(state, session, label, mutate, { chargeNewPavement = false } = {
   if (course.vec) {
     // vector courses rasterize PATH from the spline geometry — re-derive
     invalidateGeom(course);
-    deriveZones(course);
+    const pathRect = changedVectorRect(pathsBefore, course.paths);
+    if (pathRect) deriveZonesRegion(course, paddedRect(
+      pathRect, pathZonePadding(pathsBefore, course.paths),
+    ));
+    else deriveZones(course);
   } else {
     repaintPathZones(course);
   }
@@ -265,6 +269,58 @@ function changedVectorRect(before, after) {
   };
 }
 
+function paddedRect(rect, padding) {
+  return rect ? {
+    x0: rect.x0 - padding,
+    y0: rect.y0 - padding,
+    x1: rect.x1 + padding,
+    y1: rect.y1 + padding,
+  } : null;
+}
+
+function pathZonePadding(...pathLists) {
+  let maxWidthYd = 0;
+  for (const paths of pathLists) {
+    for (const path of paths || []) maxWidthYd = Math.max(maxWidthYd, Number(path.width) || 0);
+  }
+  return Math.max(4, Math.ceil(maxWidthYd / (CELL_YD * 2) + 2));
+}
+
+// Calculate the complete possible influence beyond the changed control points.
+// Widths are serialized in yards, while deriveZonesRegion consumes cells. This
+// stays data-driven so imported/authored courses with wider-than-UI corridors
+// still get byte-identical regional derivation.
+function vectorZonePadding(...vectors) {
+  let maxInfluenceYd = 0;
+  let maxRoughYd = 26;
+  for (const vector of vectors) {
+    for (const hole of vector?.holes || []) maxRoughYd = Math.max(maxRoughYd, Number(hole.roughW) || 0);
+  }
+  for (const vector of vectors) {
+    for (const hole of vector?.holes || []) {
+      const corridorYd = Math.max(0, ...(hole.width || []).map((stop) => Number(stop.w) || 0));
+      maxInfluenceYd = Math.max(maxInfluenceYd, corridorYd + maxRoughYd + 24);
+      const green = hole.green;
+      if (green) {
+        maxInfluenceYd = Math.max(
+          maxInfluenceYd,
+          (Number(green.fringe) || 1) + (Number(green.apron) || 0) + maxRoughYd + 24,
+        );
+      }
+      for (const tee of hole.tees || []) {
+        maxInfluenceYd = Math.max(
+          maxInfluenceYd,
+          Math.max(Number(tee.w) || 0, Number(tee.d) || 0) / 2 + maxRoughYd + 24,
+        );
+      }
+    }
+    for (const stream of vector?.streams || []) {
+      maxInfluenceYd = Math.max(maxInfluenceYd, (Number(stream.w) || 0) / 2 + 2);
+    }
+  }
+  return Math.max(4, Math.ceil(maxInfluenceYd / CELL_YD + 2));
+}
+
 function snapshotHoleRecords(course, holeIds) {
   return [...new Set(holeIds || [])].map((holeId) => {
     const hole = course.holes.find((candidate) => candidate.id === holeId);
@@ -301,8 +357,12 @@ function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } = 
   if (jsonEqual(vecBefore, vecAfter) && jsonEqual(holesBefore, holesAfter) && !paintChanged) {
     return { ok: true, cost: 0, cells: 0, unchanged: true };
   }
+  const vectorRect = changedVectorRect(vecBefore, vecAfter);
   invalidateGeom(course);
-  deriveZones(course);
+  if (vectorRect) deriveZonesRegion(course, paddedRect(
+    vectorRect, vectorZonePadding(vecBefore, vecAfter),
+  ));
+  else deriveZones(course);
   const cells = [];
   const changed = [];
   for (let i = 0; i < course.zones.length; i++) {
@@ -315,7 +375,7 @@ function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } = 
   const cost = Math.round(mutCost + extraCost);
   pushOp(state, session, {
     kind: 'vec', label, cost, cells,
-    rect: changedVectorRect(vecBefore, vecAfter),
+    rect: vectorRect,
     vecBefore, vecAfter,
     paintBeforePresent: !!paintBefore,
     paintAfterPresent: !!course.paint,
@@ -2201,6 +2261,16 @@ export function opCellRect(state, op) {
   return Number.isFinite(x0) ? { x0, y0, x1, y1 } : null;
 }
 
+function opObjectTypes(op) {
+  if (!op || !String(op.kind || '').startsWith('object-')) return [];
+  const types = [];
+  if (op.object?.type) types.push(op.object.type);
+  if (op.before?.type) types.push(op.before.type);
+  if (op.after?.type) types.push(op.after.type);
+  for (const object of op.objects || []) if (object?.type) types.push(object.type);
+  return [...new Set(types)];
+}
+
 export function undo(state, session) {
   const op = session.undo.pop();
   if (!op) return { ok: false };
@@ -2209,7 +2279,7 @@ export function undo(state, session) {
   session.redo.push(op);
   session.bill = Math.max(0, session.bill - op.cost);
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label, kind: op.kind, rect };
+  return { ok: true, label: op.label, kind: op.kind, rect, objectTypes: opObjectTypes(op) };
 }
 
 export function redo(state, session) {
@@ -2220,7 +2290,7 @@ export function redo(state, session) {
   session.undo.push(op);
   session.bill += op.cost;
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label, kind: op.kind, rect };
+  return { ok: true, label: op.label, kind: op.kind, rect, objectTypes: opObjectTypes(op) };
 }
 
 // --- apply / discard --------------------------------------------------------------------
@@ -2278,10 +2348,12 @@ export function discardSession(state, session) {
   // Preserve only the renderer-facing invalidation metadata. Returning compact
   // summaries lets the UI restore the visible course in bounded regional work
   // instead of paying one whole-course rebuild after the data is rolled back.
-  const operations = session.undo.map((op) => ({
-    kind: op.kind,
-    rect: opCellRect(state, op),
-  }));
+  const operations = session.undo.map((op) => {
+    const summary = { kind: op.kind, rect: opCellRect(state, op) };
+    const objectTypes = opObjectTypes(op);
+    if (objectTypes.length) summary.objectTypes = objectTypes;
+    return summary;
+  });
 
   // Roll back directly rather than calling undo(): undo() recomputes the net
   // changed-cell set after every operation. That turns a long-session Discard
