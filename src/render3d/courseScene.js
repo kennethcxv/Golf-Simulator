@@ -7813,6 +7813,13 @@ export function makeCourseScene(canvas, state) {
     walkSetSoaping(false);
     heldRoot.visible = false; // the overview camera carries no hand tools
     walkHeld.clear();
+    // The dirt reveal is driven from the walk update, so leaving on foot with Q
+    // down (opening the laptop, stepping to the till) would strand it lit with
+    // nothing left to turn it off. The overview re-asserts its own markers.
+    dirtSenseAlpha = 0;
+    dirtSenseLinger = 0;
+    dirtSenseAimed = null;
+    clubhouseApi?.setDirtReveal?.(0, false);
     window.removeEventListener('keydown', walkKeyDown);
     window.removeEventListener('keyup', walkKeyUp);
     window.removeEventListener('blur', walkBlur);

@@ -108,6 +108,20 @@
       "type": "PointLight",
       "name": "AssetRuntimeLight_95",
       "intensity": 0.45
+    },
+    {
+      "idx": 15,
+      "role": "other",
+      "type": "PointLight",
+      "name": "",
+      "intensity": 0
+    },
+    {
+      "idx": 16,
+      "role": "other",
+      "type": "PointLight",
+      "name": "",
+      "intensity": 0
     }
   ],
   "carriers": [
@@ -132,35 +146,35 @@
     {
       "pose": "p2-retail-wall",
       "where": "interior",
-      "asShipped": 68.05,
-      "sunCarries": 22.42,
-      "sunPct": 32.9,
-      "fillRemnantCarries": 5.24,
+      "asShipped": 68.17,
+      "sunCarries": 22.47,
+      "sunPct": 33,
+      "fillRemnantCarries": 5.28,
       "fillRemnantPct": 7.7,
-      "hemiCarries": 5.26,
+      "hemiCarries": 5.28,
       "hemiPct": 7.7,
-      "ambientCarries": 14.79,
-      "ambientPct": 21.7,
-      "interiorFillsCarry": 4.75,
-      "interiorFillsPct": 7,
+      "ambientCarries": 14.85,
+      "ambientPct": 21.8,
+      "interiorFillsCarry": 4.83,
+      "interiorFillsPct": 7.1,
       "floorWithoutAll": 15.4,
       "floorPct": 22.6,
-      "fillVsHemiControlDelta": 0.02
+      "fillVsHemiControlDelta": 0
     },
     {
       "pose": "p3-under-faulted-run",
       "where": "interior",
-      "asShipped": 50.91,
-      "sunCarries": 3.81,
-      "sunPct": 7.5,
-      "fillRemnantCarries": 7.84,
-      "fillRemnantPct": 15.4,
-      "hemiCarries": 7.84,
-      "hemiPct": 15.4,
-      "ambientCarries": 25.01,
-      "ambientPct": 49.1,
-      "interiorFillsCarry": -0.04,
-      "interiorFillsPct": -0.1,
+      "asShipped": 50.96,
+      "sunCarries": 3.86,
+      "sunPct": 7.6,
+      "fillRemnantCarries": 7.89,
+      "fillRemnantPct": 15.5,
+      "hemiCarries": 7.89,
+      "hemiPct": 15.5,
+      "ambientCarries": 25.07,
+      "ambientPct": 49.2,
+      "interiorFillsCarry": 0.01,
+      "interiorFillsPct": 0,
       "floorWithoutAll": 13.34,
       "floorPct": 26.2,
       "fillVsHemiControlDelta": 0
@@ -168,69 +182,69 @@
     {
       "pose": "p4-desk-approach",
       "where": "interior",
-      "asShipped": 101.88,
-      "sunCarries": 22.53,
-      "sunPct": 22.1,
-      "fillRemnantCarries": 2.03,
+      "asShipped": 103.33,
+      "sunCarries": 23.7,
+      "sunPct": 22.9,
+      "fillRemnantCarries": 2.1,
       "fillRemnantPct": 2,
-      "hemiCarries": 2.03,
+      "hemiCarries": 2.1,
       "hemiPct": 2,
-      "ambientCarries": 5.16,
-      "ambientPct": 5.1,
-      "interiorFillsCarry": 40.39,
-      "interiorFillsPct": 39.6,
+      "ambientCarries": 5.36,
+      "ambientPct": 5.2,
+      "interiorFillsCarry": 40.27,
+      "interiorFillsPct": 39,
       "floorWithoutAll": 8.17,
-      "floorPct": 8,
+      "floorPct": 7.9,
       "fillVsHemiControlDelta": 0
     },
     {
       "pose": "c1-porch-out",
       "where": "course",
-      "asShipped": 54.14,
-      "sunCarries": 8.78,
-      "sunPct": 16.2,
-      "fillRemnantCarries": -0.01,
-      "fillRemnantPct": 0,
-      "hemiCarries": 28.56,
-      "hemiPct": 52.8,
-      "ambientCarries": 5.5,
-      "ambientPct": 10.2,
-      "interiorFillsCarry": 2.96,
-      "interiorFillsPct": 5.5,
-      "floorWithoutAll": 1.06,
-      "floorPct": 2,
-      "fillVsHemiControlDelta": 28.57
+      "asShipped": 45.8,
+      "sunCarries": 9.6,
+      "sunPct": 21,
+      "fillRemnantCarries": 1.11,
+      "fillRemnantPct": 2.4,
+      "hemiCarries": 20.18,
+      "hemiPct": 44.1,
+      "ambientCarries": 6.43,
+      "ambientPct": 14,
+      "interiorFillsCarry": 3.42,
+      "interiorFillsPct": 7.5,
+      "floorWithoutAll": 1.16,
+      "floorPct": 2.5,
+      "fillVsHemiControlDelta": 19.07
     },
     {
       "pose": "c2-fairway",
       "where": "course",
-      "asShipped": 128.05,
-      "sunCarries": 18.83,
-      "sunPct": 14.7,
-      "fillRemnantCarries": 0.07,
-      "fillRemnantPct": 0.1,
-      "hemiCarries": 19.55,
-      "hemiPct": 15.3,
-      "ambientCarries": 3.48,
-      "ambientPct": 2.7,
-      "interiorFillsCarry": 0.13,
-      "interiorFillsPct": 0.1,
-      "floorWithoutAll": 78.27,
-      "floorPct": 61.1,
-      "fillVsHemiControlDelta": 19.48
+      "asShipped": 127.98,
+      "sunCarries": 18.74,
+      "sunPct": 14.6,
+      "fillRemnantCarries": -0.07,
+      "fillRemnantPct": -0.1,
+      "hemiCarries": 19.39,
+      "hemiPct": 15.2,
+      "ambientCarries": 3.38,
+      "ambientPct": 2.6,
+      "interiorFillsCarry": 0.04,
+      "interiorFillsPct": 0,
+      "floorWithoutAll": 78.12,
+      "floorPct": 61,
+      "fillVsHemiControlDelta": 19.46
     }
   ],
   "summary": {
-    "interiorAsShipped": 95.81,
-    "interiorSunPct": 17.85,
-    "interiorFillRemnantPct": 6.45,
-    "interiorAmbientPct": 19.42,
-    "interiorFillsPct": 23.15,
-    "interiorFloorPct": 15.53,
-    "courseSunPct": 15.45,
-    "courseHemiPct": 34.05,
-    "courseAmbientPct": 6.45,
-    "courseInteriorFillsPct": 2.8
+    "interiorAsShipped": 96.21,
+    "interiorSunPct": 18.1,
+    "interiorFillRemnantPct": 6.47,
+    "interiorAmbientPct": 19.5,
+    "interiorFillsPct": 23.05,
+    "interiorFloorPct": 15.5,
+    "courseSunPct": 17.8,
+    "courseHemiPct": 29.65,
+    "courseAmbientPct": 8.3,
+    "courseInteriorFillsPct": 3.75
   },
   "rows": [
     {
@@ -244,7 +258,7 @@
       },
       "ceilingBand": {
         "mean": 178.51,
-        "p05": 69.3,
+        "p05": 68.8,
         "p95": 232
       },
       "navBand": {
@@ -270,7 +284,7 @@
       "navBand": {
         "mean": 109.83,
         "p05": 34.5,
-        "p95": 195
+        "p95": 195.7
       }
     },
     {
@@ -284,7 +298,7 @@
       },
       "ceilingBand": {
         "mean": 177.7,
-        "p05": 67.6,
+        "p05": 67.5,
         "p95": 232
       },
       "navBand": {
@@ -304,7 +318,7 @@
       },
       "ceilingBand": {
         "mean": 177.7,
-        "p05": 67.6,
+        "p05": 67.5,
         "p95": 232
       },
       "navBand": {
@@ -319,17 +333,17 @@
       "variant": "no-ambient",
       "whole": {
         "mean": 159.48,
-        "p05": 51,
+        "p05": 51.1,
         "p95": 227.9
       },
       "ceilingBand": {
         "mean": 176.38,
-        "p05": 65.3,
+        "p05": 64.9,
         "p95": 232
       },
       "navBand": {
         "mean": 126.38,
-        "p05": 37,
+        "p05": 37.1,
         "p95": 206.9
       }
     },
@@ -344,13 +358,13 @@
       },
       "ceilingBand": {
         "mean": 99.47,
-        "p05": 14.8,
+        "p05": 15,
         "p95": 169.5
       },
       "navBand": {
         "mean": 69.93,
         "p05": 4.1,
-        "p95": 141.3
+        "p95": 141.4
       }
     },
     {
@@ -360,12 +374,12 @@
       "whole": {
         "mean": 8.56,
         "p05": 0,
-        "p95": 109
+        "p95": 109.1
       },
       "ceilingBand": {
         "mean": 24.59,
         "p05": 0,
-        "p95": 134
+        "p95": 134.1
       },
       "navBand": {
         "mean": 0,
@@ -378,7 +392,7 @@
       "where": "interior",
       "variant": "as-shipped",
       "whole": {
-        "mean": 68.05,
+        "mean": 68.17,
         "p05": 0.2,
         "p95": 126.3
       },
@@ -388,7 +402,7 @@
         "p95": 112.6
       },
       "navBand": {
-        "mean": 71.93,
+        "mean": 72.6,
         "p05": 1.4,
         "p95": 126.5
       }
@@ -398,7 +412,7 @@
       "where": "interior",
       "variant": "no-sun",
       "whole": {
-        "mean": 45.63,
+        "mean": 45.7,
         "p05": 0.2,
         "p95": 106.6
       },
@@ -408,7 +422,7 @@
         "p95": 112.6
       },
       "navBand": {
-        "mean": 20.51,
+        "mean": 20.69,
         "p05": 0.2,
         "p95": 39.3
       }
@@ -418,7 +432,7 @@
       "where": "interior",
       "variant": "fill-0",
       "whole": {
-        "mean": 62.81,
+        "mean": 62.89,
         "p05": 0,
         "p95": 121.4
       },
@@ -428,7 +442,7 @@
         "p95": 107.5
       },
       "navBand": {
-        "mean": 68.23,
+        "mean": 68.8,
         "p05": 0.4,
         "p95": 122.3
       }
@@ -438,7 +452,7 @@
       "where": "interior",
       "variant": "no-hemi",
       "whole": {
-        "mean": 62.79,
+        "mean": 62.89,
         "p05": 0,
         "p95": 121.4
       },
@@ -448,7 +462,7 @@
         "p95": 107.5
       },
       "navBand": {
-        "mean": 68.16,
+        "mean": 68.78,
         "p05": 0.4,
         "p95": 122.3
       }
@@ -458,7 +472,7 @@
       "where": "interior",
       "variant": "no-ambient",
       "whole": {
-        "mean": 53.26,
+        "mean": 53.32,
         "p05": 0,
         "p95": 117.4
       },
@@ -468,7 +482,7 @@
         "p95": 92.3
       },
       "navBand": {
-        "mean": 64.52,
+        "mean": 65.02,
         "p05": 0,
         "p95": 118.4
       }
@@ -478,7 +492,7 @@
       "where": "interior",
       "variant": "no-interior-fills",
       "whole": {
-        "mean": 63.3,
+        "mean": 63.34,
         "p05": 0.2,
         "p95": 122.5
       },
@@ -488,7 +502,7 @@
         "p95": 92.8
       },
       "navBand": {
-        "mean": 70.9,
+        "mean": 71.5,
         "p05": 0.6,
         "p95": 125.5
       }
@@ -518,12 +532,12 @@
       "where": "interior",
       "variant": "as-shipped",
       "whole": {
-        "mean": 50.91,
+        "mean": 50.96,
         "p05": 0,
         "p95": 93.5
       },
       "ceilingBand": {
-        "mean": 37.59,
+        "mean": 37.8,
         "p05": 8,
         "p95": 92
       },
@@ -543,12 +557,12 @@
         "p95": 92.8
       },
       "ceilingBand": {
-        "mean": 37.59,
+        "mean": 37.6,
         "p05": 8,
         "p95": 92
       },
       "navBand": {
-        "mean": 52.7,
+        "mean": 52.69,
         "p05": 33.6,
         "p95": 91.8
       }
@@ -598,12 +612,12 @@
       "where": "interior",
       "variant": "no-ambient",
       "whole": {
-        "mean": 25.9,
+        "mean": 25.89,
         "p05": 0,
         "p95": 79.4
       },
       "ceilingBand": {
-        "mean": 11.88,
+        "mean": 11.89,
         "p05": 0.2,
         "p95": 66.6
       },
@@ -623,7 +637,7 @@
         "p95": 93.5
       },
       "ceilingBand": {
-        "mean": 37.79,
+        "mean": 37.8,
         "p05": 8,
         "p95": 92
       },
@@ -643,7 +657,7 @@
         "p95": 58.4
       },
       "ceilingBand": {
-        "mean": 6.83,
+        "mean": 6.84,
         "p05": 0,
         "p95": 58.4
       },
@@ -658,8 +672,8 @@
       "where": "interior",
       "variant": "as-shipped",
       "whole": {
-        "mean": 101.88,
-        "p05": 8.2,
+        "mean": 103.33,
+        "p05": 9.6,
         "p95": 215.9
       },
       "ceilingBand": {
@@ -668,8 +682,8 @@
         "p95": 235.9
       },
       "navBand": {
-        "mean": 79.6,
-        "p05": 5.7,
+        "mean": 82.33,
+        "p05": 8.7,
         "p95": 142
       }
     },
@@ -678,7 +692,7 @@
       "where": "interior",
       "variant": "no-sun",
       "whole": {
-        "mean": 79.35,
+        "mean": 79.63,
         "p05": 0.2,
         "p95": 209.9
       },
@@ -688,8 +702,8 @@
         "p95": 235.9
       },
       "navBand": {
-        "mean": 45.26,
-        "p05": 1,
+        "mean": 45.72,
+        "p05": 1.7,
         "p95": 102.9
       }
     },
@@ -698,8 +712,8 @@
       "where": "interior",
       "variant": "fill-0",
       "whole": {
-        "mean": 99.85,
-        "p05": 7.5,
+        "mean": 101.23,
+        "p05": 9.2,
         "p95": 215
       },
       "ceilingBand": {
@@ -708,8 +722,8 @@
         "p95": 235.9
       },
       "navBand": {
-        "mean": 77.42,
-        "p05": 5,
+        "mean": 80.02,
+        "p05": 7.9,
         "p95": 139.1
       }
     },
@@ -718,8 +732,8 @@
       "where": "interior",
       "variant": "no-hemi",
       "whole": {
-        "mean": 99.85,
-        "p05": 7.5,
+        "mean": 101.23,
+        "p05": 9.2,
         "p95": 215
       },
       "ceilingBand": {
@@ -728,8 +742,8 @@
         "p95": 235.9
       },
       "navBand": {
-        "mean": 77.42,
-        "p05": 5,
+        "mean": 80.02,
+        "p05": 7.9,
         "p95": 139.1
       }
     },
@@ -738,18 +752,18 @@
       "where": "interior",
       "variant": "no-ambient",
       "whole": {
-        "mean": 96.72,
-        "p05": 7.1,
+        "mean": 97.97,
+        "p05": 8.2,
         "p95": 213.8
       },
       "ceilingBand": {
         "mean": 130.43,
         "p05": 5.9,
-        "p95": 235.1
+        "p95": 235.8
       },
       "navBand": {
-        "mean": 75.19,
-        "p05": 4.6,
+        "mean": 77.57,
+        "p05": 7,
         "p95": 136.7
       }
     },
@@ -758,8 +772,8 @@
       "where": "interior",
       "variant": "no-interior-fills",
       "whole": {
-        "mean": 61.49,
-        "p05": 4.9,
+        "mean": 63.06,
+        "p05": 6.4,
         "p95": 117.5
       },
       "ceilingBand": {
@@ -768,9 +782,9 @@
         "p95": 92.8
       },
       "navBand": {
-        "mean": 58.15,
-        "p05": 3.2,
-        "p95": 104
+        "mean": 61.14,
+        "p05": 4.6,
+        "p95": 104.2
       }
     },
     {
@@ -798,9 +812,9 @@
       "where": "course",
       "variant": "as-shipped",
       "whole": {
-        "mean": 54.14,
-        "p05": 6.6,
-        "p95": 138.6
+        "mean": 45.8,
+        "p05": 4,
+        "p95": 116
       },
       "ceilingBand": null,
       "navBand": null
@@ -810,9 +824,9 @@
       "where": "course",
       "variant": "no-sun",
       "whole": {
-        "mean": 45.36,
-        "p05": 5.8,
-        "p95": 137.8
+        "mean": 36.2,
+        "p05": 3.6,
+        "p95": 114.7
       },
       "ceilingBand": null,
       "navBand": null
@@ -822,9 +836,9 @@
       "where": "course",
       "variant": "fill-0",
       "whole": {
-        "mean": 54.15,
-        "p05": 6.6,
-        "p95": 138.6
+        "mean": 44.69,
+        "p05": 3.8,
+        "p95": 113.2
       },
       "ceilingBand": null,
       "navBand": null
@@ -834,9 +848,9 @@
       "where": "course",
       "variant": "no-hemi",
       "whole": {
-        "mean": 25.58,
+        "mean": 25.62,
         "p05": 0,
-        "p95": 84.8
+        "p95": 84.9
       },
       "ceilingBand": null,
       "navBand": null
@@ -846,9 +860,9 @@
       "where": "course",
       "variant": "no-ambient",
       "whole": {
-        "mean": 48.64,
-        "p05": 4.7,
-        "p95": 124.6
+        "mean": 39.37,
+        "p05": 2.4,
+        "p95": 100.5
       },
       "ceilingBand": null,
       "navBand": null
@@ -858,9 +872,9 @@
       "where": "course",
       "variant": "no-interior-fills",
       "whole": {
-        "mean": 51.18,
-        "p05": 6.1,
-        "p95": 135.6
+        "mean": 42.38,
+        "p05": 3.8,
+        "p95": 112.7
       },
       "ceilingBand": null,
       "navBand": null
@@ -870,7 +884,7 @@
       "where": "course",
       "variant": "none",
       "whole": {
-        "mean": 1.06,
+        "mean": 1.16,
         "p05": 0,
         "p95": 0
       },
@@ -882,8 +896,8 @@
       "where": "course",
       "variant": "as-shipped",
       "whole": {
-        "mean": 128.05,
-        "p05": 22.9,
+        "mean": 127.98,
+        "p05": 23,
         "p95": 240
       },
       "ceilingBand": null,
@@ -894,7 +908,7 @@
       "where": "course",
       "variant": "no-sun",
       "whole": {
-        "mean": 109.22,
+        "mean": 109.24,
         "p05": 20.5,
         "p95": 240
       },
@@ -906,8 +920,8 @@
       "where": "course",
       "variant": "fill-0",
       "whole": {
-        "mean": 127.98,
-        "p05": 22.9,
+        "mean": 128.05,
+        "p05": 23.1,
         "p95": 240
       },
       "ceilingBand": null,
@@ -918,7 +932,7 @@
       "where": "course",
       "variant": "no-hemi",
       "whole": {
-        "mean": 108.5,
+        "mean": 108.59,
         "p05": 2.9,
         "p95": 240
       },
@@ -930,7 +944,7 @@
       "where": "course",
       "variant": "no-ambient",
       "whole": {
-        "mean": 124.57,
+        "mean": 124.6,
         "p05": 18.8,
         "p95": 240
       },
@@ -942,8 +956,8 @@
       "where": "course",
       "variant": "no-interior-fills",
       "whole": {
-        "mean": 127.92,
-        "p05": 22.8,
+        "mean": 127.94,
+        "p05": 22.9,
         "p95": 240
       },
       "ceilingBand": null,
@@ -954,7 +968,7 @@
       "where": "course",
       "variant": "none",
       "whole": {
-        "mean": 78.27,
+        "mean": 78.12,
         "p05": 0,
         "p95": 240
       },
