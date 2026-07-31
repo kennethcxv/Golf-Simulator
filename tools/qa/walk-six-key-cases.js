@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // WHAT THE KEYDOWN LISTENER ACTUALLY RECEIVES, POINTER-LOCKED, FOR SIX CASES.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/walk-six-key-cases.js
@@ -11,7 +11,7 @@ async (page) => {
   //
   // This is the CHROMIUM half. tools/qa/electron-six-key-cases.mjs runs the same six cases
   // in the packaged shell. Both call the same in-page instrument (src/debug/inputProbe.js)
-  // so the two result sets are comparable — the drivers differ only in how they press keys
+  // so the two result sets are comparable â€” the drivers differ only in how they press keys
   // and how they reach the world.
   //
   // Keys are pressed by CDP, not dispatched by page script: a synthetic KeyboardEvent has
@@ -45,12 +45,12 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.inputProbe, null, { timeout: 60000 });
   await page.waitForTimeout(2500);
 
-  // Stand in open floor so a strafe is not measured against a wall — RE-STANCED BEFORE
+  // Stand in open floor so a strafe is not measured against a wall â€” RE-STANCED BEFORE
   // EVERY CASE. The first version stanced once, so case 2 began 1.1 yd downrange of where
   // case 1 started and Shift+W recorded 0.09 yd against W's 1.12: a wall, read as a Shift
   // effect. movedYd only means anything from a known start.
@@ -70,7 +70,7 @@ async (page) => {
   await page.waitForTimeout(400);
 
   // Engage the lock the way a player does: click the canvas element itself. A bare
-  // page.mouse.click at fixed coordinates left pointerLockElement null — the request is
+  // page.mouse.click at fixed coordinates left pointerLockElement null â€” the request is
   // made from the canvas's own handler, so the click has to land on the canvas.
   await page.locator('canvas').first().click({ position: { x: 800, y: 450 } });
   await page.waitForTimeout(600);
@@ -119,7 +119,7 @@ async (page) => {
   //
   // SELECTED BY CODE, not by "the first keydown". In a Shift+D case the first keydown is
   // ShiftLeft, and the first version of this table dutifully reported key='Shift'
-  // code='ShiftLeft' for all three shifted rows — a table about the modifier, captioned as
+  // code='ShiftLeft' for all three shifted rows â€” a table about the modifier, captioned as
   // a table about the letter.
   const table = results.map((r) => {
     const downs = r.events.filter((e) => e.type === 'keydown' && e.phase === 'window-capture');
@@ -142,7 +142,7 @@ async (page) => {
       landedInHeldSet: Array.isArray(held) && !!down
         && held.includes(String(down.key).toLowerCase()),
       heldDuringPress: held,
-      // "Did the movement handler run" — a boolean, plus the counts behind it. Comparing
+      // "Did the movement handler run" â€” a boolean, plus the counts behind it. Comparing
       // raw frame counts across cases is noise: a 320 ms window is 30-40 frames and never
       // the same number twice.
       movementRan: (movement.movingFrames ?? 0) > 0,
@@ -200,7 +200,7 @@ async (page) => {
       && byCase['W alone']?.preventDefaultCalled === true,
     // The verdict has to fail when the thing under test fails. Suppressing D's contribution
     // to the movement intent left the top line reading ok:true with moveRan 0 for both D
-    // cases — a probe whose summary calls a broken D a pass.
+    // cases â€” a probe whose summary calls a broken D a pass.
     everyMovementCaseMoved: ['D alone', 'Shift+D', 'W alone', 'Shift+W']
       .every((label) => byCase[label]?.movementRan === true),
     everySecondaryCaseFired: ['X alone', 'Shift+X']

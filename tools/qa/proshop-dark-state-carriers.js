@@ -1,5 +1,5 @@
-async (page) => {
-  // B8 FOLLOW-UP — the fill lever is spent (interiorFillScale ships at 0.10 and
+﻿async (page) => {
+  // B8 FOLLOW-UP â€” the fill lever is spent (interiorFillScale ships at 0.10 and
   // the whole remaining range moves the room ~10%), so before any next lever is
   // chosen this measures WHAT CARRIES the remaining interior luma at the same
   // four unpowered poses, one contributor at a time.
@@ -8,12 +8,12 @@ async (page) => {
   //
   // The light inventory is discovered, not assumed: the first run of this probe
   // pinned only sun/hemi/ambient and its `none` captures still showed a fully
-  // readable room — the clubhouse's own interior lights (the daylight fills and
+  // readable room â€” the clubhouse's own interior lights (the daylight fills and
   // any fixture lights) were never in the pin set, so the "floor" number was
   // conflating them with the glazing view. Every light in the scene is now
   // inventoried, classified (sun / hemi / ambient / other), and the `none`
-  // variant pins ALL of them. What still cannot be removed — emissive
-  // materials and the bright course seen through the glazing itself — is the
+  // variant pins ALL of them. What still cannot be removed â€” emissive
+  // materials and the bright course seen through the glazing itself â€” is the
   // floor `none` names. The hemisphere's INDOOR value is the interior fill
   // (updateInteriorFill multiplies it by 1 - factor*(1-scale), so "fill
   // remnant" and "hemi leak" are one lever with two ends).
@@ -22,7 +22,7 @@ async (page) => {
   // writes make plain assignment a no-op, so intensities are PINNED via an
   // accessor and the pin is PROVEN to hold before anything is measured with it.
   // Built-in control: `fill-0` (setScale(0), hemi live) and `no-hemi` (hemi
-  // pinned 0) must agree at fully-interior poses — if they disagree beyond
+  // pinned 0) must agree at fully-interior poses â€” if they disagree beyond
   // noise, the fill factor is not 1 at that pose and the numbers say so.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -112,7 +112,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
@@ -128,7 +128,7 @@ async (page) => {
     ch.setOrganicWalkins?.(false);
     // The FULL overlay set from the B8 sweep (fault 4 in DARK_STATE_PROPOSAL:
     // the chips are .hud-min and the lock hint .shop-lockhint sits inside the
-    // nav-band crop — the first run of this probe cloned the older, weaker
+    // nav-band crop â€” the first run of this probe cloned the older, weaker
     // selector list and measured white caption text as room luma).
     document.querySelectorAll('.hud, .hud-min, .shop-lockhint, .notification-center, '
       + '.walk-overlay, .objectives-card, .shed-checklist')
@@ -148,7 +148,7 @@ async (page) => {
   if (!agreed) throw new Error('the shell never agreed the circuit is dead');
 
   // DISCOVER the full light inventory. The first run assumed three globals and
-  // was wrong — the clubhouse carries its own interior lights that kept the
+  // was wrong â€” the clubhouse carries its own interior lights that kept the
   // `none` room readable. Each light is classified and given a stable index so
   // pins can name their base values.
   const inventory = await page.evaluate(() => {
@@ -212,7 +212,7 @@ async (page) => {
   // NEGATIVE CONTROL before any measurement: prove the sun pin actually holds
   // against the weather branches, the same proof the hemisphere needed. (This
   // control already caught one real fault: a refactor changed the variant
-  // shape to `zero: [...]` and the old `{ sun: 0 }` call pinned nothing — the
+  // shape to `zero: [...]` and the old `{ sun: 0 }` call pinned nothing â€” the
   // run failed here instead of shipping numbers with the sun still on.)
   await applyVariant({ zero: ['sun'] });
   await page.waitForTimeout(600);
@@ -248,7 +248,7 @@ async (page) => {
     { id: 'fill-0', fillScale: 0 },
     { id: 'no-hemi', zero: ['hemi'] },
     { id: 'no-ambient', zero: ['ambient'] },
-    // Every light that is not one of the three globals — the clubhouse's own
+    // Every light that is not one of the three globals â€” the clubhouse's own
     // interior daylight fills and any fixture lights. Its course poses are a
     // control: interior lights should carry ~nothing on the fairway.
     { id: 'no-interior-fills', zero: ['other'] },

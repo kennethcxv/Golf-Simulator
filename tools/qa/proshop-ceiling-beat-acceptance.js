@@ -1,12 +1,12 @@
-async (page) => {
-  // BLOCKER 1 — walk the ceiling beat end to end in a live session and prove
+﻿async (page) => {
+  // BLOCKER 1 â€” walk the ceiling beat end to end in a live session and prove
   // each stage by what the player can SEE, not by what the sim returns.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-ceiling-beat-acceptance.js
   //
   // The bug this exists to stop: "Dead ceiling light repaired" with the room
-  // still dark. A sim-only assertion would have passed that happily — the panel
-  // state really did change — so every stage here is checked against rendered
+  // still dark. A sim-only assertion would have passed that happily â€” the panel
+  // state really did change â€” so every stage here is checked against rendered
   // light intensity and the prompt the player actually reads.
   //
   // Stages: dark start -> repair refused and prompt names the circuit -> power
@@ -32,7 +32,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
@@ -172,25 +172,25 @@ async (page) => {
   if (stages.darkStart.light.litPanels !== 0) failures.push('dark start: panels are lit');
   // The prompt has to describe what is overhead, not what the save file calls
   // it. With zero lit panels nothing can be flickering, so the word must not
-  // appear — this read is why the label is power-conditional.
+  // appear â€” this read is why the label is power-conditional.
   if (/flicker/i.test(stages.darkStart.prompt || '')) {
-    failures.push(`dark start: prompt claims a flicker the player cannot see — "${stages.darkStart.prompt}"`);
+    failures.push(`dark start: prompt claims a flicker the player cannot see â€” "${stages.darkStart.prompt}"`);
   }
   if (!/dark/i.test(stages.darkStart.prompt || '')) {
-    failures.push(`dark start: prompt does not describe the unlit fitting — "${stages.darkStart.prompt}"`);
+    failures.push(`dark start: prompt does not describe the unlit fitting â€” "${stages.darkStart.prompt}"`);
   }
   if (/flicker/i.test(stages.poweredNeglected.prompt || '') === false) {
-    failures.push(`powered: the flicker fault is now visible but unnamed — "${stages.poweredNeglected.prompt}"`);
+    failures.push(`powered: the flicker fault is now visible but unnamed â€” "${stages.poweredNeglected.prompt}"`);
   }
   if (stages.refusedWhileDark.sim.lightPanels['panel-07'] !== 'dead') {
-    failures.push('E on a dead ring reported a repair — the exact lie this gate exists to stop');
+    failures.push('E on a dead ring reported a repair â€” the exact lie this gate exists to stop');
   }
   if (stages.poweredNeglected.light.circuitPowered !== true) failures.push('power did not reach the ring');
   if (stages.flicker.flickeringPanels < 2) {
-    failures.push(`only ${stages.flicker.flickeringPanels} fitting(s) flicker — the abandoned read needs 2`);
+    failures.push(`only ${stages.flicker.flickeringPanels} fitting(s) flicker â€” the abandoned read needs 2`);
   }
   if (stages.flicker.deadPanels < 2) {
-    failures.push(`only ${stages.flicker.deadPanels} fitting(s) fully dark — the abandoned read needs 2`);
+    failures.push(`only ${stages.flicker.deadPanels} fitting(s) fully dark â€” the abandoned read needs 2`);
   }
   if (stages.repaired.light.litPanels !== 4) {
     failures.push(`after repair only ${stages.repaired.light.litPanels}/4 fittings light`);

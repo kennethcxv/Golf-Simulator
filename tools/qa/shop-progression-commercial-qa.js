@@ -287,7 +287,7 @@ async (page) => {
   // the real Continue button to prove unfinished work is durable.
   await page.waitForTimeout(1000);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await waitForGame();
   const pendingAfterReload = await snapshot();
   assert(pendingAfterReload.pending?.target === 'standard'

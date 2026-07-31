@@ -19,7 +19,7 @@ async (page) => {
   const initialUrl = new URL(BASE);
   if (ISOLATE_PRESENTATIONS) initialUrl.searchParams.set('clubhouse', 'legacy');
   await page.goto(initialUrl.toString());
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 45000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

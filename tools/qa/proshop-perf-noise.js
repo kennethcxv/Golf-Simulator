@@ -1,11 +1,11 @@
-async (page) => {
-  // PERF NOISE FLOOR — how repeatable is the performance harness, actually?
+﻿async (page) => {
+  // PERF NOISE FLOOR â€” how repeatable is the performance harness, actually?
   //
   //   NOISE_SESSION=s01 HEADED=1 node tools/qa/run-playwright.cjs tools/qa/proshop-perf-noise.js
   //
   // Phase 0 and the lighting spike both produced inter-arm deltas of 2-6%, and then the
-  // SAME unchanged configuration measured 9.22ms and 10.96ms on two different sessions —
-  // a 19% swing. Until that is understood, SLICE_BRIEF §13's "no regression greater than
+  // SAME unchanged configuration measured 9.22ms and 10.96ms on two different sessions â€”
+  // a 19% swing. Until that is understood, SLICE_BRIEF Â§13's "no regression greater than
   // 10%" rule cannot be enforced, because the instrument cannot see 10%.
   //
   // This runs one unchanged configuration repeatedly and records everything needed to
@@ -38,7 +38,7 @@ async (page) => {
   await page.waitForTimeout(1200);
 
   const tContinue = Date.now();
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');

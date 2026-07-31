@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // HOW FAST DO CUSTOMERS ACTUALLY WALK, IN YARDS PER WALL SECOND, AT EACH RUNG.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-walk-speed.js
@@ -7,7 +7,7 @@ async (page) => {
   // hours to three quadrupled the decision multiplier, the clubhouse derived
   // locomotion from it as min(simSpeed, CAP), and every shopper sprinted at the
   // 4x cap on the DEFAULT rung. Nothing measured walking speed, so nothing
-  // caught it — the player did, by looking at the room.
+  // caught it â€” the player did, by looking at the room.
   //
   // So this measures the quantity that was wrong, in the units a person can
   // check against reality: yards per REAL second, sampled from the mesh the
@@ -22,7 +22,7 @@ async (page) => {
   //     harder test to pass by accident than comparing it to another measurement.
   //   * Per-customer p90, not a pooled mean. THE FIRST VERSION OF THIS PROBE
   //     POOLED EVERY MOVING INTERVAL AND ITS CONTROL FAILED: at the 4x rung it
-  //     reported 0.74 yd/s — SLOWER than 1x — because customers queue and
+  //     reported 0.74 yd/s â€” SLOWER than 1x â€” because customers queue and
   //     sidestep more when decisions compress, and a floor full of 0.1 yd/s
   //     jostle drags a pooled median below the walking speed it is supposed to
   //     be measuring. A high percentile per customer asks the right question:
@@ -72,7 +72,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
@@ -106,7 +106,7 @@ async (page) => {
     // Pooling every moving interval does not work, and the failure is instructive:
     // at the 4x rung it reported customers moving SLOWER than at 1x. With no
     // cashier present the till queue never drains, so most bodies spend the window
-    // shuffling against each other inside resolveCustomer's 0.6 yd separation —
+    // shuffling against each other inside resolveCustomer's 0.6 yd separation â€”
     // real displacement, above any idle threshold, and nothing to do with walking.
     // The pooled median measured the crowd, not the stride.
     //
@@ -116,7 +116,7 @@ async (page) => {
     // AND THE FLOOR IS TOPPED UP THROUGHOUT. Measuring a fixed cohort fails at
     // the top rung for a reason that is not about walking at all: with decisions
     // at 16x the browse dwell burns off almost instantly, every body reaches the
-    // till within a couple of seconds, and — no cashier being present — the queue
+    // till within a couple of seconds, and â€” no cashier being present â€” the queue
     // never drains. The first run of this version recorded ZERO free walks at 4x
     // against 5,293 idle samples. Nothing was wrong with locomotion; there was
     // simply no travel left in the window to measure. A fresh arrival always
@@ -191,7 +191,7 @@ async (page) => {
         ratioToIntent: +(rec.best / expected).toFixed(2),
       };
       // A body that never got a clear walk has no walking speed to report. It is
-      // NOT averaged in at whatever it was shuffling at — it is named and counted,
+      // NOT averaged in at whatever it was shuffling at â€” it is named and counted,
       // so a run where most of the floor was stuck cannot read as a clean result.
       if (rec.best < expected * 0.5) neverWalked.push(entry);
       else bodies.push(entry);
@@ -219,7 +219,7 @@ async (page) => {
   }
 
   // THE BUILT-IN CONTROL: every body must travel at the speed the code intended
-  // for it — its own authored yd/s times the rung's locomotion scale. A ratio of
+  // for it â€” its own authored yd/s times the rung's locomotion scale. A ratio of
   // 1.0 at every rung is the pass. This is checked against the code's INTENT
   // rather than against another measurement, so a probe measuring frame rate,
   // animation rate or the game clock cannot satisfy it by coincidence.
@@ -236,7 +236,7 @@ async (page) => {
     };
     // Tolerance is asymmetric ON PURPOSE. resolveCustomer pushes bodies apart to
     // 0.6 yd and away from colliders, and that displacement lands on top of the
-    // path step — so an observed speed a little ABOVE intent is the separation
+    // path step â€” so an observed speed a little ABOVE intent is the separation
     // solver, a known mechanism, not a measurement fault. Below intent has no
     // such excuse and is held tighter.
     if (actual == null || actual < 0.85 || actual > 1.4 || (rung?.bodiesWalking ?? 0) < 3) ratiosHold = false;
@@ -254,7 +254,7 @@ async (page) => {
       movingThresholdYdPerS: MOVING_EPSILON_YD_S,
       warpThresholdYd: WARP_YD,
       minMovingSamplesPerBody: 20,
-      clock: 'performance.now() — wall time, never the game clock',
+      clock: 'performance.now() â€” wall time, never the game clock',
       room: 'pine-hills-v2, 10:00, >=8 customers on the floor',
     },
     humanBaselineYdPerS: HUMAN_BASELINE_YD_S,

@@ -10,7 +10,7 @@ async (page) => {
     failures.push({ url: request.url(), error: request.failure()?.errorText || 'unknown' });
   });
   await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded' });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForTimeout(2500);
   return { ok: true, responses, failures };

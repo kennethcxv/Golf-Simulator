@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // Why the dark-state probe cannot reach an unpowered room, measured rather
   // than reasoned about.
   //
@@ -21,7 +21,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);

@@ -1,5 +1,5 @@
-async (page) => {
-  // BLOCKER 5 — the cashier station. Two complaints, measured separately:
+﻿async (page) => {
+  // BLOCKER 5 â€” the cashier station. Two complaints, measured separately:
   //
   //   "the staff side renders black"
   //   "the only way in is standing backward on the wrong side and phasing through"
@@ -92,7 +92,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
@@ -115,16 +115,16 @@ async (page) => {
     // THE WHOLE BUILDING, not PUBLIC_ROOM_BOUNDS.
     //
     // The first version of this probe flooded only the public room, whose east
-    // edge is x 5.70 — and the staff corridor's one intended entrance is the
-    // partition mouth at x 5.60–5.80, z 3.86–4.89, which leads EAST into the
-    // office. So the route the floor plan actually specifies (FLOOR_PLAN §7,
+    // edge is x 5.70 â€” and the staff corridor's one intended entrance is the
+    // partition mouth at x 5.60â€“5.80, z 3.86â€“4.89, which leads EAST into the
+    // office. So the route the floor plan actually specifies (FLOOR_PLAN Â§7,
     // "the staff mouth stays open") lay outside the grid, and the probe reported
     // the corridor sealed because it had walled off the doorway itself.
     //
     // That "1479 of 1530 free cells, staff pocket unreachable" number is an
     // artifact of the grid, not a measurement of the room. Anything derived from
-    // it — including TILL-REACH-001's premise — has to be re-measured here.
-    // …plus a margin OUTSIDE it. Third grid fault, same class as the first two:
+    // it â€” including TILL-REACH-001's premise â€” has to be re-measured here.
+    // â€¦plus a margin OUTSIDE it. Third grid fault, same class as the first two:
     // bounded at the interior, the flood cannot represent "go out the front and
     // round the back", so it could not tell an inconvenient route from no route.
     const MARGIN = 6.0;
@@ -142,7 +142,7 @@ async (page) => {
     //
     // So the audit runs twice. `grid` is walkable-now; `gridDoors` additionally
     // treats a cell as passable when the ONLY things blocking it are door
-    // colliders — the route a player has, given that E opens doors. The second
+    // colliders â€” the route a player has, given that E opens doors. The second
     // is the one that answers "is this pocket reachable"; the first is kept
     // because a pocket only reachable through a door is still worth naming.
     const doorRects = [];
@@ -208,7 +208,7 @@ async (page) => {
     const seen = floodFrom(gridDoors);
 
     // EVERY POCKET, not just the one that was reported. A single-point check
-    // answers "is the staff chair reachable" and nothing else — it would have
+    // answers "is the staff chair reachable" and nothing else â€” it would have
     // stayed green through a floor plan that sealed some other corner. So the
     // free cells that the flood did NOT reach are grouped into connected
     // components and each is reported with its area and bounds. Zero components
@@ -268,7 +268,7 @@ async (page) => {
       r: Math.round((staff.z - bounds.minZ) / step),
       c: Math.round((staff.x - bounds.minX) / step),
     };
-    // Where a cashier actually stands to work the till, which is NOT the chair —
+    // Where a cashier actually stands to work the till, which is NOT the chair â€”
     // the chair is the laptop seat. The original probe targeted the chair and so
     // measured a cell that is legitimately solid.
     const stand = L.COUNTER.staffStand;
@@ -348,17 +348,17 @@ async (page) => {
   // The reachability claim is now the general one: no walkable pocket anywhere in
   // the public room may be cut off, not merely the one that got reported. A stray
   // cell or two behind a fixture corner is grid noise rather than a pocket, so the
-  // threshold is 0.25 yd² — a quarter of the player's own footprint.
+  // threshold is 0.25 ydÂ² â€” a quarter of the player's own footprint.
   const POCKET_MIN_YD2 = 0.25;
   // One region is unreachable on purpose and says so in the layout: v2 pulled the
-  // west wall in to x −2.60 and left "sealed dead cavity until the exterior shell
+  // west wall in to x âˆ’2.60 and left "sealed dead cavity until the exterior shell
   // is re-authored (Phase 4+)" behind it. Declared by name and reason rather than
   // filtered by size, so it appears in the output as an allowance instead of
-  // vanishing — a threshold quietly tuned until the red goes away is how an
+  // vanishing â€” a threshold quietly tuned until the red goes away is how an
   // instrument stops measuring.
   const ALLOWED = [{
     name: 'v2 dead cavity west of the pulled-in west wall',
-    why: 'PINE_HILLS_V2_LAYOUT.publicBounds — sealed until the shell is re-authored',
+    why: 'PINE_HILLS_V2_LAYOUT.publicBounds â€” sealed until the shell is re-authored',
     minX: -9.0, maxX: -2.60, minZ: -6.0, maxZ: 6.0,
   }];
   const allowedFor = (p) => ALLOWED.find((a) => p.minX >= a.minX && p.maxX <= a.maxX

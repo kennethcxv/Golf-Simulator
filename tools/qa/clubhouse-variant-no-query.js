@@ -1,16 +1,16 @@
-async (page) => {
+﻿async (page) => {
   // CAN THE GREYBOX ROOM BE REACHED WITHOUT A QUERY STRING?
   //
   //   node tools/qa/run-playwright.cjs tools/qa/clubhouse-variant-no-query.js
   //
   // The unit tests pin the resolver's precedence and the launch-flag wiring. They cannot
   // prove the thing the brief actually asks for, which is that a session with NOTHING in
-  // its URL builds the v2 room — that depends on localStorage being readable at module
+  // its URL builds the v2 room â€” that depends on localStorage being readable at module
   // -eval time on this origin, which is a runtime fact, not a source fact.
   //
   // THE NEGATIVE CONTROL IS STAGE A AND STAGE C, not a separate run. A probe that only
   // ever looks at the positive case cannot tell "the setting worked" from "this build
-  // draws v2 no matter what" — which is precisely the failure mode of a variant seam.
+  // draws v2 no matter what" â€” which is precisely the failure mode of a variant seam.
   // So: boot clean and require v1, set the setting and require v2, clear it and require
   // v1 again. Only the middle stage may differ.
   //
@@ -22,7 +22,7 @@ async (page) => {
   // hit real geometry in v1 and in v2, so the two stages produce comparable numbers
   // rather than a present/absent flag. (The first version of this probe claimed a ceiling
   // height and reported null for it in every stage, because it asked the clubhouse for a
-  // `floorY` the public API does not expose — the check silently degraded to "is the grey
+  // `floorY` the public API does not expose â€” the check silently degraded to "is the grey
   // ceiling there", which is the same claim as the line above it. A number that can only
   // come out null is not a measurement.)
   const fs = process.getBuiltinModule('node:fs');
@@ -41,7 +41,7 @@ async (page) => {
 
   await page.setViewportSize({ width: 1280, height: 720 });
 
-  // Seed the save and, optionally, the dev room setting — then load with a BARE url.
+  // Seed the save and, optionally, the dev room setting â€” then load with a BARE url.
   // The order matters: the empire seed clears storage, so the variant key is written
   // after it, and the reload is the first load that can see either.
   const bootBare = async (storedVariant) => {
@@ -56,7 +56,7 @@ async (page) => {
     }, { seed: SEED, key: STORAGE_KEY, variant: storedVariant || null });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForTimeout(2600);
   };
@@ -72,7 +72,7 @@ async (page) => {
       return hit;
     };
     const clubhouse = app.scene3d.clubhouse();
-    // interior.position.y IS the floor top — clubhouse.js sets it from
+    // interior.position.y IS the floor top â€” clubhouse.js sets it from
     // heightAt(center) + FLOOR_TOP. (Its x/z are a scene-graph offset and must NOT be
     // used as the building origin; that is what clubhouse.center is for.)
     const floorY = clubhouse.interior.position.y;
@@ -80,7 +80,7 @@ async (page) => {
     // Raycasting needs an explicitly collected visible-mesh set: THREE.Raycaster does
     // not skip visible=false subtrees, so suppressed production furniture would block
     // rays it cannot draw. Zero-mask meshes (the merged static batch) are excluded for
-    // the same reason — they do not draw either.
+    // the same reason â€” they do not draw either.
     const targets = [];
     scene.traverse((o) => {
       if (!o.isMesh || !o.layers.mask) return;
@@ -121,7 +121,7 @@ async (page) => {
 
   // --- A: control. Nothing asks for a room. --------------------------------------
   await bootBare(null);
-  const a = await measure('A control — bare url, no saved setting');
+  const a = await measure('A control â€” bare url, no saved setting');
 
   // --- B: the case the brief needs. -----------------------------------------------
   await bootBare('pine-hills-v2');
@@ -130,7 +130,7 @@ async (page) => {
 
   // --- C: control again. The setting is removed; v2 must go away. -----------------
   await bootBare(null);
-  const c = await measure('C control — setting cleared');
+  const c = await measure('C control â€” setting cleared');
 
   const isV2 = (m) => m.layoutVariant === 'pine-hills-v2' && m.greyWestWall && m.publicMinX === -2.6;
   const findings = {
@@ -144,7 +144,7 @@ async (page) => {
     westWallMeasuredBothStages: !!(a.westWallHit && b.westWallHit && c.westWallHit),
     ceilingLowerInV2: !!(a.ceilingHit && b.ceilingHit) && b.ceilingHit.distanceYd < a.ceilingHit.distanceYd,
     westWallCloserInV2: !!(a.westWallHit && b.westWallHit) && b.westWallHit.distanceYd < a.westWallHit.distanceYd,
-    // And it changed BACK — otherwise stage B could simply have been a one-way door.
+    // And it changed BACK â€” otherwise stage B could simply have been a one-way door.
     controlsAgree: !!(a.ceilingHit && c.ceilingHit && a.westWallHit && c.westWallHit)
       && a.ceilingHit.distanceYd === c.ceilingHit.distanceYd
       && a.westWallHit.distanceYd === c.westWallHit.distanceYd,

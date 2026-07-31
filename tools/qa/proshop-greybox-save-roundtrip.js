@@ -1,10 +1,10 @@
-async (page) => {
-  // SAVE ROUND-TRIP ACROSS THE ROOMS — FLOOR_PLAN.md §9's both-directions diff.
+﻿async (page) => {
+  // SAVE ROUND-TRIP ACROSS THE ROOMS â€” FLOOR_PLAN.md Â§9's both-directions diff.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-greybox-save-roundtrip.js
   //
-  // One seeded empire: save in the v1 room → load the SAME save in pine-hills-v2 →
-  // save there → load back in v1. The fingerprint is proshop-phase1-save-reload's
+  // One seeded empire: save in the v1 room â†’ load the SAME save in pine-hills-v2 â†’
+  // save there â†’ load back in v1. The fingerprint is proshop-phase1-save-reload's
   // (grime cells, debris, windows, architecture, drawer, campaign, uiPrefs...);
   // every leg is diffed field-by-field and the round trip must be lossless.
   const fs = process.getBuiltinModule('node:fs');
@@ -65,7 +65,7 @@ async (page) => {
   const loadInto = async (query) => {
     await page.goto(`${baseUrl}${query}`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await settle();
   };
   const saveNow = () => page.evaluate(() => {

@@ -27,7 +27,7 @@ async (page) => {
 
   await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
   await page.waitForTimeout(1200);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d, null, { timeout: 40000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

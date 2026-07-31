@@ -220,7 +220,7 @@ async (page) => {
     await page.waitForTimeout(500);
     await page.getByText('Continue', { exact: true }).waitFor({ timeout: 20000 });
     setPhase('initial-game-load');
-    await page.getByText('Continue', { exact: true }).click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(
       () => window.__fw?.scene3d?.clubhouse?.(),
       null,
@@ -540,7 +540,7 @@ async (page) => {
       setPhase(`${id}-continue`);
       const reloadStartedAt = Date.now();
       const delayedRequestsInFlightAtContinue = delayedInFlight().length;
-      await page.getByText('Continue', { exact: true }).click();
+      await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
       await page.waitForFunction((oldSceneId) => {
         const app = window.__fw;
         return app?.screen === 'game'

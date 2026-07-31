@@ -1,16 +1,16 @@
-async (page) => {
+﻿async (page) => {
   // WHAT IS ACTUALLY ON THE MAIN DOORWAY, LOOKED AT RATHER THAN ASSERTED.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-door-plank-look.js
   //
-  // The report is visual — "the planks are visible with the door BOTH open and
-  // closed, and more visible closed" — so the answer has to be visual too. The
+  // The report is visual â€” "the planks are visible with the door BOTH open and
+  // closed, and more visible closed" â€” so the answer has to be visual too. The
   // collision sweep can say the boards are solid (it does: 0 of 408 body-height
   // samples walkable, doors open or shut). It cannot say whether boarding over an
   // aperture belongs on a shop the player is trading out of, and that is the
   // question the screenshot is for.
   //
-  // Also reports EFFECTIVE visibility for each damage mesh — visible on itself is
+  // Also reports EFFECTIVE visibility for each damage mesh â€” visible on itself is
   // not enough, since any ancestor can hide it and the runtime toggles damage
   // modules by group. Layer masks are checked too: this room draws ten props from
   // a merged batch with layers.mask = 0, so "visible: true" and "drawn" are not
@@ -37,7 +37,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
@@ -77,7 +77,7 @@ async (page) => {
   // Stand inside, a few yards back from the main entrance, looking at it.
   //
   // AIMED, THEN CHECKED. The first version set yaw 0 and photographed the back of
-  // the shop — a picture of the wrong wall, captioned "the main doorway". So the
+  // the shop â€” a picture of the wrong wall, captioned "the main doorway". So the
   // aim is now verified by projecting the door casing through the live camera and
   // requiring it inside the frame. A shot that does not contain its subject is
   // reported as a miss, not filed as evidence.

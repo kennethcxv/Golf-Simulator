@@ -1,13 +1,13 @@
-async (page) => {
-  // WALK FINDING 5 — deliveries too slow, and express shipping as a paid option.
+﻿async (page) => {
+  // WALK FINDING 5 â€” deliveries too slow, and express shipping as a paid option.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-express-shipping-checkout.js
   //
   // Drives the real checkout: open the laptop's Shop tab, add products, read
   // both shipping cards as the player sees them, pick express, and place the
-  // order. The claim being tested is legibility as much as arithmetic — the
+  // order. The claim being tested is legibility as much as arithmetic â€” the
   // cards have to state the arrival and the premium without the player doing
-  // sums — so the reported values are the rendered STRINGS, not the sim's
+  // sums â€” so the reported values are the rendered STRINGS, not the sim's
   // numbers.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -30,7 +30,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
   // Cash enough that affordability never masks a rendering failure.

@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // TIME-STEP DEPENDENCE CURVE (punch-list item 3, 2026-07-28 ruling:
   // "quantify, do not fix yet").
   //
@@ -7,7 +7,7 @@ async (page) => {
   // SUPERSEDED IN PART, 2026-07-29. When this was written clubhouseApi.update
   // received RAW WALL dt: game speed compressed the CLOCK only and customers
   // always moved at wall rate, so a fast-forward emptied the shop. That is
-  // SIM-TIME-001 and it is FIXED — decisions now scale with the game clock while
+  // SIM-TIME-001 and it is FIXED â€” decisions now scale with the game clock while
   // locomotion scales with the speed rung alone. What follows still measures
   // throughput per rung honestly; it no longer measures a defect.
   //
@@ -15,12 +15,12 @@ async (page) => {
   // owns that, in yards per real second against each body's authored speed.
   // This harness measures the SAME 60-game-minute
   // mid-day window, on the SAME restored resized room, with the SAME scripted
-  // spawn, at 16x / 4x / 1x (BALANCE.speeds idx 3/2/1) — each leg from a fresh
+  // spawn, at 16x / 4x / 1x (BALANCE.speeds idx 3/2/1) â€” each leg from a fresh
   // boot so no leg contaminates the next. Reported per leg: arrivals,
   // departures, per-customer stop progress, the game's own nav-block count,
   // wall-unit freeze records, queue peak, and who is still mid-visit at window
   // end. Transactions stay zero by design (the player is the cashier and no
-  // player is present) — visit flow is the throughput here.
+  // player is present) â€” visit flow is the throughput here.
   //
   // This is a MEASUREMENT, not an acceptance: ok gates only "every leg ran and
   // tracked customers with no page errors", never the shape of the curve.
@@ -33,7 +33,7 @@ async (page) => {
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const SEED = Number(process.env.GREYBOX_SEED || 20260727);
   const VARIANT = String(process.env.GREYBOX_DAY_VARIANT || 'pine-hills-v2');
-  // Requested as MULTIPLIERS, resolved to indices against the live ladder — not
+  // Requested as MULTIPLIERS, resolved to indices against the live ladder â€” not
   // against a hard-coded {1:1, 4:2, 16:3}, which is what this file had. The
   // 2026-07-29 day-length change moved BALANCE.speeds from [0,1,4,16] to
   // [0,1,2,4], and the hard-coded map silently made "run at 4x" mean index 2,
@@ -73,7 +73,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => {
@@ -270,7 +270,7 @@ async (page) => {
       note: 'SIM-TIME-001 is fixed: NPC decisions scale with the game clock, locomotion '
         + 'with the speed rung alone (capped at 4x). This curve therefore measures '
         + 'throughput, not the old defect. No cashier is present, so transactions are '
-        + 'structurally zero and visit flow (arrivals/departures/progress) is throughput — '
+        + 'structurally zero and visit flow (arrivals/departures/progress) is throughput â€” '
         + 'and at the top rung most bodies end the window queued at an unstaffed till.',
     },
     legs,

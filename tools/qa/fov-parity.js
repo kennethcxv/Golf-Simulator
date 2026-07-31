@@ -1,17 +1,17 @@
-async (page) => {
-  // FOV PARITY — the permanent lens regression instrument (greybox-walk item 1).
+﻿async (page) => {
+  // FOV PARITY â€” the permanent lens regression instrument (greybox-walk item 1).
   //
   //   node tools/qa/run-playwright.cjs tools/qa/fov-parity.js
   //
   // Asserts, in BOTH clubhouse variants:
   //   1. the boot lens is camera.fov === walk.state.fov === the stored preference
-  //      (66 by default), and the projection matrix agrees — the render truth,
+  //      (66 by default), and the projection matrix agrees â€” the render truth,
   //      which catches zoom/aspect corruption that camera.fov alone cannot;
   //   2. a full laptop cycle (Escape exit AND Close-button exit) hands the walk
   //      lens back exactly;
   //   3. the two variants render at the same FOV.
   // Scenario 4 boots once with a non-default stored preference (80) and asserts
-  // it reaches the lens — the failure mode where "66" only means "nobody moved
+  // it reaches the lens â€” the failure mode where "66" only means "nobody moved
   // the slider" stays visible.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -63,7 +63,7 @@ async (page) => {
     }, [SEED, prefFov]);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await settle();
     return readLens();
   };
@@ -88,11 +88,11 @@ async (page) => {
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await settle();
 
     // Two candidate stands: the staff-chair diagonal (the v1 tour's approach) and
-    // square-on north of the laptop (v2 — the kept desk lamp steals [E] from the
+    // square-on north of the laptop (v2 â€” the kept desk lamp steals [E] from the
     // diagonal there). Try each until the lid opens.
     const sit = async () => {
       for (const stand of ['chair', 'north']) {
@@ -144,7 +144,7 @@ async (page) => {
     await page.waitForTimeout(500);
     const afterEscape = await readLens();
     await sit();
-    // The laptop UI is projected onto the 3D screen: clicks route canvas→DOM
+    // The laptop UI is projected onto the 3D screen: clicks route canvasâ†’DOM
     // through the alignment mapper, so a rect read before the projection settles
     // lands on bare canvas and dies silently. Settle, click, verify, retry.
     let afterClose = null;
@@ -166,8 +166,8 @@ async (page) => {
       ).then(() => true).catch(() => false);
       if (!closed) continue;
       await page.waitForTimeout(500);
-      // The exit really happened — a silent read while still seated would report
-      // the 34° seat lens as a "restore failure" that never occurred.
+      // The exit really happened â€” a silent read while still seated would report
+      // the 34Â° seat lens as a "restore failure" that never occurred.
       afterClose = await readLens();
     }
     return { boot, seated, afterEscape, afterClose };

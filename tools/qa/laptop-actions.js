@@ -269,7 +269,7 @@ async (page) => {
   if (!saved) fail('could not write the autosave');
   await page.reload();
   await page.waitForTimeout(1200);
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
   await page.waitForTimeout(1500);
   const persisted = await page.evaluate(() => {

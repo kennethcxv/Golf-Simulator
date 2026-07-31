@@ -1,13 +1,13 @@
-// A/B the cross-file texture sharing lever against the same build.
+﻿// A/B the cross-file texture sharing lever against the same build.
 //
 // `sharedTexturePool.js` reports how many bytes it avoided, but a module
 // reporting its own saving is not evidence. This loads the identical scene twice
-// on the identical seed — once with interning disabled, once with it on — and
+// on the identical seed â€” once with interning disabled, once with it on â€” and
 // compares what the RENDERER ended up holding, which is the number that matters.
 //
 // The measured quantities are deliberately renderer-side, not pool-side:
-//   renderer.info.memory.textures  — textures the GPU actually initialised
-//   estimated resident bytes       — walked from live material slots
+//   renderer.info.memory.textures  â€” textures the GPU actually initialised
+//   estimated resident bytes       â€” walked from live material slots
 // A saving that shows up in the pool's own counter but not in these is not a
 // saving.
 async (page) => {
@@ -33,7 +33,7 @@ async (page) => {
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => {
       const v = document.querySelector('.load-veil');
@@ -58,7 +58,7 @@ async (page) => {
           SLOTS.forEach((k) => {
             const t = m[k];
             if (!t || !t.image) return;
-            // Source, not Texture — see proshop-texture-infrastructure.js.
+            // Source, not Texture â€” see proshop-texture-infrastructure.js.
             const srcKey = t.source?.uuid || t.uuid;
             if (seen.has(srcKey)) return;
             const w = t.image.width || 0; const h = t.image.height || 0;

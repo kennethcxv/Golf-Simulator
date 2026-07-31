@@ -879,7 +879,7 @@ async (page) => {
     expectedNavigation = true;
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
-    await page.getByText('Continue', { exact: true }).click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 90000 });
     await page.waitForTimeout(1200);
     expectedNavigation = false;

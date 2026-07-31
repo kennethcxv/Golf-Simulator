@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // IS THE LAPTOP SEARCH BAR THERE, AND CAN THE PLAYER SEE IT?
   //
   //   node tools/qa/run-playwright.cjs tools/qa/laptop-search-visible.js
@@ -7,8 +7,8 @@ async (page) => {
   // rendering. Find out which, fix it, and show me a screenshot with it visible."
   //
   // Both halves are separable and both get measured:
-  //   SHIPPED — is there an .lt-search element in the DOM at all.
-  //   RENDERING — does it have a real box, inside the laptop screen, on screen, not
+  //   SHIPPED â€” is there an .lt-search element in the DOM at all.
+  //   RENDERING â€” does it have a real box, inside the laptop screen, on screen, not
   //     transparent, not zero-width, and not covered by something else.
   //
   // "Present in the DOM" is the answer to the first and says nothing about the second. The
@@ -38,7 +38,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
@@ -73,7 +73,7 @@ async (page) => {
   // OPEN IT THE WAY THE PLAYER DOES, with the retry the proven laptop drivers use. The
   // chair diagonal does not always focus the lid; a square-on stand does. The first version
   // of this probe pressed E once, never opened the laptop, and then measured .lt-search
-  // inside a screen whose display was 'none' — reporting a zero-width field and calling it
+  // inside a screen whose display was 'none' â€” reporting a zero-width field and calling it
   // "not rendering", which was a fact about the probe.
   await page.keyboard.press('KeyE');
   let laptopOpen = await page.waitForFunction(

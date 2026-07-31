@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // SYNTHETIC CONTROL for the ?keydebug=1 capture overlay.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/key-capture-control.js
@@ -7,11 +7,11 @@ async (page) => {
   // looks like, so a real-hand capture from the same overlay can be diffed
   // against it. That distinction is the whole point of this file: two existing
   // harnesses measured D, both passed, and D still does not strafe in real
-  // play — so a green synthetic run is evidence about the driver, not about
+  // play â€” so a green synthetic run is evidence about the driver, not about
   // the game under a human hand.
   //
   // Expected (and measured 2026-07-28, chromium, pine-hills-v2): every one of
-  // W/A/S/D reaches all four checkpoints — window capture, window bubble,
+  // W/A/S/D reaches all four checkpoints â€” window capture, window bubble,
   // walkHeld, and a position delta. If a REAL capture shows D dropping out at
   // any of those four, the stage it drops at names the layer at fault.
   const fs = process.getBuiltinModule('node:fs');
@@ -36,7 +36,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
   await page.mouse.click(800, 450);

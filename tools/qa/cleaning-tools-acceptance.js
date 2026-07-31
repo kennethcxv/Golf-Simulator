@@ -22,7 +22,7 @@ async (page) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.evaluate(async () => {
     await window.__fw.scene3d.clubhouse().sheet06ProductionReady?.();

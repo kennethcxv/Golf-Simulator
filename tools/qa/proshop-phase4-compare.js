@@ -1,34 +1,34 @@
-async (page) => {
-  // PHASE 4 — fixed-pose before/after comparison, both variants, per the phase
+﻿async (page) => {
+  // PHASE 4 â€” fixed-pose before/after comparison, both variants, per the phase
   // brief ("Capture identical before-and-after camera views").
   //
   //   PHASE4_TAG=before PHASE4_VARIANT=v2 node tools/qa/run-playwright.cjs tools/qa/proshop-phase4-compare.js
   //   PHASE4_TAG=before PHASE4_VARIANT=v1 node tools/qa/run-playwright.cjs tools/qa/proshop-phase4-compare.js
   //   ...same with PHASE4_TAG=after once the material/lighting pass lands.
   //
-  // v1 is the CONTROL: ten Phase 0 baseline poses, fresh neglected state — the
+  // v1 is the CONTROL: ten Phase 0 baseline poses, fresh neglected state â€” the
   // after-run must read identically to the before-run (v1 rides no Phase 4
   // change; the variant seam is the guarantee, these frames are the proof).
   //
   // v2 is the SUBJECT: the six baseline poses that stand inside the resized
   // envelope plus five v2-authored views, each captured in THREE lighting
-  // states (§2.4 both are shipping states, and Phase 4's key-light gating must
+  // states (Â§2.4 both are shipping states, and Phase 4's key-light gating must
   // be judged in all of them):
-  //   dark      — fresh campaign start: ceiling unpowered, panel faults live
-  //   powered   — ceiling repaired + both repairable panels serviced
-  //   restored  — everything restored (the day harness's restore block)
+  //   dark      â€” fresh campaign start: ceiling unpowered, panel faults live
+  //   powered   â€” ceiling repaired + both repairable panels serviced
+  //   restored  â€” everything restored (the day harness's restore block)
   //
   // Settings match the Phase 0 baseline: 1600x900, DPR 1, 13:00 pinned, clock
   // paused, 750 ms per-pose settle.
   //
   // DETERMINISM (added after the first before/after pair was unusable): the
   // menu's New Game path seeds the world with Math.random()
-  // (BASELINE_PERFORMANCE §8), so two runs of IDENTICAL code render different
-  // terrain, different grime seeding and different customer positions — the
+  // (BASELINE_PERFORMANCE Â§8), so two runs of IDENTICAL code render different
+  // terrain, different grime seeding and different customer positions â€” the
   // v1 control frames moved a median 46% of pixels between two runs of an
   // unchanged v1. This harness now boots a pinned-seed empire from
   // localStorage and, per pose, hides customers, closes doors and hides the
-  // notification centre — the same discipline as
+  // notification centre â€” the same discipline as
   // proshop-artbible-reference.js. Without this the deliverable comparison
   // measures the seed, not the work.
   const fs = process.getBuiltinModule('node:fs');
@@ -50,7 +50,7 @@ async (page) => {
 
   // Phase 0 baseline poses (BASELINE_CAMERA_TRANSFORMS.md). In v2 the resize
   // seals everything west of x -2.60 and north of z -4.60, which strands poses
-  // 02, 06, 07 and 09 inside dead cavity — v2 substitutes in-envelope views
+  // 02, 06, 07 and 09 inside dead cavity â€” v2 substitutes in-envelope views
   // below for the same four jobs (wide read, merch wall, cleaning route,
   // floor read) plus a ceiling-rig view for the lighting evidence.
   const BASELINE_SHOTS = [
@@ -72,17 +72,17 @@ async (page) => {
   ]);
   const V2_SHOTS = [
     ...BASELINE_SHOTS.filter((s) => V2_CARRIED.has(s.id)),
-    // NW corner diagonal — the widest honest in-envelope read (west shelves,
+    // NW corner diagonal â€” the widest honest in-envelope read (west shelves,
     // aisle, desk, lounge edge).
     { id: '11-v2-wide-overview', at: [-2.3, -4.1], look: [4.6, 3.2], pitch: -0.05 },
     // The west-wall retail run (shelf_balls / shelf_acc) from across the aisle.
     { id: '12-v2-merch-west-wall', at: [0.7, 0.3], look: [-2.55, -0.4], pitch: -0.02 },
     // Down the F1 entry strip the starter cleaning task runs along.
     { id: '13-v2-cleaning-route', at: [-0.6, 4.8], look: [-0.9, -4.2], pitch: -0.30 },
-    // Open floor pitched down — the v2 floor-dirt read, aimed at the door
+    // Open floor pitched down â€” the v2 floor-dirt read, aimed at the door
     // approach cells that actually carry traffic grime.
     { id: '14-v2-floor-read', at: [0.3, 3.1], look: [-2.4, 2.9], pitch: -0.66 },
-    // Up at the lid, beams and the four in-envelope panels — the lighting-rig
+    // Up at the lid, beams and the four in-envelope panels â€” the lighting-rig
     // view the Phase 4 report needs in every state.
     { id: '15-v2-ceiling-rig', at: [0.6, 2.6], look: [0.6, -2.2], pitch: 0.55 },
   ];
@@ -104,7 +104,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
@@ -222,11 +222,11 @@ async (page) => {
   const states = [];
   const shots = VARIANT === 'v2' ? V2_SHOTS : BASELINE_SHOTS;
 
-  // State 1 — dark start (fresh campaign boot, as-is).
+  // State 1 â€” dark start (fresh campaign boot, as-is).
   states.push({ label: 'dark', lighting: await lightingState() });
   await shoot(shots, 'dark', captured);
 
-  // State 2 — powered: ceiling repaired, repairable panels serviced.
+  // State 2 â€” powered: ceiling repaired, repairable panels serviced.
   await page.evaluate(async () => {
     const app = window.__fw;
     const R = await import('/src/sim/clubhouseRestoration.js');
@@ -243,7 +243,7 @@ async (page) => {
   states.push({ label: 'powered', lighting: await lightingState() });
   await shoot(shots, 'powered', captured);
 
-  // State 3 — fully restored (the day harness's restore block).
+  // State 3 â€” fully restored (the day harness's restore block).
   await page.evaluate(async () => {
     const app = window.__fw;
     const R = await import('/src/sim/clubhouseRestoration.js');

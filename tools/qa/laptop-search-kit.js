@@ -1,5 +1,5 @@
-async (page) => {
-  // TYPING "kit" MUST SURFACE THE CLUBHOUSE REPAIR KIT — READABLY.
+﻿async (page) => {
+  // TYPING "kit" MUST SURFACE THE CLUBHOUSE REPAIR KIT â€” READABLY.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/laptop-search-kit.js
   //
@@ -7,7 +7,7 @@ async (page) => {
   // "the results UI is unreadable". The first claim is settled by reading the real rows
   // out of the real browser; the second is geometry, so it is measured, not eyeballed:
   // every result must be its own full-width ROW (stacked, not chips in a strip), the
-  // page path must render with real height, and the item name must not be ellipsized —
+  // page path must render with real height, and the item name must not be ellipsized â€”
   // scrollWidth > clientWidth is exactly the truncation the chip rail caused.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -31,12 +31,12 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
 
-  // Sit at the laptop the way the player does — the proven open sequence, retry included.
+  // Sit at the laptop the way the player does â€” the proven open sequence, retry included.
   const openLaptop = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
@@ -140,11 +140,11 @@ async (page) => {
   for (let i = 1; i < list.length; i++) {
     if (list[i].box.y < list[i - 1].box.y + list[i - 1].box.h * 0.6) { stacked = false; break; }
   }
-  // …and each row spans the rail, rather than sitting in a 240 px chip.
+  // â€¦and each row spans the rail, rather than sitting in a 240 px chip.
   const fullWidth = !!rows.railBox && list.length > 0
     && list.every((r) => r.box.w >= rows.railBox.w * 0.9);
 
-  // Findings are BOOLEANS ONLY — ok is every(v === true), and a row count in here
+  // Findings are BOOLEANS ONLY â€” ok is every(v === true), and a row count in here
   // once made a fully green run report ok:false.
   const findings = {
     laptopOpened,
@@ -164,7 +164,7 @@ async (page) => {
   };
 
   const result = {
-    what: 'round 2 — "kit" surfaces the clubhouse repair kit, one readable location row per result',
+    what: 'round 2 â€” "kit" surfaces the clubhouse repair kit, one readable location row per result',
     findings,
     rowsShown: list.length,
     rows: list,

@@ -209,7 +209,7 @@ async (page) => {
   try {
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-    await page.getByText('Continue', { exact: true }).click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => {
       const runtime = window.__fw?.scene3d?.clubhouse?.()?.assets51to100Runtime?.diagnostics?.();
       return runtime?.placed === 40 && runtime?.failed === 0;

@@ -1,5 +1,5 @@
-async (page) => {
-  // WALK INPUT PARITY — movement keys through the REAL key-event path, both
+﻿async (page) => {
+  // WALK INPUT PARITY â€” movement keys through the REAL key-event path, both
   // clubhouse variants (greybox-walk item 2's regression instrument).
   //
   //   node tools/qa/run-playwright.cjs tools/qa/walk-input-parity.js
@@ -23,7 +23,7 @@ async (page) => {
   // keyup: the Windows key handed focus to the shell, the release landed there,
   // and the page carried a phantom modifier for the rest of the session. This
   // file could never have seen it, because a sweep that only presses and
-  // releases W/A/S/D cleanly never strands anything — every state it tests is
+  // releases W/A/S/D cleanly never strands anything â€” every state it tests is
   // one it created itself.
   //
   // So the sweep is no longer the whole harness. Before it runs, a modifier is
@@ -35,7 +35,7 @@ async (page) => {
   // bug that shipped.
   //
   // AND WHAT *THAT* MISSED (2026-07-29, second pass). Every check above waits
-  // for a keypress to trigger the repair — which is precisely what a stranded
+  // for a keypress to trigger the repair â€” which is precisely what a stranded
   // modifier prevents, because the OS claims Win+D and the browser never sees
   // the keydown. The fix was measured by the one input the fault cannot
   // suppress, and so is this file: check 1b strands a modifier, presses
@@ -51,11 +51,11 @@ async (page) => {
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const SEED = Number(process.env.GREYBOX_SEED || 20260727);
   // Open floor differs per room: v1's checkout island owns the mid-floor. The
-  // v2 stand moved (0.5, 0.5) → (0.5, 1.7) on 2026-07-28: the resize re-seated
-  // the feature table at (0.55, −0.55), 0.40 yd north of the original stand,
-  // and the northward sweep read as a dead W key — a stale-stand red, the
+  // v2 stand moved (0.5, 0.5) â†’ (0.5, 1.7) on 2026-07-28: the resize re-seated
+  // the feature table at (0.55, âˆ’0.55), 0.40 yd north of the original stand,
+  // and the northward sweep read as a dead W key â€” a stale-stand red, the
   // exact drift class HARNESS_TRUST.md exists to catch, in this file's own
-  // fixture. The new spot clears ≥0.9 yd of body travel on all four sweeps
+  // fixture. The new spot clears â‰¥0.9 yd of body travel on all four sweeps
   // against every current v2 rect (feature north, desk south, member east,
   // essentials west).
   const STANDS = {
@@ -92,7 +92,7 @@ async (page) => {
 
   // Strand a modifier exactly the way the shell does: deliver the keydown, never
   // deliver the keyup. The dispatch is synthetic because the real cause (an OS
-  // focus steal) cannot be driven from CDP — but the RECOVERY below is measured
+  // focus steal) cannot be driven from CDP â€” but the RECOVERY below is measured
   // through genuine CDP key events, which is the half that matters.
   const strandMeta = () => page.evaluate(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', {
@@ -108,7 +108,7 @@ async (page) => {
   // Which of these actually discriminate, measured against the unfixed build on
   // 2026-07-29: the two phantom checks and visibilitychange go red without the
   // fix. The blur and pointer-lock checks stay green either way, because
-  // main.js's resetCameraInput() already reaches into walk.clearKeys on both —
+  // main.js's resetCameraInput() already reaches into walk.clearKeys on both â€”
   // they are regression guards for that path, not evidence for this one. Said
   // out loud here so a future reader does not read six greens as six proofs.
   const strandedModifierChecks = async () => {
@@ -125,7 +125,7 @@ async (page) => {
     //     sees a D keydown at all, so the page waits for a repair signal that the
     //     fault itself is suppressing. This check presses NOTHING. It strands the
     //     modifier and then does the one thing a player does without deciding to
-    //     — move the mouse — and requires the phantom to be gone.
+    //     â€” move the mouse â€” and requires the phantom to be gone.
     //
     //     Ordered before the keydown check below deliberately: run it after, and
     //     the keydown would already have cleared the phantom and this would pass
@@ -176,12 +176,12 @@ async (page) => {
     // 2b. The other half of the defect is the half no page code can repair: a
     //     modifier genuinely down at the OS level turns W into a browser chord.
     //     preventDefault is the mitigation, and it only applies under pointer
-    //     lock — outside it, the page has no business eating the player's keys.
+    //     lock â€” outside it, the page has no business eating the player's keys.
     //
     //     This browser context does not reliably grant pointer lock, so the
     //     check is SKIPPED rather than passed when the lock is absent. A vacuous
     //     green here would read as "swallowing verified" in the tally and it is
-    //     not — the measured version of this check lives in the Electron
+    //     not â€” the measured version of this check lives in the Electron
     //     harness, which holds a real lock. First run after it was written:
     //     pointerLocked false in both variants, i.e. skipped, not proved.
     await page.mouse.click(800, 450).catch(() => {});
@@ -213,7 +213,7 @@ async (page) => {
     //    the real capture proved blur does not cover.
     // Each signal has to be measured ALONE. Two things conspire against that.
     // Calling exitPointerLock() for real makes Chrome blur the page when the
-    // lock bubble goes away, and that blur can arrive a beat late — landing
+    // lock bubble goes away, and that blur can arrive a beat late â€” landing
     // inside a later check and clearing the keys for the wrong reason. The
     // 2026-07-29 negative-control run caught this twice: "pointer-lock loss
     // releases every held key" reported green against a build with no
@@ -264,11 +264,11 @@ async (page) => {
         blurs: window.__parityBlurs,
       }));
       // A stray blur means this signal was not the thing that cleared the keys,
-      // so the check proved nothing — that is a failure of the instrument and is
+      // so the check proved nothing â€” that is a failure of the instrument and is
       // reported as a failure, not smoothed over.
       const attributable = expectsBlur || state.blurs === 0;
       // And the setup has to have taken. A check that starts from an already
-      // empty held-set proves nothing about the signal under test — it would
+      // empty held-set proves nothing about the signal under test â€” it would
       // report green on a build that ignores the signal entirely.
       const strandTook = heldAfterStrand.length > 0;
       record(`${name} releases every held key`, state.held.length === 0 && attributable && strandTook, {
@@ -299,7 +299,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForTimeout(2500);
@@ -315,7 +315,7 @@ async (page) => {
   for (const variant of ['pine-hills', 'pine-hills-v2']) {
     await boot(variant);
     // Runs BEFORE the sweep and leaves a phantom modifier stranded, so the sweep
-    // below is measured with one held — movement must not be hostage to it.
+    // below is measured with one held â€” movement must not be hostage to it.
     out.strandedModifier[variant] = await strandedModifierChecks();
     const rows = await sweep(STANDS[variant]);
     out.variants[variant] = rows;

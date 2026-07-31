@@ -1,5 +1,5 @@
-async (page) => {
-  // WALK FINDING 2 — the doorway is blocked, for the third time.
+﻿async (page) => {
+  // WALK FINDING 2 â€” the doorway is blocked, for the third time.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-door-clearway-audit.js
   //
@@ -9,7 +9,7 @@ async (page) => {
   // by a route none of those three police. This finds it by name rather than by
   // eye: every collider overlapping the rect, matched against the nearest named
   // scene object, plus a walkability sweep that answers the only question the
-  // player cares about — can you get through the door.
+  // player cares about â€” can you get through the door.
   //
   // Runs both variants. The rect is not variant-conditional, so a difference
   // between the two rooms is itself a finding.
@@ -36,7 +36,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForTimeout(2500);
@@ -48,12 +48,12 @@ async (page) => {
     const ch = app.scene3d.clubhouse();
     // The building-local origin, from the clubhouse itself. An earlier revision
     // of this probe used ch.interior.position and reported every collider a
-    // couple of tenths out of place — enough to pin the blame on the wrong prop
+    // couple of tenths out of place â€” enough to pin the blame on the wrong prop
     // twice. interior is a scene-graph node with its own offset; `center` is
     // what L2W/colBoxAt actually use.
     const origin = ch.center;
     const R = L.DOOR_CLEARWAY;
-    // Interior-local rect → world, which is the space colliders live in.
+    // Interior-local rect â†’ world, which is the space colliders live in.
     const world = {
       minX: R.minX + origin.x,
       maxX: R.maxX + origin.x,
@@ -62,7 +62,7 @@ async (page) => {
     };
 
     // Name the culprit: the nearest named object whose world position sits near
-    // the collider. A collider with no name is still reported — unnamed is a
+    // the collider. A collider with no name is still reported â€” unnamed is a
     // finding too, not an excuse to skip it.
     const named = [];
     app.scene3d.scene.traverse((o) => {
@@ -74,7 +74,7 @@ async (page) => {
     // Everything close, not just the closest. The nearest-name heuristic named a
     // socket node inside an umbrella stand and a restoration-target group as the
     // culprits, when the collider actually belonged to a clutter pile sitting
-    // between them — a pile registers a collider but its group carries no name.
+    // between them â€” a pile registers a collider but its group carries no name.
     // A list lets the reader see the ambiguity instead of inheriting a guess.
     const nearbyNames = (x, z, radius = 1.2) => named
       .map((n) => ({ name: n.name, type: n.type, dist: +Math.hypot(n.x - x, n.z - z).toFixed(2) }))
@@ -99,7 +99,7 @@ async (page) => {
         const cx = isRect ? (c.minX + c.maxX) / 2 : c.x;
         const cz = isRect ? (c.minZ + c.maxZ) / 2 : c.z;
         // The clearway necessarily touches the wall the door is set into, and
-        // the door leaves themselves swing through it — updateDoorCollider
+        // the door leaves themselves swing through it â€” updateDoorCollider
         // re-fits their rect every frame, so a closed leaf is not an obstruction,
         // it is a door. Both are the BUILDING. Anything else in here was put
         // there, and that is what this audit is looking for.
@@ -125,7 +125,7 @@ async (page) => {
     // Computed against the collider lists rather than walk.isFree, for one
     // reason: the door LEAVES must be excluded. updateDoorCollider re-fits their
     // rect from the swing angle every frame, so sampling with the doors shut
-    // measures a closed door, not a blocked clearway — the first run of this
+    // measures a closed door, not a blocked clearway â€” the first run of this
     // probe reported "crossable: false" in both rooms on exactly that basis, and
     // it meant nothing. Everything else, including the wall, still counts.
     const radius = app.scene3d.walk.state.radius || 0.32;
@@ -164,7 +164,7 @@ async (page) => {
       }
     }
     const crossable = seen[0].some((v, i) => v && grid[0].row[i]);
-    // The widest continuous free run on the row just inside the threshold —
+    // The widest continuous free run on the row just inside the threshold â€”
     // this is the gap the player's shoulders actually have to fit through.
     const insideRow = grid[0].row;
     let widest = 0;
@@ -188,7 +188,7 @@ async (page) => {
   });
 
   // The entrance does not auto-open for an empty-handed player (updateDoors
-  // opens for customers, and for a player carrying a delivery load) — the player
+  // opens for customers, and for a player carrying a delivery load) â€” the player
   // presses E. So the walkability sweep runs against a door opened the way a
   // player opens it, not one forced open through a back channel. A closed leaf
   // is not an obstruction; it is a door.

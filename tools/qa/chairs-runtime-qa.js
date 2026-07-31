@@ -64,7 +64,7 @@ async (page) => {
 
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => (
     window.__fw?.screen === 'game'
       && window.__fw?.scene3d?.walk?.isActive?.()

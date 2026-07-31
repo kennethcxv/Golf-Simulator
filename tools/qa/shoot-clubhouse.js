@@ -74,7 +74,7 @@ async (page) => {
       localStorage.setItem('golfempire:autosave', JSON.stringify(raw));
     });
   }
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
   // The boot veil ("Compiling shaders / Warming the view") outlives clubhouse()

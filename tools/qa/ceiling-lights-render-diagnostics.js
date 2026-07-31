@@ -8,7 +8,7 @@ async (page) => {
   });
   page.on('pageerror', (error) => diagnostics.push(`pageerror:${error.message}`));
   await page.goto(BASE);
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 45000 });
   return page.evaluate(() => {
     const app = window.__fw;

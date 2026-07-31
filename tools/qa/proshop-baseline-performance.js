@@ -1,5 +1,5 @@
-async (page) => {
-  // PRO-SHOP PHASE 0 BASELINE — performance of the starter clubhouse pro shop.
+﻿async (page) => {
+  // PRO-SHOP PHASE 0 BASELINE â€” performance of the starter clubhouse pro shop.
   //
   //   HEADED=1 node tools/qa/run-playwright.cjs tools/qa/proshop-baseline-performance.js
   //
@@ -34,7 +34,7 @@ async (page) => {
   await page.goto(bootUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(700);
   // FIXED SEED. The menu's New Game path seeds with Math.random() (main.js:2829), so every
-  // run generated a different golf course — different terrain, flora and golfer counts —
+  // run generated a different golf course â€” different terrain, flora and golfer counts â€”
   // and the harness compared scenes rather than code. newStarterEmpire(mode, seed) is the
   // same call the menu makes, so the starting state is identical in every other respect.
   const SEED = Number(process.env.BASELINE_PERF_SEED || 20260727);
@@ -49,7 +49,7 @@ async (page) => {
 
   // --- load timing ------------------------------------------------------------------
   const tNewGame = Date.now();
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   const tWalkActive = Date.now();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
@@ -111,7 +111,7 @@ async (page) => {
       const avg = avgOf(sorted);
       const worstN = Math.max(1, Math.round(sorted.length * 0.01));
       const p1 = avgOf(sorted.slice(-worstN));
-      // A "stutter" is any frame over 33.3 ms — two missed frames at 60 Hz.
+      // A "stutter" is any frame over 33.3 ms â€” two missed frames at 60 Hz.
       const stutters = d.filter((v) => v > 33.3).length;
       const info = window.__fw.scene3d.renderer.info;
       return {
@@ -174,7 +174,7 @@ async (page) => {
     await place(-2.0, 1.0, 0, -0.05);
     await sample(`run${r + 1}/idle-interior`, 6);
 
-    // 2. fast look — the "spin" worst case for culling and shadow refits
+    // 2. fast look â€” the "spin" worst case for culling and shadow refits
     await place(-2.0, 1.0, 0, -0.05);
     await sample(`run${r + 1}/spin-interior`, 8, { spin: true });
 
@@ -182,11 +182,11 @@ async (page) => {
     await place(-6.0, 3.5, -Math.PI / 2, -0.05);
     await sample(`run${r + 1}/walk-spin-interior`, 8, { spin: true, move: 'w' });
 
-    // 4. entrance sightline — the heaviest single framing (whole room in view)
+    // 4. entrance sightline â€” the heaviest single framing (whole room in view)
     await place(-0.8, 4.6, 0, -0.03);
     await sample(`run${r + 1}/entrance-sightline`, 6);
 
-    // 5. sweeping with the broom — cleaning feedback cost
+    // 5. sweeping with the broom â€” cleaning feedback cost
     await sample(`run${r + 1}/broom-sweeping`, 8, {
       setup: async () => {
         await place(-5.6, 4.4, 0, -0.82);
@@ -202,7 +202,7 @@ async (page) => {
       },
     });
 
-    // 6. live world at 16x with customers arriving — the real worst case
+    // 6. live world at 16x with customers arriving â€” the real worst case
     await sample(`run${r + 1}/live-speed16-customers`, 10, {
       spin: true,
       setup: async () => {
@@ -212,13 +212,13 @@ async (page) => {
       teardown: async () => { await page.evaluate(() => { window.__fw.speedIdx = 0; }); },
     });
 
-    // 7. laptop mode — the 1024x640 DOM page is re-projected onto the live screen
+    // 7. laptop mode â€” the 1024x640 DOM page is re-projected onto the live screen
     // quad every frame (main.js:2557), so this measures 3D + homography together.
     // `enterLaptop` is module-private in main.js, so the only route is the player's:
     // stand where the laptop prop takes focus and press the interact verb.
     //
     // THIS SCENARIO RUNS LAST ON PURPOSE. Leaving the laptop does not restore the
-    // camera lens — it stays at LAPTOP_FOV 34 (see BASELINE_PERFORMANCE.md, observed
+    // camera lens â€” it stays at LAPTOP_FOV 34 (see BASELINE_PERFORMANCE.md, observed
     // defect OBS-1), so any scenario measured after it would be framed at 34 deg
     // instead of the walk FOV 66 and would report a falsely cheap frame. The teardown
     // restores the lens explicitly so the next run starts clean.
@@ -335,7 +335,7 @@ async (page) => {
   // and ~3.1% under load, so every figure carries a confidence interval and a usability
   // verdict. Method and the empirical noise floor: BASELINE_PERFORMANCE.md section 8.
   const WARMUP_RUNS = Number(process.env.BASELINE_PERF_WARMUP ?? 1);
-  const CV_TRUST_LIMIT = 2.5; // % — quiet machine measured 1.42, 8-thread load 3.11
+  const CV_TRUST_LIMIT = 2.5; // % â€” quiet machine measured 1.42, 8-thread load 3.11
   const summary = Object.entries(byScenario).map(([scenario, all]) => {
     // The first run of a scenario is consistently ~2.2% slower than later ones (measured
     // over 10 sessions). Drop it rather than average a known transient into the result.
@@ -377,13 +377,13 @@ async (page) => {
       // from the data itself without needing to read system CPU.
       trustworthy: avgMs.cvPct !== null && avgMs.cvPct <= CV_TRUST_LIMIT && rs.length >= 2,
       note: avgMs.cvPct !== null && avgMs.cvPct > CV_TRUST_LIMIT
-        ? `run-to-run CV ${avgMs.cvPct}% exceeds ${CV_TRUST_LIMIT}% — machine was probably not quiet; do not compare this against another run`
+        ? `run-to-run CV ${avgMs.cvPct}% exceeds ${CV_TRUST_LIMIT}% â€” machine was probably not quiet; do not compare this against another run`
         : null,
     };
   });
 
   const report = {
-    method: 'tools/qa/proshop-baseline-performance.js — see BASELINE_TEST_PROTOCOL.md',
+    method: 'tools/qa/proshop-baseline-performance.js â€” see BASELINE_TEST_PROTOCOL.md',
     runsPerScenario: RUNS,
     requestedVariant: VARIANT || null,
     gpu,

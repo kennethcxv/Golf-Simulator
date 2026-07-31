@@ -1,5 +1,5 @@
-async (page) => {
-  // WALK FINDING 3 — "boxes in the shop still cannot be opened".
+﻿async (page) => {
+  // WALK FINDING 3 â€” "boxes in the shop still cannot be opened".
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-box-open-loop.js
   //
@@ -27,7 +27,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
@@ -74,7 +74,7 @@ async (page) => {
 
   // A REAL delivery, arrived the way the sim arrives one, then asked the same
   // question at each place the player would naturally put it. The starter save
-  // carries no boxes at all — `atStart` above is empty — so "the starter's first
+  // carries no boxes at all â€” `atStart` above is empty â€” so "the starter's first
   // box" only exists once an order lands, and the pad is where it lands.
   out.delivery = await page.evaluate(async () => {
     const D = await import('/src/sim/deliveries.js');
@@ -123,7 +123,7 @@ async (page) => {
 
   // THE GESTURE, through the player's own path: stand in front of the carton,
   // read the prompt the game is showing, press E. Not the sim's verbs and not the
-  // prop object — the walk controller's focus and a real keyboard event, because
+  // prop object â€” the walk controller's focus and a real keyboard event, because
   // "the player cannot open the box" was never a claim about the sim.
   out.gesture = await page.evaluate(async () => {
     const D = await import('/src/sim/deliveries.js');

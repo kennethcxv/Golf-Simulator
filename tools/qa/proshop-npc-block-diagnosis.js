@@ -1,5 +1,5 @@
-async (page) => {
-  // BLOCKER 9 — customers stall against the player and push forever instead of
+﻿async (page) => {
+  // BLOCKER 9 â€” customers stall against the player and push forever instead of
   // repathing. The recovery ladder exists; the question is why it never fires.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-npc-block-diagnosis.js
@@ -8,8 +8,8 @@ async (page) => {
   // wall-time phenomenon and a faster clock measures nothing about it.
   //
   // The method is to stand IN a walker's way and then watch the ladder's own
-  // inputs — the per-frame step, the displacement it actually achieved, the
-  // stuck timer, and the escalation counter — rather than watching the walker
+  // inputs â€” the per-frame step, the displacement it actually achieved, the
+  // stuck timer, and the escalation counter â€” rather than watching the walker
   // and guessing. The ladder's trigger is a comparison between `moved` and
   // `step`; if it never fires, one of those two numbers is not what the ladder
   // assumes it is, and the log will say which.
@@ -33,7 +33,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);

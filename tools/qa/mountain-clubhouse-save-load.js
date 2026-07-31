@@ -64,7 +64,7 @@ async (page) => {
   const url = new URL(process.env.QA_BASE_URL || 'http://localhost:8457/');
   url.searchParams.set('clubhouse', 'mountain-lodge');
   await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 90000 });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await waitForMountain();
   const before = await snapshot();
 

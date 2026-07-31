@@ -1,5 +1,5 @@
-async (page) => {
-  // PHASE 4 — does the new v2 architecture meet ART_BIBLE §7.3 under its own
+﻿async (page) => {
+  // PHASE 4 â€” does the new v2 architecture meet ART_BIBLE Â§7.3 under its own
   // materials? Two questions, both measured, neither assumed:
   //
   //   1. SUPPLY vs REQUIREMENT per surface. Same method as
@@ -10,11 +10,11 @@ async (page) => {
   //      texelsPerYard (what the asset supplies) at the CLOSEST standoff a
   //      player can actually take to each surface.
   //   2. The 512 ceiling. The architecture maps are runtime canvases, so
-  //      tests/proshop-texture-budget.test.js — which reads shipped GLBs —
+  //      tests/proshop-texture-budget.test.js â€” which reads shipped GLBs â€”
   //      cannot see them. This walks every texture SOURCE reachable from the
   //      interior and reports any long edge over 512.
   //
-  // §7.3's own warning is the reason every row carries `hit` and `tex`: an
+  // Â§7.3's own warning is the reason every row carries `hit` and `tex`: an
   // untextured surface has no UV derivative, so the sample passes through it
   // and reports whatever is behind. A missing texture reads as a passing one
   // otherwise.
@@ -44,7 +44,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -174,7 +174,7 @@ async (page) => {
     // surface is textured and does not depend on camera distance, so each
     // probe stands at a comfortable, collision-safe standoff rather than
     // nose-to-the-wall; pixelsPerYard is reported alongside as the
-    // requirement AT THAT DISTANCE, and the gate is the §7.3 class number.
+    // requirement AT THAT DISTANCE, and the gate is the Â§7.3 class number.
     //
     // Every target carries CANDIDATE stands and an EXPECTED mesh-name
     // pattern, because the walk collider silently relocates a camera placed
@@ -197,7 +197,7 @@ async (page) => {
         lookX: -2.60,
       },
       {
-        // Trim runs are 0.08–0.12 yd tall, so they occupy few rows of the
+        // Trim runs are 0.08â€“0.12 yd tall, so they occupy few rows of the
         // sample grid even head-on: they accept on fewer samples.
         id: 'west-wall-chair-rail', cls: 'hero', required: 768, aimY: 1.04, minSamples: 4,
         expect: /GREY_WestWall_ChairRail/,
@@ -243,8 +243,8 @@ async (page) => {
       {
         // The three west-seal fillets are wedged between the desk return, the
         // wordmark hutch and the south wall. If no stand can see one, that is
-        // itself the finding — a surface the player cannot reach has no texel
-        // class to meet — so this target reports occlusion instead of failing,
+        // itself the finding â€” a surface the player cannot reach has no texel
+        // class to meet â€” so this target reports occlusion instead of failing,
         // with the occluder named in the evidence.
         id: 'west-seal-fillet', cls: 'hero', required: 768, aimY: 1.10, minSamples: 4,
         occlusionIsAnswer: true,
@@ -289,13 +289,13 @@ async (page) => {
           sawInstead: [...new Set(good.concat(untextured).map((s) => s.obj))].slice(0, 4),
         });
         // Acceptance is "did we measure the right surface, with enough
-        // samples" — NOT "did the camera stand exactly where asked".
+        // samples" â€” NOT "did the camera stand exactly where asked".
         // texelsPerYard is a property of the surface's own UV parameterisation
         // and is independent of camera distance, so a collider nudging the
         // stand does not invalidate the reading; it only changes the
         // informational pixelsPerYard. Drift is recorded on every row.
         // (An earlier revision gated on drift <= 0.45 and reported the
-        // west-seal fillets as "not player-visible" — while its own attempt
+        // west-seal fillets as "not player-visible" â€” while its own attempt
         // log showed one stand landing 208 samples on them. The gate was
         // manufacturing a false finding.)
         if (onTarget.length >= (t.minSamples || 8)
@@ -311,7 +311,7 @@ async (page) => {
           requiredTexelsPerYard: t.required,
           resolved: false,
           occlusionIsAnswer: !!t.occlusionIsAnswer,
-          // What stood in the way, across every attempt — the evidence for
+          // What stood in the way, across every attempt â€” the evidence for
           // "not player-visible" when that is the honest answer.
           occluders: [...new Set(attempts.flatMap((a) => a.sawInstead))],
           attempts,
@@ -333,7 +333,7 @@ async (page) => {
         tex: [...new Set(good.map((s) => s.tex))],
         distYd: median(good, 'dist'),
         // The requirement AT THIS DISTANCE (display-side); the gate below is
-        // the §7.3 class number, which is authored for the closest approach.
+        // the Â§7.3 class number, which is authored for the closest approach.
         pixelsPerYardAtProbe: median(good, 'pixelsPerYard'),
         texelsPerYard: supply,
         minMip: +Math.min(...good.map((s) => s.mip)).toFixed(2),
@@ -343,7 +343,7 @@ async (page) => {
         // (384 reads 383.85). Treating that as a deficiency would fail every
         // correctly-authored surface.
         meetsRequirement: supply >= t.required * 0.98,
-        // §7.3: nothing may supply more than 2x its class requirement.
+        // Â§7.3: nothing may supply more than 2x its class requirement.
         withinTwiceRequirement: supply <= t.required * 2,
       });
     }
@@ -351,7 +351,7 @@ async (page) => {
     // ---- the 512 ceiling for RUNTIME textures. tests/proshop-texture-budget
     // reads shipped GLBs and cannot see canvas textures at all, so this is the
     // only check that covers them. Sources are counted, not texture instances
-    // (TEXTURE_MEMORY_POLICY §0: three keys GPU uploads on Source).
+    // (TEXTURE_MEMORY_POLICY Â§0: three keys GPU uploads on Source).
     //
     // Sources are split by OWNER: a source used by any GREY_* mesh belongs to
     // the v2 architecture kit (what Phase 4 authored and is answerable for);
@@ -389,7 +389,7 @@ async (page) => {
       targets: rows,
       textureSources: {
         count: sources.length,
-        // Resident bytes at RGBA8 + full mip chain (TEXTURE_MEMORY_POLICY §0).
+        // Resident bytes at RGBA8 + full mip chain (TEXTURE_MEMORY_POLICY Â§0).
         residentMBRGBA8WithMips: mb(sources),
         architecture: {
           count: architecture.length,
@@ -405,7 +405,7 @@ async (page) => {
           residentMB: mb(inherited),
           // Reported, NOT gated: these belong to the v1 shell and the shared
           // fixture/merch kit. Phase 4 may not re-author them, and doing so
-          // would change v1. Listed so the §7.3 exposure is on the record.
+          // would change v1. Listed so the Â§7.3 exposure is on the record.
           oversize: inherited
             .filter((s) => Math.max(s.w, s.h) > 512)
             .sort((a, b) => (b.w * b.h) - (a.w * a.h))
@@ -419,11 +419,11 @@ async (page) => {
   const notes = [];
   for (const row of result.targets) {
     if (!row.resolved) {
-      const seen = row.attempts.map((a) => `${JSON.stringify(a.stand)}→drift ${a.driftYd}, saw ${a.sawInstead.join('/') || 'nothing'}`).join(' | ');
+      const seen = row.attempts.map((a) => `${JSON.stringify(a.stand)}â†’drift ${a.driftYd}, saw ${a.sawInstead.join('/') || 'nothing'}`).join(' | ');
       if (row.occlusionIsAnswer) {
-        notes.push(`${row.id}: not visible from any audited stand — occluded by ${row.occluders.join(', ') || 'nothing (no hit)'}. A surface the player cannot see has no texel class to meet.`);
+        notes.push(`${row.id}: not visible from any audited stand â€” occluded by ${row.occluders.join(', ') || 'nothing (no hit)'}. A surface the player cannot see has no texel class to meet.`);
       } else {
-        failures.push(`${row.id}: could not stand where it aimed — ${seen}`);
+        failures.push(`${row.id}: could not stand where it aimed â€” ${seen}`);
       }
     } else if (!row.meetsRequirement) {
       failures.push(`${row.id}: supplies ${row.texelsPerYard} texels/yd, needs ${row.requiredTexelsPerYard}`);

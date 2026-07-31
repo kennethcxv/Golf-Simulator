@@ -1,12 +1,12 @@
-async (page) => {
-  // LAPTOP BINDING IN THE V2 ROOM — FLOOR_PLAN.md §9's laptop row.
+﻿async (page) => {
+  // LAPTOP BINDING IN THE V2 ROOM â€” FLOOR_PLAN.md Â§9's laptop row.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-greybox-laptop.js
   //
   // Sits at the RELOCATED front-desk laptop with a real [E], asserts the walk lens
-  // hands over and back (66 → 34 → 66) on BOTH exit routes (Escape, and the nav
+  // hands over and back (66 â†’ 34 â†’ 66) on BOTH exit routes (Escape, and the nav
   // rail's Close Laptop button clicked through the glass), and clicks every sidebar
-  // destination where it lands on the projected quad — the laptop-tour method, aimed
+  // destination where it lands on the projected quad â€” the laptop-tour method, aimed
   // at the v2 seat.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -21,7 +21,7 @@ async (page) => {
   page.on('pageerror', (e) => errs.push(`PAGEERROR: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errs.push(`CONSOLE: ${m.text()}`); });
 
-  // Campaign starters have the laptop as an UNINSTALLED facility — there is nothing
+  // Campaign starters have the laptop as an UNINSTALLED facility â€” there is nothing
   // to sit at. Seed the runner's bootstrap-style non-campaign empire instead, where
   // facilityInstalled() is unconditionally true.
   void SEED;
@@ -42,7 +42,7 @@ async (page) => {
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
@@ -58,7 +58,7 @@ async (page) => {
     laptopOpen: !!window.__fw.laptopOpen,
   }));
 
-  // Stand at the v2 staff side facing the laptop — poses from the LIVE layout module.
+  // Stand at the v2 staff side facing the laptop â€” poses from the LIVE layout module.
   const sitDown = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
@@ -102,7 +102,7 @@ async (page) => {
   await sitDown();
   const seated = await lens();
 
-  // Every sidebar destination, clicked where it lands on the glass — the SHIPPED
+  // Every sidebar destination, clicked where it lands on the glass â€” the SHIPPED
   // labels (src/ui/laptop.js NAV), not the stale tour's.
   const PAGES = ['Home', 'Bookings', 'Pro Shop', 'Course', 'Upgrades', 'Business', 'Settings'];
   const log = [];
@@ -171,7 +171,7 @@ async (page) => {
   }
 
   const result = {
-    seatPose: 'COUNTER.staffStand → FRONT_DESK.laptop (live v2 datums)',
+    seatPose: 'COUNTER.staffStand â†’ FRONT_DESK.laptop (live v2 datums)',
     lens: { before, seated, afterEscape, seatedAgain, afterCloseButton },
     pages: log,
     crashes: log.filter((entry) => entry.crashed).map((entry) => `${entry.page}: ${entry.err}`),

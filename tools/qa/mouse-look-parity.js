@@ -1,20 +1,20 @@
-async (page) => {
-  // MOUSE-LOOK PARITY — the first pointer-locked mouse-look instrument
+﻿async (page) => {
+  // MOUSE-LOOK PARITY â€” the first pointer-locked mouse-look instrument
   // (HARNESS_TRUST.md rule 11). Every prior harness either wrote walk.state.yaw
   // directly or turned with arrow keys; the live 180-spin bug class lives in the
-  // exact path nothing measured: canvas click → requestPointerLock →
-  // pointer-locked mousemove events → the lock guard → applyMouseLook.
+  // exact path nothing measured: canvas click â†’ requestPointerLock â†’
+  // pointer-locked mousemove events â†’ the lock guard â†’ applyMouseLook.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/mouse-look-parity.js
   //
   // Expectations are DERIVED from the shipped math (in-page import of
-  // /src/render3d/mouseLook.js and the live walk.sens/invertY) — no pinned
-  // literals (rule 6). Sweeps are paced ≤40 px per ~frame so browser mousemove
+  // /src/render3d/mouseLook.js and the live walk.sens/invertY) â€” no pinned
+  // literals (rule 6). Sweeps are paced â‰¤40 px per ~frame so browser mousemove
   // coalescing stays under MOUSE_DELTA_MAX and totals are preserved; the spike
   // beat deliberately sends one huge event to prove the clamp engages.
   //
   // If this environment cannot engage pointer lock at all, the run exits RED
-  // with blocked: 'pointer-lock-unavailable' — an unmeasurable claim is not a
+  // with blocked: 'pointer-lock-unavailable' â€” an unmeasurable claim is not a
   // green (re-run HEADED=1 on a desktop session).
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -38,7 +38,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForTimeout(2500);
@@ -74,7 +74,7 @@ async (page) => {
     w.yaw = 0;
     w.pitch = 0;
   });
-  // Paced relative sweep: ≤40 px per dispatched move, one per ~frame, so even
+  // Paced relative sweep: â‰¤40 px per dispatched move, one per ~frame, so even
   // coalesced deliveries stay under the per-event clamp and totals survive.
   let cursor = { x: 800, y: 450 };
   const sweep = async (dx, dy) => {
@@ -141,13 +141,13 @@ async (page) => {
     await zeroLook();
     await sweep(0, 250);
     const afterDown = await look();
-    // Beat E: one deliberately huge single event — the clamp must engage.
+    // Beat E: one deliberately huge single event â€” the clamp must engage.
     await zeroLook();
     await page.mouse.move(cursor.x + 700 > 1580 ? cursor.x - 700 : cursor.x + 700, cursor.y);
     cursor.x = cursor.x + 700 > 1580 ? cursor.x - 700 : cursor.x + 700;
     await page.waitForTimeout(150);
     const afterSpike = await look();
-    // Beat D: exit, re-lock, then one big move — the reacquisition guard must
+    // Beat D: exit, re-lock, then one big move â€” the reacquisition guard must
     // swallow it (the literal 180-spin-after-alt-tab class).
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.pointerLockElement, null, { timeout: 5000 });

@@ -1,17 +1,17 @@
-// Assert the texture-memory infrastructure is actually running in the live scene.
+﻿// Assert the texture-memory infrastructure is actually running in the live scene.
 //
 // Three levers, three claims, each of which is easy to believe and wrong:
-//   sharing     — that the cached loader is on the sheet_07/08 path at all
-//   format      — that KTX2 is OFF, per the §3 rejection, and no GLB needs it
-//   resolution  — that the interior's texture inventory is what we think it is
+//   sharing     â€” that the cached loader is on the sheet_07/08 path at all
+//   format      â€” that KTX2 is OFF, per the Â§3 rejection, and no GLB needs it
+//   resolution  â€” that the interior's texture inventory is what we think it is
 //
-// The format check inverted when KTX2 was rejected (TEXTURE_MEMORY_POLICY.md §3). It now
+// The format check inverted when KTX2 was rejected (TEXTURE_MEMORY_POLICY.md Â§3). It now
 // asserts the loader is detached and that nothing in the scene arrived compressed, because
 // a compressed texture reaching a runtime that cannot transcode one is the failure mode
 // the rejection creates.
 //
 // This also reports TOTAL resident texture memory for the whole scene, which is the number
-// §3's reopen condition is written against: measured texture memory above 150 MB on the
+// Â§3's reopen condition is written against: measured texture memory above 150 MB on the
 // full slice puts the format lever back on the table. A threshold nobody measures is not a
 // condition, so it is measured here.
 async (page) => {
@@ -35,7 +35,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -97,8 +97,8 @@ async (page) => {
 
     // Resident totals, keyed on Source for the same reason as above.
     //
-    // Reported at TWO scopes deliberately. §3's reopen threshold is written against "the
-    // full slice", and the slice is the pro shop — the clubhouse interior. The whole scene
+    // Reported at TWO scopes deliberately. Â§3's reopen threshold is written against "the
+    // full slice", and the slice is the pro shop â€” the clubhouse interior. The whole scene
     // also carries the golf course, sky, terrain and course props, which the slice does not
     // own and cannot fix. Quoting one number for both would either exonerate the room or
     // blame it for the course.
@@ -124,7 +124,7 @@ async (page) => {
             const mb = (w * h * (t.isCompressedTexture ? 1 : 4) * (4 / 3)) / 1048576;
             bytes += mb * 1048576;
             sizes[`${w}x${h}`] = (sizes[`${w}x${h}`] || 0) + 1;
-            // The §7.3 ceiling is 512 on the long edge. Anything above it is where the
+            // The Â§7.3 ceiling is 512 on the long edge. Anything above it is where the
             // resolution lever still has room, listed so the biggest wins are named.
             if (Math.max(w, h) > 512) {
               over512.push({ name: t.name || slot, size: `${w}x${h}`, mb: +mb.toFixed(2) });
@@ -164,20 +164,20 @@ async (page) => {
   const failures = [];
   // Format lever: rejected. Assert it stayed rejected.
   if (!ktx2?.rejected) {
-    failures.push('KTX2 is live — it was rejected in TEXTURE_MEMORY_POLICY.md §3');
+    failures.push('KTX2 is live â€” it was rejected in TEXTURE_MEMORY_POLICY.md Â§3');
   }
   if (ktx2?.initialised) failures.push('a KTX2 loader was stood up despite the rejection');
   if (data.compressedTexturesInScene) {
     failures.push(
       `${data.compressedTexturesInScene} compressed textures in the scene, but the transcoder `
-      + 'is disabled — these cannot decode. See §3',
+      + 'is disabled â€” these cannot decode. See Â§3',
     );
   }
   if (!data.textureMemory?.shared) failures.push('shared texture pool is not reporting');
   const fatal = consoleErrors.filter((e) => !/favicon|Download the React/i.test(e));
   if (fatal.length) failures.push(`console errors: ${fatal.slice(0, 3).join(' | ')}`);
 
-  // Not a failure — a reported condition. §3 reopens the format lever above 150 MB on the
+  // Not a failure â€” a reported condition. Â§3 reopens the format lever above 150 MB on the
   // slice, which is the clubhouse interior. The scene figure is reported alongside it
   // because it is much larger and belongs to work the slice does not own.
   const REOPEN_MB = 150;
@@ -187,7 +187,7 @@ async (page) => {
     sceneMB: data.sceneTotals.residentMB,
     formatLeverShouldBeReconsidered: data.interiorTotals.residentMB > REOPEN_MB,
     // Before reaching for the format lever, spend the resolution one: this is how much
-    // sits above the §7.3 512-on-the-long-edge ceiling and could be halved twice over.
+    // sits above the Â§7.3 512-on-the-long-edge ceiling and could be halved twice over.
     sliceAboveCeilingMB: data.interiorTotals.aboveCeilingMB,
     sceneAboveCeilingMB: data.sceneTotals.aboveCeilingMB,
   };

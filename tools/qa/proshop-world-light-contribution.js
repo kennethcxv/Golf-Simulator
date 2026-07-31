@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // BLOCKER 8, the measurement half. What do the two GLOBAL lights actually
   // contribute to the unpowered clubhouse, and what would the course lose if
   // they were taken away?
@@ -6,14 +6,14 @@ async (page) => {
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-world-light-contribution.js
   //
   // courseScene adds a HemisphereLight and an AmbientLight to the scene root.
-  // Neither is occluded by anything — three.js has no shadowing for either — so
+  // Neither is occluded by anything â€” three.js has no shadowing for either â€” so
   // a sealed, windowless, unpowered room receives exactly the same sky fill as
   // the middle of the fairway. That is the reason the dark state is not dark,
   // and the interior daylight fills, the obvious suspect, are a minor term
   // beside it.
   //
-  // This measures rather than argues: each pose is captured four ways — as
-  // shipped, without the hemisphere, without the ambient, and without both —
+  // This measures rather than argues: each pose is captured four ways â€” as
+  // shipped, without the hemisphere, without the ambient, and without both â€”
   // and the same is done OUTDOORS, because any proposal has to be paid for in
   // what the course looks like. Nothing is changed permanently; the intensities
   // are restored after every capture.
@@ -105,7 +105,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
@@ -150,7 +150,7 @@ async (page) => {
   // unconditionally (`hemi.intensity = rainy ? 0.9 : 1.0`, and the dusk/night
   // branches likewise). A plain assignment is therefore undone before the next
   // render, and the first run of this probe duly reported the hemisphere
-  // contributing exactly 0.0% at all six poses — indoors and out, which is not
+  // contributing exactly 0.0% at all six poses â€” indoors and out, which is not
   // a result, it is a light that was never actually turned off. Ambient is not
   // reassigned anywhere, which is why only the hemisphere came out at zero and
   // why the discrepancy was visible at all.

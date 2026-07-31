@@ -1,6 +1,6 @@
-async (page) => {
+﻿async (page) => {
   // Measure MESH_WindowWest_CreamCasing's real world box in both variants, plus its parent
-  // chain and visibility — the inputs the analytic collider needs. Scratch probe for C5.
+  // chain and visibility â€” the inputs the analytic collider needs. Scratch probe for C5.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
@@ -21,7 +21,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForTimeout(2500);
@@ -57,7 +57,7 @@ async (page) => {
     const L = await import('/src/data/shopLayout.js');
 
     // THE QUESTION THE RULING RESTS ON: standing at the front wall plane, where can a body
-    // actually be? A transect at 2 cm steps across x, at three z rows — ON the wall plane,
+    // actually be? A transect at 2 cm steps across x, at three z rows â€” ON the wall plane,
     // just outside it, and a body-radius outside. Free spans west of the wall's outer corner
     // are lawn, not holes; free spans WITHIN the wall's x-range are real walk-throughs.
     const walk = app.scene3d.walk;
@@ -76,7 +76,7 @@ async (page) => {
       rows[rowName] = blocked;
     }
 
-    // …and the visible west-front casing specifically: sample its own XZ box the way the
+    // â€¦and the visible west-front casing specifically: sample its own XZ box the way the
     // sweep samples, and report the walkable fraction. This is the mesh the player SEES.
     const visibleWest = found.find((f) => f.name === 'MESH_WindowStandard_LayeredCreamCasing'
       && !f.visibleChain.some((c) => c.includes('[hidden]'))
@@ -95,7 +95,7 @@ async (page) => {
       visibleWestWalkable = { samples: total, free, fraction: +(free / total).toFixed(3), box: b };
     }
 
-    // The hidden asset-51 casing's own box, same sampling — reproducing the sweep's 37.5%
+    // The hidden asset-51 casing's own box, same sampling â€” reproducing the sweep's 37.5%
     // so the two numbers can sit side by side.
     const hiddenWest = found.find((f) => f.name === 'MESH_WindowWest_CreamCasing');
     let hiddenWestWalkable = null;
@@ -133,7 +133,7 @@ async (page) => {
     await boot(variant);
     // eslint-disable-next-line no-await-in-loop
     out[variant] = await measure();
-    // Look at the southwest corner from outside — the eye check on whatever the numbers say.
+    // Look at the southwest corner from outside â€” the eye check on whatever the numbers say.
     // eslint-disable-next-line no-await-in-loop
     await page.evaluate(() => {
       const app = window.__fw;

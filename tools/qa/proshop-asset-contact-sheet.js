@@ -1,4 +1,4 @@
-// One framed portrait of every pro-shop asset, shot identically, for visual ranking.
+﻿// One framed portrait of every pro-shop asset, shot identically, for visual ranking.
 //
 //   node tools/qa/run-playwright.cjs tools/qa/proshop-asset-contact-sheet.js
 //
@@ -55,7 +55,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');

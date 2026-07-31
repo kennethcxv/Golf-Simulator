@@ -1,16 +1,16 @@
-async (page) => {
+﻿async (page) => {
   // SEARCH THE WHOLE LAPTOP, THEN GO THERE.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/laptop-search-navigate.js
   //
-  // Reported 2026-07-29: "Results show the PAGE PATH the thing lives on… Selecting a result
-  // NAVIGATES to that page and section, with the match highlighted or scrolled to… Live
-  // results as you type, no submit… Fix the UI so a result reads as a location."
+  // Reported 2026-07-29: "Results show the PAGE PATH the thing lives onâ€¦ Selecting a result
+  // NAVIGATES to that page and section, with the match highlighted or scrolled toâ€¦ Live
+  // results as you type, no submitâ€¦ Fix the UI so a result reads as a location."
   //
   // Four of those five are claims about the RENDER, so this driver looks at the render: it
   // types into the real field, reads the crumbs out of the real rows, clicks one, and then
   // measures whether the row it landed on is (a) marked and (b) actually inside the scroll
-  // viewport. "Scrolled to" is a geometry claim and a class name does not settle it — the
+  // viewport. "Scrolled to" is a geometry claim and a class name does not settle it â€” the
   // flap-order correction was exactly this mistake, so the box is measured.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -35,14 +35,14 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
 
   // A LIVED-IN CLUB, OR HALF THE INDEX IS EMPTY.
   //
-  // Measured 2026-07-29: the first run reported Staff 0, Booking 0, Order 0 — and that was
+  // Measured 2026-07-29: the first run reported Staff 0, Booking 0, Order 0 â€” and that was
   // true of the world, not of the index. A starter empire has nobody on the payroll, nothing
   // on the tee sheet and nothing on the road, so those three kinds cannot be verified without
   // creating them. This does it through the sim's own commands, not by writing state.
@@ -69,7 +69,7 @@ async (page) => {
     };
   });
 
-  // Sit at the laptop the way the player does — the proven open sequence, retry included.
+  // Sit at the laptop the way the player does â€” the proven open sequence, retry included.
   const openLaptop = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
@@ -120,7 +120,7 @@ async (page) => {
   await page.waitForTimeout(1400);
 
   // Measured AT OPEN as well as at the end. The first attempt only sampled at the end and
-  // reported Order 0 / Delivery 1 — by then the van had unloaded and the order had become a
+  // reported Order 0 / Delivery 1 â€” by then the van had unloaded and the order had become a
   // shipment. Same money, later stage; sampling once made a moving thing look absent.
   const indexAtOpen = await page.evaluate(() => ({
     size: window.__fw?.laptop?.searchIndexSize?.() ?? null,
@@ -131,7 +131,7 @@ async (page) => {
   const fieldVisible = await field.count() ? await field.isVisible() : false;
 
   // LIVE RESULTS, NO SUBMIT. Typed character by character, and the row count is read after
-  // each one — if results only appeared on Enter, the count would stay at zero.
+  // each one â€” if results only appeared on Enter, the count would stay at zero.
   const growth = [];
   await field.click({ timeout: 8000 });
   for (const ch of 'towel') {
@@ -152,7 +152,7 @@ async (page) => {
     kind: row.querySelector('.lt-hitkind')?.textContent || null,
   })));
   // A CHIP STRIP ONLY EXISTS WHEN IT CAN PARTITION (round 3, 2026-07-30: "'All 4' and
-  // 'Catalogue 4' — two chips for the same four results is not a filter"). "towel" is all
+  // 'Catalogue 4' â€” two chips for the same four results is not a filter"). "towel" is all
   // catalogue, so it must have NO strip; the filter behaviour is exercised on a query that
   // genuinely spans groups.
   const uniformKindStrip = await page.evaluate(() => document.querySelectorAll('.lt-hitfilters').length);
@@ -186,7 +186,7 @@ async (page) => {
     await page.waitForTimeout(400);
   }
 
-  // A SETTINGS SWITCH — the case that proves the index reaches past the catalogue, and the
+  // A SETTINGS SWITCH â€” the case that proves the index reaches past the catalogue, and the
   // case where the page path is the whole answer ("which of the two tabs is it on?").
   await searchFor('exact change');
   const settingsHit = await page.evaluate(() => {
@@ -202,7 +202,7 @@ async (page) => {
   await page.screenshot({ path: path.join(outDir, 'laptop-search-3-setting.png') });
 
   // THE ROW IS THE TRIP (round 3, 2026-07-30). Round 2 clicked a row to swap a preview panel
-  // and needed a second "Open →" button to travel; the preview read as a whole second page
+  // and needed a second "Open â†’" button to travel; the preview read as a whole second page
   // stacked under the results, so it and its bar are gone. Clicking the row goes there.
   // MEASURE the landing: page id, tab, the reveal record, the flash, and whether the marked
   // row is actually inside the scroll viewport.
@@ -221,7 +221,7 @@ async (page) => {
         .find((l) => (l.textContent || '').includes('Automatic exact change'));
       return {
         realCheckboxRow: !!(checkbox && checkbox.querySelector('input[type="checkbox"]')),
-        // The results are GONE — the destination is the only page on screen.
+        // The results are GONE â€” the destination is the only page on screen.
         resultsCleared: document.querySelectorAll('.lt-hit').length === 0,
         headings: [...document.querySelectorAll('.laptop-screen .lt-h1')].map((n) => n.textContent),
         noPreviewPanel: document.querySelectorAll('.lt-searchpreview').length === 0,
@@ -252,7 +252,7 @@ async (page) => {
     await page.screenshot({ path: path.join(outDir, 'laptop-search-4-landed.png') });
   }
 
-  // A PRODUCT DEEP IN A LONG LIST — the case where "scrolled to" has to do real work.
+  // A PRODUCT DEEP IN A LONG LIST â€” the case where "scrolled to" has to do real work.
   await searchFor('Pine Hills visor');
   let productLanding = null;
   const productRow = await page.evaluate(() => {
@@ -306,7 +306,7 @@ async (page) => {
     await page.screenshot({ path: path.join(outDir, 'laptop-search-6-booking.png') });
   }
 
-  // "if he searches map it shows the actual map" — round 3 answers that by GOING there:
+  // "if he searches map it shows the actual map" â€” round 3 answers that by GOING there:
   // the destination must be the course page with its REAL aerial canvas drawn on it, not a
   // preview panel and not a row describing one.
   await searchFor('map');
@@ -343,7 +343,7 @@ async (page) => {
     // Results grew as characters arrived, and nothing was submitted.
     liveWhileTyping: growth.length > 0 && growth[growth.length - 1].rows > 0,
     everyRowNamesItsPage: liveRows.length > 0 && liveRows.every((r) => r.crumbs.length >= 1 && r.crumbs[0]),
-    // Round 3: a strip only where it can partition. "towel" is one kind — no strip.
+    // Round 3: a strip only where it can partition. "towel" is one kind â€” no strip.
     noFilterStripForOneKind: uniformKindStrip === 0,
     filtersOffered: filters.length > 1,
     filterNarrows: !!filterEffect?.narrowed,
@@ -366,10 +366,10 @@ async (page) => {
       'Equipment', 'Staff', 'Candidate', 'Booking', 'Ledger', 'Property', 'Hole', 'Turf', 'Setting']
       .every((k) => (indexAtOpen.kinds[k] || 0) > 0),
     // An order and its shipment are the same money at two stages, and the sim decides which
-    // stage it is in — so the claim is that money on the road is indexed, in whichever form.
+    // stage it is in â€” so the claim is that money on the road is indexed, in whichever form.
     moneyOnTheRoadIndexed: ((indexAtOpen.kinds?.Order || 0) + (indexAtOpen.kinds?.Delivery || 0)) > 0,
     worldSeeded: !!seeded.hired && !!seeded.booked && !!seeded.ordered,
-    // Round 3: the destination IS the page — the real checkbox row, one heading on screen,
+    // Round 3: the destination IS the page â€” the real checkbox row, one heading on screen,
     // and no preview panel or bar left under the results.
     destinationShowsRealSetting: settingDestination?.realCheckboxRow === true,
     resultsClearedOnArrival: settingDestination?.resultsCleared === true,

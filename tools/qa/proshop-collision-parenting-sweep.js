@@ -1,5 +1,5 @@
-async (page) => {
-  // BLOCKER 6 — the collision and parenting sweep. Fifth instance of one class:
+﻿async (page) => {
+  // BLOCKER 6 â€” the collision and parenting sweep. Fifth instance of one class:
   // an object whose collider is missing, or is somewhere the object is not.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-collision-parenting-sweep.js
@@ -39,7 +39,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForTimeout(3000);
@@ -75,7 +75,7 @@ async (page) => {
     // A merged static batch is ONE node holding the geometry of many props
     // scattered across the room, so its bounding box is the union of all of
     // them and its centre lands in open floor. The first run of this sweep
-    // reported BATCH_PineHillsStatic_1 — 3.5 x 11.9 yd — as a prop with a
+    // reported BATCH_PineHillsStatic_1 â€” 3.5 x 11.9 yd â€” as a prop with a
     // missing collider. It is not a prop; it is a draw call.
     const isBatch = (node) => /^BATCH_|StaticDressingBatch|RUNTIME_.*Batch/i.test(node.name || '');
 
@@ -144,7 +144,7 @@ async (page) => {
     // Tested against ALL geometry in the room, not against the candidate list.
     // Candidates are filtered to floor-standing solids of a certain size, so a
     // collider around a wall-mounted or small prop would read as orphaned when
-    // it is doing its job — the first run reported two on exactly that basis.
+    // it is doing its job â€” the first run reported two on exactly that basis.
     // Traversed from the clubhouse GROUP, not from interior: a receiving-pad or
     // porch prop registers its collider like any other but its geometry hangs
     // off a different root, and reading only the interior reported one of those
@@ -181,7 +181,7 @@ async (page) => {
     //
     // The walk reported "door planks are walkable", which is the same class as
     // the eleven props: geometry that reads as solid and has no hull. Doors were
-    // excluded from every pass above — the orphan test skips `c.door` outright —
+    // excluded from every pass above â€” the orphan test skips `c.door` outright â€”
     // so nothing here has ever been checked.
     //
     // Two filters keep this honest rather than noisy:
@@ -191,16 +191,16 @@ async (page) => {
     //   vertical span overlaps a standing body (0.10 to 1.70) can be a defect.
     //
     //   THE OPENING. An OPEN door leaf has swung out of the doorway and the
-    //   doorway is then correctly walkable — that is the door working. So the
+    //   doorway is then correctly walkable â€” that is the door working. So the
     //   test is not "is the doorway blocked" but "does this piece of geometry
     //   have a collider on it", asked at the leaf's own current position.
     //
-    //   MOTION, NOT CONTAINMENT — added 2026-07-29 and the whole point of this
+    //   MOTION, NOT CONTAINMENT â€” added 2026-07-29 and the whole point of this
     //   stage now. The first version asked only "does SOME collider's box
     //   overlap this mesh", with the doors in whatever state they happened to be
     //   in, which was closed. A closed leaf's collider lies right across the
-    //   aperture, so anything fixed to the APERTURE — boarding planks, their
-    //   fasteners — came back covered and the sweep reported doorMissing: 0.
+    //   aperture, so anything fixed to the APERTURE â€” boarding planks, their
+    //   fasteners â€” came back covered and the sweep reported doorMissing: 0.
     //
     //   The leaf's collider swings with the leaf (doors.js updateDoorCollider
     //   recomputes it from hinge to tip every frame the angle changes). So a
@@ -232,17 +232,17 @@ async (page) => {
       if (w < 0.06 && d < 0.06) return;                          // trim, not a barrier
       const cx = (b.min.x + b.max.x) / 2;
       const cz = (b.min.z + b.max.z) / 2;
-      // EFFECTIVE VISIBILITY, WALKED UP THE PARENT CHAIN — measured 2026-07-29.
+      // EFFECTIVE VISIBILITY, WALKED UP THE PARENT CHAIN â€” measured 2026-07-29.
       //
       // The one doorMissing this sweep kept reporting, MESH_WindowWest_CreamCasing at 37.5%
       // walk-through, turned out to be asset 51's PARKED ORIGINAL: suppressed under
       // SHEET06_PRODUCTION_EXTERIOR_STAGING with visible=false, left at the live building's
       // coordinates, its box poking 0.46 yd past the west corner onto the lawn. The three
       // "walkable" band probes were that sliver. The VISIBLE replacement (asset 55's
-      // window-0-s instance) measures 0/336 walkable — fully solid.
+      // window-0-s instance) measures 0/336 walkable â€” fully solid.
       //
       // visible=false prunes the whole subtree at render time, so a mesh that is effectively
-      // invisible cannot be seen and must NOT demand a collider — a collider for it is an
+      // invisible cannot be seen and must NOT demand a collider â€” a collider for it is an
       // invisible fence, the orphan defect this sweep's other half exists to catch. This is
       // NOT the batching caveat at the top of the file: batched props hide via layers.mask=0
       // with visible=true, and those stay judged, because they are real objects that draw.
@@ -262,7 +262,7 @@ async (page) => {
       // box therefore spans apertures AND the solid wall between them, and its
       // centre lands in open floor that has no board anywhere near it. Asking
       // "can a body stand at the centre" of that is the same fault the batch note
-      // at the top of this file describes, one level down — a joined mesh's
+      // at the top of this file describes, one level down â€” a joined mesh's
       // centre is not where its geometry is.
       //
       // So sample real vertices, keep the ones at body height, and ask the
@@ -302,8 +302,8 @@ async (page) => {
         }
       }
       doorAndWindow.push({
-        // Object identity, so the two passes can be joined. Names repeat — four
-        // MESH_WindowStandard_* meshes share one — and traversal order is not a
+        // Object identity, so the two passes can be joined. Names repeat â€” four
+        // MESH_WindowStandard_* meshes share one â€” and traversal order is not a
         // contract worth resting a defect report on.
         uuid: o.uuid,
         name,
@@ -339,7 +339,7 @@ async (page) => {
 
   // Swing every door wide and let the animation settle, so the second pass sees
   // leaf colliders where the leaves actually are. Returns what it managed to
-  // move — a pass taken against doors that did not open would be the closed pass
+  // move â€” a pass taken against doors that did not open would be the closed pass
   // again under a different name, which is the exact fault being corrected.
 
   // HOLDING THE DOORS OPEN, rather than asking once and hoping.
@@ -506,7 +506,7 @@ async (page) => {
     //
     // Gated on SAMPLED WALKABILITY, not on the coverage flags above, and that
     // distinction cost two runs. The coverage flags ask whether some collider's
-    // box overlaps the mesh's box — containment again, one level up. The boarding
+    // box overlaps the mesh's box â€” containment again, one level up. The boarding
     // planks come back coveredByStaticCollider: true because the shell wall's
     // collider clips the edge of a bounding box that is 9.77 yd wide. Neither
     // that flag nor the box centre says anything about the boards themselves.

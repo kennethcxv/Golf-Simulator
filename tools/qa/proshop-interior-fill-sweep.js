@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // BLOCKER 8, the tuning. Option A of DARK_STATE_PROPOSAL.md is implemented as a
   // single scale on the hemisphere applied while the player is inside; this file
   // chooses the number by sweeping it against the two floors the measurement
@@ -10,7 +10,7 @@ async (page) => {
   //
   //   1. NEGATIVE CONTROL. Scale 1.0 disables the effect. If the swept scales do
   //      not differ from it, the knob is not connected and every other number
-  //      here is noise between identical captures — which is exactly how the
+  //      here is noise between identical captures â€” which is exactly how the
   //      first world-light A/B reported the hemisphere at 0.0% contribution.
   //   2. THE OVERWRITE CONTROL. applyTimeWeather assigns hemi.intensity every
   //      frame in all three of its branches. The scale must survive several
@@ -113,7 +113,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
@@ -126,8 +126,8 @@ async (page) => {
     app.speedIdx = 1;
     app.state.clock.minutes = 10 * 60;
     app.scene3d.clubhouse().setOrganicWalkins?.(false);
-    // The chips are .hud-min, not .hud, and the lock hint is .shop-lockhint —
-    // and the hint sits INSIDE the nav band crop (y 0.62–0.96). With white text
+    // The chips are .hud-min, not .hud, and the lock hint is .shop-lockhint â€”
+    // and the hint sits INSIDE the nav band crop (y 0.62â€“0.96). With white text
     // in the band, navBandHasShape's ">= 6 contrast" floor passed on the caption
     // rather than on the room, at every scale. A check that cannot fail is not a
     // check; it was measuring the HUD.
@@ -156,10 +156,10 @@ async (page) => {
     // The control. Outside on the porch approach, looking down the course: this
     // frame must not move by a single luma step at any scale.
     { id: 'c1-course', x: -0.8, z: 12.0, yaw: 0, pitch: -0.05, indoor: false },
-    // …captured a SECOND time, unchanged, purely to measure how much this
+    // â€¦captured a SECOND time, unchanged, purely to measure how much this
     // renderer's own frame-to-frame noise is worth. Without it "the course must
     // not move" has no scale, and the first run duly failed on a 0.03 luma
-    // wobble — GTAO and cloud animation, not the change under test. A tolerance
+    // wobble â€” GTAO and cloud animation, not the change under test. A tolerance
     // has to be measured, not assumed, or it is just a number tuned until the
     // red goes away.
     { id: 'c1-course-repeat', x: -0.8, z: 12.0, yaw: 0, pitch: -0.05, indoor: false },
@@ -172,7 +172,7 @@ async (page) => {
 
   // Read the shipped scale BEFORE the sweep touches it. The first run of this
   // file read it afterwards and reported "shippedScale: 0.2", which was simply
-  // the last value the sweep had set — an instrument reporting its own footprint
+  // the last value the sweep had set â€” an instrument reporting its own footprint
   // as a measurement.
   const shipped = await page.evaluate(() => window.__fw.scene3d.interiorFill.scale());
 
@@ -191,7 +191,7 @@ async (page) => {
       // eslint-disable-next-line no-await-in-loop
       await page.evaluate((p) => {
         const app = window.__fw;
-        // RE-PIN THE CLOCK. The probe runs at 1x (it must — the shell only learns
+        // RE-PIN THE CLOCK. The probe runs at 1x (it must â€” the shell only learns
         // the circuit is dead when the clubhouse update runs), so game time
         // advances between captures and the sun moves with it. The first run
         // measured the outdoor control drifting 56.56 -> 56.62 across the sweep
@@ -262,13 +262,13 @@ async (page) => {
       // to the three poses that are actually inside the room.
       perPose: Object.fromEntries(rows.map((r) => [r.pose, r.whole.mean])),
       // The three poses that are actually IN the room. p1 stands in the doorway
-      // looking out and is carried by daylight through the glazing — the
+      // looking out and is carried by daylight through the glazing â€” the
       // proposal predicted it would barely move and it does not, so averaging it
       // in drags the figure toward a pose the change was never going to affect.
       inTheRoomMeanLuma: +(inTheRoom.reduce((a, r) => a + r.whole.mean, 0) / inTheRoom.length).toFixed(2),
       courseMeanLuma: rows.find((r) => r.pose === 'c1-course').whole.mean,
       courseRepeatMeanLuma: rows.find((r) => r.pose === 'c1-course-repeat').whole.mean,
-      // The two floors, from the measurement in DARK_STATE_PROPOSAL.md §2.
+      // The two floors, from the measurement in DARK_STATE_PROPOSAL.md Â§2.
       p3CeilingBandMean: p3.ceilingBand.mean,
       panelFacesReadable: indoors.every((r) => r.ceilingBand.p95 >= 12),
       navBandContrast: +Math.min(...indoors.map((r) => r.navBand.p95 - r.navBand.p05)).toFixed(1),
@@ -286,7 +286,7 @@ async (page) => {
   // between two adjacent frames; this measures how much the frame moves over the
   // whole sweep, which is the interval the cross-scale comparison actually spans.
   // Without it the run failed on 0.08 of drift against a 0.05 back-to-back floor
-  // — a tolerance too tight for the thing it was applied to.
+  // â€” a tolerance too tight for the thing it was applied to.
   await page.evaluate(() => { window.__fw.scene3d.interiorFill.setScale(1.0); });
   await page.evaluate(() => {
     const app = window.__fw;
@@ -328,7 +328,7 @@ async (page) => {
       if (!c) return false;
       return c.factor > 0.99 && new Set(c.samples).size === 1;
     }),
-    // 3. the course is untouched at every scale — within this renderer's own
+    // 3. the course is untouched at every scale â€” within this renderer's own
     //    measured noise, which is what the repeat capture is for.
     courseAtControlAfterSweep,
     courseRunDrift: +runDrift.toFixed(3),

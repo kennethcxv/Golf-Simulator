@@ -1,12 +1,12 @@
-async (page) => {
+﻿async (page) => {
   // ROUND 3, IN A REAL BROWSER: fields take whole words, and the results screen is readable.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/laptop-round3.js
   //
   // Two reports, both from the chair on 2026-07-30:
-  //   A. "The pro shop product search only accepts one character… it loses focus after every
+  //   A. "The pro shop product search only accepts one characterâ€¦ it loses focus after every
   //      keystroke." Typed here with the real keyboard, one character at a time, reading
-  //      document.activeElement between keystrokes — the only instrument that can tell "the
+  //      document.activeElement between keystrokes â€” the only instrument that can tell "the
   //      handler dropped it" apart from "the character never reached a focused element".
   //   B. The results screen: item name primary, path secondary, one row per result, filters
   //      only when they partition, no second page underneath, no stray Open bar.
@@ -32,12 +32,12 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
 
-  // Sit at the laptop the way the player does — the proven open sequence, retry included.
+  // Sit at the laptop the way the player does â€” the proven open sequence, retry included.
   const openLaptop = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
@@ -125,7 +125,7 @@ async (page) => {
 
   const toolbar = await typeWord('.laptop-screen input.lt-search', 'kit');
 
-  // Screenshot the results while "kit" is live — this is the frame the report is about.
+  // Screenshot the results while "kit" is live â€” this is the frame the report is about.
   await page.waitForTimeout(500);
   const results = await page.evaluate(() => {
     const px = (n) => Math.round(n * 10) / 10;
@@ -174,7 +174,7 @@ async (page) => {
     await screenLocator.first().screenshot({ path: path.join(outDir, 'search-kit-screen.png') }).catch(() => {});
   }
 
-  // Clear the query and go to the Pro Shop's Inventory tab — the reported field.
+  // Clear the query and go to the Pro Shop's Inventory tab â€” the reported field.
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.evaluate(() => {
@@ -224,7 +224,7 @@ async (page) => {
   const kinds = new Set(results.rows.map((r) => r.kindTag));
   const findings = {
     laptopOpened,
-    // A — the reported bug
+    // A â€” the reported bug
     productSearchTookTheWholeWord: product.delivered === 'glove',
     productSearchKeptFocusThroughout: allFocused(product),
     browseSearchTookTheWholeWord: browse.delivered === 'towel',
@@ -232,7 +232,7 @@ async (page) => {
     toolbarSearchTookTheWholeWord: toolbar.delivered === 'kit',
     toolbarSearchKeptFocusThroughout: allFocused(toolbar),
     everyInputCarriesAFocusKey: unkeyed.length === 0,
-    // B — the results screen
+    // B â€” the results screen
     fourResultsForKit: results.rows.length === 4,
     repairKitFirst: results.rows[0]?.name === 'Clubhouse repair components',
     nameIsTheFirstLine: results.rows.length > 0 && results.rows.every((r) => r.nameFirst === true),
@@ -246,13 +246,13 @@ async (page) => {
     noFilterStripForOneKind: results.filterStrips === 0,
     noKindTagWhenAllOneKind: kinds.size === 1 && [...kinds][0] === null,
     noKindMarkWhenAllOneKind: results.rows.every((r) => r.hasMark === false),
-    onlyTheSearchHeadingOnScreen: results.headings.length === 1 && /^Search — /.test(results.headings[0]),
+    onlyTheSearchHeadingOnScreen: results.headings.length === 1 && /^Search â€” /.test(results.headings[0]),
     noPagePreviewedUnderneath: results.previewPanels === 0,
     noStrayOpenBar: results.previewBars === 0 && results.openButtons === 0,
   };
 
   const result = {
-    what: 'round 3 — every laptop field takes a whole word; the "kit" results read name-first with no second page under them',
+    what: 'round 3 â€” every laptop field takes a whole word; the "kit" results read name-first with no second page under them',
     findings,
     typing: { toolbar, product, browse },
     unkeyedInputs: unkeyed,

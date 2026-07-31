@@ -138,7 +138,7 @@ async (page) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.getByText('Continue', { exact: true }).waitFor({ timeout: 20000 });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await waitForGame();
   result.route.push('continue');
   await page.evaluate(() => { window.__texImage3dProbe.phase = 'live-before-save'; });

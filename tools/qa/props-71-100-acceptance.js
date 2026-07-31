@@ -18,7 +18,7 @@ async (page) => {
   page.on('response', (r) => { if (r.status() >= 400) missing.push(`${r.status()} ${r.url()}`); });
 
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   const diag = await page.evaluate(async () => {
     const ch = window.__fw.scene3d.clubhouse();

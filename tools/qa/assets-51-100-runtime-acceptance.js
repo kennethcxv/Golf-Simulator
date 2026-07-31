@@ -64,7 +64,7 @@ async (page) => {
   async function boot({ reload = false } = {}) {
     if (reload) await page.reload({ waitUntil: 'domcontentloaded' });
     else await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-    await page.getByText('Continue', { exact: true }).click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await waitForRuntime();
     await page.locator('#game').click({
       position: { x: viewport.width / 2, y: viewport.height / 2 },

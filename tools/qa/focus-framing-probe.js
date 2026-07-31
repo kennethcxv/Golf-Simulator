@@ -1,5 +1,5 @@
-async (page) => {
-  // FOCUS-MODE FRAMING — item 9's measurement pass. Captures, for the laptop
+﻿async (page) => {
+  // FOCUS-MODE FRAMING â€” item 9's measurement pass. Captures, for the laptop
   // seat and the register opening pose, where the screen actually lands in the
   // frame: NDC of the screen quad, fraction of viewport height, eye height vs
   // screen centre, and camera pitch. Screenshots at these fixed poses are the
@@ -33,7 +33,7 @@ async (page) => {
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {

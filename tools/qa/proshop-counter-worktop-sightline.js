@@ -1,10 +1,10 @@
-// Can the worktable worktop and the reception counter run appear in ONE frame?
+﻿// Can the worktable worktop and the reception counter run appear in ONE frame?
 //
-// ART_BIBLE §7.4.1's [V] gate asks for exactly that: both surfaces in a single front
+// ART_BIBLE Â§7.4.1's [V] gate asks for exactly that: both surfaces in a single front
 // elevation, because two medium-walnut surfaces that read as two different woods is the
 // failure calibration is most likely to produce. Whether one frame is physically
 // possible is a property of the room, not of the gate, so it gets measured before a
-// pose is authored — a composite would be the honest fallback, but only if the room
+// pose is authored â€” a composite would be the honest fallback, but only if the room
 // forbids the real thing.
 //
 // Reports both subjects' world bounds and, for each candidate camera, whether an
@@ -24,7 +24,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');

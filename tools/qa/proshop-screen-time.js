@@ -1,4 +1,4 @@
-// How much of the player's view does each pro-shop asset actually occupy?
+﻿// How much of the player's view does each pro-shop asset actually occupy?
 //
 //   node tools/qa/run-playwright.cjs tools/qa/proshop-screen-time.js
 //
@@ -40,7 +40,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');

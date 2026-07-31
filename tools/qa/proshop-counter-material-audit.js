@@ -1,6 +1,6 @@
-// What is the reception counter run actually made of?
+﻿// What is the reception counter run actually made of?
 //
-// ART_BIBLE §7.4.1's [V] gate assumes the counter is medium walnut and asks whether a
+// ART_BIBLE Â§7.4.1's [V] gate assumes the counter is medium walnut and asks whether a
 // calibrated worktable reads as the same production. That assumption has never been
 // checked against the running game, and the whole gate depends on it: if the counter is
 // a different colour, or carries no texture at all, then "they look like two different
@@ -26,7 +26,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -44,7 +44,7 @@ async (page) => {
       .map((k) => Math.round(Math.min(1, Math.max(0, toSrgb(col[k]))) * 255).toString(16).padStart(2, '0'))
       .join('').toUpperCase();
 
-    // §8 medium walnut, the value the gate assumes both surfaces carry.
+    // Â§8 medium walnut, the value the gate assumes both surfaces carry.
     const TARGET = '#6B4A2F';
     const targetRgb = [0x6B, 0x4A, 0x2F];
     const gapTo = (h) => {
@@ -77,7 +77,7 @@ async (page) => {
             // number is not comparable to a palette value. Reported either way, but the gap
             // below is suppressed rather than left to mislead.
             baseColorHex: h,
-            baseColorIs: textured ? 'factor only — shipped albedo is factor x texture' : 'shipped colour',
+            baseColorIs: textured ? 'factor only â€” shipped albedo is factor x texture' : 'shipped colour',
             gapToMediumWalnut: h && !textured ? gapTo(h) : null,
             roughness: m.roughness != null ? +m.roughness.toFixed(2) : null,
             metalness: m.metalness != null ? +m.metalness.toFixed(2) : null,
@@ -104,7 +104,7 @@ async (page) => {
 
     return {
       ok: subjects.every((s) => s.found),
-      paletteTarget: { name: 'medium walnut (ART_BIBLE §8)', hex: TARGET },
+      paletteTarget: { name: 'medium walnut (ART_BIBLE Â§8)', hex: TARGET },
       subjects,
       // The headline: the gate compares a textured surface against one that may not be.
       summary: subjects.map((s) => (s.found

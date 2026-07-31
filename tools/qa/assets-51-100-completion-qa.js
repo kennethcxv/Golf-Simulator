@@ -39,7 +39,7 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => {
     const app = window.__fw;
     const clubhouse = app?.scene3d?.clubhouse?.();

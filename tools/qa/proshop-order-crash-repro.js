@@ -1,12 +1,12 @@
-async (page) => {
-  // BLOCKER 3 — reproduce "the shop page could not be drawn: Cannot read
+﻿async (page) => {
+  // BLOCKER 3 â€” reproduce "the shop page could not be drawn: Cannot read
   // properties of undefined (reading 'cat')" reported while ordering, and
   // establish whether the order actually went through.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-order-crash-repro.js
   //
   // The laptop shell catches page-draw errors and prints e.message, which
-  // throws the stack away — so this installs a hook that records the stack
+  // throws the stack away â€” so this installs a hook that records the stack
   // BEFORE the shell swallows it. Without that, "reading 'cat'" could be any of
   // five call sites.
   const fs = process.getBuiltinModule('node:fs');
@@ -29,14 +29,14 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
 
   // The laptop shell catches draw errors and keeps only e.message, throwing the
-  // stack away. A window.TypeError hook cannot help — engine-thrown TypeErrors
-  // never go through the JS constructor — so listen where the stack still
+  // stack away. A window.TypeError hook cannot help â€” engine-thrown TypeErrors
+  // never go through the JS constructor â€” so listen where the stack still
   // exists: unhandled errors, and console.error, which the shell also reaches.
   await page.evaluate(() => {
     window.__catCrashes = [];
@@ -120,7 +120,7 @@ async (page) => {
   await goPage('Pro Shop');
   await record('pro shop opened (Inventory tab)');
 
-  // Every top-level tab, drawn once — the crash was reported "when ordering
+  // Every top-level tab, drawn once â€” the crash was reported "when ordering
   // various things", so exercise each surface rather than guessing one.
   for (const tab of ['Orders & Suppliers', 'Pricing', 'Deliveries', 'Inventory']) {
     // eslint-disable-next-line no-await-in-loop
@@ -129,7 +129,7 @@ async (page) => {
     await record(`tab: ${tab}`);
   }
 
-  // Order several DIFFERENT lines from the inventory rows — one sku might be
+  // Order several DIFFERENT lines from the inventory rows â€” one sku might be
   // fine while another is missing from the catalog.
   await clickTab('Inventory');
   const queued = await page.evaluate(() => {
@@ -152,7 +152,7 @@ async (page) => {
 
   // Clicking "Place Order" only works when the basket is affordable, and eight
   // lines is not. The decisive reproduction is the sim's own multi-line entry
-  // point — the exact call the basket makes — so the order really is the shape
+  // point â€” the exact call the basket makes â€” so the order really is the shape
   // the game creates when you "order various things".
   const submitted = await page.evaluate(async () => {
     const L = await import('/src/sim/inventoryLifecycle.js');

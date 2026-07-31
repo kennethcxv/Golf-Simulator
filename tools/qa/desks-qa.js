@@ -100,7 +100,7 @@ async (page) => {
     }
     localStorage.setItem('golfempire:autosave', JSON.stringify(raw));
   });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
@@ -403,7 +403,7 @@ async (page) => {
       .map((entry) => ({ assetId: entry.assetId, componentStates: { ...entry.componentStates } }))
   ));
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const roots = [];

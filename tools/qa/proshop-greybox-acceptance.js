@@ -1,14 +1,14 @@
-async (page) => {
-  // PINE HILLS V2 GREYBOX ACCEPTANCE — the measured numbers FLOOR_PLAN.md §9 owes.
+﻿async (page) => {
+  // PINE HILLS V2 GREYBOX ACCEPTANCE â€” the measured numbers FLOOR_PLAN.md Â§9 owes.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-greybox-acceptance.js
   //
   // Boots the SAME seeded starter empire into pine-hills-v2 and then into the v1 room,
   // and measures with one instrument: the F1 entrance-sightline ray metric, the F2
-  // wall-midpoint check, the F5 lounge-visibility percentages, the §6 clearances from
+  // wall-midpoint check, the F5 lounge-visibility percentages, the Â§6 clearances from
   // the live datums, the greybox suppression/presence contract, and screenshots.
   // Raycasting is done against an explicitly collected visible-mesh set because
-  // THREE.Raycaster does not skip visible=false subtrees on its own — the suppressed
+  // THREE.Raycaster does not skip visible=false subtrees on its own â€” the suppressed
   // production furniture must not block rays invisibly.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -36,7 +36,7 @@ async (page) => {
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(900);
-    await page.getByRole('button', { name: /^Continue/ }).first().click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
     await page.waitForFunction(() => {
@@ -104,16 +104,16 @@ async (page) => {
       };
     };
 
-    // F1 — the entrance ray metric. Door pose (-0.8, 5.2), eye 1.7, looking north
+    // F1 â€” the entrance ray metric. Door pose (-0.8, 5.2), eye 1.7, looking north
     // (-z), central cone 40 deg wide x 20 deg tall, 41x21 rays, PASS = first hit
     // at >= 8 yd.
     const eye = { x: -0.8, y: 1.7, z: 5.2 };
-    // Two figures per ray. LITERAL: first hit >= 8 yd (the original threshold —
+    // Two figures per ray. LITERAL: first hit >= 8 yd (the original threshold â€”
     // physically capped in a small room where the walls arrive first). NORMALIZED
     // (the resize contract): first obstruction at >= 80% of the empty-room
     // distance along the ray's horizontal bearing, so the metric measures
     // FIXTURE occlusion, not room size. A hit on the (deliberately low) ceiling
-    // or its beams counts as reaching the envelope — the room being short is
+    // or its beams counts as reaching the envelope â€” the room being short is
     // item 10's decision, not a sightline blocker.
     const roomBounds = L.PUBLIC_ROOM_BOUNDS;
     const envelopeDistance = (origin, yawOff) => {
@@ -160,7 +160,7 @@ async (page) => {
       nearBlockers: Object.entries(hitHistogram).sort((a, b) => b[1] - a[1]).slice(0, 6),
     };
 
-    // F2 — from the (variant-resolved) room centre at eye height, the four
+    // F2 â€” from the (variant-resolved) room centre at eye height, the four
     // retail-wall midpoints of the live envelope.
     const cX = (roomBounds.minX + roomBounds.maxX) / 2 - 0.5;
     const cZ = (roomBounds.minZ + roomBounds.maxZ) / 2;
@@ -175,7 +175,7 @@ async (page) => {
     for (const [key, target] of Object.entries(wallTargets)) {
       const ray = castLocal(centre, target);
       // A wall-BACKED fixture face within 0.9 yd of the wall IS the wall's retail
-      // face — F2 rejects free-standing mid-room blockers, not the walls' own units.
+      // face â€” F2 rejects free-standing mid-room blockers, not the walls' own units.
       f2[key] = {
         unoccluded: ray.hitDistanceLocal >= ray.spanLocal - 0.9,
         firstHit: ray.hitName,
@@ -183,7 +183,7 @@ async (page) => {
       };
     }
 
-    // F5 — lounge upholstery visibility from the door pose: sample a vertical grid
+    // F5 â€” lounge upholstery visibility from the door pose: sample a vertical grid
     // over each piece's bounding box (7 x 5), a sample is visible when the ray's
     // first hit IS that piece (or a child of it).
     const f5 = {};
@@ -213,7 +213,7 @@ async (page) => {
             // A hit on the piece itself, or on ANY lounge-suite piece, counts: the
             // suite occluding its own members (a chair seat behind its coffee
             // table) is real furniture arrangement, and the eye still lands on the
-            // lounge — which is what "the transformation reads from the door"
+            // lounge â€” which is what "the transformation reads from the door"
             // means. Only non-lounge blockers subtract.
             const suiteRoots = ['GREY_chairA', 'GREY_chairB', 'GREY_coffee', 'GREY_loungeRug', 'GREY_trophy', 'GreyboxLoungeLitter'];
             const hitObject = meshes.find((mesh) => mesh.name === ray.hitName);
@@ -235,7 +235,7 @@ async (page) => {
       };
     }
 
-    // §6 clearances from the live (variant-resolved) datums + placed fixtures.
+    // Â§6 clearances from the live (variant-resolved) datums + placed fixtures.
     const layoutModule = await import('/src/sim/layout.js');
     const placed = layoutModule.placedFixtures(app.state);
     const rectOf = (id) => {

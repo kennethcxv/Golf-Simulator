@@ -1,10 +1,10 @@
-// Measure APPARENT TEXEL DENSITY inside the pro shop.
+﻿// Measure APPARENT TEXEL DENSITY inside the pro shop.
 //
 // The question this answers: what texture resolution does a surface in this room
 // actually need?  Not by convention ("2K is standard") but by measurement.
 //
-// Method.  For a sample of screen pixels we cast three rays — at the pixel, one
-// pixel right, one pixel down — and read back both the world hit point and the
+// Method.  For a sample of screen pixels we cast three rays â€” at the pixel, one
+// pixel right, one pixel down â€” and read back both the world hit point and the
 // UV.  That gives two derivatives at the same surface point:
 //
 //   yardsPerPixel   = |dWorld/dPixel|   how much of the world one pixel covers
@@ -16,7 +16,7 @@
 //   pixelsPerYard   = 1 / yardsPerPixel        what the DISPLAY can resolve here
 //   texelsPerYard   = texelsPerPixel / yardsPerPixel   what the ASSET supplies
 //
-// texelsPerYard is an intrinsic property of how an asset was textured — it does
+// texelsPerYard is an intrinsic property of how an asset was textured â€” it does
 // not depend on where the camera is.  pixelsPerYard is what the screen can show
 // at that distance.  A surface needs texelsPerYard >= pixelsPerYard at the
 // CLOSEST distance the player can reach it, and no more.  Everything above that
@@ -45,7 +45,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -66,7 +66,7 @@ async (page) => {
 
     // ---- pose the camera in local shop coordinates ----------------------------
     // The camera transform is produced by the app's own frame loop, not by
-    // assigning walk.state — so yield two real frames and then read back where
+    // assigning walk.state â€” so yield two real frames and then read back where
     // the camera actually ended up.  Every pose records its realised position so
     // a stuck camera shows up in the data instead of silently duplicating rows.
     const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -134,7 +134,7 @@ async (page) => {
     };
 
     // Sample one pixel: returns the derivative pair, or null if the neighbour rays
-    // land on a different object (a silhouette edge — the derivative is garbage there).
+    // land on a different object (a silhouette edge â€” the derivative is garbage there).
     const sample = (px, py) => {
       const c = castAt(px, py);
       if (!c || !c.uv) return null;
@@ -152,7 +152,7 @@ async (page) => {
       const yardsPerPixel = Math.sqrt(dwx * dwy);
       if (!(yardsPerPixel > 0) || yardsPerPixel > 1) return null; // grazing angle, reject
 
-      // texel derivative — Jacobian determinant, exactly the GPU's mip selector
+      // texel derivative â€” Jacobian determinant, exactly the GPU's mip selector
       const jxu = (rx.uv.x - c.uv.x) * ti.repX * ti.w;
       const jxv = (rx.uv.y - c.uv.y) * ti.repY * ti.h;
       const jyu = (ry.uv.x - c.uv.x) * ti.repX * ti.w;
@@ -206,7 +206,7 @@ async (page) => {
     };
 
     // ======================================================================
-    // PART A — survey: what does the room actually supply, and how oversampled
+    // PART A â€” survey: what does the room actually supply, and how oversampled
     // is it, from the standing poses a player really occupies?
     // ======================================================================
     const SURVEY_POSES = [
@@ -236,7 +236,7 @@ async (page) => {
       });
     }
 
-    // per-texture rollup across every pose — this is what decides a per-map ceiling
+    // per-texture rollup across every pose â€” this is what decides a per-map ceiling
     const byTex = new Map();
     for (const s of allSamples) {
       if (!byTex.has(s.tex)) byTex.set(s.tex, []);
@@ -260,14 +260,14 @@ async (page) => {
       .sort((a, b) => b.samples - a.samples);
 
     // ======================================================================
-    // PART B — distance sweep on one hero surface.  Walk the camera in along a
+    // PART B â€” distance sweep on one hero surface.  Walk the camera in along a
     // fixed axis and read pixelsPerYard at each stop.  pixelsPerYard is the
     // REQUIREMENT curve: it is what the display resolves, independent of what
     // the asset supplies, so it is the number a resolution ceiling must meet.
     // ======================================================================
-    // Aim at the reception counter front face (the ART_BIBLE §1 "best" anchor),
+    // Aim at the reception counter front face (the ART_BIBLE Â§1 "best" anchor),
     // straight down -Z from the retail floor, at counter-top height.
-    // Two targets: the reception counter (the §1 best-in-room anchor, and the
+    // Two targets: the reception counter (the Â§1 best-in-room anchor, and the
     // surface the resolution ceiling was derived from) and asset_065's worktop
     // (the asset rebuilt through the new path, so the ceiling can be checked
     // against a real product of it rather than only against the thing that set it).
@@ -282,7 +282,7 @@ async (page) => {
       const lz = COUNTER_TARGET.lz + d;
       const p = lookAtFrom(COUNTER_TARGET.lx, lz, COUNTER_TARGET.lx, COUNTER_TARGET.lz, COUNTER_TARGET.y);
       const realised = await pose(p.lx, p.lz, p.yaw, p.pitch);
-      // sample the centre of frame only — we want the surface we aimed at
+      // sample the centre of frame only â€” we want the surface we aimed at
       const s = [];
       for (let py = VIEW_H / 2 - 80; py <= VIEW_H / 2 + 80; py += 20) {
         for (let px = VIEW_W / 2 - 120; px <= VIEW_W / 2 + 120; px += 20) {
@@ -306,7 +306,7 @@ async (page) => {
     }
 
     // ======================================================================
-    // PART C — the constants the policy is derived from, read from the live app
+    // PART C â€” the constants the policy is derived from, read from the live app
     // rather than assumed.
     // ======================================================================
     const constants = {
@@ -331,7 +331,7 @@ async (page) => {
     };
 
     // ======================================================================
-    // PART D — full texture inventory (every sampled map in the scene), so the
+    // PART D â€” full texture inventory (every sampled map in the scene), so the
     // projection arithmetic is grounded in what is really resident.
     // ======================================================================
     const SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap'];

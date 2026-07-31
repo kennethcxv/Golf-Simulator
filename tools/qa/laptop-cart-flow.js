@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // BROWSE ON ONE SCREEN, REVIEW ON ANOTHER.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/laptop-cart-flow.js
@@ -34,7 +34,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
@@ -85,7 +85,7 @@ async (page) => {
   }, null, { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(1400);
 
-  // The nav lives OUTSIDE .lt-main — the first version scoped to .lt-main and timed out
+  // The nav lives OUTSIDE .lt-main â€” the first version scoped to .lt-main and timed out
   // looking for the "Pro Shop" nav button, which is in the sidebar.
   const clickText = async (text) => {
     const target = page.locator(`.laptop-screen button:has-text("${text}")`).first();
@@ -147,7 +147,7 @@ async (page) => {
       taxLine: lineOf('Sales tax'),
       totalLine: document.querySelector('.lt-carttotal')?.textContent?.trim() || null,
       hasPlaceOrder: /Place Order/i.test(text),
-      // The browse grid must NOT be here — that is the other half of the split.
+      // The browse grid must NOT be here â€” that is the other half of the split.
       hasProductGrid: !!document.querySelector('.lt-grid'),
       keepShopping: /Keep shopping/i.test(text),
     };
@@ -169,11 +169,11 @@ async (page) => {
 
   // THE FOLD, MEASURED WITH A FULL CART.
   //
-  // Reported 2026-07-29: "Place Order sits below the lid's fold with a full cart. Fix it — a
+  // Reported 2026-07-29: "Place Order sits below the lid's fold with a full cart. Fix it â€” a
   // confirm button you have to scroll to find is the same defect as the shipping options
   // sitting under the total." So: load the basket up to eight lines, reset the scroll, and
   // compare the button's box against the scroller's box. Then scroll to the bottom and check
-  // it is STILL in view — that is the sticky rail doing its job, not a short page.
+  // it is STILL in view â€” that is the sticky rail doing its job, not a short page.
   // The express step left us ON the cart screen; the + buttons live on browse.
   await clickText('Keep shopping');
   const addAll = page.locator('.lt-product .lt-qbtn', { hasText: '+' });
@@ -214,7 +214,7 @@ async (page) => {
     cartHasTax: !!cartScreen.taxLine,
     cartHasTotal: !!cartScreen.totalLine,
     cartHasPlaceOrder: cartScreen.hasPlaceOrder,
-    // …and the browse screen no longer does. "Not all on one page" is a claim about BOTH.
+    // â€¦and the browse screen no longer does. "Not all on one page" is a claim about BOTH.
     browseHasNoMoney: !browse.showsSubtotal && !browse.showsTax
       && !browse.showsTotalRow && !browse.showsDeliveryChooser && !browse.showsPlaceOrder,
     browseStillHasTheGrid: browse.hasProductGrid,

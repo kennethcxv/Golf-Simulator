@@ -5,7 +5,7 @@ async (page) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto(base);
   await page.waitForTimeout(1200);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 40000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

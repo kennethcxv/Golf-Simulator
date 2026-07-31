@@ -1,5 +1,5 @@
-async (page) => {
-  // ART BIBLE reference plates — the single best and single worst asset currently in the
+﻿async (page) => {
+  // ART BIBLE reference plates â€” the single best and single worst asset currently in the
   // starter pro shop, shot in-game at gameplay framing.
   //
   //   HEADED=1 node tools/qa/run-playwright.cjs tools/qa/proshop-artbible-reference.js
@@ -17,11 +17,11 @@ async (page) => {
   const M = 13 * 60;
 
   const SHOTS = [
-    // BEST — the reception/checkout counter run: real millwork, stile-and-rail panels,
+    // BEST â€” the reception/checkout counter run: real millwork, stile-and-rail panels,
     // a returned corner, brass pulls, believable 1.055 yd worktop.
     { id: 'best-counter-millwork', at: [0.0, 4.0], look: [0.0, 1.2], pitch: -0.12 },
     { id: 'best-counter-corner', at: [-2.2, 3.4], look: [-0.6, 1.4], pitch: -0.16 },
-    // WORST — loose floor debris: flat untextured quads lying on the boards, and the
+    // WORST â€” loose floor debris: flat untextured quads lying on the boards, and the
     // printed-card snack packaging on the turn-snacks rack.
     { id: 'worst-floor-debris', at: [-4.5, 4.4], look: [-4.5, 2.6], pitch: -0.70 },
     { id: 'worst-snack-packaging', at: [5.6, 4.2], look: [7.4, 3.0], pitch: -0.22 },
@@ -38,7 +38,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');

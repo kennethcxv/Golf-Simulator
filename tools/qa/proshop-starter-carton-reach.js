@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // CAN THE PLAYER REACH THE STARTER CARTONS?
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-starter-carton-reach.js
@@ -6,13 +6,13 @@ async (page) => {
   // Reported 2026-07-29: "The clubhouse box that spawns without an order has collision I
   // cannot walk through, or get close enough to interact with."
   //
-  // Those are the starter cartons from src/sim/clubhouseStarterStock.js — orderId null,
+  // Those are the starter cartons from src/sim/clubhouseStarterStock.js â€” orderId null,
   // loc 'world', placed on FLOOR_BOX_SURFACE_ID near the retail fixtures. They are the only
   // boxes in the room that arrive without a delivery.
   //
   // The claim splits in two and they need separating, because the fix differs:
   //   A. the collider is bigger than the carton, so the player is held at a distance;
-  //   B. the collider is right but the carton sits where no approach exists at all —
+  //   B. the collider is right but the carton sits where no approach exists at all â€”
   //      inside a fixture footprint, or in a pocket the walker cannot enter.
   //
   // So this measures the collider against the carton's own footprint, and then walks a
@@ -21,7 +21,7 @@ async (page) => {
   // and whether the carton becomes the aimed focus from there.
   //
   // NOT a position teleport check. Setting walk.x/z next to the box would answer "is there
-  // a legal point nearby", which is not the question — the question is whether a player
+  // a legal point nearby", which is not the question â€” the question is whether a player
   // walking at it arrives. The approach uses walkTryMove via the ordinary key path.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -46,7 +46,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3200);
@@ -95,7 +95,7 @@ async (page) => {
   });
 
   // The collider each carton registered, matched to the carton by position rather than by
-  // id — the collider list is geometry, not a map, so this is how the runtime sees it.
+  // id â€” the collider list is geometry, not a map, so this is how the runtime sees it.
   const colliderReport = await page.evaluate((starter) => {
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
@@ -175,14 +175,14 @@ async (page) => {
           focusKind: focus?.kind ?? null,
           focusLabel: focus?.label ?? null,
           // WHICH prop the crosshair actually chose. Without this the probe counted
-          // "Old clutter — [E] haul it out" as a successful carton prompt, because the
+          // "Old clutter â€” [E] haul it out" as a successful carton prompt, because the
           // filter only looked for the string "[E]".
           focusAtYd: focus?.prop && Number.isFinite(focus.prop.x)
             ? +Math.hypot(focus.prop.x - target.x, focus.prop.z - target.z).toFixed(2)
             : null,
           // THE STRING THE PLAYER READS. getFocusLabel is the accessor main.js renders into
           // .shop-prompt; the first version of this probe called walk.focusPrompt(), which
-          // does not exist, so every bearing reported "no prompt" — a probe that answers
+          // does not exist, so every bearing reported "no prompt" â€” a probe that answers
           // "undefined" for its central question and files it as a defect.
           promptText: (() => {
             try { return walk.getFocusLabel?.() ?? null; } catch { return null; }
@@ -214,7 +214,7 @@ async (page) => {
   for (const box of survey.starter) reach.push(await approach(box));
 
   // A carton's x/z are LOCAL TO ITS SURFACE. For a shelf-mounted box they are shelf-local,
-  // so ch.localToWorld(x, z) points at the middle of the room — which is why the first run
+  // so ch.localToWorld(x, z) points at the middle of the room â€” which is why the first run
   // reported the drinks carton "unreachable at 0.44 yd" while measuring a spot it was
   // nowhere near. Reach is only meaningful for floor cartons.
   const floorCartonIds = new Set(
@@ -223,7 +223,7 @@ async (page) => {
 
   const findings = {
     starterCartonCount: survey.starter.length,
-    // Only FLOOR cartons register a collider — a shelf-mounted one sits on furniture that
+    // Only FLOOR cartons register a collider â€” a shelf-mounted one sits on furniture that
     // already has its own. Scoped, because the first version of this finding failed a
     // correct shelf placement for not having a floor box.
     everyFloorCartonHasItsOwnCollider: colliderReport

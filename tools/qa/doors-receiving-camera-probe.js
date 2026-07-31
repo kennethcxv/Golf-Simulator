@@ -8,7 +8,7 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.()?.architecturalDoors?.diagnostics?.().ready, null, { timeout: 120000 });
   await page.addStyleTag({ content: '.toast-wrap, .notification-center, .shop-lockhint { display: none !important; }' });
   await page.evaluate(async () => {

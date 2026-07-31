@@ -353,7 +353,7 @@ async (page) => {
     }, result.protocol.fixedWeather);
 
     setPhase('initial-load');
-    await page.getByText('Continue', { exact: true }).click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await waitForGame();
     await page.waitForTimeout(2000);
     await setOrganicWalkins();
@@ -1037,7 +1037,7 @@ async (page) => {
             sceneNull: window.__fw.scene3d === null,
             stateNull: window.__fw.state === null,
           }));
-          await page.getByText('Continue', { exact: true }).click();
+          await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
           await waitForGame(oldScene, 90000);
           await page.waitForTimeout(1000);
           menuRecords.push({ cycle, menuState, newScene: await page.evaluate(() => window.__fw.scene3d.scene.uuid) });

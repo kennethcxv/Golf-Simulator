@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // WHY IS META STRANDED, AND WHAT DOES THE PLAYER SEE WHILE IT IS.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/walk-modifier-strand.js
@@ -6,12 +6,12 @@ async (page) => {
   // Third report of the same symptom. The distinction this probe exists to draw,
   // because every fix so far has assumed the wrong one:
   //
-  //   PAGE-SIDE STRAND — walkHeld contains 'meta'; the OS does NOT think Win is
+  //   PAGE-SIDE STRAND â€” walkHeld contains 'meta'; the OS does NOT think Win is
   //     down. Recoverable: getModifierState says up, reconcile drops it. A page
   //     -side phantom CANNOT open the Windows Quick Link menu, because the shell
   //     only fires Win+X when the OS's own key state has Win held.
   //
-  //   OS-SIDE STRAND — the OS thinks Win is down. Win+X fires. The browser never
+  //   OS-SIDE STRAND â€” the OS thinks Win is down. Win+X fires. The browser never
   //     receives the 'x' keydown at all, so no page code can reconcile on it, and
   //     no page code can release the modifier either. What the page CAN do is see
   //     it: every mouse event carries getModifierState('Meta'), which answers
@@ -19,7 +19,7 @@ async (page) => {
   //
   // The user's report is Win+X opening the shell menu, which is only consistent
   // with the second. So this measures both, separately, and reports what the HUD
-  // shows in each — because a chip that stays silent through the case that eats
+  // shows in each â€” because a chip that stays silent through the case that eats
   // keys is a second bug, not a passing test.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -45,7 +45,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
 
@@ -94,7 +94,7 @@ async (page) => {
   await page.waitForTimeout(120);
   const bAfterMove = await record('B2 after mouse move while OS holds Meta');
   // SHOT OF THE ELEMENT, NOT A GUESSED CROP. The first version of this clipped
-  // the top-left 900x220 and captured roof and sky — the HUD is not there. A
+  // the top-left 900x220 and captured roof and sky â€” the HUD is not there. A
   // screenshot of the wrong rectangle is not a visual verification, it is a
   // picture. Measure the box, require it to be real and on screen, and frame it.
   const chipBox = await page.evaluate(() => {
@@ -126,7 +126,7 @@ async (page) => {
   const bReleased = await record('B3 after OS releases Meta');
 
   // ---------------------------------------------------------------- C
-  // Same page-side reproduction, but pointer-locked — the state the bug
+  // Same page-side reproduction, but pointer-locked â€” the state the bug
   // interferes with, and the reason the reconcile sits above the lock gate.
   await page.mouse.click(800, 450);
   await page.waitForTimeout(400);

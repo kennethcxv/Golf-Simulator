@@ -10,7 +10,7 @@ async (page) => {
     holding.state.tutorial.hidden = true;
     localStorage.setItem('golfempire:autosave', JSON.stringify(raw));
   });
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => (
     window.__fw?.scene3d?.clubhouse?.()?.premiumCountryClub?.diagnostics?.().status === 'ready'
   ), null, { timeout: 90000 });

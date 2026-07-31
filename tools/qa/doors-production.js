@@ -85,7 +85,7 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
   await page.waitForFunction(() => {
     const doors = window.__fw?.scene3d?.clubhouse?.()?.architecturalDoors;
@@ -520,7 +520,7 @@ async (page) => {
   }));
   await page.evaluate(() => window.__fw.autosave());
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.state?.shop?.reno?.architecture?.doors?.main,
     null, { timeout: 60000 });
   const restoredState = await page.evaluate(() => ({

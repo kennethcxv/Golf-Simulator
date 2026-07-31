@@ -1,10 +1,10 @@
-async (page) => {
+﻿async (page) => {
   // ART_BIBLE validation capture. Three fixed angles on asset_065, plus the matched
-  // pair the §7.4.1 [V] palette gate requires.
+  // pair the Â§7.4.1 [V] palette gate requires.
   //
   //   ARM=I node tools/qa/run-playwright.cjs tools/qa/spike-bible-arm.js
   //
-  // No longer a throwaway: §7.4.1's acceptance table names this script and pose
+  // No longer a throwaway: Â§7.4.1's acceptance table names this script and pose
   // `2-front-elevation` by name, so it is the instrument a gate depends on.
   //
   // Subject: asset_065_stockroom_worktable at interior-local (6.3, -1.7). Same capture
@@ -29,7 +29,7 @@ async (page) => {
     { id: '3-floor-contact', at: [5.05, -0.72], look: [5.45, -1.42], pitch: -0.80 },
   ];
 
-  // ART_BIBLE §7.4.1 [V] gate: the worktable worktop and the reception counter run,
+  // ART_BIBLE Â§7.4.1 [V] gate: the worktable worktop and the reception counter run,
   // front elevation, for `palette-calibration-worktop.png`.
   //
   // The gate says "one frame" and one frame is not possible. `LegacyServicePartition`
@@ -38,8 +38,8 @@ async (page) => {
   // the partition is the first hit on every sightline to the worktop from the shop side.
   // So the plate is a MATCHED-CAMERA PAIR instead: identical standoff, identical eye
   // height, identical pitch, identical lens, stacked into one image. That is the
-  // property the gate actually depends on — comparing two woods photographed the same
-  // way — and it is stated on the plate rather than quietly substituted.
+  // property the gate actually depends on â€” comparing two woods photographed the same
+  // way â€” and it is stated on the plate rather than quietly substituted.
   //
   // The camera is computed from each subject's live bounding box rather than typed in,
   // so the standoff is matched by construction and lands in arm.json as evidence.
@@ -61,7 +61,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -138,7 +138,7 @@ async (page) => {
     shots.push({ id: s.id, ...s, ...pose });
   }
 
-  // Matched pair for the §7.4.1 palette plate.
+  // Matched pair for the Â§7.4.1 palette plate.
   const matched = [];
   for (const spec of MATCHED) {
     const pose = await page.evaluate(async ({ shot, m, standoff, margin }) => {

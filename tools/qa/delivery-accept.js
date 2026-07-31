@@ -18,7 +18,7 @@ async (page) => {
     await page.goto(BASE_URL);
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.waitForTimeout(1200);
-    await page.getByText('Continue', { exact: true }).click().catch(() => {});
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 40000 });
     await page.waitForFunction(() => { const v = document.querySelector('.load-veil'); return !v || getComputedStyle(v).opacity === '0'; }, null, { timeout: 40000 });
     await page.waitForTimeout(1800);

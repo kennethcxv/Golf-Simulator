@@ -1,4 +1,4 @@
-async (page) => {
+﻿async (page) => {
   // WHICH FLAPS OPEN FIRST, LOOKED AT FROM ABOVE.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-box-flap-order-look.js
@@ -8,11 +8,11 @@ async (page) => {
   //
   // The unit tests pin FLAP_PHASES = [[0,1],[2,3]] and that each phase is a facing pair.
   // They cannot show what the player sees, and the report is about what the player sees, so
-  // this shoots the carton at three states — sealed, after press one, after press two — from
+  // this shoots the carton at three states â€” sealed, after press one, after press two â€” from
   // a camera looking straight down at it.
   //
   // WHAT THIS PROBE LEARNED THE HARD WAY. Its first version checked only that the two
-  // lifted panels were a facing pair, passed [[0, 1], [2, 3]] green — and the screenshot
+  // lifted panels were a facing pair, passed [[0, 1], [2, 3]] green â€” and the screenshot
   // showed a carton still shut. FRONT and BACK are the NARROW panels on this carton; the
   // wide LEFT and RIGHT pair meets in the middle and covers the whole opening, so lifting
   // front and back reveals nothing. "Two opposite flaps" was necessary and not sufficient.
@@ -43,7 +43,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3200);
@@ -87,7 +87,7 @@ async (page) => {
         found[o.name] = { d, rx: o.rotation.x, rz: o.rotation.z, x: p.x, y: p.y, z: p.z };
       }
     });
-    // The carton's own centre, averaged from its four hinge nodes — they sit on the four top
+    // The carton's own centre, averaged from its four hinge nodes â€” they sit on the four top
     // edges, so their mean is the middle of the opening.
     const hinges = Object.values(found);
     const cartonCentre = hinges.length
@@ -219,7 +219,7 @@ async (page) => {
     // WHAT IS NOT GATED, AND WHY. `sealedIsShut` reads false: on a sealed carton the
     // downward ray reaches 0.31 yd below the hinge line and hits an unnamed mesh, so the
     // depth test calls a closed box open. The lid is demonstrably there in
-    // box-flaps-0-sealed.png, so this is the instrument being wrong, not the carton — most
+    // box-flaps-0-sealed.png, so this is the instrument being wrong, not the carton â€” most
     // likely the sealed lid is not among the meshes the ray collects. Rather than gate on a
     // number I cannot yet trust, it is reported: the sealed state is verified by looking,
     // which is what the standing rule prescribes for presentation anyway.

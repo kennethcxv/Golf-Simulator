@@ -1,11 +1,11 @@
-async (page) => {
-  // PINE HILLS V2 — customer navigation under live crowd pressure, both
+﻿async (page) => {
+  // PINE HILLS V2 â€” customer navigation under live crowd pressure, both
   // restoration states. Rebuilt to HARNESS_TRUST.md rule 3, then converted
   // 2026-07-28 per the crowd-churn ruling (DEFECTS.md NAV-CHURN-001):
   //
-  //   "Eleven customers in 70 m² with nobody serving should jam. That pressure
+  //   "Eleven customers in 70 mÂ² with nobody serving should jam. That pressure
   //    is what makes hiring a cashier feel necessary, so it stays. Do not
-  //    exempt the class — that kills the signal. Convert the gate to a
+  //    exempt the class â€” that kills the signal. Convert the gate to a
   //    threshold. A genuine trap must still turn the gate red."
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-greybox-customer-day.js
@@ -17,24 +17,24 @@ async (page) => {
   //    game-minutes 754-873 at one coordinate) read as "12-s churn". The gate
   //    now tracks BLOCK EPISODES with real durations: an episode opens when a
   //    walker nets < 0.15 yd across a 12-wall-second window (not at a stop,
-  //    not queued) and stays open until the walker gets ≥ 0.60 yd from the
-  //    episode anchor (a real escape — two body radii past shove jitter), or
+  //    not queued) and stays open until the walker gets â‰¥ 0.60 yd from the
+  //    episode anchor (a real escape â€” two body radii past shove jitter), or
   //    arrives at its stop, or joins the queue, or leaves. Slow-creep pins
   //    cannot reset the clock by drifting between windows.
   //  - RED thresholds (the ruling's, recorded in DEFECTS.md):
   //      * any single episode > 20 wall-seconds (BLOCK_CAP_WALL_S), or
-  //      * recovery rate below the floor: with ≥ 4 episodes in a leg, at least
+  //      * recovery rate below the floor: with â‰¥ 4 episodes in a leg, at least
   //        75% must clear within 15 wall-seconds of onset. 15 s is the
   //        recovery ladder's own design budget (12-s detection + one ladder
   //        cycle); an episode past it means the first ladder cycle failed.
-  //        Below 4 episodes the cap alone governs — a proportion over 1-3
+  //        Below 4 episodes the cap alone governs â€” a proportion over 1-3
   //        samples is noise, and the cap still catches every real trap.
-  //    Short jam churn under a full house stays GREEN by design — that is the
+  //    Short jam churn under a full house stays GREEN by design â€” that is the
   //    hire-a-cashier pressure signal, reported but not failed.
   //  - DEFECT ATTRIBUTION (2026-07-28 ruling). The thresholds above are
   //    unchanged; what changed is WHICH episodes face them. Every episode is
   //    attributed, and only those attributable to an open, named defect in
-  //    DEFECT_EXEMPTIONS are waived — tagged with the defect id in the report,
+  //    DEFECT_EXEMPTIONS are waived â€” tagged with the defect id in the report,
   //    counted, and summarised, so no waiver is silent. Today the one entry is
   //    NAV-WAIT-001 (NPCs have nowhere to wait for an occupied browse stand),
   //    and attribution for it requires ALL of: the walker was heading for a
@@ -42,19 +42,19 @@ async (page) => {
   //    it, i.e. near it but not at it), and another body held the stand for
   //    >= 90% of the episode. A pin against geometry, a queue overrun or a
   //    containment breach can never qualify. The waiver expires with the
-  //    defect — tests/proshop-churn-exemption.test.js fails if DEFECTS.md and
+  //    defect â€” tests/proshop-churn-exemption.test.js fails if DEFECTS.md and
   //    this list disagree about whether NAV-WAIT-001 is still open.
   //  - CONTAINMENT is now asserted directly (the airtight claim, previously
   //    only inferred from block positions): no customer center may ever be in
   //    the staff corridor, east of the public bound (service wing), or inside
   //    a sealed slab. Zones derive from the live PINE_HILLS_V2_LAYOUT consts.
-  //  - SPEED: defaults to 1× on a 60-game-minute peak window (10:00-11:00,
-  //    10 scripted spawns + organic arrivals — requeue3's crowd density).
-  //    Per SIM-TIME-001, NPC verification runs at 1× ONLY; a full 9:00-19:30
-  //    day at 1× is 10.5 wall-hours per leg, so the practical instrument is
+  //  - SPEED: defaults to 1Ã— on a 60-game-minute peak window (10:00-11:00,
+  //    10 scripted spawns + organic arrivals â€” requeue3's crowd density).
+  //    Per SIM-TIME-001, NPC verification runs at 1Ã— ONLY; a full 9:00-19:30
+  //    day at 1Ã— is 10.5 wall-hours per leg, so the practical instrument is
   //    the peak window. GREYBOX_DAY_START_MIN/END_MIN/SPEED restore the full
-  //    16× day shape explicitly — that mode is a stress regime, not evidence
-  //    of what a 1× player experiences, and is tagged as such in the output.
+  //    16Ã— day shape explicitly â€” that mode is a stress regime, not evidence
+  //    of what a 1Ã— player experiences, and is tagged as such in the output.
   //
   // Freeze/queue thresholds are WALL units at every speed: the clubhouse
   // update receives raw wall dt (courseScene.js:9651) so locomotion is
@@ -77,7 +77,7 @@ async (page) => {
   const END_MIN = Number(process.env.GREYBOX_DAY_END_MIN || 11 * 60);
   const INCLUDES_CLOSE = END_MIN >= 19 * 60 + 30;
   // Wall budget for the window plus drain margin; the old fixed 35-min cap
-  // would truncate any 1× window over ~30 game-minutes.
+  // would truncate any 1Ã— window over ~30 game-minutes.
   const MAX_WALL_MS = ((END_MIN - START_MIN) / SPEED) * 60000 * 1.5 + 480000;
 
   const FREEZE_WINDOW_WALL_S = 12;
@@ -92,7 +92,7 @@ async (page) => {
   // The 2026-07-28 ruling: the browse-stand stack is a MISSING FEATURE, not a
   // threshold problem. So the cap and the floor are unchanged, and instead each
   // episode is ATTRIBUTED. Only episodes attributable to an open, named defect
-  // are waived, and they are always printed with that defect's ID — the waiver
+  // are waived, and they are always printed with that defect's ID â€” the waiver
   // is never silent and never a class-wide exemption.
   //
   // The waiver dies with the defect: DEFECTS.md is the status authority and
@@ -132,7 +132,7 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => {
@@ -147,7 +147,7 @@ async (page) => {
     const state = app.state;
 
     // Customer-forbidden zones, from the live layout (v2 only). Local coords;
-    // margins shrink each rect so capsule-vs-face surface contact never flags —
+    // margins shrink each rect so capsule-vs-face surface contact never flags â€”
     // only a center genuinely inside the sealed volume does.
     let zones = [];
     if (cfg.isV2) {
@@ -162,12 +162,12 @@ async (page) => {
         { name: 'staff-corridor', ...inset({ minX: west.returnBackFill.minX, maxX: V2.publicBounds.maxX, minZ: seal.zTo, maxZ: west.returnBackFill.maxZ }, 0.15) },
         // East of the public bound = the service wing. 5.60 is the partition
         // band's west face; a customer center past it is inside or beyond the
-        // partition line (the staff mouth included — no customer path exists
+        // partition line (the staff mouth included â€” no customer path exists
         // east of publicBounds.maxX). z-bounded to the building's interior
         // band: arrivals legally walk the porch OUTSIDE the south wall, so an
         // open-ended rect would false-flag the door approach.
         { name: 'service-wing', minX: 5.60, maxX: V2.publicBounds.maxX + 6, minZ: seal.zFrom, maxZ: V2.publicBounds.maxZ + V2.wallT },
-        // Sealed slabs — inside any of these means the walker pierced a solid.
+        // Sealed slabs â€” inside any of these means the walker pierced a solid.
         { name: 'seal-east-stub', ...inset({ minX: seal.x - seal.t / 2, maxX: seal.x + seal.t / 2, minZ: seal.zFrom, maxZ: seal.zTo }, 0.02) },
         { name: 'seal-return-back', ...inset(west.returnBackFill, 0.05) },
         { name: 'seal-hutch-gap', ...inset(west.hutchGapFill, 0.05) },
@@ -295,8 +295,8 @@ async (page) => {
               });
               if (claimed) epi.occHeld += 1;
             }
-            // An open episode ends only on a REAL escape (≥ escapeYd from the
-            // anchor), arrival, queue entry, or despawn — a slow creep between
+            // An open episode ends only on a REAL escape (â‰¥ escapeYd from the
+            // anchor), arrival, queue entry, or despawn â€” a slow creep between
             // detection windows keeps the clock running.
             const fromAnchor = Math.hypot(p.x - epi.anchorX, p.z - epi.anchorZ);
             if (fromAnchor >= cfg.episodeEscapeYd) closeEpisode(id, epi, wallSecond, 'moved');
@@ -306,7 +306,7 @@ async (page) => {
             const net = Math.hypot(win[win.length - 1].x - win[0].x, win[win.length - 1].z - win[0].z);
             if (net < cfg.freezeEpsilonYd) {
               active.set(id, {
-                // Stillness has held since the window START — the episode
+                // Stillness has held since the window START â€” the episode
                 // clock includes the detection lag, honestly.
                 onsetWallS: win[0].t,
                 anchorX: p.x,
@@ -315,7 +315,7 @@ async (page) => {
                 stopKind: stop?.kind ?? null,
                 fixtureId: stop?.fixtureId ?? null,
                 phase: customer.checkoutPhase ?? null,
-                // The goal the walker could not reach — attribution needs the
+                // The goal the walker could not reach â€” attribution needs the
                 // stand's position, not just its id.
                 stopX: Number.isFinite(stop?.x) ? stop.x : NaN,
                 stopZ: Number.isFinite(stop?.z) ? stop.z : NaN,
@@ -369,7 +369,7 @@ async (page) => {
     const within15 = judged.filter((e) => e.durationWallS <= cfg.ladderBudgetWallS).length;
     const over20 = judged.filter((e) => e.durationWallS > cfg.blockCapWallS);
     const recoveryRate = judged.length ? +(within15 / judged.length).toFixed(3) : 1;
-    // Waived episodes are summarised, never hidden — a silent waiver is how an
+    // Waived episodes are summarised, never hidden â€” a silent waiver is how an
     // exemption turns into a blind spot.
     const waivedByDefect = {};
     for (const e of waived) {
@@ -539,7 +539,7 @@ async (page) => {
       note: 'clubhouseApi.update receives raw wall dt (courseScene.js:9651): game '
         + 'speed compresses the clock only (DEFECTS.md SIM-TIME-001). NPC evidence '
         + 'is valid at 1x; any run above 1x is a stress regime, not a play claim. '
-        + 'A full 9:00-19:30 day at 1x is 10.5 wall-hours per leg — the default '
+        + 'A full 9:00-19:30 day at 1x is 10.5 wall-hours per leg â€” the default '
         + 'instrument is the 1x 60-game-minute peak window.',
     },
     ...legs,

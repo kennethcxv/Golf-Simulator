@@ -1,6 +1,6 @@
-async (page) => {
+﻿async (page) => {
   // "Screenshot both options visible." Both shipping rows, in the cart, above the
-  // confirm button — which is the whole point of moving them there.
+  // confirm button â€” which is the whole point of moving them there.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
@@ -20,11 +20,11 @@ async (page) => {
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
 
-  // Straight to the ordering desk with a basket already in it — the shot is the
+  // Straight to the ordering desk with a basket already in it â€” the shot is the
   // cart, not the route to it.
   await page.evaluate(() => {
     window.__fw.speedIdx = 0;
@@ -39,8 +39,8 @@ async (page) => {
   const added = await page.evaluate(() => {
     // Whatever the product card's add control is actually called. The first
     // attempt guessed /add|\+/ inside .lt-grid and matched nothing, which is why
-    // the cart stayed empty and the shipping rows — which only exist when the
-    // basket does — were not on screen to photograph.
+    // the cart stayed empty and the shipping rows â€” which only exist when the
+    // basket does â€” were not on screen to photograph.
     const all = [...document.querySelectorAll('.lt-content button')];
     const labels = [...new Set(all.map((b) => (b.textContent || '').trim()))].slice(0, 30);
     const adders = all.filter((b) => !b.disabled

@@ -37,7 +37,7 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl);
-  await page.getByText('Continue', { exact: true }).click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await waitForGame();
 
   const fixtureResult = await page.evaluate(async () => {
@@ -408,7 +408,7 @@ async (page) => {
     const autosave = await page.evaluate(() => window.__fw.autosave());
     intentionalReloadInProgress = true;
     await page.reload();
-    await page.getByText('Continue', { exact: true }).click();
+    await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
     await waitForGame();
     await page.waitForFunction(() => {
       let count = 0;

@@ -1,5 +1,5 @@
-async (page) => {
-  // BLOCKER 8 — "the room is not dark enough". Measures the UNPOWERED room at
+﻿async (page) => {
+  // BLOCKER 8 â€” "the room is not dark enough". Measures the UNPOWERED room at
   // fixed poses so "darker" is a number, not an impression.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/proshop-dark-state-luma.js
@@ -13,7 +13,7 @@ async (page) => {
   // a fully LIT room, producing a confident 10% improvement that was noise
   // between two lit captures.
   //
-  // Second — and this is why it could not run at all for a day — it now waits on
+  // Second â€” and this is why it could not run at all for a day â€” it now waits on
   // the CONDITION rather than on a clock. ceilingLightingDiagnostics reports the
   // SHELL's flag, which initialises to `true` and only becomes false once the
   // clubhouse update has run updateFlicker. tools/qa/dark-state-power-diagnosis.js
@@ -23,7 +23,7 @@ async (page) => {
   //
   // Third, the reason the room is not dark is measured, not guessed:
   // tools/qa/proshop-world-light-contribution.js. The global HemisphereLight
-  // supplies ~40% of interior luma — and ~42% of COURSE luma, because it is
+  // supplies ~40% of interior luma â€” and ~42% of COURSE luma, because it is
   // unoccluded and lights both about equally. The interior daylight fills, the
   // obvious suspect, are a minor term beside it.
   //
@@ -127,13 +127,13 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
 
   // Fixed conditions: unpowered campaign start, mid-morning, no customers or
-  // HUD in frame — the same discipline the Phase 4 captures used, because an
+  // HUD in frame â€” the same discipline the Phase 4 captures used, because an
   // unpinned frame cannot be compared with anything.
   // DO NOT PAUSE. The shell only learns the circuit is dead when the clubhouse
   // update runs (updateFlicker -> setCeilingCircuitPowered), and it initialises
@@ -158,8 +158,8 @@ async (page) => {
   // The shell's circuit flag initialises to `true` and only becomes false when
   // the clubhouse update runs updateFlicker, which pushes the sim's answer
   // across. Measured by tools/qa/dark-state-power-diagnosis.js: the SIM says
-  // unpowered from the first frame after boot — campaign enabled, ceiling
-  // component unrestored — while the SHELL still says powered, and takes a few
+  // unpowered from the first frame after boot â€” campaign enabled, ceiling
+  // component unrestored â€” while the SHELL still says powered, and takes a few
   // seconds of running to catch up.
   //
   // A fixed 1200 ms wait landed inside that gap, which is why this probe

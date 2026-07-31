@@ -6,7 +6,7 @@ async (page) => {
   });
   const base = process.env.QA_BASE_URL || 'http://localhost:8457/';
   await page.goto(`${base}?clubhouse=modern-public`);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await Promise.race([
     page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 25000 }).catch(() => null),
     page.waitForTimeout(7000),

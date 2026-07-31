@@ -1,13 +1,13 @@
-async (page) => {
+﻿async (page) => {
   // THE SALES-TAX LIABILITY, ON THE FINANCES PAGE, WITH MONEY ACTUALLY IN IT.
   //
   //   node tools/qa/run-playwright.cjs tools/qa/laptop-sales-tax-card.js
   //
-  // Reported 2026-07-29: "The tax is not the player's money — it accrues as a liability and is
+  // Reported 2026-07-29: "The tax is not the player's money â€” it accrues as a liability and is
   // remitted, visible in Finances."
   //
   // "Visible" is a claim about the render, so this rings real sales through the sim, opens the
-  // laptop, and photographs the card — twice: once for the starter's North Carolina 7%, and
+  // laptop, and photographs the card â€” twice: once for the starter's North Carolina 7%, and
   // once with the deed moved to Oregon, where the card has to say the register adds nothing
   // rather than showing an empty 0% liability. The Oregon pass is the negative control: if the
   // card were hardcoded copy, both shots would read the same.
@@ -34,13 +34,13 @@ async (page) => {
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /^Continue/ }).first().click();
+  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(3000);
 
   // Ring three real sales so the liability has money in it. Through checkoutSale, which is the
-  // sim's own command — a hand-written state.salesTax.owed would prove only that the card can
+  // sim's own command â€” a hand-written state.salesTax.owed would prove only that the card can
   // print a number it was given.
   const rung = await page.evaluate(async () => {
     const app = window.__fw;
