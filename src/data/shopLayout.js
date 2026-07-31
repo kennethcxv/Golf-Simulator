@@ -932,7 +932,7 @@ export const REGISTER = {
   // against the right frame edge of the working pose. 0.34 pulls the whole
   // monitor inside the frame; it stays right of the goods (the space contract)
   // and near enough over the drawer for the cash pose to read both together.
-  monitor: frontDeskPose(0.34, 0.24, 0),
+  monitor: frontDeskPose(0.30, 0.24, 0),
   cardterm: frontDeskPose(0.10, -0.16, 0),
   scanner: frontDeskPose(-0.20, 0.02, Math.PI + 0.22),
   // The receipt was cut from the flow entirely in round 7 ("please completely

@@ -200,12 +200,22 @@ const SLIDE_DURATION = 0.55; // click-to-bag slide (2026-07-30 round 2)
 // card sales; now it PARKS in this bay, visible, exactly like the reference —
 // "add a space in the desk for the card reader to be placed on."
 export const CHECKOUT_TERMINAL_BAY = Object.freeze({
-  localX: 0.10,          // centred on the card station's desk-local x
+  // Left of the card station so the tray's right rail clears the drawer's
+  // slide (drawer front spans local x 0.29..0.75).
+  localX: -0.04,
   width: 0.56,
-  height: 0.17,
+  height: 0.21,
   reach: 0.115,          // how far the tray stands proud of the desk face
-  belowTop: 0.145,       // bay vertical centre under the counter top
-  seatPitch: -0.50,      // the parked reader leans back against the glow
+  // High under the lip, so the tray's upper half and the parked devices'
+  // heads read from the low round-6 working eye (the first seat at 0.145
+  // fell almost entirely below the frame's bottom edge).
+  belowTop: 0.115,
+  seatPitch: -0.5,       // the parked reader leans back against the glow
+  // The working-size reader is 0.405 tall — parked at full size its head
+  // towered out of the tray and read as a loose slab on the counter. A real
+  // terminal is pocket-sized at rest; it parks at this fraction of working
+  // scale and the float grows it back to full size at the face.
+  parkScale: 0.55,
   pinPadOffsetX: 0.17,   // the second small device beside the reader
 });
 const CARD_TIME = 1.15;
@@ -947,6 +957,7 @@ export function createRegisterMode(B) {
   let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
   let termSeatPosition = null;
   let termSeatQuaternion = null;
+  let termBaseScale = TERMINAL_HARDWARE_SCALE; // working size; parked shrinks by BAY.parkScale
   let cardMeshOnTerminal = false;
 
   function terminalShouldFloat() {
@@ -980,6 +991,7 @@ export function createRegisterMode(B) {
         terminalFloat = 0;
         termObject.position.copy(termSeatPosition);
         termObject.quaternion.copy(termSeatQuaternion);
+        termObject.scale.setScalar(termBaseScale * CHECKOUT_TERMINAL_BAY.parkScale);
       }
       terminalFloatAnchor = null;
       return;
@@ -1043,6 +1055,9 @@ export function createRegisterMode(B) {
     const ease = THREE.MathUtils.smoothstep(terminalFloat, 0, 1);
     termObject.position.lerpVectors(termSeatPosition, terminalFloatAnchor.position, ease);
     termObject.quaternion.slerpQuaternions(termSeatQuaternion, terminalFloatAnchor.quaternion, ease);
+    // pocket-sized in the bay, working-sized at the face
+    const park = CHECKOUT_TERMINAL_BAY.parkScale;
+    termObject.scale.setScalar(termBaseScale * (park + (1 - park) * ease));
   }
 
   const terminalKeyByAction = new Map();   // action -> [key mesh, glyph mesh]
@@ -2964,6 +2979,7 @@ export function createRegisterMode(B) {
     terminal.position.set(seatSpot.x, COUNTER_TOP - BAY.belowTop - BAY.height / 2 + 0.004, seatSpot.z);
     terminal.quaternion.copy(frontDeskQuaternion(BAY.seatPitch, 0, 0));
     terminal.scale.multiplyScalar(TERMINAL_HARDWARE_SCALE);
+    termBaseScale = terminal.scale.x;
     termObject = terminal;
     suppressLegacyCheckoutBrandNodes(terminal, 'paymentTerminal');
 
@@ -3003,6 +3019,10 @@ export function createRegisterMode(B) {
     termCentreOffsetY = termBox.isEmpty()
       ? 0.10
       : termBox.getCenter(new THREE.Vector3()).y - terminal.getWorldPosition(new THREE.Vector3()).y;
+    // PARK SMALL. The centre offset above is measured at working scale (the
+    // float aims the full-size device); only after measuring does the parked
+    // pocket size apply, and updateTerminalFloat swells it back on the rise.
+    terminal.scale.setScalar(termBaseScale * BAY.parkScale);
     // The authored card socket anchors the automatic chip insertion path.
     cardSocketNode = terminal.getObjectByName('CARD_INSERT_SOCKET') || null;
     collectTerminalKeys(terminal);
@@ -7279,10 +7299,12 @@ export function createRegisterMode(B) {
   // subject by retreating, and retreating flattens the counter into the thin
   // edge-on band the round-5 first cut produced. Height is composed, not fitted.
   const WORK_POSE_MARGIN_Y = 1.60;
-  // Just below centre. Measured at this desk it yields a 35-36° working glance:
-  // POS glass in the upper right, counter far edge at a third, the bag and the
-  // goods across the middle, and the customer cropped through the chest.
-  const WORK_POSE_ANCHOR_Y = -0.02;
+  // Just above centre. -0.02 yielded the 35-36° working glance but sliced the
+  // counter's front band off at the frame's bottom edge — and round 7 mounts
+  // the glowing device bay ON that band. +0.045 raises the composition enough
+  // that the bay's upper half and the parked reader's head read in frame,
+  // while the customer still crops through the chest.
+  const WORK_POSE_ANCHOR_Y = 0.045;
   let workPoseCache = null; // { key, value }
   function derivedWorkingPose() {
     const fallback = MIXED_POSE;
@@ -7361,7 +7383,9 @@ export function createRegisterMode(B) {
       // below frame centre is the same thing as tilting the eye ~36° DOWN,
       // which is what puts the counter's far edge a third of the way down, the
       // counter top across the lower two thirds, and the crop line through the
-      // customer's chest.
+      // customer's chest. Round 7 lifts the anchor slightly so the counter's
+      // FRONT BAND — the glowing device bay from the reference — enters the
+      // bottom of the frame instead of being sliced off by it.
       anchorY: WORK_POSE_ANCHOR_Y,
       fov: fallback.fov || CHECKOUT_WORKING_FOV,
       marginX: WORK_POSE_MARGIN_X,
