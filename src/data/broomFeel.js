@@ -139,6 +139,12 @@ export const BROOM_FEEL = Object.freeze({
   dirt: Object.freeze({
     pushSpeed: 2.6,      // yd/s; bristles push debris faster than you walk
     maxStep: 0.42,       // yd; no single stroke flings debris further than this
+    // A PUSH broom pushes debris AWAY — the pile recedes up the lane ahead of
+    // the bristle face, with the stroke adding side drift. (The old purely
+    // lateral direction ping-ponged piles sideways; at push speed it ejected
+    // them out of the lane entirely.) sideBias is the lateral fraction mixed
+    // onto the unit forward push, alternating with the stroke.
+    sideBias: 0.35,
   }),
 
   // --- look-down / pitch coupling ------------------------------------------

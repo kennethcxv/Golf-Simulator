@@ -8308,6 +8308,16 @@ export function makeCourseScene(canvas, state) {
           }
           dirX = Math.cos(walk.yaw) * sign;
           dirZ = -Math.sin(walk.yaw) * sign;
+          // Phase 6, the PUSH: a push broom drives debris AWAY — the pile
+          // recedes up the lane ahead of the bristle face, the stroke adding
+          // alternating side drift. (Purely lateral direction ping-ponged
+          // piles and, at push speed, ejected them out of the lane.) sweepAt
+          // normalises, so only the direction matters here.
+          if (walkTool === 'broom' && broomVm.isActive() && broomPose) {
+            const side = BROOM_FEEL.dirt.sideBias * sign;
+            dirX = -Math.sin(walk.yaw) + Math.cos(walk.yaw) * side;
+            dirZ = -Math.cos(walk.yaw) + -Math.sin(walk.yaw) * side;
+          }
           // CONTACT-PHASE GATE (corrected polarity). x = rest.x + sin(phase)·span ⇒ tool speed ∝
           // |cos(phase)|, so the tool moves FASTEST through the middle of each pass and lifts/stalls
           // at the turnarounds. Cleaning must land on that visible mid-drag, so contact is the FAST
