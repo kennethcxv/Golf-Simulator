@@ -80,10 +80,25 @@ const TERM_CANVAS_H = 468;
 export const TERMINAL_BUSY_DOT_HZ = 3;
 export const CHECKOUT_DISPLAY_BRAND_PRESENTATION = Object.freeze({
   defaultClubName: 'Pine Hills Municipal Golf',
-  bagPanel: Object.freeze({ width: 0.268, height: 0.285, y: 0.18, z: 0.108 }),
+  // A STAMP, not a wrapper. At 0.268 x 0.285 the panel covered 89% of the
+  // carrier's printed face edge to edge, and once the bag was laid flat that
+  // full-bleed bordered rectangle read as a printed carton lid (playtest round
+  // 5, 2026-07-30). Shrunk and moved back toward the closed base it reads as
+  // shop branding screened onto kraft paper, with bare paper around it and the
+  // rope handle clear of it.
+  bagPanel: Object.freeze({ width: 0.176, height: 0.118, y: 0.150, z: 0.108 }),
   legacyNodes: Object.freeze({
+    // NOT 'Bag_Body_2'. On the kit carrier that name is not a decal — it is the
+    // loader's second primitive of Bag_Body, i.e. the PRINTED FRONT PANEL'S OWN
+    // GEOMETRY. Hiding it punched a hole clean through the front of the bag and
+    // left the dark liner showing through; the full-bleed dynamic panel used to
+    // cover the hole, so nobody saw it while the bag stood upright with its face
+    // to the customer. Laid flat that hole points at the ceiling, and a paper
+    // bag you can see straight into is the "reads as a fallen box / open carton"
+    // report (playtest round 5, 2026-07-30). The authored club marks on that
+    // panel are a TEXTURE, and applyKraftBagStyle already drops every map it
+    // finds — so the old branding goes and the paper stays.
     shoppingBag: Object.freeze([
-      'Bag_Body_2',
       'PinehollowBadge',
       'PinehollowWordmark',
     ]),
@@ -205,18 +220,72 @@ const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
 export const CARD_HELD_PITCH = 0.62;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
-  // UPRIGHT AT THE COUNTER'S LEFT END. Checkout-physicality round 2026-07-30,
-  // measured against Designs/CashRegister/Final (154454/154641): the carrier
-  // STANDS on the counter top, mouth up, fully LEFT of the staged goods at
-  // REGISTER.bag, and a rung-up item slides SIDEWAYS along the counter into
-  // that mouth. The former side-lying take (roll -PI/2) read as a fallen box
-  // and its flank sank through the top; upright, the origin is the bag's own
-  // base so it sits ON the surface with only a paper-thin seat lift.
-  pitch: 0,
-  roll: 0,
+  // FLAT, LONG, AND OPEN TOWARD THE COUNTER SPACE. Playtest round 5
+  // (2026-07-30): "look at how the bag is laid flat and it's long, opened, and
+  // small height. Then notice the space to the right of that to add the items."
+  // Every reference (154454 / 154525 / 154641 and the 2026-07-30 counter shot)
+  // has the kraft carrier ON ITS FACE at counter-left: long axis running down
+  // the counter, only its 0.18 gusset depth off the surface, and the MOUTH
+  // aimed right at the bare stretch where scanned goods land.
+  //
+  // The rotation is read as axes, not as a guessed euler. Euler(-PI/2, 0,
+  // -PI/2) maps the bag's local +Y (its mouth) onto desk +X, its local +Z (the
+  // printed front panel and the rope handle) onto world UP, and its local +X
+  // (width) onto desk +Z, toward the cashier. That is the reference exactly:
+  // one broad printed face up with the handle arcing across it, the closed base
+  // at the far left, the open mouth pointing down-counter to the right.
+  //
+  // An earlier round tried this and a playtest called it "a fallen box". Two
+  // things caused that and both are answered here: the flank SANK THROUGH the
+  // counter (the model's origin is its base, so half the laid bag fell below
+  // y=0 — counterLift now carries the real half-thickness), and the interior
+  // was painted the same kraft as the outside, so the mouth read as a flat
+  // seam rather than a cavity (applyKraftBagStyle now darkens the liner).
+  // What must read is the OPENING.
+  pitch: -Math.PI / 2,
+  roll: -Math.PI / 2,
   scale: 0.78,
-  counterLift: 0.002,
+  // "SMALL HEIGHT". The authored carrier is a 0.18 deep standing bag; laid on
+  // its face that is 56% of its own length off the counter, which is a carton's
+  // proportion, not a paper bag's. Every reference bag is squashed to about a
+  // quarter of its length — the gusset collapses when you lay a bag down. The
+  // model's own depth axis is flattened by this factor inside the group, so the
+  // group keeps a uniform scale and every authored anchor (mouth, contents,
+  // handoff — all on the depth-free centre line) stays exactly where it was.
+  flatten: 0.55,
+  // Half the flattened gusset depth (0.097 hem + 0.004 grommet) at the counter
+  // scale, plus a paper-thin seat, so the laid flank rests ON the top instead
+  // of through it — the sink the previous side-lying attempt was rejected for.
+  counterLift: 0.101 * 0.55 * 0.78 + 0.003,
+  // A rung-up item lands flat in the mouth; the bag's own roll must not tip it.
+  itemRoll: 0,
 });
+// THE CASHIER'S OWN EYE LINE. Playtest round 5 (2026-07-30) reported the derived
+// working frame as a "10ft tall cashier" bird's-eye. Measured, it had solved its
+// way to 1.99 above the staff floor, because nothing pinned the height: the
+// framing solver was free to buy any fit by floating up.
+//
+// The honest number is not a taste call. This game already knows how tall a
+// person is — the walking player's eye rides 1.62 above whatever ground they
+// stand on (courseScene's walk camera; broomViewmodel measures the floor as
+// camera.y - 1.62). A cashier IS the player, standing behind the counter, so the
+// working frame simply uses that same eye. Interior-local absolute y, the frame
+// COUNTER_TOP (1.055) and the interior floor (0.3) live in.
+export const CHECKOUT_STAFF_FLOOR_Y = 0.30;
+export const CHECKOUT_STANDING_EYE_ABOVE_FLOOR = 1.62;
+export const CHECKOUT_WORKING_EYE_Y = CHECKOUT_STAFF_FLOOR_Y + CHECKOUT_STANDING_EYE_ABOVE_FLOOR;
+// A standing adult's shoulder and hands above their own feet. The working frame
+// holds the customer only to their HANDS, so the head crops off the top exactly
+// as it does in Designs/CashRegister/Final and the 2026-07-30 counter shot; the
+// shoulder height is what the round-5 pose test measures that crop against.
+export const CHECKOUT_CUSTOMER_SHOULDER_Y = 1.34;
+export const CHECKOUT_CUSTOMER_HANDS_Y = 0.95;
+// The working lens. 48.5 was a lens that could only fit this counter's ~2 yd of
+// kit from a yard and a half back, and from a yard and a half back a standing
+// eye sees the counter's own front apron across the bottom third instead of the
+// counter TOP. Widening to 54 buys the standoff the reference composition needs
+// while keeping short-lens distortion off the POS glass.
+export const CHECKOUT_WORKING_FOV = 54;
 export const CHECKOUT_WORKING_GLANCE_SCALE = 0.34;
 // THE DRAWER VIEW BARELY LEANS. Counting change means the cursor travels the
 // whole width of the till, and at full lean that swung the POS cash summary —
@@ -1179,6 +1248,7 @@ export function createRegisterMode(B) {
   let bagContentsNode = null;
   let bagHandoffNode = null;
   const BAG_COUNTER_SCALE = CHECKOUT_BAG_PRESENTATION.scale;
+  const BAG_FLATTEN = CHECKOUT_BAG_PRESENTATION.flatten;
   const bagCounterQuaternion = () => frontDeskQuaternion(
     CHECKOUT_BAG_PRESENTATION.pitch, 0, CHECKOUT_BAG_PRESENTATION.roll,
   );
@@ -1186,8 +1256,9 @@ export function createRegisterMode(B) {
   const bagDeliverAnchorFrom = new THREE.Vector3();
   const bagDeliverAnchorAt = new THREE.Vector3();
   let bagDeliverScaleFrom = BAG_COUNTER_SCALE;
-  // The upright carrier stands exactly at its authored layout point — the
-  // counter's LEFT end, on the staff half, left of every staged item.
+  // The laid carrier's CLOSED BASE sits exactly on its authored layout point —
+  // the counter's LEFT end, on the staff half, left of every staged item — and
+  // the bag runs from there down-counter with its mouth aimed at the goods.
   const BAG_POS = new THREE.Vector3(
     REGISTER.bag.x,
     COUNTER_TOP + CHECKOUT_BAG_PRESENTATION.counterLift,
@@ -1230,14 +1301,16 @@ export function createRegisterMode(B) {
   // Each product is one direct click: ring once, animate into the open bag,
   // then let the customer payment preference advance automatically.
 
-  const hoverBounds = new THREE.Box3();
-  const hoverBox = new THREE.Box3Helper(hoverBounds, 0xb9974e);
-  hoverBox.visible = false;
-  root.add(hoverBox);
+  // NO HOVER OUTLINE. Playtest round 5 (2026-07-30): "when hovering over an
+  // item don't have the orange box around it anymore." The brass Box3Helper
+  // that used to rim every hovered product, drawer well and counted coin is
+  // gone; the pointer cursor alone says "clickable". The ONE outline that
+  // remains is the green payment rim below, which the same playtester asked
+  // for and which the reference carries.
   // THE GRABBABLE OUTLINE. When the customer holds out cash or a card, the
   // reference (154506) rims the offered payment BRIGHT GREEN. Two nested
   // depth-free shells read as one thick luminous rim from the checkout pose —
-  // unmistakably "take this" against the brass hover used for everything else.
+  // unmistakably "take this" against everything else on the counter.
   const GRAB_OUTLINE_COLOR = 0x2ecc40;
   const grabBounds = new THREE.Box3();
   const grabBoundsOuter = new THREE.Box3();
@@ -1566,10 +1639,16 @@ export function createRegisterMode(B) {
   // diagonal — eye near the register block looking down-counter to the left —
   // solved numerically so the upright bag, every staged product, the customer
   // and the complete POS all sit inside the 16:9 safe area at once.
+  // Playtest round 5 (2026-07-30): the eye moved from 1.60 to the game's own
+  // standing eye line, CHECKOUT_WORKING_EYE_Y — the same height the derived
+  // frame is pinned to, so mounting the bag never re-frames the shot. Aimed at
+  // the counter it works, that is a ~33° working glance, which is the frame the
+  // reference has: counter receding across the lower two thirds, customer
+  // cropped through the chest.
   const MIXED_POSE = { pose: poseBetween(
-    deskCameraPoint(0.75, 1.60, 1.10),
+    deskCameraPoint(0.75, CHECKOUT_WORKING_EYE_Y, 1.10),
     deskCameraPoint(0.05, 1.08, 0.00),
-  ), fov: 48.5 };
+  ), fov: CHECKOUT_WORKING_FOV };
   const POSES = {
     overview: MIXED_POSE,
     // Working the screen is done from BELOW it, looking UP. The old pose put the
@@ -1786,7 +1865,6 @@ export function createRegisterMode(B) {
     scanDrag = null;
     selectedItem = null;
     hoveredItem = null;
-    hoverBox.visible = false;
     setHoverCursor(false);
     clearCashValidationToast();
 
@@ -3541,6 +3619,14 @@ export function createRegisterMode(B) {
     bagGroup.scale.setScalar(BAG_COUNTER_SCALE);
   }
 
+  // Kraft outside, SHADOW inside. Laid on its face the bag is read almost
+  // entirely by its mouth, and a mouth painted the same colour as the paper
+  // around it is a seam, not an opening — which is what made an earlier
+  // side-lying take read as "a fallen box". The authored liner shells
+  // (bag_liner_*) get a much darker, rougher paper so the cavity is visible
+  // from the working frame; the ropes stay cord-brown; everything else is the
+  // reference's warm kraft.
+  const BAG_LINER_COLOR = 0x4a3823;
   function applyKraftBagStyle(model) {
     model.traverse((object) => {
       if (!object.isMesh || !object.material) return;
@@ -3548,8 +3634,11 @@ export function createRegisterMode(B) {
         const styled = material.clone();
         const label = `${object.name || ''} ${material.name || ''}`.toLowerCase();
         const handle = /handle|cord|rope/.test(label);
-        if (styled.color) styled.color.setHex(handle ? 0x5b4026 : 0xc09a65);
-        if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.94;
+        const liner = /liner/.test(label);
+        if (styled.color) {
+          styled.color.setHex(handle ? 0x5b4026 : (liner ? BAG_LINER_COLOR : 0xc09a65));
+        }
+        if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.96;
         if ('metalness' in styled) styled.metalness = 0;
         if (!handle) styled.map = null;
         styled.needsUpdate = true;
@@ -3576,7 +3665,7 @@ export function createRegisterMode(B) {
     builtBag.scale.setScalar(BAG_COUNTER_SCALE);
     root.add(builtBag);
     const fallback = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.30, 0.17),
+      new THREE.BoxGeometry(0.26, 0.30, 0.17 * BAG_FLATTEN),
       new THREE.MeshStandardMaterial({ color: 0xbda274, roughness: 0.92, metalness: 0.0 }),
     );
     fallback.position.y = 0.15;
@@ -3589,7 +3678,13 @@ export function createRegisterMode(B) {
       bagBrandMaterial,
     );
     brandPanel.name = 'PineHillsDynamicBagBrand';
-    brandPanel.position.set(0, bagPanel.y, bagPanel.z);
+    // The panel rides just proud of the printed face, so it follows the same
+    // gusset flattening the carrier itself gets.
+    brandPanel.position.set(0, bagPanel.y, bagPanel.z * BAG_FLATTEN);
+    // Laid flat, the printed face turns UP and the bag's own height axis runs
+    // down-counter. Spin the panel a quarter turn on its normal so the shop
+    // name reads ALONG the counter instead of running away from the player.
+    brandPanel.rotation.z = Math.PI / 2;
     brandPanel.userData = { pick: false, kind: 'bag-brand' };
     builtBag.add(brandPanel);
     if (merch) {
@@ -3607,6 +3702,11 @@ export function createRegisterMode(B) {
         suppressLegacyCheckoutBrandNodes(model, 'shoppingBag');
         applyKraftBagStyle(model);
         suppressInteriorSunShadows(model);
+        // Collapse the gusset. Scaling the MODEL rather than the group keeps the
+        // group's scale uniform for every other consumer (handoff drag, delivery
+        // tween, save/restore) and leaves the authored anchors — all of which sit
+        // on the depth-free centre line — exactly where they were.
+        model.scale.z = BAG_FLATTEN;
         builtBag.add(model);
         bagContentsNode = model.getObjectByName('ANCHOR_BagContents');
         bagHandoffNode = model.getObjectByName('ANCHOR_BagHandoff')
@@ -4262,7 +4362,6 @@ export function createRegisterMode(B) {
       printerPaper.visible = false;
       printerPaper.position.y = printerPaperBaseY;
     }
-    hoverBox.visible = false;
     setGrabOutline(null);
     hideTip();
     hoveredItem = null;
@@ -4523,7 +4622,6 @@ export function createRegisterMode(B) {
         }
       }
     }
-    hoverBox.visible = false;
     setGrabOutline(null);
     hideTip();
     drawScreen();
@@ -4538,7 +4636,6 @@ export function createRegisterMode(B) {
     if (next !== 'scan') {
       selectedItem = null;
       scanDrag = null;
-      hoverBox.visible = false;
     }
     // The real POS monitor stays present in every workspace — during cash it
     // carries the orange Received/Total/Change/Giving screen directly above the
@@ -4935,7 +5032,6 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'ProductHeld') {
       flowTo('ProductScanning', `moving-product-to-reader:${item.uid}`);
     }
-    hoverBox.visible = false;
     hoveredItem = null;
     sfx('productPickup');
     const separateHandoff = !!mesh.userData.catalogVisual?.separateHandoff;
@@ -4970,7 +5066,7 @@ export function createRegisterMode(B) {
       fromScale: mesh.scale.clone(),
       toQuaternion: separateHandoff
         ? frontDeskQuaternion(-0.9, Math.PI * 0.6, 0.4)
-        : frontDeskQuaternion(0, 0, CHECKOUT_BAG_PRESENTATION.roll),
+        : frontDeskQuaternion(0, 0, CHECKOUT_BAG_PRESENTATION.itemRoll),
     };
     return true;
   }
@@ -6521,7 +6617,6 @@ export function createRegisterMode(B) {
     const offered = offeredPaymentTarget(object);
     if (offered) {
       setGrabOutline(offered);
-      hoverBox.visible = false;
       showTip('Take payment', event);
       setHoverCursor(true);
       return;
@@ -6546,12 +6641,6 @@ export function createRegisterMode(B) {
       }
     }
     setGrabOutline(null);
-    if (target) {
-      alignBoundsToRoot(hoverBounds.setFromObject(target));
-      hoverBox.visible = true;
-    } else {
-      hoverBox.visible = false;
-    }
     showTip(tip, event);
     // denomination identity is carried by the permanent white tags over each well
     setHoverCursor(!!target || !!monitorActionAt(event));
@@ -6664,7 +6753,6 @@ export function createRegisterMode(B) {
     if (scanDrag) return movePhysicalDrag(event);
     updateLookTarget(event);   // the cursor leans the view around the pose
     if (workspace === 'card') {
-      hoverBox.visible = false;
       // the customer's offered card rims green under the cursor — the same
       // grabbable affordance the offered cash carries (reference 154506)
       const offered = offeredPaymentTarget(physicalPick(event));
@@ -6680,8 +6768,6 @@ export function createRegisterMode(B) {
         && tx && !tx.items.find((item) => item.uid === object.userData.uid)?.scanned
         ? (itemMeshes.get(object.userData.uid) || object)
         : null;
-      hoverBox.visible = !!hoveredItem;
-      if (hoveredItem) alignBoundsToRoot(hoverBounds.setFromObject(hoveredItem));
       setHoverCursor(!!hoveredItem);
       return true;
     }
@@ -6697,7 +6783,6 @@ export function createRegisterMode(B) {
       const offered = offeredPaymentTarget(object);
       if (offered) {
         setGrabOutline(offered);
-        hoverBox.visible = false;
         showTip('Take payment', event);
         setHoverCursor(true);
         return true;
@@ -6711,12 +6796,6 @@ export function createRegisterMode(B) {
           || (tx.stage === 'bagging' && tx.receiptPacked && item?.scanned && !item.bagged);
         if (available) target = itemMeshes.get(object.userData.uid) || object;
       }
-      if (target) {
-        alignBoundsToRoot(hoverBounds.setFromObject(target));
-        hoverBox.visible = true;
-      } else {
-        hoverBox.visible = false;
-      }
       setHoverCursor(!!target || !!monitorActionAt(event));
       return true;
     }
@@ -6724,7 +6803,6 @@ export function createRegisterMode(B) {
       setHoverCursor(!!monitorActionAt(event));
       return true;
     }
-    if (hoverBox.visible) hoverBox.visible = false;
     setGrabOutline(null);
     hideTip();
     setHoverCursor(false);
@@ -7120,11 +7198,11 @@ export function createRegisterMode(B) {
         bagDeliverAnchorAt.lerpVectors(bagDeliverAnchorFrom, to, eased);
         bagDeliverAnchorAt.y += Math.sin(t * Math.PI) * 0.14;
         bagGroup.scale.setScalar(bagDeliverScaleFrom);
-        bagGroup.quaternion.copy(frontDeskQuaternion(
-          0.035 * eased,
-          0.16 * eased,
-          -0.055 * eased,
-        ));
+        // The carrier RESTS flat on the counter and is RIGHTED as it is lifted
+        // into the customer's hand. Interpolating from identity would snap it
+        // upright on the first frame of the handoff.
+        bagGroup.quaternion.copy(bagCounterQuaternion())
+          .slerp(frontDeskQuaternion(0.035, 0.16, -0.055), eased);
         // Drive the authored handle socket—not the bag's floor origin—to the
         // hand. At t=1 this is exact, so the transfer has visible contact.
         bagGroup.position.copy(bagDeliverAnchorAt);
@@ -7347,11 +7425,20 @@ export function createRegisterMode(B) {
   // The multiplicative walk it replaced converged wherever it happened to
   // stop, which is why the till sat small and dead-centre with a third of the
   // frame given to bare counter on either side.
+  //
+  // eyeY PINS THE EYE TO A HEIGHT and solves everything else under it (playtest
+  // round 5, 2026-07-30: "it's supposed to look like the view a normal cashier
+  // would have, not a 10 ft tall cashier"). With it set, the bisection walks
+  // the HORIZONTAL standoff only, the eye stays on that plane, and the down
+  // angle falls out of wherever the aim lands — so a taller subject list can
+  // never buy its fit by floating the camera up over the counter again.
   const framingProbe = new THREE.PerspectiveCamera(50, 16 / 9, 0.05, 60);
   const framingScratch = new THREE.Vector3();
+  const framingBackFlat = new THREE.Vector3();
   function solveFramingPose({
     subjects, look, back, fov, marginX, marginY,
     anchorX = 0, anchorY = 0, minDist = 0.40, maxDist = 5.0, aspect = 16 / 9,
+    eyeY = null,
   }) {
     framingProbe.fov = fov;
     framingProbe.aspect = aspect;
@@ -7359,8 +7446,15 @@ export function createRegisterMode(B) {
     const aim = look.clone();
     const half = Math.tan(THREE.MathUtils.degToRad(fov) / 2);
     let dist = maxDist;
+    framingBackFlat.set(back.x, 0, back.z);
+    if (framingBackFlat.lengthSq() < 1e-9) framingBackFlat.set(0, 0, 1);
+    framingBackFlat.normalize();
     const place = (d) => {
-      framingProbe.position.copy(aim).addScaledVector(back, d);
+      if (eyeY === null) framingProbe.position.copy(aim).addScaledVector(back, d);
+      else {
+        framingProbe.position.copy(aim).addScaledVector(framingBackFlat, d);
+        framingProbe.position.y = eyeY;
+      }
       framingProbe.lookAt(aim);
       framingProbe.updateMatrixWorld(true);
     };
@@ -7494,11 +7588,39 @@ export function createRegisterMode(B) {
   // five things that must be in shot: bag, staged goods, POS glass, card
   // station, customer. Square-on is also what un-rotates the monitor: its
   // authored yaw is already zero, so a perpendicular camera sees it flat.
-  // "Nothing cut off by the frame edge" is the acceptance, so the horizontal
-  // margin keeps a visible gutter: at 0.96 the POS's right edge landed 2% from
-  // the viewport and read as clipped even though it measured inside.
-  const WORK_POSE_MARGIN_X = 0.92;
-  const WORK_POSE_MARGIN_Y = 0.94;
+  //
+  // PLAYTEST ROUND 5 (2026-07-30) — "why is the view of the checkout like birds
+  // eye view? It's supposed to look like the view that a normal cashier would
+  // have in real life, not a 10ft tall cashier." Measured, the old solve stood
+  // the eye 1.99 above the staff floor: half a body height too tall, which is
+  // exactly what "bird's eye" means. Two things caused it, and both are fixed
+  // here rather than by typing coordinates:
+  //   1 the eye height was a FREE variable. Pitching the standoff 32° up and
+  //     bisecting the slant distance let the solver buy any fit it liked by
+  //     floating higher. It is now PINNED (solveFramingPose's eyeY) to the
+  //     counter's own standing eye line, and only the horizontal standoff and
+  //     the resulting down angle are solved.
+  //   2 the customer's CROWN was a subject, so the frame could never crop their
+  //     head — and a frame that contains a whole standing adult across a
+  //     counter is, necessarily, shot from above them. The reference crops the
+  //     customer at the shoulders; so does this. Full containment of every
+  //     subject is no longer the goal, the human eye line is.
+  // "Nothing cut off by the frame edge" is therefore retired as an acceptance:
+  // the margins now hold the WORKING SURFACE — bag, goods, POS, reader — while
+  // the person across the counter is free to run off the top.
+  // Just over 1: the counter kit is allowed to KISS the frame edges and let its
+  // extremes — the bag's closed end, the monitor's outer bezel — run a few per
+  // cent past them. Every tenth of margin here is standoff, and standoff is what
+  // turns the counter top into an edge-on sliver with the cabinet below it.
+  const WORK_POSE_MARGIN_X = 1.06;
+  // Deliberately slack. If the vertical margin binds, the solver answers a tall
+  // subject by retreating, and retreating flattens the counter into the thin
+  // edge-on band the round-5 first cut produced. Height is composed, not fitted.
+  const WORK_POSE_MARGIN_Y = 1.60;
+  // Just below centre. Measured at this desk it yields a 35-36° working glance:
+  // POS glass in the upper right, counter far edge at a third, the bag and the
+  // goods across the middle, and the customer cropped through the chest.
+  const WORK_POSE_ANCHOR_Y = -0.02;
   let workPoseCache = null; // { key, value }
   function derivedWorkingPose() {
     const fallback = MIXED_POSE;
@@ -7527,7 +7649,7 @@ export function createRegisterMode(B) {
       }
       return true;
     };
-    // 1 — the upright bag at counter-left, whole, never cropped
+    // 1 — the bag lying flat at counter-left
     addBox(bagGroup);
     // 2 — the goods: their authored staging footprint plus whatever is on it
     for (const rect of [REGISTER.staging, REGISTER.scannedStaging]) {
@@ -7549,31 +7671,40 @@ export function createRegisterMode(B) {
     subjects.push(root.localToWorld(new THREE.Vector3(
       CARD_STATION.x, COUNTER_TOP + 0.04, CARD_STATION.z,
     )));
-    // 5 — the customer, head to knees, standing across the counter
-    // Head to KNEES, reference-style — not head to floor. Framing the whole
-    // standing figure pushed the counter into a thin band at the bottom of
-    // the shot with a third of the frame given to floorboards.
+    // 5 — the customer's HANDS at the counter, and nothing higher. This one
+    // point keeps their side of the counter inside the frame; everything above
+    // it is deliberately free to run off the top, which is how a standing
+    // cashier actually sees the person opposite. The old solve asked for the
+    // CROWN, and a frame that must contain a whole standing adult across a
+    // counter can only be shot from above them — the bird's-eye report.
     if (customer) {
-      const knees = root.localToWorld(new THREE.Vector3(customer.x, customer.y + 0.52, customer.z));
-      const crown = root.localToWorld(new THREE.Vector3(customer.x, customer.y + 1.66, customer.z));
-      subjects.push(knees, crown);
-      for (const side of [-0.32, 0.32]) {
-        subjects.push(root.localToWorld(new THREE.Vector3(
-          customer.x + side, customer.y + 1.20, customer.z,
-        )));
-      }
+      subjects.push(root.localToWorld(new THREE.Vector3(
+        customer.x, customer.y + CHECKOUT_CUSTOMER_HANDS_Y, customer.z,
+      )));
     }
     if (subjects.length < 8) return fallback;
     const centre = new THREE.Box3().setFromPoints(subjects).getCenter(new THREE.Vector3());
     const value = framedPose(solveFramingPose({
       subjects,
       look: centre,
-      back: staffStandoffDirection(0.56),   // ≈32° down, reference-style
-      anchorY: -0.06,                       // counter low, customer above it
-      fov: fallback.fov || 48.5,
+      // Purely horizontal: the counter's own normal. The eye's HEIGHT is the
+      // pinned constraint below, so the standoff must carry no pitch of its own
+      // or the two would fight and the solve would drift back up.
+      back: staffStandoffDirection(0),
+      eyeY: interior.position.y + CHECKOUT_WORKING_EYE_Y,
+      // WIDTH sets the standoff, HEIGHT sets the tilt. The counter kit spans
+      // ~2 yd of desk, so the horizontal fit is the only honest constraint on
+      // how close a cashier can stand; the vertical margin is deliberately
+      // slack and anchorY does the composing instead. Sitting the kit just
+      // below frame centre is the same thing as tilting the eye ~36° DOWN,
+      // which is what puts the counter's far edge a third of the way down, the
+      // counter top across the lower two thirds, and the crop line through the
+      // customer's chest.
+      anchorY: WORK_POSE_ANCHOR_Y,
+      fov: fallback.fov || CHECKOUT_WORKING_FOV,
       marginX: WORK_POSE_MARGIN_X,
       marginY: WORK_POSE_MARGIN_Y,
-      minDist: 0.9,
+      minDist: 0.55,
       maxDist: 5.0,
     }));
     workPoseCache = { key, value };

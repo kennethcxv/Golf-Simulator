@@ -68,8 +68,16 @@ test('the shared tee-desk receipt follows the same saved display brand', () => {
   assert.equal(frontDeskDisplayBrand({ property: { id: 'willow-creek' } }), 'Pine Hills Municipal Golf');
 });
 
-test('the Pine Hills bag panel sits ahead of the authored legacy artwork and suppresses it', async () => {
+test('the Pine Hills bag panel sits ahead of the authored face WITHOUT deleting it', async () => {
   const bag = (await loadCheckoutAsset('shopping_bag')).scene;
+  // Bag_Body_2 is NOT a decal. It is the loader's second primitive of Bag_Body —
+  // the printed front panel's own GEOMETRY, one of the two quads that close the
+  // front of the carrier. Suppressing it (which this test used to demand) punched
+  // a hole through the bag and left the dark liner showing through; nobody saw it
+  // while the bag stood upright behind a full-bleed brand panel, and everybody saw
+  // it the moment the bag was laid flat with that face up (playtest round 5,
+  // 2026-07-30 — "reads as a fallen box / open carton"). The authored club marks
+  // on it are a TEXTURE, and the runtime's applyKraftBagStyle drops every map.
   const artwork = bag.getObjectByName('Bag_Body_2');
   const body = bag.getObjectByName('Bag_Body_1');
   assert.ok(artwork?.isMesh);
@@ -84,11 +92,18 @@ test('the Pine Hills bag panel sits ahead of the authored legacy artwork and sup
   assert.ok(panel.height < bodyBounds.max.y - bodyBounds.min.y);
   assert.ok(panel.y - panel.height / 2 > bodyBounds.min.y);
   assert.ok(panel.y + panel.height / 2 < bodyBounds.max.y);
+  // …and it is a STAMP on kraft paper, not a wrapper: bare paper must remain
+  // around it on both axes, or the carrier reads as a printed carton.
+  assert.ok(panel.width < (bodyBounds.max.x - bodyBounds.min.x) * 0.72,
+    'the panel leaves bare paper across the face');
+  assert.ok(panel.height < (bodyBounds.max.y - bodyBounds.min.y) * 0.55,
+    'the panel leaves bare paper along the face');
 
-  assert.deepEqual(suppressLegacyCheckoutBrandNodes(bag, 'shoppingBag'), ['Bag_Body_2']);
-  assert.equal(artwork.visible, false);
-  assert.equal(artwork.userData.suppressedPlayerFacingLegacyBrand, true);
+  assert.deepEqual(suppressLegacyCheckoutBrandNodes(bag, 'shoppingBag'), []);
+  assert.equal(artwork.visible, true, 'the printed face is paper the bag is made of');
   assert.equal(body.visible, true, 'suppressing artwork preserves the physical carrier');
+  assert.ok(!CHECKOUT_DISPLAY_BRAND_PRESENTATION.legacyNodes.shoppingBag.includes('Bag_Body_2'),
+    'no future round may hide the carrier front again');
 });
 
 test('the legacy shopping-bag fallback also loses only its old club marks', async () => {

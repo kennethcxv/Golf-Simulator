@@ -937,10 +937,15 @@ export const REGISTER = {
   // left means smaller x), behind the reader's seat, inside the static frame.
   printer: frontDeskPose(0.14, 0.36, Math.PI - 0.06),
   custdisplay: frontDeskPose(0.94, -0.10, Math.PI),
-  // The carrier stands UPRIGHT at the counter's LEFT end (checkout-physicality
-  // round, 2026-07-30, vs Designs/CashRegister/Final): fully LEFT of the goods
-  // in REGISTER.staging so a rung-up item slides SIDEWAYS into its mouth.
-  bag: frontDeskPose(-1.02, 0.16, 0),
+  // THE CARRIER LIES FLAT at the counter's LEFT end (playtest round 5,
+  // 2026-07-30, vs Designs/CashRegister/Final and the 2026-07-30 counter shot):
+  // "the bag is laid flat and it's long, opened, and small height." This point
+  // is its CLOSED BASE — the model's own origin — and the bag runs from here
+  // down-counter to the right, ~0.31 long once laid and scaled, so its mouth
+  // stops clear of REGISTER.staging's left edge and leaves the bare stretch the
+  // reference keeps between the bag and the register block. A rung-up item
+  // still slides SIDEWAYS along the counter straight into that mouth.
+  bag: frontDeskPose(-1.16, 0.15, 0),
   bagstand: frontDeskPose(1.30, 0.30, 0),
   divider: frontDeskPose(1.52, -0.15, 0),
   impulse: frontDeskPose(1.28, -0.34, 0),
@@ -970,7 +975,7 @@ export const REGISTER = {
   // in the 2026-07-30 checkout-physicality round). The footprint bounds the
   // pile so money, reach tests and camera composition use one source of truth.
   changeHandoff: { ...frontDeskPoint(0.20, 0.30), w: 0.38, d: 0.20 },
-  // the bag handoff zone: the upright carrier's own ground at counter-left;
+  // the bag handoff zone: the laid carrier's own footprint at counter-left;
   // rung-up items slide sideways into the mouth here
   bagging: registerRect(-1.22, -0.82, 0.02, 0.34),
 

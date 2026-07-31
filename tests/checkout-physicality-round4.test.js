@@ -222,7 +222,13 @@ test('the POS faces the player square on: its own yaw is zero and the eye is on 
   assert.match(standoff, /frontDeskOffsetVector3\(0, 0, 1\)/,
     'the eye stands back along the counter normal, which is what un-rotates the POS');
   const solved = functionBody('derivedWorkingPose');
-  assert.match(solved, /staffStandoffDirection\(0\.\d+\)/, 'pitched down into a working stance');
+  // Round 5: the standoff carries NO pitch of its own any more. The eye height is
+  // pinned (solveFramingPose's eyeY) and the down angle falls out of the aim, so a
+  // pitched standoff would be a second, fighting control on the same degree of
+  // freedom — which is how the eye climbed to a bird's-eye in the first place.
+  assert.match(solved, /staffStandoffDirection\(0\)/, 'the standoff is purely horizontal');
+  assert.match(solved, /eyeY: interior\.position\.y \+ CHECKOUT_WORKING_EYE_Y/,
+    'the height is the pinned constraint');
 });
 
 test('bills and coins survive the tray with real money still in them', () => {

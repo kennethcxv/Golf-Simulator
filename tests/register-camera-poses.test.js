@@ -14,7 +14,8 @@ import {
   buildCatalogProductProxy, catalogCheckoutLayout,
 } from '../src/render3d/clubhouse/catalogProductVisual.js';
 import {
-  CHECKOUT_BAG_PRESENTATION, CHECKOUT_DISPLAY_BRAND_PRESENTATION, checkoutLookScale,
+  CHECKOUT_BAG_PRESENTATION, CHECKOUT_DISPLAY_BRAND_PRESENTATION,
+  CHECKOUT_WORKING_EYE_Y, CHECKOUT_WORKING_FOV, checkoutLookScale,
   receiptGeometryUsesFeedAxis,
 } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 import { skuById } from '../src/data/shopItems.js';
@@ -166,9 +167,11 @@ test('fixed register views and fallback payment handoffs follow the rotated desk
   const poseEnd = registerSource.indexOf('const CAMERA_TWEEN_SECONDS', poseStart);
   const poseSource = registerSource.slice(poseStart, poseEnd);
   const authoredPoints = [
-    // the diagonal working frame (checkout-physicality round 2026-07-30):
-    // eye near the register block, looking down-counter to the upright bag
-    'deskCameraPoint(0.75, 1.60, 1.10)',
+    // the working frame (playtest round 5, 2026-07-30): eye near the register
+    // block at the game's own STANDING eye line, looking down-counter to the
+    // laid bag. The height is no longer typed here — it is the shared constant
+    // the derived frame is pinned to, so the fallback and the solve agree.
+    'deskCameraPoint(0.75, CHECKOUT_WORKING_EYE_Y, 1.10)',
     'deskCameraPoint(0.05, 1.08, 0.00)',
     'deskCameraPoint(0.52, 1.26, 0.82)',
     'deskCameraPoint(0.52, 1.41, 0.24)',
@@ -205,14 +208,14 @@ test('fixed register views and fallback payment handoffs follow the rotated desk
   assert.ok(hand.z < 0, 'the fallback handoff remains on the customer half');
 });
 
-test('mixed working camera contains the full bag, staged goods, and enlarged POS at 16:9', async () => {
-  const eye = { ...frontDeskPoint(0.75, 1.10), y: 1.60 };
+test('the authored working camera frames the laid bag, the goods and the POS at 16:9', async () => {
+  const eye = { ...frontDeskPoint(0.75, 1.10), y: CHECKOUT_WORKING_EYE_Y };
   const look = { ...frontDeskPoint(0.05, 0.00), y: 1.08 };
   const dx = look.x - eye.x;
   const dy = look.y - eye.y;
   const dz = look.z - eye.z;
   const horizontal = Math.hypot(dx, dz) || 1;
-  const camera = new THREE.PerspectiveCamera(48.5, 16 / 9, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(CHECKOUT_WORKING_FOV, 16 / 9, 0.1, 100);
   camera.position.set(eye.x, eye.y, eye.z);
   camera.rotation.set(
     Math.atan2(dy, horizontal),
@@ -246,11 +249,12 @@ test('mixed working camera contains the full bag, staged goods, and enlarged POS
   const bagAsset = prepareRuntimeAsset((await loadGlb(new URL(
     '../assets/checkout/glb/shopping_bag.glb', import.meta.url,
   ))).scene);
-  const legacyBagArt = bagAsset.getObjectByName('Bag_Body_2');
-  if (legacyBagArt) legacyBagArt.visible = false;
+  // Bag_Body_2 stays: it is the carrier's own printed front panel, not a decal
+  // (playtest round 5) — hiding it left a hole you could see the liner through.
+  bagAsset.scale.z = CHECKOUT_BAG_PRESENTATION.flatten;
   const bag = new THREE.Group();
   bag.name = 'production shopping bag';
-  // the upright carrier stands exactly at its authored layout point
+  // the laid carrier's closed base sits exactly on its authored layout point
   bag.position.set(
     REGISTER.bag.x,
     COUNTER_TOP + CHECKOUT_BAG_PRESENTATION.counterLift,
@@ -261,13 +265,14 @@ test('mixed working camera contains the full bag, staged goods, and enlarged POS
     .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(
       CHECKOUT_BAG_PRESENTATION.pitch,
       0,
-      0,
+      CHECKOUT_BAG_PRESENTATION.roll,
     )));
   bag.scale.setScalar(CHECKOUT_BAG_PRESENTATION.scale);
   bag.add(bagAsset);
   const bagPanel = CHECKOUT_DISPLAY_BRAND_PRESENTATION.bagPanel;
   const brand = new THREE.Mesh(new THREE.PlaneGeometry(bagPanel.width, bagPanel.height));
-  brand.position.set(0, bagPanel.y, bagPanel.z);
+  brand.position.set(0, bagPanel.y, bagPanel.z * CHECKOUT_BAG_PRESENTATION.flatten);
+  brand.rotation.z = Math.PI / 2;
   bag.add(brand);
 
   const pos = prepareRuntimeAsset((await loadGlb(new URL(
