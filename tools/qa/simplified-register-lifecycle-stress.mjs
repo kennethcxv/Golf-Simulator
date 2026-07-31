@@ -1199,10 +1199,10 @@ async function waitForCardReady(page) {
 
 async function cancelPreAuthorizationWithX(page) {
   // The X is a pre-authorization exit in both card-ready and card-entry. Use the
-  // inserted, exact-total reader view so the physical X is guaranteed to be in
+  // inserted, empty-amount reader view so the physical X is guaranteed to be in
   // the player's close camera even when the customer-handoff framing places the
   // seated terminal just outside a narrow viewport.
-  const prefill = await insertCardToAmountEntry(page);
+  const emptyAmountEntry = await insertCardToAmountEntry(page);
   await waitCamera(page, 'card');
   const before = await page.evaluate(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -1243,7 +1243,7 @@ async function cancelPreAuthorizationWithX(page) {
       && JSON.stringify(cancelled.itemUids) === JSON.stringify(before.itemUids),
   `Pre-authorization X did not preserve the transaction basket: ${JSON.stringify({ before, cancelled })}.`);
   await waitForCardReady(page);
-  return { before, cancelled, prefill, represented: true };
+  return { before, cancelled, emptyAmountEntry, represented: true };
 }
 
 async function insertCardToAmountEntry(page) {
@@ -1256,7 +1256,7 @@ async function insertCardToAmountEntry(page) {
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'card-entry'
   ), null, { timeout: 5000 });
-  const prefill = await page.evaluate(async () => {
+  const entry = await page.evaluate(async () => {
     const sim = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
@@ -1265,14 +1265,26 @@ async function insertCardToAmountEntry(page) {
       digits: String(tx.cardEntryDigits || ''),
     };
   });
-  assert(prefill.enteredCents === prefill.totalCents
-      && prefill.digits === String(prefill.totalCents),
-  `Card total was not prefilled exactly: ${JSON.stringify(prefill)}.`);
-  return prefill;
+  assert(entry.enteredCents === 0 && entry.digits === '',
+    `Card insertion did not open an empty amount field: ${JSON.stringify(entry)}.`);
+  return entry;
 }
 
 async function insertAndConfirmCard(page) {
-  const prefill = await insertCardToAmountEntry(page);
+  const entry = await insertCardToAmountEntry(page);
+  for (const digit of String(entry.totalCents)) {
+    const point = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(point?.inView, `Card keypad digit ${digit} is outside the player camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError == null;
+  }, entry.totalCents, { timeout: 2500 });
   const confirm = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));
@@ -1282,7 +1294,7 @@ async function insertAndConfirmCard(page) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && ['card-busy', 'card-declined', 'receipt'].includes(tx.stage);
   }, null, { timeout: 5000 });
-  return { prefill };
+  return { exactTotalEntry: entry };
 }
 
 async function completeCard(page, {

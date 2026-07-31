@@ -1198,6 +1198,15 @@ input[type="range"] { accent-color: var(--accent); }
    aiming, you are picking things up) and the walk prompt would sit over the counter. */
 body.register-mode,
 body.register-mode canvas { cursor: pointer; }
+
+/* COURSE EDITOR CURSORS. The brush tools already draw a world-space ring on the
+   terrain — that ring IS the cursor, and it sits where the stroke will land. The
+   OS arrow on top of it was a second, differently-placed pointer competing with
+   it, so hide the arrow and let the ring do the job. Tools that place a single
+   point get a crosshair instead, because there is no ring to aim with; select
+   keeps the normal arrow, since it is pointing at handles and props. */
+body.ced-cursor-brush canvas#game { cursor: none; }
+body.ced-cursor-precise canvas#game { cursor: crosshair; }
 body.register-mode .shop-overlay { display: none !important; }
 body.register-mode .reg-hint { display: none !important; }
 body.register-mode .hud-min { display: none !important; }

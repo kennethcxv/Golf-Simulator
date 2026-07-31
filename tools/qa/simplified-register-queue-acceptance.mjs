@@ -431,7 +431,7 @@ async function completeCard(page) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-entry';
   }, null, { timeout: 5000 });
-  const prefill = await page.evaluate(async () => {
+  const entry = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
@@ -440,9 +440,21 @@ async function completeCard(page) {
       digits: String(tx.cardEntryDigits || ''),
     };
   });
-  assert(prefill.enteredCents === prefill.totalCents
-      && prefill.digits === String(prefill.totalCents),
-  `The card total was not prefilled exactly: ${JSON.stringify(prefill)}.`);
+  assert(entry.enteredCents === 0 && entry.digits === '',
+    `Card insertion did not open an empty amount field: ${JSON.stringify(entry)}.`);
+  for (const digit of String(entry.totalCents)) {
+    const point = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(point?.inView, `Card keypad digit ${digit} is outside the fixed reader camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError == null;
+  }, entry.totalCents, { timeout: 2500 });
   const ok = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));

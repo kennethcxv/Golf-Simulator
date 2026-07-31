@@ -17,7 +17,7 @@ import { newGame } from '../src/sim/state.js';
 import { snapshot, deserialize, serialize } from '../src/sim/state.js';
 import {
   createTx, scanItem, requestPayment, presentCard, insertCard,
-  submitCardAmount, runCard,
+  submitCardAmount, enterCardDigit, runCard,
   printReceipt, takeReceipt, packReceipt, bagItem, allBagged, handOverGoods,
   canComplete, completeSale, voidTx, totalOf,
 } from '../src/sim/register.js';
@@ -25,7 +25,11 @@ import { pickFromShelf, returnToShelf, heldUnits, recoverCheckout } from '../src
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
 
-const confirmExactAmount = (tx) => submitCardAmount(tx);
+// The reader opens at 0.00; the operator keys the figure before confirming.
+const confirmExactAmount = (tx) => {
+  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
+  return submitCardAmount(tx);
+};
 
 const holdForSale = (state, tx) => {
   for (const item of tx.items) {

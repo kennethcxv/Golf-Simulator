@@ -2621,7 +2621,7 @@ async function scanAll(page) {
     // The preceding product's click-to-bag flight can briefly cross the next
     // product. Wait for this visible target to settle before aiming at it.
     for (let settle = 0; settle < 20; settle += 1) {
-      await page.waitForTimeout(120);
+      await page.waitForTimeout(160);
       const next = await projectObject(page, { kind: 'item', uid });
       if (next && product
           && Math.abs(next.x - product.x) < 1.5
@@ -2638,12 +2638,25 @@ async function scanAll(page) {
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return !!tx?.items.find((item) => item.uid === id)?.scanned;
-    }, uid, { timeout: 5000 });
+    }, uid, { timeout: 5000 }).catch(async (error) => {
+      const state = await page.evaluate((id) => {
+        const register = window.__fw.scene3d.clubhouse().register;
+        const tx = register.getTx();
+        return {
+          uid: id,
+          workspace: register.workspace(),
+          stage: tx?.stage ?? null,
+          flow: tx?.checkoutFlow?.state ?? null,
+          item: tx?.items.find((entry) => entry.uid === id) ?? null,
+        };
+      }, uid);
+      throw new Error(`${error.message} — scan click at ${Math.round(product.x)},${Math.round(product.y)} did not ring ${uid}: ${JSON.stringify(state)}`);
+    });
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return !!tx?.items.find((item) => item.uid === id)?.staged;
     }, uid, { timeout: 8000 });
-    await page.waitForTimeout(180);
+    await page.waitForTimeout(220);
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -2666,6 +2679,24 @@ async function clickPresentedCard(page) {
 }
 
 async function clickCardConfirm(page) {
+  const expectedCents = await page.evaluate(async () => {
+    const { totalOf } = await import('/src/sim/register.js');
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return Math.round(totalOf(tx) * 100);
+  });
+  for (const digit of String(expectedCents)) {
+    const point = await page.evaluate((label) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(label)
+    ), digit);
+    assert(point?.inView, `The card reader ${digit} key is outside the production card camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(40);
+  }
+  await page.waitForFunction((expected) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-entry' && tx.cardEntryCents === expected
+      && tx.cardEntryDigits === String(expected);
+  }, expectedCents, { timeout: 2000 });
   const ok = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));

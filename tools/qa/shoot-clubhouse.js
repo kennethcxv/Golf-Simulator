@@ -1,4 +1,5 @@
 async (page) => {
+  const fs = process.getBuiltinModule('node:fs');
   // CLUBHOUSE ASSET-PASS HARNESS — reload, stock the retail displays, shoot the
   // same 10 poses every pass, and measure. Before/after are directly comparable
   // because nothing here varies between runs except the code under test.
@@ -9,8 +10,9 @@ async (page) => {
   // It deliberately zeroes `decor`/`supplies`: a decor SKU in inventory makes the
   // shop spawn translucent green PLACEMENT GHOSTS that would fill the room with
   // fake blobs. Final gameplay proof does not use this file.
-  const PASS = 'final';
+  const PASS = process.env.CLUBHOUSE_QA_PASS || 'final';
   const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/assets/' + PASS;
+  fs.mkdirSync(OUT, { recursive: true });
 
   const L2W = (x, z) => ({ x: x - 8, z: z + 228 });
   const SHOTS = [

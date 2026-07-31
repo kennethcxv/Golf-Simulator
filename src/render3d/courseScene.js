@@ -5621,15 +5621,117 @@ export function makeCourseScene(canvas, state) {
   // --- picking ------------------------------------------------------------------------------------------
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
+  const _rayOrigin = new THREE.Vector3();
+  const _rayDir = new THREE.Vector3();
 
-  function raycastCell(px, py) {
+  // THE EDITOR'S GROUND RAY.
+  //
+  // This used to be raycaster.intersectObjects(editorGroundTargets), which
+  // brute-forces EVERY triangle of the terrain — at SEG_PER_CELL 6 that is
+  // ~690k of them — and the editor calls it from onPointerMove, unthrottled.
+  // A pointer device reporting 100+ moves a second therefore spent tens of
+  // millions of triangle tests per second on the main thread just to know
+  // where the cursor was. Hovering the brush cost more than sculpting with it.
+  //
+  // The terrain is a regular grid heightfield, so the ray does not need
+  // triangles at all: march it in XZ and compare against heightAt(), which is
+  // an O(1) bilinear sample of the same Float32Array every other consumer
+  // reads. That makes picking O(steps) with a tiny constant, and it lands on
+  // exactly the surface the rig, walk mode and playtest already agree on.
+  const GROUND_MARCH_STEP_YD = CELL_YD * 0.25;
+  const GROUND_MARCH_REFINE = 14;
+
+  // Decks and bridges are separate small meshes; brute force is still the right
+  // tool for those few triangles. Cache the slice so hovering allocates nothing.
+  let deckTargetsCache = [];
+  let deckTargetsCachedLen = -1;
+  function deckTargets() {
+    if (deckTargetsCachedLen !== editorGroundTargets.length) {
+      deckTargetsCache = editorGroundTargets.slice(1);
+      deckTargetsCachedLen = editorGroundTargets.length;
+    }
+    return deckTargetsCache;
+  }
+
+  // Signed height of the ray above the terrain at distance t. Positive = above.
+  function groundRayGap(origin, dir, t) {
+    return (origin.y + dir.y * t)
+      - heightAt(origin.x + dir.x * t, origin.z + dir.z * t);
+  }
+
+  // Returns distance along the ray to the first terrain crossing, or null.
+  function marchGroundRay(origin, dir) {
+    // Clip to the terrain's XZ slab first so we never march empty space, and so
+    // a ray angled away from the course exits immediately instead of stepping
+    // to the far plane.
+    const halfW = worldW / 2;
+    const halfH = worldH / 2;
+    let tMin = 0;
+    let tMax = Infinity;
+    for (let axis = 0; axis < 2; axis++) {
+      const o = axis === 0 ? origin.x : origin.z;
+      const d = axis === 0 ? dir.x : dir.z;
+      const lo = axis === 0 ? -halfW : -halfH;
+      const hi = axis === 0 ? halfW : halfH;
+      if (Math.abs(d) < 1e-6) {
+        if (o < lo || o > hi) return null; // parallel and outside the slab
+        continue;
+      }
+      let t0 = (lo - o) / d;
+      let t1 = (hi - o) / d;
+      if (t0 > t1) { const swap = t0; t0 = t1; t1 = swap; }
+      if (t0 > tMin) tMin = t0;
+      if (t1 < tMax) tMax = t1;
+      if (tMin > tMax) return null;
+    }
+    if (!Number.isFinite(tMax)) return null;
+    if (groundRayGap(origin, dir, tMin) <= 0) return null; // starts underground
+    for (let t = tMin + GROUND_MARCH_STEP_YD; ; t += GROUND_MARCH_STEP_YD) {
+      const at = Math.min(t, tMax);
+      if (groundRayGap(origin, dir, at) <= 0) {
+        // Bracketed: bisect to well under a millimetre so the brush does not
+        // visibly quantise to the march step as the pointer moves.
+        let above = at - GROUND_MARCH_STEP_YD;
+        let below = at;
+        for (let i = 0; i < GROUND_MARCH_REFINE; i++) {
+          const mid = (above + below) * 0.5;
+          if (groundRayGap(origin, dir, mid) > 0) above = mid;
+          else below = mid;
+        }
+        return (above + below) * 0.5;
+      }
+      if (at >= tMax) return null;
+    }
+  }
+
+  // Shared world-space hit point for both editor pickers.
+  function groundRayPoint(px, py) {
     const rect = canvas.getBoundingClientRect();
     ndc.x = ((px - rect.left) / rect.width) * 2 - 1;
     ndc.y = -(((py - rect.top) / rect.height) * 2 - 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(editorGroundTargets, false);
-    if (!hits.length) return null;
-    const p = hits[0].point;
+    _rayOrigin.copy(raycaster.ray.origin);
+    _rayDir.copy(raycaster.ray.direction);
+    const t = marchGroundRay(_rayOrigin, _rayDir);
+    let best = t === null ? null : new THREE.Vector3(
+      _rayOrigin.x + _rayDir.x * t,
+      _rayOrigin.y + _rayDir.y * t,
+      _rayOrigin.z + _rayDir.z * t,
+    );
+    const decks = deckTargets();
+    if (decks.length) {
+      const hits = raycaster.intersectObjects(decks, false);
+      if (hits.length
+        && (!best || hits[0].point.distanceToSquared(_rayOrigin) < best.distanceToSquared(_rayOrigin))) {
+        best = hits[0].point.clone();
+      }
+    }
+    return best;
+  }
+
+  function raycastCell(px, py) {
+    const p = groundRayPoint(px, py);
+    if (!p) return null;
     const cx = Math.floor((p.x + worldW / 2) / CELL_YD);
     const cy = Math.floor((p.z + worldH / 2) / CELL_YD);
     if (cx < 0 || cy < 0 || cx >= W || cy >= H) return null;
@@ -5638,13 +5740,8 @@ export function makeCourseScene(canvas, state) {
 
   // the editor's ray: fractional cell coords + the world point (smooth brushes)
   function raycastGround(px, py) {
-    const rect = canvas.getBoundingClientRect();
-    ndc.x = ((px - rect.left) / rect.width) * 2 - 1;
-    ndc.y = -(((py - rect.top) / rect.height) * 2 - 1);
-    raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(editorGroundTargets, false);
-    if (!hits.length) return null;
-    const p = hits[0].point;
+    const p = groundRayPoint(px, py);
+    if (!p) return null;
     const fx = (p.x + worldW / 2) / CELL_YD - 0.5;
     const fy = (p.z + worldH / 2) / CELL_YD - 0.5;
     return {
