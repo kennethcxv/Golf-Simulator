@@ -69,23 +69,26 @@ async function loadGlb(url) {
 
 // --- A: the eye line -------------------------------------------------------
 
-test('the working eye is a standing person, not a ten-foot cashier', () => {
+test('the working eye is a cashier at THIS counter, not a ten-foot one', () => {
   const aboveFloor = CHECKOUT_WORKING_EYE_Y - CHECKOUT_STAFF_FLOOR_Y;
-  // The game already knows how tall a person is: the walking player's eye rides
-  // 1.62 above the ground they stand on. The cashier IS that person.
-  assert.equal(CHECKOUT_STANDING_EYE_ABOVE_FLOOR, 1.62);
-  assert.equal(aboveFloor, CHECKOUT_STANDING_EYE_ABOVE_FLOOR);
-  assert.ok(aboveFloor >= 1.45 && aboveFloor <= 1.80,
-    `the checkout eye stands ${aboveFloor.toFixed(2)} above the staff floor — outside human range`);
-  // The measured regression: the round-4 solve floated to 1.99 above the floor.
-  assert.ok(aboveFloor < 1.90, 'anything approaching 1.99 above the floor is the reported bird\'s-eye');
-  // …and it must sit BELOW a standing customer's crown, or no amount of tilt can
-  // ever crop their head and the frame is looking DOWN on the person opposite.
+  const aboveCounter = CHECKOUT_WORKING_EYE_Y - COUNTER_TOP;
+  // ROUND 6. Round 5 pinned the eye to the FLOOR at a standing 1.62 — honest,
+  // and still read as a bird's eye, because this desk's top is only 0.755 off
+  // the staff floor (~0.69 m, against 0.90-1.00 m for a real shop counter). A
+  // physically correct standing eye therefore sat 0.865 above the WORK, far
+  // higher in proportion than a real cashier's, and looking down from there
+  // turns the desk into a slab. What composes the frame is the height above
+  // the work, so that is what is pinned now.
+  assert.ok(aboveCounter >= 0.42 && aboveCounter <= 0.70,
+    `eye ${aboveCounter.toFixed(2)} above the counter is outside the working range`);
+  assert.ok(aboveCounter < 0.80, 'anything near 0.865 is the reported bird\'s-eye again');
+  // Still a person: above the counter they work, below the crown of the
+  // customer opposite, so the frame can crop that head as the reference does.
+  assert.ok(aboveCounter > 0.35, 'the eye still clears the counter it works');
   const crown = CHECKOUT_STAFF_FLOOR_Y + 1.66;
   assert.ok(CHECKOUT_WORKING_EYE_Y < crown,
     `eye ${CHECKOUT_WORKING_EYE_Y} must be under the customer's crown ${crown}`);
-  // It is still comfortably above the thing it works on.
-  assert.ok(CHECKOUT_WORKING_EYE_Y - COUNTER_TOP > 0.55, 'the eye clears the counter it works');
+  assert.ok(aboveFloor > 0.9, 'and is not down at counter level like a seated clerk');
 });
 
 test('the framing solver can pin the eye height and solve only the standoff', () => {
@@ -138,16 +141,40 @@ test('nothing draws an orange box around a hovered item any more', () => {
   assert.match(move, /setHoverCursor\(!!hoveredItem\)/);
 });
 
-test('the green payment rim the playtest asked for is untouched', () => {
-  assert.match(source, /const GRAB_OUTLINE_COLOR = 0x2ecc40/);
+test('offered payment is HIGHLIGHTED, not caged in a green box', () => {
+  // Playtest round 6: "i dont like the green take cash, make it a highlight
+  // over." The Box3Helper rim is gone; the payment's own materials brighten in
+  // place, with a soft warm halo so the read carries at frame distance.
+  assert.doesNotMatch(source, /GRAB_OUTLINE_COLOR/, 'the green rim colour is gone');
+  assert.doesNotMatch(source, /grabBoxOuter/, 'and both of its shells with it');
+  assert.match(source, /const GRAB_HIGHLIGHT_COLOR = /, 'a highlight colour replaces it');
+  // warm, not a signal green
+  const hex = /const GRAB_HIGHLIGHT_COLOR = (0x[0-9a-fA-F]+)/.exec(source)[1];
+  const value = Number(hex);
+  const r = (value >> 16) & 255; const g = (value >> 8) & 255; const b = value & 255;
+  assert.ok(r >= g && g >= b, `highlight ${hex} should read warm, not green`);
   const grab = functionBody('setGrabOutline');
-  assert.match(grab, /grabBox\.visible = true/);
-  assert.match(grab, /grabBoxOuter\.visible = true/, 'two nested shells read as one thick rim');
-  assert.match(grab, /grabGlow\.visible = true/, 'and the additive halo carries at frame distance');
+  assert.match(grab, /applyGrabHighlight\(list\)/, 'the payment itself lights up');
+  assert.match(grab, /clearGrabHighlight\(\)/, 'and is restored on release');
+  assert.match(grab, /grabGlow\.visible = true/, 'the halo still carries at frame distance');
+  const apply = functionBody('applyGrabHighlight');
+  assert.match(apply, /clone\(\)/, 'materials are cloned so a shared one cannot drag the counter up');
+  const restore = functionBody('clearGrabHighlight');
+  assert.match(restore, /entry\.mesh\.material = entry\.original/);
   const move = functionBody('onMove');
-  assert.match(move, /setGrabOutline\(offered\)/, 'offered payment still rims green under the cursor');
+  assert.match(move, /setGrabOutline\(offered\)/, 'offered payment still highlights under the cursor');
   const cash = functionBody('updateCashHover');
   assert.match(cash, /setGrabOutline\(offered\)/);
+});
+
+test('clicked goods slide into the bag instead of hopping over its rim', () => {
+  // Playtest round 6: "make it so when you click the items they slide without
+  // going up right into the bag." Both paths — the one-click ring-up and the
+  // manual drag-drop — used to add a sine arc on top of the lerp.
+  const scan = functionBody('updateScanMotion');
+  assert.doesNotMatch(scan, /position\.y \+= Math\.sin/, 'the clicked ring-up does not arc');
+  const drop = functionBody('updateBagDropMotions');
+  assert.doesNotMatch(drop, /position\.y \+= Math\.sin/, 'nor does the manual drop');
 });
 
 // --- C: the bag lies flat, long, open, and low ------------------------------

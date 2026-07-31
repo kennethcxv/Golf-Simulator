@@ -19,10 +19,19 @@ async (page) => {
   const assert = (value, message) => { if (!value) throw new Error(message); };
   const report = {};
 
-  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
+  // BOOT A NEW GAME, don't resume. "Continue" only exists when a save is
+  // already in localStorage, so on a clean profile the click was a no-op, the
+  // menu stayed up and the driver hung on the load veil below.
   await page.setViewportSize(VIEWPORT);
-  await page.waitForTimeout(1200);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: /New game/i }).click();
+  await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
+  const startBtn = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
+  if (await startBtn.isVisible({ timeout: 1500 }).catch(() => false)) await startBtn.click();
+  await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 120000 });
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 90000 });
   // The veil does not always retire on a resumed save; the clubhouse being up

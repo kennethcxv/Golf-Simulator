@@ -273,7 +273,20 @@ export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
 // COUNTER_TOP (1.055) and the interior floor (0.3) live in.
 export const CHECKOUT_STAFF_FLOOR_Y = 0.30;
 export const CHECKOUT_STANDING_EYE_ABOVE_FLOOR = 1.62;
-export const CHECKOUT_WORKING_EYE_Y = CHECKOUT_STAFF_FLOOR_Y + CHECKOUT_STANDING_EYE_ABOVE_FLOOR;
+// ROUND 6: pinning the eye to the FLOOR was right in principle and wrong in
+// this room. A standing eye 1.62 above the floor sits 0.865 above THIS counter,
+// because the desk's top is only 0.755 off the staff floor — around 0.69 m,
+// where a real shop counter is 0.90-1.00 m. So the eye ends up proportionally
+// far higher above the work surface than a real cashier's (0.87x the counter's
+// own height above it, against roughly 0.74x in life), and looking down from
+// there turns the desk into a slab. The play-test read that as "still too high
+// up" even though the height was physically honest.
+//
+// The composition constraint is the eye's height above the WORK, so that is
+// what is authored. Raising the desk itself would be the deeper fix and would
+// ripple through every fixture, collider and reach on it.
+export const CHECKOUT_EYE_ABOVE_COUNTER = 0.56;
+export const CHECKOUT_WORKING_EYE_Y = COUNTER_TOP + CHECKOUT_EYE_ABOVE_COUNTER;
 // A standing adult's shoulder and hands above their own feet. The working frame
 // holds the customer only to their HANDS, so the head crops off the top exactly
 // as it does in Designs/CashRegister/Final and the 2026-07-30 counter shot; the
@@ -353,7 +366,10 @@ const DRAWER_COINS = [0.01, 0.05, 0.1, 0.25, 0.5];
 // A till opening in roughly 0.31 s was over before the player could read the physical motion (and
 // before a single full-resolution evidence frame could be retained). Give the opening stroke one
 // deliberate second; closing can remain brisk after the handoff is complete.
-const DRAWER_OPEN_SPEED = 1;
+// A till drawer is spring-loaded: it BANGS out when the solenoid releases. At 1
+// it took a full second to clear the slab, which is the one moment the player
+// is waiting on it. Opening is now nearly as brisk as closing.
+const DRAWER_OPEN_SPEED = 3.2;
 const DRAWER_CLOSE_SPEED = 2.4;
 const SLOT = {};
 const SLOT_META = {};
@@ -1307,35 +1323,55 @@ export function createRegisterMode(B) {
   // gone; the pointer cursor alone says "clickable". The ONE outline that
   // remains is the green payment rim below, which the same playtester asked
   // for and which the reference carries.
-  // THE GRABBABLE OUTLINE. When the customer holds out cash or a card, the
-  // reference (154506) rims the offered payment BRIGHT GREEN. Two nested
-  // depth-free shells read as one thick luminous rim from the checkout pose —
-  // unmistakably "take this" against everything else on the counter.
-  const GRAB_OUTLINE_COLOR = 0x2ecc40;
+  // THE GRABBABLE HIGHLIGHT. Round 5 rimmed offered payment in a bright green
+  // Box3Helper; playtest round 6: "i dont like the green take cash, make it a
+  // highlight over." So the green box is gone and the payment itself LIGHTS UP
+  // — the money brightens in place, the way a hover highlight works, instead of
+  // wearing a coloured cage that never matched anything else in the room.
+  //
+  // The lift is emissive on the payment's own materials (cloned per mesh so a
+  // shared material cannot drag half the counter up with it) and restored
+  // exactly on release.
+  const GRAB_HIGHLIGHT_COLOR = 0xfff2c4; // warm paper-white, not a signal colour
+  const GRAB_HIGHLIGHT_STRENGTH = 0.55;
+  // still needed to place and size the halo, even with the boxes gone
   const grabBounds = new THREE.Box3();
-  const grabBoundsOuter = new THREE.Box3();
-  const grabBox = new THREE.Box3Helper(grabBounds, GRAB_OUTLINE_COLOR);
-  const grabBoxOuter = new THREE.Box3Helper(grabBoundsOuter, GRAB_OUTLINE_COLOR);
-  for (const shell of [grabBox, grabBoxOuter]) {
-    shell.visible = false;
-    shell.material.depthTest = false;
-    shell.material.transparent = true;
-    shell.material.opacity = 0.95;
-    shell.renderOrder = 30;
-    root.add(shell);
+  const grabHighlighted = []; // { mesh, original }
+  function clearGrabHighlight() {
+    for (const entry of grabHighlighted) {
+      if (entry.mesh.material !== entry.clone) continue; // something else re-skinned it
+      entry.mesh.material = entry.original;
+      entry.clone.dispose();
+    }
+    grabHighlighted.length = 0;
   }
-  // …and a soft additive halo behind the payment: the shells stay crisp up
-  // close while the glow carries the green "grabbable" read at working-frame
-  // distance, like the reference's luminous rim.
+  function applyGrabHighlight(list) {
+    for (const object of list) {
+      object.traverse((mesh) => {
+        if (!mesh.isMesh || !mesh.material || Array.isArray(mesh.material)) return;
+        if (mesh.material.emissive === undefined) return;
+        const original = mesh.material;
+        const clone = original.clone();
+        clone.emissive = new THREE.Color(GRAB_HIGHLIGHT_COLOR);
+        clone.emissiveIntensity = GRAB_HIGHLIGHT_STRENGTH;
+        clone.toneMapped = false;
+        mesh.material = clone;
+        grabHighlighted.push({ mesh, original, clone });
+      });
+    }
+  }
+  // …and a soft additive halo behind the payment, so the "take this" read
+  // survives at working-frame distance where an in-place brightening alone can
+  // be missed. Warm white to match the highlight, not the old green.
   const grabGlowCanvas = document.createElement('canvas');
   grabGlowCanvas.width = 128;
   grabGlowCanvas.height = 128;
   {
     const glowCtx = grabGlowCanvas.getContext('2d');
     const gradient = glowCtx.createRadialGradient(64, 64, 8, 64, 64, 62);
-    gradient.addColorStop(0, 'rgba(46, 204, 64, 0.85)');
-    gradient.addColorStop(0.55, 'rgba(46, 204, 64, 0.34)');
-    gradient.addColorStop(1, 'rgba(46, 204, 64, 0)');
+    gradient.addColorStop(0, 'rgba(255, 242, 196, 0.72)');
+    gradient.addColorStop(0.55, 'rgba(255, 236, 176, 0.30)');
+    gradient.addColorStop(1, 'rgba(255, 236, 176, 0)');
     glowCtx.fillStyle = gradient;
     glowCtx.fillRect(0, 0, 128, 128);
   }
@@ -1368,31 +1404,25 @@ export function createRegisterMode(B) {
 
   function setGrabOutline(target) {
     const list = (Array.isArray(target) ? target : [target]).filter(Boolean);
+    clearGrabHighlight();
     if (!list.length) {
-      grabBox.visible = false;
-      grabBoxOuter.visible = false;
       grabGlow.visible = false;
       return;
     }
     grabBounds.makeEmpty();
     for (const object of list) grabBounds.expandByObject(object);
     if (grabBounds.isEmpty()) {
-      grabBox.visible = false;
-      grabBoxOuter.visible = false;
       grabGlow.visible = false;
       return;
     }
     alignBoundsToRoot(grabBounds);
-    grabBoundsOuter.copy(grabBounds).expandByScalar(0.008);
-    grabBounds.expandByScalar(0.002);
     grabBounds.getCenter(grabGlowCentre);
     grabBounds.getSize(grabGlowSize);
     grabGlow.position.copy(grabGlowCentre);
     const glowSpan = Math.max(grabGlowSize.x, grabGlowSize.y, grabGlowSize.z, 0.10);
     grabGlow.scale.set(glowSpan * 2.1, glowSpan * 2.1, 1);
-    grabBox.visible = true;
-    grabBoxOuter.visible = true;
     grabGlow.visible = true;
+    applyGrabHighlight(list);
   }
 
   // THE DIEGETIC TOOLTIP CHIP — the reference's floating price-bubble idea in
@@ -1501,11 +1531,9 @@ export function createRegisterMode(B) {
   let drawerWant = 0;
   let drawerAmount = 0;
   let drawerGroup = null;
-  let drawerLight = null;
   // Measured 2026-07-30: 5.2 per lamp blew the tray to flat white and erased
   // the very denomination differences the lamps exist to reveal. 1.35 lifts
   // the wells clear of the counter's shadow and keeps the ink.
-  const DRAWER_LIGHT_INTENSITY = 1.35;
   let drawerMotionRoot = null;
   let drawerMoney = null;
   let drawerAssetSlide = null;
@@ -3861,21 +3889,13 @@ export function createRegisterMode(B) {
     drawerMoney.name = 'SimplifiedDrawerMoney';
     drawerMotionRoot.add(drawerMoney);
 
-    // THE TILL IS LIT. The open tray hangs under the counter slab, in the one
-    // place the interior key light cannot reach — which is why the bill row
-    // read washed out and the coin row read black. The reference drawer is the
-    // brightest thing in its frame (154525 / 154641). Two short-range point
-    // lights sit just above the wells, ride the tray as it slides, and only
-    // burn while it is out; they touch nothing else in the room.
-    drawerLight = new THREE.Group();
-    drawerLight.visible = false;
-    for (const x of [-0.13, 0.13]) {
-      const lamp = new THREE.PointLight(0xfff3dd, 0, 0.72, 2);
-      lamp.position.set(x, 0.30, 0.02);
-      lamp.castShadow = false;
-      drawerLight.add(lamp);
-    }
-    drawerMotionRoot.add(drawerLight);
+    // NO LAMPS IN THE TILL. A previous round hung two point lights over the
+    // wells because the tray read dark under the counter slab. With the round-6
+    // working eye — lower, and much closer to the counter — the open tray sits
+    // in the room's own key light and does not need them, and the play-test
+    // asked for them gone. The denominations stay legible on their own tinted
+    // materials; if the tray ever reads dark again the honest fix is the
+    // material, not a lamp that lights nothing else in the room.
 
     const fallback = new THREE.Mesh(
       new THREE.BoxGeometry(0.49, 0.10, 0.42),
@@ -5082,7 +5102,12 @@ export function createRegisterMode(B) {
     const eased = THREE.MathUtils.smoothstep(t, 0, 1);
     motion.phase = 'slide';
     motion.mesh.position.lerpVectors(motion.from, motion.to, eased);
-    motion.mesh.position.y += Math.sin(t * Math.PI) * 0.07;
+    // NO HOP. Playtest round 6: "when you click the items, they slide without
+    // going up, right into the bag." The comment above always claimed a lateral
+    // slide while the code added a 0.07 arc on top of it, so a clicked product
+    // lifted off the counter and dropped in from above. With the carrier now
+    // lying flat and its mouth facing down-counter, a straight lerp across the
+    // counter IS the gesture — the goods travel the surface into the opening.
     motion.mesh.quaternion.slerpQuaternions(
       motion.fromQuaternion, motion.toQuaternion, eased,
     );
@@ -6112,7 +6137,8 @@ export function createRegisterMode(B) {
       motion.elapsed = Math.min(motion.duration, motion.elapsed + dt);
       const t = THREE.MathUtils.smoothstep(motion.elapsed / motion.duration, 0, 1);
       motion.mesh.position.lerpVectors(motion.from, motion.to, t);
-      motion.mesh.position.y += Math.sin(t * Math.PI) * 0.14;
+      // Same rule as the clicked ring-up above: goods slide into the mouth,
+      // they are not lobbed over the rim.
       motion.mesh.scale.copy(motion.baseScale).multiplyScalar(1 - t * 0.52);
       if (motion.elapsed < motion.duration) continue;
       bagDropMotions.splice(index, 1);
@@ -7324,13 +7350,6 @@ export function createRegisterMode(B) {
       }
     }
     if (!drawerPresentationVisible(drawerWant, drawerAmount)) drawerMotionRoot.visible = false;
-    // The till lamps fade in with the slide, so an opening drawer brightens as
-    // it clears the slab instead of popping on under it.
-    if (drawerLight) {
-      const lit = drawerMotionRoot.visible ? drawerAmount : 0;
-      drawerLight.visible = lit > 0.02;
-      for (const lamp of drawerLight.children) lamp.intensity = lit * DRAWER_LIGHT_INTENSITY;
-    }
     if (checkoutFlowState() === 'DrawerOpening' && drawerAmount >= 0.98) {
       flowTo('DepositingCash', 'cash-drawer-reached-open-stop');
     }

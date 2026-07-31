@@ -94,13 +94,24 @@ test('every denomination in the tray carries its own ink', () => {
   }
 });
 
-test('the open till is lit, and only while it is open', () => {
-  const body = functionBody('updateDrawer');
-  assert.match(body, /drawerLight/, 'the tray owns lamps');
-  assert.match(body, /drawerLight\.visible = /, 'the lamps are switched, not always burning');
-  assert.match(body, /lamp\.intensity = lit \* DRAWER_LIGHT_INTENSITY/,
-    'the lamps fade in with the slide rather than popping on under the slab');
-  assert.match(source, /const DRAWER_LIGHT_INTENSITY = /);
+test('the open till carries no lamps of its own', () => {
+  // Round 4 hung two point lights over the wells because the tray read dark
+  // under the counter slab. Round 6 lowered the working eye onto the counter,
+  // the tray now sits in the room's own key light, and the playtest asked for
+  // the lamps gone: "make it so the cash register opens faster and you dont
+  // need a light there." Legibility is carried by the per-denomination tints,
+  // which is why the drawer still reads in
+  // qa/cash-register-production/simplified-rebuild/checkout-round4/03-drawer-open.png.
+  assert.doesNotMatch(source, /drawerLight/, 'no drawer lamp group survives');
+  assert.doesNotMatch(source, /DRAWER_LIGHT_INTENSITY/, 'and no intensity for it');
+  assert.doesNotMatch(functionBody('updateDrawer'), /PointLight/);
+});
+
+test('the till opens briskly — it is spring-loaded, not motorised', () => {
+  // At 1.0 the tray took a full second to clear the slab, and that second is
+  // the one moment the player is waiting on the register.
+  const speed = Number(/const DRAWER_OPEN_SPEED = ([\d.]+)/.exec(source)[1]);
+  assert.ok(speed >= 2.5, `the drawer opens briskly (${speed})`);
 });
 
 test('counting change cannot swing the cash summary off the top of the frame', () => {
