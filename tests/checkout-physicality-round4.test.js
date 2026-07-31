@@ -186,15 +186,20 @@ test('the floated reader is placed on the view axis and hangs its card clear of 
 
 test('the reader glass carries the reference bands, not a centred calculator column', () => {
   const face = functionBody('paintTermBandedFace');
-  assert.match(face, /Payment/, 'the dark status strip');
+  // Round 7 polish: the status strip carries the LIVE club brand and a green
+  // signal dot; the bands render as gradients on a rounded glass card.
+  assert.match(face, /displayClubName\(\)\.toUpperCase\(\)/, 'the status strip is branded live');
+  assert.match(face, /createLinearGradient/, 'the bands are lit, not flat fills');
+  assert.match(face, /termRoundedPath/, 'the glass is a rounded card');
   assert.match(face, /ctx\.textAlign = 'left'/, 'the reference face is left-aligned');
   assert.match(face, /const inner = H - TERM_PAD \* 2/, 'the bands are sized off the glass');
   assert.ok(!source.includes('paintTermLightFace'), 'the flat pale face is deleted, not orphaned');
   const start = source.indexOf("} else if (stage === 'card-entry') {");
   const end = source.indexOf("} else if (stage === 'card-busy') {", start);
   const entry = source.slice(start, end);
-  assert.match(entry, /caption: 'Total'/, 'the reference caption band reads Total (154606/154618)');
-  assert.match(entry, /cardEnteredAmount\(tx\)/, 'the navy band carries the running entry');
+  assert.match(entry, /caption: `Total due/, 'the caption band names the amount due');
+  assert.match(entry, /caret: true/, 'the running entry carries a caret');
+  assert.match(entry, /cardEnteredAmount\(tx\)/, 'the amount band carries the running entry');
 });
 
 // --- ITEM 1: the working frame ---------------------------------------------

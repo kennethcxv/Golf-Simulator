@@ -199,7 +199,8 @@ test('physically touching footprints are allowed while true overlap is rejected'
 
 test('required checkout, laptop, and exit equipment cannot move off sockets, enter storage, or be sold', () => {
   const state = newGame('normal', 26);
-  for (const id of ['core-checkout-counter', 'core-laptop', 'core-register', 'core-card-reader', 'core-scanner', 'core-receipt-printer', 'asset-094']) {
+  // no core-receipt-printer: the receipt (and its device) left in round 7
+  for (const id of ['core-checkout-counter', 'core-laptop', 'core-register', 'core-card-reader', 'core-scanner', 'asset-094']) {
     const object = objectById(state, id);
     assert.ok(object.requiredObject, id);
     assert.equal(storeObject(state, id).ok, false, id);

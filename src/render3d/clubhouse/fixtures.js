@@ -45,7 +45,6 @@ import { shopTierIndex } from '../../sim/shopProgression.js';
 export const CHECKOUT_RIGID_BATCH_HARDWARE = Object.freeze([
   'pos_monitor',
   'barcode_scanner',
-  'receipt_printer',
   'customer_display',
 ]);
 
@@ -1956,10 +1955,9 @@ export function buildCheckout(B) {
       }),
     );
     if (scanner && B.register) B.register.attachScanner(scanner);
-    const printer = rememberHardware('receipt_printer', placeKit('receipt_printer', REGISTER.printer, {
-      scale: 1.0,
-    }));
-    if (printer && B.register) B.register.attachPrinter(printer);
+    // NO PRINTER. Round 7 (2026-07-31): "please completely remove the receipt"
+    // — the receipt presentation is gone from the register flow, so the device
+    // that existed to print it comes off the counter with it.
     // Customer-facing total display, turned toward the queue.
     rememberHardware(
       'customer_display',

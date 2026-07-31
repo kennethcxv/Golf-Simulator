@@ -218,18 +218,15 @@ test('bagging and automatic receipt cues remain transition-local one-shots', () 
   assert.equal(cueCalls(commitScanMotion, 'scanSuccess').length, 1);
   assert.equal(cueCalls(updateBagDropMotions, 'bagItem').length, 1,
     'a compact product landing in the bag owns one physical bag impact/rustle cue');
-  // The paper is back (checkout-physicality round 2026-07-30): the print cue
-  // belongs to the one visible feed start and the tear to its completion —
-  // each a transition-local one-shot, nowhere else in the module.
-  assert.equal(cueCalls(registerSource, 'receiptPrint').length, 1,
-    'exactly one print cue, at the visible feed start');
-  assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1,
-    'the print cue belongs to beginAutomaticReceipt');
-  assert.equal(cueCalls(registerSource, 'receiptTear').length, 1,
-    'exactly one tear cue, when the feed completes');
-  const updateReceipt = extractFunction(registerSource, 'updateReceipt');
-  assert.equal(cueCalls(updateReceipt, 'receiptTear').length, 1,
-    'the tear cue belongs to the feed completion edge');
+  // The receipt is GONE (round 7, 2026-07-31: "please completely remove the
+  // receipt") — no paper feeds, so no print or tear cue may survive anywhere
+  // in the module. The sim's paperwork files silently.
+  assert.equal(cueCalls(registerSource, 'receiptPrint').length, 0,
+    'no print cue survives the receipt removal');
+  assert.equal(cueCalls(registerSource, 'receiptTear').length, 0,
+    'no tear cue survives the receipt removal');
+  assert.ok(beginAutomaticReceipt.includes('finishAutomaticFulfillment'),
+    'the silent paperwork path flows straight into fulfilment');
   assert.ok(finishAutomaticFulfillment.includes('beginBagDeliveryOrRelease'),
     'fulfilment still lands on the bag transfer after the hand-over beat');
   assert.equal(cueCalls(updateDelivery, 'bagHandoff').length, 1,

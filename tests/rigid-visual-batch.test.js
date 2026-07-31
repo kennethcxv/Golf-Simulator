@@ -91,15 +91,17 @@ async function loadCheckoutKit(name) {
 }
 
 test('the production checkout hardware collapses real authored rigid draws', async (t) => {
+  // no receipt_printer: the device left the counter with the receipt (round 7)
   const names = [
     'pos_monitor',
     'payment_terminal',
     'barcode_scanner',
-    'receipt_printer',
     'customer_display',
   ];
   assert.equal(CHECKOUT_RIGID_BATCH_HARDWARE.includes('payment_terminal'), false,
     'the raycast-authoritative terminal root is never admitted to the rigid batch');
+  assert.equal(CHECKOUT_RIGID_BATCH_HARDWARE.includes('receipt_printer'), false,
+    'the retired printer cannot re-enter the batch');
   assert.ok(CHECKOUT_RIGID_BATCH_HARDWARE.includes('pos_monitor'));
   assert.ok(CHECKOUT_RIGID_BATCH_HARDWARE.includes('barcode_scanner'));
 
@@ -125,8 +127,10 @@ test('the production checkout hardware collapses real authored rigid draws', asy
 
   assert.ok(result, 'the shipped checkout kit must contain batchable rigid PBR parts');
   assert.ok(result.diagnostics.sourceDrawCalls > result.diagnostics.batchDrawCalls);
-  assert.ok(result.diagnostics.drawCallsSaved >= 3,
-    `expected non-terminal checkout hardware batching to retain meaningful draw-call savings, got ${JSON.stringify(result.diagnostics)}`);
+  // three batchable devices remain after the printer's retirement — the batch
+  // must still collapse at least one real draw across them
+  assert.ok(result.diagnostics.drawCallsSaved >= 1,
+    `expected non-terminal checkout hardware batching to retain draw-call savings, got ${JSON.stringify(result.diagnostics)}`);
   assert.notEqual(parent.getObjectByName('Scanner_Window').layers.mask, 0);
   assert.notEqual(parent.getObjectByName('Scanner_LED').layers.mask, 0);
   assert.notEqual(parent.getObjectByName('Scanner_CashierLED').layers.mask, 0);
@@ -139,7 +143,6 @@ test('the production checkout hardware collapses real authored rigid draws', asy
     'visible batched siblings never remove terminal chassis raycast reach');
   assert.ok(parent.getObjectByName('SCAN_RAY_ORIGIN'));
   assert.ok(parent.getObjectByName('CARD_INSERT_SOCKET'));
-  assert.ok(parent.getObjectByName('RECEIPT_OUTPUT_SOCKET'));
   t.diagnostic(JSON.stringify(result.diagnostics));
   result.dispose();
 });

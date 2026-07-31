@@ -48,10 +48,14 @@ export function customerCashPoint(hand) {
   return offsetInFrontDeskFrame(point, -0.024, 0.026, 0.028);
 }
 
-// Incoming tender is one held handful. Notes overlap like a counted stack and
-// coins sit along its near edge; neither is spread into a counter-sized fan.
-export function presentedTenderLayout(denominations = [], hand = {}) {
-  const origin = customerCashPoint(hand);
+// The customer LAYS their money ON THE COUNTER (round 7: "make it so the
+// money goes on the desk", matching the round-5 reference note "look at the
+// cash on the table"): notes rest flat in a loose readable fan in front of
+// them, coins flat at the fan's near edge. The old held-up handful floated at
+// the grip and could only ever read as one blob in the air. The anchor is a
+// point ON the counter top; y climbs only paper thickness per overlap.
+export function presentedTenderLayout(denominations = [], anchor = {}) {
+  const origin = asPoint(anchor);
   let billIndex = 0;
   let coinIndex = 0;
   return denominations.map((rawDenom) => {
@@ -62,11 +66,11 @@ export function presentedTenderLayout(denominations = [], hand = {}) {
         denom,
         position: offsetInFrontDeskFrame(
           origin,
-          index * 0.009,
-          index * 0.0022,
-          index * 0.002,
+          -0.078 + index * 0.052,
+          0.0016 + index * 0.0016,
+          index % 2 ? 0.018 : -0.010,
         ),
-        rotation: frontDeskRotation(1.04, -0.05 + index * 0.025, 0),
+        rotation: frontDeskRotation(0, -0.10 + ((index % 3) - 1) * 0.14, 0),
       };
     }
     const index = coinIndex++;
@@ -74,11 +78,11 @@ export function presentedTenderLayout(denominations = [], hand = {}) {
       denom,
       position: offsetInFrontDeskFrame(
         origin,
-        -0.018 + (index % 3) * 0.025,
-        0.010 + Math.floor(index / 3) * 0.003,
-        0.035 + Math.floor(index / 3) * 0.018,
+        -0.050 + (index % 3) * 0.033,
+        0.0022 + Math.floor(index / 3) * 0.0032,
+        0.060 + Math.floor(index / 3) * 0.028,
       ),
-      rotation: frontDeskRotation(0.92, 0, (index % 3 - 1) * 0.08),
+      rotation: frontDeskRotation(0, 0, (index % 3 - 1) * 0.07),
     };
   });
 }

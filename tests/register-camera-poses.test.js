@@ -16,7 +16,6 @@ import {
 import {
   CHECKOUT_BAG_PRESENTATION, CHECKOUT_DISPLAY_BRAND_PRESENTATION,
   CHECKOUT_WORKING_EYE_Y, CHECKOUT_WORKING_FOV, checkoutLookScale,
-  receiptGeometryUsesFeedAxis,
 } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 import { skuById } from '../src/data/shopItems.js';
 import {
@@ -340,7 +339,6 @@ test('register prop choreography keeps world offsets and orientations in the des
     'presentTender',
     'beginChangeHandoff',
     'layoutAcceptedTender',
-    'printerSlotLocal',
     'updateCard',
   ]) {
     assert.match(functionBody(registerSource, name), /frontDeskOffsetVector3/,
@@ -353,8 +351,8 @@ test('register prop choreography keeps world offsets and orientations in the des
     'the terminal socket is converted into the canonical register root');
   assert.doesNotMatch(registerSource, /refreshCardSwipePath/,
     'the removed swipe gesture cannot return through a stale helper');
-  assert.match(registerSource, /slot\.add\(frontDeskOffsetVector3\(0, 0, 0\.022\)\)/,
-    'receipt feed clearance follows local desk z');
+  // (printerSlotLocal and the receipt feed clearance retired with the receipt
+  // itself — round 7)
 
   const bagProduct = functionBody(registerSource, 'bagProduct');
   assert.match(bagProduct,
@@ -378,15 +376,14 @@ test('register prop choreography keeps world offsets and orientations in the des
     'and that builder carries both the pitch and the roll',
   );
   const updateDelivery = functionBody(registerSource, 'updateDelivery');
-  // The receipt legs are BACK (checkout-physicality round 2026-07-30): the
-  // printed strip pauses, travels to the customer's hand and is held before
-  // the bag transfer; both deliveries rotate with the desk.
+  // Round 7: the receipt legs left with the receipt itself; the bag transfer
+  // is the one physical delivery, and it rotates with the desk.
   assert.match(updateDelivery, /frontDeskQuaternion\(/,
     'bag delivery orientation rotates with the desk');
-  assert.match(updateDelivery, /deliveryPhase = 'receipt-deliver'/,
-    'the printed strip physically travels to the customer');
-  assert.match(updateDelivery, /deliveryPhase = 'receipt-customer-hold'/,
-    'and the customer visibly holds it before the bag leg');
+  assert.doesNotMatch(updateDelivery, /receipt-deliver/,
+    'no paper leg survives the receipt removal');
+  assert.match(updateDelivery, /deliveryPhase = 'bag-customer-hold'/,
+    'the customer visibly holds the bag before release');
 });
 
 test('card recovery uses the declared cardReady vector and drawer travel stays staff-facing', () => {
@@ -479,19 +476,9 @@ test('working views stay click-stable while Shift permits a bounded deliberate g
   );
 });
 
-test('receipt printing accepts only geometry whose long edge follows the feed axis', () => {
-  assert.equal(
-    receiptGeometryUsesFeedAxis({ x: 0.075, y: 0.185, z: 0.0356 }),
-    true,
-    'the rebuilt upright receipt uses its authored geometry',
-  );
-  assert.equal(
-    receiptGeometryUsesFeedAxis({ x: 0.068, y: 0.0366, z: 0.1515 }),
-    false,
-    'the legacy Z-long receipt falls back to the printable owned strip',
-  );
-  assert.equal(receiptGeometryUsesFeedAxis({ x: 0.075, y: Number.NaN, z: 0.03 }), false);
-});
+// The feed-axis test retired 2026-07-31 with the receipt itself (round 7:
+// "please completely remove the receipt") — no paper geometry exists to
+// orient any more.
 
 // The fulfilment projection test retired 2026-07-30: the runtime no longer uses
 // fulfillmentHandoffPose (the camera holds the working frame through printing and

@@ -47,19 +47,22 @@ test('the customer pinches the card edge instead of occupying its centre', () =>
     'the hand still overlaps an ID-1 card edge');
 });
 
-test('presented tender is a compact, readable handful', () => {
-  const layout = presentedTenderLayout([20, 20, 0.25, 0.01], { x: 3, y: 1.2, z: 3.9 });
-  const local = layout.map((entry) => frontDeskLocalPoint(entry.position.x, entry.position.z));
-  const xs = local.map((point) => point.x);
-  const zs = local.map((point) => point.z);
-  assert.ok(Math.max(...xs) - Math.min(...xs) < 0.06);
-  assert.ok(Math.max(...zs) - Math.min(...zs) < 0.07);
+test('presented tender lies flat ON the counter as a readable fan', () => {
+  // Round 7: "make it so the money goes on the desk" — the anchor is a point
+  // on the counter top, every note rests flat (paper-thin y climb only), and
+  // the fan spreads wide enough that each piece reads as its own bill.
+  const anchor = { x: 3, y: 1.055, z: 3.9 };
+  const layout = presentedTenderLayout([20, 20, 0.25, 0.01], anchor);
+  for (const entry of layout) {
+    const lift = entry.position.y - anchor.y;
+    assert.ok(lift >= 0 && lift <= 0.02,
+      `every piece lies on the counter, never held in the air (lift ${lift})`);
+  }
   const billStep = localDelta(layout[0].position, layout[1].position);
-  assertClose(billStep.x, 0.009, 'bill stack advances along local x');
-  assertClose(billStep.y, 0.0022, 'bill stack advances vertically');
-  assertClose(billStep.z, 0.002, 'bill stack advances along local z');
-  assertDeskRotation(layout[0].rotation, { x: 1.04, y: -0.05, z: 0 },
-    'the tilted note rotates with the front desk');
+  assert.ok(Math.abs(billStep.x) >= 0.04, 'notes fan sideways as separate flat bills');
+  assertClose(billStep.y, 0.0016, 'the overlap climbs only paper thickness');
+  assertDeskRotation(layout[0].rotation, { x: 0, y: -0.10 - 0.14, z: 0 },
+    'notes lie FLAT (no held-fan pitch) and rotate with the front desk');
 });
 
 test('exact $4.28 lies as a compact FLAT pile on the bare counter', () => {

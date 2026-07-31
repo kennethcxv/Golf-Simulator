@@ -156,8 +156,11 @@ const DEFAULTS = {
     FRONT_DESK_ASSETS.asset61.ry, 'floor', { socket: 'SOCKET_PLACEMENT' }, 'sales'),
   81: transform(FRONT_DESK.staffChair.x, 0, FRONT_DESK.staffChair.z,
     FRONT_DESK.staffChair.ry, 'floor', null, 'sales'),
-  83: transform(FRONT_DESK.deskLamp.x, COUNTER_TOP, FRONT_DESK.deskLamp.z,
-    FRONT_DESK.deskLamp.ry, 'counter', { parentId: 'surface:checkout-counter', socket: 'SOCKET_DeskLamp' }, 'sales'),
+  // Round 7: the lamp's default seat is the OFFICE desk's authored lamp socket
+  // — the checkout counter keeps only the transaction (the counter's
+  // SOCKET_DeskLamp stays authored for players who want it back there).
+  83: transform(8.55, 0.96, 3.55,
+    -Math.PI / 2, 'counter', { parentId: 'surface:office-desk', socket: 'SOCKET_Lamp' }, 'office'),
   85: transform(FRONT_DESK.phone.x, COUNTER_TOP, FRONT_DESK.phone.z,
     FRONT_DESK.phone.ry, 'counter', { parentId: 'surface:checkout-counter', socket: 'SOCKET_Phone' }, 'sales'),
   86: transform(6.25, 1.62, 2.06, 0, 'wall', { wallId: 'partition-office', normal: [0, 0, 1], socket: 'SOCKET_WallMount' }, 'office'),
@@ -280,7 +283,8 @@ const counterHardwareRecords = [
   ['core-register', 'CORE_CHECKOUT_REGISTER', 'Register', REGISTER.monitor, [0.54, 0.34, 0.36], 'register', 'SOCKET_Register'],
   ['core-card-reader', 'CORE_CHECKOUT_CARD_READER', 'Card reader', REGISTER.cardterm, [0.32, 0.22, 0.26], 'card-reader', 'SOCKET_CardReader'],
   ['core-scanner', 'CORE_CHECKOUT_SCANNER', 'Barcode scanner', REGISTER.scanner, [0.46, 0.12, 0.36], 'scanner', 'SOCKET_Scanner'],
-  ['core-receipt-printer', 'CORE_CHECKOUT_RECEIPT_PRINTER', 'Receipt printer', REGISTER.printer, [0.34, 0.25, 0.30], 'receipt-printer', 'SOCKET_Printer'],
+  // no receipt printer: the receipt left the flow in round 7 and the device
+  // left the counter with it (fixtures.js no longer places one)
 ].map(([id, assetId, label, pose, dimensions, protectedZoneId, socket]) => ({
   id, assetId, label,
   placementCategory: 'required-hardware', source: 'existing-checkout',
@@ -344,7 +348,6 @@ const counterSurface = {
     { id: 'register', label: 'register controls', x: REGISTER.monitor.x, z: REGISTER.monitor.z, width: 0.58, depth: 0.38 },
     { id: 'scanner', label: 'scanner path', x: REGISTER.scanner.x, z: REGISTER.scanner.z, width: 0.64, depth: 0.52 },
     { id: 'card-reader', label: 'card reader', x: REGISTER.cardterm.x, z: REGISTER.cardterm.z, width: 0.38, depth: 0.30 },
-    { id: 'receipt-printer', label: 'receipt printer', x: REGISTER.printer.x, z: REGISTER.printer.z, width: 0.44, depth: 0.32 },
     { id: 'bagging', label: 'bagging area', x: (REGISTER.bagging.minX + REGISTER.bagging.maxX) / 2, z: (REGISTER.bagging.minZ + REGISTER.bagging.maxZ) / 2, width: REGISTER.bagging.maxX - REGISTER.bagging.minX, depth: REGISTER.bagging.maxZ - REGISTER.bagging.minZ },
     { id: 'laptop', label: 'tee-sheet laptop', x: FRONT_DESK.laptop.x, z: FRONT_DESK.laptop.z, width: 0.62, depth: 0.48 },
   ],
@@ -354,9 +357,13 @@ const officeDeskSurface = {
   id: 'surface:office-desk', kind: 'counter', room: 'office', y: 0.96,
   ownerId: 'office-desk-legacy',
   x: OFFICE.desk.x, z: OFFICE.desk.z, ry: OFFICE.desk.ry, width: 1.84, depth: 0.88,
+  // Round 7 repair: the authored socket coords (x 9.71 / 9.67) sat OUTSIDE the
+  // 17.9-yd interior — nothing had ever validated them until the desk lamp
+  // moved here. Both now land on the desk's own top (x 7.91..8.79, z
+  // 3.28..5.12 at its east-wall pose).
   sockets: [
-    { id: 'SOCKET_Lamp', x: 9.71, z: 3.93, ry: -Math.PI / 2 },
-    { id: 'SOCKET_OfficeProp_01', x: 9.67, z: 5.02, ry: -Math.PI / 2 },
+    { id: 'SOCKET_Lamp', x: 8.55, z: 3.55, ry: -Math.PI / 2 },
+    { id: 'SOCKET_OfficeProp_01', x: 8.55, z: 4.85, ry: -Math.PI / 2 },
   ],
   protectedZones: [],
 };

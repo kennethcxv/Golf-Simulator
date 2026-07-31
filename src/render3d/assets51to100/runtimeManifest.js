@@ -133,13 +133,17 @@ export const PROP_PLACEMENTS = Object.freeze([
     interaction: { kind: 'toggle', label: 'Filing cabinet', state: 'open', socket: 'SOCKET_Drawer_02',
       open: ['FilingDrawer_01_Open'], close: ['FilingDrawer_01_Close'] },
     note: 'east office wall north of both the desk and window opening' },
-  { n: 83, x: FRONT_DESK.deskLamp.x, z: FRONT_DESK.deskLamp.z,
-    y: COUNTER_TOP, mount: 'surface', ry: FRONT_DESK.deskLamp.ry,
+  // Round 7 (2026-07-31): "remove the lamp on the desk" — the task lamp leaves
+  // the checkout counter for the office desk's authored SOCKET_Lamp seat, so
+  // the working checkout frame keeps only the transaction and the lamp's
+  // toggle/emissive behaviour survives on the management desk.
+  { n: 83, x: 8.55, z: 3.55,
+    y: 0.96, mount: 'surface', ry: -Math.PI / 2,
     category: 'office-prop', collision: 'none',
     light: { color: 0xffd99a, intensity: 0.55, distance: 2.6, presentation: 'emissive-only' },
     interaction: { kind: 'toggle', label: 'Desk lamp', state: 'on', socket: 'SOCKET_Desk',
       open: ['DeskLamp_SwitchOn'], close: ['DeskLamp_SwitchOff'] },
-    note: 'warm task lamp sits beside the reception laptop on the shared counter datum' },
+    note: 'warm task lamp serves the office desk, off the checkout sightline' },
   { n: 84, x: OFFICE.filing.x, z: OFFICE.filing.z, y: FILING_CABINET_TOP_Y,
     mount: 'surface', ry: OFFICE.filing.ry,
     category: 'office-prop', collision: 'none',

@@ -50,7 +50,7 @@ import {
   scanChoreographyAt, scanDuration, scannerReadFacts,
 } from './checkoutScanPresentation.js';
 import {
-  changeBundleLayout, changeHandoffPoint, customerCardPoint, customerCashPoint,
+  changeBundleLayout, changeHandoffPoint, customerCardPoint,
   presentedTenderLayout, selectedChangeLayout as physicalChangeLayout,
 } from './checkoutPaymentPresentation.js';
 import { makeCashierHands } from './cashierHands.js';
@@ -70,7 +70,10 @@ const POS_PLANE_H = 0.2125;
 // The checkout-kit exports are compact desktop props.  Present them at the
 // dimensions of a full-size retail touchscreen and countertop pin pad so the
 // two devices carry the same visual weight as the supplied composition.
-const POS_HARDWARE_SCALE = 1.35;
+// Round 7: "make the screen a little bigger … so it's more visible" — 1.55
+// with the monitor pulled toward frame centre (REGISTER.monitor) keeps every
+// pixel of the glass inside the working frame.
+const POS_HARDWARE_SCALE = 1.55;
 const TERMINAL_HARDWARE_SCALE = 1.85;
 // the live terminal canvas hung on the kit reader's Terminal_Screen face
 const TERM_SCREEN_W = 0.070;
@@ -190,12 +193,25 @@ const REST_Y = COUNTER_TOP + 0.012;
 const CARRY_Y = COUNTER_TOP + 0.115;
 const BAG_REACH = 0.34;
 const SLIDE_DURATION = 0.55; // click-to-bag slide (2026-07-30 round 2)
-const TERMINAL_PARK_DEPTH = 0.46; // the reader hides under the counter between card sales
+// THE DEVICE BAY. Round 7, from the 2026-07-31 TCG screenshot: the counter's
+// staff-facing front edge carries a dark-framed niche with a BRIGHT WHITE
+// glowing back panel, and the card reader (plus a small pin pad) stands
+// propped inside it. The reader used to hide 0.46 under the counter between
+// card sales; now it PARKS in this bay, visible, exactly like the reference —
+// "add a space in the desk for the card reader to be placed on."
+export const CHECKOUT_TERMINAL_BAY = Object.freeze({
+  localX: 0.10,          // centred on the card station's desk-local x
+  width: 0.56,
+  height: 0.17,
+  reach: 0.115,          // how far the tray stands proud of the desk face
+  belowTop: 0.145,       // bay vertical centre under the counter top
+  seatPitch: -0.50,      // the parked reader leans back against the glow
+  pinPadOffsetX: 0.17,   // the second small device beside the reader
+});
 const CARD_TIME = 1.15;
-const RECEIPT_TIME = 1.1;
-const RECEIPT_READY_HOLD = 0.42;
-const RECEIPT_DELIVER_TIME = 0.72;
-const RECEIPT_CUSTOMER_HOLD = 1.25;
+// No receipt timers: round 7 removed the receipt presentation outright. The
+// sim still prints/files its durable record inside beginAutomaticReceipt, but
+// no paper exists, so payment flows straight into the bag delivery.
 const BAG_DELIVER_TIME = 0.78;
 const BAG_CUSTOMER_HOLD = 1.25;
 const CARD_STOW_TIME = 0.44;
@@ -341,21 +357,6 @@ function frontDeskEuler(localPitch = 0, localYaw = 0, localRoll = 0) {
     'XYZ',
   );
 }
-
-// The printed FACE aims at the cashier while the paper feeds. Measured
-// 2026-07-30 across two takes of 12c-receipt-printing-closeup.png: with the
-// authored quaternion the strip faced the customer, so the printer close-up —
-// which looks from the staff side, where the player is — read the BACK of the
-// paper: mirrored text. Composing PI into the Euler's second slot un-mirrored
-// it but turned the print upside down (the slots do not compose to a clean
-// about-vertical spin once the plane is pitched), so the flip is a LOCAL-Y
-// post-multiply: the pitched strip spins about its own long axis like a
-// revolving door — face swaps sides, print stays upright. The handoff
-// quaternion below still turns the face to the customer as it travels.
-const RECEIPT_PRINTER_QUATERNION = frontDeskQuaternion(-0.42, 0, 0).multiply(
-  new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI),
-);
-const RECEIPT_HANDOFF_QUATERNION = frontDeskQuaternion(-0.12, 0.5, -0.28);
 
 const DRAWER_BILLS = [1, 5, 10, 20, 50];
 // 1¢ 5¢ 10¢ 25¢ 50¢ — the reference till's own five wells (154525 / 154641).
@@ -552,20 +553,6 @@ export function paidCheckoutCatchupPath(method, flowState) {
   return index >= 0 ? sequence.slice(index + 1) : null;
 }
 
-// Receipt printing reveals the strip by scaling local Y. Older loose-receipt
-// exports placed their long edge on Z, so accepting them here would reveal the
-// shallow paper thickness instead of its length. Reject that orientation and
-// use the owned procedural strip below; current authored receipts keep Y as the
-// dominant feed axis.
-export function receiptGeometryUsesFeedAxis(size) {
-  const x = Number(size?.x);
-  const y = Number(size?.y);
-  const z = Number(size?.z);
-  return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)
-    && x > 0 && y > 0 && z >= 0
-    && y >= x * 1.4 && y >= z * 1.4;
-}
-
 function textTexture(text, {
   width = 512,
   height = 192,
@@ -639,8 +626,10 @@ function billTexture(denom, clubName = DEFAULT_DISPLAY_BRAND) {
   canvas.width = 384;
   canvas.height = 168;
   const ctx = canvas.getContext('2d');
-  const base = { 1: '#cad4bf', 5: '#d8c1b7', 10: '#c1ccd8', 20: '#c2d5be', 50: '#d2c6dc' }[denom];
-  const ink = { 1: '#345033', 5: '#704238', 10: '#294a68', 20: '#285b34', 50: '#4b3562' }[denom];
+  // Round 7: every note prints on the SAME dollar-green stock ("make it how
+  // they were before"); the big numerals and the well tags carry identity.
+  const base = { 1: '#ccd6c1', 5: '#c7d2bc', 10: '#c2ceb7', 20: '#bdcab2', 50: '#b8c6ad' }[denom] || '#c2ceb7';
+  const ink = '#2f4c31';
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = ink;
@@ -860,7 +849,11 @@ export function createRegisterMode(B) {
       foreground: '#173f2d',
       subtitle: '#294f37',
     });
-    cardBrandMaterial.map = displayBrandTexture(signature);
+    // The card wears an actual CARD face — chip, member number, brand — not
+    // the shop wordmark panel. Round 7: "make the card look better when
+    // inserted": the wordmark read as a green sliver in the reader's slot;
+    // the bank-card layout reads as a card at any protrusion.
+    cardBrandMaterial.map = paymentCardTexture(signature);
     bagBrandMaterial.needsUpdate = true;
     cardBrandMaterial.needsUpdate = true;
     physicalBrandSignature = signature;
@@ -933,13 +926,18 @@ export function createRegisterMode(B) {
   // resolves. The keys ride with it (they are its children), so the physical
   // keypad works at the face exactly as it does on the counter.
   const TERMINAL_FLOAT_RATE = 6.5;          // 1/s toward the target
-  // REFERENCE FRAMING (154606 / 154618): the reader is LARGE but not looming —
-  // about a third of frame height — and it hangs CENTRE-LEFT so the POS stays
-  // readable beside it. At 0.46 m it filled two thirds of the frame dead
-  // centre and buried the monitor.
+  // ROUND 7: "the card reader is centered and directly in front of the user's
+  // face" — the centre-left offset is gone; the device hangs dead on the view
+  // axis. Its screen shows the total, so nothing readable is lost behind it
+  // while the amount is keyed. The clearance clamp below keeps its base (and
+  // the card hanging from it) out of the counter now that the working eye
+  // rides much lower than when 1.16 m was first tuned.
   const TERMINAL_FLOAT_DISTANCE = 1.16;     // metres along the VIEW AXIS
-  const TERMINAL_FLOAT_LEFT = 0.25;         // metres left of the view axis
-  const TERMINAL_FLOAT_DROP = 0.07;         // metres below the view axis
+  const TERMINAL_FLOAT_LEFT = 0;            // dead centre (round 7)
+  const TERMINAL_FLOAT_DROP = 0.02;         // essentially on the view axis
+  // The device origin is its BASE and the inserted card hangs below that.
+  // Keep base-minus-card above the counter top wherever the view axis lands.
+  const TERMINAL_FLOAT_COUNTER_CLEARANCE = 0.16;
   // A few degrees of roll: the reference unit is canted like something held,
   // not bolted. Facing stays yaw-only (playtest 2026-07-30 round 2) so the
   // glass never rakes away from the eye.
@@ -1029,8 +1027,16 @@ export function createRegisterMode(B) {
           new THREE.Vector3(0, 0, 1), TERMINAL_FLOAT_ROLL,
         ));
       const rootQuatInv = root.getWorldQuaternion(new THREE.Quaternion()).invert();
+      const anchorLocal = root.worldToLocal(targetWorld.clone());
+      // ROUND 7 ("not colliding with any desk, screen etc"): the round-6 eye
+      // sits 0.56 above the counter, so a point 1.16 m down the pitched view
+      // axis can land the device's base INSIDE the counter slab — measured on
+      // the old constants the base solved ~0.15 below the top and the keypad
+      // and inserted card were buried in wood. Root-local y IS interior-local
+      // y here, so clamp the base above the top wherever the axis lands.
+      anchorLocal.y = Math.max(anchorLocal.y, COUNTER_TOP + TERMINAL_FLOAT_COUNTER_CLEARANCE);
       terminalFloatAnchor = {
-        position: root.worldToLocal(targetWorld.clone()),
+        position: anchorLocal,
         quaternion: rootQuatInv.clone().multiply(faceWorldQuat),
       };
     }
@@ -1234,32 +1240,14 @@ export function createRegisterMode(B) {
   let scannerPulse = 0;
   let lastScanEvidence = null;
 
-  let printerRoll = null;
-  let printerPaper = null;
-  let printerOutputSocket = null;
-  let printerPaperBaseY = 0;
-  let receiptMesh = null;
-  let receiptTimer = 0;
+  // No printer, no paper, no receipt mesh — round 7 removed the receipt
+  // presentation entirely. The sim's print/take/pack verbs still run silently
+  // inside beginAutomaticReceipt so exact-once banking keeps its contract.
   let autoFulfilled = false;
   let finalizeTimer = 0;
 
-  function disposeReceiptMesh() {
-    if (!receiptMesh) return false;
-    receiptMesh.removeFromParent();
-    if (receiptMesh.geometry) receiptMesh.geometry.dispose();
-    const materials = Array.isArray(receiptMesh.material) ? receiptMesh.material : [receiptMesh.material];
-    for (const material of materials) {
-      if (!material) continue;
-      if (material.map) material.map.dispose();
-      material.dispose();
-    }
-    receiptMesh = null;
-    return true;
-  }
-
   // The shopping bag sits at counter-left; the player drags paid products through
-  // its mouth after packing the receipt. Positions are tuned to the
-  // reference composition and refined once the rebuilt bag asset lands.
+  // its mouth. Positions are tuned to the reference composition.
   let bagGroup = null;
   let bagContentsNode = null;
   let bagHandoffNode = null;
@@ -1285,6 +1273,73 @@ export function createRegisterMode(B) {
       CHECKOUT_BAG_PRESENTATION.pitch, 0, CHECKOUT_BAG_PRESENTATION.roll,
     ))
     .add(BAG_POS);
+
+  // --- THE DEVICE BAY (round 7) --------------------------------------------
+  // A dark-framed tray with a pure-white glowing back panel, mounted flush on
+  // the desk's staff-facing front edge (the desk is solid, so a true cut-in
+  // would be swallowed by its geometry — a proud light-box reads identically
+  // from the working frame and is what the 2026-07-31 reference shows). The
+  // reader parks standing in it; a small white pin pad keeps it company.
+  const BAY = CHECKOUT_TERMINAL_BAY;
+  const bayFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.55 });
+  const bayGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+  const terminalBay = new THREE.Group();
+  terminalBay.name = 'CheckoutTerminalBay';
+  {
+    const face = frontDeskPoint(BAY.localX, COUNTER.depth / 2 + 0.004);
+    terminalBay.position.set(face.x, COUNTER_TOP - BAY.belowTop, face.z);
+    terminalBay.quaternion.copy(frontDeskQuaternion());
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(BAY.width, BAY.height, 0.006), bayGlowMaterial);
+    glow.position.set(0, 0, 0.010);
+    terminalBay.add(glow);
+    const rails = [
+      [BAY.width + 0.05, 0.022, BAY.reach - 0.012, 0, BAY.height / 2 + 0.011, (BAY.reach - 0.012) / 2],
+      [BAY.width + 0.05, 0.022, BAY.reach, 0, -BAY.height / 2 - 0.011, BAY.reach / 2],
+      [0.022, BAY.height + 0.044, BAY.reach - 0.012, -(BAY.width / 2 + 0.014), 0, (BAY.reach - 0.012) / 2],
+      [0.022, BAY.height + 0.044, BAY.reach - 0.012, BAY.width / 2 + 0.014, 0, (BAY.reach - 0.012) / 2],
+    ];
+    for (const [w, h, d, x, y, z] of rails) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bayFrameMaterial);
+      rail.position.set(x, y, z);
+      terminalBay.add(rail);
+    }
+    // the second small device from the reference: a white-faced pin pad
+    // propped beside the reader's seat
+    const pinPad = new THREE.Group();
+    const pinBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.082, 0.148, 0.024),
+      bayFrameMaterial,
+    );
+    const pinFaceCanvas = document.createElement('canvas');
+    pinFaceCanvas.width = 96;
+    pinFaceCanvas.height = 160;
+    {
+      const c2 = pinFaceCanvas.getContext('2d');
+      c2.fillStyle = '#f4f5f2';
+      c2.fillRect(0, 0, 96, 160);
+      c2.fillStyle = '#20241f';
+      c2.fillRect(10, 10, 76, 34); // its own little screen
+      c2.fillStyle = '#c9cdc6';
+      for (let row = 0; row < 4; row += 1) {
+        for (let col = 0; col < 3; col += 1) {
+          c2.fillRect(12 + col * 26, 56 + row * 25, 20, 17);
+        }
+      }
+    }
+    const pinFaceTexture = new THREE.CanvasTexture(pinFaceCanvas);
+    pinFaceTexture.colorSpace = THREE.SRGBColorSpace;
+    const pinFace = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.074, 0.140),
+      new THREE.MeshBasicMaterial({ map: pinFaceTexture, toneMapped: false }),
+    );
+    pinFace.position.z = 0.0125;
+    pinPad.add(pinBody, pinFace);
+    pinPad.position.set(BAY.pinPadOffsetX, -BAY.height / 2 + 0.052, BAY.reach * 0.48);
+    pinPad.rotation.x = BAY.seatPitch * 0.72;
+    terminalBay.add(pinPad);
+    suppressInteriorSunShadows(terminalBay);
+    root.add(terminalBay);
+  }
 
   const itemResources = createRegisterItemResources();
   const itemMeshes = new Map();
@@ -1323,105 +1378,59 @@ export function createRegisterMode(B) {
   // gone; the pointer cursor alone says "clickable". The ONE outline that
   // remains is the green payment rim below, which the same playtester asked
   // for and which the reference carries.
-  // THE GRABBABLE HIGHLIGHT. Round 5 rimmed offered payment in a bright green
-  // Box3Helper; playtest round 6: "i dont like the green take cash, make it a
-  // highlight over." So the green box is gone and the payment itself LIGHTS UP
-  // — the money brightens in place, the way a hover highlight works, instead of
-  // wearing a coloured cage that never matched anything else in the room.
-  //
-  // The lift is emissive on the payment's own materials (cloned per mesh so a
-  // shared material cannot drag half the counter up with it) and restored
-  // exactly on release.
-  const GRAB_HIGHLIGHT_COLOR = 0xfff2c4; // warm paper-white, not a signal colour
-  const GRAB_HIGHLIGHT_STRENGTH = 0.55;
-  // still needed to place and size the halo, even with the boxes gone
-  const grabBounds = new THREE.Box3();
-  const grabHighlighted = []; // { mesh, original }
+  // THE GRABBABLE HIGHLIGHT IS AN OUTLINE. Round 5's green Box3Helper cage and
+  // round 6's emissive brightening + additive halo were both rejected — round
+  // 7: "make sure that the highlight for selecting a card or cash is just an
+  // outline of the card or cash, not a full blob over it." So the payment's
+  // own SILHOUETTE is traced: every mesh gets an inverted-hull shell — the
+  // same geometry, back faces only, grown by a fixed rim — which the object's
+  // own front faces cover everywhere except a few millimetres around its edge.
+  // Nothing about the money's own surface changes.
+  const GRAB_OUTLINE_COLOR = 0xffe9a8;   // warm paper-gold rim
+  const GRAB_OUTLINE_RIM = 0.0045;       // metres of visible edge, every axis
+  const grabOutlineMaterial = new THREE.MeshBasicMaterial({
+    color: GRAB_OUTLINE_COLOR,
+    side: THREE.BackSide,
+    toneMapped: false,
+  });
+  const grabOutlineShells = []; // shells parented onto the highlighted meshes
   function clearGrabHighlight() {
-    for (const entry of grabHighlighted) {
-      if (entry.mesh.material !== entry.clone) continue; // something else re-skinned it
-      entry.mesh.material = entry.original;
-      entry.clone.dispose();
-    }
-    grabHighlighted.length = 0;
+    for (const shell of grabOutlineShells) shell.removeFromParent();
+    grabOutlineShells.length = 0;
   }
   function applyGrabHighlight(list) {
     for (const object of list) {
       object.traverse((mesh) => {
-        if (!mesh.isMesh || !mesh.material || Array.isArray(mesh.material)) return;
-        if (mesh.material.emissive === undefined) return;
-        const original = mesh.material;
-        const clone = original.clone();
-        clone.emissive = new THREE.Color(GRAB_HIGHLIGHT_COLOR);
-        clone.emissiveIntensity = GRAB_HIGHLIGHT_STRENGTH;
-        clone.toneMapped = false;
-        mesh.material = clone;
-        grabHighlighted.push({ mesh, original, clone });
+        if (!mesh.isMesh || !mesh.geometry) return;
+        if (mesh.userData.grabOutlineShell) return; // never outline an outline
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        const box = mesh.geometry.boundingBox;
+        if (!box || box.isEmpty()) return;
+        const shell = new THREE.Mesh(mesh.geometry, grabOutlineMaterial);
+        shell.userData = { grabOutlineShell: true, pick: false };
+        // Grow by an ABSOLUTE rim per axis, so a paper-thin note and a chunky
+        // card carry the same visible edge instead of a proportional one that
+        // vanishes on thin geometry. The scale is about the geometry origin;
+        // for these small centred props the rim error that introduces is far
+        // below the rim itself.
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        shell.scale.set(
+          size.x > 1e-6 ? (size.x + GRAB_OUTLINE_RIM * 2) / size.x : 1,
+          size.y > 1e-6 ? (size.y + GRAB_OUTLINE_RIM * 2) / size.y : 1,
+          size.z > 1e-6 ? (size.z + GRAB_OUTLINE_RIM * 2) / size.z : 1,
+        );
+        shell.raycast = () => {}; // the outline must never eat the click
+        mesh.add(shell);
+        grabOutlineShells.push(shell);
       });
     }
   }
-  // …and a soft additive halo behind the payment, so the "take this" read
-  // survives at working-frame distance where an in-place brightening alone can
-  // be missed. Warm white to match the highlight, not the old green.
-  const grabGlowCanvas = document.createElement('canvas');
-  grabGlowCanvas.width = 128;
-  grabGlowCanvas.height = 128;
-  {
-    const glowCtx = grabGlowCanvas.getContext('2d');
-    const gradient = glowCtx.createRadialGradient(64, 64, 8, 64, 64, 62);
-    gradient.addColorStop(0, 'rgba(255, 242, 196, 0.72)');
-    gradient.addColorStop(0.55, 'rgba(255, 236, 176, 0.30)');
-    gradient.addColorStop(1, 'rgba(255, 236, 176, 0)');
-    glowCtx.fillStyle = gradient;
-    glowCtx.fillRect(0, 0, 128, 128);
-  }
-  const grabGlowTexture = new THREE.CanvasTexture(grabGlowCanvas);
-  grabGlowTexture.colorSpace = THREE.SRGBColorSpace;
-  const grabGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: grabGlowTexture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  }));
-  grabGlow.visible = false;
-  grabGlow.renderOrder = 29;
-  root.add(grabGlow);
-
-  // The helpers hang under the register root — a TRANSLATED child of the
-  // interior — while setFromObject/expandByObject return WORLD bounds.
-  // Un-shift by that translation or the drawn box lands a building away,
-  // which is exactly why the brass hover box never appeared in any render.
-  const helperRootOffset = new THREE.Vector3();
-  function alignBoundsToRoot(box) {
-    root.getWorldPosition(helperRootOffset);
-    box.translate(helperRootOffset.negate());
-    return box;
-  }
-
-  const grabGlowCentre = new THREE.Vector3();
-  const grabGlowSize = new THREE.Vector3();
 
   function setGrabOutline(target) {
     const list = (Array.isArray(target) ? target : [target]).filter(Boolean);
     clearGrabHighlight();
-    if (!list.length) {
-      grabGlow.visible = false;
-      return;
-    }
-    grabBounds.makeEmpty();
-    for (const object of list) grabBounds.expandByObject(object);
-    if (grabBounds.isEmpty()) {
-      grabGlow.visible = false;
-      return;
-    }
-    alignBoundsToRoot(grabBounds);
-    grabBounds.getCenter(grabGlowCentre);
-    grabBounds.getSize(grabGlowSize);
-    grabGlow.position.copy(grabGlowCentre);
-    const glowSpan = Math.max(grabGlowSize.x, grabGlowSize.y, grabGlowSize.z, 0.10);
-    grabGlow.scale.set(glowSpan * 2.1, glowSpan * 2.1, 1);
-    grabGlow.visible = true;
+    if (!list.length) return;
     applyGrabHighlight(list);
   }
 
@@ -1496,13 +1505,11 @@ export function createRegisterMode(B) {
   let lookTargetPitch = 0;
   let workingGlanceActive = false;
   let enterTimer = 0;
-  // receipt/bag delivery sequencing: null | 'receipt-print' | 'receipt-ready'
-  // | 'receipt-deliver' | 'receipt-customer-hold' | 'bag-deliver'
-  // | 'bag-customer-hold' | 'released'
+  // bag delivery sequencing (the receipt was removed in round 7):
+  // null | 'bag-deliver' | 'bag-customer-hold' | 'released'
+  // (+ 'bagging-manual' / 'bag-drag' while the player carries it by hand)
   let deliveryPhase = null;
   let deliveryTimer = 0;
-  let deliveryFrom = null;
-  let deliveryTo = null;
 
   let selectedItem = null;
   let scanDrag = null;
@@ -1994,7 +2001,6 @@ export function createRegisterMode(B) {
       clearCardWatchdogWork();
       if (cardMesh) cardMesh.removeFromParent();
       cardMesh = null;
-      receiptTimer = 0;
       deliveryTimer = 0;
       finalizeTimer = 0;
       if (resumeState === 'Bagging') {
@@ -2038,13 +2044,7 @@ export function createRegisterMode(B) {
       if (transactionKind === 'retail') {
         return durableProjectRetailFulfillment();
       }
-      ensureReceiptMesh({ fullyExposed: true, resetToPrinter: true });
-      if (tx.receiptPacked) {
-        receiptMesh.userData.pick = false;
-        receiptMesh.userData.checkoutOwner = 'bag';
-      } else {
-        setObjectPickable(receiptMesh, true);
-      }
+      // no receipt exists to restage — the remaining physical work is the bag
       for (const item of tx.items) {
         const mesh = itemMeshes.get(item.uid);
         if (mesh && item.scanned && !item.bagged) setObjectPickable(mesh, true);
@@ -2217,7 +2217,6 @@ export function createRegisterMode(B) {
     if (tx.stage.startsWith('card')) return 'card-payment';
     if (tx.stage === 'cash-tender') return 'cash-payment';
     if (tx.stage === 'cash-drawer') return tx.deposited ? 'change-selection' : 'cash-payment';
-    if (deliveryPhase === 'receipt-deliver') return 'receipt-delivering';
     if (deliveryPhase === 'bag-deliver') return 'bag-transfer';
     if (tx.stage === 'receipt') return 'payment-complete';
     if (tx.stage === 'bagging' || tx.stage === 'done') return 'ready-to-finalize';
@@ -2268,13 +2267,10 @@ export function createRegisterMode(B) {
       }
       return 'Click drawer money to count change: exact, or up to $5.00 extra.';
     }
-    if (deliveryPhase === 'receipt-deliver') return 'The receipt is being handed to the customer.';
     if (deliveryPhase === 'bag-deliver') return 'The bag is being handed to the customer.';
-    // The paper is back (checkout-physicality round 2026-07-30): it prints at
-    // the visible printer and is handed across automatically.
-    if (tx.stage === 'receipt') return deliveryPhase === 'receipt-ready-manual'
-      ? 'Take the printed receipt and place it in the shopping bag.'
-      : 'Payment is accepted. The receipt is printing.';
+    // no receipt exists (round 7) — the stage is pure paperwork and passes
+    // in the same frame it is reached
+    if (tx.stage === 'receipt') return 'Payment is accepted.';
     if (tx.stage === 'bagging') {
       const hasSeparateHandoff = tx.items.some((item) => !item.bagged
         && itemMeshes.get(item.uid)?.userData?.catalogVisual?.separateHandoff);
@@ -2339,7 +2335,7 @@ export function createRegisterMode(B) {
       // during that animation only begs for a pointless race. The button
       // exists solely as a recovery handle if the automatic path ever stalls.
       if (autoFulfilled) return [];
-      return [{ id: 'retry-fulfillment', label: 'Retry Receipt & Handoff', kind: 'success' }];
+      return [{ id: 'retry-fulfillment', label: 'Retry Handoff', kind: 'success' }];
     }
     return [];
   }
@@ -2522,62 +2518,110 @@ export function createRegisterMode(B) {
   }
 
   // THE REFERENCE READER'S BANDED FACE (Designs/CashRegister/Final 154606 /
-  // 154618). Every card-active stage draws on this one face; only the idle
-  // brand screen keeps the dark powered-down glass. A dark status strip runs
-  // across the top, a light-blue caption band sits under it, and a navy band
-  // carries the figure in large white type. Everything is LEFT-ALIGNED like
-  // the reference; the earlier centred column on a flat pale panel read like a
-  // calculator rather than a payment terminal.
+  // 154618), polished for round 7 ("make the card reader look a lot better as
+  // far as the UI on the screen"): a rounded glass card with a soft edge
+  // shadow, a branded status strip, a caption band and a deep-navy amount band
+  // — both with a gentle vertical gradient so they read as lit LCD rather than
+  // flat fills — and the hint line set in a pill chip. Everything stays
+  // LEFT-ALIGNED like the reference; the keypad remains physical.
   const TERM_PAD = 10;
-  function paintTermBandedFace(ctx, W, H, { caption, amount, amountInk = '#ffffff', footer, footerInk }) {
+  function termRoundedPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function paintTermBandedFace(ctx, W, H, {
+    caption, amount, amountInk = '#ffffff', footer, footerInk, caret = false,
+    captionTop = '#63a0c4', captionBottom = '#4d84a6',
+    amountTop = '#24446b', amountBottom = '#182f4c',
+  }) {
     const x0 = TERM_PAD;
     const w = W - TERM_PAD * 2;
-    ctx.fillStyle = '#e9edee';
-    ctx.fillRect(x0, TERM_PAD, w, H - TERM_PAD * 2);
-    // status strip — the bands are sized as fractions of the glass so they fill
-    // it. Fixed pixel heights left the bottom half of the reader a blank white
-    // slab under a tiny footer line.
     const inner = H - TERM_PAD * 2;
+    // the glass card, rounded, with a whisper of inner shadow at the edges
+    ctx.save();
+    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 14);
+    ctx.fillStyle = '#eef1f2';
+    ctx.fill();
+    ctx.clip();
+    // status strip
     const statusH = Math.round(inner * 0.135);
-    ctx.fillStyle = '#1a1d1f';
+    const statusGrad = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + statusH);
+    statusGrad.addColorStop(0, '#23272a');
+    statusGrad.addColorStop(1, '#141719');
+    ctx.fillStyle = statusGrad;
     ctx.fillRect(x0, TERM_PAD, w, statusH);
     ctx.textAlign = 'left';
+    ctx.fillStyle = '#59d68a';
+    ctx.font = '700 30px Arial, sans-serif';
+    ctx.fillText('●', x0 + 20, TERM_PAD + statusH / 2 + 1);
     ctx.fillStyle = '#e6ebe8';
-    ctx.font = '600 30px Arial, sans-serif';
-    ctx.fillText('●  Payment', x0 + 22, TERM_PAD + statusH / 2 + 1);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#9aa4a0';
-    ctx.font = '600 24px Arial, sans-serif';
-    ctx.fillText('▲ ▬', x0 + w - 20, TERM_PAD + statusH / 2 + 1);
+    setFittedCanvasFont(ctx, displayClubName().toUpperCase(), {
+      maxWidth: w - 150, startSize: 26, minimumSize: 18, weight: 700,
+    });
+    ctx.fillText(displayClubName().toUpperCase(), x0 + 48, TERM_PAD + statusH / 2 + 1);
     // caption band
     const capY = TERM_PAD + statusH;
     const capH = Math.round(inner * 0.215);
-    ctx.fillStyle = '#5b8fb0';
+    const capGrad = ctx.createLinearGradient(0, capY, 0, capY + capH);
+    capGrad.addColorStop(0, captionTop);
+    capGrad.addColorStop(1, captionBottom);
+    ctx.fillStyle = capGrad;
     ctx.fillRect(x0, capY, w, capH);
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
     setFittedCanvasFont(ctx, caption, {
-      maxWidth: w - 44, startSize: 62, minimumSize: 30, weight: 700,
+      maxWidth: w - 44, startSize: 60, minimumSize: 30, weight: 700,
     });
     ctx.fillText(caption, x0 + 22, capY + capH / 2 + 2);
     // amount band
     const amtY = capY + capH;
     const amtH = Math.round(inner * 0.36);
-    ctx.fillStyle = '#1f3a5c';
+    const amtGrad = ctx.createLinearGradient(0, amtY, 0, amtY + amtH);
+    amtGrad.addColorStop(0, amountTop);
+    amtGrad.addColorStop(1, amountBottom);
+    ctx.fillStyle = amtGrad;
     ctx.fillRect(x0, amtY, w, amtH);
     ctx.fillStyle = amountInk;
     setFittedCanvasFont(ctx, amount, {
-      maxWidth: w - 44, startSize: 116, minimumSize: 40, weight: 800,
+      maxWidth: w - (caret ? 76 : 44), startSize: 116, minimumSize: 40, weight: 800,
     });
     ctx.fillText(amount, x0 + 22, amtY + amtH / 2 + 4);
-    ctx.textAlign = 'center';
-    if (footer) {
-      ctx.fillStyle = footerInk || '#5c6a72';
-      setFittedCanvasFont(ctx, footer, {
-        maxWidth: w - 30, startSize: 34, minimumSize: 20, weight: 600,
-      });
-      ctx.fillText(footer, W / 2, amtY + amtH + (H - TERM_PAD - (amtY + amtH)) / 2);
+    if (caret) {
+      // the entry caret: a bright block right after the running figure, so
+      // "this is where your digits go" reads even in a still frame
+      const typedWidth = ctx.measureText(amount).width;
+      ctx.fillStyle = '#8fd0ff';
+      ctx.fillRect(x0 + 30 + typedWidth, amtY + amtH * 0.24, 10, amtH * 0.52);
     }
+    // a hairline under the amount band grounds it on the pale glass
+    ctx.fillStyle = 'rgba(20, 34, 52, 0.18)';
+    ctx.fillRect(x0, amtY + amtH, w, 3);
+    if (footer) {
+      // the hint rides in a pill chip instead of floating as bare text
+      ctx.textAlign = 'center';
+      setFittedCanvasFont(ctx, footer, {
+        maxWidth: w - 90, startSize: 30, minimumSize: 19, weight: 700,
+      });
+      const footerWidth = ctx.measureText(footer).width;
+      const pillY = amtY + amtH + (H - TERM_PAD - (amtY + amtH)) / 2;
+      const pillH = 52;
+      termRoundedPath(ctx, W / 2 - footerWidth / 2 - 26, pillY - pillH / 2, footerWidth + 52, pillH, pillH / 2);
+      ctx.fillStyle = footerInk ? 'rgba(179, 54, 42, 0.12)' : 'rgba(31, 58, 92, 0.10)';
+      ctx.fill();
+      ctx.fillStyle = footerInk || '#3c5168';
+      ctx.fillText(footer, W / 2, pillY + 1);
+    }
+    // the inner edge shadow, drawn last inside the clip
+    termRoundedPath(ctx, x0 + 2, TERM_PAD + 2, w - 4, inner - 4, 12);
+    ctx.strokeStyle = 'rgba(10, 16, 20, 0.35)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
     return amtY + amtH;
   }
 
@@ -2631,12 +2675,13 @@ export function createRegisterMode(B) {
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
       paintTermBandedFace(ctx, W, H, {
-        caption: 'Total',
+        caption: `Total due  $${totalOf(tx).toFixed(2)}`,
         amount: typed,
+        caret: true,
         footer: tx.cardEntryError
           ? tx.cardEntryError.toUpperCase()
-          : `DUE $${totalOf(tx).toFixed(2)} \u00b7 KEY IT, GREEN OK`,
-        footerInk: tx.cardEntryError ? '#b3362a' : '#5c6a72',
+          : 'KEY THE TOTAL \u00b7 GREEN OK',
+        footerInk: tx.cardEntryError ? '#b3362a' : null,
       });
     } else if (stage === 'card-busy') {
       const dots = '.'.repeat(1 + (Math.floor(termDotsTimer * 3) % 3));
@@ -2649,7 +2694,11 @@ export function createRegisterMode(B) {
       paintTermBandedFace(ctx, W, H, {
         caption: tx.cardResult === 'timeout' ? 'Timeout' : 'Declined',
         amount: `$${totalOf(tx).toFixed(2)}`,
-        amountInk: '#ffb9ae',
+        amountInk: '#ffc7be',
+        captionTop: '#b0554a',
+        captionBottom: '#8e392f',
+        amountTop: '#5c2620',
+        amountBottom: '#421a16',
         footer: 'TRY ANOTHER CARD OR CASH',
         footerInk: '#b3362a',
       });
@@ -2657,7 +2706,11 @@ export function createRegisterMode(B) {
       paintTermBandedFace(ctx, W, H, {
         caption: 'Approved',
         amount: `$${totalOf(tx).toFixed(2)}`,
-        amountInk: '#93f0b4',
+        amountInk: '#a9f4c4',
+        captionTop: '#3f9e68',
+        captionBottom: '#2c7f50',
+        amountTop: '#1d4a33',
+        amountBottom: '#123526',
         footer: 'THANK YOU',
         footerInk: '#1f8a4c',
       });
@@ -2900,11 +2953,16 @@ export function createRegisterMode(B) {
   }
 
   function attachTerm(terminal) {
-    // THE READER PARKS UNDER THE COUNTER (playtest 2026-07-30 round 2, TCG
-    // reference): seated through the desk's opening below its old station so
-    // the counter stays clear, rising to the player's face when a card payment
-    // starts. The cabinet under the top hides it completely while parked.
-    terminal.position.set(CARD_STATION.x, COUNTER_TOP - TERMINAL_PARK_DEPTH, CARD_STATION.z);
+    // THE READER PARKS IN THE DEVICE BAY (round 7, 2026-07-31 reference): it
+    // stands propped in the glowing tray on the desk's front edge — VISIBLE
+    // between card sales, exactly like the screenshot — and rises to the
+    // player's face when a card payment starts.
+    const seatSpot = frontDeskPoint(
+      BAY.localX - 0.11,
+      COUNTER.depth / 2 + 0.004 + BAY.reach * 0.52,
+    );
+    terminal.position.set(seatSpot.x, COUNTER_TOP - BAY.belowTop - BAY.height / 2 + 0.004, seatSpot.z);
+    terminal.quaternion.copy(frontDeskQuaternion(BAY.seatPitch, 0, 0));
     terminal.scale.multiplyScalar(TERMINAL_HARDWARE_SCALE);
     termObject = terminal;
     suppressLegacyCheckoutBrandNodes(terminal, 'paymentTerminal');
@@ -3005,9 +3063,11 @@ export function createRegisterMode(B) {
     // (154606) keeps the inserted card VISIBLY sticking out of the reader's
     // base while the total is keyed and processed. Probed 2026-07-30: the
     // socket sits 0.048 above the body's underside and the card is 0.086 long,
-    // so 0.05 leaves its head in the slot and hangs the rest clear — 0.135 flew
-    // it off the reader entirely and landed it on the counter.
-    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.05)));
+    // so ~0.06 leaves its head in the slot and hangs the rest clear — 0.135
+    // flew it off the reader entirely and landed it on the counter. Round 7
+    // nudged it out a little further so the card FACE (chip and brand) reads
+    // below the base instead of a bare edge.
+    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.062)));
     return true;
   }
 
@@ -3176,20 +3236,6 @@ export function createRegisterMode(B) {
       worldOrigin,
       worldDirection: worldTip.sub(worldOrigin).normalize(),
     };
-  }
-
-  function attachPrinter(printerObject) {
-    printerRoll = printerObject.getObjectByName('PaperRollPivot');
-    printerOutputSocket = printerObject.getObjectByName('RECEIPT_OUTPUT_SOCKET')
-      || printerObject.getObjectByName('ANCHOR_ReceiptFeed');
-    const authoredPaper = printerObject.getObjectByName('ReceiptPaper');
-    if (authoredPaper) authoredPaper.visible = false;
-    // checkout-kit printer: the Receipt_Paper strip feeds upward while printing
-    printerPaper = printerObject.getObjectByName('Receipt_Paper');
-    if (printerPaper) {
-      printerPaperBaseY = printerPaper.position.y;
-      printerPaper.visible = false;
-    }
   }
 
   function setPlacementPreview() {
@@ -3408,15 +3454,18 @@ export function createRegisterMode(B) {
   // and a matching emissive lift keeps the tray legible in the counter's
   // shadow. Reference 154525 / 154641: distinct note ink per value, a copper
   // penny and silver coins of visibly different sizes.
-  // Five HUES, not five shades: measured 2026-07-30 the first pass gave $1 and
-  // $20 two greens and $5 and $50 two pinks, which is the same "identical
-  // rectangles" read at drawer distance. One note per family instead.
+  // ROUND 7: "fix the dollar sign colors — make it how they were before." The
+  // five-hue pass (ochre $5, blue $10, violet $50 …) read as toy money, and
+  // the play-test rejected it outright. US notes are ONE green; what tells
+  // them apart is the printed numeral and the angled $-tags now standing at
+  // the front of each well. A whisper of shade variation survives so a stack
+  // edge still reads, but every note is unmistakably a dollar.
   const MONEY_TINT = {
-    1: 0x8fbe86,      // sage green
-    5: 0xd79a5e,      // warm ochre
-    10: 0x7fabd8,     // cool blue
-    20: 0xb9b25e,     // olive gold
-    50: 0xb98cc9,     // violet
+    1: 0xa9bfa0,      // dollar green, lightest
+    5: 0xa2bb9a,
+    10: 0x9cb794,
+    20: 0x96b28e,
+    50: 0x8fae88,     // dollar green, deepest
     0.01: 0xc06a2c,   // COPPER — the penny, unmistakably
     // The kit coin maps are printed on warm brass, so a near-white tint reads
     // GOLD, not silver. Every non-penny tint is deliberately cool to pull the
@@ -3830,19 +3879,37 @@ export function createRegisterMode(B) {
       drawerMotionRoot.add(hotspot);
       slotHotspots.push(hotspot);
       // The value reads at the BOTTOM-FRONT of each compartment, reference-style:
-      // bold white text with a dark stroke hugging the money. refillDrawerMoney
-      // re-seats it on top of the stack/pile as the count changes.
-      const tag = makeMoneyTag(moneyLabel(denom));
-      tag.position.set(slot.x, slot.y + 0.0022, slot.z + meta.well_d / 2 - (bill ? 0.026 : 0.020));
+      // bold white text with a dark stroke hugging the money.
+      //
+      // COIN tags lie flat on the tray floor and read perfectly — nothing sits
+      // between them and the cash camera. The BILL row's front edge is the
+      // divider BEHIND the coin row, so a flat tag there is grazed by the
+      // camera and buried under the note stack: round 7, "we can't see the
+      // number currency for $1, $5 — it's blocked off from the angle. The 10¢
+      // 25¢ look great." Bill tags now STAND at the divider, tilted back
+      // toward the staff eye and proud of the wall, so neither the stack
+      // behind nor the coin row in front covers them. refillDrawerMoney
+      // re-seats only the coin tags.
+      const tag = makeMoneyTag(moneyLabel(denom), bill ? 0.084 : 0.066, bill ? 0.042 : 0.033);
+      if (bill) {
+        tag.position.set(slot.x, slot.y + meta.wall_h + 0.010, slot.z + meta.well_d / 2 - 0.004);
+        tag.rotation.x = -Math.PI / 2 + BILL_TAG_TILT;
+      } else {
+        tag.position.set(slot.x, slot.y + 0.0022, slot.z + meta.well_d / 2 - 0.020);
+      }
       drawerMotionRoot.add(tag);
       slotLabels.push(tag);
       slotTags[denom] = tag;
     }
   }
 
+  // How far the standing bill tags lean back from vertical toward the staff
+  // eye (the cash camera looks down at the tray from the staff side).
+  const BILL_TAG_TILT = 0.95;
+
   // TCG-style denomination tag: white 900-weight text, dark outline, transparent
   // ground, always readable over whatever money sits beneath it.
-  function makeMoneyTag(text) {
+  function makeMoneyTag(text, width = 0.066, height = 0.033) {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 128;
@@ -3866,7 +3933,7 @@ export function createRegisterMode(B) {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.066, 0.033),
+      new THREE.PlaneGeometry(width, height),
       new THREE.MeshBasicMaterial({
         map: texture, transparent: true, toneMapped: false, side: THREE.DoubleSide, depthWrite: false,
       }),
@@ -4042,30 +4109,39 @@ export function createRegisterMode(B) {
           drawerMoney.add(piece);
         }
       }
-      // the denomination tag hugs the money at the well's FRONT (bottom-front
-      // region, reference-style): on the note stack for bills, riding the
-      // front slope of the pile for coins — updated every refill
+      // COIN tags ride the front slope of their pile so the value stays on
+      // top of the metal. BILL tags are fixed standing plates at the divider
+      // (buildSlotFurniture) — a tag that rode the stack was exactly the one
+      // the round-7 play-test could not see.
       const tag = slotTags[denom];
-      if (tag) {
-        const stackTop = bill
-          ? (count > 0 ? 0.0015 + count * meta.spacing : 0)
-          : (count > 0 ? meta.pile_h * 1.6 : 0);
+      if (tag && !bill) {
+        const pileTop = count > 0 ? meta.pile_h * 1.6 : 0;
         tag.position.set(
           slot.x,
-          slot.y + stackTop + 0.0022,
-          slot.z + meta.well_d / 2 - (bill ? 0.026 : 0.020),
+          slot.y + pileTop + 0.0022,
+          slot.z + meta.well_d / 2 - 0.020,
         );
       }
     }
   }
 
-  // The presented cash rides IN THE CUSTOMER'S OUTSTRETCHED HAND — a fan held
-  // over the counter facing the cashier's eye (not edge-on to it), never laid
-  // out on the desk. One click anywhere on the handful accepts all of it.
+  // THE PRESENTED CASH LIES ON THE DESK. Round 7: "make it so the money goes
+  // on the desk so the user can select the bills" — the customer sets their
+  // notes down flat on their half of the counter (clear of the goods strip),
+  // exactly like the reference's cash-on-the-table, instead of holding a fan
+  // in the air. Every piece is its own click target and one generous unseen
+  // pad over the pile still takes the lot.
+  function tenderCounterPoint() {
+    const at = customerLocalPosition();
+    const local = frontDeskLocalPoint(at.x, at.z);
+    const spot = frontDeskPoint(THREE.MathUtils.clamp(local.x, -0.70, -0.15), -0.30);
+    return new THREE.Vector3(spot.x, COUNTER_TOP, spot.z);
+  }
+
   function tenderPose(index) {
     const layout = presentedTenderLayout(
       tenderMeshes.map((mesh) => mesh.userData.denom),
-      customerHandPoint(COUNTER_TOP + 0.24),
+      tenderCounterPoint(),
     )[index];
     return {
       position: new THREE.Vector3(
@@ -4143,12 +4219,13 @@ export function createRegisterMode(B) {
   function presentTender() {
     tenderMeshes.forEach((mesh, index) => {
       const pose = tenderPose(index);
-      // the notes come UP from the customer's pocket into their held-out hand
-      const hand = customerHandPoint(COUNTER_TOP + 0.24);
+      // each note travels from the customer's reaching hand DOWN onto the
+      // counter, and settles flat where the pile lies
+      const hand = customerHandPoint(COUNTER_TOP + 0.20);
       mesh.position.copy(hand).add(frontDeskOffsetVector3(
-        -0.10 + (index % 4) * 0.03,
-        -0.22 + Math.floor(index / 4) * 0.006,
-        -0.18,
+        -0.06 + (index % 4) * 0.03,
+        0.02 + Math.floor(index / 4) * 0.006,
+        -0.10,
       ));
       mesh.rotation.copy(frontDeskEuler(-0.3, -0.06, 0));
       queueCashMotion(mesh, pose.position, {
@@ -4159,16 +4236,17 @@ export function createRegisterMode(B) {
         toRotation: pose.rotation,
       });
     });
-    // ...and the WHOLE handful is one generous click target: the player clicks
-    // the money in the customer's hand, not a two-pixel note edge. Tracked
-    // apart from tenderMeshes so it never rides the deposit choreography.
+    // ...and the WHOLE pile is one generous click target hovering just over
+    // the laid-out money, so taking the payment never means hunting a
+    // two-millimetre note edge. Tracked apart from tenderMeshes so it never
+    // rides the deposit choreography.
     clearTenderHandful();
-    const cashPoint = customerCashPoint(customerHandPoint(COUNTER_TOP + 0.24));
+    const pile = tenderCounterPoint();
     tenderHandful = new THREE.Mesh(
-      new THREE.SphereGeometry(accessibilityPrefs.largeTextAndTargets ? 0.22 : 0.15, 10, 8),
+      new THREE.SphereGeometry(accessibilityPrefs.largeTextAndTargets ? 0.24 : 0.17, 10, 8),
       new THREE.MeshBasicMaterial({ visible: false }),
     );
-    tenderHandful.position.set(cashPoint.x, cashPoint.y, cashPoint.z);
+    tenderHandful.position.set(pile.x, pile.y + 0.04, pile.z);
     tenderHandful.userData = {
       pick: true, kind: 'money', from: 'tender', denom: Number(Object.keys(tx.tendered || { 1: 1 })[0]),
     };
@@ -4279,7 +4357,6 @@ export function createRegisterMode(B) {
   function clearPhysicalTransaction({
     resetCounterBag = true,
     preserveCustomerBag = false,
-    preserveCustomerReceipt = false,
   } = {}) {
     pendingChangeConfirmation = null;
     // Motions retain mesh references. Release them before any item can be
@@ -4322,18 +4399,9 @@ export function createRegisterMode(B) {
     cashMotionRefillPending = false;
     if (cardMesh) cardMesh.removeFromParent();
     cardMesh = null;
-    if (preserveCustomerReceipt && receiptMesh?.userData.checkoutOwner === 'customer') {
-      receiptMesh = null;
-    } else {
-      if (cust?.handoffReceipt === receiptMesh) cust.handoffReceipt = null;
-      disposeReceiptMesh();
-    }
-    receiptTimer = 0;
     autoFulfilled = false;
     deliveryPhase = null;
     deliveryTimer = 0;
-    deliveryFrom = null;
-    deliveryTo = null;
     if (preserveCustomerBag && bagGroup?.userData.checkoutOwner === 'customer') {
       bagGroup = null;
       bagContentsNode = null;
@@ -4378,10 +4446,6 @@ export function createRegisterMode(B) {
       drawerMotionRoot.visible = false;
     }
     if (drawerAssetSlide) drawerAssetSlide.position.z = drawerAssetSlideBaseZ;
-    if (printerPaper) {
-      printerPaper.visible = false;
-      printerPaper.position.y = printerPaperBaseY;
-    }
     setGrabOutline(null);
     hideTip();
     hoveredItem = null;
@@ -4638,7 +4702,6 @@ export function createRegisterMode(B) {
           drag.mesh.quaternion.copy(drag.fromQuaternion);
           if (drag.fromScale) drag.mesh.scale.copy(drag.fromScale);
           setObjectPickable(drag.mesh, true);
-          if (drag.kind === 'receipt') deliveryPhase = 'receipt-ready-manual';
         }
       }
     }
@@ -5058,9 +5121,16 @@ export function createRegisterMode(B) {
     const oversizeCount = tx.items.filter((candidate) => candidate.bagged
       && itemMeshes.get(candidate.uid)?.userData?.catalogVisual?.separateHandoff).length;
     const oversizePoint = frontDeskPoint(-1.02 + Math.max(0, oversizeCount - 1) * 0.07, -0.12);
+    // LEVEL WITH THE COUNTER THE WHOLE WAY. Round 7: "the items … literally
+    // just go in by sliding to the left" — the staging strip now shares the
+    // laid bag's own line (shopLayout round-7 seam), and the slide target
+    // keeps the item's resting height, so the good runs the surface straight
+    // into the low half of the flattened mouth with no climb at all.
+    const mouth = bagMouth.clone();
+    mouth.y = REST_Y;
     const destination = separateHandoff
       ? new THREE.Vector3(oversizePoint.x, REST_Y, oversizePoint.z)
-      : bagMouth.clone();
+      : mouth;
     // ONE SLIDE, LEFT, INTO THE MOUTH. Playtest 2026-07-30 round 2 (reference:
     // TCG Card Shop Simulator / Bookshop): the five-phase pickup -> barcode
     // alignment -> reader pass -> bag arc read as ceremony. A click rings the
@@ -5475,240 +5545,16 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  // --- THE PHYSICAL RECEIPT -------------------------------------------------
-  // A real curled paper strip whose texture is the actual transaction: header,
-  // items, totals, payment, the change breakdown (including any courtesy
-  // extra), and the tee-time confirmation for check-ins. It feeds out of the
-  // printer slot, pauses, then flies to the customer — and only after they
-  // hold it does the bag follow and the sale bank.
-
-  function receiptContentTexture() {
-    const canvas2d = document.createElement('canvas');
-    canvas2d.width = 256;
-    canvas2d.height = 720;
-    const ctx = canvas2d.getContext('2d');
-    ctx.fillStyle = '#faf6ea';
-    ctx.fillRect(0, 0, 256, 720);
-    ctx.fillStyle = '#2a332c';
-    ctx.textAlign = 'center';
-    let y = 46;
-    const receiptBrand = displayClubName().toUpperCase();
-    setFittedCanvasFont(ctx, receiptBrand, {
-      maxWidth: 220,
-      startSize: 26,
-      minimumSize: 15,
-      weight: 700,
-      family: 'Georgia, serif',
-    });
-    ctx.fillText(receiptBrand, 128, y); y += 26;
-    ctx.font = '600 15px Arial, sans-serif';
-    ctx.fillStyle = '#5d6a60';
-    ctx.fillText('GOLF CLUB · PRO SHOP', 128, y); y += 22;
-    const clockMinutes = state.clock ? state.clock.minutes : 0;
-    const dayNumber = Math.floor(clockMinutes / 1440) + 1;
-    const minuteOfDay = clockMinutes % 1440;
-    const hour12 = ((Math.floor(minuteOfDay / 60) + 11) % 12) + 1;
-    const minutePart = String(minuteOfDay % 60).padStart(2, '0');
-    const meridiem = minuteOfDay < 720 ? 'AM' : 'PM';
-    ctx.fillText(`DAY ${dayNumber}  ·  ${hour12}:${minutePart} ${meridiem}`, 128, y); y += 20;
-    const customerName = cust ? (cust.fullName || cust.name || 'Guest') : 'Guest';
-    ctx.fillText(customerName.toUpperCase(), 128, y); y += 16;
-
-    const rule = () => {
-      ctx.strokeStyle = '#b9b2a0';
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(18, y);
-      ctx.lineTo(238, y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      y += 22;
-    };
-    rule();
-
-    ctx.font = '600 15px Arial, sans-serif';
-    ctx.fillStyle = '#2a332c';
-    for (const item of tx.items.slice(0, 8)) {
-      ctx.textAlign = 'left';
-      const label = item.name.length > 18 ? `${item.name.slice(0, 17)}…` : item.name;
-      ctx.fillText(label, 20, y);
-      ctx.textAlign = 'right';
-      ctx.fillText(`$${item.price.toFixed(2)}`, 236, y);
-      y += 21;
-    }
-    if (tx.items.length > 8) {
-      ctx.textAlign = 'left';
-      ctx.fillText(`+ ${tx.items.length - 8} more`, 20, y);
-      y += 21;
-    }
-    y += 2;
-    rule();
-
-    const money = (label, value, strong = false) => {
-      ctx.font = strong ? '700 18px Arial, sans-serif' : '600 15px Arial, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(label, 20, y);
-      ctx.textAlign = 'right';
-      ctx.fillText(`$${Number(value).toFixed(2)}`, 236, y);
-      y += strong ? 25 : 21;
-    };
-    money('SUBTOTAL', subtotal(tx));
-    if (discountOf(tx) > 0) money('DISCOUNT', -discountOf(tx));
-    // SALES TAX ON THE RECEIPT, always — a receipt that only prints the line when tax happens
-    // to be non-zero teaches the player it does not exist, and in Oregon the $0.00 line IS the
-    // information. The jurisdiction is named because it explains the number above it.
-    money(tx.taxRate > 0 ? `SALES TAX ${(tx.taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%` : 'SALES TAX', taxOf(tx));
-    if (tx.taxLabel) {
-      ctx.font = '600 13px Arial, sans-serif';
-      ctx.fillStyle = '#5d6a60';
-      ctx.textAlign = 'left';
-      ctx.fillText(String(tx.taxLabel).toUpperCase(), 20, y);
-      ctx.fillStyle = '#2a332c';
-      y += 19;
-    }
-    money('TOTAL', dueOf(tx), true);
-    ctx.textAlign = 'left';
-    ctx.fillText(tx.method === 'cash' ? 'PAID · CASH' : 'PAID · CARD (APPROVED)', 20, y);
-    y += 21;
-    if (tx.method === 'cash') {
-      money('CASH RECEIVED', tx.tenderedTotal != null ? tx.tenderedTotal : 0);
-      money('REQUIRED CHANGE', changeDue(tx));
-      money('CHANGE GIVEN', tx.changeGiven != null ? tx.changeGiven : changeDue(tx));
-      const extra = Math.max(0, tx.lost || 0);
-      if (extra > 0) money('EXTRA CHANGE', extra);
-    }
-    if (transactionKind === 'reservation' && tx.servicePayment) {
-      y += 2;
-      rule();
-      const reservation = activeReservation();
-      ctx.textAlign = 'center';
-      ctx.font = '700 16px Arial, sans-serif';
-      ctx.fillText('TEE-TIME CHECK-IN', 128, y); y += 21;
-      ctx.font = '600 15px Arial, sans-serif';
-      if (reservation) ctx.fillText(`TEE TIME  ${fmtSlot(reservation.minute)}`, 128, y), y += 20;
-      ctx.fillText(`RES #${tx.servicePayment.reservationId ?? tx.servicePayment.referenceId}`, 128, y);
-      y += 20;
-      ctx.fillText('CONFIRMED — ENJOY YOUR ROUND', 128, y);
-      y += 4;
-    }
-    y += 2;
-    rule();
-    ctx.textAlign = 'center';
-    ctx.font = '600 15px Arial, sans-serif';
-    ctx.fillText('THANK YOU FOR VISITING', 128, y); y += 20;
-    ctx.font = 'italic 600 14px Georgia, serif';
-    ctx.fillStyle = '#776850';
-    ctx.fillText('SEE YOU ON THE FAIRWAY.', 128, y);
-
-    // Map only the printed stock to the physical strip. The old fixed 720 px
-    // canvas left almost half of a normal three-item receipt blank, making the
-    // print look vertically misregistered from the player camera. Keep enough
-    // breathing room for the header/footer while allowing long receipts to use
-    // the full source canvas.
-    const usedHeight = Math.min(canvas2d.height, Math.max(480, Math.ceil(y + 34)));
-    const textureCanvas = document.createElement('canvas');
-    textureCanvas.width = canvas2d.width;
-    textureCanvas.height = usedHeight;
-    const textureContext = textureCanvas.getContext('2d');
-    textureContext.drawImage(
-      canvas2d,
-      0, 0, canvas2d.width, usedHeight,
-      0, 0, textureCanvas.width, textureCanvas.height,
-    );
-    const texture = new THREE.CanvasTexture(textureCanvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 8;
-    // MEASURED 2026-07-30 (12c crop): the strip rendered as a coherent receipt
-    // rotated 180° in its own plane — header at the slot, every line inverted.
-    // Rotating the MESH cannot fix that: the geometry is anchored at its bottom
-    // edge, so any in-plane flip swings the paper down into the printer.
-    // Rotate the TEXTURE about its centre instead — content turns in place,
-    // anchors and curl untouched, and both the staff-facing print and the
-    // customer-facing handoff read upright because both look at the front face.
-    texture.center.set(0.5, 0.5);
-    texture.rotation = Math.PI;
-    return texture;
-  }
-
-  // a paper strip anchored at its bottom edge, curling gently away at the top
-  function buildReceiptGeometry(width, length, segments = 10, curl = 0.30) {
-    const geometry = new THREE.PlaneGeometry(width, length, 1, segments);
-    const position = geometry.attributes.position;
-    for (let index = 0; index < position.count; index += 1) {
-      const yy = position.getY(index) + length / 2;
-      const t = yy / length;
-      position.setY(index, yy);
-      position.setZ(index, -curl * length * t * t * 0.35);
-    }
-    geometry.computeVertexNormals();
-    return geometry;
-  }
-
-  function printerSlotLocal() {
-    if (printerOutputSocket) {
-      root.updateMatrixWorld(true);
-      const world = printerOutputSocket.getWorldPosition(new THREE.Vector3());
-      return root.worldToLocal(world);
-    }
-    if (printerPaper) {
-      root.updateMatrixWorld(true);
-      const world = printerPaper.getWorldPosition(new THREE.Vector3());
-      return root.worldToLocal(world);
-    }
-    return new THREE.Vector3(REGISTER.printer.x, COUNTER_TOP + 0.10, REGISTER.printer.z)
-      .add(frontDeskOffsetVector3(0, 0, -0.05));
-  }
-
-  function ensureReceiptMesh({ fullyExposed = false, resetToPrinter = false } = {}) {
-    if (!receiptMesh) {
-      let geometry = null;
-      const receiptPrototype = merch && merch.instantiateKit
-        ? merch.instantiateKit('loose_receipt', { scale: 1.0 })
-        : null;
-      const authoredStrip = receiptPrototype?.getObjectByName('Receipt_Strip');
-      if (authoredStrip?.geometry) {
-        authoredStrip.updateMatrix();
-        geometry = authoredStrip.geometry.clone().applyMatrix4(authoredStrip.matrix);
-        geometry.computeBoundingBox();
-        const authoredSize = geometry.boundingBox?.getSize(new THREE.Vector3());
-        if (!receiptGeometryUsesFeedAxis(authoredSize)) {
-          geometry.dispose();
-          geometry = null;
-        }
-      }
-      receiptMesh = new THREE.Mesh(
-        geometry || buildReceiptGeometry(0.075, 0.185),
-        new THREE.MeshBasicMaterial({
-          map: receiptContentTexture(),
-          side: THREE.DoubleSide,
-          toneMapped: false,
-        }),
-      );
-      receiptMesh.name = 'PrintedReceipt';
-      receiptMesh.userData.authoredGeometry = !!geometry;
-      receiptMesh.userData.checkoutOwnedReceipt = true;
-      root.add(receiptMesh);
-      resetToPrinter = true;
-    }
-    if (resetToPrinter) {
-      // A recovery may find the same receipt parented to a customer grip after
-      // an interrupted handoff. Reuse that one mesh and put it back at the
-      // printer rather than creating a duplicate paper prop.
-      root.updateMatrixWorld(true);
-      root.attach(receiptMesh);
-      const slot = printerSlotLocal();
-      slot.y += 0.012;
-      slot.add(frontDeskOffsetVector3(0, 0, 0.022));
-      receiptMesh.position.copy(slot);
-      receiptMesh.quaternion.copy(RECEIPT_PRINTER_QUATERNION);
-    }
-    receiptMesh.visible = true;
-    receiptMesh.scale.y = fullyExposed ? 1 : 0.04;
-    return receiptMesh;
-  }
+  // --- NO PHYSICAL RECEIPT --------------------------------------------------
+  // Round 7 (2026-07-31): "please completely remove the receipt." The curled
+  // paper strip, its printer, the feed animation and both delivery beats are
+  // gone. The SIM's paperwork is untouched — printReceipt/takeReceipt/
+  // packReceipt still run (silently, below) so exact-once banking and reload
+  // recovery keep the same durable flow states; payment simply flows straight
+  // into the bag handoff.
 
   function beginAutomaticReceipt() {
-    if (!tx || tx.stage !== 'receipt' || receiptTimer > 0 || autoFulfilled) return false;
+    if (!tx || tx.stage !== 'receipt' || autoFulfilled) return false;
     const catchup = paidCheckoutCatchupPath(tx.method, checkoutFlowState());
     if (!catchup) return false;
     for (const next of catchup) {
@@ -5718,29 +5564,16 @@ export function createRegisterMode(B) {
       flowTo('ReceiptPrinting', 'automatic-receipt-started');
     }
     if (checkoutFlowState() !== 'ReceiptPrinting') return false;
-    // THE PAPER IS BACK (checkout-physicality round 2026-07-30, reversing the
-    // round-2 "remove the whole receipt thing" cut): payment ends with a
-    // VISIBLE print at the printer beside the POS — inside the locked working
-    // frame — and then the strip travels to the customer's hand. The sim
-    // verbs are unchanged: printReceipt here, take/pack in
-    // finishAutomaticFulfillment once the hand-over beat completes, so
-    // canComplete's contract holds and a reload recovers the same durable
-    // flow states.
     const printed = printReceipt(tx);
     if (!printed.ok && !tx.receiptPrinted) {
       toast(printed.reason, 'warn');
       return false;
     }
-    ensureReceiptMesh({ resetToPrinter: true });
-    receiptMesh.userData.pick = false;
-    receiptTimer = RECEIPT_TIME;
-    deliveryPhase = 'receipt-print';
-    deliveryTimer = 0;
-    if (printerPaper) printerPaper.visible = true;
-    sfx('receiptPrint');
     setWorkspace('monitor');
     drawScreen();
-    return true;
+    // no paper feeds and nothing travels — file the rest of the paperwork and
+    // start the one physical delivery that remains, the bag
+    return finishAutomaticFulfillment();
   }
 
   function finishAutomaticFulfillment() {
@@ -5850,45 +5683,15 @@ export function createRegisterMode(B) {
     }
   }
 
-  function receiptNearBag(mesh = receiptMesh) {
-    return !!mesh
-      && Math.hypot(mesh.position.x - bagMouth.x, mesh.position.z - bagMouth.z) <= BAG_REACH;
-  }
-
-  function startReceiptDrag(mesh) {
-    if (!mesh || !tx || !tx.receiptPrinted || tx.receiptPacked) return false;
-    if (tx.stage === 'receipt') {
-      const taken = takeReceipt(tx);
-      if (!taken.ok) {
-        toast(taken.reason, 'warn');
-        return false;
-      }
-      if (checkoutFlowState() === 'ReceiptPrinting') {
-        flowTo('Bagging', 'player-took-printed-receipt');
-      }
-      for (const item of tx.items) {
-        const product = itemMeshes.get(item.uid);
-        if (product && item.scanned && !item.bagged) setObjectPickable(product, true);
-      }
-    } else if (tx.stage !== 'bagging') return false;
-    root.updateMatrixWorld(true);
-    root.attach(mesh);
-    scanDrag = {
-      kind: 'receipt',
-      mesh,
-      from: mesh.position.clone(),
-      fromQuaternion: mesh.quaternion.clone(),
-      fromScale: mesh.scale.clone(),
-    };
-    setObjectPickable(mesh, false);
-    deliveryPhase = 'receipt-drag';
-    return true;
-  }
-
   function startBaggingProductDrag(picked) {
-    if (!picked || !tx || tx.stage !== 'bagging' || !tx.receiptPacked || scanDrag) {
+    if (!picked || !tx || tx.stage !== 'bagging' || scanDrag) {
       return false;
     }
+    // The receipt is pure paperwork (round 7). A resumed save can land in
+    // 'bagging' with it unfiled; file it silently on first contact so the
+    // physical work is never deadlocked behind paper that no longer exists.
+    if (!tx.receiptPacked) packReceipt(tx);
+    if (!tx.receiptPacked) return false;
     const mesh = itemMeshes.get(picked.userData.uid) || picked;
     const item = tx.items.find((candidate) => candidate.uid === mesh.userData.uid);
     if (!item || !item.scanned || item.bagged) return false;
@@ -5926,7 +5729,7 @@ export function createRegisterMode(B) {
       ? (customerGripPoint('R') || customerAnchor(COUNTER_TOP + 0.10, 'R'))
       : null;
     const carryHeight = separateTarget?.y
-      ?? ((drag.kind === 'receipt' || drag.kind === 'item') ? bagMouth.y : CARRY_Y);
+      ?? (drag.kind === 'item' ? bagMouth.y : CARRY_Y);
     const cursor = cursorAtLocalHeight(carryHeight);
     if (cursor) drag.mesh.position.copy(cursor);
     return true;
@@ -5946,59 +5749,6 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'ProductHeld') {
       flowTo('WaitingForScan', `product-restaged:${drag.uid}`);
     }
-    return true;
-  }
-
-  function settleReceiptDrag() {
-    const drag = scanDrag;
-    if (!drag || drag.kind !== 'receipt') return false;
-    scanDrag = null;
-    const distanceToBagMouth = drag.mesh.position.distanceTo(bagMouth);
-    lastPhysicalDropEvidence = {
-      kind: 'receipt',
-      position: drag.mesh.position.toArray(),
-      target: bagMouth.toArray(),
-      distance: distanceToBagMouth,
-      accepted: distanceToBagMouth <= BAG_REACH,
-    };
-    if (!lastPhysicalDropEvidence.accepted) {
-      drag.mesh.position.copy(drag.from);
-      drag.mesh.quaternion.copy(drag.fromQuaternion);
-      drag.mesh.scale.copy(drag.fromScale);
-      setObjectPickable(drag.mesh, true);
-      deliveryPhase = 'receipt-ready-manual';
-      toast('Drop the receipt through the open bag mouth.', 'warn');
-      return true;
-    }
-    const packed = packReceipt(tx);
-    if (!packed.ok) {
-      setObjectPickable(drag.mesh, true);
-      toast(packed.reason, 'warn');
-      return true;
-    }
-    bagGroup.add(drag.mesh);
-    const contents = bagContentsNode
-      ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-      : new THREE.Vector3(0, 0.18, 0);
-    drag.mesh.position.set(contents.x, contents.y + 0.03, contents.z);
-    drag.mesh.rotation.set(-Math.PI / 2, 0, 0.12);
-    drag.mesh.scale.setScalar(0.44);
-    drag.mesh.userData = {
-      ...drag.mesh.userData,
-      pick: false,
-      kind: 'receipt',
-      checkoutOwner: 'bag',
-    };
-    deliveryPhase = 'bagging-manual';
-    for (const item of tx.items) {
-      if (item.scanned && !item.bagged) {
-        const product = itemMeshes.get(item.uid);
-        if (product) setObjectPickable(product, true);
-      }
-    }
-    sfx('bagItem');
-    toast('Receipt packed. Put every scanned product into the bag.');
-    drawScreen();
     return true;
   }
 
@@ -6077,10 +5827,13 @@ export function createRegisterMode(B) {
   }
 
   function startBagHandoffDrag() {
-    if (!bagGroup || !tx || tx.stage !== 'bagging' || !tx.receiptPacked || !allBagged(tx)
+    if (!bagGroup || !tx || tx.stage !== 'bagging' || !allBagged(tx)
         || bagDropMotions.length || checkoutFlowState() !== 'Bagging') {
       return false;
     }
+    // same silent paperwork self-heal as startBaggingProductDrag
+    if (!tx.receiptPacked) packReceipt(tx);
+    if (!tx.receiptPacked) return false;
     if (!flowTo('BagHandoff', 'player-grabbed-filled-bag-handles')) return false;
     scanDrag = {
       kind: 'bag',
@@ -6195,36 +5948,11 @@ export function createRegisterMode(B) {
       cust.checkoutHandoffOversizeProducts = [];
     }
 
-    // The automatic hand-over beat may already have given the paper to the
-    // customer. Durable receiptPacked then means "filed with the order" —
-    // this projection must not teleport it out of the customer's fingers.
-    const receiptWithCustomer = receiptMesh?.userData.checkoutOwner === 'customer';
-    ensureReceiptMesh({
-      fullyExposed: true,
-      resetToPrinter: !tx.receiptPacked && !receiptWithCustomer,
-    });
-    if (tx.receiptPacked && receiptWithCustomer) {
-      receiptMesh.userData.pick = false;
-    } else if (tx.receiptPacked) {
-      bagGroup.updateWorldMatrix(true, true);
-      bagGroup.add(receiptMesh);
-      const receiptContents = bagContentsNode
-        ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-        : new THREE.Vector3(0, 0.18, 0);
-      receiptMesh.position.set(receiptContents.x, receiptContents.y + 0.03, receiptContents.z);
-      receiptMesh.rotation.set(-Math.PI / 2, 0, 0.12);
-      receiptMesh.scale.setScalar(0.44);
-      receiptMesh.userData = {
-        ...receiptMesh.userData,
-        pick: false,
-        kind: 'receipt',
-        checkoutOwner: 'bag',
-      };
-    } else {
-      setObjectPickable(receiptMesh, true);
-      receiptMesh.userData.kind = 'receipt';
-      receiptMesh.userData.checkoutOwner = 'register';
-    }
+    // No paper to restage — the receipt's durable flags (printed/taken/packed)
+    // are pure sim paperwork now, and this PROJECTION never advances them
+    // (the durable-fulfillment contract). A resumed order still at the
+    // receipt/unpacked checkpoints self-heals on the automatic path
+    // (beginAutomaticReceipt) or on first bagging contact.
 
     let compactIndex = 0;
     let oversizeIndex = 0;
@@ -6295,7 +6023,7 @@ export function createRegisterMode(B) {
     }
 
     autoFulfilled = false;
-    deliveryPhase = tx.receiptPacked ? 'bagging-manual' : 'receipt-ready-manual';
+    deliveryPhase = 'bagging-manual';
     setBagPickable(tx.receiptPacked && allBagged(tx));
     drawScreen();
     return true;
@@ -6303,20 +6031,18 @@ export function createRegisterMode(B) {
 
   function retryFulfillmentPresentation() {
     if (!tx || tx.banked || !['receipt', 'bagging', 'done'].includes(tx.stage)) return false;
-    receiptTimer = 0;
     deliveryPhase = null;
     deliveryTimer = 0;
     finalizeTimer = 0;
     if (transactionKind === 'retail') {
       if (tx.stage === 'receipt' && !tx.receiptPrinted) return beginAutomaticReceipt();
       const projected = durableProjectRetailFulfillment();
-      if (projected) toast('Receipt and order handoff restored from the saved checkout progress.');
+      if (projected) toast('Order handoff restored from the saved checkout progress.');
       return projected;
     }
-    ensureReceiptMesh({ fullyExposed: true, resetToPrinter: true });
     resetBagAtCounter();
     const restarted = finishAutomaticFulfillment();
-    if (restarted) toast('Receipt and order handoff restarted safely.');
+    if (restarted) toast('Order handoff restarted safely.');
     return restarted;
   }
 
@@ -6385,7 +6111,6 @@ export function createRegisterMode(B) {
     clearPhysicalTransaction({
       resetCounterBag: false,
       preserveCustomerBag: true,
-      preserveCustomerReceipt: true,
     });
     if (finishedCustomer) finishedCustomer.tx = null;
     tx = null;
@@ -6551,7 +6276,6 @@ export function createRegisterMode(B) {
       })
       : [];
     const fulfillment = [
-      ...(receiptMesh?.visible ? [receiptMesh] : []),
       ...(bagGroup?.visible && bagGroup.userData.pick ? [bagGroup] : []),
       ...(customerPalm.visible ? [customerPalm] : []),
     ];
@@ -6726,7 +6450,6 @@ export function createRegisterMode(B) {
         if (tx?.stage === 'scanning') setWorkspace('scan');
         return true;
       }
-      if (object?.userData.kind === 'receipt') return startReceiptDrag(object);
       if (object?.userData.kind === 'bag') return startBagHandoffDrag();
       // the customer's presented cash waits on the counter in this view
       if (object) handleCashPick(object);
@@ -6766,8 +6489,7 @@ export function createRegisterMode(B) {
         return true;
       }
       const object = physicalPick(event);
-      if (object?.userData.kind === 'receipt') startReceiptDrag(object);
-      else if (object?.userData.kind === 'bag') startBagHandoffDrag();
+      if (object?.userData.kind === 'bag') startBagHandoffDrag();
       else handleCashPick(object);
       return true;
     }
@@ -6839,7 +6561,6 @@ export function createRegisterMode(B) {
     if (!active) return false;
     if (scanDrag) {
       if (scanDrag.kind === 'money') return settleTenderDrag();
-      if (scanDrag.kind === 'receipt') return settleReceiptDrag();
       if (scanDrag.kind === 'bag') return settleBagHandoff();
       if (scanDrag.kind === 'item' && scanDrag.scanning) return settleDraggedScan();
       if (scanDrag.kind === 'item') return settleBaggingProduct();
@@ -7054,53 +6775,19 @@ export function createRegisterMode(B) {
     }
   }
 
-  function updateReceipt(dt) {
+  // The domain's receipt STAGE still exists (paperwork), but no paper feeds:
+  // this watcher only kicks the silent filing when the stage is reached
+  // outside the automatic handoff paths (e.g. after a cash palm-clear).
+  function updateReceipt() {
     if (!tx || tx.stage !== 'receipt') return;
     // Cash settlement reaches the domain's receipt stage before the physical
-    // bundle reaches and clears the customer's palm. Do not let the generic
-    // auto-start path overlap those two props or skip the observable handoff.
+    // bundle reaches and clears the customer's palm. Wait for the handoff.
     if (tx.method === 'cash'
         && ['travel', 'customer-hold'].includes(cashHandoffPhase)) return;
     // Keep ACCEPTED readable on the physical card terminal before returning to
-    // the monitor and starting the automatic printer sequence.
+    // the monitor and finishing the fulfillment.
     if (cardResultTimer > 0) return;
-    if (!receiptTimer && !tx.receiptPrinted && !autoFulfilled) beginAutomaticReceipt();
-    if (receiptTimer <= 0) return;
-    receiptTimer = Math.max(0, receiptTimer - dt);
-    const progress = 1 - receiptTimer / RECEIPT_TIME;
-    if (printerRoll) printerRoll.rotation.x += dt * 10;
-    if (receiptMesh) {
-      // the paper feeds up out of the slot to its full believable length
-      const eased = 1 - Math.pow(1 - progress, 2.2);
-      receiptMesh.scale.y = Math.max(0.04, eased);
-    }
-    if (receiptTimer === 0) {
-      // fully fed: tear off, hold a readable beat, then hand it across —
-      // updateDelivery owns the travel legs from here
-      sfx('receiptTear');
-      deliveryPhase = 'receipt-ready';
-      deliveryTimer = RECEIPT_READY_HOLD;
-    }
-  }
-
-  function attachReceiptToCustomer() {
-    const grip = customerGripNode('R');
-    const parent = grip || cust?.mesh;
-    if (!receiptMesh || !parent) return false;
-    root.updateMatrixWorld(true);
-    parent.updateWorldMatrix(true, true);
-    parent.attach(receiptMesh);
-    // Receipt_Strip is authored from its bottom edge. Land that edge in the
-    // palm, then let the articulated customer grip own it through departure.
-    if (grip) {
-      receiptMesh.position.set(0, 0, 0);
-    } else {
-      const fallbackWorld = root.localToWorld(customerAnchor(1.18, 'R'));
-      receiptMesh.position.copy(parent.worldToLocal(fallbackWorld));
-    }
-    receiptMesh.userData.checkoutOwner = 'customer';
-    if (cust) cust.handoffReceipt = receiptMesh;
-    return true;
+    if (!tx.receiptPrinted && !autoFulfilled) beginAutomaticReceipt();
   }
 
   function transferBagOwnershipToCustomer() {
@@ -7119,10 +6806,6 @@ export function createRegisterMode(B) {
         cust.mesh.attach(product);
         oversizeProducts.push(product);
       }
-    }
-    if (receiptMesh && tx?.receiptPacked) {
-      receiptMesh.userData.checkoutOwner = 'customer';
-      cust.handoffReceipt = receiptMesh;
     }
     cust.checkoutHandoffBag = bagGroup;
     cust.checkoutHandoffOversizeProducts = oversizeProducts;
@@ -7169,53 +6852,13 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  // The delivery choreography that runs after payment and printing succeed:
-  //   receipt-print → receipt-ready → receipt-deliver → receipt-customer-hold
-  //   → cashier bag transfer → customer bag hold
+  // The delivery choreography that runs after payment succeeds. With the
+  // receipt removed (round 7) there is exactly one physical delivery:
+  //   cashier bag transfer → customer bag hold
   //   → released (finalizeTimer banks the sale and the customer leaves).
   function updateDelivery(dt) {
     if (!tx || !deliveryPhase || deliveryPhase === 'released') return;
     deliveryTimer = Math.max(0, deliveryTimer - dt);
-    // THE RECEIPT LEGS ARE BACK (checkout-physicality round 2026-07-30): the
-    // printed strip pauses readable at the slot, flies to the customer's
-    // waiting hand, is held, and only then does the bag transfer begin.
-    if (deliveryPhase === 'receipt-print') return; // updateReceipt owns the feed
-    if (deliveryPhase === 'receipt-ready') {
-      if (deliveryTimer === 0 && receiptMesh) {
-        deliveryPhase = 'receipt-deliver';
-        deliveryTimer = RECEIPT_DELIVER_TIME;
-        deliveryFrom = receiptMesh.position.clone();
-        poseCustomerForCheckout('Receive');
-      }
-      return;
-    }
-    if (deliveryPhase === 'receipt-deliver') {
-      if (receiptMesh) {
-        const t = 1 - deliveryTimer / RECEIPT_DELIVER_TIME;
-        const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-        const to = customerGripPoint('R') || customerAnchor(1.18, 'R');
-        deliveryTo = to;
-        receiptMesh.position.lerpVectors(deliveryFrom, to, eased);
-        receiptMesh.position.y += Math.sin(t * Math.PI) * 0.10;
-        receiptMesh.quaternion.slerpQuaternions(
-          RECEIPT_PRINTER_QUATERNION, RECEIPT_HANDOFF_QUATERNION, eased,
-        );
-      }
-      if (deliveryTimer === 0) {
-        attachReceiptToCustomer();
-        deliveryPhase = 'receipt-customer-hold';
-        deliveryTimer = RECEIPT_CUSTOMER_HOLD;
-        drawScreen();
-      }
-      return;
-    }
-    if (deliveryPhase === 'receipt-customer-hold') {
-      if (deliveryTimer === 0) {
-        // paper is with the customer — file the sim paperwork and move to the bag
-        finishAutomaticFulfillment();
-      }
-      return;
-    }
     if (deliveryPhase === 'bag-deliver') {
       if (bagGroup) {
         const t = 1 - deliveryTimer / BAG_DELIVER_TIME;
@@ -8080,20 +7723,12 @@ export function createRegisterMode(B) {
     };
   };
   const deliveryPresentation = () => {
-    const receiptPosition = cashierTargetFor(receiptMesh);
-    const receiptTarget = cust ? customerGripPoint('R') : null;
     const bagPosition = bagHandlePoint();
     const bagTarget = cust ? customerGripPoint('L') : null;
     return {
       active: !!deliveryPhase && deliveryPhase !== 'released',
       phase: deliveryPhase,
       holdRemaining: deliveryTimer,
-      receiptPosition: receiptPosition ? receiptPosition.toArray() : null,
-      receiptTarget: receiptTarget ? receiptTarget.toArray() : null,
-      receiptDistanceToPalm: receiptPosition && receiptTarget
-        ? receiptPosition.distanceTo(receiptTarget) : null,
-      receiptParentedToCustomer: !!(receiptMesh
-        && receiptMesh.parent === customerGripNode('R')),
       bagHandlePosition: bagPosition ? bagPosition.toArray() : null,
       bagTarget: bagTarget ? bagTarget.toArray() : null,
       bagDistanceToPalm: bagPosition && bagTarget ? bagPosition.distanceTo(bagTarget) : null,
@@ -8130,7 +7765,6 @@ export function createRegisterMode(B) {
     attachScreen,
     attachTerm,
     attachScanner,
-    attachPrinter,
     setPlacementPreview,
     isActive: () => active,
     hasTx: () => !!tx,

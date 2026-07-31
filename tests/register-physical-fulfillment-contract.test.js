@@ -37,7 +37,7 @@ function functionBody(source, name, indent = '  ') {
 const registerFunction = (name) => functionBody(registerSource, name);
 const clubhouseFunction = (name) => functionBody(clubhouseSource, name);
 
-test('receipt and product drops resolve against the production bag mouth socket', () => {
+test('product drops resolve against the production bag mouth socket', () => {
   const buildBag = registerFunction('buildBag');
   assert.match(buildBag, /getObjectByName\('ANCHOR_BagDrop'\)/,
     'the production bag exposes its authored drop socket');
@@ -47,12 +47,7 @@ test('receipt and product drops resolve against the production bag mouth socket'
     'the authored world-space socket is converted into the register drag frame',
   );
 
-  const settleReceipt = registerFunction('settleReceiptDrag');
-  assert.match(settleReceipt, /distanceTo\(bagMouth\)/,
-    'receipt acceptance measures physical 3D contact with the authored mouth');
-  assert.doesNotMatch(settleReceipt, /BAG_POS/,
-    'receipt acceptance cannot drift back to the carrier origin');
-
+  // (the receipt drag retired with the receipt itself — round 7)
   const settleProduct = registerFunction('settleBaggingProduct');
   assert.match(settleProduct, /distanceTo\(bagMouth\)/,
     'product acceptance measures physical 3D contact with the authored mouth');

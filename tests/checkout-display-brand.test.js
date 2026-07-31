@@ -149,6 +149,8 @@ test('player-facing register paint paths contain no fixed legacy brand literal',
     registerSource,
     /(?:fillText|textTexture)\s*\(\s*['"`]\s*(?:FAIRHOLLOW|PINEHOLLOW)/i,
   );
-  assert.match(registerSource, /const receiptBrand = displayClubName\(\)\.toUpperCase\(\)/);
+  // The receipt paint path is gone with the receipt itself (round 7); the
+  // remaining player-facing surfaces still take the saved club name live.
+  assert.doesNotMatch(registerSource, /receiptContentTexture/);
   assert.match(registerSource, /const brand = displayClubName\(\)\.toUpperCase\(\)/);
 });

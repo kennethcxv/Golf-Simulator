@@ -49,21 +49,18 @@ function retryProjectionSource() {
   return { retry, projection: [retry, ...helpers].join('\n') };
 }
 
-test('retail retry projects receipt and product presentation from durable transaction facts', () => {
+test('retail retry projects product presentation from durable transaction facts', () => {
   const { retry, projection } = retryProjectionSource();
   assert.match(retry, /transactionKind\s*===\s*'retail'/,
-    'retail retry has a projection path distinct from receipt-only service automation');
+    'retail retry has a projection path distinct from service automation');
   assert.match(projection, /tx\.receiptPacked/,
-    'retry reads the durable receipt checkpoint before deciding where paper belongs');
+    'retry still reads the durable paperwork checkpoint (it gates pickability)');
+  assert.doesNotMatch(projection, /receiptMesh|ensureReceiptMesh/,
+    'round 7: no paper exists for the projection to restage');
   assert.match(projection, /for \(const item of tx\.items\)/,
     'retry reconciles every exact transaction UID');
   assert.match(projection, /item\.bagged/,
     'retry reads each durable item checkpoint instead of replaying every bag action');
-  assert.match(
-    projection,
-    /tx\.receiptPacked[\s\S]*?(?:bagGroup\.add\(receiptMesh\)|(?:project|restore|reconcile|rebuild)\w*Receipt)/i,
-    'a packed receipt is projected into the carrier rather than made pickable at the printer',
-  );
   assert.match(
     projection,
     /item\.bagged[\s\S]*?(?:bagGroup\.add\([^)]*mesh|(?:project|restore|reconcile|rebuild)\w*(?:Item|Product))/i,
@@ -117,35 +114,31 @@ test('durable projection clears stale customer handoff owners before rebuilding 
   const clearProducts = projector.indexOf('cust.checkoutHandoffProducts = []');
   const clearDisposer = projector.indexOf('cust.checkoutHandoffProductDisposer = null');
   const clearOversize = projector.indexOf('cust.checkoutHandoffOversizeProducts = []');
-  const rebuildReceipt = projector.indexOf('ensureReceiptMesh(');
   const rebuildItems = projector.indexOf('for (const item of tx.items)');
 
   for (const [label, at] of [
     ['bag pointer', clearBag],
-    ['receipt pointer', clearReceipt],
+    ['legacy receipt pointer', clearReceipt],
     ['product pointer list', clearProducts],
     ['product disposer', clearDisposer],
     ['oversize pointer list', clearOversize],
   ]) {
-    assert.ok(at >= 0 && at < rebuildReceipt && at < rebuildItems,
+    assert.ok(at >= 0 && at < rebuildItems,
       `${label} is released before durable presentation is reconstructed`);
   }
 });
 
-test('packing a receipt after retry unlocks every scanned unbagged product', () => {
-  const settleReceipt = registerFunction('settleReceiptDrag');
-  const packReceiptAt = settleReceipt.indexOf('packReceipt(tx)');
-  assert.ok(packReceiptAt >= 0, 'receipt contact commits the durable packed checkpoint');
-
-  const afterPack = settleReceipt.slice(packReceiptAt);
-  assert.match(afterPack, /for \(const item of tx\.items\)/,
-    'successful receipt packing refreshes the transaction products');
-  assert.match(afterPack, /itemMeshes\.get\(item\.uid\)/,
-    'pickability is restored on each exact transaction mesh');
-  assert.match(afterPack, /item\.scanned[\s\S]*?!item\.bagged/,
-    'only scanned products that still need fulfillment are unlocked');
-  assert.match(afterPack, /setObjectPickable\([^,]+,\s*true\)/,
-    'retry-projected goods become draggable without another retry');
+test('a resumed order with unfiled paperwork self-heals on first bagging contact', () => {
+  // Round 7: the receipt is invisible sim paperwork. A save landed between
+  // flowing to Bagging and packing it must not deadlock the physical work
+  // behind paper that no longer exists — the drag handlers file it silently.
+  for (const handler of ['startBaggingProductDrag', 'startBagHandoffDrag']) {
+    const body = registerFunction(handler);
+    assert.match(body, /if \(!tx\.receiptPacked\) packReceipt\(tx\)/,
+      `${handler} files the paperwork on first contact`);
+    assert.match(body, /if \(!tx\.receiptPacked\) return false/,
+      `${handler} still refuses if the domain refuses`);
+  }
 });
 
 test('cash confirmation cannot strand GivingChange ahead of a refused domain commit', () => {

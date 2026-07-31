@@ -141,28 +141,28 @@ test('nothing draws an orange box around a hovered item any more', () => {
   assert.match(move, /setHoverCursor\(!!hoveredItem\)/);
 });
 
-test('offered payment is HIGHLIGHTED, not caged in a green box', () => {
-  // Playtest round 6: "i dont like the green take cash, make it a highlight
-  // over." The Box3Helper rim is gone; the payment's own materials brighten in
-  // place, with a soft warm halo so the read carries at frame distance.
-  assert.doesNotMatch(source, /GRAB_OUTLINE_COLOR/, 'the green rim colour is gone');
-  assert.doesNotMatch(source, /grabBoxOuter/, 'and both of its shells with it');
-  assert.match(source, /const GRAB_HIGHLIGHT_COLOR = /, 'a highlight colour replaces it');
-  // warm, not a signal green
-  const hex = /const GRAB_HIGHLIGHT_COLOR = (0x[0-9a-fA-F]+)/.exec(source)[1];
+test('offered payment wears an OUTLINE of its own silhouette, not a blob over it', () => {
+  // Playtest round 7: "make sure that the highlight for selecting a card or
+  // cash is just an outline of the card or cash, not a full blob over it."
+  // The round-6 emissive fill and its additive halo sprite are gone; each mesh
+  // of the payment grows an inverted-hull shell that traces its edge.
+  assert.doesNotMatch(source, /grabGlow/, 'the additive halo sprite is deleted');
+  assert.doesNotMatch(source, /GRAB_HIGHLIGHT_COLOR/, 'the full-surface emissive lift is deleted');
+  assert.match(source, /const GRAB_OUTLINE_COLOR = /, 'an outline colour replaces them');
+  // warm paper-gold, not a signal green
+  const hex = /const GRAB_OUTLINE_COLOR = (0x[0-9a-fA-F]+)/.exec(source)[1];
   const value = Number(hex);
   const r = (value >> 16) & 255; const g = (value >> 8) & 255; const b = value & 255;
-  assert.ok(r >= g && g >= b, `highlight ${hex} should read warm, not green`);
-  const grab = functionBody('setGrabOutline');
-  assert.match(grab, /applyGrabHighlight\(list\)/, 'the payment itself lights up');
-  assert.match(grab, /clearGrabHighlight\(\)/, 'and is restored on release');
-  assert.match(grab, /grabGlow\.visible = true/, 'the halo still carries at frame distance');
+  assert.ok(r >= g && g >= b, `outline ${hex} should read warm, not green`);
+  assert.match(source, /grabOutlineMaterial = new THREE\.MeshBasicMaterial\(\{[^}]*side: THREE\.BackSide/s,
+    'inverted hull: back faces only, so only the rim shows');
   const apply = functionBody('applyGrabHighlight');
-  assert.match(apply, /clone\(\)/, 'materials are cloned so a shared one cannot drag the counter up');
+  assert.match(apply, /shell\.raycast = \(\) => \{\}/, 'the outline never eats the click');
+  assert.match(apply, /GRAB_OUTLINE_RIM/, 'the rim is an absolute width, visible on thin notes');
   const restore = functionBody('clearGrabHighlight');
-  assert.match(restore, /entry\.mesh\.material = entry\.original/);
+  assert.match(restore, /shell\.removeFromParent\(\)/, 'shells are removed on release');
   const move = functionBody('onMove');
-  assert.match(move, /setGrabOutline\(offered\)/, 'offered payment still highlights under the cursor');
+  assert.match(move, /setGrabOutline\(offered\)/, 'offered payment still outlines under the cursor');
   const cash = functionBody('updateCashHover');
   assert.match(cash, /setGrabOutline\(offered\)/);
 });

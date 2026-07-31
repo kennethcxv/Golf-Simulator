@@ -1723,18 +1723,9 @@ export function makeClubhouse(ctx) {
       // and readable as the object the customer owns in the departure shot.
       bag.scale.setScalar(0.78);
     }
-    const paidReceipt = !c.handoffReceipt && merch && merch.instantiateKit
-      ? merch.instantiateKit('loose_receipt', { scale: 0.78 })
-      : null;
-    if (paidReceipt) {
-      const pocket = bag.getObjectByName('ANCHOR_ReceiptPocket');
-      const receiptParent = pocket || bag;
-      paidReceipt.position.set(0, 0, 0);
-      if (!pocket) paidReceipt.position.set(0.07, 0.30, -0.045);
-      paidReceipt.rotation.set(-0.16, 0.08, 0.04);
-      paidReceipt.userData.checkoutOwner = 'customer';
-      receiptParent.add(paidReceipt);
-    }
+    // No receipt rides in the bag: round 7 removed the receipt from the whole
+    // checkout ("please completely remove the receipt") — the sim's paperwork
+    // is filed silently and the customer walks out with goods only.
     const char = c.mesh.userData.char;
     const hand = char && char.hand ? char.hand('L') : null;
     const authoredGrip = char && char.carryGrip ? char.carryGrip('L') : null;

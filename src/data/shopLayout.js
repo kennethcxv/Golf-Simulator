@@ -927,14 +927,19 @@ export const REGISTER = {
   // form the register block on the RIGHT (+x), over the counter's closed cabinet.
   // ry 0: the kit devices author their screen face toward -Y, which the exporter
   // turns to face +z — the staff side — at rotation zero.
-  monitor: frontDeskPose(0.52, 0.22, 0),
+  // Playtest round 7 (2026-07-31): "make the screen a little bigger and more to
+  // the left hand side so it's more visible" — at 0.52 the enlarged glass ran
+  // against the right frame edge of the working pose. 0.34 pulls the whole
+  // monitor inside the frame; it stays right of the goods (the space contract)
+  // and near enough over the drawer for the cash pose to read both together.
+  monitor: frontDeskPose(0.34, 0.24, 0),
   cardterm: frontDeskPose(0.10, -0.16, 0),
   scanner: frontDeskPose(-0.20, 0.02, Math.PI + 0.22),
-  // Playtest 2026-07-30: the printer lived at x 1.08 — hidden behind the POS
-  // from the one working frame, so printing read as nothing happening (and the
-  // camera close-up that compensated made the player dizzy). It now sits LEFT
-  // of the POS on screen (+x renders screen-right in the working frame, so
-  // left means smaller x), behind the reader's seat, inside the static frame.
+  // The receipt was cut from the flow entirely in round 7 ("please completely
+  // remove the receipt"): the sim still files its paperwork, but no paper and
+  // no device exist on the counter — fixtures.js no longer places a printer.
+  // The pose stays as DATA because the placeable catalog's socket map and the
+  // frame tests key off it.
   printer: frontDeskPose(0.14, 0.36, Math.PI - 0.06),
   custdisplay: frontDeskPose(0.94, -0.10, Math.PI),
   // THE CARRIER LIES FLAT at the counter's LEFT end (playtest round 5,
@@ -945,7 +950,12 @@ export const REGISTER = {
   // stops clear of REGISTER.staging's left edge and leaves the bare stretch the
   // reference keeps between the bag and the register block. A rung-up item
   // still slides SIDEWAYS along the counter straight into that mouth.
-  bag: frontDeskPose(-1.16, 0.15, 0),
+  //
+  // Round 7: the bag's strip moves onto the counter's CENTRE SEAM (z 0.06,
+  // just on the staff half) so the goods staged across the seam share its
+  // line — the click-slide into the mouth is then one lateral run down the
+  // counter with no cross-counter drift.
+  bag: frontDeskPose(-1.16, 0.06, 0),
   bagstand: frontDeskPose(1.30, 0.30, 0),
   divider: frontDeskPose(1.52, -0.15, 0),
   impulse: frontDeskPose(1.28, -0.34, 0),
@@ -966,7 +976,12 @@ export const REGISTER = {
   },
 
   // surfaces
-  staging: registerRect(-0.85, -0.10, -0.39, -0.10),
+  // Round 7: "the items in the middle of the counter … it literally just goes
+  // in by sliding to the left." The strip hugs the centre seam from the
+  // customer half (the side contract: shoppers set goods down on their half),
+  // one bag-mouth line away, so the ring-up slide is left-along-the-counter
+  // instead of a diagonal across it.
+  staging: registerRect(-0.85, -0.10, -0.16, -0.01),
   // Scanned goods stay visible and loose until payment is complete. This strip
   // is downstream of the reader but clear of both the open bag and POS hardware.
   scannedStaging: registerRect(-1.28, -0.62, -0.12, 0.04),
@@ -977,7 +992,7 @@ export const REGISTER = {
   changeHandoff: { ...frontDeskPoint(0.20, 0.30), w: 0.38, d: 0.20 },
   // the bag handoff zone: the laid carrier's own footprint at counter-left;
   // rung-up items slide sideways into the mouth here
-  bagging: registerRect(-1.22, -0.82, 0.02, 0.34),
+  bagging: registerRect(-1.22, -0.82, 0.02, 0.26),
 
   // THE SCAN VOLUME. An item counts as scanned when its barcode passes THROUGH this
   // box — not when it comes to rest in it. Both surfaces sit clear of it, so nothing

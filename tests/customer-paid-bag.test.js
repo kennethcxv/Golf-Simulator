@@ -138,11 +138,9 @@ test('handed-off bag cleanup preserves the customer copy and retry resets safely
     /preserveCustomerBag && bagGroup\?\.userData\.checkoutOwner === 'customer'[\s\S]*bagGroup = null/,
     'finalization releases the register pointer without hiding the customer-owned bag',
   );
-  assert.match(
-    clearPhysicalTransaction,
-    /preserveCustomerReceipt && receiptMesh\?\.userData\.checkoutOwner === 'customer'[\s\S]*receiptMesh = null/,
-    'finalization releases the register pointer without disposing the handed receipt',
-  );
+  // no receipt pointer exists any more (round 7 removed the paper entirely)
+  assert.doesNotMatch(clearPhysicalTransaction, /receiptMesh/,
+    'there is no receipt mesh left to preserve or dispose');
 
   const retryFulfillmentPresentation = registerFunction('retryFulfillmentPresentation');
   assert.equal(
@@ -157,18 +155,18 @@ test('handed-off bag cleanup preserves the customer copy and retry resets safely
   );
 });
 
-test('exactly the physically handed bag and receipt survive the banking boundary', () => {
+test('exactly the physically handed bag survives the banking boundary — with no paper', () => {
   const onCustomerPaid = clubhouseFunction('onCustomerPaid');
   assert.match(onCustomerPaid, /const handedBag = c\.checkoutHandoffBag \|\| null/,
     'paid ownership reuses the bag seen reaching the customer');
-  assert.match(onCustomerPaid, /const paidReceipt = !c\.handoffReceipt/,
-    'a handed receipt prevents a duplicate receipt from appearing in the bag');
+  assert.doesNotMatch(onCustomerPaid, /loose_receipt/,
+    'round 7: no receipt prop rides in the departure bag');
   assert.match(onCustomerPaid, /attachPaidBagToCustomer\(c, bag/,
     'the handed bag transfers to the durable articulated carry root');
 
   const removeCustomer = clubhouseFunction('removeCustomer');
   assert.match(removeCustomer, /disposeCustomerHandoffReceipt\(c\)/,
-    'the customer-owned dynamic receipt is released at the single departure funnel');
+    'the departure funnel still releases any legacy carried receipt safely');
 });
 
 test('late bag asset readiness cannot mutate a newer transaction carrier', () => {
