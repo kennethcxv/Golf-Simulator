@@ -61,6 +61,7 @@ FALLBACK_GEOM.len = FALLBACK_GEOM.head.distanceTo(FALLBACK_GEOM.upper);
 const _gripCam = new THREE.Vector3();
 const _headCam = new THREE.Vector3();
 const _headWork = new THREE.Vector3();
+const _headCarry = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
 const _handPos = new THREE.Vector3();
@@ -465,11 +466,30 @@ export function createBroomViewmodel({
     // rigid handle: whatever horizontal run survives, the drop follows from it
     const dropFinal = Math.sign(dropEff || 1)
       * Math.sqrt(Math.max(0, gripLen * gripLen - horiz * horiz));
+    // THE CARRIED HEAD RIDES YOUR VIEW. Solving it as a world-space point left
+    // it behind whenever you looked UP — the head fell off the bottom of the
+    // frame (measured NDC y −1.08 at pitch +0.30). A carried tool is held in
+    // your hands, so its carry pose is camera-relative; only the PLANTED pose
+    // belongs to the world. The two are blended and then re-tensioned, so the
+    // handle stays exactly one rigid length from the grip either way.
+    const horizCarry = Math.sqrt(Math.max(0.0025,
+      gripLen * gripLen - cc.carryDrop * cc.carryDrop));
+    _headCarry.set(
+      cc.gripAnchor[0] + handDrift + Math.sin(bearing) * horizCarry,
+      cc.gripAnchor[1] - cc.carryDrop,
+      cc.gripAnchor[2] - Math.cos(bearing) * horizCarry,
+    ).applyMatrix4(camera.matrixWorld);
+
     _headWork.set(
       _gripCam.x + hx * horiz,
       _gripCam.y - dropFinal,
       _gripCam.z + hz * horiz,
     );
+    // carry -> work, then re-tension onto the handle's exact length
+    _headWork.lerp(_headCarry, 1 - workBlend);
+    _tmp.copy(_headWork).sub(_gripCam);
+    const span = _tmp.length();
+    if (span > 1e-4) _headWork.copy(_gripCam).addScaledVector(_tmp, gripLen / span);
     // reach reported to the sim: horizontal distance from the player to the head
     state.drawReach = Math.hypot(
       _headWork.x - camera.position.x, _headWork.z - camera.position.z,

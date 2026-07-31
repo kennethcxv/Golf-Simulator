@@ -212,8 +212,14 @@ export const BROOM_FEEL = Object.freeze({
     followRate: 10.0,    // 1/s; eased follow of the pitch-driven reach
     // The carry->work blend: full carry pose at/above carryAbove, fully
     // planted work pose at/below workBelow, smoothstepped between.
-    carryAbove: -0.10,   // rad
-    workBelow: -0.45,    // rad
+    // Round 4: the blend used to finish by −0.45, but the camera is not yet
+    // looking at the floor there — the head planted on the boards while the
+    // view was still high, and dipped clean off the bottom of the frame
+    // (measured NDC y −1.10 at pitch −0.35, back in view by −0.8). The pose now
+    // stays CARRIED until the view has committed to looking down, so the head
+    // is on screen across the whole pitch range.
+    carryAbove: -0.34,   // rad
+    workBelow: -0.78,    // rad
   }),
 
   // --- surface response -----------------------------------------------------
