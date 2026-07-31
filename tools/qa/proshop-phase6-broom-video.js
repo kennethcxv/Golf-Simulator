@@ -66,26 +66,85 @@ async (page) => {
       { dx: 0, dz: 1, yaw: 0 }, { dx: 0, dz: -1, yaw: Math.PI },
       { dx: 1, dz: 0, yaw: Math.PI / 2 }, { dx: -1, dz: 0, yaw: -Math.PI / 2 },
     ];
+    // Score every cluster/direction by RUNWAY — how far the push corridor
+    // stays clear — and take the longest. The continuous beat drives several
+    // yards of real forward pushing; a lane that is only clear for the first
+    // 1.4 yd parks the whole working section against a desk (the first-clear
+    // pick did exactly that when a wandering customer displaced it).
+    const runwayOf = (cluster, direction) => {
+      const sx = cluster.x + direction.dx * standoff;
+      const sz = cluster.z + direction.dz * standoff;
+      if (!w.isFree(o.x + sx, o.z + sz, 0.4)) return -1;
+      // perpendicular, for lateral probes: a walk-free AISLE can pass a
+      // centreline probe while the head's swept width jams on both sides —
+      // the corridor must be clear across the stroke's full width too
+      const px = direction.dz; const pz = -direction.dx;
+      let clear = 0;
+      for (let ahead = 0.5; ahead <= 6.0; ahead += 0.35) {
+        const hx = o.x + sx - direction.dx * ahead;
+        const hz = o.z + sz - direction.dz * ahead;
+        const r = ahead <= 1.5 ? 0.25 : 0.4;
+        const wide = [0, 0.45, -0.45].every((lat) => w.isFree(hx + px * lat, hz + pz * lat, r));
+        if (!wide) break;
+        clear = ahead;
+      }
+      return clear;
+    };
+    // prefer corridors with MORE debris in the swept lane — the continuous
+    // beat should visibly herd piles, not sweep clean boards past one chip
+    const clustersInLane = (cluster, direction, clear) => {
+      const px = direction.dz; const pz = -direction.dx;
+      let count = 0;
+      for (const other of debris) {
+        const rx = other.x - cluster.x; const rz = other.z - cluster.z;
+        const ahead = -(rx * direction.dx + rz * direction.dz);
+        const lat = Math.abs(rx * px + rz * pz);
+        if (ahead >= -0.3 && ahead <= clear && lat <= 0.7) count += 1;
+      }
+      return count;
+    };
+    // strafe room at a stance: the walking beat slides sideways, and an
+    // unmeasured strafe shoves the player through fixtures until anti-stuck
+    // teleports them off the lane entirely
+    const strafeRoomAt = (sx, sz, direction) => {
+      const spx = direction.dz; const spz = -direction.dx;
+      const roomSide = (dirSign) => {
+        let room = 0;
+        for (let lat = 0.4; lat <= 2.4; lat += 0.4) {
+          if (!w.isFree(o.x + sx + spx * lat * dirSign, o.z + sz + spz * lat * dirSign, 0.4)) break;
+          room = lat;
+        }
+        return room;
+      };
+      return Math.min(roomSide(1), roomSide(-1));
+    };
+    let best = null;
     for (const cluster of debris) {
       for (const direction of directions) {
-        const sx = cluster.x + direction.dx * standoff;
-        const sz = cluster.z + direction.dz * standoff;
-        const stanceFree = w.isFree(o.x + sx, o.z + sz, 0.4);
-        const headFree = [0.5, 1.0, 1.4].every((ahead) => w.isFree(
-          o.x + sx - direction.dx * ahead, o.z + sz - direction.dz * ahead, 0.25,
-        ));
-        if (stanceFree && headFree) {
-          w.state.x = o.x + sx; w.state.z = o.z + sz;
-          w.state.yaw = direction.yaw;
-          w.state.pitch = pitch;
-          return {
-            cluster: { x: +cluster.x.toFixed(2), z: +cluster.z.toFixed(2), kind: cluster.kind },
-            stance: { x: +sx.toFixed(2), z: +sz.toFixed(2), yaw: +direction.yaw.toFixed(2) },
-          };
-        }
+        const clear = runwayOf(cluster, direction);
+        if (clear < 2.2) continue;
+        const inLane = clustersInLane(cluster, direction, clear);
+        const room = strafeRoomAt(
+          cluster.x + direction.dx * standoff, cluster.z + direction.dz * standoff, direction,
+        );
+        const score = clear + inLane * 1.5 + room * 1.2;
+        if (!best || score > best.score) best = { cluster, direction, clear, inLane, room, score };
       }
     }
-    return null;
+    if (!best) return null;
+    const sx = best.cluster.x + best.direction.dx * standoff;
+    const sz = best.cluster.z + best.direction.dz * standoff;
+    const strafeRoomYd = best.room;
+    w.state.x = o.x + sx; w.state.z = o.z + sz;
+    w.state.yaw = best.direction.yaw;
+    w.state.pitch = pitch;
+    return {
+      cluster: { x: +best.cluster.x.toFixed(2), z: +best.cluster.z.toFixed(2), kind: best.cluster.kind },
+      stance: { x: +sx.toFixed(2), z: +sz.toFixed(2), yaw: +best.direction.yaw.toFixed(2) },
+      runwayYd: +best.clear.toFixed(2),
+      clustersInLane: best.inLane,
+      strafeRoomYd,
+    };
   }, { minuteOfDay: MINUTE_OF_DAY, pitch: SWEEP_PITCH, standoff: SWEEP_STANDOFF });
   if (!lane) throw new Error('No debris cluster has an open approach lane; cannot stage the sweep beats.');
   await page.waitForTimeout(1500);
@@ -100,6 +159,7 @@ async (page) => {
       toolAtStart: app.scene3d.walk.getTool(),
       debrisCount: app.scene3d.clubhouse().debrisCount(),
       debrisTotal: +app.scene3d.clubhouse().debrisTotal().toFixed(3),
+      debrisPositions: (app.state.shop.reno.debris || []).map((d) => `${d.x.toFixed(2)},${d.z.toFixed(2)}`),
     };
   });
 
@@ -145,15 +205,33 @@ async (page) => {
   await page.waitForTimeout(600);
 
   // ---- 4. walking ----------------------------------------------------------------
+  // Symmetric strafes sized to the MEASURED lateral room (2.2 yd/s), so the
+  // player never grinds through a fixture into an anti-stuck teleport, and
+  // ends back on the lane for first contact.
   mark('walking');
-  await page.keyboard.down('d');
-  await page.waitForTimeout(1600);
-  await page.keyboard.up('d');
-  await page.waitForTimeout(500);
-  await page.keyboard.down('a');
-  await page.waitForTimeout(1400);
-  await page.keyboard.up('a');
-  await page.waitForTimeout(900);
+  if ((lane.strafeRoomYd ?? 0) >= 0.5) {
+    const strafeMs = Math.max(350, Math.min(1000,
+      Math.floor(((lane.strafeRoomYd - 0.25) / 2.2) * 1000)));
+    await page.keyboard.down('d');
+    await page.waitForTimeout(strafeMs);
+    await page.keyboard.up('d');
+    await page.waitForTimeout(500);
+    await page.keyboard.down('a');
+    await page.waitForTimeout(strafeMs);
+    await page.keyboard.up('a');
+    await page.waitForTimeout(900);
+  } else {
+    // narrow lane: show locomotion with forward/back pulses on the verified
+    // runway instead of grinding a strafe into the fixtures
+    await page.keyboard.down('w');
+    await page.waitForTimeout(450);
+    await page.keyboard.up('w');
+    await page.waitForTimeout(400);
+    await page.keyboard.down('s');
+    await page.waitForTimeout(450);
+    await page.keyboard.up('s');
+    await page.waitForTimeout(900);
+  }
 
   // ---- 5. first surface contact --------------------------------------------------
   mark('begin-surface-contact');
@@ -167,11 +245,15 @@ async (page) => {
   // head through the cluster and keep the pile in reach, where the baseline's
   // long strafe (authored for the old debris ROW) walks off a lone cluster.
   mark('continuous-sweeping');
-  for (let i = 0; i < 5; i++) {
+  // Pushes sized to the runway the lane picker measured (each ≈ 1.15 yd of
+  // travel), so the working section stays on open boards instead of parking
+  // against whatever lay beyond the pile.
+  const pushCount = Math.max(2, Math.min(5, Math.floor(((lane.runwayYd || 2.2) - 1.0) / 1.15)));
+  for (let i = 0; i < pushCount; i++) {
     await page.keyboard.down('w');
-    await page.waitForTimeout(650);
+    await page.waitForTimeout(520);
     await page.keyboard.up('w');
-    await page.waitForTimeout(650);
+    await page.waitForTimeout(620);
     await sampleCleaning(`sweep-push-${i}`);
   }
   await page.waitForTimeout(900);
@@ -216,11 +298,12 @@ async (page) => {
     const app = window.__fw;
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk;
-    // counters/desks may register as structures rather than props; search both
-    const groups = app.scene3d.colliders || {};
+    // counters/desks may register as structures rather than props; search
+    // both — the groups hang off the WALK api, not scene3d
+    const groups = w.colliders || app.scene3d.colliders || {};
     const cols = [...(groups.props || []), ...(groups.structures || [])];
     const seed = { x: -1.0, z: 0.6 };
-    let best = null;
+    const candidates = [];
     for (const col of cols) {
       if (col.minX === undefined) continue;
       const w2 = col.maxX - col.minX;
@@ -229,21 +312,44 @@ async (page) => {
       const cx = (col.minX + col.maxX) / 2 - o.x;
       const cz = (col.minZ + col.maxZ) / 2 - o.z;
       const dist = Math.hypot(cx - seed.x, cz - seed.z);
-      if (!best || dist < best.dist) best = { dist, cx, cz, minZ: col.minZ - o.z, maxZ: col.maxZ - o.z };
+      candidates.push({ dist, cx, cz, minZ: col.minZ - o.z, maxZ: col.maxZ - o.z });
     }
-    if (!best) return null;
-    w.clearKeys();
-    // stand south of the face, walk the sweep into it
-    w.state.x = best.cx + o.x;
-    w.state.z = best.maxZ + 2.2 + o.z;
-    w.state.yaw = 0; // forward = (0,-1): face the fixture
-    w.state.pitch = pitch;
-    return { face: { x: +best.cx.toFixed(2), z: +best.maxZ.toFixed(2) } };
+    candidates.sort((a, b) => a.dist - b.dist);
+    // nearest fixture WITH a validated stance + approach line — an occupied
+    // stance bounces off anti-stuck and the beat frames the wrong spot
+    for (const cand of candidates) {
+      const approaches = [
+        { z: (d) => cand.maxZ + d, yaw: 0, face: cand.maxZ },        // from south
+        { z: (d) => cand.minZ - d, yaw: Math.PI, face: cand.minZ },  // from north
+      ];
+      for (const approach of approaches) {
+        for (const d of [2.2, 1.8, 1.5]) {
+          const sx2 = cand.cx; const sz2 = approach.z(d);
+          const dirZ2 = approach.yaw === 0 ? -1 : 1;
+          const stanceOk = w.isFree(o.x + sx2, o.z + sz2, 0.4);
+          const pathOk = [0.7, 1.2].every((step) => (
+            d - step > 0.6 ? w.isFree(o.x + sx2, o.z + sz2 + dirZ2 * step, 0.35) : true));
+          if (!stanceOk || !pathOk) continue;
+          w.clearKeys();
+          w.state.x = o.x + sx2;
+          w.state.z = o.z + sz2;
+          w.state.yaw = approach.yaw;
+          w.state.pitch = pitch;
+          return { face: { x: +cand.cx.toFixed(2), z: +approach.face.toFixed(2) }, standYd: d };
+        }
+      }
+    }
+    return null;
   }, { pitch: SWEEP_PITCH });
   await page.waitForTimeout(800);
   await page.mouse.down();
+  // drive until the HEAD meets the face, not until the nose does — the beat
+  // must FRAME the bristles stalling at the edge, not stare into the panel
+  // stop ~1.25 yd out: the eased reach (~1.1) puts the BRISTLES at the face,
+  // clamped and visible at the working pitch, with the edge still in frame
+  const edgeWalkMs = Math.max(120, Math.floor((((tableApproach?.standYd ?? 2.2) - 1.25) / 2.2) * 1000));
   await page.keyboard.down('w');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(edgeWalkMs);
   await page.keyboard.up('w');
   await sampleCleaning('table-edge');
   await page.waitForTimeout(1200);
@@ -267,18 +373,25 @@ async (page) => {
       toolAtEnd: app.scene3d.walk.getTool(),
       debrisCount: ch.debrisCount(),
       debrisTotal: +ch.debrisTotal().toFixed(3),
+      debrisPositions: (app.state.shop.reno.debris || []).map((d) => `${d.x.toFixed(2)},${d.z.toFixed(2)}`),
       toolViewmodel: S(() => app.scene3d.walk.toolViewmodelDiagnostics()),
       broom: S(() => (app.scene3d.walk.broomDiagnostics ? app.scene3d.walk.broomDiagnostics() : null)),
     };
   });
+  // a plowed pile can leave the sample radius between reads — displacement of
+  // the debris field itself is the ground-truth "sweeping worked" signal
+  const preSet = new Set(pre.debrisPositions || []);
+  const debrisDisplaced = (post.debrisPositions || []).filter((p) => !preSet.has(p)).length;
 
   const report = {
     durationMs: Date.now() - t0,
     viewport: { width: 1600, height: 900 },
     minuteOfDay: MINUTE_OF_DAY,
     beatsMirrorBaseline: true,
+    lane,
     tableApproach,
-    cleaningLanded: samples.some((s) => (s.did || 0) > 0),
+    debrisDisplaced,
+    cleaningLanded: samples.some((s) => (s.did || 0) > 0) || debrisDisplaced > 0,
     pre,
     post,
     samples,

@@ -1,23 +1,85 @@
 {
-  "durationMs": 46506,
+  "durationMs": 38222,
   "viewport": {
     "width": 1600,
     "height": 900
   },
   "minuteOfDay": 780,
   "beatsMirrorBaseline": true,
-  "tableApproach": null,
+  "lane": {
+    "cluster": {
+      "x": 3.2,
+      "z": -1.1,
+      "kind": "litter"
+    },
+    "stance": {
+      "x": 4.55,
+      "z": -1.1,
+      "yaw": 1.57
+    },
+    "runwayYd": 2.6,
+    "clustersInLane": 1,
+    "strafeRoomYd": 0.8
+  },
+  "tableApproach": {
+    "face": {
+      "x": -0.25,
+      "z": -0.55
+    },
+    "standYd": 1.5
+  },
+  "debrisDisplaced": 2,
   "cleaningLanded": true,
   "pre": {
     "cleaningKitOwned": true,
     "toolAtStart": null,
     "debrisCount": 18,
-    "debrisTotal": 3.93
+    "debrisTotal": 3.93,
+    "debrisPositions": [
+      "-7.60,4.60",
+      "-5.20,4.40",
+      "-4.50,2.80",
+      "-1.20,2.85",
+      "1.30,2.85",
+      "3.60,2.80",
+      "-8.10,1.30",
+      "-4.80,1.80",
+      "-3.70,0.00",
+      "-0.40,0.70",
+      "1.80,-0.20",
+      "3.20,-1.10",
+      "-7.40,-3.80",
+      "-4.40,-4.30",
+      "6.65,5.15",
+      "7.15,3.30",
+      "8.20,-1.50",
+      "6.80,-5.10"
+    ]
   },
   "post": {
     "toolAtEnd": null,
     "debrisCount": 18,
     "debrisTotal": 3.93,
+    "debrisPositions": [
+      "-7.82,4.58",
+      "-5.20,4.40",
+      "-4.50,2.80",
+      "-1.20,2.85",
+      "1.30,2.85",
+      "3.60,2.80",
+      "-8.10,1.30",
+      "-4.80,1.80",
+      "-3.70,0.00",
+      "-0.40,0.70",
+      "1.80,-0.20",
+      "0.72,-0.86",
+      "-7.40,-3.80",
+      "-4.40,-4.30",
+      "6.65,5.15",
+      "7.15,3.30",
+      "8.20,-1.50",
+      "6.80,-5.10"
+    ],
     "toolViewmodel": {
       "loadResults": [
         {
@@ -63,10 +125,10 @@
       "activeTools": [],
       "animated": [
         "washer",
-        "broom",
         "vacuum",
-        "mop",
         "dustpan",
+        "mop",
+        "broom",
         "spray",
         "cloth",
         "sponge",
@@ -81,13 +143,6 @@
           "WasherWand_TriggerDown",
           "WasherWand_TriggerUp"
         ],
-        "broom": [
-          "Broom_BristleContact",
-          "Broom_Equip",
-          "Broom_SweepLeft",
-          "Broom_SweepRight",
-          "Broom_Unequip"
-        ],
         "vacuum": [
           "Vacuum_Equip",
           "Vacuum_FloorHeadContact",
@@ -97,6 +152,13 @@
           "Vacuum_StrokeRight",
           "Vacuum_Unequip"
         ],
+        "dustpan": [
+          "Dustpan_Empty",
+          "Dustpan_Equip",
+          "Dustpan_PickUp",
+          "Dustpan_SetDown",
+          "Dustpan_Unequip"
+        ],
         "mop": [
           "Mop_Equip",
           "Mop_HeadCompress",
@@ -104,12 +166,12 @@
           "Mop_StrokeRight",
           "Mop_Unequip"
         ],
-        "dustpan": [
-          "Dustpan_Empty",
-          "Dustpan_Equip",
-          "Dustpan_PickUp",
-          "Dustpan_SetDown",
-          "Dustpan_Unequip"
+        "broom": [
+          "Broom_BristleContact",
+          "Broom_Equip",
+          "Broom_SweepLeft",
+          "Broom_SweepRight",
+          "Broom_Unequip"
         ],
         "spray": [
           "SprayBottle_Equip",
@@ -146,23 +208,6 @@
           "played": [],
           "active": false
         },
-        "broom": {
-          "clips": [
-            "Broom_BristleContact",
-            "Broom_Equip",
-            "Broom_SweepLeft",
-            "Broom_SweepRight",
-            "Broom_Unequip"
-          ],
-          "played": [
-            "Broom_Equip",
-            "Broom_BristleContact",
-            "Broom_SweepLeft",
-            "Broom_SweepRight",
-            "Broom_Unequip"
-          ],
-          "active": false
-        },
         "vacuum": {
           "clips": [
             "Vacuum_Equip",
@@ -172,6 +217,17 @@
             "Vacuum_StrokeLeft",
             "Vacuum_StrokeRight",
             "Vacuum_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "dustpan": {
+          "clips": [
+            "Dustpan_Empty",
+            "Dustpan_Equip",
+            "Dustpan_PickUp",
+            "Dustpan_SetDown",
+            "Dustpan_Unequip"
           ],
           "played": [],
           "active": false
@@ -187,15 +243,21 @@
           "played": [],
           "active": false
         },
-        "dustpan": {
+        "broom": {
           "clips": [
-            "Dustpan_Empty",
-            "Dustpan_Equip",
-            "Dustpan_PickUp",
-            "Dustpan_SetDown",
-            "Dustpan_Unequip"
+            "Broom_BristleContact",
+            "Broom_Equip",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
           ],
-          "played": [],
+          "played": [
+            "Broom_Equip",
+            "Broom_BristleContact",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
           "active": false
         },
         "spray": {
@@ -243,14 +305,42 @@
       "fov": 50,
       "layer": 29,
       "reach": 1.118,
-      "drawReach": 0.2,
+      "drawReach": 0.781,
       "workBlend": 1,
       "clamped": true,
       "tilt": 0,
       "intensity": 0,
       "headNdc": {
-        "x": 0.246,
-        "y": -1.639
+        "x": 0.025,
+        "y": -0.951
+      },
+      "arms": {
+        "right": {
+          "elbowNdc": {
+            "x": 0.115,
+            "y": -0.252
+          },
+          "wristNdc": {
+            "x": 0.081,
+            "y": 0.142
+          },
+          "spanYd": 0.308,
+          "visibleFrac": 1,
+          "screenRunY": 0.197
+        },
+        "left": {
+          "elbowNdc": {
+            "x": 0.025,
+            "y": -0.601
+          },
+          "wristNdc": {
+            "x": 0.052,
+            "y": -0.285
+          },
+          "spanYd": 0.316,
+          "visibleFrac": 1,
+          "screenRunY": 0.158
+        }
       }
     }
   },
@@ -277,8 +367,36 @@
         "tilt": 0,
         "intensity": 0,
         "headNdc": {
-          "x": 0.196,
-          "y": -0.855
+          "x": 0.015,
+          "y": -0.897
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.214,
+              "y": -0.205
+            },
+            "wristNdc": {
+              "x": 0.183,
+              "y": 0.19
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.197
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.079,
+              "y": -0.55
+            },
+            "wristNdc": {
+              "x": 0.109,
+              "y": -0.234
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.158
+          }
         }
       }
     },
@@ -290,8 +408,8 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.18,
-        3.28
+        3.64,
+        -1.08
       ],
       "broom": {
         "vmActive": true,
@@ -302,10 +420,38 @@
         "workBlend": 1,
         "clamped": false,
         "tilt": 0,
-        "intensity": 0.852,
+        "intensity": 0.876,
         "headNdc": {
-          "x": 0.181,
-          "y": -0.772
+          "x": -0.024,
+          "y": -0.809
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.245,
+              "y": -0.117
+            },
+            "wristNdc": {
+              "x": 0.214,
+              "y": 0.294
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.206
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.078,
+              "y": -0.456
+            },
+            "wristNdc": {
+              "x": 0.108,
+              "y": -0.131
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.163
+          }
         }
       }
     },
@@ -313,26 +459,54 @@
       "label": "sweep-push-0",
       "tool": "broom",
       "using": true,
-      "did": 0,
+      "did": 0.14,
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.11,
-        2.61
+        1.81,
+        -1.29
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 1.118,
         "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.691,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.368,
         "headNdc": {
-          "x": 0.273,
-          "y": -1.873
+          "x": 0.084,
+          "y": -0.812
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.414,
+              "y": -0.13
+            },
+            "wristNdc": {
+              "x": 0.389,
+              "y": 0.275
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.202
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.216,
+              "y": -0.473
+            },
+            "wristNdc": {
+              "x": 0.252,
+              "y": -0.15
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.162
+          }
         }
       }
     },
@@ -344,103 +518,50 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.14,
-        2.61
+        0.01,
+        -1.31
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 1.118,
         "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.745,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.413,
         "headNdc": {
-          "x": 0.255,
-          "y": -1.869
-        }
-      }
-    },
-    {
-      "label": "sweep-push-2",
-      "tool": "broom",
-      "using": true,
-      "did": 0,
-      "blocked": false,
-      "reason": null,
-      "targetLocal": [
-        -0.13,
-        2.62
-      ],
-      "broom": {
-        "vmActive": true,
-        "fov": 50,
-        "layer": 29,
-        "reach": 1.118,
-        "drawReach": 0.2,
-        "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.787,
-        "headNdc": {
-          "x": 0.257,
-          "y": -1.869
-        }
-      }
-    },
-    {
-      "label": "sweep-push-3",
-      "tool": "broom",
-      "using": true,
-      "did": 0,
-      "blocked": false,
-      "reason": null,
-      "targetLocal": [
-        -0.14,
-        2.62
-      ],
-      "broom": {
-        "vmActive": true,
-        "fov": 50,
-        "layer": 29,
-        "reach": 1.118,
-        "drawReach": 0.2,
-        "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.814,
-        "headNdc": {
-          "x": 0.25,
-          "y": -1.872
-        }
-      }
-    },
-    {
-      "label": "sweep-push-4",
-      "tool": "broom",
-      "using": true,
-      "did": 0,
-      "blocked": false,
-      "reason": null,
-      "targetLocal": [
-        -0.16,
-        2.62
-      ],
-      "broom": {
-        "vmActive": true,
-        "fov": 50,
-        "layer": 29,
-        "reach": 1.118,
-        "drawReach": 0.2,
-        "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.846,
-        "headNdc": {
-          "x": 0.242,
-          "y": -1.87
+          "x": 0.096,
+          "y": -0.811
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.353,
+              "y": -0.138
+            },
+            "wristNdc": {
+              "x": 0.325,
+              "y": 0.282
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.21
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.184,
+              "y": -0.479
+            },
+            "wristNdc": {
+              "x": 0.22,
+              "y": -0.149
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.165
+          }
         }
       }
     },
@@ -452,22 +573,50 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.14,
-        2.36
+        0.55,
+        -1.95
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 1.118,
         "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.395,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.874,
         "headNdc": {
-          "x": 0.32,
-          "y": -1.871
+          "x": 0.048,
+          "y": -0.808
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.256,
+              "y": -0.133
+            },
+            "wristNdc": {
+              "x": 0.226,
+              "y": 0.289
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.211
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.111,
+              "y": -0.471
+            },
+            "wristNdc": {
+              "x": 0.143,
+              "y": -0.141
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.165
+          }
         }
       }
     },
@@ -479,22 +628,50 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.26,
-        2.77
+        1.42,
+        -1.68
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 0.836,
         "workBlend": 1,
         "clamped": true,
         "tilt": 0.3,
-        "intensity": 0.854,
+        "intensity": 0.224,
         "headNdc": {
-          "x": 0.178,
-          "y": -1.865
+          "x": 0.062,
+          "y": -1.063
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.251,
+              "y": -0.282
+            },
+            "wristNdc": {
+              "x": 0.223,
+              "y": 0.1
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.191
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.117,
+              "y": -0.649
+            },
+            "wristNdc": {
+              "x": 0.148,
+              "y": -0.339
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.155
+          }
         }
       }
     },
@@ -506,22 +683,50 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.31,
-        2.55
+        0.81,
+        -1.65
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 0.667,
         "workBlend": 1,
         "clamped": true,
         "tilt": 0.3,
-        "intensity": 0.607,
+        "intensity": 0.341,
         "headNdc": {
-          "x": 0.158,
-          "y": -1.878
+          "x": 0.014,
+          "y": -1.265
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.339,
+              "y": -0.481
+            },
+            "wristNdc": {
+              "x": 0.314,
+              "y": -0.115
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.183
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.16,
+              "y": -0.832
+            },
+            "wristNdc": {
+              "x": 0.193,
+              "y": -0.531
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.15
+          }
         }
       }
     },
@@ -533,22 +738,50 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.25,
-        2.6
+        0.89,
+        -1.66
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 0.666,
         "workBlend": 1,
         "clamped": true,
         "tilt": 0.3,
-        "intensity": 0.318,
+        "intensity": 0.482,
         "headNdc": {
-          "x": 0.177,
-          "y": -1.87
+          "x": -0.027,
+          "y": -1.259
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.293,
+              "y": -0.455
+            },
+            "wristNdc": {
+              "x": 0.266,
+              "y": -0.09
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.183
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.118,
+              "y": -0.806
+            },
+            "wristNdc": {
+              "x": 0.15,
+              "y": -0.507
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.15
+          }
         }
       }
     },
@@ -556,26 +789,54 @@
       "label": "near-wall",
       "tool": "broom",
       "using": true,
-      "did": 0.26,
+      "did": 0,
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -7.18,
-        4.09
+        -7.1,
+        4.26
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.118,
+        "drawReach": 1.011,
         "workBlend": 1,
-        "clamped": false,
-        "tilt": 0,
-        "intensity": 0.378,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.475,
         "headNdc": {
-          "x": 0.1,
-          "y": -0.773
+          "x": 0.012,
+          "y": -0.898
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.091,
+              "y": -0.224
+            },
+            "wristNdc": {
+              "x": 0.055,
+              "y": 0.191
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.208
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.004,
+              "y": -0.566
+            },
+            "wristNdc": {
+              "x": 0.031,
+              "y": -0.24
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.163
+          }
         }
       }
     },
@@ -587,8 +848,8 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -6.74,
-        3.39
+        -7.08,
+        3.84
       ],
       "broom": {
         "vmActive": true,
@@ -599,10 +860,38 @@
         "workBlend": 1,
         "clamped": false,
         "tilt": 0,
-        "intensity": 0.881,
+        "intensity": 0.317,
         "headNdc": {
-          "x": 0.244,
-          "y": -0.772
+          "x": -0.056,
+          "y": -0.813
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.069,
+              "y": -0.157
+            },
+            "wristNdc": {
+              "x": 0.031,
+              "y": 0.265
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.211
+          },
+          "left": {
+            "elbowNdc": {
+              "x": -0.034,
+              "y": -0.499
+            },
+            "wristNdc": {
+              "x": -0.009,
+              "y": -0.167
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.166
+          }
         }
       }
     },
@@ -614,22 +903,50 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -7.6,
-        0.54
+        -0.35,
+        -0.82
       ],
       "broom": {
         "vmActive": true,
         "fov": 50,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.2,
+        "drawReach": 0.933,
         "workBlend": 1,
         "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.373,
+        "tilt": 0.205,
+        "intensity": 0.133,
         "headNdc": {
-          "x": 0.183,
-          "y": -1.862
+          "x": 0.052,
+          "y": -0.961
+        },
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.291,
+              "y": -0.226
+            },
+            "wristNdc": {
+              "x": 0.262,
+              "y": 0.163
+            },
+            "spanYd": 0.308,
+            "visibleFrac": 1,
+            "screenRunY": 0.194
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.135,
+              "y": -0.585
+            },
+            "wristNdc": {
+              "x": 0.167,
+              "y": -0.27
+            },
+            "spanYd": 0.316,
+            "visibleFrac": 1,
+            "screenRunY": 0.157
+          }
         }
       }
     }
@@ -637,51 +954,51 @@
   "beats": [
     {
       "name": "idle-hands-free",
-      "atMs": 93
+      "atMs": 5
     },
     {
       "name": "equip-broom",
-      "atMs": 3095
+      "atMs": 3008
     },
     {
       "name": "idle-holding",
-      "atMs": 6304
+      "atMs": 6217
     },
     {
       "name": "walking",
-      "atMs": 9837
+      "atMs": 9761
     },
     {
       "name": "begin-surface-contact",
-      "atMs": 14262
+      "atMs": 11911
     },
     {
       "name": "continuous-sweeping",
-      "atMs": 16879
+      "atMs": 14546
     },
     {
       "name": "direction-changes",
-      "atMs": 24438
+      "atMs": 17780
     },
     {
       "name": "cleaning-near-wall",
-      "atMs": 30495
+      "atMs": 23870
     },
     {
       "name": "sweeping-table-edge",
-      "atMs": 37045
+      "atMs": 30423
     },
     {
       "name": "stop-use",
-      "atMs": 40876
+      "atMs": 32591
     },
     {
       "name": "unequip",
-      "atMs": 43492
+      "atMs": 35195
     },
     {
       "name": "end",
-      "atMs": 46501
+      "atMs": 38205
     }
   ]
 }
