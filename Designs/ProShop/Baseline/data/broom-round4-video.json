@@ -1,0 +1,1052 @@
+{
+  "durationMs": 38471,
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "minuteOfDay": 780,
+  "beatsMirrorBaseline": true,
+  "lane": {
+    "cluster": {
+      "x": 3.2,
+      "z": -1.1,
+      "kind": "litter"
+    },
+    "stance": {
+      "x": 1.85,
+      "z": -1.1,
+      "yaw": -1.57
+    },
+    "runwayYd": 2.95,
+    "clustersInLane": 1,
+    "strafeRoomYd": 0.4
+  },
+  "tableApproach": {
+    "face": {
+      "x": -0.25,
+      "z": -0.55
+    },
+    "standYd": 1.5
+  },
+  "debrisDisplaced": 2,
+  "cleaningLanded": true,
+  "pre": {
+    "cleaningKitOwned": true,
+    "toolAtStart": null,
+    "debrisCount": 18,
+    "debrisTotal": 3.93,
+    "debrisPositions": [
+      "-7.60,4.60",
+      "-5.20,4.40",
+      "-4.50,2.80",
+      "-1.20,2.85",
+      "1.30,2.85",
+      "3.60,2.80",
+      "-8.10,1.30",
+      "-4.80,1.80",
+      "-3.70,0.00",
+      "-0.40,0.70",
+      "1.80,-0.20",
+      "3.20,-1.10",
+      "-7.40,-3.80",
+      "-4.40,-4.30",
+      "6.65,5.15",
+      "7.15,3.30",
+      "8.20,-1.50",
+      "6.80,-5.10"
+    ]
+  },
+  "post": {
+    "toolAtEnd": null,
+    "debrisCount": 18,
+    "debrisTotal": 3.93,
+    "debrisPositions": [
+      "-7.80,4.67",
+      "-5.20,4.40",
+      "-4.50,2.80",
+      "-1.20,2.85",
+      "1.30,2.85",
+      "3.60,2.80",
+      "-8.10,1.30",
+      "-4.80,1.80",
+      "-3.70,0.00",
+      "-0.40,0.70",
+      "1.80,-0.20",
+      "6.00,-1.21",
+      "-7.40,-3.80",
+      "-4.40,-4.30",
+      "6.65,5.15",
+      "7.15,3.30",
+      "8.20,-1.50",
+      "6.80,-5.10"
+    ],
+    "toolViewmodel": {
+      "loadResults": [
+        {
+          "id": "washer",
+          "ok": true
+        },
+        {
+          "id": "vacuum",
+          "ok": true
+        },
+        {
+          "id": "mop",
+          "ok": true
+        },
+        {
+          "id": "broom",
+          "ok": true
+        },
+        {
+          "id": "dustpan",
+          "ok": true
+        },
+        {
+          "id": "spray",
+          "ok": true
+        },
+        {
+          "id": "cloth",
+          "ok": true
+        },
+        {
+          "id": "sponge",
+          "ok": true
+        },
+        {
+          "id": "trashbag",
+          "ok": true
+        }
+      ],
+      "authoredCount": 9,
+      "authored": 9,
+      "equippedTool": null,
+      "activeTools": [],
+      "animated": [
+        "washer",
+        "vacuum",
+        "mop",
+        "broom",
+        "dustpan",
+        "spray",
+        "cloth",
+        "sponge",
+        "trashbag"
+      ],
+      "playing": [],
+      "clips": {
+        "washer": [
+          "WasherWand_Equip",
+          "WasherWand_Recoil",
+          "WasherWand_Unequip",
+          "WasherWand_TriggerDown",
+          "WasherWand_TriggerUp"
+        ],
+        "vacuum": [
+          "Vacuum_Equip",
+          "Vacuum_FloorHeadContact",
+          "Vacuum_Start",
+          "Vacuum_Stop",
+          "Vacuum_StrokeLeft",
+          "Vacuum_StrokeRight",
+          "Vacuum_Unequip"
+        ],
+        "mop": [
+          "Mop_Equip",
+          "Mop_HeadCompress",
+          "Mop_StrokeLeft",
+          "Mop_StrokeRight",
+          "Mop_Unequip"
+        ],
+        "broom": [
+          "Broom_BristleContact",
+          "Broom_Equip",
+          "Broom_SweepLeft",
+          "Broom_SweepRight",
+          "Broom_Unequip"
+        ],
+        "dustpan": [
+          "Dustpan_Empty",
+          "Dustpan_Equip",
+          "Dustpan_PickUp",
+          "Dustpan_SetDown",
+          "Dustpan_Unequip"
+        ],
+        "spray": [
+          "SprayBottle_Equip",
+          "SprayBottle_Unequip",
+          "SprayBottle_Trigger"
+        ],
+        "cloth": [
+          "Cloth_Equip",
+          "Cloth_Unequip",
+          "Cloth_Wipe"
+        ],
+        "sponge": [
+          "Sponge_Equip",
+          "Sponge_Scrub",
+          "Sponge_Unequip"
+        ],
+        "trashbag": [
+          "TrashBag_Dispose",
+          "TrashBag_Equip",
+          "TrashBag_Swallow",
+          "TrashBag_Tie",
+          "TrashBag_Unequip"
+        ]
+      },
+      "tools": {
+        "washer": {
+          "clips": [
+            "WasherWand_Equip",
+            "WasherWand_Recoil",
+            "WasherWand_Unequip",
+            "WasherWand_TriggerDown",
+            "WasherWand_TriggerUp"
+          ],
+          "played": [],
+          "active": false
+        },
+        "vacuum": {
+          "clips": [
+            "Vacuum_Equip",
+            "Vacuum_FloorHeadContact",
+            "Vacuum_Start",
+            "Vacuum_Stop",
+            "Vacuum_StrokeLeft",
+            "Vacuum_StrokeRight",
+            "Vacuum_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "mop": {
+          "clips": [
+            "Mop_Equip",
+            "Mop_HeadCompress",
+            "Mop_StrokeLeft",
+            "Mop_StrokeRight",
+            "Mop_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "broom": {
+          "clips": [
+            "Broom_BristleContact",
+            "Broom_Equip",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "played": [
+            "Broom_Equip",
+            "Broom_BristleContact",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "active": false
+        },
+        "dustpan": {
+          "clips": [
+            "Dustpan_Empty",
+            "Dustpan_Equip",
+            "Dustpan_PickUp",
+            "Dustpan_SetDown",
+            "Dustpan_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "spray": {
+          "clips": [
+            "SprayBottle_Equip",
+            "SprayBottle_Unequip",
+            "SprayBottle_Trigger"
+          ],
+          "played": [],
+          "active": false
+        },
+        "cloth": {
+          "clips": [
+            "Cloth_Equip",
+            "Cloth_Unequip",
+            "Cloth_Wipe"
+          ],
+          "played": [],
+          "active": false
+        },
+        "sponge": {
+          "clips": [
+            "Sponge_Equip",
+            "Sponge_Scrub",
+            "Sponge_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "trashbag": {
+          "clips": [
+            "TrashBag_Dispose",
+            "TrashBag_Equip",
+            "TrashBag_Swallow",
+            "TrashBag_Tie",
+            "TrashBag_Unequip"
+          ],
+          "played": [],
+          "active": false
+        }
+      }
+    },
+    "broom": {
+      "vmActive": false,
+      "fov": 50,
+      "layer": 29,
+      "reach": 1.118,
+      "drawReach": 0.772,
+      "workBlend": 1,
+      "clamped": true,
+      "tilt": 0,
+      "intensity": 0,
+      "headNdc": {
+        "x": 0.128,
+        "y": -0.892
+      },
+      "gripUpper": 1.364,
+      "gripLower": 0.919,
+      "swingRad": 0,
+      "seatError": 0,
+      "arms": {
+        "right": {
+          "elbowNdc": {
+            "x": 0.665,
+            "y": -1.784
+          },
+          "wristNdc": {
+            "x": 0.492,
+            "y": -0.801
+          },
+          "spanYd": 0.295,
+          "visibleFrac": 0.203,
+          "screenRunY": 0.1
+        },
+        "left": {
+          "elbowNdc": {
+            "x": 0.235,
+            "y": -1.333
+          },
+          "wristNdc": {
+            "x": 0.288,
+            "y": -0.769
+          },
+          "spanYd": 0.281,
+          "visibleFrac": 0.41,
+          "screenRunY": 0.116
+        }
+      }
+    }
+  },
+  "samples": [
+    {
+      "label": "level-pitch-hold",
+      "tool": "broom",
+      "using": false,
+      "did": null,
+      "blocked": null,
+      "reason": null,
+      "targetLocal": [
+        360,
+        -4
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.414,
+        "drawReach": 2.024,
+        "workBlend": 0,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0,
+        "headNdc": {
+          "x": 0.021,
+          "y": -0.604
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.685,
+              "y": -1.786
+            },
+            "wristNdc": {
+              "x": 0.511,
+              "y": -0.805
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.199,
+            "screenRunY": 0.098
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.174,
+              "y": -1.158
+            },
+            "wristNdc": {
+              "x": 0.229,
+              "y": -0.607
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 0.714,
+            "screenRunY": 0.197
+          }
+        }
+      }
+    },
+    {
+      "label": "first-contact",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        3,
+        -1.04
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.164,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.869,
+        "headNdc": {
+          "x": 0.037,
+          "y": -0.349
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.054,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.643,
+              "y": -1.734
+            },
+            "wristNdc": {
+              "x": 0.477,
+              "y": -0.768
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.24,
+            "screenRunY": 0.116
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.163,
+              "y": -0.964
+            },
+            "wristNdc": {
+              "x": 0.219,
+              "y": -0.427
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 1,
+            "screenRunY": 0.268
+          }
+        }
+      }
+    },
+    {
+      "label": "sweep-push-0",
+      "tool": "broom",
+      "using": true,
+      "did": 0.14,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        4.74,
+        -0.62
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.277,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.368,
+        "headNdc": {
+          "x": 0.279,
+          "y": -0.331
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.33,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.802,
+              "y": -1.771
+            },
+            "wristNdc": {
+              "x": 0.62,
+              "y": -0.793
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.212,
+            "screenRunY": 0.103
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.366,
+              "y": -0.977
+            },
+            "wristNdc": {
+              "x": 0.413,
+              "y": -0.439
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 1,
+            "screenRunY": 0.269
+          }
+        }
+      }
+    },
+    {
+      "label": "sweep-push-1",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "occluded",
+      "targetLocal": [
+        6.14,
+        -0.55
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.278,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0.022,
+        "intensity": 0.366,
+        "headNdc": {
+          "x": 0.322,
+          "y": -0.369
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.401,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.812,
+              "y": -1.767
+            },
+            "wristNdc": {
+              "x": 0.629,
+              "y": -0.791
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.214,
+            "screenRunY": 0.105
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.402,
+              "y": -0.998
+            },
+            "wristNdc": {
+              "x": 0.448,
+              "y": -0.459
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 1,
+            "screenRunY": 0.269
+          }
+        }
+      }
+    },
+    {
+      "label": "turn-0.55",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        4.7,
+        -2.28
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.246,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.861,
+        "headNdc": {
+          "x": 0.213,
+          "y": -0.324
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.225,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.745,
+              "y": -1.728
+            },
+            "wristNdc": {
+              "x": 0.572,
+              "y": -0.764
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.245,
+            "screenRunY": 0.118
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.315,
+              "y": -0.942
+            },
+            "wristNdc": {
+              "x": 0.364,
+              "y": -0.409
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 1,
+            "screenRunY": 0.266
+          }
+        }
+      }
+    },
+    {
+      "label": "turn--0.55",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": true,
+      "reason": "blocked",
+      "targetLocal": [
+        5.49,
+        -1.27
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.532,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.215,
+        "headNdc": {
+          "x": 0.224,
+          "y": -1.325
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.181,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.752,
+              "y": -1.779
+            },
+            "wristNdc": {
+              "x": 0.573,
+              "y": -0.799
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.205,
+            "screenRunY": 0.101
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.325,
+              "y": -1.588
+            },
+            "wristNdc": {
+              "x": 0.376,
+              "y": -0.99
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 0.017,
+            "screenRunY": 0.005
+          }
+        }
+      }
+    },
+    {
+      "label": "turn-0.3",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        4.96,
+        -2.32
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.234,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.641,
+        "headNdc": {
+          "x": 0.188,
+          "y": -0.324
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.187,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.738,
+              "y": -1.753
+            },
+            "wristNdc": {
+              "x": 0.563,
+              "y": -0.781
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.226,
+            "screenRunY": 0.11
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.287,
+              "y": -0.96
+            },
+            "wristNdc": {
+              "x": 0.337,
+              "y": -0.425
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 1,
+            "screenRunY": 0.268
+          }
+        }
+      }
+    },
+    {
+      "label": "turn-0",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        4.95,
+        -2.07
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.997,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0.081,
+        "intensity": 0.747,
+        "headNdc": {
+          "x": -0.027,
+          "y": -0.559
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.209,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.585,
+              "y": -1.746
+            },
+            "wristNdc": {
+              "x": 0.422,
+              "y": -0.775
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.232,
+            "screenRunY": 0.112
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.101,
+              "y": -1.098
+            },
+            "wristNdc": {
+              "x": 0.16,
+              "y": -0.552
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 0.82,
+            "screenRunY": 0.224
+          }
+        }
+      }
+    },
+    {
+      "label": "near-wall",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -7.3,
+        4.19
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.084,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.118,
+        "intensity": 0.741,
+        "headNdc": {
+          "x": 0.054,
+          "y": -0.461
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.048,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.661,
+              "y": -1.735
+            },
+            "wristNdc": {
+              "x": 0.494,
+              "y": -0.77
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.239,
+            "screenRunY": 0.115
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.186,
+              "y": -1.031
+            },
+            "wristNdc": {
+              "x": 0.241,
+              "y": -0.493
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 0.943,
+            "screenRunY": 0.254
+          }
+        }
+      }
+    },
+    {
+      "label": "near-wall-turned",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -7.25,
+        3.88
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 1.086,
+        "workBlend": 1,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.332,
+        "headNdc": {
+          "x": -0.141,
+          "y": -0.441
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.345,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.542,
+              "y": -1.772
+            },
+            "wristNdc": {
+              "x": 0.38,
+              "y": -0.791
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.213,
+            "screenRunY": 0.104
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.028,
+              "y": -1.056
+            },
+            "wristNdc": {
+              "x": 0.09,
+              "y": -0.504
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 0.899,
+            "screenRunY": 0.248
+          }
+        }
+      }
+    },
+    {
+      "label": "table-edge",
+      "tool": "broom",
+      "using": true,
+      "did": 0,
+      "blocked": false,
+      "reason": null,
+      "targetLocal": [
+        -0.54,
+        -0.7
+      ],
+      "broom": {
+        "vmActive": true,
+        "fov": 50,
+        "layer": 29,
+        "reach": 1.118,
+        "drawReach": 0.93,
+        "workBlend": 1,
+        "clamped": true,
+        "tilt": 0.3,
+        "intensity": 0.247,
+        "headNdc": {
+          "x": 0.17,
+          "y": -0.717
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.131,
+        "seatError": 0,
+        "arms": {
+          "right": {
+            "elbowNdc": {
+              "x": 0.729,
+              "y": -1.783
+            },
+            "wristNdc": {
+              "x": 0.552,
+              "y": -0.802
+            },
+            "spanYd": 0.295,
+            "visibleFrac": 0.202,
+            "screenRunY": 0.099
+          },
+          "left": {
+            "elbowNdc": {
+              "x": 0.278,
+              "y": -1.218
+            },
+            "wristNdc": {
+              "x": 0.329,
+              "y": -0.667
+            },
+            "spanYd": 0.281,
+            "visibleFrac": 0.604,
+            "screenRunY": 0.167
+          }
+        }
+      }
+    }
+  ],
+  "beats": [
+    {
+      "name": "idle-hands-free",
+      "atMs": 68
+    },
+    {
+      "name": "equip-broom",
+      "atMs": 3081
+    },
+    {
+      "name": "idle-holding",
+      "atMs": 6289
+    },
+    {
+      "name": "walking",
+      "atMs": 9848
+    },
+    {
+      "name": "begin-surface-contact",
+      "atMs": 12096
+    },
+    {
+      "name": "continuous-sweeping",
+      "atMs": 14725
+    },
+    {
+      "name": "direction-changes",
+      "atMs": 17988
+    },
+    {
+      "name": "cleaning-near-wall",
+      "atMs": 24076
+    },
+    {
+      "name": "sweeping-table-edge",
+      "atMs": 30643
+    },
+    {
+      "name": "stop-use",
+      "atMs": 32845
+    },
+    {
+      "name": "unequip",
+      "atMs": 35453
+    },
+    {
+      "name": "end",
+      "atMs": 38466
+    }
+  ]
+}
