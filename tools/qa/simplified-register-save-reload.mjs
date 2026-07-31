@@ -11,6 +11,8 @@ const VIEWPORT = Object.freeze({ width: 1600, height: 900 });
 const DEFAULT_ROOT = 'qa/cashier_master_final/save_reload';
 const AUTOSAVE_KEY = 'golfempire:autosave';
 const QA_CHECKPOINT_KEY = 'golfempire:qa:save-reload-checkpoint';
+const COUNTER_TOP = 1.055;
+const CARRY_Y = COUNTER_TOP + 0.115;
 
 // Selection:
 //   REGISTER_QA_QUICK=1
@@ -49,7 +51,7 @@ export const SAVE_RELOAD_MATRIX = Object.freeze([
   matrixCase({
     id: 'card-presented', outputKey: 'cardPresented', kind: 'rollback',
     payment: 'card', skuIds: ['glove1'], evidenceDir: 'card_presented',
-    flowStates: ['CardInsertReady'], stage: 'card-ready', active: true, workspace: 'card',
+    flowStates: ['CardSwipeReady'], stage: 'card-ready', active: true, workspace: 'card',
   }),
   matrixCase({
     id: 'post-x-cancellation', outputKey: 'postXCancellation', kind: 'rollback',
@@ -241,8 +243,77 @@ async function projectObject(page, predicate) {
       y: rect.top + ((-world.y + 1) / 2) * rect.height,
       inView: world.z >= -1 && world.z <= 1
         && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+      denom: found.userData.denom == null ? null : Number(found.userData.denom),
+      from: found.userData.from || null,
     };
   }, predicate);
+}
+
+async function projectLocalPoint(page, point) {
+  return page.evaluate(async (local) => {
+    const THREE = await import('/vendor/three.module.js');
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const world = new THREE.Vector3(
+      local.x + clubhouse.interior.position.x,
+      local.y + clubhouse.interior.position.y,
+      local.z + clubhouse.interior.position.z,
+    );
+    world.project(app.scene3d.camera);
+    const rect = document.querySelector('canvas').getBoundingClientRect();
+    return {
+      x: rect.left + ((world.x + 1) / 2) * rect.width,
+      y: rect.top + ((-world.y + 1) / 2) * rect.height,
+      inView: world.z >= -1 && world.z <= 1
+        && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+    };
+  }, point);
+}
+
+async function inspectPhysicalItem(page, uid) {
+  return page.evaluate(async (id) => {
+    const THREE = await import('/vendor/three.module.js');
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    let item = null;
+    clubhouse.interior.traverse((object) => {
+      if (!item && object.visible && object.userData?.kind === 'item'
+          && object.userData.uid === id) item = object;
+    });
+    if (!item) return null;
+    const offset = clubhouse.interior.position;
+    const originWorld = item.getWorldPosition(new THREE.Vector3());
+    const origin = {
+      x: originWorld.x - offset.x,
+      y: originWorld.y - offset.y,
+      z: originWorld.z - offset.z,
+    };
+    const barcodeObject = item.userData.bc;
+    if (!barcodeObject) return { origin, barcode: null, barcodeNormal: null };
+    const barcodeWorld = barcodeObject.getWorldPosition(new THREE.Vector3());
+    const quaternion = barcodeObject.getWorldQuaternion(new THREE.Quaternion());
+    const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion).normalize();
+    return {
+      origin,
+      barcode: {
+        x: barcodeWorld.x - offset.x,
+        y: barcodeWorld.y - offset.y,
+        z: barcodeWorld.z - offset.z,
+      },
+      barcodeNormal: { x: normal.x, y: normal.y, z: normal.z },
+    };
+  }, uid);
+}
+
+async function interpolateMouse(page, from, to, steps = 14, delay = 13) {
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps;
+    await page.mouse.move(
+      from.x + (to.x - from.x) * t,
+      from.y + (to.y - from.y) * t,
+    );
+    if (delay) await page.waitForTimeout(delay);
+  }
+  return to;
 }
 
 async function checkoutSnapshot(page, skuIds = []) {
@@ -366,6 +437,7 @@ async function checkoutSnapshot(page, skuIds = []) {
         y: camera.position.y,
         z: camera.position.z,
         fov: camera.fov,
+        expectedWalkFov: Number(app.preferences?.values?.camera?.fov ?? 60),
         distanceToWalkXZ: Math.hypot(camera.position.x - walk.x, camera.position.z - walk.z),
       },
       props,
@@ -541,7 +613,18 @@ async function scanItems(page, count = Infinity) {
     window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid)
   ));
   const chosen = uids.slice(0, count);
+  const stageTargets = await page.evaluate(async ([total, carryY]) => {
+    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const zone = REGISTER.scannedStaging;
+    return Array.from({ length: total }, (_, index) => ({
+      x: zone.minX + 0.05 + (zone.maxX - zone.minX - 0.10)
+        * (total === 1 ? 0.5 : index / (total - 1)),
+      y: carryY,
+      z: (zone.minZ + zone.maxZ) / 2,
+    }));
+  }, [uids.length, CARRY_Y]);
   for (const uid of chosen) {
+    const index = uids.indexOf(uid);
     let point = await projectObject(page, { kind: 'item', uid });
     for (let settle = 0; settle < 20; settle += 1) {
       await page.waitForTimeout(150);
@@ -553,21 +636,66 @@ async function scanItems(page, count = Infinity) {
       point = next;
     }
     assert(point?.inView, `Checkout item ${uid} was outside the player camera.`);
-    await page.mouse.click(point.x, point.y);
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    const scannerAlignment = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.scanAlignment()
+    ));
+    let item = null;
+    let barcodeFacing = null;
+    for (let turn = 0; turn < 4; turn += 1) {
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(70);
+      item = await inspectPhysicalItem(page, uid);
+      if (item?.barcodeNormal) {
+        barcodeFacing = item.barcodeNormal.x * scannerAlignment.direction[0]
+          + item.barcodeNormal.y * scannerAlignment.direction[1]
+          + item.barcodeNormal.z * scannerAlignment.direction[2];
+      }
+      if (barcodeFacing != null && barcodeFacing <= -0.35) break;
+    }
+    assert(item?.origin && item?.barcode && barcodeFacing != null && barcodeFacing <= -0.35,
+      `Mouse wheel did not orient ${uid}'s barcode toward the scanner (dot ${barcodeFacing}).`);
+    const barcodeOffset = {
+      x: item.barcode.x - item.origin.x,
+      y: item.barcode.y - item.origin.y,
+      z: item.barcode.z - item.origin.z,
+    };
+    const carriedBarcodeY = CARRY_Y + barcodeOffset.y;
+    const rayDistance = Math.abs(scannerAlignment.direction[1]) > 1e-5
+      ? Math.min(0.20, Math.max(0.04,
+        (carriedBarcodeY - scannerAlignment.origin[1]) / scannerAlignment.direction[1]))
+      : 0.12;
+    const scannerTarget = {
+      x: scannerAlignment.origin[0] + scannerAlignment.direction[0] * rayDistance,
+      z: scannerAlignment.origin[2] + scannerAlignment.direction[2] * rayDistance,
+    };
+    const scanOrigin = {
+      x: scannerTarget.x - barcodeOffset.x,
+      y: CARRY_Y,
+      z: scannerTarget.z - barcodeOffset.z,
+    };
+    const scannerPoint = await projectLocalPoint(page, scanOrigin);
+    assert(scannerPoint?.inView, `Scanner target for ${uid} was outside the player camera.`);
+    let cursor = await interpolateMouse(page, point, scannerPoint, 16, 13);
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       const item = tx?.items.find((candidate) => candidate.uid === id);
       return !!item?.scanned;
     }, uid, { timeout: 5000 });
+    await waitCamera(page, 'scan');
+    const stagePoint = await projectLocalPoint(page, stageTargets[index]);
+    assert(stagePoint?.inView, `Staging target for ${uid} was outside the player camera.`);
+    cursor = await interpolateMouse(page, cursor, stagePoint, 14, 13);
+    await page.mouse.up();
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       const item = tx?.items.find((candidate) => candidate.uid === id);
       return !!item?.staged;
     }, uid, { timeout: 8000 });
-    // `staged` is durable as soon as the scanner commits, while the authored
-    // reader-to-bag arc still owns the cashier input gate. Wait for the flow
-    // boundary before aiming at another product so this persistence route uses
-    // the same physical one-click contract as acceptance and performance QA.
+    // `staged` is durable as soon as the player releases over the mat. Wait for
+    // the flow boundary before aiming at another product so checkpoint setup
+    // uses the same physical scan contract as strict card/cash acceptance.
     await page.waitForFunction(() => {
       const register = window.__fw.scene3d.clubhouse().register;
       const tx = register.getTx();
@@ -584,7 +712,7 @@ async function waitForPayment(page, mode) {
   if (mode === 'card') {
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return tx?.stage === 'card-ready' && tx.checkoutFlow?.state === 'CardInsertReady';
+      return tx?.stage === 'card-ready' && tx.checkoutFlow?.state === 'CardSwipeReady';
     }, null, { timeout: 10000 });
     await waitCamera(page, 'card');
     return;
@@ -593,6 +721,19 @@ async function waitForPayment(page, mode) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'cash-tender';
   }, null, { timeout: 10000 });
+}
+
+async function totalScannedSale(page) {
+  await waitForFlow(page, ['AllProductsScanned']);
+  // The final product's scan-to-monitor camera transition is still settling
+  // when the durable AllProductsScanned state first lands. Wait for that
+  // physical handoff to finish so it cannot overwrite the payment workspace.
+  await waitCamera(page, 'monitor');
+  await page.keyboard.press('t');
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.checkoutFlow?.state !== 'AllProductsScanned';
+  }, null, { timeout: 5000 });
 }
 
 async function clickCardX(page) {
@@ -610,29 +751,25 @@ async function clickCardX(page) {
   }, null, { timeout: 5000 });
 }
 
-async function insertPresentedCard(page) {
-  const card = await page.evaluate(() => (
-    window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint()
+async function activateCardTerminal(page) {
+  // The customer visibly carries the card to the counter before the terminal
+  // becomes the player's next physical target.
+  await page.waitForTimeout(900);
+  const terminal = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.cardTerminalScreenPoint()
   ));
-  assert(card?.inView, `The customer-held card was not clickable: ${JSON.stringify(card)}.`);
-  await page.mouse.click(card.x, card.y);
+  assert(terminal?.inView,
+    `The physical card terminal was outside the player camera: ${JSON.stringify(terminal)}.`);
+  await page.mouse.click(terminal.x, terminal.y);
   await page.waitForFunction(() => {
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx?.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
-  }, null, { timeout: 6000 });
-  const prefill = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return {
-      expectedCents: Math.round(register.totalOf(tx) * 100),
-      entryCents: Number(tx.cardEntryCents),
-      entryDigits: String(tx.cardEntryDigits || ''),
-    };
-  });
-  assert(prefill.entryCents === prefill.expectedCents
-      && prefill.entryDigits === String(prefill.expectedCents),
-  `The inserted card did not prefill the exact total: ${JSON.stringify(prefill)}.`);
-  return prefill;
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    return tx?.stage === 'card-ready'
+      && tx.checkoutFlow?.state === 'CardSwipeReady'
+      && register.swipeAt()?.armed;
+  }, null, { timeout: 5000 });
+  await waitCamera(page, 'card');
+  return terminal;
 }
 
 async function submitCard(page, rngValue) {
@@ -644,17 +781,54 @@ async function submitCard(page, rngValue) {
       return value;
     };
   }, rngValue);
-  const prefill = await insertPresentedCard(page);
-  const ok = await page.evaluate(() => (
-    window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
-  ));
-  assert(ok?.inView, 'The physical reader Confirm key was outside the player camera.');
-  await page.mouse.click(ok.x, ok.y);
-  await page.waitForFunction(() => {
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx?.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
-  }, null, { timeout: 3500 });
-  return prefill;
+  const terminal = await activateCardTerminal(page);
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const channel = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.swipeAt()
+    ));
+    const top = await projectLocalPoint(page, channel.top);
+    const bottom = await projectLocalPoint(page, channel.bot);
+    assert(top?.inView && bottom?.inView,
+      `The card swipe channel was outside the player camera: ${JSON.stringify({ top, bottom })}.`);
+    await page.mouse.move(top.x, top.y);
+    await page.mouse.down();
+    const started = await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'CardSwiping'
+    ), null, { timeout: 1200 }).then(() => true).catch(() => false);
+    if (!started) {
+      await page.mouse.up();
+      await page.waitForTimeout(100);
+      continue;
+    }
+    await interpolateMouse(page, top, bottom, 16, 10);
+    await page.mouse.up();
+    const landed = await page.waitForFunction(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx && ['card-busy', 'receipt', 'card-declined'].includes(tx.stage);
+    }, null, { timeout: 6000 }).then(() => true).catch(() => false);
+    if (!landed) {
+      await page.waitForFunction(() => (
+        window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'card-ready'
+      ), null, { timeout: 3000 });
+      continue;
+    }
+    await page.waitForFunction(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx && ['receipt', 'card-declined'].includes(tx.stage);
+    }, null, { timeout: 12000 });
+    const result = await page.evaluate(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return {
+        stage: tx?.stage,
+        flow: tx?.checkoutFlow?.state,
+        rngTrace: [...(tx?.__qaSaveReloadRngTrace || [])],
+      };
+    });
+    assert(result.rngTrace.length === 1 && result.rngTrace[0] === rngValue,
+      `The physical swipe did not consume the seeded authorization exactly once: ${JSON.stringify(result)}.`);
+    return { terminal, top, bottom, attempt, result };
+  }
+  throw new Error('Five normal top-to-bottom card swipe attempts did not reach authorization.');
 }
 
 async function selectCashPiece(page, denom) {
@@ -775,9 +949,11 @@ function assertCleanRollback(fixture, reloaded, label) {
     `${label} restored a renderer transaction or active register mode.`);
   assert(reloaded.workspace === 'monitor' && reloaded.deliveryPhase === null,
     `${label} restored a stale checkout workspace or delivery timer.`);
-  assert(reloaded.pointerLock === null && reloaded.camera.distanceToWalkXZ < 0.35
-      && Math.abs(reloaded.camera.fov - 60) < 0.01,
-  `${label} left pointer lock or a checkout camera pose active: ${JSON.stringify(reloaded.camera)}.`);
+  assert(reloaded.pointerLock !== 'other'
+      && reloaded.camera.distanceToWalkXZ < 0.35
+      && Math.abs(reloaded.camera.fov - reloaded.camera.expectedWalkFov) < 0.01,
+  `${label} did not restore ordinary walk input/camera state: `
+    + `${JSON.stringify({ pointerLock: reloaded.pointerLock, camera: reloaded.camera })}.`);
   assert(reloaded.props.items === 0 && reloaded.props.paymentCards === 0
       && reloaded.props.tenderOrChange === 0 && reloaded.props.receipts === 0,
   `${label} left stale transaction props: ${JSON.stringify(reloaded.props)}.`);
@@ -891,9 +1067,9 @@ function assertCheckpoint(definition, snapshot) {
       `${label} did not retain customer-owned physical tender.`);
       break;
     case 'drawer-open':
-      assert(snapshot.tx.method === 'cash' && snapshot.tx.drawerOpen && snapshot.tx.deposited
+      assert(snapshot.tx.method === 'cash' && snapshot.tx.drawerOpen && !snapshot.tx.deposited
           && snapshot.tx.drawerStart && snapshot.tx.drawerPending,
-      `${label} did not retain the open transaction-local cash drawer.`);
+      `${label} did not retain the open transaction-local drawer before deposit.`);
       break;
     case 'cash-deposited':
       assert(snapshot.tx.drawerOpen && snapshot.tx.deposited
@@ -925,6 +1101,7 @@ async function waitForFlow(page, states, timeout = 10000) {
 
 async function presentCash(page) {
   await scanItems(page);
+  await totalScannedSale(page);
   await waitForPayment(page, 'cash');
 }
 
@@ -936,16 +1113,52 @@ async function acceptPresentedCash(page, { waitForDeposit = false } = {}) {
   await page.mouse.click(handful.x, handful.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'cash-drawer'
+      && tx.checkoutFlow?.state === 'CashAccepted'
+      && !tx.drawerOpen;
+  }, null, { timeout: 6000 });
+  await page.keyboard.press('d');
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'cash-drawer' && tx.drawerOpen;
   }, null, { timeout: 6000 });
+  await waitCamera(page, 'cash');
+  // DrawerOpening is durable before the physical tray reaches the player's
+  // hand. DepositingCash means its matching denomination wells are fully open.
+  await waitForFlow(page, ['DepositingCash'], 8000);
   if (waitForDeposit) {
+    let depositedPieces = 0;
+    for (let guard = 0; guard < 24; guard += 1) {
+      const before = await page.evaluate(() => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return Object.values(tx?.tendered || {}).reduce((sum, count) => sum + Number(count), 0);
+      });
+      if (before === 0) break;
+      const piece = await projectObject(page, { kind: 'money', from: 'tender' });
+      assert(piece?.inView && piece.denom != null,
+        `Tender piece ${depositedPieces + 1} was outside the open drawer view.`);
+      const slot = await projectObject(page, { kind: 'drawer-slot', denom: piece.denom });
+      assert(slot?.inView,
+        `The ${piece.denom} drawer well was outside the open drawer view.`);
+      await page.mouse.move(piece.x, piece.y);
+      await page.mouse.down();
+      await interpolateMouse(page, piece, slot, 16, 13);
+      await page.mouse.up();
+      await page.waitForFunction((prior) => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        const remaining = Object.values(tx?.tendered || {})
+          .reduce((sum, count) => sum + Number(count), 0);
+        return remaining < prior;
+      }, before, { timeout: 5000 });
+      depositedPieces += 1;
+    }
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.deposited && tx.checkoutFlow?.state === 'SelectingChange';
     }, null, { timeout: 9000 });
-    await waitCamera(page, 'cash');
+    return { handful, depositedPieces };
   }
-  return handful;
+  return { handful, depositedPieces: 0 };
 }
 
 async function exactChangePlan(page) {
@@ -964,8 +1177,9 @@ async function exactChangePlan(page) {
 
 async function completeCardTransaction(page) {
   await scanItems(page);
+  await totalScannedSale(page);
   await waitForPayment(page, 'card');
-  const prefill = await submitCard(page, 0.99);
+  const swipe = await submitCard(page, 0.99);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'receipt' && tx.checkoutFlow?.state === 'CardApproved';
@@ -975,7 +1189,7 @@ async function completeCardTransaction(page) {
   ), null, { timeout: 10000 });
   await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
     { timeout: 16000 });
-  return prefill;
+  return swipe;
 }
 
 async function completeCashTransaction(page) {
@@ -1087,9 +1301,11 @@ function assertCleanCompletedReload(completed, reloaded, label) {
   assert(!reloaded.active && !reloaded.tx && !reloaded.registerClass
       && reloaded.workspace === 'monitor' && reloaded.deliveryPhase === null,
   `${label} restored stale completed-checkout UI or state.`);
-  assert(reloaded.pointerLock === null && reloaded.camera.distanceToWalkXZ < 0.35
-      && Math.abs(reloaded.camera.fov - 60) < 0.01,
-  `${label} left pointer lock or a checkout camera pose active: ${JSON.stringify(reloaded.camera)}.`);
+  assert(reloaded.pointerLock !== 'other'
+      && reloaded.camera.distanceToWalkXZ < 0.35
+      && Math.abs(reloaded.camera.fov - reloaded.camera.expectedWalkFov) < 0.01,
+  `${label} did not restore ordinary walk input/camera state: `
+    + `${JSON.stringify({ pointerLock: reloaded.pointerLock, camera: reloaded.camera })}.`);
   assert(reloaded.props.items === 0 && reloaded.props.paymentCards === 0
       && reloaded.props.tenderOrChange === 0 && reloaded.props.receipts === 0,
   `${label} restored completed transaction props: ${JSON.stringify(reloaded.props)}.`);
@@ -1115,6 +1331,7 @@ function assertCleanCompletedReload(completed, reloaded, label) {
 async function reachPresentedCard(page) {
   await enterCheckout(page);
   await scanItems(page);
+  await totalScannedSale(page);
   await waitForPayment(page, 'card');
 }
 
@@ -1143,16 +1360,16 @@ const CHECKPOINT_SETUPS = Object.freeze({
   },
   'post-x-cancellation': async (page, fixture) => {
     await reachPresentedCard(page);
-    const exactTotalPrefill = await insertPresentedCard(page);
+    const terminalActivation = await activateCardTerminal(page);
     const preCancel = await checkoutSnapshot(page, fixture.skuIds);
     await clickCardX(page);
-    return { exactTotalPrefill, preCancel };
+    return { terminalActivation, preCancel };
   },
   'card-declined': async (page) => {
     await reachPresentedCard(page);
-    const exactTotalPrefill = await submitCard(page, 0);
+    const swipe = await submitCard(page, 0);
     await waitForFlow(page, ['CardDeclined']);
-    return { exactTotalPrefill };
+    return { swipe };
   },
   'cash-presented': async (page) => {
     await enterCheckout(page);
@@ -1181,11 +1398,11 @@ const CHECKPOINT_SETUPS = Object.freeze({
   },
   'receipt-printing': async (page) => {
     await reachPresentedCard(page);
-    const exactTotalPrefill = await submitCard(page, 0.99);
+    const swipe = await submitCard(page, 0.99);
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
     ), null, { timeout: 10000 });
-    return { exactTotalPrefill };
+    return { swipe };
   },
 });
 
@@ -1244,7 +1461,7 @@ async function runCompletedMatrixCase(page, definition, shot) {
   const fixture = await prepareFixture(page, definition.skuIds, definition.payment);
   await enterCheckout(page);
   const interaction = definition.payment === 'card'
-    ? { exactTotalPrefill: await completeCardTransaction(page) }
+    ? { swipe: await completeCardTransaction(page) }
     : { exactChange: await completeCashTransaction(page) };
   const completed = await checkoutSnapshot(page, fixture.skuIds);
   assertCompletedReconciliation(fixture, completed, definition.payment, definition.id);
