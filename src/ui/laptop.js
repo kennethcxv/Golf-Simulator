@@ -550,6 +550,9 @@ export function makeLaptop(app, opts) {
     type: 'search',
     placeholder: 'Search the whole laptop…',
     'aria-label': 'Search every page, product, person and setting in the laptop',
+    // Its slot already protects it; the key registers it with the same focus-restore
+    // machinery every page-level field uses, so one rule covers every input in the laptop.
+    'data-lt-field': 'laptop-search',
   });
   searchInput.addEventListener('input', () => { query = searchInput.value.trim(); searchSelection = 0; render(); });
   searchInput.addEventListener('keydown', (e) => {
@@ -558,6 +561,21 @@ export function makeLaptop(app, opts) {
       query = '';
       searchInput.value = '';
       render();
+      return;
+    }
+    // The results own the screen now, so they have to be reachable without the mouse:
+    // arrows move the highlight, Enter goes to it. The field keeps focus throughout —
+    // it lives outside `content`, which is the subtree render() replaces.
+    if (!query || !lastHits.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      searchSelection = Math.max(0, Math.min(lastHits.length - 1, searchSelection + step));
+      render();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const hit = lastHits[searchSelection] || lastHits[0];
+      if (hit) openSearchHit(hit);
     }
   });
 
@@ -582,11 +600,86 @@ export function makeLaptop(app, opts) {
   root.addEventListener('click', (e) => e.stopPropagation());
 
   // --- building blocks ----------------------------------------------------------------------
-  // paint targets `content` — except while the search preview borrows it. The
-  // preview renders a page by RUNNING the page's own function with the target
-  // swapped, so what search shows is the page's exact DOM, not a description.
+  // paint targets `content` — one call, `replaceChildren`, that rebuilds the whole page.
   let paintTarget = content;
-  const paint = (...kids) => paintTarget.replaceChildren(...kids.filter((k) => k != null && k !== false));
+
+  // EVERY FIELD SURVIVES THE RENDER ITS OWN KEYSTROKE CAUSED.
+  //
+  // Reported 2026-07-30: "the Pro Shop product search only accepts one character." Measured
+  // (qa/laptop-round3/laptop-input-focus.json): typing "abcde" into .lt-toolbar input left the
+  // field holding "a", and document.activeElement was BODY after the first character.
+  //
+  // The cause is one line above. paint() is paintTarget.replaceChildren(...), which detaches
+  // every child of the page — and detaching the focused element blurs it. A field whose
+  // oninput calls render() therefore deletes itself mid-keystroke: character two has no
+  // focused element to land in and is dropped by the browser, not by any handler. This is the
+  // same failure that deleted the toolbar search on frame one (see the note by `statusbar`),
+  // one level down, and it applies to every input on every page — the 1 Hz refreshLive() clock
+  // re-renders Home, Orders and Deliveries whether anybody is typing or not.
+  //
+  // The repair is two halves and needs both:
+  //   1. keepField() builds a field ONCE and hands the SAME element back on every later
+  //      render, so its text, its listeners and its caret are the element's own state instead
+  //      of something a page function re-derives in the middle of a keystroke.
+  //   2. paint() notes which field held focus and where the caret sat, then puts both back the
+  //      instant the new subtree is in place — synchronously, inside the same task, so no
+  //      keystroke can arrive while nothing is focused. No setTimeout, no refocus race.
+  const FIELD_KEY = 'data-lt-field';
+  const activeElement = () => (typeof document !== 'undefined' && document.activeElement) || null;
+  const liveFields = new Map();
+
+  function keepField(key, build, sync) {
+    let node = liveFields.get(key);
+    if (!node) {
+      node = build();
+      node.setAttribute(FIELD_KEY, key);
+      liveFields.set(key, node);
+      return node;
+    }
+    // Only a field nobody is typing into is re-synced from state. Overwriting a live one
+    // would fight the player for the caret — which is the bug, wearing different clothes.
+    if (sync && node !== activeElement()) sync(node);
+    return node;
+  }
+
+  function heldField(container) {
+    const active = activeElement();
+    if (!active || typeof active.getAttribute !== 'function') return null;
+    const key = active.getAttribute(FIELD_KEY);
+    if (!key) return null;
+    if (typeof container.contains === 'function' && !container.contains(active)) return null;
+    let start = null;
+    let end = null;
+    // selectionStart is null on range/checkbox and throws on some engines. A caret we cannot
+    // read is still a focus we can restore.
+    try { start = active.selectionStart; end = active.selectionEnd; } catch { start = null; }
+    return { key, start, end };
+  }
+
+  function restoreField(container, held) {
+    if (!held || typeof container.querySelector !== 'function') return;
+    const node = container.querySelector(`[${FIELD_KEY}="${held.key}"]`);
+    if (!node || typeof node.focus !== 'function') return;
+    node.focus({ preventScroll: true });
+    if (held.start == null || typeof node.setSelectionRange !== 'function') return;
+    try { node.setSelectionRange(held.start, held.end); } catch { /* not a caret field */ }
+  }
+
+  // WHERE THE FOCUS IS CAPTURED MATTERS AS MUCH AS THAT IT IS.
+  //
+  // Appending an element that already has a parent MOVES it, and the browser runs the removal
+  // steps first — so a page function that reuses a kept field blurs that field while it is
+  // still BUILDING the new tree, long before paint() swaps anything. Capturing inside paint()
+  // therefore reads an already-empty document.activeElement and restores nothing. render()
+  // takes the reading before it calls the page function; paint() falls back to its own reading
+  // for a field that was rebuilt rather than reused.
+  let heldFocus = null;
+
+  const paint = (...kids) => {
+    const held = heldFocus || heldField(paintTarget);
+    paintTarget.replaceChildren(...kids.filter((k) => k != null && k !== false));
+    restoreField(paintTarget, held);
+  };
   const sect = (t) => el('div', { class: 'lt-sect', text: t });
   const row = (...kids) => el('div', { class: 'lt-row' }, ...kids);
   const chip = (t, kind = '') => el('span', { class: `lt-chip ${kind}`, text: t });
@@ -1348,7 +1441,9 @@ export function makeLaptop(app, opts) {
         stat('Stock Cost', formatMoney(stockValue), 'wholesale value on hand'),
       ),
       el('div', { class: 'lt-toolbar' },
-        searchBox(ss, () => { click(); render(); }, 'Search products…'),
+        keepField('shop-stock-search',
+          () => searchBox(ss, () => { click(); render(); }, 'Search products…'),
+          (node) => { node.value = ss.search || ''; }),
         filterTabs(ss, [
           { value: 'all', label: 'All' }, { value: 'low', label: 'Shelf risk' }, { value: 'out', label: 'Fully out' },
         ], () => { click(); render(); })),
@@ -1517,7 +1612,9 @@ export function makeLaptop(app, opts) {
           : 'Nothing in the cart yet' }),
         el('span', { class: 'lt-headspace' }),
         primaryBtn(cart.size ? 'Review cart' : 'Cart is empty', () => { ss.tab = 'cart'; click(); render(); }, !cart.size)),
-      el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
+      el('div', { class: 'lt-toolbar' }, keepField('shop-order-search',
+        () => searchBox(ss, () => { click(); render(); }, 'Search products…'),
+        (node) => { node.value = ss.search || ''; })),
       catBar,
       cards.length ? el('div', { class: 'lt-grid' }, ...cards) : empty('No products match that search.'),
     ];
@@ -1703,6 +1800,7 @@ export function makeLaptop(app, opts) {
       paintMarkup(val);
       const slider = el('input', {
         type: 'range', min: '70', max: '150', value: String(Math.round(val * 100)), class: 'lt-range',
+        [FIELD_KEY]: `prices-markup:${cat}`,
         oninput: (e) => {
           const v = Number(e.target.value) / 100;
           const result = setProductMarkup(st, cat, v);
@@ -1725,6 +1823,7 @@ export function makeLaptop(app, opts) {
     paintFee(st.club.greenFee);
     const feeRange = el('input', {
       type: 'range', min: '10', max: '150', step: '1', value: String(Math.round(st.club.greenFee)), class: 'lt-range',
+      [FIELD_KEY]: 'prices-greenfee',
       oninput: (e) => { const result = setGreenFee(st, e.target.value); if (result.ok) paintFee(result.response.value); },
     });
 
@@ -1740,6 +1839,7 @@ export function makeLaptop(app, opts) {
     paintRent(st.shop.rentalFleet.pricePerRound);
     const rentRange = el('input', {
       type: 'range', min: '5', max: '60', step: '1', value: String(Math.round(st.shop.rentalFleet.pricePerRound)), class: 'lt-range',
+      [FIELD_KEY]: 'prices-rental',
       oninput: (e) => { const result = setRentalPrice(st, e.target.value); if (result.ok) paintRent(result.response.value); },
     });
 
@@ -1756,6 +1856,7 @@ export function makeLaptop(app, opts) {
       repaint(st.club.dues[tier]);
       const slider = el('input', {
         type: 'range', min: '100', max: '1200', step: '10', value: String(Math.round(st.club.dues[tier])), class: 'lt-range',
+        [FIELD_KEY]: `prices-dues:${tier}`,
         oninput: (event) => { const result = setMembershipDue(st, tier, event.target.value); if (result.ok) repaint(result.response.value); },
       });
       return row(el('span', { class: 'lt-mulabel', text: tier[0].toUpperCase() + tier.slice(1) }), slider, out);
@@ -2173,6 +2274,7 @@ export function makeLaptop(app, opts) {
       const mowSlider = el('input', {
         type: 'range', min: String(range.mow[0]), max: String(range.mow[1]), step: '1',
         value: String(p.mowHeightMm), class: 'lt-range', style: 'max-width:100px',
+        [FIELD_KEY]: `course-mow:${key}`,
         oninput: (e) => { p.mowHeightMm = Number(e.target.value); mowOut.textContent = `${p.mowHeightMm}mm`; },
       });
       const cycleBtn = (label, field, options) => el('button', {
@@ -2912,7 +3014,7 @@ export function makeLaptop(app, opts) {
       };
       paintDues(value);
       const slider = el('input', {
-        type: 'range', class: 'lt-range',
+        type: 'range', class: 'lt-range', [FIELD_KEY]: `memberships-dues:${tier}`,
         min: String(Math.round(spec.baseDues * 0.5 / 5) * 5),
         max: String(Math.round(spec.baseDues * 2 / 5) * 5), step: '5', value: String(Math.round(value / 5) * 5),
         oninput: (event) => {
@@ -3027,7 +3129,13 @@ export function makeLaptop(app, opts) {
     const settingsState = ts('settings', { tab: 'general' });
 
     const checkRow = (label, detail, checked, onchange) => el('label', { class: 'lt-row' },
-      el('input', { type: 'checkbox', class: 'lt-check', checked: checked ? 'checked' : undefined, onchange }),
+      el('input', {
+        type: 'checkbox',
+        class: 'lt-check',
+        [FIELD_KEY]: `settings-check:${label}`,
+        checked: checked ? 'checked' : undefined,
+        onchange,
+      }),
       el('span', {},
         el('div', { style: 'font-size:0.84em;font-weight:600', text: label }),
         el('div', { class: 'lt-meta', text: detail })));
@@ -3036,7 +3144,7 @@ export function makeLaptop(app, opts) {
     const audio = app.audio;
     const volOut = el('span', { class: 'lt-mupct', text: audio ? `${Math.round((audio.getVolume ? audio.getVolume() : 0.8) * 100)}%` : '—' });
     const volRange = el('input', {
-      type: 'range', min: '0', max: '100', step: '5', class: 'lt-range',
+      type: 'range', min: '0', max: '100', step: '5', class: 'lt-range', [FIELD_KEY]: 'settings-volume',
       value: String(Math.round((audio && audio.getVolume ? audio.getVolume() : 0.8) * 100)),
       disabled: audio ? undefined : 'disabled',
       oninput: (e) => {
@@ -3090,7 +3198,9 @@ export function makeLaptop(app, opts) {
         checkRow('Confirm every purchase', 'When off, stock orders under $100 skip the confirmation step.', prefs.confirmOrders !== false,
           (e) => { prefs.confirmOrders = !!e.target.checked; toast(prefs.confirmOrders ? 'Every order asks first.' : 'Small orders go straight through.'); }),
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }),
-          el('input', {
+          // Committing on Enter fires change while the field is still focused, and the
+          // render that follows used to delete the element under the caret.
+          keepField('settings-clubname', () => el('input', {
             class: 'lt-input', type: 'text', value: st.clubName || '',
             onchange: (e) => {
               const v = e.target.value.trim();
@@ -3099,7 +3209,7 @@ export function makeLaptop(app, opts) {
               toast(`The club is now ${v}.`);
               render();
             },
-          })),
+          }), (node) => { node.value = st.clubName || ''; })),
         row(el('span', { class: 'lt-mulabel', text: 'Hours' }),
           meta(`Shop ${hour12(SHOP_OPEN_MIN)}–${hour12(SHOP_CLOSE_MIN)} · tee times ${hour12(TEE_SHEET.openMin)}–${hour12(TEE_SHEET.closeMin)} · autosave nightly`)),
       ),
@@ -3363,7 +3473,8 @@ export function makeLaptop(app, opts) {
 
   // WHAT THE PLAYER SEARCHED, WHERE IT LIVES, AND WHAT TO FLASH WHEN WE ARRIVE.
   let searchFilter = 'all';
-  let searchSelection = 0;    // which hit the live preview is showing
+  let searchSelection = 0;    // which row the keyboard is on
+  let lastHits = [];          // the rows currently on screen, so Enter can open one
   let lastReveal = null;      // {anchor, found, selector, text} — read by the QA driver
 
   // The order matters: a section heading is a better landing place than a table cell
@@ -3435,35 +3546,51 @@ export function makeLaptop(app, opts) {
     Property: '⌂', Hole: '⚑', Turf: '❋', Setting: '⚙',
   };
 
-  // A RESULT ROW IS A LOCATION, NOT A NAME.
+  // A RESULT IS THE THING YOU SEARCHED FOR, THEN WHERE IT LIVES.
   //
-  // Reported 2026-07-29: "Fix the UI so a result reads as a location, not a bare row."
-  // Round 2, 2026-07-30: the preview rework had squeezed these into 240 px chips in a
-  // horizontal strip, which ellipsized "Clubhouse repair components" to "Clubhouse re…"
-  // — the top hit for "kit", ranked first and unreadable. So it is ONE RESULT PER ROW
-  // again (.lt-hitrail is a capped vertical list in styles.css), the page path is the
-  // row's prominent lead line, and the item name sits under it in secondary type. The
-  // row is a single button — the whole thing is the target.
-  function searchResultRow(hit, index) {
+  // Round 3, 2026-07-30, from the chair: "Each row shows the page path in small blue caps and
+  // the item name below it in larger text. INVERT that: the ITEM NAME is what I am searching
+  // for, so it should be primary and prominent. The page path is context and should be
+  // secondary." Round 2 had made the path the lead line; that was wrong, and this reverses it.
+  //
+  // Two more things came off the same screenshot and both are about NOISE:
+  //   · "Every row has an identical grey icon and an identical PRODUCT tag on the right. Both
+  //     are noise if everything is a product." So the kind mark and the kind tag are drawn
+  //     only when the visible results actually differ in kind — `mixed` decides, per query.
+  //   · The row is one button and clicking it GOES there. It used to only swap a preview
+  //     panel, which is what put a second full page under the results.
+  function searchResultRow(hit, index, mixed) {
     const crumbs = el('span', { class: 'lt-hitpath' });
     (hit.path || []).forEach((part, i) => {
       if (i) crumbs.appendChild(el('span', { class: 'lt-hitsep', text: '›' }));
-      crumbs.appendChild(el('span', { class: `lt-hitcrumb ${i === (hit.path.length - 1) ? 'lt-hitcrumblast' : ''}`, text: part }));
+      crumbs.appendChild(el('span', { class: 'lt-hitcrumb', text: part }));
     });
-    // Clicking a row swaps the live preview underneath to this hit's real page.
-    // Open (in the preview bar) is what navigates.
     return el('button', {
       class: `lt-hit ${index === searchSelection ? 'on' : ''}`,
-      title: `Preview ${formatPagePath(hit.target.page, hit.target.tab, hit.target.pathExtra)}`,
-      onclick: () => { searchSelection = index; click(); render(); },
+      title: `Open ${formatPagePath(hit.target.page, hit.target.tab, hit.target.pathExtra)}`,
+      onclick: () => { searchSelection = index; click(); openSearchHit(hit); },
     },
-    el('span', { class: 'lt-hitmark', text: KIND_MARK[hit.kind] || '▸' }),
+    mixed ? el('span', { class: 'lt-hitmark', text: KIND_MARK[hit.kind] || '▸' }) : null,
     el('span', { class: 'lt-hitbody' },
-      crumbs,
-      el('span', { class: 'lt-hitname', text: hit.label })),
-    el('span', { class: 'lt-hitkind', text: hit.kind }));
+      el('span', { class: 'lt-hitname', text: hit.label }),
+      crumbs),
+    mixed ? el('span', { class: 'lt-hitkind', text: hit.kind }) : null,
+    el('span', { class: 'lt-hitgo', text: '→' }));
   }
 
+  // THE RESULTS ARE THE SCREEN.
+  //
+  // Round 3, 2026-07-30: "The results list appears ABOVE the full underlying page, which is
+  // still rendered below it. I see search results and a whole Pro Shop dashboard at once,"
+  // and "there is a stray 'PRO SHOP › INVENTORY / Open →' bar between the results and the
+  // page content. Unclear what it is."
+  //
+  // Both were the live preview from round 2: the selected hit's page was re-run into a panel
+  // under the list, with a breadcrumb-and-Open bar as its header. Read cold it is simply a
+  // second page stacked under the first, and the bar that labelled it read as debris. A search
+  // result already has one obvious behaviour — go there — so the preview and its bar are gone
+  // and the list owns the whole screen while a query is live. Clicking a row navigates and
+  // flashes the match, which is what Open used to do.
   function pageSearch(st) {
     const index = searchIndex(st);
     const groups = searchGroups(index, query);
@@ -3474,59 +3601,35 @@ export function makeLaptop(app, opts) {
     if (droppedFilter) searchFilter = 'all';
     const hits = rankSearchEntries(index, query, { filter: searchFilter });
     const total = groups.find((g) => g.id === 'all')?.count || 0;
-
-    // THE PREVIEW IS THE PAGE. Playtest 2026-07-30: "make it show the actual
-    // thing — if he searches map it shows the actual map, the exact way it
-    // looks on the laptop." So the selected hit renders by running its page's
-    // own function into the preview container: same head, same tab bar, same
-    // cards, live buttons. The rail above stays compact; Open jumps for real.
     searchSelection = Math.max(0, Math.min(searchSelection, hits.length - 1));
-    const selected = hits[searchSelection] || null;
+    lastHits = hits;
 
-    const preview = el('div', { class: 'lt-searchpreview' });
-    if (selected) {
-      const target = selected.target || {};
-      if (target.tab) ts(target.page).tab = target.tab;
-      if (Number.isFinite(target.day)) teeDay = target.day;
-      const fn = PAGES[target.page];
-      const prevTarget = paintTarget;
-      paintTarget = preview;
-      try {
-        if (fn) fn(); else preview.replaceChildren(empty('That page is not installed.'));
-      } catch (e) {
-        preview.replaceChildren(errBox(`The ${target.page} page could not be drawn: ${e && e.message ? e.message : e}`));
-      } finally {
-        paintTarget = prevTarget;
-      }
-      revealAnchor(target.anchor || null, preview);
-    }
+    // A FILTER THAT CANNOT SPLIT ANYTHING IS NOT A FILTER.
+    //
+    // Round 3: "The filter chips read 'All 4' and 'Catalogue 4'. Two chips for the same four
+    // results is not a filter." searchGroups always leads with All, so a query whose hits are
+    // all one kind yields exactly two chips that select the same rows. The strip appears only
+    // when there are two or more real groups under All — i.e. when pressing a chip can
+    // actually change what is on screen.
+    const partitions = groups.filter((g) => g.id !== 'all');
+    const showFilters = partitions.length >= 2;
+    // …and by the same rule, a kind mark and a kind tag on every row say nothing when every
+    // row is the same kind.
+    const mixed = new Set(hits.map((h) => h.kind)).size >= 2;
 
     paint(
       head(`Search — “${query}”`, total
-        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. The panel below IS the page it lives on — Open jumps to it.`
+        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. Pick one to go there — the match is flashed when you land.`
         : 'Nothing matches. Try a product, a person, a page, a material, or what the thing does.'),
-      total ? el('div', { class: 'lt-hitfilters' }, ...groups.map((g) => el('button', {
+      showFilters ? el('div', { class: 'lt-hitfilters' }, ...groups.map((g) => el('button', {
         class: `lt-tab ${searchFilter === g.id ? 'on' : ''}`,
         text: `${g.label} ${g.count}`,
         onclick: () => { searchFilter = g.id; searchSelection = 0; click(); render(); },
       }))) : null,
       droppedFilter ? row(meta('That filter has nothing under this query — showing everything.')) : null,
       hits.length
-        ? el('div', { class: 'lt-hitrail' }, ...hits.map((hit, index) => searchResultRow(hit, index)))
+        ? el('div', { class: 'lt-hitrail' }, ...hits.map((hit, i) => searchResultRow(hit, i, mixed)))
         : empty(total ? 'Nothing under that filter.' : 'No matches'),
-      selected ? el('div', { class: 'lt-previewbar' },
-        el('span', { class: 'lt-hitpath' },
-          ...selected.path.flatMap((part, i) => [
-            i ? el('span', { class: 'lt-hitsep', text: '›' }) : null,
-            el('span', { class: `lt-hitcrumb ${i === selected.path.length - 1 ? 'lt-hitcrumblast' : ''}`, text: part }),
-          ]).filter(Boolean)),
-        el('span', { class: 'lt-headspace' }),
-        el('button', {
-          class: 'lt-primary lt-hitopen',
-          text: 'Open →',
-          onclick: () => openSearchHit(selected),
-        })) : null,
-      selected ? preview : null,
       hits.length && hits.length < total
         ? row(meta(`Showing the ${hits.length} closest of ${total}. Keep typing to narrow it.`))
         : null,
@@ -3535,6 +3638,17 @@ export function makeLaptop(app, opts) {
 
   function render() {
     if (root.style.display === 'none' || !app.state) return;
+    // The reading has to be taken here, before a single element is built: see the note by
+    // paint(). Cleared in the finally so a stale key cannot steal focus on a later render.
+    heldFocus = heldField(content);
+    try {
+      draw();
+    } finally {
+      heldFocus = null;
+    }
+  }
+
+  function draw() {
     refreshStatus();
     for (const [id, b] of Object.entries(navBtns)) b.classList.toggle('on', id === page);
     // A live query owns the screen. It is not a page — there is nothing to go
@@ -3546,6 +3660,7 @@ export function makeLaptop(app, opts) {
       }
       return;
     }
+    lastHits = [];
     const fn = PAGES[page];
     if (!fn) {
       paint(head('Not found'), errBox(`There is no application called "${page}".`),

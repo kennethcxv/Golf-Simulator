@@ -151,6 +151,19 @@ async (page) => {
     name: row.querySelector('.lt-hitname')?.textContent || null,
     kind: row.querySelector('.lt-hitkind')?.textContent || null,
   })));
+  // A CHIP STRIP ONLY EXISTS WHEN IT CAN PARTITION (round 3, 2026-07-30: "'All 4' and
+  // 'Catalogue 4' — two chips for the same four results is not a filter"). "towel" is all
+  // catalogue, so it must have NO strip; the filter behaviour is exercised on a query that
+  // genuinely spans groups.
+  const uniformKindStrip = await page.evaluate(() => document.querySelectorAll('.lt-hitfilters').length);
+
+  const searchFor = async (text) => {
+    await field.click({ timeout: 8000 });
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type(text, { delay: 40 });
+    await page.waitForTimeout(600);
+  };
+  await searchFor('course');
   const filters = await page.evaluate(() => [...document.querySelectorAll('.lt-hitfilters .lt-tab')].map((b) => ({
     label: b.textContent, on: b.classList.contains('on'),
   })));
@@ -175,12 +188,6 @@ async (page) => {
 
   // A SETTINGS SWITCH — the case that proves the index reaches past the catalogue, and the
   // case where the page path is the whole answer ("which of the two tabs is it on?").
-  const searchFor = async (text) => {
-    await field.click({ timeout: 8000 });
-    await page.keyboard.press('Control+a');
-    await page.keyboard.type(text, { delay: 40 });
-    await page.waitForTimeout(600);
-  };
   await searchFor('exact change');
   const settingsHit = await page.evaluate(() => {
     const row = [...document.querySelectorAll('.lt-hit')]
@@ -194,37 +201,34 @@ async (page) => {
   });
   await page.screenshot({ path: path.join(outDir, 'laptop-search-3-setting.png') });
 
-  // Row click PREVIEWS (2026-07-30: the panel renders the real page); the
-  // preview must carry the page's actual DOM — the real checkbox row — with the
-  // anchor flashed inside it. Open then navigates for real.
-  let settingPreview = null;
+  // THE ROW IS THE TRIP (round 3, 2026-07-30). Round 2 clicked a row to swap a preview panel
+  // and needed a second "Open →" button to travel; the preview read as a whole second page
+  // stacked under the results, so it and its bar are gone. Clicking the row goes there.
+  // MEASURE the landing: page id, tab, the reveal record, the flash, and whether the marked
+  // row is actually inside the scroll viewport.
+  let landing = null;
+  let settingDestination = null;
   if (settingsHit) {
     await page.evaluate(() => {
       const row = [...document.querySelectorAll('.lt-hit')]
         .find((r) => (r.querySelector('.lt-hitname')?.textContent || '').includes('Automatic exact change'));
       row?.click();
     });
-    await page.waitForTimeout(600);
-    settingPreview = await page.evaluate(() => {
-      const panel = document.querySelector('.lt-searchpreview');
-      const checkbox = panel && [...panel.querySelectorAll('label')]
+    await page.waitForTimeout(700);
+    settingDestination = await page.evaluate(() => {
+      const content = document.querySelector('.lt-content');
+      const checkbox = content && [...content.querySelectorAll('label')]
         .find((l) => (l.textContent || '').includes('Automatic exact change'));
       return {
-        panelPresent: !!panel,
         realCheckboxRow: !!(checkbox && checkbox.querySelector('input[type="checkbox"]')),
-        flashInsidePreview: !!panel?.querySelector('.lt-searchhit'),
-        pageStillSearch: !!document.querySelector('.lt-hitrail'),
+        // The results are GONE — the destination is the only page on screen.
+        resultsCleared: document.querySelectorAll('.lt-hit').length === 0,
+        headings: [...document.querySelectorAll('.laptop-screen .lt-h1')].map((n) => n.textContent),
+        noPreviewPanel: document.querySelectorAll('.lt-searchpreview').length === 0,
+        noPreviewBar: document.querySelectorAll('.lt-previewbar').length === 0,
       };
     });
-    await page.screenshot({ path: path.join(outDir, 'laptop-search-7-preview-setting.png') });
-  }
-
-  // …and go there via Open. Then MEASURE the landing: page id, tab, the reveal
-  // record, the flash, and whether the marked row is inside the scroll viewport.
-  let landing = null;
-  if (settingsHit) {
-    await page.evaluate(() => document.querySelector('.lt-hitopen')?.click());
-    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(outDir, 'laptop-search-7-setting-landed.png') });
     landing = await page.evaluate(() => {
       const lap = window.__fw?.laptop;
       const content = document.querySelector('.lt-content');
@@ -259,13 +263,9 @@ async (page) => {
       crumbs: [...row.querySelectorAll('.lt-hitcrumb')].map((n) => n.textContent),
       rank: [...document.querySelectorAll('.lt-hit')].indexOf(row),
     };
-    row.click(); // selects the preview
+    row.click(); // the row IS the trip
     return out;
   });
-  if (productRow) {
-    await page.waitForTimeout(500);
-    await page.evaluate(() => document.querySelector('.lt-hitopen')?.click());
-  }
   if (productRow) {
     await page.waitForTimeout(800);
     productLanding = await page.evaluate(() => {
@@ -293,12 +293,10 @@ async (page) => {
       .find((r) => (r.querySelector('.lt-hitname')?.textContent || '').includes('Alcazar'));
     if (!row) return { found: false };
     const crumbs = [...row.querySelectorAll('.lt-hitcrumb')].map((n) => n.textContent);
-    row.click(); // preview first
+    row.click();
     return { found: true, crumbs };
   });
   if (bookingHit.found) {
-    await page.waitForTimeout(500);
-    await page.evaluate(() => document.querySelector('.lt-hitopen')?.click());
     await page.waitForTimeout(700);
     bookingHit.landed = await page.evaluate(() => ({
       pageId: window.__fw?.laptop?.pageId?.() ?? null,
@@ -308,11 +306,14 @@ async (page) => {
     await page.screenshot({ path: path.join(outDir, 'laptop-search-6-booking.png') });
   }
 
-  // "if he searches map it shows the actual map" — the preview must contain the
-  // course page's REAL aerial canvas, drawn, not a row describing it.
+  // "if he searches map it shows the actual map" — round 3 answers that by GOING there:
+  // the destination must be the course page with its REAL aerial canvas drawn on it, not a
+  // preview panel and not a row describing one.
   await searchFor('map');
+  await page.evaluate(() => document.querySelectorAll('.lt-hit')[0]?.click());
+  await page.waitForTimeout(900);
   const mapPreview = await page.evaluate(() => {
-    const panel = document.querySelector('.lt-searchpreview');
+    const panel = document.querySelector('.lt-content');
     const canvas = panel?.querySelector('canvas');
     let drawn = false;
     if (canvas) {
@@ -342,6 +343,8 @@ async (page) => {
     // Results grew as characters arrived, and nothing was submitted.
     liveWhileTyping: growth.length > 0 && growth[growth.length - 1].rows > 0,
     everyRowNamesItsPage: liveRows.length > 0 && liveRows.every((r) => r.crumbs.length >= 1 && r.crumbs[0]),
+    // Round 3: a strip only where it can partition. "towel" is one kind — no strip.
+    noFilterStripForOneKind: uniformKindStrip === 0,
     filtersOffered: filters.length > 1,
     filterNarrows: !!filterEffect?.narrowed,
     // The index reaches past the catalogue.
@@ -366,12 +369,15 @@ async (page) => {
     // stage it is in — so the claim is that money on the road is indexed, in whichever form.
     moneyOnTheRoadIndexed: ((indexAtOpen.kinds?.Order || 0) + (indexAtOpen.kinds?.Delivery || 0)) > 0,
     worldSeeded: !!seeded.hired && !!seeded.booked && !!seeded.ordered,
-    // The preview IS the page: the real checkbox row, the flash inside the
-    // panel, and the actual drawn aerial for "map".
-    previewShowsRealSetting: settingPreview?.realCheckboxRow === true,
-    previewFlashesAnchor: settingPreview?.flashInsidePreview === true,
-    mapPreviewIsTheActualMap: mapPreview.hasCanvas === true && mapPreview.canvasDrawn !== false,
-    mapPreviewIsTheCoursePage: mapPreview.headSaysCourse === true,
+    // Round 3: the destination IS the page — the real checkbox row, one heading on screen,
+    // and no preview panel or bar left under the results.
+    destinationShowsRealSetting: settingDestination?.realCheckboxRow === true,
+    resultsClearedOnArrival: settingDestination?.resultsCleared === true,
+    onlyOnePageOnScreen: settingDestination?.headings.length === 1,
+    noPreviewPanelAnywhere: settingDestination?.noPreviewPanel === true,
+    noStrayOpenBar: settingDestination?.noPreviewBar === true,
+    mapIsTheActualMap: mapPreview.hasCanvas === true && mapPreview.canvasDrawn !== false,
+    mapLandsOnTheCoursePage: mapPreview.headSaysCourse === true,
     // A guest on the tee sheet is findable by name, which is the whole point of indexing the
     // directory rather than the reservation label.
     bookingFoundByName: bookingHit?.found === true,
@@ -391,13 +397,14 @@ async (page) => {
     productRow,
     productLanding,
     bookingHit,
-    settingPreview,
+    settingDestination,
+    uniformKindStrip,
     mapPreview,
     findings,
     shots: [
       'laptop-search-1-live.png', 'laptop-search-2-filtered.png', 'laptop-search-3-setting.png',
       'laptop-search-4-landed.png', 'laptop-search-5-product.png', 'laptop-search-6-booking.png',
-      'laptop-search-7-preview-setting.png', 'laptop-search-8-map-preview.png',
+      'laptop-search-7-setting-landed.png', 'laptop-search-8-map-preview.png',
     ],
     errs: errs.slice(0, 12),
     ok: Object.values(findings).every((v) => v === true) && errs.length === 0,

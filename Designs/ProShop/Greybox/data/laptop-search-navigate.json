@@ -81,26 +81,40 @@
         "Inventory"
       ],
       "name": "Bag towel",
-      "kind": "Product"
+      "kind": null
     }
   ],
   "filters": [
     {
-      "label": "All 1",
+      "label": "All 11",
       "on": true
     },
     {
-      "label": "Catalogue 1",
+      "label": "Pages 6",
+      "on": false
+    },
+    {
+      "label": "Catalogue 2",
+      "on": false
+    },
+    {
+      "label": "Staff 1",
+      "on": false
+    },
+    {
+      "label": "Money 1",
+      "on": false
+    },
+    {
+      "label": "Settings 1",
       "on": false
     }
   ],
   "filterEffect": {
-    "chipLabel": "Catalogue 1",
-    "before": 1,
-    "after": 1,
-    "kindsAfter": [
-      "Product"
-    ],
+    "chipLabel": "Pages 6",
+    "before": 11,
+    "after": 6,
+    "kindsAfter": [],
     "narrowed": true
   },
   "settingsHit": {
@@ -162,12 +176,16 @@
       "flashText": "9:00 AMMarguerite Alcazar2 playersWaitingView"
     }
   },
-  "settingPreview": {
-    "panelPresent": true,
+  "settingDestination": {
     "realCheckboxRow": true,
-    "flashInsidePreview": true,
-    "pageStillSearch": true
+    "resultsCleared": true,
+    "headings": [
+      "Settings"
+    ],
+    "noPreviewPanel": true,
+    "noPreviewBar": true
   },
+  "uniformKindStrip": 0,
   "mapPreview": {
     "panelPresent": true,
     "hasCanvas": true,
@@ -179,6 +197,7 @@
     "searchFieldVisible": true,
     "liveWhileTyping": true,
     "everyRowNamesItsPage": true,
+    "noFilterStripForOneKind": true,
     "filtersOffered": true,
     "filterNarrows": true,
     "settingFound": true,
@@ -195,10 +214,13 @@
     "indexReachesEveryKind": true,
     "moneyOnTheRoadIndexed": true,
     "worldSeeded": true,
-    "previewShowsRealSetting": true,
-    "previewFlashesAnchor": true,
-    "mapPreviewIsTheActualMap": true,
-    "mapPreviewIsTheCoursePage": true,
+    "destinationShowsRealSetting": true,
+    "resultsClearedOnArrival": true,
+    "onlyOnePageOnScreen": true,
+    "noPreviewPanelAnywhere": true,
+    "noStrayOpenBar": true,
+    "mapIsTheActualMap": true,
+    "mapLandsOnTheCoursePage": true,
     "bookingFoundByName": true
   },
   "shots": [
@@ -208,7 +230,7 @@
     "laptop-search-4-landed.png",
     "laptop-search-5-product.png",
     "laptop-search-6-booking.png",
-    "laptop-search-7-preview-setting.png",
+    "laptop-search-7-setting-landed.png",
     "laptop-search-8-map-preview.png"
   ],
   "errs": [],

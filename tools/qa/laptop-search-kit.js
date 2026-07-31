@@ -157,7 +157,10 @@ async (page) => {
     noNameTruncatedAnywhere: list.length > 0 && list.every((r) => r.nameTruncated === false),
     oneResultPerRow: stacked,
     rowsSpanTheList: fullWidth,
-    previewStillWorks: rows.previewBarPresent && rows.previewPresent,
+    // Round 3, 2026-07-30 reversed this driver's last claim: the preview panel that made the
+    // results readable-but-buried ("I see search results and a whole Pro Shop dashboard at
+    // once") is gone, along with the breadcrumb-and-Open bar that headed it.
+    noSecondPageUnderTheResults: !rows.previewPresent && !rows.previewBarPresent,
   };
 
   const result = {

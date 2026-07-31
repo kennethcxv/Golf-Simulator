@@ -2573,67 +2573,60 @@ body.register-mode .view-toggle { display: none !important; }
 .lt-shiptrade { font-size: 0.86em; color: var(--lt-dim); margin-top: 1px; }
 .lt-shipfee { font-variant-numeric: tabular-nums; font-weight: 600; }
 
-/* SEARCH RESULTS READ AS LOCATIONS — ONE PER ROW.
-   Reported 2026-07-29: "Fix the UI so a result reads as a location, not a bare row."
-   Round 2, 2026-07-30: the preview rework had compacted results into a horizontal strip
-   of 240 px chips — names ellipsized ("Clubhouse re…"), the fourth hit off the edge of
-   an x-scroll — which is how "kit" stopped visibly surfacing the repair kit it had in
-   fact ranked first. Now every result is its own full-width row: the PAGE PATH is the
-   lead line (where the thing lives), the item name sits under it in quieter type, and
-   past four-and-a-bit rows the list scrolls internally so the preview panel below
-   stays in reach. */
+/* SEARCH RESULTS: THE NAME FIRST, THEN WHERE IT LIVES — ONE PER ROW, AND NOTHING ELSE
+   ON THE SCREEN.
+   Round 2, 2026-07-30 made the page path the lead line and hung a live preview of the
+   destination page under the list. Round 3, from the chair: "the ITEM NAME is what I am
+   searching for, so it should be primary and prominent; the page path is context and
+   should be secondary", and "I see search results and a whole Pro Shop dashboard at
+   once." So the two lines are swapped — name in ink at page-name size, path underneath
+   in quiet small caps — the preview panel and its breadcrumb bar are gone, and the rail
+   is no longer capped at 246 px because nothing sits below it to keep in reach. */
 .lt-hitfilters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .lt-hitrail {
-  display: flex; flex-direction: column; gap: 4px;
-  max-height: 246px; overflow-y: auto; padding: 1px 2px 4px 1px;
-  scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 6px; padding: 1px 2px 4px 1px;
 }
 .lt-hit {
   display: flex; align-items: center; gap: 12px; width: 100%; flex: 0 0 auto;
-  text-align: left; padding: 8px 12px; font: inherit; color: var(--lt-ink); cursor: pointer;
+  text-align: left; padding: 10px 14px; font: inherit; color: var(--lt-ink); cursor: pointer;
   background: var(--lt-panel); border: 1px solid var(--lt-edge); border-radius: 8px;
   box-shadow: var(--lt-shadow);
 }
 .lt-hit:hover { border-color: var(--lt-blue); background: #fbfdff; }
 .lt-hit:focus-visible { outline: 2px solid var(--lt-blue); outline-offset: 1px; }
 .lt-hit.on { border-color: var(--lt-blue); background: var(--lt-bluebg); }
+/* Drawn only when the results differ in kind — an identical glyph on every row is noise. */
 .lt-hitmark {
   width: 26px; height: 26px; flex: 0 0 26px; display: flex; align-items: center;
   justify-content: center; border-radius: 6px; background: var(--lt-panel2); color: var(--lt-sub);
 }
 .lt-hitbody { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
-/* The path is the PROMINENT line — bold small caps in ink, destination crumb in the
-   accent — so the eye reads where-then-what. */
-.lt-hitpath {
-  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-  font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--lt-ink);
-}
-.lt-hitcrumblast { color: var(--lt-blue); }
-/* The chevron is not a letter, so it does not take the crumbs' tracking or weight — with
-   them applied the glyph collapsed to something that read as a middot on the physical lid. */
-.lt-hitsep { color: var(--lt-edge2); letter-spacing: 0; font-weight: 400; font-size: 1.15em; line-height: 1; }
-/* …and the name is the secondary line: what answered the query, under where it lives. */
+/* THE ANSWER. Biggest thing in the row, full ink, and it must never be ellipsized —
+   "Clubhouse re…" is how a correct result stopped counting as one. */
 .lt-hitname {
-  font-size: 0.85em; font-weight: 500; color: var(--lt-sub); margin-top: 2px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 1.02em; font-weight: 650; color: var(--lt-ink); line-height: 1.25;
+}
+/* …and the path is the context line beneath it: where to find the thing, quiet. */
+.lt-hitpath {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px;
+  font-size: 0.72em; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--lt-dim);
+}
+/* The chevron is not a letter, so it does not take the crumbs' tracking or weight. It also has
+   to be oversized: measured off the lid at 1.15em against a 10.8 px path line it collapsed to
+   something that read as a middot — "PRO SHOP · INVENTORY" — twice now, once at each type size
+   the path has worn. 1.55em is where it reads as a chevron in qa/laptop-round3. */
+.lt-hitsep {
+  color: var(--lt-sub); letter-spacing: 0; font-weight: 400;
+  font-size: 1.55em; line-height: 1; margin: 0 1px;
 }
 .lt-hitkind {
   font-size: 0.7em; letter-spacing: 0.05em; text-transform: uppercase; color: var(--lt-dim);
   background: var(--lt-panel2); border-radius: 999px; padding: 2px 8px; flex: 0 0 auto;
 }
-.lt-previewbar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; margin-top: 4px;
-  background: var(--lt-panel); border: 1px solid var(--lt-edge);
-  border-bottom: 0; border-radius: 8px 8px 0 0;
-}
-.lt-previewbar .lt-primary { padding: 6px 14px; }
-.lt-searchpreview {
-  border: 1px solid var(--lt-edge); border-radius: 0 0 8px 8px;
-  background: var(--lt-bg); padding: 12px 14px 16px;
-  display: flex; flex-direction: column; gap: 10px;
-}
+/* One quiet arrow says the row goes somewhere, which is the row's whole behaviour now. */
+.lt-hitgo { color: var(--lt-edge2); flex: 0 0 auto; font-size: 1.05em; }
+.lt-hit:hover .lt-hitgo, .lt-hit.on .lt-hitgo { color: var(--lt-blue); }
 
 /* The landing flash. Selecting a result navigates and then marks the row it meant, because
    arriving on a page of forty rows without being told which one is not an answer. */

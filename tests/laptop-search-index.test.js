@@ -308,28 +308,25 @@ test('typing "kit" surfaces the clubhouse repair kit FIRST, named in full, as a 
   assert.ok(crumbs.length >= 2, 'the path names the tab as well as the page');
 });
 
-test('a chip previews the REAL page; Open navigates and flashes the row', () => {
-  // 2026-07-30: "make it show the actual thing." A chip click renders the
-  // destination page's own DOM into the preview panel — same builder, live
-  // buttons — and the Open button is what navigates.
+test('clicking a result GOES there and flashes the row it meant', () => {
+  // Round 2 clicked a row to swap a preview panel and needed a second button, "Open →", to
+  // actually travel. Round 3, 2026-07-30: "I see search results and a whole Pro Shop
+  // dashboard at once" and "there is a stray PRO SHOP › INVENTORY / Open → bar… unclear what
+  // it is." The preview and its bar are gone; the row itself is the trip.
   const lap = openLaptop(livedInClub());
   typeQuery(lap, 'Pine Hills cap');
   const rows = collect(lap.root, 'lt-hit');
   const target = rows.find((r) => r.textContent.includes('Pine Hills cap'));
   assert.ok(target, 'the cap must be findable by its own name');
   target.click();
-  assert.ok(collect(lap.root, 'lt-searchpreview').length === 1, 'the preview panel renders');
-  const preview = collect(lap.root, 'lt-searchpreview')[0];
-  assert.match(preview.textContent, /Pine Hills cap/, 'the preview carries the real inventory row');
-  const open = collect(lap.root, 'lt-hitopen')[0];
-  assert.ok(open, 'the preview bar offers Open');
-  open.click();
-  assert.equal(lap.pageId(), 'shop', 'Open navigates to the Pro Shop');
+  assert.equal(lap.pageId(), 'shop', 'the row navigates to the Pro Shop by itself');
   const reveal = lap.lastSearchReveal();
   assert.equal(reveal.anchor, 'Pine Hills cap');
   assert.equal(reveal.found, true, `navigated but never found the row: ${JSON.stringify(reveal)}`);
+  // …and the real page is what is on screen — the destination's own inventory row.
+  assert.ok(collect(lap.root, 'lt-searchhit').length >= 1, 'the landing flash marks the row');
 });
-test('a settings switch previews as the real checkbox row and Open lands on its tab', () => {
+test('a settings switch lands on its own tab, at the real checkbox', () => {
   const lap = openLaptop(livedInClub());
   typeQuery(lap, 'exact change');
   const rows = collect(lap.root, 'lt-hit');
@@ -338,23 +335,114 @@ test('a settings switch previews as the real checkbox row and Open lands on its 
   const crumbs = target.querySelectorAll('.lt-hitcrumb').map((n) => n.textContent);
   assert.deepEqual(crumbs, ['Settings', 'Checkout']);
   target.click();
-  const preview = collect(lap.root, 'lt-searchpreview')[0];
-  assert.ok(preview, 'the preview panel renders');
-  // The REAL row: a label wrapping an actual checkbox input, not a description.
+  assert.equal(lap.pageId(), 'settings');
+  assert.equal(lap.lastSearchReveal().found, true);
+  // The REAL row: a label wrapping an actual checkbox input, not a description of one.
   let realRow = false;
-  walk(preview, (node) => {
+  walk(lap.root, (node) => {
     if (node.tagName === 'label' && node.textContent.includes('Automatic exact change')) {
       walk(node, (child) => {
         if (child.tagName === 'input' && child.attrs.type === 'checkbox') realRow = true;
       });
     }
   });
-  assert.ok(realRow, 'the preview carries the actual switch, checkbox and all');
-  assert.ok(collect(preview, 'lt-searchhit').length >= 1, 'and the anchor flashes inside the preview');
-  collect(lap.root, 'lt-hitopen')[0].click();
-  assert.equal(lap.pageId(), 'settings');
-  assert.equal(lap.lastSearchReveal().found, true);
+  assert.ok(realRow, 'the destination carries the actual switch, checkbox and all');
 });
+// --- how the results READ (round 3, 2026-07-30) ----------------------------------------------
+//
+// Five complaints came off one screenshot of a search for "kit" — four correct results,
+// presented unusably. Each one is a test.
+
+test('the ITEM NAME is the row\'s first line and the page path sits under it', () => {
+  // "Each row shows the page path in small blue caps and the item name below it in larger
+  // text. INVERT that: the ITEM NAME is what I am searching for." Round 2 had deliberately
+  // made the path the lead line. This is the reversal, pinned so it cannot drift back.
+  const lap = openLaptop(livedInClub());
+  typeQuery(lap, 'kit');
+  const rows = collect(lap.root, 'lt-hit');
+  assert.ok(rows.length > 0);
+  for (const row of rows) {
+    const body = row.querySelectorAll('.lt-hitbody')[0];
+    assert.ok(body, 'each row has a body');
+    const lines = body.children.filter((c) => c.nodeType === 1);
+    assert.ok(lines[0].classList.contains('lt-hitname'),
+      'the name must be the first line in the row, not the second');
+    assert.ok(lines[1].classList.contains('lt-hitpath'),
+      'and the page path is the context line under it');
+  }
+});
+
+test('a query whose results are all one kind draws no filter chips', () => {
+  // "The filter chips read 'All 4' and 'Catalogue 4'. Two chips for the same four results is
+  // not a filter." searchGroups always leads with All, so one populated group means two chips
+  // that select identical rows.
+  const lap = openLaptop(livedInClub());
+  typeQuery(lap, 'kit');
+  assert.equal(collect(lap.root, 'lt-hit').length, 4, 'the reported query still returns its four hits');
+  assert.equal(collect(lap.root, 'lt-hitfilters').length, 0,
+    'four results of one kind must not be offered a filter that cannot split them');
+
+  // …and a query that genuinely spans groups still gets its strip.
+  typeQuery(lap, 'course');
+  assert.equal(collect(lap.root, 'lt-hitfilters').length, 1, 'a query across groups keeps its chips');
+  assert.ok(collect(lap.root, 'lt-tab').length >= 3, 'All plus two real groups is a real filter');
+});
+
+test('the kind mark and the kind tag appear only when the results differ in kind', () => {
+  // "Every row has an identical grey icon and an identical PRODUCT tag on the right. Both are
+  // noise if everything is a product."
+  const lap = openLaptop(livedInClub());
+  typeQuery(lap, 'kit');
+  assert.equal(collect(lap.root, 'lt-hitkind').length, 0, 'one kind, so the tag says nothing');
+  assert.equal(collect(lap.root, 'lt-hitmark').length, 0, 'one kind, so the glyph says nothing');
+
+  typeQuery(lap, 'course');
+  const rows = collect(lap.root, 'lt-hit');
+  assert.ok(rows.length > 1);
+  assert.equal(collect(lap.root, 'lt-hitkind').length, rows.length, 'mixed kinds: every row is labelled');
+  assert.equal(collect(lap.root, 'lt-hitmark').length, rows.length);
+  assert.ok(new Set(collect(lap.root, 'lt-hitkind').map((n) => n.textContent)).size >= 2,
+    'and the labels actually differ, or they would be noise again');
+});
+
+test('the results REPLACE the page — no second page underneath, no stray bar', () => {
+  // "The results list appears ABOVE the full underlying page, which is still rendered below
+  // it. I see search results and a whole Pro Shop dashboard at once," and "there is a stray
+  // 'PRO SHOP › INVENTORY / Open →' bar between the results and the page content."
+  const lap = openLaptop(livedInClub());
+  lap.go('shop');
+  assert.ok(collect(lap.root, 'lt-h1').length >= 1, 'the shop draws a page heading');
+  typeQuery(lap, 'kit');
+  const headings = collect(lap.root, 'lt-h1').map((n) => n.textContent);
+  assert.equal(headings.length, 1, `two page headings means two pages on screen: ${headings}`);
+  assert.match(headings[0], /^Search — /, 'and the one heading is the search');
+  assert.equal(collect(lap.root, 'lt-searchpreview').length, 0, 'no page is previewed under the list');
+  assert.equal(collect(lap.root, 'lt-previewbar').length, 0, 'and the bar that labelled it is gone');
+  assert.equal(collect(lap.root, 'lt-hitopen').length, 0, 'the second "Open →" button is gone with it');
+  // Clearing the field puts the page back exactly as it was.
+  const field = firstNode(lap.root, (n) => n.tagName === 'input' && n.classList.contains('lt-search'));
+  field.value = '';
+  for (const fn of field._listeners.input) fn({ target: field });
+  assert.equal(collect(lap.root, 'lt-hit').length, 0, 'no results linger');
+  assert.equal(lap.pageId(), 'shop', 'and the page underneath is the one that was there');
+});
+
+test('the arrow keys walk the results and Enter opens the highlighted one', () => {
+  // The list owns the screen now, so it has to be reachable without the mouse.
+  const lap = openLaptop(livedInClub());
+  const field = typeQuery(lap, 'kit');
+  const press = (key) => { for (const fn of field._listeners.keydown) fn({ key, target: field, stopPropagation() {}, preventDefault() {} }); };
+  const marked = () => collect(lap.root, 'lt-hit').findIndex((r) => r.classList.contains('on'));
+  assert.equal(marked(), 0, 'the first result starts highlighted');
+  press('ArrowDown');
+  assert.equal(marked(), 1);
+  press('ArrowUp');
+  assert.equal(marked(), 0);
+  press('Enter');
+  assert.equal(lap.pageId(), 'shop', 'Enter travels to the highlighted result');
+  assert.equal(lap.lastSearchReveal().anchor, 'Clubhouse repair components');
+});
+
 test('NEGATIVE CONTROL — an anchor that is not on the destination reports found:false', () => {
   // The instrument has to be able to say no. If revealAnchor claimed a hit for anything, all
   // three tests above would pass with the highlight wired to nothing at all.
