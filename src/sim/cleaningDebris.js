@@ -11,11 +11,16 @@
 // behaviour the reference art is asking for, save in a few hundred bytes, and never explode.
 
 import { restorationAction } from './clubhouseRestoration.js';
+import { BROOM_FEEL } from '../data/broomFeel.js';
 
 const MAX_CLUSTERS = 96;      // a hard ceiling: merging keeps us far below this in practice
 export const DEBRIS_MERGE_YD = 0.34;  // piles closer than this become one
-const SWEEP_SPEED_YD = 1.05;  // how fast the bristles push debris, yards/second
-const SWEEP_MAX_STEP = 0.42;  // no single stroke may fling debris further than this
+// How fast the bristles push debris. From the one broom tuning file: the push
+// must beat the walk speed (2.2 yd/s), or a forward push at full stride walks
+// straight over its own pile — the review's "dirt lag". (Shipped at 1.05
+// before Phase 6 round 2.)
+const SWEEP_SPEED_YD = BROOM_FEEL.dirt.pushSpeed;
+const SWEEP_MAX_STEP = BROOM_FEEL.dirt.maxStep;  // no single stroke may fling debris further
 const SUCK_PULL_YD = 1.35;    // how hard the intake draws debris in, yards/second
 const SUCK_MOUTH_YD = 0.16;   // debris is consumed only this close to the nozzle
 

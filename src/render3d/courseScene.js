@@ -6885,21 +6885,32 @@ export function makeCourseScene(canvas, state) {
       : (walkSpraying || walkSoaping || holdActive);
     fpHands.update(dt, handsUsing);
     if (!heldRoot.visible) return;
-    // Rise on equip over 0.26 s; stow faster (0.18 s) so switching tools feels crisp.
-    const equipDur = walk.reducedMotion ? 0.001 : (heldAnim.show ? 0.26 : 0.18);
+    // Rise on equip over 0.26 s; stow faster (0.18 s) so switching tools feels
+    // crisp. The broom's rise/stow/settle timings come from its own tuning
+    // file (Phase 6: every broom feel value lives in broomFeel.js).
+    const broomOwned = walkTool === 'broom' && broomVm.isActive();
+    const equipDur = walk.reducedMotion ? 0.001
+      : (heldAnim.show
+        ? (broomOwned ? BROOM_FEEL.equip.duration : 0.26)
+        : (broomOwned ? BROOM_FEEL.unequip.duration : 0.18));
     heldAnim.t = Math.min(1, heldAnim.t + dt / equipDur);
-    const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
+    // the broom drops with an ease-IN (slow release, brisk exit); everything
+    // else keeps the shared ease-out both ways
+    const k = heldAnim.show ? easeOutCubic(heldAnim.t)
+      : (broomOwned ? 1 - broomVm.easeInCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t));
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
       heldAnim.settle = 0;
       return;
     }
-    // A brief settle overshoot as the tool lands in the hands: +0.012 yd then back to rest over
-    // 0.06 s. Cosmetic only, so it is gated on !reducedMotion.
+    // A brief settle overshoot as the tool lands in the hands, then back to
+    // rest. Cosmetic only, so it is gated on !reducedMotion.
+    const settleAmp = broomOwned ? BROOM_FEEL.equip.settleOvershoot : 0.012;
+    const settleDur = broomOwned ? BROOM_FEEL.equip.settleTime : 0.06;
     let settleY = 0;
     if (heldAnim.show && heldAnim.t >= 1 && !walk.reducedMotion) {
-      heldAnim.settle = Math.min(1, heldAnim.settle + dt / 0.06);
-      settleY = Math.sin(heldAnim.settle * Math.PI) * 0.012;
+      heldAnim.settle = Math.min(1, heldAnim.settle + dt / settleDur);
+      settleY = Math.sin(heldAnim.settle * Math.PI) * settleAmp;
     } else if (heldAnim.show && heldAnim.t < 1) {
       heldAnim.settle = 0;
     }
@@ -8219,14 +8230,20 @@ export function makeCourseScene(canvas, state) {
       moving: walkMoving,
       phase: time * BROOM_RATE,
       reducedMotion: walk.reducedMotion,
+      speedNorm: dt > 0 ? Math.min(1, (distanceMoved / dt) / 2.2) : 0,
     }) : null;
     if (broomPose && broomPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
       camera.rotation.x -= broomPose.cameraKickRad;
     }
-    // The audio layers ride the rig's feel: intensity every frame, with the
-    // contact edge defined as "bristles in the fast window AND planted".
+    // The audio layers ride the rig's feel: intensity every frame, the
+    // contact edge defined as "bristles in the fast window AND planted", and
+    // the surface under the bristles so the loop's brightness answers it.
     if (broomPose) {
-      walkHooks.onBroomFeel?.(broomPose.intensity, broomPose.inContact && broomPose.planted);
+      const broomSurface = clubhouseApi?.cleaningSurfaceAt
+        ? clubhouseApi.cleaningSurfaceAt(broomPose.contactX, broomPose.contactZ) : null;
+      walkHooks.onBroomFeel?.(
+        broomPose.intensity, broomPose.inContact && broomPose.planted, broomSurface,
+      );
     }
     if (walkSpraying && CLEANING_TOOLS[walkTool] && !CLEANING_TOOLS[walkTool].external
       && !cart.mounted && clubhouseApi && clubhouseApi.cleanWithTool) {

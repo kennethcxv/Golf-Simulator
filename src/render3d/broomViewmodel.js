@@ -47,47 +47,57 @@ const _ndc = new THREE.Vector3();
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 function easeInCubic(t) { return t * t * t; }
 
-// One arm: an upper segment that exits the frame and a forearm that is
-// re-aimed every frame to span elbow -> wrist, with the rolled cuff at the
-// ELBOW end so its opening can never face the camera.
+// One arm, House Flipper proportions: a SHORT fixed-length skin forearm at
+// the wrist (never stretched to cover distance), a rolled cuff at the elbow,
+// and a sleeved upper segment that dives from the elbow to an off-frame
+// shoulder anchor — the clothed arm carries the distance, so skin reads from
+// roughly mid-forearm to the hand and nothing else.
 function buildArm(mats, mirror) {
+  const a = BROOM_FEEL.arms;
   const group = new THREE.Group();
   group.name = mirror > 0 ? 'BroomRightArm' : 'BroomLeftArm';
 
-  // Object3D.lookAt points a plain object's +Z at its target, so the forearm
-  // is built along +Z: elbow at the pivot origin, wrist end toward +Z.
-  const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.036, 0.30, 6, 12), mats.skin);
+  // Object3D.lookAt points a plain object's +Z at its target, so both
+  // segments are built along +Z with their pivot at the ELBOW.
+  const forearm = new THREE.Mesh(
+    new THREE.CapsuleGeometry(a.forearmRadius, a.forearmSpan, 6, 12), mats.skin,
+  );
   forearm.rotation.x = Math.PI / 2;
   const forearmPivot = new THREE.Group();
   forearmPivot.add(forearm);
-  forearm.position.z = 0.17; // capsule centre sits between elbow and wrist
+  forearm.position.z = a.forearmSpan / 2; // spans elbow (origin) -> wrist (+z)
   group.add(forearmPivot);
 
-  const sleeve = new THREE.Group();
-  const sleeveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.052, 0.11, 12), mats.cuff);
-  sleeveBody.rotation.x = Math.PI / 2;
-  sleeve.add(sleeveBody);
-  const cuffRoll = new THREE.Mesh(new THREE.TorusGeometry(0.049, 0.013, 8, 18), mats.cuff);
-  cuffRoll.position.z = 0.052; // the rolled opening faces the wrist, never the camera
-  sleeve.add(cuffRoll);
-  const cuffInner = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), mats.cuffDark);
-  cuffInner.position.z = 0.056;
-  sleeve.add(cuffInner);
-  forearmPivot.add(sleeve);
-  sleeve.position.z = 0.03; // wraps the elbow end of the forearm
+  // the rolled cuff wraps the elbow joint, aimed along the forearm; it is NOT
+  // a child of the scaled pivot, so span adjustments never stretch the roll
+  const cuff = new THREE.Group();
+  const cuffRoll = new THREE.Mesh(
+    new THREE.TorusGeometry(a.forearmRadius + 0.014, 0.015, 8, 18), mats.cuff,
+  );
+  cuffRoll.position.z = 0.045;
+  cuff.add(cuffRoll);
+  const cuffBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(a.forearmRadius + 0.010, a.sleeveRadius, 0.09, 12), mats.cuff,
+  );
+  cuffBody.rotation.x = Math.PI / 2;
+  cuff.add(cuffBody);
+  group.add(cuff);
 
-  const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.048, 0.26, 6, 12), mats.cuff);
-  upper.rotation.x = Math.PI / 2;
-  const upperPivot = new THREE.Group();
-  upperPivot.add(upper);
-  upper.position.z = -0.15; // continues from the elbow away, off-frame
-  group.add(upperPivot);
+  // the sleeve: elbow -> off-frame shoulder anchor
+  const sleeve = new THREE.Mesh(
+    new THREE.CapsuleGeometry(a.sleeveRadius, a.sleeveLength, 6, 12), mats.cuff,
+  );
+  sleeve.rotation.x = Math.PI / 2;
+  const sleevePivot = new THREE.Group();
+  sleevePivot.add(sleeve);
+  sleeve.position.z = a.sleeveLength / 2;
+  group.add(sleevePivot);
 
-  for (const mesh of [forearm, sleeveBody, cuffRoll, cuffInner, upper]) {
+  for (const mesh of [forearm, cuffRoll, cuffBody, sleeve]) {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
   }
-  return { group, forearmPivot, upperPivot };
+  return { group, forearmPivot, cuff, sleevePivot };
 }
 
 /**
@@ -121,13 +131,21 @@ export function createBroomViewmodel({
   right.group.visible = false;
   left.group.visible = false;
 
-  // Elbow anchors in CAMERA space: low, wide, behind the grips — off the
-  // bottom corners of the viewmodel frame. They belong to the BODY, not the
-  // tool, so they must not rotate with the shaft; each frame they are
-  // converted into the broom group's local frame before posing.
-  const elbowRightCam = new THREE.Vector3(0.42, -0.66, -0.16);
-  const elbowLeftCam = new THREE.Vector3(-0.34, -0.70, -0.30);
+  // Arm anchors from the ONE tuning file. Elbows are WRIST-RELATIVE in camera
+  // axes (right/up/toward-viewer), so the forearm enters foreshortened just
+  // below its hand at every pose instead of stretching from a fixed corner;
+  // shoulders are fixed camera-space points BELOW the frame edge, so the
+  // sleeve always exits the frame clothed.
+  const armCfg = feel.arms;
+  const elbowOffsetRight = new THREE.Vector3(...armCfg.elbowOffsetRight);
+  const elbowOffsetLeft = new THREE.Vector3(...armCfg.elbowOffsetLeft);
+  const shoulderRight = new THREE.Vector3(...armCfg.shoulderRight);
+  const shoulderLeft = new THREE.Vector3(...armCfg.shoulderLeft);
   const _elbowWorld = new THREE.Vector3();
+  const _shoulderWorld = new THREE.Vector3();
+  const _basisX = new THREE.Vector3();
+  const _basisY = new THREE.Vector3();
+  const _basisZ = new THREE.Vector3();
 
   let active = false;
   let reach = feel.frame.headForward;
@@ -167,30 +185,75 @@ export function createBroomViewmodel({
     }
   }
 
-  // Aim one arm: pivot the forearm to look at the wrist from the elbow, and
-  // the upper arm to run from the elbow away toward its off-frame shoulder.
-  function poseArm(arm, handGroup, elbowCam) {
+  // Aim one arm: elbow just below its wrist (camera axes), skin forearm
+  // spanning elbow -> wrist at ~authored length, cuff at the joint, and the
+  // sleeve diving from the elbow to the off-frame shoulder anchor.
+  function poseArm(arm, handGroup, elbowOffset, shoulderCam, stash) {
     handGroup.getWorldPosition(_wrist); // wrist, world
-    // elbow: camera space -> world -> broom-local, so the anchor stays with
-    // the body while the group carries the tool's pitch/roll
-    _elbowWorld.copy(elbowCam).applyMatrix4(camera.matrixWorld);
+    camera.matrixWorld.extractBasis(_basisX, _basisY, _basisZ);
+    _elbowWorld.copy(_wrist)
+      .addScaledVector(_basisX, elbowOffset.x)
+      .addScaledVector(_basisY, elbowOffset.y)
+      .addScaledVector(_basisZ, elbowOffset.z);
+    _shoulderWorld.copy(shoulderCam).applyMatrix4(camera.matrixWorld);
     _elbow.copy(_elbowWorld);
     broomGroup.worldToLocal(_elbow);
     arm.group.position.copy(_elbow);
     _span.copy(_wrist).sub(_elbowWorld);
     const length = Math.max(0.12, _span.length());
     arm.forearmPivot.lookAt(_wrist);
-    arm.forearmPivot.scale.z = length / 0.34; // authored span of the capsule
-    // the upper arm continues the line away from the wrist, dropped toward
-    // the frame's bottom edge
-    arm.upperPivot.quaternion.copy(arm.forearmPivot.quaternion);
-    arm.upperPivot.rotateX(-0.55);
+    arm.forearmPivot.scale.z = Math.max(
+      armCfg.spanScaleMin, Math.min(armCfg.spanScaleMax, length / armCfg.forearmSpan),
+    );
+    arm.cuff.quaternion.copy(arm.forearmPivot.quaternion);
+    arm.sleevePivot.lookAt(_shoulderWorld);
+    arm.sleevePivot.scale.z = Math.max(0.5, _mid.copy(_shoulderWorld).sub(_elbowWorld).length() / armCfg.sleeveLength);
+    if (stash) {
+      stash.ex = _elbowWorld.x; stash.ey = _elbowWorld.y; stash.ez = _elbowWorld.z;
+      stash.wx = _wrist.x; stash.wy = _wrist.y; stash.wz = _wrist.z;
+      stash.spanYd = length;
+    }
+  }
+
+  // Screen-space arm metrics for the proportion evidence: project elbow and
+  // wrist through the viewmodel lens, clip the segment to the NDC box, and
+  // report how much of the frame's height the visible run covers.
+  const _pa = new THREE.Vector3();
+  const _pb = new THREE.Vector3();
+  function armScreenMetrics(stash) {
+    if (!stash || stash.spanYd === undefined) return null;
+    _pa.set(stash.ex, stash.ey, stash.ez).project(vmCamera);
+    _pb.set(stash.wx, stash.wy, stash.wz).project(vmCamera);
+    // visible parameter range of elbow->wrist inside |x|<=1, |y|<=1
+    let t0 = 0; let t1 = 1;
+    for (const axis of ['x', 'y']) {
+      const a = _pa[axis]; const b = _pb[axis];
+      const d = b - a;
+      if (Math.abs(d) < 1e-6) {
+        if (Math.abs(a) > 1) { t0 = 1; t1 = 0; }
+        continue;
+      }
+      let lo = (-1 - a) / d; let hi = (1 - a) / d;
+      if (lo > hi) { const swap = lo; lo = hi; hi = swap; }
+      t0 = Math.max(t0, lo); t1 = Math.min(t1, hi);
+    }
+    const vis = Math.max(0, t1 - t0);
+    return {
+      elbowNdc: { x: +_pa.x.toFixed(3), y: +_pa.y.toFixed(3) },
+      wristNdc: { x: +_pb.x.toFixed(3), y: +_pb.y.toFixed(3) },
+      spanYd: +stash.spanYd.toFixed(3),
+      visibleFrac: +vis.toFixed(3), // fraction of the arm segment on screen
+      // fraction of the frame HEIGHT the visible run climbs (the number the
+      // House Flipper comparison is made in)
+      screenRunY: +((Math.abs(_pb.y - _pa.y) * vis) / 2).toFixed(3),
+    };
   }
 
   function update(dt, ctx) {
     if (!active) return null;
     const {
       pitch = 0, using = false, moving = false, phase = 0, reducedMotion = false,
+      speedNorm = 0,
     } = ctx;
 
     // --- reach follows pitch (eased) ---------------------------------------
@@ -201,12 +264,39 @@ export function createBroomViewmodel({
     const follow = reducedMotion ? 1 : Math.min(1, dt * p.followRate);
     reach += (wantReach - reach) * follow;
 
-    // --- stroke offset + collision clamp -----------------------------------
+    // --- stroke offset: the WEIGHTED head -----------------------------------
+    // The drawn head follows the stroke through an under-damped spring: it
+    // lags each direction change, overshoots a touch, and settles rather than
+    // snapping. The sim contact uses the SAME lagged value, so the cleaning
+    // always lands where the bristles visibly are.
     const s = feel.stroke;
-    const strokeX = using ? Math.sin(phase) * s.span : 0;
+    const w = feel.weight;
+    const jammed = clampedNow; // last frame's clamp state gates this frame's stroke drive
+    const spanEff = s.span * (jammed ? feel.collision.stallSquash : 1);
+    const strokeTarget = using ? Math.sin(phase) * spanEff : 0;
+    if (state.lagX === undefined) { state.lagX = 0; state.lagV = 0; }
+    if (reducedMotion) {
+      state.lagX = strokeTarget; state.lagV = 0;
+    } else {
+      // semi-implicit spring, sub-stepped for stability on long frames
+      const omega = 2 * Math.PI * w.lagHz;
+      let remaining = Math.min(dt, 0.1);
+      while (remaining > 0) {
+        const h = Math.min(remaining, 1 / 120);
+        state.lagV += (
+          (strokeTarget - state.lagX) * omega * omega - 2 * w.lagDamping * omega * state.lagV
+        ) * h;
+        state.lagX += state.lagV * h;
+        remaining -= h;
+      }
+    }
+    const strokeX = state.lagX;
     const cosPhase = Math.cos(phase);
     const inContact = using && Math.abs(cosPhase) >= s.contactCos;
-    const wantIntensity = using ? (inContact ? Math.abs(cosPhase) : 0.25) : 0;
+    let wantIntensity = using ? (inContact ? Math.abs(cosPhase) : 0.25) : 0;
+    // sweeping on the move works harder: the pass covers more boards
+    if (using) wantIntensity = Math.min(1, wantIntensity * (1 + w.speedBoost * speedNorm));
+    if (jammed) wantIntensity *= feel.collision.stallIntensity;
     intensity += (wantIntensity - intensity) * Math.min(1, dt * 8);
 
     // head position in world XZ: camera + forward*reach + right*strokeX
@@ -257,28 +347,44 @@ export function createBroomViewmodel({
     const fy = floorY ? floorY(camera.position.x, camera.position.z) : null;
     const eyeToFloor = fy == null ? 1.62 : Math.max(0.6, camera.position.y - fy);
     const drop = eyeToFloor + feel.frame.place[1] - feel.surface.floorKiss;
-    const solvedPitch = -Math.atan2(drop, Math.max(0.25, state.drawReach));
+    // The DRAWN pose never solves steeper than poseReachFloor allows — a jam
+    // stalls the broom PROUD against the face instead of folding it to a
+    // vertical stick at the feet. The sim contact keeps the true clamped
+    // reach (cleaning is against the face anyway while jammed).
+    const poseReach = Math.max(feel.collision.poseReachFloor, state.drawReach);
+    const solvedPitch = -Math.atan2(drop, Math.max(0.25, poseReach));
     const blendSpan = Math.max(0.001, p.carryAbove - p.workBelow);
     const rawBlend = (p.carryAbove - clamped) / blendSpan;
     const workT = Math.max(0, Math.min(1, rawBlend));
     const workBlend = workT * workT * (3 - 2 * workT); // smoothstep
     // carry pose is camera-fixed (a carried tool tips with your look); the
     // work pose is world-fixed (camera-relative correction -pitch). A clamp
-    // steepens the carry too — the DRAWN head must respect furniture as much
-    // as the working contact does.
+    // steepens the carry a LITTLE — the drawn head respects furniture, but
+    // stalls rather than folds.
     const clampPull = 1 - (state.drawReach / Math.max(0.001, p.reachFar));
-    const carryPitchEff = feel.frame.carryPitch - clampPull * 0.55;
+    const carryPitchEff = feel.frame.carryPitch - clampPull * feel.collision.carrySteepen;
     const groupPitch = carryPitchEff * (1 - workBlend)
       + (solvedPitch - pitch) * workBlend;
+    // body sway: the rig trails the view's yaw and settles — weight you can
+    // feel on every direction change, not just stroke reversals
+    const yawNow = ctx.yaw ?? 0;
+    if (state.lagYaw === undefined) state.lagYaw = yawNow;
+    state.lagYaw += Math.atan2(Math.sin(yawNow - state.lagYaw), Math.cos(yawNow - state.lagYaw))
+      * Math.min(1, dt * w.yawLagRate);
+    const yawSway = reducedMotion ? 0 : Math.max(
+      -w.yawLagMax, Math.min(w.yawLagMax,
+        Math.atan2(Math.sin(state.lagYaw - yawNow), Math.cos(state.lagYaw - yawNow))),
+    );
     broomGroup.position.set(
       feel.frame.place[0] + strokeX,
       feel.frame.place[1],
       feel.frame.place[2],
     );
+    const rollLean = Math.max(-w.rollMax, Math.min(w.rollMax, state.lagV * w.rollVelGain));
     broomGroup.rotation.set(
       groupPitch,
-      feel.frame.yaw,
-      (using ? cosPhase * feel.stroke.rollAmp : 0) + tilt * 0.5 * tiltAxis,
+      feel.frame.yaw + yawSway,
+      (using ? rollLean : 0) + tilt * 0.5 * tiltAxis,
     );
 
     // --- camera response (sub-2°, eased both ways) --------------------------
@@ -292,8 +398,10 @@ export function createBroomViewmodel({
     const handsRoot = fpHands.root;
     const rightHand = handsRoot.getObjectByName('FirstPersonRightHand');
     const leftHand = handsRoot.getObjectByName('FirstPersonLeftHand');
-    if (rightHand) poseArm(right, rightHand, elbowRightCam);
-    if (leftHand && leftHand.visible) poseArm(left, leftHand, elbowLeftCam);
+    state.armR = state.armR || {};
+    state.armL = state.armL || {};
+    if (rightHand) poseArm(right, rightHand, elbowOffsetRight, shoulderRight, state.armR);
+    if (leftHand && leftHand.visible) poseArm(left, leftHand, elbowOffsetLeft, shoulderLeft, state.armL);
     left.group.visible = !!(leftHand && leftHand.visible);
 
     // --- head NDC (the level-pitch acceptance number) -----------------------
@@ -359,6 +467,10 @@ export function createBroomViewmodel({
       tilt: +tilt.toFixed(3),
       intensity: +intensity.toFixed(3),
       headNdc: lastHeadNdc,
+      arms: {
+        right: armScreenMetrics(state.armR),
+        left: armScreenMetrics(state.armL),
+      },
     }),
     dispose() {
       for (const material of Object.values(mats)) material.dispose();

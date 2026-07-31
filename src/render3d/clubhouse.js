@@ -5020,7 +5020,7 @@ export function makeClubhouse(ctx) {
   let cleanClock = 0;
   let moteFade = 0;
 
-  function showCleaningMotes(kind, wx, wz, dirX = 0, dirZ = 0, dt = 0.016, surface = null) {
+  function showCleaningMotes(kind, wx, wz, dirX = 0, dirZ = 0, dt = 0.016, surface = null, amount = 0) {
     const styles = {
       suction: { color: 0xb7a88c, size: 0.045 },
       sweep: { color: 0x9f8a68, size: 0.052 },
@@ -5034,11 +5034,18 @@ export function makeClubhouse(ctx) {
     // (it owns the gate's LOCAL point; cleaningSurfaceAt is local-frame), and
     // only the broom's kind consults the one tuning file, so every other tool
     // keeps its authored style untouched.
+    let sizeScale = 1;
     if (kind === 'sweep' && surface) {
       style = BROOM_FEEL.particles.surface[surface] || style;
     }
+    if (kind === 'sweep') {
+      // the kick scales with how much debris the stroke ACTUALLY moved — an
+      // empty pass barely dusts, a loaded pile kicks visibly
+      const pc = BROOM_FEEL.particles;
+      sizeScale = Math.max(pc.sizeMin, Math.min(pc.sizeMax, Math.sqrt((amount || 0) / pc.amountRef)));
+    }
     motes.material.color.set(style.color);
-    motes.material.size = style.size;
+    motes.material.size = style.size * sizeScale;
     motes.visible = true;
     moteFade = 0.16;
     const uxLen = Math.hypot(dirX, dirZ) || 1;
@@ -5382,7 +5389,7 @@ export function makeClubhouse(ctx) {
         // a broom moves debris; it never deletes it
         did = sweepAt(state, l.x, l.z, dirX, dirZ, def.radius, dt).moved;
         if (did > 0) refreshDebrisVisual();
-        if (did > 0) showCleaningMotes('sweep', wx, wz, dirX, dirZ, dt, cleaningSurfaceAt(l.x, l.z));
+        if (did > 0) showCleaningMotes('sweep', wx, wz, dirX, dirZ, dt, cleaningSurfaceAt(l.x, l.z), did);
         return finish({ did, kind: 'sweep' });
       }
       case TOOL_CLASS.SCOOP: {

@@ -1630,9 +1630,10 @@ export function makeAudio(preferences = null) {
         pulse.gain.value = 1 - v.depth * 0.5;
         src.connect(filter).connect(pulse).connect(gain);
         lfo.start();
-        // Phase 6: keep a handle on the pulse LFO so stroke intensity can
-        // ride the loop's rhythm (a harder pass pulses faster and louder).
-        toolLoopVoice[kind] = { lfo, baseRate: v.rate };
+        // Phase 6: keep handles on the pulse LFO and the bandpass so stroke
+        // intensity can ride the loop's rhythm and the SURFACE can shift its
+        // brightness (bright bristle on boards, a dull drag on carpet).
+        toolLoopVoice[kind] = { lfo, baseRate: v.rate, filter, baseHz: v.hz };
       }
       if (kind === 'mop') {
         // A second, low-passed tap of the same noise gives the wet mop its weight — the heavy
@@ -1690,16 +1691,20 @@ export function makeAudio(preferences = null) {
   // bristles first bite, per-frame intensity riding the loop's gain and pulse
   // rate, and a soft release tail as they lift. All numbers from
   // BROOM_FEEL.audio — the one tuning file.
-  function setToolLoopIntensity(kind, intensity) {
+  function setToolLoopIntensity(kind, intensity, surface = null) {
     if (!ctx || activeToolLoop !== kind || !toolLoops[kind]) return;
-    const level = TOOL_LOOP_LEVEL[kind] || 0.04;
     const a = BROOM_FEEL.audio;
+    const surf = (surface && a.surface && a.surface[surface]) || null;
+    const level = (TOOL_LOOP_LEVEL[kind] || 0.04) * (surf ? surf.gainScale : 1);
     const i = Math.max(0, Math.min(1, Number(intensity) || 0));
     toolLoops[kind].gain.setTargetAtTime(level * (1 + a.loopGainSlope * i), ctx.currentTime, 0.08);
     const voice = toolLoopVoice[kind];
     if (voice) {
       voice.lfo.frequency.setTargetAtTime(
         a.loopRateBase + a.loopRateSlope * i, ctx.currentTime, 0.10,
+      );
+      voice.filter.frequency.setTargetAtTime(
+        surf ? surf.hz : voice.baseHz, ctx.currentTime, 0.12,
       );
     }
   }

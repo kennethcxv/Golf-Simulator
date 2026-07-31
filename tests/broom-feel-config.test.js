@@ -54,6 +54,38 @@ test('contact particles answer both interior surface kinds', () => {
   assert.ok(BROOM_FEEL.particles.surface.carpet, 'carpet styled');
 });
 
+test('the audio loop answers both interior surface kinds', () => {
+  assert.ok(BROOM_FEEL.audio.surface['hard-floor'], 'hard-floor voiced');
+  assert.ok(BROOM_FEEL.audio.surface.carpet, 'carpet voiced');
+  assert.ok(BROOM_FEEL.audio.surface.carpet.hz < BROOM_FEEL.audio.surface['hard-floor'].hz,
+    'carpet is the duller drag, boards the bright bristle');
+});
+
+test('the debris push beats the walk speed — dirt recedes, it is not overrun', () => {
+  // Walking is 2.2 yd/s. A push slower than that walks OVER its own pile and
+  // the debris pops out behind the bristles — the round-1 "dirt lag".
+  assert.ok(BROOM_FEEL.dirt.pushSpeed > 2.2,
+    `pushSpeed ${BROOM_FEEL.dirt.pushSpeed} must beat the 2.2 yd/s walk`);
+  assert.ok(BROOM_FEEL.dirt.maxStep > 0 && BROOM_FEEL.dirt.maxStep < 1,
+    'a stroke still cannot fling debris across the room');
+});
+
+test('the head-follow spring is under-damped — it settles, it does not snap', () => {
+  assert.ok(BROOM_FEEL.weight.lagHz > 0, 'the spring has a natural frequency');
+  assert.ok(BROOM_FEEL.weight.lagDamping > 0 && BROOM_FEEL.weight.lagDamping < 1,
+    'damping < 1 gives the visible overshoot-and-settle');
+});
+
+test('a jam stalls the broom proud instead of folding it vertical', () => {
+  // Round 1 pulled the carry pitch down 0.55 rad at a full clamp — a
+  // vertical stick at the feet. The stall keeps it a working tool.
+  assert.ok(BROOM_FEEL.collision.carrySteepen < 0.4, 'the jam no longer folds the shaft');
+  assert.ok(BROOM_FEEL.collision.stallSquash > 0 && BROOM_FEEL.collision.stallSquash < 1,
+    'the stroke visibly stalls while jammed');
+  assert.ok(BROOM_FEEL.collision.poseReachFloor >= 0.4,
+    'the drawn pose never solves into the feet');
+});
+
 test('the sweep keeps the sim-preserving contact duty it shipped with', () => {
   // duty = (2/PI)*acos(contactCos) — the fraction of each pass in contact.
   const duty = (2 / Math.PI) * Math.acos(BROOM_FEEL.stroke.contactCos);

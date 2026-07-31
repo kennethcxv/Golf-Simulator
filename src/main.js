@@ -775,9 +775,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   // stroke, and a soft tail on release. Edge state lives here because audio
   // owns the layers and the renderer only reports feel.
   let broomContactWas = false;
-  app.scene3d.walk.hooks.onBroomFeel = (intensity, inContact) => {
+  app.scene3d.walk.hooks.onBroomFeel = (intensity, inContact, surface) => {
     if (!audio.ready) return;
-    audio.setToolLoopIntensity?.('broom', intensity);
+    audio.setToolLoopIntensity?.('broom', intensity, surface);
     if (inContact && !broomContactWas && audio.broomStart) audio.broomStart();
     if (!inContact && broomContactWas && audio.broomStop) audio.broomStop();
     broomContactWas = inContact;
