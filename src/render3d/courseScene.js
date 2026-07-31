@@ -9494,8 +9494,19 @@ export function makeCourseScene(canvas, state) {
     // The player's own position while walking — during a focus pose (the
     // register, the laptop) the camera leaves their head, and the light should
     // follow where the body is, not where the shot is framed from.
-    const px = walk.active ? walk.x : camera.position.x;
-    const pz = walk.active ? walk.z : camera.position.z;
+    // The interior fill is a FIRST-PERSON affordance: it exists so the room you
+    // are standing in, or looking into, reads as unpowered. The overview is a
+    // management map flown above the property, and with "inside is inside" now
+    // a hard answer, panning it over the clubhouse would slam the whole course
+    // dark. Off your feet, there is no fill.
+    if (!walk.active) {
+      viewInsideEased += (0 - viewInsideEased) * VIEW_FILL_EASE;
+      interiorFillLast = viewInsideEased;
+      hemi.intensity *= 1 - interiorFillLast * (1 - interiorFillScale);
+      return;
+    }
+    const px = walk.x;
+    const pz = walk.z;
     // INSIDE IS INSIDE. This used to ramp over the 1.5 yd nearest any boundary,
     // which measures distance to the CLOSEST wall — so standing near an interior
     // wall, or in a shallow part of the room, quietly brightened everything
