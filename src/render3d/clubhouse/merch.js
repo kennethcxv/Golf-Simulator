@@ -405,7 +405,10 @@ export function createMerch(mats) {
     'receipt_printer', 'shopping_bag', 'payment_card', 'customer_display',
     'loose_receipt', 'apparel_wall',
     'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
-    'cash_coin_01', 'cash_coin_05', 'cash_coin_05_sheet01', 'cash_coin_10', 'cash_coin_20', 'cash_coin_50',
+    // cash_coin_20 stays loaded for save-migration visuals; cash_coin_25 is the
+    // live quarter the drawer's fourth well now carries (see COINS).
+    'cash_coin_01', 'cash_coin_05', 'cash_coin_05_sheet01', 'cash_coin_10',
+    'cash_coin_20', 'cash_coin_25', 'cash_coin_50',
     // Asset Sheet 03: the retail fixture family
     'apparel_wall_display', 'hat_wall', 'accessory_slatwall', 'club_rack',
     'putter_rack', 'bag_display', 'shoe_wall', 'ball_shelf', 'snack_shelf',

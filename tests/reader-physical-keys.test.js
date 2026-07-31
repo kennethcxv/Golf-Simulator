@@ -10,6 +10,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import {
+  CHECKOUT_TERMINAL_KEY_ROLES, checkoutTerminalKeyAction,
+} from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const source = readFileSync(
   new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
@@ -39,13 +42,19 @@ test('the terminal GLB models every key the flow needs', async () => {
 });
 
 test('every modelled key name maps to the right action, and nothing else does', () => {
-  const body = sliceFn('terminalKeyActionForName');
   // The map covers the key body AND its glyph face, so a press on the painted
   // number is the same press.
-  assert.match(body, /Terminal_\|t_glyph_/);
-  // Digits, confirm, backspace, clear all reachable.
-  for (const fragment of ['digit:', "'confirm'", "'backspace'", "'clear'"]) {
-    assert.ok(body.includes(fragment), `${fragment} unreachable from a key name`);
+  for (let digit = 0; digit <= 9; digit += 1) {
+    assert.equal(checkoutTerminalKeyAction(`Terminal_Key_${digit}`), `digit:${digit}`);
+    assert.equal(checkoutTerminalKeyAction(`t_glyph_Key_${digit}`), `digit:${digit}`);
+  }
+  assert.equal(checkoutTerminalKeyAction('Terminal_ConfirmButton'), 'confirm');
+  assert.equal(checkoutTerminalKeyAction('t_glyph_ConfirmButton'), 'confirm');
+  assert.equal(checkoutTerminalKeyAction('Terminal_BackButton'), 'backspace');
+  assert.equal(checkoutTerminalKeyAction('Terminal_CancelButton'), 'clear');
+  // …and nothing else does
+  for (const stranger of ['Terminal_Shell', 'Terminal_Screen', 't_deck', '', null, undefined]) {
+    assert.equal(checkoutTerminalKeyAction(stranger), null, `${stranger} is not a key`);
   }
 });
 

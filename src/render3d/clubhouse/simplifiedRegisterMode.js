@@ -218,11 +218,19 @@ export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   counterLift: 0.002,
 });
 export const CHECKOUT_WORKING_GLANCE_SCALE = 0.34;
+// THE DRAWER VIEW BARELY LEANS. Counting change means the cursor travels the
+// whole width of the till, and at full lean that swung the POS cash summary —
+// which the reference keeps directly ABOVE the drawer (154525 / 154641) — off
+// the top of the frame exactly while the player needs to read Giving. A third
+// of the lean is enough to glance at the pile without losing the panel.
+export const CHECKOUT_CASH_GLANCE_SCALE = 0.3;
 
 export function checkoutLookScale(workspaceName, shiftKey = false) {
-  return (workspaceName === 'scan' || workspaceName === 'monitor')
-    ? (shiftKey ? CHECKOUT_WORKING_GLANCE_SCALE : 0)
-    : 1;
+  if (workspaceName === 'scan' || workspaceName === 'monitor') {
+    return shiftKey ? CHECKOUT_WORKING_GLANCE_SCALE : 0;
+  }
+  if (workspaceName === 'cash') return CHECKOUT_CASH_GLANCE_SCALE;
+  return 1;
 }
 const CARD_STATION = Object.freeze({ x: REGISTER.cardterm.x, z: REGISTER.cardterm.z });
 const FRONT_DESK_QUATERNION = new THREE.Quaternion().setFromAxisAngle(
@@ -268,7 +276,11 @@ const RECEIPT_PRINTER_QUATERNION = frontDeskQuaternion(-0.42, 0, 0).multiply(
 const RECEIPT_HANDOFF_QUATERNION = frontDeskQuaternion(-0.12, 0.5, -0.28);
 
 const DRAWER_BILLS = [1, 5, 10, 20, 50];
-const DRAWER_COINS = [0.01, 0.05, 0.1, 0.2, 0.5];
+// 1¢ 5¢ 10¢ 25¢ 50¢ — the reference till's own five wells (154525 / 154641).
+// The fourth well used to read "20¢", a coin that does not exist; see COINS in
+// src/sim/register.js. The kit drawer authored its socket as COIN_20_SOCKET,
+// so the quarter aliases onto that same physical well (see socketName below).
+const DRAWER_COINS = [0.01, 0.05, 0.1, 0.25, 0.5];
 // A till opening in roughly 0.31 s was over before the player could read the physical motion (and
 // before a single full-resolution evidence frame could be retained). Give the opening stroke one
 // deliberate second; closing can remain brisk after the handoff is complete.
@@ -302,7 +314,7 @@ const BILL_FOOTPRINT = {
 // Sheet-02 coin blanks (diameter, metres, pre kit-scale) — the mound math needs
 // each piece's real radius and thickness to keep piles inside their well
 const COIN_BLANK = {
-  0.01: 0.018, 0.05: 0.021, 0.1: 0.024, 0.2: 0.026, 0.5: 0.030,
+  0.01: 0.018, 0.05: 0.021, 0.1: 0.024, 0.25: 0.026, 0.5: 0.030,
 };
 // Money assets are authored in exact real-world metres.  Keep them at 1:1 so
 // drawer fit, hand presentation, and denomination size comparisons stay true.
@@ -312,6 +324,37 @@ const CLIP_LEVEL_QUAT = new THREE.Quaternion();
 const moneyLabel = (denom) => (denom < 1
   ? `${Math.round(denom * 100)}¢`
   : `$${denom}`);
+
+// The two rows the open till actually shows, top (notes) then bottom (coins),
+// left to right. Exported so the label contract — "1¢ 5¢ 10¢ 25¢ 50¢", never a
+// denomination this currency does not mint — is a test and not a screenshot.
+export function checkoutDrawerSlotLabels() {
+  return {
+    bills: DRAWER_BILLS.map(moneyLabel),
+    coins: DRAWER_COINS.map(moneyLabel),
+  };
+}
+
+// WHAT THE PHYSICAL KEY IS CALLED, AND WHAT IT DOES. The GLB names every cap;
+// this is the whole mapping, kept pure so a driver, the press raycast and the
+// tests all read the same table.
+export function checkoutTerminalKeyAction(name) {
+  const digit = /^(?:Terminal_|t_glyph_)Key_(\d)$/.exec(name || '');
+  if (digit) return `digit:${digit[1]}`;
+  const button = /^(?:Terminal_|t_glyph_)(Confirm|Cancel|Back)Button$/.exec(name || '');
+  if (!button) return null;
+  return button[1] === 'Confirm' ? 'confirm' : button[1] === 'Back' ? 'backspace' : 'clear';
+}
+
+// The coloured caps, as the 2026-07-30 ruling names them: RED X cancels the
+// entry, YELLOW backspaces, GREEN enters. The kit authored the confirm cap with
+// a seven-segment "O" (a second zero on the pad) and the backspace cap with a
+// bare "-", so the runtime redraws these three faces.
+export const CHECKOUT_TERMINAL_KEY_ROLES = Object.freeze({
+  clear: Object.freeze({ colour: 'red', label: 'X', role: 'cancel' }),
+  backspace: Object.freeze({ colour: 'yellow', label: '⌫', role: 'backspace' }),
+  confirm: Object.freeze({ colour: 'green', label: 'OK', role: 'enter' }),
+});
 
 // Visual routing only: both five-unit variants keep the same logical
 // denomination in transaction and save data. The larger Sheet-01 coin appears
@@ -539,25 +582,39 @@ function billTexture(denom, clubName = DEFAULT_DISPLAY_BRAND) {
   return texture;
 }
 
+// The PENNY is copper and every other coin is silver — the one colour cue that
+// separates a coin row at drawer distance (reference 154525 / 154641). The
+// procedural fallback carried a single grey disc for all five, which is the
+// "dark indistinct blobs" the playtest called out; each face now mints in its
+// own alloy, and the drawn value stays legible on both.
+const COIN_ALLOY = {
+  0.01: ['#f0c39a', '#c07a41', '#7c4a24', '#4a2c15'],
+  0.05: ['#eceeee', '#adb3b4', '#71787a', '#39403f'],
+  0.1: ['#f8fafb', '#c9d0d2', '#868f92', '#3f4742'],
+  0.25: ['#f2f5f6', '#bcc3c5', '#7c8486', '#3b4243'],
+  0.5: ['#fbf7ee', '#cfc8b8', '#8b8578', '#403c34'],
+};
+
 function coinTexture(denom) {
   const canvas = document.createElement('canvas');
   canvas.width = 160;
   canvas.height = 160;
   const ctx = canvas.getContext('2d');
+  const [hi, mid, lo, ink] = COIN_ALLOY[denom] || COIN_ALLOY[0.1];
   const gradient = ctx.createRadialGradient(55, 48, 8, 80, 80, 75);
-  gradient.addColorStop(0, '#eef0ec');
-  gradient.addColorStop(0.52, '#b2b6b1');
-  gradient.addColorStop(1, '#777d79');
+  gradient.addColorStop(0, hi);
+  gradient.addColorStop(0.52, mid);
+  gradient.addColorStop(1, lo);
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.arc(80, 80, 76, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = '#626965';
+  ctx.strokeStyle = lo;
   ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.arc(80, 80, 64, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.fillStyle = '#3f4742';
+  ctx.fillStyle = ink;
   ctx.textAlign = 'center';
   ctx.font = '700 55px Georgia, serif';
   ctx.fillText(String(Math.round(denom * 100)), 80, 92);
@@ -791,8 +848,17 @@ export function createRegisterMode(B) {
   // resolves. The keys ride with it (they are its children), so the physical
   // keypad works at the face exactly as it does on the counter.
   const TERMINAL_FLOAT_RATE = 6.5;          // 1/s toward the target
-  const TERMINAL_FLOAT_DISTANCE = 0.46;     // metres in front of the eye
-  const TERMINAL_FLOAT_DROP = 0.17;         // below eye line — at 0.10 the glass's X grazed 70 px above the viewport
+  // REFERENCE FRAMING (154606 / 154618): the reader is LARGE but not looming —
+  // about a third of frame height — and it hangs CENTRE-LEFT so the POS stays
+  // readable beside it. At 0.46 m it filled two thirds of the frame dead
+  // centre and buried the monitor.
+  const TERMINAL_FLOAT_DISTANCE = 1.16;     // metres along the VIEW AXIS
+  const TERMINAL_FLOAT_LEFT = 0.25;         // metres left of the view axis
+  const TERMINAL_FLOAT_DROP = 0.07;         // metres below the view axis
+  // A few degrees of roll: the reference unit is canted like something held,
+  // not bolted. Facing stays yaw-only (playtest 2026-07-30 round 2) so the
+  // glass never rakes away from the eye.
+  const TERMINAL_FLOAT_ROLL = -0.075;
   let terminalFloat = 0;                    // 0 seated .. 1 at the face
   let termCentreOffsetY = 0.10;             // origin(base) -> device centre, measured at attach
   let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
@@ -814,11 +880,16 @@ export function createRegisterMode(B) {
     const target = terminalShouldFloat() ? 1 : 0;
     const step = 1 - Math.exp(-TERMINAL_FLOAT_RATE * dt);
     terminalFloat += (target - terminalFloat) * step;
-    if (target === 0 && cardMeshOnTerminal) {
-      // Re-root the card the moment the stow begins, not when it lands: the
-      // eject/stow animations lerp root-local vectors, and a card still
-      // parented to a gliding terminal would run them in the wrong frame.
-      if (cardMesh) root.attach(cardMesh);
+    if (cardMeshOnTerminal) {
+      // Legacy re-rooting: the card used to be PARENTED to the reader so it
+      // would ride the lift. It also meant every insert/eject lerp — which
+      // works in root-local vectors — ran in the wrong frame, and the inserted
+      // card ended up somewhere inside the reader's own silhouette instead of
+      // protruding from its base (measured 2026-07-30). The card now stays
+      // rooted and refreshCardInsertPath re-reads the LIVE socket each frame,
+      // so it tracks the rising reader in the space its animation is authored
+      // in. This branch only unwinds a card left parented by an older frame.
+      if (cardMesh && cardMesh.parent === termObject) root.attach(cardMesh);
       cardMeshOnTerminal = false;
     }
     if (terminalFloat < 0.001 && target === 0) {
@@ -830,11 +901,6 @@ export function createRegisterMode(B) {
       terminalFloatAnchor = null;
       return;
     }
-    // The inserted card must ride the reader, or it stays behind mid-air.
-    if (target === 1 && cardMesh && !cardMeshOnTerminal) {
-      termObject.attach(cardMesh);
-      cardMeshOnTerminal = true;
-    }
     // THE ANCHOR FREEZES AT LIFT-OFF. The first take recomputed the face point
     // every frame so the reader tracked head sway — which meant it also chased
     // the cursor, and any projected key/X point went stale the moment the mouse
@@ -843,16 +909,29 @@ export function createRegisterMode(B) {
     // device that HOLDS STILL is both calmer and clickable.
     if (!terminalFloatAnchor) {
       root.updateMatrixWorld(true);
+      camera.updateMatrixWorld(true);
       const eye = camera.getWorldPosition(new THREE.Vector3());
       const forward = camera.getWorldDirection(new THREE.Vector3());
       const flatForward = new THREE.Vector3(forward.x, 0, forward.z);
       if (flatForward.lengthSq() < 1e-6) flatForward.set(0, 0, -1);
       flatForward.normalize();
+      // ANCHOR ON THE VIEW AXIS, NOT ON WORLD DOWN. The working frame looks
+      // DOWN about 32°, so "0.13 m below the eye, 0.74 m ahead horizontally"
+      // put the device far ABOVE the centre of the picture — measured
+      // 2026-07-30: its glass sat entirely off the top of the viewport and
+      // only the keypad was in shot. Stepping along the camera's own forward,
+      // right and up axes lands it where the frame actually is, at any pitch.
+      const camRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).normalize();
       // targetWorld is where the device's CENTRE should hang; the origin (its
-      // base) goes centre-offset lower so the glass sits at the eye line.
+      // base) goes centre-offset lower so the glass sits on the anchor.
+      // The lateral step puts it centre-LEFT, reference-style, leaving the POS
+      // beside it instead of behind it.
       const targetWorld = eye.clone()
-        .addScaledVector(flatForward, TERMINAL_FLOAT_DISTANCE)
-        .add(new THREE.Vector3(0, -TERMINAL_FLOAT_DROP - termCentreOffsetY, 0));
+        .addScaledVector(forward, TERMINAL_FLOAT_DISTANCE)
+        .addScaledVector(camRight, -TERMINAL_FLOAT_LEFT)
+        .addScaledVector(camUp, -TERMINAL_FLOAT_DROP)
+        .add(new THREE.Vector3(0, -termCentreOffsetY, 0));
       // STRAIGHT, not slanted (playtest 2026-07-30 round 2): the device stands
       // upright with its glass square to the player — a yaw-only facing, no
       // pitch or roll. The earlier full lookAt tilted the whole reader toward
@@ -860,7 +939,10 @@ export function createRegisterMode(B) {
       // to +Z, so +Z must aim back along the flattened view direction.
       const yaw = Math.atan2(-flatForward.x, -flatForward.z);
       const faceWorldQuat = new THREE.Quaternion()
-        .setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        .setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 0, 1), TERMINAL_FLOAT_ROLL,
+        ));
       const rootQuatInv = root.getWorldQuaternion(new THREE.Quaternion()).invert();
       terminalFloatAnchor = {
         position: root.worldToLocal(targetWorld.clone()),
@@ -877,12 +959,130 @@ export function createRegisterMode(B) {
   const terminalKeyPulses = new Map();     // action -> seconds remaining
   const TERMINAL_KEY_PULSE_S = 0.14;
 
-  function terminalKeyActionForName(name) {
-    const digit = /^(?:Terminal_|t_glyph_)Key_(\d)$/.exec(name || '');
-    if (digit) return `digit:${digit[1]}`;
-    const button = /^(?:Terminal_|t_glyph_)(Confirm|Cancel|Back)Button$/.exec(name || '');
-    if (!button) return null;
-    return button[1] === 'Confirm' ? 'confirm' : button[1] === 'Back' ? 'backspace' : 'clear';
+  const terminalKeyActionForName = (name) => checkoutTerminalKeyAction(name);
+
+  // WHAT EACH COLOURED KEY DOES, WRITTEN ON THE KEY. The kit authored the
+  // confirm cap with a seven-segment "O" (indistinguishable from a zero — the
+  // pad then showed two 0 keys) and the backspace cap with a bare "-". Ruling
+  // 2026-07-30: red X cancels, YELLOW backspaces, GREEN enters. The authored
+  // glyph mesh is hidden and a drawn decal takes its exact place, so the labels
+  // are right without rebuilding the hash-gated checkout kit.
+  const TERMINAL_KEY_DECALS = {
+    confirm: { text: CHECKOUT_TERMINAL_KEY_ROLES.confirm.label, ink: '#f2fff4', ratio: 0.62 },
+    backspace: { glyph: 'backspace', ink: '#2b2410', ratio: 0.86 },
+    clear: { text: CHECKOUT_TERMINAL_KEY_ROLES.clear.label, ink: '#fff1ee', ratio: 0.62 },
+  };
+  const terminalDecalMaterials = new Map();
+
+  // The backspace arrow is DRAWN, not typed: "⌫" depends on a symbol font
+  // being installed, and a missing glyph on the one key that undoes a mistake
+  // is a worse failure than a slightly plain arrow.
+  function paintBackspaceGlyph(ctx, cx, cy, w, h, ink) {
+    const nose = cx - w / 2;
+    const tail = cx + w / 2;
+    const shoulder = nose + h * 0.62;
+    ctx.beginPath();
+    ctx.moveTo(nose, cy);
+    ctx.lineTo(shoulder, cy - h / 2);
+    ctx.lineTo(tail, cy - h / 2);
+    ctx.lineTo(tail, cy + h / 2);
+    ctx.lineTo(shoulder, cy + h / 2);
+    ctx.closePath();
+    ctx.lineWidth = 10;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(12,14,12,0.55)';
+    ctx.stroke();
+    ctx.fillStyle = ink;
+    ctx.fill();
+    // the little × inside, so it reads "delete" and not "back"
+    const arm = h * 0.20;
+    const mx = (shoulder + tail) / 2 + h * 0.06;
+    ctx.strokeStyle = 'rgba(250,246,236,0.96)';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(mx - arm, cy - arm);
+    ctx.lineTo(mx + arm, cy + arm);
+    ctx.moveTo(mx + arm, cy - arm);
+    ctx.lineTo(mx - arm, cy + arm);
+    ctx.stroke();
+  }
+
+  function terminalDecalMaterial(action) {
+    if (terminalDecalMaterials.has(action)) return terminalDecalMaterials.get(action);
+    const spec = TERMINAL_KEY_DECALS[action];
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 256, 160);
+    if (spec.glyph === 'backspace') {
+      paintBackspaceGlyph(ctx, 128, 80, 168, 96, spec.ink);
+    } else {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '800 104px "Segoe UI", Arial, sans-serif';
+      ctx.lineWidth = 12;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(12,14,12,0.55)';
+      ctx.strokeText(spec.text, 128, 84);
+      ctx.fillStyle = spec.ink;
+      ctx.fillText(spec.text, 128, 84);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    const material = new THREE.MeshBasicMaterial({
+      map: texture, transparent: true, toneMapped: false, depthWrite: false,
+    });
+    terminalDecalMaterials.set(action, material);
+    return material;
+  }
+
+  // Replace one authored glyph with a drawn decal occupying the same slab of
+  // space. The decal is parented to the KEY (so it rides the press pulse) and
+  // its facing is derived from where the glyph sits relative to the cap, which
+  // is the exporter-independent way to find "out of the deck".
+  function decalTerminalKey(action, key, glyph) {
+    if (!TERMINAL_KEY_DECALS[action] || !key || !glyph || glyph.userData.terminalDecalDone) return;
+    glyph.userData.terminalDecalDone = true;
+    root.updateMatrixWorld(true);
+    const glyphWorld = glyph.getWorldPosition(new THREE.Vector3());
+    const keyWorld = new THREE.Box3().setFromObject(key).getCenter(new THREE.Vector3());
+    const outward = glyphWorld.clone().sub(keyWorld);
+    if (outward.lengthSq() < 1e-12) return;
+    outward.normalize();
+    const keyBox = new THREE.Box3().setFromObject(key);
+    const size = keyBox.getSize(new THREE.Vector3());
+    // The cap's two largest world extents are its face; the smallest is depth.
+    const face = [size.x, size.y, size.z].sort((a, b) => b - a);
+    const height = face[1] * TERMINAL_KEY_DECALS[action].ratio;
+    const width = height * 1.6;
+    const decal = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, height),
+      terminalDecalMaterial(action),
+    );
+    decal.name = `TerminalKeyDecal_${action}`;
+    decal.renderOrder = 5;
+    // "up" on the deck: the world axis most orthogonal to both outward and the
+    // cap's long side. The reader stands upright, so world +Y projected into
+    // the face plane is the honest answer and needs no exporter assumptions.
+    const up = new THREE.Vector3(0, 1, 0).projectOnPlane(outward);
+    if (up.lengthSq() < 1e-8) up.set(0, 0, 1).projectOnPlane(outward);
+    up.normalize();
+    const basisX = new THREE.Vector3().crossVectors(up, outward).normalize();
+    const worldQuat = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(basisX, up, outward),
+    );
+    key.add(decal);
+    key.updateWorldMatrix(true, false);
+    decal.position.copy(key.worldToLocal(
+      glyphWorld.clone().addScaledVector(outward, 0.0006),
+    ));
+    decal.quaternion.copy(
+      key.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(worldQuat),
+    );
+    glyph.visible = false;
   }
 
   function collectTerminalKeys(terminal) {
@@ -901,6 +1101,16 @@ export function createRegisterMode(B) {
         node.userData.terminalKeyBaseScale = node.scale.clone();
       }
     });
+    for (const [action, meshes] of terminalKeyByAction) {
+      if (!TERMINAL_KEY_DECALS[action]) continue;
+      const cap = meshes.find((mesh) => mesh.name.startsWith('Terminal_'));
+      const glyph = meshes.find((mesh) => mesh.name.startsWith('t_glyph_'));
+      decalTerminalKey(action, cap, glyph);
+    }
+    // The hidden glyph must not swallow a click meant for its cap.
+    for (let index = terminalKeyPickables.length - 1; index >= 0; index -= 1) {
+      if (!terminalKeyPickables[index].visible) terminalKeyPickables.splice(index, 1);
+    }
   }
 
   // A pressed key visibly gives: a short scale dip on the key AND its glyph.
@@ -1218,6 +1428,11 @@ export function createRegisterMode(B) {
   let drawerWant = 0;
   let drawerAmount = 0;
   let drawerGroup = null;
+  let drawerLight = null;
+  // Measured 2026-07-30: 5.2 per lamp blew the tray to flat white and erased
+  // the very denomination differences the lamps exist to reveal. 1.35 lifts
+  // the wells clear of the counter's shadow and keeps the ink.
+  const DRAWER_LIGHT_INTENSITY = 1.35;
   let drawerMotionRoot = null;
   let drawerMoney = null;
   let drawerAssetSlide = null;
@@ -2200,18 +2415,64 @@ export function createRegisterMode(B) {
     return common;
   }
 
-  // The reference riser's glass is LIGHT — a pale panel with a slate-blue
-  // header band and dark figures (Designs/CashRegister/Final 154606/154618).
-  // Every card-active stage draws on this face; only the idle brand screen
-  // keeps the dark powered-down glass.
-  function paintTermLightFace(ctx, W, H, headerText) {
+  // THE REFERENCE READER'S BANDED FACE (Designs/CashRegister/Final 154606 /
+  // 154618). Every card-active stage draws on this one face; only the idle
+  // brand screen keeps the dark powered-down glass. A dark status strip runs
+  // across the top, a light-blue caption band sits under it, and a navy band
+  // carries the figure in large white type. Everything is LEFT-ALIGNED like
+  // the reference; the earlier centred column on a flat pale panel read like a
+  // calculator rather than a payment terminal.
+  const TERM_PAD = 10;
+  function paintTermBandedFace(ctx, W, H, { caption, amount, amountInk = '#ffffff', footer, footerInk }) {
+    const x0 = TERM_PAD;
+    const w = W - TERM_PAD * 2;
     ctx.fillStyle = '#e9edee';
-    ctx.fillRect(6, 6, W - 12, H - 12);
-    ctx.fillStyle = '#5b7f96';
-    ctx.fillRect(6, 6, W - 12, 72);
-    ctx.fillStyle = '#f4f8f9';
-    ctx.font = '700 40px Arial, sans-serif';
-    ctx.fillText(headerText, W / 2, 6 + 37);
+    ctx.fillRect(x0, TERM_PAD, w, H - TERM_PAD * 2);
+    // status strip — the bands are sized as fractions of the glass so they fill
+    // it. Fixed pixel heights left the bottom half of the reader a blank white
+    // slab under a tiny footer line.
+    const inner = H - TERM_PAD * 2;
+    const statusH = Math.round(inner * 0.135);
+    ctx.fillStyle = '#1a1d1f';
+    ctx.fillRect(x0, TERM_PAD, w, statusH);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e6ebe8';
+    ctx.font = '600 30px Arial, sans-serif';
+    ctx.fillText('●  Payment', x0 + 22, TERM_PAD + statusH / 2 + 1);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#9aa4a0';
+    ctx.font = '600 24px Arial, sans-serif';
+    ctx.fillText('▲ ▬', x0 + w - 20, TERM_PAD + statusH / 2 + 1);
+    // caption band
+    const capY = TERM_PAD + statusH;
+    const capH = Math.round(inner * 0.215);
+    ctx.fillStyle = '#5b8fb0';
+    ctx.fillRect(x0, capY, w, capH);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    setFittedCanvasFont(ctx, caption, {
+      maxWidth: w - 44, startSize: 62, minimumSize: 30, weight: 700,
+    });
+    ctx.fillText(caption, x0 + 22, capY + capH / 2 + 2);
+    // amount band
+    const amtY = capY + capH;
+    const amtH = Math.round(inner * 0.36);
+    ctx.fillStyle = '#1f3a5c';
+    ctx.fillRect(x0, amtY, w, amtH);
+    ctx.fillStyle = amountInk;
+    setFittedCanvasFont(ctx, amount, {
+      maxWidth: w - 44, startSize: 116, minimumSize: 40, weight: 800,
+    });
+    ctx.fillText(amount, x0 + 22, amtY + amtH / 2 + 4);
+    ctx.textAlign = 'center';
+    if (footer) {
+      ctx.fillStyle = footerInk || '#5c6a72';
+      setFittedCanvasFont(ctx, footer, {
+        maxWidth: w - 30, startSize: 34, minimumSize: 20, weight: 600,
+      });
+      ctx.fillText(footer, W / 2, amtY + amtH + (H - TERM_PAD - (amtY + amtH)) / 2);
+    }
+    return amtY + amtH;
   }
 
   function drawTerm() {
@@ -2247,16 +2508,11 @@ export function createRegisterMode(B) {
 
     const stage = tx.stage;
     if (stage === 'card-present' || stage === 'card-ready') {
-      paintTermLightFace(ctx, W, H, 'PAYMENT');
-      ctx.fillStyle = '#27343c';
-      ctx.font = '700 52px Arial, sans-serif';
-      ctx.fillText(cardMessage || 'INSERTING', W / 2, H * 0.40);
-      ctx.fillStyle = '#3c5568';
-      ctx.font = '700 40px Arial, sans-serif';
-      ctx.fillText(`TOTAL  $${totalOf(tx).toFixed(2)}`, W / 2, H * 0.60);
-      ctx.fillStyle = '#6a7a84';
-      ctx.font = '600 26px Arial, sans-serif';
-      ctx.fillText('CLICK THE OFFERED CARD TO TAKE IT', W / 2, H * 0.80);
+      paintTermBandedFace(ctx, W, H, {
+        caption: cardMessage ? String(cardMessage) : 'Insert card',
+        amount: `$${totalOf(tx).toFixed(2)}`,
+        footer: 'CLICK THE OFFERED CARD TO TAKE IT',
+      });
     } else if (stage === 'card-entry') {
       // THE GLASS SHOWS THE AMOUNT DUE AND THE AMOUNT BEING TYPED. The dots-
       // like-a-PIN-pad take (2026-07-29) lasted one playtest: with the reader
@@ -2265,47 +2521,40 @@ export function createRegisterMode(B) {
       // the running figure renders live as it is typed (2026-07-30 ruling).
       // The TOTAL is the prompt — the slate banner up top, reference-style,
       // with the running entry HUGE and dark on the light face.
-      paintTermLightFace(ctx, W, H, `TOTAL  $${totalOf(tx).toFixed(2)}`);
       const typed = String(tx.cardEntryDigits || '').length
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
-      ctx.fillStyle = '#1d2b33';
-      ctx.font = '800 92px Arial, sans-serif';
-      ctx.fillText(typed, W / 2, H * 0.42);
-      if (tx.cardEntryError) {
-        ctx.fillStyle = '#b3362a';
-        ctx.font = '700 26px Arial, sans-serif';
-        ctx.fillText(tx.cardEntryError.toUpperCase(), W / 2, H * 0.74);
-      } else {
-        ctx.fillStyle = '#6a7a84';
-        ctx.font = '600 26px Arial, sans-serif';
-        ctx.fillText('KEY THE TOTAL \u00b7 GREEN CONFIRMS', W / 2, H * 0.74);
-      }
+      paintTermBandedFace(ctx, W, H, {
+        caption: 'Total',
+        amount: typed,
+        footer: tx.cardEntryError
+          ? tx.cardEntryError.toUpperCase()
+          : `DUE $${totalOf(tx).toFixed(2)} \u00b7 KEY IT, GREEN OK`,
+        footerInk: tx.cardEntryError ? '#b3362a' : '#5c6a72',
+      });
     } else if (stage === 'card-busy') {
       const dots = '.'.repeat(1 + (Math.floor(termDotsTimer * 3) % 3));
-      paintTermLightFace(ctx, W, H, 'PAYMENT');
-      ctx.fillStyle = '#27343c';
-      ctx.font = '700 54px Arial, sans-serif';
-      ctx.fillText(`PROCESSING${dots}`, W / 2, H * 0.46);
-      ctx.fillStyle = '#3c5568';
-      ctx.font = '700 36px Arial, sans-serif';
-      ctx.fillText(`$${totalOf(tx).toFixed(2)}`, W / 2, H * 0.68);
+      paintTermBandedFace(ctx, W, H, {
+        caption: `Processing${dots}`,
+        amount: `$${totalOf(tx).toFixed(2)}`,
+        footer: 'AUTHORIZING — DO NOT REMOVE THE CARD',
+      });
     } else if (stage === 'card-declined') {
-      paintTermLightFace(ctx, W, H, 'PAYMENT');
-      ctx.fillStyle = '#b3362a';
-      ctx.font = '700 58px Arial, sans-serif';
-      ctx.fillText(tx.cardResult === 'timeout' ? 'TIMEOUT' : 'DECLINED', W / 2, H * 0.46);
-      ctx.fillStyle = '#8a544e';
-      ctx.font = '600 28px Arial, sans-serif';
-      ctx.fillText('TRY ANOTHER CARD OR CASH', W / 2, H * 0.70);
+      paintTermBandedFace(ctx, W, H, {
+        caption: tx.cardResult === 'timeout' ? 'Timeout' : 'Declined',
+        amount: `$${totalOf(tx).toFixed(2)}`,
+        amountInk: '#ffb9ae',
+        footer: 'TRY ANOTHER CARD OR CASH',
+        footerInk: '#b3362a',
+      });
     } else if (['receipt', 'bagging', 'done'].includes(stage)) {
-      paintTermLightFace(ctx, W, H, 'PAYMENT');
-      ctx.fillStyle = '#1f8a4c';
-      ctx.font = '700 66px Arial, sans-serif';
-      ctx.fillText('APPROVED', W / 2, H * 0.46);
-      ctx.fillStyle = '#3c5568';
-      ctx.font = '700 34px Arial, sans-serif';
-      ctx.fillText(`$${totalOf(tx).toFixed(2)}`, W / 2, H * 0.70);
+      paintTermBandedFace(ctx, W, H, {
+        caption: 'Approved',
+        amount: `$${totalOf(tx).toFixed(2)}`,
+        amountInk: '#93f0b4',
+        footer: 'THANK YOU',
+        footerInk: '#1f8a4c',
+      });
     } else {
       const brand = displayClubName().toUpperCase();
       ctx.fillStyle = '#e9e2cc';
@@ -2407,11 +2656,20 @@ export function createRegisterMode(B) {
       return hit ? hit.object.userData.terminalKeyAction : null;
     };
     let action = cast(0, 0);
-    if (!action && accessibilityPrefs.largeTextAndTargets) {
-      // the accessibility pad: accept a near-miss within ~10 px in a small cross
-      for (const [dx, dy] of [[-10, 0], [10, 0], [0, -10], [0, 10], [-7, -7], [7, 7], [-7, 7], [7, -7]]) {
-        action = cast(dx, dy);
-        if (action) break;
+    if (!action) {
+      // A NEAR MISS IS STILL A PRESS. The caps are ~2 cm of modelled plastic
+      // with 4 mm gutters; on screen the gutters are wide enough that ordinary
+      // aim lands between keys and nothing happens — the "keys do nothing"
+      // report (playtest 2026-07-30). Sample outward rings and take the first
+      // key found, so the nearest cap wins and a click in the gutter still
+      // presses the key the player was aiming at. Large-target accessibility
+      // widens the same search rather than being the only thing that enables it.
+      const reach = accessibilityPrefs.largeTextAndTargets ? 22 : 13;
+      for (let radius = 5; radius <= reach && !action; radius += 4) {
+        for (let step = 0; step < 8 && !action; step += 1) {
+          const angle = (step / 8) * Math.PI * 2;
+          action = cast(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        }
       }
     }
     return action ? { id: action } : null;
@@ -2604,22 +2862,46 @@ export function createRegisterMode(B) {
 
   function refreshCardInsertPath() {
     if (!cardSocketNode) return false;
-    root.updateMatrixWorld(true);
+    // Own-chain updates only: this runs every frame while a card is in the
+    // reader, and a full descendant walk of the register root (drawer, bag,
+    // every staged product) would be paid for nothing — worldToLocal needs the
+    // root's own matrix and the socket's own chain, nothing below them.
+    root.updateWorldMatrix(true, false);
     cardSocketNode.updateWorldMatrix(true, false);
     const socketWorld = cardSocketNode.getWorldPosition(new THREE.Vector3());
     const socketQuaternion = cardSocketNode.getWorldQuaternion(new THREE.Quaternion());
-    const out = new THREE.Vector3(0, 0, -1).applyQuaternion(socketQuaternion).normalize();
-    const face = new THREE.Vector3(0, -1, 0).applyQuaternion(socketQuaternion).normalize();
-    const shortEdge = new THREE.Vector3().crossVectors(out, face).normalize();
-    const worldBasis = new THREE.Matrix4().makeBasis(out, face, shortEdge);
+    // THE CARD HANGS OUT OF THE READER'S BASE, NOT INTO THE LENS. The authored
+    // slot vector points down AND toward the staff side; with the reader
+    // floated to the face and the working frame looking down ~32°, that vector
+    // is almost the view axis — probed 2026-07-30, a card pushed 0.155 m along
+    // it moved SEVEN screen pixels and stayed inside the reader's silhouette.
+    // The travel is taken from the READER'S OWN DOWN AXIS instead, which is
+    // screen-down for an upright device at any camera pitch, and the card is
+    // squared to the reader's face so it still reads as coming out of the slot.
+    const bodyDown = termObject
+      ? new THREE.Vector3().setFromMatrixColumn(termObject.matrixWorld, 1).normalize().negate()
+      : new THREE.Vector3(0, -1, 0);
+    const bodyFace = termObject
+      ? new THREE.Vector3().setFromMatrixColumn(termObject.matrixWorld, 2).normalize()
+      : new THREE.Vector3(0, 0, -1).applyQuaternion(socketQuaternion).normalize();
+    const out = bodyDown.clone().sub(
+      bodyFace.clone().multiplyScalar(bodyDown.dot(bodyFace)),
+    );
+    if (out.lengthSq() < 1e-8) out.copy(bodyDown);
+    out.normalize();
+    const shortEdge = new THREE.Vector3().crossVectors(out, bodyFace).normalize();
+    const worldBasis = new THREE.Matrix4().makeBasis(out, bodyFace, shortEdge);
     const worldQuaternion = new THREE.Quaternion().setFromRotationMatrix(worldBasis);
     const rootQuaternion = root.getWorldQuaternion(new THREE.Quaternion()).invert();
     cardInsertQuaternion.copy(rootQuaternion.multiply(worldQuaternion));
-    cardInsertStart.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.18)));
+    cardInsertStart.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.17)));
     // Seated at 0.03 the card vanished inside the riser; the reference
     // (154606) keeps the inserted card VISIBLY sticking out of the reader's
-    // base while the total is keyed and processed.
-    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.058)));
+    // base while the total is keyed and processed. Probed 2026-07-30: the
+    // socket sits 0.048 above the body's underside and the card is 0.086 long,
+    // so 0.05 leaves its head in the slot and hangs the rest clear — 0.135 flew
+    // it off the reader entirely and landed it on the counter.
+    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.05)));
     return true;
   }
 
@@ -3012,6 +3294,72 @@ export function createRegisterMode(B) {
 
   const billMaterials = new Map();
   const coinMaterials = new Map();
+  // EVERY DENOMINATION MUST READ APART AT A GLANCE (checkout-physicality
+  // 2026-07-30, item 3). The kit notes are printed on near-identical pale
+  // stock, so in the drawer camera the bill row read as five identical
+  // rectangles and the coin row as five dark blobs. These tints are multiplied
+  // onto the kit's own baked maps — the engraving survives, the INK changes —
+  // and a matching emissive lift keeps the tray legible in the counter's
+  // shadow. Reference 154525 / 154641: distinct note ink per value, a copper
+  // penny and silver coins of visibly different sizes.
+  // Five HUES, not five shades: measured 2026-07-30 the first pass gave $1 and
+  // $20 two greens and $5 and $50 two pinks, which is the same "identical
+  // rectangles" read at drawer distance. One note per family instead.
+  const MONEY_TINT = {
+    1: 0x8fbe86,      // sage green
+    5: 0xd79a5e,      // warm ochre
+    10: 0x7fabd8,     // cool blue
+    20: 0xb9b25e,     // olive gold
+    50: 0xb98cc9,     // violet
+    0.01: 0xc06a2c,   // COPPER — the penny, unmistakably
+    // The kit coin maps are printed on warm brass, so a near-white tint reads
+    // GOLD, not silver. Every non-penny tint is deliberately cool to pull the
+    // alloy back to the reference's silver.
+    0.05: 0x7e8c96,   // nickel: the dullest, coolest silver
+    0.1: 0xb6cbd8,    // dime: the brightest, smallest silver
+    0.25: 0x96a6b0,   // quarter: mid silver
+    0.5: 0xa4b4bc,    // half dollar: the largest silver
+  };
+  const MONEY_EMISSIVE = 0.15;
+  const kitMoneyMaterials = new Map(); // `${denom}|${sourceMaterial.uuid}` -> tinted clone
+
+  // Apply the denomination tint to an instantiated kit note/coin. Materials are
+  // cloned once per (denomination, source material) so the tray costs a handful
+  // of extra materials, not one per piece.
+  function tintKitMoney(mesh, denom) {
+    const tint = MONEY_TINT[denom];
+    if (tint === undefined) return mesh;
+    const coin = !BILLS.includes(denom);
+    mesh.traverse((object) => {
+      if (!object.isMesh || !object.material) return;
+      const source = Array.isArray(object.material) ? object.material : [object.material];
+      const applied = source.map((material) => {
+        if (!material) return material;
+        const key = `${denom}|${material.uuid}`;
+        let tinted = kitMoneyMaterials.get(key);
+        if (!tinted) {
+          tinted = material.clone();
+          if (tinted.color) tinted.color.setHex(tint);
+          if (tinted.emissive) {
+            tinted.emissive.setHex(tint);
+            tinted.emissiveMap = tinted.map || null;
+            tinted.emissiveIntensity = MONEY_EMISSIVE;
+          }
+          // Fully metallic coins go BLACK anywhere the drawer light does not
+          // reach. Half-metal keeps the mint sheen and still takes ambient.
+          if (coin && typeof tinted.metalness === 'number') {
+            tinted.metalness = Math.min(tinted.metalness, 0.45);
+            tinted.roughness = Math.min(Math.max(tinted.roughness ?? 0.4, 0.26), 0.5);
+          }
+          tinted.needsUpdate = true;
+          kitMoneyMaterials.set(key, tinted);
+        }
+        return tinted;
+      });
+      object.material = Array.isArray(object.material) ? applied : applied[0];
+    });
+    return mesh;
+  }
   const billGeometry = new THREE.BoxGeometry(0.152, 0.0022, 0.066);
   const coinGeometry = new THREE.CylinderGeometry(0.0145, 0.0145, 0.0028, 20);
   // Selected coins rest flat on the bare counter pile. Their believable
@@ -3035,12 +3383,12 @@ export function createRegisterMode(B) {
       const face = new THREE.MeshStandardMaterial({
         map: coinTexture(denom),
         roughness: 0.38,
-        metalness: 0.58,
+        metalness: 0.42,
       });
       const edge = new THREE.MeshStandardMaterial({
-        color: 0x8d948f,
+        color: new THREE.Color((COIN_ALLOY[denom] || COIN_ALLOY[0.1])[2]),
         roughness: 0.42,
-        metalness: 0.62,
+        metalness: 0.45,
       });
       coinMaterials.set(denom, [edge, face, face]);
     }
@@ -3060,6 +3408,13 @@ export function createRegisterMode(B) {
       if (!mesh && denom === 0.05 && merch.hasKit('cash_coin_05')) {
         mesh = merch.instantiateKit('cash_coin_05', { scale: MONEY_KIT_SCALE });
       }
+      // The quarter well predates its own model in kits built before the
+      // 20-unit coin was retired; the 20-unit blank is the same diameter, so
+      // it stands in rather than dropping to procedural geometry.
+      if (!mesh && denom === 0.25 && merch.hasKit('cash_coin_20')) {
+        mesh = merch.instantiateKit('cash_coin_20', { scale: MONEY_KIT_SCALE });
+      }
+      if (mesh) tintKitMoney(mesh, denom);
     }
     if (!mesh) {
       mesh = new THREE.Mesh(
@@ -3406,6 +3761,22 @@ export function createRegisterMode(B) {
     drawerMoney.name = 'SimplifiedDrawerMoney';
     drawerMotionRoot.add(drawerMoney);
 
+    // THE TILL IS LIT. The open tray hangs under the counter slab, in the one
+    // place the interior key light cannot reach — which is why the bill row
+    // read washed out and the coin row read black. The reference drawer is the
+    // brightest thing in its frame (154525 / 154641). Two short-range point
+    // lights sit just above the wells, ride the tray as it slides, and only
+    // burn while it is out; they touch nothing else in the room.
+    drawerLight = new THREE.Group();
+    drawerLight.visible = false;
+    for (const x of [-0.13, 0.13]) {
+      const lamp = new THREE.PointLight(0xfff3dd, 0, 0.72, 2);
+      lamp.position.set(x, 0.30, 0.02);
+      lamp.castShadow = false;
+      drawerLight.add(lamp);
+    }
+    drawerMotionRoot.add(drawerLight);
+
     const fallback = new THREE.Mesh(
       new THREE.BoxGeometry(0.49, 0.10, 0.42),
       new THREE.MeshStandardMaterial({ color: 0x30332f, roughness: 0.48, metalness: 0.28 }),
@@ -3443,12 +3814,23 @@ export function createRegisterMode(B) {
           // (interior bounds, wall height, piece cap, note spacing, clip hinge
           // drop) as authored extras — scaled here into world units once.
           root.updateMatrixWorld(true);
-          const socketName = (denom) => (BILLS.includes(denom)
-            ? `BILL_${denom}_SOCKET`
-            : `COIN_${String(Math.round(denom * 100)).padStart(2, '0')}_SOCKET`);
+          const socketNames = (denom) => {
+            if (BILLS.includes(denom)) return [`BILL_${denom}_SOCKET`];
+            const code = String(Math.round(denom * 100)).padStart(2, '0');
+            // The quarter occupies the well the kit authored as COIN_20_SOCKET:
+            // same fourth compartment, corrected denomination. Kits rebuilt with
+            // a COIN_25_SOCKET win; older trays still resolve.
+            return denom === 0.25
+              ? ['COIN_25_SOCKET', 'COIN_20_SOCKET']
+              : [`COIN_${code}_SOCKET`];
+          };
           let remapped = 0;
           for (const denom of DENOMS) {
-            const socket = model.getObjectByName(socketName(denom));
+            let socket = null;
+            for (const name of socketNames(denom)) {
+              socket = model.getObjectByName(name);
+              if (socket) break;
+            }
             if (!socket) continue;
             const local = drawerMotionRoot.worldToLocal(socket.getWorldPosition(new THREE.Vector3()));
             SLOT[denom] = { x: local.x, y: local.y, z: local.z };
@@ -6502,6 +6884,13 @@ export function createRegisterMode(B) {
       if (cardInsertTimer === 0) finishAutomaticCardInsert();
     }
 
+    // The socket rides the reader, and the reader rises to the face. Re-read
+    // the live insert path every frame the card is on its way in or seated, so
+    // the protruding stub stays welded to the slot at any point of the lift.
+    if (cardMesh && (cardInsertTimer > 0 || cardEjectTimer > 0
+      || ['card-entry', 'card-busy', 'card-declined'].includes(tx.stage))) {
+      refreshCardInsertPath();
+    }
     if (cardEjectTimer > 0) {
       cardEjectTimer = Math.max(0, cardEjectTimer - dt);
       const progress = THREE.MathUtils.smoothstep(1 - cardEjectTimer / 0.64, 0, 1);
@@ -6512,7 +6901,8 @@ export function createRegisterMode(B) {
         cardMesh.quaternion.slerpQuaternions(cardInsertQuaternion, HELD_QUAT, progress);
       }
       if (cardEjectTimer === 0) cardU = 0;
-    } else if (cardMesh && tx.stage === 'card-entry') {
+    } else if (cardMesh && cardInsertTimer === 0
+      && ['card-entry', 'card-busy', 'card-declined'].includes(tx.stage)) {
       cardMesh.position.copy(cardInserted);
       cardMesh.quaternion.copy(cardInsertQuaternion);
     }
@@ -6856,6 +7246,13 @@ export function createRegisterMode(B) {
       }
     }
     if (!drawerPresentationVisible(drawerWant, drawerAmount)) drawerMotionRoot.visible = false;
+    // The till lamps fade in with the slide, so an opening drawer brightens as
+    // it clears the slab instead of popping on under it.
+    if (drawerLight) {
+      const lit = drawerMotionRoot.visible ? drawerAmount : 0;
+      drawerLight.visible = lit > 0.02;
+      for (const lamp of drawerLight.children) lamp.intensity = lit * DRAWER_LIGHT_INTENSITY;
+    }
     if (checkoutFlowState() === 'DrawerOpening' && drawerAmount >= 0.98) {
       flowTo('DepositingCash', 'cash-drawer-reached-open-stop');
     }
@@ -6938,13 +7335,97 @@ export function createRegisterMode(B) {
   // glides onto it exactly like the other derived poses.
   // The frame must hold THREE subjects at once, reference-style (154525):
   // every well of the open tray below, the orange/navy POS cash screen above,
-  // and the flat change pile growing on the counter between them. A probe
-  // camera walks the standoff until all subject points sit inside the safe
-  // margins. Cached per drawer travel — the solve is a handful of projections
-  // and must not run per frame.
-  const CASH_POSE_MARGIN_X = 0.84;
-  const CASH_POSE_MARGIN_Y = 0.82;
-  const cashPoseProbe = new THREE.PerspectiveCamera(52, 16 / 9, 0.05, 50);
+  // and the flat change pile growing on the counter between them. Cached per
+  // drawer travel — the solve is a few hundred projections and must not run
+  // per frame.
+
+  // ONE FRAMING SOLVER FOR EVERY DERIVED POSE. Given the world points that
+  // MUST be in shot and the direction the eye stands back along, this bisects
+  // the standoff for the tightest frame that still holds every subject inside
+  // the safe margins, then pans the aim so the subject box sits on the
+  // requested anchor. Two passes, because panning changes what fits.
+  // The multiplicative walk it replaced converged wherever it happened to
+  // stop, which is why the till sat small and dead-centre with a third of the
+  // frame given to bare counter on either side.
+  const framingProbe = new THREE.PerspectiveCamera(50, 16 / 9, 0.05, 60);
+  const framingScratch = new THREE.Vector3();
+  function solveFramingPose({
+    subjects, look, back, fov, marginX, marginY,
+    anchorX = 0, anchorY = 0, minDist = 0.40, maxDist = 5.0, aspect = 16 / 9,
+  }) {
+    framingProbe.fov = fov;
+    framingProbe.aspect = aspect;
+    framingProbe.updateProjectionMatrix();
+    const aim = look.clone();
+    const half = Math.tan(THREE.MathUtils.degToRad(fov) / 2);
+    let dist = maxDist;
+    const place = (d) => {
+      framingProbe.position.copy(aim).addScaledVector(back, d);
+      framingProbe.lookAt(aim);
+      framingProbe.updateMatrixWorld(true);
+    };
+    const measure = () => {
+      let minX = Infinity; let maxX = -Infinity;
+      let minY = Infinity; let maxY = -Infinity;
+      for (const subject of subjects) {
+        framingScratch.copy(subject).project(framingProbe);
+        minX = Math.min(minX, framingScratch.x);
+        maxX = Math.max(maxX, framingScratch.x);
+        minY = Math.min(minY, framingScratch.y);
+        maxY = Math.max(maxY, framingScratch.y);
+      }
+      return {
+        cx: (minX + maxX) / 2,
+        cy: (minY + maxY) / 2,
+        hx: (maxX - minX) / 2,
+        hy: (maxY - minY) / 2,
+      };
+    };
+    for (let pass = 0; pass < 2; pass += 1) {
+      let lo = minDist;
+      let hi = maxDist;
+      for (let step = 0; step < 16; step += 1) {
+        const mid = (lo + hi) / 2;
+        place(mid);
+        const box = measure();
+        if (box.hx <= marginX && box.hy <= marginY) hi = mid; else lo = mid;
+      }
+      dist = hi;
+      place(dist);
+      const box = measure();
+      // Pan the aim so the subject box lands on the anchor. One NDC unit is
+      // dist*tan(fov/2) world units vertically, times the aspect horizontally.
+      const right = new THREE.Vector3().setFromMatrixColumn(framingProbe.matrixWorld, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(framingProbe.matrixWorld, 1);
+      aim.addScaledVector(right, (box.cx - anchorX) * dist * half * aspect)
+        .addScaledVector(up, (box.cy - anchorY) * dist * half);
+    }
+    place(dist);
+    return { eye: framingProbe.position.clone(), look: aim.clone(), fov };
+  }
+
+  // Poses live in interior-local coordinates (deskCameraPoint's frame);
+  // projectLocal is the inverse of this conversion.
+  const poseLocal = (v) => ({
+    x: v.x - interior.position.x,
+    y: v.y - interior.position.y,
+    z: v.z - interior.position.z,
+  });
+  const framedPose = (solved) => ({
+    pose: poseBetween(poseLocal(solved.eye), poseLocal(solved.look)),
+    fov: solved.fov,
+  });
+  // The staff-side normal, pitched up into a working stance. The reference
+  // camera stands BEHIND the counter looking down about 40-45° (154454).
+  function staffStandoffDirection(pitchRadians) {
+    return frontDeskOffsetVector3(0, 0, 1).normalize()
+      .multiplyScalar(Math.cos(pitchRadians))
+      .add(new THREE.Vector3(0, Math.sin(pitchRadians), 0))
+      .normalize();
+  }
+
+  const CASH_POSE_MARGIN_X = 0.97;
+  const CASH_POSE_MARGIN_Y = 0.95;
   let cashPoseCache = null; // { amount, value }
   function derivedCashDrawerPose() {
     const fallback = POSES.cash;
@@ -6980,41 +7461,122 @@ export function createRegisterMode(B) {
     subjects.push(posCentre.clone().add(new THREE.Vector3(0, -posHalfH, 0)));
     subjects.push(pile.clone().add(frontDeskOffsetVector3(-REGISTER.changeHandoff.w / 2, 0, 0)));
     subjects.push(pile.clone().add(frontDeskOffsetVector3(REGISTER.changeHandoff.w / 2, 0, 0)));
-    // Aim between the tray and the glass; stand up the staff side at a
-    // natural working slope and walk the standoff until everything fits.
-    const look = trayCentre.clone().lerp(posCentre, 0.34);
     const fov = fallback.fov || 52;
-    cashPoseProbe.fov = fov;
-    cashPoseProbe.updateProjectionMatrix();
-    const staffBack = frontDeskOffsetVector3(0, 0, 1).normalize();
-    let dist = 0.9;
-    let eye = null;
-    for (let iteration = 0; iteration < 9; iteration += 1) {
-      eye = look.clone()
-        .addScaledVector(staffBack, dist * 0.68)
-        .add(new THREE.Vector3(0, dist * 0.74, 0));
-      cashPoseProbe.position.copy(eye);
-      cashPoseProbe.lookAt(look);
-      cashPoseProbe.updateMatrixWorld(true);
-      let worst = 0;
-      for (const subject of subjects) {
-        const projected = subject.clone().project(cashPoseProbe);
-        worst = Math.max(
-          worst,
-          Math.abs(projected.x) / CASH_POSE_MARGIN_X,
-          Math.abs(projected.y) / CASH_POSE_MARGIN_Y,
-        );
-      }
-      if (worst <= 1 && worst > 0.94) break;
-      dist = THREE.MathUtils.clamp(dist * (worst > 1 ? 1.16 : 0.93), 0.6, 2.4);
-    }
-    const toLocal = (v) => ({
-      x: v.x - interior.position.x,
-      y: v.y - interior.position.y,
-      z: v.z - interior.position.z,
-    });
-    const value = { pose: poseBetween(toLocal(eye), toLocal(look)), fov };
+    const value = framedPose(solveFramingPose({
+      subjects,
+      look: trayCentre.clone().lerp(posCentre, 0.34),
+      // ≈34° above the counter, not 47°: a steeper eye foreshortens the tray's
+      // depth so hard that the wells read square instead of the reference's
+      // wide shallow row (154525), and the labels crowd together.
+      back: staffStandoffDirection(0.60),
+      fov,
+      marginX: CASH_POSE_MARGIN_X,
+      marginY: CASH_POSE_MARGIN_Y,
+      // Reference 154525 puts the till in the LOWER-RIGHT quadrant with the
+      // bare counter (and the growing change pile) to its left, so the whole
+      // group sits right of centre rather than dead centre.
+      anchorX: 0.13,
+      minDist: 0.5,
+      maxDist: 3.0,
+    }));
     cashPoseCache = { amount: drawerAmount, value };
+    return value;
+  }
+
+  // THE WORKING FRAME, DERIVED FROM WHAT IS ON THE COUNTER — checkout
+  // physicality item 1 (2026-07-30). The authored diagonal put the eye at the
+  // counter's right end looking down its length: the POS turned ~25° away and
+  // clipped the frame edge, the bag hung half outside on the left, and the
+  // customer's arm swung across the middle. Reference 154454 is a SQUARE-ON
+  // view from behind the counter — bag left third, goods centre, POS right
+  // third facing the player, the customer standing across it — so the eye is
+  // solved on the counter's own perpendicular from the world positions of the
+  // five things that must be in shot: bag, staged goods, POS glass, card
+  // station, customer. Square-on is also what un-rotates the monitor: its
+  // authored yaw is already zero, so a perpendicular camera sees it flat.
+  // "Nothing cut off by the frame edge" is the acceptance, so the horizontal
+  // margin keeps a visible gutter: at 0.96 the POS's right edge landed 2% from
+  // the viewport and read as clipped even though it measured inside.
+  const WORK_POSE_MARGIN_X = 0.92;
+  const WORK_POSE_MARGIN_Y = 0.94;
+  let workPoseCache = null; // { key, value }
+  function derivedWorkingPose() {
+    const fallback = MIXED_POSE;
+    if (!bagGroup) return fallback;
+    root.updateMatrixWorld(true);
+    const customer = customerLocalPosition();
+    // Re-solve only when the composition actually changes: a frame that chases
+    // a shuffling customer is the camera ride this pose exists to end.
+    const key = [
+      itemMeshes.size,
+      tx ? tx.items.length : 0,
+      customer ? Math.round(customer.x * 4) : 'x',
+      customer ? Math.round(customer.z * 4) : 'z',
+    ].join('|');
+    if (workPoseCache && workPoseCache.key === key) return workPoseCache.value;
+    const subjects = [];
+    const addBox = (object, inflate = 0) => {
+      if (!object) return false;
+      const box = new THREE.Box3().setFromObject(object);
+      if (box.isEmpty()) return false;
+      if (inflate) box.expandByScalar(inflate);
+      for (const x of [box.min.x, box.max.x]) {
+        for (const y of [box.min.y, box.max.y]) {
+          for (const z of [box.min.z, box.max.z]) subjects.push(new THREE.Vector3(x, y, z));
+        }
+      }
+      return true;
+    };
+    // 1 — the upright bag at counter-left, whole, never cropped
+    addBox(bagGroup);
+    // 2 — the goods: their authored staging footprint plus whatever is on it
+    for (const rect of [REGISTER.staging, REGISTER.scannedStaging]) {
+      for (const x of [rect.minX, rect.maxX]) {
+        for (const z of [rect.minZ, rect.maxZ]) {
+          subjects.push(root.localToWorld(new THREE.Vector3(x, COUNTER_TOP + 0.10, z)));
+        }
+      }
+    }
+    for (const mesh of itemMeshes.values()) addBox(mesh);
+    // 3 — the POS glass, corner to corner, so no edge of it clips out
+    if (screenPlane) addBox(screenPlane, 0.02);
+    else {
+      subjects.push(root.localToWorld(new THREE.Vector3(
+        REGISTER.monitor.x, COUNTER_TOP + 0.52, REGISTER.monitor.z,
+      )));
+    }
+    // 4 — the card station, so the reader has somewhere to rise from in shot
+    subjects.push(root.localToWorld(new THREE.Vector3(
+      CARD_STATION.x, COUNTER_TOP + 0.04, CARD_STATION.z,
+    )));
+    // 5 — the customer, head to knees, standing across the counter
+    // Head to KNEES, reference-style — not head to floor. Framing the whole
+    // standing figure pushed the counter into a thin band at the bottom of
+    // the shot with a third of the frame given to floorboards.
+    if (customer) {
+      const knees = root.localToWorld(new THREE.Vector3(customer.x, customer.y + 0.52, customer.z));
+      const crown = root.localToWorld(new THREE.Vector3(customer.x, customer.y + 1.66, customer.z));
+      subjects.push(knees, crown);
+      for (const side of [-0.32, 0.32]) {
+        subjects.push(root.localToWorld(new THREE.Vector3(
+          customer.x + side, customer.y + 1.20, customer.z,
+        )));
+      }
+    }
+    if (subjects.length < 8) return fallback;
+    const centre = new THREE.Box3().setFromPoints(subjects).getCenter(new THREE.Vector3());
+    const value = framedPose(solveFramingPose({
+      subjects,
+      look: centre,
+      back: staffStandoffDirection(0.56),   // ≈32° down, reference-style
+      anchorY: -0.06,                       // counter low, customer above it
+      fov: fallback.fov || 48.5,
+      marginX: WORK_POSE_MARGIN_X,
+      marginY: WORK_POSE_MARGIN_Y,
+      minDist: 0.9,
+      maxDist: 5.0,
+    }));
+    workPoseCache = { key, value };
     return value;
   }
 
@@ -7023,6 +7585,7 @@ export function createRegisterMode(B) {
   function dynamicPose(key) {
     if (key === 'checkin') return derivedCheckinPose();
     if (key === 'cash') return derivedCashDrawerPose();
+    if (key === 'overview' || key === 'scan') return derivedWorkingPose();
     return POSES[key] || POSES.overview;
   }
 

@@ -14,8 +14,11 @@ import {
 
 test('denominations are bills then five coins, descending through the penny', () => {
   assert.deepEqual(BILLS, [50, 20, 10, 5, 1]);
-  assert.deepEqual(COINS, [0.5, 0.2, 0.1, 0.05, 0.01]);
-  assert.deepEqual(DENOMS, [50, 20, 10, 5, 1, 0.5, 0.2, 0.1, 0.05, 0.01]);
+  // The fourth coin is a QUARTER. There is no 20-unit coin in this currency —
+  // the drawer's fourth well reads 25¢, exactly like the reference till.
+  assert.deepEqual(COINS, [0.5, 0.25, 0.1, 0.05, 0.01]);
+  assert.deepEqual(DENOMS, [50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]);
+  assert.ok(!COINS.includes(0.2), 'the out-of-contract 20-unit coin is retired');
   for (let i = 1; i < DENOMS.length; i++) assert.ok(DENOMS[i] < DENOMS[i - 1], 'descending');
   assert.ok(DENOMS.includes(0.01), 'cent-accurate cash can make arbitrary change');
 });
@@ -39,10 +42,10 @@ test('makeChange returns the fewest notes and coins that sum exactly', () => {
     [0, {}],
     [5, { 5: 1 }],
     [0.15, { 0.1: 1, 0.05: 1 }],
-    [4.28, { 1: 4, 0.2: 1, 0.05: 1, 0.01: 3 }],
+    [4.28, { 1: 4, 0.25: 1, 0.01: 3 }],
     [5.64, { 5: 1, 0.5: 1, 0.1: 1, 0.01: 4 }],
-    [12.85, { 10: 1, 1: 2, 0.5: 1, 0.2: 1, 0.1: 1, 0.05: 1 }],
-    [67.4, { 50: 1, 10: 1, 5: 1, 1: 2, 0.2: 2 }],
+    [12.85, { 10: 1, 1: 2, 0.5: 1, 0.25: 1, 0.1: 1 }],
+    [67.4, { 50: 1, 10: 1, 5: 1, 1: 2, 0.25: 1, 0.1: 1, 0.05: 1 }],
   ];
   for (const [amount, want] of cases) {
     const got = makeChange(amount);
@@ -60,11 +63,13 @@ test('makeChange sums back exactly for every cent amount up to $200', () => {
 });
 
 test('makeChangeFrom finds exact bounded-drawer alternatives instead of getting trapped greedily', () => {
-  const full = { 5: 20, 1: 20, 0.5: 20, 0.2: 20, 0.1: 20, 0.05: 20, 0.01: 50 };
-  assert.deepEqual(makeChangeFrom(full, 4.28), { 1: 4, 0.2: 1, 0.05: 1, 0.01: 3 });
+  const full = { 5: 20, 1: 20, 0.5: 20, 0.25: 20, 0.1: 20, 0.05: 20, 0.01: 50 };
+  assert.deepEqual(makeChangeFrom(full, 4.28), { 1: 4, 0.25: 1, 0.01: 3 });
   assert.deepEqual(makeChangeFrom(full, 5.64), { 5: 1, 0.5: 1, 0.1: 1, 0.01: 4 });
-  assert.deepEqual(makeChangeFrom({ 0.5: 1, 0.2: 3 }, 0.6), { 0.2: 3 });
-  assert.equal(makeChangeFrom({ 0.5: 1 }, 0.6), null);
+  // The classic quarter trap: greedy takes the 25¢ first and strands 5¢ it
+  // has no nickel for. Three dimes is the only exact answer on hand.
+  assert.deepEqual(makeChangeFrom({ 0.25: 1, 0.1: 3 }, 0.3), { 0.1: 3 });
+  assert.equal(makeChangeFrom({ 0.25: 1, 0.1: 1 }, 0.3), null);
 });
 
 test('a stack knows its value and its piece count, and pieces move one at a time', () => {
@@ -86,17 +91,17 @@ test('a stack knows its value and its piece count, and pieces move one at a time
   assert.equal(stackTotal(t.stack), 20.2, 'a failed take changes nothing');
 });
 
-test('legacy quarter stacks migrate exactly once into 20-unit and 5-unit coins', () => {
+test('legacy 20-unit stacks migrate exactly once into dimes, keeping the quarter', () => {
   const legacy = { 20: 2, 0.5: 3, 0.25: 7, 0.2: 4, 0.05: 9, 0.01: 2 };
   const opening = stackTotal(legacy);
   const migrated = migrateLegacyQuarterStack(legacy);
-  assert.equal(migrated[0.25], undefined);
-  assert.equal(migrated[0.2], 11);
-  assert.equal(migrated[0.05], 16);
+  assert.equal(migrated[0.2], undefined, 'the out-of-contract 20-unit coin is gone');
+  assert.equal(migrated[0.25], 7, 'quarters are canonical and survive untouched');
+  assert.equal(migrated[0.1], 8, 'each 20-unit piece becomes exactly two dimes');
   assert.equal(stackTotal(migrated), opening);
   assert.deepEqual(migrateLegacyQuarterStack(migrated), migrated, 'stack migration is idempotent');
   const drawer = migrateDrawer(legacy);
-  assert.equal(drawer[0.25], undefined);
+  assert.equal(drawer[0.2], undefined);
   assert.equal(stackTotal(drawer), opening);
   assert.deepEqual(migrateDrawer(drawer), drawer, 'full drawer migration is idempotent');
 });

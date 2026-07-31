@@ -250,15 +250,14 @@ test('a ledger poisoned by an old build heals to zeros on load', () => {
   assert.ok(Number.isFinite(healed.ledger.yesterday.revenueTotal));
 });
 
-test('legacy drawers replace quarter slots and rebalance without minting value', () => {
+test('legacy drawers replace 20-unit slots and rebalance without minting value', () => {
   const state = newGame('relaxed', 4321);
-  state.shop.drawer = { 20: 5, 10: 8, 5: 10, 1: 25, 0.25: 20, 0.1: 20, 0.05: 20 };
+  state.shop.drawer = { 20: 5, 10: 8, 5: 10, 1: 25, 0.2: 20, 0.1: 20, 0.05: 20 };
   const opening = stackTotal(state.shop.drawer);
   const loaded = deserialize(serialize(state));
   assert.equal(stackTotal(loaded.shop.drawer), opening);
-  assert.equal(loaded.shop.drawer[0.25], undefined, 'the out-of-contract quarter slot is removed');
-  assert.ok(loaded.shop.drawer[0.2] > 0, 'the migrated drawer carries the authored 20-unit coin');
-  assert.ok(loaded.shop.drawer[0.05] >= 40, 'each legacy quarter also funds a 5-unit coin');
+  assert.equal(loaded.shop.drawer[0.2], undefined, 'the out-of-contract 20-unit slot is removed');
+  assert.ok(loaded.shop.drawer[0.1] > 20, 'each retired 20-unit piece becomes two dimes');
   assert.ok(loaded.shop.drawer[0.5] >= 16, 'old float funds the half-dollar slot');
   assert.ok(loaded.shop.drawer[0.01] >= 50, 'old float funds the penny slot');
   const loadedAgain = deserialize(serialize(loaded));

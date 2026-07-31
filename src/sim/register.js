@@ -23,7 +23,14 @@ import { accrueSalesTax, preflightSalesTaxAccrual } from './salesTax.js';
 // denominations down through the penny, so cash and card share one exact total.
 
 export const BILLS = [50, 20, 10, 5, 1];
-export const COINS = [0.5, 0.2, 0.1, 0.05, 0.01];
+// The quarter is a REAL coin. An earlier pass shipped a 20-unit piece because
+// asset Sheet 02 happened to author one, and the drawer then labelled its
+// fourth well "20¢" — a denomination that does not exist in the currency the
+// reference drawer shows (Designs/CashRegister/Final 154525 / 154641 read
+// 1¢ 5¢ 10¢ 25¢ 50¢). cash_coin_25.glb was already built alongside it, so the
+// quarter is canonical here and migrateLegacyQuarterStack now retires the
+// out-of-contract 20-unit piece instead of creating it.
+export const COINS = [0.5, 0.25, 0.1, 0.05, 0.01];
 export const DENOMS = [...BILLS, ...COINS];
 
 const cents = (v) => Math.round(v * 100);
@@ -546,7 +553,7 @@ export function newDrawer() {
     5: 10,
     1: 25,
     0.5: 16,
-    0.2: 25,
+    0.25: 25,
     0.1: 20,
     0.05: 20,
     0.01: 50,
@@ -603,17 +610,18 @@ export function makeChangeFrom(drawer, amount) {
   return best[target] ? best[target].stack : null;
 }
 
-// Asset Sheet 02 defines a 20-unit coin, while early saves used an out-of-
-// contract 25-unit coin.  One legacy quarter is exactly one 20-unit coin plus
-// one 5-unit coin, so old drawer value can be retained without rounding.  This
-// helper is intentionally exported for save-migration and regression tests.
+// The QUARTER is canonical (see COINS). Saves written while the drawer carried
+// the out-of-contract 20-unit coin still hold 0.2 stacks, and a 20-unit piece
+// cannot become a 25-unit piece without inventing value — so each one is
+// exchanged for two dimes, which is exactly the same money. The helper keeps
+// its name because save-migration and regression tests import it; it is the
+// one place the two coin contracts are reconciled.
 export function migrateLegacyQuarterStack(stack) {
   const out = copyStack(stack);
-  const legacyQuarters = out[0.25] || 0;
-  if (!legacyQuarters) return out;
-  delete out[0.25];
-  out[0.2] = (out[0.2] || 0) + legacyQuarters;
-  out[0.05] = (out[0.05] || 0) + legacyQuarters;
+  const legacyTwenties = out[0.2] || 0;
+  if (!legacyTwenties) return out;
+  delete out[0.2];
+  out[0.1] = (out[0.1] || 0) + legacyTwenties * 2;
   return out;
 }
 

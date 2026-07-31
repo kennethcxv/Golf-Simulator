@@ -26,7 +26,7 @@ test('money visual routing preserves every other denomination stem', () => {
 test('opaque-veil GPU warm-up covers every drawer asset and the tender-only hero coin', () => {
   assert.deepEqual(checkoutMoneyGpuPrewarmStems(), [
     'cash_bill_50', 'cash_bill_20', 'cash_bill_10', 'cash_bill_5', 'cash_bill_1',
-    'cash_coin_50', 'cash_coin_20', 'cash_coin_10', 'cash_coin_05', 'cash_coin_01',
+    'cash_coin_50', 'cash_coin_25', 'cash_coin_10', 'cash_coin_05', 'cash_coin_01',
     'cash_coin_05_sheet01',
   ]);
 });
@@ -55,7 +55,7 @@ test('closed drawer presentation stays culled while every coin atlas prewarms', 
   assert.equal(drawerPresentationVisible(0, 0), false);
   assert.equal(drawerPresentationVisible(1, 0), true);
   assert.equal(drawerPresentationVisible(0, 0.5), true);
-  for (const denomination of [0.01, 0.05, 0.1, 0.2, 0.5]) {
+  for (const denomination of [0.01, 0.05, 0.1, 0.25, 0.5]) {
     assert.equal(shouldPrewarmDrawerCoin(denomination), true);
   }
   for (const denomination of [0, 1, 5, 10, 20, 50, null, undefined]) {
