@@ -88,7 +88,7 @@ import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
-import { CLEANING_TOOLS } from '../data/cleaningTools.js';
+import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
 import { GOLF_CART_TIERS, golfCartTier } from '../data/golfCarts.js';
 import { CLUBHOUSE_VARIANT_REQUEST, DOOR_MAIN, SHELL } from '../data/shopLayout.js';
 import {
@@ -6364,6 +6364,16 @@ export function makeCourseScene(canvas, state) {
 
   let walkTool = null; // hand tools plus the pushed greens mower / spreader
   let walkSpraying = false; // "holding the use button" for whichever tool is out
+  // DIRT SENSE (House Flipper 2's Flipper Sense, Q by default): held to light up
+  // every remaining pile through the walls, lingering a moment after release and
+  // cancelled the instant you start working — you look, then you sweep.
+  const DIRT_SENSE = { key: 'q', rise: 8.0, linger: 2.2, fade: 1.6 };
+  let dirtSenseAlpha = 0;
+  let dirtSenseLinger = 0;
+  let dirtSenseAimed = null; // the cluster under the crosshair, for the reticle
+  // Where the crosshair met the floor. A persistent object: this is written
+  // every frame in the walk loop, so a fresh literal here is pure GC churn.
+  const dirtSenseAim = { x: 0, z: 0, dist: 0, eyeY: 0, live: false };
   let walkSoaping = false; // right button, pressure washer only: lay foam instead of water
   let washHintClock = 0; // don't nag about soap more than once every few seconds
   let walkWaterTexClock = 0;
@@ -8244,6 +8254,54 @@ export function makeCourseScene(canvas, state) {
       walkHooks.onBroomFeel?.(
         broomPose.intensity, broomPose.inContact && broomPose.planted, broomSurface,
       );
+    }
+    // --- DIRT SENSE ---------------------------------------------------------
+    // Hold Q: every remaining pile lights up through the geometry, so the piles
+    // behind the counter stop being invisible. Using a tool cancels it outright
+    // (you are no longer looking, you are working), and it lingers briefly on
+    // release so a glance survives letting go of the key.
+    if (clubhouseApi?.setDirtReveal) {
+      const senseHeld = walkHeld.has(DIRT_SENSE.key) && !cart.mounted;
+      if (walkSpraying) {
+        dirtSenseLinger = 0;
+        dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / 0.18);
+      } else if (senseHeld) {
+        dirtSenseLinger = DIRT_SENSE.linger;
+        dirtSenseAlpha = Math.min(1, dirtSenseAlpha + dt * DIRT_SENSE.rise);
+      } else if (dirtSenseLinger > 0) {
+        dirtSenseLinger = Math.max(0, dirtSenseLinger - dt);
+      } else if (dirtSenseAlpha > 0) {
+        dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / DIRT_SENSE.fade);
+      }
+      clubhouseApi.setDirtReveal(dirtSenseAlpha, false);
+    }
+    // The reticle answers House Flipper 1's question: is the thing I am pointing
+    // at actually cleanable? Only while a debris tool is out, and only within
+    // its own reach, so the prompt never promises work the tool cannot do.
+    dirtSenseAimed = null;
+    if (clubhouseApi?.nearestDirt && walkTool && CLEANING_TOOLS[walkTool]
+      && !cart.mounted && !walkSpraying) {
+      const def = CLEANING_TOOLS[walkTool];
+      const handlesDebris = Array.isArray(def.dirt) && def.dirt.includes(DIRT.DEBRIS);
+      if (handlesDebris) {
+        // Where the CROSSHAIR meets the floor — not simply the tool's maximum
+        // reach, which aims past whatever you are actually looking at. Level or
+        // upward looks never hit the boards, so they never prompt.
+        const eyeY = clubhouseApi.groundYAt
+          ? camera.position.y - clubhouseApi.groundYAt(walk.x, walk.z)
+          : 1.62;
+        const downPitch = -walk.pitch;
+        if (downPitch > 0.06 && eyeY > 0.2) {
+          const aimDist = Math.min(def.reach || 2.0, eyeY / Math.tan(downPitch));
+          const ax = walk.x - Math.sin(walk.yaw) * aimDist;
+          const az = walk.z - Math.cos(walk.yaw) * aimDist;
+          dirtSenseAim.x = ax; dirtSenseAim.z = az;
+          dirtSenseAim.dist = aimDist; dirtSenseAim.eyeY = eyeY; dirtSenseAim.live = true;
+          dirtSenseAimed = clubhouseApi.nearestDirt(ax, az, Math.max(0.6, def.radius || 0.6));
+        } else {
+          dirtSenseAim.live = false;
+        }
+      }
     }
     if (walkSpraying && CLEANING_TOOLS[walkTool] && !CLEANING_TOOLS[walkTool].external
       && !cart.mounted && clubhouseApi && clubhouseApi.cleanWithTool) {
@@ -11057,6 +11115,27 @@ export function makeCourseScene(canvas, state) {
       // pitch, reach, clamp state, tilt, intensity). Null-safe for QA that
       // probes before the rig exists.
       broomDiagnostics: () => broomVm.diagnostics(),
+      // Dirt sense: the held-key reveal's own state, plus what the crosshair is
+      // currently over. Both are what the acceptance driver reads.
+      dirtSense: () => ({
+        key: DIRT_SENSE.key,
+        alpha: +dirtSenseAlpha.toFixed(3),
+        held: walkHeld.has(DIRT_SENSE.key),
+        linger: +dirtSenseLinger.toFixed(2),
+        aimed: dirtSenseAimed
+          ? { kind: dirtSenseAimed.kind || 'grit', dist: +dirtSenseAimed.dist.toFixed(2) }
+          : null,
+        aim: dirtSenseAim.live
+          ? {
+            x: +dirtSenseAim.x.toFixed(2),
+            z: +dirtSenseAim.z.toFixed(2),
+            dist: +dirtSenseAim.dist.toFixed(2),
+            eyeY: +dirtSenseAim.eyeY.toFixed(2),
+          }
+          : null,
+        tool: walkTool,
+        overlay: clubhouseApi?.dirtSenseDiagnostics?.() || null,
+      }),
       // The rig renders through its own lens (BROOM_FEEL.camera), so any QA
       // that measures where a part lands ON SCREEN must project through this
       // camera, not the world one.

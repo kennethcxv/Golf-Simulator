@@ -5168,6 +5168,98 @@ export function makeClubhouse(ctx) {
   }
   refreshDebrisVisual();
 
+  // --- DIRT SENSE: where is the mess? ---------------------------------------------------------
+  //
+  // Play-test: "I cannot tell what still needs cleaning… Shop condition 9 —
+  // filthy tells me a number but never where." House Flipper 2 answers this with
+  // Flipper Sense (hold a key, remaining dirt lights up), and the documented
+  // criticism of it is that it only shows what you are ALREADY looking at. The
+  // first game's minimap was better for direction. So there are two consumers of
+  // this overlay: the held-key reveal, and the Tab overview camera, which sees
+  // the whole floor at once and therefore answers "which way do I go".
+  //
+  // The markers deliberately draw THROUGH geometry (depthTest off, late render
+  // order) — a pile behind the counter is exactly the one you cannot find.
+  const SENSE_CAP = DEBRIS_CAP * 2;
+  const senseGeo = new THREE.SphereGeometry(0.16, 10, 8);
+  const senseMat = new THREE.MeshBasicMaterial({
+    color: 0x74e0ff,
+    transparent: true,
+    opacity: 0,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const senseMesh = new THREE.InstancedMesh(senseGeo, senseMat, SENSE_CAP);
+  senseMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  senseMesh.frustumCulled = false;
+  senseMesh.renderOrder = 998;
+  senseMesh.castShadow = false;
+  senseMesh.receiveShadow = false;
+  senseMesh.count = 0;
+  senseMesh.visible = false;
+  senseMesh.name = 'DirtSenseMarkers';
+  interior.add(senseMesh);
+
+  let senseAlpha = 0;
+  let senseColumns = false;
+
+  function refreshDirtSense() {
+    const list = debrisState(state);
+    let n = 0;
+    for (let i = 0; i < list.length && n < SENSE_CAP; i += 1) {
+      const d = list[i];
+      if (!d || d.a <= 0.001) continue;
+      // A marker's size answers "how much", so a big pile reads as worth the
+      // walk; the column mode stands it up so it clears furniture from above.
+      const s = Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7);
+      // The overview looks DOWN at a roofed building, so a marker that stops at
+      // head height is behind the ceiling and useless. The column is sized to
+      // punch clean through the roof: the 0.16 yd sphere scaled to ~9 yd tall,
+      // standing from the floor.
+      const COLUMN_YD = 9.0;
+      const h = senseColumns ? COLUMN_YD / (0.16 * 2) : s;
+      _dp.set(d.x, senseColumns ? COLUMN_YD / 2 : 0.10 + 0.02 * s, d.z);
+      _dq.identity();
+      _ds.set(s, h, s);
+      _dm.compose(_dp, _dq, _ds);
+      senseMesh.setMatrixAt(n, _dm);
+      n += 1;
+    }
+    senseMesh.count = n;
+    senseMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /**
+   * Show remaining dirt. `alpha` 0 hides it entirely (and costs nothing);
+   * `columns` stands each marker into a tall pillar for the overview camera,
+   * where a floor-hugging blob is invisible from above the roof.
+   */
+  function setDirtReveal(alpha, columns = false) {
+    const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 0));
+    const modeChanged = columns !== senseColumns;
+    senseColumns = !!columns;
+    senseAlpha = a;
+    senseMesh.visible = a > 0.002;
+    senseMat.opacity = a * (columns ? 0.5 : 0.72);
+    if (senseMesh.visible && (modeChanged || senseMesh.count === 0 || a > 0)) refreshDirtSense();
+  }
+
+  /** The nearest remaining cluster to a world point, for the reticle prompt. */
+  function nearestDebrisLocal(lx, lz, radius) {
+    const list = debrisState(state);
+    let best = null;
+    let bestD2 = radius * radius;
+    for (const d of list) {
+      if (!d || d.a <= 0.001) continue;
+      const dx = d.x - lx;
+      const dz = d.z - lz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 <= bestD2) { bestD2 = d2; best = d; }
+    }
+    return best ? { x: best.x, z: best.z, amount: best.a, kind: best.kind, dist: Math.sqrt(bestD2) } : null;
+  }
+
   // --- the wet floor ------------------------------------------------------------------------
   //
   // Mopping had no visible result at all: the sim recorded water, the player saw nothing, and the
@@ -10923,6 +11015,25 @@ export function makeClubhouse(ctx) {
       washerJetVisible: washing.jet.visible,
       washerMistVisible: washing.mist.visible,
       washerWet: washing.wetnessDiagnostics(),
+    }),
+    // DIRT SENSE. `setDirtReveal(alpha, columns)` lights every remaining
+    // cluster through geometry; `columns` is the overview camera's variant.
+    // `nearestDirt` answers the reticle: is the thing under the crosshair
+    // actually cleanable?
+    setDirtReveal,
+    nearestDirt: (wx, wz, radius = 0.75) => {
+      const local = W2L(wx, wz);
+      if (!local) return null;
+      return nearestDebrisLocal(local.x, local.z, radius);
+    },
+    dirtSenseDiagnostics: () => ({
+      alpha: +senseAlpha.toFixed(3),
+      columns: senseColumns,
+      markers: senseMesh.count,
+      visible: senseMesh.visible,
+      drawsThroughGeometry: senseMat.depthTest === false,
+      clusters: debrisState(state).filter((d) => d && d.a > 0.001).length,
+      totalDebris: +totalDebris(state).toFixed(3),
     }),
     cleaningLabel: (toolId) => {
       const status = cleaningStatus(state);

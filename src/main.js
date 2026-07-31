@@ -1219,9 +1219,19 @@ const handlers = {
     if (app.courseMode === 'walk') {
       app.courseMode = 'overview';
       exitWalk();
-      toast('Overview camera — Tab returns you to your feet.');
+      // The overview is the half of dirt visibility that answers WHICH WAY to
+      // go — House Flipper 2's Flipper Sense only lights what you already face,
+      // and the documented complaint is exactly that. Standing pillars over
+      // every remaining pile makes the map say where the work is.
+      const ch = app.scene3d.clubhouse?.();
+      const piles = ch?.setDirtReveal ? (ch.dirtSenseDiagnostics?.().clusters || 0) : 0;
+      ch?.setDirtReveal?.(1, true);
+      toast(piles
+        ? `Overview camera — ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
+        : 'Overview camera — Tab returns you to your feet.');
     } else {
       app.courseMode = 'walk';
+      app.scene3d.clubhouse?.()?.setDirtReveal?.(0, false);
       enterWalk('resume');
     }
     syncPresentationMode(presentationMode());
@@ -2717,6 +2727,35 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovEl.lockHint = walkOverlay.querySelector('.shop-lockhint');
     ovEl.cond = walkOverlay.querySelector('.shop-cond');
     ovEl.propertyInventory = walkOverlay.querySelector('.property-inventory');
+    ovEl.dirtSense = walkOverlay.querySelector('.dirt-sense-hint');
+    ovEl.dirtReticle = walkOverlay.querySelector('.dirt-reticle');
+  }
+  if (ovEl.dirtReticle) {
+    const aimed = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense().aimed : null;
+    const reticleText = aimed
+      ? (aimed.kind === 'litter' ? 'litter — sweep it' : 'loose dirt — sweep it')
+      : '';
+    if (reticleText !== ovLast.dirtReticleText) {
+      ovLast.dirtReticleText = reticleText;
+      ovEl.dirtReticle.textContent = reticleText;
+      ovEl.dirtReticle.style.display = reticleText ? 'block' : 'none';
+    }
+  }
+  // The dirt-sense affordance: offered only when there is dirt left to find,
+  // and lit while the key is actually down.
+  if (ovEl.dirtSense) {
+    const sense = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense() : null;
+    const clusters = sense?.overlay?.clusters || 0;
+    const senseDisplay = clusters > 0 && document.pointerLockElement ? 'flex' : 'none';
+    if (senseDisplay !== ovLast.senseDisplay) {
+      ovLast.senseDisplay = senseDisplay;
+      ovEl.dirtSense.style.display = senseDisplay;
+    }
+    const senseOn = !!sense && sense.alpha > 0.02;
+    if (senseOn !== ovLast.senseOn) {
+      ovLast.senseOn = senseOn;
+      ovEl.dirtSense.classList.toggle('is-on', senseOn);
+    }
   }
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
@@ -2981,7 +3020,20 @@ function boot() {
   walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · P pause' });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
+    // House Flipper 1's reticle behaviour: point at dirt and a small label
+    // under the crosshair confirms it is cleanable. It gets its OWN element
+    // rather than sharing the prompt line — the room is full of props, and
+    // routing it through the single prompt meant a desk or a window outranked
+    // the dirt at every pile in the shop.
+    el('div', { class: 'dirt-reticle', text: '', style: 'display:none' }),
     el('div', { class: 'shop-prompt', text: '' }),
+    // Flipper-Sense-style affordance: the reveal is worthless if nobody knows
+    // the key exists, so the eye and its binding sit in the lower left whenever
+    // there is actually dirt to find.
+    el('div', { class: 'dirt-sense-hint', style: 'display:none' },
+      el('span', { class: 'dirt-sense-eye', text: '◉' }),
+      el('span', { class: 'dirt-sense-key', text: 'Q' }),
+      el('span', { class: 'dirt-sense-text', text: 'reveal dirt' })),
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
     el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause' }),
