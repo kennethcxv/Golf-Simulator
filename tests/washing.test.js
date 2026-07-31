@@ -106,6 +106,27 @@ test('a better washer cleans faster, and a wider one covers more', () => {
   assert.ok(surfaceClean(b, light.id) > surfaceClean(a, light.id), 'the pro machine gets more done');
 });
 
+test('the inherited washer clears a player-sized sweep without becoming an instant wall upgrade', () => {
+  const st = newGame('relaxed', 4);
+  ensureWash(st);
+  const rental = WASHERS[0];
+  const surfaceId = 'sidingSE';
+  const before = surfaceClean(st, surfaceId);
+
+  // Roughly 0.8 yd between horizontal stops and 0.65 yd between rows mirrors
+  // a player sweeping the live one-metre fan across the south wall.
+  for (const v of [0.055, 0.352, 0.648, 0.945]) {
+    for (let index = 0; index < 11; index += 1) {
+      const u = 0.045 + 0.91 * (index / 10);
+      washAt(st, surfaceId, u, v, rental.radius, rental.power, 0.28, 10);
+    }
+  }
+  const cleaned = surfaceClean(st, surfaceId);
+  assert.ok(cleaned >= 0.80, `one deliberate wall sweep is productive (${cleaned})`);
+  assert.ok(cleaned < 0.95, 'edge/corner cleanup still rewards a finishing pass');
+  assert.ok(cleaned > before + 0.65, 'the opening campaign no longer requires stationary pixel hunting');
+});
+
 test('the good machines are not simply handed to you', () => {
   const st = newGame('relaxed', 4);
   ensureWash(st);

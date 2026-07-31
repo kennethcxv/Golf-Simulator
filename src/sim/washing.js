@@ -35,11 +35,16 @@ export const WASH_SURFACES = [
 ];
 
 export const WASHERS = [
-  { id: 'rental', name: 'Rented washer', power: 0.7, radius: 0.30, cost: 0, level: 0,
-    blurb: 'Tired, borrowed, and barely enough. It works.' },
-  { id: 'greenline', name: 'Greenline 1600', power: 0.95, radius: 0.40, cost: 260, level: 0,
+  // At the normal 3-4 m working distance, even the inherited fan covers about
+  // a metre. The former 0.30 yd radius required hundreds of stationary aim
+  // points and turned the first campaign wash into a 15+ minute bottleneck.
+  // These remain meaningfully tiered while letting a player sweep the wand;
+  // soap/dwell and raycast occlusion still gate heavy stains.
+  { id: 'rental', name: 'Rented washer', power: 1.0, radius: 0.58, cost: 0, level: 0,
+    blurb: 'Tired and borrowed, but its broad fan can still finish the job.' },
+  { id: 'greenline', name: 'Greenline 1600', power: 1.3, radius: 0.72, cost: 260, level: 0,
     blurb: 'An honest domestic machine. Twice the bite of the rental.' },
-  { id: 'ironwood', name: 'Ironwood Pro 2400', power: 1.5, radius: 0.55, cost: 820, level: 2,
+  { id: 'ironwood', name: 'Ironwood Pro 2400', power: 1.7, radius: 0.88, cost: 820, level: 2,
     blurb: 'Contractor kit. Wide fan, real pressure — walls fall off it.' },
 ];
 

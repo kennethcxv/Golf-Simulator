@@ -13,7 +13,8 @@ async (page) => {
   const furnishingOut = path.join(repo, 'qa', 'gameplay-progression', 'furnishing');
   const repairOut = path.join(repo, 'qa', 'gameplay-progression', 'repairs');
   const laptopOut = path.join(repo, 'qa', 'gameplay-progression', 'laptop-unlock');
-  for (const dir of [deliveryOut, furnishingOut, repairOut, laptopOut]) {
+  const orderingOut = path.join(repo, 'qa', 'gameplay-progression', 'opening-orders');
+  for (const dir of [deliveryOut, furnishingOut, repairOut, laptopOut, orderingOut]) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
@@ -34,6 +35,16 @@ async (page) => {
     await page.waitForTimeout(ms);
     await page.keyboard.up(key);
     actions.push({ type: 'held-key', key, ms: Math.round(ms), label });
+  };
+  const clickCenter = async (locator, label) => {
+    await locator.waitFor({ state: 'visible', timeout: 15000 });
+    const box = await locator.boundingBox();
+    if (!box || box.width < 2 || box.height < 2) throw new Error(`${label} has no clickable bounds.`);
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    await page.mouse.move(point.x, point.y, { steps: 4 });
+    await page.mouse.down();
+    await page.mouse.up();
+    actions.push({ type: 'mouse-click', label, point });
   };
   const readPose = () => page.evaluate(() => {
     const app = window.__fw;
@@ -190,6 +201,7 @@ async (page) => {
     restore: path.join(deliveryOut, 'checkpoint-office-boxes-inside.json'),
     power: path.join(furnishingOut, 'checkpoint-office-furnished.json'),
     evidence: path.join(laptopOut, 'checkpoint-office-restored.json'),
+    order: path.join(laptopOut, 'checkpoint-office-restored.json'),
   };
   const checkpointFile = checkpointByPhase[phase];
   if (!checkpointFile || !fs.existsSync(checkpointFile)) {
@@ -594,6 +606,81 @@ async (page) => {
       throw new Error(`Flattened ${skuId} carton did not leave authoritative state: ${JSON.stringify(snapshot)}`);
     }
     actions.push({ type: 'campaign-carton-recycled', skuId });
+  }
+
+  if (phase === 'order') {
+    await focusLocalTarget({
+      lx: 9.55, lz: 4.50,
+      terms: ['laptop', 'open golf simulator'],
+      stances: [{ x: 8.10, z: 4.50 }, { x: 8.20, z: 5.15 }],
+      pitches: [0.02, -0.12, -0.26, -0.40, -0.56],
+      label: 'physical office laptop for reopening order',
+    });
+    await press('e', 'open physical office laptop');
+    await page.waitForFunction(() => window.__fw?.laptopOpen === true, null, { timeout: 8000 });
+    await page.waitForTimeout(850);
+
+    await clickCenter(page.getByRole('button', { name: 'Shop', exact: true }), 'laptop Shop page');
+    await clickCenter(page.locator('.lt-tabs .lt-tab').filter({ hasText: /^Order$/ }), 'laptop Order tab');
+    const bundle = page.getByRole('button', { name: 'Add missing bundle', exact: true });
+    await clickCenter(bundle, 'add missing reopening bundle');
+    await page.waitForFunction(() => {
+      const button = [...document.querySelectorAll('button')].find((entry) => entry.textContent?.trim() === 'Place Order');
+      return button && !button.disabled;
+    }, null, { timeout: 8000 });
+    await page.screenshot({ path: path.join(orderingOut, '01-reopening-bundle-ready.png') });
+    await clickCenter(page.getByRole('button', { name: 'Place Order', exact: true }), 'place reopening order');
+    await clickCenter(page.getByRole('button', { name: 'Place the order', exact: true }), 'confirm reopening order');
+    await page.waitForFunction(() => {
+      const state = window.__fw?.state;
+      return state?.shop?.orders?.length === 6
+        && state?.campaign?.purchased?.repairkit1 === 7
+        && state?.campaign?.purchased?.counter1 === 1
+        && state?.campaign?.purchased?.shelfkit1 === 2
+        && state?.campaign?.purchased?.safetykit1 === 1;
+    }, null, { timeout: 10000 });
+    await page.waitForTimeout(450);
+    await page.screenshot({ path: path.join(orderingOut, '02-six-physical-orders-scheduled.png') });
+    await press('Escape', 'close laptop after reopening order');
+    await page.waitForFunction(() => window.__fw?.laptopOpen === false, null, { timeout: 8000 });
+    const checkpointPath = path.join(orderingOut, 'checkpoint-reopening-orders-scheduled.json');
+    await saveCheckpoint(checkpointPath);
+    const result = await page.evaluate(async () => {
+      const C = await import('/src/sim/campaign.js');
+      const state = window.__fw.state;
+      return {
+        cash: state.cash,
+        clockMinutes: state.clock.minutes,
+        orderCount: state.shop.orders.length,
+        orders: state.shop.orders.map((entry) => ({
+          id: entry.id,
+          skuId: entry.skuId,
+          qty: entry.qty,
+          boxCount: entry.manifest?.boxCount,
+          deliveryMin: entry.deliveryMin,
+          cost: entry.cost,
+        })),
+        purchased: { ...state.campaign.purchased },
+        objective: C.campaignView(state).currentTask,
+      };
+    });
+    const expectedBoxes = result.orders.reduce((sum, entry) => sum + (entry.boxCount || 0), 0);
+    return {
+      ok: errors.length === 0
+        && result.orderCount === 6
+        && expectedBoxes === 13
+        && result.purchased.repairkit1 === 7
+        && result.purchased.counter1 === 1
+        && result.purchased.shelfkit1 === 2
+        && result.purchased.safetykit1 === 1,
+      qaPhase: phase,
+      errors,
+      actionCount: actions.length,
+      observationCount: observations.length,
+      expectedBoxes,
+      checkpointPath,
+      ...result,
+    };
   }
 
   if (phase === 'unload') {
