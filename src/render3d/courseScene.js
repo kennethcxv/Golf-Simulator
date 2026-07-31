@@ -8472,6 +8472,12 @@ export function makeCourseScene(canvas, state) {
       for (const [id, group] of Object.entries(heldGroups)) {
         const rest = group.userData.cleaningRestPosition;
         if (!rest || !CLEANING_TOOLS[id]) continue;
+        // Phase 6 / round 3: the broom's viewmodel rig OWNS its transform — it
+        // solves the tool onto the grip and the bristle contact every frame.
+        // Snapping it back to the registry rest pose here undid that solve on
+        // every frame the player was not actively sweeping, which is exactly
+        // why the idle broom hung in the air while a held stroke looked right.
+        if (id === 'broom' && broomVm.isActive()) continue;
         group.position.copy(rest);
         group.rotation.z = group.userData.cleaningRestRotationZ;
       }
@@ -9360,13 +9366,60 @@ export function makeCourseScene(canvas, state) {
     return u * u * (3 - 2 * u);
   }
 
+  // WHAT THE CAMERA IS LOOKING AT.
+  //
+  // Keying the fill to the player's position alone made the doorway lie: stand
+  // half a yard outside with the door open, look in, and the room was at full
+  // brightness — then it snapped dark on the step across the threshold. The
+  // room you can SEE should be lit like the room you are standing in, so the
+  // fill also answers how much of the view lands inside the building.
+  //
+  // The sampling is deliberately coarse and boolean (isInside, no bisection):
+  // a 4x4 fan of horizontal bearings across the frustum at four depths is 16
+  // cheap tests a frame, where running the smooth depth solve per sample would
+  // be ~96. The result is a coverage fraction, eased over time so walking past
+  // an open door does not strobe the whole scene.
+  const VIEW_SAMPLE_DIST = [1.2, 2.6, 4.2, 6.0];
+  const VIEW_SAMPLE_YAW = [-0.42, -0.15, 0.15, 0.42];
+  const VIEW_FILL_EASE = 0.12; // per frame, ~0.25 s to settle
+  const _fillViewDir = new THREE.Vector3();
+  let viewInsideEased = 0;
+  let viewBlendEnabled = true;
+
+  function viewInsideFraction() {
+    const inside = clubhouseApi?.isInside;
+    if (typeof inside !== 'function') return 0;
+    camera.getWorldDirection(_fillViewDir);
+    // only the horizontal bearing matters — looking down at the floor of a
+    // room still means that room fills the frame
+    const baseYaw = Math.atan2(-_fillViewDir.x, -_fillViewDir.z);
+    let hit = 0;
+    let total = 0;
+    for (const dy of VIEW_SAMPLE_YAW) {
+      const yaw = baseYaw + dy;
+      const fx = -Math.sin(yaw);
+      const fz = -Math.cos(yaw);
+      for (const d of VIEW_SAMPLE_DIST) {
+        total += 1;
+        if (inside(camera.position.x + fx * d, camera.position.z + fz * d, 0)) hit += 1;
+      }
+    }
+    return total ? hit / total : 0;
+  }
+
   function applyInteriorFill() {
     // The player's own position while walking — during a focus pose (the
     // register, the laptop) the camera leaves their head, and the light should
     // follow where the body is, not where the shot is framed from.
     const px = walk.active ? walk.x : camera.position.x;
     const pz = walk.active ? walk.z : camera.position.z;
-    interiorFillLast = interiorFillFactor(px, pz);
+    const standing = interiorFillFactor(px, pz);
+    // Standing inside always wins outright; looking in from outside pulls the
+    // fill down by however much of the view the interior actually occupies.
+    const want = viewBlendEnabled
+      ? Math.max(standing, viewInsideFraction()) : standing;
+    viewInsideEased += (want - viewInsideEased) * VIEW_FILL_EASE;
+    interiorFillLast = viewInsideEased;
     hemi.intensity *= 1 - interiorFillLast * (1 - interiorFillScale);
   }
 
@@ -10855,6 +10908,13 @@ export function makeCourseScene(canvas, state) {
       factor: () => interiorFillLast,
       hemiIntensity: () => hemi.intensity,
       blendYd: INTERIOR_FILL_BLEND_YD,
+      // The view-coverage term, and a switch for it. The switch is what makes
+      // the doorway fix measurable: off reproduces the old position-only
+      // behaviour exactly, so before/after is one A/B in a fixed pose rather
+      // than two builds.
+      viewFraction: () => viewInsideFraction(),
+      setViewBlend: (on) => { viewBlendEnabled = !!on; },
+      viewBlendEnabled: () => viewBlendEnabled,
     },
     heightAt,
     zoneAtWorld,
@@ -10997,6 +11057,10 @@ export function makeCourseScene(canvas, state) {
       // pitch, reach, clamp state, tilt, intensity). Null-safe for QA that
       // probes before the rig exists.
       broomDiagnostics: () => broomVm.diagnostics(),
+      // The rig renders through its own lens (BROOM_FEEL.camera), so any QA
+      // that measures where a part lands ON SCREEN must project through this
+      // camera, not the world one.
+      broomViewmodelCamera: () => broomVm.vmCamera,
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks

@@ -44,6 +44,35 @@ const _mid = new THREE.Vector3();
 const _headWorld = new THREE.Vector3();
 const _ndc = new THREE.Vector3();
 
+// The tool's geometry in its own local frame. These are only the FALLBACK
+// numbers from the registry's procedural broom; the authored GLB models the
+// handle rising steeply (local y −0.27 → +0.85) rather than running flat along
+// −Z, so solving against these while the GLB is what draws aimed the rig at
+// points the mesh does not have. readRigGeometry() measures the live asset and
+// these stand in only until it has loaded.
+const FALLBACK_GEOM = {
+  head: new THREE.Vector3(0, -0.215, -1.85),
+  upper: new THREE.Vector3(0, 0.005, 0.08),
+  lower: new THREE.Vector3(-0.015, 0, -0.48),
+};
+FALLBACK_GEOM.axis = FALLBACK_GEOM.head.clone().sub(FALLBACK_GEOM.upper).normalize();
+FALLBACK_GEOM.len = FALLBACK_GEOM.head.distanceTo(FALLBACK_GEOM.upper);
+
+const _gripCam = new THREE.Vector3();
+const _headCam = new THREE.Vector3();
+const _headWork = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _tmp = new THREE.Vector3();
+const _handPos = new THREE.Vector3();
+const _axisX = new THREE.Vector3();
+const _axisY = new THREE.Vector3();
+const _axisZ = new THREE.Vector3();
+const _qMin = new THREE.Quaternion();
+const _qRoll = new THREE.Quaternion();
+const _qHandRoll = new THREE.Quaternion();
+const _basis = new THREE.Matrix4();
+const _sleeveAim = new THREE.Vector3();
+
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 function easeInCubic(t) { return t * t * t; }
 
@@ -134,18 +163,58 @@ export function createBroomViewmodel({
   // Arm anchors from the ONE tuning file. Elbows are WRIST-RELATIVE in camera
   // axes (right/up/toward-viewer), so the forearm enters foreshortened just
   // below its hand at every pose instead of stretching from a fixed corner;
-  // shoulders are fixed camera-space points BELOW the frame edge, so the
-  // sleeve always exits the frame clothed.
+  // the sleeve then runs a short authored distance straight down out of frame.
   const armCfg = feel.arms;
   const elbowOffsetRight = new THREE.Vector3(...armCfg.elbowOffsetRight);
   const elbowOffsetLeft = new THREE.Vector3(...armCfg.elbowOffsetLeft);
-  const shoulderRight = new THREE.Vector3(...armCfg.shoulderRight);
-  const shoulderLeft = new THREE.Vector3(...armCfg.shoulderLeft);
   const _elbowWorld = new THREE.Vector3();
-  const _shoulderWorld = new THREE.Vector3();
   const _basisX = new THREE.Vector3();
   const _basisY = new THREE.Vector3();
   const _basisZ = new THREE.Vector3();
+
+  // --- the rig's geometry, measured from whatever is actually drawn ---------
+  // The authored GLB adopts some frames after equip and carries its own
+  // sockets; until then the registry's procedural fallback is on screen. Both
+  // are measured the same way, so the solve is correct for either and survives
+  // an asset swap without a code change.
+  //
+  // These sockets are ANIMATED — the authored equip/work clips drive the
+  // hierarchy they hang from, so their tool-local positions move every frame
+  // (GripPrimary sat at y 0.12 mid-equip and y 0.79 once settled). Measuring
+  // once and caching froze a transient equip pose and seated the hands 0.39 yd
+  // off the handle, so only the node REFERENCES are cached; the positions are
+  // re-read every frame.
+  const socketRefs = { contact: null, primary: null, support: null, found: false };
+  const _inv = new THREE.Matrix4();
+  const liveGeom = {
+    head: new THREE.Vector3(),
+    upper: new THREE.Vector3(),
+    lower: new THREE.Vector3(),
+    axis: new THREE.Vector3(),
+    len: 0,
+  };
+  function readRigGeometry() {
+    if (!socketRefs.found) {
+      socketRefs.contact = broomGroup.getObjectByName('SOCKET_FloorContact')
+        || broomGroup.getObjectByName('SOCKET_contact');
+      socketRefs.primary = broomGroup.getObjectByName('SOCKET_GripPrimary');
+      socketRefs.support = broomGroup.getObjectByName('SOCKET_GripSupport');
+      socketRefs.found = !!(socketRefs.contact && socketRefs.primary);
+      if (!socketRefs.found) return null;
+    }
+    broomGroup.updateWorldMatrix(true, true);
+    _inv.copy(broomGroup.matrixWorld).invert();
+    socketRefs.contact.getWorldPosition(liveGeom.head).applyMatrix4(_inv);
+    socketRefs.primary.getWorldPosition(liveGeom.upper).applyMatrix4(_inv);
+    if (socketRefs.support) {
+      socketRefs.support.getWorldPosition(liveGeom.lower).applyMatrix4(_inv);
+    } else liveGeom.lower.copy(liveGeom.upper).lerp(liveGeom.head, 0.25);
+    liveGeom.axis.copy(liveGeom.head).sub(liveGeom.upper);
+    liveGeom.len = liveGeom.axis.length();
+    if (!(liveGeom.len > 0.25)) return null; // a degenerate pose keeps the fallback
+    liveGeom.axis.divideScalar(liveGeom.len);
+    return liveGeom;
+  }
 
   let active = false;
   let reach = feel.frame.headForward;
@@ -167,6 +236,8 @@ export function createBroomViewmodel({
   function setActive(on) {
     if (active === !!on) return;
     active = !!on;
+    // the authored GLB may have adopted since the last equip — re-find sockets
+    if (active) socketRefs.found = false;
     right.group.visible = active;
     left.group.visible = active;
     // The full arms replace the stub forearm + cuff for the duration.
@@ -188,14 +259,13 @@ export function createBroomViewmodel({
   // Aim one arm: elbow just below its wrist (camera axes), skin forearm
   // spanning elbow -> wrist at ~authored length, cuff at the joint, and the
   // sleeve diving from the elbow to the off-frame shoulder anchor.
-  function poseArm(arm, handGroup, elbowOffset, shoulderCam, stash) {
+  function poseArm(arm, handGroup, elbowOffset, sleeveMirror, stash) {
     handGroup.getWorldPosition(_wrist); // wrist, world
     camera.matrixWorld.extractBasis(_basisX, _basisY, _basisZ);
     _elbowWorld.copy(_wrist)
       .addScaledVector(_basisX, elbowOffset.x)
       .addScaledVector(_basisY, elbowOffset.y)
       .addScaledVector(_basisZ, elbowOffset.z);
-    _shoulderWorld.copy(shoulderCam).applyMatrix4(camera.matrixWorld);
     _elbow.copy(_elbowWorld);
     broomGroup.worldToLocal(_elbow);
     arm.group.position.copy(_elbow);
@@ -206,8 +276,16 @@ export function createBroomViewmodel({
       armCfg.spanScaleMin, Math.min(armCfg.spanScaleMax, length / armCfg.forearmSpan),
     );
     arm.cuff.quaternion.copy(arm.forearmPivot.quaternion);
-    arm.sleevePivot.lookAt(_shoulderWorld);
-    arm.sleevePivot.scale.z = Math.max(0.5, _mid.copy(_shoulderWorld).sub(_elbowWorld).length() / armCfg.sleeveLength);
+    // The sleeve runs a SHORT fixed distance from the elbow along an authored
+    // camera-space direction (down and slightly back), so it leaves through the
+    // bottom of the frame. It is never aimed at a point in front of the lens —
+    // that is what drew the green bar across the frame in round 2.
+    _sleeveAim.copy(_elbowWorld)
+      .addScaledVector(_basisX, armCfg.sleeveDir[0] * sleeveMirror * armCfg.sleeveLength)
+      .addScaledVector(_basisY, armCfg.sleeveDir[1] * armCfg.sleeveLength)
+      .addScaledVector(_basisZ, armCfg.sleeveDir[2] * armCfg.sleeveLength);
+    arm.sleevePivot.lookAt(_sleeveAim);
+    arm.sleevePivot.scale.z = 1;
     if (stash) {
       stash.ex = _elbowWorld.x; stash.ey = _elbowWorld.y; stash.ez = _elbowWorld.z;
       stash.wx = _wrist.x; stash.wy = _wrist.y; stash.wz = _wrist.z;
@@ -272,8 +350,11 @@ export function createBroomViewmodel({
     const s = feel.stroke;
     const w = feel.weight;
     const jammed = clampedNow; // last frame's clamp state gates this frame's stroke drive
-    const spanEff = s.span * (jammed ? feel.collision.stallSquash : 1);
-    const strokeTarget = using ? Math.sin(phase) * spanEff : 0;
+    // ROUND 3: the stroke is an ANGLE, not a sideways shove. The head swings on
+    // an arc about the hands, so a pass reads as a sweep across the boards
+    // instead of the whole rig twitching 0.16 yd left and right.
+    const arcEff = feel.sweep.arcRad * (jammed ? feel.collision.stallSquash : 1);
+    const strokeTarget = using ? Math.sin(phase) * arcEff : 0;
     if (state.lagX === undefined) { state.lagX = 0; state.lagV = 0; }
     if (reducedMotion) {
       state.lagX = strokeTarget; state.lagV = 0;
@@ -299,75 +380,26 @@ export function createBroomViewmodel({
     if (jammed) wantIntensity *= feel.collision.stallIntensity;
     intensity += (wantIntensity - intensity) * Math.min(1, dt * 8);
 
-    // head position in world XZ: camera + forward*reach + right*strokeX
+    // --- THE SHAFT IS RIGID -------------------------------------------------
+    // A broom handle is a fixed length and the hands sit near its butt, so the
+    // head cannot be placed at an arbitrary distance: it lies on a sphere of
+    // radius `gripFromHead` about the gripping hand. Round 3's first attempt
+    // authored the grip position, the head position AND the grip's place on the
+    // shaft independently, which over-constrained it — the solve answered by
+    // shoving the un-gripped butt end to within 7 cm of the lens, drawing a
+    // pole clean across the frame. Now only the head's DIRECTION is authored
+    // and its distance follows from the handle.
     const yaw = ctx.yaw ?? 0;
     const fx = -Math.sin(yaw); const fz = -Math.cos(yaw);
     const rx = Math.cos(yaw); const rz = -Math.sin(yaw);
-    let headReach = reach;
-    let nx = 0; let nz = 0;
-    clampedNow = false;
-    if (colliderQuery) {
-      // pull the head in until the swept half-width sits standoff clear of a
-      // blocking face; three bisection steps land within ~1 cm
-      const c = feel.collision;
-      const probe = (r) => colliderQuery(
-        camera.position.x + fx * r + rx * strokeX,
-        camera.position.z + fz * r + rz * strokeX,
-        c.headHalfWidth,
-      );
-      const hitAtFull = probe(headReach + c.probeAhead);
-      if (hitAtFull?.blocked) {
-        clampedNow = true;
-        nx = hitAtFull.nx || -fx; nz = hitAtFull.nz || -fz;
-        let lo = 0.2; let hi = headReach;
-        for (let step = 0; step < 4; step += 1) {
-          const midReach = (lo + hi) / 2;
-          if (probe(midReach)?.blocked) hi = midReach;
-          else lo = midReach;
-        }
-        headReach = Math.max(0.2, lo - c.standoff);
-      }
-    }
-    const slide = Math.min(1, dt * feel.collision.slideRate);
-    state.drawReach = state.drawReach === undefined ? headReach
-      : state.drawReach + (headReach - state.drawReach) * slide;
-
-    // --- surface tilt -------------------------------------------------------
-    const wantTilt = clampedNow ? feel.surface.tiltMax : 0;
-    tilt += (wantTilt - tilt) * Math.min(1, dt * feel.surface.tiltRate);
-    tiltAxis = clampedNow ? (nx * rx + nz * rz >= 0 ? 1 : -1) : tiltAxis;
-
-    // --- pose the rig: CARRY blends into WORK -------------------------------
-    // At level look the broom is CARRIED — shaft near horizontal, drawn head
-    // raised into frame (a true floor contact 1.4 yd ahead sits ~49° below a
-    // 50° lens; no honest pose shows it). As the view pitches down toward the
-    // work, the pose blends into the PLANTED solve, where the drawn head and
-    // the true contact are the same point — visual truth exactly where the
-    // player is looking at it.
+    const cc = feel.compose;
+    const geom = readRigGeometry() || FALLBACK_GEOM;
+    const gripLen = geom.len;
     const fy = floorY ? floorY(camera.position.x, camera.position.z) : null;
-    const eyeToFloor = fy == null ? 1.62 : Math.max(0.6, camera.position.y - fy);
-    const drop = eyeToFloor + feel.frame.place[1] - feel.surface.floorKiss;
-    // The DRAWN pose never solves steeper than poseReachFloor allows — a jam
-    // stalls the broom PROUD against the face instead of folding it to a
-    // vertical stick at the feet. The sim contact keeps the true clamped
-    // reach (cleaning is against the face anyway while jammed).
-    const poseReach = Math.max(feel.collision.poseReachFloor, state.drawReach);
-    const solvedPitch = -Math.atan2(drop, Math.max(0.25, poseReach));
-    const blendSpan = Math.max(0.001, p.carryAbove - p.workBelow);
-    const rawBlend = (p.carryAbove - clamped) / blendSpan;
-    const workT = Math.max(0, Math.min(1, rawBlend));
-    const workBlend = workT * workT * (3 - 2 * workT); // smoothstep
-    // carry pose is camera-fixed (a carried tool tips with your look); the
-    // work pose is world-fixed (camera-relative correction -pitch). A clamp
-    // steepens the carry a LITTLE — the drawn head respects furniture, but
-    // stalls rather than folds.
-    const clampPull = 1 - (state.drawReach / Math.max(0.001, p.reachFar));
-    const carryPitchEff = feel.frame.carryPitch - clampPull * feel.collision.carrySteepen;
-    const groupPitch = carryPitchEff * (1 - workBlend)
-      + (solvedPitch - pitch) * workBlend;
+
     // body sway: the rig trails the view's yaw and settles — weight you can
     // feel on every direction change, not just stroke reversals
-    const yawNow = ctx.yaw ?? 0;
+    const yawNow = yaw;
     if (state.lagYaw === undefined) state.lagYaw = yawNow;
     state.lagYaw += Math.atan2(Math.sin(yawNow - state.lagYaw), Math.cos(yawNow - state.lagYaw))
       * Math.min(1, dt * w.yawLagRate);
@@ -375,17 +407,118 @@ export function createBroomViewmodel({
       -w.yawLagMax, Math.min(w.yawLagMax,
         Math.atan2(Math.sin(state.lagYaw - yawNow), Math.cos(state.lagYaw - yawNow))),
     );
-    broomGroup.position.set(
-      feel.frame.place[0] + strokeX,
-      feel.frame.place[1],
-      feel.frame.place[2],
+
+    // the gripping hand, in world space (it rides the camera)
+    const handDrift = Math.sin(strokeX) * feel.sweep.handFollow;
+    _gripCam.set(
+      cc.gripAnchor[0] + handDrift + yawSway * 0.5, cc.gripAnchor[1], cc.gripAnchor[2],
+    ).applyMatrix4(camera.matrixWorld);
+
+    // How far the head hangs BELOW the hand: a shallow carry at level look, the
+    // real floor drop once the pose plants on the boards.
+    const blendSpan = Math.max(0.001, p.carryAbove - p.workBelow);
+    const workT = Math.max(0, Math.min(1, (p.carryAbove - clamped) / blendSpan));
+    const workBlend = workT * workT * (3 - 2 * workT); // smoothstep
+    const floorWorldY = fy == null ? camera.position.y - 1.62 : fy;
+    const dropWork = _gripCam.y - (floorWorldY + feel.surface.floorKiss);
+    const drop = cc.carryDrop * (1 - workBlend) + dropWork * workBlend;
+    // the handle can only reach so far down; beyond that the head lifts
+    const dropEff = Math.max(-gripLen * 0.9, Math.min(gripLen * 0.985, drop));
+    let horiz = Math.sqrt(Math.max(0.0025, gripLen * gripLen - dropEff * dropEff));
+
+    // The head's horizontal bearing: the view's forward, swung along the arc,
+    // plus a standing offset that carries the head LEFT of the hands. Without
+    // it the shaft points straight away from the lens and foreshortens to a
+    // stub; the offset lays it diagonally across the lower frame instead.
+    const bearing = strokeX + cc.bearingOffset;
+    const sw = Math.sin(bearing); const cw = Math.cos(bearing);
+    const hx = fx * cw + rx * sw;
+    const hz = fz * cw + rz * sw;
+
+    let nx = 0; let nz = 0;
+    clampedNow = false;
+    if (colliderQuery) {
+      // Pull the head in until the swept half-width sits standoff clear of a
+      // blocking face. With a rigid shaft, shortening the horizontal run RAISES
+      // the head — the broom rides up the obstruction instead of passing through.
+      const col = feel.collision;
+      const probe = (r) => colliderQuery(
+        _gripCam.x + hx * r, _gripCam.z + hz * r, col.headHalfWidth,
+      );
+      const hitAtFull = probe(horiz + col.probeAhead);
+      if (hitAtFull?.blocked) {
+        clampedNow = true;
+        nx = hitAtFull.nx || -fx; nz = hitAtFull.nz || -fz;
+        let lo = 0.12; let hi = horiz;
+        for (let step = 0; step < 4; step += 1) {
+          const midReach = (lo + hi) / 2;
+          if (probe(midReach)?.blocked) hi = midReach;
+          else lo = midReach;
+        }
+        horiz = Math.max(0.12, lo - col.standoff);
+      }
+    }
+    const slide = Math.min(1, dt * feel.collision.slideRate);
+    state.drawHoriz = state.drawHoriz === undefined ? horiz
+      : state.drawHoriz + (horiz - state.drawHoriz) * slide;
+    horiz = Math.min(state.drawHoriz, gripLen * 0.999);
+    // rigid handle: whatever horizontal run survives, the drop follows from it
+    const dropFinal = Math.sign(dropEff || 1)
+      * Math.sqrt(Math.max(0, gripLen * gripLen - horiz * horiz));
+    _headWork.set(
+      _gripCam.x + hx * horiz,
+      _gripCam.y - dropFinal,
+      _gripCam.z + hz * horiz,
     );
+    // reach reported to the sim: horizontal distance from the player to the head
+    state.drawReach = Math.hypot(
+      _headWork.x - camera.position.x, _headWork.z - camera.position.z,
+    );
+
+    // --- surface tilt -------------------------------------------------------
+    const wantTilt = clampedNow ? feel.surface.tiltMax : 0;
+    tilt += (wantTilt - tilt) * Math.min(1, dt * feel.surface.tiltRate);
+    tiltAxis = clampedNow ? (nx * rx + nz * rz >= 0 ? 1 : -1) : tiltAxis;
+
+    // --- pose the rig --------------------------------------------------------
+    // The grip and the head are both solved above, in world space and a rigid
+    // handle apart. All that is left is to rotate the tool's own shaft axis
+    // onto that line and slide it so the bristle socket lands on the head.
+    const c = cc;
+    _headCam.copy(_headWork);
+
+    // Into the rig's own parent frame. That parent carries the held-rig
+    // offsets (equip rise, recoil), so solving straight in local space
+    // silently inherited them — measured 0.77 yd of unwanted forward push.
+    const rigParent = broomGroup.parent;
+    if (rigParent) {
+      rigParent.updateWorldMatrix(true, false);
+      rigParent.worldToLocal(_gripCam);
+      rigParent.worldToLocal(_headCam);
+    }
+
+    // Solve: rotate the tool's own shaft axis onto the grip->head direction,
+    // then position it so the bristle socket lands exactly on the head anchor.
+    _dir.copy(_headCam).sub(_gripCam);
+    const gripFromHead = _dir.length();
+    if (gripFromHead < 1e-4) _dir.set(0, 0, -1);
+    else _dir.divideScalar(gripFromHead);
+    _qMin.setFromUnitVectors(geom.axis, _dir);
     const rollLean = Math.max(-w.rollMax, Math.min(w.rollMax, state.lagV * w.rollVelGain));
-    broomGroup.rotation.set(
-      groupPitch,
-      feel.frame.yaw + yawSway,
-      (using ? rollLean : 0) + tilt * 0.5 * tiltAxis,
-    );
+    _qRoll.setFromAxisAngle(_dir, (using ? rollLean : 0) + tilt * 0.5 * tiltAxis);
+    broomGroup.quaternion.copy(_qRoll).multiply(_qMin);
+    // position = head anchor minus the rotated tool-local head socket
+    _tmp.copy(geom.head).applyQuaternion(broomGroup.quaternion);
+    broomGroup.position.copy(_headCam).sub(_tmp);
+
+    // --- both hands ON the shaft --------------------------------------------
+    // The hands are placed on the solved shaft rather than read from the GLB's
+    // own grip sockets, which sat off the shaft line and a yard and a half from
+    // the lens (measured NDC y +0.52 for the primary hand — above eye level).
+    // Upper hand at the solved grip distance, support hand further down toward
+    // the head, both rolled so the fingers close around the handle.
+    state.gripUpper = gripFromHead;
+    state.gripLower = geom.head.distanceTo(geom.lower);
 
     // --- camera response (sub-2°, eased both ways) --------------------------
     const k = feel.cameraKick;
@@ -393,22 +526,47 @@ export function createBroomViewmodel({
     const kickRate = kickTarget > kick ? dt / k.inTime : dt / k.outTime;
     kick += (kickTarget - kick) * Math.min(1, kickRate);
 
-    // --- arms ---------------------------------------------------------------
-    broomGroup.updateWorldMatrix(true, false);
+    // --- hands ON the shaft, then the arms behind them -----------------------
     const handsRoot = fpHands.root;
     const rightHand = handsRoot.getObjectByName('FirstPersonRightHand');
     const leftHand = handsRoot.getObjectByName('FirstPersonLeftHand');
+    // Seat each hand on the solved shaft: the fingers curl about the hand's own
+    // local X, so that axis is laid along the handle and the pair are rolled to
+    // opposite sides of it. handsRoot carries the equip rise and idle breathe,
+    // so its offset comes back out of the tool-local target.
+    const seat = (hand, socketLocal, roll) => {
+      if (!hand) return;
+      _handPos.copy(socketLocal);
+      hand.position.copy(_handPos).sub(handsRoot.position);
+      _axisX.copy(geom.axis);
+      _axisZ.set(0, 1, 0).cross(_axisX);
+      if (_axisZ.lengthSq() < 1e-6) _axisZ.set(1, 0, 0);
+      _axisZ.normalize();
+      _axisY.copy(_axisZ).cross(_axisX).normalize();
+      _basis.makeBasis(_axisX, _axisY, _axisZ);
+      hand.quaternion.setFromRotationMatrix(_basis);
+      _qHandRoll.setFromAxisAngle(_axisX, roll);
+      hand.quaternion.premultiply(_qHandRoll);
+    };
+    seat(rightHand, geom.upper, c.handRollUpper);
+    seat(leftHand, geom.lower, c.handRollLower);
+    // how far the seated hand ended up from the socket it grips — the number
+    // that caught the cached-socket bug (0.39 yd off) and must stay ~0
+    state.seatError = rightHand ? _tmp.copy(rightHand.position)
+      .add(handsRoot.position).distanceTo(geom.upper) : 0;
+
+    broomGroup.updateWorldMatrix(true, false);
     state.armR = state.armR || {};
     state.armL = state.armL || {};
-    if (rightHand) poseArm(right, rightHand, elbowOffsetRight, shoulderRight, state.armR);
-    if (leftHand && leftHand.visible) poseArm(left, leftHand, elbowOffsetLeft, shoulderLeft, state.armL);
+    if (rightHand) poseArm(right, rightHand, elbowOffsetRight, 1, state.armR);
+    if (leftHand && leftHand.visible) poseArm(left, leftHand, elbowOffsetLeft, -1, state.armL);
     left.group.visible = !!(leftHand && leftHand.visible);
 
     // --- head NDC (the level-pitch acceptance number) -----------------------
     // Measured on the DRAWN head — the rig-posed contact point — because the
     // acceptance is "you can SEE what you are sweeping", and in carry pose the
     // drawn head deliberately is not the sim contact.
-    _headWorld.set(0, -0.215, -1.85); // the registry contact socket, tool-local
+    _headWorld.copy(geom.head); // the live asset's contact socket, tool-local
     broomGroup.localToWorld(_headWorld);
     // Project with THIS frame's camera pose: the render pass refreshes the
     // inverse after update, so relying on it here would read last frame's
@@ -420,8 +578,9 @@ export function createBroomViewmodel({
     state.workBlend = workBlend;
 
     return {
-      contactX: camera.position.x + fx * state.drawReach + rx * strokeX,
-      contactZ: camera.position.z + fz * state.drawReach + rz * strokeX,
+      // the sim cleans exactly where the bristles are drawn
+      contactX: _headWork.x,
+      contactZ: _headWork.z,
       clamped: clampedNow,
       inContact,
       // cleaning must not land while the broom is visibly CARRIED — the sim
@@ -467,6 +626,12 @@ export function createBroomViewmodel({
       tilt: +tilt.toFixed(3),
       intensity: +intensity.toFixed(3),
       headNdc: lastHeadNdc,
+      // where the two hands sit along the shaft (yd back from the bristles),
+      // and the current swing of the sweep arc
+      gripUpper: +(state.gripUpper ?? 0).toFixed(3),
+      gripLower: +(state.gripLower ?? 0).toFixed(3),
+      swingRad: +(state.lagX ?? 0).toFixed(3),
+      seatError: +(state.seatError ?? 0).toFixed(4),
       arms: {
         right: armScreenMetrics(state.armR),
         left: armScreenMetrics(state.armL),

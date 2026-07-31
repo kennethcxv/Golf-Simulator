@@ -44,33 +44,77 @@ export const BROOM_FEEL = Object.freeze({
     headForward: 1.42,             // how far ahead the bristle head works at rest
   }),
 
+  // --- COMPOSITION ----------------------------------------------------------
+  // Round 3 rebuild. The rig used to be PLACED (a fixed camera-space point plus
+  // a pitch) and the head fell wherever the tool's own length put it: measured
+  // at level look, the head sat 2.17 yd out at NDC y −0.90 while the primary
+  // hand sat 1.42 yd away at NDC y +0.52 — ABOVE eye level. That is the
+  // play-test's "two disembodied forearms… broom head far to the lower left…
+  // shaft running off at a steep diagonal": the rig spanned the entire frame.
+  //
+  // It is now SOLVED: the gripping hand is pinned to `gripAnchor`, the bristle
+  // head hangs a RIGID handle away from it, and the tool's rotation is whatever
+  // satisfies both. The handle's length and the two grip points are measured
+  // from the live asset's own sockets every frame (they are animated), so this
+  // block only says where the hands sit and how the tool is carried.
+  compose: Object.freeze({
+    // Where the UPPER (primary) hand sits, in camera space — close enough to
+    // read as YOUR hand rather than a distant nub. Solved against a 50° lens at
+    // 16:9, it lands near NDC (0.42, −0.72): low and right, framing the work.
+    gripAnchor: [0.24, -0.22, -0.56],
+    // radians the head is carried LEFT of the view centre, so the handle lies
+    // diagonally across the lower frame instead of pointing away from the lens
+    bearingOffset: -0.20,
+    // How far the head hangs below the hand while CARRIED (level look). A head
+    // truly resting on the boards is ~1.6 yd below the eye and no honest pose
+    // shows it through a 50° lens, so a carried broom rides shallow; the drop
+    // grows to the real floor distance as the view pitches down to the work.
+    carryDrop: 0.34,
+    // roll of each hand about the shaft, radians — the two hands oppose each
+    // other on the handle the way they do on a real broom
+    handRollUpper: 0.10,
+    handRollLower: -2.95,
+  }),
+
+  // --- the sweep arc --------------------------------------------------------
+  // A push broom is SWEPT, not carried statically: the head travels left and
+  // right across the floor ahead in a rhythmic arc while the use button is
+  // held. The old rig translated the whole group sideways by 0.16 yd, which
+  // read as a twitch rather than a stroke.
+  sweep: Object.freeze({
+    arcRad: 0.40,        // rad; head swing either side of centre about the grip
+    handFollow: 0.20,    // fraction of the arc the hands drift along with
+    headLead: 0.35,      // how much the HEAD leads the hands into each reversal
+  }),
+
   // --- the arms -------------------------------------------------------------
   // House Flipper proportions: skin is visible from roughly MID-FOREARM to the
   // hand only. Each arm is a short fixed-length forearm at the wrist (it never
   // stretches — the round-1 arms scaled a 0.34-yd capsule up to 1.74 yd and
   // read as tan noodles crossing 74% of the frame), a rolled cuff at the
-  // elbow, and a SLEEVED upper segment that dives from the elbow to an
-  // off-frame shoulder anchor — the clothed arm carries the distance.
+  // elbow, and a short sleeve that exits through the BOTTOM of the frame.
   arms: Object.freeze({
-    forearmSpan: 0.30,     // yd; authored elbow->wrist skin length
-    forearmRadius: 0.034,  // yd
+    forearmSpan: 0.26,     // yd; authored elbow->wrist skin length
+    forearmRadius: 0.030,  // yd — the hands sit ~0.55 yd from the lens, so a
+                           // fatter tube than this fills the corner of frame
     spanScaleMin: 0.85,    // the forearm may compress/stretch only this far
     spanScaleMax: 1.2,
     // elbow sits relative to its WRIST (camera axes: right, down, toward
     // camera) so the entry angle is foreshortened at every pose — mostly
     // straight below the hand, so the forearm hangs rather than juts
-    elbowOffsetRight: [0.05, -0.30, -0.05],
-    elbowOffsetLeft: [-0.04, -0.30, -0.09],
-    // fixed camera-space shoulder anchors BELOW the frame edge; the sleeve
-    // segment runs elbow->shoulder, so the arm always exits the frame
-    // clothed. The LEFT shoulder is far left — the crossing arm must come
-    // from the other side of the body, not run parallel to the right one.
-    // deep enough that the sleeve runs DOWN the frame rather than at the
-    // lens (a shoulder near the camera plane draws a fat foreshortened pipe)
-    shoulderRight: [0.66, -1.25, -1.00],
-    shoulderLeft: [-0.55, -1.30, -1.15],
-    sleeveRadius: 0.042,   // yd; shirt over forearm
-    sleeveLength: 0.60,    // yd; authored (scaled to reach the shoulder)
+    elbowOffsetRight: [0.07, -0.28, 0.06],
+    elbowOffsetLeft: [-0.06, -0.27, 0.05],
+    // ROUND 3: the sleeve is a short segment aimed DOWN in camera axes, not a
+    // capsule stretched to a fixed "shoulder" point. The old shoulders were
+    // authored at camera-space z −1.0, i.e. a yard IN FRONT of the lens, so
+    // each sleeve drew a long green bar across the frame (measured: right
+    // sleeve NDC y +0.17 → −3.13, left −0.28 → −2.73). That WAS the play-test's
+    // "large green diagonal shape", and no amount of shoulder tuning fixes an
+    // anchor in front of the camera. A short downward run leaves frame at the
+    // bottom edge and cannot cross it.
+    sleeveDir: [0.17, -1.0, 0.30],  // camera axes (x mirrored for the left arm)
+    sleeveRadius: 0.050,   // yd; shirt over forearm
+    sleeveLength: 0.40,    // yd; short — it exits through the frame's bottom
   }),
 
   // --- equip / unequip ------------------------------------------------------

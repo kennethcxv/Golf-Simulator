@@ -91,3 +91,48 @@ test('the sweep keeps the sim-preserving contact duty it shipped with', () => {
   const duty = (2 / Math.PI) * Math.acos(BROOM_FEEL.stroke.contactCos);
   assert.ok(duty > 0.45 && duty < 0.75, `duty ${duty.toFixed(3)} stays near the tuned 0.606`);
 });
+
+// --- round 3: the play-test rebuild -------------------------------------------
+// Each of these pins a specific defect the play-test caught, so the frame
+// cannot regress to "broken geometry, not a person sweeping".
+
+test('the sleeve runs DOWN out of frame, never at a point in front of the lens', () => {
+  // Round 2 aimed each sleeve at a "shoulder" authored at camera-space z −1.0,
+  // a yard IN FRONT of the camera, so it drew a green bar clean across the
+  // frame (measured NDC y +0.17 → −3.13). A sleeve direction whose dominant
+  // component is anything but downward reintroduces exactly that.
+  const [sx, sy, sz] = BROOM_FEEL.arms.sleeveDir;
+  assert.ok(sy < 0, 'the sleeve heads downward');
+  assert.ok(Math.abs(sy) > Math.abs(sx) && Math.abs(sy) > Math.abs(sz),
+    'down dominates, so the sleeve leaves through the bottom edge');
+  assert.ok(BROOM_FEEL.arms.sleeveLength <= 0.6,
+    'a short sleeve cannot span the frame however it is aimed');
+});
+
+test('the grip anchor keeps the hands in frame and close enough to read', () => {
+  const [gx, gy, gz] = BROOM_FEEL.compose.gripAnchor;
+  assert.ok(gz < 0, 'the hands are in front of the camera');
+  assert.ok(Math.abs(gz) > 0.3 && Math.abs(gz) < 0.9,
+    'near enough to read as your hands, far enough not to clip the near plane');
+  // through a 50° lens at 16:9 the anchor must land inside NDC
+  const halfH = Math.abs(gz) * Math.tan((50 * Math.PI) / 180 / 2);
+  const ndcY = gy / halfH;
+  const ndcX = gx / (halfH * (16 / 9));
+  assert.ok(ndcY > -1 && ndcY < 0, `hands sit in the lower half (ndcY ${ndcY.toFixed(2)})`);
+  assert.ok(Math.abs(ndcX) < 1, `hands sit inside the frame (ndcX ${ndcX.toFixed(2)})`);
+});
+
+test('the sweep is an arc the head travels, not a sideways nudge', () => {
+  assert.ok(BROOM_FEEL.sweep.arcRad > 0.15,
+    'the head swings far enough to read as a stroke');
+  assert.ok(BROOM_FEEL.sweep.arcRad < 1.2, 'and not so far it whips past the frame');
+  assert.ok(BROOM_FEEL.sweep.handFollow > 0 && BROOM_FEEL.sweep.handFollow < 1,
+    'the hands follow the head rather than staying rigid');
+});
+
+test('the carried head hangs shallow enough to stay on screen', () => {
+  // The head is a rigid handle from the hand; while carried it must not hang
+  // so far below the grip that it leaves the bottom of the frame.
+  const drop = BROOM_FEEL.compose.carryDrop;
+  assert.ok(drop > 0 && drop < 0.8, `carryDrop ${drop} keeps the head in frame`);
+});
