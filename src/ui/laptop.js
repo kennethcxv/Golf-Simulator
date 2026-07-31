@@ -3405,7 +3405,11 @@ export function makeLaptop(app, opts) {
           if (typeof target.scrollIntoView === 'function') {
             try { target.scrollIntoView({ block: 'center' }); } catch { target.scrollIntoView(); }
           }
-          setTimeout(() => target.classList.remove('lt-searchhit'), 2600);
+          // unref, like liveTimer: under headless QA the live clock re-renders an open
+          // search every second and every render re-arms this flash — a ref'd timer here
+          // is a self-sustaining chain that holds Node open forever. In the browser
+          // setTimeout returns a number, so ?.unref?.() is a no-op.
+          setTimeout(() => target.classList.remove('lt-searchhit'), 2600)?.unref?.();
           return target;
         }
       }
@@ -3434,17 +3438,20 @@ export function makeLaptop(app, opts) {
   // A RESULT ROW IS A LOCATION, NOT A NAME.
   //
   // Reported 2026-07-29: "Fix the UI so a result reads as a location, not a bare row."
-  // So the crumbs are the first thing in the row's text block, in their own type, and
-  // the row is a single button — the whole thing is the target, not a "Go" chip at the
-  // far right that the player has to aim at.
+  // Round 2, 2026-07-30: the preview rework had squeezed these into 240 px chips in a
+  // horizontal strip, which ellipsized "Clubhouse repair components" to "Clubhouse re…"
+  // — the top hit for "kit", ranked first and unreadable. So it is ONE RESULT PER ROW
+  // again (.lt-hitrail is a capped vertical list in styles.css), the page path is the
+  // row's prominent lead line, and the item name sits under it in secondary type. The
+  // row is a single button — the whole thing is the target.
   function searchResultRow(hit, index) {
     const crumbs = el('span', { class: 'lt-hitpath' });
     (hit.path || []).forEach((part, i) => {
       if (i) crumbs.appendChild(el('span', { class: 'lt-hitsep', text: '›' }));
       crumbs.appendChild(el('span', { class: `lt-hitcrumb ${i === (hit.path.length - 1) ? 'lt-hitcrumblast' : ''}`, text: part }));
     });
-    // A chip: clicking it swaps the live preview underneath to this hit's real
-    // page. Open (in the preview bar) is what navigates.
+    // Clicking a row swaps the live preview underneath to this hit's real page.
+    // Open (in the preview bar) is what navigates.
     return el('button', {
       class: `lt-hit ${index === searchSelection ? 'on' : ''}`,
       title: `Preview ${formatPagePath(hit.target.page, hit.target.tab, hit.target.pathExtra)}`,

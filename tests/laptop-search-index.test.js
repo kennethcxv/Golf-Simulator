@@ -290,6 +290,24 @@ test('typing produces results with no submit, and every row names its page', () 
   assert.equal(crumbs[0], 'Pro Shop', `the top hit for "deliveries" should live in the Pro Shop, not ${crumbs}`);
 });
 
+test('typing "kit" surfaces the clubhouse repair kit FIRST, named in full, as a location', () => {
+  // Round 2, 2026-07-30: "typing kit does not surface the clubhouse repair kit." It did —
+  // ranked first — but the chip rail ellipsized the label, so from the chair it did not
+  // exist. tests/laptop-search.test.js pins the ranking on a synthetic catalogue mapping;
+  // this drives the REAL component end to end: the live index must carry the SKU's alias
+  // keywords (shopItems.js) and the first rendered row must be the kit, path and all.
+  const lap = openLaptop(livedInClub());
+  typeQuery(lap, 'kit');
+  const rows = collect(lap.root, 'lt-hit');
+  assert.ok(rows.length > 0, 'typing "kit" must produce results');
+  const first = rows[0];
+  assert.equal(first.querySelectorAll('.lt-hitname')[0]?.textContent, 'Clubhouse repair components',
+    'the item the ceiling prompt calls "the clubhouse kit" must be the FIRST row');
+  const crumbs = first.querySelectorAll('.lt-hitcrumb').map((n) => n.textContent);
+  assert.equal(crumbs[0], 'Pro Shop', `the kit's row must lead with where it lives, not ${crumbs}`);
+  assert.ok(crumbs.length >= 2, 'the path names the tab as well as the page');
+});
+
 test('a chip previews the REAL page; Open navigates and flashes the row', () => {
   // 2026-07-30: "make it show the actual thing." A chip click renders the
   // destination page's own DOM into the preview panel — same builder, live

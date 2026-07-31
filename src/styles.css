@@ -1123,6 +1123,36 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* The register's diegetic tooltip chip — the reference's floating price-bubble
+   idea in the game's own toast language. One small fixed-position chip that
+   follows the hovered drawer well / offered payment; a notch points at it. */
+.register-tip {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  background: rgba(20, 30, 16, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  animation: toast-in 0.12s ease-out;
+}
+.register-tip::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  background: rgba(20, 30, 16, 0.95);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
 .market-dialog { max-width: min(980px, 94vw); }
 .market-overview {
   display: grid;
@@ -2543,57 +2573,55 @@ body.register-mode .view-toggle { display: none !important; }
 .lt-shiptrade { font-size: 0.86em; color: var(--lt-dim); margin-top: 1px; }
 .lt-shipfee { font-variant-numeric: tabular-nums; font-weight: 600; }
 
-/* SEARCH RESULTS READ AS LOCATIONS.
+/* SEARCH RESULTS READ AS LOCATIONS — ONE PER ROW.
    Reported 2026-07-29: "Fix the UI so a result reads as a location, not a bare row."
-   The crumbs sit ABOVE the name in small caps, so the eye reads where-then-what; the whole
-   row is the button, so there is nothing to aim at; and the chevron on the right says the
-   row goes somewhere, which a plain list item does not. */
+   Round 2, 2026-07-30: the preview rework had compacted results into a horizontal strip
+   of 240 px chips — names ellipsized ("Clubhouse re…"), the fourth hit off the edge of
+   an x-scroll — which is how "kit" stopped visibly surfacing the repair kit it had in
+   fact ranked first. Now every result is its own full-width row: the PAGE PATH is the
+   lead line (where the thing lives), the item name sits under it in quieter type, and
+   past four-and-a-bit rows the list scrolls internally so the preview panel below
+   stays in reach. */
 .lt-hitfilters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.lt-hitlist { display: flex; flex-direction: column; gap: 6px; }
+.lt-hitrail {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 246px; overflow-y: auto; padding: 1px 2px 4px 1px;
+  scrollbar-width: thin;
+}
 .lt-hit {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  padding: 9px 12px; font: inherit; color: var(--lt-ink); cursor: pointer;
+  display: flex; align-items: center; gap: 12px; width: 100%; flex: 0 0 auto;
+  text-align: left; padding: 8px 12px; font: inherit; color: var(--lt-ink); cursor: pointer;
   background: var(--lt-panel); border: 1px solid var(--lt-edge); border-radius: 8px;
   box-shadow: var(--lt-shadow);
 }
 .lt-hit:hover { border-color: var(--lt-blue); background: #fbfdff; }
 .lt-hit:focus-visible { outline: 2px solid var(--lt-blue); outline-offset: 1px; }
+.lt-hit.on { border-color: var(--lt-blue); background: var(--lt-bluebg); }
 .lt-hitmark {
   width: 26px; height: 26px; flex: 0 0 26px; display: flex; align-items: center;
   justify-content: center; border-radius: 6px; background: var(--lt-panel2); color: var(--lt-sub);
 }
 .lt-hitbody { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+/* The path is the PROMINENT line — bold small caps in ink, destination crumb in the
+   accent — so the eye reads where-then-what. */
 .lt-hitpath {
   display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-  font-size: 0.68em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lt-dim);
+  font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--lt-ink);
 }
-.lt-hitcrumblast { color: var(--lt-blue); font-weight: 700; }
-/* The chevron is not a letter, so it does not take the crumbs' tracking — with it applied the
-   glyph collapsed to something that read as a middot on the physical lid. */
-.lt-hitsep { color: var(--lt-edge2); letter-spacing: 0; font-size: 1.15em; line-height: 1; }
+.lt-hitcrumblast { color: var(--lt-blue); }
+/* The chevron is not a letter, so it does not take the crumbs' tracking or weight — with
+   them applied the glyph collapsed to something that read as a middot on the physical lid. */
+.lt-hitsep { color: var(--lt-edge2); letter-spacing: 0; font-weight: 400; font-size: 1.15em; line-height: 1; }
+/* …and the name is the secondary line: what answered the query, under where it lives. */
 .lt-hitname {
-  font-weight: 600; margin-top: 2px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.lt-hitdetail {
-  font-size: 0.82em; color: var(--lt-sub); margin-top: 1px;
+  font-size: 0.85em; font-weight: 500; color: var(--lt-sub); margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .lt-hitkind {
   font-size: 0.7em; letter-spacing: 0.05em; text-transform: uppercase; color: var(--lt-dim);
   background: var(--lt-panel2); border-radius: 999px; padding: 2px 8px; flex: 0 0 auto;
 }
-.lt-hitgo { color: var(--lt-dim); flex: 0 0 auto; font-size: 1.1em; }
-
-/* THE PREVIEW IS THE PAGE (2026-07-30). The rail compacts into chips; the panel
-   below renders the selected hit's real page DOM — same head, same cards. */
-.lt-hitrail {
-  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;
-  scrollbar-width: thin;
-}
-.lt-hitrail .lt-hit { width: auto; flex: 0 0 auto; max-width: 240px; padding: 6px 10px; }
-.lt-hitrail .lt-hit.on { border-color: var(--lt-blue); background: var(--lt-bluebg); }
-.lt-hitrail .lt-hitname { max-width: 170px; }
 .lt-previewbar {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 12px; margin-top: 4px;
