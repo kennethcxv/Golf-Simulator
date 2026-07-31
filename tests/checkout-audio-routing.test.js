@@ -218,15 +218,20 @@ test('bagging and automatic receipt cues remain transition-local one-shots', () 
   assert.equal(cueCalls(commitScanMotion, 'scanSuccess').length, 1);
   assert.equal(cueCalls(updateBagDropMotions, 'bagItem').length, 1,
     'a compact product landing in the bag owns one physical bag impact/rustle cue');
-  // The receipt is gone (2026-07-30 round 2): its two cues must never route.
-  assert.equal(cueCalls(registerSource, 'receiptPrint').length, 0,
-    'no paper prints, so nothing may play the print cue');
-  assert.equal(cueCalls(registerSource, 'receiptTear').length, 0,
-    'and nothing tears what does not exist');
-  assert.ok(beginAutomaticReceipt.includes('finishAutomaticFulfillment'),
-    'the silent paperwork still routes through the fulfilment verbs');
+  // The paper is back (checkout-physicality round 2026-07-30): the print cue
+  // belongs to the one visible feed start and the tear to its completion —
+  // each a transition-local one-shot, nowhere else in the module.
+  assert.equal(cueCalls(registerSource, 'receiptPrint').length, 1,
+    'exactly one print cue, at the visible feed start');
+  assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1,
+    'the print cue belongs to beginAutomaticReceipt');
+  assert.equal(cueCalls(registerSource, 'receiptTear').length, 1,
+    'exactly one tear cue, when the feed completes');
+  const updateReceipt = extractFunction(registerSource, 'updateReceipt');
+  assert.equal(cueCalls(updateReceipt, 'receiptTear').length, 1,
+    'the tear cue belongs to the feed completion edge');
   assert.ok(finishAutomaticFulfillment.includes('beginBagDeliveryOrRelease'),
-    'and lands straight on the bag transfer');
+    'fulfilment still lands on the bag transfer after the hand-over beat');
   assert.equal(cueCalls(updateDelivery, 'bagHandoff').length, 1,
     'the authored bag-handle ownership transfer owns one handoff cue');
 });

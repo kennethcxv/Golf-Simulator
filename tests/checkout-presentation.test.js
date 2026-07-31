@@ -57,17 +57,23 @@ test('the checkout camera holds one frame; only the drawer and check-in move it'
   assert.match(register, /\|\| terminalShouldFloat\(\)/, 'cursor sway is disabled while the reader floats');
 });
 
-test('there is no physical receipt: the paperwork files silently, the bag is the delivery', () => {
-  // Playtest 2026-07-30 round 2: "just remove the whole receipt thing." The sim
-  // contract survives — printReceipt/takeReceipt/packReceipt still run so
-  // canComplete holds and reloads recover — but nothing prints, nothing is
-  // handed, and the delivery machine goes straight to the bag.
+test('the receipt prints visibly and is handed over before the bag transfer', () => {
+  // Checkout-physicality round 2026-07-30 (reversing the round-2 cut): payment
+  // ends with a VISIBLE print at the printer beside the POS, the strip flies
+  // to the customer's hand, and only then does the sim paperwork file and the
+  // bag transfer begin. printReceipt/takeReceipt/packReceipt are unchanged so
+  // canComplete holds and reloads recover the same durable flow states.
   const begin = register.slice(register.indexOf('function beginAutomaticReceipt'), register.indexOf('function finishAutomaticFulfillment'));
   assert.match(begin, /printReceipt\(tx\)/, 'the sim receipt still files');
-  assert.match(begin, /finishAutomaticFulfillment\(\)/, 'and hands straight to fulfilment');
-  assert.ok(!begin.includes('ensureReceiptMesh'), 'no paper mesh is created');
-  assert.ok(!begin.includes("deliveryPhase = 'receipt-print'"), 'no print phase runs');
+  assert.match(begin, /ensureReceiptMesh\(\{ resetToPrinter: true \}\)/, 'a real paper strip appears at the printer slot');
+  assert.match(begin, /deliveryPhase = 'receipt-print'/, 'the visible print phase runs');
+  assert.ok(!begin.includes('finishAutomaticFulfillment()'),
+    'fulfilment waits for the hand-over beat instead of firing at print start');
+  const delivery = register.slice(register.indexOf('function updateDelivery'), register.indexOf('function updateCashMotions'));
+  assert.match(delivery, /deliveryPhase = 'receipt-deliver'/, 'the strip travels to the customer');
+  assert.match(delivery, /attachReceiptToCustomer\(\)/, 'and lands parented in the customer grip');
+  assert.match(delivery, /deliveryPhase = 'receipt-customer-hold'/, 'the customer holds the paper readably');
+  assert.match(delivery, /finishAutomaticFulfillment\(\)/, 'only then does the paperwork file and the bag leg start');
   const fulfil = register.slice(register.indexOf('function finishAutomaticFulfillment'), register.indexOf('function setBagPickable'));
   assert.match(fulfil, /beginBagDeliveryOrRelease\(\)/, 'fulfilment lands on the bag transfer');
-  assert.ok(!fulfil.includes("deliveryPhase = 'receipt-ready'"), 'no receipt-ready leg');
 });

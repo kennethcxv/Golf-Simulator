@@ -1880,8 +1880,7 @@ export function buildCheckout(B) {
     }
     counter.position.set(FRONT_DESK_ASSETS.asset61.x, 0, FRONT_DESK_ASSETS.asset61.z);
     counter.rotation.y = FRONT_DESK_ASSETS.asset61.ry;
-    // Bake the obsolete shell separately from the task surfaces. Asset 61 replaces only the
-    // furniture: the staging/change trays remain live parts of the established transaction.
+    // Asset 61 replaces only the furniture shell; bake it on its own.
     const counterRoot = new THREE.Group();
     counterRoot.add(counter);
     const counterVisual = merch.bake
@@ -1895,44 +1894,11 @@ export function buildCheckout(B) {
       counterVisualRoot.add(counterVisual);
     }
 
-    const taskSurfaceRoot = new THREE.Group();
-
-    // Two authored, counter-integrated task surfaces turn the broad worktop
-    // into an intentional production line.  Their dimensions are generated in
-    // metres by build_checkout_assets.py and their centres come from the same
-    // tested REGISTER layout that owns product and change choreography.
-    const stagingTray = merch.instantiate && merch.instantiate('checkout_product_staging_tray');
-    if (stagingTray) {
-      stagingTray.position.set(
-        (REGISTER.staging.minX + REGISTER.staging.maxX) / 2,
-        COUNTER_TOP + 0.001,
-        (REGISTER.staging.minZ + REGISTER.staging.maxZ) / 2,
-      );
-      stagingTray.rotation.y = COUNTER.ry;
-      taskSurfaceRoot.add(stagingTray);
-    }
-    const changeTray = merch.instantiate && merch.instantiate('checkout_change_handoff_tray');
-    if (changeTray) {
-      changeTray.position.set(
-        REGISTER.changeHandoff.x,
-        COUNTER_TOP + 0.001,
-        REGISTER.changeHandoff.z,
-      );
-      changeTray.rotation.y = COUNTER.ry;
-      taskSurfaceRoot.add(changeTray);
-    }
-
-    const checkoutTaskSurfaceVisual = merch.bake
-      ? merch.bake(taskSurfaceRoot, { visibleOnly: true })
-      : taskSurfaceRoot;
-    checkoutTaskSurfaceVisual.name = 'CheckoutTaskSurfaceVisual';
-    // instantiate() deliberately makes these authored surfaces cast-only. The
-    // generic stock batcher enables receiving for shelves, so restore the exact
-    // checkout render state after batching instead of changing its lighting.
-    checkoutTaskSurfaceVisual.traverse((object) => {
-      if (object.isMesh) object.receiveShadow = false;
-    });
-    counterVisualRoot.add(checkoutTaskSurfaceVisual);
+    // The green task trays (checkout_product_staging_tray and
+    // checkout_change_handoff_tray) were DELETED in the 2026-07-30
+    // checkout-physicality round, per the TCG reference: goods rest on the
+    // bare counter and counted change piles flat on the bare top at
+    // REGISTER.changeHandoff. Nothing instantiates or bakes them any more.
     releaseReplacedFixture(legacyCounter, mats, merch);
   });
 

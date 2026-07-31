@@ -62,7 +62,10 @@ test('presented tender is a compact, readable handful', () => {
     'the tilted note rotates with the front desk');
 });
 
-test('exact $4.28 stays grouped within the authored handoff tray', () => {
+test('exact $4.28 lies as a compact FLAT pile on the bare counter', () => {
+  // The handoff tray prop was deleted (checkout-physicality round 2026-07-30):
+  // counted change now reads like the reference — separate flat notes fanned
+  // sideways with coins flat beside them, directly on the counter top.
   const denoms = [1, 1, 1, 1, 0.2, 0.05, 0.01, 0.01, 0.01];
   const handoff = { x: 3.1, z: 4.6 };
   const layout = selectedChangeLayout(denoms, handoff, 0.92);
@@ -71,14 +74,18 @@ test('exact $4.28 stays grouped within the authored handoff tray', () => {
     delta: localDelta({ ...handoff, y: 0.92 }, entry.position),
   }));
   for (const { delta } of local) {
-    assert.ok(Math.abs(delta.x) <= 0.19);
-    assert.ok(Math.abs(delta.z) <= 0.10);
+    assert.ok(Math.abs(delta.x) <= 0.19, 'the pile keeps its authored footprint in x');
+    assert.ok(Math.abs(delta.z) <= 0.10, 'the pile keeps its authored footprint in z');
+    assert.ok(delta.y >= 0 && delta.y <= 0.015,
+      'every piece lies flat ON the counter, never floating at tray height');
   }
   const bills = local.filter(({ entry }) => entry.denom >= 1);
-  assert.ok(Math.max(...bills.map(({ delta }) => delta.x))
-    - Math.min(...bills.map(({ delta }) => delta.x)) <= 0.0181);
-  assertDeskRotation(layout[0].rotation, { x: 0, y: 0.10, z: 0 },
-    'counted notes face the cashier in the desk frame');
+  const billSpan = Math.max(...bills.map(({ delta }) => delta.x))
+    - Math.min(...bills.map(({ delta }) => delta.x));
+  assert.ok(billSpan >= 0.06 && billSpan <= 0.16,
+    `notes fan sideways as separate flat bills, not one stack (span ${billSpan})`);
+  assertDeskRotation(layout[0].rotation, { x: 0, y: -0.08, z: 0 },
+    'counted notes lie flat and rotate with the desk frame');
 });
 
 test('confirmed change has one compact carrier and a palm-contact endpoint', () => {

@@ -83,11 +83,14 @@ export function presentedTenderLayout(denominations = [], hand = {}) {
   });
 }
 
-// Counted change stays inside the 38 x 20 cm handoff tray. Notes form one tidy
-// stack; coins form a small three-column count beside it.
+// Counted change accumulates as a FLAT PILE directly on the BARE counter —
+// the TCG reference look (Designs/CashRegister/Final, 154641): notes lie flat
+// in a loosely fanned overlap, coins rest flat beside them. The authored
+// handoff tray prop was deleted 2026-07-30; the handoff point now names bare
+// counter surface left of the drawer.
 export function selectedChangeLayout(denominations = [], handoff = {}, counterTop = 0) {
-  const tray = asPoint(handoff);
-  const trayTop = { x: tray.x, y: Number(counterTop), z: tray.z };
+  const pile = asPoint(handoff);
+  const counter = { x: pile.x, y: Number(counterTop), z: pile.z };
   let billIndex = 0;
   let coinIndex = 0;
   return denominations.map((rawDenom) => {
@@ -96,23 +99,25 @@ export function selectedChangeLayout(denominations = [], handoff = {}, counterTo
       const index = billIndex++;
       return {
         denom,
+        // each note steps sideways so the pile reads as separate flat bills,
+        // climbing only paper-thickness per overlap — never a floating stack
         position: offsetInFrontDeskFrame(
-          trayTop,
-          -0.078 + index * 0.006,
-          0.020 + index * 0.0015,
-          -0.020 + index * 0.002,
+          counter,
+          -0.105 + index * 0.034,
+          0.0016 + index * 0.0016,
+          -0.028 + (index % 2 ? 0.016 : -0.008),
         ),
-        rotation: frontDeskRotation(0, 0.10 + index * 0.018, 0),
+        rotation: frontDeskRotation(0, 0.08 + ((index % 3) - 1) * 0.16, 0),
       };
     }
     const index = coinIndex++;
     return {
       denom,
       position: offsetInFrontDeskFrame(
-        trayTop,
-        0.030 + (index % 3) * 0.032,
-        0.024 + Math.floor(index / 3) * 0.003,
-        -0.032 + Math.floor(index / 3) * 0.034,
+        counter,
+        0.052 + (index % 3) * 0.033,
+        0.0022 + Math.floor(index / 3) * 0.0032,
+        0.028 + Math.floor(index / 3) * 0.030,
       ),
       rotation: frontDeskRotation(0, 0, (index % 3 - 1) * 0.07),
     };

@@ -166,8 +166,10 @@ test('fixed register views and fallback payment handoffs follow the rotated desk
   const poseEnd = registerSource.indexOf('const CAMERA_TWEEN_SECONDS', poseStart);
   const poseSource = registerSource.slice(poseStart, poseEnd);
   const authoredPoints = [
-    'deskCameraPoint(0.18, 1.70, 1.18)',
-    'deskCameraPoint(0.16, 1.16, 0.00)',
+    // the diagonal working frame (checkout-physicality round 2026-07-30):
+    // eye near the register block, looking down-counter to the upright bag
+    'deskCameraPoint(0.75, 1.60, 1.10)',
+    'deskCameraPoint(0.05, 1.08, 0.00)',
     'deskCameraPoint(0.52, 1.26, 0.82)',
     'deskCameraPoint(0.52, 1.41, 0.24)',
     'deskCameraPoint(0.32, 1.82, 1.46)',
@@ -178,7 +180,7 @@ test('fixed register views and fallback payment handoffs follow the rotated desk
   }
 
   for (const [eyeX, eyeZ, lookX, lookZ] of [
-    [0.18, 1.18, 0.16, 0.00],
+    [0.75, 1.10, 0.05, 0.00],
     [0.52, 0.82, 0.52, 0.24],
     [0.32, 1.46, 0.22, 0.22],
   ]) {
@@ -204,8 +206,8 @@ test('fixed register views and fallback payment handoffs follow the rotated desk
 });
 
 test('mixed working camera contains the full bag, staged goods, and enlarged POS at 16:9', async () => {
-  const eye = { ...frontDeskPoint(0.18, 1.18), y: 1.70 };
-  const look = { ...frontDeskPoint(0.16, 0.00), y: 1.16 };
+  const eye = { ...frontDeskPoint(0.75, 1.10), y: 1.60 };
+  const look = { ...frontDeskPoint(0.05, 0.00), y: 1.08 };
   const dx = look.x - eye.x;
   const dy = look.y - eye.y;
   const dz = look.z - eye.z;
@@ -248,12 +250,11 @@ test('mixed working camera contains the full bag, staged goods, and enlarged POS
   if (legacyBagArt) legacyBagArt.visible = false;
   const bag = new THREE.Group();
   bag.name = 'production shopping bag';
-  const bagDatum = frontDeskLocalPoint(REGISTER.bag.x, REGISTER.bag.z);
-  const bagCounterPosition = frontDeskPoint(bagDatum.x, bagDatum.z - 0.16);
+  // the upright carrier stands exactly at its authored layout point
   bag.position.set(
-    bagCounterPosition.x,
+    REGISTER.bag.x,
     COUNTER_TOP + CHECKOUT_BAG_PRESENTATION.counterLift,
-    bagCounterPosition.z,
+    REGISTER.bag.z,
   );
   bag.quaternion
     .setFromAxisAngle(new THREE.Vector3(0, 1, 0), FRONT_DESK_FRAME.ry)
@@ -361,23 +362,26 @@ test('register prop choreography keeps world offsets and orientations in the des
   assert.match(createCardMesh, /base\.quaternion\.copy\(HELD_QUAT\)/,
     'a newly created card already faces the rotated cashier side');
   const resetBagAtCounter = functionBody(registerSource, 'resetBagAtCounter');
-  // 2026-07-30 round 2: the bag lies on its side (pitch + roll), so build,
-  // reset and the mouth point all read ONE quaternion builder — a reset through
-  // a different euler than the build is how a re-used bag comes back upright.
+  // Checkout-physicality round 2026-07-30: the bag stands upright, and build,
+  // reset and the mouth point still read ONE quaternion builder — a reset
+  // through a different euler than the build is how a re-used bag drifts.
   assert.match(resetBagAtCounter, /bagCounterQuaternion\(\)/,
-    'the counter bag resets through the shared side-lying orientation');
+    'the counter bag resets through the shared authored orientation');
   assert.match(
     registerSource,
     /const bagCounterQuaternion = \(\) => frontDeskQuaternion\([\s\S]{0,90}?CHECKOUT_BAG_PRESENTATION\.pitch, 0, CHECKOUT_BAG_PRESENTATION\.roll,/,
     'and that builder carries both the pitch and the roll',
   );
   const updateDelivery = functionBody(registerSource, 'updateDelivery');
-  // The receipt legs were cut 2026-07-30 round 2; the bag transfer is the one
-  // delivery left, and its orientation still rotates with the desk.
+  // The receipt legs are BACK (checkout-physicality round 2026-07-30): the
+  // printed strip pauses, travels to the customer's hand and is held before
+  // the bag transfer; both deliveries rotate with the desk.
   assert.match(updateDelivery, /frontDeskQuaternion\(/,
     'bag delivery orientation rotates with the desk');
-  assert.ok(!updateDelivery.includes("'receipt-ready'") && !updateDelivery.includes("'receipt-deliver'"),
-    'no receipt delivery leg survives in the machine');
+  assert.match(updateDelivery, /deliveryPhase = 'receipt-deliver'/,
+    'the printed strip physically travels to the customer');
+  assert.match(updateDelivery, /deliveryPhase = 'receipt-customer-hold'/,
+    'and the customer visibly holds it before the bag leg');
 });
 
 test('card recovery uses the declared cardReady vector and drawer travel stays staff-facing', () => {

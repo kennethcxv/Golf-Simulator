@@ -937,7 +937,10 @@ export const REGISTER = {
   // left means smaller x), behind the reader's seat, inside the static frame.
   printer: frontDeskPose(0.14, 0.36, Math.PI - 0.06),
   custdisplay: frontDeskPose(0.94, -0.10, Math.PI),
-  bag: frontDeskPose(-0.50, 0.24, 0),
+  // The carrier stands UPRIGHT at the counter's LEFT end (checkout-physicality
+  // round, 2026-07-30, vs Designs/CashRegister/Final): fully LEFT of the goods
+  // in REGISTER.staging so a rung-up item slides SIDEWAYS into its mouth.
+  bag: frontDeskPose(-1.02, 0.16, 0),
   bagstand: frontDeskPose(1.30, 0.30, 0),
   divider: frontDeskPose(1.52, -0.15, 0),
   impulse: frontDeskPose(1.28, -0.34, 0),
@@ -962,13 +965,14 @@ export const REGISTER = {
   // Scanned goods stay visible and loose until payment is complete. This strip
   // is downstream of the reader but clear of both the open bag and POS hardware.
   scannedStaging: registerRect(-1.28, -0.62, -0.12, 0.04),
-  // counted change rests in this shallow authored tray before handoff. Keeping
-  // the footprint in the shared layout makes the prop, money, reach tests and
-  // camera composition use one source of truth.
+  // Counted change accumulates as a FLAT PILE on the BARE counter here — left
+  // of the drawer, reference-style (the authored handoff tray prop was deleted
+  // in the 2026-07-30 checkout-physicality round). The footprint bounds the
+  // pile so money, reach tests and camera composition use one source of truth.
   changeHandoff: { ...frontDeskPoint(0.20, 0.30), w: 0.38, d: 0.20 },
-  // the bag handoff zone: items leave the reader and arc INTO THE BAG at
-  // counter-left — there is no separate bagging mat any more
-  bagging: registerRect(-0.72, -0.30, 0.10, 0.38),
+  // the bag handoff zone: the upright carrier's own ground at counter-left;
+  // rung-up items slide sideways into the mouth here
+  bagging: registerRect(-1.22, -0.82, 0.02, 0.34),
 
   // THE SCAN VOLUME. An item counts as scanned when its barcode passes THROUGH this
   // box — not when it comes to rest in it. Both surfaces sit clear of it, so nothing

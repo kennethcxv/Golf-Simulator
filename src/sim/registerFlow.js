@@ -354,7 +354,7 @@ const STATE_SPECS = {
   SelectingChange: {
     phase: 'cash',
     branch: 'cash',
-    entryAction: 'Display change due, enable drawer denomination picks and undo, and keep selected pieces visible in the counter tray.',
+    entryAction: 'Display change due, enable drawer denomination picks and undo, and keep selected pieces visible in the flat counter change pile.',
     allowedInput: ['select-change-piece', 'undo-change-piece', 'clear-change', 'confirm-change'],
     camera: camera('change-selection-focus', 'ease', 'drawer-constrained-look'),
     playerAnimation: 'select-and-hold-change',
@@ -368,7 +368,7 @@ const STATE_SPECS = {
   GivingChange: {
     phase: 'cash',
     branch: 'cash',
-    entryAction: 'Animate the player-confirmed change bundle from the counter tray to the customer reception target.',
+    entryAction: 'Animate the player-confirmed change bundle from the counter change pile to the customer reception target.',
     allowedInput: [],
     camera: camera('change-handoff-focus', 'ease-out', 'limited-customer-look'),
     playerAnimation: 'hand-change-to-customer',

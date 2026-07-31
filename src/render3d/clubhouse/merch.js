@@ -37,9 +37,10 @@ const FILES = [
   'carton', 'carton_open', 'pendant',
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
   'basket',
-  // production checkout kit (tools/blender/build_checkout_assets.py)
-  'checkout_counter', 'checkout_product_staging_tray', 'checkout_change_handoff_tray',
-  'checkout_cash_drawer', 'checkout_shopping_bag',
+  // production checkout kit (tools/blender/build_checkout_assets.py).
+  // The two green task trays left this list 2026-07-30 (checkout-physicality
+  // round): goods and counted change live on the bare counter now.
+  'checkout_counter', 'checkout_cash_drawer', 'checkout_shopping_bag',
   // Compact, checkout-scale product families (tools/blender/build_checkout_products.py).
   // Sibling SKUs share one authored silhouette and vary through tint/tier identity.
   'checkout_product_driver', 'checkout_product_iron_set', 'checkout_product_putter',

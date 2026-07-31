@@ -1,107 +1,52 @@
+// THE GREEN TASK TRAYS ARE GONE (checkout-physicality round 2026-07-30).
+//
+// Per the TCG reference (Designs/CashRegister/Final): goods rest on the bare
+// counter and counted change accumulates as a flat pile on the bare top at
+// REGISTER.changeHandoff. Both authored tray props — the product staging tray
+// and the change handoff tray — were deleted from the production build:
+// nothing instantiates them, nothing preloads them, and the checkout bake no
+// longer produces a task-surface batch. These tests hold that removal open.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-import { auditGlb } from '../tools/qa/glb-audit.mjs';
 import { COUNTER, REGISTER } from '../src/data/shopLayout.js';
 import { buildCheckout } from '../src/render3d/clubhouse/fixtures.js';
 
-const SPECS = Object.freeze([
-  Object.freeze({
-    id: 'checkout_product_staging_tray',
-    anchor: 'ANCHOR_ProductStagingSurface',
-    collision: 'COL_ProductStagingTray',
-    dimensions: Object.freeze([0.82, 0.029, 0.38]),
-    maxTriangles: 2200,
-    requiredNodes: Object.freeze([
-      'ProductStagingTrayBase',
-      'ProductStagingTrayInset',
-      'ProductStagingTrayRailFront',
-      'ProductStagingTrayBrassFastener_01',
-      'ProductStagingCapacityMarker_05',
-    ]),
-  }),
-  Object.freeze({
-    id: 'checkout_change_handoff_tray',
-    anchor: 'ANCHOR_ChangeHandoffSurface',
-    collision: 'COL_ChangeHandoffTray',
-    dimensions: Object.freeze([0.38, 0.029, 0.20]),
-    maxTriangles: 1000,
-    requiredNodes: Object.freeze([
-      'ChangeHandoffTrayBase',
-      'ChangeHandoffTrayFelt',
-      'ChangeHandoffTrayRailBack',
-      'ChangeHandoffTrayBrassFastener_01',
-      'ANCHOR_ChangePickup',
-    ]),
-  }),
+const TRAY_IDS = Object.freeze([
+  'checkout_product_staging_tray',
+  'checkout_change_handoff_tray',
 ]);
 
-async function load(spec) {
-  const url = new URL(`../vendor/models/clubhouse/${spec.id}.glb`, import.meta.url);
-  const bytes = await readFile(url);
-  const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  const gltf = await new Promise((resolve, reject) => new GLTFLoader().parse(data, '', resolve, reject));
-  const root = gltf.scene.getObjectByName(spec.id);
-  assert.ok(root, `${spec.id} exposes an exact named root`);
-  return { root, audit: auditGlb(fileURLToPath(url)) };
-}
-
-function visibleBounds(root) {
-  root.updateMatrixWorld(true);
-  const bounds = new THREE.Box3();
-  root.traverse((object) => {
-    if (!object.isMesh || object.name.startsWith('COL_')) return;
-    if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
-    bounds.union(object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
-  });
-  return bounds.getSize(new THREE.Vector3());
-}
-
-test('authored checkout task trays retain metre-scale surfaces, anchors and collisions', async () => {
-  for (const spec of SPECS) {
-    const { root, audit } = await load(spec);
-    for (const name of spec.requiredNodes) assert.ok(root.getObjectByName(name), `${spec.id} missing ${name}`);
-    const anchor = root.getObjectByName(spec.anchor);
-    const collision = root.getObjectByName(spec.collision);
-    assert.ok(anchor, `${spec.id} missing surface anchor`);
-    assert.ok(collision, `${spec.id} missing collision proxy`);
-    assert.equal(anchor.userData.anchor, true);
-    assert.equal(anchor.userData.anchor_kind, 'surface');
-    assert.equal(collision.userData.collision_proxy, true);
-
-    const size = visibleBounds(root);
-    spec.dimensions.forEach((expected, index) => {
-      assert.ok(Math.abs(size.getComponent(index) - expected) <= 0.002,
-        `${spec.id} dimension ${index} is ${size.getComponent(index)}, expected ${expected}`);
-    });
-    assert.ok(audit.triangles <= spec.maxTriangles, `${spec.id} exceeds its close-range triangle budget`);
-    // Four visible slots plus the hidden collision material.
-    assert.ok(audit.materials <= 5, `${spec.id} exceeds its material budget`);
-    assert.equal(audit.textures, 0);
-    assert.equal(audit.cameras, 0);
-    assert.equal(audit.lights, 0);
-    assert.deepEqual(audit.flags, []);
+test('no production source instantiates or preloads the deleted trays', async () => {
+  for (const relative of [
+    '../src/render3d/clubhouse/fixtures.js',
+    '../src/render3d/clubhouse/merch.js',
+    '../src/render3d/clubhouse/simplifiedRegisterMode.js',
+  ]) {
+    const source = await readFile(new URL(relative, import.meta.url), 'utf8');
+    for (const id of TRAY_IDS) {
+      assert.ok(!source.includes(`'${id}'`),
+        `${relative} still references the deleted ${id}`);
+    }
   }
 });
 
-test('the counted-change tray is fully supported, reachable, and uses its authored footprint', () => {
-  const tray = REGISTER.changeHandoff;
-  const minX = tray.x - tray.w / 2;
-  const maxX = tray.x + tray.w / 2;
-  const minZ = tray.z - tray.d / 2;
-  const maxZ = tray.z + tray.d / 2;
+test('the counted-change pile zone is fully supported, reachable, and keeps its footprint', () => {
+  const pile = REGISTER.changeHandoff;
+  const minX = pile.x - pile.w / 2;
+  const maxX = pile.x + pile.w / 2;
+  const minZ = pile.z - pile.d / 2;
+  const maxZ = pile.z + pile.d / 2;
   assert.ok(minX >= COUNTER.x - COUNTER.len / 2 && maxX <= COUNTER.x + COUNTER.len / 2);
   assert.ok(minZ >= COUNTER.z - COUNTER.depth / 2 && maxZ <= COUNTER.z + COUNTER.depth / 2);
-  assert.ok(Math.hypot(tray.x - REGISTER.stand.x, tray.z - REGISTER.stand.z) <= 1.55,
-    'the cashier can reach the handoff tray without leaving the fixed station');
-  assert.deepEqual([tray.w, tray.d], [0.38, 0.20]);
+  assert.ok(Math.hypot(pile.x - REGISTER.stand.x, pile.z - REGISTER.stand.z) <= 1.55,
+    'the cashier can reach the change pile without leaving the fixed station');
+  assert.deepEqual([pile.w, pile.d], [0.38, 0.20]);
 });
 
-test('the replaceable checkout shell stays separate from persistent task-surface batching', () => {
+test('the replaceable checkout shell bakes without any task-surface tray batch', () => {
   const interior = new THREE.Group();
   interior.position.set(12, 3, -8);
   const mats = {
@@ -126,6 +71,7 @@ test('the replaceable checkout shell stays separate from persistent task-surface
       return object;
     },
     instantiate(name) {
+      assert.ok(!TRAY_IDS.includes(name), `buildCheckout instantiated deleted ${name}`);
       const object = new THREE.Group();
       object.name = name;
       made.push(object);
@@ -151,8 +97,8 @@ test('the replaceable checkout shell stays separate from persistent task-surface
     register: { simplified: true },
   });
 
-  assert.equal(bakes.length, 3,
-    'the static return, replaceable shell, and persistent trays use distinct batches');
+  assert.equal(bakes.length, 2,
+    'only the static return and the replaceable shell are baked — no tray batch');
   assert.ok(bakes.every((bake) => bake.parentAtBake === null),
     'batch sources remain outside the translated interior root');
   assert.ok(bakes.every((bake) => bake.options.visibleOnly === true));
@@ -169,19 +115,14 @@ test('the replaceable checkout shell stays separate from persistent task-surface
     bakes[1].group.children.map((object) => object.name),
     ['checkout_counter'],
   );
-  assert.deepEqual(
-    bakes[2].group.children.map((object) => object.name),
-    ['checkout_product_staging_tray', 'checkout_change_handoff_tray'],
-  );
   const deskReturn = interior.getObjectByName('PineHillsFrontDeskReturn');
   const shell = interior.getObjectByName('LegacyCheckoutProductionCounter');
-  const taskSurfaces = interior.getObjectByName('CheckoutTaskSurfaceVisual');
   assert.ok(deskReturn, 'the baked return retains its canonical runtime lookup name');
   assert.equal(deskReturn.userData.authoredSource, 'pine_hills_front_desk_return_v1');
   assert.ok(shell, 'the production shell remains independently removable by Asset 61');
-  assert.ok(taskSurfaces, 'the transaction trays remain after Asset 61 retires the old shell');
+  assert.equal(interior.getObjectByName('CheckoutTaskSurfaceVisual'), undefined,
+    'no task-surface tray visual survives in the interior');
   assert.equal(shell.children[0].receiveShadow, false, 'shell batching preserves cast-only state');
-  assert.equal(taskSurfaces.children[0].receiveShadow, false, 'tray batching preserves cast-only state');
-  assert.equal(made.slice(0, 3).some((object) => object.parent === interior), false,
-    'the unbatched counter and trays are not left in the live interior');
+  assert.equal(made.slice(0, 2).some((object) => object.parent === interior), false,
+    'the unbatched counter is not left in the live interior');
 });

@@ -31,7 +31,7 @@ function recursiveFiles(relativeRoot) {
   return files.sort();
 }
 
-test('cashier production manifest covers checkout sources, counter, trays, and runtime GLBs', () => {
+test('cashier production manifest covers checkout sources, counter, and runtime GLBs', () => {
   const manifest = cashierProductionFileManifest();
   assert.deepEqual(manifest, [...new Set(manifest)].sort(), 'manifest must be unique and sorted');
   for (const required of [
@@ -65,8 +65,10 @@ test('cashier production manifest covers checkout sources, counter, trays, and r
     'vendor/addons/objects/Water.js',
     'vendor/three.module.js',
     'vendor/models/clubhouse/checkout_counter.glb',
-    'vendor/models/clubhouse/checkout_product_staging_tray.glb',
-    'vendor/models/clubhouse/checkout_change_handoff_tray.glb',
+    // the two green task-tray GLBs left the REQUIRED list 2026-07-30 with the
+    // checkout-physicality round — the assets stay in the library (and the
+    // vendor deepEqual below still fingerprints them), but nothing in
+    // production instantiates or preloads them any more.
     'vendor/models/checkout/pos_monitor.glb',
     'vendor/models/checkout/payment_terminal.glb',
     'vendor/models/checkout/cash_drawer.glb',
