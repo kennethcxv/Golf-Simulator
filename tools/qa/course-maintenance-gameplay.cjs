@@ -44,7 +44,11 @@ async function establishFixture(page) {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.waitForFunction(() => window.__fw?.state?.courseMaintenance?.heroHoleNumber === 4, null, { timeout: 20000 });
-  await page.waitForTimeout(9500);
+  await page.waitForFunction(() => {
+    const veil = document.querySelector('.load-veil');
+    return !veil || veil.style.display === 'none' || Number.parseFloat(getComputedStyle(veil).opacity) === 0;
+  }, null, { timeout: 60000 });
+  await page.waitForTimeout(500);
   await page.keyboard.press('Space');
   await page.waitForFunction(() => window.__fw?.speedIdx === 0);
 }
@@ -229,11 +233,14 @@ async function main() {
     logProgress(label);
   };
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  const context = await browser.newContext({
+  const contextOptions = {
     viewport: { width: 1600, height: 900 },
     deviceScaleFactor: 1,
-    recordVideo: { dir: VIDEO_OUT, size: { width: 1600, height: 900 } },
-  });
+  };
+  if (process.env.QA_VIDEO !== '0') {
+    contextOptions.recordVideo = { dir: VIDEO_OUT, size: { width: 1600, height: 900 } };
+  }
+  const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   const consoleEvents = [];
   const pageErrors = [];
@@ -248,7 +255,7 @@ async function main() {
   step('loading deterministic fixture');
   await establishFixture(page);
   const guideClose = page.getByTitle('Hide the guide');
-  if (await guideClose.isVisible()) await guideClose.click();
+  if (await guideClose.isVisible()) await guideClose.evaluate((button) => button.click());
   await resumeLook(page);
   const targets = await targetData(page);
   const baseline = await stateSummary(page);
