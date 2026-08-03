@@ -32,7 +32,7 @@ New evidence produced by this phase: `Designs/ProShop/Phase1/data/`.
 | 6 | Laptop integration | **MINOR LOGIC FIX REQUIRED** | LAPTOP-1 | §6 |
 | 7 | Customer route | PRESERVE LOGIC, REPLACE PRESENTATION | — | §7 |
 | 8 | Save and reload | **PRESERVE** — verified by test | — | §8 |
-| 9 | Asset loading | PRESERVE | — | §9 |
+| 9 | Asset loading | PRESERVE THE PIPELINE, **FIX THE WARM-UP** | LOAD-1 | §9 |
 | 10 | Materials | PRESERVE LOGIC, REPLACE PRESENTATION | — | §10 |
 | 11 | Lighting | PRESERVE LOGIC, REPLACE PRESENTATION | LIGHT-1 | §11 |
 | 12 | Performance tooling | PRESERVE | PERF-1 | §12 |
@@ -460,10 +460,46 @@ open) → cash-kit handshake → `renderer.compile` → `initTexture` over ~297 
 warm pass with two more bakes → three 120°-apart spin frames, each with another bake.
 
 So: six-plus forced full renders each carrying a 2048² shadow bake. **This is a deliberate
-trade — load time bought to remove first-look hitches.** Which step dominates is
-**UNVERIFIED**; no per-step timing exists. That matters because Phase 1 *also* measured a
-200 ms first-look spike that prewarm evidently does not fully prevent (§12) — so the trade
-is currently being paid without being fully collected.
+trade — load time bought to remove first-look hitches.**
+
+### MEASURED, 2026-08-03 — and the guess above was wrong
+
+The paragraph that used to sit here said "which step dominates is UNVERIFIED; no per-step
+timing exists". It exists now (`tools/qa/load-time-profile.js`, read from
+`scene3d.prewarmTimings()`), and the answer is not the six renders or the shadow bakes.
+
+| phase | ms | share of load |
+|---|---:|---:|
+| **forced warm draw** (one `composer.render`) | **9,741** | **52%** |
+| *(everything before prewarm: module load, scene build, clubhouse build)* | 4,605 | 25% |
+| assets-idle (bounded wait) | 971 | 5% |
+| editor-camera warm pass | 891 | 5% |
+| initTexture batches (276 textures) | 692 | 4% |
+| renderer.compile (link only) | 104 | <1% |
+| three spin frames | 62 | <1% |
+| warm traverse, restore pose, cash handshake | 7 | — |
+| **total, new-game click to veil clear** | **18,578** | |
+
+**The 9.7 s is one-time shader program compilation, and nothing else.** The evidence:
+
+* The **identical render immediately after it costs 51 ms.** So it is not the shadow bake,
+  not the post chain, not geometry throughput — those are all in the 51 ms.
+* Cutting the submitted set from **5,310 objects to 887** (one representative per
+  material/geometry program key, now shipped) moved the phase **by nothing**. It does not
+  scale with objects.
+* `renderer.info.programs.length` is **132**. 9,741 / 132 ≈ **73 ms per program** — ANGLE
+  translating GLSL to HLSL and D3D compiling it, serialized on the JS thread because a
+  program's real compile lands on its first draw.
+* It is not distant course work that could be deferred: **785 of the 887** warm objects are
+  within 60 yd of the spawn eye.
+* `renderer.compileAsync()` (KHR_parallel_shader_compile) was tried and **made it worse** —
+  1,350 ms against 104 ms for the sync link, returning only ~200 ms of the warm draw.
+
+**LOAD-1.** Under 10 s is not reachable by trimming phases: zeroing every non-compile phase
+inside prewarm saves 2.6 s and lands at ~16 s. The only lever on the dominant term is
+**fewer distinct programs**, which is §10's material-interning problem by another route —
+the pool interns *textures*, never *materials*, and program count follows material and
+light-count variety. Options and costs are in OVERNIGHT_REPORT_6 §B9.
 
 ---
 

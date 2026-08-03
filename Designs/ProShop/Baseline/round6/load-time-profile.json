@@ -1,0 +1,60 @@
+{
+  "bootMode": "new-game",
+  "wallClock": {
+    "sceneReadyMs": 4468,
+    "clubhouseReadyMs": 4631,
+    "veilDownMs": 18428,
+    "totalSeconds": 18.43
+  },
+  "beforePrewarmMs": 4631,
+  "prewarmTotalMs": 12478.2,
+  "counts": {
+    "texture-count": 276,
+    "near-warm-objects": 785,
+    "uncalled-object-count": 887,
+    "gl-programs": 132,
+    "distinct-programs": 890
+  },
+  "ranked": [
+    {
+      "label": "warm-composer-render",
+      "ms": 9676.6
+    },
+    {
+      "label": "assets-idle",
+      "ms": 980.2
+    },
+    {
+      "label": "editor-camera-warm",
+      "ms": 886.1
+    },
+    {
+      "label": "initTexture-batches",
+      "ms": 751
+    },
+    {
+      "label": "renderer.compile",
+      "ms": 111.1
+    },
+    {
+      "label": "three-spin-frames",
+      "ms": 59
+    },
+    {
+      "label": "warm-traverse",
+      "ms": 6.8
+    },
+    {
+      "label": "restore-pose",
+      "ms": 1.7
+    },
+    {
+      "label": "cash-kit-handshake",
+      "ms": 0
+    },
+    {
+      "label": "forced-full-draw",
+      "ms": 0
+    }
+  ]
+}

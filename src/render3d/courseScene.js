@@ -10803,29 +10803,60 @@ export function makeCourseScene(canvas, state) {
   // --- prewarm: compile every shader program + upload every texture behind the loading
   // veil so the first real look-around never hitches on lazy GPU work (356ms freezes
   // were measured on the first cold 360° turn before this existed)
+  // PER-PHASE LOAD TIMING. PHASE_1_CLASSIFICATION §"The 18.2 s load, explained"
+  // named every phase below and then said, correctly, that "which step dominates
+  // is UNVERIFIED; no per-step timing exists". Ranking a budget without
+  // measuring it is how the last three optimisation passes picked the wrong
+  // target. Costs about a microsecond per phase and is read by
+  // tools/qa/load-time-profile.js.
+  // how far from the spawn eye counts as "the player will see this in the first
+  // minute" — used only to report the near/far split of the warm set
+  const PREWARM_NEAR_RADIUS_YD = 60;
+  const prewarmTimings = [];
+  function markPrewarm(label, sinceMs) {
+    prewarmTimings.push({ label, ms: +(performance.now() - sinceMs).toFixed(1) });
+    return performance.now();
+  }
+
   async function prewarm(onStep) {
     const tick = () => new Promise((res) => requestAnimationFrame(res));
     const alive = () => !sceneDisposed;
     const step = (label) => { if (alive() && onStep) onStep(label); };
     if (!alive()) return false;
+    prewarmTimings.length = 0;
+    const prewarmStartedAt = performance.now();
+    let phaseAt = prewarmStartedAt;
     step('Loading models');
     await whenAssetsIdle(8000);
+    phaseAt = markPrewarm('assets-idle', phaseAt);
     if (!alive()) return false;
     // DefaultLoadingManager deliberately fails open after eight seconds. Give
     // checkout's exact cash prototypes their own bounded readiness handshake so
     // a slow local GLB decode cannot turn an empty representative root into a
     // false-success warm-up and permanently defer the cost to first tender.
     await clubhouseApi?.register?.waitForCashGpuPrewarmRepresentatives?.(12000);
+    phaseAt = markPrewarm('cash-kit-handshake', phaseAt);
     if (!alive()) return false;
     await tick();
     if (!alive()) return false;
     step('Compiling shaders');
     await tick();
     if (!alive()) return false;
+    phaseAt = performance.now();
+    // TRIED AND REJECTED, 2026-08-03: renderer.compileAsync(). It polls
+    // KHR_parallel_shader_compile so the driver can compile off-thread, which
+    // should have been exactly right for a load dominated by 132 program
+    // compiles. Measured, it cost 1,350 ms here (against 107 ms for the sync
+    // link) and returned only ~200 ms of the warm draw — a net 0.5 s LOSS. The
+    // extension is either absent on this path or the HLSL compile still lands
+    // at first draw regardless. Recorded so nobody spends the afternoon on it
+    // twice.
     renderer.compile(scene, camera);
+    phaseAt = markPrewarm('renderer.compile', phaseAt);
     await tick();
     if (!alive()) return false;
     step('Uploading textures');
+    phaseAt = performance.now();
     const seen = new Set();
     const texKeys = ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'alphaMap', 'bumpMap'];
     const pending = [];
@@ -10850,17 +10881,82 @@ export function makeCourseScene(canvas, state) {
       await tick();
       if (!alive()) return false;
     }
+    prewarmTimings.push({ label: 'texture-count', ms: pending.length });
+    phaseAt = markPrewarm('initTexture-batches', phaseAt);
     step('Warming the view');
     // linking programs is not enough — Windows/ANGLE drivers defer the real compile to a
     // program's FIRST DRAW. One frame with frustum culling off forces a draw of every
     // visible material (and uploads its geometry); fragments off-screen are clipped.
+    // ONE REPRESENTATIVE PER PROGRAM, NOT EVERY OBJECT IN THE SCENE.
+    //
+    // Measured 2026-08-03 (tools/qa/load-time-profile.js): this single phase
+    // cost 9,720 ms of an 18,578 ms load — 52% of the whole wait, and 77% of
+    // prewarm. It disabled frustum culling on 5,310 objects and then drew all
+    // of them, twice over, because the forced draw carries a full shadow bake
+    // and the depth pass submits the same set.
+    //
+    // The reason the phase exists is that Windows/ANGLE defers a program's real
+    // compile to its FIRST DRAW. But a program is a function of the MATERIAL and
+    // the geometry's shape (skinned, instanced, morphed, vertex-coloured) — not
+    // of the object. Five thousand fence posts sharing one material compile one
+    // program between them, and drawing the other 5,309 buys nothing.
+    //
+    // So the warm set is deduplicated by that key. Anything already inside the
+    // frustum draws normally and is left alone. If a program is somehow missed,
+    // the cost is its own first draw later — the same hitch this phase trades
+    // load time to avoid, for a vanishing subset instead of all of it.
     const culled = [];
+    const warmedPrograms = new Set();
+    const programKey = (object, material) => [
+      material.uuid,
+      object.isSkinnedMesh ? 's' : '',
+      object.isInstancedMesh ? 'i' : '',
+      object.geometry?.morphAttributes?.position ? 'm' : '',
+      object.geometry?.attributes?.color ? 'c' : '',
+      object.geometry?.attributes?.uv2 ? '2' : '',
+    ].join('|');
+    const _warmPos = new THREE.Vector3();
+    const eyeNow = camera.getWorldPosition(new THREE.Vector3());
+    let nearWarmed = 0;
     scene.traverse((o) => {
-      if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; }
+      if (!o.frustumCulled) return;
+      if (!o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      let needed = false;
+      for (const m of mats) {
+        if (!m) continue;
+        const key = programKey(o, m);
+        if (warmedPrograms.has(key)) continue;
+        warmedPrograms.add(key);
+        needed = true;
+      }
+      if (!needed) return;
+      o.getWorldPosition(_warmPos);
+      if (_warmPos.distanceTo(eyeNow) <= PREWARM_NEAR_RADIUS_YD) nearWarmed += 1;
+      culled.push(o);
+      o.frustumCulled = false;
     });
+    prewarmTimings.push({ label: 'near-warm-objects', ms: nearWarmed });
+    phaseAt = markPrewarm('warm-traverse', phaseAt);
     renderer.shadowMap.needsUpdate = true; // bake once here so depth-pass programs compile behind the veil
     guardCourseWaterReflection.beginFrame();
     try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    // WHAT THIS FRAME COSTS, AND WHY (measured 2026-08-03):
+    //   this render                     9,741 ms
+    //   the IDENTICAL render after it      51 ms
+    // So the bill is one-time program compilation — 132 GL programs at ~73 ms
+    // each, ANGLE translating to HLSL and D3D compiling, serialized on the JS
+    // thread because a program's real compile lands on its first draw. It is
+    // not geometry throughput (cutting the submitted set from 5,310 objects to
+    // 887 moved it by nothing), it is not the shadow bake or the post chain
+    // (both are in that 51 ms repeat), and it is not distant course work
+    // (785 of the 887 are within 60 yd of the spawn eye). The repeat draw was a
+    // diagnostic and is not shipped; its number is recorded here instead.
+    phaseAt = markPrewarm('warm-composer-render', phaseAt);
+    prewarmTimings.push({ label: 'uncalled-object-count', ms: culled.length });
+    prewarmTimings.push({ label: 'gl-programs', ms: renderer.info.programs?.length ?? -1 });
+    prewarmTimings.push({ label: 'distinct-programs', ms: warmedPrograms.size });
+    phaseAt = markPrewarm('forced-full-draw', phaseAt);
 
     // The editor camera can move beyond the clubhouse's draw radius. That hides
     // its interior PointLights and changes the light-count defines on every
@@ -10912,6 +11008,7 @@ export function makeCourseScene(canvas, state) {
     renderer.shadowMap.needsUpdate = true;
     guardCourseWaterReflection.beginFrame();
     try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    phaseAt = markPrewarm('editor-camera-warm', phaseAt);
     walk.active = savedView.walkActive;
     heldRoot.visible = savedView.heldVisible;
     editorShadowFocus = savedView.editorShadowFocus;
@@ -10937,6 +11034,7 @@ export function makeCourseScene(canvas, state) {
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
     for (const o of culled) o.frustumCulled = true;
+    phaseAt = markPrewarm('restore-pose', phaseAt);
     await tick();
     if (!alive()) return false;
     // A couple of normal frames settle the AO history and bloom targets. Keep
@@ -10952,8 +11050,10 @@ export function makeCourseScene(canvas, state) {
       await tick();
       if (!alive()) return false;
     }
+    phaseAt = markPrewarm('three-spin-frames', phaseAt);
     camera.quaternion.copy(settledQuaternion);
     camera.updateMatrixWorld(true);
+    prewarmTimings.push({ label: 'TOTAL', ms: +(performance.now() - prewarmStartedAt).toFixed(1) });
     // Checkout cash representatives share the exact kit geometry/materials and
     // existed only so the forced warm-up draw above could realize them behind
     // the opaque veil. Keep the GPU residency, but remove their scene nodes
@@ -10966,6 +11066,8 @@ export function makeCourseScene(canvas, state) {
     renderer,
     scene,
     prewarm,
+    // Ranked, measured load cost. Empty until prewarm has run once.
+    prewarmTimings: () => prewarmTimings.map((entry) => ({ ...entry })),
     whenAssetsIdle: () => whenAssetsIdle(10000),
     camera,
     rig,
