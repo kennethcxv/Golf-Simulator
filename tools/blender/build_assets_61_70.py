@@ -234,7 +234,37 @@ def build_61() -> bpy.types.Object:
 
     # Layered plinth, recessed body, and deep molded top match the traditional reference silhouette.
     _box("CounterPlinth", (2.84, 0.82, 0.075), (0.0, 0.015, 0.0375), m["dark_walnut"], body, bevel=0.018)
-    _box("CounterCarcass", (2.72, 0.76, 0.76), (0.0, 0.035, 0.445), m["dark_walnut"], body, bevel=0.026)
+    # THE STAFF BAY IS OPEN (B7, 2026-08-03).
+    #
+    # This was one solid 2.72 x 0.76 x 0.76 slab filling the whole carcass
+    # volume, so everything the staff face is supposed to contain — the divider,
+    # the lower shelf — was sealed inside it. The part-visibility sweep reported
+    # StaffDivider at zero pixels from all directions, and the note said proud
+    # placement would breach the asset's own staff_corridor_clear contract, so
+    # the bay needed carving open. That is what this is: the carcass is now the
+    # panels AROUND a recess rather than the block that filled it.
+    #
+    # Deliberately assembled from panels rather than bored with a boolean. The
+    # cut is rectilinear and axis-aligned, so the panels ARE the result a
+    # boolean would produce, with none of its material re-indexing or n-gon
+    # surprises, and every piece stays inside the old slab's own footprint —
+    # nothing gains a millimetre toward the +Y aisle, so staff_corridor_clear
+    # holds by construction.
+    #
+    #   x -1.36 .. -0.55   drawer bank, still solid: it carries the three
+    #                      drawer faces at x -0.87
+    #   x -0.55 .. +1.30   the open bay, customer-side wall only
+    #   x +1.30 .. +1.36   the right end panel that closes it
+    #   z 0.065 .. 0.115   the bay deck the shelf and divider stand on
+    _box("CounterCarcassDrawerBank", (0.81, 0.76, 0.76), (-0.955, 0.035, 0.445),
+         m["dark_walnut"], body, bevel=0.026)
+    _box("CounterCarcassFrontWall", (1.85, 0.27, 0.76), (0.375, -0.210, 0.445),
+         m["dark_walnut"], body, bevel=0.026)
+    _box("CounterCarcassEndPanel", (0.06, 0.76, 0.76), (1.330, 0.035, 0.445),
+         m["dark_walnut"], body, bevel=0.020)
+    _box("CounterCarcassBayDeck", (1.85, 0.49, 0.05), (0.375, 0.170, 0.090),
+         p["natural_oak"], body, bevel=0.010,
+         properties={"staff_storage": True})
     _box("CounterTop", (2.93, 0.91, 0.095), (0.0, 0.0, 0.9175), p["medium_walnut"], body,
          bevel=0.026, bevel_segments=3, properties={"placement_surface": True})
     # Keep the oak field visibly proud of the 0.965 m walnut surface.  The old

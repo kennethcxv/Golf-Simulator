@@ -690,13 +690,43 @@ def build_99() -> bpy.types.Object:
     m = _materials()
     body = _group("UmbrellaStand", root)
 
-    A.cylinder("StandWall", 0.170, 0.600, (0.0, 0.0, 0.310), m["stand_green"],
-               vertices=32, parent=body, bevel=0.008)
-    # Hollow it out: a solid cylinder reads as a bin, not a stand you put things into.
-    A.cylinder("StandBore", 0.152, 0.560, (0.0, 0.0, 0.336), m["matte_black"],
-               vertices=32, parent=body, bevel=0.004)
-    A.cylinder("StandRim", 0.176, 0.024, (0.0, 0.0, 0.602), m["stand_green"],
-               vertices=32, parent=body, bevel=0.006)
+    # A REAL CAVITY, NOT A PAINTED ONE (B7, 2026-08-03).
+    #
+    # This used to be a solid wall cylinder with a solid black "StandBore"
+    # cylinder standing inside it, which reads as a hollow from outside and is
+    # nothing of the sort: the drain tray at the bottom was sealed under the
+    # bore with no camera anywhere that could see it. That is what the
+    # part-visibility sweep reported, and it was recorded as "no cavity exists
+    # to see into — out of scope". It is in scope now, and the fix is to
+    # actually remove the material rather than to move the tray somewhere it
+    # can be seen.
+    #
+    # The wall is bored from the top down to just above the drain tray, so
+    # looking into the stand you see down the inside of the wall and land on the
+    # tray — which is the whole point of a drain tray.
+    stand_wall = A.cylinder("StandWall", 0.170, 0.600, (0.0, 0.0, 0.310), m["stand_green"],
+                            vertices=32, parent=body, bevel=0.008)
+    # …and it has to cut PAST the tray, not down to it. Two passes got this
+    # wrong in the same way and the sweep caught both: the wall is a solid
+    # cylinder, so anything the cut does not reach stays solid. Boring to 0.068
+    # left a 20 mm plug standing on the tray; boring to 0.050 left the tray
+    # itself embedded in the 2 mm beneath the new floor. The cut now ends at
+    # 0.040, BELOW the tray's top face at 0.048, so the tray stands 8 mm proud
+    # in an open well and reads from above — which is the only angle a drain
+    # tray is ever seen from.
+    cavity = A.cylinder("StandCavityCutter", 0.152, 0.585, (0.0, 0.0, 0.3325), None,
+                        vertices=32, parent=None, bevel=0.0, uv=False)
+    A.bore(stand_wall, cavity)
+    # THE RIM IS A RING, NOT A LID. This was a solid 0.176 disc sitting across
+    # the top of the stand: even with the wall properly bored, looking down at
+    # an umbrella stand showed you a green plate. Between the solid bore and
+    # this cap the hollow was faked twice over, which is why moving the tray
+    # could never have worked and why the note said "no cavity exists to see
+    # into". Bored to the same 0.152 as the wall, so the opening is continuous.
+    stand_rim = A.cylinder("StandRim", 0.176, 0.024, (0.0, 0.0, 0.602), m["stand_green"],
+                           vertices=32, parent=body, bevel=0.006)
+    A.bore(stand_rim, A.cylinder("StandRimCutter", 0.152, 0.060, (0.0, 0.0, 0.602), None,
+                                 vertices=32, parent=None, bevel=0.0, uv=False))
     A.cylinder("StandBase", 0.176, 0.030, (0.0, 0.0, 0.015), m["stand_green"],
                vertices=32, parent=body, bevel=0.006)
     A.cylinder("StandDrainTray", 0.150, 0.012, (0.0, 0.0, 0.042), m["matte_black"],

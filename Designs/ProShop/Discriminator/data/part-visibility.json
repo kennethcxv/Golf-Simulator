@@ -6,69 +6,90 @@
       "n": 61,
       "file": "asset_061_front_desk_counter_shell.glb",
       "sheet": "sheet_07",
-      "sha256": "7c7e903aec98aa39d872eb72f662ad7f94fc370ab17d0f6aed95cbc8f9a6a354",
-      "opaqueParts": 11,
+      "sha256": "96f5cdc6e474b26095e5d8341b8783b62ae707374bd60f50ac3be2c346a2b8b8",
+      "opaqueParts": 14,
       "transparentParts": [],
       "animations": [],
       "parts": [
         {
-          "name": "MESH_CounterCarcass",
+          "name": "MESH_CounterCarcassBayDeck",
           "triangles": 108,
-          "maxPx": 32223,
-          "seenAngles": 24,
-          "sharePct": 25.717
+          "maxPx": 5760,
+          "seenAngles": 9,
+          "sharePct": 1.734
+        },
+        {
+          "name": "MESH_CounterCarcassDrawerBank",
+          "triangles": 108,
+          "maxPx": 17811,
+          "seenAngles": 21,
+          "sharePct": 8.652
+        },
+        {
+          "name": "MESH_CounterCarcassEndPanel",
+          "triangles": 108,
+          "maxPx": 18083,
+          "seenAngles": 21,
+          "sharePct": 5.799
+        },
+        {
+          "name": "MESH_CounterCarcassFrontWall",
+          "triangles": 108,
+          "maxPx": 17282,
+          "seenAngles": 18,
+          "sharePct": 4.96
         },
         {
           "name": "MESH_CounterPlinth",
           "triangles": 108,
           "maxPx": 44680,
           "seenAngles": 25,
-          "sharePct": 24.544
+          "sharePct": 24.481
         },
         {
           "name": "MESH_CounterTop",
           "triangles": 188,
           "maxPx": 14618,
           "seenAngles": 25,
-          "sharePct": 16.122
+          "sharePct": 17.978
         },
         {
           "name": "MESH_StaffDivider",
           "triangles": 108,
-          "maxPx": 0,
-          "seenAngles": 0,
-          "sharePct": 0
+          "maxPx": 2825,
+          "seenAngles": 9,
+          "sharePct": 1.03
         },
         {
           "name": "MESH_StaffLowerShelf",
           "triangles": 108,
-          "maxPx": 632,
-          "seenAngles": 8,
-          "sharePct": 0.139
+          "maxPx": 4695,
+          "seenAngles": 9,
+          "sharePct": 1.891
         },
         {
           "name": "MESH_CounterTopInlay",
           "triangles": 108,
           "maxPx": 36278,
           "seenAngles": 9,
-          "sharePct": 15.714
+          "sharePct": 15.72
         },
         {
           "name": "MESH_CustomerPilasterSet",
           "triangles": 432,
           "maxPx": 5539,
           "seenAngles": 22,
-          "sharePct": 4.109
+          "sharePct": 4.096
         },
         {
-          "name": "Cube004",
+          "name": "Cube007",
           "triangles": 324,
           "maxPx": 14868,
           "seenAngles": 9,
-          "sharePct": 6.303
+          "sharePct": 6.305
         },
         {
-          "name": "Cube004_1",
+          "name": "Cube007_1",
           "triangles": 1296,
           "maxPx": 9920,
           "seenAngles": 15,
@@ -84,14 +105,12 @@
         {
           "name": "MESH_StaffDrawerFrontSet",
           "triangles": 324,
-          "maxPx": 4597,
+          "maxPx": 4596,
           "seenAngles": 9,
-          "sharePct": 2.009
+          "sharePct": 2.01
         }
       ],
-      "invisible": [
-        "MESH_StaffDivider"
-      ],
+      "invisible": [],
       "nearInvisible": []
     },
     {
@@ -3050,71 +3069,62 @@
       "n": 99,
       "file": "asset_099_umbrella_stand.glb",
       "sheet": "sheet_10",
-      "sha256": "e9785bbcde6a7c6375c72547aa5be279cf736bfab0d426d688417f4db2cecb3e",
-      "opaqueParts": 8,
+      "sha256": "deb03d7400419896a47456503e990255a26b375b1320fa2164895b6de68bacee",
+      "opaqueParts": 7,
       "transparentParts": [],
       "animations": [],
       "parts": [
         {
           "name": "MESH_StandBand_0",
           "triangles": 336,
-          "maxPx": 1497,
+          "maxPx": 1500,
           "seenAngles": 24,
-          "sharePct": 1.983
+          "sharePct": 1.992
         },
         {
           "name": "MESH_StandBand_1",
           "triangles": 336,
-          "maxPx": 1440,
+          "maxPx": 1472,
           "seenAngles": 24,
-          "sharePct": 1.913
+          "sharePct": 1.919
         },
         {
           "name": "MESH_StandBase",
           "triangles": 380,
-          "maxPx": 46328,
+          "maxPx": 46472,
           "seenAngles": 25,
-          "sharePct": 16.07
-        },
-        {
-          "name": "MESH_StandBore",
-          "triangles": 380,
-          "maxPx": 34328,
-          "seenAngles": 9,
-          "sharePct": 8.732
+          "sharePct": 16.061
         },
         {
           "name": "MESH_StandCrest",
           "triangles": 216,
-          "maxPx": 984,
+          "maxPx": 1000,
           "seenAngles": 15,
-          "sharePct": 0.467
+          "sharePct": 0.468
         },
         {
           "name": "MESH_StandDrainTray",
           "triangles": 332,
-          "maxPx": 0,
-          "seenAngles": 0,
-          "sharePct": 0
+          "maxPx": 11492,
+          "seenAngles": 1,
+          "sharePct": 0.755
         },
         {
           "name": "MESH_StandRim",
-          "triangles": 380,
-          "maxPx": 11848,
+          "triangles": 512,
+          "maxPx": 12734,
           "seenAngles": 25,
-          "sharePct": 6.57
+          "sharePct": 7.593
         },
         {
           "name": "MESH_StandWall",
-          "triangles": 380,
-          "maxPx": 53112,
-          "seenAngles": 24,
-          "sharePct": 64.264
+          "triangles": 508,
+          "maxPx": 53252,
+          "seenAngles": 25,
+          "sharePct": 71.212
         }
       ],
-      "invisible": [
-        "MESH_StandDrainTray"
-      ],
+      "invisible": [],
       "nearInvisible": []
     },
     {

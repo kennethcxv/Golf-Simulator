@@ -58,10 +58,15 @@ const EXPECT_INVISIBLE = new Map([
   ['97:Cylinder_1', 'keys behind the key-cabinet door; door opens'],
   // The door-gated shelf — same reveal family, called out by name in the brief.
   ['62:MESH_InternalShelf', 'builder marks it visible_when_door_open; behind the cabinet doors'],
-  // Deferred structural burials — real defects, recorded in ASSEMBLY_FIXES.md, waiting
-  // until after Phase 3 because 061 IS the reception counter Phase 3 may relocate.
-  ['61:MESH_StaffDivider', 'DEFERRED: buried in the solid CounterCarcass; staff-bay carve waits until after Phase 3 settles the counter'],
-  ['99:MESH_StandDrainTray', 'DEFERRED: sits inside a faked solid bore; no cavity exists to see into'],
+  // The two DEFERRED structural burials are GONE, fixed 2026-08-03 (B7):
+  //   61:MESH_StaffDivider  — the carcass was one solid slab filling the whole
+  //     volume. It is now panels AROUND an open staff bay: a solid drawer bank,
+  //     a customer-side wall, an end panel and a deck. Nothing moved toward the
+  //     +Y aisle, so staff_corridor_clear still holds by construction.
+  //   99:MESH_StandDrainTray — the hollow was faked TWICE, by a solid black
+  //     bore standing inside the wall and by a solid disc capping the top. Both
+  //     are real geometry now: the wall is bored past the tray's top face and
+  //     the rim is a ring.
   // Residual by geometry, not defect.
   ['71:MESH_VacHeadWheelL', 'genuine inboard caster: the drum flank owns the left wheel\'s whole viewing hemisphere'],
   // Pre-existing faked-cavity family, recorded in ASSEMBLY_FIXES.md, left alone.

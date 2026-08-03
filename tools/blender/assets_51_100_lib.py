@@ -757,6 +757,44 @@ def cylinder(
     return obj
 
 
+def bore(
+    target: bpy.types.Object,
+    cutter: bpy.types.Object,
+) -> bpy.types.Object:
+    """Cut `cutter` out of `target` and delete the cutter. EXACT solver.
+
+    Added 2026-08-03 for the 099 umbrella stand, whose "hollow" was a solid
+    black cylinder standing inside a solid wall — a painted-on cavity with a
+    drain tray sealed underneath it that no camera could ever see. Faking a
+    hollow is exactly the class of defect the part-visibility sweep exists to
+    catch, and the only honest fix is to remove the material.
+
+    The material handling mirrors tools/blender/proshop_lib.py's boolean_cut,
+    which is the pattern that already works in this repository: assign the
+    material BEFORE applying, then re-index every polygon afterwards, because
+    the boolean brings the cutter's own slots across and leaves faces pointing
+    at indices the target does not have.
+    """
+    if target is None or cutter is None:
+        raise ValueError("bore requires both a target and a cutter")
+    bpy.context.view_layer.objects.active = target
+    modifier = target.modifiers.new("Bore", "BOOLEAN")
+    modifier.operation = "DIFFERENCE"
+    modifier.object = cutter
+    modifier.solver = "EXACT"
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    for polygon in target.data.polygons:
+        polygon.material_index = 0
+    # …and drop the slots the boolean brought over. Re-indexing the faces is not
+    # enough on its own: the cutter's own (empty) slot survives as slot 1 and the
+    # publisher's material-slot validator fails the asset on it. Pop from the end
+    # so the surviving indices stay valid while removing.
+    while len(target.data.materials) > 1:
+        target.data.materials.pop(index=len(target.data.materials) - 1)
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    return target
+
+
 def sphere(
     name: str,
     radius: float,
