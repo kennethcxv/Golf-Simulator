@@ -99,11 +99,17 @@
   // tests/proshop-churn-exemption.test.js fails if that file says FIXED while
   // this list still carries the ID (and vice versa). An exemption cannot
   // outlive the thing it excuses by accident.
-  const DEFECT_EXEMPTIONS = Object.freeze([Object.freeze({
-    id: 'NAV-WAIT-001',
-    reason: 'NPCs have nowhere to wait for an occupied browse stand',
-    expiresWhenFixed: true,
-  })]);
+  // EMPTY, and that is the point. NAV-WAIT-001 was the only entry this list
+  // ever carried; it was fixed 2026-08-02 (browse stands got an occupancy claim
+  // and spaced hold points) and its waiver was deleted in the same commit that
+  // flipped the status, which is the pairing this file's header promises.
+  // Measured on the same instrument, window and speed as the signature it was
+  // filed against: 95 episodes to 0 (neglected) and 82 to 1 (restored), and the
+  // one survivor is judged rather than waived. Nothing in this room is exempt
+  // from the cap or the floor now. An entry added here is a debt, not a
+  // setting: file the defect first, keep attribution narrow, and expect the
+  // suite to force its removal the day the defect closes.
+  const DEFECT_EXEMPTIONS = Object.freeze([]);
   const EXEMPT_IDS = new Set(DEFECT_EXEMPTIONS.map((d) => d.id));
   // Attribution is deliberately narrow. A walker qualifies only if it is
   // BLOCKED IN THE APPROACH TO A STAND SOMEONE ELSE IS STANDING AT, for
@@ -207,6 +213,12 @@
     // stand, it stalled inside that stand's approach (not at it, not across the
     // room), and another body held the stand for essentially the whole episode.
     // Anything short of that is an unattributed block and still faces the cap.
+    //
+    // DORMANT since 2026-08-02: DEFECT_EXEMPTIONS is empty, so the first line
+    // below returns null for every episode and nothing is waived. It is kept,
+    // not deleted, because it is the worked example of what a narrow waiver has
+    // to look like — the next one that is ever proposed should have to match
+    // this shape rather than reinvent a looser one.
     const attribute = (epi, samples, occupied) => {
       if (!cfg.exemptIds.includes('NAV-WAIT-001')) return null;
       if (!epi.fixtureId || !Number.isFinite(epi.stopX)) return null;

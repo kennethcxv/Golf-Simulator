@@ -8349,6 +8349,94 @@ export function makeClubhouse(ctx) {
   // golfer-wardrobe palette, muted to the club color language
   const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0x8f4f39, 0x4a7050, 0x7b8277, 0x4d4038];
   const counterQueue = [];
+
+  // --- NAV-WAIT-001: a browse stand serves ONE customer at a time -----------
+  // The defect this closes: a customer whose chosen stand was occupied had no
+  // wait state. It kept the stand point as its goal and kept walking at it, so
+  // bodies stacked in the approach band shoving and sidestepping until the
+  // stand freed — 90 of 95 (neglected) and 79 of 82 (restored) of ALL measured
+  // churn episodes were this one class, at p50 ~18-20 s.
+  //
+  // Escalating them was always the wrong verb: they were never STUCK, their
+  // goal simply was not available yet. So the stand now carries a claim, and a
+  // customer that cannot have it waits — spaced, facing the stand, out of the
+  // approach band — instead of pressing into it.
+  const WAIT_RING = Object.freeze({
+    slotsPerRow: 4,
+    // Across the stand's face. Wider than a body (0.68) at every slot so the
+    // waiting itself cannot become the new shoving.
+    spanX: 2.10,
+    // Behind the browse pose (which sits at halfDepth + 0.72). 1.85 puts the
+    // first row clear of the 2.60-yd approach band the defect was measured in.
+    standOff: 1.85,
+    rowStep: 0.80,
+    // Past this many, waiting is hopeless and the shopper moves on rather than
+    // forming an unbounded crowd.
+    maxSlots: 8,
+  });
+  // Matches the defect's own attribution band (an episode counted as this class
+  // only if the walker stalled within 2.60 yd of the stand it was heading for),
+  // so the fix operates exactly where the problem was measured.
+  const STAND_CLAIM_RADIUS = 2.60;
+  const fixtureClaims = new Map(); // fixtureId -> the customer browsing it
+  // placedFixtures() rebuilds a list; the wait poses need lookups by id every
+  // frame, so cache one map per update and invalidate it when the floor changes.
+  let fixtureByIdCache = null;
+  function fixtureById() {
+    if (!fixtureByIdCache) {
+      fixtureByIdCache = new Map(placedFixtures(state).map((f) => [f.id, f]));
+    }
+    return fixtureByIdCache;
+  }
+
+  function releaseFixtureClaim(c) {
+    if (!c || !c.fixtureClaim) return false;
+    if (fixtureClaims.get(c.fixtureClaim) === c) fixtureClaims.delete(c.fixtureClaim);
+    c.fixtureClaim = null;
+    c.waitSlot = null;
+    c.waitFixtureId = null;
+    return true;
+  }
+
+  // A spaced hold point behind the stand, in the fixture's own frame, so it
+  // rotates with the display exactly as the browse pose does.
+  function fixtureWaitPose(fixture, slot) {
+    const row = Math.floor(slot / WAIT_RING.slotsPerRow);
+    const column = slot % WAIT_RING.slotsPerRow;
+    const spread = WAIT_RING.slotsPerRow > 1
+      ? (column - (WAIT_RING.slotsPerRow - 1) / 2) * (WAIT_RING.spanX / (WAIT_RING.slotsPerRow - 1))
+      : 0;
+    const halfDepth = Number.isFinite(fixture.footprint?.maxZ)
+      ? fixture.footprint.maxZ
+      : (FIXTURE_HALF[fixture.kind] || [1, 1])[1];
+    const local = fixtureBrowsePoint(
+      fixture,
+      spread,
+      halfDepth + WAIT_RING.standOff + row * WAIT_RING.rowStep,
+    );
+    const target = L2W(local.x, local.z);
+    const origin = L2W(fixture.x, fixture.z);
+    return { x: target.x, z: target.z, faceX: origin.x, faceZ: origin.z };
+  }
+
+  // Stable while a customer keeps waiting on the same stand, so waiters do not
+  // swap places every frame — that would be its own kind of churn.
+  function waitSlotFor(c, fixtureId) {
+    if (c.waitFixtureId === fixtureId && Number.isFinite(c.waitSlot)) return c.waitSlot;
+    const taken = new Set();
+    for (const other of customers) {
+      if (other !== c && other.waitFixtureId === fixtureId && Number.isFinite(other.waitSlot)) {
+        taken.add(other.waitSlot);
+      }
+    }
+    let slot = 0;
+    while (taken.has(slot) && slot < WAIT_RING.maxSlots) slot += 1;
+    if (slot >= WAIT_RING.maxSlots) return null; // the crowd is full; move on
+    c.waitFixtureId = fixtureId;
+    c.waitSlot = slot;
+    return slot;
+  }
+
   const doorW = L2W(DOOR_MAIN.x, halfD);
   const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
 
@@ -9423,6 +9511,9 @@ export function makeClubhouse(ctx) {
   function removeCustomer(i) {
     const c = customers[i];
     if (!c) return;
+    // NAV-WAIT-001: never let a departing shopper take a stand's claim with it,
+    // or that display is closed for the rest of the day.
+    releaseFixtureClaim(c);
 
     // They came in, they saw the place, they left. That is a visit, and a visit is reviewable —
     // not just the ones that ended in a sale or a tantrum at the till, which is how most of them
@@ -9910,6 +10001,9 @@ export function makeClubhouse(ctx) {
   });
 
   function updateCustomers(dt) {
+    // One fixture lookup table per frame (NAV-WAIT-001's wait poses need it by
+    // id); a build-mode move or a sold-out display rebuilds it next frame.
+    fixtureByIdCache = null;
     // How much of the shop's DAY passed this frame, and how far a body may move
     // in it. The two are deliberately different numbers above 4x.
     const decisionDt = dt * simSpeed;
@@ -10067,10 +10161,80 @@ export function makeClubhouse(ctx) {
         tz = slot.z;
       }
 
+      // NAV-WAIT-001. Claim the stand on APPROACH, not from across the room: a
+      // shopper still crossing the floor holds nothing, so the stand goes to
+      // whoever actually gets there. Inside the approach band an unclaimed
+      // stand is taken; a claimed one sends this shopper to a spaced hold point
+      // facing it. `waitingForStand` then suppresses the arrival branch below,
+      // because reaching a hold point is not reaching the stop.
+      let waitingForStand = false;
+      let waitFace = null;
+      if (stop.kind === 'fixture' && stop.fixtureId) {
+        if (c.fixtureClaim && c.fixtureClaim !== stop.fixtureId) releaseFixtureClaim(c);
+        const holder = fixtureClaims.get(stop.fixtureId);
+        const mine = holder === c;
+        if (!mine) {
+          const reach = Math.hypot(stop.x - c.mesh.position.x, stop.z - c.mesh.position.z);
+          const holderGone = holder && !customers.includes(holder);
+          if (holderGone) fixtureClaims.delete(stop.fixtureId);
+          if (reach <= STAND_CLAIM_RADIUS) {
+            if (!fixtureClaims.get(stop.fixtureId)) {
+              fixtureClaims.set(stop.fixtureId, c);
+              c.fixtureClaim = stop.fixtureId;
+              c.waitSlot = null;
+              c.waitFixtureId = null;
+            } else {
+              const fixture = fixtureById().get(stop.fixtureId);
+              const slot = fixture ? waitSlotFor(c, stop.fixtureId) : null;
+              if (fixture && slot != null) {
+                const hold = fixtureWaitPose(fixture, slot);
+                tx = hold.x;
+                tz = hold.z;
+                waitFace = hold;
+                waitingForStand = true;
+              } else {
+                // No fixture record, or the crowd is full: give this stand up
+                // rather than joining an unbounded scrum. Their remaining plan
+                // still stands, and an empty plan simply heads for the exit.
+                releaseFixtureClaim(c);
+                c.stopIdx += 1;
+                c.path = [];
+                c.pathGoal = null;
+                c.linger = 0;
+                continue;
+              }
+            }
+          }
+        }
+      } else if (c.fixtureClaim) {
+        releaseFixtureClaim(c);
+      }
+
       const dx = tx - c.mesh.position.x;
       const dz = tz - c.mesh.position.z;
       const dist = Math.hypot(dx, dz);
-      if (dist < 0.18) {
+      // Reaching a HOLD POINT is not reaching the stop. Stand still, face the
+      // display, and let the claim check above hand the stand over the moment
+      // it frees — without ever running the browse/pick beat out here.
+      if (waitingForStand) {
+        if (dist < 0.18) {
+          c.path = [];
+          c.pathGoal = null;
+          c.stuckT = 0;
+          c.repathed = false;
+          if (char) char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
+          if (waitFace) {
+            const want = characterYawToward(
+              c.mesh.position.x, c.mesh.position.z, waitFace.faceX, waitFace.faceZ,
+            );
+            let dy = want - c.mesh.rotation.y;
+            while (dy > Math.PI) dy -= Math.PI * 2;
+            while (dy < -Math.PI) dy += Math.PI * 2;
+            c.mesh.rotation.y += dy * Math.min(1, dt * 8);
+          }
+          continue;
+        }
+      } else if (dist < 0.18) {
         if (stop.kind === 'enter' && !c.rangBell) {
           c.rangBell = true;
           c.entered = true; // they got through the door, so they have an opinion
@@ -10192,7 +10356,11 @@ export function makeClubhouse(ctx) {
               c.plannedCount = 1;
             }
           }
-          if (stop.kind === 'fixture') customerPick(c, stop);
+          // done browsing — the stand goes back to whoever is holding for it
+          if (stop.kind === 'fixture') {
+            customerPick(c, stop);
+            releaseFixtureClaim(c);
+          }
           if (stop.kind === 'lounge' && c.reservationId != null) {
             c.checkoutPhase = 'reservation-arriving';
             c.currentDestination = 'front-desk';
