@@ -152,6 +152,7 @@ import {
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { flipSign, shopAcceptsWalkIns, signIsOpen } from '../sim/shopSign.js';
 import { shopSignLocalPoint } from '../data/shopSignPlacement.js';
+import { shopFootfallDrive, shopFootfallTarget } from '../sim/shopFootfall.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { buildShedDirt } from './clubhouse/shedDirt.js';
 import { createShedInterior } from './clubhouse/shedInterior.js';
@@ -10041,6 +10042,10 @@ export function makeClubhouse(ctx) {
     locomotionScale: locomotionSpeed,
   });
 
+  // cached footfall target; -1 means "not solved this session yet"
+  let footfallTargetMinute = -1;
+  let footfallTarget = 0;
+
   function updateCustomers(dt) {
     // One fixture lookup table per frame (NAV-WAIT-001's wait poses need it by
     // id); a build-mode move or a sold-out display rebuilds it next frame.
@@ -10061,9 +10066,21 @@ export function makeClubhouse(ctx) {
     // the exit (reservations and an in-progress transaction stay exempt below,
     // unchanged). See src/sim/shopSign.js.
     const open = shopAcceptsWalkIns(state, minute);
-    const targetCount = open
-      ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, shopCustomerCapacity(state))
-      : 0;
+    // HOW BUSY THE SHOP IS, scaled by how the club is doing rather than by its
+    // own output. See src/sim/shopFootfall.js for why yesterday's unit sales
+    // were the wrong input: they are a mirror of footfall, so they locked it at
+    // one. Recomputed once a game minute — shopCondition() walks the grime and
+    // window arrays, which is not a per-frame cost worth paying for a number
+    // that cannot meaningfully change inside a minute.
+    // …keyed on the WHOLE minute. `minute` carries the frame's fraction, so
+    // comparing it raw re-solved on almost every frame and the cache did
+    // nothing at all.
+    const wholeMinute = Math.floor(minute);
+    if (open && wholeMinute !== footfallTargetMinute) {
+      footfallTargetMinute = wholeMinute;
+      footfallTarget = shopFootfallTarget(state, shopCustomerCapacity(state), { open: true });
+    }
+    const targetCount = open ? footfallTarget : 0;
     // Arrivals per GAME hour, not per wall second. This was the single biggest
     // contributor to the empty fast-forward shop: the roll fired on wall time,
     // so a 16x game hour rolled 1/16th as many times as a 1x one.
@@ -11413,6 +11430,16 @@ export function makeClubhouse(ctx) {
         doorMode: shedPresentation ? 'dormant' : 'live',
       };
     },
+    // What the floor is aiming for, and why. Read-only; the arrival loop owns
+    // the number and this only reports it, so a driver can measure concurrency
+    // against the inputs that set it rather than inferring both from a count.
+    footfallDiagnostics: () => ({
+      target: footfallTarget,
+      solvedAtMinute: footfallTargetMinute,
+      drive: +shopFootfallDrive(state).toFixed(4),
+      capacity: shopCustomerCapacity(state),
+      onFloor: customers.length,
+    }),
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run
     // SIM-TIME-001: the game-speed multiplier, pushed in from the frame loop.
