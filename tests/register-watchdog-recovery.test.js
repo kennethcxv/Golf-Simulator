@@ -22,7 +22,14 @@ import {
   totalOf,
   takeFromDrawer,
 } from '../src/sim/register.js';
-import { CHECKOUT_STATES } from '../src/sim/registerFlow.js';
+import {
+  CHECKOUT_STATES,
+  abandonCheckoutRecovery,
+  checkoutStateTimedOut,
+  createCheckoutFlow,
+  resolveCheckoutRecoveryTarget,
+  transitionCheckout,
+} from '../src/sim/registerFlow.js';
 import { SIMPLIFIED_REGISTER_WATCHDOG_STATES } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const item = (uid = 'watchdog-item', price = 12) => ({
@@ -136,7 +143,7 @@ test('the live register watchdog covers bounded active states and excludes untim
     'EnteringCashierMode',
     'ProductHeld', 'ProductScanning', 'ProductScanned',
     'AllProductsScanned', 'ChoosingPayment',
-    'CardPresented', 'CardInsertReady', 'CardInserting', 'CardProcessing', 'CardApproved',
+    'CardPresented', 'CardInserting', 'CardProcessing', 'CardApproved',
     'CashAccepted', 'DrawerOpening', 'DepositingCash', 'GivingChange',
     'PaymentComplete', 'ReceiptPrinting', 'Bagging', 'BagHandoff', 'CustomerLeaving',
   ];
@@ -148,7 +155,10 @@ test('the live register watchdog covers bounded active states and excludes untim
   }
 
   for (const state of [
-    'WaitingForScan', 'CardAmountEntry',
+    // CardInsertReady joined this group on 2026-08-03: the offered card waits in
+    // the customer's hand for a player click, and the 4-second watchdog it kept
+    // from the old automatic route was killing live sales (A1).
+    'WaitingForScan', 'CardInsertReady', 'CardAmountEntry',
     'CardDeclined', 'CashPresented', 'SelectingChange',
     'TransactionComplete', 'Recovery',
   ]) {
@@ -240,4 +250,116 @@ test('a customer arriving while the cashier remains active enters the normal sca
   assert.match(source,
     /function beginCashierEntry\(event\) \{[\s\S]*checkoutFlowState\(\) !== 'WaitingForCashier'[\s\S]*flowTo\('EnteringCashierMode', event\)[\s\S]*enterTimer = 0\.30/,
     'the canonical helper must retain the visible entry beat before WaitingForScan');
+});
+
+// A1 — THE CARD READER LOCKED OUT MID-SALE (playtest 2026-08-03).
+//
+// Measured with tools/qa/checkout-card-lockout.js, which runs the identical
+// four-item $300.56 card sale twice and varies only how long the player takes
+// to click the offered card. At 400 ms it reached CardAmountEntry; at 6000 ms
+// the flow entered Recovery with cause "timeout:CardInsertReady", the reconcile
+// failed ("Card presentation recovery has no unresolved card"), and from there
+// the card click, the reader's X and every other verb were refused. The item
+// count and the amount were held constant, so the trigger is TIME.
+//
+// Two defects, pinned separately below because either one alone is enough to
+// kill a sale.
+
+test('a state that waits for the player click cannot be timed out from under them', () => {
+  // The card route used to insert on a timer. When it became "the offered card
+  // waits in the customer's hand until it is clicked", the machine-speed
+  // watchdog stayed behind.
+  assert.equal(CHECKOUT_STATES.CardInsertReady.timeout.seconds, null,
+    'CardInsertReady waits for a deliberate human action, exactly like CardAmountEntry');
+  assert.equal(CHECKOUT_STATES.CardAmountEntry.timeout.seconds, null,
+    'the state this reasoning was already applied to');
+  // …and the machine-driven neighbours keep theirs, or a genuinely stalled
+  // insertion would have no watchdog at all.
+  assert.ok(Number.isFinite(CHECKOUT_STATES.CardInserting.timeout.seconds),
+    'CardInserting is animation-driven and must stay watched');
+  assert.ok(Number.isFinite(CHECKOUT_STATES.CardProcessing.timeout.seconds),
+    'CardProcessing is authorization-driven and must stay watched');
+});
+
+test('the offered card survives a player who takes a long look at it', () => {
+  // The exact predicate the renderer's watchdog calls, at the delay that killed
+  // the reported sale and well beyond it.
+  const flow = createCheckoutFlow({ state: 'CardInsertReady', nowMs: 1000 });
+  assert.equal(checkoutStateTimedOut(flow, 1000 + 6000), false,
+    'six seconds of looking for the card is not a fault');
+  assert.equal(checkoutStateTimedOut(flow, 1000 + 120000), false,
+    'nor is two minutes — the offer is the customer standing there holding it out');
+});
+
+test('a recovery the renderer cannot reconcile can always be let go', () => {
+  // Reproduce the trap: enter Recovery from a card state, then confirm the
+  // stored resume state really is the only legal exit.
+  const flow = createCheckoutFlow({ state: 'CardInsertReady', nowMs: 0 });
+  const entered = transitionCheckout(flow, 'Recovery', {
+    nowMs: 10, event: 'timeout:CardInsertReady', facts: { paymentAuthorized: false },
+  });
+  assert.equal(entered.ok, true);
+  assert.equal(entered.flow.recovery.resumeState, 'CardPresented');
+  assert.equal(
+    transitionCheckout(entered.flow, 'AllProductsScanned', { nowMs: 20 }).ok, false,
+    'the trap: Recovery permits only its stored resume state, so a checkpoint the '
+    + 'renderer cannot rebuild left every later verb refused',
+  );
+
+  const released = abandonCheckoutRecovery(entered.flow, {
+    nowMs: 20,
+    facts: { paymentAuthorized: false, allProductsScanned: true, allScannedItemsStaged: true },
+  });
+  assert.equal(released.ok, true);
+  assert.equal(released.flow.state, 'AllProductsScanned',
+    'an unauthorized sale drops back to the scanned basket — the same place the reader X lands');
+  assert.equal(released.flow.recovery, null, 'and it is no longer in recovery at all');
+
+  // A basket that is not fully rung up goes back to scanning instead.
+  const partial = abandonCheckoutRecovery(entered.flow, {
+    nowMs: 20,
+    facts: { paymentAuthorized: false, allProductsScanned: false, allScannedItemsStaged: false },
+  });
+  assert.equal(partial.ok, true);
+  assert.equal(partial.flow.state, 'WaitingForScan');
+});
+
+test('letting go is refused for anything that has already taken money', () => {
+  const flow = createCheckoutFlow({ state: 'CardProcessing', nowMs: 0 });
+  const entered = transitionCheckout(flow, 'Recovery', {
+    nowMs: 10, event: 'timeout:CardProcessing', facts: { paymentAuthorized: true },
+  });
+  assert.equal(entered.ok, true);
+  const released = abandonCheckoutRecovery(entered.flow, {
+    nowMs: 20, facts: { paymentAuthorized: true, allProductsScanned: true, allScannedItemsStaged: true },
+  });
+  assert.equal(released.ok, false,
+    'an authorized payment must reconcile; it may never be dropped back to scanning');
+  assert.match(released.reason, /authorized/i);
+  // and it is not a way to escape a healthy flow either
+  const healthy = createCheckoutFlow({ state: 'CardAmountEntry', nowMs: 0 });
+  assert.equal(abandonCheckoutRecovery(healthy, { nowMs: 1, facts: {} }).ok, false,
+    'only a flow actually parked in Recovery may be released');
+});
+
+test('a card the customer is still holding out counts as an unresolved card', () => {
+  // The reconcile adapter demanded stage 'card-present'. At CardInsertReady the
+  // domain has already advanced to 'card-ready' — presentCard() ran the moment
+  // the presentation beat landed — so the CardPresented checkpoint could never
+  // be rebuilt. Build the real domain state and show the mismatch is genuine.
+  const tx = readyTx('card');
+  assert.equal(tx.stage, 'card-present');
+  assert.equal(presentCard(tx).ok, true);
+  assert.equal(tx.stage, 'card-ready',
+    'the stage the renderer is actually in while the offer is held out');
+  assert.equal(resolveCheckoutRecoveryTarget('CardInsertReady', { paymentAuthorized: false }),
+    'CardPresented', 'and the checkpoint it is asked to rebuild');
+
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  assert.match(source,
+    /!\['card-present', 'card-ready'\]\.includes\(tx\.stage\)/,
+    'so the adapter must accept both stages');
 });

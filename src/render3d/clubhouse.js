@@ -11093,6 +11093,10 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getFlow: () => register.getFlow(),
+      // The watchdog's own log. Forwarded because a checkout that parks itself
+      // in Recovery looks identical from the outside to one that is merely
+      // waiting — only this says which.
+      checkoutWatchdogDiagnostics: () => register.checkoutWatchdogDiagnostics(),
       scanPresentation: () => register.scanPresentation(),
       scanAlignment: () => register.scanAlignment(),
       cashHandoffPresentation: () => register.cashHandoffPresentation(),

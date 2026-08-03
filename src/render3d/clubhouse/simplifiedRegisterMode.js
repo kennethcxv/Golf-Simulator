@@ -30,7 +30,7 @@ import {
 import { salesTaxRate, taxJurisdictionLabel } from '../../sim/salesTax.js';
 import {
   createCheckoutFlow, transitionCheckout, checkoutStateTimedOut,
-  recoverTimedOutCheckout, resumeCheckout,
+  recoverTimedOutCheckout, resumeCheckout, abandonCheckoutRecovery,
 } from '../../sim/registerFlow.js';
 import {
   checkoutAnimationDelta, checkoutMonitorAccessibility, checkoutPreferences,
@@ -248,7 +248,9 @@ export const SIMPLIFIED_REGISTER_WATCHDOG_STATES = Object.freeze([
   'EnteringCashierMode',
   'ProductHeld', 'ProductScanning', 'ProductScanned',
   'AllProductsScanned', 'ChoosingPayment',
-  'CardPresented', 'CardInsertReady', 'CardInserting', 'CardProcessing', 'CardApproved',
+  // CardInsertReady is deliberately absent: it waits for the player to click
+  // the offered card, so it carries no contract timeout to watch (2026-08-03).
+  'CardPresented', 'CardInserting', 'CardProcessing', 'CardApproved',
   'CashAccepted', 'DrawerOpening', 'DepositingCash', 'GivingChange',
   'PaymentComplete', 'ReceiptPrinting', 'Bagging', 'BagHandoff', 'CustomerLeaving',
 ]);
@@ -2043,14 +2045,21 @@ export function createRegisterMode(B) {
         const rollback = recoverUnresolvedCardAuthorization(tx);
         if (!rollback.ok) return rollback;
       }
-      if (tx.method !== 'card' || tx.stage !== 'card-present') {
+      // 'card-ready' counts. A card the customer is HOLDING OUT is every bit as
+      // unresolved as one about to be drawn — insisting on 'card-present' made
+      // every CardInsertReady/CardInserting recovery unreconcilable, which is
+      // what parked the flow in Recovery and killed the till (2026-08-03).
+      // Re-presenting from 'card-ready' is the same beat: the presentation
+      // timer's else-branch re-arms CardInsertReady and, with cardAccepted
+      // cleared below, puts the card back in the customer's hand.
+      if (tx.method !== 'card' || !['card-present', 'card-ready'].includes(tx.stage)) {
         return { ok: false, reason: 'Card presentation recovery has no unresolved card.' };
       }
       if (cardMesh) cardMesh.removeFromParent();
       cardMesh = null;
       createCardMesh();
       cardPresentationTimer = 0.55;
-    cardAccepted = false;
+      cardAccepted = false;
       setWorkspace('card');
       return { ok: true };
     }
@@ -2150,6 +2159,38 @@ export function createRegisterMode(B) {
     return true;
   }
 
+  // The last resort behind the watchdog: give the player a working till back.
+  // No money has moved (abandonCheckoutRecovery refuses an authorized sale), so
+  // the card run is pulled at the domain level and the flow returns to the scan
+  // checkpoint with the basket intact — the same place the reader's X lands.
+  function releaseUnreconcilableRecovery(nowMs) {
+    const flow = tx && tx.checkoutFlow;
+    if (!flow) return { ok: false, reason: 'No checkout flow to release.' };
+    const facts = checkoutWatchdogFacts();
+    const released = abandonCheckoutRecovery(flow, { nowMs: nowMs + 0.001, facts });
+    if (!released.ok) return released;
+    if (tx.method === 'card') {
+      // pre-submit pulls the run; anything later already failed the authorized
+      // guard above, so cancelCard is the honest fallback for a card-stage tx
+      if (!abandonCardBeforeSubmit(tx).ok && String(tx.stage).startsWith('card')) {
+        cancelCard(tx);
+      }
+    }
+    syncFlow(released.flow);
+    clearCardWatchdogWork();
+    if (cardMesh) cardMesh.removeFromParent();
+    cardMesh = null;
+    cardAccepted = false;
+    cardPresentationTimer = 0;
+    // …and re-arm the automatic payment beat, or the sale would sit at a
+    // post-scan monitor that never asks for payment again.
+    paymentAutoTimer = AUTO_PAYMENT_HOLD;
+    paymentAutoSuppressed = false;
+    customerPalm.visible = false;
+    setWorkspace('monitor');
+    return released;
+  }
+
   function recoverCheckoutWatchdog(nowMs = flowNow()) {
     const flow = tx && tx.checkoutFlow;
     if (!flow || checkoutWatchdogRunning
@@ -2167,12 +2208,21 @@ export function createRegisterMode(B) {
       const resumeState = entered.flow.recovery.resumeState;
       const reconciled = reconcileCheckoutWatchdog(fromState, resumeState);
       if (!reconciled.ok) {
+        // NEVER PARK HERE. Recovery only permits its stored resume state, so a
+        // checkpoint the renderer cannot rebuild used to leave every later verb
+        // refused — a dead register with a customer still at it. Let go instead:
+        // pull the unauthorized card run and drop back to the scan checkpoint.
+        const released = releaseUnreconcilableRecovery(nowMs);
         checkoutWatchdogEvents.push({
           atMs: nowMs, fromState, resumeState, ok: false, reason: reconciled.reason,
+          released: released.ok, releasedTo: released.resumeState || null,
+          releaseReason: released.ok ? null : released.reason,
           recoverySequence: entered.flow.sequence,
         });
         checkoutWatchdogEvents.splice(0, Math.max(0, checkoutWatchdogEvents.length - 16));
-        toast(`Checkout recovery paused safely: ${reconciled.reason}`, 'warn');
+        toast(released.ok
+          ? `Checkout recovered to the scanned basket: ${reconciled.reason}`
+          : `Checkout recovery paused safely: ${reconciled.reason}`, 'warn');
         drawScreen();
         drawTerm();
         return true;

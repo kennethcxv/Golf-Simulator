@@ -222,7 +222,15 @@ const STATE_SPECS = {
     uiState: ui('card-selected', 'Inserting card...'),
     audio: ['reader-ready'],
     completionCondition: 'The card and reader socket are both valid and the insertion animation begins.',
-    timeout: timed(4, 'The reader could not begin automatic insertion.'),
+    // THIS STATE WAITS FOR THE PLAYER, so it cannot carry a machine-speed
+    // timeout. The card route used to insert on a timer; when it changed to
+    // "the offered card waits in the customer's hand until it is clicked"
+    // (2026-07-30) the 4-second watchdog was left behind, and any player who
+    // took a beat to find the card had their sale killed mid-flight
+    // (playtest 2026-08-03). CardAmountEntry — the other state that waits on a
+    // deliberate human action — already reasons this way. CardInserting, which
+    // really is machine-driven, keeps its watchdog.
+    timeout: noTimeout('The offer waits safely until the player takes the card.'),
     recoveryPath: recovery('CardPresented', 'card-unapproved', 'Return the card to the presentation pose and retry insertion.'),
   },
   CardInserting: {
@@ -757,6 +765,43 @@ export function resumeCheckout(flow, { nowMs = 0 } = {}) {
   if (!valid.ok) return { ok: false, reason: valid.reason, flow };
   if (flow.state !== 'Recovery') return { ok: false, reason: 'Checkout is not in Recovery.', flow };
   return transitionCheckout(flow, flow.recovery.resumeState, { nowMs, event: 'recovery-complete' });
+}
+
+// THE WAY OUT OF AN UNRECONCILABLE RECOVERY.
+//
+// Recovery may normally resume only at the checkpoint chosen when it began. If
+// the renderer cannot reconcile that checkpoint, the flow used to sit in
+// Recovery forever — transitionCheckout refuses every other target, so each
+// following verb was rejected and the register was dead with a customer still
+// standing at it (playtest 2026-08-03). Safety was the intent, but "never
+// invent an approval" does not require "never let go".
+//
+// An UNAUTHORIZED checkout has moved no money: the basket is intact and every
+// scanned item is still scanned. Dropping it back to the scan checkpoint is
+// always safe, and always better than a till the player cannot use. An
+// authorized one is refused here exactly as before — that case must reconcile.
+export function abandonCheckoutRecovery(flow, { nowMs = 0, facts = {} } = {}) {
+  const valid = validateCheckoutFlow(flow);
+  if (!valid.ok) return { ok: false, reason: valid.reason, flow };
+  if (!Number.isFinite(nowMs)) return { ok: false, reason: 'nowMs must be a finite number.', flow };
+  if (flow.state !== 'Recovery') return { ok: false, reason: 'Checkout is not in Recovery.', flow };
+  if (facts.paymentAuthorized) {
+    return { ok: false, reason: 'An authorized payment may not be abandoned.', flow };
+  }
+  const to = facts.allProductsScanned && facts.allScannedItemsStaged
+    ? 'AllProductsScanned'
+    : 'WaitingForScan';
+  const validEdge = validateCheckoutTransition(flow.state, to);
+  if (!validEdge.ok) return { ...validEdge, flow };
+  return {
+    ok: true,
+    resumeState: to,
+    flow: applyTransition(flow, to, {
+      nowMs,
+      event: `recovery-abandoned:${flow.recovery ? flow.recovery.fromState : 'unknown'}`,
+      recovery: null,
+    }),
+  };
 }
 
 export function checkoutStateTimedOut(flow, nowMs) {
