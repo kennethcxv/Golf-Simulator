@@ -169,6 +169,14 @@ export const BROOM_FEEL = Object.freeze({
   // elbow, and a short sleeve that exits through the BOTTOM of the frame.
   arms: Object.freeze({
     forearmSpan: 0.26,     // yd; authored elbow->wrist skin length
+    // ROUND 6: the depth the authored span is correct AT. The two hands grip
+    // the shaft at different heights, so their wrists sit at different
+    // distances from the lens and a fixed world-space forearm projects to two
+    // different screen lengths — which put one cuff inside the frame and the
+    // other outside it, and read as "one arm sleeved, one arm bare skin". The
+    // span is scaled by wristDepth / this, so the PROJECTED forearm is the same
+    // on both arms and the cuff sits the same way down each.
+    forearmDepthRef: 0.72,
     // ROUND 5: the forearm TAPERS. It used to be one uniform capsule, which is
     // the "disembodied forearm cylinder" the review rejected — a pipe reads as
     // a pipe at any radius. An arm is narrow at the wrist and swells toward the

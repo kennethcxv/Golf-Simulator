@@ -75,6 +75,7 @@ const _qRoll = new THREE.Quaternion();
 const _qHandRoll = new THREE.Quaternion();
 const _basis = new THREE.Matrix4();
 const _sleeveAim = new THREE.Vector3();
+const _camPos = new THREE.Vector3();
 const _palmOut = new THREE.Vector3();
 
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
@@ -295,7 +296,24 @@ export function createBroomViewmodel({
       .addScaledVector(_basisY, elbowOffset.y)
       .addScaledVector(_basisZ, elbowOffset.z);
     if (_tmp.lengthSq() < 1e-8) _tmp.copy(_basisY).multiplyScalar(-1);
-    _tmp.normalize().multiplyScalar(armCfg.forearmSpan);
+    // …AT A CONSTANT SCREEN LENGTH, NOT A CONSTANT WORLD LENGTH.
+    //
+    // Reported as "one arm showing a green sleeve while the other exits as bare
+    // skin", and it is not the arm code being asymmetric — both arms run this
+    // same solve with mirrored offsets. The two hands grip the shaft at
+    // different HEIGHTS, so their wrists sit at different distances from the
+    // lens, and a fixed 0.26 yd forearm projects to two different on-screen
+    // lengths. The nearer arm's elbow — which is where the cuff and the sleeve
+    // live — lands outside the frame while the further arm's stays inside it.
+    // One sleeved, one bare, from one number.
+    //
+    // Scaling the forearm by the wrist's own depth makes the PROJECTED length
+    // equal for both, so the cuff sits the same distance down each arm on
+    // screen. Clamped so a hand that swings very close or very far cannot make
+    // an arm absurd.
+    const wristDepth = Math.max(0.20, _wrist.distanceTo(camera.getWorldPosition(_camPos)));
+    const depthScale = Math.min(1.6, Math.max(0.7, wristDepth / armCfg.forearmDepthRef));
+    _tmp.normalize().multiplyScalar(armCfg.forearmSpan * depthScale);
     _elbowWorld.copy(_wrist).add(_tmp);
     _elbow.copy(_elbowWorld);
     broomGroup.worldToLocal(_elbow);
