@@ -14,8 +14,9 @@ import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { calendarOf } from '../src/sim/time.js';
 import {
-  availableSlots, bookSlot, createWalkInBooking, resolveTeeTimeRequest,
+  availableSlots, bookSlot, createWalkInBooking, fmtSlot, resolveTeeTimeRequest,
 } from '../src/sim/reservations.js';
+import { TEE_OFFER, teeTimeOffers } from '../src/sim/teeTimeOffer.js';
 import {
   CUSTOMER_INTENT, CUSTOMER_STATE, customerSimulationOf, planCustomerArrivals,
   transitionCustomer, walkInRequestDeclined,
@@ -87,36 +88,93 @@ test('nothing within the window resolves NONE, naming the nearest for the record
   assert.match(resolved.reason, /closest open time/);
 });
 
-test('booking more than an hour from the ask is DECLINED by the customer, not accepted', () => {
+// B4 (2026-08-03) moved this from an hour to the stated half hour, and — more
+// importantly — from a wall to an offer. "If nothing is free within 30 minutes
+// either side, the player OFFERS the nearest available time and the customer
+// accepts or declines." So past the window the answer belongs to the customer,
+// who carries how far they will stretch, rather than to a constant.
+test('a slot outside the window is an OFFER: some customers take it, some pass', () => {
   const st = clubAt(9 * 60);
   const cal = calendarOf(st.clock.minutes);
   const open = availableSlots(st, cal.dayAbs, { partySize: 1, walkIn: true });
   const morning = open[0];
   const afternoonAsk = 16 * 60;
-  assert.ok(afternoonAsk - morning.minute > 60, 'the fixture really is more than an hour off');
-  const result = createWalkInBooking(st, {
+  assert.ok(afternoonAsk - morning.minute > TEE_OFFER.windowMin,
+    'the fixture really is outside the window');
+
+  // No flexibility stated: they hold to the window and pass.
+  const passed = createWalkInBooking(st, {
     holder: 'Dale Whitfield',
     partySize: 1,
     dayAbs: cal.dayAbs,
     minute: morning.minute,
     requestedMinute: afternoonAsk,
   });
-  assert.equal(result.ok, false);
-  assert.equal(result.declined, true, 'this is the customer passing, not a validation error');
-  assert.match(result.reason, /asked for 4:00 PM/);
-  // …while a slot inside the window books normally with the same ask attached.
-  const nearAsk = open.find((slot) => Math.abs(slot.minute - afternoonAsk) <= 60);
-  if (nearAsk) {
-    const accepted = createWalkInBooking(st, {
-      holder: 'Dale Whitfield',
-      partySize: 1,
-      dayAbs: cal.dayAbs,
-      minute: nearAsk.minute,
-      requestedMinute: afternoonAsk,
-    });
-    assert.equal(accepted.ok, true, accepted.reason);
-    assert.equal(accepted.res.minute, nearAsk.minute, 'the booked slot is the one offered');
+  assert.equal(passed.ok, false);
+  assert.equal(passed.declined, true, 'this is the customer passing, not a validation error');
+  assert.match(passed.reason, /asked for 4:00 PM/);
+  assert.equal(passed.askedMinute, afternoonAsk, 'the refusal says what they asked for');
+  assert.equal(passed.offeredMinute, morning.minute, '…and what they were offered');
+
+  // The same offer to somebody with the afternoon free is ACCEPTED.
+  const relaxed = createWalkInBooking(st, {
+    holder: 'Marguerite Ash',
+    partySize: 1,
+    dayAbs: cal.dayAbs,
+    minute: morning.minute,
+    requestedMinute: afternoonAsk,
+    teeFlexibilityMin: Math.abs(afternoonAsk - morning.minute) + 30,
+  });
+  assert.equal(relaxed.ok, true, relaxed.reason);
+  assert.equal(relaxed.res.minute, morning.minute, 'they take the time they were offered');
+});
+
+test('a slot inside the window needs no persuading', () => {
+  const st = clubAt(9 * 60);
+  const cal = calendarOf(st.clock.minutes);
+  const open = availableSlots(st, cal.dayAbs, { partySize: 1, walkIn: true });
+  const ask = 16 * 60;
+  const nearAsk = open.find((slot) => Math.abs(slot.minute - ask) <= TEE_OFFER.windowMin);
+  assert.ok(nearAsk, 'a fresh club has an afternoon slot near 4:00');
+  const accepted = createWalkInBooking(st, {
+    holder: 'Dale Whitfield',
+    partySize: 1,
+    dayAbs: cal.dayAbs,
+    minute: nearAsk.minute,
+    requestedMinute: ask,
+  });
+  assert.equal(accepted.ok, true, accepted.reason);
+  assert.equal(accepted.res.minute, nearAsk.minute, 'the booked slot is the one offered');
+});
+
+test('the desk offers times CLUSTERED around the ask, nearest first', () => {
+  // The bug this replaces: the dropdown was every open slot across the whole
+  // horizon sorted by clock, so a 1:00 ask produced a list starting at this
+  // morning. The right answer was in it, and so was every wrong one.
+  const st = clubAt(9 * 60);
+  const cal = calendarOf(st.clock.minutes);
+  const open = availableSlots(st, cal.dayAbs, { partySize: 1, walkIn: true });
+  const asked = 13 * 60;
+  const offered = teeTimeOffers(open, asked, { partySize: 1 });
+  assert.equal(offered.none, false);
+  assert.ok(offered.offers.length > 0, 'a fresh club has something to offer at 1:00');
+  assert.equal(offered.beyondWindow, false, 'and it is genuinely near the ask');
+  for (const entry of offered.offers) {
+    assert.ok(Math.abs(entry.deltaMin) <= TEE_OFFER.windowMin,
+      `${fmtSlot(entry.slot.minute)} is ${entry.deltaMin} min from the ask, outside the window`);
+    assert.ok(open.some((slot) => slot.minute === entry.slot.minute),
+      'every offered slot is one that is actually available');
   }
+  // nearest first
+  const distances = offered.offers.map((entry) => Math.abs(entry.deltaMin));
+  assert.deepEqual(distances, [...distances].sort((a, b) => a - b),
+    'the list is ordered by how close it is to what they asked for');
+
+  // …and with nothing near, the nearest single time comes back FLAGGED rather
+  // than an empty list, because the player is meant to offer it.
+  const impossible = teeTimeOffers(open, 3 * 60, { partySize: 1 });
+  assert.equal(impossible.beyondWindow, true);
+  assert.equal(impossible.offers.length, 1, 'one offer to make, not a sheet to browse');
 });
 
 test('walk-in arrivals carry a half-hour-snapped ask; shoppers carry none', () => {

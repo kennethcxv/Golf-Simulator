@@ -12,6 +12,7 @@ import { addExpense, addRevenue, postLedgerEntry, recordOutcome, unbill } from '
 import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
 import { allocateCustomerIdentity, identityForReservation } from './customerIdentity.js';
 import { bankServiceCharge, serviceTicketByReference } from './register.js';
+import { TEE_OFFER, walkInAcceptsOffer } from './teeTimeOffer.js';
 
 export const TEE_SHEET = Object.freeze({
   openMin: 7 * 60,
@@ -642,7 +643,9 @@ export function availableSlots(state, dayAbs, options = {}) {
  */
 export function resolveTeeTimeRequest(state, dayAbs, requestedMinute, options = {}) {
   const partySize = Math.max(1, Number(options.partySize || 1));
-  const windowMin = Number.isFinite(options.windowMin) ? options.windowMin : 60;
+  // B4: 30 minutes, the stated "at or near what they asked for". An hour put
+  // 8:30 inside a 9:30 ask's comfort zone, which is a different tee time.
+  const windowMin = Number.isFinite(options.windowMin) ? options.windowMin : TEE_OFFER.windowMin;
   const asked = Math.floor(Number(requestedMinute));
   if (!Number.isFinite(asked)) return { ok: false, none: true, reason: 'No time was asked for.' };
   const slots = availableSlots(state, dayAbs, { partySize, walkIn: options.walkIn !== false });
@@ -660,7 +663,7 @@ export function resolveTeeTimeRequest(state, dayAbs, requestedMinute, options = 
     none: false,
     nearest: best.slot,
     deltaMin,
-    reason: `Nothing within an hour of ${fmtSlot(asked)} — the closest open time is ${fmtSlot(best.slot.minute)}.`,
+    reason: `Nothing within ${windowMin} minutes of ${fmtSlot(asked)} — the closest open time is ${fmtSlot(best.slot.minute)}.`,
   };
 }
 
@@ -1500,15 +1503,28 @@ export function createWalkInBooking(state, input = {}) {
   // THE ASK IS ENFORCED, NOT ADVISORY. A walk-in who wanted 4:00 does not take
   // 8:30 because the desk clicked the default: booking further than the window
   // from their request is DECLINED by the customer, and the caller shows why.
+  // B4 (2026-08-03): the window tightens from an hour to the stated 30 minutes,
+  // and past it the answer belongs to the CUSTOMER rather than to a wall. A
+  // walk-in carries `teeFlexibilityMin` — how far they will stretch — so a slot
+  // 90 minutes out is an offer some people take and others pass on, which is
+  // what "the player offers the nearest available time and the customer accepts
+  // or declines" describes. Callers that pass no flexibility get the window,
+  // i.e. exactly the old refuse-past-the-window behaviour at the new distance.
   if (Number.isFinite(Number(input.requestedMinute))) {
     const asked = Math.floor(Number(input.requestedMinute));
-    const windowMin = Number.isFinite(input.requestWindowMin) ? input.requestWindowMin : 60;
-    const delta = Math.abs(Math.floor(minute) - asked);
-    if (delta > windowMin) {
+    const verdict = walkInAcceptsOffer(asked, Math.floor(minute), {
+      windowMin: input.requestWindowMin,
+      flexibilityMin: input.teeFlexibilityMin,
+    });
+    if (!verdict.accepts) {
+      const away = Math.abs(verdict.deltaMin);
       return {
         ok: false,
         declined: true,
-        reason: `${holder || 'The customer'} asked for ${fmtSlot(asked)} — ${fmtSlot(Math.floor(minute))} is more than an hour off, and they pass.`,
+        askedMinute: asked,
+        offeredMinute: Math.floor(minute),
+        deltaMin: verdict.deltaMin,
+        reason: `${holder || 'The customer'} asked for ${fmtSlot(asked)} — ${fmtSlot(Math.floor(minute))} is ${away} minutes off, further than they will wait, and they pass.`,
       };
     }
   }
