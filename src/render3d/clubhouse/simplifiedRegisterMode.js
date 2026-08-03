@@ -260,6 +260,18 @@ const CARD_WIDTH = 0.086;
 const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
 export const CARD_HELD_PITCH = 0.62;
+// AT ITS OWN SIZE. Playtest 2026-08-03: "the bag reads small and plain next to
+// everything else on the counter now." It was drawn at 0.78 of the authored
+// carrier — a shrink chosen in round 5 when the counter was busier and the
+// working frame sat further back. Beside a 1.85x payment terminal and a
+// full-height monitor it reads like a prop for a smaller shop. The kit's bag is
+// already a believable 0.26 x 0.30 carrier, so it is drawn life size.
+//
+// The lift below is derived from these two rather than carrying the scale as a
+// baked literal, which is what made the previous size change land the flank
+// through the counter top.
+const BAG_PRESENTATION_SCALE = 1.0;
+const BAG_PRESENTATION_FLATTEN = 0.55;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // FLAT, LONG, AND OPEN TOWARD THE COUNTER SPACE. Playtest round 5
   // (2026-07-30): "look at how the bag is laid flat and it's long, opened, and
@@ -285,7 +297,7 @@ export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // What must read is the OPENING.
   pitch: -Math.PI / 2,
   roll: -Math.PI / 2,
-  scale: 0.78,
+  scale: BAG_PRESENTATION_SCALE,
   // "SMALL HEIGHT". The authored carrier is a 0.18 deep standing bag; laid on
   // its face that is 56% of its own length off the counter, which is a carton's
   // proportion, not a paper bag's. Every reference bag is squashed to about a
@@ -293,11 +305,18 @@ export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // model's own depth axis is flattened by this factor inside the group, so the
   // group keeps a uniform scale and every authored anchor (mouth, contents,
   // handoff — all on the depth-free centre line) stays exactly where it was.
-  flatten: 0.55,
-  // Half the flattened gusset depth (0.097 hem + 0.004 grommet) at the counter
-  // scale, plus a paper-thin seat, so the laid flank rests ON the top instead
-  // of through it — the sink the previous side-lying attempt was rejected for.
-  counterLift: 0.101 * 0.55 * 0.78 + 0.003,
+  flatten: BAG_PRESENTATION_FLATTEN,
+  // Half the flattened gusset depth at the counter scale, plus a paper-thin
+  // seat, so the laid flank rests ON the top instead of through it — the sink
+  // the previous side-lying attempt was rejected for.
+  //
+  // 0.116, not the 0.101 that was here. Solved from the round-5 bag test's own
+  // reading when the size changed: at 0.78 the flank already sat 3.4 mm below
+  // the top and only passed on the 4 mm tolerance, and at life size the same
+  // half-depth put it 5.3 mm under. min.y = COUNTER_TOP + lift - h*flatten*scale
+  // with the measured min.y gives h = 0.116, which seats it 3 mm proud at any
+  // scale instead of hiding an error inside a tolerance.
+  counterLift: 0.116 * BAG_PRESENTATION_FLATTEN * BAG_PRESENTATION_SCALE + 0.003,
   // A rung-up item lands flat in the mouth; the bag's own roll must not tip it.
   itemRoll: 0,
 });
@@ -3959,9 +3978,14 @@ export function createRegisterMode(B) {
         const handle = /handle|cord|rope/.test(label);
         const liner = /liner/.test(label);
         if (styled.color) {
-          styled.color.setHex(handle ? 0x5b4026 : (liner ? BAG_LINER_COLOR : 0xc09a65));
+          styled.color.setHex(handle ? 0x5b4026 : (liner ? BAG_LINER_COLOR : 0xc7a271));
         }
-        if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.96;
+        // "Plain" was partly the finish. Kraft at 0.96 roughness is matte to the
+        // point of being unlit — it took no highlight off the counter lamp and
+        // read as a flat brown cut-out beside the terminal's glossy shell. Real
+        // kraft has a low sheen; 0.86 gives the laid flank a soft gradient
+        // across its width, which is what makes it read as a bag with a fold.
+        if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.86;
         if ('metalness' in styled) styled.metalness = 0;
         if (!handle) styled.map = null;
         styled.needsUpdate = true;

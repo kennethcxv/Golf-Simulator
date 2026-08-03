@@ -277,7 +277,9 @@ test('the interior reads as a cavity and the front of the bag is real paper', ()
   assert.match(style, /liner/, 'the authored liner is darkened so the mouth reads as an opening');
   assert.match(source, /const BAG_LINER_COLOR = 0x[0-9a-f]{6}/);
   const liner = Number.parseInt(source.match(/const BAG_LINER_COLOR = (0x[0-9a-f]{6})/)[1], 16);
-  const kraft = 0xc09a65;
+  // read the kraft from the styler rather than restating it — the paper was
+  // warmed in round 10 and a literal here would have gone quietly stale
+  const kraft = Number.parseInt(style.match(/liner \? BAG_LINER_COLOR : (0x[0-9a-f]{6})/)[1], 16);
   const luma = (hex) => ((hex >> 16) & 255) * 0.3 + ((hex >> 8) & 255) * 0.59 + (hex & 255) * 0.11;
   assert.ok(luma(liner) < luma(kraft) * 0.6, 'the cavity is clearly darker than the paper around it');
   assert.match(style, /styled\.map = null/,
