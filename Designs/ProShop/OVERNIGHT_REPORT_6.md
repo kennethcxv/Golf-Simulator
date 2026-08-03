@@ -2,12 +2,22 @@
 
 Session of 2026-08-03. Ranked by what to read first.
 
-**Queue A is done except part of A8. Queue B was not started.** A1–A7 are
-complete, measured and pushed. A8 got two of its four parts. B9, B4, B7, B8,
-B11 and B6 were not begun.
+**Everything is done except B6 and part of A8.**
 
-Every commit ran the full suite green. Eight commits, all pushed to
-`feature/pro-shop-vertical-slice`.
+* **Queue A:** A1–A7 complete. A8 got three of its four parts — closer rig,
+  readable hands, and the sleeve bug. The hand grip anatomy, the look-up float
+  and the tool/surface legibility *feature* are not done (§8, §12).
+* **Queue B:** B9, B4, B7, B8 and B11 complete. **B6 is deliberately at zero**,
+  per your "all twelve or do zero and say so" (§9).
+
+Every commit ran the full suite green — **2,710 pass / 0 fail** at the last.
+Fourteen commits, all pushed to `feature/pro-shop-vertical-slice`.
+
+Two results you should know are *negative* before you read further, because both
+contradict the brief's premise and I could not make them say otherwise: **A4 (the
+reader phasing through the counter) does not reproduce**, and **B9's target of
+under 10 seconds is not reachable** without an architectural change I have costed
+rather than attempted.
 
 ---
 
@@ -211,7 +221,7 @@ width and reads as a bag with a fold.
 
 ---
 
-## 7. A8 — two of four. This one is bigger than it looks.
+## 7. A8 — three of four. This one is bigger than it looks.
 
 **Done and looked at:**
 
@@ -225,15 +235,14 @@ width and reads as a bag with a fold.
   hand *groups* — deliberately not the root, whose position the viewmodel
   subtracts when seating a hand on a solved grip.
 
-**Not done, and I would rather say so than ship a shallow version:**
+**Not done, and I would rather say so than ship a shallow version** (the sleeve
+asymmetry below WAS fixed later in the session — see §8):
 
-- **The sleeve asymmetry is real** — I have it on camera. The left arm shows a
-  green cuff partway along; the right exits bare. Both arms run the same solve
-  with mirrored offsets, so it is not the arm code. The two wrists sit at very
-  different depths on the shaft, so one elbow (where the cuff lives) projects
-  inside the frame and the other projects outside it. Fixing it properly means
-  placing the cuff by *screen* distance from the wrist rather than by world
-  distance along the arm — a change to how the arm is composed, not a constant.
+- ~~**The sleeve asymmetry**~~ — **FIXED later in the session, see §8.** The
+  diagnosis written here held: the two wrists sit at different depths, so one
+  elbow (where the cuff lives) projects inside the frame and the other outside
+  it. The fix is the one this paragraph predicted — the forearm is scaled by the
+  wrist's own depth so the *projected* length matches on both arms.
 - **The hand pose is still anatomically wrong.** Bigger, but the lower hand
   reads as a pale ovoid with a thumb rather than fingers wrapped around a shaft.
   This wants reference footage and a real grip pose, which is the job you
@@ -249,20 +258,204 @@ width and reads as a bag with a fold.
 
 ---
 
-## 8. What I did not start, and the order I would take it
+## 8. Queue B — B9, B4, B7, B8 and B11 are done; B6 is not
 
-**B9 (load time), B4 (tee times), B7 (061/099 geometry), B8 (laptop to
-B-stand), B11 (mechanical debt), B6 (the 12-file texture pass).**
+### B9 — the load is 132 shader compiles, and nothing else
 
-Queue A ran to about eight hours. A1 alone was a state-machine bug with two
-independent causes, and A5 turned out to need the summary column rebuilt rather
-than padded. I would take **B9 next** — profiling is self-contained and 18.2 s
-is still the worst number in the project — then **B4**, then **A8 properly** as
-its own block, then **B6** last and unbroken as you specified.
+PHASE_1_CLASSIFICATION named every phase of `prewarm()` and then said, correctly,
+"which step dominates is UNVERIFIED". It is verified now, of an **18,578 ms**
+new-game-click-to-veil-clear:
+
+| phase | ms | share |
+|---|---:|---:|
+| **forced warm draw** (one `composer.render`) | **9,741** | **52%** |
+| before prewarm (modules, scene, room) | 4,605 | 25% |
+| assets-idle | 971 | 5% |
+| editor-camera warm | 891 | 5% |
+| initTexture (276 textures) | 692 | 4% |
+| renderer.compile (link only) | 104 | <1% |
+| three spin frames | 62 | <1% |
+
+**The 9.7 s is one-time program compilation.** The *identical* render immediately
+after it costs **51 ms**, so it is not the shadow bake, the post chain or
+geometry. `renderer.info.programs` is **132** — about **73 ms each**, ANGLE
+translating to HLSL and D3D compiling, serialized because a program's real
+compile lands on its first draw.
+
+**Three things I tried that did not work**, recorded so nobody spends the
+afternoon twice:
+
+* Deduplicating the warm set by program key cut objects submitted from **5,310 to
+  887** and moved the time by **nothing**. Kept anyway — it keeps ~4,400
+  redundant draws and their shadow submissions out of the frame.
+* `renderer.compileAsync()` — the parallel-shader-compile path, which should have
+  been exactly right — cost **1,350 ms** against 104 ms for the sync link and
+  returned only ~200 ms. A net **half-second loss**. Reverted, with the number in
+  a comment.
+* Restricting the warm set to what the player sees first: **785 of the 887** warm
+  objects are already within 60 yd of spawn. Nothing distant to defer.
+
+**Under 10 s is not reachable by trimming.** Zeroing every non-compile phase in
+prewarm saves 2.6 s and lands at ~16 s. Options, with costs:
+
+| option | saving | cost |
+|---|---|---|
+| **A. Intern materials the way textures are interned** | proportional to the program-count drop; the only lever on the dominant term | days. Touches every builder. §10 of the classification already names the cause: the shared pool interns *textures*, never *materials*, and program count follows material and light-count variety |
+| **B. Defer the editor-camera warm to first editor entry** | 0.9 s | a ~0.9 s hitch the first time the editor opens. A real trade about your game, not mine — left for you |
+| **C. Drop the veil early, warm the rest during play** | up to 9 s of *perceived* load | hitches in the first seconds. Reintroduces exactly what prewarm exists to remove |
+
+Corrected the record too: asset loading was classified **PRESERVE** with 18.2 s
+inside it, and BASELINE_PERFORMANCE listed the number without calling it a
+defect. Both now say so, as **LOAD-1**.
+
+### B4 — a 1:00 ask is offered 1:00, 1:30 and 12:30
+
+Two faults pulling opposite ways. The dropdown was **every open slot across three
+days sorted by clock**, so a 1:00 ask produced forty options starting this
+morning — the right answer was in there and so was every wrong one. And the
+cutoff was a **wall**: anything past 60 minutes was refused outright, so a
+customer whose only option was 90 minutes out always walked.
+
+Offers are clustered now, and past the window the answer belongs to the
+**customer** — each walk-in carries how far they will stretch, so it stays
+deterministic and testable rather than a dice roll at the counter.
+
+**Measured at 1x**, party of two, against live reservation state:
+
+| asked | offered (nearest first) | beyond window |
+|---|---|---|
+| 7:00 AM | 7:00, 7:30 | no |
+| 9:30 AM | 9:30, 10:00, 9:00 | no |
+| 1:00 PM | **1:00, 1:30, 12:30** | no |
+| 4:00 PM | 4:00, 4:30, 3:30 | no |
+| 6:30 PM | 4:30 (−120) — **declined** | YES, one offer |
+| 3:00 AM | 7:00 (+240) — **declined** | YES, one offer |
+
+Every offered slot was checked against `availableSlots()` for the same day and
+party size. An impossible ask returns exactly **one** offer rather than an empty
+list, because the instruction there is to offer it.
+
+### B7 — both structural burials fixed; the whitelist shrank by two
+
+Population-wide: **8 assets / 13 parts → 7 / 12.**
+
+**061** — `CounterCarcass` was one solid slab filling the whole volume. It is now
+the panels *around* an open staff bay: a solid drawer bank that still carries the
+three drawer faces, a customer-side wall, an end panel, and a bay deck. Built
+from panels rather than bored, because the cut is axis-aligned so the panels ARE
+the boolean's result without its material re-indexing. Nothing gains a millimetre
+toward the aisle, so `staff_corridor_clear` holds by construction.
+
+**099 took three passes, and the third is the interesting one.** The hollow was
+faked **twice** — a solid black bore standing inside the wall, *and* a solid
+`StandRim` disc capping the top. Boring to 0.068 left a plug on the tray; boring
+to 0.050 left the tray embedded in the 2 mm beneath; boring past it to 0.040
+*still* reported invisible. At that point I stopped guessing and read the
+exported buffers, which is where the lid turned up. Looking down at an umbrella
+stand showed a green plate. Both are real geometry now.
+
+`assets_51_100_lib` gains `bore()`, plus one thing the existing pattern needed:
+popping the material slots the boolean brings across. Re-indexing faces is not
+enough — the cutter's empty slot survives and the publisher's validator fails the
+asset, which it did on the first attempt.
+
+### B8 — the laptop stands at the counter's east end
+
+Moved to the proposal's own clearance-safe pose: local x −1.72 → **+1.75**, which
+clears the receipt printer by 0.67 yd where the first choice would have left 0.36.
+
+The proposal claimed the seat pose, focus camera and E prop are all derived from
+the laptop's transform and would follow. Measured rather than assumed: the E
+prompt reads "Laptop — [E] open GOLF SIMULATOR" at the new position, the focus
+camera solves **0.252 yd** on the screen's own normal, the lid opens to 1.869 rad,
+and the save round-trips.
+
+**B-stand means the chair stays** — the whole reason for picking it over B-sit.
+The `laptop-seat` protected rect, derived from the chair back when the chair was
+the laptop's seat, becomes `laptop-stand` derived from the laptop; otherwise a
+keep-clear zone would sit 3.5 yd from the machine it exists for.
+
+*Evidence: `Baseline/round6/laptop-bstand-position.png`, `laptop-bstand-focus.png`.*
+
+### B11 — 36 drivers off the removed menu, 11 perf drivers gated
+
+Full accounting in **`Designs/ProShop/HARNESS_DEBT.md`** — every remaining file
+listed with a reason rather than a number.
+
+| category | before | after |
+|---|---:|---:|
+| drivers booting through the removed menu | **36** | **4**, all deliberate |
+| perf drivers carrying the renderer gate | **5** | **11** |
+| stale cutter-era drivers | 15 matches | 15 — **nothing to do** |
+
+The menu port went by two codemods kept in `tools/qa/lib/` so the next sweep is
+not hand work: 23 files by regex-anchored statement shapes, 6 by **brace walking**
+the if/else blocks (regex could not be trusted with those), 3 by hand.
+`laptop-tour.js` was one of the three — its else-branch also buys the first
+course, so it became `if (bootMode === 'new-game')` rather than being collapsed.
+
+The 4 that keep the raw call do not *boot* through the menu; Continue's presence
+is what they assert.
+
+The gate split matters: six drivers reporting **absolute** numbers now refuse
+SwiftShader; two that pin their own swiftshader flags and compare two runs of
+*themselves* declare `allowSoftware` and carry the label, because refusing
+relative numbers would just delete a working harness. Three are not gated and say
+why — one is a hash-pinned frozen fixture whose bytes are the contract, two never
+sample a frame.
+
+**The cutter category was already closed.** All 15 matches are *provenance
+comments* recording the 2026-07-30 port. The count was counting its own receipts.
+
+### A8 — the sleeve bug is fixed
+
+"One arm sleeved, one bare" is not asymmetric code. Both arms run the same solve
+with mirrored offsets; the two hands grip at different **heights**, so their
+wrists sit at different depths and a fixed 0.26 yd forearm projects to two
+different screen lengths. The cuff lives at the elbow, so the nearer arm's landed
+off-frame and the further arm's did not. One number, two arms, two answers.
+
+The forearm is scaled by the wrist's own depth now, so the projected length
+matches on both. Verified by looking — both arms leave the frame the same way —
+and the aim probe is unchanged.
+
+**Still not done on A8:** the hand grip anatomy, the look-up float, and the
+dirt-type / tool-filtered reveal feature. That last one is a feature, not a
+polish item, and wants its own session.
 
 ---
 
-## 9. Two things found on the way, recorded rather than fixed
+## 9. B6 — the texture pass: **zero, as instructed**
+
+You said: *"If you cannot finish all twelve, do zero and say so."* I did zero,
+and I am saying so.
+
+What I established before stopping, so the next session starts further along:
+
+* **The local CC0 library is three material families**, not twelve —
+  `asset_sources/textures/cc0_spike/` holds Metal032, Wood051 and Wood062 at 1K,
+  with calibrated colour variants in `cc0_calibrated/`. That may well be *enough*,
+  because the shared pool means twelve assets can share three sources and texture
+  memory counts sources rather than instances — but it needs confirming per asset
+  rather than assuming.
+* **The palette pipeline exists and is documented**, including the
+  `ShaderNodeMix` / RGBA / MULTIPLY / factor-pinned-to-1.0 recipe that is the only
+  shape the glTF exporter recognises as a `baseColorFactor`. The comment in
+  `build_assets_61_70.py` around asset 065 is the reference implementation, and
+  `tests/proshop-basecolor-factor.test.js` already fails a textured material that
+  ships without a factor.
+* **061 was rebuilt this session** (B7), so its texture pass must come after that
+  geometry, not before it.
+
+The work per asset is source → UV → map → calibrate → verify factor → screenshot,
+across twelve assets and two builder files, plus the memory measurement against
+the 150 MB threshold before and after. It is a session, and a session I did not
+have left after B9 through B11. Starting it and stopping halfway is the outcome
+you specifically ruled out.
+
+---
+
+## 10. Two things found on the way, recorded rather than fixed
 
 1. **Writing `state.shop.progression.tier` at runtime throws
    `fixtureSockets is not defined`** out of a rebuild path. An exception inside
@@ -271,11 +464,18 @@ its own block, then **B6** last and unbroken as you specified.
    before I traced it. Not A7's to fix, but it is a live crash on a supported
    state change.
 2. **The reader's backspace key needs a GLB edit** (§3). Hash-gated kit.
+3. **`course-perf.js` is broken independently of anything here.** It waits for
+   `getByText('New Empire — Realistic')`, a menu label that no longer exists, and
+   dies there. Its new renderer gate is in place for when that is fixed. Same
+   class as the stale labels the B11 port removed elsewhere, and worth a sweep
+   for `New Empire` across the harness.
+4. **`laptop-tour.js` fails on "marketplace: no affordable Buy button"** — before
+   and after this session, verified by stashing. An economy fixture problem.
 
-## 10. Instrument failures I caught before using them
+## 11. Instrument failures I caught before using them
 
 Stated because the standing rule is that a new instrument gets a negative
-control, and three of mine failed theirs:
+control, and five of mine failed theirs:
 
 - The card-seat probe identified the card by ISO-ish proportions and **matched a
   broken floor tile 257 yards away**, then reported a confident seating number
@@ -285,8 +485,32 @@ control, and three of mine failed theirs:
 - The monitor-layout probe reported **616 for every case** — the panel's own
   border, which is by definition the lowest thing drawn and says nothing about
   where the buttons landed.
+- The A4 penetration probe used **AABB overlap**, which cannot tell "inside the
+  alcove" from "inside the wood" and reported 0.104 yd of permanent phasing on a
+  correctly parked reader.
+- The laptop standoff check measured **XZ distance** and failed a good pose at
+  0.095 yd. The lid leans back, so most of the standoff is vertical.
+- The footfall driver's first run raised the shop tier at runtime, which threw
+  out of a rebuild path and **stopped the frame loop** — so the clock froze and
+  every shop measured zero, which reads exactly like the scaling failure it was
+  supposed to be testing for.
 
-And once more, the one from last session: I nearly read the broom arm zoom crops
-as current evidence. They were **eleven hours old** — only the pitch renders
-re-shoot on that driver. Checked the mtimes first, which is the only reason that
-is a note here and not a correction.
+And twice, the older lesson: I checked file mtimes before reading a render as
+evidence. The broom arm crops were **eleven hours old** the first time and the
+checkout renders had gone stale once before. Only the pitch renders re-shoot on
+that driver.
+
+---
+
+## 12. What is left, and the order I would take it
+
+1. **A8 proper** — the hand grip anatomy against reference footage, the look-up
+   float (`floorAnchored: true` is declared and something overrides it), and then
+   the dirt-type / tool-filtered reveal as its own block. That last one is a
+   feature, not polish.
+2. **B6** — the twelve-file texture pass, unbroken, with §9's findings as the
+   head start.
+3. **LOAD-1 option A** if you want the load under 10 s — interning materials the
+   way textures are interned. Nothing else touches the dominant term.
+4. **The two GLB jobs**: the reader's backspace key, and a sweep for stale menu
+   labels like `New Empire — Realistic` across the harness.
