@@ -803,7 +803,7 @@ function validateFloor(state, meta, candidate, result, options) {
   if (meta.collision?.blocksPlayer || meta.collision?.blocksCustomers) {
     for (const zone of PROTECTED_ZONES) {
       if (meta.id === 'core-checkout-counter'
-        && (zone.id.startsWith('checkout-') || zone.id === 'laptop-seat')) continue;
+        && (zone.id.startsWith('checkout-') || zone.id === 'laptop-stand')) continue;
       if (rectsOverlap(rect, zone)) {
         addReason(result, `protected-${zone.id}`, `That blocks the ${zone.label}.`);
         break;

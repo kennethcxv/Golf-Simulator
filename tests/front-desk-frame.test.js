@@ -132,14 +132,25 @@ test('the queue turns out of the entrance corridor with readable spacing', () =>
   }
 });
 
-test('the tee-sheet laptop occupies the reception half and remains reachable from staff', () => {
+// B-STAND (B8, 2026-08-03). This test used to require the opposite: the laptop
+// in the RECEPTION half (local x < -1.2) and within 1.35 yd of the staff chair,
+// because the chair was its seat. LAPTOP_LOCATION_PROPOSAL §3 recommended option
+// B at the clearance-safe pose and B-stand over B-sit, and that was approved —
+// the laptop is a standing device at the counter's east end now, and the chair
+// is simply the desk's chair. The assertions invert accordingly.
+test('the tee-sheet laptop stands at the counter end, clear of the checkout hardware', () => {
   const laptop = frontDeskLocalPoint(FRONT_DESK.laptop.x, FRONT_DESK.laptop.z);
-  assert.ok(laptop.x < -1.2, 'laptop is separated from the checkout hardware');
+  assert.ok(laptop.x > 1.2, 'the laptop is at the east end, away from the reception backdrop');
   assert.ok(Math.abs(laptop.z) < FRONT_DESK_FRAME.frontDepth / 2, 'laptop sits on the front worktop');
-  assert.ok(Math.hypot(
-    FRONT_DESK.laptop.x - FRONT_DESK.staffChair.x,
-    FRONT_DESK.laptop.z - FRONT_DESK.staffChair.z,
-  ) < 1.35, 'seated interaction stays within reach');
+  // …and clear of the receipt printer, which is the neighbour the proposal
+  // measured: 1.08 local, so the first-choice 1.44 would have left 0.36 yd.
+  const printer = frontDeskLocalPoint(REGISTER.printer.x, REGISTER.printer.z);
+  assert.ok(laptop.x - printer.x >= 0.6,
+    `the laptop clears the receipt printer by ${(laptop.x - printer.x).toFixed(2)} yd`);
+  // The chair is NO LONGER the laptop's seat — that coupling is what B-stand
+  // removes. It must not have quietly followed the laptop across the desk.
+  const chair = frontDeskLocalPoint(FRONT_DESK.staffChair.x, FRONT_DESK.staffChair.z);
+  assert.ok(chair.x < 0, 'the staff chair stays at the reception end as the desk\'s own seat');
 });
 
 test('backdrop signs and key rack occupy separate readable bays on one wall plane', () => {

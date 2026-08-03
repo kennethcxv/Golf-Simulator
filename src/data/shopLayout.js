@@ -599,7 +599,22 @@ export const FRONT_DESK_BACKDROP = Object.freeze({
 });
 
 export const FRONT_DESK = Object.freeze({
-  laptop: Object.freeze(frontDeskPose(-1.72, 0.08, 0)),
+  // B-STAND (B8, 2026-08-03). LAPTOP_LOCATION_PROPOSAL §3 recommended option B
+  // at the clearance-safe pose, and B-stand over B-sit: the laptop becomes a
+  // standing device at the counter's east end, the chair stays where it is as
+  // the DESK's own seat, and the laptop stops owning a seat 2.5 yd away from
+  // itself. That removes a coupling rather than relocating one.
+  //
+  // -1.72 -> 1.75 is the proposal's own clearance-safe variant: REGISTER.printer
+  // sits at frontDeskPose(1.08, 0.28), and 1.75 clears it by 0.67 yd where the
+  // first-choice 1.44 would have left 0.36.
+  //
+  // The seat pose and the focus camera are DERIVED from this object's world
+  // transform (clubhouse.js office.seatPose reads the live screen corners), and
+  // the E prop is derived from these coordinates, so all three follow the move
+  // rather than needing their own edits — which is what the proposal predicted
+  // and what the acceptance harnesses re-check.
+  laptop: Object.freeze(frontDeskPose(1.75, 0.24, 0)),
   phone: Object.freeze(frontDeskPose(-2.08, -0.16, 0.12)),
   deskLamp: Object.freeze(frontDeskPose(-1.12, -0.12, 0)),
   clipboard: Object.freeze(frontDeskPose(-1.56, -0.17, 0.18)),
