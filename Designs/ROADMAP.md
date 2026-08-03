@@ -222,3 +222,23 @@ pays off, and "am I ready to open?" becomes the player's judgment rather than a 
 
 Opening late costs customers. Opening filthy costs reputation. **No warning popup for
 either** — the player learns it.
+
+**Measured on a 1× day** (`tools/qa/shop-sign-day.js`, evidence in `qa/shop-sign/`):
+
+- 60 real seconds at 09:00 with the sign **CLOSED: 0 customers**.
+- The same 60 seconds with it **OPEN: 1 customer** — which is the shop's entire
+  concurrent target on day one (the target clamps to 1 until sales history exists), so
+  that is saturation rather than a thin sample.
+- **1× pace:** 450 real seconds per game hour; the whole 6 AM–8 PM trading day is 105
+  real minutes.
+- **The preparation window is cheap**, which is the right shape — the player should feel
+  invited to prepare, not punished for it:
+
+  | Prep spent | Opens at | Trading day left |
+  |---|---|---|
+  | 5 real min | 06:40 | 95.2% |
+  | 10 real min | 07:20 | 90.5% |
+  | 20 real min | 08:40 | 81.0% |
+
+Implementation: `src/sim/shopSign.js` (the rule), the E prop in
+`src/render3d/clubhouse.js` (the object), `tests/shop-sign.test.js` (the contract).
