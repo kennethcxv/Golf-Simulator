@@ -18,6 +18,8 @@ import {
   withinTradingHours,
 } from '../src/sim/shopSign.js';
 import { newGame } from '../src/sim/state.js';
+import { DOOR_MAIN, INTERIOR } from '../src/data/shopLayout.js';
+import { shopSignLocalPoint } from '../src/data/shopSignPlacement.js';
 
 const clubhouseSource = fs.readFileSync(
   new URL('../src/render3d/clubhouse.js', import.meta.url),
@@ -98,6 +100,58 @@ test('the customer loop asks the sign, not only the clock', () => {
     'updateCustomers gates arrivals on the sign');
   assert.doesNotMatch(clubhouseSource, /const open = minute >= 360 && minute <= 1200/,
     'the old clock-only gate is gone, not merely bypassed');
+});
+
+// A2 — "THE SIGN DOES NOT VISUALLY FLIP, AND IT SHIPPED WITH A PASSING TEST."
+//
+// The test below asserted the animation source, and the animation source was
+// correct: tickSpin is ticked, the E verb animates, the easing is there. What
+// nothing checked was WHERE the card is. The renderer built a WORLD point with
+// L2W() and assigned it as the group's INTERIOR-LOCAL position, so the building
+// offset landed twice and the painted card hung 360 yards outside the building
+// — while the E hotspot, which took the world point correctly, stayed on the
+// jamb. The player pressed E on an invisible hotspot, got the toast and the
+// trading gate, and never saw a card turn, because there was no card to see.
+//
+// So the placement is a named point now, and these check it. The turn ITSELF is
+// measured in tools/qa/shop-sign-turn.js, which samples the card's world
+// bearing every animation frame across a real E press: 75 distinct bearings
+// over a π-radian sweep on 2026-08-03, against 1 while idle. A source regex
+// cannot tell a rendered swing from a dead one; that driver can.
+
+test('the sign hangs inside the room, where a player standing in it can read it', () => {
+  const point = shopSignLocalPoint(DOOR_MAIN, INTERIOR.d);
+  // inside the envelope on both axes — this is the assertion that was missing
+  assert.ok(Math.abs(point.x) < INTERIOR.w / 2,
+    `sign x ${point.x} is outside the ${INTERIOR.w} yd room`);
+  assert.ok(point.z > 0 && point.z < INTERIOR.d / 2,
+    `sign z ${point.z} is not between the room centre and the south wall face`);
+  // …and proud of that wall face rather than buried in it
+  assert.ok(INTERIOR.d / 2 - point.z >= 0.05,
+    'the card must stand off the wall, not sit inside it');
+  // eye height for someone standing on the floor, measured FROM the floor
+  assert.ok(point.y > 1.3 && point.y < 1.8,
+    `sign y ${point.y} is not at reading height above the interior floor`);
+  // and beside the doorway, not across it
+  assert.ok(point.x > DOOR_MAIN.x + DOOR_MAIN.w / 2,
+    'the card must clear the door aperture');
+});
+
+test('the card and the hotspot that flips it are the same point in two frames', () => {
+  // The card is a child of `interior` so it takes the LOCAL point; the walk prop
+  // is matched against world walk.x/z so it takes that point through L2W. Two
+  // sources for one position is exactly how they ended up 360 yards apart.
+  assert.match(clubhouseSource,
+    /const signLocal = shopSignLocalPoint\(DOOR_MAIN, INTERIOR\.d\);/,
+    'one datum for the sign position');
+  assert.match(clubhouseSource,
+    /const hang = L2W\(signLocal\.x, signLocal\.z\);/,
+    'the world form is derived from it, not computed separately');
+  assert.match(clubhouseSource,
+    /group\.position\.set\(signLocal\.x, signLocal\.y, signLocal\.z\);/,
+    'the card takes the local point — passing it a world point offsets it twice');
+  assert.match(clubhouseSource, /addProp\(\{\s*\n\s*x: hang\.x,\s*\n\s*z: hang\.z,/,
+    'and the hotspot takes the world form of that same point');
 });
 
 test('the sign is a physical prop with an E verb, not a menu toggle', () => {

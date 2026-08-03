@@ -151,6 +151,7 @@ import {
 } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { flipSign, shopAcceptsWalkIns, signIsOpen } from '../sim/shopSign.js';
+import { shopSignLocalPoint } from '../data/shopSignPlacement.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { buildShedDirt } from './clubhouse/shedDirt.js';
 import { createShedInterior } from './clubhouse/shedInterior.js';
@@ -8490,9 +8491,21 @@ export function makeClubhouse(ctx) {
       ],
     );
     group.add(board);
-    // beside the door on the interior face of the south wall, at eye height
-    const hang = L2W(DOOR_MAIN.x + DOOR_MAIN.w / 2 + 0.42, halfD - 0.10);
-    group.position.set(hang.x, floorY + 1.55, hang.z);
+    // Beside the door on the interior face of the south wall, at eye height.
+    //
+    // ONE DATUM, TWO FRAMES. The card is a child of `interior`, so it takes the
+    // LOCAL point; the walk prop is matched against world walk.x/z, so it takes
+    // the same point through L2W. This used to hand the world point to both,
+    // which applied the building offset twice and left the card 360 yards away
+    // from the hotspot that flips it (measured 2026-08-03).
+    // INTERIOR.d, not the SHELL wall centreline. `halfD` is the centreline of a
+    // 0.25 yd wall, so hanging 0.10 in from it left the card 0.025 yd BEHIND
+    // the inner face — inside the wall, which is also what isInside() said.
+    // INTERIOR.d/2 is the face the player stands against and the same envelope
+    // the room's own inside test uses.
+    const signLocal = shopSignLocalPoint(DOOR_MAIN, INTERIOR.d);
+    const hang = L2W(signLocal.x, signLocal.z);
+    group.position.set(signLocal.x, signLocal.y, signLocal.z);
     interior.add(group);
     suppressInteriorSunShadows(group);
 
@@ -8532,8 +8545,8 @@ export function makeClubhouse(ctx) {
     applyFacing();
 
     const prop = addProp({
-      x: group.position.x,
-      z: group.position.z,
+      x: hang.x,
+      z: hang.z,
       r: 1.9,
       label: () => (signIsOpen(state)
         ? 'Door sign: OPEN — [E] close up'

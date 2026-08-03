@@ -1,0 +1,27 @@
+{
+  "sign": {
+    "x": -359.396,
+    "y": -0.254,
+    "z": 9.4
+  },
+  "prompt": "Door sign: CLOSED — [E] open for business",
+  "idle": {
+    "frames": 119,
+    "distinctBearings": 1,
+    "first": 0,
+    "last": 0,
+    "travelRad": 0
+  },
+  "flip": {
+    "frames": 354,
+    "distinctBearings": 75,
+    "first": 0,
+    "last": 3.1416,
+    "travelRad": 3.1416
+  },
+  "stateBefore": false,
+  "stateAfter": true,
+  "eDidFlipTheState": true,
+  "intermediateBearings": 73,
+  "verdict": "TURNS"
+}
