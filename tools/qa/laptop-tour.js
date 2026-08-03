@@ -23,15 +23,12 @@ async (page) => {
   await page.waitForTimeout(1200);
   // Continue when the profile has a save; a fresh profile founds an empire and buys the
   // cheapest listed course — the same two clicks a new player makes.
-  const cont = page.getByText('Continue', { exact: true });
-  if (await cont.isEnabled().catch(() => false)) {
-    await cont.click();
-  } else {
-    // Live menu flow (2026-07-28): New game → difficulty card → confirm.
-    await page.getByRole('button', { name: /New game/i }).click();
-    await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
-    const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
-    if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
+  // The menu itself is the shared boot now (qa-boot.mjs); what stays here is
+  // the part that is this driver's own — a fresh profile must also BUY the
+  // cheapest listed course before there is anything to tour.
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  const bootMode = await clickThroughMenu(page);
+  if (bootMode === 'new-game') {
     await page.waitForTimeout(900);
     const buy = await page.evaluate(() => {
       const btns = [...document.querySelectorAll('button')]

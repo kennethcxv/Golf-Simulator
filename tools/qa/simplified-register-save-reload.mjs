@@ -149,7 +149,8 @@ function same(left, right) {
 async function waitForGame(page) {
   await page.setViewportSize(VIEWPORT);
   await page.waitForTimeout(850);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null,
     { timeout: 40000 });
   // Random shoppers make a repeated-load comparison nondeterministic. Disable

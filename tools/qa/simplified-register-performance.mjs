@@ -1531,8 +1531,13 @@ async function boot(page) {
   await page.goto(BASE_URL);
   await page.setViewportSize(VIEWPORT);
   await page.waitForTimeout(900);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 40000 });
+  // A/B against its own baseline, relative only — relative numbers survive a CPU rasterizer, so this
+  // declares itself software-relative rather than refusing to run.
+  const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+  const rendererGate = await gateRenderer(page, { allowSoftware: true });
   await page.waitForFunction(() => {
     const clubhouse = window.__fw?.scene3d?.clubhouse?.();
     if (!clubhouse) return false;

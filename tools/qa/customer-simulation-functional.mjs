@@ -34,20 +34,8 @@ page.on('pageerror', (error) => errors.push(`PAGEERROR: ${error.message}`));
 async function boot({ navigate = true } = {}) {
   if (navigate) await page.goto(url);
   await page.waitForTimeout(1_000);
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.count() && await continueButton.isEnabled()) {
-    await continueButton.click();
-  } else {
-    const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
-    if (await polishedNewGame.count()) {
-      await polishedNewGame.click();
-      await page.getByRole('dialog', { name: 'New game' }).waitFor();
-      await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
-    } else {
-      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
-    }
-    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
-  }
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => (
     window.__fw?.scene3d?.clubhouse && window.__fw.scene3d.clubhouse()
   ), null, { timeout: 90_000 });

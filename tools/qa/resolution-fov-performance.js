@@ -99,12 +99,8 @@ async (page) => {
   // continue. The bootstrap fixture normally seeds one, so Continue stays the
   // deterministic primary path.
   await page.waitForTimeout(1000);
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.isEnabled().catch(() => false)) {
-    await continueButton.click();
-  } else {
-    await page.getByText('New Empire — Relaxed', { exact: true }).click();
-  }
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   const firstAffordableProperty = page.getByRole('button', { name: 'Buy', exact: true }).first();
   if (await firstAffordableProperty.isVisible({ timeout: 3000 }).catch(() => false)) {
     await firstAffordableProperty.click();

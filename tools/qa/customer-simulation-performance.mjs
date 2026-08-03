@@ -86,24 +86,8 @@ await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
-const continueButton = page.getByText('Continue', { exact: true });
-if (await continueButton.count() && await continueButton.isEnabled()) {
-  await continueButton.click();
-} else {
-  const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
-  if (await polishedNewGame.count()) {
-    await polishedNewGame.click();
-    await page.getByRole('dialog', { name: 'New game' }).waitFor();
-    await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
-  } else {
-    const relaxedEmpire = page.getByRole('button', { name: /New Empire.*Relaxed/ });
-    if (!(await relaxedEmpire.count()) || !(await relaxedEmpire.first().isVisible())) {
-      await page.getByText('New game', { exact: true }).click();
-    }
-    await relaxedEmpire.first().click();
-  }
-  await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
-}
+const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+await clickThroughMenu(page);
 await page.waitForFunction(() => (
   window.__fw
   && window.__fw.scene3d

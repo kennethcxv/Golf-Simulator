@@ -315,9 +315,8 @@ async (page) => {
   phase = 'navigate';
   await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded' });
   await page.setViewportSize({ width: 1600, height: 900 });
-  const continueButton = page.getByText('Continue', { exact: true });
-  await continueButton.waitFor({ state: 'visible', timeout: 30000 });
-  await continueButton.click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+    await clickThroughMenu(page);
   await page.waitForFunction(() => (
     window.__fw?.screen === 'game' && !!window.__fw?.scene3d?.clubhouse?.()
   ), null, { timeout: 90000 });

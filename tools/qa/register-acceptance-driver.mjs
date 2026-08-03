@@ -25,15 +25,8 @@ async function boot(page, baseUrl = BASE_URL) {
   await page.goto(baseUrl);
   await page.setViewportSize(VIEWPORT);
   await page.waitForTimeout(1000);
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.isEnabled().catch(() => false)) {
-    await continueButton.click();
-  } else {
-    // A clean QA profile has no save to continue. Starting the relaxed fixture
-    // is still the normal player-facing menu path and makes the driver usable
-    // in isolated worktrees and clean-install CI runs.
-    await page.getByText('New Empire — Relaxed', { exact: true }).click();
-  }
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   // Continue may restore an empire that has not bought its first property yet,
   // and a brand-new profile always opens the property market. Complete that
   // player-facing prerequisite instead of depending on leaked browser storage.

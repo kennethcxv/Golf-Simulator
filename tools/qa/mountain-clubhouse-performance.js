@@ -21,6 +21,10 @@ async (page) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
+  // HARNESS_TRUST rule 5: reports absolute variant frame cost, so a CPU rasterizer's frame
+  // numbers are not evidence about the live game. Refuse them.
+  const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+  const rendererGate = await gateRenderer(page);
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
     return !veil || getComputedStyle(veil).display === 'none'

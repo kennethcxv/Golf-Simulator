@@ -226,7 +226,15 @@ test('browser driver is pinned to the game autosave, Continue, normal E, and CDP
   );
   assert.match(source, /app\.autosave\(\)/);
   assert.match(source, /golfempire:autosave/);
-  assert.match(source, /getByText\('Continue'/);
+  // B11 (2026-08-03): this asserted a raw getByText('Continue') click, which is
+  // precisely the debt being paid off — run-playwright.cjs launches an EPHEMERAL
+  // context, so on a clean run Continue renders DISABLED and the raw click hangs
+  // on the load veil. The contract is "boot into the game", and the shared
+  // helper is how that is spelled: it resumes when Continue is clickable and
+  // starts a fresh Relaxed game when it is not.
+  assert.match(source, /clickThroughMenu\(page\)/);
+  assert.doesNotMatch(source, /getByText\('Continue'/,
+    'the raw menu click is gone, not merely wrapped');
   assert.match(source, /page\.keyboard\.press\('e'\)/);
   assert.match(source, /DOMDebugger\.getEventListeners/);
   assert.match(source, /page\.reload/);

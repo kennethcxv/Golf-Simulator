@@ -128,6 +128,11 @@ async (page) => {
       return style.display === 'none' || Number.parseFloat(style.opacity || '1') <= 0.01;
     }, null, { timeout });
     await page.waitForFunction(() => window.__fw?.prewarming !== true, null, { timeout });
+    // HARNESS_TRUST rule 5. The scenario table this driver produces is quoted as
+    // live evidence, so it must not be produced on SwiftShader. Gated here — the
+    // first moment after every scene swap that the renderer string can be read.
+    const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+    await gateRenderer(page);
   };
   const waitForGame = async (oldSceneId = null, timeout = 90000) => {
     await page.waitForFunction((oldId) => {

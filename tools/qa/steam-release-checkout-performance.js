@@ -36,6 +36,10 @@ async (page) => {
   await page.waitForTimeout(1200);
   await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 40_000 });
+  // HARNESS_TRUST rule 5: a release gate on absolute numbers, so a CPU rasterizer's frame
+  // numbers are not evidence about the live game. Refuse them.
+  const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+  const rendererGate = await gateRenderer(page);
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';

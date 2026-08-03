@@ -57,8 +57,8 @@ function poseDelta(left, right) {
 
 async function waitForGame(page) {
   await page.waitForTimeout(700);
-  const continuation = page.getByText('Continue', { exact: true });
-  if (await continuation.isVisible().catch(() => false)) await continuation.click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null,
     { timeout: 40000 });
   await page.waitForFunction(() => {

@@ -59,6 +59,10 @@ page.on('requestfailed', (request) => failedRequests.push({
 
 async function waitForWorld() {
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60_000 });
+  // A/B against its own baseline, relative only — relative numbers survive a CPU rasterizer, so this
+  // declares itself software-relative rather than refusing to run.
+  const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+  const rendererGate = await gateRenderer(page, { allowSoftware: true });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';

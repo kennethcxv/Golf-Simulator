@@ -186,7 +186,8 @@ try {
   await page.evaluate(() => window.__fw.autosave());
   report.controls.push('normal autosave');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.getByText('Continue', { exact: true }).click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await waitForGame();
   report.afterReload = await transformFor(id);
   assert.deepEqual(report.afterReload, expected, 'save/reload preserves the exact committed transform');

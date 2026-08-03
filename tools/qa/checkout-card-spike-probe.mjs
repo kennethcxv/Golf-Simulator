@@ -123,7 +123,8 @@ export async function boot(page) {
   await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(900);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 40000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

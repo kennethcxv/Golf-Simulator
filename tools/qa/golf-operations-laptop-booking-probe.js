@@ -6,7 +6,8 @@ async function runGolfOperationsLaptopBookingProbe(page) {
   });
   page.on('pageerror', (error) => errors.push(`PAGEERROR: ${error.message}`));
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.getByText('Continue', { exact: true }).first().click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60_000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

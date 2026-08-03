@@ -17,6 +17,10 @@ async (page) => {
   await page.getByText('Buy', { exact: true }).first().click();
   await page.waitForFunction(() => window.__fw && window.__fw.state && window.__fw.state.course && window.__fw.state.course.vec, null, { timeout: 90000 });
   await page.waitForFunction(() => { const v = document.querySelector('.load-veil'); return !v || getComputedStyle(v).opacity === '0'; }, null, { timeout: 90000 });
+  // HARNESS_TRUST rule 5: this reports absolute course frame cost, so a CPU
+  // rasterizer's numbers are not evidence about the live game. Refuse them.
+  const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+  const rendererGate = await gateRenderer(page);
   await page.waitForTimeout(1500);
 
   await page.evaluate(() => {
