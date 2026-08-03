@@ -312,13 +312,17 @@ export function createFrontDeskMonitorUi(canvas) {
     }
   }
 
-  function drawActionGrid(actions, x, y, width, height) {
+  function drawActionGrid(actions, x, y, width, height, forcedColumns = null) {
     // Four choices keep every control legible at the physical monitor's size.
     // Multi-step denomination selection belongs to the physical drawer, not a
     // wall of tiny POS buttons.
     const visible = normalizeActions(actions).slice(0, 4);
     if (!visible.length) return;
-    const columns = visible.length <= 2 || height < 100 ? visible.length : 2;
+    // A caller with a narrow column can insist on one button per row. Splitting
+    // 308px between two buttons left "Ready for the next customer" rendering as
+    // "READY FOR T..." — a control the player cannot read is not a control.
+    const columns = forcedColumns
+      || (visible.length <= 2 || height < 100 ? visible.length : 2);
     const rows = Math.ceil(visible.length / columns);
     const gap = 10;
     const cellWidth = (width - gap * (columns - 1)) / columns;
@@ -543,100 +547,235 @@ export function createFrontDeskMonitorUi(canvas) {
     }
   }
 
-  function summaryRow(label, value, x, y, strong = false, color = COLORS.charcoal) {
-    setFont(ctx, strong ? 18 : 16, strong ? 800 : 600);
+  function summaryRow(label, value, x, y, width, strong = false, color = COLORS.charcoal, compact = false) {
+    // In a paired cell the label and the figure share half the column, so the
+    // figure is measured FIRST and the label gets what is left. Sizing them
+    // independently is what printed "CHANGE D$21.78" over itself.
+    const valueSize = compact ? 17 : (strong ? 26 : 19);
+    setFont(ctx, valueSize, strong ? 800 : 700);
+    const valueWidth = ctx.measureText(value).width;
+    setFont(ctx, compact ? 13 : (strong ? 18 : 16), strong ? 800 : 600);
     ctx.fillStyle = strong ? COLORS.charcoal : COLORS.muted;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(label.toUpperCase(), x, y);
-    setFont(ctx, strong ? 26 : 19, strong ? 800 : 700);
+    ctx.fillText(fitText(ctx, label.toUpperCase(), Math.max(30, width - valueWidth - 10)), x, y);
+    setFont(ctx, valueSize, strong ? 800 : 700);
     ctx.fillStyle = color;
     ctx.textAlign = 'right';
-    ctx.fillText(value, x + 300, y);
+    ctx.fillText(value, x + width, y);
   }
 
+  // THE SUMMARY COLUMN, LAID OUT RATHER THAN NUDGED (round 10, 2026-08-03).
+  //
+  // Every block in here used to be a literal y plus a stack of hand-added
+  // corrections — `choiceOffset` when the customer had picked a method,
+  // `taxOffset` because the sales-tax line was added later — so the column's
+  // real height depended on which optional rows happened to be present, and
+  // nothing checked where the bottom landed. With a payment choice showing, the
+  // action grid solved to y=604 with height 38: 642 on a 640-tall canvas. The
+  // primary button was six pixels outside its own panel card and two pixels off
+  // the bottom of the screen. Reported three sessions running as "flush against
+  // the bottom with no margin" and "the panel reads cluttered".
+  //
+  // It is a top-down cursor inside a padded panel now, with the actions ANCHORED
+  // to the panel's bottom padding and the money block sitting just above them.
+  // Optional rows move the cursor instead of shifting a stack of literals, so no
+  // arrangement can reach the edge: the edge is where the layout stops. The
+  // rhythm below is a scale rather than per-element guesses, which is most of
+  // what "breathing room" means on a panel this size.
+  const SUMMARY = Object.freeze({
+    x: 648, y: 162, w: 352, h: 454, pad: 22,
+    gapXs: 10, gapSm: 16, gapMd: 26, gapLg: 34,
+  });
+
   function drawCheckoutSummary(data) {
-    fillRound(ctx, 648, 162, 352, 454, 14, COLORS.paper, COLORS.line, 2);
+    const x = SUMMARY.x + SUMMARY.pad;
+    const width = SUMMARY.w - SUMMARY.pad * 2;
+    const right = x + width;
+    const top = SUMMARY.y + SUMMARY.pad;
+    const floor = SUMMARY.y + SUMMARY.h - SUMMARY.pad;
+    fillRound(ctx, SUMMARY.x, SUMMARY.y, SUMMARY.w, SUMMARY.h, 14, COLORS.paper, COLORS.line, 2);
+
     const stage = canonicalStage(data.stage);
     const stageCopy = STAGE_COPY[stage] ?? [text(data.stage, 'CHECKOUT').toUpperCase(), 'Follow the on-screen instructions.'];
-
-    drawLabel(ctx, 'Current transaction', 670, 194);
-    setFont(ctx, 22, 800);
-    ctx.fillStyle = COLORS.green;
-    ctx.textAlign = 'left';
-    ctx.fillText(fitText(ctx, customerName(data), 206), 670, 226);
-    setFont(ctx, 13, 700);
-    ctx.fillStyle = COLORS.muted;
-    ctx.textAlign = 'right';
-    ctx.fillText(`#${text(data.transactionNumber ?? data.txNumber ?? data.id, '--')}`, 976, 224);
-
     const choice = customerPaymentChoice(data);
-    const choiceOffset = choice ? 32 : 0;
-    if (choice) {
-      drawPill(ctx, `CUSTOMER CHOSE ${choice}`, 670, 238, 306);
-      setFont(ctx, 14, 650);
-      ctx.fillStyle = COLORS.muted;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(fitText(ctx, paymentChoiceDialogueFor(data, choice), 306), 670, 282);
-    }
-
-    const statusY = choice ? 292 : 246;
     const status = paymentChoiceStatus(data, stage, stageCopy, choice);
     const instruction = paymentChoiceInstruction(data, stageCopy, choice);
-    const [statusBackground, statusForeground] = statusPalette(status);
-    fillRound(ctx, 670, statusY, 306, 82, 10, statusBackground);
-    setFont(ctx, 19, 800);
-    ctx.fillStyle = statusForeground;
-    ctx.textAlign = 'left';
-    ctx.fillText(fitText(ctx, status, 278), 686, statusY + 27);
-    setFont(ctx, 16, 600);
-    const lines = wrapLines(ctx, instruction, 278, 2);
-    lines.forEach((line, index) => ctx.fillText(line, 686, statusY + 53 + index * 18));
 
-    // SUBTOTAL, DISCOUNT, SALES TAX, then the total. Three lines where there were two, so the
-    // block below TOTAL shifts down by one row height — hence taxOffset threaded through the
-    // rest of this column rather than each y being nudged by hand.
-    summaryRow('Subtotal', money(data.subtotal), 670, 351 + choiceOffset);
+    // --- WHAT THERE IS TO SAY ------------------------------------------------
     const discount = Math.abs(finite(data.discount));
-    summaryRow('Discount', discount > 0 ? `-${money(discount)}` : money(0), 670, 377 + choiceOffset);
     const taxRate = finite(data.taxRate);
     const taxLabel = taxRate > 0
       ? `Sales tax ${(taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`
       : 'Sales tax (none in state)';
-    summaryRow(taxLabel, money(finite(data.tax)), 670, 403 + choiceOffset);
-    const taxOffset = 26;
+    const breakdown = [['Subtotal', money(data.subtotal)]];
+    // A "DISCOUNT $0.00" row on every single sale is the clutter, not the
+    // spacing. It appears when there IS one.
+    if (discount > 0) breakdown.push(['Discount', `-${money(discount)}`]);
+    breakdown.push([taxLabel, money(finite(data.tax))]);
+
+    // Each tender row carries how load-bearing it is, because a column that has
+    // to shed rows must shed the right ones. What the customer still has coming
+    // back to them outranks how they paid.
+    const tail = [];
+    if (data.payment || data.paymentMethod) {
+      tail.push({
+        label: 'Payment', value: text(data.payment ?? data.paymentMethod).toUpperCase(),
+        color: COLORS.charcoal, keep: 1,
+      });
+    }
+    if (data.tendered !== undefined || data.amountPaid !== undefined) {
+      tail.push({
+        label: 'Tendered', value: money(data.tendered ?? data.amountPaid),
+        color: COLORS.charcoal, keep: 2,
+      });
+    }
+    if (data.changeDue !== undefined) {
+      tail.push({ label: 'Change due', value: money(data.changeDue), color: COLORS.green, keep: 4 });
+    }
+    if (data.selectedChange !== undefined || data.selected !== undefined) {
+      tail.push({
+        label: 'Selected', value: money(data.selectedChange ?? data.selected),
+        color: COLORS.charcoal, keep: 3,
+      });
+    }
+
+    // --- SOLVE THE COLUMN BEFORE DRAWING ANY OF IT ---------------------------
+    // Measure first, draw second. Solving as it drew is what left the money
+    // block computing its own position from whatever the status card happened to
+    // have consumed, which put it either over the status card or under the
+    // buttons depending on the state. Now nothing is painted until the whole
+    // column is known to fit, and the ways it may give — in order — are: a
+    // tighter row pitch, tender rows paired two to a line, a one-line
+    // instruction, then dropping the least load-bearing tender rows.
+    setFont(ctx, 16, 600);
+    const instructionLines = wrapLines(ctx, instruction, width - 32, 2);
+    const headerHeight = 44;
+    const choiceHeight = choice ? 57 : 0;
+    const TOTAL_BLOCK = 44;
+    const actionCount = normalizeActions(data.actions).slice(0, 4).length;
+    const actionColumns = actionCount <= 2 ? 1 : 2;
+    const actionRows = Math.ceil(actionCount / actionColumns) || 0;
+    const actionHeight = actionCount ? actionRows * 46 + (actionRows - 1) * 10 : 0;
+
+    const fit = { pitch: 25, lines: instructionLines.length, tailColumns: 1, tail: [...tail] };
+    const statusHeight = () => 44 + fit.lines * 20;
+    const tailRows = () => Math.ceil(fit.tail.length / fit.tailColumns);
+    const used = () => headerHeight + choiceHeight + SUMMARY.gapSm + statusHeight()
+      + SUMMARY.gapSm
+      + (breakdown.length + tailRows()) * fit.pitch + TOTAL_BLOCK + SUMMARY.gapSm
+      + (actionHeight ? SUMMARY.gapSm + actionHeight : 0);
+    const available = floor - top;
+    const concessions = [
+      () => { if (fit.pitch === 25) { fit.pitch = 22; return true; } return false; },
+      () => { if (fit.tail.length >= 3 && fit.tailColumns === 1) { fit.tailColumns = 2; return true; } return false; },
+      () => { if (fit.lines > 1) { fit.lines = 1; return true; } return false; },
+      () => {
+        if (!fit.tail.length) return false;
+        let weakest = 0;
+        for (let index = 1; index < fit.tail.length; index += 1) {
+          if (fit.tail[index].keep < fit.tail[weakest].keep) weakest = index;
+        }
+        fit.tail.splice(weakest, 1);
+        return true;
+      },
+    ];
+    for (const concede of concessions) {
+      while (used() > available && concede()) { /* give one thing at a time */ }
+      if (used() <= available) break;
+    }
+
+    // --- DRAW ----------------------------------------------------------------
+    let y = top + 12;
+    drawLabel(ctx, 'Current transaction', x, y);
+    y += SUMMARY.gapMd + 6;
+    setFont(ctx, 22, 800);
+    ctx.fillStyle = COLORS.green;
+    ctx.textAlign = 'left';
+    ctx.fillText(fitText(ctx, customerName(data), width - 60), x, y);
+    setFont(ctx, 13, 700);
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'right';
+    ctx.fillText(`#${text(data.transactionNumber ?? data.txNumber ?? data.id, '--')}`, right, y - 2);
+
+    if (choice) {
+      // Tight, because this block is a caption on the one above it rather than a
+      // section of its own: the pill and the line the customer said belong
+      // together, and every pixel spent separating them is a pixel the money
+      // block does not get.
+      y += SUMMARY.gapXs;
+      drawPill(ctx, `CUSTOMER CHOSE ${choice}`, x, y, width);
+      y += 34;
+      setFont(ctx, 14, 650);
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(fitText(ctx, paymentChoiceDialogueFor(data, choice), width), x, y + 13);
+      y += 13;
+    }
+
+    y += SUMMARY.gapSm;
+    const lines = instructionLines.slice(0, fit.lines);
+    const [statusBackground, statusForeground] = statusPalette(status);
+    fillRound(ctx, x, y, width, statusHeight(), 10, statusBackground);
+    // The heading shrinks before it truncates: "TRANSACTION COMPLETE" is the
+    // longest state string and was rendering as "TRANSACTION COMPLE...", which
+    // hides the one word that says whether the sale went through.
+    ctx.fillStyle = statusForeground;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    for (const size of [19, 18, 17, 16, 15]) {
+      setFont(ctx, size, 800);
+      if (ctx.measureText(status).width <= width - 32 || size === 15) break;
+    }
+    ctx.fillText(fitText(ctx, status, width - 32), x + 16, y + 28);
+    setFont(ctx, 16, 600);
+    lines.forEach((line, index) => ctx.fillText(line, x + 16, y + 52 + index * 20));
+    y += statusHeight() + SUMMARY.gapSm;
+
+    // the money block flows straight on from the status card, and the controls
+    // are pinned to the bottom padding — the fit above guarantees they clear
+    const actionsY = floor - actionHeight;
+    const ruleY = y + breakdown.length * fit.pitch + 6;
+    const totalBaseline = ruleY + 32;
+    breakdown.forEach(([label, value], index) => {
+      summaryRow(label, value, x, y + (index + 1) * fit.pitch - 6, width);
+    });
+
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(670, 390 + choiceOffset + taxOffset);
-    ctx.lineTo(976, 390 + choiceOffset + taxOffset);
+    ctx.moveTo(x, ruleY);
+    ctx.lineTo(right, ruleY);
     ctx.stroke();
-    // Prominent total block, matching the reference's emphasis.
+
     setFont(ctx, 20, 800);
     ctx.fillStyle = COLORS.charcoal;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('TOTAL', 670, 421 + choiceOffset + taxOffset);
+    ctx.fillText('TOTAL', x, totalBaseline);
     setFont(ctx, 38, 800);
     ctx.fillStyle = COLORS.green;
     ctx.textAlign = 'right';
-    ctx.fillText(money(data.total), 976, 424 + choiceOffset + taxOffset);
+    ctx.fillText(money(data.total), right, totalBaseline + 3);
 
-    if (data.payment || data.paymentMethod) {
-      summaryRow('Payment', text(data.payment ?? data.paymentMethod).toUpperCase(), 670, 446 + choiceOffset + taxOffset);
-    }
-    if (data.tendered !== undefined || data.amountPaid !== undefined) {
-      summaryRow('Tendered', money(data.tendered ?? data.amountPaid), 670, 472 + choiceOffset + taxOffset);
-    }
-    if (data.changeDue !== undefined) {
-      summaryRow('Change due', money(data.changeDue), 670, 498 + choiceOffset + taxOffset, false, COLORS.green);
-    }
-    if (data.selectedChange !== undefined || data.selected !== undefined) {
-      summaryRow('Selected', money(data.selectedChange ?? data.selected), 670, 524 + choiceOffset + taxOffset);
-    }
+    const tailCellWidth = fit.tailColumns === 2
+      ? Math.floor((width - SUMMARY.gapMd) / 2)
+      : width;
+    fit.tail.forEach((entry, index) => {
+      const column = index % fit.tailColumns;
+      const row = Math.floor(index / fit.tailColumns);
+      summaryRow(
+        entry.label, entry.value,
+        x + column * (tailCellWidth + SUMMARY.gapMd),
+        totalBaseline + SUMMARY.gapSm + (row + 1) * fit.pitch - 6,
+        tailCellWidth, false, entry.color, fit.tailColumns === 2,
+      );
+    });
 
-    drawActionGrid(data.actions, 670, 546 + choiceOffset + taxOffset, 306, choice ? 38 : 50);
+    if (actionHeight) {
+      drawActionGrid(data.actions, x, actionsY, width, actionHeight, actionColumns);
+    }
   }
 
   function drawCheckout(model) {

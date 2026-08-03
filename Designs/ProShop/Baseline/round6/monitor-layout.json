@@ -1,0 +1,28 @@
+{
+  "cases": {
+    "waiting": {
+      "lowestDrawnY": 616,
+      "canvasHeight": 640,
+      "marginToPanelBottom": 0,
+      "marginToScreenBottom": 24
+    },
+    "ready-for-next": {
+      "lowestDrawnY": 616,
+      "canvasHeight": 640,
+      "marginToPanelBottom": 0,
+      "marginToScreenBottom": 24
+    },
+    "payment-accepted": {
+      "lowestDrawnY": 616,
+      "canvasHeight": 640,
+      "marginToPanelBottom": 0,
+      "marginToScreenBottom": 24
+    },
+    "NEGATIVE-CONTROL-everything-at-once": {
+      "lowestDrawnY": 616,
+      "canvasHeight": 640,
+      "marginToPanelBottom": 0,
+      "marginToScreenBottom": 24
+    }
+  }
+}
