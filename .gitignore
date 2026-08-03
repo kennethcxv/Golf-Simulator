@@ -52,3 +52,14 @@ logs/
 # are a one-time ~13 MB capture, not recurring QA output.
 !/Designs/ProShop/
 !/Designs/ProShop/Baseline/video/*.webm
+
+# Exception: the planning record and the feature slice briefs. ROADMAP.md is the single
+# source of truth for scope — what the game is, what is in Property 1, what is cut and
+# WHY — and a rejection whose rationale is lost gets re-litigated from memory. The slice
+# briefs are the arguments behind it. All authored prose, none of it reconstructable.
+# (FoundObjects and NamedGolfers were already tracked before this rule existed; naming
+# them here keeps the intent legible rather than resting on index history.)
+!/Designs/ROADMAP.md
+!/Designs/Course/
+!/Designs/NamedGolfers/
+!/Designs/FoundObjects/

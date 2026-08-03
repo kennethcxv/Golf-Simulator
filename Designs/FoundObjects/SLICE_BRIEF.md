@@ -94,5 +94,10 @@ the fork and feels the result as their own judgment.
 
 ## Cross-references
 
+- Scope and status: **Designs/ROADMAP.md**.
 - Display: **Designs/NamedGolfers/SLICE_BRIEF.md** — the wall owns it (see §5 amendment).
+  **Re-confirmed 2026-08-02:** the collision is still resolved this way; the wall owns
+  display, this brief defers.
 - Tier rewards over there inherit §4's cut here: access, never stats.
+- §2's physical-verb rule is inherited by **Designs/Course/SLICE_BRIEF.md** — a course
+  feature resolved from a screen is a worse version of the same feature.

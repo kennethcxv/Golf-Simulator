@@ -3,6 +3,9 @@
 **STATUS: SPEC ONLY.** Nothing in this document authorizes implementation. No code, no
 assets, no data files. A slice may only be executed when the owner explicitly names it.
 
+Scope context: `Designs/ROADMAP.md` — this system is accepted for Property 1; its course
+fixations are gated on `Designs/Course/SLICE_BRIEF.md`.
+
 ---
 
 ## The load-bearing rule
@@ -63,6 +66,57 @@ A Visitor complains about a dripping tap. A Touring Pro complains the third gree
 drain. **The tier ladder IS the difficulty curve** — climbing it means solving harder, more
 specific, more expensive problems. By the time a Regional walks in, their fixation should be
 something the player has to plan a week around, not something fixed between customers.
+
+---
+
+## Two delivery channels — one loop
+
+**ADDED 2026-08-02.** Course call-outs are **not a separate system.** Same data, same
+three-state loop: one grievance, tied to one real object, resolved by repairing that object.
+The only thing that varies is how the grievance reaches the player.
+
+| Channel | Carries | Because |
+|---|---|---|
+| **In person** — spoken at the desk on arrival or exit | Clubhouse and pro-shop fixations | The player is standing right there. The object is in the room. |
+| **Call** — phone or radio | Course fixations | The player is rarely standing where a course problem is, and a call can say *where to go*. |
+
+Both channels resolve identically: repair the actual object, get the unprompted
+acknowledgment next visit. A call is a delivery mechanism, not a quest.
+
+### Why this earns its place
+
+It answers Open Question 2 below for the half of the problem it can reach. A complaint
+spoken in a busy shop gets missed — that is the recorded weakness. A call cannot be missed
+the same way, and more importantly **it tells the player WHERE**, which the in-person
+channel structurally cannot do for a bunker on the far side of the property.
+
+It does not close Open Question 2. The in-person channel still needs a persistent place to
+read outstanding complaints, and that is still undecided.
+
+### Rules
+
+- **Two or three calls a day, maximum. Never queued waiting.** A call that is still sitting
+  there tomorrow has become a task list.
+- Calls **punctuate** self-directed restoration. The player decides what to do with their
+  day; a call is an interruption with a location attached. **If restoration becomes chores
+  between missions, the design has failed** — that is the failure condition for this
+  feature, stated so it can be tested against.
+- Course fixations are gated on the course existing at all. See
+  `Designs/Course/SLICE_BRIEF.md`.
+
+### Tone — a decision, not a preference
+
+**Grounded, dry, deadpan. NOT wacky.** Everything this game has built reads deliberately
+understated — sage panelling, walnut trim, a failing municipal course — and PowerWash
+Simulator is completely deadpan for exactly the same reason. A club in the water is funny
+BECAUSE it is reported flatly.
+
+The register for every call, verbatim as the model:
+
+> "Foursome on 4 says a wedge went in the pond. They'd like it back."
+
+No exclamation marks. No mission titles. No comedy register. This governs call copy,
+complaint lines, acknowledgment lines and return lines alike.
 
 ---
 
@@ -132,6 +186,11 @@ a menu unlocking.
    the ledger as specced records the *past*, not a to-do list. Whether that place is a page
    in the ledger, the laptop, or something else is open.
 
+   **Partially answered 2026-08-02** by the second delivery channel above: course fixations
+   arrive as calls, which cannot be lost in shop noise and carry a location. The in-person
+   channel — clubhouse and pro-shop fixations — still has no persistent surface, so the
+   question stands for that half.
+
 ---
 
 ## CUT — not deferred
@@ -149,6 +208,10 @@ we will not spend (voice, likeness licensing). None of them are "later." They ar
 
 **6 hand-written golfers.** One fixation each, all inside the pro shop or clubhouse — no
 course-work fixations yet, so the slice does not gate on course tooling.
+
+**The call channel is therefore NOT in the first slice.** Calls exist to carry course
+fixations, and the slice deliberately has none; building the channel first would mean
+building a delivery mechanism with nothing to deliver.
 
 - The three-state loop: complaint → fix → acknowledgment.
 - Persistence across days and reloads.
