@@ -970,7 +970,19 @@ export function createRegisterMode(B) {
   // A few degrees of roll: the reference unit is canted like something held,
   // not bolted. Facing stays yaw-only (playtest 2026-07-30 round 2) so the
   // glass never rakes away from the eye.
-  const TERMINAL_FLOAT_ROLL = -0.075;
+  // ROUND 9: 0. "The reader screen is tilted. Straighten it. Do not rotate the
+  // reader." -0.075 rad is 4.3 degrees of roll about the device's own face
+  // axis, which is exactly enough to read as a crooked screen without reading
+  // as a deliberate angle — every horizontal in the UI (the status strip, the
+  // keypad rows, the amount) sloped together. Note the comment at the facing
+  // solve already claimed "a yaw-only facing, no pitch or roll" while this
+  // constant was quietly rolling it; the claim is now true.
+  //
+  // Straightening the SCREEN is done by removing the roll rather than by
+  // counter-rotating the screen inside the device, because the device is one
+  // rigid object: rolling the body and unrolling the glass would put the
+  // keypad and the card slot back out of true instead.
+  const TERMINAL_FLOAT_ROLL = 0;
   let terminalFloat = 0;                    // 0 seated .. 1 at the face
   let termCentreOffsetY = 0.10;             // origin(base) -> device centre, measured at attach
   let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
@@ -3177,7 +3189,22 @@ export function createRegisterMode(B) {
     // flew it off the reader entirely and landed it on the counter. Round 7
     // nudged it out a little further so the card FACE (chip and brand) reads
     // below the base instead of a bare edge.
-    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.062)));
+    // THE CARD HAS TO BE THE READER'S SCALE, NOT THE WORLD'S. Both assets are
+    // authored life-size — payment_card.glb measures 0.0856 x 0.054 (a real
+    // credit card) and payment_terminal.glb 0.100 wide — so a card in that slot
+    // should be about 86% of the reader's width. It was rendering at roughly a
+    // quarter of it, because the reader is presented at TERMINAL_HARDWARE_SCALE
+    // (1.85x life size, growing from parkScale as it rises to the face) while
+    // the card hangs off `root` at 1.0 and inherited none of that. Life-size
+    // beside a 1.85x reader is 54% too small, which is the "the card is too
+    // small and does not read as inserted" note.
+    //
+    // Matching termObject's CURRENT scale keeps the pair in proportion through
+    // the whole rise rather than only when parked or only when floated, and the
+    // seating offset scales with it so the card does not swim in the slot.
+    const termScale = termObject ? termObject.scale.x || 1 : 1;
+    if (cardMesh) cardMesh.scale.setScalar(termScale);
+    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.062 * termScale)));
     return true;
   }
 
@@ -3202,6 +3229,9 @@ export function createRegisterMode(B) {
     if (!cardMesh || !grip || cardMesh.parent === grip) return false;
     root.updateMatrixWorld(true);
     grip.updateWorldMatrix(true, true);
+    // Back to life size in a hand. The reader's presentation scale belongs to
+    // the reader; a card held by a person is measured against the person.
+    cardMesh.scale.setScalar(1);
     grip.attach(cardMesh);
     return true;
   }

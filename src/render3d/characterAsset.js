@@ -405,6 +405,10 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     char.phase += dt;
     const p = char.phase;
     let hipL = 0, hipR = 0, kneeL = 0, kneeR = 0, shL = 0, shR = 0, elb = -0.25;
+    // Both elbows share `elb` for every symmetric pose. `elbL` overrides the
+    // LEFT one for poses where the two arms are doing different jobs — one arm
+    // reaching while the other hangs, which a single shared bend cannot say.
+    let elbL = null;
     let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shLz = 0.06, shRz = -0.06;
 
     if (char.mode === 'Walk' || char.mode === 'WalkBag') {
@@ -507,9 +511,14 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       lean = 0.10;
       headTilt = 0.16;
     } else if (char.mode === 'ReceiveBag') {
+      // ONE HAND, like a person. This used to raise both arms (shL -1.18
+      // alongside shR -1.00), which reads as being handed something heavy with
+      // two hands — or worse, as a surrender. Nobody takes a small shop bag
+      // that way: you put one hand out, take the handles, and go.
       shR = -1.00;
-      shL = -1.18;
-      elb = -0.66;
+      shL = -0.05;   // the other arm just hangs
+      elb = -0.66;   // the reaching arm
+      elbL = -0.12;  // and the hanging one is near enough straight
       lean = 0.14;
       // A small appreciative nod makes the ownership transfer read as a positive
       // customer reaction without turning checkout into an arcade celebration.
@@ -557,7 +566,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs.shoulderR.rotation.x = shR;
     limbs.shoulderL.rotation.z = shLz;
     limbs.shoulderR.rotation.z = shRz;
-    limbs.elbowL.rotation.x = elb;
+    limbs.elbowL.rotation.x = elbL ?? elb;
     limbs.elbowR.rotation.x = elb;
     chest.rotation.x = lean;
     chest.rotation.y = twist;

@@ -7791,6 +7791,11 @@ export function makeCourseScene(canvas, state) {
     camera.near = 0.15;
     camera.updateProjectionMatrix();
     heldRoot.visible = !!walkTool && walkTool !== 'greensMower' && walkTool !== 'spreader';
+    // Re-arm the broom's own pass, which walkExit switched off so the till and
+    // the overview camera would not inherit a floating broom. Without this the
+    // tool would come back invisible after any trip to the counter.
+    if (walkTool === 'broom') enableBroomLightLayer();
+    broomVm.setActive(walkTool === 'broom');
     window.addEventListener('keydown', walkKeyDown);
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
@@ -7812,6 +7817,14 @@ export function makeCourseScene(canvas, state) {
     walkSetSpraying(false);
     walkSetSoaping(false);
     heldRoot.visible = false; // the overview camera carries no hand tools
+    // ...and NEITHER DOES THE TILL. heldRoot.visible was not enough on its own:
+    // the broom draws in its OWN pass, after the world, gated only on the
+    // viewmodel's `active` flag, so hiding the shared held rig left a broom
+    // hanging over the checkout camera. That is the "entering the cashier
+    // station while holding a broom keeps the tool in frame" note — the hands
+    // go to a plain resting pose at the counter, and the tool comes back when
+    // you step away (walkEnter re-arms it from the tool you were carrying).
+    broomVm.setActive(false);
     walkHeld.clear();
     // The dirt reveal is driven from the walk update, so leaving on foot with Q
     // down (opening the laptop, stepping to the till) would strand it lit with

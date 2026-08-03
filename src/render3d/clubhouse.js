@@ -10039,6 +10039,14 @@ export function makeClubhouse(ctx) {
         // progress. Their patience is frozen below; preserve the queue and route
         // until the player explicitly finalizes or abandons the transaction.
         if (register.hasTx() && register.getCustomer() === c) continue;
+        // A SCRIPTED visit is an assertion by the caller, not a walk-in. When
+        // the open/closed sign landed it started evicting these too, and every
+        // harness that stages a shopper with sendToCounter() without also
+        // flipping the sign began timing out waiting for a customer that had
+        // quietly turned round and left (~20 drivers, including the checkout
+        // render suite). The sign gates ARRIVALS; it must not delete a shopper
+        // somebody explicitly placed.
+        if (c.scriptedVisit) continue;
         if (c.stops[c.stopIdx] && c.stops[c.stopIdx].kind !== 'exit' && c.stops[c.stopIdx].kind !== 'gone') {
           leaveQueue(c);
           c.stopIdx = c.stops.length - 2; // head for the exit
@@ -11124,6 +11132,11 @@ export function makeClubhouse(ctx) {
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;
+      // Placed on purpose, so the closed-sign sweep leaves them alone. Without
+      // this a staged shopper is evicted before reaching the till whenever the
+      // shop is shut — which is every fresh profile, since a new day opens
+      // CLOSED and a harness has no reason to know it must flip the sign.
+      c.scriptedVisit = true;
       // An explicit method is the scripted/QA override; otherwise the customer
       // keeps the balanced-bag preference they drew at spawn.
       if (payMethod === 'cash' || payMethod === 'card') c.payMethod = payMethod;
