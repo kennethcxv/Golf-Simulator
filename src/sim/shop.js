@@ -595,6 +595,10 @@ export function initShop(state) {
     transactionHistory: [], // completed physical-register tickets, newest first
     nextTransactionNo: 1,
     fittingsYesterday: 0,
+    // THE DOOR SIGN. A new day — and a new game — starts CLOSED: the morning
+    // preparation window is the whole point of it (src/sim/shopSign.js).
+    signOpen: false,
+    signOpenedAtMinute: null,
     log: [], // recent notable sales for the panel/3D flavor
   };
   initShopProgression(state);

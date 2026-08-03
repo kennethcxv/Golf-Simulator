@@ -75,6 +75,7 @@ import { bindPropertyInventory, ensurePropertyInventory } from './propertyInvent
 import {
   ensureShopProgression, tickShopProgressionDaily,
 } from './shopProgression.js';
+import { closeSignForNewDay, healShopSign } from './shopSign.js';
 import {
   SaveCompatibilityError,
   createSaveReport,
@@ -438,6 +439,10 @@ export function dailyTick(state) {
     state.weather.droughtDays = state.weather.today.rainIn > 0 ? 0 : state.weather.droughtDays + 1;
   }
   tickRenovationsDaily(state);
+  // THE SIGN GOES BACK TO CLOSED OVERNIGHT. The morning preparation window —
+  // unlock, clean, stock, check the sheet, THEN open — is the whole point of
+  // the sign; a sign that stayed open would delete it (src/sim/shopSign.js).
+  if (state.shop) closeSignForNewDay(state);
   if (state.shop) tickShopProgressionDaily(state, shopExpansionLayoutSafety);
   turfDailyTick(state);
   courseMaintenanceDailyTick(state, { coarseAdvanced: true });
@@ -1643,6 +1648,10 @@ export function deserializeWithReport(json) {
   ensureInventoryLifecycle(state);
   if (persistedVersion < 12 && !isRecord(raw.shop?.progression)) delete state.shop.progression;
   ensureShopProgression(state, { legacy: persistedVersion < 12 });
+  // A save written before the door sign existed must not load into a shop that
+  // silently refuses every customer — heal it to the state its player last
+  // experienced (open during trading hours) rather than the new-game default.
+  healShopSign(state);
   state.shop.drawer = migrateDrawer(persistedDrawer || state.shop.drawer || newDrawer());
   ensurePaymentBag(state);
   paymentBagStats(state);

@@ -150,6 +150,7 @@ import {
   fixtureIsInstalled, shopCustomerCapacity, shopTierIndex,
 } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
+import { flipSign, shopAcceptsWalkIns, signIsOpen } from '../sim/shopSign.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { buildShedDirt } from './clubhouse/shedDirt.js';
 import { createShedInterior } from './clubhouse/shedInterior.js';
@@ -8351,6 +8352,93 @@ export function makeClubhouse(ctx) {
   const doorW = L2W(DOOR_MAIN.x, halfD);
   const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
 
+  // --- THE OPEN / CLOSED SIGN -----------------------------------------------
+  // A physical card hung beside the main door, flipped with E. It gives the day
+  // a shape: arrive, unlock, clean, stock, check the sheet — THEN open, and only
+  // then does the pressure start. The rule it enforces lives in
+  // src/sim/shopSign.js; this is the object you walk up to.
+  //
+  // It hangs INSIDE, on the jamb, because the player reads and flips it from the
+  // shop floor. Its two faces are painted the way a real one is: the side facing
+  // the street says one thing while the side facing you says the other, so a
+  // single card carries both states and flipping it is a 180° turn, not a
+  // material swap.
+  const shopSign = (() => {
+    const SIGN_W = 0.30;
+    const SIGN_H = 0.20;
+    const face = (top, bottom, ink, ground) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 384;
+      canvas.height = 256;
+      const c2 = canvas.getContext('2d');
+      c2.fillStyle = ground;
+      c2.fillRect(0, 0, 384, 256);
+      c2.strokeStyle = ink;
+      c2.lineWidth = 10;
+      c2.strokeRect(16, 16, 352, 224);
+      c2.fillStyle = ink;
+      c2.textAlign = 'center';
+      c2.textBaseline = 'middle';
+      c2.font = '700 86px Georgia, serif';
+      c2.fillText(top, 192, 108);
+      c2.font = '600 30px Arial, sans-serif';
+      c2.fillText(bottom, 192, 178);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 4;
+      return texture;
+    };
+    // deadpan, per the tone ruling in Designs/ROADMAP.md
+    const openTexture = face('OPEN', 'COME IN', '#173f2d', '#f4efe2');
+    const closedTexture = face('CLOSED', 'BACK SOON', '#6b2f28', '#f4efe2');
+    const group = new THREE.Group();
+    group.name = 'ClubhouseOpenClosedSign';
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(SIGN_W, SIGN_H, 0.012),
+      [
+        mats.walnutDark, mats.walnutDark, mats.walnutDark, mats.walnutDark,
+        new THREE.MeshStandardMaterial({ map: openTexture, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ map: closedTexture, roughness: 0.85 }),
+      ],
+    );
+    group.add(board);
+    // beside the door on the interior face of the south wall, at eye height
+    const hang = L2W(DOOR_MAIN.x + DOOR_MAIN.w / 2 + 0.42, halfD - 0.10);
+    group.position.set(hang.x, floorY + 1.55, hang.z);
+    interior.add(group);
+    suppressInteriorSunShadows(group);
+
+    // CLOSED shows the customer-facing side to the player; OPEN turns the card
+    // around. The yaw IS the state, so there is nothing to keep in sync.
+    const applyFacing = () => {
+      group.rotation.y = signIsOpen(state) ? Math.PI : 0;
+    };
+    applyFacing();
+
+    const prop = addProp({
+      x: group.position.x,
+      z: group.position.z,
+      r: 1.9,
+      label: () => (signIsOpen(state)
+        ? 'Door sign: OPEN — [E] close up'
+        : 'Door sign: CLOSED — [E] open for business'),
+      action: () => {
+        const result = flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
+        if (!result.ok) return;
+        applyFacing();
+        if (hooks.sfx) hooks.sfx('uiTick');
+        // State the fact; no coaching, and no warning about opening late or
+        // opening filthy — the player learns those (Designs/ROADMAP.md).
+        if (hooks.toast) {
+          hooks.toast(result.open
+            ? (result.withinHours ? 'Sign turned to OPEN.' : 'Sign turned to OPEN. Nobody is out there yet.')
+            : 'Sign turned to CLOSED.');
+        }
+      },
+    });
+    return { group, prop, applyFacing };
+  })();
+
   // --- reusable customer baskets --------------------------------------------------
   // Eight authored baskets are instantiated once and reparented between this rack,
   // customers, and the checkout. Four are shown in the stack; the rest are a pool,
@@ -9831,7 +9919,13 @@ export function makeClubhouse(ctx) {
     // every due party before advancing the floor routes below.
     updateArrivals();
     const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
-    const open = minute >= 360 && minute <= 1200;
+    // THE DOOR SIGN GATES ARRIVALS. Trading hours alone used to decide this, so
+    // the shop opened itself at 6 AM whatever state the room was in. Now the
+    // player flips the sign, and `open` false does exactly what closing time
+    // already did — no new walk-ins, and anyone inside finishes and heads for
+    // the exit (reservations and an in-progress transaction stay exempt below,
+    // unchanged). See src/sim/shopSign.js.
+    const open = shopAcceptsWalkIns(state, minute);
     const targetCount = open
       ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, shopCustomerCapacity(state))
       : 0;
