@@ -260,6 +260,9 @@ export function createBroomViewmodel({
     left.group.visible = active;
     // The full arms replace the stub forearm + cuff for the duration.
     fpHands.setArmStubsVisible?.(!active);
+    // …and the hands read at the broom's own size while it owns them, then go
+    // back to the shared default for every other tool.
+    fpHands.setHandScale?.(active ? (feel.compose.handScale || 1) : 1);
     // The broom (and the hands parented into it) leave the world pass
     // entirely while the viewmodel pass owns them.
     layerOnRecursive(broomGroup, active);

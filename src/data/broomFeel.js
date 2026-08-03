@@ -99,7 +99,15 @@ export const BROOM_FEEL = Object.freeze({
     // depth shrinks the screen offset without giving back any of the height
     // the head needs to touch the boards. Now NDC (0.19, -0.72), both hands
     // fully in the lower-right with 0.55 yd of reach still in hand.
-    gripAnchor: [0.24, -0.50, -0.86],
+    // ROUND 6: -0.86 -> -0.70. "It reads too far away now. The 78 deg lens
+    // fixed the aim but the rig now sits further off than it should." Round 5b
+    // spent depth to pull the hands off the bottom edge, and it bought the
+    // framing at the cost of shrinking everything: at 0.86 yd down the view
+    // axis through a 78 deg lens the whole rig occupies a corner. 0.70 puts the
+    // hands where a person's hands are on a broom and grows the head with them;
+    // the NDC framing the round-5 arithmetic protected still holds, because the
+    // grip sits higher in the frame than the edge it was rescued from.
+    gripAnchor: [0.24, -0.50, -0.70],
     // radians the head is carried LEFT of the view centre, so the handle lies
     // diagonally across the lower frame instead of pointing away from the lens
     bearingOffset: -0.20,
@@ -133,6 +141,14 @@ export const BROOM_FEEL = Object.freeze({
     // hand's own -Y after its roll, so the two hands sit on opposite sides
     // exactly as handRollUpper/handRollLower already intend.
     handShaftOffset: 0.034,
+    // ROUND 6: "hands too small to read at 1x." The shared first-person hands
+    // are authored at 0.88 for tools held out at arm's length; a broom is
+    // gripped, and at the working distance they rendered as pale lumps on the
+    // shaft with the modelled fingers, knuckles and thumb all under a pixel or
+    // two. This scales the HAND GROUPS, not the hands root — the root carries
+    // the equip rise and the viewmodel's own seating arithmetic subtracts its
+    // position, so scaling it would move every solved grip.
+    handScale: 1.22,
   }),
 
   // --- the sweep arc --------------------------------------------------------

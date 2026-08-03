@@ -375,6 +375,18 @@ export function makeFpHands() {
       applyGrips(authored, true);
     },
 
+    // A full-arm viewmodel may want the hands read at a different size from the
+    // held-out-at-arm's-length default. Scales the HAND GROUPS, preserving each
+    // one's mirror; the root is left alone because callers subtract its
+    // position when seating a hand on a solved grip, and scaling it there would
+    // move every one of those seats.
+    setHandScale(scale) {
+      const value = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      const base = 0.88;
+      right.group.scale.set(base * value, base * value, base * value);
+      left.group.scale.set(-base * value, base * value, base * value);
+    },
+
     // Phase 6: hide/show the stub forearms + cuffs on BOTH hands while a
     // full-arm viewmodel rig owns them.
     setArmStubsVisible(on) {
