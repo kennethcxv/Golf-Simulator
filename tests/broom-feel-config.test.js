@@ -79,11 +79,21 @@ test('the head-follow spring is under-damped — it settles, it does not snap', 
 test('a jam stalls the broom proud instead of folding it vertical', () => {
   // Round 1 pulled the carry pitch down 0.55 rad at a full clamp — a
   // vertical stick at the feet. The stall keeps it a working tool.
-  assert.ok(BROOM_FEEL.collision.carrySteepen < 0.4, 'the jam no longer folds the shaft');
+  //
+  // Round 5: carrySteepen and poseReachFloor are GONE, and this test no longer
+  // asks for them. They were the old way of stopping the fold — bend the carry
+  // pitch, then floor the reach so the bend could not go too far. The rigid
+  // shaft made both unnecessary: the head lies on a sphere of the handle's own
+  // measured length about the grip, so shortening the horizontal run RAISES the
+  // head up the obstruction instead of folding the shaft toward the feet. The
+  // fold is now impossible by construction rather than clamped after the fact.
+  // What remains tunable is how the stroke reads while jammed.
   assert.ok(BROOM_FEEL.collision.stallSquash > 0 && BROOM_FEEL.collision.stallSquash < 1,
-    'the stroke visibly stalls while jammed');
-  assert.ok(BROOM_FEEL.collision.poseReachFloor >= 0.4,
-    'the drawn pose never solves into the feet');
+    'the stroke visibly stalls while jammed rather than stopping dead or ignoring the face');
+  assert.ok(BROOM_FEEL.collision.stallIntensity > 0 && BROOM_FEEL.collision.stallIntensity < 1,
+    'and the audio/particles calm down with it');
+  assert.ok(BROOM_FEEL.collision.standoff > 0,
+    'bristles stop AT a blocking face, never inside it');
 });
 
 test('the sweep keeps the sim-preserving contact duty it shipped with', () => {
@@ -114,12 +124,43 @@ test('the grip anchor keeps the hands in frame and close enough to read', () => 
   assert.ok(gz < 0, 'the hands are in front of the camera');
   assert.ok(Math.abs(gz) > 0.3 && Math.abs(gz) < 0.9,
     'near enough to read as your hands, far enough not to clip the near plane');
-  // through a 50° lens at 16:9 the anchor must land inside NDC
-  const halfH = Math.abs(gz) * Math.tan((50 * Math.PI) / 180 / 2);
+  // Framed through the rig's OWN lens. This used to hardcode 50 degrees beside
+  // a config that owns the number, so when the lens widened to 78 the test was
+  // still grading the composition against a camera that no longer exists.
+  // A duplicated constant is a test that can be wrong while staying green.
+  const halfH = Math.abs(gz) * Math.tan((BROOM_FEEL.camera.fov * Math.PI) / 180 / 2);
   const ndcY = gy / halfH;
   const ndcX = gx / (halfH * (16 / 9));
-  assert.ok(ndcY > -1 && ndcY < 0, `hands sit in the lower half (ndcY ${ndcY.toFixed(2)})`);
-  assert.ok(Math.abs(ndcX) < 1, `hands sit inside the frame (ndcX ${ndcX.toFixed(2)})`);
+  assert.ok(ndcY < 0, `hands sit below the eye line (ndcY ${ndcY.toFixed(2)})`);
+  // -0.90 rather than -1.0: AT the edge is not "in frame". Round 5a put the
+  // gripping hand at -0.96 and it rendered visibly clipped with its whole
+  // forearm off-screen, which passed the old bound of -1 comfortably.
+  assert.ok(ndcY > -0.9,
+    `hands are clear of the bottom edge, not clipped by it (ndcY ${ndcY.toFixed(2)})`);
+  assert.ok(Math.abs(ndcX) < 0.9, `hands sit inside the frame (ndcX ${ndcX.toFixed(2)})`);
+});
+
+test('the handle can physically REACH the floor from where the hands are held', () => {
+  // THE round-5 bug, as a contract. The hands were held 1.350 yd above the
+  // boards while the FP asset measures 1.247 yd from GripPrimary to
+  // FloorContact — the broom was 0.103 yd too short to touch the floor, so the
+  // bristles hung in mid-air at every pitch and no tuning could ever plant
+  // them. Any future change to gripAnchor.y has to keep the reach real.
+  //
+  // The handle length is the ASSET's, measured from its own sockets at
+  // runtime; 1.247 is that measurement recorded here so this test does not
+  // need a GLB parser. If the broom asset is re-authored, this number moves.
+  const HANDLE_YD = 1.247;
+  const EYE_YD = 1.62;
+  const gripAboveFloor = EYE_YD + BROOM_FEEL.compose.gripAnchor[1];
+  assert.ok(gripAboveFloor < HANDLE_YD,
+    `the hands are held ${gripAboveFloor.toFixed(3)} yd up but the handle is only `
+    + `${HANDLE_YD} yd — the head could never reach the boards`);
+  // and with enough left over to reach FORWARD, not just straight down
+  const reach = Math.sqrt(HANDLE_YD ** 2 - gripAboveFloor ** 2);
+  assert.ok(reach > 0.35,
+    `only ${reach.toFixed(3)} yd of forward reach at full plant — the broom would `
+    + 'sweep vertically at the player\'s feet');
 });
 
 test('the sweep is an arc the head travels, not a sideways nudge', () => {

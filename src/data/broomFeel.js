@@ -21,7 +21,24 @@ export const BROOM_FEEL = Object.freeze({
   // or breathe without the held broom stretching. Layer 29 sits beside the
   // delivery-carry overlay's 30 and follows the same clearDepth pattern.
   camera: Object.freeze({
-    fov: 50,          // degrees; the viewmodel lens, independent of the world's
+    // ROUND 5: 50 -> 78. The old lens was NARROWER than the world's 66, which
+    // is backwards for a tool that works the floor, and it was the binding
+    // constraint behind "the broom points at the ceiling".
+    //
+    // The arithmetic, from an eye 1.62 yd up: at a 50 deg vertical lens the
+    // floor is not visible at all until 3.47 yd ahead at level pitch, so a
+    // bristle head anywhere within a broom's reach is off the bottom of the
+    // frame by construction. Rounds 1-4 answered that by flattening the carry
+    // until the head rose into view — measured at 12.7 deg below horizontal,
+    // i.e. a broom held out like a rifle with the bristles floating at chest
+    // height. Widening to 78 puts first-visible floor at 1.95 yd, which a
+    // held broom CAN reach, so the pose no longer has to choose between
+    // pointing at the floor and being on screen.
+    //
+    // 78 is a deliberate middle: the world walks at 66, House Flipper 2 ships
+    // a player FOV slider that goes to about 90, and past ~85 the handle
+    // starts to bow noticeably at the frame edge.
+    fov: 78,          // degrees; the viewmodel lens, independent of the world's
     near: 0.05,       // the arms live closer than the world near plane (0.15)
     far: 12,
     layer: 29,        // render layer owned by the broom viewmodel pass
@@ -40,7 +57,6 @@ export const BROOM_FEEL = Object.freeze({
     // floor contact and be visible — 1.4 yd ahead from 1.6 yd up is ~49°
     // below a 50° lens). The work pose takes over as the view pitches down,
     // where drawn and true contact align exactly.
-    carryPitch: -0.16,             // shaft pitch of the carry pose, camera space
     headForward: 1.42,             // how far ahead the bristle head works at rest
   }),
 
@@ -67,7 +83,23 @@ export const BROOM_FEEL = Object.freeze({
     // depth so the hands hold their SCREEN position (~NDC 0.51, −0.80 through a
     // 50° lens at 16:9) — the rig reads further away without the composition
     // moving, which is what "a tad more out" has to mean.
-    gripAnchor: [0.30, -0.27, -0.72],
+    // ROUND 5: y -0.27 -> -0.56. THE BUG, in one number. The gripping hand sat
+    // 0.27 yd below the eye, i.e. 1.350 yd above the floor, while the FP
+    // asset's own sockets measure 1.247 yd from GripPrimary to FloorContact.
+    // The handle was 0.103 yd TOO SHORT to touch the boards, so no pitch, no
+    // blend and no amount of tuning could ever plant the bristles — the head
+    // hung in mid-air at every pose and the solve dutifully drew it there.
+    // Hands now ride at 1.06 yd above the floor (hip height, which is where
+    // you actually hold a push broom), leaving 0.65 yd of horizontal reach
+    // when the head is down on the boards.
+    // ROUND 5b: [0.30, -0.56, -0.72] -> [0.24, -0.50, -0.86]. Dropping the
+    // hands to hip height (5a) fixed the reach but put the gripping hand at
+    // NDC (0.29, -0.96) — ON the bottom edge, clipped, with its whole forearm
+    // off-frame. The fix is to push the hands FORWARD rather than back up:
+    // depth shrinks the screen offset without giving back any of the height
+    // the head needs to touch the boards. Now NDC (0.19, -0.72), both hands
+    // fully in the lower-right with 0.55 yd of reach still in hand.
+    gripAnchor: [0.24, -0.50, -0.86],
     // radians the head is carried LEFT of the view centre, so the handle lies
     // diagonally across the lower frame instead of pointing away from the lens
     bearingOffset: -0.20,
@@ -78,11 +110,29 @@ export const BROOM_FEEL = Object.freeze({
     // Round 4: 0.34 -> 0.30. A shallower hang spends more of the fixed handle
     // on REACH than on drop, so the head sits further ahead and stays framed
     // when the view comes up level or above.
-    carryDrop: 0.30,
+    //
+    // ROUND 5: 0.30 -> 0.65, and the reasoning above is now inverted, because
+    // the wider lens removed the constraint that forced it. Round 4 was
+    // spending the handle on reach to keep the head on screen; the cost was a
+    // broom carried 12.7 deg off horizontal, which is what reads as "pointing
+    // at the ceiling". At 0.65 the shaft sits 31 deg below horizontal even
+    // while carried — unmistakably a broom on its way to the floor rather
+    // than a pole held out in front — and the head still frames at NDC y
+    // around -0.84 through the 78 deg lens.
+    carryDrop: 0.65,
     // roll of each hand about the shaft, radians — the two hands oppose each
     // other on the handle the way they do on a real broom
     handRollUpper: 0.10,
     handRollLower: -2.95,
+    // ROUND 5: the wrist sits OFF the shaft centreline by this much. It used
+    // to be placed exactly on the axis, so the palm straddled the handle and
+    // its flat far side poked out as a pale disc beside the shaft — the hand
+    // read as skewered by the broom rather than holding it. Offsetting by the
+    // shaft radius plus the palm's own half-thickness rests the palm on the
+    // handle and lets the fingers close over the top of it. Applied along each
+    // hand's own -Y after its roll, so the two hands sit on opposite sides
+    // exactly as handRollUpper/handRollLower already intend.
+    handShaftOffset: 0.034,
   }),
 
   // --- the sweep arc --------------------------------------------------------
@@ -93,7 +143,6 @@ export const BROOM_FEEL = Object.freeze({
   sweep: Object.freeze({
     arcRad: 0.40,        // rad; head swing either side of centre about the grip
     handFollow: 0.20,    // fraction of the arc the hands drift along with
-    headLead: 0.35,      // how much the HEAD leads the hands into each reversal
   }),
 
   // --- the arms -------------------------------------------------------------
@@ -104,15 +153,35 @@ export const BROOM_FEEL = Object.freeze({
   // elbow, and a short sleeve that exits through the BOTTOM of the frame.
   arms: Object.freeze({
     forearmSpan: 0.26,     // yd; authored elbow->wrist skin length
-    forearmRadius: 0.030,  // yd — the hands sit ~0.55 yd from the lens, so a
-                           // fatter tube than this fills the corner of frame
+    // ROUND 5: the forearm TAPERS. It used to be one uniform capsule, which is
+    // the "disembodied forearm cylinder" the review rejected — a pipe reads as
+    // a pipe at any radius. An arm is narrow at the wrist and swells toward the
+    // elbow, and that single cue is most of what makes it read as a limb.
+    forearmWristRadius: 0.026,
+    forearmElbowRadius: 0.044,
+    // ROUND 5: and it stops SHORT of the wrist. CapsuleGeometry(r, span) is
+    // span + 2r long overall, so the old forearm overshot the hand by its own
+    // radius and its hemispherical cap sat on top of the fingers — that
+    // protruding cap IS the "nub protrusion" in the review. The forearm now
+    // ends inside the hand, so the palm covers the joint the way a wrist does.
+    // Small on purpose: this is only "tuck the flat end inside the palm". At
+    // 0.030 it opened a visible 3 cm gap between forearm and hand at viewmodel
+    // range — worse than the nub it was hiding.
+    wristInset: 0.010,     // yd short of the wrist the skin stops
     spanScaleMin: 0.85,    // the forearm may compress/stretch only this far
     spanScaleMax: 1.2,
     // elbow sits relative to its WRIST (camera axes: right, down, toward
     // camera) so the entry angle is foreshortened at every pose — mostly
     // straight below the hand, so the forearm hangs rather than juts
-    elbowOffsetRight: [0.07, -0.28, 0.06],
-    elbowOffsetLeft: [-0.06, -0.27, 0.05],
+    // ROUND 5: the elbows move OUT and TOWARD the viewer. They used to sit
+    // almost straight below the wrist (z +0.06), which draws the forearm
+    // nearly in the view plane — a tan post standing under each hand, which is
+    // the "disembodied forearm cylinder" read. Real first-person arms come in
+    // from the lower CORNERS, strongly foreshortened, and leave frame at the
+    // bottom edge. Pulling the elbow toward the camera is what buys that
+    // foreshortening; pushing it outward is what aims it at the corner.
+    elbowOffsetRight: [0.15, -0.30, 0.22],
+    elbowOffsetLeft: [-0.14, -0.30, 0.21],
     // ROUND 3: the sleeve is a short segment aimed DOWN in camera axes, not a
     // capsule stretched to a fixed "shoulder" point. The old shoulders were
     // authored at camera-space z −1.0, i.e. a yard IN FRONT of the lens, so
@@ -163,8 +232,6 @@ export const BROOM_FEEL = Object.freeze({
     rate: 4.8,           // rad/s; 2π/4.8 ≈ 1.31 s full push-pull cycle
     span: 0.16,          // yd; lateral travel of the head each direction
     contactCos: 0.58,    // |cos(phase)| ≥ this = bristles in contact
-    rollAmp: 0.035,      // rad; the shaft rolls slightly through each pass
-    headDrive: 1.0,      // multiplier the authored SweepLeft/Right playback rate
   }),
 
   // --- weight ---------------------------------------------------------------
@@ -218,8 +285,16 @@ export const BROOM_FEEL = Object.freeze({
     // (measured NDC y −1.10 at pitch −0.35, back in view by −0.8). The pose now
     // stays CARRIED until the view has committed to looking down, so the head
     // is on screen across the whole pitch range.
-    carryAbove: -0.34,   // rad
-    workBelow: -0.78,    // rad
+    //
+    // ROUND 5: -0.34/-0.78 -> -0.10/-0.40. Round 4 pushed the plant late
+    // because at the 50 deg lens a planted head fell off the bottom of the
+    // frame; the side effect was that you had to look 45 deg down before the
+    // broom touched anything, which is not how anyone sweeps. Through the 78
+    // deg lens a planted head is framed from a down-look of only 12 deg, so
+    // the plant can start almost immediately and finish at a comfortable 23
+    // deg. Glance down and the bristles are on the boards.
+    carryAbove: -0.10,   // rad
+    workBelow: -0.40,    // rad
   }),
 
   // --- surface response -----------------------------------------------------
@@ -230,7 +305,6 @@ export const BROOM_FEEL = Object.freeze({
     tiltMax: 0.30,       // rad; maximum head tilt toward a blocking face
     tiltRate: 9.0,       // 1/s; eased in/out of the tilt
     floorKiss: 0.012,    // yd; bristle compression against the boards
-    clampY: 0.06,        // yd; hard clamp on any single-frame vertical correction
   }),
 
   // --- collision ------------------------------------------------------------
@@ -246,13 +320,8 @@ export const BROOM_FEEL = Object.freeze({
     // The JAM: pushing into a fixture must read as the broom STALLING proud
     // against it, not folding to a vertical stick at the feet (round 1 pulled
     // the carry pitch down 0.55 rad at full clamp).
-    carrySteepen: 0.24,  // rad of extra carry pitch at a full pull-in
     stallSquash: 0.45,   // stroke span multiplier while jammed
     stallIntensity: 0.55, // intensity multiplier while jammed (audio/motes calm)
-    // the DRAWN pose never solves steeper than this reach; the sim contact
-    // keeps the true clamped reach (divergence only while jammed, when
-    // cleaning is against the face anyway)
-    poseReachFloor: 0.55, // yd
   }),
 
   // --- camera response ------------------------------------------------------

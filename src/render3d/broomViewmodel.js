@@ -43,6 +43,8 @@ const _span = new THREE.Vector3();
 const _mid = new THREE.Vector3();
 const _headWorld = new THREE.Vector3();
 const _ndc = new THREE.Vector3();
+const _assetHead = new THREE.Vector3();
+const _assetGrip = new THREE.Vector3();
 
 // The tool's geometry in its own local frame. These are only the FALLBACK
 // numbers from the registry's procedural broom; the authored GLB models the
@@ -73,6 +75,7 @@ const _qRoll = new THREE.Quaternion();
 const _qHandRoll = new THREE.Quaternion();
 const _basis = new THREE.Matrix4();
 const _sleeveAim = new THREE.Vector3();
+const _palmOut = new THREE.Vector3();
 
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 function easeInCubic(t) { return t * t * t; }
@@ -89,8 +92,20 @@ function buildArm(mats, mirror) {
 
   // Object3D.lookAt points a plain object's +Z at its target, so both
   // segments are built along +Z with their pivot at the ELBOW.
+  //
+  // A TAPERED cylinder, not a capsule. Two reasons, both from the review:
+  //  - a uniform tube is the "forearm cylinder" complaint; the wrist-to-elbow
+  //    swell is the cue that makes it read as a limb rather than a pipe;
+  //  - a capsule is span + 2r long overall, so its far cap protruded past the
+  //    wrist and sat on the fingers. That cap was the "nub". A cylinder ends
+  //    exactly where it is told to, and poseArm stops it short of the wrist so
+  //    the hand covers the joint.
+  // rotation.x = +PI/2 sends the cylinder's TOP (+Y) to +Z, which is the wrist
+  // end, so radiusTop is the wrist and radiusBottom the elbow.
   const forearm = new THREE.Mesh(
-    new THREE.CapsuleGeometry(a.forearmRadius, a.forearmSpan, 6, 12), mats.skin,
+    new THREE.CylinderGeometry(
+      a.forearmWristRadius, a.forearmElbowRadius, a.forearmSpan, 14, 1, false,
+    ), mats.skin,
   );
   forearm.rotation.x = Math.PI / 2;
   const forearmPivot = new THREE.Group();
@@ -101,13 +116,15 @@ function buildArm(mats, mirror) {
   // the rolled cuff wraps the elbow joint, aimed along the forearm; it is NOT
   // a child of the scaled pivot, so span adjustments never stretch the roll
   const cuff = new THREE.Group();
+  // the roll and the sleeve mouth are sized off the ELBOW radius now that the
+  // forearm tapers — sized off the wrist they stood proud of the arm they wrap
   const cuffRoll = new THREE.Mesh(
-    new THREE.TorusGeometry(a.forearmRadius + 0.014, 0.015, 8, 18), mats.cuff,
+    new THREE.TorusGeometry(a.forearmElbowRadius + 0.012, 0.015, 8, 18), mats.cuff,
   );
   cuffRoll.position.z = 0.045;
   cuff.add(cuffRoll);
   const cuffBody = new THREE.Mesh(
-    new THREE.CylinderGeometry(a.forearmRadius + 0.010, a.sleeveRadius, 0.09, 12), mats.cuff,
+    new THREE.CylinderGeometry(a.forearmElbowRadius + 0.008, a.sleeveRadius, 0.09, 12), mats.cuff,
   );
   cuffBody.rotation.x = Math.PI / 2;
   cuff.add(cuffBody);
@@ -263,18 +280,31 @@ export function createBroomViewmodel({
   function poseArm(arm, handGroup, elbowOffset, sleeveMirror, stash) {
     handGroup.getWorldPosition(_wrist); // wrist, world
     camera.matrixWorld.extractBasis(_basisX, _basisY, _basisZ);
-    _elbowWorld.copy(_wrist)
-      .addScaledVector(_basisX, elbowOffset.x)
+    // The offset is a DIRECTION; the elbow is placed exactly one forearm along
+    // it. Authored as an absolute offset it drifted to 0.40 yd from the wrist
+    // while the skin was clamped to forearmSpan * spanScaleMax = 0.312, so the
+    // forearm could not reach its own hand and hung under it with a visible
+    // gap — two tan cones floating below two hands, which is precisely the
+    // "disembodied forearm" the review rejected. Deriving the elbow from the
+    // authored length makes the skin span the joint by construction, at any
+    // pose, and leaves spanScaleMin/Max to absorb only the wrist inset.
+    _tmp.copy(_basisX).multiplyScalar(elbowOffset.x)
       .addScaledVector(_basisY, elbowOffset.y)
       .addScaledVector(_basisZ, elbowOffset.z);
+    if (_tmp.lengthSq() < 1e-8) _tmp.copy(_basisY).multiplyScalar(-1);
+    _tmp.normalize().multiplyScalar(armCfg.forearmSpan);
+    _elbowWorld.copy(_wrist).add(_tmp);
     _elbow.copy(_elbowWorld);
     broomGroup.worldToLocal(_elbow);
     arm.group.position.copy(_elbow);
     _span.copy(_wrist).sub(_elbowWorld);
     const length = Math.max(0.12, _span.length());
     arm.forearmPivot.lookAt(_wrist);
+    // Stop the skin SHORT of the wrist so the hand covers the joint. Running it
+    // all the way to the wrist origin put a bare tube end among the fingers.
+    const skinRun = Math.max(0.10, length - armCfg.wristInset);
     arm.forearmPivot.scale.z = Math.max(
-      armCfg.spanScaleMin, Math.min(armCfg.spanScaleMax, length / armCfg.forearmSpan),
+      armCfg.spanScaleMin, Math.min(armCfg.spanScaleMax, skinRun / armCfg.forearmSpan),
     );
     arm.cuff.quaternion.copy(arm.forearmPivot.quaternion);
     // The sleeve runs a SHORT fixed distance from the elbow along an authored
@@ -394,7 +424,16 @@ export function createBroomViewmodel({
     const fx = -Math.sin(yaw); const fz = -Math.cos(yaw);
     const rx = Math.cos(yaw); const rz = -Math.sin(yaw);
     const cc = feel.compose;
-    const geom = readRigGeometry() || FALLBACK_GEOM;
+    const live = readRigGeometry();
+    const geom = live || FALLBACK_GEOM;
+    // WHICH GEOMETRY THE SOLVE USED. This is not decoration: FALLBACK_GEOM's
+    // shaft axis is 126 deg away from the authored GLB's, so a silent fall back
+    // to it while the GLB is what draws swings the real mesh a third of a turn
+    // off the solved line — the handle rears up and the bristles end up over
+    // your shoulder. Every other number in diagnostics() is computed in the
+    // SAME frame as the mistake and therefore looks healthy while it happens,
+    // which is exactly why this flag has to exist separately.
+    state.geomSource = live ? 'live' : 'fallback';
     const gripLen = geom.len;
     const fy = floorY ? floorY(camera.position.x, camera.position.z) : null;
 
@@ -409,10 +448,40 @@ export function createBroomViewmodel({
         Math.atan2(Math.sin(state.lagYaw - yawNow), Math.cos(state.lagYaw - yawNow))),
     );
 
+    // --- bob, sway and breathe: the rig belongs to a BODY -------------------
+    // These were authored in BROOM_FEEL from the start and never read, so the
+    // module's own claim of "stride-locked bob, idle sway" was not true and
+    // tuning any of those five numbers did nothing. Wired now.
+    //
+    // Under way the rig rises and falls at the characters' own stride rate, so
+    // a walking player's tool moves in phase with their footfalls rather than
+    // to its own unrelated rhythm; the lateral sway trails the bob by a set
+    // fraction of a cycle, the way a carried weight lags the step that swings
+    // it. At rest the bob fades out and a slow breathe and yaw drift take over,
+    // because a perfectly still tool reads as mounted to the camera.
+    const wk = feel.walk;
+    const idl = feel.idle;
+    state.bobAmp = state.bobAmp ?? 0;
+    state.bobAmp += ((moving ? 1 : 0) - state.bobAmp) * Math.min(1, dt * wk.blendIn);
+    state.bobPhase = (state.bobPhase ?? 0) + dt * wk.bobRate;
+    state.idlePhase = (state.idlePhase ?? 0) + dt;
+    const atRest = 1 - state.bobAmp;
+    const bobY = reducedMotion ? 0 : Math.sin(state.bobPhase) * wk.bobAmp * state.bobAmp;
+    const bobX = reducedMotion ? 0
+      : Math.sin(state.bobPhase - wk.swayPhase * Math.PI * 2) * wk.swayAmp * state.bobAmp;
+    const breatheY = reducedMotion ? 0
+      : Math.sin(state.idlePhase * idl.breatheRate) * idl.breatheAmp * atRest;
+    // the idle drift is a slow YAW of the rig about the grip, so the head
+    // wanders a little rather than the whole tool sliding sideways
+    const idleYaw = reducedMotion ? 0
+      : Math.sin(state.idlePhase * idl.swayYawRate) * idl.swayYawAmp * atRest;
+
     // the gripping hand, in world space (it rides the camera)
     const handDrift = Math.sin(strokeX) * feel.sweep.handFollow;
     _gripCam.set(
-      cc.gripAnchor[0] + handDrift + yawSway * 0.5, cc.gripAnchor[1], cc.gripAnchor[2],
+      cc.gripAnchor[0] + handDrift + yawSway * 0.5 + bobX,
+      cc.gripAnchor[1] + bobY + breatheY,
+      cc.gripAnchor[2],
     ).applyMatrix4(camera.matrixWorld);
 
     // How far the head hangs BELOW the hand: a shallow carry at level look, the
@@ -431,7 +500,7 @@ export function createBroomViewmodel({
     // plus a standing offset that carries the head LEFT of the hands. Without
     // it the shaft points straight away from the lens and foreshortens to a
     // stub; the offset lays it diagonally across the lower frame instead.
-    const bearing = strokeX + cc.bearingOffset;
+    const bearing = strokeX + cc.bearingOffset + idleYaw;
     const sw = Math.sin(bearing); const cw = Math.cos(bearing);
     const hx = fx * cw + rx * sw;
     const hz = fz * cw + rz * sw;
@@ -567,6 +636,13 @@ export function createBroomViewmodel({
       hand.quaternion.setFromRotationMatrix(_basis);
       _qHandRoll.setFromAxisAngle(_axisX, roll);
       hand.quaternion.premultiply(_qHandRoll);
+      // Rest the PALM on the handle instead of running the shaft through the
+      // wrist. The fingers curl toward the hand's +Y (fpHands rotates each
+      // finger root about +X), so the shaft belongs on that side and the wrist
+      // sits one palm-thickness back along -Y.
+      _palmOut.set(0, -1, 0).applyQuaternion(hand.quaternion)
+        .multiplyScalar(c.handShaftOffset);
+      hand.position.add(_palmOut);
     };
     seat(rightHand, geom.upper, c.handRollUpper);
     seat(leftHand, geom.lower, c.handRollLower);
@@ -596,6 +672,38 @@ export function createBroomViewmodel({
     _ndc.copy(_headWorld).project(vmCamera);
     lastHeadNdc = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
     state.workBlend = workBlend;
+
+    // --- WHERE THE DRAWN MESH ACTUALLY POINTS -------------------------------
+    // Read straight off the asset's own sockets in world space, AFTER the solve
+    // has posed it. Everything above measures the rig in the frame the solve
+    // believes in; if that belief is wrong the numbers agree with each other
+    // and still describe a broom aimed at the ceiling. These two do not depend
+    // on the solve's geometry at all, so they can contradict it.
+    //
+    // shaftDrop is the honest one: metres the bristle socket hangs BELOW the
+    // gripping socket. A broom sweeps the floor, so it must be solidly
+    // negative. Zero-ish is a broom held level; positive is a broom held up.
+    if (socketRefs.found) {
+      socketRefs.contact.getWorldPosition(_assetHead);
+      socketRefs.primary.getWorldPosition(_assetGrip);
+      state.shaftDrop = _assetHead.y - _assetGrip.y;
+      _tmp.copy(_assetHead).sub(_assetGrip);
+      const shaftLen = _tmp.length();
+      state.shaftDropUnit = shaftLen > 1e-5 ? state.shaftDrop / shaftLen : 0;
+      // THE ACCEPTANCE NUMBER for "the head rides the floor": yards the drawn
+      // bristle socket sits above the boards under it. Near zero is contact;
+      // a large positive is the head floating (the round-4 defect); negative
+      // is the head sunk through the floor.
+      const floorHere = floorY ? floorY(_assetHead.x, _assetHead.z) : null;
+      state.headAboveFloor = floorHere == null ? null : _assetHead.y - floorHere;
+      _ndc.copy(_assetHead).project(vmCamera);
+      state.assetHeadNdc = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
+    } else {
+      state.shaftDrop = null;
+      state.shaftDropUnit = null;
+      state.assetHeadNdc = null;
+      state.headAboveFloor = null;
+    }
 
     return {
       // the sim cleans exactly where the bristles are drawn
@@ -646,6 +754,13 @@ export function createBroomViewmodel({
       tilt: +tilt.toFixed(3),
       intensity: +intensity.toFixed(3),
       headNdc: lastHeadNdc,
+      // which shaft axis the solve believed in, and where the DRAWN mesh
+      // actually ended up pointing (see update() for why both are needed)
+      geomSource: state.geomSource ?? null,
+      shaftDrop: state.shaftDrop == null ? null : +state.shaftDrop.toFixed(3),
+      shaftDropUnit: state.shaftDropUnit == null ? null : +state.shaftDropUnit.toFixed(3),
+      headAboveFloor: state.headAboveFloor == null ? null : +state.headAboveFloor.toFixed(3),
+      assetHeadNdc: state.assetHeadNdc ?? null,
       // where the two hands sit along the shaft (yd back from the bristles),
       // and the current swing of the sweep arc
       gripUpper: +(state.gripUpper ?? 0).toFixed(3),
