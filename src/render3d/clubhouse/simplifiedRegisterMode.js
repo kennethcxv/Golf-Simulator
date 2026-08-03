@@ -990,6 +990,8 @@ export function createRegisterMode(B) {
   let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
   let termSeatPosition = null;
   let termSeatQuaternion = null;
+  // scratch for the rise/descent curve; allocated once, this runs every frame
+  const _termPathControl = new THREE.Vector3();
   let termBaseScale = TERMINAL_HARDWARE_SCALE; // working size; parked shrinks by BAY.parkScale
   let cardMeshOnTerminal = false;
 
@@ -1086,7 +1088,36 @@ export function createRegisterMode(B) {
       };
     }
     const ease = THREE.MathUtils.smoothstep(terminalFloat, 0, 1);
-    termObject.position.lerpVectors(termSeatPosition, terminalFloatAnchor.position, ease);
+    // OUT OF THE BAY FIRST, THEN UP — AND THE SAME CURVE BACK DOWN.
+    //
+    // Reported as "the reader phases through the counter on its way home". Two
+    // geometric tests (corner containment by ray parity, and a swept-segment
+    // test between consecutive frames, both against the VISIBLE counter meshes)
+    // found zero crossings on the straight lerp — the honest finding is in
+    // OVERNIGHT_REPORT_6. What the straight lerp DOES do is travel diagonally
+    // from the under-counter bay to the face, which passes very close to the
+    // slab edge and reads as going through it as the device shrinks away.
+    //
+    // A quadratic Bezier through a control point at SEAT HEIGHT but at the
+    // face's horizontal position turns that diagonal into a rounded L: the
+    // device slides forward out of the bay while still low, clears the
+    // counter's front edge, and only then climbs. Coming home it runs the same
+    // curve in reverse. No new constants — the control point is derived from
+    // the two ends the animation already had.
+    const control = _termPathControl.set(
+      terminalFloatAnchor.position.x,
+      termSeatPosition.y,
+      terminalFloatAnchor.position.z,
+    );
+    const inv = 1 - ease;
+    const a = inv * inv;
+    const b = 2 * inv * ease;
+    const c = ease * ease;
+    termObject.position.set(
+      a * termSeatPosition.x + b * control.x + c * terminalFloatAnchor.position.x,
+      a * termSeatPosition.y + b * control.y + c * terminalFloatAnchor.position.y,
+      a * termSeatPosition.z + b * control.z + c * terminalFloatAnchor.position.z,
+    );
     termObject.quaternion.slerpQuaternions(termSeatQuaternion, terminalFloatAnchor.quaternion, ease);
     // pocket-sized in the bay, working-sized at the face
     const park = CHECKOUT_TERMINAL_BAY.parkScale;
@@ -2662,104 +2693,125 @@ export function createRegisterMode(B) {
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+  // THE READER'S FACE (round 10, 2026-08-03).
+  //
+  // What this replaced: a stack of full-bleed gradient bands — a slate status
+  // strip, a mid-blue caption band, a navy amount band, and the prompt in a
+  // tinted pill. Four competing backgrounds on a 70 mm screen, with the amount
+  // no more prominent than the word above it. Reported as "the DUE / TOTAL
+  // panel reads dated".
+  //
+  // What replaces it is how a current payment terminal actually reads: ONE dark
+  // ground, and hierarchy carried by type and space instead of by coloured
+  // boxes. A quiet status line at the top; a small letterspaced eyebrow naming
+  // what the figure is; the figure itself dominant, left-aligned on a real
+  // margin; a hairline; the prompt small and muted underneath. Colour appears
+  // once, as the accent — green normally, red on a decline or an entry error —
+  // and never as a background.
+  const TERM_INK = '#F2F6F3';
+  const TERM_INK_MUTED = '#8B9A93';
+  const TERM_ACCENT = '#4FD08A';
+  const TERM_WARN = '#E4695A';
+  // canvas letterSpacing is Chromium-only; the caps still read without it
+  const setTermTracking = (ctx, px) => {
+    try { ctx.letterSpacing = `${px}px`; } catch { /* older canvas */ }
+  };
   function paintTermBandedFace(ctx, W, H, {
-    caption, amount, amountInk = '#ffffff', footer, footerInk, caret = false,
-    captionTop = '#63a0c4', captionBottom = '#4d84a6',
-    amountTop = '#24446b', amountBottom = '#182f4c',
+    caption, amount, footer, caret = false, accent = TERM_ACCENT,
+    // retained so the older call shape stays valid; the face no longer paints
+    // bands, so these only pick the accent
+    footerInk = null, amountInk = null,
   }) {
+    const tone = footerInk || accent;
     const x0 = TERM_PAD;
     const w = W - TERM_PAD * 2;
     const inner = H - TERM_PAD * 2;
-    // the glass card, rounded, with a whisper of inner shadow at the edges
+    const left = x0 + 34;              // the margin everything hangs off
     ctx.save();
-    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 14);
-    ctx.fillStyle = '#eef1f2';
+    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 16);
+    ctx.fillStyle = '#0D1211';
     ctx.fill();
     ctx.clip();
-    // status strip
-    const statusH = Math.round(inner * 0.135);
-    const statusGrad = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + statusH);
-    statusGrad.addColorStop(0, '#23272a');
-    statusGrad.addColorStop(1, '#141719');
-    ctx.fillStyle = statusGrad;
-    ctx.fillRect(x0, TERM_PAD, w, statusH);
-    // THE REFERENCE'S TITLE BAR (154618) reads "Payment" beside a small user
-    // glyph, with the operator's mark pushed to the right — round 8 restores
-    // exactly that order; the club name had been sitting where "Payment"
-    // belongs and the strip read like a shop sign rather than a status line.
+
+    // --- status line ---------------------------------------------------------
+    const statusY = TERM_PAD + 40;
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#59d68a';
-    ctx.font = '700 30px Arial, sans-serif';
-    ctx.fillText('●', x0 + 18, TERM_PAD + statusH / 2 + 1);
-    ctx.fillStyle = '#e6ebe8';
-    ctx.font = '600 27px Arial, sans-serif';
-    ctx.fillText('Payment', x0 + 44, TERM_PAD + statusH / 2 + 1);
+    ctx.textBaseline = 'middle';
+    ctx.beginPath();
+    ctx.arc(left + 5, statusY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = accent;
+    ctx.fill();
+    setTermTracking(ctx, 2.2);
+    ctx.font = '600 21px Arial, sans-serif';
+    ctx.fillStyle = TERM_INK_MUTED;
+    ctx.fillText('PAYMENT', left + 24, statusY + 1);
+    // measured while the tracked font is still set, or the gap is understated
+    const paymentEnd = left + 24 + ctx.measureText('PAYMENT').width;
+    setTermTracking(ctx, 0);
+    // …and the club name after it, clear of BOTH neighbours. The cancel X is
+    // drawn last over everything, so a name right-aligned to the glass edge
+    // vanishes under it; a name sized only against the X ran into "PAYMENT"
+    // instead. Give it the measured gap on the left and the badge on the right,
+    // and let it shrink into whatever is actually free.
+    const brandRight = TERM_X_BOX.x0 - 18;
+    const brandLeft = paymentEnd + 34;
+    const brandName = displayClubName().toUpperCase();
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#93a09a';
-    setFittedCanvasFont(ctx, displayClubName().toUpperCase(), {
-      maxWidth: w * 0.42, startSize: 20, minimumSize: 13, weight: 600,
+    ctx.fillStyle = 'rgba(139,154,147,0.75)';
+    setFittedCanvasFont(ctx, brandName, {
+      maxWidth: Math.max(60, brandRight - brandLeft), startSize: 18, minimumSize: 11, weight: 600,
     });
-    ctx.fillText(displayClubName().toUpperCase(), x0 + w - 18, TERM_PAD + statusH / 2 + 1);
-    // caption band
-    const capY = TERM_PAD + statusH;
-    const capH = Math.round(inner * 0.215);
-    const capGrad = ctx.createLinearGradient(0, capY, 0, capY + capH);
-    capGrad.addColorStop(0, captionTop);
-    capGrad.addColorStop(1, captionBottom);
-    ctx.fillStyle = capGrad;
-    ctx.fillRect(x0, capY, w, capH);
+    ctx.fillText(brandName, brandRight, statusY + 1);
+    ctx.fillStyle = 'rgba(232,240,236,0.10)';
+    ctx.fillRect(left, statusY + 30, w - 68, 2);
+
+    // --- the eyebrow: what the figure below IS -------------------------------
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    setFittedCanvasFont(ctx, caption, {
-      maxWidth: w - 44, startSize: 60, minimumSize: 30, weight: 700,
+    setTermTracking(ctx, 3.4);
+    ctx.font = '700 22px Arial, sans-serif';
+    ctx.fillStyle = tone;
+    ctx.fillText(String(caption).toUpperCase(), left, statusY + 88);
+    setTermTracking(ctx, 0);
+
+    // --- the figure, dominant ------------------------------------------------
+    const amountY = statusY + 176;
+    ctx.fillStyle = amountInk || TERM_INK;
+    const amountSize = setFittedCanvasFont(ctx, amount, {
+      maxWidth: w - 68 - (caret ? 26 : 0), startSize: 118, minimumSize: 44, weight: 800,
     });
-    ctx.fillText(caption, x0 + 22, capY + capH / 2 + 2);
-    // amount band
-    const amtY = capY + capH;
-    const amtH = Math.round(inner * 0.36);
-    const amtGrad = ctx.createLinearGradient(0, amtY, 0, amtY + amtH);
-    amtGrad.addColorStop(0, amountTop);
-    amtGrad.addColorStop(1, amountBottom);
-    ctx.fillStyle = amtGrad;
-    ctx.fillRect(x0, amtY, w, amtH);
-    ctx.fillStyle = amountInk;
-    setFittedCanvasFont(ctx, amount, {
-      maxWidth: w - (caret ? 76 : 44), startSize: 116, minimumSize: 40, weight: 800,
-    });
-    ctx.fillText(amount, x0 + 22, amtY + amtH / 2 + 4);
+    ctx.fillText(amount, left, amountY);
     if (caret) {
-      // the entry caret: a bright block right after the running figure, so
-      // "this is where your digits go" reads even in a still frame
-      const typedWidth = ctx.measureText(amount).width;
-      ctx.fillStyle = '#8fd0ff';
-      ctx.fillRect(x0 + 30 + typedWidth, amtY + amtH * 0.24, 10, amtH * 0.52);
+      // where the next digit lands, sized off the figure it follows
+      ctx.fillStyle = accent;
+      ctx.fillRect(
+        left + ctx.measureText(amount).width + 12,
+        amountY - amountSize * 0.36,
+        8,
+        amountSize * 0.72,
+      );
     }
-    // a hairline under the amount band grounds it on the pale glass
-    ctx.fillStyle = 'rgba(20, 34, 52, 0.18)';
-    ctx.fillRect(x0, amtY + amtH, w, 3);
+
+    // --- the prompt, secondary ----------------------------------------------
     if (footer) {
-      // the hint rides in a pill chip instead of floating as bare text
-      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(232,240,236,0.10)';
+      ctx.fillRect(left, amountY + 64, w - 68, 2);
+      setTermTracking(ctx, 1.4);
+      ctx.fillStyle = footerInk ? tone : TERM_INK_MUTED;
       setFittedCanvasFont(ctx, footer, {
-        maxWidth: w - 90, startSize: 30, minimumSize: 19, weight: 700,
+        maxWidth: w - 68, startSize: 25, minimumSize: 16, weight: 600,
       });
-      const footerWidth = ctx.measureText(footer).width;
-      const pillY = amtY + amtH + (H - TERM_PAD - (amtY + amtH)) / 2;
-      const pillH = 52;
-      termRoundedPath(ctx, W / 2 - footerWidth / 2 - 26, pillY - pillH / 2, footerWidth + 52, pillH, pillH / 2);
-      ctx.fillStyle = footerInk ? 'rgba(179, 54, 42, 0.12)' : 'rgba(31, 58, 92, 0.10)';
-      ctx.fill();
-      ctx.fillStyle = footerInk || '#3c5168';
-      ctx.fillText(footer, W / 2, pillY + 1);
+      ctx.fillText(footer, left, amountY + 100);
+      setTermTracking(ctx, 0);
     }
-    // the inner edge shadow, drawn last inside the clip
-    termRoundedPath(ctx, x0 + 2, TERM_PAD + 2, w - 4, inner - 4, 12);
-    ctx.strokeStyle = 'rgba(10, 16, 20, 0.35)';
-    ctx.lineWidth = 4;
+
+    // a single hairline edge, so the glass reads as glass and not as a hole
+    termRoundedPath(ctx, x0 + 1.5, TERM_PAD + 1.5, w - 3, inner - 3, 15);
+    ctx.strokeStyle = 'rgba(232,240,236,0.13)';
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
-    return amtY + amtH;
   }
+
 
   function drawTerm() {
     const signature = terminalVisualSignature();
@@ -2805,21 +2857,21 @@ export function createRegisterMode(B) {
       // floating at the face, hiding the entry made keying the total feel like
       // guesswork. The keypad stays physical — the canvas draws no keys — but
       // the running figure renders live as it is typed (2026-07-30 ruling).
-      // The TOTAL is the prompt — the slate banner up top, reference-style,
-      // with the running entry HUGE and dark on the light face.
+      // Round 10: the eyebrow names what the big figure IS — the amount being
+      // keyed. What is owed, and how to commit it, are the secondary line:
+      // reference material rather than the thing being changed.
       const typed = String(tx.cardEntryDigits || '').length
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
-      // Reference caption is the single word "Total" over the figure; the
-      // amount owed rides the hint chip so the band stays uncluttered.
       paintTermBandedFace(ctx, W, H, {
-        caption: 'Total',
+        caption: 'Amount',
         amount: typed,
         caret: true,
+        accent: tx.cardEntryError ? TERM_WARN : TERM_ACCENT,
         footer: tx.cardEntryError
           ? tx.cardEntryError.toUpperCase()
-          : `DUE $${totalOf(tx).toFixed(2)} \u00b7 GREEN OK`,
-        footerInk: tx.cardEntryError ? '#b3362a' : null,
+          : `DUE $${totalOf(tx).toFixed(2)}   \u00b7   PRESS OK`,
+        footerInk: tx.cardEntryError ? TERM_WARN : null,
       });
     } else if (stage === 'card-busy') {
       const dots = '.'.repeat(1 + (Math.floor(termDotsTimer * 3) % 3));
@@ -2832,25 +2884,17 @@ export function createRegisterMode(B) {
       paintTermBandedFace(ctx, W, H, {
         caption: tx.cardResult === 'timeout' ? 'Timeout' : 'Declined',
         amount: `$${totalOf(tx).toFixed(2)}`,
-        amountInk: '#ffc7be',
-        captionTop: '#b0554a',
-        captionBottom: '#8e392f',
-        amountTop: '#5c2620',
-        amountBottom: '#421a16',
+        accent: TERM_WARN,
         footer: 'TRY ANOTHER CARD OR CASH',
-        footerInk: '#b3362a',
+        footerInk: TERM_WARN,
       });
     } else if (['receipt', 'bagging', 'done'].includes(stage)) {
       paintTermBandedFace(ctx, W, H, {
         caption: 'Approved',
         amount: `$${totalOf(tx).toFixed(2)}`,
-        amountInk: '#a9f4c4',
-        captionTop: '#3f9e68',
-        captionBottom: '#2c7f50',
-        amountTop: '#1d4a33',
-        amountBottom: '#123526',
+        accent: TERM_ACCENT,
         footer: 'THANK YOU',
-        footerInk: '#1f8a4c',
+        footerInk: TERM_ACCENT,
       });
     } else {
       const brand = displayClubName().toUpperCase();
@@ -3254,7 +3298,19 @@ export function createRegisterMode(B) {
     // seating offset scales with it so the card does not swim in the slot.
     const termScale = termObject ? termObject.scale.x || 1 : 1;
     if (cardMesh) cardMesh.scale.setScalar(termScale);
-    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.062 * termScale)));
+    // SEATED MEANS THE HEAD IS AT THE CONTACTS. 0.062 was hand-tuned when the
+    // card still drew at world scale; against the 1.85x reader it left only 7.9%
+    // of the card inside the device (measured 2026-08-03, tools/qa/checkout-
+    // reader-geometry.js) with the rest hanging in mid-air below it — "it sits
+    // against the reader rather than in it". Offsetting by the card's own
+    // HALF-LENGTH puts its top edge exactly on the authored socket, which the
+    // kit places 0.0148 above the deck origin inside Terminal_ChipSlot. Just
+    // under a third of the card is then swallowed and the rest shows, which is
+    // what a chip card in a terminal looks like — and it stays right at any
+    // scale, because it is the card's own measurement rather than a constant.
+    cardInserted.copy(root.worldToLocal(
+      socketWorld.clone().addScaledVector(out, (CARD_WIDTH / 2) * termScale),
+    ));
     return true;
   }
 
