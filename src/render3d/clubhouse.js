@@ -8498,8 +8498,36 @@ export function makeClubhouse(ctx) {
 
     // CLOSED shows the customer-facing side to the player; OPEN turns the card
     // around. The yaw IS the state, so there is nothing to keep in sync.
-    const applyFacing = () => {
-      group.rotation.y = signIsOpen(state) ? Math.PI : 0;
+    //
+    // THE TURN IS VISIBLE. It used to assign the target yaw outright, so the
+    // card teleported through 180 degrees between two frames and the only
+    // evidence anything happened was the toast. You flipped it and it had
+    // always been that way. Now the target is stored and the card SWINGS to it
+    // over SPIN_S, eased in and out, so the flip is a thing you watched happen.
+    // A quarter-second is about right: long enough to read as a turn, short
+    // enough that opening the shop is not a cutscene.
+    const SPIN_S = 0.28;
+    const spin = { from: 0, to: 0, t: 1 };
+    const applyFacing = (animate = false) => {
+      const want = signIsOpen(state) ? Math.PI : 0;
+      if (!animate) {
+        spin.from = want; spin.to = want; spin.t = 1;
+        group.rotation.y = want;
+        return;
+      }
+      if (Math.abs(want - spin.to) < 1e-6) return;
+      spin.from = group.rotation.y;
+      spin.to = want;
+      spin.t = 0;
+    };
+    // Ticked from the clubhouse update; a no-op once the card has settled.
+    const tickSpin = (dt) => {
+      if (spin.t >= 1) return;
+      spin.t = Math.min(1, spin.t + dt / SPIN_S);
+      // smoothstep: the card starts moving, swings, and settles rather than
+      // arriving at full speed and stopping dead against nothing
+      const e = spin.t * spin.t * (3 - 2 * spin.t);
+      group.rotation.y = spin.from + (spin.to - spin.from) * e;
     };
     applyFacing();
 
@@ -8513,7 +8541,7 @@ export function makeClubhouse(ctx) {
       action: () => {
         const result = flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
         if (!result.ok) return;
-        applyFacing();
+        applyFacing(true); // swing it, do not teleport it
         if (hooks.sfx) hooks.sfx('uiTick');
         // State the fact; no coaching, and no warning about opening late or
         // opening filthy — the player learns those (Designs/ROADMAP.md).
@@ -8524,7 +8552,7 @@ export function makeClubhouse(ctx) {
         }
       },
     });
-    return { group, prop, applyFacing };
+    return { group, prop, applyFacing, tickSpin };
   })();
 
   // --- reusable customer baskets --------------------------------------------------
@@ -10584,6 +10612,8 @@ export function makeClubhouse(ctx) {
   function update(dtMs) {
     const dt = Math.min(0.1, dtMs / 1000);
     now += dt;
+    // the door sign's flip animation (a no-op unless it is mid-swing)
+    shopSign.tickSpin(dt);
     // Campaign arrival events. The objective list and the arrival phase gate
     // read campaign.events, and nothing else records them: porch contact (or
     // the immediate approach) marks the walk-up, crossing the interior

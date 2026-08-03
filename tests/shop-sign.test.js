@@ -106,7 +106,17 @@ test('the sign is a physical prop with an E verb, not a menu toggle', () => {
     'it reads its state live so the prompt cannot go stale');
   assert.match(clubhouseSource, /action: \(\) => \{\s*\n\s*const result = flipSign\(/,
     'E flips the shared sim verb');
-  // the two faces are painted on one card; flipping is a turn, not a swap
-  assert.match(clubhouseSource, /group\.rotation\.y = signIsOpen\(state\) \? Math\.PI : 0/,
+  // The two faces are painted on one card; flipping is a turn, not a swap, and
+  // the yaw is still derived from the state rather than tracked separately.
+  assert.match(clubhouseSource, /const want = signIsOpen\(state\) \? Math\.PI : 0;/,
     'the yaw IS the state, so there is nothing to keep in sync');
+  // ...and the turn is VISIBLE. Assigning the target outright teleported the
+  // card through 180 degrees between two frames, so the only evidence of a flip
+  // was the toast. It must ease to the target over time instead.
+  assert.match(clubhouseSource, /spin\.from = group\.rotation\.y;/,
+    'a flip starts from wherever the card currently is');
+  assert.match(clubhouseSource, /applyFacing\(true\); \/\/ swing it, do not teleport it/,
+    'the E verb animates the turn');
+  assert.match(clubhouseSource, /shopSign\.tickSpin\(dt\);/,
+    'and the swing is ticked from the clubhouse update, or it would never move');
 });
