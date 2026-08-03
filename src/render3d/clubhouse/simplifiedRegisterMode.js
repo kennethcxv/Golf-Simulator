@@ -205,17 +205,30 @@ export const CHECKOUT_TERMINAL_BAY = Object.freeze({
   localX: -0.04,
   width: 0.56,
   height: 0.21,
-  reach: 0.115,          // how far the tray stands proud of the desk face
+  // Depth of the alcove. Round 8: 0.115 was too shallow for anything to LEAN
+  // in — a device pitched back by seatPitch tipped its head straight through
+  // the lit back panel, which is half of what "phasing through" was. Measured
+  // in the bay's own frame, the parked reader sweeps 0.153 of depth, so 0.19
+  // is what actually contains it with a margin at both ends.
+  reach: 0.19,
   // High under the lip, so the tray's upper half and the parked devices'
   // heads read from the low round-6 working eye (the first seat at 0.145
   // fell almost entirely below the frame's bottom edge).
   belowTop: 0.115,
-  seatPitch: -0.5,       // the parked reader leans back against the glow
+  // A SHALLOW lean. Measured 2026-08-02 in the bay's own frame: at -0.5 rad
+  // the parked reader swept 0.161 of depth in a 0.15 alcove and its face hung
+  // 0.023 proud of the opening. -0.32 stands it nearer upright — the way a
+  // terminal actually sits in a shelf — and brings the whole device inside.
+  seatPitch: -0.32,
   // The working-size reader is 0.405 tall — parked at full size its head
   // towered out of the tray and read as a loose slab on the counter. A real
   // terminal is pocket-sized at rest; it parks at this fraction of working
-  // scale and the float grows it back to full size at the face.
-  parkScale: 0.55,
+  // scale and the float grows it back to full size at the face. 0.42 is the
+  // largest that still fits the opening AND the lean without clipping.
+  parkScale: 0.42,
+  // Where the parked reader's base stands, as a fraction of reach: far enough
+  // forward that leaning back keeps its head clear of the panel.
+  seatDepthFrac: 0.55,
   pinPadOffsetX: 0.17,   // the second small device beside the reader
 });
 const CARD_TIME = 1.15;
@@ -942,7 +955,13 @@ export function createRegisterMode(B) {
   // while the amount is keyed. The clearance clamp below keeps its base (and
   // the card hanging from it) out of the counter now that the working eye
   // rides much lower than when 1.16 m was first tuned.
-  const TERMINAL_FLOAT_DISTANCE = 1.16;     // metres along the VIEW AXIS
+  // ROUND 8: "make the buttons and the overall thing bigger and closer so it's
+  // easier to use." The reference (Designs/CashRegister/Final 154618) holds the
+  // terminal at arm's length filling better than half the frame height; at
+  // 1.16 m ours filled about a third and the physical keys were small targets.
+  // 0.74 m is the same device 57% nearer — every key grows with it, since the
+  // pad is modelled geometry rather than drawn UI.
+  const TERMINAL_FLOAT_DISTANCE = 0.74;     // metres along the VIEW AXIS
   const TERMINAL_FLOAT_LEFT = 0;            // dead centre (round 7)
   const TERMINAL_FLOAT_DROP = 0.02;         // essentially on the view axis
   // The device origin is its BASE and the inserted card hangs below that.
@@ -1289,52 +1308,75 @@ export function createRegisterMode(B) {
     ))
     .add(BAG_POS);
 
-  // --- THE DEVICE BAY (round 7) --------------------------------------------
-  // A dark-framed tray with a pure-white glowing back panel, mounted flush on
-  // the desk's staff-facing front edge (the desk is solid, so a true cut-in
-  // would be swallowed by its geometry — a proud light-box reads identically
-  // from the working frame and is what the 2026-07-31 reference shows). The
-  // reader parks standing in it; a small white pin pad keeps it company.
+  // --- THE DEVICE BAY ------------------------------------------------------
+  // A CLOSED ALCOVE: back panel, floor, ceiling and two side walls, opening
+  // toward the staff. Round 8 (2026-08-02) rebuilt it — the round-7 version
+  // was four loose rails around a floating white slab, so the panel bled past
+  // the frame, the box had no floor to sit on, and the pin pad hung straight
+  // through the bottom ("they look super weird like they are phasing though
+  // and the back is white for some reason"). Every wall is dark and shares
+  // the counter's own material family; the only bright surface is the back
+  // panel, and it is now BOUNDED on all four sides so it reads as a lit
+  // recess instead of a white sheet stuck to the desk. Nothing inside may
+  // exceed the opening — enforced by BAY_INNER below.
   const BAY = CHECKOUT_TERMINAL_BAY;
-  const bayFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.55 });
-  const bayGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+  const BAY_WALL = 0.018;
+  const bayFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x1e2125, roughness: 0.62 });
+  // Not pure white: a warm off-white at a restrained emissive lift reads as a
+  // lit shelf. 0xffffff unlit-basic was the "the back is white" report.
+  const bayGlowMaterial = new THREE.MeshStandardMaterial({
+    color: 0xe8ebe6,
+    emissive: 0xfaf6ea,
+    emissiveIntensity: 0.42,
+    roughness: 0.9,
+  });
   const terminalBay = new THREE.Group();
   terminalBay.name = 'CheckoutTerminalBay';
   {
     const face = frontDeskPoint(BAY.localX, COUNTER.depth / 2 + 0.004);
     terminalBay.position.set(face.x, COUNTER_TOP - BAY.belowTop, face.z);
     terminalBay.quaternion.copy(frontDeskQuaternion());
-    const glow = new THREE.Mesh(new THREE.BoxGeometry(BAY.width, BAY.height, 0.006), bayGlowMaterial);
-    glow.position.set(0, 0, 0.010);
+    const halfW = BAY.width / 2;
+    const halfH = BAY.height / 2;
+    // the lit back, inset behind the opening
+    const glow = new THREE.Mesh(
+      new THREE.BoxGeometry(BAY.width, BAY.height, 0.008),
+      bayGlowMaterial,
+    );
+    glow.position.set(0, 0, 0.004);
     terminalBay.add(glow);
-    const rails = [
-      [BAY.width + 0.05, 0.022, BAY.reach - 0.012, 0, BAY.height / 2 + 0.011, (BAY.reach - 0.012) / 2],
-      [BAY.width + 0.05, 0.022, BAY.reach, 0, -BAY.height / 2 - 0.011, BAY.reach / 2],
-      [0.022, BAY.height + 0.044, BAY.reach - 0.012, -(BAY.width / 2 + 0.014), 0, (BAY.reach - 0.012) / 2],
-      [0.022, BAY.height + 0.044, BAY.reach - 0.012, BAY.width / 2 + 0.014, 0, (BAY.reach - 0.012) / 2],
+    // floor, ceiling and jambs — a real box, flush at the opening so the
+    // alcove is closed on every side except the one you look into
+    const walls = [
+      [BAY.width + BAY_WALL * 2, BAY_WALL, BAY.reach, 0, halfH + BAY_WALL / 2, BAY.reach / 2],
+      [BAY.width + BAY_WALL * 2, BAY_WALL, BAY.reach, 0, -halfH - BAY_WALL / 2, BAY.reach / 2],
+      [BAY_WALL, BAY.height, BAY.reach, -halfW - BAY_WALL / 2, 0, BAY.reach / 2],
+      [BAY_WALL, BAY.height, BAY.reach, halfW + BAY_WALL / 2, 0, BAY.reach / 2],
     ];
-    for (const [w, h, d, x, y, z] of rails) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bayFrameMaterial);
-      rail.position.set(x, y, z);
-      terminalBay.add(rail);
+    for (const [w, h, d, x, y, z] of walls) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bayFrameMaterial);
+      wall.position.set(x, y, z);
+      terminalBay.add(wall);
     }
     // the second small device from the reference: a white-faced pin pad
-    // propped beside the reader's seat
+    // standing on the alcove floor, leaning back against the lit panel. Sized
+    // from the opening so it cannot poke through any wall.
+    const padH = Math.min(0.108, BAY.height - 0.03);
     const pinPad = new THREE.Group();
     const pinBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.082, 0.148, 0.024),
-      bayFrameMaterial,
+      new THREE.BoxGeometry(0.062, padH, 0.017),
+      new THREE.MeshStandardMaterial({ color: 0x2a2e33, roughness: 0.5 }),
     );
     const pinFaceCanvas = document.createElement('canvas');
     pinFaceCanvas.width = 96;
     pinFaceCanvas.height = 160;
     {
       const c2 = pinFaceCanvas.getContext('2d');
-      c2.fillStyle = '#f4f5f2';
+      c2.fillStyle = '#eef0ec';
       c2.fillRect(0, 0, 96, 160);
       c2.fillStyle = '#20241f';
       c2.fillRect(10, 10, 76, 34); // its own little screen
-      c2.fillStyle = '#c9cdc6';
+      c2.fillStyle = '#c2c7c0';
       for (let row = 0; row < 4; row += 1) {
         for (let col = 0; col < 3; col += 1) {
           c2.fillRect(12 + col * 26, 56 + row * 25, 20, 17);
@@ -1344,13 +1386,22 @@ export function createRegisterMode(B) {
     const pinFaceTexture = new THREE.CanvasTexture(pinFaceCanvas);
     pinFaceTexture.colorSpace = THREE.SRGBColorSpace;
     const pinFace = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.074, 0.140),
+      new THREE.PlaneGeometry(0.054, padH - 0.008),
       new THREE.MeshBasicMaterial({ map: pinFaceTexture, toneMapped: false }),
     );
-    pinFace.position.z = 0.0125;
+    pinFace.position.z = 0.0091;
     pinPad.add(pinBody, pinFace);
-    pinPad.position.set(BAY.pinPadOffsetX, -BAY.height / 2 + 0.052, BAY.reach * 0.48);
-    pinPad.rotation.x = BAY.seatPitch * 0.72;
+    // stand it on the floor: half its leaned height above the floor plane,
+    // and far enough forward that leaning back keeps it clear of the panel
+    const lean = BAY.seatPitch;
+    const padRise = (padH / 2) * Math.cos(lean);
+    const padSet = (padH / 2) * Math.abs(Math.sin(lean));
+    pinPad.position.set(
+      BAY.pinPadOffsetX,
+      -halfH + padRise + 0.004,
+      Math.min(BAY.reach - 0.02, 0.014 + padSet + 0.012),
+    );
+    pinPad.rotation.x = lean;
     terminalBay.add(pinPad);
     suppressInteriorSunShadows(terminalBay);
     root.add(terminalBay);
@@ -2570,15 +2621,23 @@ export function createRegisterMode(B) {
     statusGrad.addColorStop(1, '#141719');
     ctx.fillStyle = statusGrad;
     ctx.fillRect(x0, TERM_PAD, w, statusH);
+    // THE REFERENCE'S TITLE BAR (154618) reads "Payment" beside a small user
+    // glyph, with the operator's mark pushed to the right — round 8 restores
+    // exactly that order; the club name had been sitting where "Payment"
+    // belongs and the strip read like a shop sign rather than a status line.
     ctx.textAlign = 'left';
     ctx.fillStyle = '#59d68a';
     ctx.font = '700 30px Arial, sans-serif';
-    ctx.fillText('●', x0 + 20, TERM_PAD + statusH / 2 + 1);
+    ctx.fillText('●', x0 + 18, TERM_PAD + statusH / 2 + 1);
     ctx.fillStyle = '#e6ebe8';
+    ctx.font = '600 27px Arial, sans-serif';
+    ctx.fillText('Payment', x0 + 44, TERM_PAD + statusH / 2 + 1);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#93a09a';
     setFittedCanvasFont(ctx, displayClubName().toUpperCase(), {
-      maxWidth: w - 150, startSize: 26, minimumSize: 18, weight: 700,
+      maxWidth: w * 0.42, startSize: 20, minimumSize: 13, weight: 600,
     });
-    ctx.fillText(displayClubName().toUpperCase(), x0 + 48, TERM_PAD + statusH / 2 + 1);
+    ctx.fillText(displayClubName().toUpperCase(), x0 + w - 18, TERM_PAD + statusH / 2 + 1);
     // caption band
     const capY = TERM_PAD + statusH;
     const capH = Math.round(inner * 0.215);
@@ -2689,13 +2748,15 @@ export function createRegisterMode(B) {
       const typed = String(tx.cardEntryDigits || '').length
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
+      // Reference caption is the single word "Total" over the figure; the
+      // amount owed rides the hint chip so the band stays uncluttered.
       paintTermBandedFace(ctx, W, H, {
-        caption: `Total due  $${totalOf(tx).toFixed(2)}`,
+        caption: 'Total',
         amount: typed,
         caret: true,
         footer: tx.cardEntryError
           ? tx.cardEntryError.toUpperCase()
-          : 'KEY THE TOTAL \u00b7 GREEN OK',
+          : `DUE $${totalOf(tx).toFixed(2)} \u00b7 GREEN OK`,
         footerInk: tx.cardEntryError ? '#b3362a' : null,
       });
     } else if (stage === 'card-busy') {
@@ -2974,7 +3035,7 @@ export function createRegisterMode(B) {
     // player's face when a card payment starts.
     const seatSpot = frontDeskPoint(
       BAY.localX - 0.11,
-      COUNTER.depth / 2 + 0.004 + BAY.reach * 0.52,
+      COUNTER.depth / 2 + 0.004 + BAY.reach * BAY.seatDepthFrac,
     );
     terminal.position.set(seatSpot.x, COUNTER_TOP - BAY.belowTop - BAY.height / 2 + 0.004, seatSpot.z);
     terminal.quaternion.copy(frontDeskQuaternion(BAY.seatPitch, 0, 0));
@@ -3023,6 +3084,35 @@ export function createRegisterMode(B) {
     // float aims the full-size device); only after measuring does the parked
     // pocket size apply, and updateTerminalFloat swells it back on the rise.
     terminal.scale.setScalar(termBaseScale * BAY.parkScale);
+    // ...AND SEAT IT BY MEASUREMENT, NOT BY ASSUMPTION. Round 7 placed the
+    // reader by assuming its origin was its base; probed 2026-08-02 the kit
+    // model hangs 0.037 BELOW its own origin, so the parked device sank
+    // through the alcove floor — the other half of "they look like they are
+    // phasing through". Measure the real box in the BAY's own frame and lift
+    // and push it until every corner is inside, whatever the GLB's origin is.
+    terminal.updateWorldMatrix(true, true);
+    terminalBay.updateWorldMatrix(true, false);
+    const seatedBox = new THREE.Box3().setFromObject(terminal);
+    if (!seatedBox.isEmpty()) {
+      const lowFront = terminalBay.worldToLocal(
+        new THREE.Vector3(seatedBox.min.x, seatedBox.min.y, seatedBox.min.z),
+      );
+      const highBack = terminalBay.worldToLocal(
+        new THREE.Vector3(seatedBox.max.x, seatedBox.max.y, seatedBox.max.z),
+      );
+      const floorY = -BAY.height / 2;
+      const nearestZ = Math.min(lowFront.z, highBack.z);
+      const lowestY = Math.min(lowFront.y, highBack.y);
+      const lift = Math.max(0, floorY + 0.004 - lowestY);
+      const push = Math.max(0, 0.012 - nearestZ);
+      if (lift > 0 || push > 0) {
+        // bay and terminal are both children of root, so a bay-local delta
+        // rotates into root-local by the bay's own quaternion
+        terminal.position.add(
+          new THREE.Vector3(0, lift, push).applyQuaternion(terminalBay.quaternion),
+        );
+      }
+    }
     // The authored card socket anchors the automatic chip insertion path.
     cardSocketNode = terminal.getObjectByName('CARD_INSERT_SOCKET') || null;
     collectTerminalKeys(terminal);
@@ -5937,15 +6027,25 @@ export function createRegisterMode(B) {
     const wantsOversize = tx.stage === 'bagging' && tx.receiptPacked
       && tx.items.some((item) => !item.bagged
         && itemMeshes.get(item.uid)?.userData?.catalogVisual?.separateHandoff);
-    const wantsBag = tx.stage === 'bagging' && tx.receiptPacked && allBagged(tx)
+    // The carrier is grabbable only once every dropped product has LANDED —
+    // grabbing it mid-flight would carry the bag out from under them.
+    const bagReady = tx.stage === 'bagging' && tx.receiptPacked && allBagged(tx)
       && bagDropMotions.length === 0;
-    const handingBag = checkoutFlowState() === 'BagHandoff';
-    customerPalm.visible = wantsChange || wantsOversize || wantsBag || handingBag;
-    if (!customerPalm.visible) return;
-    const side = wantsChange || wantsOversize ? 'R' : 'L';
-    customerPalm.position.copy(customerGripPoint(side) || customerAnchor(COUNTER_TOP + 0.10, side));
-    customerPalm.material.opacity = 0.30 + Math.sin(performance.now() * 0.005) * 0.10;
-    setBagPickable(wantsBag && !scanDrag);
+    // ONLY WHEN THE PLAYER MUST AIM AT IT. Round 8 (2026-08-02): "when the
+    // user purchases their item they have a grey white circle around one of
+    // their arms." That was this translucent sphere, shown through the whole
+    // AUTOMATIC bag delivery (bagReady + BagHandoff) where the player has
+    // nothing to aim — it is a drop target, so it belongs only to the manual
+    // oversize handoff, the one route that still asks for a drag.
+    customerPalm.visible = wantsChange || wantsOversize;
+    if (customerPalm.visible) {
+      const side = 'R';
+      customerPalm.position.copy(customerGripPoint(side) || customerAnchor(COUNTER_TOP + 0.10, side));
+      customerPalm.material.opacity = 0.30 + Math.sin(performance.now() * 0.005) * 0.10;
+    }
+    // …and the bag's own readiness is independent of whether a target is drawn,
+    // so the manual handles still arm on exactly the terms they always did.
+    setBagPickable(bagReady && !scanDrag);
   }
 
   function durableProjectRetailFulfillment() {
@@ -7306,19 +7406,26 @@ export function createRegisterMode(B) {
   // while the customer still crops through the chest.
   const WORK_POSE_ANCHOR_Y = 0.045;
   let workPoseCache = null; // { key, value }
+  // ONE FRAME FOR THE WHOLE SHIFT. Round 8 (2026-08-02): "after the transaction
+  // is over it moves the screen to the right — make it stay in the same
+  // forward facing view." Cause: every subject below used to be LIVE — the
+  // bag group, each item mesh, the customer's real position — so when the sale
+  // banked and all three vanished, the cache key changed and the solver
+  // re-composed around what was left (bag + POS + card station), whose centre
+  // sits well to the register side. The frame swung right on the last frame of
+  // every sale.
+  //
+  // The composition is now built from LAYOUT ONLY: authored footprints and the
+  // queue head, none of which depend on a transaction existing. The key is
+  // therefore constant for a whole session and the frame is literally the same
+  // one you entered on — which is what was asked for, and also why the "hold
+  // still" ruling from 2026-07-30 survives its last leak.
   function derivedWorkingPose() {
     const fallback = MIXED_POSE;
-    if (!bagGroup) return fallback;
     root.updateMatrixWorld(true);
-    const customer = customerLocalPosition();
-    // Re-solve only when the composition actually changes: a frame that chases
-    // a shuffling customer is the camera ride this pose exists to end.
-    const key = [
-      itemMeshes.size,
-      tx ? tx.items.length : 0,
-      customer ? Math.round(customer.x * 4) : 'x',
-      customer ? Math.round(customer.z * 4) : 'z',
-    ].join('|');
+    // screenPlane mounts with the deferred kit; before then the solve uses the
+    // authored monitor point, so the key records which of the two it used.
+    const key = screenPlane ? 'layout|glass' : 'layout|nominal';
     if (workPoseCache && workPoseCache.key === key) return workPoseCache.value;
     const subjects = [];
     const addBox = (object, inflate = 0) => {
@@ -7333,17 +7440,17 @@ export function createRegisterMode(B) {
       }
       return true;
     };
-    // 1 — the bag lying flat at counter-left
-    addBox(bagGroup);
-    // 2 — the goods: their authored staging footprint plus whatever is on it
-    for (const rect of [REGISTER.staging, REGISTER.scannedStaging]) {
+    // 1 — the carrier's authored footprint at counter-left (NOT the live bag,
+    //     which travels to the customer during the handoff)
+    // 2 — the goods: their authored staging footprints (NOT the live items,
+    //     which are disposed the moment the sale banks)
+    for (const rect of [REGISTER.bagging, REGISTER.staging, REGISTER.scannedStaging]) {
       for (const x of [rect.minX, rect.maxX]) {
         for (const z of [rect.minZ, rect.maxZ]) {
           subjects.push(root.localToWorld(new THREE.Vector3(x, COUNTER_TOP + 0.10, z)));
         }
       }
     }
-    for (const mesh of itemMeshes.values()) addBox(mesh);
     // 3 — the POS glass, corner to corner, so no edge of it clips out
     if (screenPlane) addBox(screenPlane, 0.02);
     else {
@@ -7355,15 +7462,18 @@ export function createRegisterMode(B) {
     subjects.push(root.localToWorld(new THREE.Vector3(
       CARD_STATION.x, COUNTER_TOP + 0.04, CARD_STATION.z,
     )));
-    // 5 — the customer's HANDS at the counter, and nothing higher. This one
-    // point keeps their side of the counter inside the frame; everything above
-    // it is deliberately free to run off the top, which is how a standing
-    // cashier actually sees the person opposite. The old solve asked for the
-    // CROWN, and a frame that must contain a whole standing adult across a
-    // counter can only be shot from above them — the bird's-eye report.
-    if (customer) {
+    // 5 — where a customer STANDS (the queue head), at hand height and nothing
+    // higher. This one point keeps their side of the counter inside the frame;
+    // everything above it is deliberately free to run off the top, which is how
+    // a standing cashier actually sees the person opposite. The old solve asked
+    // for the CROWN, and a frame that must contain a whole standing adult
+    // across a counter can only be shot from above them — the bird's-eye
+    // report. Taking the queue SLOT rather than the live body is what stops the
+    // frame drifting when nobody is there.
+    {
+      const head = queueSlot(0);
       subjects.push(root.localToWorld(new THREE.Vector3(
-        customer.x, customer.y + CHECKOUT_CUSTOMER_HANDS_Y, customer.z,
+        head.x, CHECKOUT_STAFF_FLOOR_Y + CHECKOUT_CUSTOMER_HANDS_Y, head.z,
       )));
     }
     if (subjects.length < 8) return fallback;
@@ -7782,6 +7892,14 @@ export function createRegisterMode(B) {
       canvasSize: { w: TERM_CANVAS_W, h: TERM_CANVAS_H },
     }),
     cardTerminalScreenPoint,
+    // QA-only: the SOLVED working frame, so a driver can separate "the pose
+    // re-composed" from "the live camera is mid-ease or leaning on the
+    // cursor". Round 8 needed exactly that split to prove the post-sale swing
+    // was gone rather than merely small.
+    debugWorkingPose: () => {
+      const solved = dynamicPose('overview');
+      return { ...solved.pose, fov: solved.fov, poseKey: poseKey() };
+    },
     insertAt,
     root,
     screenMaterial,

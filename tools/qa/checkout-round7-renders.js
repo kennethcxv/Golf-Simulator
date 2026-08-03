@@ -199,6 +199,34 @@ async (page) => {
     };
   });
   await shot('01-working-frame.png');
+  // THE FRAME AS ENTERED. Round 8 compares this against the same reading after
+  // the sale banks — "after the transaction is over it moves the screen to the
+  // right" has to be a measured delta, not an impression.
+  const readPose = () => page.evaluate(() => {
+    const camera = window.__fw.scene3d.camera;
+    const register = window.__fw.scene3d.clubhouse().register;
+    return {
+      position: camera.position.toArray().map((v) => +v.toFixed(4)),
+      quaternion: camera.quaternion.toArray().map((v) => +v.toFixed(4)),
+      fov: camera.fov,
+      // the SOLVED frame, independent of easing and cursor lean
+      solved: register.debugWorkingPose ? register.debugWorkingPose() : null,
+    };
+  });
+  // Take the baseline only once the POS GLASS has mounted. The working solve
+  // uses the live screen quad when it exists and the authored monitor point
+  // before then, so a baseline read during the deferred kit load compares two
+  // different (both stable) compositions and reports a drift that has nothing
+  // to do with the sale — the confound this probe exists to rule out.
+  await page.waitForFunction(() => {
+    const clubhouse = window.__fw?.scene3d?.clubhouse?.();
+    if (!clubhouse) return false;
+    // attachScreen names the live canvas plane as it mounts it, so this is a
+    // direct signal that the working solve now has the real glass to fit.
+    return !!clubhouse.interior.getObjectByName('FrontDeskLiveMonitor');
+  }, null, { timeout: 60000 });
+  await page.waitForTimeout(600);
+  report.poseOnEntry = await readPose();
 
   // --- 02: ring the goods up -------------------------------------------------
   const uids = await page.evaluate(() => (
@@ -379,9 +407,38 @@ async (page) => {
     await page.waitForTimeout(1000);
   }
   report.stayInView = stayProbe;
+  report.poseAfterSale = await readPose();
+  {
+    const a = report.poseOnEntry;
+    const b = report.poseAfterSale;
+    const dist = Math.hypot(...a.position.map((v, i) => v - b.position[i]));
+    // quaternion dot -> half-angle between the two orientations
+    const dot = Math.abs(a.quaternion.reduce((sum, v, i) => sum + v * b.quaternion[i], 0));
+    const sa = a.solved || {};
+    const sb = b.solved || {};
+    report.frameDrift = {
+      eyeMovedYd: +dist.toFixed(4),
+      lookTurnedDeg: +(2 * Math.acos(Math.min(1, dot)) * 180 / Math.PI).toFixed(3),
+      fovChanged: a.fov !== b.fov,
+      // the composition itself — this is what round 8 changed
+      solvedYawDeg: +(((sb.yaw ?? 0) - (sa.yaw ?? 0)) * 180 / Math.PI).toFixed(4),
+      solvedPitchDeg: +(((sb.pitch ?? 0) - (sa.pitch ?? 0)) * 180 / Math.PI).toFixed(4),
+      solvedEyeMovedYd: +Math.hypot(
+        (sb.x ?? 0) - (sa.x ?? 0), (sb.y ?? 0) - (sa.y ?? 0), (sb.z ?? 0) - (sa.z ?? 0),
+      ).toFixed(4),
+      poseKeyOnEntry: sa.poseKey ?? null,
+      poseKeyAfterSale: sb.poseKey ?? null,
+    };
+  }
   await shot('09-post-sale-stays.png');
 
   fs.writeFileSync(path.join(OUT, 'metrics.json'), JSON.stringify(report, null, 2));
   const stayedThroughout = stayProbe.every((sample) => sample.active && sample.registerModeClass);
-  return { ok: true, out: OUT, stayedThroughout, report };
+  // The composition must be IDENTICAL; the live camera is allowed the tiny
+  // residue of easing between poses.
+  const frameHeld = report.frameDrift.solvedEyeMovedYd < 0.001
+    && Math.abs(report.frameDrift.solvedYawDeg) < 0.01
+    && Math.abs(report.frameDrift.solvedPitchDeg) < 0.01
+    && !report.frameDrift.fovChanged;
+  return { ok: true, out: OUT, stayedThroughout, frameHeld, drift: report.frameDrift, report };
 }

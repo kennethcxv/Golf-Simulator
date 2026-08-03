@@ -10816,6 +10816,7 @@ export function makeClubhouse(ctx) {
       insertAt: () => register.insertAt(),
       cardKeyScreenPoint: (actionId) => register.cardKeyScreenPoint(actionId),
       debugTerminalXAt: (x, y) => register.debugTerminalXAt(x, y),
+      debugWorkingPose: () => register.debugWorkingPose(),
       cardTerminalLocked: () => register.cardTerminalLocked(),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),

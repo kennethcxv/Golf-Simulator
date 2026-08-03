@@ -197,7 +197,10 @@ test('the reader glass carries the reference bands, not a centred calculator col
   const start = source.indexOf("} else if (stage === 'card-entry') {");
   const end = source.indexOf("} else if (stage === 'card-busy') {", start);
   const entry = source.slice(start, end);
-  assert.match(entry, /caption: `Total due/, 'the caption band names the amount due');
+  // Round 8: the reference caption is the single word "Total" over the figure;
+  // the amount owed moved to the hint chip.
+  assert.match(entry, /caption: 'Total'/, 'the caption band reads Total, reference-style');
+  assert.match(entry, /DUE \$\$\{totalOf\(tx\)/, 'the amount owed rides the hint chip');
   assert.match(entry, /caret: true/, 'the running entry carries a caret');
   assert.match(entry, /cardEnteredAmount\(tx\)/, 'the amount band carries the running entry');
 });
@@ -206,8 +209,16 @@ test('the reader glass carries the reference bands, not a centred calculator col
 
 test('the working frame is solved from the counter, not typed', () => {
   const solved = functionBody('derivedWorkingPose');
-  for (const subject of ['bagGroup', 'REGISTER.staging', 'screenPlane', 'CARD_STATION', 'customerLocalPosition']) {
+  // Round 8: the subjects are the authored LAYOUT — footprints and the queue
+  // head — not live objects. Solving from the live bag/items/customer meant
+  // the frame re-composed and swung right the moment a sale banked and all
+  // three vanished.
+  for (const subject of ['REGISTER.bagging', 'REGISTER.staging', 'screenPlane', 'CARD_STATION', 'queueSlot(0)']) {
     assert.ok(solved.includes(subject), `the solve ignores ${subject}`);
+  }
+  for (const transient of ['itemMeshes.values()', 'customerLocalPosition()', 'addBox(bagGroup)']) {
+    assert.ok(!solved.includes(transient),
+      `the solve still depends on ${transient}, so the frame drifts when it disappears`);
   }
   assert.match(solved, /solveFramingPose\(\{/, 'it goes through the shared framing solver');
   assert.match(solved, /workPoseCache/, 'the solve is cached — a frame that chases the customer is a ride');

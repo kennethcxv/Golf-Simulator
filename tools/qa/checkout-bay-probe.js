@@ -53,11 +53,47 @@ async (page) => {
       if (!terminal && o.name === 'checkout-payment_terminal') terminal = o;
       if (!bay && o.name === 'CheckoutTerminalBay') bay = o;
     });
+    // CONTAINMENT, MEASURED IN THE BAY'S OWN FRAME. A world-space y/z pair
+    // cannot answer "is it inside the alcove" once the desk is rotated.
+    const inBayFrame = (object) => {
+      if (!object || !bay) return null;
+      bay.updateWorldMatrix(true, false);
+      object.updateWorldMatrix(true, true);
+      const box = new THREE.Box3().setFromObject(object);
+      if (box.isEmpty()) return null;
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
+      for (const x of [box.min.x, box.max.x]) {
+        for (const y of [box.min.y, box.max.y]) {
+          for (const z of [box.min.z, box.max.z]) {
+            const local = bay.worldToLocal(new THREE.Vector3(x, y, z));
+            lo[0] = Math.min(lo[0], local.x); hi[0] = Math.max(hi[0], local.x);
+            lo[1] = Math.min(lo[1], local.y); hi[1] = Math.max(hi[1], local.y);
+            lo[2] = Math.min(lo[2], local.z); hi[2] = Math.max(hi[2], local.z);
+          }
+        }
+      }
+      return {
+        x: [+lo[0].toFixed(3), +hi[0].toFixed(3)],
+        y: [+lo[1].toFixed(3), +hi[1].toFixed(3)],
+        z: [+lo[2].toFixed(3), +hi[2].toFixed(3)],
+      };
+    };
+    let pinPad = null;
+    if (bay) bay.traverse((o) => { if (!pinPad && o.isGroup && o !== bay) pinPad = o; });
     return {
       counterDepth: COUNTER.depth,
       terminal: terminal ? localize(terminal) : null,
       bay: bay ? localize(bay) : null,
       counterTopWorldY: +(interior.position.y + COUNTER_TOP).toFixed(3),
+      // the contract: everything parked must sit inside the opening. Read from
+      // the module's own constant so the probe cannot drift from the geometry.
+      opening: await (async () => {
+        const { CHECKOUT_TERMINAL_BAY: B } = await import('/src/render3d/clubhouse/simplifiedRegisterMode.js');
+        return { halfWidth: B.width / 2, halfHeight: B.height / 2, depth: B.reach };
+      })(),
+      readerInBay: inBayFrame(terminal),
+      pinPadInBay: inBayFrame(pinPad),
     };
   });
 

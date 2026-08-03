@@ -148,17 +148,76 @@ test('the floated reader is dead centre and clamped above the counter', () => {
 
 // --- 9: the device bay --------------------------------------------------------
 
-test('the desk carries the glowing device bay and the reader parks in it', () => {
+test('the desk carries the lit device bay and the reader parks in it', () => {
   assert.ok(CHECKOUT_TERMINAL_BAY.width > 0.4, 'wide enough for reader and pin pad');
   assert.ok(CHECKOUT_TERMINAL_BAY.belowTop > 0 && CHECKOUT_TERMINAL_BAY.belowTop < 0.4,
     'the bay hangs just under the counter top');
   assert.ok(CHECKOUT_TERMINAL_BAY.seatPitch < 0, 'the parked reader leans back against the glow');
   assert.match(source, /terminalBay\.name = 'CheckoutTerminalBay'/);
-  assert.match(source, /toneMapped: false \}\);\s*\n\s*const terminalBay/,
-    'the back panel is a pure-white light box, reference-style');
+  // Round 8: a CLOSED alcove — back panel plus four walls — not four loose
+  // rails around a floating white slab.
+  assert.match(source, /const walls = \[/, 'the alcove has real floor, ceiling and jambs');
+  assert.match(source, /bayGlowMaterial = new THREE\.MeshStandardMaterial\(\{[^}]*emissive/s,
+    'the lit back is an emissive surface, not an unlit pure-white sheet');
   assert.doesNotMatch(source, /TERMINAL_PARK_DEPTH/, 'the under-counter hiding place is gone');
   const attach = functionBody('attachTerm');
   assert.match(attach, /BAY\.seatPitch/, 'the seat pose comes from the bay');
+});
+
+test('nothing parked in the bay can phase through its walls', () => {
+  const bay = CHECKOUT_TERMINAL_BAY;
+  // The parked reader is the tallest occupant: the kit terminal measures
+  // 0.405 at working scale, and it stands on the alcove floor leaning back by
+  // seatPitch about its own base.
+  const readerWorkingHeight = 0.405;
+  const parked = readerWorkingHeight * bay.parkScale;
+  const rise = parked * Math.cos(bay.seatPitch);
+  const setBack = parked * Math.abs(Math.sin(bay.seatPitch));
+  assert.ok(rise < bay.height,
+    `leaned reader stands ${rise.toFixed(3)} in a ${bay.height} opening — its head clears the ceiling`);
+  const baseZ = bay.reach * bay.seatDepthFrac;
+  assert.ok(baseZ - setBack > 0.008,
+    `leaned reader tips back to z ${(baseZ - setBack).toFixed(3)} — it must stay in front of the lit panel`);
+  assert.ok(baseZ < bay.reach,
+    'and its base stands inside the alcove, not proud of the opening');
+  // The alcove must be deeper than the reader's own measured depth sweep
+  // (0.153, probed in the bay frame by tools/qa/checkout-bay-probe.js) or the
+  // device's face hangs out of the opening however it is seated.
+  assert.ok(bay.reach >= 0.17,
+    `a ${bay.reach} alcove cannot contain the parked reader's 0.153 depth sweep with margin`);
+});
+
+// --- ROUND 8 (2026-08-02) ------------------------------------------------------
+
+test('the working frame is composed once and never re-solves mid-shift', () => {
+  const solve = functionBody('derivedWorkingPose');
+  // "After the transaction is over it moves the screen to the right." The
+  // cache key must not carry anything that disappears with a sale.
+  const key = /const key = ([^;]+);/.exec(solve)[1];
+  for (const transient of ['itemMeshes', 'tx', 'customer']) {
+    assert.ok(!key.includes(transient),
+      `the pose cache key still varies with ${transient}, so the frame re-composes`);
+  }
+  assert.match(key, /screenPlane/, 'the only key input is which POS reference the solve had');
+});
+
+test('the customer wears no floating target during the automatic handoff', () => {
+  const palm = functionBody('updateCustomerPalmTarget');
+  // "When the user purchases their item they have a grey white circle around
+  // one of their arms." The translucent sphere is a DROP TARGET; the bag
+  // handoff is automatic, so it has nothing to aim at.
+  assert.match(palm, /customerPalm\.visible = wantsChange \|\| wantsOversize;/,
+    'the palm shows only for the manual oversize drag');
+  assert.ok(!/customerPalm\.visible = .*handingBag/.test(palm),
+    'BagHandoff must not raise a target the player cannot use');
+  assert.match(palm, /setBagPickable\(/, 'the bag stays grabbable on its own terms');
+});
+
+test('the reader comes close enough that its physical keys are real targets', () => {
+  const distance = Number(/const TERMINAL_FLOAT_DISTANCE = ([\d.]+)/.exec(source)[1]);
+  assert.ok(distance <= 0.85,
+    `the floated reader sits ${distance} m out — the reference holds it at arm's length`);
+  assert.ok(distance >= 0.5, 'but not so close it clips the near plane or looms');
 });
 
 // --- and finishing a sale keeps you at the till -------------------------------
