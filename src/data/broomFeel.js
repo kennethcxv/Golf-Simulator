@@ -140,9 +140,20 @@ export const BROOM_FEEL = Object.freeze({
     // carried pose and round 5's 31-deg shaft angle are unchanged at level and
     // only the response to pitch differs.
     carryHover: 0.60,
-    // roll of each hand about the shaft, radians — the two hands oppose each
-    // other on the handle the way they do on a real broom
-    handRollUpper: 0.10,
+    // roll of each hand about the shaft, radians.
+    //
+    // D2: 0.10 -> -2.70. These used to sit 3.05 rad — 175 deg — apart, which is
+    // not "opposed on the handle", it is one hand gripping over the top and the
+    // other from directly underneath. The visible consequence was the reported
+    // one: the LOWER hand wrapped the shaft and read as a fist, while the UPPER
+    // hand — the one nearest the lens and largest in frame — presented its bare
+    // dorsum and read as "an ovoid with a thumb". Same mesh, same pose, opposite
+    // faces toward the camera.
+    //
+    // Both hands now grip from the same side, 0.25 rad apart, which is both how
+    // a push broom is actually held and what puts fingers and knuckles on the
+    // camera side of BOTH hands.
+    handRollUpper: -2.70,
     handRollLower: -2.95,
     // ROUND 5: the wrist sits OFF the shaft centreline by this much. It used
     // to be placed exactly on the axis, so the palm straddled the handle and

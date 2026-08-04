@@ -215,8 +215,22 @@ function makeHand(mats, mirror = 1) {
   sleeve.add(cuffInner);
   g.add(sleeve);
 
+  // D2: THE BACK OF THE HAND IS WHAT YOU ACTUALLY LOOK AT, AND IT WAS AN EGG.
+  //
+  // "Lower hand reads as an ovoid with a thumb." The two hands are the same
+  // mesh; what differs is the roll about the shaft (broomFeel handRollUpper
+  // 0.10 vs handRollLower -2.95, i.e. nearly half a turn). The upper hand shows
+  // its fingers and reads as a fist; the lower one presents its DORSUM, and the
+  // dorsum had no features at all — one smooth ellipsoid with the knuckle bumps
+  // buried inside it. Measured against the old ellipsoid, the middle knuckle
+  // cleared the palm surface by 0.003 yd: three pixels at the distance a hand
+  // is actually viewed from.
+  //
+  // A back of a hand reads from three things, in this order: it is FLAT rather
+  // than round, the metacarpals run as ridges from wrist to knuckles, and the
+  // knuckle line breaks the silhouette. All three below.
   const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), mats.skin);
-  palm.scale.set(0.9, 0.52, 1.08);
+  palm.scale.set(0.96, 0.44, 1.06); // flatter and a touch wider — a slab, not an egg
   palm.position.set(0, 0, 0.012);
   g.add(palm);
 
@@ -226,19 +240,55 @@ function makeHand(mats, mirror = 1) {
   thenar.position.set(0.03 * mirror, -0.006, -0.004);
   g.add(thenar);
 
+  // …and the hypothenar on the pinky side, which was simply missing. Without it
+  // the silhouette is one symmetrical oval; with it the hand has the two lobes
+  // and the narrowing toward the wrist that say "hand" before any detail does.
+  const hypothenar = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), mats.skin);
+  hypothenar.scale.set(0.95, 0.78, 1.5);
+  hypothenar.position.set(-0.030 * mirror, -0.004, 0.016);
+  g.add(hypothenar);
+
+  // The knuckle row is an ARC, not a straight line: the middle knuckle stands
+  // most distal and the pinky's sits well back. Applied to the finger roots and
+  // their bumps together so the two cannot separate.
+  const KNUCKLE_Z = -0.033;
+  const knuckleArc = [-0.002, -0.004, -0.001, 0.005]; // index, middle, ring, pinky
+  const RIDGE_Y = 0.016; // dorsal side; the palm's own half-height is now 0.022
+  const RIDGE_R = 0.0065;
+
   // four fingers across the knuckle line, index outermost on the thumb side
   const fingers = [];
   const lens = [0.070, 0.076, 0.072, 0.062];
   for (let i = 0; i < 4; i++) {
+    const kx = (0.0285 - i * 0.019) * mirror;
+    const kz = KNUCKLE_Z + knuckleArc[i];
     const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], i === 0 || i === 1);
-    f.root.position.set((0.0285 - i * 0.019) * mirror, -0.004, -0.040);
+    f.root.position.set(kx, -0.004, kz - 0.007);
     g.add(f.root);
     fingers.push(f);
-    // a knuckle-ridge bump at each finger root, on the back of the hand
-    const knuckleBump = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 8, 6), fingerSkins[i]);
-    knuckleBump.scale.set(1, 0.8, 1);
-    knuckleBump.position.set((0.0285 - i * 0.019) * mirror, 0.007, -0.033);
+    // a knuckle-ridge bump at each finger root, on the back of the hand. Raised
+    // and enlarged so it CRESTS the flattened palm instead of sitting inside it.
+    const knuckleBump = new THREE.Mesh(new THREE.SphereGeometry(0.0130, 8, 6), fingerSkins[i]);
+    knuckleBump.scale.set(1, 0.78, 1);
+    knuckleBump.position.set(kx, 0.010, kz);
     g.add(knuckleBump);
+
+    // The metacarpal running back from that knuckle toward the wrist. These are
+    // what turn a flat slab into a back of a hand — four soft parallel ridges
+    // converging slightly as they go, catching light along their length.
+    const wx = kx * 0.5;
+    const wz = 0.034;
+    const run = Math.hypot(kx - wx, kz - wz);
+    const meta = new THREE.Group();
+    meta.position.set((kx + wx) / 2, RIDGE_Y, (kz + wz) / 2);
+    meta.rotation.y = Math.atan2(kx - wx, kz - wz);
+    const bone = new THREE.Mesh(
+      new THREE.CapsuleGeometry(RIDGE_R, Math.max(0.002, run - RIDGE_R * 2), 4, 10),
+      fingerSkins[i],
+    );
+    bone.rotation.x = Math.PI / 2;
+    meta.add(bone);
+    g.add(meta);
   }
 
   const thumb = new THREE.Group();

@@ -337,9 +337,33 @@ export function createBroomViewmodel({
     // Stop the skin SHORT of the wrist so the hand covers the joint. Running it
     // all the way to the wrist origin put a bare tube end among the fingers.
     const skinRun = Math.max(0.10, length - armCfg.wristInset);
-    arm.forearmPivot.scale.z = Math.max(
-      armCfg.spanScaleMin, Math.min(armCfg.spanScaleMax, skinRun / armCfg.forearmSpan),
+    // D2: THE CLAMP BOUNDS THE AUTHORED SPAN'S STRETCH, NOT THE DEPTH SCALING.
+    //
+    // Round 6 introduced depthScale (0.7..1.6) so both forearms project to the
+    // same screen length, and placed the elbow a depth-scaled span from the
+    // wrist. But the skin scale kept dividing by the RAW forearmSpan, so it
+    // asked for up to 1.56 against a spanScaleMax of 1.2 — and the clamp won.
+    // Measured: the left forearm drew 0.312 yd across a 0.416 yd elbow-to-wrist
+    // run, so it stopped 0.094 yd short of its own hand and showed its flat cap
+    // hanging in mid-air. Every existing arm number reported this as healthy,
+    // because both ENDPOINTS were right and only the mesh between them was
+    // short.
+    //
+    // Normalising by the same depthScale the elbow was placed with puts the
+    // ratio back at ~0.97 at every depth, so the clamp is once again the safety
+    // net the round-5 comment above describes rather than the binding
+    // constraint. The elbow — and with it the cuff and sleeve that round 6
+    // fixed — does not move.
+    const spanScale = skinRun / (armCfg.forearmSpan * depthScale);
+    arm.forearmPivot.scale.z = depthScale * Math.max(
+      armCfg.spanScaleMin, Math.min(armCfg.spanScaleMax, spanScale),
     );
+    // D2 INSTRUMENT: does the drawn skin actually REACH the hand it is aimed at?
+    // Everything above reasons about `length`; what the player sees is
+    // scale.z * forearmSpan. If the clamp bites, those differ and the arm ends
+    // in mid-air showing its flat cap — which no NDC or span number can detect,
+    // because both endpoints are still perfectly correct.
+    if (stash) stash.drawnYd = arm.forearmPivot.scale.z * armCfg.forearmSpan;
     arm.cuff.quaternion.copy(arm.forearmPivot.quaternion);
     // The sleeve runs a SHORT fixed distance from the elbow along an authored
     // camera-space direction (down and slightly back), so it leaves through the
@@ -385,6 +409,11 @@ export function createBroomViewmodel({
       elbowNdc: { x: +_pa.x.toFixed(3), y: +_pa.y.toFixed(3) },
       wristNdc: { x: +_pb.x.toFixed(3), y: +_pb.y.toFixed(3) },
       spanYd: +stash.spanYd.toFixed(3),
+      // yards of elbow->wrist run the skin FAILS to cover. Positive = the
+      // forearm stops short of its own hand and shows its cap in mid-air.
+      drawnYd: stash.drawnYd === undefined ? null : +stash.drawnYd.toFixed(3),
+      reachGapYd: stash.drawnYd === undefined ? null
+        : +(stash.spanYd - armCfg.wristInset - stash.drawnYd).toFixed(3),
       visibleFrac: +vis.toFixed(3), // fraction of the arm segment on screen
       // fraction of the frame HEIGHT the visible run climbs (the number the
       // House Flipper comparison is made in)
@@ -755,6 +784,20 @@ export function createBroomViewmodel({
     lastHeadNdc = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
     state.workBlend = workBlend;
 
+    // D2: WHERE EACH HAND LANDS IN THE FRAME.
+    //
+    // Every hand review so far has been done on a full 1280x720 frame, in which
+    // a hand is about 90 px across and its knuckles are two pixels each. That is
+    // how "reads as an ovoid with a thumb" survived four rounds of hand work —
+    // at that size an articulated hand and a lump are the same picture. These
+    // let a driver crop to the hand instead of eyeballing the whole frame.
+    for (const [key, hand] of [['handNdcUpper', rightHand], ['handNdcLower', leftHand]]) {
+      if (!hand || !hand.visible) { state[key] = null; continue; }
+      hand.updateWorldMatrix(true, false);
+      _ndc.setFromMatrixPosition(hand.matrixWorld).project(vmCamera);
+      state[key] = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
+    }
+
     // --- WHERE THE DRAWN MESH ACTUALLY POINTS -------------------------------
     // Read straight off the asset's own sockets in world space, AFTER the solve
     // has posed it. Everything above measures the rig in the frame the solve
@@ -857,6 +900,8 @@ export function createBroomViewmodel({
       // and the current swing of the sweep arc
       gripUpper: +(state.gripUpper ?? 0).toFixed(3),
       gripLower: +(state.gripLower ?? 0).toFixed(3),
+      handNdcUpper: state.handNdcUpper ?? null,
+      handNdcLower: state.handNdcLower ?? null,
       swingRad: +(state.lagX ?? 0).toFixed(3),
       seatError: +(state.seatError ?? 0).toFixed(4),
       arms: {
