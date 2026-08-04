@@ -390,9 +390,27 @@ The `laptop-seat` protected rect, derived from the chair back when the chair was
 the laptop's seat, becomes `laptop-stand` derived from the laptop; otherwise a
 keep-clear zone would sit 3.5 yd from the machine it exists for.
 
-*Evidence: `Baseline/round6/laptop-bstand-position.png`, `laptop-bstand-focus.png`.*
+**"…and the laptop acceptance harnesses stay green."** They were never green.
+There are **13** of them; **10 were already failing**, and they fail with the
+*identical* messages against a worktree at the commit before the move. So B8
+broke nothing — but the first draft of this report implied I had checked that,
+and I had run exactly one of the thirteen.
 
-*~50 m for the move and its verification.*
+The comparison has a control: `laptop-bstand-verify` fails against the pre-move
+port with "the laptop is still at local x −1.72", which is how I know that port
+served the old build. My first attempt at it was invalid — the worktree had no
+`node_modules`, `three` 404'd, and every driver "failed" because the app never
+booted. Full table and the shared root cause in **`HARNESS_DEBT.md` §4**; short
+version is that the failing drivers stand at the `FRONT_DESK.laptop` layout
+datum rather than the rendered rig's world position, the laptop never opens, and
+everything downstream waits on a `.laptop-screen` that has no content. One
+cause, several files, its own session — not something to patch shallowly here.
+
+*Evidence: `Baseline/round6/laptop-bstand-position.png`, `laptop-bstand-focus.png`,
+and the two raw sweeps `laptop-harness-sweep.txt` / `laptop-harness-preb8.txt`.*
+
+*~50 m for the move and its verification, plus ~1 h 15 m for the harness
+comparison and the invalid first run of it.*
 
 ### B11 — 36 drivers off the removed menu, 11 perf drivers gated
 

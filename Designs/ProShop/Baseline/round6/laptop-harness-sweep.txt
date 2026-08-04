@@ -1,0 +1,300 @@
+=== laptop-actions ===
+exit=1
+Error: marketplace: no affordable Buy button
+    at fail (eval at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:66:15), <anonymous>:18:33)
+    at bootIntoClub (eval at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:66:15), <anonymous>:44:17)
+    at async eval (eval at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:66:15), <anonymous>:131:3)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-bstand-verify ===
+exit=0
+  },
+  "laptopFound": true,
+  "laptopWorld": {
+    "x": -362.55,
+    "y": -0.152,
+    "z": 5.557
+  },
+  "seatPose": {
+    "x": -362.55,
+    "y": 0.082,
+    "z": 5.652,
+    "yaw": 0,
+    "pitch": -0.2992
+  },
+  "seatDistanceToLaptop": 0.252,
+  "focusLabel": "Laptop — [E] open GOLF SIMULATOR",
+  "opened": {
+    "laptopOpen": true,
+    "lidAngle": 1.8690361116957674
+  },
+  "saved": {
+    "keys": [
+      "golfempire:autosave",
+      "golfempire:preferences:v1",
+      "golfempire:autosave-meta"
+    ],
+    "layoutRevision": 23
+  }
+}
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+
+=== laptop-cart-flow ===
+exit=1
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+locator.click: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for locator('.laptop-screen button:has-text("Pro Shop")').first()[22m
+[2m    - locator resolved to <button title="Pro Shop" class="lt-navbtn lt-navbtn-big">…</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    18 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+    at clickText (<anonymous>:94:18)
+    at eval (<anonymous>:99:9)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-cycle ===
+exit=0
+    "walkActive": true,
+    "focused": false,
+    "walkOverlayVisible": null,
+    "viewToggleVisible": false,
+    "pointerLocked": false,
+    "chairPresent": true,
+    "chairVisible": false,
+    "laptopPresent": true,
+    "laptopVisible": true,
+    "interiorNodes": 3434,
+    "geometries": 1609,
+    "textures": 308
+  },
+  "checks": {
+    "oneRootOnly": "OK",
+    "noVisibleLeftovers": "OK",
+    "noAccumulatedListeners": "OK — resize listeners back to 0",
+    "lensHandedBack": "OK — walk lens restored",
+    "notTrappedInFocus": "OK",
+    "canWalkAway": "OK — moved 1.105 yd",
+    "overlayBack": "OK"
+  },
+  "failures": [
+    "cycle 1: the laptop prompt never came back",
+    "the chair vanished after laptop mode"
+  ],
+  "errs": [],
+  "errCount": 0
+}
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+
+=== laptop-look ===
+exit=1
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+page.waitForFunction: Timeout 8000ms exceeded.
+    at eval (<anonymous>:84:16)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-persist ===
+exit=1
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+Error: laptop did not open from either live stand
+    at sitDown (eval at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:66:15), <anonymous>:61:24)
+    at async eval (eval at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:66:15), <anonymous>:103:3)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-round3 ===
+exit=1
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+locator.click: Timeout 8000ms exceeded.
+Call log:
+[2m  - waiting for locator('.laptop-screen input.lt-search').first()[22m
+[2m    - locator resolved to <input type="search" class="lt-search" data-lt-field="laptop-search" placeholder="Search the whole laptop…" aria-label="Search every page, product, person and setting in the laptop"/>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    14 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+    at typeWord (<anonymous>:97:42)
+    at eval (<anonymous>:128:25)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-sales-tax-card ===
+exit=1
+  "oregonCard": null,
+  "findings": {
+    "laptopOpened": false,
+    "salesRang": true,
+    "liabilityAccrued": true,
+    "revenueExcludesTax": true,
+    "liabilityEqualsChargedTax": true,
+    "cardVisible": false,
+    "cardNamesTheState": false,
+    "cardShowsTheRate": false,
+    "cardShowsHeldAmount": false,
+    "cardKeepsTheCents": false,
+    "cardSaysItIsNotYours": false,
+    "oregonCardVisible": false,
+    "oregonNamesTheState": false,
+    "oregonSaysNothingIsCharged": false,
+    "oregonDropsTheHeldRow": false,
+    "cardsDiffer": false
+  },
+  "shots": [
+    "laptop-salestax-1-taxed.png",
+    "laptop-salestax-2-oregon.png"
+  ],
+  "errs": [],
+  "ok": false
+}
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+Error: tools/qa/laptop-sales-tax-card.js returned ok:false
+    at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:143:13)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-search-kit ===
+exit=1
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+locator.click: Timeout 8000ms exceeded.
+Call log:
+[2m  - waiting for locator('.laptop-screen input.lt-search').first()[22m
+[2m    - locator resolved to <input type="search" class="lt-search" data-lt-field="laptop-search" placeholder="Search the whole laptop…" aria-label="Search every page, product, person and setting in the laptop"/>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    14 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+    at eval (<anonymous>:93:15)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-search-navigate ===
+exit=1
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+locator.click: Timeout 8000ms exceeded.
+Call log:
+[2m  - waiting for locator('.laptop-screen input.lt-search').first()[22m
+[2m    - locator resolved to <input type="search" class="lt-search" data-lt-field="laptop-search" placeholder="Search the whole laptop…" aria-label="Search every page, product, person and setting in the laptop"/>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    14 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+    at eval (<anonymous>:138:15)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-search-visible ===
+exit=1
+      "h": 900
+    }
+  },
+  "typed": null,
+  "findings": {
+    "shipped": true,
+    "renderedWithARealBox": false,
+    "fieldBox": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "hiddenByAncestor": "laptop-screen",
+    "clippedByAncestor": null,
+    "coveredBy": null,
+    "laptopOpened": false,
+    "acceptsTyping": false,
+    "searchProducedResults": false
+  },
+  "shots": [
+    "laptop-search-full.png"
+  ],
+  "errs": [],
+  "ok": false
+}
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+Error: tools/qa/laptop-search-visible.js returned ok:false
+    at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:143:13)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== laptop-tour ===
+exit=1
+Error: marketplace: no affordable Buy button
+    at eval (eval at runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:66:15), <anonymous>:42:21)
+    at async runUnlocked (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:129:20)
+    at async main (C:\Users\Kenneth\Documents\GitHub\Golf-Flipper\tools\qa\run-playwright.cjs:172:5)
+
+=== proshop-greybox-laptop ===
+exit=0
+      "page": "Course",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 45
+    },
+    {
+      "page": "Upgrades",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 75
+    },
+    {
+      "page": "Business",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 66
+    },
+    {
+      "page": "Settings",
+      "clickLandedRight": true,
+      "crashed": false,
+      "nodes": 53
+    }
+  ],
+  "crashes": [],
+  "misclicks": [],
+  "errs": [],
+  "ok": true
+}
+console:warning: THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+

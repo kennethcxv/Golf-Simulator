@@ -1,0 +1,48 @@
+=== laptop-actions ===
+exit=1
+
+=== laptop-search-navigate ===
+exit=1
+
+=== laptop-search-visible ===
+exit=1
+Error: tools/qa/laptop-search-visible.js returned ok:false
+
+=== laptop-tour ===
+exit=1
+Error: marketplace: no affordable Buy button
+
+exit=1
+Error: marketplace: no affordable Buy button
+
+=== laptop-cart-flow ===
+exit=1
+
+=== laptop-look ===
+exit=1
+
+=== laptop-persist ===
+exit=1
+Error: laptop did not open from either live stand
+
+=== laptop-round3 ===
+exit=1
+
+=== laptop-sales-tax-card ===
+exit=1
+Error: tools/qa/laptop-sales-tax-card.js returned ok:false
+
+=== laptop-search-kit ===
+exit=1
+
+=== laptop-search-navigate ===
+exit=1
+
+=== laptop-search-visible ===
+exit=1
+Error: tools/qa/laptop-search-visible.js returned ok:false
+
+=== laptop-tour ===
+exit=1
+Error: marketplace: no affordable Buy button
+

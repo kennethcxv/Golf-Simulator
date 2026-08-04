@@ -100,3 +100,58 @@ count in the brief was counting the comments that record it.
 * **`laptop-tour.js` fails on "marketplace: no affordable Buy button"** both
   before and after this session's changes (verified by stashing). An economy
   fixture problem, not a harness-boot one.
+
+---
+
+## 4. The laptop family — 10 of 13 red, and none of it from B8
+
+B8's brief said to "confirm the laptop acceptance harnesses stay green". They
+were not green to begin with. Measured rather than assumed, by running every one
+of them twice: once against HEAD, once against a **worktree at `a48a9a3^`** —
+the commit immediately before the laptop moved — served on its own port.
+
+**The comparison has a control.** `laptop-bstand-verify.js` carries a negative
+control that fails if the laptop is still at the old pose; run against the
+pre-move port it fails with *"the laptop is still at local x −1.72, essentially
+where it was"*, which is how I know that port was really serving the pre-move
+build and not the current one. (The first attempt at this comparison was
+invalid: the worktree had no `node_modules`, so `three` 404'd and the app never
+booted. Every driver "failed" for that reason alone. Caught it because the log
+showed a 404 on `RectAreaLightUniformsLib.js` rather than a test assertion.)
+
+| harness | pre-B8 | HEAD | first failure |
+|---|:--:|:--:|---|
+| `laptop-bstand-verify` | fail¹ | **pass** | ¹by design — it is the control |
+| `laptop-cycle` | — | **pass** | |
+| `proshop-greybox-laptop` | — | **pass** | |
+| `laptop-actions` | fail | fail | marketplace: no affordable Buy button |
+| `laptop-tour` | fail | fail | marketplace: no affordable Buy button |
+| `laptop-persist` | fail | fail | laptop did not open from either live stand |
+| `laptop-round3` | fail | fail | `.laptop-screen input.lt-search` never visible |
+| `laptop-search-kit` | fail | fail | `.laptop-screen input.lt-search` never visible |
+| `laptop-search-navigate` | fail | fail | `.laptop-screen input.lt-search` never visible |
+| `laptop-cart-flow` | fail | fail | `.laptop-screen button:has-text("Pro Shop")` |
+| `laptop-look` | fail | fail | `waitForFunction` timeout |
+| `laptop-sales-tax-card` | fail | fail | returned `ok:false` |
+| `laptop-search-visible` | fail | fail | returned `ok:false` |
+
+**Identical failure messages on both sides for all ten.** B8 changed nothing
+here.
+
+**It is not selector drift.** `.lt-search` still exists (`src/ui/laptop.js:549`),
+and the interior group carries no rotation, so the local-plus-offset frame these
+drivers use and the world frame `laptop-bstand-verify` uses agree. The four
+`lt-search` failures are most likely downstream of the same thing
+`laptop-persist` reports outright — the laptop never opens, so `.laptop-screen`
+never has content to find. `laptop-bstand-verify` opens it from
+`laptop.getWorldPosition()` + 0.85 z; the failing drivers stand at the
+`FRONT_DESK.laptop` **layout datum** + 0.95 z, and the datum is not the rendered
+rig's position.
+
+**Not fixed here, deliberately.** That is one root cause across four to seven
+files plus two independent economy-fixture failures, and it is a session rather
+than a patch. Naming it beats leaving ten red drivers with no explanation, and
+beats a shallow per-driver nudge that would paper over the shared cause.
+
+*Raw runs: `Baseline/round6/laptop-harness-sweep.txt` (HEAD) and
+`laptop-harness-preb8.txt` (pre-move).*
