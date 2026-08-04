@@ -323,6 +323,73 @@ Recorded in full in `HARNESS_DEBT.md` §6.3. The two worth naming here:
 
 ---
 
+## 7 · D4 — measured before building, and the answer changes the decision
+
+**~35 m. Not built, deliberately. The measurement is the deliverable.**
+
+I listed D4 as "the cheapest of the remaining items" earlier in this report.
+That was wrong and I am correcting it here: B9's own costing says *days, touches
+every builder*, and having now measured the ceiling, the payoff is narrower than
+the cost.
+
+### The load in Electron, cold cache vs warm
+
+Nobody had measured this in the shipping runtime. Chromium persists compiled
+shader programs in `userData/GPUCache`, so the number depends entirely on
+whether that directory exists:
+
+| | to walk-active | to veil clear |
+|---|---:|---:|
+| **cold** (GPUCache, Code Cache, Dawn caches deleted) | 4,425 ms | **13,028 ms** |
+| **warm** (immediately after) | 4,420 ms | **6,906 ms** |
+
+**6.1 s of the load is one-time program compilation, and it is paid once per
+machine, not once per launch.** B9's 18.6 s was a browser measurement with no
+persistent cache. In the product a player installs, the first launch is ~13 s
+and every launch after it is ~6.9 s — already under B9's own 10 s target for the
+case that happens 99% of the time.
+
+*(Both runs resumed the existing autosave rather than starting a new game — see
+§6.2 — so the pre-prewarm term differs slightly from B9's new-game figure. The
+dominant compile term is identical either way.)*
+
+### What interning could actually collapse
+
+Surveyed live: 3,005 meshes carrying **745 material instances**.
+
+| grouping | count | meaning |
+|---|---:|---|
+| material instances | 745 | objects that exist |
+| distinct by full parameter signature | 471 | **274 (37%) are exact duplicates** — an intern hands back one object and nothing on screen changes |
+| distinct by program-affecting switches | 47 | the floor a perfect intern could reach on my key |
+| `renderer.info.programs` | **200** | what the GPU actually compiled |
+
+Two things follow. First, 37% of materials are free duplicates — that part is
+real. Second, the gap between 47 and 200 says my program key is missing
+dimensions three.js also keys on (light and shadow counts at first use,
+`onBeforeCompile` patch identity, encoding variants), so **interning cannot get
+anywhere near 47** and the 200 will not fall to a third of itself.
+
+The largest single duplicate groups, by copies:
+
+| copies | material |
+|---:|---|
+| 28 | `MeshStandardMaterial` `#5b4026` rough 0.82 |
+| 25 | `MeshStandardMaterial` `#ff00ff` alphaTest — *the missing-texture magenta, 25 copies of it* |
+| 22 | `MeshStandardMaterial` `#5e564d` rough 1.0 |
+| 17 | `MeshStandardMaterial` `#968358` |
+
+**A regression worth its own line:** `renderer.info.programs` is **200** now
+against the **132** B9 measured. Program count has grown 52% since that session.
+That is a bigger lever than interning and nobody is watching it — a
+program-count assertion in the perf harness would have caught it.
+
+**Recommendation: do not build D4 as scoped.** Spend the days on whatever added
+68 programs since B9 instead, and put a ceiling assertion on the count so it
+cannot drift again silently.
+
+---
+
 ## UNCONFIRMED — shipped, not seen working
 
 | item | why |
@@ -384,8 +451,9 @@ Suite: **2741 pass / 0 fail** at each commit (2729 at session start; +12 new).
 
 ## What I would take next, in order
 
-1. **D4 material interning.** Approved, costed, unbuilt, and measurable in an
-   hour. It is the only remaining item with a number attached to it.
+1. **The 200-program regression** (§7). It is 68 programs more than B9
+   measured, it is worth more than interning, and a ceiling assertion in the
+   perf harness makes it stay fixed. Hours, not days.
 2. **E2 items 1–3.** One extraction, four tools, and it removes the two worst
    rows of report 7 §3's table.
 3. **The Electron driver sweep** (§6.1). One edit per file, and until it is done
