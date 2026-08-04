@@ -228,3 +228,85 @@ in at least: a 9:00 clock write plus `applyTimeWeather`, `page.keyboard.press('K
 rather than `'e'`, and a 3000 ms post-clubhouse settle. One of those, or
 something between them, is the second cause. Guessing which has already cost
 one session; the bisect is an hour and ends the question.
+
+---
+
+# 6. The whole harness has never run in the shipping build (2026-08-04)
+
+The brief for this session said "Electron only, never Chrome". Doing that turned
+up two defects that make every prior Electron claim in this file, and in the
+five reports before it, worth re-reading.
+
+## 6.1 `import('/src/…')` throws under `file://` — so no function-file driver ran in Electron
+
+Every driver in `tools/qa/` that reaches into the app's modules does it as
+
+```js
+const L = await import('/src/data/shopLayout.js');
+```
+
+Electron loads the app from `file:///…/index.html`. A leading slash there
+resolves against the **drive root**, so that line becomes
+
+```
+Failed to fetch dynamically imported module: file:///C:/src/data/shopLayout.js
+```
+
+Not "wrong data" — a thrown promise, every time, in the shipping runtime. The
+fix is one edit per driver:
+
+```js
+const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+```
+
+`tools/qa/run-electron.cjs` (new) runs any existing function-file inside
+Electron: it shims `page.goto` (the app is already loaded) and
+`page.setViewportSize` (resizes the real BrowserWindow instead). The import
+pattern is the only source change a driver needs.
+
+**Status: the runner exists; the drivers have NOT been swept.** Six new drivers
+use the correct pattern. Everything else in `tools/qa/` is still browser-only,
+and should be assumed so until it is run.
+
+## 6.2 Seeding a profile through `localStorage` is a no-op in Electron
+
+The standard fixture is
+
+```js
+localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
+```
+
+In Electron saves go through `window.fairwayNative` to files under
+`userData/saves/`. `storage.js` prefers the native bridge whenever it exists, so
+the seeded localStorage copy is never read: the menu's Continue is computed from
+the **native** autosave, and `clickThroughMenu` resumes THAT.
+
+Consequence: any Electron run of a driver that seeds this way is measuring
+whatever profile happens to be in `userData`, not the seed. Two of this
+session's own measurements are affected and are labelled in
+OVERNIGHT_REPORT_8.md rather than quietly corrected.
+
+A correct Electron seed has to write through the bridge:
+
+```js
+await window.fairwayNative.save('autosave', E.empireSnapshot(empire));
+```
+
+…or delete `userData/saves/autosave.json` first, which is what the F4 driver
+does because it needs the file anyway.
+
+## 6.3 Two instrument defects caught by their own controls this session
+
+| instrument | defect | how it surfaced |
+|---|---|---|
+| `staff-route-measure` | `dist` as a `Float32Array` — the popped f64 cost exceeds the stored f32 cost for nearly every node, the staleness guard fires on live nodes, and Dijkstra reports "unreachable" two yards from the door | the negative control (the queue head, open floor) came back unreachable |
+| `staff-route-measure` | fed `walk.isFree` (WORLD) with shopLayout datums (INTERIOR-LOCAL, ~360 yd out in x) | free-cell fraction came back 0.98 |
+| `electron-save-robustness` | file picker matched `autosave-meta.json` before `autosave.json` | all four mangled cases reported a perfectly healthy save |
+| `electron-save-robustness` | mangled `version`, not `empireVersion`, so the "future save" was a current save | the case failed while the other three passed |
+| `staff-route-walk` | mirrored yaw convention (`atan2(dx, -dz)`; the walker is `(-sin, -cos)`) | the player walked out of the door instead of into the room |
+
+## 6.4 Still owed from §4's list — untouched
+
+The four raw-`Continue` drivers, the stale `New Empire` sweep, `laptop-tour`'s
+economy fixture and the five dead feel keys are all exactly as §4 left them.
+Nothing in this session touched them.
