@@ -10,7 +10,10 @@ export const MOUSE_DELTA_MAX = 140;
 
 const YAW_PER_PX = 0.0021;
 const PITCH_PER_PX = 0.0019;
-const PITCH_LIMIT = 1.35;
+// EXPORTED because it is the range a viewmodel has to survive, and two separate
+// instruments have now been written against broomFeel's `maxPitch` (0.30) in the
+// belief that it was the look limit. It is a curve clamp. This is the limit.
+export const PITCH_LIMIT = 1.35;
 
 // Clamp the raw delta, apply sensitivity, and return the new (wrapped) yaw and
 // (clamped) pitch. Callers discard the first event(s) after a lock is acquired.

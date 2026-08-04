@@ -45,8 +45,13 @@ async (page) => {
   await page.waitForTimeout(2600);
 
   const rows = [];
-  // +0.30 is maxPitch (the steepest UP the rig tracks); -1.0 is deep work.
-  for (const p of [0.30, 0.20, 0.10, 0.0, -0.10, -0.20, -0.30, -0.40, -0.55, -0.70, -1.0]) {
+  // C2: this used to stop at +0.30 with the comment "maxPitch — the steepest UP
+  // the rig tracks". BROOM_FEEL.pitch.maxPitch is the reach CURVE's clamp;
+  // mouseLook.js clamps the player at ±1.35, and the float this driver exists to
+  // catch does not begin until +0.855. Sweeping to 0.30 measured only the region
+  // that already worked, which is how a 0.38 yd lift survived a green run.
+  for (const p of [1.35, 1.20, 1.05, 0.90, 0.75, 0.60, 0.45, 0.30, 0.15, 0.0,
+    -0.10, -0.20, -0.30, -0.40, -0.55, -0.70, -1.0]) {
     await page.evaluate((pv) => { window.__fw.scene3d.walk.state.pitch = pv; }, p);
     await page.waitForTimeout(700);
     const d = await page.evaluate(() => window.__fw.scene3d.walk.broomDiagnostics());

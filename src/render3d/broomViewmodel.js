@@ -22,6 +22,10 @@
 //      feature. It was the float. The head's HEIGHT is floor-referenced in
 //      both poses now and only its hover blends; looking up takes it out of
 //      frame, which is what looking up at a ceiling does.
+//      C2: anchoring the head was not enough on its own. Above +0.855 rad the
+//      HANDS are higher than the handle can reach down from, so the head was
+//      slung under them and rose anyway. The grip is capped at that reach
+//      height on up-look; see the block around `reachLimit` in update().
 //   4. COLLISION. The head is clamped against the same collider set the
 //      player walks against; a blocking face interrupts the stroke with a
 //      standoff and reports its normal so the head tilts to the surface it is
@@ -38,6 +42,13 @@ import { BROOM_FEEL } from '../data/broomFeel.js';
 
 const SKIN = 0xd9a97e;
 const CUFF = 0x2f4a35;
+
+// C2 — the last 0.10 yd of the up-look grip cap is eased, so the hands
+// decelerate into it instead of stopping dead on the frame it is crossed. The
+// ease starts this far BELOW the reach limit and asymptotes exactly ONTO it, so
+// the cap is a true bound: no bob, breathe or sway amplitude can carry the
+// hands past it and pop the head off the boards for a frame.
+const GRIP_CEIL_SOFT = 0.10;
 const CUFF_DARK = 0x21351f;
 
 const _wrist = new THREE.Vector3();
@@ -523,6 +534,44 @@ export function createBroomViewmodel({
     // up. carryHover is set to reproduce the level-look pose exactly, so round
     // 5's carried shaft angle is preserved and only the pitch response changes.
     const hover = cc.carryHover * (1 - workBlend) + feel.surface.floorKiss * workBlend;
+
+    // C2: THE HANDS ARE WHAT RISE, AND A RIGID HANDLE HAS TO FOLLOW THEM.
+    //
+    // A8 anchored the head's HEIGHT to the floor and measured 0.002 yd of lift
+    // — across a sweep that stopped at +0.30 rad, on the belief that
+    // broomFeel's maxPitch was the look limit. mouseLook.js clamps at ±1.35.
+    // Re-measured over the real range (tools/qa/broom-lookup-clip.js): the
+    // anchor holds to +0.855 rad and then breaks, and the head climbs 0.38 yd
+    // between there and full up-look.
+    //
+    // Nothing about the anchor is wrong. gripAnchor is applied through
+    // camera.matrixWorld, so craning your neck to 77° hoists your hands 1.07 yd
+    // — and at 3.164 yd of hand height a 1.36 yd handle simply cannot reach the
+    // boards any more. Past that point the head is rigidly slung under hands
+    // that ride the camera, so it tracks them 1:1. That is the "rises and hangs
+    // there" the playtest saw, and no amount of anchoring the head can fix it
+    // while the hands keep climbing.
+    //
+    // So cap the HANDS instead, at exactly the height from which the handle can
+    // still put the bristles on the floor. Derived, not tuned: it moves with
+    // gripLen and carryHover on its own. Looking up now stops lifting your
+    // hands once the broom is hanging straight down — which is what happens if
+    // you hold a broom and look at the ceiling — and the head does not move.
+    //
+    // Engaged ONLY above level, so every pose at or below the horizon (the
+    // whole working range) is bit-identical to before.
+    if (pitch > 0) {
+      // the highest the hands can be and still reach: dropEff saturates at
+      // gripLen * 0.985, so anything above this is hand height the handle
+      // cannot spend, and the head pays for it
+      const reachLimit = floorWorldY + hover + gripLen * 0.985;
+      const easeFrom = reachLimit - GRIP_CEIL_SOFT;
+      if (_gripCam.y > easeFrom) {
+        const over = _gripCam.y - easeFrom;
+        _gripCam.y = easeFrom + GRIP_CEIL_SOFT * (1 - Math.exp(-over / GRIP_CEIL_SOFT));
+      }
+    }
+
     const drop = _gripCam.y - (floorWorldY + hover);
     // the handle can only reach so far down; beyond that the head lifts
     const dropEff = Math.max(-gripLen * 0.9, Math.min(gripLen * 0.985, drop));
@@ -731,11 +780,19 @@ export function createBroomViewmodel({
       state.headAboveFloor = floorHere == null ? null : _assetHead.y - floorHere;
       _ndc.copy(_assetHead).project(vmCamera);
       state.assetHeadNdc = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
+      // C2: the raw world heights of both sockets. headAboveFloor is a
+      // DIFFERENCE, and a difference cannot distinguish "the head held still
+      // while the floor moved" from "neither moved" — nor tell you the hands
+      // climbed 0.9 yd while it stayed put. These two can.
+      state.assetHeadWorldY = _assetHead.y;
+      state.assetGripWorldY = _assetGrip.y;
     } else {
       state.shaftDrop = null;
       state.shaftDropUnit = null;
       state.assetHeadNdc = null;
       state.headAboveFloor = null;
+      state.assetHeadWorldY = null;
+      state.assetGripWorldY = null;
     }
 
     return {
@@ -794,6 +851,8 @@ export function createBroomViewmodel({
       shaftDropUnit: state.shaftDropUnit == null ? null : +state.shaftDropUnit.toFixed(3),
       headAboveFloor: state.headAboveFloor == null ? null : +state.headAboveFloor.toFixed(3),
       assetHeadNdc: state.assetHeadNdc ?? null,
+      assetHeadWorldY: state.assetHeadWorldY == null ? null : +state.assetHeadWorldY.toFixed(3),
+      assetGripWorldY: state.assetGripWorldY == null ? null : +state.assetGripWorldY.toFixed(3),
       // where the two hands sit along the shaft (yd back from the bristles),
       // and the current swing of the sweep arc
       gripUpper: +(state.gripUpper ?? 0).toFixed(3),
