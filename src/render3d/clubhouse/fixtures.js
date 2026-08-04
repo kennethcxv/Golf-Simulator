@@ -1747,6 +1747,10 @@ export function buildCheckout(B) {
 
   const returnMaxLocal = FRONT_DESK_FRAME.returnStaffExtent;
   const returnSpan = returnMaxLocal - FRONT_DESK_FRAME.frontDepth / 2;
+  // C5: a desk with no return leg has a non-positive span. Drawing it anyway
+  // produced a zero-thickness plate at the counter's back face — invisible from
+  // most angles and a z-fighting sliver from the rest.
+  if (returnSpan > 0.01) {
   const returnFallback = new THREE.Mesh(
     roundedBox(FRONT_DESK_FRAME.returnCollisionWidth - 0.16, 0.96, returnSpan, 0.02),
     mats.walnut,
@@ -1765,6 +1769,7 @@ export function buildCheckout(B) {
   returnTop.position.set(returnFallback.position.x, 1.02, returnFallback.position.z);
   returnTop.castShadow = true;
   legacyCounter.add(returnTop);
+  }
 
   const counterColliders = [FRONT_DESK_COLLIDERS.frontRun, FRONT_DESK_COLLIDERS.returnRun]
     .map((rect) => colBoxAt(

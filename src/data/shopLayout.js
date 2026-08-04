@@ -276,7 +276,23 @@ export const CLUBHOUSE_LAYOUT_VARIANT = CLUBHOUSE_VARIANT_REQUEST.variant === 'p
 export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // Decision D1 (unchanged by the resize): the desk is a south-wall counter east
   // of the entrance. At ry 0 the staff side (+local z) faces the south wall.
-  frame: Object.freeze({ x: 3.30, z: 3.35, ry: 0 }),
+  //
+  // C5 — THE STAFF PASS-THROUGH (measured in Electron, 2026-08-04).
+  // `returnStaffExtent` is the depth the desk's return leg projects into the
+  // staff corridor. Inherited from v1 it was 1.799, which ran the return from
+  // the counter's west end clean across the corridor to the south wall, and
+  // `corridorWestSeal.returnBackFill` closed the last 0.34 yd behind it.
+  // Between them the staff side of the desk was a 1.01 yd² island: a connected-
+  // component sweep of the live collider set put the till in no region the
+  // player could ever stand in. Not "a long walk round" — no route at all.
+  //
+  // `staffReturn: false` is the statement "this desk has no return leg", and
+  // everything derives from it in deriveFrontDeskFrame: the extent collapses to
+  // the counter's own back face, FRONT_DESK_COLLIDERS.returnRun becomes a
+  // zero-depth rect, both return renderers skip a non-positive span, and the
+  // placement keep-out shrinks with them. The gap is then the whole west end of
+  // the counter — the end nearest the main door, as decided.
+  frame: Object.freeze({ x: 3.30, z: 3.35, ry: 0, staffReturn: false }),
 
   // THE RESIZE (OVERNIGHT_REPORT.md §3, approved): the public retail floor
   // shrinks to a municipal 70.0 m² — 8.30 × 10.09 yd — by pulling the west wall
@@ -394,7 +410,12 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // south band. Both flush on every seam — the layout test re-derives each
   // edge from the live frame and hutch and pins flushness.
   corridorWestSeal: Object.freeze({
-    returnBackFill: Object.freeze({ minX: 1.00, maxX: 1.88, minZ: 5.15, maxZ: 5.49 }),
+    // C5, 2026-08-04: `returnBackFill` (x 1.00–1.88, z 5.15–5.49) is DELETED.
+    // It closed the 0.34 yd behind the return leg, and with the leg itself gone
+    // it is the last thing standing in the staff pass-through. It was added
+    // because a sub-capsule gap let body-separation shoves tunnel customers into
+    // a sealed corridor; the gap is now a full 1.07 yd doorway with the staff
+    // side open at both ends, so there is no pocket left to be pinned in.
     hutchGapFill: Object.freeze({ minX: 1.88, maxX: 2.40, minZ: 4.89, maxZ: 5.49 }),
     // The hutch-east sliver (hutch ends 5.60, partition band 5.60–5.80): a
     // 0.10-yd corridor↔wing seam over the south band. Sub-capsule, and the 1×
@@ -422,7 +443,12 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     Object.freeze({ x: 1.55, z: -4.25 }),  // unshelved sleeve boxes under the north wall
     Object.freeze({ x: -2.05, z: -4.05 }), // dead pocket between the booth and the west wall
     Object.freeze({ x: -2.35, z: 4.85 }),  // SW sliver west of the door clearway
-    Object.freeze({ x: 0.95, z: 4.90 }),   // south-wall pocket east of the door
+    // C5, 2026-08-04: the "south-wall pocket east of the door" at (0.95, 4.90)
+    // is DELETED. That pocket is now the staff pass-through, and a clutter pile
+    // there narrows the gap between the counter's back face and the pile to
+    // 0.17 yd — a channel a grid sweep will thread and a person with a keyboard
+    // will not. Walking it is what found this; the collider map said "open".
+    // Seven spots, not eight: there is no ninth dead pocket in a 70 m² room.
     Object.freeze({ x: 2.45, z: -3.95 }),  // carry-out boxes beside the lounge
     Object.freeze({ x: 6.70, z: 2.60 }),   // office paperwork pile (kept)
     Object.freeze({ x: 5.25, z: 0.10 }),   // returns pile against the partition (kept)
@@ -502,8 +528,30 @@ export function deriveFrontDeskFrame(variant = null) {
     returnCollisionWidth: 0.798 / METERS_PER_YARD,
     returnStaffExtent: 1.645 / METERS_PER_YARD,
     counterTop: 1.055,
+    // Does the desk carry a return leg across the staff corridor? See C5 on
+    // PINE_HILLS_V2_LAYOUT.frame. A desk without one is an I, not an L, and its
+    // near end is the staff pass-through.
+    staffReturn: true,
   };
   if (variant === 'pine-hills-v2') Object.assign(frame, PINE_HILLS_V2_LAYOUT.frame);
+  // DERIVED, not authored twice: with no return leg the extent IS the counter's
+  // own back face, so every consumer of returnStaffExtent (the two renderers,
+  // the collider rect, the placement keep-out, the box exclusion) collapses on
+  // its own rather than each needing to learn about the flag.
+  if (!frame.staffReturn) frame.returnStaffExtent = frame.frontDepth / 2;
+  // THE PASS-THROUGH END is derived, not chosen: whichever end of the counter
+  // run lands closer to the main door in world x. Hard-coding "west" would
+  // silently invert the first time the desk frame is rotated — the same class
+  // of defect as the ry-PI backdrop offset thirty lines down.
+  {
+    const cos = Math.cos(frame.ry);
+    const sin = Math.sin(frame.ry);
+    const half = frame.frontLength / 2;
+    const endX = (localX) => frame.x + localX * cos;
+    frame.passThroughLocalX = Math.abs(endX(-half) - DOOR_MAIN.x) <= Math.abs(endX(half) - DOOR_MAIN.x)
+      ? -half
+      : half;
+  }
   return Object.freeze(frame);
 }
 export const FRONT_DESK_FRAME = deriveFrontDeskFrame(CLUBHOUSE_LAYOUT_VARIANT);
@@ -619,7 +667,26 @@ export const FRONT_DESK = Object.freeze({
   deskLamp: Object.freeze(frontDeskPose(-1.12, -0.12, 0)),
   clipboard: Object.freeze(frontDeskPose(-1.56, -0.17, 0.18)),
   scorecards: Object.freeze(frontDeskPose(1.55, -0.16, -0.12)),
-  staffChair: Object.freeze(frontDeskPose(-1.00, 1.05, Math.PI)),
+  // C5, 2026-08-04. The staff corridor is 1.19 yd of clear floor and a swivel
+  // chair is 0.68 yd across, so a chair standing anywhere in the middle of it is
+  // a plug — measured, this chair (frame-local -1.00, i.e. right at the pass-
+  // through mouth) was the collider that cut the till off from the west end even
+  // with the return leg gone. It parks at the corridor end FURTHEST from the
+  // pass-through, one chair-radius inside the counter's end, so the way in stays
+  // a doorway and the chair stops being furniture in a fire exit.
+  //
+  // This reverses B8's "the chair stays where it is" on measured evidence: B8
+  // moved the laptop and left the chair, and the chair turned out to be the
+  // thing in the way.
+  // A desk that still has its return leg keeps the historical seat: its corridor
+  // is closed at one end anyway, so the chair is not in anybody's only route.
+  staffChair: Object.freeze(frontDeskPose(
+    FRONT_DESK_FRAME.staffReturn
+      ? -1.00
+      : -Math.sign(FRONT_DESK_FRAME.passThroughLocalX) * (FRONT_DESK_FRAME.frontLength / 2 - 0.36),
+    1.05,
+    Math.PI,
+  )),
   // One readable backdrop row: keys at reception-left, the live tee sheet near
   // the staff chair, and the club mark on the checkout half. The board poses
   // compensate the renderer's world-Z offset so all three elements share the

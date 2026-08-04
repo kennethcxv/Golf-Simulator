@@ -354,22 +354,16 @@ test('the corridor seal closes the partition-to-desk hole', () => {
   assert.ok(seal.x - seal.t / 2 >= member.maxX + 0.05,
     'seal presses member_station');
 
-  // The west seal (same day): the Z-channel behind the return — return-south
-  // gap plus return-to-hutch gap — tunnelled bodies into the corridor even
-  // though every pinch is sub-capsule. Both fillets must be flush on every
-  // seam or a shove channel reopens.
+  // C5, 2026-08-04: `returnBackFill` is GONE and must stay gone. It sealed the
+  // 0.34 yd behind the return leg, and with the leg deleted it is the last thing
+  // standing in the staff pass-through. Asserting its absence here is the point:
+  // the seal and the doorway are the same 0.88 yd of floor, and a future edit
+  // that re-adds the fillet re-seals the till.
   const westSeal = L.corridorWestSeal;
-  const returnWestX = V2.x - V2.frontLength / 2;
-  const returnEastX = returnWestX + V2.returnCollisionWidth;
-  const returnSouthZ = V2.z + V2.returnStaffExtent;
+  assert.equal(westSeal.returnBackFill, undefined,
+    'returnBackFill is the staff pass-through — it must not come back');
   const hutch = fixtureRectOf(byId.get('backcounter'));
-  const back = westSeal.returnBackFill;
-  assert.ok(back.minX <= returnWestX + 0.02, 'returnBackFill west seam');
-  assert.ok(back.maxX >= returnEastX - 0.02, 'returnBackFill east seam');
-  assert.ok(back.minZ <= returnSouthZ + 0.02, 'returnBackFill return-end seam');
-  assert.ok(back.maxZ >= B.maxZ - 0.02, 'returnBackFill south-wall seam');
   const gapFill = westSeal.hutchGapFill;
-  assert.ok(gapFill.minX <= back.maxX + 1e-6, 'gapFill does not meet returnBackFill');
   assert.ok(gapFill.maxX >= hutch.minX - 0.02, 'gapFill-hutch seam');
   assert.ok(gapFill.minZ <= hutch.minZ + 0.02, 'gapFill hutch-face seam');
   assert.ok(gapFill.maxZ >= B.maxZ - 0.02, 'gapFill south-wall seam');
@@ -460,10 +454,21 @@ test('traffic legs run inside the room and through open floor', () => {
 });
 
 test('clutter spots sit in dead zones: off every leg, outside every solid', () => {
-  assert.equal(L.clutterSpots.length, 8);
+  // Seven since C5 (2026-08-04): the eighth sat in what is now the staff
+  // pass-through and pinched it to 0.17 yd. The count is asserted so a spot
+  // cannot be added back without someone reading this.
+  assert.equal(L.clutterSpots.length, 7);
   const legs = L.trafficPaths(v2Slot);
+  const passThroughBand = {
+    minX: V2.x - V2.frontLength / 2 - 0.25,
+    maxX: V2.x - V2.frontLength / 2 + V2.returnCollisionWidth + 0.25,
+    minZ: V2.z + V2.frontDepth / 2,
+    maxZ: B.maxZ,
+  };
   for (const spot of L.clutterSpots) {
     assert.ok(inRoomOrWing(spot), `clutter (${spot.x}, ${spot.z}) outside room+wing`);
+    assert.ok(distToRect(spot, passThroughBand) >= 0.05,
+      `clutter (${spot.x}, ${spot.z}) sits in the staff pass-through`);
     for (const leg of legs) {
       for (let s = 0; s < leg.length - 1; s++) {
         const d = distPointSegment(spot, leg[s], leg[s + 1]);
