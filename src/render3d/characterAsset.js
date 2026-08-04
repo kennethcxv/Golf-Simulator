@@ -418,15 +418,20 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       kneeL = 0.4 * Math.max(0, Math.sin(w - 1.1));
       kneeR = 0.4 * Math.max(0, Math.sin(w + Math.PI - 1.1));
       if (char.mode === 'WalkBag') {
-        // Ease from the two-handed acceptance pose into a one-handed side
-        // carry, avoiding a one-frame snap as the customer turns to leave.
+        // Ease from the acceptance pose into a one-handed side carry, avoiding
+        // a one-frame snap as the customer turns to leave.
         const u = Math.min(1, p / 0.55);
         const settle = u * u * (3 - 2 * u);
-        // Keep the loaded carrier at waist height until the shopper clears the
-        // counter. A fully dropped arm hides the entire bag behind the walnut top.
-        shL = -1.18 + 0.025 * Math.sin(w * 0.5) * settle;
-        shR = -1.00 * (1 - settle) + 0.38 * Math.sin(w) * settle;
-        elb = -0.66 * (1 - settle) - 0.68 * settle;
+        // C4: THE CARRIED ARM HANGS. It used to hold shL at -1.18 for the whole
+        // walk — a 68 deg lift, held — on the reasoning that "a fully dropped
+        // arm hides the entire bag behind the walnut top". That is one second
+        // of framing bought with a customer who carries a shop bag out at
+        // waist height like a lantern. They are walking AWAY from the counter;
+        // the bag is in clear view within a stride either way.
+        shL = -0.42 * (1 - settle) + (-0.16 + 0.06 * Math.sin(w * 0.5)) * settle;
+        shR = -0.05 * (1 - settle) + 0.38 * Math.sin(w) * settle;
+        elbL = -0.55 * (1 - settle) - 0.20 * settle;   // the carrying arm straightens
+        elb = -0.12 * (1 - settle) - 0.35 * settle;    // the free arm swings
         lean = 0.14 * (1 - settle) + 0.07 * settle;
       } else {
         shL = -0.45 * Math.sin(w);
@@ -515,10 +520,21 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       // alongside shR -1.00), which reads as being handed something heavy with
       // two hands — or worse, as a surrender. Nobody takes a small shop bag
       // that way: you put one hand out, take the handles, and go.
-      shR = -1.00;
-      shL = -0.05;   // the other arm just hangs
-      elb = -0.66;   // the reaching arm
-      elbL = -0.12;  // and the hanging one is near enough straight
+      //
+      // C4 — AND IT HAS TO BE THE HAND THE BAG GOES TO. The bag attaches to
+      // carryGrip('L') (clubhouse.js onCustomerPaid), and this pose raised the
+      // RIGHT arm to -1.00 while the left hung: the customer reached with one
+      // hand and received in the other. Photographed at the counter 2026-08-04
+      // — a raised empty fist on one side, a flat bag half inside the desk on
+      // the other.
+      //
+      // So the LEFT arm is the one that moves, and it goes FORWARD, not up:
+      // -0.42 puts the hand out at hip height, which is where the brief says
+      // the bag is taken. The right arm hangs.
+      shL = -0.42;   // the receiving arm — forward at the hip, not lifted
+      elbL = -0.55;  // forearm out, so the hand clears the body
+      shR = -0.05;   // the other arm just hangs
+      elb = -0.12;   // …near enough straight
       lean = 0.14;
       // A small appreciative nod makes the ownership transfer read as a positive
       // customer reaction without turning checkout into an arcade celebration.

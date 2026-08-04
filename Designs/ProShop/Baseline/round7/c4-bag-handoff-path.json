@@ -1,0 +1,59 @@
+{
+  "control": {
+    "frames": 144,
+    "maxSinkYd": 0
+  },
+  "run": {
+    "frames": 884,
+    "deliverFrames": 92,
+    "framesOverCounter": 62,
+    "worstSinkYd": -0.0017,
+    "worstSample": {
+      "ms": 30085,
+      "phase": "bag-deliver",
+      "stage": "done",
+      "minY": 0.3402,
+      "maxY": 0.6991,
+      "overCounter": true,
+      "sink": -0.0017,
+      "bagLocalZ": -0.156,
+      "gripL": 0.172,
+      "rootY": -0.717,
+      "headY": 0.79,
+      "gripR": 0.071,
+      "hipL": null,
+      "shoulderL": null,
+      "gripLocalZ": -0.808
+    },
+    "phasesSeen": [
+      null,
+      "bag-deliver",
+      "bag-customer-hold",
+      "released"
+    ],
+    "frontDepthHalf": 0.41,
+    "counterVsFrame": {
+      "counter": [
+        -0.8,
+        1.797
+      ],
+      "frame": [
+        -0.8,
+        1.797
+      ],
+      "counterDepth": 0.82
+    },
+    "atHold": {
+      "bagMinY": -0.2494,
+      "gripLocalZ": -0.808,
+      "bagMaxY": 0.1592,
+      "bagCentreY": -0.045,
+      "gripL": 0.165,
+      "rootY": -0.717,
+      "headY": 0.783,
+      "gripHeightFraction": 0.588
+    }
+  },
+  "phasesThroughDesk": false,
+  "receivingHandAtHip": true
+}

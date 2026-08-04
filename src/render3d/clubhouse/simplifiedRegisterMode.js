@@ -236,6 +236,9 @@ const CARD_TIME = 1.15;
 // sim still prints/files its durable record inside beginAutomaticReceipt, but
 // no paper exists, so payment flows straight into the bag delivery.
 const BAG_DELIVER_TIME = 0.78;
+// C4 — daylight between the carrier and the slab while it is still over it.
+// Small on purpose: the point is that it does not intersect, not that it flies.
+const BAG_COUNTER_CLEARANCE = 0.02;
 const BAG_CUSTOMER_HOLD = 1.25;
 const CARD_STOW_TIME = 0.44;
 const CARD_INSERT_TIME = 0.72;
@@ -1357,6 +1360,7 @@ export function createRegisterMode(B) {
   const bagHandoffLocal = new THREE.Vector3(0, 0.30, 0);
   const bagDeliverAnchorFrom = new THREE.Vector3();
   const bagDeliverAnchorAt = new THREE.Vector3();
+  const _bagClearScratch = new THREE.Vector3();
   let bagDeliverScaleFrom = BAG_COUNTER_SCALE;
   // The laid carrier's CLOSED BASE sits exactly on its authored layout point —
   // the counter's LEFT end, on the staff half, left of every staged item — and
@@ -7146,6 +7150,52 @@ export function createRegisterMode(B) {
         const to = customerAnchor(COUNTER_TOP + 0.10, 'L');
         bagDeliverAnchorAt.lerpVectors(bagDeliverAnchorFrom, to, eased);
         bagDeliverAnchorAt.y += Math.sin(t * Math.PI) * 0.14;
+        // C4: ROUTE IT OVER THE DESK, NOT THROUGH IT.
+        //
+        // The destination is the customer's LEFT carry grip, and that grip is on
+        // a hanging arm at hip height — well BELOW the counter top. A straight
+        // lerp from a bag resting on the slab to a point under the slab goes
+        // through it. Measured on a live card sale
+        // (tools/qa/checkout-bag-handoff-path.js): 0.375 yd of the carrier was
+        // under the counter top while its footprint was still on the counter,
+        // against 0.000 for the same bag resting on it. The old +0.14 arc was
+        // not close to covering that, and could not be — it is a constant, and
+        // the depth it has to clear is the bag's own height.
+        //
+        // So: a derived floor rather than a bigger arc. While the carrier's
+        // footprint is still over the slab, its LOWEST point is held at the
+        // counter top. The moment it clears the front edge it descends to the
+        // hand on its own, which is the shape of a real handoff — across, out,
+        // then down. Nothing here is tuned: the lift is the bag's own hang
+        // below its handle, measured live, so a bigger bag lifts further (see
+        // C12, which makes it bigger).
+        {
+          const box = new THREE.Box3().setFromObject(bagGroup);
+          const handleNow = bagHandlePoint();
+          // how far the carrier hangs below the point being driven, and how far
+          // it reaches sideways from it. The first version tested the ANCHOR's
+          // desk-local z against the slab and let the bag's near face stay over
+          // the counter for another 0.13 yd — a point test cannot answer a
+          // question about a 0.3 yd wide object.
+          // box is WORLD, handleNow is ROOT-LOCAL. Subtracting one from the
+          // other cost exactly the root's world Y (0.177 yd here) and left the
+          // clamp under-lifting by that much — measured 0.166 yd of residual
+          // sink against an expected 0. root carries no X rotation, so its
+          // world Y is the whole of the offset.
+          const rootWorldY = root.getWorldPosition(_bagClearScratch).y;
+          const hang = (!box.isEmpty() && handleNow)
+            ? Math.max(0, handleNow.y - (box.min.y - rootWorldY))
+            : 0.30;
+          const planRadius = box.isEmpty() ? 0.15
+            : 0.5 * Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+          const local = frontDeskLocalPoint(bagDeliverAnchorAt.x, bagDeliverAnchorAt.z);
+          const nearEdge = Math.abs(local.z) - planRadius;
+          if (nearEdge <= FRONT_DESK_FRAME.frontDepth / 2) {
+            bagDeliverAnchorAt.y = Math.max(
+              bagDeliverAnchorAt.y, COUNTER_TOP + hang + BAG_COUNTER_CLEARANCE,
+            );
+          }
+        }
         bagGroup.scale.setScalar(bagDeliverScaleFrom);
         // The carrier RESTS flat on the counter and is RIGHTED as it is lifted
         // into the customer's hand. Interpolating from identity would snap it
