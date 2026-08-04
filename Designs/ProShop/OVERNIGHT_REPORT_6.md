@@ -221,7 +221,7 @@ width and reads as a bag with a fold.
 
 ---
 
-## 7. A8 — three of four. This one is bigger than it looks.
+## 7. A8 — four of six. This one is bigger than it looks.
 
 **Done and looked at:**
 
@@ -247,9 +247,12 @@ asymmetry below WAS fixed later in the session — see §8):
   reads as a pale ovoid with a thumb rather than fingers wrapped around a shaft.
   This wants reference footage and a real grip pose, which is the job you
   originally asked for.
-- **The look-up float** — not investigated. The tool declares
-  `floorAnchored: true` with the comment "the head stays down when you look
-  about", so something is overriding it; I did not get to find what.
+- ~~**The look-up float**~~ — **FIXED later in the session, see §8.** The guess
+  written here was right that something overrode `floorAnchored: true`, and
+  wrong about where: courseScene skips the broom entirely because the viewmodel
+  owns its pose, and the viewmodel blended a floor-referenced planted pose
+  against a camera-referenced carried one. 1.206 yd of clearance at full
+  up-look, now 0.602.
 - **Which tool cleans which surface** is a *feature*, not a polish item: dirt
   that reads as its own type, and a hold-to-reveal filtered by the equipped
   tool. That is its own session.
@@ -308,6 +311,10 @@ Corrected the record too: asset loading was classified **PRESERVE** with 18.2 s
 inside it, and BASELINE_PERFORMANCE listed the number without calling it a
 defect. Both now say so, as **LOAD-1**.
 
+*~2 h. Most of it went on the three failed candidates rather than the profile —
+each had to be built and measured before it could be ruled out, and compileAsync
+in particular looked right on paper.*
+
 ### B4 — a 1:00 ask is offered 1:00, 1:30 and 12:30
 
 Two faults pulling opposite ways. The dropdown was **every open slot across three
@@ -335,6 +342,10 @@ Every offered slot was checked against `availableSlots()` for the same day and
 party size. An impossible ask returns exactly **one** offer rather than an empty
 list, because the instruction there is to offer it.
 
+*~1 h. The new module imports nothing, which was deliberate — reservations.js
+already imports the caller, so putting the offer logic there would have closed a
+cycle.*
+
 ### B7 — both structural burials fixed; the whitelist shrank by two
 
 Population-wide: **8 assets / 13 parts → 7 / 12.**
@@ -359,6 +370,10 @@ popping the material slots the boolean brings across. Re-indexing faces is not
 enough — the cutter's empty slot survives and the publisher's validator fails the
 asset, which it did on the first attempt.
 
+*~1 h 45 m, and roughly an hour of that was 099's three failed bores. Reading
+the exported buffers first would have found the lid in ten minutes; I guessed at
+depths three times instead, which is the lesson worth keeping from it.*
+
 ### B8 — the laptop stands at the counter's east end
 
 Moved to the proposal's own clearance-safe pose: local x −1.72 → **+1.75**, which
@@ -376,6 +391,8 @@ the laptop's seat, becomes `laptop-stand` derived from the laptop; otherwise a
 keep-clear zone would sit 3.5 yd from the machine it exists for.
 
 *Evidence: `Baseline/round6/laptop-bstand-position.png`, `laptop-bstand-focus.png`.*
+
+*~50 m for the move and its verification.*
 
 ### B11 — 36 drivers off the removed menu, 11 perf drivers gated
 
@@ -407,6 +424,9 @@ sample a frame.
 **The cutter category was already closed.** All 15 matches are *provenance
 comments* recording the 2026-07-30 port. The count was counting its own receipts.
 
+*~1 h 20 m, front-loaded onto the two codemods. Doing 29 of the 36 files by hand
+would have been faster once and slower every time after.*
+
 ### A8 — the sleeve bug is fixed
 
 "One arm sleeved, one bare" is not asymmetric code. Both arms run the same solve
@@ -419,9 +439,62 @@ The forearm is scaled by the wrist's own depth now, so the projected length
 matches on both. Verified by looking — both arms leave the frame the same way —
 and the aim probe is unchanged.
 
-**Still not done on A8:** the hand grip anatomy, the look-up float, and the
-dirt-type / tool-filtered reveal feature. That last one is a feature, not a
-polish item, and wants its own session.
+*~40 m.*
+
+### A8 — the look-up float, and a round-5 call reversed
+
+Added after the first draft of this report, which listed the float as "not
+investigated at all". It is now.
+
+`cleaningTools.js` does declare `floorAnchored: true` for the broom, and
+courseScene honours it for the mop, vacuum and dustpan — but line 8235 hands the
+broom off wholesale (`if (id === 'broom' && broomVm.isActive()) continue`), so
+the floor-contact solve never runs for it. The anchoring is the viewmodel's, and
+the viewmodel **blended across two reference frames**: the planted pose measured
+the head against the boards, the carried pose measured it as a constant below
+hands that ride `camera.matrixWorld`. Above `carryAbove` (−0.10 rad) the blend
+is all carry, so the head had no floor reference at all and rose with the view.
+
+Measured live, bristle clearance above the boards:
+
+| view pitch | before | after |
+|---|---:|---:|
+| +0.30 (max up) | **1.206 yd** | 0.602 |
+| 0 (level) | 0.601 | 0.600 |
+| −0.40 and below | 0.012 | 0.012 |
+
+3.6 ft of clearance at full up-look — chest height. The constant behind it had
+been tuned twice (0.34 → 0.30 → 0.65) as a framing knob without anyone noticing
+it was the wrong *kind* of quantity.
+
+Both poses are floor-referenced now and only the hover height blends.
+`carryHover` is 0.60, which is not a new tuning value but the measured
+level-look clearance the old drop produced — so the carried pose and round 5's
+31° shaft angle are unchanged at level and only the response to pitch differs.
+Spread across the whole carried band is now **0.002 yd** against 0.605.
+
+**This reverses a round-5 decision on purpose.** A world-space carry was tried
+then and reverted because the head "fell off the bottom of the frame (measured
+NDC y −1.08 at pitch +0.30)". That is not the defect — it is what looking at a
+ceiling with a broom in your hands looks like. Your hands and the shaft ride the
+camera regardless, so the frame is never empty; I looked at the +0.30 render to
+confirm it rather than trusting the argument. courseScene's own floor-anchor
+contract already said the head should swing below the frame at the horizon.
+
+**The test is the point.** The old one asserted `carryDrop > 0 && < 0.8` and
+passed through every round of this, because a range check on a constant cannot
+express which datum the constant is measured from — the same shape of failure as
+A2. `tests/broom-floor-anchor.test.js` builds a socketed rig, drives the real
+`update()` solve across the pitch range, and asserts the head's floor clearance
+does not depend on view pitch. I reverted the fix to confirm it fails: *"looking
+up lifted the head 0.229 yd off the boards"*.
+
+*Evidence: `qa/broom-round6/lookup-float/pitch0p3.png` (up), `pitch0.png`
+(level). ~1 h 10 m.*
+
+**Still not done on A8:** the hand grip anatomy against reference footage, and
+the dirt-type / tool-filtered reveal. That last one is a feature, not a polish
+item, and wants its own session.
 
 ---
 
@@ -504,13 +577,14 @@ that driver.
 
 ## 12. What is left, and the order I would take it
 
-1. **A8 proper** — the hand grip anatomy against reference footage, the look-up
-   float (`floorAnchored: true` is declared and something overrides it), and then
+1. **A8's last two** — the hand grip anatomy against reference footage, and then
    the dirt-type / tool-filtered reveal as its own block. That last one is a
    feature, not polish.
 2. **B6** — the twelve-file texture pass, unbroken, with §9's findings as the
    head start.
 3. **LOAD-1 option A** if you want the load under 10 s — interning materials the
    way textures are interned. Nothing else touches the dominant term.
-4. **The two GLB jobs**: the reader's backspace key, and a sweep for stale menu
-   labels like `New Empire — Realistic` across the harness.
+4. **The laptop harness debt** — see §13. Ten of thirteen fail, none of it from
+   B8, and it is the largest untended harness family left.
+5. A sweep for stale menu labels like `New Empire — Realistic` across the
+   harness.
