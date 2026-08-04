@@ -419,6 +419,13 @@ def _segment_label(name, glyph, size, loc, mat, parent):
     lines = [segments[s] for s in patterns.get(glyph, "")]
     if glyph == "X":
         lines = [((x0, z0), (x1, z1)), ((x0, z1), (x1, z0))]
+    if glyph == "V":
+        # A TICK, NOT A LETTER. The confirm key used to carry "O", and "O" and
+        # "0" are the same six segments — so the green key read as a second zero
+        # sitting beside the real one on the same row. Found by looking at the
+        # C3 preview render, not by any test.
+        lines = [((x0, 0.08 * h), (x0 * 0.30, z0 * 0.88)),
+                 ((x0 * 0.30, z0 * 0.88), (x1, z1 * 0.88))]
     bm = bmesh.new()
     half_t = h * 0.065
     for (ax, az), (bx, bz) in lines:
@@ -475,8 +482,9 @@ def build_payment_terminal(M):
     SLOT_Z, SLOT_H = 0.011, 0.010
     SLOT_TOP = SLOT_Z + SLOT_H / 2
 
-    # keypad: 3x3 digits, colour row on the same columns, wide correction bar,
-    # all seated in a recessed black deck like a production pad
+    # keypad: 3x3 digits, colour row on the same columns, a correction key the
+    # same size as a digit below them, all seated in a recessed black deck like
+    # a production pad
     keypad = K.empty("Terminal_Keypad", (0, 0, 0), parent=body, props={"component": "keypad"})
     key_w, key_h, key_d = 0.0225, 0.0125, 0.0045
     pitch_x, pitch_z = 0.0265, 0.0155
@@ -502,33 +510,34 @@ def build_payment_terminal(M):
     zb = z0 - 3 * pitch_z
     key("Terminal_CancelButton", M["btn_red"], "X", -pitch_x, zb)
     key("Terminal_Key_0", M["key_dark"], "0", 0, zb)
-    key("Terminal_ConfirmButton", M["btn_green"], "O", pitch_x, zb)
-    # THE CORRECTION BAR IS ACTUALLY A BAR (A3, 2026-08-03).
+    key("Terminal_ConfirmButton", M["btn_green"], "V", pitch_x, zb)
+    # THE CORRECTION KEY IS A KEY (C3, 2026-08-04).
     #
-    # The comment four lines up has always said "wide correction bar", and this
-    # was neither: a single-column key at 0.0095 high, 76% of a digit key, alone
-    # on the row below the colour keys and hard against the card-slot lip.
-    # Playtest: "the yellow backspace key is half-occluded by the device body at
-    # the bottom of the unit". Measured, it was never occluded — every ray to it
-    # lands on the key — but at three quarters the height of its neighbours, on
-    # its own, at the bottom of a sloped deck, it READS as something the case has
-    # eaten. The complaint was about legibility, and the geometry agreed with it.
+    # Three versions of this now, and the ruling settles it: identical width and
+    # height to a digit key.
     #
-    # Full key height, and spanning all three columns the way the comment always
-    # described.
+    #   shipped   0.0225 x 0.0095 — 76% of a digit's height, alone on the row
+    #             below the colour keys and hard against the card-slot lip.
+    #             Playtest: "half-occluded by the device body". It was never
+    #             literally occluded, but three quarters the height of its
+    #             neighbours at the bottom of a sloped deck READS as eaten.
+    #   A3        0.0715 x 0.0125 — full height, spanning all three columns,
+    #             because the comment above had always claimed a "wide
+    #             correction bar". Legible, but a bar among keys.
+    #   C3        0.0225 x 0.0125 — a digit key, and nothing else.
     #
-    # It does NOT sit on the pitch grid. Growing it to full height about
-    # z0 - 4*pitch_z drops its lower edge to 0.01375, and the chip slot's top is
-    # 0.016 sitting 4.5 mm PROUD of the key faces — that occludes the bottom
-    # 2.3 mm of the bar and makes the reported half-occlusion literally true for
-    # the first time. (The old short key was already 0.75 mm behind the slot.)
-    # The clear band between the slot and the colour row is 13.25 mm against a
-    # 12.5 mm key, so the bar is centred in its own band and both gaps are
-    # derived, not guessed. Anything that moves the slot or the pitch moves this.
-    back_w = 2 * pitch_x + key_w
+    # WHAT DOES CARRY OVER is A3's clearance, and it is not optional. On the
+    # pitch grid this key would centre at z0 - 4*pitch_z, dropping its lower
+    # edge to 0.01375 — and the chip slot's top is 0.016, sitting 4.5 mm PROUD
+    # of the key faces, so it would eat the bottom 2.3 mm and make the reported
+    # half-occlusion literally true. (The shipped short key was already 0.75 mm
+    # behind the slot; it got away with it by being short.) So the key is
+    # centred in the 13.25 mm clear band between the slot top and the colour
+    # row, derived from both. Anything that moves the slot or the pitch moves
+    # this with it.
     back_cz = (SLOT_TOP + (zb - key_h / 2)) / 2
     key("Terminal_BackButton", M["btn_yellow"], "-", 0, back_cz,
-        w=back_w, h=key_h, glyph_px=0.0072)
+        w=key_w, h=key_h, glyph_px=0.0072)
 
     # Visible contactless target plus a named locator for a future tap path.
     nfc_z = scr_z - scr_h / 2 - 0.011
