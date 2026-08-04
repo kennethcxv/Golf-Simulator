@@ -127,7 +127,19 @@ export const BROOM_FEEL = Object.freeze({
     // while carried — unmistakably a broom on its way to the floor rather
     // than a pole held out in front — and the head still frames at NDC y
     // around -0.84 through the 78 deg lens.
-    carryDrop: 0.65,
+    // A8: carryDrop -> carryHover, and the QUANTITY CHANGED, not just the name.
+    //
+    // It was yards below the HANDS, and the hands ride the camera, so every
+    // round above tuned a framing knob that quietly detached the head from the
+    // floor: measured 0.601 yd of bristle clearance at level look and 1.206 yd
+    // at maxPitch. The playtest called that floating and it was right.
+    //
+    // It is now yards above the BOARDS, blended against floorKiss by workBlend,
+    // so looking up cannot lift the head. 0.60 is not a new tuning value — it
+    // is the measured level-look clearance the 0.65 drop produced, so the
+    // carried pose and round 5's 31-deg shaft angle are unchanged at level and
+    // only the response to pitch differs.
+    carryHover: 0.60,
     // roll of each hand about the shaft, radians — the two hands oppose each
     // other on the handle the way they do on a real broom
     handRollUpper: 0.10,

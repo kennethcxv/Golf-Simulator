@@ -171,9 +171,9 @@ test('the sweep is an arc the head travels, not a sideways nudge', () => {
     'the hands follow the head rather than staying rigid');
 });
 
-test('the carried head hangs shallow enough to stay on screen', () => {
-  // The head is a rigid handle from the hand; while carried it must not hang
-  // so far below the grip that it leaves the bottom of the frame.
-  const drop = BROOM_FEEL.compose.carryDrop;
-  assert.ok(drop > 0 && drop < 0.8, `carryDrop ${drop} keeps the head in frame`);
-});
+// The carried head's pose used to be pinned here as `carryDrop > 0 && < 0.8`.
+// That assertion held through every round of the A8 float, because the bug was
+// not the constant's magnitude but WHAT IT WAS MEASURED FROM — yards below
+// camera-riding hands rather than above the boards. A range check on a config
+// number cannot express that. It now lives in tests/broom-floor-anchor.test.js,
+// which drives the real solve across the pitch range.

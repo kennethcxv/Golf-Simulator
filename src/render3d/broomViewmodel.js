@@ -15,10 +15,13 @@
 //      is not hostage to the world FOV and cannot clip world geometry.
 //   3. POSE FROM THE HANDS, NOT THE FLOOR PLANE. The head's reach follows the
 //      view pitch through an eased curve (look down and the head comes in
-//      toward the feet; look up past liftAbove and it lifts with you), and
-//      the shaft pitch is SOLVED so the bristle line kisses the floor at that
-//      reach — the contact point belongs to the kinematic chain, so it no
-//      longer slides ~0.6 yd across the pitch range.
+//      toward the feet), and the shaft pitch is SOLVED so the bristle line
+//      kisses the floor at that reach — the contact point belongs to the
+//      kinematic chain, so it no longer slides ~0.6 yd across the pitch range.
+//      A8: "look up past liftAbove and it lifts with you" used to be here as a
+//      feature. It was the float. The head's HEIGHT is floor-referenced in
+//      both poses now and only its hover blends; looking up takes it out of
+//      frame, which is what looking up at a ceiling does.
 //   4. COLLISION. The head is clamped against the same collider set the
 //      player walks against; a blocking face interrupts the stroke with a
 //      standoff and reports its normal so the head tilts to the surface it is
@@ -63,7 +66,6 @@ FALLBACK_GEOM.len = FALLBACK_GEOM.head.distanceTo(FALLBACK_GEOM.upper);
 const _gripCam = new THREE.Vector3();
 const _headCam = new THREE.Vector3();
 const _headWork = new THREE.Vector3();
-const _headCarry = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
 const _handPos = new THREE.Vector3();
@@ -511,8 +513,17 @@ export function createBroomViewmodel({
     const workT = Math.max(0, Math.min(1, (p.carryAbove - clamped) / blendSpan));
     const workBlend = workT * workT * (3 - 2 * workT); // smoothstep
     const floorWorldY = fy == null ? camera.position.y - 1.62 : fy;
-    const dropWork = _gripCam.y - (floorWorldY + feel.surface.floorKiss);
-    const drop = cc.carryDrop * (1 - workBlend) + dropWork * workBlend;
+    // A8: BOTH POSES ARE FLOOR-REFERENCED. What blends is the HOVER HEIGHT.
+    //
+    // This used to blend a floor-referenced work drop against a constant carry
+    // drop below hands that ride camera.matrixWorld — two different reference
+    // frames — so above carryAbove the head had no floor reference at all and
+    // simply rose with the view. Measured: bristles 0.601 yd above the boards at
+    // level and 1.206 yd at maxPitch, a 0.605 yd lift bought purely by looking
+    // up. carryHover is set to reproduce the level-look pose exactly, so round
+    // 5's carried shaft angle is preserved and only the pitch response changes.
+    const hover = cc.carryHover * (1 - workBlend) + feel.surface.floorKiss * workBlend;
+    const drop = _gripCam.y - (floorWorldY + hover);
     // the handle can only reach so far down; beyond that the head lifts
     const dropEff = Math.max(-gripLen * 0.9, Math.min(gripLen * 0.985, drop));
     let horiz = Math.sqrt(Math.max(0.0025, gripLen * gripLen - dropEff * dropEff));
@@ -556,27 +567,28 @@ export function createBroomViewmodel({
     // rigid handle: whatever horizontal run survives, the drop follows from it
     const dropFinal = Math.sign(dropEff || 1)
       * Math.sqrt(Math.max(0, gripLen * gripLen - horiz * horiz));
-    // THE CARRIED HEAD RIDES YOUR VIEW. Solving it as a world-space point left
-    // it behind whenever you looked UP — the head fell off the bottom of the
-    // frame (measured NDC y −1.08 at pitch +0.30). A carried tool is held in
-    // your hands, so its carry pose is camera-relative; only the PLANTED pose
-    // belongs to the world. The two are blended and then re-tensioned, so the
-    // handle stays exactly one rigid length from the grip either way.
-    const horizCarry = Math.sqrt(Math.max(0.0025,
-      gripLen * gripLen - cc.carryDrop * cc.carryDrop));
-    _headCarry.set(
-      cc.gripAnchor[0] + handDrift + Math.sin(bearing) * horizCarry,
-      cc.gripAnchor[1] - cc.carryDrop,
-      cc.gripAnchor[2] - Math.cos(bearing) * horizCarry,
-    ).applyMatrix4(camera.matrixWorld);
-
+    // A8 REVERSES A ROUND-5 CALL, DELIBERATELY.
+    //
+    // There used to be a second, camera-relative _headCarry solved here and
+    // lerped against the planted one. It existed because solving the carry in
+    // world space "left the head behind whenever you looked UP — the head fell
+    // off the bottom of the frame (measured NDC y −1.08 at pitch +0.30)".
+    //
+    // That was treated as the defect. It is the correct behaviour: look at the
+    // ceiling holding a broom and you do not see the bristles, you see your
+    // hands and the shaft — and those ride the camera here regardless, so the
+    // frame is never empty. courseScene's own floor-anchor contract says the
+    // same thing ("look at the horizon and the head correctly swings below the
+    // frame"). Keeping it framed cost a head hanging 1.2 yd off the boards,
+    // which is what the playtest saw and called floating.
+    //
+    // One floor-referenced solve now, blended by hover height above, so there
+    // is nothing left to cross reference frames.
     _headWork.set(
       _gripCam.x + hx * horiz,
       _gripCam.y - dropFinal,
       _gripCam.z + hz * horiz,
     );
-    // carry -> work, then re-tension onto the handle's exact length
-    _headWork.lerp(_headCarry, 1 - workBlend);
     _tmp.copy(_headWork).sub(_gripCam);
     const span = _tmp.length();
     if (span > 1e-4) _headWork.copy(_gripCam).addScaledVector(_tmp, gripLen / span);
