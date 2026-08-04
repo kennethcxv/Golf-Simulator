@@ -60,6 +60,9 @@ async (page) => {
     };
   }, { startMin: START_MIN });
 
+  await page.evaluate((on) => { window.__c6ForceWalkIns = on; },
+    String(process.env.C6_FORCE_WALKINS || '1') === '1');
+
   const deadline = Date.now() + WINDOW_MIN * 60000 + 60000;
   const seenCombinedAtTill = new Set();
   const seenCombinedBrowsing = new Set();
@@ -76,6 +79,15 @@ async (page) => {
       if (!desk) return { error: 'no front desk bridge' };
       let servedNow = 0;
       let bookedNow = 0;
+      // FORCE TEE-TIME ARRIVALS. Measured first without this: an organic day-1
+      // starter produced 3 arrivals in 60 game-minutes and ZERO tee-time
+      // arrivals, because a starter has no booked sheet and the walk-in roll is
+      // rare. With M = 0 the acceptance question has no answer, so the driver
+      // seeds the intent it is measuring and says so. Every other beat — the
+      // shopping roll, the desk, the splice — is the shipped code.
+      if (window.__c6ForceWalkIns && club.debugSpawn && list.length < 8) {
+        club.debugSpawn(false, null, { allowWalkInRequest: true });
+      }
       // PLAY THE DESK. A walk-in asking for a time gets the first slot the sim
       // offers; a pre-registered guest at the head of the queue gets checked in.
       for (const entry of (desk.walkIns() || [])) {
@@ -136,6 +148,7 @@ async (page) => {
     window: { startMin: START_MIN, endClock: final.clock, gameMinutes: WINDOW_MIN, speed: '1x', seed: SEED },
     setup,
     deskPlayed: { checkInsServed: served, walkInsBooked: booked, ticks },
+    forcedWalkInArrivals: String(process.env.C6_FORCE_WALKINS || '1') === '1',
     tally: t,
     answer: {
       M_teeTimeArrivals: t.deskErrands,
