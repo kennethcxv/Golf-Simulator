@@ -172,8 +172,8 @@ test('buildShedShell returns the full consumed shell contract', () => {
 
     assert.deepEqual(shell.styleSurfaces, {});
     assert.deepEqual(shell.partitionColliders, []);
-    assert.equal(typeof shell.setBusinessOpen, 'function');
-    assert.doesNotThrow(() => shell.setBusinessOpen(true));
+    assert.equal(typeof shell.setSignFace, 'function');
+    assert.doesNotThrow(() => shell.setSignFace({ key: 'open', lines: ['PRO SHOP'] }));
 
     // floor + roof meshes exist on the shell root
     const named = (root, name) => { let hit = null; root.traverse((o) => { if (o.name === name) hit = o; }); return hit; };

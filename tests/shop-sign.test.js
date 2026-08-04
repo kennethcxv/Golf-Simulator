@@ -20,11 +20,14 @@ import {
 import { newGame } from '../src/sim/state.js';
 import { DOOR_MAIN, INTERIOR } from '../src/data/shopLayout.js';
 import { shopSignLocalPoint } from '../src/data/shopSignPlacement.js';
+import {
+  createOpenClosedSignRegistry,
+  exteriorSignFace,
+} from '../src/render3d/clubhouse/openClosedSigns.js';
 
-const clubhouseSource = fs.readFileSync(
-  new URL('../src/render3d/clubhouse.js', import.meta.url),
-  'utf8',
-).replaceAll('\r\n', '\n');
+const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+const clubhouseSource = read('../src/render3d/clubhouse.js');
+const shellSource = read('../src/render3d/clubhouse/shell.js');
 
 test('a fresh shop opens CLOSED — the morning is the player\'s to prepare', () => {
   const state = newGame('normal', 11);
@@ -173,4 +176,129 @@ test('the sign is a physical prop with an E verb, not a menu toggle', () => {
     'the E verb animates the turn');
   assert.match(clubhouseSource, /shopSign\.tickSpin\(dt\);/,
     'and the swing is ticked from the clubhouse update, or it would never move');
+});
+
+// C1 — "THERE ARE TWO SIGNS AND ONLY ONE TURNS."
+//
+// The interior card was wired. The exterior board on the south wall —
+// LegacyBusinessHoursSign, the one a customer walks past — was repainted from
+// campaignAllowsBusiness(), which is a one-time campaign MILESTONE and is
+// permanently true in a non-campaign game. It read "OPEN TODAY / 6 AM–8 PM"
+// through every night the player had shut the shop.
+//
+// The tests above could not have caught that, because every one of them looks
+// at the card. These look at the REGISTRY: the list of boards that a single
+// signIsOpen(state) read drives. A sign that is not on that list is driven by
+// nothing, and a sign that paints an OPEN/CLOSED word without joining it fails
+// the source sweep below.
+
+test('the registry drives every sign it holds from one signIsOpen read', () => {
+  const registry = createOpenClosedSignRegistry();
+  const painted = [];
+  registry.register('CardIndoors', (facts) => painted.push(['CardIndoors', facts.open]));
+  registry.register('BoardOutdoors', (facts) => painted.push(['BoardOutdoors', facts.open]));
+
+  const state = newGame('normal', 41);
+  assert.equal(signIsOpen(state), false, 'a fresh shop is CLOSED');
+  assert.equal(registry.sync(state), true, 'the first sync always paints');
+  assert.deepEqual(painted, [['CardIndoors', false], ['BoardOutdoors', false]],
+    'BOTH signs are painted, not just the one someone remembered');
+
+  painted.length = 0;
+  assert.equal(registry.sync(state), false, 'and an unchanged fact costs nothing');
+  assert.deepEqual(painted, []);
+
+  flipSign(state, 600);
+  assert.equal(registry.sync(state), true);
+  assert.deepEqual(painted, [['CardIndoors', true], ['BoardOutdoors', true]],
+    'flipping the card must move the board outside in the same tick');
+
+  // THE CASE THAT SHIPPED: the midnight rollover moves signOpen with nobody
+  // pressing E, and the old code only re-aimed the card on an E press.
+  painted.length = 0;
+  closeSignForNewDay(state);
+  assert.equal(registry.sync(state), true, 'a new day is a change of fact like any other');
+  assert.deepEqual(painted, [['CardIndoors', false], ['BoardOutdoors', false]]);
+});
+
+test('a sign registered late is painted with the CURRENT fact, not the built-in one', () => {
+  const registry = createOpenClosedSignRegistry();
+  const state = newGame('normal', 42);
+  flipSign(state, 600);
+  registry.sync(state);
+  let seen = null;
+  registry.register('ArrivedLate', (facts) => { seen = facts.open; });
+  assert.equal(seen, true, 'a board built after the shop opened must not show yesterday');
+});
+
+test('the board outside answers the same question the customers do', () => {
+  // shopAcceptsWalkIns() asks the card and the clock. It does not ask the
+  // campaign. So neither may the board — and the greybox starter is precisely a
+  // campaign profile with businessOpen false, which is how the first draft of
+  // this fix reproduced the bug it was fixing.
+  const openMidRestoration = exteriorSignFace({ open: true, established: false });
+  assert.equal(openMidRestoration.key, 'open',
+    'a card turned to OPEN puts customers in the room, so the board must say OPEN');
+});
+
+test('"we have not opened yet" and "we are shut for the night" are different boards', () => {
+  // Conflating them is the actual bug: businessOpen (a campaign milestone) was
+  // standing in for signIsOpen (tonight).
+  const restoring = exteriorSignFace({ open: false, established: false });
+  const shut = exteriorSignFace({ open: false, established: true });
+  const trading = exteriorSignFace({ open: true, established: true });
+  assert.equal(restoring.key, 'restoration');
+  assert.equal(shut.key, 'closed');
+  assert.equal(trading.key, 'open');
+  assert.notDeepEqual(restoring.lines, shut.lines,
+    'a shop under restoration must not read the same as a shop that shut at eight');
+  assert.match(shut.lines.join(' '), /CLOSED/);
+  assert.match(trading.lines.join(' '), /OPEN/);
+  // …and an open board never says CLOSED, which is the thing a customer reads
+  assert.doesNotMatch(trading.lines.join(' '), /CLOSED/);
+});
+
+test('no sign paints an OPEN or CLOSED word outside the registry', () => {
+  // The sweep that would have caught the shipped bug. Any renderer file that
+  // builds sign copy containing OPEN or CLOSED must import the registry module;
+  // otherwise it is painting a state nothing drives.
+  const dir = new URL('../src/render3d/', import.meta.url);
+  const files = [];
+  const walk = (u) => {
+    for (const entry of fs.readdirSync(u, { withFileTypes: true })) {
+      const child = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, u);
+      if (entry.isDirectory()) walk(child);
+      else if (entry.name.endsWith('.js')) files.push(child);
+    }
+  };
+  walk(dir);
+
+  // A sign's copy is an ARRAY OF LINES handed to a texture painter. Match that
+  // shape, not the bare words, so a comment or a state name is not a finding.
+  const signCopy = /(?:makeSignTexture|signMaterial|face)\(\s*\[[^\]]*'(?:OPEN|CLOSED)[^']*'/;
+  const offenders = [];
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8');
+    if (!signCopy.test(src)) continue;
+    if (src.includes('openClosedSigns.js')) continue;      // wired
+    offenders.push(file.pathname.split('/src/')[1]);
+  }
+  assert.deepEqual(offenders, [],
+    `these files paint an OPEN/CLOSED sign without joining the registry: ${offenders.join(', ')}`);
+});
+
+test('the exterior board is registered and repainted, not left to a campaign flag', () => {
+  assert.match(shellSource, /sign\.name = 'LegacyBusinessHoursSign';/,
+    'the board still exists — deleting it is the other valid answer, and it was not taken');
+  assert.match(shellSource, /repaintBusinessSign = \(face\) => \{/,
+    'it takes a FACE; a boolean is what let a milestone stand in for tonight');
+  assert.doesNotMatch(shellSource, /campaignAllowsBusiness/,
+    'the shell does not decide open-ness at all any more');
+  assert.match(clubhouseSource,
+    /openClosedSigns\.register\(shell\.exteriorSignName, \(facts\) => \{/,
+    'the clubhouse registers the board');
+  assert.match(clubhouseSource, /openClosedSigns\.register\(group\.name, \(\) => applyFacing\(true\)\);/,
+    'and the card');
+  assert.match(clubhouseSource, /\n    syncOpenClosedSigns\(\);\n    \/\/ the door sign's flip animation/,
+    'and the registry is synced every frame, so a rollover turns them both');
 });

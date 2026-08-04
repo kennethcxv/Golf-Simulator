@@ -1052,7 +1052,14 @@ export const BASKET_STATION = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2'
   ? { ...PINE_HILLS_V2_BASKET_STATION, pickup: { ...PINE_HILLS_V2_BASKET_STATION.pickup } }
   : { ...PINE_HILLS_BASKET_STATION, pickup: { ...PINE_HILLS_BASKET_STATION.pickup } };
 export const LOGO_RUG = { x: -0.8, z: 3.1, w: 3.6, d: 2.4 }; // club logo rug on the entry axis
-export const HOURS_SIGN = { x: 0.58, z: 6.02 };        // readable between the door trim and porch column
+// Centred in the ONLY clear band of south wall at reading height: 0.44 yd
+// between the door casing (local x 0.184) and the porch column (0.62), measured
+// off the live scene 2026-08-04. The board used to be 0.72 wide here, so the
+// column ate its right-hand third from every straight-on approach — including
+// the one a customer walks. The comment already claimed this clearance; the
+// numbers did not hold it.
+export const HOURS_SIGN = { x: 0.40, z: 6.02 };
+export const HOURS_SIGN_BOARD = { w: 0.34, h: 0.26 };
 
 // --- retail fixtures ----------------------------------------------------------------
 // kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | apparelwall | feature

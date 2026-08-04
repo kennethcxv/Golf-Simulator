@@ -152,6 +152,7 @@ import {
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { flipSign, shopAcceptsWalkIns, signIsOpen } from '../sim/shopSign.js';
 import { shopSignLocalPoint } from '../data/shopSignPlacement.js';
+import { createOpenClosedSignRegistry, exteriorSignFace } from './clubhouse/openClosedSigns.js';
 import { shopFootfallDrive, shopFootfallTarget } from '../sim/shopFootfall.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { buildShedDirt } from './clubhouse/shedDirt.js';
@@ -894,6 +895,21 @@ export function makeClubhouse(ctx) {
     replacementCount: 0,
   });
   shell.lightingCompatibility = lightingCompatibility;
+
+  // --- OPEN / CLOSED, IN ONE PLACE -------------------------------------------
+  // Two signs, one fact. Every board that says OPEN or CLOSED registers here and
+  // is repainted by syncOpenClosedSigns(), which reads signIsOpen(state) and
+  // nothing else. A sign that is not registered is driven by nothing, and
+  // tests/shop-sign.test.js checks the registered names against the scene.
+  const openClosedSigns = createOpenClosedSignRegistry();
+  if (shell.exteriorSignName && shell.setSignFace) {
+    openClosedSigns.register(shell.exteriorSignName, (facts) => {
+      shell.setSignFace(exteriorSignFace(facts));
+    });
+  }
+  function syncOpenClosedSigns() {
+    return openClosedSigns.sync(state, campaignAllowsBusiness(state));
+  }
 
   function refreshRoomStyle() {
     const selected = roomStyle(state);
@@ -2440,7 +2456,10 @@ export function makeClubhouse(ctx) {
     // the two facility-gated production meshes below.
     props61to100.refreshVisibility?.();
     if (sheet07Production) sheet07Production.refresh();
-    if (shell.setBusinessOpen) shell.setBusinessOpen(campaignAllowsBusiness(state));
+    // The signs are pushed from ONE place, every frame (see syncOpenClosedSigns
+    // in update()); this only nudges it so a facility install repaints in the
+    // same frame rather than the next one.
+    syncOpenClosedSigns();
   }
 
   // Assets 61 and 66 already belong to the unified 61–100 runtime above.
@@ -8544,6 +8563,12 @@ export function makeClubhouse(ctx) {
       group.rotation.y = spin.from + (spin.to - spin.from) * e;
     };
     applyFacing();
+    // The card used to be re-aimed only at build and on the E press, so the
+    // midnight rollover (closeSignForNewDay) flipped the SIM to CLOSED and left
+    // the card facing OPEN until someone pressed E twice. Registered AFTER the
+    // silent applyFacing() above, so a save that loads OPEN starts turned
+    // rather than swinging round on the first frame.
+    openClosedSigns.register(group.name, () => applyFacing(true));
 
     const prop = addProp({
       x: hang.x,
@@ -10642,6 +10667,11 @@ export function makeClubhouse(ctx) {
   function update(dtMs) {
     const dt = Math.min(0.1, dtMs / 1000);
     now += dt;
+    // Both signs, from one fact. sync() compares two booleans and returns; it
+    // only touches a canvas or starts a swing when signIsOpen(state) has
+    // actually moved — including when the midnight rollover moved it, which is
+    // the case nothing used to notice.
+    syncOpenClosedSigns();
     // the door sign's flip animation (a no-op unless it is mid-swing)
     shopSign.tickSpin(dt);
     // Campaign arrival events. The objective list and the arrival phase gate
@@ -10998,6 +11028,10 @@ export function makeClubhouse(ctx) {
       sheet07: sheet07Production.diagnostics(),
       businessOpen: campaignAllowsBusiness(state),
     }),
+    // Every board that says OPEN or CLOSED, and the one fact driving them. A
+    // driver can cross this list against the scene graph, which is how an
+    // unwired sign is caught rather than assumed absent.
+    signDiagnostics: () => openClosedSigns.diagnostics(),
     boxPlacement: Object.freeze({
       isActive: () => !!boxPlacementMode?.isActive(),
       hasCarriedBox: () => !!carriedBox(state),

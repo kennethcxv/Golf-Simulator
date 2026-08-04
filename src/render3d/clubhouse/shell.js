@@ -9,10 +9,11 @@ import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import {
   SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
-  PARTITIONS, STOCKROOM, HOURS_SIGN, CEILING_PANEL_RIG, SHELL_LIGHT_PLACEMENTS,
+  PARTITIONS, STOCKROOM, HOURS_SIGN, HOURS_SIGN_BOARD, CEILING_PANEL_RIG, SHELL_LIGHT_PLACEMENTS,
   FRONT_DESK, shopLightingTier,
 } from '../../data/shopLayout.js';
 import { roundedBox, makeSignTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
+import { exteriorSignFace } from './openClosedSigns.js';
 import { shopTierIndex } from '../../sim/shopProgression.js';
 import { restorationSnapshot } from '../../sim/clubhouseRestoration.js';
 
@@ -105,7 +106,7 @@ export function buildShell(B) {
     productionFallbackNodes[key].push(node);
     return node;
   };
-  let businessSignOpen = true;
+  let businessSignFaceKey = 'open';
   let repaintBusinessSign = () => {};
   let retailSlab = null;
   const partitionColliders = [];
@@ -600,23 +601,24 @@ export function buildShell(B) {
     trackProductionFallback('exteriorShellStructure', chimCap);
 
     // hours sign (sign kit) + porch sconce by the door
-    const signTex = makeSignTexture(['PRO SHOP', 'OPEN TODAY', '6 AM – 8 PM'], { w: 256, h: 192 });
-    repaintBusinessSign = (open) => {
-      const nextOpen = !!open;
-      if (nextOpen === businessSignOpen) return;
-      businessSignOpen = nextOpen;
-      const painted = makeSignTexture(
-        nextOpen
-          ? ['PRO SHOP', 'OPEN TODAY', '6 AM – 8 PM']
-          : ['PRO SHOP', 'CLOSED', 'RESTORATION'],
-        {
-          w: 256,
-          h: 192,
-          field: nextOpen ? '#f4f0e6' : '#e8dfcb',
-          ink: nextOpen ? '#1f4a26' : '#473c31',
-          secondaryInk: nextOpen ? '#3f3a30' : '#8a4d3a',
-        },
-      );
+    //
+    // THE ONE A CUSTOMER READS. It used to be repainted from the campaign's
+    // businessOpen milestone, which is permanently true once the clubhouse has
+    // ever opened — so it said OPEN TODAY through every night the player had
+    // turned the card indoors to CLOSED. Its copy now comes from
+    // exteriorSignFace() and is pushed by the open/closed registry, the same
+    // tick that turns the card. See clubhouse/openClosedSigns.js.
+    const signTex = makeSignTexture(exteriorSignFace({ open: true, established: true }).lines, { w: 256, h: 192 });
+    repaintBusinessSign = (face) => {
+      if (!face || face.key === businessSignFaceKey) return;
+      businessSignFaceKey = face.key;
+      const painted = makeSignTexture(face.lines, {
+        w: 256,
+        h: 192,
+        field: face.field,
+        ink: face.ink,
+        secondaryInk: face.secondaryInk,
+      });
       const canvas = signTex.image;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -625,7 +627,7 @@ export function buildShell(B) {
       signTex.needsUpdate = true;
     };
     const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.72, 0.54),
+      new THREE.PlaneGeometry(HOURS_SIGN_BOARD.w, HOURS_SIGN_BOARD.h),
       new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.85 }),
     );
     sign.name = 'LegacyBusinessHoursSign';
@@ -1196,6 +1198,10 @@ export function buildShell(B) {
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     productionVisualFallbackCounts,
     partitionColliders: Object.freeze(partitionColliders),
-    setBusinessOpen: (open) => repaintBusinessSign(open),
+    // Takes a FACE, not a boolean. A boolean here is what let the exterior
+    // board be driven by a campaign milestone for months without anyone
+    // noticing it was a different question from "is the shop open right now".
+    setSignFace: (face) => repaintBusinessSign(face),
+    exteriorSignName: 'LegacyBusinessHoursSign',
   };
 }
