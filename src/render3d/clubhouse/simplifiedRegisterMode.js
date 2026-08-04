@@ -240,7 +240,6 @@ const BAG_DELIVER_TIME = 0.78;
 // Small on purpose: the point is that it does not intersect, not that it flies.
 const BAG_COUNTER_CLEARANCE = 0.02;
 const BAG_CUSTOMER_HOLD = 1.25;
-const CARD_STOW_TIME = 0.44;
 const CARD_INSERT_TIME = 0.72;
 const AUTO_PAYMENT_HOLD = 0.38;
 
@@ -263,17 +262,25 @@ const CARD_WIDTH = 0.086;
 const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
 export const CARD_HELD_PITCH = 0.62;
-// AT ITS OWN SIZE. Playtest 2026-08-03: "the bag reads small and plain next to
-// everything else on the counter now." It was drawn at 0.78 of the authored
-// carrier — a shrink chosen in round 5 when the counter was busier and the
-// working frame sat further back. Beside a 1.85x payment terminal and a
-// full-height monitor it reads like a prop for a smaller shop. The kit's bag is
-// already a believable 0.26 x 0.30 carrier, so it is drawn life size.
+// BIGGER THAN LIFE SIZE, ON PURPOSE (C12, 2026-08-04).
 //
-// The lift below is derived from these two rather than carrying the scale as a
-// baked literal, which is what made the previous size change land the flank
-// through the counter top.
-const BAG_PRESENTATION_SCALE = 1.0;
+// Three sizes now. 0.78 was chosen in round 5 when the counter was busier and
+// the working frame sat further back. 1.00 followed the 2026-08-03 playtest
+// ("the bag reads small and plain next to everything else on the counter now")
+// on the reasoning that the kit's carrier is already a believable 0.26 x 0.30.
+// It still read small: "You took it to life size last session and it still
+// reads small on that counter. Go bigger than life size — it is a presentation
+// object, not a measurement."
+//
+// So it is tied to the reader rather than picked again. The payment terminal
+// draws at TERMINAL_HARDWARE_SCALE for exactly the same reason — a real
+// handheld reader is too small to read at counter distance — and the brief asks
+// for the bag to match it. One constant, so the two cannot drift apart.
+//
+// The lift below is DERIVED from this and the flatten factor rather than baked,
+// which is what made the previous size change land the flank through the
+// counter top.
+const BAG_PRESENTATION_SCALE = TERMINAL_HARDWARE_SCALE;
 const BAG_PRESENTATION_FLATTEN = 0.55;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // FLAT, LONG, AND OPEN TOWARD THE COUNTER SPACE. Playtest round 5
@@ -2741,6 +2748,9 @@ export function createRegisterMode(B) {
   };
   function paintTermBandedFace(ctx, W, H, {
     caption, amount, footer, caret = false, accent = TERM_ACCENT,
+    // C13 — the running entry, drawn UNDER the dominant figure rather than in
+    // place of it. `caret` follows this line when it is present.
+    entry = null, entryLabel = 'KEYED',
     // retained so the older call shape stays valid; the face no longer paints
     // bands, so these only pick the accent
     footerInk = null, amountInk = null,
@@ -2797,13 +2807,17 @@ export function createRegisterMode(B) {
     setTermTracking(ctx, 0);
 
     // --- the figure, dominant ------------------------------------------------
-    const amountY = statusY + 176;
+    // C13: 118 -> 152. This is the only number on the glass that decides
+    // anything, and at 118 it shared the frame with a 25 px line carrying the
+    // amount owed. It is fitted, so a five-figure ticket still shrinks to fit
+    // rather than running off the edge.
+    const amountY = statusY + (entry ? 158 : 176);
     ctx.fillStyle = amountInk || TERM_INK;
     const amountSize = setFittedCanvasFont(ctx, amount, {
-      maxWidth: w - 68 - (caret ? 26 : 0), startSize: 118, minimumSize: 44, weight: 800,
+      maxWidth: w - 68 - (caret && !entry ? 26 : 0), startSize: 152, minimumSize: 46, weight: 800,
     });
     ctx.fillText(amount, left, amountY);
-    if (caret) {
+    if (caret && !entry) {
       // where the next digit lands, sized off the figure it follows
       ctx.fillStyle = accent;
       ctx.fillRect(
@@ -2814,16 +2828,45 @@ export function createRegisterMode(B) {
       );
     }
 
+    // --- the running entry, clearly legible but not the headline -------------
+    let tailY = amountY;
+    if (entry) {
+      // +96, not +76: the dominant figure is 152 px, so its glyphs reach about
+      // 55 px below its baseline and a label 46 px under it was drawn straight
+      // into them. Photographed at the counter before the gap was widened.
+      const entryY = amountY + 96;
+      setTermTracking(ctx, 2.6);
+      ctx.font = '700 20px Arial, sans-serif';
+      ctx.fillStyle = TERM_INK_MUTED;
+      ctx.fillText(entryLabel, left, entryY - 34);
+      setTermTracking(ctx, 0);
+      ctx.fillStyle = amountInk || TERM_INK;
+      const entrySize = setFittedCanvasFont(ctx, entry, {
+        maxWidth: w - 68 - (caret ? 26 : 0), startSize: 52, minimumSize: 26, weight: 700,
+      });
+      ctx.fillText(entry, left, entryY);
+      if (caret) {
+        ctx.fillStyle = accent;
+        ctx.fillRect(
+          left + ctx.measureText(entry).width + 10,
+          entryY - entrySize * 0.36,
+          6,
+          entrySize * 0.72,
+        );
+      }
+      tailY = entryY;
+    }
+
     // --- the prompt, secondary ----------------------------------------------
     if (footer) {
       ctx.fillStyle = 'rgba(232,240,236,0.10)';
-      ctx.fillRect(left, amountY + 64, w - 68, 2);
+      ctx.fillRect(left, tailY + 44, w - 68, 2);
       setTermTracking(ctx, 1.4);
       ctx.fillStyle = footerInk ? tone : TERM_INK_MUTED;
       setFittedCanvasFont(ctx, footer, {
         maxWidth: w - 68, startSize: 25, minimumSize: 16, weight: 600,
       });
-      ctx.fillText(footer, left, amountY + 100);
+      ctx.fillText(footer, left, tailY + 78);
       setTermTracking(ctx, 0);
     }
 
@@ -2880,20 +2923,28 @@ export function createRegisterMode(B) {
       // floating at the face, hiding the entry made keying the total feel like
       // guesswork. The keypad stays physical — the canvas draws no keys — but
       // the running figure renders live as it is typed (2026-07-30 ruling).
-      // Round 10: the eyebrow names what the big figure IS — the amount being
-      // keyed. What is owed, and how to commit it, are the secondary line:
-      // reference material rather than the thing being changed.
+      // C13 reverses which of the two is the headline. Round 10 made the
+      // eyebrow name the big figure - the amount being KEYED - which pushed
+      // what is OWED into a 25 px footer line. "It is the one number that
+      // matters on that display and it should dominate everything else on the
+      // glass": the amount due is the target you are keying toward, and it was
+      // the smallest text on the face. It is the 152 px figure now.
+      //
+      // Round 10's finding still holds and is NOT undone - hiding the entry
+      // made keying the total feel like guesswork - so the running figure
+      // stays live, labelled KEYED and carrying the caret. At 52 px it is
+      // plainly readable and plainly not the headline.
       const typed = String(tx.cardEntryDigits || '').length
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
       paintTermBandedFace(ctx, W, H, {
-        caption: 'Amount',
-        amount: typed,
+        caption: 'Amount due',
+        amount: `$${totalOf(tx).toFixed(2)}`,
+        entry: typed,
+        entryLabel: 'KEYED',
         caret: true,
         accent: tx.cardEntryError ? TERM_WARN : TERM_ACCENT,
-        footer: tx.cardEntryError
-          ? tx.cardEntryError.toUpperCase()
-          : `DUE $${totalOf(tx).toFixed(2)}   \u00b7   PRESS OK`,
+        footer: tx.cardEntryError ? tx.cardEntryError.toUpperCase() : 'PRESS OK TO SUBMIT',
         footerInk: tx.cardEntryError ? TERM_WARN : null,
       });
     } else if (stage === 'card-busy') {
@@ -3252,6 +3303,18 @@ export function createRegisterMode(B) {
   // The customer-held pose stays independent from the reader. The authored
   // chip socket below anchors one short automatic insertion.
   const HELD_QUAT = frontDeskQuaternion(CARD_HELD_PITCH, 0, 0);
+  // C11 — where a finished card lies: flat on the counter beside the reader, on
+  // the customer's side of the goods lane, a card's thickness proud of the top
+  // so it reads as resting rather than inlaid.
+  //
+  // Pitch ZERO, not -PI/2. The card model is already thin in its own Y (the
+  // fallback is BoxGeometry(w, CARD_THICKNESS, h)), so identity IS flat and a
+  // quarter turn stands it on edge — measured 38.4 mm of vertical extent and
+  // 15.5 mm below the counter top before this was corrected.
+  const CARD_FLAT_QUAT = frontDeskQuaternion(0, 0, 0);
+  const cardDeskRest = new THREE.Vector3(
+    CARD_STATION.x, COUNTER_TOP + 0.004, CARD_STATION.z,
+  ).add(frontDeskOffsetVector3(0.22, 0, -0.20));
   const cardReady = new THREE.Vector3(
     CARD_STATION.x, COUNTER_TOP + 0.22, CARD_STATION.z,
   ).add(frontDeskOffsetVector3(0.30, 0, -0.12));
@@ -7001,13 +7064,21 @@ export function createRegisterMode(B) {
       refreshCardInsertPath();
     }
     if (cardEjectTimer > 0) {
+      // C11 — NOTHING DECORATIVE ON THE WAY. This used to arc the card out of
+      // the reader (a +0.025 sin hop) back to the held-out pose, and then a
+      // second motion carried it down and across to the customer's side, where
+      // it faded out. Two travels and a hop for a card that is simply done.
+      //
+      // The reader still releases it over cardEjectTimer — that part is the
+      // machine giving the card back and it is not decoration — but it goes
+      // straight out of the slot and DOWN ONTO THE DESK, flat, and stays there.
+      // If the customer wants it they pick it up off the counter.
       cardEjectTimer = Math.max(0, cardEjectTimer - dt);
       const progress = THREE.MathUtils.smoothstep(1 - cardEjectTimer / 0.64, 0, 1);
       cardU = 1 - progress;
       if (cardMesh) {
-        cardMesh.position.lerpVectors(cardInserted, cardReady, progress);
-        cardMesh.position.y += Math.sin(progress * Math.PI) * 0.025;
-        cardMesh.quaternion.slerpQuaternions(cardInsertQuaternion, HELD_QUAT, progress);
+        cardMesh.position.lerpVectors(cardInserted, cardDeskRest, progress);
+        cardMesh.quaternion.slerpQuaternions(cardInsertQuaternion, CARD_FLAT_QUAT, progress);
       }
       if (cardEjectTimer === 0) cardU = 0;
     } else if (cardMesh && cardInsertTimer === 0
@@ -7041,17 +7112,10 @@ export function createRegisterMode(B) {
 
     if (cardResultTimer > 0) {
       cardResultTimer = Math.max(0, cardResultTimer - dt);
-      if (tx.stage === 'receipt' && cardMesh && cardEjectTimer === 0
-          && cardResultTimer <= CARD_STOW_TIME) {
-        const progress = 1 - cardResultTimer / CARD_STOW_TIME;
-        const eased = THREE.MathUtils.smoothstep(progress, 0, 1);
-        const stow = cardReady.clone().add(
-          frontDeskOffsetVector3(0.06, -0.24, -0.20),
-        );
-        cardMesh.position.lerpVectors(cardReady, stow, eased);
-        cardMesh.quaternion.copy(HELD_QUAT);
-        if (progress >= 0.98) cardMesh.visible = false;
-      }
+      // C11: the stow travel that used to live here is gone. The card was
+      // already put down by the eject above; it stays on the desk where the
+      // player can see it, rather than sliding off toward the customer and
+      // fading out mid-slide.
       if (cardResultTimer === 0) {
         setWorkspace('monitor');
         if (tx && tx.stage === 'receipt') beginAutomaticReceipt();
@@ -7162,40 +7226,12 @@ export function createRegisterMode(B) {
         // not close to covering that, and could not be — it is a constant, and
         // the depth it has to clear is the bag's own height.
         //
-        // So: a derived floor rather than a bigger arc. While the carrier's
-        // footprint is still over the slab, its LOWEST point is held at the
-        // counter top. The moment it clears the front edge it descends to the
-        // hand on its own, which is the shape of a real handoff — across, out,
-        // then down. Nothing here is tuned: the lift is the bag's own hang
-        // below its handle, measured live, so a bigger bag lifts further (see
-        // C12, which makes it bigger).
-        {
-          const box = new THREE.Box3().setFromObject(bagGroup);
-          const handleNow = bagHandlePoint();
-          // how far the carrier hangs below the point being driven, and how far
-          // it reaches sideways from it. The first version tested the ANCHOR's
-          // desk-local z against the slab and let the bag's near face stay over
-          // the counter for another 0.13 yd — a point test cannot answer a
-          // question about a 0.3 yd wide object.
-          // box is WORLD, handleNow is ROOT-LOCAL. Subtracting one from the
-          // other cost exactly the root's world Y (0.177 yd here) and left the
-          // clamp under-lifting by that much — measured 0.166 yd of residual
-          // sink against an expected 0. root carries no X rotation, so its
-          // world Y is the whole of the offset.
-          const rootWorldY = root.getWorldPosition(_bagClearScratch).y;
-          const hang = (!box.isEmpty() && handleNow)
-            ? Math.max(0, handleNow.y - (box.min.y - rootWorldY))
-            : 0.30;
-          const planRadius = box.isEmpty() ? 0.15
-            : 0.5 * Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
-          const local = frontDeskLocalPoint(bagDeliverAnchorAt.x, bagDeliverAnchorAt.z);
-          const nearEdge = Math.abs(local.z) - planRadius;
-          if (nearEdge <= FRONT_DESK_FRAME.frontDepth / 2) {
-            bagDeliverAnchorAt.y = Math.max(
-              bagDeliverAnchorAt.y, COUNTER_TOP + hang + BAG_COUNTER_CLEARANCE,
-            );
-          }
-        }
+        // So: a derived floor rather than a bigger arc, applied AFTER the pose
+        // so it is exact. Predicting the lift from the previous frame's box
+        // left 12.6 mm of sink once C12 scaled the carrier up — the bag is
+        // slerping upright through the handoff, so its hang below the handle
+        // changes every frame and last frame's number is always short. This
+        // measures what was actually drawn and corrects it.
         bagGroup.scale.setScalar(bagDeliverScaleFrom);
         // The carrier RESTS flat on the counter and is RIGHTED as it is lifted
         // into the customer's hand. Interpolating from identity would snap it
@@ -7208,6 +7244,28 @@ export function createRegisterMode(B) {
         bagGroup.updateWorldMatrix(true, true);
         const handle = bagHandlePoint();
         if (handle) bagGroup.position.add(bagDeliverAnchorAt).sub(handle);
+        {
+          bagGroup.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(bagGroup);
+          if (!box.isEmpty()) {
+            // A POINT test cannot answer a question about a 0.5 yd wide object:
+            // the first version tested the anchor's desk-local z and let the
+            // bag's near face sit over the counter for another 0.13 yd. Test
+            // the footprint.
+            const planRadius = 0.5 * Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+            // WORLD -> ROOT before asking the desk frame anything. Box3 centres
+            // are world; frontDeskLocalPoint takes root/interior-local, and the
+            // interior sits ~360 yd out in x, so feeding it world coordinates
+            // silently answered "nowhere near the counter" for every frame.
+            const centre = root.worldToLocal(box.getCenter(_bagClearScratch));
+            const local = frontDeskLocalPoint(centre.x, centre.z);
+            if (Math.abs(local.z) - planRadius <= FRONT_DESK_FRAME.frontDepth / 2) {
+              const topWorld = root.getWorldPosition(_bagClearScratch).y + COUNTER_TOP;
+              const short = (topWorld + BAG_COUNTER_CLEARANCE) - box.min.y;
+              if (short > 0) bagGroup.position.y += short;
+            }
+          }
+        }
       }
       if (deliveryTimer === 0) {
         holdBagAtCustomer();

@@ -263,6 +263,12 @@ async (page) => {
       counterBox: window.__c4.counterBox,
       restingMinY: s.length ? s[s.length - 1].minY : null,
       counterTopWorld: window.__c4.counterTopWorld,
+      // C12 — the flank must rest ON the counter, not sink into it, and the
+      // carrier should read at the reader's size.
+      restingSeatMm: s.length
+        ? +((s[s.length - 1].minY - window.__c4.counterTopWorld) * 914.4).toFixed(1) : null,
+      bagSpanYd: s.length
+        ? +(s[s.length - 1].maxY - s[s.length - 1].minY).toFixed(3) : null,
     };
   });
   assert(control.ticks > 20,
@@ -291,10 +297,33 @@ async (page) => {
   for (const key of ['3', '8', '2', '2']) await page.keyboard.press(key);
   await page.keyboard.press('Enter');
 
+  const readCard = () => page.evaluate(async () => {
+    const THREE = await import('/vendor/three.module.js');
+    const { COUNTER_TOP } = await import('/src/data/shopLayout.js');
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    let mesh = null;
+    const from = clubhouse.register.root || clubhouse.interior;
+    from.traverse((o) => {
+      if (!mesh && o.userData && o.userData.kind === 'payment-card') mesh = o;
+    });
+    if (!mesh) return { found: false };
+    const box = new THREE.Box3().setFromObject(mesh);
+    const top = clubhouse.interior.position.y + COUNTER_TOP;
+    return {
+      found: true,
+      visible: mesh.visible && !!mesh.parent,
+      restsOnCounterMm: +((box.min.y - top) * 914.4).toFixed(1),
+      thicknessMm: +((box.max.y - box.min.y) * 914.4).toFixed(1),
+      flat: (box.max.y - box.min.y) < (box.max.x - box.min.x) * 0.35,
+    };
+  });
+
   // ---- the handoff itself --------------------------------------------------
   await page.waitForFunction(() => (
     ['receipt', 'bagging', 'done'].includes(window.__fw.scene3d.clubhouse().register.getTx()?.stage)
   ), null, { timeout: 40000 });
+  await page.waitForTimeout(1400);
+  const cardAtApproval = await readCard();
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-deliver'
   ), null, { timeout: 30000 }).catch(() => {});
@@ -338,8 +367,19 @@ async (page) => {
     };
   });
 
+  // C11 — where the card ends up. It used to arc out of the reader and then
+  // travel to the customer's side and fade; it should simply be lying on the
+  // desk, visible, where the customer can pick it up.
+  const cardAfterRelease = await readCard();
+
   const report = {
-    control: { frames: control.frames, maxSinkYd: control.maxSink },
+    control: {
+      frames: control.frames,
+      maxSinkYd: control.maxSink,
+      restingSeatMm: control.restingSeatMm,
+      bagSpanYd: control.bagSpanYd,
+    },
+    card: { atApproval: cardAtApproval, afterRelease: cardAfterRelease },
     run,
     // ACCEPTANCE 1 — nothing of the bag may be under the counter while its
     // footprint is still on it. 0.02 yd (18 mm) is render tolerance, not slack.

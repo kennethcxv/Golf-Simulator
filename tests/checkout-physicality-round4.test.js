@@ -212,17 +212,31 @@ test('the reader glass reads as a current terminal: one ground, hierarchy in the
   assert.ok(sizes.length >= 3, 'the face sets at least three fitted type sizes');
   const amountSize = Math.max(...sizes);
   const nextSize = [...sizes].sort((a, b) => b - a)[1];
-  assert.ok(amountSize >= nextSize * 3,
+  // C13 (2026-08-04) added a second figure to this face — the running KEYED
+  // entry — so "several times the next largest type" had to be restated. The
+  // ratio it now pins is the one the brief asked for: the headline dominates,
+  // and the entry is legible without competing.
+  assert.ok(amountSize >= nextSize * 2.5,
     `the figure (${amountSize}px) must dominate the next largest type (${nextSize}px)`);
 
   const start = source.indexOf("} else if (stage === 'card-entry') {");
   const end = source.indexOf("} else if (stage === 'card-busy') {", start);
   const entry = source.slice(start, end);
-  assert.match(entry, /caption: 'Amount'/,
-    'the eyebrow names what the big figure is — the amount being keyed');
-  assert.match(entry, /DUE \$\$\{totalOf\(tx\)/, 'what is owed is reference, on the secondary line');
-  assert.match(entry, /caret: true/, 'the running entry carries a caret');
-  assert.match(entry, /cardEnteredAmount\(tx\)/, 'and the figure IS the running entry');
+  // C13 REVERSES ROUND 10 ON PURPOSE. Round 10 made the big figure the amount
+  // being keyed and pushed what is owed into a 25 px footer line. "Make the
+  // amount owed noticeably bigger on the card reader's screen during a card
+  // transaction. It is the one number that matters on that display and it
+  // should dominate everything else on the glass."
+  assert.match(entry, /caption: 'Amount due'/,
+    'the eyebrow names the headline, and the headline is what is OWED');
+  assert.match(entry, /amount: `\$\$\{totalOf\(tx\)\.toFixed\(2\)\}`/,
+    'the dominant figure is the amount due');
+  // …and round 10's finding is NOT undone: hiding the entry made keying the
+  // total feel like guesswork, so the running figure stays live and carries
+  // the caret. It is simply no longer the headline.
+  assert.match(entry, /entry: typed/, 'the running entry is still drawn');
+  assert.match(entry, /caret: true/, 'and still carries the caret');
+  assert.match(entry, /cardEnteredAmount\(tx\)/, 'from the live keyed amount');
 });
 
 // A3 — "the card must actually enter the slot. It sits against the reader
