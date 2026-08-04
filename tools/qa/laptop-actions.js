@@ -55,7 +55,24 @@ async (page) => {
       const L = await import('/src/data/shopLayout.js');
       const o = app.scene3d.clubhouse().interior.position;
       const w = app.scene3d.walk.state;
-      const laptop = L.FRONT_DESK.laptop;
+      const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
       const seat = { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
       w.x = seat.x + o.x;
       w.z = seat.z + o.z;
@@ -70,7 +87,7 @@ async (page) => {
   async function openLaptop() {
     await page.keyboard.press('e');
     // The chair diagonal's [E] focus is flaky; retry once square-on north.
-    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+    const opened = await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 6000 })
       .then(() => true).catch(() => false);
     if (!opened) {
       await page.evaluate(async () => {
@@ -78,7 +95,24 @@ async (page) => {
         const L = await import('/src/data/shopLayout.js');
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
-        const laptop = L.FRONT_DESK.laptop;
+        const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
         w.x = laptop.x + o.x;
         w.z = laptop.z + 0.95 + o.z;
         w.yaw = Math.atan2(0, 1); // face -z, straight at the laptop
@@ -86,7 +120,7 @@ async (page) => {
       });
       await page.waitForTimeout(600);
       await page.keyboard.press('e');
-      await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+      await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 8000 });
     }
     await page.waitForFunction(() => { const r = document.querySelector('.laptop-screen'); return r && r.style.display !== 'none'; }, null, { timeout: 15000 });
     await page.waitForFunction(() => {
@@ -143,7 +177,7 @@ async (page) => {
   // The chair diagonal's [E] focus is flaky (laptop-look landed it, this file
   // missed it in the same session). Retry once from the square-on north stand.
   {
-    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+    const opened = await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 6000 })
       .then(() => true).catch(() => false);
     if (!opened) {
       await page.evaluate(async () => {
@@ -151,7 +185,24 @@ async (page) => {
         const L = await import('/src/data/shopLayout.js');
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
-        const laptop = L.FRONT_DESK.laptop;
+        const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
         w.x = laptop.x + o.x;
         w.z = laptop.z + 0.95 + o.z;
         w.yaw = Math.atan2(0, 1); // face -z, straight at the laptop

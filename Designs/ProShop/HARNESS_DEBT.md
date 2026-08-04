@@ -155,3 +155,76 @@ beats a shallow per-driver nudge that would paper over the shared cause.
 
 *Raw runs: `Baseline/round6/laptop-harness-sweep.txt` (HEAD) and
 `laptop-harness-preb8.txt` (pre-move).*
+
+
+---
+
+## 5. D1 — the laptop family: root cause found, drivers still red
+
+**What §4 concluded was wrong, and the measurement says so.** §4 read
+Playwright's "`.lt-search` never visible" as selector drift downstream of a
+laptop that never opened, and named the `FRONT_DESK.laptop` layout datum as the
+likely cause. Both are disproved:
+
+| §4's hypothesis | measured 2026-08-04 | verdict |
+|---|---|---|
+| the drivers stand at a stale layout datum | the rig sits at interior-local (-2.550, 1.557); `FRONT_DESK.laptop` reads (-2.550, 1.557) | **wrong** — B8 moved the datum with the machine |
+| the laptop never opens | standing at the rig and pressing E opens it, prompt `"Laptop — [E] open GOLF SIMULATOR"`, screen 1280x720 | **wrong** — it opens |
+| `.lt-search` is a drifted selector | the field measures 217 x 15 px at (474, 149), `display: block`, `visibility: visible`, `opacity: 1` | **wrong** — it is there and it is visible |
+
+**What is actually true.** `app.laptopOpen = true` is set on the FIRST line of
+`enterLaptop()` (src/main.js), and the DOM it gates opens **1350 ms later**:
+
+```js
+app.laptopOpen = true;                       // main.js — immediately
+…
+laptopTimers.push(setTimeout(() => {         // main.js — +1350 ms
+  if (ch.laptopScreen) ch.laptopScreen('live');
+  laptopUi.open(startPage);                  // ← root.style.display = ''
+}, 1350));
+```
+
+Time-resolved on a live open, polling every 400 ms:
+
+```
+t=0.4s flag=true exists=true display=none    0x0
+t=1.2s flag=true exists=true display=none    0x0
+t=1.6s flag=true exists=true display=(empty) 1280x720
+```
+
+Every red driver waited on that flag and went straight for the interface, so it
+reached into a `.laptop-screen` that was still `display:none`. The flag means
+"the player has sat down and the lid is swinging". It does not mean the screen
+is on. `laptop-bstand-verify` was green throughout because it alone waits
+1800 ms after the E press before touching anything — not because its stance was
+better.
+
+**Fixed:** every `laptopOpen === true` wait in the ten drivers (20 sites) now
+also requires the screen to be up and the projected `.lt-frame` to be settled
+and over 100 px wide. `tools/qa/lib/qa-laptop.mjs` carries the shared
+`waitForLaptopScreen()` and `standAtLaptop()` for anything written next. The
+stance was also moved onto `laptopRig()` — insurance, not a fix, and labelled
+as such in the code so the disproved hypothesis is not re-run.
+
+**Still red, and this is the honest state:**
+
+| harness | before | after |
+|---|:--:|:--:|
+| `laptop-cycle`, `laptop-bstand-verify`, `proshop-greybox-laptop` | pass | pass |
+| `laptop-round3`, `laptop-search-kit`, `laptop-search-navigate`, `laptop-cart-flow` | fail | fail — `locator.click` timeout on `.lt-search` |
+| `laptop-persist` | fail | fail — its own open predicate never satisfied |
+| `laptop-look`, `laptop-sales-tax-card`, `laptop-search-visible` | fail | fail — `ok:false` |
+| `laptop-actions`, `laptop-tour` | fail | fail — "marketplace: no affordable Buy button" (economy fixture, unrelated) |
+
+**0 of 10 turned green.** The race is real and fixing it was right, but it is not
+the whole cause: a hand-driven open from the same stance, in the same build,
+reaches a clickable field, and these drivers do not. The difference between the
+probe's path and theirs has not been isolated.
+
+**Next step, and it is a bisect not a theory.** Take `laptop-round3`, strip it to
+boot → stand → E → click `.lt-search`, confirm it passes, then re-add its setup
+one statement at a time until it fails. Its setup differs from the working probe
+in at least: a 9:00 clock write plus `applyTimeWeather`, `page.keyboard.press('KeyE')`
+rather than `'e'`, and a 3000 ms post-clubhouse settle. One of those, or
+something between them, is the second cause. Guessing which has already cost
+one session; the bisect is an hour and ends the question.
