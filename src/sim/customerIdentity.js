@@ -432,11 +432,15 @@ export function recordCustomerVisit(state, customerId, {
   outcome = 'visit',
   paymentMethod = null,
   amount = 0,
+  // C6: a combined visit files TWO outcomes — a check-in and a purchase — for
+  // one walk through the door. Both must count against their own tallies; the
+  // second must not count as a second visit.
+  countsAsVisit = true,
 } = {}) {
   const customer = customerIdentityById(state, customerId);
   if (!customer) return { ok: false, reason: 'Unknown customer identity.' };
   const history = customer.visitHistory;
-  history.totalVisits += 1;
+  if (countsAsVisit) history.totalVisits += 1;
   if (outcome === 'purchase') history.completedPurchases += 1;
   if (outcome === 'check-in') history.completedCheckIns += 1;
   if (outcome === 'no-show') history.noShows += 1;

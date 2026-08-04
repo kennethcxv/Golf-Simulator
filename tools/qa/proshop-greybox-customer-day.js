@@ -165,7 +165,13 @@
       zones = [
         // The sealed staff corridor: behind the desk's staff edge, west of the
         // partition line, down to the return/hutch back band.
-        { name: 'staff-corridor', ...inset({ minX: west.returnBackFill.minX, maxX: V2.publicBounds.maxX, minZ: seal.zTo, maxZ: west.returnBackFill.maxZ }, 0.15) },
+        // C5 (2026-08-04) opened the desk's west end as the staff pass-through,
+        // so the corridor is no longer customer-forbidden by construction and
+        // returnBackFill no longer exists. The zone now starts at the hutch-gap
+        // fillet's west face, which is still the first thing a customer has no
+        // business being behind, and the pass-through column itself is legal
+        // floor for anybody.
+        { name: 'staff-corridor', ...inset({ minX: west.hutchGapFill.minX, maxX: V2.publicBounds.maxX, minZ: seal.zTo, maxZ: west.hutchGapFill.maxZ }, 0.15) },
         // East of the public bound = the service wing. 5.60 is the partition
         // band's west face; a customer center past it is inside or beyond the
         // partition line (the staff mouth included â€” no customer path exists
@@ -175,7 +181,6 @@
         { name: 'service-wing', minX: 5.60, maxX: V2.publicBounds.maxX + 6, minZ: seal.zFrom, maxZ: V2.publicBounds.maxZ + V2.wallT },
         // Sealed slabs â€” inside any of these means the walker pierced a solid.
         { name: 'seal-east-stub', ...inset({ minX: seal.x - seal.t / 2, maxX: seal.x + seal.t / 2, minZ: seal.zFrom, maxZ: seal.zTo }, 0.02) },
-        { name: 'seal-return-back', ...inset(west.returnBackFill, 0.05) },
         { name: 'seal-hutch-gap', ...inset(west.hutchGapFill, 0.05) },
         { name: 'seal-hutch-east', ...inset(west.hutchEastFill, 0.05) },
       ];

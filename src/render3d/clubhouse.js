@@ -1705,10 +1705,16 @@ export function makeClubhouse(ctx) {
     const acceptanceYaw = c.mesh.rotation.y;
     c.bought = true;
     c.paymentStatus = 'paid';
+    visitTally.purchasesCompleted += 1;
+    if (c.combinedVisit) visitTally.combinedCompleted += 1;
     if (!c.visitRecorded && c.customerId) {
       recordCustomerVisit(state, c.customerId, {
         dayAbs: Math.floor(state.clock.minutes / 1440),
-        purpose: 'retail',
+        // C6: one person, one visit, two errands. The check-in already counted
+        // the visit itself, so this call records the purchase without counting
+        // the same person through the door twice.
+        purpose: c.combinedVisit ? 'tee-time+retail' : 'retail',
+        countsAsVisit: !c.combinedVisit,
         outcome: 'purchase',
         paymentMethod: transaction && transaction.method,
         amount: transaction ? totalOf(transaction) : 0,
@@ -8369,6 +8375,25 @@ export function makeClubhouse(ctx) {
   let disposalSummary = null;
   // golfer-wardrobe palette, muted to the club color language
   const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0x8f4f39, 0x4a7050, 0x7b8277, 0x4d4038];
+  // C6 — how often somebody here for a tee time also shops. Before this the
+  // answer was structurally 0%: the browse-stop builder lived inside the
+  // "no other reason to be here" branch. 0.45 is the rate a real pro shop
+  // recognises — most people at the desk glance at the wall on the way past —
+  // and it is a named constant so the measured share can be moved deliberately.
+  const COMBINED_VISIT_CHANCE = 0.45;
+  // The C6 acceptance instrument. Counting live customers cannot answer "N of M
+  // visits", because a visit ends by being removed from the array — so the tally
+  // is incremented at the four moments and read afterwards.
+  const visitTally = {
+    arrivals: 0,          // everyone who walked in
+    deskErrands: 0,       // here for a tee time (pre-registered OR walk-in ask)
+    retailOnly: 0,        // here to shop and nothing else
+    combinedOffered: 0,   // desk errand that also drew a shopping plan
+    combinedStarted: 0,   // ...and reached the shop floor after the desk
+    combinedCompleted: 0, // ...and paid for something
+    checkInsCompleted: 0,
+    purchasesCompleted: 0,
+  };
   const counterQueue = [];
 
   // --- NAV-WAIT-001: a browse stand serves ONE customer at a time -----------
@@ -8770,6 +8795,94 @@ export function makeClubhouse(ctx) {
     };
   }
 
+  // C6 — THE RETAIL ERRAND, lifted out of spawnCustomer (2026-08-04).
+  //
+  // This block used to live inside `if (!toCounter && !walkInRequest)`, which is
+  // why the combined-visit share was not low but structurally zero: a customer
+  // here for a tee time never received a shopping plan, so they could never buy
+  // anything, and no probability anywhere changed that.
+  //
+  // It is a pure builder now — it produces the plan and the stops and adds
+  // nothing to the customer — so the same errand can be built at spawn and
+  // spliced in later, after the desk has finished with a golfer.
+  function buildRetailErrand(rng) {
+    const stops = [];
+    const floorFixtures = placedFixtures(state);
+    const browsable = floorFixtures.filter((f) => f.skus && f.skus.length > 0);
+    const claimed = new Set(customers.flatMap((customer) => customer.stops
+      .slice(customer.stopIdx)
+      .map((stop) => stop.socketKey)
+      .filter(Boolean)));
+    // Plan one real fixture visit per intended unit, preferring different
+    // displays before revisiting a well-stocked one.
+    const organicPlan = planOrganicOrder(browsable, state.shop.inventory, rng);
+    const visits = organicPlan.picks.length
+      ? organicPlan.picks
+      : (browsable.length ? [{ fixture: browsable[rng.int(browsable.length)], skuId: null }] : []);
+    for (const visit of visits) {
+      const f = visit.fixture;
+      // Keep a stable fixture-local browse pose so a customer already en
+      // route follows the same display through a build-mode move or turn.
+      const fixtureLocalX = (rng.next() - 0.5) * 0.8;
+      const halfDepth = Number.isFinite(f.footprint?.maxZ)
+        ? f.footprint.maxZ
+        : (FIXTURE_HALF[f.kind] || [1, 1])[1];
+      const fixtureLocalZ = halfDepth + 0.72 + (rng.next() - 0.5) * 0.4;
+      const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ);
+      stops.push({
+        kind: 'fixture',
+        fixtureId: f.id,
+        fixtureLocalX,
+        fixtureLocalZ,
+        skus: f.skus,
+        plannedSku: visit.skuId,
+        browseOnly: !visit.skuId,
+        title: f.title,
+        ...pose,
+      });
+      for (const id of f.experienceAfter || []) {
+        const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed);
+        if (!beat || stops.some((s) => s.fixtureId === id)) continue;
+        claimed.add(beat.socketKey);
+        stops.push(beat);
+        break;
+      }
+    }
+    return { organicPlan, stops };
+  }
+
+  // Hand a golfer the retail errand they arrived carrying, instead of the exit.
+  // Called from the two desk-release sites; returns false when there is nothing
+  // pending, which keeps both call sites' existing behaviour untouched.
+  function beginPendingRetail(c) {
+    if (!c || !c.pendingRetail || !c.pendingRetail.stops.length) return false;
+    const { organicPlan, stops } = c.pendingRetail;
+    c.pendingRetail = null;
+    c.combinedVisit = true;
+    const exitIdx = c.stops.findIndex((stop) => stop.kind === 'exit');
+    const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+    const tail = [
+      ...stops,
+      { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z },
+    ];
+    c.stops = exitIdx >= 0
+      ? [...c.stops.slice(0, exitIdx), ...tail, ...c.stops.slice(exitIdx)]
+      : [...c.stops, ...tail];
+    c.stopIdx = Math.max(0, exitIdx >= 0 ? exitIdx : c.stops.length - tail.length);
+    c.targetCartSize = organicPlan.target;
+    // Same expression spawnCustomer uses, so a spliced errand and a spawned one
+    // enter the phase machine in exactly the same state.
+    c.checkoutPhase = organicPlan.target ? 'shopping' : 'browsing';
+    c.currentDestination = 'shop';
+    c.awaitingCheckout = false;
+    c.checkoutFlow = organicPlan.target ? createCheckoutFlow({ nowMs: flowNow() }) : null;
+    c.path = null;
+    c.pathGoal = null;
+    c.linger = 1.5;
+    visitTally.combinedStarted += 1;
+    return true;
+  }
+
   function spawnCustomer(toCounter = false, reservation = null, options = {}) {
     // Keep the existing boolean call surface used by organic shoppers and QA,
     // while allowing a due tee-time record to supply stable presentation identity.
@@ -8851,48 +8964,21 @@ export function makeClubhouse(ctx) {
     // the approach: porch step, then just inside the door (the doorbell moment)
     stops.push({ kind: 'walk', x: doorW.x, z: doorW.z + 2.6 });
     stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
-    if (!toCounter && !walkInRequest) {
-      const floorFixtures = placedFixtures(state);
-      const browsable = floorFixtures.filter((f) => f.skus && f.skus.length > 0);
-      const claimed = new Set(customers.flatMap((customer) => customer.stops
-        .slice(customer.stopIdx)
-        .map((stop) => stop.socketKey)
-        .filter(Boolean)));
-      // Plan one real fixture visit per intended unit, preferring different
-      // displays before revisiting a well-stocked one.
-      organicPlan = planOrganicOrder(browsable, state.shop.inventory, rng);
-      const visits = organicPlan.picks.length
-        ? organicPlan.picks
-        : (browsable.length ? [{ fixture: browsable[rng.int(browsable.length)], skuId: null }] : []);
-      for (const visit of visits) {
-        const f = visit.fixture;
-        // Keep a stable fixture-local browse pose so a customer already en
-        // route follows the same display through a build-mode move or turn.
-        const fixtureLocalX = (rng.next() - 0.5) * 0.8;
-        const halfDepth = Number.isFinite(f.footprint?.maxZ)
-          ? f.footprint.maxZ
-          : (FIXTURE_HALF[f.kind] || [1, 1])[1];
-        const fixtureLocalZ = halfDepth + 0.72 + (rng.next() - 0.5) * 0.4;
-        const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ);
-        stops.push({
-          kind: 'fixture',
-          fixtureId: f.id,
-          fixtureLocalX,
-          fixtureLocalZ,
-          skus: f.skus,
-          plannedSku: visit.skuId,
-          browseOnly: !visit.skuId,
-          title: f.title,
-          ...pose,
-        });
-        for (const id of f.experienceAfter || []) {
-          const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed);
-          if (!beat || stops.some((s) => s.fixtureId === id)) continue;
-          claimed.add(beat.socketKey);
-          stops.push(beat);
-          break;
-        }
-      }
+    // C6: a shopping plan is no longer welded to "arrived with no other reason".
+    // A tee-time arrival gets one too, on a roll, and carries it as
+    // `pendingRetail` until the desk is finished with them.
+    const combinedIntent = (toCounter || walkInRequest)
+      && rng.chance(COMBINED_VISIT_CHANCE)
+      && placedFixtures(state).some((f) => f.skus && f.skus.length > 0);
+    const retailPlan = (!toCounter && !walkInRequest) || combinedIntent
+      ? buildRetailErrand(rng)
+      : null;
+    visitTally.arrivals += 1;
+    if (toCounter || walkInRequest) visitTally.deskErrands += 1; else visitTally.retailOnly += 1;
+    if (combinedIntent) visitTally.combinedOffered += 1;
+    if (retailPlan && !combinedIntent) {
+      organicPlan = retailPlan.organicPlan;
+      stops.push(...retailPlan.stops);
     }
     // Paying visitors draw their cash-or-card preference ONCE here, from the
     // balanced shuffled bag (sim/paymentBag.js). Reservation guests already drew
@@ -8964,6 +9050,11 @@ export function makeClubhouse(ctx) {
       rangBell: false,
       cart: [],
       targetCartSize: organicPlan.target,
+      // C6: the retail errand a golfer arrived carrying, handed to them by
+      // beginPendingRetail() once the desk is done rather than at spawn — a
+      // customer who is browsing must not still be on the desk's list.
+      pendingRetail: combinedIntent ? retailPlan : null,
+      combinedVisit: false,
       scanned: 0,
       patience: PATIENCE_FULL,   // the 3-minute register clock; browsing never drains it
       awaitingCheckout: false,
@@ -9741,6 +9832,15 @@ export function makeClubhouse(ctx) {
     if (c.reservationReleased) return true;
     c.reservationReleased = true;
     c.reservationExitReason = reason;
+    // C6: checked in, and they came in for a sleeve of balls as well. The desk
+    // is finished with them — `reservationReleased` already removes them from
+    // deskReservationList — so send them shopping instead of out of the door.
+    // Only on a successful check-in: someone turned away is leaving.
+    if (reason === 'checked-in' || reason === 'completed') {
+      visitTally.checkInsCompleted += 1;
+      leaveQueue(c);
+      if (beginPendingRetail(c)) return true;
+    }
     c.checkoutPhase = 'reservation-leaving';
     c.currentDestination = 'exit';
     c.awaitingCheckout = false;
@@ -11423,6 +11523,14 @@ export function makeClubhouse(ctx) {
     emptyPan: () => emptyPanIntoBag(state).moved,
     disposeBag: () => disposeTiedBag(state),
     customers, doors, // QA access
+    // C6 acceptance: "N of M visits contained both a purchase and a booking".
+    // A visit ends by leaving the customers array, so the answer has to be
+    // accumulated as it happens rather than counted at the end.
+    visitTally: () => ({ ...visitTally }),
+    // The desk bridge, read-only for QA. simplifiedRegisterMode reaches it
+    // through B; an acceptance run that has to PLAY the desk (a check-in is a
+    // player action) had no way in at all.
+    frontDeskBridge: () => B.frontDeskReservations || null,
     collisionDiagnostics: () => Object.freeze(registeredCols.map((collider, index) => {
       const primitiveMetadata = {};
       for (const [key, value] of Object.entries(collider)) {
