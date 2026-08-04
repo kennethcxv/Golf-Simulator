@@ -470,6 +470,11 @@ def build_payment_terminal(M):
     _label("FAIRHOLLOW", 0.0046, 0.0005, (0, -BD / 2 - 0.0006, scr_z - scr_h / 2 - 0.0105), M["sage"], body,
            rot=(math.radians(90), 0, 0), name="t_brand")
 
+    # The chip slot is BUILT below, but its top edge bounds the keypad, so the
+    # numbers live here and both sites read them.
+    SLOT_Z, SLOT_H = 0.011, 0.010
+    SLOT_TOP = SLOT_Z + SLOT_H / 2
+
     # keypad: 3x3 digits, colour row on the same columns, wide correction bar,
     # all seated in a recessed black deck like a production pad
     keypad = K.empty("Terminal_Keypad", (0, 0, 0), parent=body, props={"component": "keypad"})
@@ -498,7 +503,32 @@ def build_payment_terminal(M):
     key("Terminal_CancelButton", M["btn_red"], "X", -pitch_x, zb)
     key("Terminal_Key_0", M["key_dark"], "0", 0, zb)
     key("Terminal_ConfirmButton", M["btn_green"], "O", pitch_x, zb)
-    key("Terminal_BackButton", M["btn_yellow"], "-", 0, zb - pitch_z, w=key_w, h=0.0095, glyph_px=0.0068)
+    # THE CORRECTION BAR IS ACTUALLY A BAR (A3, 2026-08-03).
+    #
+    # The comment four lines up has always said "wide correction bar", and this
+    # was neither: a single-column key at 0.0095 high, 76% of a digit key, alone
+    # on the row below the colour keys and hard against the card-slot lip.
+    # Playtest: "the yellow backspace key is half-occluded by the device body at
+    # the bottom of the unit". Measured, it was never occluded — every ray to it
+    # lands on the key — but at three quarters the height of its neighbours, on
+    # its own, at the bottom of a sloped deck, it READS as something the case has
+    # eaten. The complaint was about legibility, and the geometry agreed with it.
+    #
+    # Full key height, and spanning all three columns the way the comment always
+    # described.
+    #
+    # It does NOT sit on the pitch grid. Growing it to full height about
+    # z0 - 4*pitch_z drops its lower edge to 0.01375, and the chip slot's top is
+    # 0.016 sitting 4.5 mm PROUD of the key faces — that occludes the bottom
+    # 2.3 mm of the bar and makes the reported half-occlusion literally true for
+    # the first time. (The old short key was already 0.75 mm behind the slot.)
+    # The clear band between the slot and the colour row is 13.25 mm against a
+    # 12.5 mm key, so the bar is centred in its own band and both gaps are
+    # derived, not guessed. Anything that moves the slot or the pitch moves this.
+    back_w = 2 * pitch_x + key_w
+    back_cz = (SLOT_TOP + (zb - key_h / 2)) / 2
+    key("Terminal_BackButton", M["btn_yellow"], "-", 0, back_cz,
+        w=back_w, h=key_h, glyph_px=0.0072)
 
     # Visible contactless target plus a named locator for a future tap path.
     nfc_z = scr_z - scr_h / 2 - 0.011
@@ -518,7 +548,7 @@ def build_payment_terminal(M):
             parent=body, size=0.022, props={"socket": "payment_card", "mode": "contactless"})
 
     # chip slot at the bottom front + card socket (card 85.6 x 54 mm enters short-edge first)
-    slot = L.box("Terminal_ChipSlot", (0.062, 0.020, 0.010), (0, -BD / 2 + 0.002, 0.011), M["black"], bevel=0.002, parent=body)
+    slot = L.box("Terminal_ChipSlot", (0.062, 0.020, SLOT_H), (0, -BD / 2 + 0.002, SLOT_Z), M["black"], bevel=0.002, parent=body)
     L.box("t_slotgap", (0.058, 0.016, 0.0028), (0, -BD / 2 - 0.004, 0.008), M["black"], bevel=0.0, parent=body)
     L.box("t_slotlip", (0.066, 0.0045, 0.0022), (0, -BD / 2 - 0.0035, 0.0145), M["alu"], bevel=0.0008, parent=body)
     L.cyl("t_slotled", 0.0016, 0.002, (0.036, -BD / 2 - 0.0008, 0.011), M["led_green"], rot=(math.radians(90), 0, 0), verts=10, bevel=0, parent=body)
