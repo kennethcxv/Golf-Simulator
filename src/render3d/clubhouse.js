@@ -194,7 +194,9 @@ import {
   ensureWet, wetAt, solutionAt, solutionLevel, consumeSolution, dryTick, SOLUTION_MIN,
   wetGridForRoom,
 } from '../sim/cleaningWet.js';
-import { CLEANING_TOOLS, TOOL_CLASS } from '../data/cleaningTools.js';
+import {
+  CLEANING_TOOLS, TOOL_CLASS, MEDIUM, toolMedia, toolDebrisKinds,
+} from '../data/cleaningTools.js';
 import {
   ensureCleaningToolState, cleaningStatus, panSpace, bagSpace, addToPan, addToBag,
   emptyPanIntoBag, tieBag, disposeTiedBag, serviceMop, changeBucketWater,
@@ -5199,16 +5201,34 @@ export function makeClubhouse(ctx) {
   //
   // The markers deliberately draw THROUGH geometry (depthTest off, late render
   // order) — a pile behind the counter is exactly the one you cannot find.
-  const SENSE_CAP = DEBRIS_CAP * 2;
+  //
+  // D3: AND IT ANSWERS THE TOOL IN YOUR HANDS.
+  //
+  // The reveal used to light the debris clusters and nothing else, for every
+  // tool equally. That is wrong in both directions: a player holding a mop was
+  // shown piles the mop cannot touch, and a player holding anything at all was
+  // never shown the ground-in grime, which is the larger half of a filthy floor
+  // and has no other tell. Markers are now per-MEDIUM (cleaningTools.js
+  // MEDIUM), coloured by what kind of mess they are, and filtered to what the
+  // held tool can actually shift. With no cleaning tool out, everything shows —
+  // that is the "which way do I go" case the Tab overview wants.
+  const SENSE_CAP = DEBRIS_CAP * 2 + RENO.grid.w * RENO.grid.h;
   const senseGeo = new THREE.SphereGeometry(0.16, 10, 8);
   const senseMat = new THREE.MeshBasicMaterial({
-    color: 0x74e0ff,
+    color: 0xffffff, // white: the per-instance colour carries the medium
     transparent: true,
     opacity: 0,
     depthTest: false,
     depthWrite: false,
     toneMapped: false,
   });
+  // Loose debris keeps the established cyan; grime is a warm ochre, because it
+  // is the colour of the thing itself and because the two must be tellable
+  // apart at a glance and through a wall.
+  const SENSE_COLOR = {
+    debris: new THREE.Color(0x74e0ff),
+    grime: new THREE.Color(0xffa94d),
+  };
   const senseMesh = new THREE.InstancedMesh(senseGeo, senseMat, SENSE_CAP);
   senseMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   senseMesh.frustumCulled = false;
@@ -5222,31 +5242,100 @@ export function makeClubhouse(ctx) {
 
   let senseAlpha = 0;
   let senseColumns = false;
+  let senseTool = null;
+  const senseTally = { debris: 0, grime: 0, hiddenByTool: 0 };
+
+  // Grime lives on a coarse cell grid rather than as clusters, so a marker
+  // stands at the centre of any cell still carrying enough to be worth a pass.
+  // Below this the floor reads clean and a marker would be noise.
+  const GRIME_MARKER_MIN = 0.06;
+  // …and on a day-one floor EVERY cell is over that threshold. Marking all 104
+  // of them wallpapered the room in orange spheres — technically true, and
+  // useless: "the whole floor is dirty" is what the condition number already
+  // says. The reveal's job is WHERE TO GO FIRST, so it shows the worst patches
+  // only. 20 is roughly a fifth of the grid: enough to describe the shape of
+  // the mess, few enough to see the room through.
+  const GRIME_MARKER_MAX = 20;
+  // Debris is a pile you walk up to; grime is IN the boards. Drawing both as
+  // the same floating ball made a stained floor look like hovering fruit, so
+  // grime markers are flattened onto the surface and read as a stain.
+  const GRIME_FLATTEN = 0.14;
 
   function refreshDirtSense() {
-    const list = debrisState(state);
+    const media = senseTool ? toolMedia(senseTool) : [MEDIUM.DEBRIS, MEDIUM.GRIME];
+    const wantDebris = media.includes(MEDIUM.DEBRIS);
+    const wantGrime = media.includes(MEDIUM.GRIME);
+    const kinds = senseTool ? toolDebrisKinds(senseTool) : null;
+    const COLUMN_YD = 9.0;
     let n = 0;
-    for (let i = 0; i < list.length && n < SENSE_CAP; i += 1) {
-      const d = list[i];
-      if (!d || d.a <= 0.001) continue;
-      // A marker's size answers "how much", so a big pile reads as worth the
-      // walk; the column mode stands it up so it clears furniture from above.
-      const s = Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7);
-      // The overview looks DOWN at a roofed building, so a marker that stops at
-      // head height is behind the ceiling and useless. The column is sized to
-      // punch clean through the roof: the 0.16 yd sphere scaled to ~9 yd tall,
-      // standing from the floor.
-      const COLUMN_YD = 9.0;
-      const h = senseColumns ? COLUMN_YD / (0.16 * 2) : s;
-      _dp.set(d.x, senseColumns ? COLUMN_YD / 2 : 0.10 + 0.02 * s, d.z);
+    senseTally.debris = 0;
+    senseTally.grime = 0;
+    senseTally.hiddenByTool = 0;
+
+    const place = (x, z, s, medium) => {
+      const flat = medium === MEDIUM.GRIME && !senseColumns;
+      const h = senseColumns ? COLUMN_YD / (0.16 * 2) : s * (flat ? GRIME_FLATTEN : 1);
+      _dp.set(
+        x,
+        senseColumns ? COLUMN_YD / 2 : (flat ? 0.045 : 0.10 + 0.02 * s),
+        z,
+      );
       _dq.identity();
       _ds.set(s, h, s);
       _dm.compose(_dp, _dq, _ds);
       senseMesh.setMatrixAt(n, _dm);
+      senseMesh.setColorAt(n, SENSE_COLOR[medium]);
       n += 1;
+    };
+
+    const list = debrisState(state);
+    for (let i = 0; i < list.length && n < SENSE_CAP; i += 1) {
+      const d = list[i];
+      if (!d || d.a <= 0.001) continue;
+      if (!wantDebris || (kinds && !kinds.includes(d.kind))) { senseTally.hiddenByTool += 1; continue; }
+      // A marker's size answers "how much", so a big pile reads as worth the
+      // walk; the column mode stands it up so it clears furniture from above.
+      // The overview looks DOWN at a roofed building, so a marker that stops at
+      // head height is behind the ceiling and useless. The column is sized to
+      // punch clean through the roof: the 0.16 yd sphere scaled to ~9 yd tall,
+      // standing from the floor.
+      place(d.x, d.z, Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7), MEDIUM.DEBRIS);
+      senseTally.debris += 1;
     }
+
+    const grime = state.shop?.reno?.grime;
+    if (grime) {
+      const cellW = RENO.room.w / RENO.grid.w;
+      const cellD = RENO.room.d / RENO.grid.h;
+      const dirty = [];
+      for (let cy = 0; cy < RENO.grid.h; cy += 1) {
+        for (let cx = 0; cx < RENO.grid.w; cx += 1) {
+          const amount = grime[cy * RENO.grid.w + cx];
+          if (!(amount > GRIME_MARKER_MIN)) continue;
+          if (!wantGrime) { senseTally.hiddenByTool += 1; continue; }
+          dirty.push({ cx, cy, amount });
+        }
+      }
+      // Worst first, then truncate — so as the floor gets cleaner the markers
+      // stop being a wall and start being a to-do list, and the last few to
+      // survive are genuinely the last few patches left.
+      dirty.sort((a, b) => b.amount - a.amount);
+      for (const cell of dirty.slice(0, GRIME_MARKER_MAX)) {
+        if (n >= SENSE_CAP) break;
+        place(
+          -RENO.room.w / 2 + (cell.cx + 0.5) * cellW,
+          -RENO.room.d / 2 + (cell.cy + 0.5) * cellD,
+          Math.min(2.6, 0.7 + Math.sqrt(cell.amount) * 1.7),
+          MEDIUM.GRIME,
+        );
+        senseTally.grime += 1;
+      }
+      senseTally.grimeCellsDirty = dirty.length;
+    }
+
     senseMesh.count = n;
     senseMesh.instanceMatrix.needsUpdate = true;
+    if (senseMesh.instanceColor) senseMesh.instanceColor.needsUpdate = true;
   }
 
   /**
@@ -5254,10 +5343,12 @@ export function makeClubhouse(ctx) {
    * `columns` stands each marker into a tall pillar for the overview camera,
    * where a floor-hugging blob is invisible from above the roof.
    */
-  function setDirtReveal(alpha, columns = false) {
+  function setDirtReveal(alpha, columns = false, toolId = null) {
     const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 0));
-    const modeChanged = columns !== senseColumns;
+    const tool = CLEANING_TOOLS[toolId] ? toolId : null;
+    const modeChanged = columns !== senseColumns || tool !== senseTool;
     senseColumns = !!columns;
+    senseTool = tool;
     senseAlpha = a;
     senseMesh.visible = a > 0.002;
     senseMat.opacity = a * (columns ? 0.5 : 0.72);
@@ -11499,6 +11590,15 @@ export function makeClubhouse(ctx) {
       drawsThroughGeometry: senseMat.depthTest === false,
       clusters: debrisState(state).filter((d) => d && d.a > 0.001).length,
       totalDebris: +totalDebris(state).toFixed(3),
+      // D3: which medium each marker belongs to, and how many were withheld
+      // because the held tool cannot shift them. `tool: null` means no cleaning
+      // tool is out and everything is shown.
+      tool: senseTool,
+      media: senseTool ? toolMedia(senseTool) : [MEDIUM.DEBRIS, MEDIUM.GRIME],
+      debrisMarkers: senseTally.debris,
+      grimeMarkers: senseTally.grime,
+      hiddenByTool: senseTally.hiddenByTool,
+      perInstanceColour: !!senseMesh.instanceColor,
     }),
     cleaningLabel: (toolId) => {
       const status = cleaningStatus(state);

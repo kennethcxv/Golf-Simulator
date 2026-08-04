@@ -8324,7 +8324,10 @@ export function makeCourseScene(canvas, state) {
       } else if (dirtSenseAlpha > 0) {
         dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / DIRT_SENSE.fade);
       }
-      clubhouseApi.setDirtReveal(dirtSenseAlpha, false);
+      // D3: the reveal answers the tool in your hands. A mop lights the grime
+      // and not the piles it cannot lift; a broom does the reverse. With no
+      // cleaning tool out it stays the whole-room "where is the mess" view.
+      clubhouseApi.setDirtReveal(dirtSenseAlpha, false, walkTool);
     }
     // The reticle answers House Flipper 1's question: is the thing I am pointing
     // at actually cleanable? Only while a debris tool is out, and only within

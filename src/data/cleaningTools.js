@@ -421,6 +421,53 @@ export const BELT_ORDER = Object.freeze(
   [null, 'washer', 'vacuum', 'mop', 'broom', 'dustpan', 'spray', 'cloth', 'sponge', 'trashbag'],
 );
 
+// --- WHAT A TOOL CAN ACTUALLY SHIFT -----------------------------------------
+//
+// D3. The floor carries two independent messes, and until now nothing named
+// them: LOOSE debris (the grit and litter clusters in cleaningDebris.js, which
+// a broom pushes and a pan or a bag collects) and GROUND-IN grime (the cell
+// field in shop.js, which only water, suction or a worked cloth lifts). A
+// player holding a broom and staring at a grimy floor gets no feedback at all,
+// because the broom's own gate quietly does nothing there.
+//
+// This is the same routing the cleaning gate in clubhouse.js already performs
+// in its TOOL_CLASS switch, lifted out so the dirt REVEAL can answer "what can
+// the thing in my hands do about this?" without re-deriving it. If the two ever
+// disagree, tests/dirt-media-routing.test.js fails.
+export const MEDIUM = Object.freeze({
+  DEBRIS: 'debris', // loose piles sitting ON the floor — sweepable, collectable
+  GRIME: 'grime',   // worked into the boards — needs water, suction or a cloth
+});
+
+const MEDIA_BY_CLASS = Object.freeze({
+  [TOOL_CLASS.SWEEP]: [MEDIUM.DEBRIS],
+  [TOOL_CLASS.SCOOP]: [MEDIUM.DEBRIS],
+  [TOOL_CLASS.CARRY]: [MEDIUM.DEBRIS],
+  [TOOL_CLASS.SUCTION]: [MEDIUM.DEBRIS, MEDIUM.GRIME], // draws piles in AND lifts dust
+  [TOOL_CLASS.STROKE]: [MEDIUM.GRIME],
+  [TOOL_CLASS.JET]: [MEDIUM.GRIME],
+  [TOOL_CLASS.SPRAY]: [],                              // lays solution; removes nothing
+});
+
+/**
+ * Which floor media this tool can remove. Empty for the sprayer (it prepares a
+ * surface rather than cleaning it) and for anything that is not a cleaning tool.
+ */
+export function toolMedia(id) {
+  const t = CLEANING_TOOLS[id];
+  if (!t) return [];
+  return MEDIA_BY_CLASS[t.toolClass] || [];
+}
+
+/**
+ * The trash bag is the one tool that discriminates WITHIN a medium — collectAt
+ * is called with a `kind === 'litter'` predicate, so it walks past grit. Null
+ * means "every kind of that medium".
+ */
+export function toolDebrisKinds(id) {
+  return CLEANING_TOOLS[id]?.toolClass === TOOL_CLASS.CARRY ? ['litter'] : null;
+}
+
 export const toolDef = (id) => CLEANING_TOOLS[id] || null;
 
 /** Can this tool do anything to this class of dirt? */

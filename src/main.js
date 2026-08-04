@@ -1796,6 +1796,12 @@ function cycleWalkTool(direction = 1) {
   selectWalkTool(entries[(start + step + entries.length) % entries.length].id);
 }
 
+// Q is tap-to-swap / hold-to-reveal (see the keydown handler). 220 ms is the
+// usual tap ceiling: comfortably longer than a deliberate press, comfortably
+// shorter than the shortest useful glance at the dirt overlay.
+const Q_TAP_MS = 220;
+let qPressedAt = null;
+
 function swapPreviousWalkTool() {
   const walk = app.scene3d?.walk;
   if (!walk || walk.cart?.mounted) return;
@@ -2251,8 +2257,21 @@ window.addEventListener('keydown', (e) => {
         break;
       }
       case 'q': case 'Q': {
+        // Q CARRIES TWO VERBS: TAP SWAPS, HOLD REVEALS.
+        //
+        // D3: this used to swap on keydown, while courseScene's dirt sense
+        // reads the same key HELD. So every time a player did the thing the HUD
+        // tells them to do — "Q reveal dirt" — their tool silently changed to
+        // the previous one, and the reveal they were looking at was then
+        // filtered for a tool they were no longer holding. Caught by a driver
+        // that measured the tool before and during the hold and got different
+        // answers.
+        //
+        // Deferring the swap to key-up, and only for a press short enough to be
+        // a tap, keeps both verbs on the advertised key and makes them
+        // unambiguous. Holding no longer swaps anything.
         e.preventDefault();
-        if (!e.repeat) swapPreviousWalkTool();
+        if (!e.repeat) qPressedAt = performance.now();
         break;
       }
       case 'i': case 'I':
@@ -2341,6 +2360,13 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   held.up(e.key);
   if (e.key === 'f' || e.key === 'F') endToolKey();
+  if (e.key === 'q' || e.key === 'Q') {
+    // A tap is a tool swap; anything longer was a dirt-sense hold and must not
+    // change what is in your hands. See the keydown case for why.
+    const heldMs = qPressedAt == null ? Infinity : performance.now() - qPressedAt;
+    qPressedAt = null;
+    if (heldMs <= Q_TAP_MS) swapPreviousWalkTool();
+  }
 });
 window.addEventListener('blur', () => {
   if (toolKeyTimer) clearTimeout(toolKeyTimer);
