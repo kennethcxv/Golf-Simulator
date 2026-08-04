@@ -1,0 +1,143 @@
+{
+  "tools": 9,
+  "rows": [
+    {
+      "tool": "washer",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "washer",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "washer"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "vacuum",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "vacuum",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "vacuum"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "mop",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "mop",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "mop"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "broom",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "broom",
+        "heldRootVisible": true,
+        "broomPassActive": true,
+        "visibleHeldGroups": [
+          "broom"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "dustpan",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "dustpan",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "dustpan"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "spray",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "spray",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "spray"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "cloth",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "cloth",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "cloth"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "sponge",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "sponge",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "sponge"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    },
+    {
+      "tool": "trashbag",
+      "drawnWhenHeld": true,
+      "atTill": {
+        "tool": "trashbag",
+        "heldRootVisible": true,
+        "broomPassActive": false,
+        "visibleHeldGroups": [
+          "trashbag"
+        ]
+      },
+      "clearAtTill": false,
+      "restored": true
+    }
+  ],
+  "stillDrawn": [
+    "washer",
+    "vacuum",
+    "mop",
+    "broom",
+    "dustpan",
+    "spray",
+    "cloth",
+    "sponge",
+    "trashbag"
+  ],
+  "notRestored": []
+}

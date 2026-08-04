@@ -7211,6 +7211,36 @@ export function makeCourseScene(canvas, state) {
     if (!tool) sprayPoints.visible = false;
   }
 
+  // C10 — NOTHING IS HELD AT A WORK STATION, WHICHEVER PASS DRAWS IT.
+  //
+  // The previous fix was `broomVm.setActive(false)` inside walkExit(), which is
+  // wrong twice over: walkExit() only runs on scene dispose, so it never fires
+  // for the till at all, and it names ONE tool's private render pass. Every
+  // other tool draws under heldRoot in the world pass and was never covered.
+  //
+  // This is the general case, and it is general because it does not enumerate
+  // anything: it puts the tool DOWN through walkSetTool(), the one function
+  // that already knows about every tool, every pass, the hands, the tool
+  // viewmodels, the spray points and the effect timers. A tool added tomorrow
+  // is covered the day it is added, because being held at all goes through the
+  // same setter.
+  let stationStowedTool = null;
+  function syncStationToolStow() {
+    const stationOpen = !!clubhouseApi?.register?.isActive?.();
+    if (stationOpen) {
+      if (stationStowedTool !== null || !walkTool) return;
+      stationStowedTool = walkTool;
+      walkSetTool(null);
+      return;
+    }
+    if (stationStowedTool === null) return;
+    const tool = stationStowedTool;
+    stationStowedTool = null;
+    // Only restore into an empty hand: if the player picked something else up
+    // at the counter, that is what they are holding now.
+    if (tool && !walkTool) walkSetTool(tool);
+  }
+
   // Belt cycling comes through the exposed setTool. Debounce it so a flurry of F-taps applies one
   // switch per TOOL_SWITCH_DEBOUNCE and keeps only the last as pending, rather than popping the
   // viewmodel through every intermediate tool. Internal auto-tool and cart swaps call walkSetTool
@@ -7817,13 +7847,14 @@ export function makeCourseScene(canvas, state) {
     walkSetSpraying(false);
     walkSetSoaping(false);
     heldRoot.visible = false; // the overview camera carries no hand tools
-    // ...and NEITHER DOES THE TILL. heldRoot.visible was not enough on its own:
-    // the broom draws in its OWN pass, after the world, gated only on the
-    // viewmodel's `active` flag, so hiding the shared held rig left a broom
-    // hanging over the checkout camera. That is the "entering the cashier
-    // station while holding a broom keeps the tool in frame" note — the hands
-    // go to a plain resting pose at the counter, and the tool comes back when
-    // you step away (walkEnter re-arms it from the tool you were carrying).
+    // The broom draws in its OWN pass, after the world, gated only on the
+    // viewmodel's `active` flag, so hiding the shared held rig is not enough
+    // here either.
+    //
+    // C10: this used to claim it also covered the till. It never did — walkExit
+    // runs on scene DISPOSE and on nothing else, so the counter never reached
+    // it, and eight other tools were never in scope even if it had. The station
+    // stow is syncStationToolStow(), ticked every frame.
     broomVm.setActive(false);
     walkHeld.clear();
     // The dirt reveal is driven from the walk update, so leaving on foot with Q
@@ -9812,6 +9843,9 @@ export function makeCourseScene(canvas, state) {
       refreshMaintenanceWorldProps(time);
     }
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
+    // C10: after the clubhouse has settled this frame's station state, so
+    // opening the till stows the tool in the same frame it opens.
+    syncStationToolStow();
     prepareFrameShadows(renderer.shadowMap);
     // flag wave
     if (holeGroup) {
@@ -11236,6 +11270,17 @@ export function makeCourseScene(canvas, state) {
       toggleVehicleCamera: toggleGolfCartCamera,
       setTool: walkSetToolDebounced,
       getTool: () => walkTool,
+      // C10 — what is drawn in the hands, from every pass that can draw it, so
+      // a driver can check the station stow without trusting one flag.
+      heldToolDiagnostics: () => ({
+        tool: walkTool,
+        stationOpen: !!clubhouseApi?.register?.isActive?.(),
+        stationStowedTool,
+        heldRootVisible: heldRoot.visible,
+        broomPassActive: broomVm.isActive(),
+        visibleHeldGroups: Object.entries(heldGroups)
+          .filter(([, g]) => g.visible).map(([name]) => name),
+      }),
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
       toolViewmodelDiagnostics: () => ({
         loadResults: toolViewmodelsAuthored,
