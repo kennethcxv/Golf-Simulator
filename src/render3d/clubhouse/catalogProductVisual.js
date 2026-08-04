@@ -545,19 +545,26 @@ function buildSimpleProduct(root, descriptor, merch, F) {
   }
 }
 
+// C7 (2026-08-04) — NO PRICE TAGS ANYWHERE. This used to hang a kraft
+// ProductSwingTag plane off the anchor for every club/hang/apparel product, so
+// the tag rode the goods onto the shelf, into the player's hands, across the
+// counter and into the bag. "Every tag, everywhere. Delete the code and the
+// tests that assert tags exist. This reverses earlier work — remove it rather
+// than flagging it off."
+//
+// `barcodeSurface` STAYS. It is not a tag: it is the logical face that decides
+// which way a product is turned to be scanned, and every product still has one.
 function makeAnchor(
   root,
   descriptor,
   resources,
   materials,
   authoredAnchor = null,
-  { includeCheckoutSwingTag = true } = {},
 ) {
   const bounds = visibleBounds(root);
   const size = bounds.getSize(new THREE.Vector3());
   const anchor = new THREE.Object3D();
   anchor.name = 'RuntimeProductBarcodeAnchor';
-  const tagSurface = ['club-tag', 'hang-tag', 'apparel-tag'].includes(descriptor.barcodeSurface);
   if (authoredAnchor) {
     root.updateMatrixWorld(true);
     authoredAnchor.getWorldPosition(anchor.position);
@@ -579,12 +586,6 @@ function makeAnchor(
   // carton side faces -Z until the player physically rotates it.
   if (descriptor.barcodeSurface !== 'package-back') anchor.rotation.y = Math.PI;
   root.add(anchor);
-
-  if (tagSurface && includeCheckoutSwingTag) {
-    const F = factory(anchor, resources, materials);
-    const backing = F.add(new THREE.PlaneGeometry(0.078, 0.046), materials.kraft, 'ProductSwingTag', anchor);
-    backing.position.z = -0.0015;
-  }
   return anchor;
 }
 
@@ -646,9 +647,6 @@ export function buildCatalogProductProxy({
   context = 'checkout',
 } = {}) {
   const descriptor = catalogProductVisual(sku);
-  const packedDeliveryContext = context === 'delivery-packed'
-    || context === 'delivery'
-    || context === 'packed';
   const root = new THREE.Group();
   root.name = `CheckoutProduct_${sku && sku.id ? sku.id : 'unknown'}`;
   const materials = palette(mats, resources);
@@ -669,7 +667,6 @@ export function buildCatalogProductProxy({
     resources,
     materials,
     root.getObjectByName('ANCHOR_ProductBarcode') || root.getObjectByName('BARCODE_AREA'),
-    { includeCheckoutSwingTag: !packedDeliveryContext },
   );
   const gripAnchors = makeGripAnchors(root, descriptor);
   root.userData.catalogVisual = descriptor;

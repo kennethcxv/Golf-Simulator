@@ -453,10 +453,15 @@ test('delivery-packed proxies omit checkout swing tags and preserve exact socket
   const merch = merchFrom(scenes);
 
   for (const sku of skus) {
+    // C7 (2026-08-04) — "every tag, everywhere… Delete the code and the tests
+    // that assert tags exist." This block used to require a ProductSwingTag on
+    // every checkout product and forbid it inside a carton. It requires the
+    // absence in BOTH now, which is the assertion that would have caught the
+    // tag coming back.
     const checkoutResources = createRegisterItemResources();
     const checkout = buildCatalogProductProxy({ sku, merch, resources: checkoutResources });
-    assert.ok(checkout.root.getObjectByName('ProductSwingTag'),
-      `${sku.id} keeps its checkout swing tag by default`);
+    assert.equal(checkout.root.getObjectByName('ProductSwingTag'), undefined,
+      `${sku.id} carries no price tag on the shelf, in hand, at checkout or in the bag`);
 
     const deliveryResources = createRegisterItemResources();
     const packed = buildCatalogProductProxy({
@@ -467,7 +472,7 @@ test('delivery-packed proxies omit checkout swing tags and preserve exact socket
     });
     assert.equal(packed.root.userData.catalogProductContext, 'delivery-packed');
     assert.equal(packed.root.getObjectByName('ProductSwingTag'), undefined,
-      `${sku.id} has no generated checkout tag inside its carton`);
+      `${sku.id} has no tag inside its carton either`);
     assert.deepEqual(packed.root.scale.toArray(), [1, 1, 1],
       `${sku.id} delivery wrapper remains at authored scale`);
 
@@ -492,7 +497,12 @@ test('delivery-packed proxies omit checkout swing tags and preserve exact socket
   }
 });
 
-test('owned runtime tag resources dispose once while shared GLB geometry and materials survive', async () => {
+// C7 deleted the runtime swing tag, which was the only geometry this proxy
+// OWNED for a GLB-backed product — so there is nothing left for the first
+// dispose to reclaim on driver1. What still has to hold, and is the reason this
+// test exists, is that disposing a product never touches the SHARED GLB
+// geometry or material: a second sale of the same SKU must still have a model.
+test('disposing a product never takes the shared GLB geometry or material with it', async () => {
   const scenes = await loadProductScenes();
   const sharedGeometry = scenes.get('checkout_product_driver').getObjectByProperty('isMesh', true).geometry;
   const sharedMaterial = scenes.get('checkout_product_driver').getObjectByProperty('isMesh', true).material;
@@ -506,9 +516,9 @@ test('owned runtime tag resources dispose once while shared GLB geometry and mat
     merch: merchFrom(scenes),
     resources,
   });
-  const first = resources.dispose(built.root);
-  assert.ok(first.geometries >= 1, 'runtime swing-tag backing is owned');
-  assert.deepEqual(resources.dispose(built.root), { geometries: 0, materials: 0 });
+  resources.dispose(built.root);
+  assert.deepEqual(resources.dispose(built.root), { geometries: 0, materials: 0 },
+    'a second dispose is a no-op rather than a double free');
   assert.equal(geometryDisposals, 0, 'shared GLB geometry survives transaction cleanup');
   assert.equal(materialDisposals, 0, 'shared GLB material survives transaction cleanup');
 });

@@ -74,30 +74,11 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
   );
 }
 
-function priceRail(f, state, { w = 2.6, h = 0.20 } = {}) {
-  const entries = (f.skus || []).map((id) => {
-    const sku = skuById(id);
-    if (!sku) return null;
-    const words = sku.name.split(/\s+/)[0];
-    const markup = Number.isFinite(state?.shop?.markup?.[sku.cat])
-      ? state.shop.markup[sku.cat]
-      : 1;
-    return `${words.toUpperCase()}  $${priceFor(sku, markup, null).toFixed(2)}`;
-  }).filter(Boolean);
-  if (!entries.length) return null;
-  const rows = entries.length <= 3
-    ? [entries.join('  ·  ')]
-    : [entries.slice(0, Math.ceil(entries.length / 2)).join('  ·  '), entries.slice(Math.ceil(entries.length / 2)).join('  ·  ')];
-  const tex = makeSignTexture(rows, {
-    w: 1024, h: rows.length > 1 ? 160 : 96, frame: false,
-    field: '#28382e', ink: '#eee6d7', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
-  });
-  return new THREE.Mesh(
-    new THREE.PlaneGeometry(w, h),
-    new THREE.MeshBasicMaterial({ map: tex, color: 0xe8e2d7, toneMapped: true }),
-  );
-}
-
+// C7 (2026-08-04) — priceRail() lived here and printed "NAME  $12.34" onto a
+// rail under every display bay. It was the shelf half of the price tags the
+// brief removes: "every tag, everywhere. On the shelf, in hand, at checkout,
+// in the bag." Deleted rather than flagged off. The department SIGN above it
+// stays — that names the section, it does not price anything.
 export function incompatibleStockingLabel(fixtureTitle, skuName, correctFixtureTitle = null) {
   const destination = correctFixtureTitle || 'its assigned display';
   return `${fixtureTitle} — ${skuName} cannot be stocked here · take it to ${destination}`;
@@ -448,7 +429,7 @@ export function buildFixtures(B) {
   // the anchor exists immediately and the model drops into the same transform.
   function assetUnit(f, model, {
     w, d, sign = null, signY = 2.05, signZ = null, signW = 1.5, signH = 0.24,
-    charcoal = false, priceY = 0.23, priceZ = null, priceW = null, priceH = null,
+    charcoal = false,
   }) {
     const g = new THREE.Group();
     if (merch) merch.onReady(() => {
@@ -459,14 +440,6 @@ export function buildFixtures(B) {
       const board = categorySign(sign, { w: signW, h: signH, charcoal });
       board.position.set(0, signY, signZ == null ? d / 2 + 0.015 : signZ);
       g.add(board);
-    }
-    const prices = priceRail(f, state, {
-      w: priceW || Math.max(0.68, w * 0.82),
-      h: priceH || (f.skus.length > 3 ? 0.16 : 0.13),
-    });
-    if (prices) {
-      prices.position.set(0, priceY, priceZ == null ? d / 2 + 0.02 : priceZ);
-      g.add(prices);
     }
     addFixtureCollider(f);
     return g;
@@ -539,7 +512,7 @@ export function buildFixtures(B) {
   function rackUnit(f) {
     return assetUnit(f, 'club_wall_bay', {
       w: 3.0, d: 0.9, sign: f.title, signY: 2.27, signZ: 0.36,
-      signW: 1.55, signH: 0.20, charcoal: true, priceW: 2.30, priceH: 0.14,
+      signW: 1.55, signH: 0.20, charcoal: true,
     });
     /* istanbul ignore next -- procedural predecessor retained as a load-bearing design reference */
     const g = new THREE.Group();
@@ -619,7 +592,7 @@ export function buildFixtures(B) {
   // loads.
   function tableUnit(f) {
     return assetUnit(f, 'feature_table', {
-      w: 2.4, d: 1.44, priceY: 0.65, priceZ: 0.57, priceW: 1.55, priceH: 0.14,
+      w: 2.4, d: 1.44,
     });
     /* istanbul ignore next -- procedural predecessor retained as a surface-height reference */
     const g = new THREE.Group();
@@ -1071,35 +1044,35 @@ export function buildFixtures(B) {
   function pegboardUnit(f) {
     return assetUnit(f, 'pegboard_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
-      signW: 1.28, signH: 0.15, priceW: 2.35, priceH: 0.14, charcoal: true,
+      signW: 1.28, signH: 0.15, charcoal: true,
     });
   }
 
   function ballwallUnit(f) {
     return assetUnit(f, 'ball_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.36,
-      signW: 1.05, signH: 0.15, priceW: 2.30, priceH: 0.14, charcoal: true,
+      signW: 1.05, signH: 0.15, charcoal: true,
     });
   }
 
   function hatwallUnit(f) {
     return assetUnit(f, 'hat_wall', {
       w: 1.16, d: 0.60, sign: f.title, signY: 1.98, signZ: 0.31,
-      signW: 0.66, signH: 0.12, priceW: 0.58, priceH: 0.12, charcoal: true,
+      signW: 0.66, signH: 0.12, charcoal: true,
     });
   }
 
   function shoewallUnit(f) {
     return assetUnit(f, 'shoe_wall', {
       w: 2.7, d: 0.8, sign: f.title, signY: 2.04, signZ: 0.41,
-      signW: 0.86, signH: 0.13, priceW: 2.10, priceH: 0.14, charcoal: true,
+      signW: 0.86, signH: 0.13, charcoal: true,
     });
   }
 
   function apparelwallUnit(f) {
     return assetUnit(f, 'apparel_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
-      signW: 1.28, signH: 0.15, priceW: 2.35, priceH: 0.14, charcoal: true,
+      signW: 1.28, signH: 0.15, charcoal: true,
     });
   }
 
@@ -1117,11 +1090,6 @@ export function buildFixtures(B) {
     const sign = categorySign('Cold drinks', { w: 0.70, h: 0.11, charcoal: true });
     sign.position.set(0, 1.89, 0.35);
     g.add(sign);
-    const prices = priceRail(f, state, { w: 0.76, h: 0.105 });
-    if (prices) {
-      prices.position.set(0, 0.18, 0.365);
-      g.add(prices);
-    }
 
     addFixtureCollider(f); // permanent carcass / navigation footprint
 
@@ -1184,14 +1152,14 @@ export function buildFixtures(B) {
   function snackrackUnit(f) {
     return assetUnit(f, 'snack_rack', {
       w: 1.5, d: 0.76, sign: f.title, signY: 1.37, signZ: 0.39,
-      signW: 0.50, signH: 0.10, priceW: 1.10, priceH: 0.10, charcoal: true,
+      signW: 0.50, signH: 0.10, charcoal: true,
     });
   }
 
   function serviceUnit(f) {
     return assetUnit(f, 'basket_station', {
       w: 0.96, d: 0.76, sign: 'Baskets & cards', signY: 1.30, signZ: 0.39,
-      signW: 0.66, signH: 0.13, priceW: 0.70, priceH: 0.11,
+      signW: 0.66, signH: 0.13,
     });
   }
 
@@ -1209,7 +1177,7 @@ export function buildFixtures(B) {
   function demoRackUnit(f) {
     return assetUnit(f, 'demo_club_rack', {
       w: 0.60, d: 0.48, sign: 'Try a putter', signY: 1.18, signZ: 0.25,
-      signW: 0.50, signH: 0.12, charcoal: true, priceY: 0,
+      signW: 0.50, signH: 0.12, charcoal: true,
     });
   }
 
