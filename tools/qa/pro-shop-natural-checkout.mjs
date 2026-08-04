@@ -101,7 +101,7 @@ async function runAttempt(attempt) {
     };
   });
   const txNow = () => page.evaluate(async () => {
-    const R = await import('/src/sim/register.js');
+    const R = await import(new URL('src/sim/register.js', document.baseURI).href);
     const register = window.__fw.scene3d.clubhouse().register;
     const tx = register.getTx();
     if (!tx) return null;
@@ -178,7 +178,7 @@ async function runAttempt(attempt) {
 
   async function installReadOnlyProjection() {
     await page.evaluate(async () => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       window.__naturalCheckoutReadOnly = {
         px(lx, ly, lz) {
@@ -309,8 +309,8 @@ async function runAttempt(attempt) {
 
     if (STRESS) {
       stressFixture = await page.evaluate(async (count) => {
-        const { capacityOf } = await import('/src/data/fixtureSlots.js');
-        const { skuById, RETAIL_CATS } = await import('/src/data/shopItems.js');
+        const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+        const { skuById, RETAIL_CATS } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
         const app = window.__fw;
         const ch = app.scene3d.clubhouse();
         const isolation = ch.prepareCheckoutQa();
@@ -564,7 +564,7 @@ async function runAttempt(attempt) {
       steps.push({ step: 'deposited each tender piece', control: 'pointer drag into drawer', tx: await txNow() });
 
       const change = await page.evaluate(async () => {
-        const R = await import('/src/sim/register.js');
+        const R = await import(new URL('src/sim/register.js', document.baseURI).href);
         const tx = window.__fw.scene3d.clubhouse().register.getTx();
         return R.makeChange(R.changeDue(tx));
       });

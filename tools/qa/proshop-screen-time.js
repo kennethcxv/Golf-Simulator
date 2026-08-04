@@ -34,7 +34,7 @@ async (page) => {
   await page.waitForTimeout(700);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -61,7 +61,7 @@ async (page) => {
   await page.waitForTimeout(12000);
 
   const result = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const s3 = window.__fw.scene3d;
     const ch = s3.clubhouse();
     const origin = ch.interior.position;

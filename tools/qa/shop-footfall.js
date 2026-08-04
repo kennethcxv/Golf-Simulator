@@ -49,9 +49,9 @@ async (page) => {
   const configure = (shop) => page.evaluate(async (input) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const { seedReputation } = await import('/src/sim/reputation.js');
-    const { flipSign, signIsOpen } = await import('/src/sim/shopSign.js');
-    const { shopCondition } = await import('/src/sim/shop.js');
+    const { seedReputation } = await import(new URL('src/sim/reputation.js', document.baseURI).href);
+    const { flipSign, signIsOpen } = await import(new URL('src/sim/shopSign.js', document.baseURI).href);
+    const { shopCondition } = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const state = app.state;
     clubhouse.clearWalkins();
     clubhouse.setOrganicWalkins(true);

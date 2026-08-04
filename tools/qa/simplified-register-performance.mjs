@@ -1558,7 +1558,7 @@ async function boot(page) {
 async function configureFixture(page) {
   return page.evaluate(async (skuIds) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -2778,7 +2778,7 @@ async function enterFrontDeskAtMonitor(page, transactionNumber = null) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -2808,7 +2808,7 @@ async function projectObject(page, predicate) {
 
 async function projectLocal(page, local) {
   return page.evaluate(async (point) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const world = new THREE.Vector3(
@@ -2887,7 +2887,7 @@ async function clickPresentedCard(page) {
 
 async function clickCardConfirm(page) {
   const totalCents = await page.evaluate(async () => {
-    const domain = await import('/src/sim/register.js');
+    const domain = await import(new URL('src/sim/register.js', document.baseURI).href);
     return Math.round(domain.totalOf(
       window.__fw.scene3d.clubhouse().register.getTx(),
     ) * 100);
@@ -2926,7 +2926,7 @@ async function cashMonitorClick(page, action) {
 
 async function selectExactChange(page) {
   const plan = await page.evaluate(async () => {
-    const domain = await import('/src/sim/register.js');
+    const domain = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return domain.makeChangeFrom(
       domain.drawerContents(tx, window.__fw.state.shop.drawer),
@@ -2948,7 +2948,7 @@ async function selectExactChange(page) {
     return tx?.stage === 'cash-drawer' && tx.drawerOpen;
   }, null, { timeout: 3000 });
   const giving = await page.evaluate(async () => {
-    const { changeGivingState } = await import('/src/sim/register.js');
+    const { changeGivingState } = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx ? {
       stage: tx.stage,

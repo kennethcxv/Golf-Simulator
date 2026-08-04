@@ -132,7 +132,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -157,7 +157,7 @@
     // only a center genuinely inside the sealed volume does.
     let zones = [];
     if (cfg.isV2) {
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const V2 = L.PINE_HILLS_V2_LAYOUT;
       const seal = V2.corridorSeal;
       const west = V2.corridorWestSeal;
@@ -506,7 +506,7 @@
   const restoreAll = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
-      const R = await import('/src/sim/clubhouseRestoration.js');
+      const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const snapshot = R.restorationSnapshot(app.state);
       for (const targetId of Object.keys(snapshot?.targetProgress || {})) {
         R.restorationAction(app.state, { type: 'set-target-progress', targetId, progress: 1 });

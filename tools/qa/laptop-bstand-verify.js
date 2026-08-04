@@ -37,8 +37,8 @@ async (page) => {
   await page.waitForTimeout(1200);
 
   const geometry = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { FRONT_DESK, frontDeskLocalPoint, REGISTER } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { FRONT_DESK, frontDeskLocalPoint, REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.interior.updateMatrixWorld(true);
@@ -68,7 +68,7 @@ async (page) => {
 
   // (1) the E prop is AT the laptop
   const prompt = await page.evaluate(async ([lx, lz]) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const laptop = clubhouse.laptopRig().object;

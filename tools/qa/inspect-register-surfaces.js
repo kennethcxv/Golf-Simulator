@@ -6,7 +6,7 @@ async (page) => {
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d?.clubhouse?.(), null, { timeout: 40000 });
   await page.waitForTimeout(1600);
   return page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const offset = clubhouse.interior.position;
     clubhouse.interior.updateMatrixWorld(true);

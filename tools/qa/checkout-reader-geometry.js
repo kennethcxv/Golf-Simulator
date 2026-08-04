@@ -46,7 +46,7 @@ async (page) => {
 
   await page.evaluate(async ([skuIds]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     for (const id of Object.keys(app.state.shop.inventory)) {
@@ -87,7 +87,7 @@ async (page) => {
 
   // ---- negative control 1: the parked reader is not in the counter ---------
   report.parkedIntersection = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     let reader = null;
     let counter = null;
@@ -116,7 +116,7 @@ async (page) => {
 
   // ring up
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -184,7 +184,7 @@ async (page) => {
 
   // ---- A3a: how far into the reader is the card? ---------------------------
   report.cardSeat = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let reader = null;
@@ -223,7 +223,7 @@ async (page) => {
 
   // ---- A3b: is every key actually reachable by a click? --------------------
   report.keys = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const register = app.scene3d.clubhouse().register;
     const camera = app.scene3d.camera;
@@ -310,7 +310,7 @@ async (page) => {
   // where each key sits inside the reader's own screen-space box, so
   // "half-occluded by the device body at the bottom" is a number
   report.keyFraming = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;
@@ -354,7 +354,7 @@ async (page) => {
   // ---- A4: the way home ----------------------------------------------------
   // key the total and approve, then watch the reader descend.
   const total = await page.evaluate(async () => {
-    const { totalOf } = await import('/src/sim/register.js');
+    const { totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
     return totalOf(window.__fw.scene3d.clubhouse().register.getTx());
   });
   const digits = String(Math.round(total * 100));
@@ -372,7 +372,7 @@ async (page) => {
   ));
   // start the sampler BEFORE the approval so the whole descent is covered
   const descent = page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     let reader = null;
     const solids = [];

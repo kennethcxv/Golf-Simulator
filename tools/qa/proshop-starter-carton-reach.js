@@ -41,7 +41,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -53,9 +53,9 @@
 
   const survey = await page.evaluate(async () => {
     const app = window.__fw;
-    const D = await import('/src/sim/deliveries.js');
-    const P = await import('/src/sim/boxPlacement.js');
-    const L = await import('/src/data/shopLayout.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const P = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const ch = app.scene3d.clubhouse();
     // The v2 room pulls the west wall to x -2.60 and the north wall to z -4.60. A carton
     // placed against a v1 fixture the variant CUTS lands behind those walls, in sealed

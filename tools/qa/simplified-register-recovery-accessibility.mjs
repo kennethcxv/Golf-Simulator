@@ -77,7 +77,7 @@ async function boot(page) {
 
 async function projectObject(page, query) {
   return page.evaluate(async (wanted) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const interior = app.scene3d.clubhouse().interior;
     const camera = app.scene3d.camera;
@@ -229,10 +229,10 @@ async function projectObject(page, query) {
 
 async function runtimeSnapshot(page) {
   return page.evaluate(async (ids) => {
-    const THREE = await import('/vendor/three.module.js');
-    const { checkoutPreferences } = await import('/src/sim/checkoutPreferences.js');
-    const registerDomain = await import('/src/sim/register.js');
-    const registerMode = await import('/src/render3d/clubhouse/simplifiedRegisterMode.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { checkoutPreferences } = await import(new URL('src/sim/checkoutPreferences.js', document.baseURI).href);
+    const registerDomain = await import(new URL('src/sim/register.js', document.baseURI).href);
+    const registerMode = await import(new URL('src/render3d/clubhouse/simplifiedRegisterMode.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const register = clubhouse.register;
@@ -369,9 +369,9 @@ async function prepareOuterLifecycleFixture(page) {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const shop = app.state.shop;
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
-    const { REGISTER } = await import('/src/data/shopLayout.js');
-    const registerDomain = await import('/src/sim/register.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const registerDomain = await import(new URL('src/sim/register.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     if (clubhouse.register.isActive()) clubhouse.register.leave({ restorePointer: false });
     clubhouse.clearWalkins();
@@ -561,7 +561,7 @@ async function outerCustomerSnapshot(page, customerId) {
 
 async function forceOuterCustomerWatchdogExpiry(page, customerId, expectedState) {
   return page.evaluate(async ([wantedId, state]) => {
-    const { CHECKOUT_STATES } = await import('/src/sim/registerFlow.js');
+    const { CHECKOUT_STATES } = await import(new URL('src/sim/registerFlow.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const customers = typeof clubhouse.customers === 'function'
       ? clubhouse.customers() : clubhouse.customers;
@@ -672,9 +672,9 @@ async function prepareFixture(page, payment) {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const shop = app.state.shop;
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
-    const { REGISTER } = await import('/src/data/shopLayout.js');
-    const register = await import('/src/sim/register.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     if (clubhouse.register.isActive()) clubhouse.register.leave({ restorePointer: false });
@@ -802,7 +802,7 @@ async function waitForSwayWorkspace(page) {
 async function moveToLaptop(page) {
   await page.evaluate(async () => {
     const app = window.__fw;
-    const { FRONT_DESK, REGISTER } = await import('/src/data/shopLayout.js');
+    const { FRONT_DESK, REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const off = app.scene3d.clubhouse().interior.position;
     const walk = app.scene3d.walk.state;
     // Approach from the laptop side opposite the register's interaction prop.
@@ -934,7 +934,7 @@ async function clickMonitorAction(page, action) {
 
 async function forceLiveWatchdogExpiry(page, expectedState) {
   return page.evaluate(async (state) => {
-    const { CHECKOUT_STATES } = await import('/src/sim/registerFlow.js');
+    const { CHECKOUT_STATES } = await import(new URL('src/sim/registerFlow.js', document.baseURI).href);
     const register = window.__fw.scene3d.clubhouse().register;
     const flow = register.getFlow();
     if (!flow || flow.state !== state) {
@@ -1043,8 +1043,8 @@ async function openPause(page) {
 
 async function contractAudit(page) {
   return page.evaluate(async () => {
-    const flow = await import('/src/sim/registerFlow.js');
-    const mode = await import('/src/render3d/clubhouse/simplifiedRegisterMode.js');
+    const flow = await import(new URL('src/sim/registerFlow.js', document.baseURI).href);
+    const mode = await import(new URL('src/render3d/clubhouse/simplifiedRegisterMode.js', document.baseURI).href);
     const validation = flow.validateCheckoutContract();
     const deliberateUntimed = flow.CHECKOUT_STATE_ORDER.filter(
       (name) => flow.CHECKOUT_STATES[name].timeout.seconds == null,
@@ -1741,7 +1741,7 @@ export async function runRecoveryAccessibilityAudit(page) {
     ));
     await page.mouse.click(confirmedTender.x, confirmedTender.y);
     await page.waitForFunction(async () => {
-      const domain = await import('/src/sim/register.js');
+      const domain = await import(new URL('src/sim/register.js', document.baseURI).href);
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.checkoutFlow?.state === 'SelectingChange'
         && domain.changeGivingState(tx).state === 'exact';

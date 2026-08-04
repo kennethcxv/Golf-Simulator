@@ -27,8 +27,8 @@ async (page) => {
   await page.waitForTimeout(2500);
 
   const probe = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER_TOP, COUNTER, frontDeskLocalPoint } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER_TOP, COUNTER, frontDeskLocalPoint } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const interior = clubhouse.interior;
     const localize = (object) => {
@@ -89,7 +89,7 @@ async (page) => {
       // the contract: everything parked must sit inside the opening. Read from
       // the module's own constant so the probe cannot drift from the geometry.
       opening: await (async () => {
-        const { CHECKOUT_TERMINAL_BAY: B } = await import('/src/render3d/clubhouse/simplifiedRegisterMode.js');
+        const { CHECKOUT_TERMINAL_BAY: B } = await import(new URL('src/render3d/clubhouse/simplifiedRegisterMode.js', document.baseURI).href);
         return { halfWidth: B.width / 2, halfHeight: B.height / 2, depth: B.reach };
       })(),
       readerInBay: inBayFrame(terminal),
@@ -99,7 +99,7 @@ async (page) => {
 
   // close-up render of the bay from the staff side, slightly above
   const closeup = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const scene3d = window.__fw.scene3d;
     const clubhouse = scene3d.clubhouse();
     let bay = null;

@@ -25,7 +25,7 @@ async (page) => {
   await page.evaluate(async () => {
     const app = window.__fw;
     const st = app.state;
-    const del = await import('/src/sim/deliveries.js');
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     st.cash = 200000;
     st.shop.unlockedTier = 3;
     st.shop.orders = [];
@@ -133,7 +133,7 @@ async (page) => {
   // Fill the real receiving collection to capacity; the normal clock crosses
   // the promise and the normal delivery tick must turn the van away.
   await page.evaluate(async () => {
-    const del = await import('/src/sim/deliveries.js');
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const st = window.__fw.state;
     for (let i = 0; i < del.PAD_CAPACITY; i++) {
       st.shop.deliveries.boxes.push({ id: 8000 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'pad', box: 'carton' });

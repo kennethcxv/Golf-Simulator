@@ -97,7 +97,7 @@ function installListenerProbe() {
 async function establishFixture(page) {
   await page.evaluate(async (fixtureSeed) => {
     localStorage.clear();
-    const empireModule = await import('/src/sim/empire.js');
+    const empireModule = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = empireModule.newEmpire('relaxed', fixtureSeed);
     const willow = empire.market.find((property) => (
       property.name === 'Willow Creek Municipal'

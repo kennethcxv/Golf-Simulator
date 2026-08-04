@@ -129,7 +129,7 @@ async (page) => {
         object.visible = false;
       }
     });
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     let style = document.querySelector('#desk-qa-presentation');
@@ -155,7 +155,7 @@ async (page) => {
     app.scene3d.camera.updateProjectionMatrix();
     app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 14 * 60;
     app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
   });
@@ -217,7 +217,7 @@ async (page) => {
   // placements. This is the contribution baseline for the performance skill.
   const baselineFixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     for (const placement of [...(app.state.propertyInventory?.placements || [])]) {
       if (placement.assetId?.startsWith('pro-shop-furniture:office-desks:')) {
         shop.removeDecorPlacement(app.state, placement.id);
@@ -239,7 +239,7 @@ async (page) => {
 
   const seeded = await page.evaluate(async () => {
     const app = window.__fw;
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const skuIds = [
       'furn-office-desks-basic',
       'furn-office-desks-standard',

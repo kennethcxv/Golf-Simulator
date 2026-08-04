@@ -35,7 +35,7 @@ async (page) => {
     for (const stand of ['chair', 'north']) {
       await page.evaluate(async (which) => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
         const laptop = (() => {

@@ -55,7 +55,7 @@ async (page) => {
   await page.screenshot({ path: `${out}/04-register-checkout-pose.png` });
 
   const inspection = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const customer = window.__fw.scene3d.clubhouse().customers[0];
     const char = customer?.mesh?.userData?.char || null;
     const geometries = new Set();
@@ -83,7 +83,7 @@ async (page) => {
       const world = node.getWorldPosition(new THREE.Vector3());
       pivots[name] = world.sub(rootWorld).toArray();
     }
-    const asset = await import('/src/render3d/characterAsset.js');
+    const asset = await import(new URL('src/render3d/characterAsset.js', document.baseURI).href);
     return {
       assetKind: char?.assetKind || null,
       assetStatus: asset.characterPartsStatus(),

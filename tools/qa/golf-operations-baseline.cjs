@@ -202,8 +202,8 @@ async function main() {
 
     const fixture = await page.evaluate(async () => {
       const app = window.__fw;
-      const reservations = await import('/src/sim/reservations.js');
-      const time = await import('/src/sim/time.js');
+      const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+      const time = await import(new URL('src/sim/time.js', document.baseURI).href);
       const cal = time.calendarOf(app.state.clock.minutes);
       app.state.clock.minutes = cal.dayAbs * 1440 + 9 * 60 + 20;
       const names = ['Priya Nguyen', 'Marcus Reed', 'Elaine Castillo'];

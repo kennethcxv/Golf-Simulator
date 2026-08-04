@@ -75,7 +75,7 @@ async (page) => {
   const report = { cases: {} };
   for (const testCase of CASES) {
     const result = await page.evaluate(async (input) => {
-      const ui = await import('/src/render3d/clubhouse/frontDeskMonitorUi.js');
+      const ui = await import(new URL('src/render3d/clubhouse/frontDeskMonitorUi.js', document.baseURI).href);
       const canvas = document.createElement('canvas');
       canvas.width = ui.FRONT_DESK_MONITOR_WIDTH;
       canvas.height = ui.FRONT_DESK_MONITOR_HEIGHT;

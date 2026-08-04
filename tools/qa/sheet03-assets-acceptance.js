@@ -266,8 +266,8 @@ async (page) => {
     return page.evaluate(async ({ fixtureIds, stockMode }) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const { placedFixtures } = await import('/src/sim/layout.js');
-      const { capacityOf } = await import('/src/data/fixtureSlots.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
+      const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const fixtures = placedFixtures(app.state)
         .filter((fixture) => fixtureIds.includes(fixture.id));
       const touched = [];
@@ -299,8 +299,8 @@ async (page) => {
     return page.evaluate(async ({ stateLabel, assets }) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const { placedFixtures } = await import('/src/sim/layout.js');
-      const { capacityOf } = await import('/src/data/fixtureSlots.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
+      const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const allFixtures = placedFixtures(app.state);
       const fixturesById = new Map(allFixtures.map((fixture) => [fixture.id, fixture]));
       const inventory = app.state.shop.inventory;
@@ -413,7 +413,7 @@ async (page) => {
     return page.evaluate(async ({ id, standOff, viewPitch }) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const { placedFixtures } = await import('/src/sim/layout.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
       const fixture = placedFixtures(app.state).find((entry) => entry.id === id);
       if (!fixture) throw new Error(`Fixture ${id} is not placed.`);
       const origin = clubhouse.interior.position;
@@ -444,8 +444,8 @@ async (page) => {
   async function fixtureInventory(fixtureId) {
     return page.evaluate(async (id) => {
       const app = window.__fw;
-      const { placedFixtures } = await import('/src/sim/layout.js');
-      const { capacityOf } = await import('/src/data/fixtureSlots.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
+      const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const fixture = placedFixtures(app.state).find((entry) => entry.id === id);
       if (!fixture) return null;
       return {
@@ -475,8 +475,8 @@ async (page) => {
     await page.keyboard.press('e');
     await page.waitForFunction(async (id) => {
       const app = window.__fw;
-      const { placedFixtures } = await import('/src/sim/layout.js');
-      const { capacityOf } = await import('/src/data/fixtureSlots.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
+      const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const fixture = placedFixtures(app.state).find((entry) => entry.id === id);
       return fixture && fixture.skus.every((skuId) => (
         Number(app.state.shop.inventory[skuId]?.shelf || 0) === capacityOf(skuId)
@@ -646,7 +646,7 @@ async (page) => {
 
   async function fixturePose(fixtureId) {
     return page.evaluate(async (id) => {
-      const { placedFixtures } = await import('/src/sim/layout.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
       const fixture = placedFixtures(window.__fw.state).find((entry) => entry.id === id);
       return fixture ? {
         id: fixture.id,
@@ -662,7 +662,7 @@ async (page) => {
     return page.evaluate(async ({ id, standOff }) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const { placedFixtures } = await import('/src/sim/layout.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
       const fixture = placedFixtures(app.state).find((entry) => entry.id === id);
       if (!fixture) throw new Error(`Build target ${id} is missing.`);
       const angle = fixture.ry || 0;
@@ -1224,8 +1224,8 @@ async (page) => {
 
     recovery = await page.evaluate(async ({ skuId, movedFixtureIds }) => {
       const app = window.__fw;
-      const { placedFixtures } = await import('/src/sim/layout.js');
-      const { capacityOf } = await import('/src/data/fixtureSlots.js');
+      const { placedFixtures } = await import(new URL('src/sim/layout.js', document.baseURI).href);
+      const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const entry = app.state.shop.inventory[skuId];
       const fixtureMap = new Map(placedFixtures(app.state).map((candidate) => [candidate.id, candidate]));
       return {

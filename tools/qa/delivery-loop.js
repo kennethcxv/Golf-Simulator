@@ -41,19 +41,19 @@ async (page) => {
     tool: window.__fw.scene3d.walk.getTool(),
   }));
   const ballBox = () => page.evaluate(async () => {
-    const del = await import('/src/sim/deliveries.js');
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const b = del.boxesOf(window.__fw.state).find((x) => x.skuId === 'balls1');
     return b ? { loc: b.loc, tape: b.tape, flaps: b.flaps, qty: b.qty, flat: b.flat } : null;
   });
   const hands = () => page.evaluate(async () => {
-    const s = await import('/src/sim/stocking.js');
+    const s = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     const c = s.carriedGoods(window.__fw.state);
     return c ? { skuId: c.skuId, qty: c.qty } : null;
   });
 
   // First a busy pad JUST for the screenshot — a real mixed delivery, several kinds of carton.
   await page.evaluate(async () => {
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const st = window.__fw.state;
     st.cash = 200000; st.shop.unlockedTier = 3;
     st.shop.inventory.balls1.shelf = 0;
@@ -72,7 +72,7 @@ async (page) => {
       )).every(Boolean);
   }, null, { timeout: 60000 });
   const receivingOverview = await page.evaluate(async () => {
-    const S = await import('/src/data/deliveryStaging.js');
+    const S = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
     const app = window.__fw;
     const origin = app.scene3d.clubhouse().interior.position;
     const slab = app.scene3d.scene.getObjectByName('DeliveryReceivingSlab');
@@ -136,7 +136,7 @@ async (page) => {
   // Now CLEAR the pad and leave ONE balls case, alone, exactly in front of where we will stand —
   // so focus is unambiguous and the loop is the only thing under test.
   await page.evaluate(async () => {
-    const del = await import('/src/sim/deliveries.js');
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const st = window.__fw.state;
     st.shop.deliveries.boxes = [];
     st.shop.carry = null;

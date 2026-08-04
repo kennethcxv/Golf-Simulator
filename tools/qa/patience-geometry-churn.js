@@ -41,7 +41,7 @@ async (page) => {
   ));
 
   const fixture = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const originalDispose = THREE.BufferGeometry.prototype.dispose;
     window.__patienceGeometryProbe = {
       totalDisposals: 0,
@@ -60,8 +60,8 @@ async (page) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const skuIds = ['tees1', 'marker1', 'glove1'];
-    const { shelfCapacity } = await import('/src/sim/shop.js');
-    const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
+    const { shelfCapacity } = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     app.speedIdx = 0;
@@ -199,7 +199,7 @@ async (page) => {
     const clubhouse = app.scene3d.clubhouse();
     const customer = clubhouse.customers.find((entry) => entry.name === name);
     if (!customer) throw new Error('Patience customer disappeared before expiry was armed.');
-    const { reviewFor } = await import('/src/sim/reviews.js');
+    const { reviewFor } = await import(new URL('src/sim/reviews.js', document.baseURI).href);
     const visit = {
       waitedSec: 601,
       queueLen: 0,

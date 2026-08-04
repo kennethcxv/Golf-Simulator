@@ -51,7 +51,7 @@ async (page) => {
   const stageCustomer = async (method) => {
     const fixture = await page.evaluate(async ([skuIds, payMethod]) => {
       const app = window.__fw;
-      const { REGISTER } = await import('/src/data/shopLayout.js');
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const clubhouse = app.scene3d.clubhouse();
       clubhouse.setOrganicWalkins(false);
       for (const id of Object.keys(app.state.shop.inventory)) {
@@ -91,7 +91,7 @@ async (page) => {
   };
 
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -139,8 +139,8 @@ async (page) => {
 
   // --- 01: the working frame -------------------------------------------------
   report.frame = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER_TOP, COUNTER } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER_TOP, COUNTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;
@@ -253,8 +253,8 @@ async (page) => {
   }, null, { timeout: 20000 });
   await page.waitForTimeout(1100);
   report.tender = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER_TOP } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER_TOP } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const counterWorldY = clubhouse.interior.position.y + COUNTER_TOP;
     const pieces = [];
@@ -336,8 +336,8 @@ async (page) => {
 
   // --- 06: the reader hangs centred at the face, clear of the desk -----------
   report.reader = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER_TOP } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER_TOP } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;
@@ -360,7 +360,7 @@ async (page) => {
 
   // --- 07: the inserted card close-up ---------------------------------------
   const readerShot = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const scene3d = app.scene3d;
     const clubhouse = scene3d.clubhouse();

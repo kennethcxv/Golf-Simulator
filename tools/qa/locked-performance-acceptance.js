@@ -480,7 +480,7 @@ async (page) => {
     const registerPose = await page.evaluate(async () => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const { REGISTER } = await import('/src/data/shopLayout.js');
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const origin = clubhouse.interior.position;
       const walk = app.scene3d.walk;
       const dx = REGISTER.monitor.x - REGISTER.stand.x;
@@ -560,7 +560,7 @@ async (page) => {
 
   async function checkoutControls(run) {
     const projectProduct = (uid) => page.evaluate(async (id) => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
       let product = null;

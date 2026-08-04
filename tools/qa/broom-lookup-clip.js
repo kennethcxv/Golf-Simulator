@@ -54,7 +54,7 @@ async (page) => {
   // The pan, driven from inside rAF so the sampling and the motion cannot
   // disagree about which frame is which.
   const trace = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const w = app.scene3d.walk;
     const camera = app.scene3d.camera;

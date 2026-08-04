@@ -32,7 +32,7 @@
     await page.waitForFunction(() => document.readyState === 'complete');
     await page.evaluate(async (seed) => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       const empire = E.newStarterEmpire('relaxed', seed);
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
     }, SEED);
@@ -105,7 +105,7 @@
     // Expectations from the shipped math and the live settings.
     const live = await look();
     const expect = await page.evaluate(async ({ sens }) => {
-      const m = await import('/src/render3d/mouseLook.js');
+      const m = await import(new URL('src/render3d/mouseLook.js', document.baseURI).href);
       const across = (px) => {
         // total across a paced sweep: per-event deltas stay under the clamp
         let state = { yaw: 0, pitch: 0 };

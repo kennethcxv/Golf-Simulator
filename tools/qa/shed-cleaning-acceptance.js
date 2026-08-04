@@ -570,7 +570,7 @@ async (page) => {
 
     // (g) tied-bag gate (bag-tied): tie the now-loaded bag, then attempt to bag more.
     const bagTiedAttempt = await page.evaluate(async (rm) => {
-      const mod = await import('/src/sim/cleaningToolState.js');
+      const mod = await import(new URL('src/sim/cleaningToolState.js', document.baseURI).href);
       const st = window.__fw.state;
       const tie = mod.tieBag(st);
       const ch = window.__fw.scene3d.clubhouse();
@@ -588,7 +588,7 @@ async (page) => {
     // 2500 ms 'refusal' rate-limit cannot suppress the proof; category 'invalid'
     // + shedScoped is exactly what walk.hooks.toast(msg,'warn') maps to in the shed.
     const render = await page.evaluate(async () => {
-      const ui = await import('/src/ui/ui.js');
+      const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
       ui.clearToasts?.();
       await new Promise((r) => setTimeout(r, 140));
       ui.notify({ message: 'Loosen it with spray first.', category: 'invalid', shedScoped: true, dedupeKey: 'accept-refusal-render-proof' });
@@ -669,7 +669,7 @@ async (page) => {
   // ---- 8. TOOL SWITCHING ---------------------------------------------------
   await guard(8, async () => {
     const belt = await page.evaluate(async () => {
-      const m = await import('/src/data/cleaningTools.js');
+      const m = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
       return m.BELT_ORDER.filter((id) => id && m.CLEANING_TOOLS[id] && !m.CLEANING_TOOLS[id].external);
     });
     const beltMatches = JSON.stringify(belt) === JSON.stringify(EXPECT_INDOOR_BELT);
@@ -962,7 +962,7 @@ async (page) => {
 
     // camera clamp under mouse-flood — the exact clamp walkMouseMove applies.
     const clamp = await page.evaluate(async () => {
-      const m = await import('/src/render3d/mouseLook.js');
+      const m = await import(new URL('src/render3d/mouseLook.js', document.baseURI).href);
       let yaw = window.__fw.scene3d.walk.state.yaw; let pitch = window.__fw.scene3d.walk.state.pitch;
       let maxPitch = 0; let yawFinite = true; let yawInRange = true;
       for (let i = 0; i < 400; i++) {

@@ -226,7 +226,7 @@ export async function monitorClick(page, action) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;

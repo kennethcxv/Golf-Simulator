@@ -52,7 +52,7 @@ async (page) => {
     // predates the laptop's move to the front desk.
     await page.evaluate(async () => {
       const app = window.__fw;
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const o = app.scene3d.clubhouse().interior.position;
       const w = app.scene3d.walk.state;
       const laptop = (() => {
@@ -92,7 +92,7 @@ async (page) => {
     if (!opened) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
         const laptop = (() => {
@@ -182,7 +182,7 @@ async (page) => {
     if (!opened) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
         const laptop = (() => {
@@ -265,7 +265,7 @@ async (page) => {
 
   // --- 2. let the van arrive; the office hears about it --------------------------------------
   await page.evaluate(async () => {
-    const { update } = await import('/src/sim/state.js');
+    const { update } = await import(new URL('src/sim/state.js', document.baseURI).href);
     const st = window.__fw.state;
     const o = st.shop.orders.at(-1);
     update(st, Math.max(60, o.deliveryMin - st.clock.minutes + 10));
@@ -301,8 +301,8 @@ async (page) => {
   if (!slid) fail('pricing: no golf-balls markup slider');
   const priceCheck = await page.evaluate(async () => {
     const st = window.__fw.state;
-    const { priceFor } = await import('/src/sim/shop.js');
-    const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
+    const { priceFor } = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     const sku = SHOP_CATALOG.find((s) => s.cat === 'balls' && s.tier <= st.shop.unlockedTier);
     return { markup: st.shop.markup.balls, sku: sku.id, ringsUpAt: priceFor(sku, st.shop.markup.balls, null) };
   });
@@ -312,8 +312,8 @@ async (page) => {
 
   // --- 4. save, reload, and check it all held ------------------------------------------------
   const saved = await page.evaluate(async () => {
-    const { saveData } = await import('/src/core/storage.js');
-    const { empireSnapshot } = await import('/src/sim/empire.js');
+    const { saveData } = await import(new URL('src/core/storage.js', document.baseURI).href);
+    const { empireSnapshot } = await import(new URL('src/sim/empire.js', document.baseURI).href);
     await saveData('autosave', empireSnapshot(window.__fw.empire));
     return true;
   });

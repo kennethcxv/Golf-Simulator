@@ -59,7 +59,7 @@ async function installFixture(page) {
   return page.evaluate(async (fleetProfile) => {
     const app = window.__fw;
     const state = app.state;
-    const { ensureGolfDay } = await import('/src/sim/golfDay.js');
+    const { ensureGolfDay } = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
     ensureGolfDay(state);
     state.tutorial.complete = true;
     state.tutorial.hidden = true;

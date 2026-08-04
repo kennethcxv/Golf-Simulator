@@ -24,7 +24,7 @@ async (page) => {
 
   await page.evaluate(async () => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
     app.state.shop.inventory.lounge1.back = 2;
     app.state.shop.inventory.poster1.back = 1;
     inventory.importLegacyStoredPlaceables(app.state, 'lounge1', 2);

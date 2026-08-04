@@ -124,7 +124,7 @@ async function normalEnterTeeDesk(page) {
 async function jumpToArrival(page, reservationId) {
   await page.evaluate(async (id) => {
     const app = window.__fw;
-    const operations = await import('/src/sim/reservations.js');
+    const operations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     const reservation = operations.reservationById(app.state, id);
     app.state.clock.minutes = reservation.arrival.plannedMinute;
     operations.golfOperationsTick(app.state, app.state.clock.minutes);
@@ -239,8 +239,8 @@ async function main() {
 
     const fixture = await page.evaluate(async () => {
       const app = window.__fw;
-      const operations = await import('/src/sim/reservations.js');
-      const time = await import('/src/sim/time.js');
+      const operations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+      const time = await import(new URL('src/sim/time.js', document.baseURI).href);
       const cal = time.calendarOf(app.state.clock.minutes);
       const qaDay = cal.dayAbs + 1;
       // Production boot fills the forward horizon. The evidence route owns a

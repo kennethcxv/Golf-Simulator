@@ -302,7 +302,7 @@ async (page) => {
 
   async function deriveDeliveryCameras() {
     return page.evaluate(async () => {
-      const { DELIVERY_PALLET_STAGING } = await import('/src/data/deliveryStaging.js');
+      const { DELIVERY_PALLET_STAGING } = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const scene = app.scene3d.scene;
       const clubhouse = app.scene3d.clubhouse();
@@ -637,9 +637,9 @@ async (page) => {
     }
 
     const expectedQuote = await page.evaluate(async (requested) => {
-      const { skuById } = await import('/src/data/shopItems.js');
-      const { planShipment } = await import('/src/data/boxes.js');
-      const { orderCost } = await import('/src/sim/shop.js');
+      const { skuById } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
+      const { planShipment } = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const { orderCost } = await import(new URL('src/sim/shop.js', document.baseURI).href);
       const sku = skuById(requested.skuId);
       if (!sku) throw new Error(`Missing production catalog SKU ${requested.skuId}`);
       const manifest = planShipment(sku, requested.quantity);
@@ -978,7 +978,7 @@ async (page) => {
     await setPlayerCamera(cameras.inspection);
 
     const staged = await page.evaluate(async ({ orderId, skuId }) => {
-      const { DELIVERY_PALLET_STAGING } = await import('/src/data/deliveryStaging.js');
+      const { DELIVERY_PALLET_STAGING } = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const THREE = await import('three');
       const app = window.__fw;
       const state = app.state;

@@ -30,7 +30,7 @@ async (page) => {
   await page.waitForTimeout(3000);
   await page.screenshot({ path: path.join(OUT, 'gameplay.png') });
 
-  // NOT import('/src/...'). Under file:// a leading slash resolves to the DRIVE
+  // NOT import(new URL('src/...', document.baseURI).href). Under file:// a leading slash resolves to the DRIVE
   // ROOT, so every driver in tools/qa that imports by absolute path throws
   // "Failed to fetch dynamically imported module: file:///C:/src/...". This is
   // the one edit that makes a browser driver run in the shipping runtime.

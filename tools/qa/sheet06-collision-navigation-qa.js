@@ -305,7 +305,7 @@ async (page) => {
       const app = window.__fw;
       const clubhouse = app?.scene3d?.clubhouse?.();
       if (!app?.state || !clubhouse) throw new Error('Architecture fixture requires the live clubhouse.');
-      const restoration = await import('/src/sim/clubhouseRestoration.js');
+      const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const production = typeof clubhouse.sheet06Production === 'function'
         ? clubhouse.sheet06Production()
         : clubhouse.sheet06Production;
@@ -355,8 +355,8 @@ async (page) => {
       const walk = app?.scene3d?.walk;
       if (!clubhouse || !walk?.state) throw new Error('Damage-track selection requires walk mode.');
       const [{ createSheet06ProductionLayout }, { INTERIOR }] = await Promise.all([
-        import('/src/render3d/assets51to100/sheet06ProductionRuntime.js'),
-        import('/src/data/shopLayout.js'),
+        import(new URL('src/render3d/assets51to100/sheet06ProductionRuntime.js', document.baseURI).href),
+        import(new URL('src/data/shopLayout.js', document.baseURI).href),
       ]);
       const layout = createSheet06ProductionLayout();
       const origin = clubhouse.interior.position;
@@ -567,11 +567,11 @@ async (page) => {
 
   phase = 'barriers';
   const { authoredFrontZ, mainDoorX, railPlane, wallPlane } = await page.evaluate(async () => {
-    const { METERS_TO_YARDS } = await import('/src/render3d/assets51to100/units.js');
+    const { METERS_TO_YARDS } = await import(new URL('src/render3d/assets51to100/units.js', document.baseURI).href);
     const { SHEET06_AUTHORED_FRONT_Z_YARDS } = await import(
       '/src/render3d/assets51to100/sheet06ClubhouseAdapter.js'
     );
-    const { DOOR_MAIN, SHELL } = await import('/src/data/shopLayout.js');
+    const { DOOR_MAIN, SHELL } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     return {
       authoredFrontZ: SHEET06_AUTHORED_FRONT_Z_YARDS,
       mainDoorX: DOOR_MAIN.x,

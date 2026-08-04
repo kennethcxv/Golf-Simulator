@@ -708,7 +708,7 @@ async (page) => {
       courseCameraPose,
       courseCameraRoute,
       sampleCourseCameraRoute,
-    } = await import('/src/sim/courseCamera.js');
+    } = await import(new URL('src/sim/courseCamera.js', document.baseURI).href);
     const app = window.__fw;
     const scene3d = app.scene3d;
     const course = app.state.course;

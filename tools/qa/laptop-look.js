@@ -37,7 +37,7 @@ async (page) => {
   await page.evaluate(async () => {
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
-    const L = await import('/src/data/shopLayout.js');
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const o = ch.interior.position;
     const st = app.scene3d.walk.state;
     const laptop = (() => {
@@ -82,7 +82,7 @@ async (page) => {
   if (!openedFromChair) {
     await page.evaluate(async () => {
       const app = window.__fw;
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const o = app.scene3d.clubhouse().interior.position;
       const st = app.scene3d.walk.state;
       const laptop = (() => {

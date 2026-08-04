@@ -31,7 +31,7 @@ async (page) => {
   // runs would contaminate the before/after contract. Re-seed every wash surface to its
   // authored start value (same numbers seedFreshCampaignWorld uses) so the driver is rerunnable.
   await page.evaluate(async () => {
-    const sim = await import('/src/sim/washing.js');
+    const sim = await import(new URL('src/sim/washing.js', document.baseURI).href);
     const wash = window.__fw.state.shop.reno.wash;
     for (const def of sim.WASH_SURFACES) {
       const w = wash[def.id];

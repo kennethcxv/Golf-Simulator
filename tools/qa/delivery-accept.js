@@ -28,7 +28,7 @@ async (page) => {
       const app = window.__fw;
       // Live-laptop stand (2026-07-28): the fixed (8.45, 4.5) office stand
       // predates the laptop's move to the front desk.
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const o = app.scene3d.clubhouse().interior.position;
       const w = app.scene3d.walk.state;
       const laptop = L.FRONT_DESK.laptop;
@@ -48,7 +48,7 @@ async (page) => {
     if (!opened) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
         const laptop = L.FRONT_DESK.laptop;
@@ -97,7 +97,7 @@ async (page) => {
   // order the six kinds straight through the sim's placeOrder (the Supplier page drives this same
   // call; we exercise the page separately below)
   const ordered = await page.evaluate(async () => {
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const st = window.__fw.state;
     const kinds = [['tees1', 20], ['balls1', 12], ['polo1', 8], ['driver1', 2], ['bag1', 1], ['light1', 1]];
     const res = [];
@@ -116,9 +116,9 @@ async (page) => {
 
   // land everything, then partially open two shipments and take the autosave
   const preSave = await page.evaluate(async () => {
-    const shop = await import('/src/sim/shop.js');
-    const del = await import('/src/sim/deliveries.js');
-    const stk = await import('/src/sim/stocking.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const stk = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     const st = window.__fw.state;
     for (let i = 0; i < 8; i++) { const o = st.shop.orders[0]; if (o) shop.tickDeliveries(st, o.deliveryMin + 1); }
     // partially open the ball case and the apparel carton
@@ -143,7 +143,7 @@ async (page) => {
   // --- RELOAD ---
   await boot();
   const after = await page.evaluate(async () => {
-    const del = await import('/src/sim/deliveries.js');
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const st = window.__fw.state;
     const units = (skuId) => { const inv = st.shop.inventory[skuId] || { shelf: 0, back: 0 }; const box = del.boxesOf(st).filter((b) => b.skuId === skuId).reduce((a, b) => a + b.qty, 0); return inv.shelf + inv.back + box; };
     return {

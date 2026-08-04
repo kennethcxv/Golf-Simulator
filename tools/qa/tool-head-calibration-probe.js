@@ -41,8 +41,8 @@ async (page) => {
       // Rebuild the same grid descriptor the clubhouse uses and read the
       // strongest solution cell directly; wet coordinates are corner-indexed
       // room yards (local + room/2).
-      const { wetGridForRoom, solutionLevel } = await import('/src/sim/cleaningWet.js');
-      const { RENO } = await import('/src/sim/shop.js');
+      const { wetGridForRoom, solutionLevel } = await import(new URL('src/sim/cleaningWet.js', document.baseURI).href);
+      const { RENO } = await import(new URL('src/sim/shop.js', document.baseURI).href);
       const app = window.__fw;
       const grid = wetGridForRoom(RENO.room);
       let best = null;

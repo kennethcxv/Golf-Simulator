@@ -27,7 +27,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -41,7 +41,7 @@
   const openLaptop = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const origin = app.scene3d.clubhouse().interior.position;
       const st = app.scene3d.walk.state;
       const laptop = (() => {
@@ -81,7 +81,7 @@
     if (!open) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const origin = app.scene3d.clubhouse().interior.position;
         const st = app.scene3d.walk.state;
         const laptop = (() => {

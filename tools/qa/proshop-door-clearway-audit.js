@@ -31,7 +31,7 @@
     await page.waitForFunction(() => document.readyState === 'complete');
     await page.evaluate(async (seed) => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
     }, SEED);
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -43,7 +43,7 @@
   };
 
   const audit = () => page.evaluate(async () => {
-    const L = await import('/src/data/shopLayout.js');
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
     // The building-local origin, from the clubhouse itself. An earlier revision

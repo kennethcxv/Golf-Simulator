@@ -15,7 +15,7 @@ async (page) => {
       clubhouse.modernClubhouse?.ready,
       clubhouse.sheet07Production?.ready,
     ].filter(Boolean));
-    const layout = await import('/src/data/shopLayout.js');
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const origin = clubhouse.interior.position;
     const walk = window.__fw.scene3d.walk;
     walk.state.x = origin.x + layout.DOOR_MAIN.x;

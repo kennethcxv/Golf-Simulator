@@ -685,7 +685,7 @@ async function boot(page) {
 async function setupFixture(page, cycles) {
   return page.evaluate(async ({ skuIds, count }) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -824,7 +824,7 @@ async function installListenerProbe(page) {
 async function installResourceLifecycleProbe(page) {
   await page.evaluate(async () => {
     if (window.__registerResourceLifecycleProbe) return;
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const resourceKinds = ['geometry', 'material', 'texture'];
     const createSampler = (limit) => ({
       limit,
@@ -1342,7 +1342,7 @@ async function leaveFrontDesk(page) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -1519,7 +1519,7 @@ async function insertCardToAmountEntry(page) {
     window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'card-entry'
   ), null, { timeout: 5000 });
   const prefill = await page.evaluate(async () => {
-    const sim = await import('/src/sim/register.js');
+    const sim = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
       totalCents: Math.round(sim.totalOf(tx) * 100),
@@ -1632,7 +1632,7 @@ async function completeCash(page) {
     window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
   ), null, { timeout: 10000 });
   const tender = await page.evaluate(async () => {
-    const sim = await import('/src/sim/register.js');
+    const sim = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
       total: sim.cashTotalOf(tx),
@@ -1653,7 +1653,7 @@ async function completeCash(page) {
   }, null, { timeout: 10000 });
   await waitCamera(page, 'cash');
   const change = await page.evaluate(async () => {
-    const sim = await import('/src/sim/register.js');
+    const sim = await import(new URL('src/sim/register.js', document.baseURI).href);
     return sim.changeGivingState(window.__fw.scene3d.clubhouse().register.getTx());
   });
   assert(change.state === 'exact' && change.requiredCents === 0 && change.givingCents === 0,

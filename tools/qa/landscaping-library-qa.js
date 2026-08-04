@@ -51,7 +51,7 @@ async (page) => {
   }));
 
   const findObjectPoints = (type) => page.evaluate(async (objectType) => {
-    const { objectPlacementOk } = await import('/src/sim/courseEditor.js');
+    const { objectPlacementOk } = await import(new URL('src/sim/courseEditor.js', document.baseURI).href);
     const THREE = await import('three');
     const app = window.__fw;
     const candidates = [];

@@ -25,10 +25,10 @@ async (page) => {
     shop.inventory[firstSku].shelf = 7;
     shop.inventory[firstSku].back = 13;
     // give the drawer a known composition
-    const reg = await import('/src/sim/register.js');
+    const reg = await import(new URL('src/sim/register.js', document.baseURI).href);
     shop.drawer = reg.newDrawer ? reg.newDrawer() : shop.drawer;
     // persist via the same path the game uses
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     if (app.empire) {
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(app.empire)));
     } else if (app.saveGame) {

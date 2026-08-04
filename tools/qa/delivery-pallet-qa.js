@@ -172,8 +172,8 @@ async (page) => {
 
   async function stageBoxes(specs, orderSeed = 944000) {
     const made = await page.evaluate(async ({ specs: fixture, orderSeed: seed }) => {
-      const D = await import('/src/sim/deliveries.js');
-      const B = await import('/src/data/boxes.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       state.shop.carry = null;
@@ -252,7 +252,7 @@ async (page) => {
   async function assetContract() {
     return page.evaluate(async () => {
       const THREE = await import('three');
-      const S = await import('/src/data/deliveryStaging.js');
+      const S = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const origin = app.scene3d.clubhouse().interior.position;
       const scene = app.scene3d.scene;
@@ -429,7 +429,7 @@ async (page) => {
   async function stackingContract() {
     return page.evaluate(async () => {
       const THREE = await import('three');
-      const S = await import('/src/data/deliveryStaging.js');
+      const S = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const scene = app.scene3d.scene;
       const origin = app.scene3d.clubhouse().interior.position;

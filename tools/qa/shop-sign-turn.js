@@ -36,7 +36,7 @@ async (page) => {
 
   // Stand in front of the sign and look at it.
   const placed = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const sign = clubhouse.interior.getObjectByName('ClubhouseOpenClosedSign');
@@ -86,7 +86,7 @@ async (page) => {
     /Door sign/.test(window.__fw.scene3d.walk.getFocusLabel() || '')
   ), null, { timeout: 10000 }).catch(async () => {
     const why = await page.evaluate(async () => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const c = app.scene3d.clubhouse();
       const sign = c.interior.getObjectByName('ClubhouseOpenClosedSign');
@@ -112,7 +112,7 @@ async (page) => {
 
   // Sample the sign's world orientation once per animation frame.
   const sampleFrames = (ms) => page.evaluate(async (durationMs) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const sign = clubhouse.interior.getObjectByName('ClubhouseOpenClosedSign');
     if (!sign) return { found: false, samples: [] };

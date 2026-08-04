@@ -37,7 +37,7 @@ async (page) => {
 
   await page.evaluate(async ([skuIds]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const c = app.scene3d.clubhouse();
     c.setOrganicWalkins(false);
     for (const id of Object.keys(app.state.shop.inventory)) {
@@ -68,7 +68,7 @@ async (page) => {
   await page.waitForTimeout(1500);
 
   const projectItem = (uid) => page.evaluate(async (id) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     let found = null;
     app.scene3d.clubhouse().interior.traverse((o) => {
@@ -121,7 +121,7 @@ async (page) => {
   };
 
   const shells = () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const c = window.__fw.scene3d.clubhouse();
     let count = 0;
     let sprites = 0;

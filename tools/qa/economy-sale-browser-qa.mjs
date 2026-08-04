@@ -65,9 +65,9 @@ await page.waitForTimeout(2500);
 // policies that normal play changes; all decision assertions use visible UI controls.
 const fixture = await page.evaluate(async () => {
   const app = window.__fw;
-  const sim = await import('/src/sim/empire.js');
-  const conditionSim = await import('/src/sim/propertyCondition.js');
-  const progressionSim = await import('/src/sim/propertyProgression.js');
+  const sim = await import(new URL('src/sim/empire.js', document.baseURI).href);
+  const conditionSim = await import(new URL('src/sim/propertyCondition.js', document.baseURI).href);
+  const progressionSim = await import(new URL('src/sim/propertyProgression.js', document.baseURI).href);
   for (let day = 0; day < 4; day += 1) sim.empireUpdate(app.empire, 1440);
   const state = app.state;
   state.shop.reno.grime.fill(0);

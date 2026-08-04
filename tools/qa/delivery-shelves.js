@@ -20,9 +20,9 @@ async (page) => {
   await page.waitForTimeout(1500);
 
   const counts = await page.evaluate(async () => {
-    const slots = await import('/src/data/fixtureSlots.js');
-    const shop = await import('/src/sim/shop.js');
-    const items = await import('/src/data/shopItems.js');
+    const slots = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const items = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     const app = window.__fw;
     const st = app.state;
 

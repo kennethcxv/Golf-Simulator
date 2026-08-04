@@ -64,7 +64,7 @@ async (page) => {
   await page.waitForTimeout(600);
 
   const defs = await page.evaluate(async () => {
-    const { CLEANING_TOOLS } = await import('/src/data/cleaningTools.js');
+    const { CLEANING_TOOLS } = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
     return Object.values(CLEANING_TOOLS).map((t) => ({
       id: t.id,
       label: t.label,
@@ -138,7 +138,7 @@ async (page) => {
     // Walk the contact point INTO the nearest fixture box and see whether it
     // stops at the face or passes through it.
     const collision = await page.evaluate(async () => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const w = app.scene3d.walk;
       const c = app.scene3d.clubhouse();

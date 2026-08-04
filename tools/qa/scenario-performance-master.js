@@ -289,7 +289,7 @@ async (page) => {
     clubhouse?.setOrganicWalkins?.(false);
   });
   const stateFingerprint = () => page.evaluate(async () => {
-    const deliveries = await import('/src/sim/deliveries.js');
+    const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const st = window.__fw.state;
     const balls = st.shop.inventory.balls1;
     return {
@@ -318,7 +318,7 @@ async (page) => {
     await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.getByText('Continue', { exact: true }).waitFor({ timeout: 20000 });
     result.fixture = await page.evaluate(async (weather) => {
-      const empireModule = await import('/src/sim/empire.js');
+      const empireModule = await import(new URL('src/sim/empire.js', document.baseURI).href);
       const raw = localStorage.getItem('golfempire:autosave');
       if (!raw) throw new Error('The scenario fixture requires the bootstrapped autosave.');
       const empire = empireModule.deserializeEmpire(JSON.parse(raw));
@@ -818,8 +818,8 @@ async (page) => {
     // Due delivery: create one legitimate paid order, stage its clock one minute before
     // arrival, then let normal speed controls and the live game loop receive it.
     const dueOrder = await page.evaluate(async () => {
-      const shop = await import('/src/sim/shop.js');
-      const deliveries = await import('/src/sim/deliveries.js');
+      const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+      const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const app = window.__fw;
       const st = app.state;
       app.speedIdx = 0;
@@ -871,7 +871,7 @@ async (page) => {
       },
     });
     const receiving = await page.evaluate(async () => {
-      const deliveries = await import('/src/sim/deliveries.js');
+      const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const st = window.__fw.state;
       const box = deliveries.boxesOf(st).find((entry) => entry.skuId === 'balls1');
       if (!box) throw new Error('The due balls delivery did not create a physical box.');
@@ -890,7 +890,7 @@ async (page) => {
       || window.__fw?.scene3d?.scene?.getObjectByName(`DeliveryBoxFallback_${id}`)
     ), receiving.id, { timeout: 30000 });
     const receivingPoint = await page.evaluate(async (id) => {
-      const boxes = await import('/src/data/boxes.js');
+      const boxes = await import(new URL('src/data/boxes.js', document.baseURI).href);
       const app = window.__fw;
       const box = app.state.shop.deliveries.boxes.find((entry) => entry.id === id);
       const root = app.scene3d.scene.getObjectByName(`DeliveryBox_${id}`)
@@ -946,7 +946,7 @@ async (page) => {
       },
     });
     const goodsBeforeShelf = await page.evaluate(async () => {
-      const stocking = await import('/src/sim/stocking.js');
+      const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
       return stocking.carriedGoods(window.__fw.state);
     });
     if (!goodsBeforeShelf) {
@@ -976,8 +976,8 @@ async (page) => {
       },
     });
     const deliveryAfter = await page.evaluate(async () => {
-      const deliveries = await import('/src/sim/deliveries.js');
-      const stocking = await import('/src/sim/stocking.js');
+      const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
       const st = window.__fw.state;
       const box = deliveries.boxesOf(st).find((entry) => entry.skuId === 'balls1');
       return {

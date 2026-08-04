@@ -56,7 +56,7 @@ async function boot(page, baseUrl = BASE_URL) {
 
 async function installReadOnlyProbe(page, skuIds) {
   await page.evaluate(async (acceptedSkuIds) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = () => app.scene3d.clubhouse();
     const localCentre = (object) => {
@@ -413,7 +413,7 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
     currentStep = 'deterministic register setup';
     beforeBooks = await page.evaluate(async (skuIds) => {
       const app = window.__fw;
-      const { REGISTER: liveRegister } = await import('/src/data/shopLayout.js');
+      const { REGISTER: liveRegister } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const shop = app.state.shop;
       // Silence organic walk-ins for the scripted run and empty the floor first: they spawn
       // on wall-clock time even with the sim paused, and a stray shopper still holding a
@@ -661,7 +661,7 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
         currentStep = `key exact total on physical terminal, authorization ${authorizationAttempt}`;
         const entry = await page.evaluate(async () => {
           const tx = window.__fw.scene3d.clubhouse().register.getTx();
-          const { totalOf, cardEnteredAmount } = await import('/src/sim/register.js');
+          const { totalOf, cardEnteredAmount } = await import(new URL('src/sim/register.js', document.baseURI).href);
           return {
             expectedCents: Math.round(totalOf(tx) * 100),
             entryCents: Number(tx?.cardEntryCents),
@@ -805,7 +805,7 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
       log.push({ action: 'physical 20-unit coin selected then returned to its drawer compartment' });
 
       const change = await page.evaluate(async () => {
-        const R = await import('/src/sim/register.js');
+        const R = await import(new URL('src/sim/register.js', document.baseURI).href);
         const app = window.__fw;
         const tx = app.scene3d.clubhouse().register.getTx();
         const due = R.changeDue(tx);

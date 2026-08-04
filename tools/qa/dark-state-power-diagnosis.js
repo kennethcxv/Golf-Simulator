@@ -16,7 +16,7 @@
   await page.waitForFunction(() => document.readyState === 'complete');
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -27,7 +27,7 @@
   await page.waitForTimeout(2500);
 
   const read = (label) => page.evaluate(async (tag) => {
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     const app = window.__fw;
     const st = app.state;
     const ch = app.scene3d.clubhouse();

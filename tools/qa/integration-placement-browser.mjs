@@ -53,7 +53,7 @@ async function aimAt(id) {
   const result = await page.evaluate(async (objectId) => {
     const app = window.__fw;
     const THREE = await import('three');
-    const { objectById } = await import('/src/sim/layout.js');
+    const { objectById } = await import(new URL('src/sim/layout.js', document.baseURI).href);
     const scene = app.scene3d.scene;
     const clubhouse = app.scene3d.clubhouse();
     const walk = app.scene3d.walk;
@@ -115,7 +115,7 @@ async function aimAt(id) {
 
 async function transformFor(id) {
   return page.evaluate(async (objectId) => {
-    const { objectById } = await import('/src/sim/layout.js');
+    const { objectById } = await import(new URL('src/sim/layout.js', document.baseURI).href);
     return structuredClone(objectById(window.__fw.state, objectId).transform);
   }, id);
 }

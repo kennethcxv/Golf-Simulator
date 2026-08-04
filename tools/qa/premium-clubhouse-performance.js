@@ -82,7 +82,7 @@ async (page) => {
   }, null, { timeout: 90000 });
   await page.waitForTimeout(2000);
   await page.evaluate(async () => {
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     const notifications = document.querySelector('.notification-center');

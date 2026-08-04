@@ -24,8 +24,8 @@ async (page) => {
   await page.waitForTimeout(1000);
 
   const result = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const layout = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const interior = clubhouse.interior;
     interior.updateMatrixWorld(true);

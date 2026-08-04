@@ -33,7 +33,7 @@ async (page) => {
 
   // Stand at the till.
   await page.evaluate(async () => {
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const c = app.scene3d.clubhouse();
     const w = app.scene3d.walk;
@@ -52,7 +52,7 @@ async (page) => {
   await page.waitForTimeout(600);
 
   const tools = await page.evaluate(async () => {
-    const { CLEANING_TOOLS } = await import('/src/data/cleaningTools.js');
+    const { CLEANING_TOOLS } = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
     return Object.values(CLEANING_TOOLS).map((t) => t.id);
   });
   const read = () => page.evaluate(() => window.__fw.scene3d.walk.heldToolDiagnostics());

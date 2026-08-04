@@ -65,7 +65,7 @@ async (page) => {
 
   // Photograph the busiest bay.
   await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const c = app.scene3d.clubhouse();
     const w = app.scene3d.walk;

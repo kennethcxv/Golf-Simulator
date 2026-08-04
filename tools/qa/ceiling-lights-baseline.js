@@ -28,8 +28,8 @@ async (page) => {
 
   await page.evaluate(async ({ stressMode, isolatePresentations }) => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
-    const shop = await import('/src/sim/shop.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     app.state.tutorial.complete = true;
     app.state.tutorial.hidden = true;
     // The pre-change renderer kept the built-in ceiling circuit powered in this
@@ -58,8 +58,8 @@ async (page) => {
   if (STRESS) {
     stressSetup = await page.evaluate(async () => {
       const app = window.__fw;
-      const inventory = await import('/src/sim/propertyInventory.js');
-      const shop = await import('/src/sim/shop.js');
+      const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+      const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
       app.state.campaign.enabled = false;
       app.state.shop.progression.tier = 'premium';
       app.state.shop.unlockedTier = 3;

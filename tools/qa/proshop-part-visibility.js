@@ -54,8 +54,8 @@ async (page) => {
   list.sort((a, b) => a.n - b.n);
 
   const results = await page.evaluate(async (assets) => {
-    const THREE = await import('/vendor/three.module.js');
-    const { GLTFLoader } = await import('/vendor/addons/loaders/GLTFLoader.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { GLTFLoader } = await import(new URL('vendor/addons/loaders/GLTFLoader.js', document.baseURI).href);
 
     const SIZE = 512;
     const FILL = 0.85;

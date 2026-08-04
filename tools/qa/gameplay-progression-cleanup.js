@@ -295,8 +295,8 @@ async (page) => {
       const maxPasses = requestedZones.length === 1 ? 16 : requestedZones.length === 2 ? 22 : 32;
       for (let pass = 0; pass < maxPasses; pass += 1) {
         const target = await page.evaluate(async ({ excluded, requested }) => {
-          const C = await import('/src/sim/campaign.js');
-          const S = await import('/src/sim/shop.js');
+          const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
+          const S = await import(new URL('src/sim/shop.js', document.baseURI).href);
           const app = window.__fw;
           const zones = C.campaignZoneProgress(app.state);
           const requirements = [
@@ -325,7 +325,7 @@ async (page) => {
         if (!target) break;
         await useToolAt(target.x, target.z, 1650);
         const after = await page.evaluate(async (zone) => {
-          const C = await import('/src/sim/campaign.js');
+          const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
           return C.campaignZoneProgress(window.__fw.state)[zone];
         }, target.zone);
         if (after <= target.zones[target.zone] + 0.0005) grimeMisses.add(target.key);
@@ -358,7 +358,7 @@ async (page) => {
       ));
       fs.writeFileSync(path.join(out, checkpoint), `${JSON.stringify(savedStorage, null, 2)}\n`);
       const cleaned = await page.evaluate(async () => {
-        const C = await import('/src/sim/campaign.js');
+        const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
         const app = window.__fw;
         return {
           zones: C.campaignZoneProgress(app.state),
@@ -432,7 +432,7 @@ async (page) => {
     ));
     fs.writeFileSync(path.join(out, 'checkpoint-grime-cleaned.json'), `${JSON.stringify(savedStorage, null, 2)}\n`);
     const cleaned = await page.evaluate(async () => {
-      const C = await import('/src/sim/campaign.js');
+      const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
       const app = window.__fw;
       return {
         zones: C.campaignZoneProgress(app.state),
@@ -565,7 +565,7 @@ async (page) => {
 
   const result = await page.evaluate(async () => {
     const app = window.__fw;
-    const C = await import('/src/sim/campaign.js');
+    const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     const view = C.campaignView(app.state);
     return {
       zoneProgress: view.zoneProgress,

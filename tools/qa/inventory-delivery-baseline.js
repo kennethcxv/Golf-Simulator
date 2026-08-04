@@ -362,11 +362,11 @@ async (page) => {
 
   // Highest expected receiving-pad and retail-shelf fixture for the matched performance baseline.
   result.stressFixture = await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const items = await import('/src/data/shopItems.js');
-    const shop = await import('/src/sim/shop.js');
-    const checkout = await import('/src/sim/checkout.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const items = await import(new URL('src/data/shopItems.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const checkout = await import(new URL('src/sim/checkout.js', document.baseURI).href);
     const app = window.__fw;
     const state = app.state;
     delivery.ensureDeliveries(state);
@@ -432,8 +432,8 @@ async (page) => {
 
   // A single deterministic box remains for the normal-controls opening and stocking path.
   result.heroFixture = await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     const app = window.__fw;
     const state = app.state;
     state.shop.carry = null;
@@ -479,7 +479,7 @@ async (page) => {
   );
   for (let flap = 0; flap < 3; flap += 1) {
     const open = await page.evaluate(async (boxId) => {
-      const delivery = await import('/src/sim/deliveries.js');
+      const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const box = delivery.boxesOf(window.__fw.state).find((entry) => entry.id === boxId);
       return !!box && delivery.flapsOpen(box);
     }, result.heroFixture.boxId);
@@ -488,7 +488,7 @@ async (page) => {
     await page.waitForTimeout(350);
   }
   result.openState = await page.evaluate(async (boxId) => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const box = delivery.boxesOf(window.__fw.state).find((entry) => entry.id === boxId);
     return box ? { tape: box.tape, flaps: box.flaps, qty: box.qty, state: delivery.boxState(box) } : null;
   }, result.heroFixture.boxId);
@@ -497,7 +497,7 @@ async (page) => {
   await press('e', 'take a product armful from the opened box');
   await page.waitForTimeout(350);
   result.carryState = await page.evaluate(async () => {
-    const stocking = await import('/src/sim/stocking.js');
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     return stocking.carriedGoods(window.__fw.state);
   });
   requireTruth(result.carryState?.skuId === 'balls1' && result.carryState?.qty > 0, 'normal-control unboxing did not put product in the player’s arms');
@@ -561,7 +561,7 @@ async (page) => {
   result.performance.idleAfterInteractions = await measure('fixed-camera-after-five-laptop-cycles');
 
   result.serialization = await page.evaluate(async () => {
-    const stateModule = await import('/src/sim/state.js');
+    const stateModule = await import(new URL('src/sim/state.js', document.baseURI).href);
     const state = window.__fw.state;
     const samples = [];
     let bytes = 0;
@@ -584,8 +584,8 @@ async (page) => {
   });
 
   result.worldState = await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     const state = window.__fw.state;
     const reconciliation = lifecycle.reconcileInventory(state, { qa: true, context: 'performance-final' });
     return {

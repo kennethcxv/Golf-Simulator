@@ -24,7 +24,7 @@ async (page) => {
 
   // clear floor: the middle of the stockroom, well away from the backroom shelving (z ~ -6)
   await page.evaluate(async () => {
-    const del = await import('/src/sim/deliveries.js');
+    const del = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const st = window.__fw.state;
     st.cash = 200000; st.shop.unlockedTier = 3;
     st.shop.deliveries.boxes = []; st.shop.carry = null;

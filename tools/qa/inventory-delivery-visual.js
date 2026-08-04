@@ -68,8 +68,8 @@ async (page) => {
     }
   };
   const inventoryState = () => page.evaluate(async () => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const delivery = await import('/src/sim/deliveries.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const result = lifecycle.reconcileInventory(window.__fw.state, { qa: true, context: 'browser-visual' });
     return {
       reconciled: result.ok,
@@ -98,8 +98,8 @@ async (page) => {
   await page.waitForTimeout(1600);
 
   const fixture = await page.evaluate(async () => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const delivery = await import('/src/sim/deliveries.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     app.speedIdx = 0;
     app.state.cash = 250000;
@@ -151,8 +151,8 @@ async (page) => {
   await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 10000 });
 
   const landed = await page.evaluate(async ({ padOrderId, fallbackOrderId }) => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const delivery = await import('/src/sim/deliveries.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     const padOrder = lifecycle.purchaseOrderById(app.state, padOrderId);
     const fallbackOrder = lifecycle.purchaseOrderById(app.state, fallbackOrderId);
@@ -181,7 +181,7 @@ async (page) => {
 
   // Fixture setup chooses a real fallback box; placement/opening remain trusted controls.
   const heroId = await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     const box = delivery.boxesOf(app.state)
       .filter((candidate) => candidate.loc === 'receiving-fallback')
@@ -195,7 +195,7 @@ async (page) => {
   await press('e', 'place carried carton on authored packing worktable');
   await page.waitForTimeout(450);
   const worktablePlacement = await page.evaluate(async (id) => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const box = delivery.findBox(window.__fw.state, id);
     return { surface: box.surface, y: box.y, loc: box.loc, tape: box.tape };
   }, heroId);
@@ -210,7 +210,7 @@ async (page) => {
   // Ported off the box-cutter hold 2026-07-30 — one press tears the tape.
   for (let pass = 0; pass < 2; pass += 1) {
     const tape = await page.evaluate(async (id) => {
-      const delivery = await import('/src/sim/deliveries.js');
+      const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       return delivery.findBox(window.__fw.state, id)?.tape || 0;
     }, heroId);
     if (tape >= 1) break;
@@ -218,7 +218,7 @@ async (page) => {
     await page.waitForTimeout(350);
   }
   const tapeCut = await page.evaluate(async (id) => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     return (delivery.findBox(window.__fw.state, id)?.tape || 0) >= 1;
   }, heroId);
   requireTruth(tapeCut, 'the tear press did not cut the tape');
@@ -228,7 +228,7 @@ async (page) => {
   await waitFocus(/open the other flap/);
   for (let index = 0; index < 3; index += 1) {
     const opened = await page.evaluate(async (id) => {
-      const delivery = await import('/src/sim/deliveries.js');
+      const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       return delivery.flapsOpen(delivery.findBox(window.__fw.state, id));
     }, heroId);
     if (opened) break;
@@ -272,7 +272,7 @@ async (page) => {
   await page.waitForTimeout(1500);
 
   const rackBoxId = await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     const box = delivery.boxesOf(app.state)
       .filter((candidate) => candidate.loc === 'receiving-fallback')
@@ -286,7 +286,7 @@ async (page) => {
   await press('e', 'place unopened carton into authored rack slot');
   await page.waitForTimeout(500);
   const rackPlacement = await page.evaluate(async (id) => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const box = delivery.findBox(window.__fw.state, id);
     return { surface: box.surface, slot: box.surfaceSlot, y: box.y };
   }, rackBoxId);
@@ -294,8 +294,8 @@ async (page) => {
   await shot('08-unopened-carton-rack.png', 'Persistent unopened carton occupying one authored rack slot.');
 
   const flatId = await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
-    const stocking = await import('/src/sim/stocking.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     const app = window.__fw;
     const box = delivery.boxesOf(app.state)
       .filter((candidate) => candidate.loc === 'receiving-fallback')
@@ -320,7 +320,7 @@ async (page) => {
   await press('e', 'recycle flattened carton');
   await page.waitForTimeout(500);
   const recycled = await page.evaluate(async (id) => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     return !delivery.findBox(window.__fw.state, id);
   }, flatId);
   requireTruth(recycled, 'flattened carton remained after recycling');

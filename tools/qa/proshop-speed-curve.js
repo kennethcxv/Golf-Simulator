@@ -67,7 +67,7 @@
     await page.waitForTimeout(600);
     await page.evaluate(async (seed) => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       const empire = E.newStarterEmpire('relaxed', seed);
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
     }, SEED);
@@ -84,7 +84,7 @@
     // The operative condition: fully restored, clean room (the playable shop).
     await page.evaluate(async () => {
       const app = window.__fw;
-      const R = await import('/src/sim/clubhouseRestoration.js');
+      const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const snapshot = R.restorationSnapshot(app.state);
       for (const targetId of Object.keys(snapshot?.targetProgress || {})) {
         R.restorationAction(app.state, { type: 'set-target-progress', targetId, progress: 1 });
@@ -242,7 +242,7 @@
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.readyState === 'complete');
     return page.evaluate(async () => {
-      const B = await import('/src/sim/balance.js');
+      const B = await import(new URL('src/sim/balance.js', document.baseURI).href);
       return B.BALANCE.speeds;
     });
   })();

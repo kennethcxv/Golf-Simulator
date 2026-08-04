@@ -112,7 +112,7 @@ async function monitorClick(page, action) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -168,7 +168,7 @@ async function setupReservationArrival(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     reservations.ensureReservations(app.state);
@@ -325,7 +325,7 @@ async function setupWalkIn(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     reservations.ensureReservations(app.state);
     app.state.reservations.booked.length = 0;
     app.state.reservations.nextId = 1;
@@ -389,7 +389,7 @@ async function completeCashService(page, shot) {
   await page.waitForTimeout(600);
   await shot('10-walk-in-tender-deposited.png');
   const plan = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return register.makeChangeFrom(
       register.drawerContents(tx, window.__fw.state.shop.drawer),
@@ -448,7 +448,7 @@ async function walkInScenario(page, shot) {
   const minute = Number(slotParts.pop());
   const dayAbs = Number(slotParts.pop());
   const loadBefore = await page.evaluate(async ({ day, teeMinute }) => {
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     return reservations.slotLoad(window.__fw.state, day, teeMinute);
   }, { day: dayAbs, teeMinute: minute });
   await monitorClick(page, selection.slotAction);
@@ -466,7 +466,7 @@ async function walkInScenario(page, shot) {
     { timeout: 14000 });
   await shot('14-walk-in-check-in-complete.png');
   const final = await page.evaluate(async ({ id, day, teeMinute }) => {
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     const app = window.__fw;
     const reservation = app.state.reservations.booked
       .find((entry) => String(entry.id) === String(id));
@@ -505,7 +505,7 @@ async function setupNoShow(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     reservations.ensureReservations(app.state);
@@ -742,7 +742,7 @@ async function setupCancellation(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     reservations.ensureReservations(app.state);
@@ -795,7 +795,7 @@ async function setupCancellation(page) {
 async function cancellationSnapshot(page, reservationId) {
   return page.evaluate(async (id) => {
     const app = window.__fw;
-    const reservations = await import('/src/sim/reservations.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     const reservation = app.state.reservations.booked
       .find((entry) => String(entry.id) === String(id));
     return {

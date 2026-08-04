@@ -56,7 +56,7 @@
     await page.waitForFunction(() => document.readyState === 'complete');
     await page.evaluate(async ([seed, fov]) => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       const empire = E.newStarterEmpire('relaxed', seed);
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
       if (fov) localStorage.setItem('golfempire:preferences:v1', JSON.stringify({ camera: { fov } }));
@@ -76,7 +76,7 @@
     await page.waitForFunction(() => document.readyState === 'complete');
     await page.evaluate(async () => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       const empire = E.newEmpire('relaxed', 424242);
       empire.cash = 10_000_000;
       const first = empire.market.find((listing) => listing.id === 'willow-creek') || empire.market[0];
@@ -98,7 +98,7 @@
       for (const stand of ['chair', 'north']) {
         await page.evaluate(async (which) => {
           const app = window.__fw;
-          const L = await import('/src/data/shopLayout.js');
+          const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
           const o = app.scene3d.clubhouse().interior.position;
           const w = app.scene3d.walk.state;
           const laptop = L.FRONT_DESK.laptop;

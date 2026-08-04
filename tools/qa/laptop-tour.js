@@ -50,10 +50,10 @@ async (page) => {
   await page.evaluate(async () => {
     const app = window.__fw;
     const st = app.state;
-    const shop = await import('/src/sim/shop.js');
-    const staff = await import('/src/sim/staff.js');
-    const resv = await import('/src/sim/reservations.js');
-    const time = await import('/src/sim/time.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const staff = await import(new URL('src/sim/staff.js', document.baseURI).href);
+    const resv = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const time = await import(new URL('src/sim/time.js', document.baseURI).href);
 
     st.cash = 60000;
     st.shop.unlockedTier = 3;
@@ -111,7 +111,7 @@ async (page) => {
     for (const stand of ['chair', 'north']) {
       await page.evaluate(async (which) => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
         const laptop = (() => {

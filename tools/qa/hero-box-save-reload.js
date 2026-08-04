@@ -132,7 +132,7 @@ async (page) => {
 
   async function stageHero() {
     const staged = await page.evaluate(async ({ orderId, qty, spot }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const app = window.__fw;
       const state = app.state;
       D.ensureDeliveries(state);
@@ -176,7 +176,7 @@ async (page) => {
 
   async function liveSnapshot(boxId) {
     return page.evaluate(async (id) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;

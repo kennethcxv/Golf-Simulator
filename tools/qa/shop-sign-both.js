@@ -51,7 +51,7 @@ async (page) => {
   // board would read 0 forever, and a pixel check on the card would read the
   // same canvas whichever way it is turned.
   const sample = () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const c = window.__fw.scene3d.clubhouse();
     const hit = (name) => c.group.getObjectByName(name) || c.interior.getObjectByName(name);
     const card = hit('ClubhouseOpenClosedSign');
@@ -95,7 +95,7 @@ async (page) => {
   // south wall. Stand off it and look back at the building.
   const viewBoard = async (label) => {
     await page.evaluate(async () => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const c = app.scene3d.clubhouse();
       const board = c.group.getObjectByName('LegacyBusinessHoursSign');
@@ -122,7 +122,7 @@ async (page) => {
   // ---- flip it, from inside, with a real E press ----------------------------
   const before = await sample();
   await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const c = app.scene3d.clubhouse();
     const card = c.interior.getObjectByName('ClubhouseOpenClosedSign');

@@ -30,7 +30,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -49,10 +49,10 @@
   const seeded = await page.evaluate(async () => {
     const app = window.__fw;
     const st = app.state;
-    const { calendarOf } = await import('/src/sim/time.js');
-    const { refreshMarketIfDue, hireStaff } = await import('/src/sim/staff.js');
-    const { bookSlot } = await import('/src/sim/reservations.js');
-    const { placeOrder } = await import('/src/sim/shop.js');
+    const { calendarOf } = await import(new URL('src/sim/time.js', document.baseURI).href);
+    const { refreshMarketIfDue, hireStaff } = await import(new URL('src/sim/staff.js', document.baseURI).href);
+    const { bookSlot } = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const { placeOrder } = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const cal = calendarOf(st.clock.minutes);
     refreshMarketIfDue(st, cal.dayAbs);
     const hire = st.staff.market.length ? hireStaff(st, st.staff.market[0].id) : { ok: false };
@@ -73,7 +73,7 @@
   const openLaptop = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const origin = app.scene3d.clubhouse().interior.position;
       const st = app.scene3d.walk.state;
       const laptop = (() => {
@@ -113,7 +113,7 @@
     if (!open) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const origin = app.scene3d.clubhouse().interior.position;
         const st = app.scene3d.walk.state;
         const laptop = (() => {

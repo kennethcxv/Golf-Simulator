@@ -28,7 +28,7 @@ async (page) => {
   await page.waitForTimeout(1600);
 
   const before = await page.evaluate(async () => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     const app = window.__fw;
     app.state.shop.unlockedTier = 3;
     app.state.cash = 250000;
@@ -87,7 +87,7 @@ async (page) => {
   await shot('03-reorder-submitted.png');
 
   const after = await page.evaluate(async () => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     const app = window.__fw;
     const orders = app.state.shop.orders.filter((order) =>
       order.lines?.some((line) => line.skuId === 'balls2'));

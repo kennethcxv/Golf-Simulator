@@ -104,7 +104,7 @@ async (page) => {
 
   // ---- beat 6: the tools a stranger might reach for -------------------------
   note('belt', await page.evaluate(async () => {
-    const { CLEANING_TOOLS } = await import('/src/data/cleaningTools.js');
+    const { CLEANING_TOOLS } = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
     const app = window.__fw;
     const owned = [];
     for (const t of Object.values(CLEANING_TOOLS)) {

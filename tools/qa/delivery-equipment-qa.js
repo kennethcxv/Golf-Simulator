@@ -237,7 +237,7 @@ async (page) => {
 
   async function buildEvidenceCameras() {
     return page.evaluate(async () => {
-      const staging = await import('/src/data/deliveryStaging.js');
+      const staging = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
       const origin = clubhouse.interior.position;
@@ -398,7 +398,7 @@ async (page) => {
 
   async function objectLineOfSightEvidence(objectName, maxSamples = 72) {
     return page.evaluate(async ({ name, sampleLimit }) => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const scene = app.scene3d.scene;
       const camera = app.scene3d.camera;
@@ -700,7 +700,7 @@ async (page) => {
 
   async function prepareDeterministicPresentationFixture() {
     const prepared = await page.evaluate(async () => {
-      const shop = await import('/src/sim/shop.js');
+      const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
       const reno = app.state?.shop?.reno;
@@ -932,8 +932,8 @@ async (page) => {
 
   async function stageArrival() {
     return page.evaluate(async ({ orderId, qty, queuedOrderId, queuedQty }) => {
-      const D = await import('/src/sim/deliveries.js');
-      const B = await import('/src/data/boxes.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
       const app = window.__fw;
       const state = app.state;
       D.ensureDeliveries(state);
@@ -1184,7 +1184,7 @@ async (page) => {
 
   async function serviceDriveEvidence() {
     return page.evaluate(async () => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const scene = window.__fw.scene3d.scene;
       const drive = scene.getObjectByName('DeliveryVanServiceDrive');
       const bay = scene.getObjectByName('DeliveryVanServiceBay');
@@ -1231,7 +1231,7 @@ async (page) => {
 
   async function serviceBayGroundingEvidence() {
     return page.evaluate(async () => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const scene = app.scene3d.scene;
       const clubhouse = app.scene3d.clubhouse();
@@ -1312,8 +1312,8 @@ async (page) => {
 
   async function clearwayAndCollisionEvidence(includeVan = false) {
     return page.evaluate(async (withVan) => {
-      const L = await import('/src/data/shopLayout.js');
-      const S = await import('/src/data/deliveryStaging.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+      const S = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
       const origin = clubhouse.interior.position;
@@ -2110,7 +2110,7 @@ async (page) => {
     await waitForToastsToClear('pallet-jack-to-carton-pickup');
 
     const pickupStart = await page.evaluate(async (boxId) => {
-      const S = await import('/src/data/deliveryStaging.js');
+      const S = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const boxes = app.state.shop.deliveries.boxes.filter((box) => box.loc === 'pad');
       const plan = S.planPalletizedPadBoxes(boxes).find((entry) => entry.boxId === boxId);

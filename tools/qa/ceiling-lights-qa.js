@@ -54,7 +54,7 @@ async (page) => {
   async function shot(id, pose = null) {
     if (pose) await setPose(pose);
     await page.evaluate(async () => {
-      const ui = await import('/src/ui/ui.js');
+      const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
       ui.clearNotifications();
     });
     await page.locator('#game').click({ position: { x: 800, y: 450 } }).catch(() => {});
@@ -68,7 +68,7 @@ async (page) => {
   // enter build mode, select the one stored fixture, rotate it, and place it.
   await page.evaluate(async () => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
     app.state.tutorial.complete = true;
     app.state.tutorial.hidden = true;
     app.state.campaign.enabled = false;
@@ -103,8 +103,8 @@ async (page) => {
   // delivery preamble is skipped for this comparison room.
   await page.evaluate(async () => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
-    const shop = await import('/src/sim/shop.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const protectorId = 'furn-tables-premium';
     app.state.shop.inventory[protectorId].back = 1;
     inventory.importLegacyStoredPlaceables(app.state, protectorId, 1);
@@ -310,7 +310,7 @@ async (page) => {
   // fixture reports requested-on but effective-off.
   await page.evaluate(async () => {
     const app = window.__fw;
-    const restoration = await import('/src/sim/clubhouseRestoration.js');
+    const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     app.state.campaign.enabled = true;
     restoration.setCeilingRestored(app.state, false);
   });
@@ -325,7 +325,7 @@ async (page) => {
   });
   await page.evaluate(async () => {
     const app = window.__fw;
-    const restoration = await import('/src/sim/clubhouseRestoration.js');
+    const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     restoration.setCeilingRestored(app.state, true);
   });
   await page.waitForFunction(() => {

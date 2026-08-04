@@ -584,8 +584,8 @@ async (page) => {
 
   phase = 'stage-real-delivery';
   const fixture = await page.evaluate(async ({ orderId, skuId, boxCount, unitsPerBox }) => {
-    const deliveries = await import('/src/sim/deliveries.js');
-    const boxes = await import('/src/data/boxes.js');
+    const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const boxes = await import(new URL('src/data/boxes.js', document.baseURI).href);
     const app = window.__fw;
     const state = app.state;
     deliveries.ensureDeliveries(state);

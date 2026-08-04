@@ -74,8 +74,8 @@ async function courseEvidenceMatrix(page) {
   };
 
   const courseEvidence = await page.evaluate(async () => {
-    const { ZONE, ZONE_NAMES } = await import('/src/sim/constants.js');
-    const { holeDistanceYd, holePar } = await import('/src/sim/course.js');
+    const { ZONE, ZONE_NAMES } = await import(new URL('src/sim/constants.js', document.baseURI).href);
+    const { holeDistanceYd, holePar } = await import(new URL('src/sim/course.js', document.baseURI).href);
     const course = window.__fw.state.course;
     const surfaceCells = Object.fromEntries(ZONE_NAMES.map((name) => [name, 0]));
     for (const zone of course.zones) surfaceCells[ZONE_NAMES[zone]] += 1;

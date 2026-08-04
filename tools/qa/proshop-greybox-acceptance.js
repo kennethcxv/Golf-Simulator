@@ -30,7 +30,7 @@
     await page.waitForTimeout(600);
     await page.evaluate(async (seed) => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       const empire = E.newStarterEmpire('relaxed', seed);
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
     }, SEED);
@@ -50,7 +50,7 @@
   const measure = () => page.evaluate(async () => {
     const app = window.__fw;
     const THREE = await import('three');
-    const L = await import('/src/data/shopLayout.js');
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     const detail = clubhouse.pineHillsInterior;
     const diagnostics = detail?.diagnostics?.() || null;
@@ -236,7 +236,7 @@
     }
 
     // Â§6 clearances from the live (variant-resolved) datums + placed fixtures.
-    const layoutModule = await import('/src/sim/layout.js');
+    const layoutModule = await import(new URL('src/sim/layout.js', document.baseURI).href);
     const placed = layoutModule.placedFixtures(app.state);
     const rectOf = (id) => {
       const fixture = placed.find((entry) => entry.id === id);
@@ -288,7 +288,7 @@
         const root = interior.getObjectByName('CheckoutHardwareVisualRoot');
         return !!root && root.visible !== false;
       })(),
-      tierIndex: (await import('/src/sim/shopProgression.js')).shopTierIndex?.(app.state) ?? null,
+      tierIndex: (await import(new URL('src/sim/shopProgression.js', document.baseURI).href)).shopTierIndex?.(app.state) ?? null,
     };
 
     return {

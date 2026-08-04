@@ -115,7 +115,7 @@ async function runUnlocked() {
       await page.goto(QA_BASE_URL);
       await page.waitForFunction(() => document.readyState === 'complete');
       await page.evaluate(async () => {
-        const E = await import('/src/sim/empire.js');
+        const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
         const empire = E.newEmpire('relaxed', 424242);
         empire.cash = 10_000_000;
         const first = empire.market.find((listing) => listing.id === 'willow-creek') || empire.market[0];

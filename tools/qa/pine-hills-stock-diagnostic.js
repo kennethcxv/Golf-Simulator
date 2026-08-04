@@ -23,12 +23,12 @@ async (page) => {
   await page.waitForTimeout(800);
 
   const result = await page.evaluate(async () => {
-    const starter = await import('/src/sim/clubhouseStarterStock.js');
-    const slots = await import('/src/data/fixtureSlots.js');
-    const layout = await import('/src/data/shopLayout.js');
-    const campaign = await import('/src/sim/campaign.js');
-    const property = await import('/src/sim/propertyInventory.js');
-    const retail = await import('/src/sim/retailShelfStocking.js');
+    const starter = await import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href);
+    const slots = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
+    const property = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+    const retail = await import(new URL('src/sim/retailShelfStocking.js', document.baseURI).href);
     const app = window.__fw;
     const state = app.state;
     const clubhouse = app.scene3d.clubhouse();

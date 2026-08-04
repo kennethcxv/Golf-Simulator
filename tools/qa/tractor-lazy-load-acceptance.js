@@ -63,7 +63,7 @@ async (page) => {
   const runnerAutosaveBefore = await page.evaluate(() => localStorage.getItem('golfempire:autosave'));
   if (!runnerAutosaveBefore) throw new Error('Run this acceptance harness with --bootstrap.');
   const fixtures = await page.evaluate(async () => {
-    const empireModule = await import('/src/sim/empire.js');
+    const empireModule = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const source = localStorage.getItem('golfempire:autosave');
     const build = (repaired) => {
       const empire = empireModule.deserializeEmpire(JSON.parse(source));

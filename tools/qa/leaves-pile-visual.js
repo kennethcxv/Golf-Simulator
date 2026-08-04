@@ -17,7 +17,7 @@ async (page) => {
     const raw = localStorage.getItem('golfempire:autosave');
     if (!raw) return;
     const empire = JSON.parse(raw);
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const state = E.activeState(empire);
     if (!state?.props?.litter?.length) return;
     state.props.litter.forEach((pile, index) => {

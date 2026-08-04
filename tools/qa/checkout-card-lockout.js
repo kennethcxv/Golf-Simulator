@@ -47,7 +47,7 @@ async (page) => {
   const stageCustomer = async () => {
     await page.evaluate(async ([skuIds]) => {
       const app = window.__fw;
-      const { REGISTER } = await import('/src/data/shopLayout.js');
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const clubhouse = app.scene3d.clubhouse();
       clubhouse.setOrganicWalkins(false);
       for (const id of Object.keys(app.state.shop.inventory)) {
@@ -76,7 +76,7 @@ async (page) => {
     // Pin the total at the reported figure so the amount hypothesis is tested
     // at the amount it was reported at, not at whatever the seed rolls.
     return page.evaluate(async () => {
-      const { totalOf } = await import('/src/sim/register.js');
+      const { totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       const prices = [96.40, 74.25, 68.15, 42.10];
       tx.items.forEach((item, index) => {
@@ -89,7 +89,7 @@ async (page) => {
   };
 
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -147,7 +147,7 @@ async (page) => {
   };
 
   const readState = () => page.evaluate(async () => {
-    const { cardEnteredAmount, totalOf } = await import('/src/sim/register.js');
+    const { cardEnteredAmount, totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
     const register = window.__fw.scene3d.clubhouse().register;
     const tx = register.getTx();
     const flow = register.getFlow();

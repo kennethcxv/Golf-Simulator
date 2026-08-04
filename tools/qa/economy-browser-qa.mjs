@@ -234,8 +234,8 @@ await page.waitForTimeout(3000);
 // it never writes numbers into a UI component.
 const fixture = await page.evaluate(async () => {
   const app = window.__fw;
-  const empireSim = await import('/src/sim/empire.js');
-  const time = await import('/src/sim/time.js');
+  const empireSim = await import(new URL('src/sim/empire.js', document.baseURI).href);
+  const time = await import(new URL('src/sim/time.js', document.baseURI).href);
   for (let day = 0; day < 8; day += 1) empireSim.empireUpdate(app.empire, 1440);
   const clubhouse = app.scene3d.clubhouse();
   const origin = clubhouse.interior.position;

@@ -96,8 +96,8 @@ async (page) => {
   const mountAudit = await page.evaluate(async () => {
     const THREE = await import('three');
     const [{ PROP_PLACEMENTS, RUNTIME_ASSET_MANIFEST_BY_NUMBER }, { INTERIOR, SHELL }] = await Promise.all([
-      import('/src/render3d/assets51to100/runtimeManifest.js'),
-      import('/src/data/shopLayout.js'),
+      import(new URL('src/render3d/assets51to100/runtimeManifest.js', document.baseURI).href),
+      import(new URL('src/data/shopLayout.js', document.baseURI).href),
     ]);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();

@@ -30,8 +30,8 @@ async (page) => {
   // bootstrap layout only places some fixtures — the first two runs of this
   // probe rang one-item transactions because driver1's club rack was stored.
   const oversized = await page.evaluate(async () => {
-    const shop = await import('/src/sim/shop.js');
-    const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     const state = window.__fw.state;
     const clubOrBulk = (sku) => ['clubs', 'bags'].includes(sku.cat)
       || /driver|iron|putter|wedge|umbrella|stand/i.test(sku.id);
@@ -44,7 +44,7 @@ async (page) => {
   const skus = [oversized, 'tees1'];
   await page.evaluate(async ([skuIds]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -55,7 +55,7 @@ async (page) => {
     // bump has no lot behind it and the move fails silently (run three of
     // this probe). adoptExternalInventory is the sanctioned QA intake: it
     // creates the lot, and the projection is raised to match it.
-    const { adoptExternalInventory, INVENTORY_STAGE } = await import('/src/sim/inventoryLifecycle.js');
+    const { adoptExternalInventory, INVENTORY_STAGE } = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     for (const id of skuIds) {
       if (!app.state.shop.inventory[id]) app.state.shop.inventory[id] = { shelf: 0, back: 0 };
       const inventory = app.state.shop.inventory[id];
@@ -96,7 +96,7 @@ async (page) => {
   await page.waitForTimeout(1500);
 
   const project = (query) => page.evaluate(async (wanted) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     let found = null;
     app.scene3d.clubhouse().interior.traverse((object) => {
@@ -201,7 +201,7 @@ async (page) => {
   // settled pose goes on record as measured world-space data instead of a
   // second camera angle.
   const setAside = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     let found = null;
     clubhouse.interior.traverse((object) => {

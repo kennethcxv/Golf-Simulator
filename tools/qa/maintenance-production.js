@@ -60,7 +60,7 @@ async (page) => {
   await reloadGame();
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const st = app.state;
     st.tutorial.complete = true;
     st.tutorial.hidden = true;

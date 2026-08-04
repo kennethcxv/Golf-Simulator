@@ -129,7 +129,7 @@ if (await resumeButton.count() && await resumeButton.isVisible()) await resumeBu
 
 const fixture = await page.evaluate(async () => {
   const app = window.__fw;
-  const customerDomain = await import('/src/sim/customerSimulation.js');
+  const customerDomain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
   const {
     CUSTOMER_INTENT,
     CUSTOMER_STATE,

@@ -84,7 +84,7 @@ async function establishFixture(page) {
   });
   await page.evaluate(async (fixtureSeed) => {
     localStorage.clear();
-    const module = await import('/src/sim/empire.js');
+    const module = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = module.newEmpire('relaxed', fixtureSeed);
     const property = empire.market.find((item) => (
       item.name === 'Willow Creek Municipal'
@@ -350,7 +350,7 @@ async function resourceSnapshot(page) {
     }
     const gl = renderer.getContext();
     const debug = gl.getExtension('WEBGL_debug_renderer_info');
-    const empireModule = await import('/src/sim/empire.js');
+    const empireModule = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const saveStart = performance.now();
     const snapshot = empireModule.empireSnapshot(app.empire);
     const json = JSON.stringify(snapshot);

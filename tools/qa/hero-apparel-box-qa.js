@@ -155,7 +155,7 @@ async (page) => {
 
   async function boxSnapshot(id) {
     return page.evaluate(async (boxId) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const box = D.findBox(window.__fw.state, boxId);
       if (!box) {
         const delivery = window.__fw.state.shop.deliveries;
@@ -208,7 +208,7 @@ async (page) => {
 
   async function stageHero({ orderId, qty, resetDelivery }) {
     const staged = await page.evaluate(async ({ orderId: id, qty: units, spot, reset }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;
@@ -293,7 +293,7 @@ async (page) => {
 
   async function pressState(id) {
     return page.evaluate(async (boxId) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const st = window.__fw.state;
       const walk = window.__fw.scene3d.walk;
       const box = D.findBox(st, boxId);

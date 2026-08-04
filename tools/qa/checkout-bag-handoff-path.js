@@ -46,7 +46,7 @@ async (page) => {
 
   await page.evaluate(async ([skuIds]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     for (const id of Object.keys(app.state.shop.inventory)) {
@@ -89,8 +89,8 @@ async (page) => {
 
   // The sampler, installed in the page so it can run per animation frame.
   await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER, COUNTER_TOP, FRONT_DESK_FRAME, frontDeskLocalPoint } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER, COUNTER_TOP, FRONT_DESK_FRAME, frontDeskLocalPoint } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const register = clubhouse.register;
@@ -204,7 +204,7 @@ async (page) => {
 
   // ---- ring up, pay by card ------------------------------------------------
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     let found = null;
     app.scene3d.clubhouse().interior.traverse((o) => {
@@ -298,8 +298,8 @@ async (page) => {
   await page.keyboard.press('Enter');
 
   const readCard = () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER_TOP } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER_TOP } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     let mesh = null;
     const from = clubhouse.register.root || clubhouse.interior;

@@ -16,8 +16,8 @@ async function runGolfOperationsLaptopBookingProbe(page) {
 
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const operations = await import('/src/sim/reservations.js');
-    const { calendarOf } = await import('/src/sim/time.js');
+    const operations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const { calendarOf } = await import(new URL('src/sim/time.js', document.baseURI).href);
     const qaDay = calendarOf(app.state.clock.minutes).dayAbs + 1;
     operations.resetGolfOperationsQA(app.state);
     const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: qaDay, seed: 20260719 });

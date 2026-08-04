@@ -82,7 +82,7 @@ async (page) => {
     const day = Math.floor(app.state.clock.minutes / 1440) * 1440;
     app.state.clock.minutes = day + 15 * 60;
     app.scene3d.applyTimeWeather(15 * 60, app.state.weather);
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     await new Promise((resolve) => setTimeout(resolve, 250));
     document.querySelectorAll('.notification-center, .toast').forEach((node) => {

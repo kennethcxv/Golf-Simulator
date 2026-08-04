@@ -49,9 +49,9 @@ async (page) => {
   ];
 
   const rows = await page.evaluate(async (asks) => {
-    const { availableSlots, fmtSlot } = await import('/src/sim/reservations.js');
-    const { teeTimeOffers, TEE_OFFER, walkInAcceptsOffer } = await import('/src/sim/teeTimeOffer.js');
-    const { calendarOf } = await import('/src/sim/time.js');
+    const { availableSlots, fmtSlot } = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const { teeTimeOffers, TEE_OFFER, walkInAcceptsOffer } = await import(new URL('src/sim/teeTimeOffer.js', document.baseURI).href);
+    const { calendarOf } = await import(new URL('src/sim/time.js', document.baseURI).href);
     const state = window.__fw.state;
     const cal = calendarOf(state.clock.minutes);
     const partySize = 2;

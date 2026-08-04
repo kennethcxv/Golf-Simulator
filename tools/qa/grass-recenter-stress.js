@@ -560,7 +560,7 @@ async (page) => {
       app.scene3d.setGolfersFrozen?.(true);
     });
     result.fixture = await page.evaluate(async () => {
-      const { ZONE } = await import('/src/sim/constants.js');
+      const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
       const app = window.__fw;
       const scene3d = app.scene3d;
       const walkApi = scene3d.walk;

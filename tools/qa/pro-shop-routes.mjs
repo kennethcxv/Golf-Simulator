@@ -121,8 +121,8 @@ const focus = () => page.evaluate(() => ({
 }));
 
 const carried = () => page.evaluate(async () => {
-  const stocking = await import('/src/sim/stocking.js');
-  const deliveries = await import('/src/sim/deliveries.js');
+  const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
+  const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
   const state = window.__fw.state;
   const goods = stocking.carriedGoods(state);
   const box = deliveries.carriedBox(state);
@@ -133,7 +133,7 @@ const carried = () => page.evaluate(async () => {
 });
 
 const snapshot = () => page.evaluate(async () => {
-  const deliveries = await import('/src/sim/deliveries.js');
+  const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
   const state = window.__fw.state;
   const ch = window.__fw.scene3d.clubhouse();
   const inventory = Object.fromEntries(Object.entries(state.shop.inventory)
@@ -432,7 +432,7 @@ async function openServiceRoute() {
 }
 
 const padBoxLocal = (skuId) => page.evaluate(async (wanted) => {
-  const { boxDims } = await import('/src/data/boxes.js');
+  const { boxDims } = await import(new URL('src/data/boxes.js', document.baseURI).href);
   const boxes = window.__fw.state.shop.deliveries?.boxes || [];
   let stack = 0;
   for (const box of boxes) {
@@ -536,7 +536,7 @@ async function unpackBox(skuId) {
   );
   await page.keyboard.press('e');
   await page.waitForFunction(async (wanted) => {
-    const stocking = await import('/src/sim/stocking.js');
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     return stocking.carriedGoods(window.__fw.state)?.skuId === wanted;
   }, skuId);
   const hands = await carried();

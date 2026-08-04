@@ -52,7 +52,7 @@ async function boot(page) {
 async function setupFixture(page, mode) {
   return page.evaluate(async ([skuIds, payment]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -102,7 +102,7 @@ async function setupFixture(page, mode) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -132,7 +132,7 @@ async function projectObject(page, predicate) {
 
 async function projectLocal(page, point) {
   return page.evaluate(async (local) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const world = new THREE.Vector3(
@@ -225,7 +225,7 @@ async function escapeFrontDesk(page) {
 // what does a pick ray at this screen point actually hit? (failure forensics)
 async function clickDiagnostic(page, x, y) {
   const hits = await page.evaluate(async (point) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const rect = document.querySelector('canvas').getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -448,7 +448,7 @@ async function insertCardGesture(page, shot, {
     // beat with the basket intact, then the same customer preference restarts.
     await page.mouse.click(xBefore.x, xBefore.y);
     const cancelState = await page.evaluate(async (point) => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const register = app.scene3d.clubhouse().register;
       const tx = register.getTx();
@@ -509,7 +509,7 @@ async function insertCardGesture(page, shot, {
   await waitCamera(page, 'card');
   const entry = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    const { cardEnteredAmount, totalOf } = await import('/src/sim/register.js');
+    const { cardEnteredAmount, totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
     const total = totalOf(tx);
     const expectedCents = Math.round(total * 100);
     return {
@@ -541,7 +541,7 @@ async function insertCardGesture(page, shot, {
   for (const digit of String(entry.expectedCents)) await clickKey(`digit:${digit}`);
   const keyed = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    const { cardEnteredAmount } = await import('/src/sim/register.js');
+    const { cardEnteredAmount } = await import(new URL('src/sim/register.js', document.baseURI).href);
     return {
       entered: cardEnteredAmount(tx),
       entryCents: Number(tx?.cardEntryCents),
@@ -605,8 +605,8 @@ async function cashRoute(page, shot) {
     return tx && tx.stage === 'cash-tender';
   }, null, { timeout: 7000 });
   const cashFacts = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
-    const tax = await import('/src/sim/salesTax.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
+    const tax = await import(new URL('src/sim/salesTax.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
       subtotal: register.subtotal(tx),
@@ -649,8 +649,8 @@ async function cashRoute(page, shot) {
   // Capture its closed local Z and world scale before normal input so the later
   // midpoint uses the same world-space travel units as REGISTER.drawer.travel.
   const drawerTravelStart = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     const trays = [];
     clubhouse.interior.traverse((object) => {
@@ -753,7 +753,7 @@ async function cashRoute(page, shot) {
   await shot('10-received-cash-sorted.png');
 
   const changePlan = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     const due = register.changeDue(tx);
     const plan = register.makeChangeFrom(register.drawerContents(tx, window.__fw.state.shop.drawer), due);
@@ -776,7 +776,7 @@ async function cashRoute(page, shot) {
     `A taxed ticket must produce sub-dollar change; the plan for $${changePlan.due} was all notes: ${JSON.stringify(plan)}.`);
 
   const givingFacts = () => page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     const giving = register.changeGivingState(tx);
     return {
@@ -859,7 +859,7 @@ async function cashRoute(page, shot) {
   // unchanged: short by exactly one cent must keep Done disabled.
   const requiredCents = (await givingFacts()).requiredCents;
   const underPlan = await page.evaluate(async (cents) => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return register.makeChangeFrom(
       register.drawerContents(tx, window.__fw.state.shop.drawer), cents / 100,

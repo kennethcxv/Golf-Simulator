@@ -133,7 +133,7 @@ async (page) => {
 
   async function stageGeneric() {
     const staged = await page.evaluate(async ({ orderId, qty, spot }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const app = window.__fw;
       const state = app.state;
       D.ensureDeliveries(state);
@@ -180,8 +180,8 @@ async (page) => {
 
   async function liveSnapshot(boxId) {
     return page.evaluate(async (id) => {
-      const D = await import('/src/sim/deliveries.js');
-      const B = await import('/src/data/boxes.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;
@@ -264,7 +264,7 @@ async (page) => {
   async function autosaveSnapshot(boxId) {
     return page.evaluate(async (id) => {
       const app = window.__fw;
-      const B = await import('/src/data/boxes.js');
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
       await app.autosave();
       const raw = localStorage.getItem('golfempire:autosave');
       if (!raw) throw new Error('The game autosave did not create golfempire:autosave.');

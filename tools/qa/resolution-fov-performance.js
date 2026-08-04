@@ -364,7 +364,7 @@ async (page) => {
   // acceptance driver does: the FOV matrix leaves the player-camera wherever
   // the last case put it, which is outside the front-desk interaction radius.
   await page.evaluate(async () => {
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const origin = app.scene3d.clubhouse().interior.position;
     const walk = app.scene3d.walk.state;

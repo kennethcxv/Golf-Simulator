@@ -66,7 +66,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -77,9 +77,9 @@
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
 
-  const ladder = await page.evaluate(async () => (await import('/src/sim/balance.js')).BALANCE.speeds);
+  const ladder = await page.evaluate(async () => (await import(new URL('src/sim/balance.js', document.baseURI).href)).BALANCE.speeds);
   const authored = await page.evaluate(async () => {
-    const B = await import('/src/sim/balance.js');
+    const B = await import(new URL('src/sim/balance.js', document.baseURI).href);
     return {
       gameMinutesPerRealSecond: B.BALANCE.gameMinutesPerRealSecond,
       npcTimingBaseline: B.BALANCE.npcTimingBaselineGameMinutesPerRealSecond,

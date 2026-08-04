@@ -182,7 +182,7 @@ async (page) => {
       const app = window.__fw;
       const clubhouse = app?.scene3d?.clubhouse?.();
       if (!app?.state || !clubhouse) throw new Error('Sheet 6 presentation fixture requires the live clubhouse.');
-      const restoration = await import('/src/sim/clubhouseRestoration.js');
+      const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const production = typeof clubhouse.sheet06Production === 'function'
         ? clubhouse.sheet06Production()
         : clubhouse.sheet06Production;
@@ -294,7 +294,7 @@ async (page) => {
     const holding = snapshot.holdings?.find(
       (entry) => entry?.property?.id === snapshot.activeId,
     ) || snapshot.holdings?.[0];
-    const { ensureShopReno } = await import('/src/sim/shop.js');
+    const { ensureShopReno } = await import(new URL('src/sim/shop.js', document.baseURI).href);
     ensureShopReno(holding?.state);
     const exterior = holding?.state?.shop?.reno?.exterior;
     if (!exterior || !Array.isArray(exterior.weeds)) {
