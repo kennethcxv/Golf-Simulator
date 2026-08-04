@@ -1,0 +1,14 @@
+{
+  "control": {
+    "count": 0,
+    "sprites": 0,
+    "biggestShellScale": 0
+  },
+  "hovered": {
+    "count": 2,
+    "sprites": 0,
+    "biggestShellScale": 0.2106
+  },
+  "appearsOnHover": true,
+  "isOutlineNotSprite": true
+}

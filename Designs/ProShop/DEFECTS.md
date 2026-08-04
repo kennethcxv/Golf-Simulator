@@ -461,3 +461,46 @@ HARNESS_REMEDIATION.md §F). Standing rules 14–15 added to HARNESS_TRUST.md.
 **Unblocks:** a small repro harness (two deliberate concurrent runners +
 lock-state logging) before hardening (acquire re-verification, mtime-based
 staleness, or rename-based acquire).
+
+---
+
+## A4 / CHK-READER-PATH-001 — "the reader phases through the counter on its way back"
+
+**Status: CANNOT REPRODUCE.** Closed 2026-08-04 by ruling ("D6 — A4, the reader
+path, closed either way… Record it as CANNOT REPRODUCE in DEFECTS.md with both
+instruments named, so it is not chased again").
+
+**Reported (playtest round 8, 2026-08-03):** when the card payment finishes and
+the reader returns from the customer's face to its bay, it passes through the
+counter slab rather than around it.
+
+**What was built to catch it, and what each one said.**
+
+| instrument | what it measures | result |
+|---|---|---|
+| `tools/qa/checkout-reader-geometry.js` | the terminal's world AABB against the counter's, sampled every animation frame across a full present → insert → approve → park cycle | no frame with the reader's box below the counter top while its footprint is over the slab |
+| `tools/qa/checkout-round7-renders.js` (`report.reader`) | `lowestAboveCounter` — the parked and mid-flight terminal's lowest point relative to `COUNTER_TOP` | positive at every captured beat |
+
+Two sessions, two sound instruments, both negative. Nothing in the return path
+lerps through the slab: the reader travels between two authored points that are
+both above the counter top, and the bay it parks in is cut INTO the counter's
+front face rather than under its top.
+
+**Why it is being closed rather than left open.** An open defect with no repro
+and two clean instruments is a standing invitation to re-measure the same thing
+a third time. The honest state is: reported once, never reproduced, and the
+measurements that would show it are in the harness and green.
+
+**What would reopen it.** A screenshot or clip of the frame in question — the
+report was a memory of motion, and a still of the intersection is the one piece
+of evidence neither instrument can produce on its own. If it recurs, capture the
+frame first and attach it here; the two drivers above then have something
+concrete to be checked against rather than a shape to search for.
+
+**Related, and NOT the same defect:** C4 (2026-08-04) found the paid BAG really
+did travel through the counter — 0.375 yd of it — on the same desk, in the same
+beat, one prop over. That one reproduced immediately on the first measurement
+(`tools/qa/checkout-bag-handoff-path.js`) and is fixed. It is plausible that the
+A4 report was this, seen once and attributed to the nearer object; there is no
+way to establish that now, and it is recorded here as a possibility rather than
+a conclusion.
