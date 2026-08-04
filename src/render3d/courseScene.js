@@ -11270,6 +11270,54 @@ export function makeCourseScene(canvas, state) {
       toggleVehicleCamera: toggleGolfCartCamera,
       setTool: walkSetToolDebounced,
       getTool: () => walkTool,
+      // E1 — the six axes the broom was fixed against, readable for EVERY tool
+      // from the live rig rather than from its registry entry. The registry
+      // says what a tool declares; this says where its geometry actually ended
+      // up after the frame posed it.
+      heldToolGeometry: () => {
+        if (!walkTool) return null;
+        const def = CLEANING_TOOLS[walkTool];
+        const g = heldGroups[walkTool];
+        if (!def || !g) return null;
+        const contactName = def.sockets?.contact ? 'contact' : (def.sockets?.nozzle ? 'nozzle' : null);
+        const contact = contactName ? socketWorld(g, contactName, new THREE.Vector3()) : null;
+        const floorY = clubhouseApi?.groundYAt ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+        const box = new THREE.Box3().setFromObject(g);
+        const ndc = contact ? contact.clone().project(camera) : null;
+        // hands: are they parented INTO this tool, and does the arm carry a
+        // sleeve/cuff rather than ending in a bare stub?
+        let handMeshes = 0;
+        let sleeveMeshes = 0;
+        g.traverse((o) => {
+          if (/FirstPerson(Right|Left)Hand/.test(o.name || '')) handMeshes += 1;
+          if (/Sleeve|Cuff|Forearm/i.test(o.name || '')) sleeveMeshes += 1;
+        });
+        return {
+          tool: walkTool,
+          floorAnchored: !!def.floorAnchored,
+          worldPitch: def.worldPitch ?? null,
+          contactSocket: contactName,
+          contactWorldY: contact ? +contact.y.toFixed(4) : null,
+          contactWorld: contact
+            ? { x: +contact.x.toFixed(4), y: +contact.y.toFixed(4), z: +contact.z.toFixed(4) }
+            : null,
+          contactAboveFloor: (contact && floorY != null) ? +(contact.y - floorY).toFixed(4) : null,
+          contactNdc: ndc ? { x: +ndc.x.toFixed(3), y: +ndc.y.toFixed(3) } : null,
+          boxMinY: box.isEmpty() ? null : +box.min.y.toFixed(4),
+          boxMaxY: box.isEmpty() ? null : +box.max.y.toFixed(4),
+          // the group's own local pose, so an animation can be detected as a
+          // spread of poses rather than assumed from the presence of a hook
+          localPose: [
+            +g.position.x.toFixed(4), +g.position.y.toFixed(4), +g.position.z.toFixed(4),
+            +g.rotation.x.toFixed(4), +g.rotation.y.toFixed(4), +g.rotation.z.toFixed(4),
+          ],
+          handMeshes,
+          sleeveMeshes,
+          hasGrip: !!def.grip,
+          hasSupport: !!def.support,
+          geomSource: walkTool === 'broom' ? broomVm.diagnostics().geomSource : null,
+        };
+      },
       // C10 — what is drawn in the hands, from every pass that can draw it, so
       // a driver can check the station stow without trusting one flag.
       heldToolDiagnostics: () => ({
