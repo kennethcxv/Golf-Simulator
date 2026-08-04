@@ -4,6 +4,7 @@
 // EMPIRE: one wallet, a property market, and whichever owned club is active.
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
+import { installFaultGuard } from './core/faultGuard.js';
 import { devSessionActive } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
@@ -3096,6 +3097,12 @@ async function bootShedScene() {
   bootEmpire(empire);
   await autosave();
 }
+
+// F3: installed BEFORE boot, so a fault during the load itself is caught. This
+// is the load a player is most likely to see fail — a missing model, a shader
+// that will not compile on their driver — and it used to leave the veil up
+// forever with nothing said.
+installFaultGuard();
 
 boot();
 

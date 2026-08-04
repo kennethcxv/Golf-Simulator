@@ -27,4 +27,9 @@ contextBridge.exposeInMainWorld('fairwayNative', {
   setWindowMode: (mode) => ipcRenderer.invoke('fw:set-window-mode', mode),
   setResolution: (width, height) => ipcRenderer.invoke('fw:set-resolution', width, height),
   quit: () => ipcRenderer.invoke('fw:quit'),
+  // F3: the renderer's own faults go to the SAME log the main process writes,
+  // so a support report is one file rather than a console that dies with the
+  // window it was printing to.
+  reportError: (payload) => ipcRenderer.invoke('fw:report-error', payload),
+  crashLog: () => ipcRenderer.invoke('fw:crash-log'),
 });

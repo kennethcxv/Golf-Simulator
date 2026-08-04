@@ -3,10 +3,11 @@
 // also runs in a plain browser for headless QA.
 'use strict';
 
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { createNativeSaveStore } = require('./src/core/nativeSaveStore.cjs');
+const { createCrashReporter } = require('./src/electron/crashReport.cjs');
 const {
   assertTrustedIpcEvent,
   isTrustedRendererUrl,
@@ -205,6 +206,96 @@ ipcMain.handle('fw:quit', (event) => {
   assertTrusted(event);
   app.quit();
   return true;
+});
+
+// --- F3: crash handling -------------------------------------------------
+// Before this, a renderer that died took the window with it: blank screen, no
+// log, no way for a player to say what happened or to get back in without
+// hunting for the executable again. Every fault now lands in one appended file
+// and, when the game itself is gone, offers a restart.
+
+let crashReporter = null;
+const reporter = () => {
+  if (!crashReporter) {
+    crashReporter = createCrashReporter({
+      dir: path.join(app.getPath('userData'), 'logs'),
+      appVersion: app.getVersion(),
+    });
+  }
+  return crashReporter;
+};
+
+// Reporting must not itself become the crash. Every path here is guarded, and
+// the dialog is skipped entirely in headless/QA runs (FW_QA) so an automated
+// launch can never sit on a modal nobody will click.
+const HEADLESS = process.env.FW_QA === '1';
+let offeringRestart = false;
+
+function offerRestart(title, detail) {
+  if (HEADLESS || offeringRestart || !app.isReady()) return;
+  offeringRestart = true;
+  try {
+    const choice = dialog.showMessageBoxSync({
+      type: 'error',
+      title: 'GOLF EMPIRE stopped',
+      message: title,
+      detail: `${detail}
+
+A log was written to:
+${reporter().logPath}`,
+      buttons: ['Restart', 'Quit'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (choice === 0) {
+      app.relaunch();
+      app.exit(0);
+      return;
+    }
+    app.exit(1);
+  } catch {
+    app.exit(1);
+  } finally {
+    offeringRestart = false;
+  }
+}
+
+process.on('uncaughtException', (error) => {
+  reporter().record('main:uncaughtException', error);
+  offerRestart('The game hit an unexpected error.', String(error && error.message ? error.message : error));
+});
+process.on('unhandledRejection', (reason) => {
+  // A rejected promise in main is a fault but not necessarily fatal: log it and
+  // keep running rather than killing a session that is still playable.
+  reporter().record('main:unhandledRejection', reason);
+});
+app.on('render-process-gone', (_event, _contents, details) => {
+  reporter().record('renderer:process-gone', details && details.reason, details);
+  // 'clean-exit' is the window closing normally.
+  if (details && details.reason === 'clean-exit') return;
+  offerRestart('The game window stopped responding.', `Reason: ${details ? details.reason : 'unknown'}`);
+});
+app.on('child-process-gone', (_event, details) => {
+  reporter().record('child:process-gone', details && details.reason, details);
+});
+
+// The renderer's own faults come here so there is ONE log rather than a console
+// nobody can read after the window has gone.
+ipcMain.handle('fw:report-error', (event, payload) => {
+  assertTrusted(event);
+  const info = payload && typeof payload === 'object' ? payload : {};
+  const record = reporter().record(
+    `renderer:${String(info.origin || 'error').slice(0, 40)}`,
+    String(info.stack || info.message || 'unknown'),
+    { url: String(info.url || '').slice(0, 300), line: info.line ?? null },
+  );
+  return { logPath: record.logPath, wrote: record.wrote };
+});
+
+ipcMain.handle('fw:crash-log', (event) => {
+  assertTrusted(event);
+  return { path: reporter().logPath, tail: reporter().tail() };
 });
 
 app.whenReady().then(createWindow);
