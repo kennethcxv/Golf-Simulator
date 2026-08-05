@@ -299,11 +299,31 @@ What the measurement found, against the three prior "reported and not believed" 
 - The act-based accounting is already wired at the paid hop
   (`onCustomerPaid` → `combinedCompleted`, visit recorded as 'tee-time+retail').
 
-**The full 9:00–19:30 day at 1x is running in the background as this report is written**
-(COMBINED_VISITS.md prices it at multiple wall-hours; the peak window is the documented
-honest substitute). It will land at `qa/audit/combined-visits-FULLDAY.json`, and the
-user's real saves restore automatically when it completes. Window numbers above are
-labeled as windows; nothing here claims to be a day.
+**The full 9:00–19:30 day at 1x COMPLETED before this report closed**
+(`qa/audit/combined-visits-FULLDAY.json`, zero errors; the user's real saves were
+restored automatically at its end — all three generations verified back on disk).
+98 arrivals across the day, under the harness's forced-walk-in regime (it seeds desk
+errands whenever the floor is quiet, so 95 of 98 arrivals were desk errands — that
+ratio is the forcing, not organic life; the funnel is the evidence):
+
+| full 1x day, acts the customer controls | n |
+|---|---:|
+| desk errands | 95 |
+| rolled combined (book+buy intent) | **39 (41%)** |
+| started the shopping leg after check-in | **39 of 39** |
+| ever reached the till with goods | **8** |
+| paid | 0 (no cashier exists in an unattended harness) |
+| check-ins completed | 95 |
+| retail-only arrivals | 3 |
+
+Split at that boundary: book-only 56, book+shopped 39, of whom 8 queued at the till
+with goods. **The 39→8 drop across a full day is a NEW finding the 45-minute windows
+could not see**: thirty-one combined shoppers started the retail leg and never reached
+the till — with 95 bodies through the floor and a till nobody serves, the likely
+mechanisms are patience expiry in the queue-less wait and browse-stand saturation, both
+of which a playing cashier drains. It needs one attended session (or the till-playing
+driver) to separate "harness artifact" from "real mid-shop leak", and it is now on
+M1's open list by number rather than by vibe.
 
 Remaining for M1 (in NOT DONE): a till-played existence proof of one PAID combined
 visit, the buy-only/book-only/both table from the full-day json, and the
@@ -381,8 +401,9 @@ literals were moved by hand. Suite 2753/2753.
    plan from the review attached.
 3. **The eight non-broom tool sounds as heard audio** — rig intensity now feeds E3's
    hook for rig tools (wiring verified); still nobody has listened.
-4. **The full-day M1 numbers** — running as this is written; json lands at
-   `qa/audit/combined-visits-FULLDAY.json` by morning with the saves auto-restore after.
+4. **The 39→8 mid-shop leak in the full-day run** — measured, cause not yet separated
+   (patience in an unserved queue vs browse saturation vs a real routing fault). One
+   attended session or the till-playing driver decides it.
 
 ## NOT DONE
 
