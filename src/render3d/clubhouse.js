@@ -5159,6 +5159,7 @@ export function makeClubhouse(ctx) {
   const _dp = new THREE.Vector3();
   const _ds = new THREE.Vector3();
   const _dUp = new THREE.Vector3(0, 1, 0);
+  const _dRight = new THREE.Vector3(1, 0, 0);
   let wetVisualDirty = false;
   let wetRepaintClock = 0;
   function refreshDebrisVisual() {
@@ -5226,6 +5227,48 @@ export function makeClubhouse(ctx) {
     depthWrite: false,
     toneMapped: false,
   });
+  // J1: THE REVEAL SHOWS THE OBJECT, NOT A MARKER (first-person mode).
+  //
+  // "Blue circles and flat orange patches tell me where something is, not
+  // what it is." So on foot the reveal now draws THE THINGS THEMSELVES:
+  //  - each debris pile as a ghost of its own geometry (the grit clump / the
+  //    litter slab, scaled a rim wider so it haloes the real mesh), through
+  //    walls, in the medium's legend colour;
+  //  - each dirty grime cell as a flat quad fitted to the CELL'S OWN
+  //    footprint on the boards — the stain's real shape and extent, not a
+  //    hovering ball.
+  // The sphere markers stay for the Tab overview's column mode, where a
+  // silhouette on the floor is invisible from above the roof and a pillar is
+  // the honest answer.
+  const ghostMat = (hex) => new THREE.MeshBasicMaterial({
+    color: hex,
+    transparent: true,
+    opacity: 0,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const senseGhostGritMat = ghostMat(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
+  const senseGhostLitterMat = ghostMat(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
+  const senseGrimeQuadMat = ghostMat(MEDIUM_STYLE[MEDIUM.GRIME].color);
+  const senseGhostGrit = new THREE.InstancedMesh(debrisGeo, senseGhostGritMat, DEBRIS_CAP);
+  const senseGhostLitter = new THREE.InstancedMesh(litterGeo, senseGhostLitterMat, DEBRIS_CAP);
+  const senseGrimeQuad = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1), senseGrimeQuadMat, RENO.grid.w * RENO.grid.h,
+  );
+  for (const ghost of [senseGhostGrit, senseGhostLitter, senseGrimeQuad]) {
+    ghost.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    ghost.castShadow = false;
+    ghost.receiveShadow = false;
+    ghost.frustumCulled = false;
+    ghost.count = 0;
+    ghost.visible = false;
+    ghost.renderOrder = 40; // after the world, with the markers
+    interior.add(ghost);
+  }
+  senseGhostGrit.name = 'DirtSenseGhostGrit';
+  senseGhostLitter.name = 'DirtSenseGhostLitter';
+  senseGrimeQuad.name = 'DirtSenseGrimeCells';
   // Loose debris keeps the established cyan; grime is a warm ochre, because it
   // is the colour of the thing itself and because the two must be tellable
   // apart at a glance and through a wall.
@@ -5277,18 +5320,18 @@ export function makeClubhouse(ctx) {
     const kinds = senseTool ? toolDebrisKinds(senseTool) : null;
     const COLUMN_YD = 9.0;
     let n = 0;
+    let ghostGrit = 0;
+    let ghostLitter = 0;
+    let grimeQuads = 0;
     senseTally.debris = 0;
     senseTally.grime = 0;
     senseTally.hiddenByTool = 0;
 
+    // columns mode keeps the sphere pillars — from above the roof a
+    // silhouette on the boards is invisible and the pillar is the answer
     const place = (x, z, s, medium) => {
-      const flat = medium === MEDIUM.GRIME && !senseColumns;
-      const h = senseColumns ? COLUMN_YD / (0.16 * 2) : s * (flat ? GRIME_FLATTEN : 1);
-      _dp.set(
-        x,
-        senseColumns ? COLUMN_YD / 2 : (flat ? 0.045 : 0.10 + 0.02 * s),
-        z,
-      );
+      const h = COLUMN_YD / (0.16 * 2);
+      _dp.set(x, COLUMN_YD / 2, z);
       _dq.identity();
       _ds.set(s, h, s);
       _dm.compose(_dp, _dq, _ds);
@@ -5298,17 +5341,26 @@ export function makeClubhouse(ctx) {
     };
 
     const list = debrisState(state);
-    for (let i = 0; i < list.length && n < SENSE_CAP; i += 1) {
+    for (let i = 0; i < list.length; i += 1) {
       const d = list[i];
       if (!d || d.a <= 0.001) continue;
       if (!wantDebris || (kinds && !kinds.includes(d.kind))) { senseTally.hiddenByTool += 1; continue; }
-      // A marker's size answers "how much", so a big pile reads as worth the
-      // walk; the column mode stands it up so it clears furniture from above.
-      // The overview looks DOWN at a roofed building, so a marker that stops at
-      // head height is behind the ceiling and useless. The column is sized to
-      // punch clean through the roof: the 0.16 yd sphere scaled to ~9 yd tall,
-      // standing from the floor.
-      place(d.x, d.z, Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7), MEDIUM.DEBRIS);
+      const s = Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7);
+      if (senseColumns) {
+        if (n < SENSE_CAP) place(d.x, d.z, s, MEDIUM.DEBRIS);
+      } else {
+        // J1: the pile ITSELF, ghosted — same matrix family refreshDebrisVisual
+        // composes for the drawn clump, scaled a rim wider so the glow haloes
+        // the real mesh and reads as the object's own silhouette.
+        const vs = Math.min(2.4, 0.55 + Math.sqrt(d.a) * 1.5) * 1.30;
+        _dp.set(d.x, 0.012 * vs, d.z);
+        _dq.setFromAxisAngle(_dUp, (d.x * 7.3 + d.z * 3.1) % Math.PI);
+        const litter = d.kind === 'litter';
+        _ds.set(litter ? vs * 1.25 : vs, litter ? vs * 0.65 : vs * 0.22, litter ? vs * 1.10 : vs);
+        _dm.compose(_dp, _dq, _ds);
+        if (litter && ghostLitter < DEBRIS_CAP) senseGhostLitter.setMatrixAt(ghostLitter++, _dm);
+        else if (!litter && ghostGrit < DEBRIS_CAP) senseGhostGrit.setMatrixAt(ghostGrit++, _dm);
+      }
       senseTally.debris += 1;
     }
 
@@ -5330,13 +5382,23 @@ export function makeClubhouse(ctx) {
       // survive are genuinely the last few patches left.
       dirty.sort((a, b) => b.amount - a.amount);
       for (const cell of dirty.slice(0, GRIME_MARKER_MAX)) {
-        if (n >= SENSE_CAP) break;
-        place(
-          -RENO.room.w / 2 + (cell.cx + 0.5) * cellW,
-          -RENO.room.d / 2 + (cell.cy + 0.5) * cellD,
-          Math.min(2.6, 0.7 + Math.sqrt(cell.amount) * 1.7),
-          MEDIUM.GRIME,
-        );
+        const x = -RENO.room.w / 2 + (cell.cx + 0.5) * cellW;
+        const z = -RENO.room.d / 2 + (cell.cy + 0.5) * cellD;
+        if (senseColumns) {
+          if (n < SENSE_CAP) {
+            place(x, z, Math.min(2.6, 0.7 + Math.sqrt(cell.amount) * 1.7), MEDIUM.GRIME);
+          }
+        } else {
+          // J1: the stain's REAL footprint — a flat quad fitted to the cell,
+          // lying on the boards, stronger where the cell is dirtier (carried
+          // by per-cell scale so a worst patch reads bigger than a faint one).
+          const fit = 0.55 + Math.min(0.45, cell.amount * 0.5);
+          _dp.set(x, 0.035, z);
+          _dq.setFromAxisAngle(_dRight, -Math.PI / 2);
+          _ds.set(cellW * fit, cellD * fit, 1);
+          _dm.compose(_dp, _dq, _ds);
+          senseGrimeQuad.setMatrixAt(grimeQuads++, _dm);
+        }
         senseTally.grime += 1;
       }
       senseTally.grimeCellsDirty = dirty.length;
@@ -5345,6 +5407,12 @@ export function makeClubhouse(ctx) {
     senseMesh.count = n;
     senseMesh.instanceMatrix.needsUpdate = true;
     if (senseMesh.instanceColor) senseMesh.instanceColor.needsUpdate = true;
+    senseGhostGrit.count = ghostGrit;
+    senseGhostLitter.count = ghostLitter;
+    senseGrimeQuad.count = grimeQuads;
+    senseGhostGrit.instanceMatrix.needsUpdate = true;
+    senseGhostLitter.instanceMatrix.needsUpdate = true;
+    senseGrimeQuad.instanceMatrix.needsUpdate = true;
   }
 
   /**
@@ -5359,9 +5427,17 @@ export function makeClubhouse(ctx) {
     senseColumns = !!columns;
     senseTool = tool;
     senseAlpha = a;
-    senseMesh.visible = a > 0.002;
-    senseMat.opacity = a * (columns ? 0.5 : 0.72);
-    if (senseMesh.visible && (modeChanged || senseMesh.count === 0 || a > 0)) refreshDirtSense();
+    const on = a > 0.002;
+    // columns mode = pillars; on foot = the objects themselves (J1)
+    senseMesh.visible = on && senseColumns;
+    senseMat.opacity = a * 0.5;
+    senseGhostGrit.visible = on && !senseColumns;
+    senseGhostLitter.visible = on && !senseColumns;
+    senseGrimeQuad.visible = on && !senseColumns;
+    senseGhostGritMat.opacity = a * 0.85;
+    senseGhostLitterMat.opacity = a * 0.85;
+    senseGrimeQuadMat.opacity = a * 0.5;
+    if (on && (modeChanged || a > 0)) refreshDirtSense();
   }
 
   /** The nearest remaining cluster to a world point, for the reticle prompt. */
@@ -11615,6 +11691,12 @@ export function makeClubhouse(ctx) {
       grimeMarkers: senseTally.grime,
       hiddenByTool: senseTally.hiddenByTool,
       perInstanceColour: !!senseMesh.instanceColor,
+      // J1: on foot the reveal draws the OBJECTS — pile ghosts and cell-fitted
+      // stain quads — and the sphere pillars only exist in columns mode.
+      presentation: senseColumns ? 'columns' : 'objects',
+      ghostGrit: senseGhostGrit.count,
+      ghostLitter: senseGhostLitter.count,
+      grimeQuads: senseGrimeQuad.count,
     }),
     cleaningLabel: (toolId) => {
       const status = cleaningStatus(state);
