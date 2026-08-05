@@ -78,6 +78,8 @@ async (page) => {
     }));
   });
 
+  const LOOK_LIMIT = await page.evaluate(async () => (await import(
+    new URL('src/render3d/mouseLook.js', document.baseURI).href)).PITCH_LIMIT);
   const geo = () => page.evaluate(() => window.__fw.scene3d.walk.heldToolGeometry());
   const setPitch = (p) => page.evaluate((v) => { window.__fw.scene3d.walk.state.pitch = v; }, p);
 
@@ -94,7 +96,9 @@ async (page) => {
 
     // ---- floor- or camera-referenced --------------------------------------
     const heights = [];
-    for (const p of [-1.20, -0.90, -0.60, -0.30, 0, 0.35, 0.70, 1.05, 1.35]) {
+    // D7: the top of this sweep was a retyped 1.35. It is the look limit, read
+    // from the module that clamps it, so the sweep widens when the limit does.
+    for (const p of [-1.20, -0.90, -0.60, -0.30, 0, 0.35, 0.70, 1.05, LOOK_LIMIT]) {
       await setPitch(p);
       await page.waitForTimeout(340);
       const g = await geo();

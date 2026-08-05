@@ -2,6 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BROOM_FEEL } from '../src/data/broomFeel.js';
+// The AUTHORITIES, not copies of them. Every assertion below that used to
+// compare a config value against a hand-written literal now compares it
+// against the module that owns the number.
+import { WALK_SPEED_YD_S, STRIDE_RATE_RAD_S, WALK_FOV_DEG } from '../src/data/locomotion.js';
+import { CARRY_RENDER_LAYER } from '../src/render3d/clubhouse.js';
+import { CHECKOUT_STANDING_EYE_ABOVE_FLOOR } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 // Phase 6's tuning surface. Feel itself is judged from renders and clips —
 // these pin the CONTRACT: the values live in one frozen config, and the few
@@ -23,15 +29,20 @@ test('the camera response stays under the review ceiling of 2 degrees', () => {
 });
 
 test('the walk bob is locked to the characters\' stride rate', () => {
-  // 8.7 rad/s is the stride rate the whole game animates at (courseScene
-  // bobPhase). A held tool bobbing at any other rate reads as detached.
-  assert.equal(BROOM_FEEL.walk.bobRate, 8.7);
+  // Asserted against the stride rate ITSELF. The previous version compared the
+  // config's copy of 8.7 to a retyped 8.7, which checks that two literals
+  // match rather than that the tool is in phase with the walk carrying it.
+  assert.equal(BROOM_FEEL.walk.bobRate, STRIDE_RATE_RAD_S);
 });
 
 test('the viewmodel pass owns its own lens and layer', () => {
-  assert.notEqual(BROOM_FEEL.camera.fov, 66, 'not hostage to the walk FOV');
+  // Both guards read the thing they guard against; they used to compare against
+  // retyped literals (66, 30), which would have gone on passing after the walk
+  // FOV or the carry layer moved onto the broom's own value.
+  assert.notEqual(BROOM_FEEL.camera.fov, WALK_FOV_DEG, 'not hostage to the walk FOV');
   assert.ok(BROOM_FEEL.camera.near < 0.15, 'arms live inside the world near plane');
-  assert.notEqual(BROOM_FEEL.camera.layer, 30, 'distinct from the delivery-carry overlay layer');
+  assert.notEqual(BROOM_FEEL.camera.layer, CARRY_RENDER_LAYER,
+    'distinct from the delivery-carry overlay layer');
 });
 
 test('every duration and rate is a positive finite number', () => {
@@ -150,8 +161,13 @@ test('the handle can physically REACH the floor from where the hands are held', 
   // The handle length is the ASSET's, measured from its own sockets at
   // runtime; 1.247 is that measurement recorded here so this test does not
   // need a GLB parser. If the broom asset is re-authored, this number moves.
+  // HANDLE_YD is a MEASUREMENT of the shipped FP asset (GripPrimary ->
+  // FloorContact), not a constant anything owns, so it stays a literal — but it
+  // is a recorded measurement and rots silently if the asset is re-authored.
+  // tests/broom-asset-sockets.test.js is where that would be caught; noted here
+  // in the D7 sweep as a known-blind rather than dressed up as an authority.
   const HANDLE_YD = 1.247;
-  const EYE_YD = 1.62;
+  const EYE_YD = CHECKOUT_STANDING_EYE_ABOVE_FLOOR;
   const gripAboveFloor = EYE_YD + BROOM_FEEL.compose.gripAnchor[1];
   assert.ok(gripAboveFloor < HANDLE_YD,
     `the hands are held ${gripAboveFloor.toFixed(3)} yd up but the handle is only `

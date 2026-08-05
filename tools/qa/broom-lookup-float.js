@@ -50,7 +50,11 @@ async (page) => {
   // mouseLook.js clamps the player at ±1.35, and the float this driver exists to
   // catch does not begin until +0.855. Sweeping to 0.30 measured only the region
   // that already worked, which is how a 0.38 yd lift survived a green run.
-  for (const p of [1.35, 1.20, 1.05, 0.90, 0.75, 0.60, 0.45, 0.30, 0.15, 0.0,
+  // D7: and the repair for that RETYPED 1.35, which is the same defect in a
+  // different file — a copy cannot notice the original moving. Read it.
+  const LOOK_LIMIT = await page.evaluate(async () => (await import(
+    new URL('src/render3d/mouseLook.js', document.baseURI).href)).PITCH_LIMIT);
+  for (const p of [LOOK_LIMIT, 1.20, 1.05, 0.90, 0.75, 0.60, 0.45, 0.30, 0.15, 0.0,
     -0.10, -0.20, -0.30, -0.40, -0.55, -0.70, -1.0]) {
     await page.evaluate((pv) => { window.__fw.scene3d.walk.state.pitch = pv; }, p);
     await page.waitForTimeout(700);

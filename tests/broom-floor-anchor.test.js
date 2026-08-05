@@ -19,9 +19,13 @@ import * as THREE from 'three';
 import { createBroomViewmodel } from '../src/render3d/broomViewmodel.js';
 import { BROOM_FEEL } from '../src/data/broomFeel.js';
 import { PITCH_LIMIT } from '../src/render3d/mouseLook.js';
+import { CHECKOUT_STANDING_EYE_ABOVE_FLOOR } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const FLOOR_Y = 0;
-const EYE_Y = 1.62;
+// D7: was a hand-written 1.62. It is the eye height the register mode already
+// exports, so a change to standing height reaches this rig instead of leaving
+// it measuring a player who no longer exists.
+const EYE_Y = CHECKOUT_STANDING_EYE_ABOVE_FLOOR;
 
 function makeRig() {
   const scene = new THREE.Scene();

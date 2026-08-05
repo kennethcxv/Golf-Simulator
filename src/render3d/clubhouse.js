@@ -234,6 +234,10 @@ import {
   recoverTimedOutCheckout, resumeCheckout,
 } from '../sim/registerFlow.js';
 
+// The overlay layer the carried-delivery preview renders on. Exported so a
+// check that something is DISTINCT from it can read it instead of retyping 30.
+export const CARRY_RENDER_LAYER = 30;
+
 const CAT_COLORS = {
   balls: 0xf3f0e4,
   accessories: 0xc9a55a,
@@ -5824,7 +5828,9 @@ export function makeClubhouse(ctx) {
   carriedBoxHands.name = 'DeliveryBoxCarryHands';
   carriedBoxHands.visible = false;
   camera.add(carriedBoxHands);
-  const DELIVERY_CARRY_RENDER_LAYER = 30;
+  // (module-level DELIVERY_CARRY_RENDER_LAYER — kept here as a local alias so
+  // the surrounding code reads unchanged)
+  const DELIVERY_CARRY_RENDER_LAYER = CARRY_RENDER_LAYER;
   let deliveryCarryLightsPrepared = false;
 
   function setDeliveryCarryOverlay(root, enabled) {

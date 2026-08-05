@@ -15,10 +15,10 @@ import { BROOM_FEEL } from '../data/broomFeel.js';
 
 const MAX_CLUSTERS = 96;      // a hard ceiling: merging keeps us far below this in practice
 export const DEBRIS_MERGE_YD = 0.34;  // piles closer than this become one
-// How fast the bristles push debris. From the one broom tuning file: the push
-// must beat the walk speed (2.2 yd/s), or a forward push at full stride walks
-// straight over its own pile — the review's "dirt lag". (Shipped at 1.05
-// before Phase 6 round 2.)
+// How fast the bristles push debris. From the one broom tuning file, which now
+// derives it from the walk speed itself rather than from a copy of it — this
+// comment used to say "(2.2 yd/s)" while the player walked at 3.4, and the
+// number it described could not keep up. See broomFeel's dirt block.
 const SWEEP_SPEED_YD = BROOM_FEEL.dirt.pushSpeed;
 const SWEEP_MAX_STEP = BROOM_FEEL.dirt.maxStep;  // no single stroke may fling debris further
 const SUCK_PULL_YD = 1.35;    // how hard the intake draws debris in, yards/second

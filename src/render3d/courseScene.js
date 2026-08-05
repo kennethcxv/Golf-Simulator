@@ -89,6 +89,10 @@ import { buildToolViewmodels } from './toolViewmodel.js';
 import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
 import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
+import {
+  WALK_SPEED_YD_S, RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S, EYE_HEIGHT_YD,
+  WALK_FOV_DEG,
+} from '../data/locomotion.js';
 import { GOLF_CART_TIERS, golfCartTier } from '../data/golfCarts.js';
 import { CLUBHOUSE_VARIANT_REQUEST, DOOR_MAIN, SHELL } from '../data/shopLayout.js';
 import {
@@ -5754,15 +5758,15 @@ export function makeCourseScene(canvas, state) {
     z: 0,
     yaw: Math.PI, // shop-door convention: forward = (-sin, -cos); π faces +z, down the course
     pitch: 0,
-    eye: 1.75, // human eye height in yards over the terrain
-    speed: 3.4, // yd/s — the shop's tuned 3.1 reads a hair brisker outdoors
-    runMult: 1.8,
+    eye: EYE_HEIGHT_YD,
+    speed: WALK_SPEED_YD_S,
+    runMult: RUN_MULTIPLIER,
     radius: 0.34, // same body circle the shop uses
     sens: 1,
     invertY: false,
     cameraBob: true,
     reducedMotion: false,
-    fov: 66,
+    fov: WALK_FOV_DEG,
   };
 
   const walkHeld = new Set();
@@ -6954,7 +6958,7 @@ export function makeCourseScene(canvas, state) {
       heldAnim.settle = 0;
     }
     // gait-synced bob: strong under way, a slow breathe at rest
-    bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
+    bobPhase += dt * (walkMoving ? STRIDE_RATE_RAD_S : IDLE_SWAY_RATE_RAD_S);
     const sway = walk.reducedMotion || !walk.cameraBob ? 0 : (walkMoving ? 1 : 0.25);
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
@@ -8416,7 +8420,12 @@ export function makeCourseScene(canvas, state) {
       moving: walkMoving,
       phase: time * BROOM_RATE,
       reducedMotion: walk.reducedMotion,
-      speedNorm: dt > 0 ? Math.min(1, (distanceMoved / dt) / 2.2) : 0,
+      // NOT the walk speed, despite having been written as it: this is the
+      // hand speed at which the sweep's audio and particles saturate, and it
+      // sits deliberately BELOW a full walk so an ordinary stroke reads at
+      // full strength. Named so it stops masquerading as a locomotion value.
+      speedNorm: dt > 0
+        ? Math.min(1, (distanceMoved / dt) / BROOM_FEEL.dirt.sweepIntensityFullYdS) : 0,
     }) : null;
     if (broomPose && broomPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
       camera.rotation.x -= broomPose.cameraKickRad;

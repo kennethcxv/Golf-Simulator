@@ -14,6 +14,8 @@
 // floor plane instead of the hands. Each block below exists to close one of
 // those causes.
 
+import { WALK_SPEED_YD_S, STRIDE_RATE_RAD_S } from './locomotion.js';
+
 export const BROOM_FEEL = Object.freeze({
   // --- the viewmodel camera -------------------------------------------------
   // The broom renders in its own pass with its own lens, so the tool is not
@@ -265,7 +267,12 @@ export const BROOM_FEEL = Object.freeze({
   }),
   walk: Object.freeze({
     bobAmp: 0.016,       // yd; vertical bob under way (in-phase with the stride)
-    bobRate: 8.7,        // rad/s; MUST match the characters' stride rate
+    // D7: this used to be a hand-written 8.7 with the comment "MUST match the
+    // characters' stride rate" and nothing enforcing it — four copies of the
+    // number were in circulation and the test asserted against a fifth. It is
+    // the stride rate now, by import, so it cannot drift out of phase with the
+    // body carrying the tool.
+    bobRate: STRIDE_RATE_RAD_S,
     swayAmp: 0.011,      // yd; lateral counter-sway under way
     swayPhase: 0.5,      // fraction of a bob cycle the sway trails by
     blendIn: 6.0,        // 1/s; how fast bob amplitude follows movement state
@@ -300,11 +307,27 @@ export const BROOM_FEEL = Object.freeze({
 
   // --- the dirt itself ------------------------------------------------------
   // The review bar: dirt recedes with VISIBLE IMMEDIACY under the head. The
-  // push speed must beat the walk speed (2.2 yd/s) or a forward push walks
-  // OVER its own pile and the debris pops out behind the bristles — the
-  // round-1 "dirt lag" lived in this number (it shipped at 1.05).
+  // push speed must beat the walk speed or a forward push walks OVER its own
+  // pile and the debris pops out behind the bristles — the round-1 "dirt lag"
+  // lived in this number (it shipped at 1.05).
+  //
+  // D7, 2026-08-04: THIS WAS FALSE IN THE SHIPPING BUILD AND GREEN IN CI.
+  //
+  // It was a hand-written 2.6 whose comment, and whose test, both said "must
+  // beat the walk speed (2.2 yd/s)". The player walks at 3.4. So a walking
+  // player outran their own broom by 0.8 yd/s, the exact failure the number
+  // exists to prevent, and the test could not see it because it compared
+  // against the same stale literal the comment did. Derived from the authority
+  // now, so it moves when locomotion does and no copy can go stale.
   dirt: Object.freeze({
-    pushSpeed: 2.6,      // yd/s; bristles push debris faster than you walk
+    // 15% clear of an ordinary walk. Not clear of a RUN (6.12 yd/s) — a
+    // sprinting player does outrun the bristles, which is fair and is what
+    // sprinting past your own work should feel like.
+    pushSpeed: +(WALK_SPEED_YD_S * 1.15).toFixed(2),
+    // The hand speed at which sweep audio and particles reach full strength.
+    // Deliberately BELOW a walk so an ordinary stroke reads at full intensity;
+    // it lived in courseScene as a bare 2.2 that looked like the walk speed.
+    sweepIntensityFullYdS: 2.2,
     maxStep: 0.42,       // yd; no single stroke flings debris further than this
     // A PUSH broom pushes debris AWAY — the pile recedes up the lane ahead of
     // the bristle face, with the stroke adding side drift. (The old purely

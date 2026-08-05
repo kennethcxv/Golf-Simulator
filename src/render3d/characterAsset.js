@@ -5,6 +5,7 @@
 // this keeps real articulated motion fully under our control, no exporter risk.
 
 import * as THREE from 'three';
+import { STRIDE_RATE_RAD_S } from '../data/locomotion.js';
 import { CUSTOMER_IMPATIENT_BEAT_SECONDS } from './clubhouse/customerFlow.js';
 
 // Articulation stays per actor; immutable GPU resources do not. A bounded
@@ -412,7 +413,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shLz = 0.06, shRz = -0.06;
 
     if (char.mode === 'Walk' || char.mode === 'WalkBag') {
-      const w = p * 8.7; // ~1.4 strides/s
+      const w = p * STRIDE_RATE_RAD_S; // ~1.4 strides/s
       hipL = 0.55 * Math.sin(w);
       hipR = -hipL;
       kneeL = 0.4 * Math.max(0, Math.sin(w - 1.1));
