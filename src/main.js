@@ -1608,6 +1608,7 @@ function openPauseMenu() {
           group('Management', [
             ['Course editor (hands free)', 'J'],
             ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire overview', 'M'],
+            ['Maintenance tablet', 'I'],
             ['Leave laptop / register step back', 'Esc'],
           ]),
         ),
@@ -1828,6 +1829,39 @@ function swapPreviousWalkTool() {
   if (previous === undefined || previous === current) return;
   previousWalkTool = current;
   selectWalkTool(previous);
+}
+
+// I — the maintenance tablet. makeCourseMaintenancePanel was imported from day
+// one, but the call that creates the panel was lost, so this identifier never
+// existed and the key threw a live ReferenceError straight into the fault veil
+// (H1, 2026-08-05). Created lazily: a session that never presses I pays nothing.
+function setMaintenanceVisible(visible) {
+  if (!gameUi) return;
+  if (!maintenancePanel) {
+    maintenancePanel = makeCourseMaintenancePanel(app, {
+      setVisible: (next) => setMaintenanceVisible(next),
+      toggleInspection: () => {
+        if (!app.state) return;
+        toggleCourseInspection(app.state);
+        maintenancePanel.refresh(true);
+      },
+      selectTool: (id) => {
+        if (app.state) {
+          const result = selectCourseMaintenanceEquipment(app.state, id);
+          if (result && result.ok === false) {
+            toast(result.reason, 'warn');
+            return;
+          }
+        }
+        selectWalkTool(id);
+        maintenancePanel.refresh(true);
+      },
+    });
+    gameUi.append(maintenancePanel.root);
+  }
+  maintenancePanel.setVisible(!!visible);
+  // The tablet has buttons; give the cursor back while it is up.
+  if (maintenancePanel.isVisible() && document.pointerLockElement) document.exitPointerLock();
 }
 
 function showToolWheel() {
