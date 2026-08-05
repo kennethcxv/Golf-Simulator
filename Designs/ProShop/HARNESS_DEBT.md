@@ -346,6 +346,26 @@ exists elsewhere. Eleven instances found; three are load-bearing.
 Setup-only readers (`REGISTER`/`COUNTER_TOP` for camera placement, `MINUTES_PER_DAY`
 as a time step, `CLEANING_TOOLS` as an enumeration) are correct and not listed.
 
+> ## CORRECTION, 2026-08-04 — the "hold-W does nothing" finding is WITHDRAWN
+>
+> §7 originally closed with a claim that `page.keyboard.down('w')` moves the
+> player 0.000 yd under Electron, and that ~20 drivers holding W had therefore
+> been measuring a stationary player. **That was wrong, and it was wrong in
+> exactly the way this section is about.**
+>
+> `walk.moveIntent` — a seam already in `courseScene`, whose own comment says
+> position delta *"reads identically for 'the key never arrived' and 'the key
+> arrived and a wall was in the way'"* — records **130 frames of forward intent**
+> during those zero readings. The key arrived, landed in `walkHeld`, and the
+> movement block acted on it on every frame. The player was walking into a
+> fixture. Facing the open lane, the same press moves **0.935 yd**
+> (`tools/qa/walk-input-probe.js`, which now tries four facings as a control).
+>
+> So: hold-W works, no driver needs re-running on this account, and the instrument
+> that would have settled it in one step existed before I started. I reached for a
+> conclusion from a position delta, which is the same mistake as reading a
+> constant from a copy of itself. Recorded rather than quietly deleted.
+
 ## The three that matter
 
 **1 — `pushSpeed` is a live defect, not a latent one.** The review bar it guards

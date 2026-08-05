@@ -80,6 +80,14 @@ it.
 (GripPrimary → FloorContact). There is no authority to import; it rots silently if the GLB
 is re-authored. Called out in the file itself and in HARNESS_DEBT §7.
 
+### The "bigger finding" — WITHDRAWN, see report 12 §0
+
+**Everything under this heading is wrong and is corrected in
+`OVERNIGHT_REPORT_12.md` §0.** `page.keyboard.down('w')` works. The zero
+readings were the player walking into a fixture, which `walk.moveIntent` would
+have shown in one step. Left in place rather than deleted, because the shape of
+the error is the point.
+
 ### The bigger finding
 
 **`page.keyboard.down('w')` moves the player 0.000 yd under Electron.**

@@ -1,69 +1,318 @@
 {
   "tag": "run1",
-  "stuckLimitSimSeconds": 1200,
+  "variant": "pine-hills-v2",
+  "speed": 1,
+  "window": {
+    "startMin": 600,
+    "endMin": 660,
+    "includesClose": false
+  },
+  "watchdog": {
+    "freezeWindowWallSeconds": 12,
+    "freezeEpsilonYd": 0.15,
+    "episodeEscapeYd": 0.6,
+    "blockCapWallSeconds": 20,
+    "ladderBudgetWallSeconds": 15,
+    "recoveryFloor": 0.75,
+    "floorMinEpisodes": 4,
+    "queueBoundWallMinutes": 12
+  },
+  "limitations": {
+    "customersMoveInWallTime": true,
+    "note": "clubhouseApi.update receives raw wall dt (courseScene.js:9651): game speed compresses the clock only (DEFECTS.md SIM-TIME-001). NPC evidence is valid at 1x; any run above 1x is a stress regime, not a play claim. A full 9:00-19:30 day at 1x is 10.5 wall-hours per leg â€” the default instrument is the 1x 60-game-minute peak window."
+  },
   "neglected": {
     "tag": "neglected",
+    "speed": 1,
+    "window": {
+      "startMin": 600,
+      "endMin": 660,
+      "includesClose": false
+    },
     "spawned": 10,
-    "sawAny": true,
     "maxSimultaneous": 10,
-    "customersTracked": 16,
-    "stillInsideAtClose": 4,
-    "stuck": [
-      {
-        "id": "customer_12qcuao_visitor%3A1",
-        "key": "2|shopping|-367,8.5",
-        "heldWallS": 75
-      },
-      {
-        "id": "customer_12qcuao_visitor%3A8",
-        "key": "3|shopping|-367.5,0",
-        "heldWallS": 75
-      },
-      {
-        "id": "customer_12qcuao_visitor%3A0",
-        "key": "4|shopping|-366.5,0",
-        "heldWallS": 75
-      }
-    ],
-    "worstStateHoldWallS": 1086,
-    "simMinutesRun": 600.234719999044,
+    "customersTracked": 10,
+    "episodes": {
+      "count": 0,
+      "maxAllS": 0,
+      "judged": 0,
+      "within15s": 0,
+      "over20s": 0,
+      "recoveryRateWithin15s": 1,
+      "p50S": 0,
+      "p95S": 0,
+      "maxS": 0,
+      "waived": 0,
+      "waivedByDefect": {},
+      "exemptions": [],
+      "list": []
+    },
+    "containment": {
+      "count": 0,
+      "violations": []
+    },
+    "queueViolations": [],
+    "stillInsideAtClose": [],
+    "navBlocks": {
+      "total": 2,
+      "events": [
+        {
+          "atMinute": 601.9,
+          "id": "customer_1b2f4s4_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -361.03,
+          "z": 12.23,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -1.03,
+          "lz": 8.23,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 601.9,
+          "id": "customer_1b2f4s4_visitor%3A8",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -360.75,
+          "z": 12.76,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -0.75,
+          "lz": 8.76,
+          "ltx": -0.8,
+          "ltz": 8.22
+        }
+      ]
+    },
+    "simMinutesRun": 60,
     "transactions": 0,
-    "unitsSold": null
+    "unitsSold": null,
+    "legOk": true,
+    "legFailures": []
   },
   "restored": {
     "tag": "restored",
+    "speed": 1,
+    "window": {
+      "startMin": 600,
+      "endMin": 660,
+      "includesClose": false
+    },
     "spawned": 10,
-    "sawAny": true,
-    "maxSimultaneous": 14,
-    "customersTracked": 13,
-    "stillInsideAtClose": 14,
-    "stuck": [
-      {
-        "id": "customer_12qcuao_visitor%3A8",
-        "key": "3|shopping|-367.5,0",
-        "heldWallS": 75
-      },
-      {
-        "id": "customer_12qcuao_visitor%3A1",
-        "key": "2|shopping|-367,8.5",
-        "heldWallS": 75
-      },
-      {
-        "id": "customer_12qcuao_visitor%3A13",
-        "key": "3|shopping|-366,6",
-        "heldWallS": 75
-      },
-      {
-        "id": "customer_12qcuao_visitor%3A15",
-        "key": "3|shopping|-367,8.5",
-        "heldWallS": 75
-      }
-    ],
-    "worstStateHoldWallS": 261.5,
-    "simMinutesRun": 139.47882666661837,
+    "maxSimultaneous": 10,
+    "customersTracked": 10,
+    "episodes": {
+      "count": 1,
+      "maxAllS": 12.6,
+      "judged": 1,
+      "within15s": 1,
+      "over20s": 0,
+      "recoveryRateWithin15s": 1,
+      "p50S": 12.6,
+      "p95S": 12.6,
+      "maxS": 12.6,
+      "waived": 0,
+      "waivedByDefect": {},
+      "exemptions": [],
+      "list": [
+        {
+          "id": "customer_1b2f4s4_visitor%3A17",
+          "onsetAtWallS": 15.9,
+          "durationWallS": 12.6,
+          "lx": -0.62,
+          "lz": 8.9,
+          "stopKind": "gone",
+          "fixtureId": null,
+          "phase": "shopping",
+          "simMinute": 603.7,
+          "clearedBy": "moved",
+          "defect": null,
+          "standHeldFraction": 0.5
+        }
+      ]
+    },
+    "containment": {
+      "count": 0,
+      "violations": []
+    },
+    "queueViolations": [],
+    "stillInsideAtClose": [],
+    "navBlocks": {
+      "total": 6,
+      "events": [
+        {
+          "atMinute": 601.9,
+          "id": "customer_1b2f4s4_visitor%3A5",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -361.03,
+          "z": 12.23,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -1.03,
+          "lz": 8.23,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 601.9,
+          "id": "customer_1b2f4s4_visitor%3A8",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -360.75,
+          "z": 12.76,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -0.75,
+          "lz": 8.76,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 601.8,
+          "id": "customer_1b2f4s4_visitor%3A15",
+          "action": "sidestep",
+          "stopIdx": 7,
+          "stopKind": "gone",
+          "fixtureId": null,
+          "x": -361.3,
+          "z": 12.08,
+          "tx": -359.3,
+          "tz": 22.23,
+          "wpx": -359.3,
+          "wpz": 22.23,
+          "colliders": [],
+          "lx": -1.3,
+          "lz": 8.08,
+          "ltx": 0.7,
+          "ltz": 18.23
+        },
+        {
+          "atMinute": 601.8,
+          "id": "customer_1b2f4s4_visitor%3A19",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -361.51,
+          "z": 12.63,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -1.51,
+          "lz": 8.63,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 602,
+          "id": "customer_1b2f4s4_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -361.14,
+          "z": 13.09,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -1.14,
+          "lz": 9.09,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 602,
+          "id": "customer_1b2f4s4_visitor%3A16",
+          "action": "sidestep",
+          "stopIdx": 6,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -360.53,
+          "z": 13,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -0.53,
+          "lz": 9,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 602.1,
+          "id": "customer_1b2f4s4_visitor%3A12",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -360.95,
+          "z": 12.54,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -0.95,
+          "lz": 8.54,
+          "ltx": -0.8,
+          "ltz": 8.22
+        },
+        {
+          "atMinute": 603.3,
+          "id": "customer_1b2f4s4_visitor%3A17",
+          "action": "sidestep",
+          "stopIdx": 5,
+          "stopKind": "exit",
+          "fixtureId": null,
+          "x": -360.56,
+          "z": 12.42,
+          "tx": -360.8,
+          "tz": 12.22,
+          "wpx": -360.8,
+          "wpz": 12.22,
+          "colliders": [],
+          "lx": -0.56,
+          "lz": 8.42,
+          "ltx": -0.8,
+          "ltz": 8.22
+        }
+      ]
+    },
+    "simMinutesRun": 60,
     "transactions": 0,
-    "unitsSold": null
+    "unitsSold": null,
+    "legOk": true,
+    "legFailures": []
   },
   "errs": [],
-  "ok": false
+  "failures": [],
+  "ok": true
 }
