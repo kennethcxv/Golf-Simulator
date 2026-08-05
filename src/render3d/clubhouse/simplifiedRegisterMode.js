@@ -3582,33 +3582,13 @@ export function createRegisterMode(B) {
     const mesh = built.root;
     const barcode = barcodeFor(item.skuId, item.price);
     const barcodeTexture = itemResources.texture(productBarcodeTexture(barcode));
-    const barcodeCarrier = new THREE.Group();
-    barcodeCarrier.name = 'RuntimeProductBarcodeCarrier';
-    // A restrained 9.5 cm retail swing keeps the label outside every product
-    // silhouette at the reader. The scanner still validates the label plane's
-    // real transform; this is a physical affordance, not an overlay.
-    barcodeCarrier.position.x = 0.095;
-    const barcodeTether = new THREE.Mesh(
-      itemResources.geometry(new THREE.BoxGeometry(0.095, 0.005, 0.002)),
-      itemResources.material(new THREE.MeshBasicMaterial({
-        color: 0xb9974e,
-        toneMapped: false,
-      })),
-    );
-    barcodeTether.name = 'RuntimeProductBarcodeTether';
-    barcodeTether.position.x = 0.0475;
-    built.barcodeAnchor.add(barcodeTether);
-    const barcodeBacking = new THREE.Mesh(
-      itemResources.geometry(new THREE.PlaneGeometry(0.086, 0.052)),
-      itemResources.material(new THREE.MeshBasicMaterial({
-        color: 0x173f2d,
-        toneMapped: false,
-        side: THREE.DoubleSide,
-      })),
-    );
-    barcodeBacking.name = 'RuntimeProductBarcodeBacking';
-    barcodeBacking.position.z = -0.001;
-    barcodeCarrier.add(barcodeBacking);
+    // H3 (2026-08-05): NO SWING TAG. This used to hang a brass tether and a
+    // green-backed label 9.5 cm off every checkout item — C7 deleted the shelf
+    // rails and the product swing tags, and this was the third tag nobody
+    // caught, riding every product across the counter. What remains is a flush
+    // barcode STICKER on the package face at the product's own anchor: the
+    // sticker is packaging, the tag was signage. The mesh keeps its name and
+    // userData because the scanner validates this plane's real transform.
     const barcodeMesh = new THREE.Mesh(
       itemResources.geometry(new THREE.PlaneGeometry(0.074, 0.040)),
       itemResources.material(new THREE.MeshBasicMaterial({
@@ -3622,8 +3602,7 @@ export function createRegisterMode(B) {
     barcodeMesh.name = 'RuntimeProductBarcode';
     barcodeMesh.position.z = 0.001;
     barcodeMesh.userData = { barcode, itemUid: item.uid };
-    barcodeCarrier.add(barcodeMesh);
-    built.barcodeAnchor.add(barcodeCarrier);
+    built.barcodeAnchor.add(barcodeMesh);
     mesh.userData = {
       ...mesh.userData,
       pick: true,
@@ -3633,7 +3612,6 @@ export function createRegisterMode(B) {
       originalScale: mesh.scale.clone(),
       barcode,
       barcodeAnchor: built.barcodeAnchor,
-      barcodeCarrier,
       barcodeMesh,
     };
     // A generous invisible click pad wrapping the whole product. A driver is a
