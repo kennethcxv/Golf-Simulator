@@ -53,7 +53,8 @@ function text(value, fallback = '') {
 function canonicalApp(value) {
   const app = text(value, 'home').trim().toLowerCase().replaceAll('_', '-');
   if (app === 'checkin') return 'check-in';
-  if (app === 'check-in' || app === 'checkout' || app === 'cash') return app;
+  if (app === 'teesheet') return 'tee-sheet';
+  if (app === 'check-in' || app === 'checkout' || app === 'cash' || app === 'tee-sheet') return app;
   return 'home';
 }
 
@@ -297,6 +298,7 @@ export function createFrontDeskMonitorUi(canvas) {
     const tabs = [
       { id: 'tab-check-in', label: 'Check In', app: 'check-in', x: 24 },
       { id: 'tab-checkout', label: 'Checkout', app: 'checkout', x: 224 },
+      { id: 'tab-tee-sheet', label: 'Tee Sheet', app: 'tee-sheet', x: 424 },
     ];
     for (const tab of tabs) {
       const selected = app === tab.app;
@@ -861,6 +863,104 @@ export function createFrontDeskMonitorUi(canvas) {
     drawActionGrid(model.actions, 560, 540, 440, 56);
   }
 
+  // L2 — THE TEE SHEET IS A SHEET. Every slot of the day on one screen, the
+  // way a paper starter's sheet reads: a time column, one seat pip per place
+  // in the slot (filled = booked), holder names beside them, closed rows said
+  // plainly, a rule at the current time. Open rows become booking hotspots
+  // whenever the model marks them bookable (a walk-in is selected at the desk
+  // head); the action id is the same select-walkin-slot the check-in tab
+  // uses, so this is one flow with two surfaces.
+  function drawTeeSheet(model) {
+    const slots = Array.isArray(model.sheet) ? model.sheet : [];
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    setFont(ctx, 26, 800);
+    ctx.fillStyle = COLORS.charcoal;
+    ctx.fillText(fitText(ctx, text(model.heading, 'Tee sheet'), 560), 36, 192);
+    setFont(ctx, 16, 500);
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(fitText(ctx, text(model.context), 700), 36, 218);
+    if (!slots.length) {
+      setFont(ctx, 20, 600);
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText('The course is closed today.', FRONT_DESK_MONITOR_WIDTH / 2, 380);
+      return;
+    }
+
+    const top = 240;
+    const bottom = model.note ? 596 : 616;
+    const columnX = [24, 524];
+    const columnWidth = 476;
+    const perColumn = Math.ceil(slots.length / columnX.length);
+    const rowHeight = Math.max(22, Math.min(34, (bottom - top) / perColumn));
+    ctx.textBaseline = 'middle';
+    slots.forEach((slot, index) => {
+      const column = Math.floor(index / perColumn);
+      const row = index % perColumn;
+      const x = columnX[column];
+      const y = top + row * rowHeight;
+      const middle = y + rowHeight / 2;
+      const dim = slot.past || slot.closed;
+      // the asked slot wears a pale brass ground; the now line is a brass rule
+      if (slot.asked && !dim) {
+        fillRound(ctx, x, y + 1, columnWidth, rowHeight - 2, 6, COLORS.brassPale);
+      }
+      if (slot.now) {
+        ctx.fillStyle = COLORS.brass;
+        ctx.fillRect(x, y - 1, columnWidth, 2);
+      }
+      setFont(ctx, 15, 700);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = dim ? COLORS.muted : COLORS.green;
+      ctx.fillText(text(slot.label), x + 10, middle + 1);
+      // seat pips: one box per place, filled for each booked player
+      const capacity = Math.max(0, Math.min(6, finite(slot.capacity, 4)));
+      const booked = Math.max(0, Math.min(capacity, finite(slot.booked, 0)));
+      const pipSize = Math.min(13, rowHeight - 10);
+      for (let seat = 0; seat < capacity; seat += 1) {
+        const pipX = x + 98 + seat * (pipSize + 5);
+        const pipY = middle - pipSize / 2;
+        roundedPath(ctx, pipX, pipY, pipSize, pipSize, 3);
+        if (slot.closed) {
+          ctx.strokeStyle = COLORS.line;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        } else if (seat < booked) {
+          ctx.fillStyle = dim ? COLORS.sage : COLORS.greenSoft;
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = dim ? COLORS.line : COLORS.sage;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+      // names, or the slot's state, in the remaining width
+      const textX = x + 98 + 6 * (pipSize + 5) + 8;
+      const textWidth = x + columnWidth - 10 - textX;
+      setFont(ctx, 13, 500);
+      if (slot.closed) {
+        ctx.fillStyle = COLORS.muted;
+        ctx.fillText('CLOSED', textX, middle + 1);
+      } else if (slot.names && slot.names.length) {
+        ctx.fillStyle = dim ? COLORS.muted : COLORS.charcoal;
+        ctx.fillText(fitText(ctx, slot.names.join(', '), textWidth), textX, middle + 1);
+      } else if (!slot.past) {
+        ctx.fillStyle = slot.actionId ? COLORS.success : COLORS.sage;
+        ctx.fillText(slot.actionId ? `${finite(slot.openSeats, 0)} open · book` : `${finite(slot.openSeats, 0)} open`, textX, middle + 1);
+      }
+      if (slot.actionId) {
+        addHotspot(slot.actionId, `Book ${slot.label}`, 'slot', x, y, columnWidth, rowHeight, false);
+      }
+    });
+    if (model.note) {
+      setFont(ctx, 15, 600);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COLORS.brass;
+      ctx.fillText(fitText(ctx, text(model.note), 952), 36, 616);
+    }
+  }
+
   function draw(model = {}) {
     activeHotspots = [];
     const accessibility = model.accessibility && typeof model.accessibility === 'object'
@@ -877,6 +977,7 @@ export function createFrontDeskMonitorUi(canvas) {
     if (app === 'check-in') drawCheckIn(model);
     else if (app === 'checkout') drawCheckout(model);
     else if (app === 'cash') drawCashScreen(model);
+    else if (app === 'tee-sheet') drawTeeSheet(model);
     else drawHome(model);
     ctx.restore();
     return api;

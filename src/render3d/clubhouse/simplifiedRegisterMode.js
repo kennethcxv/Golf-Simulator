@@ -36,7 +36,7 @@ import {
   checkoutAnimationDelta, checkoutMonitorAccessibility, checkoutPreferences,
   shouldAutoConfirmExactChange,
 } from '../../sim/checkoutPreferences.js';
-import { dueForCheckIn, fmtSlot } from '../../sim/reservations.js';
+import { dueForCheckIn, fmtSlot, daySheet } from '../../sim/reservations.js';
 import {
   createReservationCheckInTx, finalizeReservationCheckIn,
 } from '../../sim/reservationCheckIn.js';
@@ -2710,18 +2710,26 @@ export function createRegisterMode(B) {
           status: selectedReady ? 'READY AT DESK' : 'WAITING FOR GUEST',
         } : null,
         actions: selectedWalkIn ? [
-          ...slots.map((slot) => ({
+          // L2: two offers that FIT their buttons, the ask flagged on its
+          // face; every other slot lives on the Tee Sheet tab, which books
+          // through the identical action
+          ...slots.slice(0, 2).map((slot) => ({
             id: `select-walkin-slot:${selectedWalkIn.customerId}:${slot.dayAbs}:${slot.minute}`,
-            // the asked slot says so on its face
             label: slot.askedExact
-              ? `${fmtSlot(slot.minute)} · their ask`
-              : `${fmtSlot(slot.minute)} · ${slot.remainingCapacity} open`,
+              ? `${fmtSlot(slot.minute)} asked`
+              : fmtSlot(slot.minute),
             kind: 'primary',
             disabled: locked || selectedWalkIn.queueIndex !== 0,
           })),
+          ...(slots.length ? [{
+            id: 'tab-tee-sheet',
+            label: 'Full Sheet',
+            kind: 'secondary',
+            disabled: false,
+          }] : []),
           {
             id: 'reject-walkin',
-            label: slots.length ? 'Cannot Accommodate' : 'No Times Available',
+            label: slots.length ? 'Turn Away' : 'No Times Available',
             kind: 'danger',
             disabled: locked || selectedWalkIn.queueIndex !== 0,
           },
@@ -2731,6 +2739,61 @@ export function createRegisterMode(B) {
           kind: selected.paymentPreference === 'cash' ? 'cash' : 'primary',
           disabled: locked || !selectedReady,
         }] : [],
+      };
+    }
+
+    // L2 (2026-08-05): THE TEE SHEET IS A SHEET. The day's every slot on one
+    // screen — time, seat pips, holder names, closed rows, the now line —
+    // instead of three anonymous buttons. Booking rides the same
+    // select-walkin-slot action the check-in tab uses, so the sheet is a
+    // surface over the identical flow, not a second booking path.
+    if (activeTab === 'tee-sheet') {
+      const dayAbs = Math.floor(state.clock.minutes / 1440);
+      const nowMinute = state.clock.minutes % 1440;
+      const selectedWalkIn = activeWalkIn();
+      const ask = selectedWalkIn ? walkInAsk(selectedWalkIn.customerId) : null;
+      const bookable = !!selectedWalkIn && selectedWalkIn.queueIndex === 0 && !tx;
+      const party = selectedWalkIn ? (selectedWalkIn.partySize || 1) : 1;
+      let nowMarked = false;
+      const rawSheet = daySheet(state, dayAbs);
+      const dateKey = rawSheet[0]?.dateKey || '';
+      const sheet = rawSheet.map((slot) => {
+        const past = slot.minute < nowMinute;
+        const now = !past && !nowMarked ? (nowMarked = true) : false;
+        return {
+          minute: slot.minute,
+          label: fmtSlot(slot.minute),
+          capacity: slot.capacity,
+          booked: slot.bookedPlayers ?? slot.reservedSeats ?? 0,
+          names: (slot.reservations || [])
+            .map((r) => r.holder || r.fullName || r.name)
+            .filter(Boolean),
+          closed: !!slot.closed,
+          past,
+          now,
+          asked: !!ask && slot.minute === ask.asked,
+          openSeats: slot.availableSeats ?? Math.max(0, slot.capacity - (slot.reservedSeats || 0)),
+          actionId: bookable && slot.available && !past
+            && (slot.availableSeats ?? 0) >= party
+            ? `select-walkin-slot:${selectedWalkIn.customerId}:${slot.dayAbs}:${slot.minute}`
+            : null,
+        };
+      });
+      return {
+        app: 'tee-sheet',
+        heading: dateKey ? `Tee sheet · ${dateKey}` : 'Tee sheet',
+        dateKey,
+        context: selectedWalkIn
+          ? `Booking ${selectedWalkIn.fullName || selectedWalkIn.name}${ask ? ` · asks ${fmtSlot(ask.asked)}` : ''}${bookable ? '' : ' · waiting in queue'}`
+          : 'Pick a walk-in on Check In to book from this sheet.',
+        note: ask
+          ? (ask.verdict?.exact
+            ? `${fmtSlot(ask.asked)} is open. Click it to book their ask.`
+            : ask.verdict?.ok
+              ? `${fmtSlot(ask.asked)} is not available. The nearest open time is ${fmtSlot(ask.verdict.slot.minute)}.`
+              : ask.verdict?.reason || 'Nothing near their asked time remains.')
+          : null,
+        sheet,
       };
     }
 
@@ -6656,6 +6719,11 @@ export function createRegisterMode(B) {
       drawScreen();
       return true;
     }
+    if (action === 'tab-tee-sheet') {
+      activeTab = 'tee-sheet';
+      drawScreen();
+      return true;
+    }
     if (action.startsWith('select-walkin:')) {
       if (tx) {
         toast('Finish the active transaction before helping another customer.', 'warn');
@@ -7554,7 +7622,10 @@ export function createRegisterMode(B) {
     // camera moves left are the top-down drawer view — counting change on the
     // counter genuinely needs it — and the check-in glass.
     if (workspace === 'cash') return 'cash';
-    if (activeTab === 'check-in' && !(deliveryPhase && deliveryPhase !== 'released')) return 'checkin';
+    // the tee sheet is read off the same glass as check-in, so it shares the
+    // straight-at-the-screen pose (L2)
+    if ((activeTab === 'check-in' || activeTab === 'tee-sheet')
+      && !(deliveryPhase && deliveryPhase !== 'released')) return 'checkin';
     return 'overview';
   }
 
