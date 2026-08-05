@@ -3,7 +3,7 @@
 // measurement of the shipped FP broom with no authority: re-export the asset
 // and every dependent test silently measures the wrong broom.
 //
-// Now: tools/build/extract-broom-metrics.mjs measures the GLB and generates
+// Now: tools/gen/extract-broom-metrics.mjs measures the GLB and generates
 // src/data/broomMetrics.js with the value and the file's SHA-256. This test
 // re-derives BOTH from the asset on disk, so the three parties — the GLB, the
 // generated constant, and the dependent feel math — cannot disagree quietly.
@@ -14,7 +14,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { measureBroom, SOURCE_GLB } from '../tools/build/extract-broom-metrics.mjs';
+import { measureBroom, SOURCE_GLB } from '../tools/gen/extract-broom-metrics.mjs';
 import { BROOM_METRICS } from '../src/data/broomMetrics.js';
 
 const measured = measureBroom();

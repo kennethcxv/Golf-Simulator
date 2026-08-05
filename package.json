@@ -13,7 +13,7 @@
     "dev": "electron . --dev",
     "serve": "node tools/serve.cjs",
     "test": "node --test",
-    "gen:broom-metrics": "node tools/build/extract-broom-metrics.mjs"
+    "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.4.2",

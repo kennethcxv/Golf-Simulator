@@ -162,7 +162,7 @@ test('the handle can physically REACH the floor from where the hands are held', 
   // The handle length is the ASSET's, measured from its own sockets. It used
   // to be a hand-typed 1.247 literal here, with a comment pointing at a
   // broom-asset-sockets test that did not exist — the D7 known-blind. I7
-  // (2026-08-05) built the authority: tools/build/extract-broom-metrics.mjs
+  // (2026-08-05) built the authority: tools/gen/extract-broom-metrics.mjs
   // measures the GLB and generates src/data/broomMetrics.js, and the (now
   // real) tests/broom-asset-sockets.test.js fails whenever the GLB on disk and
   // the generated value disagree. This test reads the authority.
