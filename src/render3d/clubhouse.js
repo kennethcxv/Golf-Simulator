@@ -5240,7 +5240,7 @@ export function makeClubhouse(ctx) {
   // The sphere markers stay for the Tab overview's column mode, where a
   // silhouette on the floor is invisible from above the roof and a pillar is
   // the honest answer.
-  const ghostMat = (hex) => new THREE.MeshBasicMaterial({
+  const senseGhostMatFor = (hex) => new THREE.MeshBasicMaterial({
     color: hex,
     transparent: true,
     opacity: 0,
@@ -5248,9 +5248,9 @@ export function makeClubhouse(ctx) {
     depthWrite: false,
     toneMapped: false,
   });
-  const senseGhostGritMat = ghostMat(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
-  const senseGhostLitterMat = ghostMat(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
-  const senseGrimeQuadMat = ghostMat(MEDIUM_STYLE[MEDIUM.GRIME].color);
+  const senseGhostGritMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
+  const senseGhostLitterMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
+  const senseGrimeQuadMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.GRIME].color);
   const senseGhostGrit = new THREE.InstancedMesh(debrisGeo, senseGhostGritMat, DEBRIS_CAP);
   const senseGhostLitter = new THREE.InstancedMesh(litterGeo, senseGhostLitterMat, DEBRIS_CAP);
   const senseGrimeQuad = new THREE.InstancedMesh(
