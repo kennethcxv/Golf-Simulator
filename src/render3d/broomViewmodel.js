@@ -51,11 +51,19 @@ const CUFF = 0x2f4a35;
 const GRIP_CEIL_SOFT = 0.10;
 // How much further than REACH requires the grip keeps descending once the
 // up-look cap has engaged, so the handle leaves the frame with the hand instead
-// of hanging there on its own. Gain and ceiling were both read off the measured
-// flip-book, not guessed: at +1.00 rad the cap is 0.135 yd and the stick top
-// needed roughly 0.27 yd to clear the bottom edge.
-const GRIP_STOW_GAIN = 3.0;
-const GRIP_STOW_MAX = 0.45;
+// of hanging there on its own.
+//
+// I3 (2026-08-05), read off the live-pan flip-book rather than settled samples:
+// with gain 3.0 the hand slipped under the frame at +0.80 (handY −1.05) while
+// the stow had moved the rig only 0.045 yd — so the stub of handle above the
+// now-invisible hand hung in frame for the +0.75..+0.90 band before the stow
+// caught up. The stick must leave WITH its hand: the ~0.27 yd the stick top
+// needs has to arrive within the first ~0.03 yd of cap, hence gain 10. The
+// stow remains a continuous function of pitch (via the eased cap), engages
+// nowhere below the cap's own threshold, and every pose at or below +0.75 rad
+// is bit-identical by construction.
+const GRIP_STOW_GAIN = 10.0;
+const GRIP_STOW_MAX = 0.85;
 const CUFF_DARK = 0x21351f;
 
 const _wrist = new THREE.Vector3();
