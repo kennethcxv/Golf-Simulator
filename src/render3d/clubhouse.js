@@ -9016,10 +9016,15 @@ export function makeClubhouse(ctx) {
       reservation.fullName = identity.fullName;
       reservation.paymentPreference ||= identity.paymentPreference;
     }
+    // M1 (2026-08-05): the personality clause is gone. It gated walk-in tee
+    // requests to friendly/exacting — a third of identities — on top of the
+    // 58% purpose gate, so desk errands ran ~19% of organic arrivals and a
+    // combined (book+buy) visit was a once-an-hour event nobody ever saw
+    // complete. Wanting a tee time is a PURPOSE, not a personality trait; a
+    // hurried golfer asks for one faster, not never. Purpose stays the gate.
     const walkInRequest = !toCounter
       && options.allowWalkInRequest === true
-      && identity.visitProfile.preferredPurpose === 'tee-time'
-      && ['friendly', 'exacting'].includes(identity.personality);
+      && identity.visitProfile.preferredPurpose === 'tee-time';
     const customerType = reservationId != null
       ? (reservation.customerType || 'reservation')
       : walkInRequest ? 'walk-in-tee' : 'retail';
