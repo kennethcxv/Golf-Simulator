@@ -6552,6 +6552,9 @@ export function makeCourseScene(canvas, state) {
       colliderQuery: broomColliderQuery,
       floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
       feel: TOOL_VM_FEEL[rigId],
+      // I5: the drawn interior for the mesh-true clamp (held tools are camera
+      // children, so this root can never self-hit the tool)
+      meshRoot: () => (clubhouseApi ? clubhouseApi.interior : null),
     });
   }
   const broomVm = toolRigs.broom;
@@ -6876,6 +6879,9 @@ export function makeCourseScene(canvas, state) {
   // "it ran and could not correct enough" and "it never ran" are different
   // readings instead of the same one.
   const floorAnchorDebug = { frame: 0, tools: {} };
+  // I5: per-frame pull applied to the held HAND tool when its carry point was
+  // inside a blocked fixture face (0 in the open — the control's claim).
+  const handToolClampDebug = {};
   // Held-tool idle: a slow ±0.4° yaw drift on the whole held rig, 7 s period, for life at rest.
   const IDLE_YAW_AMP = (0.4 * Math.PI) / 180; const IDLE_YAW_RATE = (2 * Math.PI) / 7;
   // Belt-switch debounce: at most one actual tool change per 0.12 s (rapid F-taps keep one pending).
@@ -8837,6 +8843,42 @@ export function makeCourseScene(canvas, state) {
         }
         group.position.copy(rest);
         group.rotation.z = group.userData.cleaningRestRotationZ;
+      }
+    }
+    // I5: A HAND TOOL PRESSED INTO A FIXTURE PULLS BACK TO ITS FACE.
+    //
+    // The rig tools carry the broom's own collision clamp; the four close-carry
+    // tools (spray, cloth, sponge, trashbag) had nothing — walk chest-first
+    // into a counter and the carried prop pierced it, because the player
+    // collider stops the BODY 0.34 yd out while the tool rides ~0.6 yd ahead
+    // of the lens. Probe the carry point along the view forward; when it is
+    // inside a blocked face, bisect back to the face and pull the group toward
+    // the camera by the overlap (camera-local +z).
+    //
+    // PLACED AFTER THE REST-POSE RESTORE ABOVE, ON PURPOSE. The first landing
+    // of this block sat a few hundred lines earlier and its pull was recorded
+    // in the debug map and then overwritten by `position.copy(rest)` — the
+    // verbatim E2 trap this file already documents, caught because the probe
+    // measured the drawn mesh (pull 0.60 logged, penetration unchanged).
+    if (walkTool && CLEANING_TOOLS[walkTool] && !rigFor(walkTool)?.isActive() && !cart.mounted) {
+      const g = heldGroups[walkTool];
+      if (g && g.visible) {
+        const carryDepth = Math.abs(CLEANING_TOOLS[walkTool].place?.[2] ?? 0.6) + 0.16;
+        const fx = -Math.sin(walk.yaw);
+        const fz = -Math.cos(walk.yaw);
+        let pull = 0;
+        if (broomColliderQuery(walk.x + fx * carryDepth, walk.z + fz * carryDepth, 0.07)?.blocked) {
+          let lo = 0.05;
+          let hi = carryDepth;
+          for (let step = 0; step < 4; step += 1) {
+            const mid = (lo + hi) / 2;
+            if (broomColliderQuery(walk.x + fx * mid, walk.z + fz * mid, 0.07)?.blocked) hi = mid;
+            else lo = mid;
+          }
+          pull = carryDepth - Math.max(0.05, lo - 0.05);
+          g.position.z += pull;
+        }
+        handToolClampDebug[walkTool] = +pull.toFixed(4);
       }
     }
     const cleaning = clubhouseApi?.cleaningStatus?.();
@@ -11523,6 +11565,8 @@ export function makeCourseScene(canvas, state) {
       // from the live rig rather than from its registry entry. The registry
       // says what a tool declares; this says where its geometry actually ended
       // up after the frame posed it.
+      // I5: the hand-tool clamp's last applied pull per tool (yd). 0 = free.
+      handToolClampDiagnostics: () => ({ ...handToolClampDebug }),
       floorAnchorDiagnostics: () => ({
         frame: floorAnchorDebug.frame,
         anchoredTools: FLOOR_ANCHORED_TOOLS,

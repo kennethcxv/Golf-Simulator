@@ -105,6 +105,10 @@ const _basis = new THREE.Matrix4();
 const _sleeveAim = new THREE.Vector3();
 const _camPos = new THREE.Vector3();
 const _palmOut = new THREE.Vector3();
+// I5: the drawn-world clamp ray (see the collision block)
+const _meshRay = new THREE.Raycaster();
+const _meshRayOrigin = new THREE.Vector3();
+const _meshRayDir = new THREE.Vector3();
 
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 function easeInCubic(t) { return t * t * t; }
@@ -197,6 +201,12 @@ export function createBroomViewmodel({
   // One rig INSTANCE per tool, each bound to its own held group; only the
   // active one draws, so nine rigs cost what one did.
   feel = BROOM_FEEL,
+  // I5: the DRAWN world for the clamp. The walk collider is authored for body
+  // circles and sits well inside some fixtures' drawn slabs (measured 0.4-1.2
+  // yd of overhang on the browse stands), so a collider-only clamp leaves the
+  // head visibly buried. When provided, meshRoot() returns the interior group
+  // and the clamp also honours the first drawn face along the reach ray.
+  meshRoot = null,
 }) {
   const vmCamera = new THREE.PerspectiveCamera(
     feel.camera.fov, camera.aspect, feel.camera.near, feel.camera.far,
@@ -695,7 +705,18 @@ export function createBroomViewmodel({
       const probe = (r) => colliderQuery(
         _gripCam.x + hx * r, _gripCam.z + hz * r, col.headHalfWidth,
       );
-      const hitAtFull = probe(horiz + col.probeAhead);
+      // I5: the probe walks the PATH, not just the endpoint. Endpoint-only
+      // sampling let a long tool thread a thin fixture: the broom probed at
+      // horiz+ahead ≈ 2.1 yd — beyond the far side of a 0.5 yd shelf standing
+      // 0.6 yd out — read "free", and drew its shaft straight through the
+      // slab (measured 1.67 yd of mesh penetration while clamped=false). Any
+      // blocked sample along the run counts as the hit.
+      let hitAtFull = null;
+      const probeSpan = horiz + col.probeAhead;
+      for (let r = Math.min(0.35, probeSpan); r <= probeSpan + 1e-6; r += 0.30) {
+        const sample = probe(Math.min(r, probeSpan));
+        if (sample?.blocked) { hitAtFull = sample; break; }
+      }
       if (hitAtFull?.blocked) {
         clampedNow = true;
         nx = hitAtFull.nx || -fx; nz = hitAtFull.nz || -fz;
@@ -707,6 +728,14 @@ export function createBroomViewmodel({
         }
         horiz = Math.max(0.12, lo - col.standoff);
       }
+      // (I5 note, measured and then REMOVED: a mesh-ray "final say" was tried
+      // here twice — horizontal at grip height, then along the shaft line —
+      // and both made the numbers WORSE, because one ray through a cluttered
+      // volume clamps or misses by face luck. The path-walked collider probe
+      // above is the honest clamp; where a prop's collider is deliberately
+      // loose — the walk-into-able junk piles — a single ray cannot certify
+      // the volume and a capsule test is the real remaining work. meshRoot
+      // stays available for that day.)
     }
     const slide = Math.min(1, dt * feel.collision.slideRate);
     state.drawHoriz = state.drawHoriz === undefined ? horiz
