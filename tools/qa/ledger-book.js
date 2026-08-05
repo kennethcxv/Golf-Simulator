@@ -1,10 +1,12 @@
 // L3 — the ledger book on the front desk (task #127's ruling). What this
 // proves, in the running build:
 //   1. the bound book is VISIBLE on the desk and carries an E prompt
-//   2. E opens it IN PLACE: camera leans over the spread, no DOM UI
-//   3. BLANK-STATE CONTROL: a fresh club shows the title page and ruled
-//      empty rows - and the right-page ink counter reads ~zero, which is the
-//      negative control for the signature check later
+//   2. E opens it: the journal floats to the face, cover swung fully open
+//   3. BLANK-STATE CONTROL: a fresh club shows the contents page + ruled
+//      empty guest rows. The guest page's furniture (headers, rules) is
+//      deliberately LIGHT ink (luma>100) so the dark-ink counter on the
+//      right page still reads ~zero - the negative control for the
+//      signature check later
 //   4. a real walk-in check-in (the L1 flow, end to end) signs the book:
 //      diagnostics' content-ready predicate (pages painted from the live
 //      roster - NOT the open flag) reports the entry, and the right page now
@@ -80,16 +82,20 @@ async (page) => {
     const root = club.interior.getObjectByName('FrontDeskLedgerBook');
     if (!root) return { error: 'book root missing' };
     root.updateWorldMatrix(true, true);
+    // the journal's spread: spine at local +0.152, LEFT page rides the swung
+    // cover at ~+0.294, RIGHT page at ~+0.002 - so viewer-right is the
+    // smallest local.x among the visible page canvases (the turning leaf
+    // hides between turns)
     let best = null;
+    let bestX = Infinity;
     root.traverse((o) => {
       if (!o.isMesh) return;
       const image = o.material?.map?.image;
       if (!image || image.width !== 768 || image.height !== 512) return;
-      // visible chain only (the turning leaf hides between turns)
       for (let p = o; p; p = p.parent) if (p.visible === false) return;
       const world = o.getWorldPosition(new window.__fw.scene3d.camera.position.constructor());
       const local = root.worldToLocal(world.clone());
-      if (local.x > 0.05) best = image; // the RIGHT page
+      if (local.x < bestX) { bestX = local.x; best = image; }
     });
     if (!best) return { error: 'right page canvas not found' };
     const scratch = document.createElement('canvas');
@@ -109,10 +115,19 @@ async (page) => {
   await page.waitForTimeout(400);
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.ledgerOpen === true, null, { timeout: 10000 });
-  await page.waitForTimeout(900); // the focus lean settles
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().state === 'open'
+  ), null, { timeout: 8000 });
+  await page.waitForTimeout(300);
   const blankDiag = await diag();
   const blankInk = await rightPageInk();
+  // L4: even a blank register carries its HOUSE NOTES back spread - the turn
+  // must reach it and come back
   const blankTurn = await page.evaluate(() => window.__fw.scene3d.clubhouse().ledgerBook.turnPage(1));
+  await page.waitForTimeout(700);
+  const notesDiag = await diag();
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().ledgerBook.turnPage(-1));
+  await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(OUT, '02-open-blank.png') });
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__fw.ledgerOpen === false, null, { timeout: 8000 });
@@ -211,7 +226,10 @@ async (page) => {
   await page.waitForTimeout(400);
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.ledgerOpen === true, null, { timeout: 10000 });
-  await page.waitForTimeout(900);
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().state === 'open'
+  ), null, { timeout: 8000 });
+  await page.waitForTimeout(300);
   const signedDiag = await diag();
   const signedInk = await rightPageInk();
   await page.screenshot({ path: path.join(OUT, '03-signed.png') });
@@ -328,13 +346,22 @@ async (page) => {
   const checks = {
     promptOffersLedger: typeof prompt === 'string' && /ledger|register/i.test(prompt),
     opensInPlace: blankDiag.open === true && blankDiag.contentReady === true,
-    blankBookIsBlank: blankDiag.entries === 0 && blankDiag.painted === 0,
+    // `painted` sums the two visible pages' item counts: the blank spread is
+    // the contents page (one line per section) + zero guest rows
+    blankBookIsBlank: blankDiag.entries === 0
+      && blankDiag.painted === (blankDiag.sections?.length ?? -1),
     blankInkControlQuiet: !blankInk.error && blankInk.ink < 60,
-    blankBookHasOneSpread: blankTurn === false && blankDiag.spreadCount === 1,
+    // a blank journal still carries its full skeleton: contents, one guest
+    // page, house notes, day sheet, takings, and the two locked sections
+    blankBookSpreads: blankDiag.spreadCount === 4 && blankTurn === true
+      && notesDiag.spread === 1 && (notesDiag.notes ?? 0) >= 1,
+    coverFullyOpen: blankDiag.state === 'open' && blankDiag.cover === 1,
+    lockedSectionsPresent: Array.isArray(blankDiag.sections)
+      && blankDiag.sections.filter((s) => s.locked).length === 2,
     checkInSignsTheBook: roster.length === 1 && roster[0].name === staged.name
       && roster[0].visits === 1 && Number.isFinite(roster[0].firstVisitDayAbs),
-    signedPagePainted: signedDiag.entries === 1 && signedDiag.painted === 1
-      && signedDiag.contentReady === true,
+    signedPagePainted: signedDiag.entries === 1 && signedDiag.contentReady === true
+      && signedDiag.state === 'open',
     signatureInkPresent: !signedInk.error && signedInk.ink > blankInk.ink + 200,
     pagesTurnForward: fullDiag.spreadCount >= 2 && turned === true
       && midTurn.turning === true && afterTurn.turning === false && afterTurn.spread === 1,
@@ -357,7 +384,7 @@ async (page) => {
     noPageErrors: errs.length === 0,
   };
   const out = {
-    prompt, blankDiag, blankInk, blankTurn, staged, roster,
+    prompt, blankDiag, blankInk, blankTurn, notesDiag, staged, roster,
     signedDiag, signedInk, fullDiag, midTurn, afterTurn, backAgain,
     beforeMove, carriedNow, afterMove, movedPrompt, reopensMoved, movedDiag, persistence,
     errs: errs.slice(0, 10), checks,

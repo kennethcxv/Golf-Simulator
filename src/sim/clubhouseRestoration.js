@@ -195,6 +195,16 @@ export function ceilingCircuitPowered(state) {
   return !!ensureClubhouseArchitecture(state)?.components?.ceiling?.restored;
 }
 
+// The same fact for PURE LENSES (the ledger's house notes): ensure* heals
+// non-canonical state in place, and a lens must not mutate what it reads.
+// Load-time healers run ensureClubhouseArchitecture long before any lens
+// looks, so the peek reads healed state in practice. Kept adjacent to the
+// healing predicate so the two cannot drift apart unnoticed.
+export function ceilingCircuitPoweredView(state) {
+  if (!state?.campaign?.enabled) return true;
+  return !!state?.shop?.reno?.architecture?.components?.ceiling?.restored;
+}
+
 // A panel repair spends one physical repair kit, exactly as a structural repair
 // does. `availableSupplyUnits` is the authority on what counts: the backroom
 // shelving plus what is in your hands. A kit sealed inside an unopened delivery

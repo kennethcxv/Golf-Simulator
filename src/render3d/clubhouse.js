@@ -10078,6 +10078,10 @@ export function makeClubhouse(ctx) {
     state,
     anchor: FRONT_DESK.ledger,
     counterTop: COUNTER_TOP,
+    // the journal rises to the FACE on E (the reader's comes-to-you pattern)
+    // and voices its cover/riffle/turns through the shared paper cue
+    camera,
+    sfx,
     // moving the book persists its spot; the E/X prop follows it below
     onPlaced: (spot) => {
       if (state.shop) state.shop.ledgerSpot = { ...spot };
@@ -11527,10 +11531,18 @@ export function makeClubhouse(ctx) {
         const deskX = dx * cos - dz * sin;
         const deskZ = dx * sin + dz * cos;
         const onDesk = Math.abs(deskX) <= 2.35 && Math.abs(deskZ) <= 0.50;
+        // VERIFY2_L: an off-desk drop used to seat at interior y=0.001, which
+        // outdoors is FLUSH with the walkway - the closed book vanished into
+        // the paving. Ask the ground under the drop point instead.
+        const groundLocal = onDesk
+          ? COUNTER_TOP
+          : (Number.isFinite(groundYAt?.(aheadX, aheadZ))
+            ? groundYAt(aheadX, aheadZ) - interior.position.y + 0.004
+            : 0.004);
         ledgerBook.placeAt({
           x: local.x,
           z: local.z,
-          y: onDesk ? COUNTER_TOP : 0.001,
+          y: groundLocal,
           ry,
         });
         sfx('boxdown');
