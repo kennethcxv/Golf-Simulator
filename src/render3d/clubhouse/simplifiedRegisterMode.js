@@ -272,15 +272,20 @@ export const CARD_HELD_PITCH = 0.62;
 // reads small on that counter. Go bigger than life size — it is a presentation
 // object, not a measurement."
 //
-// So it is tied to the reader rather than picked again. The payment terminal
-// draws at TERMINAL_HARDWARE_SCALE for exactly the same reason — a real
-// handheld reader is too small to read at counter distance — and the brief asks
-// for the bag to match it. One constant, so the two cannot drift apart.
+// So it was tied to the reader (TERMINAL_HARDWARE_SCALE, 1.85) — and K1
+// (2026-08-05) untied it: "Make the bag smaller than it is now. Larger than
+// the original. Judge it against the monitor and the reader." At 1.85 the
+// laid carrier covered 20% of the working frame — 1.7x the POS glass and
+// 2.3x the floating reader (measured, tools/qa/bag-presentation-shots.js).
+// 1.35 sits between the two devices' own draw scales (POS 1.55, reader 1.85
+// at the face), keeps the bag above life size (1.00) and far above round 5's
+// 0.78, and in the frame it now reads as the largest PROP while both DEVICES
+// out-present it.
 //
-// The lift below is DERIVED from this and the flatten factor rather than baked,
-// which is what made the previous size change land the flank through the
-// counter top.
-const BAG_PRESENTATION_SCALE = TERMINAL_HARDWARE_SCALE;
+// The lift below is DERIVED from this and the flatten factor rather than
+// baked, which is what made the previous size change land the flank through
+// the counter top.
+const BAG_PRESENTATION_SCALE = 1.35;
 const BAG_PRESENTATION_FLATTEN = 0.55;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // FLAT, LONG, AND OPEN TOWARD THE COUNTER SPACE. Playtest round 5
@@ -823,10 +828,15 @@ function displayBrandTexture(clubName, {
   const lines = checkoutDisplayBrandLines(clubName);
   const lineSize = lines.length === 1 ? height * 0.22 : height * 0.17;
   lines.forEach((line, index) => {
+    // K1: the floor is a FIT floor, not a taste floor. On the portrait bag
+    // stamp (640x760) the old height*0.10 minimum was 76 px, at which
+    // "MUNICIPAL GOLF" measured ~660 px on a 640 px canvas — the fitter gave
+    // up above the canvas width and the stamp printed cut off mid-letter on
+    // every bag (photographed, qa/electron/bag-presentation-k1/before).
     setFittedCanvasFont(ctx, line, {
       maxWidth: width - 100,
       startSize: lineSize,
-      minimumSize: height * 0.10,
+      minimumSize: height * 0.04,
       weight: 700,
       family: 'Georgia, serif',
     });
@@ -834,7 +844,13 @@ function displayBrandTexture(clubName, {
     ctx.fillText(line, width / 2, height * 0.44 + offset);
   });
   ctx.fillStyle = subtitle;
-  ctx.font = `700 ${Math.round(height * 0.072)}px Arial, sans-serif`;
+  // the subtitle got no fitting at all — same clipped fate on narrow canvases
+  setFittedCanvasFont(ctx, 'PRO SHOP  ·  FIRST TEE', {
+    maxWidth: width - 110,
+    startSize: height * 0.072,
+    minimumSize: height * 0.035,
+    weight: 700,
+  });
   ctx.fillText('PRO SHOP  ·  FIRST TEE', width / 2, height * 0.76);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -4095,6 +4111,46 @@ export function createRegisterMode(B) {
   // from the working frame; the ropes stay cord-brown; everything else is the
   // reference's warm kraft.
   const BAG_LINER_COLOR = 0x4a3823;
+  // K1: "add wrinkles to the bag to make it more like paper." One shared
+  // 256px bump source — long soft creases over a fine paper tooth — baked
+  // from a fixed LCG so every boot (and every screenshot) gets the same
+  // sheet. Height data, so it stays linear; never give a bump map sRGB.
+  let kraftWrinkleTexture = null;
+  function kraftWrinkleBump() {
+    if (kraftWrinkleTexture) return kraftWrinkleTexture;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 256, 256);
+    let seed = 7;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    ctx.lineCap = 'round';
+    for (let crease = 0; crease < 46; crease += 1) {
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.24)' : 'rgba(0,0,0,0.26)';
+      ctx.lineWidth = 0.7 + rnd() * 1.9;
+      ctx.beginPath();
+      let x = rnd() * 256;
+      let y = rnd() * 256;
+      ctx.moveTo(x, y);
+      const segments = 3 + Math.floor(rnd() * 4);
+      for (let s = 0; s < segments; s += 1) {
+        x += (rnd() - 0.5) * 130;
+        y += (rnd() - 0.5) * 130;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    for (let grain = 0; grain < 1500; grain += 1) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+      ctx.fillRect(rnd() * 256, rnd() * 256, 1.5, 1.5);
+    }
+    kraftWrinkleTexture = new THREE.CanvasTexture(canvas);
+    kraftWrinkleTexture.wrapS = THREE.RepeatWrapping;
+    kraftWrinkleTexture.wrapT = THREE.RepeatWrapping;
+    return kraftWrinkleTexture;
+  }
   function applyKraftBagStyle(model) {
     model.traverse((object) => {
       if (!object.isMesh || !object.material) return;
@@ -4114,6 +4170,15 @@ export function createRegisterMode(B) {
         if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.86;
         if ('metalness' in styled) styled.metalness = 0;
         if (!handle) styled.map = null;
+        // K1: paper, not card — the creases catch the counter light on the
+        // laid flank. Ropes stay smooth cord.
+        if (!handle && 'bumpMap' in styled) {
+          styled.bumpMap = kraftWrinkleBump();
+          // bumpScale is a slope multiplier, not metres — 0.0025 was
+          // invisible (photographed); 0.55 puts soft creases in the counter
+          // light without reading as crumpled trash
+          styled.bumpScale = 0.55;
+        }
         styled.needsUpdate = true;
         return styled;
       };
