@@ -180,8 +180,16 @@ function buildArm(mats, mirror) {
  */
 export function createBroomViewmodel({
   camera, renderer, scene, broomGroup, fpHands, colliderQuery, floorY,
+  // I1 (2026-08-05): the rig was always "the broom's until approved, then
+  // everyone's". `feel` parameterizes the whole tuning surface (a BROOM_FEEL-
+  // shaped object from src/data/toolFeel.js), and `feel.anchor` selects the
+  // pose family: 'floor' plants the head with the plant window, reach cap and
+  // up-look stow; 'carry' keeps the carry hover at every pitch (a pressure
+  // wand washes walls — capping its hands at floor reach would be nonsense).
+  // One rig INSTANCE per tool, each bound to its own held group; only the
+  // active one draws, so nine rigs cost what one did.
+  feel = BROOM_FEEL,
 }) {
-  const feel = BROOM_FEEL;
   const vmCamera = new THREE.PerspectiveCamera(
     feel.camera.fov, camera.aspect, feel.camera.near, feel.camera.far,
   );
@@ -232,12 +240,29 @@ export function createBroomViewmodel({
     axis: new THREE.Vector3(),
     len: 0,
   };
+  // I1: socket NAMES are per-asset vocabulary, not per-rig. The broom and mop
+  // happen to use FloorContact/GripPrimary; the vacuum's contact is
+  // SOCKET_DirtIntake, the dustpan's SOCKET_PanIntake with a single
+  // SOCKET_Grip, the washer's SOCKET_SprayEmission — measured live when the
+  // first generalized run read 'fallback' geometry for all three. The feel
+  // carries each tool's names (toolFeel.js derives them from the registry's
+  // own fp entry); the broom's names remain the default.
+  const socketNames = feel.rig?.sockets || {};
+  const CONTACT_NAMES = [socketNames.contact, 'SOCKET_FloorContact', 'SOCKET_contact'].filter(Boolean);
+  const PRIMARY_NAMES = [socketNames.primary, 'SOCKET_GripPrimary'].filter(Boolean);
+  const SUPPORT_NAMES = [socketNames.support, 'SOCKET_GripSupport'].filter(Boolean);
   function readRigGeometry() {
     if (!socketRefs.found) {
-      socketRefs.contact = broomGroup.getObjectByName('SOCKET_FloorContact')
-        || broomGroup.getObjectByName('SOCKET_contact');
-      socketRefs.primary = broomGroup.getObjectByName('SOCKET_GripPrimary');
-      socketRefs.support = broomGroup.getObjectByName('SOCKET_GripSupport');
+      const byName = (names) => {
+        for (const name of names) {
+          const hit = broomGroup.getObjectByName(name);
+          if (hit) return hit;
+        }
+        return null;
+      };
+      socketRefs.contact = byName(CONTACT_NAMES);
+      socketRefs.primary = byName(PRIMARY_NAMES);
+      socketRefs.support = byName(SUPPORT_NAMES);
       socketRefs.found = !!(socketRefs.contact && socketRefs.primary);
       if (!socketRefs.found) return null;
     }
@@ -558,7 +583,9 @@ export function createBroomViewmodel({
     // real floor drop once the pose plants on the boards.
     const blendSpan = Math.max(0.001, p.carryAbove - p.workBelow);
     const workT = Math.max(0, Math.min(1, (p.carryAbove - clamped) / blendSpan));
-    const workBlend = workT * workT * (3 - 2 * workT); // smoothstep
+    // 'carry' rigs (the pressure wand) never plant: the hover stays at carry
+    // height across the whole pitch range and the floor terms below go inert.
+    const workBlend = feel.anchor === 'carry' ? 0 : workT * workT * (3 - 2 * workT); // smoothstep
     const floorWorldY = fy == null ? camera.position.y - 1.62 : fy;
     // A8: BOTH POSES ARE FLOOR-REFERENCED. What blends is the HOVER HEIGHT.
     //
@@ -601,7 +628,7 @@ export function createBroomViewmodel({
     // about THIS number: it is exactly how far below the camera's own hoist the
     // hands are being held, and nothing else in the diagnostics reports it.
     const gripUncappedY = _gripCam.y;
-    if (pitch > 0) {
+    if (pitch > 0 && feel.anchor !== 'carry') {
       // the highest the hands can be and still reach: dropEff saturates at
       // gripLen * 0.985, so anything above this is hand height the handle
       // cannot spend, and the head pays for it

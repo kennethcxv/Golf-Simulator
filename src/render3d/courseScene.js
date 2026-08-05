@@ -88,6 +88,7 @@ import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
+import { TOOL_VM_FEEL, VM_RIG_TOOLS } from '../data/toolFeel.js';
 import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
 import {
   WALK_SPEED_YD_S, RUN_MULTIPLIER, TOOL_RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S,
@@ -6533,17 +6534,32 @@ export function makeCourseScene(canvas, state) {
     }
     return { blocked: false, nx: 0, nz: 0 };
   }
-  const broomVm = createBroomViewmodel({
-    camera,
-    renderer,
-    scene,
-    broomGroup: heldGroups.broom,
-    fpHands,
-    colliderQuery: broomColliderQuery,
-    floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
-  });
+  // I1 (2026-08-05): ONE RIG INSTANCE PER STICK TOOL, from the same factory
+  // the broom was approved through. Each rig binds its own held group at
+  // construction and reads its own feel (src/data/toolFeel.js); only the
+  // active one updates and draws, so five rigs cost what one did. `broomVm`
+  // stays as the broom's instance because a session's diagnostics and a
+  // shelf of drivers address it by that name.
+  const toolRigs = {};
+  for (const rigId of VM_RIG_TOOLS) {
+    if (!heldGroups[rigId]) continue;
+    toolRigs[rigId] = createBroomViewmodel({
+      camera,
+      renderer,
+      scene,
+      broomGroup: heldGroups[rigId],
+      fpHands,
+      colliderQuery: broomColliderQuery,
+      floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
+      feel: TOOL_VM_FEEL[rigId],
+    });
+  }
+  const broomVm = toolRigs.broom;
+  const rigFor = (id) => (id ? toolRigs[id] || null : null);
+  const activeRig = () => rigFor(walkTool);
   // The viewmodel pass renders with the world's lights: every light learns the
-  // broom layer once per equip (idempotent, and catches lights created since).
+  // rig layer once per equip (idempotent, and catches lights created since).
+  // Every rig shares BROOM_FEEL.camera.layer, so one sweep serves them all.
   function enableBroomLightLayer() {
     scene.traverse((object) => {
       if (object.isLight) object.layers.enable(BROOM_FEEL.camera.layer);
@@ -6934,16 +6950,18 @@ export function makeCourseScene(canvas, state) {
     // Rise on equip over 0.26 s; stow faster (0.18 s) so switching tools feels
     // crisp. The broom's rise/stow/settle timings come from its own tuning
     // file (Phase 6: every broom feel value lives in broomFeel.js).
-    const broomOwned = walkTool === 'broom' && broomVm.isActive();
+    const ownRig = rigFor(walkTool);
+    const rigOwned = !!(ownRig && ownRig.isActive());
+    const ownFeel = rigOwned ? TOOL_VM_FEEL[walkTool] : null;
     const equipDur = walk.reducedMotion ? 0.001
       : (heldAnim.show
-        ? (broomOwned ? BROOM_FEEL.equip.duration : 0.26)
-        : (broomOwned ? BROOM_FEEL.unequip.duration : 0.18));
+        ? (rigOwned ? ownFeel.equip.duration : 0.26)
+        : (rigOwned ? ownFeel.unequip.duration : 0.18));
     heldAnim.t = Math.min(1, heldAnim.t + dt / equipDur);
-    // the broom drops with an ease-IN (slow release, brisk exit); everything
+    // a rig tool drops with an ease-IN (slow release, brisk exit); everything
     // else keeps the shared ease-out both ways
     const k = heldAnim.show ? easeOutCubic(heldAnim.t)
-      : (broomOwned ? 1 - broomVm.easeInCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t));
+      : (rigOwned ? 1 - ownRig.easeInCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t));
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
       heldAnim.settle = 0;
@@ -6951,8 +6969,8 @@ export function makeCourseScene(canvas, state) {
     }
     // A brief settle overshoot as the tool lands in the hands, then back to
     // rest. Cosmetic only, so it is gated on !reducedMotion.
-    const settleAmp = broomOwned ? BROOM_FEEL.equip.settleOvershoot : 0.012;
-    const settleDur = broomOwned ? BROOM_FEEL.equip.settleTime : 0.06;
+    const settleAmp = rigOwned ? ownFeel.equip.settleOvershoot : 0.012;
+    const settleDur = rigOwned ? ownFeel.equip.settleTime : 0.06;
     let settleY = 0;
     if (heldAnim.show && heldAnim.t >= 1 && !walk.reducedMotion) {
       heldAnim.settle = Math.min(1, heldAnim.settle + dt / settleDur);
@@ -7227,10 +7245,14 @@ export function makeCourseScene(canvas, state) {
     } else {
       fpHands.setTool(null);
     }
-    // Phase 6: the broom (with the hands ALREADY re-parented into it, so the
-    // layer sweep catches them) leaves the world pass for its viewmodel pass.
-    if (tool === 'broom') enableBroomLightLayer();
-    broomVm.setActive(tool === 'broom');
+    // Phase 6 → I1: a rig tool (with the hands ALREADY re-parented into it, so
+    // the layer sweep catches them) leaves the world pass for the viewmodel
+    // pass. Deactivations run FIRST: setActive(false) restores the shared hand
+    // scale and arm stubs, so a deactivating rig running after the new one
+    // would clobber what the new one just set.
+    if (toolRigs[tool]) enableBroomLightLayer();
+    for (const [rigId, rig] of Object.entries(toolRigs)) if (rigId !== tool) rig.setActive(false);
+    toolRigs[tool]?.setActive(true);
     const pushed = tool === 'greensMower' || tool === 'spreader';
     if (tool && !pushed) {
       heldRoot.visible = true;
@@ -7857,11 +7879,13 @@ export function makeCourseScene(canvas, state) {
     camera.near = 0.15;
     camera.updateProjectionMatrix();
     heldRoot.visible = !!walkTool && walkTool !== 'greensMower' && walkTool !== 'spreader';
-    // Re-arm the broom's own pass, which walkExit switched off so the till and
-    // the overview camera would not inherit a floating broom. Without this the
-    // tool would come back invisible after any trip to the counter.
-    if (walkTool === 'broom') enableBroomLightLayer();
-    broomVm.setActive(walkTool === 'broom');
+    // Re-arm the held rig's own pass, which walkExit switched off so the till
+    // and the overview camera would not inherit a floating tool. Without this
+    // the tool would come back invisible after any trip to the counter.
+    // Deactivations first — same ordering contract as setTool.
+    if (toolRigs[walkTool]) enableBroomLightLayer();
+    for (const [rigId, rig] of Object.entries(toolRigs)) if (rigId !== walkTool) rig.setActive(false);
+    toolRigs[walkTool]?.setActive(true);
     window.addEventListener('keydown', walkKeyDown);
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
@@ -7891,7 +7915,7 @@ export function makeCourseScene(canvas, state) {
     // runs on scene DISPOSE and on nothing else, so the counter never reached
     // it, and eight other tools were never in scope even if it had. The station
     // stow is syncStationToolStow(), ticked every frame.
-    broomVm.setActive(false);
+    for (const rig of Object.values(toolRigs)) rig.setActive(false);
     walkHeld.clear();
     // The dirt reveal is driven from the walk update, so leaving on foot with Q
     // down (opening the laptop, stepping to the till) would strand it lit with
@@ -8312,11 +8336,13 @@ export function makeCourseScene(canvas, state) {
         floorAnchorDebug.tools[id] = { ran: false, why: g ? 'group not visible' : 'no group' };
         continue;
       }
-      // Phase 6: the broom's pose is owned by its viewmodel rig (pitch-driven
-      // reach with the head planted, not a floor-plane re-solve).
-      if (id === 'broom' && broomVm.isActive()) {
+      // Phase 6 → I1: any tool owned by a viewmodel rig gets its pose from the
+      // rig (pitch-driven reach with the head planted), not this floor-plane
+      // re-solve. Was broom-only; now mop, vacuum and dustpan ride the same
+      // exemption while equipped.
+      if (toolRigs[id]?.isActive()) {
         floorAnchorSampleY.delete(id);
-        floorAnchorDebug.tools[id] = { ran: false, why: 'broom viewmodel owns the pose' };
+        floorAnchorDebug.tools[id] = { ran: false, why: 'viewmodel rig owns the pose' };
         continue;
       }
       g.rotation.x = CLEANING_TOOLS[id].worldPitch - walk.pitch;
@@ -8404,7 +8430,8 @@ export function makeCourseScene(canvas, state) {
     // x, z and roll only: the floor-contact solve above is authoritative on y
     // and pitch for anchored tools, and this is exactly the collision that cost
     // this item its first two attempts.
-    if (walkSpraying && !cart.mounted && CLEANING_TOOLS[walkTool]?.useMotion) {
+    if (walkSpraying && !cart.mounted && CLEANING_TOOLS[walkTool]?.useMotion
+      && !rigFor(walkTool)?.isActive()) {
       const g = heldGroups[walkTool];
       const rest = g?.userData?.cleaningRestPosition;
       if (g && g.visible && rest) {
@@ -8425,12 +8452,18 @@ export function makeCourseScene(canvas, state) {
     // cleaning block so the contact socket resolves from the rig-posed group,
     // and its sub-2° eased contact kick rides the camera for this frame only
     // (the walk update rewrites camera pitch next frame).
-    const broomPose = broomVm.isActive() ? broomVm.update(dt, {
+    // I1: whichever rig owns the held tool updates here — same slot the broom
+    // always used, same ordering contract (before the cleaning block so the
+    // contact socket resolves from the rig-posed group). `broomPose` keeps its
+    // name because the broom-specific dirt-push branches below key on it.
+    const heldRig = rigFor(walkTool);
+    const rigFeel = heldRig ? TOOL_VM_FEEL[walkTool] : null;
+    const rigPose = heldRig && heldRig.isActive() ? heldRig.update(dt, {
       pitch: walk.pitch,
       yaw: walk.yaw,
       using: walkSpraying,
       moving: walkMoving,
-      phase: time * BROOM_RATE,
+      phase: time * (rigFeel ? rigFeel.stroke.rate : BROOM_RATE),
       reducedMotion: walk.reducedMotion,
       // NOT the walk speed, despite having been written as it: this is the
       // hand speed at which the sweep's audio and particles saturate, and it
@@ -8439,8 +8472,9 @@ export function makeCourseScene(canvas, state) {
       speedNorm: dt > 0
         ? Math.min(1, (distanceMoved / dt) / BROOM_FEEL.dirt.sweepIntensityFullYdS) : 0,
     }) : null;
-    if (broomPose && broomPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
-      camera.rotation.x -= broomPose.cameraKickRad;
+    const broomPose = walkTool === 'broom' ? rigPose : null;
+    if (rigPose && rigPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
+      camera.rotation.x -= rigPose.cameraKickRad;
     }
     // The audio layers ride the rig's feel: intensity every frame, the
     // contact edge defined as "bristles in the fast window AND planted", and
@@ -8451,6 +8485,12 @@ export function makeCourseScene(canvas, state) {
       walkHooks.onBroomFeel?.(
         broomPose.intensity, broomPose.inContact && broomPose.planted, broomSurface,
       );
+    } else if (rigPose) {
+      // The other rig tools feed the same three audio layers through E3's
+      // hook: intensity from the rig's stroke, contact from the plant (carry
+      // rigs have no plant, so bare stroke contact carries them).
+      toolFeelIntensity = rigPose.intensity;
+      toolFeelContact = rigPose.inContact && (rigPose.planted || rigFeel?.anchor === 'carry');
     }
     // E3: THE SAME THREE LAYERS, FOR EVERY OTHER TOOL.
     //
@@ -8765,12 +8805,13 @@ export function makeCourseScene(canvas, state) {
       for (const [id, group] of Object.entries(heldGroups)) {
         const rest = group.userData.cleaningRestPosition;
         if (!rest || !CLEANING_TOOLS[id]) continue;
-        // Phase 6 / round 3: the broom's viewmodel rig OWNS its transform — it
-        // solves the tool onto the grip and the bristle contact every frame.
+        // Phase 6 / round 3 → I1: a viewmodel rig OWNS its tool's transform —
+        // it solves the tool onto the grip and the contact every frame.
         // Snapping it back to the registry rest pose here undid that solve on
         // every frame the player was not actively sweeping, which is exactly
         // why the idle broom hung in the air while a held stroke looked right.
-        if (id === 'broom' && broomVm.isActive()) continue;
+        // Now guards every rig tool, not just the broom.
+        if (toolRigs[id]?.isActive()) continue;
         // E2: THE SAME TRAP, THREE TOOLS OVER — AND THIS IS THE WHOLE E1 GAP.
         //
         // mop, vacuum and dustpan declare `floorAnchored: true` and the floor
@@ -10079,8 +10120,9 @@ export function makeCourseScene(canvas, state) {
       renderer.render(scene, camera);
     }
     clubhouseApi?.renderDeliveryCarryOverlay?.();
-    // Phase 6: the broom's own pass, last — nearest to the face.
-    broomVm.render();
+    // Phase 6 → I1: the held rig's own pass, last — nearest to the face.
+    // Every rig's render() no-ops unless it is the active one.
+    for (const rig of Object.values(toolRigs)) rig.render();
   }
 
   function resize() {
@@ -10089,7 +10131,7 @@ export function makeCourseScene(canvas, state) {
     renderer.setSize(wpx, hpx, false);
     camera.aspect = wpx / hpx;
     camera.updateProjectionMatrix();
-    broomVm.resize(camera.aspect);
+    for (const rig of Object.values(toolRigs)) rig.resize(camera.aspect);
     const pr = renderer.getPixelRatio();
     composer.setPixelRatio(pr);
     composer.setSize(wpx, hpx);
@@ -11544,7 +11586,7 @@ export function makeCourseScene(canvas, state) {
           sleeveMeshes,
           hasGrip: !!def.grip,
           hasSupport: !!def.support,
-          geomSource: walkTool === 'broom' ? broomVm.diagnostics().geomSource : null,
+          geomSource: rigFor(walkTool)?.isActive() ? rigFor(walkTool).diagnostics().geomSource : null,
         };
       },
       // C10 — what is drawn in the hands, from every pass that can draw it, so
@@ -11554,7 +11596,7 @@ export function makeCourseScene(canvas, state) {
         stationOpen: !!clubhouseApi?.register?.isActive?.(),
         stationStowedTool,
         heldRootVisible: heldRoot.visible,
-        broomPassActive: broomVm.isActive(),
+        broomPassActive: Object.values(toolRigs).some((rig) => rig.isActive()),
         visibleHeldGroups: Object.entries(heldGroups)
           .filter(([, g]) => g.visible).map(([name]) => name),
       }),
@@ -11594,6 +11636,11 @@ export function makeCourseScene(canvas, state) {
       // pitch, reach, clamp state, tilt, intensity). Null-safe for QA that
       // probes before the rig exists.
       broomDiagnostics: () => broomVm.diagnostics(),
+      // I1: the same instrument surface, addressable per rig tool. Null for a
+      // tool the rig does not own, so a driver cannot mistake "no rig" for a
+      // healthy pose.
+      toolRigDiagnostics: (id) => (toolRigs[id] ? toolRigs[id].diagnostics() : null),
+      toolRigIds: () => Object.keys(toolRigs),
       // Dirt sense: the held-key reveal's own state, plus what the crosshair is
       // currently over. Both are what the acceptance driver reads.
       dirtSense: () => ({
