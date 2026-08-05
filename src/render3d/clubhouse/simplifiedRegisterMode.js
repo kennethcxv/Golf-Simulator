@@ -953,9 +953,11 @@ export function createRegisterMode(B) {
   termCanvas.width = TERM_CANVAS_W;
   termCanvas.height = TERM_CANVAS_H;
   const termContext = termCanvas.getContext('2d');
+  // K5: the light theme's idle ground — a top-lit LCD grey-green, not the
+  // near-black it replaced (judged "too dark" at the counter)
   const termGlow = termContext.createLinearGradient(0, 0, 0, TERM_CANVAS_H);
-  termGlow.addColorStop(0, '#16211c');
-  termGlow.addColorStop(1, '#0b110e');
+  termGlow.addColorStop(0, '#E9EEE9');
+  termGlow.addColorStop(1, '#D6DDD6');
   const termTexture = new THREE.CanvasTexture(termCanvas);
   termTexture.colorSpace = THREE.SRGBColorSpace;
   termTexture.anisotropy = 8;
@@ -2731,17 +2733,26 @@ export function createRegisterMode(B) {
   // no more prominent than the word above it. Reported as "the DUE / TOTAL
   // panel reads dated".
   //
-  // What replaces it is how a current payment terminal actually reads: ONE dark
+  // What replaces it is how a current payment terminal actually reads: ONE
   // ground, and hierarchy carried by type and space instead of by coloured
   // boxes. A quiet status line at the top; a small letterspaced eyebrow naming
   // what the figure is; the figure itself dominant, left-aligned on a real
   // margin; a hairline; the prompt small and muted underneath. Colour appears
   // once, as the accent — green normally, red on a decline or an entry error —
   // and never as a background.
-  const TERM_INK = '#F2F6F3';
-  const TERM_INK_MUTED = '#8B9A93';
-  const TERM_ACCENT = '#4FD08A';
-  const TERM_WARN = '#E4695A';
+  //
+  // K5 (2026-08-05): that ground was near-black (#0D1211, luma 17/255) and was
+  // judged "too dark. Lighten it. Keep the amount dominant." Lightening a dark
+  // ground under a near-white figure can only CUT the figure's contrast, so
+  // the theme flips polarity instead — light glass, near-black amount — the
+  // way a real terminal's light mode reads. Both themes are measured on the
+  // live canvas by tools/qa/reader-theme-shots.js (K5_LEG=before|after); the
+  // measured deltas live in qa/electron/reader-theme-k5/. The hierarchy
+  // (152 px figure over a 52 px KEYED line) is untouched.
+  const TERM_INK = '#0B100D';
+  const TERM_INK_MUTED = '#5E6C64';
+  const TERM_ACCENT = '#178A52';
+  const TERM_WARN = '#BC3F30';
   // canvas letterSpacing is Chromium-only; the caps still read without it
   const setTermTracking = (ctx, px) => {
     try { ctx.letterSpacing = `${px}px`; } catch { /* older canvas */ }
@@ -2762,7 +2773,7 @@ export function createRegisterMode(B) {
     const left = x0 + 34;              // the margin everything hangs off
     ctx.save();
     termRoundedPath(ctx, x0, TERM_PAD, w, inner, 16);
-    ctx.fillStyle = '#0D1211';
+    ctx.fillStyle = '#F4F7F4';
     ctx.fill();
     ctx.clip();
 
@@ -2790,12 +2801,12 @@ export function createRegisterMode(B) {
     const brandLeft = paymentEnd + 34;
     const brandName = displayClubName().toUpperCase();
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(139,154,147,0.75)';
+    ctx.fillStyle = 'rgba(94,108,100,0.80)';
     setFittedCanvasFont(ctx, brandName, {
       maxWidth: Math.max(60, brandRight - brandLeft), startSize: 18, minimumSize: 11, weight: 600,
     });
     ctx.fillText(brandName, brandRight, statusY + 1);
-    ctx.fillStyle = 'rgba(232,240,236,0.10)';
+    ctx.fillStyle = 'rgba(15,23,18,0.14)';
     ctx.fillRect(left, statusY + 30, w - 68, 2);
 
     // --- the eyebrow: what the figure below IS -------------------------------
@@ -2859,7 +2870,7 @@ export function createRegisterMode(B) {
 
     // --- the prompt, secondary ----------------------------------------------
     if (footer) {
-      ctx.fillStyle = 'rgba(232,240,236,0.10)';
+      ctx.fillStyle = 'rgba(15,23,18,0.14)';
       ctx.fillRect(left, tailY + 44, w - 68, 2);
       setTermTracking(ctx, 1.4);
       ctx.fillStyle = footerInk ? tone : TERM_INK_MUTED;
@@ -2872,7 +2883,7 @@ export function createRegisterMode(B) {
 
     // a single hairline edge, so the glass reads as glass and not as a hole
     termRoundedPath(ctx, x0 + 1.5, TERM_PAD + 1.5, w - 3, inner - 3, 15);
-    ctx.strokeStyle = 'rgba(232,240,236,0.13)';
+    ctx.strokeStyle = 'rgba(15,23,18,0.20)';
     ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
@@ -2885,7 +2896,7 @@ export function createRegisterMode(B) {
     const ctx = termContext;
     const W = termCanvas.width;
     const H = termCanvas.height;
-    ctx.fillStyle = '#0e1512';
+    ctx.fillStyle = '#1A211D';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = termGlow;
     ctx.fillRect(6, 6, W - 12, H - 12);
@@ -2895,14 +2906,14 @@ export function createRegisterMode(B) {
     const cardActive = !!(tx && tx.method === 'card');
     if (!cardActive) {
       const brand = displayClubName().toUpperCase();
-      ctx.fillStyle = '#e9e2cc';
+      ctx.fillStyle = '#1B241F';
       setFittedCanvasFont(ctx, brand, {
         maxWidth: W - 70,
         startSize: 58,
         minimumSize: 28,
       });
       ctx.fillText(brand, W / 2, H * 0.40);
-      ctx.fillStyle = '#7d8b81';
+      ctx.fillStyle = '#5E6C64';
       ctx.font = '600 34px Arial, sans-serif';
       ctx.fillText('READY', W / 2, H * 0.62);
       termRenderSignature = signature;
@@ -2972,7 +2983,7 @@ export function createRegisterMode(B) {
       });
     } else {
       const brand = displayClubName().toUpperCase();
-      ctx.fillStyle = '#e9e2cc';
+      ctx.fillStyle = '#1B241F';
       setFittedCanvasFont(ctx, brand, {
         maxWidth: W - 70,
         startSize: 50,
