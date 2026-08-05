@@ -98,7 +98,9 @@ function beginCartTrip(_state, reservation, { at = null } = {}) {
 
 const r2 = (value) => Math.round(Number(value || 0) * 100) / 100;
 const absoluteMinute = (dayAbs, minute) => dayAbs * 1440 + minute;
-const dateKey = (dayAbs) => {
+// exported for the ledger book (L3), which stamps the same calendar format
+// into its date columns as the sheet itself uses
+export const dateKey = (dayAbs) => {
   const cal = calendarOf(dayAbs * 1440);
   return `Y${cal.year}-${cal.seasonName}-D${cal.dayOfSeason}`;
 };

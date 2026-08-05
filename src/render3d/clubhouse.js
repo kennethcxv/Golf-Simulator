@@ -19,7 +19,7 @@ import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  FRONT_DESK, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
+  FRONT_DESK, FRONT_DESK_FRAME, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
   COUNTER_TOP, fixtureBrowsePoint, frontDeskPoint,
   CLUBHOUSE_LAYOUT_VARIANT,
   CLUBHOUSE_VARIANT_REQUEST,
@@ -37,6 +37,7 @@ import {
   setPlacementSpotlightAim,
 } from '../sim/propertyInventory.js';
 import { buildPropertyFurnitureVisual } from './clubhouse/propertyFurnitureVisuals.js';
+import { createLedgerBook } from './clubhouse/ledgerBook.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
   openFlap, takeFromBox, flattenBox, recycleCarriedBox,
@@ -10068,6 +10069,60 @@ export function makeClubhouse(ctx) {
   // The bridge never mutates reservation status or money; it only supplies the due
   // list, resolves the exact waiting person, and releases that presentation after
   // the sim-layer payment has committed.
+  // L3 — THE LEDGER BOOK. A bound club register on the front desk: a prop
+  // with an E prompt, opened in place by main.js (enterLedger, the laptop
+  // focus pattern). It is a LENS on the identity directory's visit history
+  // (src/sim/clubRoster.js) — it owns no state and grants nothing.
+  const ledgerBook = createLedgerBook({
+    THREE,
+    state,
+    anchor: FRONT_DESK.ledger,
+    counterTop: COUNTER_TOP,
+    // moving the book persists its spot; the E/X prop follows it below
+    onPlaced: (spot) => {
+      if (state.shop) state.shop.ledgerSpot = { ...spot };
+      const world = L2W(spot.x, spot.z);
+      ledgerProp.x = world.x;
+      ledgerProp.z = world.z;
+      ledgerProp.aimY = interior.position.y + spot.y + 0.03;
+    },
+  });
+  suppressInteriorSunShadows(ledgerBook.root);
+  interior.add(ledgerBook.root);
+  const ledgerProp = (() => {
+    const start = ledgerBook.position();
+    const world = L2W(start.x, start.z);
+    return addProp({
+      x: world.x,
+      z: world.z,
+      // reachable from the till across the counter (the staff stand is
+      // 1.77 yd from the spawn spot; the laptop's own prop reaches 2.3)
+      r: 2.2,
+      // The book can lie INSIDE the tee desk's own E zone (r 2.2 at the
+      // register point), which otherwise swallows every press at the counter.
+      // Scoring the book as a true 3D aim target (the stacked-carton pattern)
+      // makes LOOKING AT THE BOOK act on the book, while a level glance
+      // across the desk still serves the desk. aimY is WORLD height - the
+      // score compares against the world camera, and this site does not sit
+      // at y=0.
+      aimY: interior.position.y + start.y + 0.03,
+      focusBias: 0.55,
+      label: () => (ledgerBook.isOpen() || ledgerBook.isCarried()
+        ? null
+        : 'Club register - [E] read · [X] carry'),
+      action: () => { if (hooks.openLedger) hooks.openLedger(); },
+      secondaryAction: () => {
+        if (ledgerBook.isOpen() || ledgerBook.isCarried()) return;
+        if (carriedBox(state) || carriedGoods(state)) {
+          if (hooks.toast) hooks.toast('Your arms are already full.', 'warn');
+          return;
+        }
+        ledgerBook.setCarried(true);
+        if (hooks.toast) hooks.toast('Carrying the club register. [Z] sets it down.');
+      },
+    });
+  })();
+
   B.frontDeskReservations = {
     // due by the book, plus whoever is PHYSICALLY here for a booking — a guest who walks
     // in ten minutes early must show on the desk while they stand at it
@@ -11088,6 +11143,17 @@ export function makeClubhouse(ctx) {
     updateDeliveryBoxTransfers(dt);
     updateCustomers(dt);
     register.update(dt);
+    if (ledgerBook.isCarried()) {
+      // the carried book rides one forearm's length ahead, waist high
+      const off = interior.position;
+      ledgerBook.followCarry({
+        x: walk.x - Math.sin(walk.yaw) * 0.52 - off.x,
+        z: walk.z - Math.cos(walk.yaw) * 0.52 - off.z,
+        y: 0.98,
+        ry: walk.yaw,
+      });
+    }
+    ledgerBook.update(dt);
     updateStockFlights(dt);
     updateBoxLifecycleAnimations(dt);
     updateRecyclingDrop(dt);
@@ -11449,6 +11515,31 @@ export function makeClubhouse(ctx) {
     //     fetched again. There is no floor entity for loose product, so inventing one here
     //     would be a bigger change than the report asks for.
     setDownCarried: (aheadX, aheadZ, ry = 0) => {
+      // the carried LEDGER first: it never coexists with a carried box (the
+      // pick-up refuses full arms), so this order costs nothing
+      if (ledgerBook.isCarried()) {
+        const local = W2L(aheadX, aheadZ);
+        // inverse of frontDeskPoint: is the drop point ON the desk?
+        const dx = local.x - FRONT_DESK_FRAME.x;
+        const dz = local.z - FRONT_DESK_FRAME.z;
+        const cos = Math.cos(FRONT_DESK_FRAME.ry);
+        const sin = Math.sin(FRONT_DESK_FRAME.ry);
+        const deskX = dx * cos - dz * sin;
+        const deskZ = dx * sin + dz * cos;
+        const onDesk = Math.abs(deskX) <= 2.35 && Math.abs(deskZ) <= 0.50;
+        ledgerBook.placeAt({
+          x: local.x,
+          z: local.z,
+          y: onDesk ? COUNTER_TOP : 0.001,
+          ry,
+        });
+        sfx('boxdown');
+        return {
+          ok: true,
+          kind: 'ledger',
+          message: onDesk ? 'Set the club register on the desk.' : 'Set the club register down.',
+        };
+      }
       const box = carriedBox(state);
       if (box) {
         const local = W2L(aheadX, aheadZ);
@@ -11824,6 +11915,8 @@ export function makeClubhouse(ctx) {
     // through B; an acceptance run that has to PLAY the desk (a check-in is a
     // player action) had no way in at all.
     frontDeskBridge: () => B.frontDeskReservations || null,
+    // L3: the club register on the desk - main.js opens it (enterLedger)
+    ledgerBook,
     collisionDiagnostics: () => Object.freeze(registeredCols.map((collider, index) => {
       const primitiveMetadata = {};
       for (const [key, value] of Object.entries(collider)) {

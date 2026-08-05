@@ -663,6 +663,17 @@ export const FRONT_DESK = Object.freeze({
   // rather than needing their own edits — which is what the proposal predicted
   // and what the acceptance harnesses re-check.
   laptop: Object.freeze(frontDeskPose(1.75, 0.24, 0)),
+  // L3: the club register SPAWNS in the west-end paperwork cluster, beside
+  // the clipboard - ruled 2026-08-05: "the physical ledger book should not be
+  // spawned in at the middle of the checkout desk". It is a MOVEABLE prop
+  // ([X] carry / [Z] set down, persisted in state.shop.ledgerSpot), so this
+  // anchor is only where a new club finds it. The slight yaw reads as a book
+  // someone actually put down.
+  // Front half of the west end: the back rail there belongs to the phone
+  // (-2.08), clipboard (-1.56) and lamp point (-1.12), and the first spawn on
+  // that rail opened the spread INTO the phone (photographed). The front-half
+  // spot keeps the open book clear of all three.
+  ledger: Object.freeze(frontDeskPose(-1.70, 0.14, 0.14)),
   phone: Object.freeze(frontDeskPose(-2.08, -0.16, 0.12)),
   deskLamp: Object.freeze(frontDeskPose(-1.12, -0.12, 0)),
   clipboard: Object.freeze(frontDeskPose(-1.56, -0.17, 0.18)),

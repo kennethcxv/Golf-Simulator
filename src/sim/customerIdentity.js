@@ -107,6 +107,8 @@ function defaultVisitHistory() {
     cashPayments: 0,
     cardPayments: 0,
     lifetimeSpend: 0,
+    // L3: the ledger book's "first visit" column. Set once, never rewritten.
+    firstVisitDayAbs: null,
     lastVisitDayAbs: null,
     lastVisitPurpose: null,
     lastPaymentMethod: null,
@@ -441,6 +443,9 @@ export function recordCustomerVisit(state, customerId, {
   if (!customer) return { ok: false, reason: 'Unknown customer identity.' };
   const history = customer.visitHistory;
   if (countsAsVisit) history.totalVisits += 1;
+  if (countsAsVisit && history.firstVisitDayAbs == null && Number.isFinite(dayAbs)) {
+    history.firstVisitDayAbs = dayAbs;
+  }
   if (outcome === 'purchase') history.completedPurchases += 1;
   if (outcome === 'check-in') history.completedCheckIns += 1;
   if (outcome === 'no-show') history.noShows += 1;
@@ -477,6 +482,7 @@ function migratedHistory(legacy, baseline) {
     cashPayments: finiteNonNegative(source.cashPayments, baseline.cashPayments),
     cardPayments: finiteNonNegative(source.cardPayments, baseline.cardPayments),
     lifetimeSpend: finiteNonNegative(source.lifetimeSpend ?? source.totalSpent, baseline.lifetimeSpend),
+    firstVisitDayAbs: nullableFinite(source.firstVisitDayAbs, baseline.firstVisitDayAbs),
     lastVisitDayAbs: nullableFinite(source.lastVisitDayAbs, baseline.lastVisitDayAbs),
     lastVisitPurpose: typeof source.lastVisitPurpose === 'string' ? source.lastVisitPurpose : baseline.lastVisitPurpose,
     lastPaymentMethod: PAYMENT_PREFERENCES.includes(source.lastPaymentMethod)

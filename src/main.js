@@ -468,6 +468,82 @@ function exitFrontDesk(silent = false) {
   }
 }
 
+// --- the ledger book (L3) -----------------------------------------------------
+// The club register on the front desk opens IN PLACE: the camera leans over the
+// open spread (the laptop focus pattern), pages turn physically, Escape or E
+// stands back up. No DOM UI — the book itself is the interface.
+const LEDGER_FOV = 40;
+let ledgerKeyHandler = null;
+let ledgerClickHandler = null;
+function ledgerBookApi() {
+  const ch = app.scene3d?.clubhouse?.();
+  return ch && ch.ledgerBook ? ch.ledgerBook : null;
+}
+function enterLedger() {
+  if (!walkActive() || app.ledgerOpen || app.laptopOpen || app.frontDeskOpen || regActive()) return;
+  const book = ledgerBookApi();
+  if (!book) return;
+  cancelToolKey();
+  setCameraLens(LEDGER_FOV, WALK_NEAR);
+  const pose = book.readPose();
+  if (!pose) { setCameraLens(walkFov(), WALK_NEAR); return; }
+  app.ledgerOpen = true;
+  document.body.classList.add('ledger-mode');
+  resetCameraInput();
+  book.setOpen(true);
+  app.scene3d.walk.focusOn(pose);
+  if (document.pointerLockElement) document.exitPointerLock();
+  closeLeftPanels('none');
+  walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
+  ledgerKeyHandler = (event) => {
+    if (!app.ledgerOpen) return;
+    const key = event.key.toLowerCase();
+    if (key === 'escape' || key === 'e') {
+      event.preventDefault();
+      event.stopPropagation();
+      exitLedger();
+    } else if (key === 'arrowright' || key === 'd') {
+      event.preventDefault();
+      const turned = ledgerBookApi()?.turnPage(1);
+      if (turned && audio.ready) audio.uiTick();
+    } else if (key === 'arrowleft' || key === 'a') {
+      event.preventDefault();
+      const turned = ledgerBookApi()?.turnPage(-1);
+      if (turned && audio.ready) audio.uiTick();
+    }
+  };
+  ledgerClickHandler = (event) => {
+    if (!app.ledgerOpen) return;
+    const direction = event.clientX > window.innerWidth / 2 ? 1 : -1;
+    const turned = ledgerBookApi()?.turnPage(direction);
+    if (turned && audio.ready) audio.uiTick();
+  };
+  window.addEventListener('keydown', ledgerKeyHandler, true);
+  window.addEventListener('pointerdown', ledgerClickHandler, true);
+  if (audio.ready) audio.uiTick();
+}
+function exitLedger(silent = false) {
+  if (!app.ledgerOpen) return;
+  app.ledgerOpen = false;
+  document.body.classList.remove('ledger-mode');
+  if (ledgerKeyHandler) window.removeEventListener('keydown', ledgerKeyHandler, true);
+  if (ledgerClickHandler) window.removeEventListener('pointerdown', ledgerClickHandler, true);
+  ledgerKeyHandler = null;
+  ledgerClickHandler = null;
+  ledgerBookApi()?.setOpen(false);
+  app.scene3d?.walk?.clearFocus?.();
+  setCameraLens(walkFov(), WALK_NEAR);
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
+  resetCameraInput();
+  if (!silent && walkActive()) {
+    walkOverlay.style.display = '';
+    if (audio.ready) audio.uiTick();
+  }
+}
+
 const audio = makeAudio(preferences);
 app.audio = audio;
 const TOOL_AUDIO_LOOP = {
@@ -814,6 +890,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = (startPage = null) => enterLaptop(startPage);
+  app.scene3d.walk.hooks.openLedger = () => enterLedger();
   app.scene3d.walk.hooks.openFrontDesk = (reservationId) => enterFrontDesk(reservationId);
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
