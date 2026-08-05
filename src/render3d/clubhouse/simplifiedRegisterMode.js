@@ -2464,6 +2464,15 @@ export function createRegisterMode(B) {
       : [];
   }
 
+  // L1: the resolver's verdict on the customer's asked time — exact / near /
+  // nothing-close — so the detail panel can say what the buttons mean.
+  function walkInAsk(customerId) {
+    const bridge = reservationBridge();
+    return bridge && typeof bridge.walkInAskFor === 'function'
+      ? bridge.walkInAskFor(customerId)
+      : null;
+  }
+
   function activeReservation() {
     return reservationsWaiting().find((reservation) => reservation.id === selectedReservationId) || null;
   }
@@ -2650,12 +2659,16 @@ export function createRegisterMode(B) {
         id: `walkin:${customer.customerId}`,
         actionId: `select-walkin:${customer.customerId}`,
         name: customer.fullName || customer.name,
-        time: 'Walk-in tee request',
+        // L1: the row leads with what they ASKED for, not a generic label
+        time: Number.isFinite(customer.requestedTeeMinute)
+          ? `Asks ${fmtSlot(customer.requestedTeeMinute)}`
+          : 'Walk-in tee request',
         partySize: customer.partySize || 1,
         status: customer.queueIndex === 0 ? 'AT DESK' : 'IN QUEUE',
         disabled: locked,
       }));
       const slots = selectedWalkIn ? walkInSlots(selectedWalkIn.customerId).slice(0, 3) : [];
+      const ask = selectedWalkIn ? walkInAsk(selectedWalkIn.customerId) : null;
       const allRows = [...walkInRows, ...reservationRows];
       const rowsPerPage = 5;
       const pageCount = Math.max(1, Math.ceil(allRows.length / rowsPerPage));
@@ -2669,14 +2682,22 @@ export function createRegisterMode(B) {
         selectedReservation: selectedWalkIn ? {
           id: `walkin:${selectedWalkIn.customerId}`,
           name: selectedWalkIn.fullName || selectedWalkIn.name,
-          time: 'Choose an available tee time',
+          time: ask ? `Asking for ${fmtSlot(ask.asked)}` : 'Choose an available tee time',
           partySize: selectedWalkIn.partySize || 1,
           visit: 'Walk-in tee request',
           extras: 'Manual same-day slot selection',
           depositPaid: 0,
           balanceDue: (state.club ? state.club.greenFee : 0) * (selectedWalkIn.partySize || 1),
           status: selectedWalkIn.queueIndex === 0 ? 'READY AT DESK' : 'WAITING IN QUEUE',
-          note: slots.length ? 'Choose one of the next capacity-safe openings.' : 'No same-day capacity remains.',
+          // L1: the note states the resolver's verdict on the ask, so the
+          // player knows whether the top button IS the asked time
+          note: ask
+            ? (ask.verdict?.exact
+              ? `${fmtSlot(ask.asked)} is open. The first time below books their ask.`
+              : ask.verdict?.ok
+                ? `${fmtSlot(ask.asked)} is not available. The nearest open time is ${fmtSlot(ask.verdict.slot.minute)}.`
+                : ask.verdict?.reason || 'Nothing near their asked time remains.')
+            : slots.length ? 'Choose one of the next capacity-safe openings.' : 'No same-day capacity remains.',
         } : selected ? {
           ...selected,
           name: selected.fullName || selected.name,
@@ -2691,7 +2712,10 @@ export function createRegisterMode(B) {
         actions: selectedWalkIn ? [
           ...slots.map((slot) => ({
             id: `select-walkin-slot:${selectedWalkIn.customerId}:${slot.dayAbs}:${slot.minute}`,
-            label: `${fmtSlot(slot.minute)} · ${slot.remainingCapacity} open`,
+            // the asked slot says so on its face
+            label: slot.askedExact
+              ? `${fmtSlot(slot.minute)} · their ask`
+              : `${fmtSlot(slot.minute)} · ${slot.remainingCapacity} open`,
             kind: 'primary',
             disabled: locked || selectedWalkIn.queueIndex !== 0,
           })),

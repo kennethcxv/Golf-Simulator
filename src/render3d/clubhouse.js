@@ -100,6 +100,7 @@ import { ceilingCircuitPowered as ceilingCircuitPoweredSim } from '../sim/clubho
 import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
+  slotTimes, resolveTeeTimeRequest,
 } from '../sim/reservations.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
@@ -9104,12 +9105,35 @@ export function makeClubhouse(ctx) {
     // complete. Wanting a tee time is a PURPOSE, not a personality trait; a
     // hurried golfer asks for one faster, not never. Purpose stays the gate.
     const walkInRequest = !toCounter
-      && options.allowWalkInRequest === true
-      && identity.visitProfile.preferredPurpose === 'tee-time';
+      && (options.forceWalkIn === true
+        || (options.allowWalkInRequest === true
+          && identity.visitProfile.preferredPurpose === 'tee-time'));
     const customerType = reservationId != null
       ? (reservation.customerType || 'reservation')
       : walkInRequest ? 'walk-in-tee' : 'retail';
     const rng = rngOf(state);
+    // L1 (2026-08-05): a walk-in golfer arrives ASKING FOR A TIME — the ask
+    // is the errand. Until now no ask existed at the live desk: the check-in
+    // tab could only deal generic next openings, so "book them in at the
+    // time they asked" was impossible by construction. The ask is a minute
+    // off the sheet's own grid, at least the walk-in lead out, biased toward
+    // the next couple of hours the way a same-day caller actually asks — and
+    // deliberately blind to availability: people ask for the time they want,
+    // and the desk reconciles it against the sheet (resolveTeeTimeRequest,
+    // walk report B6's scheduler).
+    let walkInAskMinute = null;
+    if (walkInRequest) {
+      if (Number.isFinite(options.requestedTeeMinute)) {
+        walkInAskMinute = Math.floor(options.requestedTeeMinute);
+      } else {
+        const nowMinute = state.clock.minutes % 1440;
+        const grid = slotTimes(state).filter((minute) => minute >= nowMinute + 30);
+        if (grid.length) {
+          const reach = Math.pow(rng.next(), 1.6); // biased toward soon
+          walkInAskMinute = grid[Math.min(grid.length - 1, Math.floor(reach * Math.min(grid.length, 10)))];
+        }
+      }
+    }
     const visitorId = `visitor-${state.shop.nextVisitorId++}`;
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
@@ -9151,6 +9175,7 @@ export function makeClubhouse(ctx) {
     // A tee-time arrival gets one too, on a roll, and carries it as
     // `pendingRetail` until the desk is finished with them.
     const combinedIntent = (toCounter || walkInRequest)
+      && options.skipRetailPlan !== true
       && rng.chance(COMBINED_VISIT_CHANCE)
       && placedFixtures(state).some((f) => f.skus && f.skus.length > 0);
     const retailPlan = (!toCounter && !walkInRequest) || combinedIntent
@@ -9218,6 +9243,7 @@ export function makeClubhouse(ctx) {
       reservationId,
       groupMembers: reservation?.groupMembers ? [...reservation.groupMembers] : [],
       teeTime: reservation?.minute ?? null,
+      requestedTeeMinute: walkInAskMinute,
       arrivalTime: reservation?.arrivalTime ?? (reservationId != null ? state.clock.minutes : null),
       paymentStatus: reservation?.paymentStatus || 'pending',
       reservationStatus: reservation?.status || null,
@@ -10063,6 +10089,11 @@ export function makeClubhouse(ctx) {
         phase: customer.checkoutPhase,
         queued: customer.queued,
         queueIndex: customer.queued ? counterQueue.indexOf(customer) : -1,
+        // L1: the ask crosses the bridge — the desk cannot honour a time it
+        // never hears
+        requestedTeeMinute: Number.isFinite(customer.requestedTeeMinute)
+          ? customer.requestedTeeMinute
+          : null,
       })),
     customerFor: (id) => customers.find((c) => sameReservationId(c.reservationId, id)) || null,
     readyCustomerFor: (id) => {
@@ -10089,10 +10120,42 @@ export function makeClubhouse(ctx) {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
       if (!customer || !openWalkInCustomer(customer)) return [];
       const dayAbs = Math.floor(state.clock.minutes / 1440);
-      return walkInAvailability(state, {
+      const slots = walkInAvailability(state, {
         dayAbs,
         partySize: customer.partySize || 1,
       });
+      const asked = Number.isFinite(customer.requestedTeeMinute)
+        ? customer.requestedTeeMinute
+        : null;
+      if (asked == null) return slots;
+      // L1: the desk ANSWERS THE ASK — nearest-to-asked first (the resolver's
+      // own metric, ties to the earlier slot), with the exact match flagged so
+      // the UI can say "their asked time" instead of dealing three arbitrary
+      // openings
+      return [...slots]
+        .sort((a, b) => (
+          Math.abs(a.minute - asked) - Math.abs(b.minute - asked) || a.minute - b.minute
+        ))
+        .map((slot) => ({
+          ...slot,
+          askedExact: slot.minute === asked,
+          deltaFromAskMin: slot.minute - asked,
+        }));
+    },
+    walkInAskFor: (customerId) => {
+      const customer = customers.find((candidate) => candidate.customerId === customerId);
+      if (!customer || !openWalkInCustomer(customer)) return null;
+      const asked = Number.isFinite(customer.requestedTeeMinute)
+        ? customer.requestedTeeMinute
+        : null;
+      if (asked == null) return null;
+      const dayAbs = Math.floor(state.clock.minutes / 1440);
+      return {
+        asked,
+        verdict: resolveTeeTimeRequest(state, dayAbs, asked, {
+          partySize: customer.partySize || 1,
+        }),
+      };
     },
     bookWalkIn: (customerId, dayAbs, minute) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
@@ -10666,7 +10729,12 @@ export function makeClubhouse(ctx) {
           if (char) char.setMode('Idle');
           if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0) {
             c.deskGreetingSpoken = true;
-            c.dialogue = `Hi, do you have anything open for ${c.partySize || 1}?`;
+            // L1: the ask is SPOKEN — the monitor row then corroborates it
+            c.dialogue = Number.isFinite(c.requestedTeeMinute)
+              ? ((c.partySize || 1) > 1
+                ? `Hi, could we get ${fmtSlot(c.requestedTeeMinute)} for ${c.partySize}?`
+                : `Hi, could I get the ${fmtSlot(c.requestedTeeMinute)} tee time?`)
+              : `Hi, do you have anything open for ${c.partySize || 1}?`;
             say(c.dialogue);
           }
         // the head of the line with a basket waits for the PLAYER to ring
@@ -11509,6 +11577,33 @@ export function makeClubhouse(ctx) {
       const alreadyReleased = customer.reservationReleased;
       releaseReservationCustomer(customer, 'completed');
       return { ok: true, alreadyReleased, customer: reservationCustomerSnapshot(customer) };
+    },
+    // The desk-errand sibling of sendToCounter(): a walk-in golfer standing at
+    // the service queue asking for a tee time. Same contract — it skips the
+    // floor walk, not the accounting; the ask, the queue join, and the booking
+    // all run the production path. options.requestedTeeMinute pins the ask
+    // for deterministic tests; omitted, the customer draws one at spawn.
+    sendWalkInToDesk(options = {}) {
+      const c = spawnCustomer(false, null, {
+        forceWalkIn: true,
+        // a staged desk errand is pure: a rolled combined-visit retail plan
+        // would send the walker to the shelves instead of the queue
+        skipRetailPlan: true,
+        requestedTeeMinute: options.requestedTeeMinute,
+      });
+      if (!c) return null;
+      c.scriptedVisit = true;
+      const q = queueSlotW(0);
+      c.mesh.position.set(q.x, c.mesh.position.y, q.z);
+      const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      c.stops = [
+        { kind: 'counter', x: q.x, z: q.z, faceX: regW.x, faceZ: regW.z },
+        { kind: 'exit', x: doorW.x, z: doorW.z + 2.6 },
+        { kind: 'gone', x: doorW.x, z: doorW.z + 6 },
+      ];
+      c.stopIdx = 0;
+      c.entered = true;
+      return c;
     },
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
