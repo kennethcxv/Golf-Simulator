@@ -27,6 +27,20 @@ export const RUN_MULTIPLIER = 1.8;
 export const RUN_SPEED_YD_S = WALK_SPEED_YD_S * RUN_MULTIPLIER;
 
 /**
+ * Shift-to-run multiplier WHILE A CLEANING TOOL IS OUT (I2, 2026-08-05).
+ * Empty-handed run is 6.12 yd/s; carrying a two-handed tool at that speed read
+ * as "100 mph" on screen. 1.25 keeps run meaningfully faster than the 3.4 walk
+ * without the sprint read. One number for every tool on purpose: they are all
+ * two-handed carries, and a per-tool spread here is a difference no player can
+ * see — while every constant derived from "the fastest you can move while
+ * sweeping" (BROOM_FEEL.dirt.pushSpeed) has to chase the WORST case anyway.
+ */
+export const TOOL_RUN_MULTIPLIER = 1.25;
+
+/** Top ground speed with a cleaning tool out, yards per second. */
+export const TOOL_RUN_SPEED_YD_S = WALK_SPEED_YD_S * TOOL_RUN_MULTIPLIER;
+
+/**
  * The gait oscillator, radians per second, under way. Every rig that bobs with
  * the player's steps — the characters, the first-person camera, a held tool —
  * must use this one, or a held tool bobs out of phase with the body carrying it

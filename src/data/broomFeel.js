@@ -14,7 +14,7 @@
 // floor plane instead of the hands. Each block below exists to close one of
 // those causes.
 
-import { WALK_SPEED_YD_S, STRIDE_RATE_RAD_S } from './locomotion.js';
+import { STRIDE_RATE_RAD_S, TOOL_RUN_SPEED_YD_S } from './locomotion.js';
 
 export const BROOM_FEEL = Object.freeze({
   // --- the viewmodel camera -------------------------------------------------
@@ -320,10 +320,14 @@ export const BROOM_FEEL = Object.freeze({
   // against the same stale literal the comment did. Derived from the authority
   // now, so it moves when locomotion does and no copy can go stale.
   dirt: Object.freeze({
-    // 15% clear of an ordinary walk. Not clear of a RUN (6.12 yd/s) — a
-    // sprinting player does outrun the bristles, which is fair and is what
-    // sprinting past your own work should feel like.
-    pushSpeed: +(WALK_SPEED_YD_S * 1.15).toFixed(2),
+    // I2/I6 (2026-08-05): 15% clear of the FASTEST speed a player can sustain
+    // with the broom out — which is tool-run, not walk, now that I2 capped
+    // shift-with-tool at TOOL_RUN_SPEED_YD_S (4.25). Deriving from the walk
+    // while a faster tool-run existed would have recreated the original
+    // pushSpeed defect one shelf higher: an invariant true against one
+    // authority and false against the speed the player actually reaches.
+    // (Empty-handed sprint is 6.12 and irrelevant here: no broom, no push.)
+    pushSpeed: +(TOOL_RUN_SPEED_YD_S * 1.15).toFixed(2),
     // The hand speed at which sweep audio and particles reach full strength.
     // Deliberately BELOW a walk so an ordinary stroke reads at full intensity;
     // it lived in courseScene as a bare 2.2 that looked like the walk speed.

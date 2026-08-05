@@ -90,8 +90,8 @@ import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
 import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
 import {
-  WALK_SPEED_YD_S, RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S, EYE_HEIGHT_YD,
-  WALK_FOV_DEG,
+  WALK_SPEED_YD_S, RUN_MULTIPLIER, TOOL_RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S,
+  EYE_HEIGHT_YD, WALK_FOV_DEG,
 } from '../data/locomotion.js';
 import { GOLF_CART_TIERS, golfCartTier } from '../data/golfCarts.js';
 import { CLUBHOUSE_VARIANT_REQUEST, DOOR_MAIN, SHELL } from '../data/shopLayout.js';
@@ -8112,7 +8112,14 @@ export function makeCourseScene(canvas, state) {
     } else {
       animateTractor(dt, 0, 0, 0, false);
       updateClippings(dt, walk.x, 0, walk.z, false); // clippings settle after you hop off
-      const run = walkHeld.has('shift') ? walk.runMult : 1;
+      // I2: running with a cleaning tool out capped separately — 6.12 yd/s with
+      // a broom in both hands read as flat sprinting. The cap lives in
+      // locomotion.js so BROOM_FEEL.dirt.pushSpeed can derive from the SAME
+      // number and the push-beats-run invariant cannot silently split into two
+      // authorities again (the original pushSpeed defect, one layer up).
+      const run = walkHeld.has('shift')
+        ? (walkTool && CLEANING_TOOLS[walkTool] ? TOOL_RUN_MULTIPLIER : walk.runMult)
+        : 1;
       // a full armful or a heavy carton slows you down — sim/stocking says by how much
       const load = clubhouseApi && clubhouseApi.carrySpeedFactor ? clubhouseApi.carrySpeedFactor() : 1;
       const carryRadius = clubhouseApi && clubhouseApi.carryCollisionRadius
