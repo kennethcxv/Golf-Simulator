@@ -8,63 +8,68 @@
 //
 // The set was the movement half of the rule only. These tests pin the whole rule, and pin
 // the three exclusions that are deliberate.
+// N2/F2 ported this pin: the consumed set is no longer one static array but
+// WALK_CONSUMED_LITERALS plus every key the LIVE binding table claims
+// (walkConsumesKey). The rule it protects is unchanged - a key the game acts
+// on in walk mode is a key the page swallows - and now it must hold for
+// whatever the player rebinds to, not only the shipped letters.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { BINDABLE_ACTIONS, DEFAULT_BINDINGS, isBindableKey } from '../src/core/keyBindings.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const courseScene = read('../src/render3d/courseScene.js');
 const mainJs = read('../src/main.js');
 
-// The literal set, parsed from source. courseScene is a single 11k-line closure with no
-// export for this, and reading the array is honest: it is the same text the runtime uses.
-const consumedKeys = (() => {
-  const match = courseScene.match(/const WALK_CONSUMED_KEYS = new Set\(\[([\s\S]*?)\]\);/);
-  assert.ok(match, 'WALK_CONSUMED_KEYS not found in courseScene.js');
+// The literal half, parsed from source; the dynamic half is DEFAULT_BINDINGS,
+// imported from the same module the runtime resolves through.
+const literalKeys = (() => {
+  const match = courseScene.match(/const WALK_CONSUMED_LITERALS = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(match, 'WALK_CONSUMED_LITERALS not found in courseScene.js');
   return new Set([...match[1].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((m) => m[1].replace(/\\'/g, "'")));
 })();
+const consumedByDefault = new Set([
+  ...literalKeys,
+  ...BINDABLE_ACTIONS.map((action) => DEFAULT_BINDINGS[action.id]),
+]);
 
-test('the movement keys are consumed', () => {
-  for (const key of ['w', 'a', 's', 'd', 'shift', ' ', 'tab']) {
-    assert.ok(consumedKeys.has(key), `${JSON.stringify(key)} must be swallowed while pointer-locked`);
+test('every key of the pre-rebinding contract is still consumed on defaults', () => {
+  for (const key of ['w', 'a', 's', 'd', 'shift', ' ', 'tab',
+    'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+    'e', 'q', 'r', 'f', 'x', 'b', 'j', 'l', 'i', 'g', 'c', 'm', 'v', 'z']) {
+    const canonical = key === ' ' ? ' ' : key;
+    assert.ok(
+      consumedByDefault.has(canonical) || literalKeys.has(canonical),
+      `${JSON.stringify(key)} must be swallowed while pointer-locked`,
+    );
   }
-  for (const key of ['arrowup', 'arrowdown', 'arrowleft', 'arrowright']) {
-    assert.ok(consumedKeys.has(key), `${key} must be swallowed while pointer-locked`);
+});
+
+test('the consumed set follows the LIVE bindings, not the shipped letters', () => {
+  // walkConsumesKey must consult the binding table per press, so a verb
+  // rebound to any key drags the swallow with it.
+  assert.match(courseScene, /function walkConsumesKey\(key\)/);
+  assert.match(courseScene, /walkHooks\.bindings \? walkHooks\.bindings\(\) : DEFAULT_BINDINGS/);
+  assert.match(courseScene, /for \(const action of BINDABLE_ACTIONS\)/);
+});
+
+test('literal mode keys main.js still binds raw are in the literal set', () => {
+  // b (build), i (maintenance), g/c/m (panels) stay un-rebindable and must
+  // remain claimed by the page.
+  for (const key of ['b', 'i', 'g', 'c', 'm']) {
+    assert.ok(literalKeys.has(key), `${key} is a literal walk verb and must be swallowed`);
   }
 });
 
-test('X is consumed - the reported bug', () => {
-  // Win+X opens the Windows Quick Link menu, Ctrl+X cuts. Neither belongs to a player
-  // opening a box. preventDefault cannot stop the OS-level chord, but leaving the key
-  // unclaimed by the page is a defect in its own right.
-  assert.ok(consumedKeys.has('x'), 'X is the secondary-interact verb and must be swallowed');
-});
-
-test('every single-letter verb main.js binds in the walk branch is consumed', () => {
-  // The rule, stated as a test rather than as a comment: if the game acts on a key while
-  // the player is in the world, the page claims it. Derived from main.js's own switch so a
-  // new verb added there without adding it here is caught.
-  const walkBranch = mainJs.slice(
-    mainJs.indexOf('// first-person course: E is the interaction verb'),
-    mainJs.indexOf('// --- main loop ---'),
-  );
-  assert.ok(walkBranch.length > 500, 'could not locate the walk-mode key switch in main.js');
-  const verbs = new Set(
-    [...walkBranch.matchAll(/case '([a-z])': case '[A-Z]':/g)].map((m) => m[1]),
-  );
-  assert.ok(verbs.size >= 8, `expected the walk switch to bind several letters, found ${verbs.size}`);
-  const unclaimed = [...verbs].filter((key) => !consumedKeys.has(key)).sort();
-  assert.deepEqual(
-    unclaimed, [],
-    `main.js acts on these in walk mode but the page never claims them: ${unclaimed.join(', ')}`,
-  );
-});
-
-test('Escape and the F-keys are deliberately NOT consumed', () => {
+test('Escape and the F-keys are deliberately NOT consumed and NOT bindable', () => {
   // The player must always be able to break out, and Escape is what releases the lock.
-  for (const key of ['escape', 'f1', 'f5', 'f11', 'f12']) {
-    assert.equal(consumedKeys.has(key), false, `${key} must stay available as an escape hatch`);
+  for (const key of ['escape', 'f11', 'f12']) {
+    assert.equal(literalKeys.has(key), false, `${key} must stay available as an escape hatch`);
+    assert.equal(isBindableKey(key), false, `${key} must be refused by the binding table`);
   }
+  assert.equal(literalKeys.has('f1'), false);
+  assert.equal(literalKeys.has('f5'), false);
 });
 
 test('the swallow runs only while pointer-locked, and only after the text-entry filter', () => {
@@ -76,13 +81,13 @@ test('the swallow runs only while pointer-locked, and only after the text-entry 
     courseScene.indexOf('function walkKeyUp(e) {'),
   );
   const filterAt = downHandler.indexOf('isTextEntryTarget(e.target)');
-  const preventAt = downHandler.indexOf('WALK_CONSUMED_KEYS.has(key)) e.preventDefault()');
+  const preventAt = downHandler.indexOf('walkConsumesKey(key)) e.preventDefault()');
   assert.ok(filterAt > 0, 'the text-entry filter is missing from walkKeyDown');
   assert.ok(preventAt > 0, 'the preventDefault gate is missing from walkKeyDown');
   assert.ok(filterAt < preventAt, 'the text-entry filter must run BEFORE the swallow');
   assert.match(
     downHandler,
-    /document\.pointerLockElement === canvas && WALK_CONSUMED_KEYS\.has\(key\)\) e\.preventDefault\(\)/,
+    /document\.pointerLockElement === canvas && walkConsumesKey\(key\)\) e\.preventDefault\(\)/,
   );
 });
 
@@ -100,7 +105,7 @@ test('the movement block reports its intent, so a probe can tell three cases apa
   assert.match(courseScene, /const walkMoveIntent = \{\s*\n\s*recording: false,/);
   // And it must be recorded from the pre-collision intent, not from the post-move position.
   const block = courseScene.slice(
-    courseScene.indexOf("if (walkHeld.has('w')) mz -= 1;"),
+    courseScene.indexOf("if (heldAction('moveForward')) mz -= 1;"),
     courseScene.indexOf('walkRecover(dtMs, px0, pz0);'),
   );
   const intentAt = block.indexOf('walkMoveIntent.recording');

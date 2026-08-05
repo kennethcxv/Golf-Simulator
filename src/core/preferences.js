@@ -2,6 +2,8 @@
 // camera, renderer, laptop, and accessibility styles. One persisted document
 // prevents each surface from inventing its own idea of "settings".
 
+import { DEFAULT_BINDINGS, normalizeBindings } from './keyBindings.js';
+
 export const PREFERENCES_KEY = 'golfempire:preferences:v1';
 
 export const DEFAULT_PREFERENCES = Object.freeze({
@@ -30,6 +32,10 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     reducedMotion: false,
     highContrast: false,
     toolActivation: 'hold',
+  }),
+  // N2/F2: the one binding table every key read resolves through
+  controls: Object.freeze({
+    bindings: DEFAULT_BINDINGS,
   }),
 });
 
@@ -71,6 +77,9 @@ export function normalizePreferences(raw = {}) {
       reducedMotion: bool(accessibility.reducedMotion, DEFAULT_PREFERENCES.accessibility.reducedMotion),
       highContrast: bool(accessibility.highContrast, DEFAULT_PREFERENCES.accessibility.highContrast),
       toolActivation: oneOf(accessibility.toolActivation, ['hold', 'toggle'], DEFAULT_PREFERENCES.accessibility.toolActivation),
+    },
+    controls: {
+      bindings: normalizeBindings(raw.controls?.bindings),
     },
   };
 }

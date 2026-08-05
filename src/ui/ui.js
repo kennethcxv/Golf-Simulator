@@ -331,19 +331,67 @@ export function confirmDialog({
   }, { dismissOnBackdrop: false, initialFocus: '.dialog-actions button' });
 }
 
+// N2/F2 — prompts follow the BINDING, not the letter. Label strings all over
+// the game carry bracketed tokens written against the default keys ([E],
+// [X]...). This renderer is the one place those tokens become keycaps, so it
+// is the one place a rebind has to reach: each token maps to its ACTION and
+// the keycap prints whatever key that action is bound to right now. Source
+// strings stay untouched.
+import { describeKey } from '../core/keyBindings.js';
+
+const PROMPT_TOKEN_ACTIONS = Object.freeze({
+  E: 'interact',
+  X: 'carry',
+  Z: 'setDown',
+  F: 'toolBelt',
+  Q: 'dirtSense',
+  R: 'mowerBlades',
+  L: 'cartLights',
+  V: 'cartCamera',
+  TAB: 'overview',
+  P: 'pause',
+  W: 'moveForward',
+  A: 'moveLeft',
+  S: 'moveBack',
+  D: 'moveRight',
+  SHIFT: 'run',
+});
+
+let promptBindingsProvider = null;
+let promptBindingsRev = 0;
+export function setPromptBindingsProvider(provider) {
+  promptBindingsProvider = typeof provider === 'function' ? provider : null;
+  promptBindingsRev += 1;
+}
+export function bumpPromptBindings() {
+  promptBindingsRev += 1;
+}
+
+function displayPromptToken(token) {
+  const action = PROMPT_TOKEN_ACTIONS[String(token).toUpperCase()];
+  if (!action || !promptBindingsProvider) return token;
+  const key = promptBindingsProvider()?.[action];
+  return key ? describeKey(key) : token;
+}
+
 // Replaces bracketed legacy control tokens with consistent visual keycaps while
 // leaving the source text intact for screen readers.
 export function setPromptText(node, text) {
   const value = String(text || '');
-  if (node.dataset.promptText === value) return false;
+  const rev = String(promptBindingsRev);
+  if (node.dataset.promptText === value && node.dataset.promptRev === rev) return false;
   node.dataset.promptText = value;
+  node.dataset.promptRev = rev;
   node.replaceChildren();
   const pattern = /\[([^\]]+)\]|\b(LMB|RMB|LEFT|RIGHT)\b/g;
   let cursor = 0;
   let match;
   while ((match = pattern.exec(value))) {
     if (match.index > cursor) node.append(document.createTextNode(value.slice(cursor, match.index)));
-    node.append(el('kbd', { class: 'prompt-key', text: match[1] || match[2] }));
+    node.append(el('kbd', {
+      class: 'prompt-key',
+      text: match[1] ? displayPromptToken(match[1]) : match[2],
+    }));
     cursor = match.index + match[0].length;
   }
   if (cursor < value.length) node.append(document.createTextNode(value.slice(cursor)));

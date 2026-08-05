@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { BINDABLE_ACTIONS, DEFAULT_BINDINGS, keyForAction } from '../core/keyBindings.js';
 import { CachedGLTFLoader as GLTFLoader, clearGltfCache } from './gltfCache.js';
 import { initKTX2, ktx2Diagnostics } from './ktx2Support.js';
 import { sharedTextureDiagnostics } from './sharedTexturePool.js';
@@ -5949,7 +5950,7 @@ export function makeCourseScene(canvas, state) {
     }
 
     // 3. still pinned? escalate. (read the keys, not walkMoving — a wedged cart counts too)
-    const wants = walkHeld.has('w') || walkHeld.has('a') || walkHeld.has('s') || walkHeld.has('d');
+    const wants = heldAction('moveForward') || heldAction('moveLeft') || heldAction('moveBack') || heldAction('moveRight');
     const escalate = stuckMon.update(dtMs, { wantsToMove: wants, moved, overlapping });
     if (escalate) walkUnstick(escalate);
   }
@@ -7393,6 +7394,13 @@ export function makeCourseScene(canvas, state) {
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
+  // N2/F2 - the walker's own read path through the binding table. main.js
+  // provides walkHooks.bindings; headless tests without it get the defaults.
+  const boundWalkKey = (actionId) => keyForAction(
+    walkHooks.bindings ? walkHooks.bindings() : DEFAULT_BINDINGS,
+    actionId,
+  );
+  const heldAction = (actionId) => walkHeld.has(boundWalkKey(actionId));
   walkHooks.getTool = () => walkTool;
   walkHooks.toolAction = (toolId, action) => {
     const clips = {
@@ -7653,7 +7661,7 @@ export function makeCourseScene(canvas, state) {
     // Never let X short-circuit the contextual E release gate. In particular,
     // the placement key may still be physically down during the first frame
     // after a carton lands on a work surface.
-    if (walkHeld.has('e') || contextToolRequiresRelease) return false;
+    if (heldAction('interact') || contextToolRequiresRelease) return false;
     if (walkTool) walkSetTool(null);
     autoTool = null;
     walkFocus.prop.secondaryAction();
@@ -7680,7 +7688,7 @@ export function makeCourseScene(canvas, state) {
   function runHold(dt) {
     holdActive = false;
     if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.hold) return;
-    if (!walkHeld.has('e')) return;
+    if (!heldAction('interact')) return;
     if (walkFocus.prop !== holdPressProp) return;
     if (contextToolRequiresRelease) return;
     const requestedTool = walkFocus.prop.tool || null;
@@ -7732,11 +7740,22 @@ export function makeCourseScene(canvas, state) {
   // This still cannot stop a browser-RESERVED chord (Ctrl+W, Ctrl+T, Ctrl+L) — only the
   // Keyboard Lock API can, and that is declined (needs fullscreen, makes Escape a
   // press-and-hold). It does stop everything the page is allowed to claim.
-  const WALK_CONSUMED_KEYS = new Set([
-    'w', 'a', 's', 'd', 'shift', ' ', 'tab',
+  // Literal keys the walker always swallows while pointer-locked, plus
+  // whatever the binding table currently claims (N2/F2 - rebinding a verb to
+  // any key must also stop that key reaching the page).
+  const WALK_CONSUMED_LITERALS = new Set([
+    ' ', 'tab',
     'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-    'e', 'q', 'r', 'f', 'x', 'b', 'j', 'l', 'i', 'g', 'c', 'm', 'v', 'z',
+    'b', 'i', 'g', 'c', 'm',
   ]);
+  function walkConsumesKey(key) {
+    if (WALK_CONSUMED_LITERALS.has(key)) return true;
+    const bindings = walkHooks.bindings ? walkHooks.bindings() : DEFAULT_BINDINGS;
+    for (const action of BINDABLE_ACTIONS) {
+      if ((bindings[action.id] || action.defaultKey) === key) return true;
+    }
+    return false;
+  }
 
   function walkKeyDown(e) {
     walkReconcileModifiers(e, 'keydown');
@@ -7752,8 +7771,8 @@ export function makeCourseScene(canvas, state) {
     // claim. It cannot stop a browser-RESERVED chord (Ctrl+W, Ctrl+T, Ctrl+N in
     // Chrome) — only the Keyboard Lock API can, and that needs fullscreen and
     // makes Escape a press-and-hold. See OVERNIGHT_REPORT_2.md.
-    if (document.pointerLockElement === canvas && WALK_CONSUMED_KEYS.has(key)) e.preventDefault();
-    if (key === 'e' && !walkHeld.has(key)) {
+    if (document.pointerLockElement === canvas && walkConsumesKey(key)) e.preventDefault();
+    if (key === boundWalkKey('interact') && !walkHeld.has(key)) {
       holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold
         ? walkFocus.prop
         : null;
@@ -7763,9 +7782,9 @@ export function makeCourseScene(canvas, state) {
   function walkKeyUp(e) {
     walkReconcileModifiers(e, 'keyup');
     const key = e.key.toLowerCase();
-    if (document.pointerLockElement === canvas && WALK_CONSUMED_KEYS.has(key)) e.preventDefault();
+    if (document.pointerLockElement === canvas && walkConsumesKey(key)) e.preventDefault();
     walkHeld.delete(key);
-    if (key === 'e') {
+    if (key === boundWalkKey('interact')) {
       contextToolRequiresRelease = false;
       holdPressProp = null;
     }
@@ -8007,8 +8026,8 @@ export function makeCourseScene(canvas, state) {
         const visual = playerGolfCartVisual;
         const fleetCart = visual.cartState;
         const root = visual.root;
-        const forwardHeld = walkHeld.has('w');
-        const reverseHeld = walkHeld.has('s');
+        const forwardHeld = heldAction('moveForward');
+        const reverseHeld = heldAction('moveBack');
         const hardBrake = walkHeld.has(' ');
         const brakingInput = hardBrake
           || (reverseHeld && cart.velocity > 0.05)
@@ -8024,7 +8043,7 @@ export function makeCourseScene(canvas, state) {
         const velocityDelta = clamp(targetVelocity - cart.velocity, -response * dt, response * dt);
         cart.velocity += velocityDelta;
         if (Math.abs(cart.velocity) < 0.015 && targetVelocity === 0) cart.velocity = 0;
-        const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
+        const steer = (heldAction('moveLeft') ? 1 : 0) - (heldAction('moveRight') ? 1 : 0);
         let turnDelta = 0;
         if (steer && Math.abs(cart.velocity) > 0.035) {
           const speedAuthority = clamp(Math.abs(cart.velocity) / Math.max(2, cart.speed * 0.55), 0.22, 1);
@@ -8066,8 +8085,8 @@ export function makeCourseScene(canvas, state) {
         updateClippings(dt, walk.x, 0, walk.z, false);
       } else {
       // cart handling: W/S throttle along the heading, A/D steer — no strafing
-      const throttle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
-      const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
+      const throttle = (heldAction('moveForward') ? 1 : 0) - (heldAction('moveBack') ? 1 : 0);
+      const steer = (heldAction('moveLeft') ? 1 : 0) - (heldAction('moveRight') ? 1 : 0);
       if (steer) {
         // full authority under way, gentle pivot when stopped; reversed in reverse
         const authority = throttle > 0 ? 1 : throttle < 0 ? -0.7 : 0.35;
@@ -8147,7 +8166,7 @@ export function makeCourseScene(canvas, state) {
       // locomotion.js so BROOM_FEEL.dirt.pushSpeed can derive from the SAME
       // number and the push-beats-run invariant cannot silently split into two
       // authorities again (the original pushSpeed defect, one layer up).
-      const run = walkHeld.has('shift')
+      const run = heldAction('run')
         ? (walkTool && CLEANING_TOOLS[walkTool] ? TOOL_RUN_MULTIPLIER : walk.runMult)
         : 1;
       // a full armful or a heavy carton slows you down — sim/stocking says by how much
@@ -8157,10 +8176,10 @@ export function makeCourseScene(canvas, state) {
         : walk.radius;
       let mx = 0;
       let mz = 0;
-      if (walkHeld.has('w')) mz -= 1;
-      if (walkHeld.has('s')) mz += 1;
-      if (walkHeld.has('a')) mx -= 1;
-      if (walkHeld.has('d')) mx += 1;
+      if (heldAction('moveForward')) mz -= 1;
+      if (heldAction('moveBack')) mz += 1;
+      if (heldAction('moveLeft')) mx -= 1;
+      if (heldAction('moveRight')) mx += 1;
       walkMoving = !!(mx || mz);
       // DID THE MOVEMENT HANDLER RUN, and what did it want? The one question about the
       // input chain that cannot be answered from outside this closure: position delta is
@@ -8518,7 +8537,7 @@ export function makeCourseScene(canvas, state) {
     // (you are no longer looking, you are working), and it lingers briefly on
     // release so a glance survives letting go of the key.
     if (clubhouseApi?.setDirtReveal) {
-      const senseHeld = walkHeld.has(DIRT_SENSE.key) && !cart.mounted;
+      const senseHeld = heldAction('dirtSense') && !cart.mounted;
       if (walkSpraying) {
         dirtSenseLinger = 0;
         dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / 0.18);
@@ -11688,9 +11707,9 @@ export function makeCourseScene(canvas, state) {
       // Dirt sense: the held-key reveal's own state, plus what the crosshair is
       // currently over. Both are what the acceptance driver reads.
       dirtSense: () => ({
-        key: DIRT_SENSE.key,
+        key: boundWalkKey('dirtSense'),
         alpha: +dirtSenseAlpha.toFixed(3),
-        held: walkHeld.has(DIRT_SENSE.key),
+        held: heldAction('dirtSense'),
         linger: +dirtSenseLinger.toFixed(2),
         aimed: dirtSenseAimed
           ? { kind: dirtSenseAimed.kind || 'grit', dist: +dirtSenseAimed.dist.toFixed(2) }

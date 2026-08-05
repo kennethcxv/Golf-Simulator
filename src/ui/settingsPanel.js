@@ -1,5 +1,9 @@
 import { QUALITY_PRESETS } from '../core/preferences.js';
 import {
+  BINDABLE_ACTIONS, DEFAULT_BINDINGS, actionLabel, bindingConflicts,
+  canonicalKeyName, describeKey, isBindableKey,
+} from '../core/keyBindings.js';
+import {
   SELECTABLE_CLUBHOUSE_VARIANTS,
   devSessionActive,
   storeClubhouseVariant,
@@ -207,6 +211,107 @@ export function makeSettingsPanel({
     return page;
   }
 
+  // --- Controls (N2/F2) ----------------------------------------------------
+  // One row per rebindable verb. Click the keycap, press the new key; if that
+  // key already belongs to another verb the two SWAP, so no verb is ever left
+  // without a key. Escape cancels a capture. Reserved keys (Escape itself,
+  // modifiers alone as chords, F11/F12) are refused by the table.
+  function controlsPage() {
+    const bindingsNow = () => preferences.values.controls.bindings;
+    const buttons = new Map();
+    let capture = null;
+
+    const refreshButtons = () => {
+      for (const [actionId, button] of buttons) {
+        if (capture?.actionId === actionId) continue;
+        button.textContent = describeKey(bindingsNow()[actionId]);
+      }
+    };
+
+    const stopCapture = () => {
+      if (!capture) return;
+      window.removeEventListener('keydown', capture.onKey, true);
+      capture.button.classList.remove('is-capturing');
+      capture = null;
+      refreshButtons();
+    };
+
+    const beginCapture = (action, button) => {
+      stopCapture();
+      button.classList.add('is-capturing');
+      button.textContent = 'Press a key';
+      const onKey = (event) => {
+        // the panel may have been torn down mid-capture; never leak the hook
+        if (!button.isConnected) {
+          window.removeEventListener('keydown', onKey, true);
+          capture = null;
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const key = canonicalKeyName(event);
+        if (key === 'escape') { stopCapture(); return; }
+        if (!isBindableKey(key)) return; // stay in capture for a usable key
+        const next = { ...bindingsNow() };
+        const previousKey = next[action.id];
+        const holder = Object.entries(next)
+          .find(([otherId, otherKey]) => otherKey === key && otherId !== action.id)?.[0];
+        next[action.id] = key;
+        if (holder) next[holder] = previousKey; // swap - nothing goes unbound
+        stopCapture();
+        set('controls.bindings', next);
+        refreshButtons();
+      };
+      window.addEventListener('keydown', onKey, true);
+      capture = { actionId: action.id, button, onKey };
+    };
+
+    const groups = new Map();
+    for (const action of BINDABLE_ACTIONS) {
+      if (!groups.has(action.group)) groups.set(action.group, []);
+      groups.get(action.group).push(action);
+    }
+
+    const conflictNote = () => {
+      const conflicts = bindingConflicts(bindingsNow());
+      if (!conflicts.length) return null;
+      return el('div', {
+        class: 'setting-description',
+        text: `Shared keys: ${conflicts.map((c) => `${describeKey(c.key)} (${c.actions.map(actionLabel).join(', ')})`).join('; ')}`,
+      });
+    };
+
+    const rows = [];
+    for (const [groupName, actions] of groups) {
+      rows.push(el('div', { class: 'settings-group-head' }, el('h3', { text: groupName })));
+      for (const action of actions) {
+        const button = el('button', {
+          type: 'button',
+          class: 'setting-toggle setting-keycap',
+          text: describeKey(bindingsNow()[action.id]),
+          'aria-label': `Rebind ${action.label}`,
+          onclick: (event) => beginCapture(action, event.currentTarget),
+        });
+        buttons.set(action.id, button);
+        rows.push(row(action.label, action.hold ? 'Hold and tap both follow this key.' : '', button));
+      }
+    }
+    rows.push(row('Reset controls', 'Every verb returns to its shipped key.', el('button', {
+      type: 'button',
+      text: 'Reset to defaults',
+      onclick: () => {
+        stopCapture();
+        set('controls.bindings', { ...DEFAULT_BINDINGS });
+        refreshButtons();
+      },
+    })));
+
+    return section('Controls', 'Click a keycap, then press the key you want. Prompts across the game follow the new key immediately.',
+      conflictNote(),
+      ...rows,
+    );
+  }
+
   function accessibilityPage() {
     const tutorialControls = onResetTutorials || onDisableTutorials
       ? row('Contextual tutorials', 'Progress is saved with the current game. Reset re-enables every first-use lesson.',
@@ -293,6 +398,7 @@ export function makeSettingsPanel({
   const pages = {
     audio: audioPage,
     camera: cameraPage,
+    controls: controlsPage,
     display: displayPage,
     accessibility: accessibilityPage,
     ...(devSessionActive() ? { developer: developerPage } : {}),
@@ -313,6 +419,7 @@ export function makeSettingsPanel({
   const TAB_LABELS = {
     audio: 'Audio',
     camera: 'Camera',
+    controls: 'Controls',
     display: 'Display',
     accessibility: 'Accessibility',
     developer: 'Developer',

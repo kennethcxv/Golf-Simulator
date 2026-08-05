@@ -19,7 +19,7 @@ import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget }
 import { calendarOf } from './sim/time.js';
 import {
   clearNotifications, clearToasts, confirmDialog, containFocus, el, modal, notify,
-  setNotificationScope, setPromptText, toast,
+  setNotificationScope, setPromptBindingsProvider, setPromptText, toast,
 } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeCourseEditor } from './ui/courseEditor.js';
@@ -45,6 +45,7 @@ import {
   inspectData, loadDataWithStatus, saveData, summarizeSave,
 } from './core/storage.js';
 import { applyDocumentPreferences, makePreferences } from './core/preferences.js';
+import { actionForKey } from './core/keyBindings.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import {
@@ -86,6 +87,11 @@ const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
 const preferences = makePreferences();
 applyDocumentPreferences(preferences.values);
+// prompts print the BOUND key for every [E]/[X]/... token; a rebind repaints
+// them because setPromptBindingsProvider bumps the render revision, and the
+// subscribe below bumps it again on every later preference write
+setPromptBindingsProvider(() => preferences.values.controls.bindings);
+preferences.subscribe(() => setPromptBindingsProvider(() => preferences.values.controls.bindings));
 
 // ?scene=shed boots straight past the menu into the maintenance-shed test scene,
 // on its own save keys (golfempire:shed-autosave, +-meta, +slots) so it never
@@ -350,6 +356,8 @@ const WALK_NEAR = 0.15;
 const LAPTOP_NEAR = 0.03;
 const LAPTOP_FOV = 34;
 const walkFov = () => preferences.values.camera.fov;
+// N2/F2: the one place a keyboard event becomes a game verb
+const boundAction = (e) => actionForKey(preferences.values.controls.bindings, e.key);
 function setCameraLens(fov, near) {
   const cam = app.scene3d && app.scene3d.camera;
   if (!cam || (cam.fov === fov && cam.near === near)) return;
@@ -472,7 +480,6 @@ function exitFrontDesk(silent = false) {
 // The club register on the front desk opens IN PLACE: the camera leans over the
 // open spread (the laptop focus pattern), pages turn physically, Escape or E
 // stands back up. No DOM UI — the book itself is the interface.
-const LEDGER_FOV = 40;
 let ledgerKeyHandler = null;
 let ledgerClickHandler = null;
 function ledgerBookApi() {
@@ -484,14 +491,13 @@ function enterLedger() {
   const book = ledgerBookApi();
   if (!book) return;
   cancelToolKey();
-  setCameraLens(LEDGER_FOV, WALK_NEAR);
-  const pose = book.readPose();
-  if (!pose) { setCameraLens(walkFov(), WALK_NEAR); return; }
+  // THE BOOK COMES TO THE PLAYER (2026-08-05 ruling): no lens change, no
+  // camera focus — the journal rises to the face, the clasp frees, the cover
+  // swings. The camera holds still, exactly like the card reader.
+  if (!book.setOpen(true)) return; // e.g. it is in your arms right now
   app.ledgerOpen = true;
   document.body.classList.add('ledger-mode');
   resetCameraInput();
-  book.setOpen(true);
-  app.scene3d.walk.focusOn(pose);
   if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
   walkOverlay.style.display = 'none';
@@ -500,7 +506,7 @@ function enterLedger() {
   ledgerKeyHandler = (event) => {
     if (!app.ledgerOpen) return;
     const key = event.key.toLowerCase();
-    if (key === 'escape' || key === 'e') {
+    if (key === 'escape' || boundAction(event) === 'interact') {
       event.preventDefault();
       event.stopPropagation();
       exitLedger();
@@ -532,9 +538,9 @@ function exitLedger(silent = false) {
   if (ledgerClickHandler) window.removeEventListener('pointerdown', ledgerClickHandler, true);
   ledgerKeyHandler = null;
   ledgerClickHandler = null;
+  // the close beat runs in the book itself: cover shuts, clasp returns, and
+  // it floats back to wherever it rose from
   ledgerBookApi()?.setOpen(false);
-  app.scene3d?.walk?.clearFocus?.();
-  setCameraLens(walkFov(), WALK_NEAR);
   const viewToggle = document.querySelector('.view-toggle');
   if (viewToggle) viewToggle.style.display = '';
   resetCameraInput();
@@ -891,6 +897,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = (startPage = null) => enterLaptop(startPage);
   app.scene3d.walk.hooks.openLedger = () => enterLedger();
+  // N2/F2: the walk controller resolves movement and hold verbs through the
+  // same binding table as the dispatcher above
+  app.scene3d.walk.hooks.bindings = () => preferences.values.controls.bindings;
   app.scene3d.walk.hooks.openFrontDesk = (reservationId) => enterFrontDesk(reservationId);
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
@@ -2209,13 +2218,13 @@ window.addEventListener('keydown', (e) => {
   // register, laptop, placement, overview, and ordinary walk; Esc remains the
   // contextual "step back" key where those modes need it.
   if (isPauseOpen()) {
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+    if (boundAction(e) === 'pause' || e.key === 'Escape') {
       e.preventDefault();
       closePauseMenu();
     }
     return;
   }
-  if (e.key === 'p' || e.key === 'P') {
+  if (boundAction(e) === 'pause') {
     e.preventDefault();
     openPauseMenu();
     return;
@@ -2248,8 +2257,10 @@ window.addEventListener('keydown', (e) => {
     case '3': app.speedIdx = 3; return;
   }
 
-  if (e.key === 'Tab') {
-    e.preventDefault(); // Tab is the camera toggle, not DOM focus
+  // Tab must never reach DOM focus in-game, whatever it is bound to
+  if (e.key === 'Tab') e.preventDefault();
+  if (boundAction(e) === 'overview') {
+    e.preventDefault();
     handlers.toggleCourseMode();
     return;
   }
@@ -2266,19 +2277,24 @@ window.addEventListener('keydown', (e) => {
     // green preview and firing the old nearest-prop interaction underneath it.
     const placement = boxPlacementApi();
     if (placement?.hasCarriedBox()) {
+      // the carried carton follows the bound interact key; its rotate stays
+      // on the blades/rotate key family, Escape and B stay literal
+      const placementAction = boundAction(e);
+      if (placementAction === 'interact') {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (placement.isActive()) placement.commit();
+        else placement.activate();
+        return;
+      }
+      if (placementAction === 'mowerBlades') {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (!placement.isActive()) placement.activate();
+        placement.rotate();
+        return;
+      }
       switch (e.key) {
-        case 'e': case 'E':
-          e.preventDefault();
-          if (e.repeat) return;
-          if (placement.isActive()) placement.commit();
-          else placement.activate();
-          return;
-        case 'r': case 'R':
-          e.preventDefault();
-          if (e.repeat) return;
-          if (!placement.isActive()) placement.activate();
-          placement.rotate();
-          return;
         case 'Escape':
           if (placement.isActive()) {
             e.preventDefault();
@@ -2364,27 +2380,31 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // first-person course: E is the interaction verb (shop convention). The repeat flag matters:
-    // cutting tape and stocking a shelf are HOLD verbs driven per-frame, and a tap verb must not
-    // fire thirty times a second just because the key is down.
-    switch (e.key) {
-      case 'e': case 'E':
+    // first-person course: the BOUND interact key is the interaction verb (shop
+    // convention). N2/F2: every rebindable verb dispatches on its ACTION,
+    // resolved through the one binding table; mode-scoped keys (B build, I
+    // maintenance, panel toggles, Escape) stay literal below. The repeat flag
+    // matters: cutting tape and stocking a shelf are HOLD verbs driven
+    // per-frame, and a tap verb must not fire thirty times a second just
+    // because the key is down.
+    switch (boundAction(e)) {
+      case 'interact':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact(e.repeat);
-        break;
-      case 'x': case 'X':
+        return;
+      case 'carry':
         if (app.scene3d.walk.interactSecondary) app.scene3d.walk.interactSecondary(e.repeat);
-        break;
-      // Z SETS DOWN WHAT YOU ARE HOLDING — the inverse of X, which picks a carton up.
+        return;
+      // SET DOWN releases what you are holding — the inverse of carry.
       // Reported 2026-07-29: "Add a button to put a held item down." A carton prompt already
       // said "put down what you're holding first" and no key did it.
       //
       // The carton lands one pace ahead of the player rather than underfoot, so it does not
       // materialise inside the body and immediately shove them.
-      case 'z': case 'Z': {
-        if (e.repeat) break;
+      case 'setDown': {
+        if (e.repeat) return;
         e.preventDefault();
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-        if (!ch?.setDownCarried) break;
+        if (!ch?.setDownCarried) return;
         const w = app.scene3d.walk.state;
         const ahead = 0.85;
         const result = ch.setDownCarried(
@@ -2397,11 +2417,72 @@ window.addEventListener('keydown', (e) => {
         } else if (result?.reason) {
           toast(result.reason, 'warn');
         }
-        break;
+        return;
       }
-      case 'j': case 'J': // the drafting table: open the course editor from your feet
+      case 'courseEditor': // the drafting table: open the course editor from your feet
         enterEditor();
-        break;
+        return;
+      case 'mowerBlades': {
+        const bladeResult = app.scene3d.walk.toggleBlades?.();
+        if (bladeResult?.handled) {
+          toast(bladeResult.enabled ? `${bladeResult.label} blades engaged.` : `${bladeResult.label} blades disengaged.`);
+          if (audio.ready) audio.setToolLoop(bladeResult.enabled ? 'mower' : null);
+          if (maintenancePanel) maintenancePanel.refresh(true);
+          return;
+        }
+        // at the register in Realistic mode, this key hands over the counted change
+        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+        if (ch && ch.confirmChange) ch.confirmChange();
+        return;
+      }
+      case 'cartLights': {
+        if (e.repeat) return;
+        const lightResult = app.scene3d.walk.toggleLights?.();
+        if (lightResult?.handled) {
+          e.preventDefault();
+          toast(lightResult.enabled ? `${lightResult.label} on.` : `${lightResult.label} off.`);
+        }
+        return;
+      }
+      case 'toolBelt': {
+        if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
+        return;
+      }
+      case 'dirtSense': {
+        // THE DIRT-SENSE KEY CARRIES TWO VERBS: TAP SWAPS, HOLD REVEALS.
+        //
+        // D3: this used to swap on keydown, while courseScene's dirt sense
+        // reads the same key HELD. So every time a player did the thing the HUD
+        // tells them to do — "reveal dirt" — their tool silently changed to
+        // the previous one, and the reveal they were looking at was then
+        // filtered for a tool they were no longer holding. Caught by a driver
+        // that measured the tool before and during the hold and got different
+        // answers.
+        //
+        // Deferring the swap to key-up, and only for a press short enough to be
+        // a tap, keeps both verbs on the advertised key and makes them
+        // unambiguous. Holding no longer swaps anything. Rebinding moves the
+        // KEY; this tap/hold split rides with the action.
+        e.preventDefault();
+        if (!e.repeat) qPressedAt = performance.now();
+        return;
+      }
+      case 'cartCamera': {
+        if (e.repeat) return;
+        const cameraResult = app.scene3d.walk.toggleVehicleCamera?.();
+        if (cameraResult?.handled) {
+          e.preventDefault();
+          toast(cameraResult.mode === 'driver' ? 'Driver camera.' : 'Chase camera.');
+          return;
+        }
+        // on foot the same key cycles the turf view, as it always has
+        const modes = ['normal', 'health', 'moisture'];
+        handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
+        return;
+      }
+      default: break; // not a bound action: the literal mode keys below
+    }
+    switch (e.key) {
       case 'b': case 'B': {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         const w = app.scene3d.walk.state;
@@ -2412,50 +2493,6 @@ window.addEventListener('keydown', (e) => {
         ch.build.enter();
         triggerContextTutorial(app.state, 'placement');
         objectivesPanel.refresh();
-        break;
-      }
-      case 'r': case 'R': {
-        const bladeResult = app.scene3d.walk.toggleBlades?.();
-        if (bladeResult?.handled) {
-          toast(bladeResult.enabled ? `${bladeResult.label} blades engaged.` : `${bladeResult.label} blades disengaged.`);
-          if (audio.ready) audio.setToolLoop(bladeResult.enabled ? 'mower' : null);
-          if (maintenancePanel) maintenancePanel.refresh(true);
-          break;
-        }
-        // at the register in Realistic mode, R hands over the counted change
-        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-        if (ch && ch.confirmChange) ch.confirmChange();
-        break;
-      }
-      case 'l': case 'L': {
-        if (e.repeat) break;
-        const lightResult = app.scene3d.walk.toggleLights?.();
-        if (lightResult?.handled) {
-          e.preventDefault();
-          if (!e.repeat) toast(lightResult.enabled ? `${lightResult.label} on.` : `${lightResult.label} off.`);
-        }
-        break;
-      }
-      case 'f': case 'F': {
-        if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
-        break;
-      }
-      case 'q': case 'Q': {
-        // Q CARRIES TWO VERBS: TAP SWAPS, HOLD REVEALS.
-        //
-        // D3: this used to swap on keydown, while courseScene's dirt sense
-        // reads the same key HELD. So every time a player did the thing the HUD
-        // tells them to do — "Q reveal dirt" — their tool silently changed to
-        // the previous one, and the reveal they were looking at was then
-        // filtered for a tool they were no longer holding. Caught by a driver
-        // that measured the tool before and during the hold and got different
-        // answers.
-        //
-        // Deferring the swap to key-up, and only for a press short enough to be
-        // a tap, keeps both verbs on the advertised key and makes them
-        // unambiguous. Holding no longer swaps anything.
-        e.preventDefault();
-        if (!e.repeat) qPressedAt = performance.now();
         break;
       }
       case 'i': case 'I':
@@ -2473,18 +2510,6 @@ window.addEventListener('keydown', (e) => {
         if (document.pointerLockElement) document.exitPointerLock();
         handlers.toggleEmpire();
         break;
-      case 'v': case 'V': {
-        if (e.repeat) break;
-        const cameraResult = app.scene3d.walk.toggleVehicleCamera?.();
-        if (cameraResult?.handled) {
-          e.preventDefault();
-          if (!e.repeat) toast(cameraResult.mode === 'driver' ? 'Driver camera.' : 'Chase camera.');
-          break;
-        }
-        const modes = ['normal', 'health', 'moisture'];
-        handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
-        break;
-      }
       case 'Escape':
         e.preventDefault();
         if (app.selectedSection) inspectPanel.hide();
@@ -2499,11 +2524,19 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // the overview map: the bound interact/editor keys open the editor, the
+  // bound camera key cycles the turf view; panel toggles stay literal
+  const overviewAction = boundAction(e);
+  if (overviewAction === 'interact' || overviewAction === 'courseEditor') {
+    enterEditor();
+    return;
+  }
+  if (overviewAction === 'cartCamera') {
+    const modes = ['normal', 'health', 'moisture'];
+    handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
+    return;
+  }
   switch (e.key) {
-    case 'e': case 'E':
-    case 'j': case 'J':
-      enterEditor();
-      break;
     case 'g': case 'G':
       handlers.toggleGrounds();
       break;
@@ -2513,11 +2546,6 @@ window.addEventListener('keydown', (e) => {
     case 'm': case 'M':
       handlers.toggleEmpire();
       break;
-    case 'v': case 'V': {
-      const modes = ['normal', 'health', 'moisture'];
-      handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
-      break;
-    }
     case 'Escape':
       if (isPauseOpen()) {
         closePauseMenu();
@@ -2543,8 +2571,9 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   held.up(e.key);
-  if (e.key === 'f' || e.key === 'F') endToolKey();
-  if (e.key === 'q' || e.key === 'Q') {
+  const releasedAction = boundAction(e);
+  if (releasedAction === 'toolBelt') endToolKey();
+  if (releasedAction === 'dirtSense') {
     // A tap is a tool swap; anything longer was a dirt-sense hold and must not
     // change what is in your hands. See the keydown case for why.
     const heldMs = qPressedAt == null ? Infinity : performance.now() - qPressedAt;
