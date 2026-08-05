@@ -30,7 +30,96 @@ the cut is in NOT DONE with exactly what it needs.
 
 ## PHASE 4 — adversarial verification
 
-*(merged when the three verifiers returned — see the section lower in this file)*
+Three verifiers ran the game and tried to prove tonight's claims false. **No claim was
+disproven; one queue item (K2) turned out not to reproduce at all.** Two claims got
+sharpened, Verifier 1 found the L-queue's structural root (a dead, unreachable
+front-desk surface), and Verifier 3 found the most important thing in this report: the
+objectives card never renders.
+
+### Verifier 2 — the tools and cleaning (I, J). All six claims held.
+
+- **I1-mop VERIFIED, including motion**: two use-frames 500 ms apart show the head swung
+  right-of-hands → bottom-left, intensity 0.692 → 0.441 — animated, not a static prop.
+  Planted at 0.048. `qa/electron/verifier2/mop-use-a.png` / `-b.png`.
+- **The short-tool finding is TRUE AS STATED — if anything understated**: the vacuum at
+  its natural pitch is planted (0.024) with head NDC y −1.213 AND grip hand y −1.450 —
+  the hands are framed out too, not just the head. `verifier2/vacuum-use.png` shows
+  floor only.
+- **I2 speeds independently re-measured**: 6.135 / 4.250 / 4.253 yd/s — within 0.034 of
+  my numbers, moveIntent full on every frame (open lane, not a wall).
+- **I3 confirmed open, with a corrected symptom**: at +1.0 rad there is no floating
+  stick any more — there is NO TOOL AT ALL (fully stowed below frame, hands NDC y −4.6/
+  −8.9). "No stick without a hand" is now satisfied vacuously; whether total vanish is
+  the right read is the open I3 question. `verifier2/broom-lookup.png`.
+- **J confirmed untouched**: Q reveal still renders the old translucent markers through
+  walls, no object outlines. **E3 wiring live for rig tools**: mop intensity tracked the
+  stroke (0.692 → 0.441), zero page errors across the session.
+
+### Verifier 3 — the stranger. THE FINDING OF THE NIGHT.
+
+Played cold from the main menu (New game → Relaxed), Day 1 6:00 AM → 6:50 AM game time,
+32 screenshots + full text log in `qa/electron/stranger/`. Sixteen ranked confusions;
+the full ranked list is preserved verbatim in
+`Designs/ProShop/FIRST_RUN_STRANGER_SESSION_13.md` (this is N5's deliverable). The top
+of the ranking:
+
+1. **The objectives card never renders.** The DOM carried the goal text the whole
+   session — "Survey the neglected property", "Enter the closed clubhouse — Open the
+   green entrance doors with E and step inside", the FIRST-USE maintenance card — and in
+   32 screenshots NONE of it is ever on screen. The stranger never learned to go
+   inside and spent all 50 game-minutes in the yard. Every downstream "dead end"
+   complaint in the session (their #2, #9) traces to this one display-layer defect. This
+   likely also explains a chunk of the F5/first-run pain the queue keeps circling.
+2. **Holding a tool erases every world prompt.** With the washer out, the prompt line
+   shows only the tool's own controls at every yaw — the porch's "wash to 60%
+   (currently 11%)" gate is only readable while NOT holding the tool that works it.
+3. **"Z set down" toasts "Your hands are empty" while a washer is visibly in the
+   hands** — held tool vs carried thing is indistinguishable on screen.
+4. **The opening briefing fires under the loading veil** and is gone by the first
+   playable frame (the greenskeeper's disease hook never reaches the player's eyes —
+   and it is kickered "NOT AVAILABLE" like an error when it does exist).
+5. Tab overview announces "18 dirty spots marked" over an unbroken carpet of trees;
+   unlabeled white triangles; "east of the porch" with no compass; the QA "Test scene"
+   entry sitting in the player-facing menu; pointer-lock loss silently hides all
+   prompts.
+
+Their "what worked well" list is equally specific (the crosshair prompt grammar, the
+load screen, the pause shell, the Q reveal payoff) and is preserved with the list.
+
+### Verifier 1 — blockers and checkout (H, K, L). All claims held; two discoveries.
+
+Eight Electron sessions, zero page errors, zero crash veils. Evidence:
+`qa/electron/verify1/`, replayable drivers `tools/qa/verify1-*.js`.
+
+- **H1 attacked harder than my own sweep and held**: `i` while pointer-unlocked, 14
+  rapid presses at 60 ms, `i` in overview / pause / laptop / build mode / course editor
+  — and **all 36 alphanumeric keys pressed inside LIVE register mode mid-sale** (a
+  surface my sweep never touched): 0 faults, register active through all 36, sale
+  intact. Incidental worth knowing: `e` in overview enters the course editor — by
+  design, and it would surprise a player.
+- **H2 verified on pixels and disk**: the chip's measured rect is bottom-right in
+  frame at the rollover write; `autosave-meta.json` flipped `mutation` → `rollover`.
+- **H3 verified from three angles** with a broadened name sweep
+  (/tether|backing|carrier|swing|price.?tag|hangtag/): zero tag nodes; the one hit,
+  `MarkerBackingCard`, is the marker product's own blister-card packaging.
+- **K2: THE COMPLAINT DOES NOT REPRODUCE.** A 150 ms poll from before the customer
+  arrived found exactly one `FrontDeskShoppingBag`, visible on the counter EVERY tick —
+  before tx begin, at tx begin, at first staged item, at E-engage. The bag is built
+  persistent at register init; the planned K2 change is already the shipped behaviour.
+  Marked for the user's eyes rather than closed unilaterally: `verify1/k2-ring-start.png`.
+- **L-queue confirmed broken as reported — with the structural root found.** L1's
+  "check-in at the asked time fails" understates it: **the live desk flow has no asked
+  time at all** — walk-ins ask generically, `requestedTeeMinute` is null on the register
+  path, and the ask→offer→book loop only exists in `src/ui/frontDesk.js`, which is
+  UNREACHABLE DEAD CODE: `enterFrontDesk` (main.js:439) gates on
+  `ch.register.cashierPose?.()`, and `cashierPose` exists nowhere in src, so it always
+  returns. L2 is confirmed as 3 offer buttons + "Cannot Accommodate" (no grid); L3:
+  zero /ledger|book/i nodes in the whole scene, `state.ledgerBook` undefined; L4:
+  "House notes" nowhere. **The L-queue's first move next session is deleting or reviving
+  that dead front-desk surface — the tee-sheet rebuild has a home nobody can reach.**
+- Housekeeping: Verifier 1 backed the real saves up separately
+  (`qa/audit/saves-backup-verify1-*`) and did not restore (correct — the full-day leg
+  still owns the profile; my chained restore reinstates the originals when it ends).
 
 ---
 
@@ -304,8 +393,9 @@ literals were moved by hand. Suite 2753/2753.
 | **I5** collider clamp for nine tools | Not started. The reviewed design (independent geometric penetration + contactMade precondition, open-floor zero-correction control) is in PLAN_12 §I5. |
 | **I6** pushSpeed playtest | Blocked on the driver's pile-seeding fault; the bristle-relative invariant and margin control are specced in PLAN_12. |
 | **J1/J2** reveal + media | Not started. J2's groundwork exists in the registry (six-class DIRT taxonomy with per-tool declarations already disjoint where it matters: vacuum=dust+debris vs mop=smear+grime+film); the two pinned two-media tests/drivers must be rewritten inside J2's block (review R3#4). |
-| **K1–K5** checkout | Not started, with two pre-banked facts: the bag is already on the counter at ring-up start (screenshot `qa/electron/h3-tags/counter-staged-close.png`, bearing on K2), and register.js:575 already denominates tender via makeChange — K4 is visual-only (R3#14). |
-| **L1–L4** desk, tee sheet, ledger, lamp | Not started. L-order per review: L1 sim fix → L2 grid → L1 evidence through the final UI → L3 (content-ready predicate, not the open flag) → L4 captures after the copy pass. |
+| **K1, K3, K4, K5** checkout | Not started, with pre-banked facts: register.js:575 already denominates tender via makeChange, so K4 is visual-only (R3#14). |
+| **K2** bag present from tx start | **Does not reproduce** — Verifier 1 polled every 150 ms from before the customer arrived: one persistent bag, visible every tick. Left open for your eyes rather than closed unilaterally (`qa/electron/verify1/k2-ring-start.png`). |
+| **L1–L4** desk, tee sheet, ledger, lamp | Not started — and Verifier 1 found the structural root: the whole ask→offer→book surface (`src/ui/frontDesk.js`) is unreachable dead code (its gate calls `cashierPose?.()`, defined nowhere), so the live desk path has no asked-time at all. Next session starts by deleting or reviving that surface; then L1 sim fix → L2 grid → L1 evidence through the final UI → L3 → L4. |
 | **M1 remainder** | Till-played paid-combined existence proof; the full-day split table; shop-footfall + one customer-day leg re-run (R3#9, #1's post-H2 leg). |
 | **N2** key rebinding | Untouched by design — lands whole or not at all. |
 | **N5** stranger list | Superseded by Phase 4's Verifier 3 (below) — their cold 20-minute list IS this deliverable, produced post-O1 as the review required. |
@@ -327,10 +417,11 @@ literals were moved by hand. Suite 2753/2753.
 
 ## Count
 
-Parent-level, this queue (31 items H1–P1): **11 done** (H1 H2 H3, I1 I2 I7, N1 N3 N4,
-O1, M1-part-1 measured+fixed+funnel-proven), **20 open** (I3 I4 I5 I6, J1 J2, K1–K5,
-L1–L4, M1-remainder, N2 N5→verifier-3, O2 O3, P1). No forced closures; two prior-session
-items (A8 sub-items) remain yours.
+Parent-level, this queue (31 items H1–P1): **12 done** (H1 H2 H3, I1 I2 I7, N1 N3 N4 N5
+— the stranger list is delivered in FIRST_RUN_STRANGER_SESSION_13.md — O1, and
+M1-part-1 measured+fixed+funnel-proven), **1 does-not-reproduce awaiting your eyes**
+(K2), **18 open** (I3 I4 I5 I6, J1 J2, K1 K3 K4 K5, L1–L4, M1-remainder, N2, O2 O3,
+P1). No forced closures; A8's two sub-items remain yours from the prior queue.
 
 ## Commits
 
