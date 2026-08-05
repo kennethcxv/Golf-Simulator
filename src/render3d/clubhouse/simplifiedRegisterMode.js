@@ -1524,22 +1524,58 @@ export function createRegisterMode(B) {
   // THE GRABBABLE HIGHLIGHT IS AN OUTLINE. Round 5's green Box3Helper cage and
   // round 6's emissive brightening + additive halo were both rejected — round
   // 7: "make sure that the highlight for selecting a card or cash is just an
-  // outline of the card or cash, not a full blob over it." So the payment's
-  // own SILHOUETTE is traced: every mesh gets an inverted-hull shell — the
-  // same geometry, back faces only, grown by a fixed rim — which the object's
-  // own front faces cover everywhere except a few millimetres around its edge.
-  // Nothing about the money's own surface changes.
+  // outline of the card or cash, not a full blob over it."
+  //
+  // K3 (2026-08-05): the round-7 answer — an inverted-hull shell grown by a
+  // fixed rim on EVERY axis — degenerates on exactly the geometry it exists
+  // for. A note is a 2.2 mm slab of paper; growing it 4.5 mm per side makes an
+  // 11 mm shell five times the note's own thickness, and from the register's
+  // glancing view its walls and flipped faces render as blank cream SHEETS
+  // lying over the money (photographed: qa/electron/cash-hover-k3, the run
+  // that failed). So flat meshes now get a border FRAME instead: a thin ring
+  // hugging the face's footprint, floating a hair off each face, which reads
+  // as a true outline from every angle. Chunky meshes keep the inverted hull,
+  // which is correct for them. Nothing about the money's own surface changes.
   const GRAB_OUTLINE_COLOR = 0xffe9a8;   // warm paper-gold rim
-  const GRAB_OUTLINE_RIM = 0.0045;       // metres of visible edge, every axis
+  const GRAB_OUTLINE_RIM = 0.0045;       // metres of visible edge
+  const GRAB_OUTLINE_LIFT = 0.0012;      // frame's clearance off a flat face
   const grabOutlineMaterial = new THREE.MeshBasicMaterial({
     color: GRAB_OUTLINE_COLOR,
     side: THREE.BackSide,
     toneMapped: false,
   });
+  const grabOutlineFlatMaterial = new THREE.MeshBasicMaterial({
+    color: GRAB_OUTLINE_COLOR,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
   const grabOutlineShells = []; // shells parented onto the highlighted meshes
   function clearGrabHighlight() {
-    for (const shell of grabOutlineShells) shell.removeFromParent();
+    for (const shell of grabOutlineShells) {
+      shell.removeFromParent();
+      // frames own their ShapeGeometry; hull shells borrow the mesh's own
+      if (shell.userData.grabOutlineOwnsGeometry) shell.geometry.dispose();
+    }
     grabOutlineShells.length = 0;
+  }
+  // The ring geometry for one flat face: outer edge GRAB_OUTLINE_RIM outside
+  // the footprint, inner edge exactly on it, elliptical for coin-like rounds.
+  function grabOutlineFrameGeometry(halfX, halfY, round) {
+    const shape = new THREE.Shape();
+    const hole = new THREE.Path();
+    if (round) {
+      shape.absellipse(0, 0, halfX + GRAB_OUTLINE_RIM, halfY + GRAB_OUTLINE_RIM, 0, Math.PI * 2);
+      hole.absellipse(0, 0, halfX, halfY, 0, Math.PI * 2, true);
+    } else {
+      const ox = halfX + GRAB_OUTLINE_RIM;
+      const oy = halfY + GRAB_OUTLINE_RIM;
+      shape.moveTo(-ox, -oy); shape.lineTo(ox, -oy);
+      shape.lineTo(ox, oy); shape.lineTo(-ox, oy); shape.closePath();
+      hole.moveTo(-halfX, -halfY); hole.lineTo(-halfX, halfY);
+      hole.lineTo(halfX, halfY); hole.lineTo(halfX, -halfY); hole.closePath();
+    }
+    shape.holes.push(hole);
+    return new THREE.ShapeGeometry(shape, round ? 48 : 2);
   }
   function applyGrabHighlight(list) {
     for (const object of list) {
@@ -1549,15 +1585,49 @@ export function createRegisterMode(B) {
         if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
         const box = mesh.geometry.boundingBox;
         if (!box || box.isEmpty()) return;
-        const shell = new THREE.Mesh(mesh.geometry, grabOutlineMaterial);
-        shell.userData = { grabOutlineShell: true, pick: false };
-        // Grow by an ABSOLUTE rim per axis, so a paper-thin note and a chunky
-        // card carry the same visible edge instead of a proportional one that
-        // vanishes on thin geometry. The scale is about the geometry origin;
-        // for these small centred props the rim error that introduces is far
-        // below the rim itself.
         const size = new THREE.Vector3();
         box.getSize(size);
+        const centre = new THREE.Vector3();
+        box.getCenter(centre);
+        const axes = ['x', 'y', 'z'].sort((a, b) => size[a] - size[b]);
+        const thin = axes[0];
+        const flat = size[thin] < Math.max(size[axes[1]], 1e-6) * 0.35;
+        if (flat) {
+          // ---- the frame path: notes, the card, coins ----
+          const round = /Cylinder/i.test(mesh.geometry.type || '');
+          // ShapeGeometry lies in XY with +Z normal; rotate it so the normal
+          // runs down the thin axis and the shape spans the two broad ones.
+          let halfX; let halfY; let rotate = null;
+          if (thin === 'y') {
+            halfX = size.x / 2; halfY = size.z / 2;
+            rotate = (g) => g.rotateX(Math.PI / 2);
+          } else if (thin === 'x') {
+            halfX = size.z / 2; halfY = size.y / 2;
+            rotate = (g) => g.rotateY(Math.PI / 2);
+          } else {
+            halfX = size.x / 2; halfY = size.y / 2;
+          }
+          // one frame off each broad face, so the outline reads from both
+          // sides of a note or a held card
+          for (const sign of [1, -1]) {
+            const geometry = grabOutlineFrameGeometry(halfX, halfY, round);
+            if (rotate) rotate(geometry);
+            const frame = new THREE.Mesh(geometry, grabOutlineFlatMaterial);
+            frame.userData = { grabOutlineShell: true, grabOutlineOwnsGeometry: true, pick: false };
+            frame.position.copy(centre);
+            frame.position[thin] += sign * (size[thin] / 2 + GRAB_OUTLINE_LIFT);
+            frame.raycast = () => {}; // the outline must never eat the click
+            mesh.add(frame);
+            grabOutlineShells.push(frame);
+          }
+          return;
+        }
+        const shell = new THREE.Mesh(mesh.geometry, grabOutlineMaterial);
+        shell.userData = { grabOutlineShell: true, pick: false };
+        // Grow by an ABSOLUTE rim per axis, so small and large props carry the
+        // same visible edge. The scale is about the geometry origin; for these
+        // small centred props the rim error that introduces is far below the
+        // rim itself.
         shell.scale.set(
           size.x > 1e-6 ? (size.x + GRAB_OUTLINE_RIM * 2) / size.x : 1,
           size.y > 1e-6 ? (size.y + GRAB_OUTLINE_RIM * 2) / size.y : 1,
