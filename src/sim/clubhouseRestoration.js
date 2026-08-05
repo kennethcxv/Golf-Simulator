@@ -226,8 +226,20 @@ export function ceilingPanelPromptLabel({
   repaired = false,
 }) {
   if (repaired) return null;
-  if (!powered) return `${unpoweredName} — the ceiling circuit is dead`;
-  if (!kitAvailable) return `${faultName} — repair kit required`;
+  // C8: NAME THE NEXT OBJECT, NOT JUST THE GATE.
+  //
+  // "the ceiling circuit is dead" told the player which gate was shut and
+  // nothing about what to do, so the only way to learn the next step was to
+  // press E and read the refusal toast. A prompt that has to be disobeyed to
+  // teach you is not teaching diegetically; it is a hint behind a wrong answer.
+  // The circuit is restored by repairing the CEILING component, which is a
+  // hold-E site the player can already see, so the prompt says so.
+  if (!powered) return `${unpoweredName} — the ceiling circuit is dead; repair the ceiling first`;
+  // C8, the second rung: "repair kit required" is the one prompt where WHERE IT
+  // COMES FROM is the question the player has, and it was the one prompt that
+  // did not answer it. availableSupplyUnits counts the back-room shelving (plus
+  // what is already in hand), so that is what it names.
+  if (!kitAvailable) return `${faultName} — repair kit required, from the back room shelves`;
   return `${faultName} — [E] repair with clubhouse kit`;
 }
 
