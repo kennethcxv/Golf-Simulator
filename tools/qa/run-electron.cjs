@@ -86,12 +86,19 @@ async function main() {
   const { _electron: electron } = loadPlaywright();
   const args = electronArgs();
   const diagnostics = [];
+  // VIDEO_DIR=qa/foo records the whole run to a .webm, the way run-playwright
+  // does. Some acceptances are about motion — "does the pan read as broken" is
+  // not a question a still can answer — and until now the Electron runner could
+  // only produce stills.
+  const videoDir = process.env.VIDEO_DIR ? path.resolve(process.env.VIDEO_DIR) : null;
+  if (videoDir) fs.mkdirSync(videoDir, { recursive: true });
   const app = await electron.launch({
     executablePath: EXECUTABLE,
     args,
     cwd: ROOT,
     timeout: 120_000,
     env: { ...process.env, FW_QA: '1' },
+    ...(videoDir ? { recordVideo: { dir: videoDir } } : {}),
   });
   app.process()?.stderr?.on('data', (chunk) => {
     const text = chunk.toString().trim();

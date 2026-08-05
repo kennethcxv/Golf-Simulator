@@ -49,6 +49,13 @@ const CUFF = 0x2f4a35;
 // the cap is a true bound: no bob, breathe or sway amplitude can carry the
 // hands past it and pop the head off the boards for a frame.
 const GRIP_CEIL_SOFT = 0.10;
+// How much further than REACH requires the grip keeps descending once the
+// up-look cap has engaged, so the handle leaves the frame with the hand instead
+// of hanging there on its own. Gain and ceiling were both read off the measured
+// flip-book, not guessed: at +1.00 rad the cap is 0.135 yd and the stick top
+// needed roughly 0.27 yd to clear the bottom edge.
+const GRIP_STOW_GAIN = 3.0;
+const GRIP_STOW_MAX = 0.45;
 const CUFF_DARK = 0x21351f;
 
 const _wrist = new THREE.Vector3();
@@ -589,6 +596,11 @@ export function createBroomViewmodel({
     //
     // Engaged ONLY above level, so every pose at or below the horizon (the
     // whole working range) is bit-identical to before.
+    // The uncapped anchor, kept so the cap's own magnitude is measurable rather
+    // than inferred. "Do the hands detach at extreme up-look" is a question
+    // about THIS number: it is exactly how far below the camera's own hoist the
+    // hands are being held, and nothing else in the diagnostics reports it.
+    const gripUncappedY = _gripCam.y;
     if (pitch > 0) {
       // the highest the hands can be and still reach: dropEff saturates at
       // gripLen * 0.985, so anything above this is hand height the handle
@@ -600,6 +612,29 @@ export function createBroomViewmodel({
         _gripCam.y = easeFrom + GRIP_CEIL_SOFT * (1 - Math.exp(-over / GRIP_CEIL_SOFT));
       }
     }
+    const capYd = gripUncappedY - _gripCam.y;
+    // C2, ROUND 2: THE CAP ON ITS OWN LEAVES A STICK WITH NO HAND ON IT.
+    //
+    // Measured after the fix (tools/qa/broom-c2-reverify.js, flip-book at
+    // qa/electron/broom-c2/): the head number is perfect — 0.600 yd above the
+    // boards at every pitch from 0 to the real +1.35 limit, zero lift. But the
+    // hands sit at NDC y -0.95 at level, one twentieth of the frame off the
+    // bottom edge, so the moment the cap starts pulling them down they leave the
+    // frame — while the handle ABOVE them, being long, does not. At +1.00 rad
+    // the screen shows a brown stick floating in front of the ceiling with
+    // nothing holding it. That is its own bug, and it is one the cap created.
+    //
+    // The cap descends only as far as REACH requires. Keep descending past that
+    // and the handle follows the hand out of frame together, which is what a
+    // tool you cannot currently use should do — every first-person game lowers
+    // the weapon rather than freezing it. Ramped off the cap's own magnitude so
+    // it cannot engage anywhere the cap does not, which keeps every pose at or
+    // below +0.746 rad bit-identical.
+    const stowYd = capYd > 0 ? Math.min(GRIP_STOW_MAX, capYd * GRIP_STOW_GAIN) : 0;
+    _gripCam.y -= stowYd;
+    state.gripCapYd = capYd;
+    state.gripStowYd = stowYd;
+    state.gripCamWorldY = _gripCam.y;
 
     const drop = _gripCam.y - (floorWorldY + hover);
     // the handle can only reach so far down; beyond that the head lifts
@@ -896,6 +931,12 @@ export function createBroomViewmodel({
       assetHeadNdc: state.assetHeadNdc ?? null,
       assetHeadWorldY: state.assetHeadWorldY == null ? null : +state.assetHeadWorldY.toFixed(3),
       assetGripWorldY: state.assetGripWorldY == null ? null : +state.assetGripWorldY.toFixed(3),
+      // C2: the grip anchor's world height and how far the up-look cap pulled it
+      // down. gripCapYd is 0 wherever the cap is not engaged, so it also says
+      // WHERE the behaviour changes without anyone having to read the source.
+      gripCamWorldY: state.gripCamWorldY == null ? null : +state.gripCamWorldY.toFixed(3),
+      gripCapYd: +(state.gripCapYd ?? 0).toFixed(3),
+      gripStowYd: +(state.gripStowYd ?? 0).toFixed(3),
       // where the two hands sit along the shaft (yd back from the bristles),
       // and the current swing of the sweep arc
       gripUpper: +(state.gripUpper ?? 0).toFixed(3),
