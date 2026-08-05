@@ -78,7 +78,7 @@ test('the first press opens the two WIDE OPPOSITE flaps, so you look straight in
   cutTape(state, box.id, 1);
 
   const first = openFlap(state, box.id);
-  assert.deepEqual(first.physicalFlaps, [2, 3], 'LEFT and RIGHT — the wide facing pair');
+  assert.deepEqual(first.physicalFlaps, [2, 3], 'LEFT and RIGHT - the wide facing pair');
   assert.deepEqual(box.flapProgress, [0, 0, 1, 1]);
   // One representative per PHASE, in phase order: [2] is phase one, [0] is phase two.
   // Mirroring two flaps from the same phase would have lost the second press entirely.
@@ -88,7 +88,7 @@ test('the first press opens the two WIDE OPPOSITE flaps, so you look straight in
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING);
 
   const second = openFlap(state, box.id);
-  assert.deepEqual(second.physicalFlaps, [0, 1], 'FRONT and BACK — the narrow pair, second');
+  assert.deepEqual(second.physicalFlaps, [0, 1], 'FRONT and BACK - the narrow pair, second');
   assert.ok(second.done);
   assert.deepEqual(box.flapProgress, [1, 1, 1, 1]);
   assert.equal(box.openingProgress, 1);
@@ -105,7 +105,7 @@ test('each phase is a facing pair, in the authored panel order', () => {
     assert.equal(
       (phase[0] < 2) === (phase[1] < 2),
       true,
-      `phase ${JSON.stringify(phase)} pairs an X-hinged flap with a Z-hinged one — adjacent, not opposite`,
+      `phase ${JSON.stringify(phase)} pairs an X-hinged flap with a Z-hinged one - adjacent, not opposite`,
     );
   }
   // And between them the two phases cover all four panels exactly once.

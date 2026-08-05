@@ -20,7 +20,7 @@ export function buildExterior(B) {
   const announce = (msg) => { if (hooks.toast) hooks.toast(msg); };
   const score = () => {
     const s = exteriorScore(state);
-    if (s >= 1) announce('The outside finally looks cared for — curb appeal restored.');
+    if (s >= 1) announce('The outside finally looks cared for - curb appeal restored.');
   };
 
   // --- weeds: grass-green cone tufts along the foundation and walk ---------------
@@ -44,13 +44,13 @@ export function buildExterior(B) {
     const wp = L2W(s.x, s.z);
     addProp({
       x: wp.x, z: wp.z, r: 1.5,
-      label: () => (ex.weeds[i] ? 'Weeds — [E] pull them' : null),
+      label: () => (ex.weeds[i] ? 'Weeds - [E] pull them' : null),
       action: () => {
         const res = pullWeed(state, i);
         if (!res.ok) return;
         tuft.visible = false;
         if (hooks.sfx) hooks.sfx('wipe');
-        announce(res.left > 0 ? `Weeds pulled — ${res.left} patch${res.left > 1 ? 'es' : ''} left.` : 'Foundation line is clean.');
+        announce(res.left > 0 ? `Weeds pulled - ${res.left} patch${res.left > 1 ? 'es' : ''} left.` : 'Foundation line is clean.');
         score();
       },
     });
@@ -73,12 +73,12 @@ export function buildExterior(B) {
     const wp = L2W(s.x, s.z);
     addProp({
       x: wp.x, z: wp.z, r: 1.9,
-      label: () => (ex.gutter ? 'Choked gutter — [E] clear the downspout' : null),
+      label: () => (ex.gutter ? 'Choked gutter - [E] clear the downspout' : null),
       action: () => {
         if (!clearGutter(state).ok) return;
         debris.visible = false;
         if (hooks.sfx) hooks.sfx('thunk');
-        announce('Gutter cleared — rain runs where it should now.');
+        announce('Gutter cleared - rain runs where it should now.');
         score();
       },
     });
@@ -108,7 +108,7 @@ export function buildExterior(B) {
     const wp = L2W(-1.0 - porchW / 2 + 0.5, halfD + SHELL.porchD - 0.5);
     addProp({
       x: wp.x, z: wp.z, r: 1.9,
-      label: () => (ex.cobwebs ? 'Cobwebs in the porch corners — [E] brush them down' : null),
+      label: () => (ex.cobwebs ? 'Cobwebs in the porch corners - [E] brush them down' : null),
       action: () => {
         if (!brushCobwebs(state).ok) return;
         webs.visible = false;
@@ -140,7 +140,7 @@ export function buildExterior(B) {
     const wp = L2W(DOOR_MAIN.x + 1.35, halfD + 0.6);
     addProp({
       x: wp.x, z: wp.z, r: 1.8,
-      label: () => (ex.light ? `Dead porch light — [E] fit a new bulb ($${BULB_COST})` : null),
+      label: () => (ex.light ? `Dead porch light - [E] fit a new bulb ($${BULB_COST})` : null),
       action: () => {
         const res = replaceBulb(state);
         if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }

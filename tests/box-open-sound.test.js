@@ -63,7 +63,7 @@ test('press one is adhesive: stick-slip, a swept band, and the flaps swinging ov
   assert.equal((body.match(/airSwing\(/g) || []).length, 2);
 });
 
-test('press two is board, not adhesive — flex, creases, and the flap landing', () => {
+test('press two is board, not adhesive - flex, creases, and the flap landing', () => {
   const body = cueBody('boxFlapFold');
   assert.ok(!body.includes('stickSlip'), 'there is no tape left to tear on the second press');
   // The flex RISES before it falls: a panel bending, not something being hit.
@@ -72,7 +72,7 @@ test('press two is board, not adhesive — flex, creases, and the flap landing',
   assert.match(body, /boardKnock\(\{ delay: 0\.257/, 'and the flap arriving on the side');
 });
 
-test('press three is objects — rustle, several knocks, and one unit lifting clear', () => {
+test('press three is objects - rustle, several knocks, and one unit lifting clear', () => {
   const body = cueBody('boxContentsShift');
   assert.ok(!body.includes('stickSlip'), 'reaching in is not a tear');
   assert.match(body, /const knocks = 3 \+/, 'the stack settles in several knocks, and not always the same number');

@@ -65,7 +65,7 @@ test('the hinge axis is horizontal and square to the seat', () => {
   assert.ok(Math.abs(dot(h, forwardLocal())) < 1e-9, 'so the lid swings in the player’s sagittal plane');
 });
 
-test('the screen corners come back in a defined order — no sorting heuristic', () => {
+test('the screen corners come back in a defined order - no sorting heuristic', () => {
   // main.js used to sort the projected corners by y to guess which were "top". That guess is
   // only ever as good as the camera angle. The lid's own frame knows the answer exactly, so
   // the order is [top-left, top-right, bottom-right, bottom-left] as the SEATED PLAYER reads it.
@@ -81,7 +81,7 @@ test('the screen corners come back in a defined order — no sorting heuristic',
   assert.ok(Math.abs(h - LAPTOP.screen.h) < 1e-6, 'the side edge is one screen tall');
 });
 
-test('the screen sits inside the lid — there is a real bezel', () => {
+test('the screen sits inside the lid - there is a real bezel', () => {
   assert.ok(LAPTOP.bezel > 0.005, 'a visible bezel, not a hairline');
   assert.ok(LAPTOP.screen.w + 2 * LAPTOP.bezel <= LAPTOP.lid.w + 1e-9, 'the display fits across the lid');
   assert.ok(LAPTOP.screen.h + 2 * LAPTOP.bezel <= LAPTOP.lid.d + 1e-9, 'and down it');
@@ -91,6 +91,6 @@ test('the machine is a believable size', () => {
   // a 15" laptop is about 0.36 x 0.25 m. A yard is 0.9144 m.
   const wIn = (LAPTOP.deck.w * 0.9144 * 39.37);
   const diagIn = Math.hypot(LAPTOP.screen.w, LAPTOP.screen.h) * 0.9144 * 39.37;
-  assert.ok(wIn > 11 && wIn < 17, `deck is ${wIn.toFixed(1)}" across — a real laptop`);
+  assert.ok(wIn > 11 && wIn < 17, `deck is ${wIn.toFixed(1)}" across - a real laptop`);
   assert.ok(diagIn > 12 && diagIn < 18, `the display is a ${diagIn.toFixed(1)}" panel`);
 });

@@ -537,7 +537,7 @@ export function buildWashing(B) {
         const surf = WASH_SURFACES.find((x) => x.id === id);
         hooks.toast(`${surf.label} is clean.`);
         if (exteriorWashScore(state) > 0.985) {
-          hooks.toast('The whole outside is washed down — the place looks cared for again.');
+          hooks.toast('The whole outside is washed down - the place looks cared for again.');
         }
         return true;
       }

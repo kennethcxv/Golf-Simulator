@@ -1034,7 +1034,7 @@ function objectiveList(state) {
       blocked: entered
         ? (ceilingCircuitPowered(state)
           ? null
-          : 'The ceiling circuit is dead — finish the office power and ceiling repair first.')
+          : 'The ceiling circuit is dead - finish the office power and ceiling repair first.')
         : 'Enter the clubhouse to inspect the ceiling panels.',
       tool: 'Ceiling light repair interaction',
       hint: ceilingCircuitPowered(state)

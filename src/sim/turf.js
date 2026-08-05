@@ -29,7 +29,7 @@ import { seedSurfaceDamage, sectionDamageSummary } from './surfaceDamage.js';
 const T = () => BALANCE.turf;
 
 export const DISEASE = { NONE: 0, DOLLAR_SPOT: 1, BROWN_PATCH: 2 };
-export const DISEASE_NAMES = ['—', 'Dollar spot', 'Brown patch'];
+export const DISEASE_NAMES = ['-', 'Dollar spot', 'Brown patch'];
 
 const ZONE_KEY = {
   [ZONE.GREEN]: 'green',
@@ -514,12 +514,12 @@ export function diagnoseSection(state, section) {
   if (!s.disease) return null;
   if (s.disease.type === DISEASE.DOLLAR_SPOT) {
     return (
-      `Dollar spot (${s.disease.severity}%) — classic on underfed turf sitting in humid air. ` +
+      `Dollar spot (${s.disease.severity}%) - classic on underfed turf sitting in humid air. ` +
       `Nutrients here read ${s.nutrients}; feed this section and treat with fungicide, and it clears in about a week.`
     );
   }
   return (
-    `Brown patch (${s.disease.severity}%) — hot, humid nights on saturated turf. ` +
+    `Brown patch (${s.disease.severity}%) - hot, humid nights on saturated turf. ` +
     `Moisture here reads ${s.moisture}; ease off evening watering and nitrogen, treat with fungicide, and let it dry out.`
   );
 }

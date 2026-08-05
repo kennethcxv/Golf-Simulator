@@ -112,7 +112,7 @@ test('voiding clears the packed-receipt checkpoint', () => {
   assert.equal(canComplete(tx), false);
 });
 
-test('REVENUE moves only when the sale completes — not when it is scanned or paid', () => {
+test('REVENUE moves only when the sale completes - not when it is scanned or paid', () => {
   const st = newGame('relaxed', 3);
   st.shop.inventory.balls3.shelf = 4;
   pickFromShelf(st, 'balls3', 'a');
@@ -215,7 +215,7 @@ test('putting it back clears the held record', () => {
   assert.deepEqual(heldUnits(st), []);
 });
 
-test('completing the sale consumes the held units — they are sold, not returned', () => {
+test('completing the sale consumes the held units - they are sold, not returned', () => {
   const st = newGame('relaxed', 3);
   st.shop.inventory.balls3.shelf = 4;
   st.shop.inventory.glove1.shelf = 4;
@@ -232,7 +232,7 @@ test('completing the sale consumes the held units — they are sold, not returne
   completeSale(st, tx, 'A');
 
   assert.deepEqual(heldUnits(st), [], 'they left with the goods');
-  assert.equal(st.shop.inventory.balls3.shelf, 3, 'and the shelf stays down — it was sold');
+  assert.equal(st.shop.inventory.balls3.shelf, 3, 'and the shelf stays down - it was sold');
   assert.equal(st.shop.inventory.glove1.shelf, 3);
 });
 
@@ -263,7 +263,7 @@ test('SAVE MID-SALE: reloading returns the held goods to the shelf and banks not
   assert.equal((reloaded.shop.salesLive || {}).revenue || 0, 0, 'the sale never happened');
 });
 
-test('recovery is idempotent — loading twice does not duplicate stock', () => {
+test('recovery is idempotent - loading twice does not duplicate stock', () => {
   const st = newGame('relaxed', 3);
   st.shop.inventory.balls3.shelf = 4;
   pickFromShelf(st, 'balls3', 'a');
@@ -286,7 +286,7 @@ test('a voided transaction has moved no money and can never complete', () => {
   assert.equal(printReceipt(tx).ok, false);
 });
 
-test('the held ledger reaches the snapshot — without it, recovery has nothing to go on', () => {
+test('the held ledger reaches the snapshot - without it, recovery has nothing to go on', () => {
   const st = newGame('relaxed', 3);
   st.shop.inventory.balls3.shelf = 4;
   pickFromShelf(st, 'balls3', 'u1');

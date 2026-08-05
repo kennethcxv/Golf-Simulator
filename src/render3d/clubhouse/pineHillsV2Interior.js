@@ -668,7 +668,7 @@ export function createPineHillsV2Interior({
       ...pose,
       r: pose.radius,
       label: () => restorationSnapshot(state)?.targetProgress[targetId] < 1
-        ? `${verb[0].toUpperCase()}${verb.slice(1)} — [E]`
+        ? `${verb[0].toUpperCase()}${verb.slice(1)} - [E]`
         : null,
       action: () => completeTarget(targetId),
     });
@@ -755,12 +755,12 @@ export function createPineHillsV2Interior({
           const progress = restorationSnapshot(state)?.componentRepairProgress?.[site.id] || 0;
           const percent = progress > 0 ? ` (${Math.round(progress * 100)}%)` : '';
           return units > 0
-            ? `${siteLabel} — hold [E] to repair${percent} · ${units} repair components ready`
-            : `${siteLabel} — bring repair components to fix${percent}`;
+            ? `${siteLabel} - hold [E] to repair${percent} · ${units} repair components ready`
+            : `${siteLabel} - bring repair components to fix${percent}`;
         }
         const next = nextFinishOf(component);
         const nextLabel = ARCHITECTURE_FINISH_LABELS[next] || next;
-        return `${siteLabel} — [E] refinish: ${nextLabel} ($${ARCHITECTURE_PAINT_COSTS[site.id]})`;
+        return `${siteLabel} - [E] refinish: ${nextLabel} ($${ARCHITECTURE_PAINT_COSTS[site.id]})`;
       },
       hold: (dt) => {
         if (state.campaign?.enabled) return;
@@ -802,7 +802,7 @@ export function createPineHillsV2Interior({
     r: 1.55,
     aimY: 1.64,
     focusBias: 2.25,
-    label: () => 'Today\'s tee-time board — [E] open reservations',
+    label: () => 'Today\'s tee-time board - [E] open reservations',
     action: () => hooks.openLaptop?.('reservations'),
   });
 

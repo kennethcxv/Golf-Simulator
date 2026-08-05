@@ -62,7 +62,7 @@ export function makeClubPanel(app, onStateChanged) {
         el('span', { class: 'status-chip', text: `Reputation ${Math.round(club.reputation)}` }),
         el('span', { class: 'status-chip', text: `Members ${counts.weekday + counts.full + counts.premium}` }),
         el('span', { class: 'status-chip', text: `Satisfaction ${avgSat}` }),
-        el('span', { class: 'status-chip', text: `Rounds ${club.lastRounds ?? '—'}/day` }),
+        el('span', { class: 'status-chip', text: `Rounds ${club.lastRounds ?? '-'}/day` }),
       ),
     );
     const y = st.ledger.yesterday;
@@ -90,7 +90,7 @@ export function makeClubPanel(app, onStateChanged) {
 
     // --- staff --------------------------------------------------------------
     rows.push(el('h3', { text: `Payroll (${st.staff.employees.length})`, style: 'margin-top:10px' }));
-    if (!st.staff.employees.length) rows.push(el('div', { class: 'row muted', text: 'Nobody on salary — just you and the day-labor crew.' }));
+    if (!st.staff.employees.length) rows.push(el('div', { class: 'row muted', text: 'Nobody on salary - just you and the day-labor crew.' }));
     for (const emp of st.staff.employees) {
       rows.push(el('div', { class: 'row' },
         el('span', { text: ROLE_LABEL[emp.role], style: 'width:150px' }),
@@ -143,7 +143,7 @@ export function makeClubPanel(app, onStateChanged) {
       const atMax = level >= spec.maxLevel;
       const needNote =
         key === 'instruction' && level > 0 && !st.staff.employees.some((e) => e.role === ROLE.INSTRUCTOR)
-          ? ' — needs an instructor!'
+          ? ' - needs an instructor!'
           : '';
       rows.push(el('div', { class: 'row' },
         el('strong', { text: spec.name, style: 'width:150px' }),
@@ -173,19 +173,19 @@ export function makeClubPanel(app, onStateChanged) {
       ));
     }
     for (const o of club.outings.scheduled) {
-      rows.push(el('div', { class: 'row muted', text: `Booked: ${o.company}, ${o.size} players, in ${Math.max(0, o.day - dayAbs)} day(s) — members will grumble that day.` }));
+      rows.push(el('div', { class: 'row muted', text: `Booked: ${o.company}, ${o.size} players, in ${Math.max(0, o.day - dayAbs)} day(s) - members will grumble that day.` }));
     }
 
     // --- development (the improvement tree) ----------------------------------------
     const prog = st.progression;
     if (prog) {
-      rows.push(el('h3', { text: `Development — prestige ${Math.round(prog.prestige)}`, style: 'margin-top:10px' }));
+      rows.push(el('h3', { text: `Development - prestige ${Math.round(prog.prestige)}`, style: 'margin-top:10px' }));
       const CAT_ORDER = { turf: '⛳ Grounds equipment', shop: '🛍 Shop', membership: '🤝 Programs', events: '🏆 Events' };
       let lastCat = '';
       for (const [id, spec] of Object.entries(UPGRADES)) {
         if (spec.cat !== lastCat) {
           lastCat = spec.cat;
-          rows.push(el('div', { class: 'muted', text: `— ${CAT_ORDER[spec.cat]} —`, style: 'margin-top:6px' }));
+          rows.push(el('div', { class: 'muted', text: `- ${CAT_ORDER[spec.cat]} -`, style: 'margin-top:6px' }));
         }
         const owned = hasUpgrade(st, id);
         const locked = prog.prestige < spec.prestige;
@@ -198,7 +198,7 @@ export function makeClubPanel(app, onStateChanged) {
                 text: formatMoney(spec.cost),
                 onclick: () => {
                   const res = purchaseUpgrade(st, id);
-                  toast(res.ok ? `${spec.name} — done.` : res.reason, res.ok ? '' : 'warn');
+                  toast(res.ok ? `${spec.name} - done.` : res.reason, res.ok ? '' : 'warn');
                   refresh(); onStateChanged?.();
                 },
               }),
@@ -210,7 +210,7 @@ export function makeClubPanel(app, onStateChanged) {
       if (prog.event) {
         const spec = TOURNAMENTS[prog.event.tier];
         rows.push(el('div', { class: 'row', style: 'color:var(--accent-2)' },
-          `📅 ${spec.name} in ${Math.max(0, prog.event.day - dayAbs)} day(s) — needs condition ${spec.conditionReq}+ and all nine open.`));
+          `📅 ${spec.name} in ${Math.max(0, prog.event.day - dayAbs)} day(s) - needs condition ${spec.conditionReq}+ and all nine open.`));
       }
       for (const [tier, spec] of Object.entries(TOURNAMENTS)) {
         const gate = canScheduleTournament(st, tier);
@@ -224,7 +224,7 @@ export function makeClubPanel(app, onStateChanged) {
                 text: 'Schedule',
                 onclick: () => {
                   const res = scheduleTournament(st, tier);
-                  toast(res.ok ? `${spec.name} scheduled — get the course ready.` : res.reason, res.ok ? '' : 'warn');
+                  toast(res.ok ? `${spec.name} scheduled - get the course ready.` : res.reason, res.ok ? '' : 'warn');
                   refresh();
                 },
               })
@@ -243,7 +243,7 @@ export function makeClubPanel(app, onStateChanged) {
       .sort((a, b) => (b.champion ? 1 : 0) - (a.champion ? 1 : 0) || (b.roundsPlayed || 0) - (a.roundsPlayed || 0))
       .slice(0, 6);
     if (!regulars.length) {
-      rows.push(el('div', { class: 'row muted', text: 'Nobody has teed it up yet — give it a day.' }));
+      rows.push(el('div', { class: 'row muted', text: 'Nobody has teed it up yet - give it a day.' }));
     }
     for (const g of regulars) {
       const lastThought = g.memory && g.memory[0] && g.memory[0].thoughts[0];
@@ -287,7 +287,7 @@ export function makeClubPanel(app, onStateChanged) {
       box.append(
         el('div', { class: 'row muted' },
           `${TIERS[g.memberTier] ? TIERS[g.memberTier].name : 'Not a member'} · handicap ${g.skill.toFixed(1)} · ` +
-          `${g.roundsPlayed} rounds here · best ${g.bestScore ?? '—'} · picky about ${g.persona}`),
+          `${g.roundsPlayed} rounds here · best ${g.bestScore ?? '-'} · picky about ${g.persona}`),
         el('div', { class: 'row' },
           el('span', { class: 'status-chip', text: `Satisfaction ${Math.round(g.satisfaction)}` }),
           g.fittedDay != null ? el('span', { class: 'status-chip', text: 'Recently fitted' }) : null,
@@ -298,7 +298,7 @@ export function makeClubPanel(app, onStateChanged) {
         box.append(el('div', { class: 'row muted', text: 'No rounds on record yet.' }));
       }
       for (const m of (g.memory || []).slice(0, 6)) {
-        box.append(el('div', { class: 'row muted', style: 'font-size:0.85rem', text: `Day ${m.day + 1} — shot ${m.score}` }));
+        box.append(el('div', { class: 'row muted', style: 'font-size:0.85rem', text: `Day ${m.day + 1} - shot ${m.score}` }));
         for (const t of m.thoughts) {
           box.append(el('div', { class: 'row', style: 'font-size:0.84rem;padding-left:12px;font-style:italic;color:var(--text-dim)', text: `“${t}”` }));
         }

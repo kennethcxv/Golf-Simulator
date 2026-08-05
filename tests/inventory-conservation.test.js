@@ -161,7 +161,7 @@ test('a unit that exists is never duplicated or lost, over 750 random actions', 
     for (const id of RETAIL) {
       assert.equal(
         unitsOf(st, id, inHand) + sold[id], ordered[id],
-        `step ${step} (action ${act}): ${id} — have ${unitsOf(st, id, inHand)} + sold ${sold[id]}, ordered ${ordered[id]}`,
+        `step ${step} (action ${act}): ${id} - have ${unitsOf(st, id, inHand)} + sold ${sold[id]}, ordered ${ordered[id]}`,
       );
     }
     const shelfAfterStep = RETAIL.reduce((sum, id) => sum + st.shop.inventory[id].shelf, 0);
@@ -224,7 +224,7 @@ test('a box carried and set down keeps its identity and its contents', () => {
   assert.equal(reloaded.ry, 1.2);
 });
 
-test('a shopper who leaves holding unsold stock puts it back — nothing evaporates', () => {
+test('a shopper who leaves holding unsold stock puts it back - nothing evaporates', () => {
   // pickFromShelf takes the unit off the shelf the instant they lift it. Every path that removes
   // a shopper from the floor (gave up, closing time, ran out of stops, scene torn down) must hand
   // that unit back, or the player's stock silently drains and their books stop adding up.

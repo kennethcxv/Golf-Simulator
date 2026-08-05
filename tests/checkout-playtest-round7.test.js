@@ -51,10 +51,10 @@ function functionBody(name) {
 
 test('the monitor stands nearer frame centre at a larger scale', () => {
   const local = frontDeskLocalPoint(REGISTER.monitor.x, REGISTER.monitor.z);
-  assert.ok(local.x <= 0.40, `monitor local x ${local.x.toFixed(2)} — 0.52 ran the glass off the frame edge`);
+  assert.ok(local.x <= 0.40, `monitor local x ${local.x.toFixed(2)} - 0.52 ran the glass off the frame edge`);
   assert.ok(local.x >= 0.20, 'but it stays right of the goods (the space contract)');
   const scale = /const POS_HARDWARE_SCALE = ([\d.]+)/.exec(source);
-  assert.ok(Number(scale[1]) >= 1.5, `POS scale ${scale[1]} — the screen reads at working distance`);
+  assert.ok(Number(scale[1]) >= 1.5, `POS scale ${scale[1]} - the screen reads at working distance`);
 });
 
 // --- 2: goods stage on the bag's own line and slide level --------------------
@@ -69,9 +69,9 @@ test('the staging strip shares the laid bag line so the ring-up is one lateral s
   const bag = frontDeskLocalPoint(REGISTER.bag.x, REGISTER.bag.z);
   const stagingMidZ = (Math.min(...zs) + Math.max(...zs)) / 2;
   assert.ok(Math.abs(stagingMidZ - bag.z) <= 0.16,
-    `staging mid z ${stagingMidZ.toFixed(2)} runs beside bag z ${bag.z.toFixed(2)} — the slide is along the counter`);
+    `staging mid z ${stagingMidZ.toFixed(2)} runs beside bag z ${bag.z.toFixed(2)} - the slide is along the counter`);
   const product = functionBody('bagProduct');
-  assert.match(product, /mouth\.y = REST_Y/, 'the slide target keeps the resting height — no climb');
+  assert.match(product, /mouth\.y = REST_Y/, 'the slide target keeps the resting height - no climb');
 });
 
 // --- 3: the desk lamp serves the office --------------------------------------
@@ -174,10 +174,10 @@ test('nothing parked in the bay can phase through its walls', () => {
   const rise = parked * Math.cos(bay.seatPitch);
   const setBack = parked * Math.abs(Math.sin(bay.seatPitch));
   assert.ok(rise < bay.height,
-    `leaned reader stands ${rise.toFixed(3)} in a ${bay.height} opening — its head clears the ceiling`);
+    `leaned reader stands ${rise.toFixed(3)} in a ${bay.height} opening - its head clears the ceiling`);
   const baseZ = bay.reach * bay.seatDepthFrac;
   assert.ok(baseZ - setBack > 0.008,
-    `leaned reader tips back to z ${(baseZ - setBack).toFixed(3)} — it must stay in front of the lit panel`);
+    `leaned reader tips back to z ${(baseZ - setBack).toFixed(3)} - it must stay in front of the lit panel`);
   assert.ok(baseZ < bay.reach,
     'and its base stands inside the alcove, not proud of the opening');
   // The alcove must be deeper than the reader's own measured depth sweep
@@ -216,7 +216,7 @@ test('the customer wears no floating target during the automatic handoff', () =>
 test('the reader comes close enough that its physical keys are real targets', () => {
   const distance = Number(/const TERMINAL_FLOAT_DISTANCE = ([\d.]+)/.exec(source)[1]);
   assert.ok(distance <= 0.85,
-    `the floated reader sits ${distance} m out — the reference holds it at arm's length`);
+    `the floated reader sits ${distance} m out - the reference holds it at arm's length`);
   assert.ok(distance >= 0.5, 'but not so close it clips the near plane or looms');
 });
 

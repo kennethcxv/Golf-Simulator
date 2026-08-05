@@ -215,7 +215,7 @@ test('the cut list is exact and touches nothing in the service wing', () => {
   assert.equal(L.cutFixtures.length, 11);
   for (const id of L.cutFixtures) {
     assert.ok(!byId.has(id), `${id} should be cut`);
-    assert.ok(!L.fixturePoses[id], `${id} is cut — a pose for it is dead data`);
+    assert.ok(!L.fixturePoses[id], `${id} is cut - a pose for it is dead data`);
   }
   for (const id of ['office_desk', 'office_chair', 'office_filing', 'packing_bench',
     'backshelf_n', 'backshelf_e', 'backshelf_e2']) {
@@ -317,7 +317,7 @@ test('the queue ruling: line east along the desk face, exit lane never crossed',
       `line slot ${i} off the desk-face band`);
   }
   assert.ok(Math.abs(head.x - 2.82) < 1e-9 && Math.abs(head.z - 2.30) < 1e-9,
-    'the head moved — checkout reach circles and camera poses key off (2.82, 2.30)');
+    'the head moved - checkout reach circles and camera poses key off (2.82, 2.30)');
 });
 
 test('the protected clearways stay empty', () => {
@@ -361,7 +361,7 @@ test('the corridor seal closes the partition-to-desk hole', () => {
   // that re-adds the fillet re-seals the till.
   const westSeal = L.corridorWestSeal;
   assert.equal(westSeal.returnBackFill, undefined,
-    'returnBackFill is the staff pass-through — it must not come back');
+    'returnBackFill is the staff pass-through - it must not come back');
   const hutch = fixtureRectOf(byId.get('backcounter'));
   const gapFill = westSeal.hutchGapFill;
   assert.ok(gapFill.maxX >= hutch.minX - 0.02, 'gapFill-hutch seam');
@@ -502,7 +502,7 @@ test('the greybox ceiling repair pair sits inside the envelope', () => {
     assert.ok(inBounds(panel, B), `${id} centre outside the envelope`);
   }
   const orphan = CLUBHOUSE_CEILING_PANELS.find((entry) => entry.id === 'panel-02');
-  assert.ok(orphan.x < B.minX, 'panel-02 is cavity-side — the module must not expose it');
+  assert.ok(orphan.x < B.minX, 'panel-02 is cavity-side - the module must not expose it');
 });
 
 test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside the envelope', () => {
@@ -510,7 +510,7 @@ test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside 
   assert.equal(rig.y, L.ceilingY, 'the rig hangs from the v2 lid');
   assert.equal(rig.panels.length, 4, 'exactly the four in-envelope stations');
   const ids = rig.panels.map((panel) => panel.id);
-  assert.equal(new Set(ids).size, 4, 'position keys are unique — these name meshes');
+  assert.equal(new Set(ids).size, 4, 'position keys are unique - these name meshes');
   // Sim keys are deliberately NOT unique. The sim owns exactly two light
   // faults and the save shape is pinned, so the only way to make the neglected
   // room read as neglected is to hang more than one fitting off each fault:
@@ -522,7 +522,7 @@ test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside 
       (sim) => [sim, simIds.filter((id) => id === sim).length],
     )),
     { 'panel-02': 2, 'panel-07': 2 },
-    'both faults drive a pair of fittings — the abandoned read',
+    'both faults drive a pair of fittings - the abandoned read',
   );
   assert.equal(simIds.filter((id) => id !== 'panel-02' && id !== 'panel-07').length, 0,
     'no fitting is healthy in the neglected room');

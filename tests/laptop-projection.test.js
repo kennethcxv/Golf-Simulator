@@ -37,7 +37,7 @@ test('the four corners of the interface land exactly on the four corners of the 
   });
 });
 
-test('a mouse on the glass maps back to the pixel under it — the UV hit', () => {
+test('a mouse on the glass maps back to the pixel under it - the UV hit', () => {
   // this is what makes the screen CLICKABLE as a physical object rather than as a DOM overlay
   // that happens to sit there. Forward, then back, must be the identity.
   const h = homography(W, H, QUAD);
@@ -49,7 +49,7 @@ test('a mouse on the glass maps back to the pixel under it — the UV hit', () =
   }
 });
 
-test('a point outside the glass reports outside — the cursor knows when it has left the screen', () => {
+test('a point outside the glass reports outside - the cursor knows when it has left the screen', () => {
   const off = uvAt(W, H, QUAD, 40, 40); // well up and left of the display
   assert.ok(off.u < 0 || off.v < 0, 'reads as off-screen');
   const on = uvAt(W, H, QUAD, 800, 450);

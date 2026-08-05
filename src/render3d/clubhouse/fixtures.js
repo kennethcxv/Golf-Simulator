@@ -81,7 +81,7 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
 // stays — that names the section, it does not price anything.
 export function incompatibleStockingLabel(fixtureTitle, skuName, correctFixtureTitle = null) {
   const destination = correctFixtureTitle || 'its assigned display';
-  return `${fixtureTitle} — ${skuName} cannot be stocked here · take it to ${destination}`;
+  return `${fixtureTitle} - ${skuName} cannot be stocked here · take it to ${destination}`;
 }
 
 function releaseReplacedFixture(root, mats, merch) {
@@ -257,7 +257,7 @@ export function buildFixtures(B) {
       const heldSku = skuById(held.skuId);
       if (f.skus.includes(held.skuId)) {
         const line = inv[held.skuId] || { shelf: 0 };
-        return `${f.title} — ${heldSku.name} ${line.shelf}/${capacityOf(held.skuId)} — hold [E] to stock (${held.qty} in hand)`;
+        return `${f.title} - ${heldSku.name} ${line.shelf}/${capacityOf(held.skuId)} - hold [E] to stock (${held.qty} in hand)`;
       }
       const correctFixture = placedFixtures(state).find((fixture) => fixture.skus.includes(held.skuId));
       return incompatibleStockingLabel(f.title, heldSku.name, correctFixture?.title);
@@ -268,8 +268,8 @@ export function buildFixtures(B) {
       const line = inv[id] || { shelf: 0 };
       return `${sku.name} ${line.shelf}/${capacityOf(id)}`;
     }).join(' · ');
-    if (back > 0) return `${f.title} — ${facing} — ${back} in back — [E] restock`;
-    return `${f.title} — ${facing} — backroom empty`;
+    if (back > 0) return `${f.title} - ${facing} - ${back} in back - [E] restock`;
+    return `${f.title} - ${facing} - backroom empty`;
   }
 
   // stock this fixture from what is in the player's hands: tap = one, hold = a flow
@@ -317,9 +317,9 @@ export function buildFixtures(B) {
           .find((fixture) => fixture.skus.includes(held.skuId));
         return incompatibleStockingLabel(f.title, heldSku.name, correctFixture?.title);
       }
-      if (!open) return `${f.title} — door closed · [E] open before stocking`;
+      if (!open) return `${f.title} - door closed · [E] open before stocking`;
       const line = inv[held.skuId] || { shelf: 0 };
-      return `${f.title} — ${heldSku.name} ${line.shelf}/${capacityOf(held.skuId)} — hold [E] to stock (${held.qty} in hand)`;
+      return `${f.title} - ${heldSku.name} ${line.shelf}/${capacityOf(held.skuId)} - hold [E] to stock (${held.qty} in hand)`;
     }
 
     const facing = f.skus.map((id) => {
@@ -328,9 +328,9 @@ export function buildFixtures(B) {
       return `${sku.name} ${line.shelf}/${capacityOf(id)}`;
     }).join(' · ');
     const back = f.skus.reduce((sum, id) => sum + (inv[id]?.back || 0), 0);
-    if (!open) return `${f.title} — ${facing} — [E] open cooler`;
-    if (back > 0) return `${f.title} — ${facing} — [E] close · [X] restock ${back} from back`;
-    return `${f.title} — ${facing} — [E] close · backroom empty`;
+    if (!open) return `${f.title} - ${facing} - [E] open cooler`;
+    if (back > 0) return `${f.title} - ${facing} - [E] close · [X] restock ${back} from back`;
+    return `${f.title} - ${facing} - [E] close · backroom empty`;
   }
 
   function toggleOpeningCooler() {
@@ -354,12 +354,12 @@ export function buildFixtures(B) {
         label: () => {
           const box = B.carriedBox && B.carriedBox();
           if (box) return f.id === 'backshelf_n'
-            ? 'Carton rack — [E] store this box in a marked slot'
+            ? 'Carton rack - [E] store this box in a marked slot'
             : null;
           const held = B.carriedGoods && B.carriedGoods();
           if (held) {
             const sku = skuById(held.skuId);
-            return `Receiving reserve — [E] store ${held.qty} × ${sku ? sku.name : held.skuId}`;
+            return `Receiving reserve - [E] store ${held.qty} × ${sku ? sku.name : held.skuId}`;
           }
           return null;
         },

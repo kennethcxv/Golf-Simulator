@@ -846,8 +846,8 @@ export function createFrontDeskMonitorUi(canvas) {
     let caption;
     if (model.awaitingCash) caption = 'CLICK THE CUSTOMER’S CASH TO TAKE IT';
     else if (givingState === 'exact') caption = 'EXACT CHANGE';
-    else if (givingState === 'over') caption = `OVER BY ${deltaText} — CUSTOMER RECEIVES EXTRA CHANGE`;
-    else if (givingState === 'excess') caption = 'TOO MUCH — MAX EXTRA IS $5.00';
+    else if (givingState === 'over') caption = `OVER BY ${deltaText} - CUSTOMER RECEIVES EXTRA CHANGE`;
+    else if (givingState === 'excess') caption = 'TOO MUCH - MAX EXTRA IS $5.00';
     else caption = finite(model.givingDeltaCents) === 0 && !model.deposited
       ? 'SORTING THE RECEIVED CASH'
       : `SHORT BY ${deltaText}`;

@@ -313,7 +313,7 @@ export function giveChange(tx, amount) {
     return { ok: true, lost: 0 };
   }
   if (tx.mode === 'relaxed') {
-    return { ok: false, reason: diff > 0 ? 'Too much — count it again.' : 'Not enough — count it again.' };
+    return { ok: false, reason: diff > 0 ? 'Too much - count it again.' : 'Not enough - count it again.' };
   }
   tx.stage = 'receipt';
   return { ok: true, lost: diff }; // + overpaid the customer, − shorted them
@@ -461,7 +461,7 @@ export function checkoutSale(state, items, who = 'A customer', transactionId = n
     accrueSalesTax(state, saleTax, {
       idempotencyKey: taxKey,
       relatedId: id,
-      description: `Sales tax collected — ${who}`,
+      description: `Sales tax collected - ${who}`,
       source: 'checkout',
       customerCount: 1,
       taxableSales: saleRevenue,

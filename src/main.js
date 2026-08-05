@@ -207,7 +207,7 @@ function enterWalk(spawn) {
   // See GTAO_CONFIG in render3d/courseScene.js and tests/gtao-config.test.js.
   if (!yardHintShown && app.state && app.state.tractor && !app.state.tractor.repaired) {
     yardHintShown = true;
-    setTimeout(() => toast('The old tractor sits by the shed, east of the porch — she’d run again with some work.'), 1200);
+    setTimeout(() => toast('The old tractor sits by the shed, east of the porch - she’d run again with some work.'), 1200);
   }
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
@@ -516,7 +516,7 @@ function handleGuideTick(result) {
   } else {
     for (const step of advanced) toast(`✓ ${step.title}`, 'good');
   }
-  if (result.phaseChanged) toast(`Milestone — ${result.phaseChanged.title}`, 'good');
+  if (result.phaseChanged) toast(`Milestone - ${result.phaseChanged.title}`, 'good');
   if (result.firstDayCompleted) showFirstDaySummary();
   if (advanced.length || result.phaseChanged || result.firstDayCompleted) {
     if (objectivesPanel) objectivesPanel.refresh();
@@ -818,9 +818,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const section = sectionAtCell(cx, cy);
     if (!section) return null;
     if (TURF_ZONES.has(section.zone) && app.state.turf) {
-      return `${section.name} — ${sectionStatus(app.state, section)} — [E] inspect`;
+      return `${section.name} - ${sectionStatus(app.state, section)} - [E] inspect`;
     }
-    return `${section.name} — [E] inspect`;
+    return `${section.name} - [E] inspect`;
   };
   app.scene3d.walk.hooks.inspectAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
@@ -853,9 +853,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const section = sectionAtCell(cx, cy);
     const i = cy * st.course.w + cx;
     if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
-      return '💦 Hose out — aim at turf to water · [F] next tool';
+      return '💦 Hose out - aim at turf to water · [F] next tool';
     }
-    return `💦 ${section.name} — moisture ${Math.round(st.turf.moisture[i])} — hold the mouse button to water · [F] next tool`;
+    return `💦 ${section.name} - moisture ${Math.round(st.turf.moisture[i])} - hold the mouse button to water · [F] next tool`;
   };
   // the divot kit patches traffic wear on turf — same wear array the crew's
   // aeration relieves; the olive-tan wear tint clears as you work
@@ -876,14 +876,14 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const section = sectionAtCell(cx, cy);
     const i = cy * st.course.w + cx;
     if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
-      return '⛏ Divot kit out — aim at worn turf · [F] next tool';
+      return '⛏ Divot kit out - aim at worn turf · [F] next tool';
     }
     const w = Math.round(st.turf.wear[i]);
     const localized = section.zone === ZONE.GREEN ? st.turf.ballMarks?.[i] || 0 : st.turf.divots?.[i] || 0;
     const damageLabel = section.zone === ZONE.GREEN ? 'ball marks' : 'divots';
     return w <= 1 && localized <= 0.1
-      ? `⛏ ${section.name} — smooth, no ${damageLabel} here · [F] next tool`
-      : `⛏ ${section.name} — ${damageLabel} ${localized.toFixed(1)} · wear ${w} — hold to repair`;
+      ? `⛏ ${section.name} - smooth, no ${damageLabel} here · [F] next tool`
+      : `⛏ ${section.name} - ${damageLabel} ${localized.toFixed(1)} · wear ${w} - hold to repair`;
   };
   // the bunker rake smooths footprinted sand (wear on BUNKER cells, fed by
   // daily play traffic via sim/bunkers.js)
@@ -934,12 +934,12 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const st = app.state;
     const i = cy * st.course.w + cx;
     if (!st.turf || st.course.zones[i] !== ZONE.BUNKER) {
-      return '🧹 Bunker rake out — aim at sand · [F] next tool';
+      return '🧹 Bunker rake out - aim at sand · [F] next tool';
     }
     const w = Math.round(st.turf.wear[i]);
     return w <= 1
       ? '🧹 This sand is raked smooth · [F] next tool'
-      : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
+      : `🧹 Bunker - footprints ${w} - hold the mouse button to rake`;
   };
   if (editorUi && editorUi.isActive()) editorUi.hide();
   app.speedIdx = 1;
@@ -964,7 +964,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   hud.update();
   golfDayPanel?.update();
   if (objectivesPanel) objectivesPanel.refresh();
-  toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
+  toast(`Welcome to ${state.clubName} - ${state.mode} mode.`);
   if (lastDiseasedNames.size > 0) {
     toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Step outside and click them to diagnose.`, 'warn');
   }
@@ -1299,8 +1299,8 @@ const handlers = {
       const piles = ch?.setDirtReveal ? (ch.dirtSenseDiagnostics?.().clusters || 0) : 0;
       ch?.setDirtReveal?.(1, true);
       toast(piles
-        ? `Overview camera — ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
-        : 'Overview camera — Tab returns you to your feet.');
+        ? `Overview camera - ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
+        : 'Overview camera - Tab returns you to your feet.');
     } else {
       app.courseMode = 'walk';
       app.scene3d.clubhouse?.()?.setDirtReveal?.(0, false);
@@ -1513,8 +1513,8 @@ function openPauseMenu() {
   }
 
   function saveDescription(record, summary) {
-    if (record.status === 'missing') return 'Empty — ready for a new save';
-    if (record.status === 'corrupt') return 'Unreadable — saving here will preserve the damaged copy as a backup';
+    if (record.status === 'missing') return 'Empty - ready for a new save';
+    if (record.status === 'corrupt') return 'Unreadable - saving here will preserve the damaged copy as a backup';
     if (record.status === 'unsupported') return `Created by newer version ${record.version}`;
     const when = summary?.savedAt ? new Date(summary.savedAt).toLocaleString() : 'time not recorded';
     return `${summary?.clubName || 'Saved restoration'} · Day ${summary?.day || '?'} at ${summary?.clock || '?'} · ${formatMoney(summary?.cash || 0)} · ${when}`
@@ -1559,7 +1559,7 @@ function openPauseMenu() {
               } catch (error) {
                 action.disabled = false;
                 card.dataset.state = 'error';
-                meta.textContent = 'Save failed — your previous slot is still preserved. Check storage access and try another slot.';
+                meta.textContent = 'Save failed - your previous slot is still preserved. Check storage access and try another slot.';
                 status.textContent = `Slot ${index + 1} could not be saved`;
                 notify({ message: `Slot ${index + 1} could not be saved. Your previous copy was preserved.`, category: 'save-failure', persistent: true, dedupeKey: `save-failed-${slot}` });
                 audio.uiError?.();
@@ -1678,7 +1678,7 @@ function openPauseMenu() {
             if (!w || !w.unstick) return;
             const how = w.unstick();
             closePauseMenu();
-            toast(how ? 'Freed you up — back on solid ground.' : 'Nowhere clear to move you to.', how ? 'good' : 'warn');
+            toast(how ? 'Freed you up - back on solid ground.' : 'Nowhere clear to move you to.', how ? 'good' : 'warn');
           },
         }),
         el('button', {
@@ -2654,11 +2654,11 @@ function frame(ts) {
         const man = ev.order.manifest;
         const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
         if (ev.kind === 'dispatched') {
-          toast(`📦 ${name} has dispatched — ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
+          toast(`📦 ${name} has dispatched - ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close - ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} - the van is turning into receiving with ${boxes}.`);
           // A carton is the only thing in the game opened by hold-and-drag, and
           // the entire retail loop is behind it. Teach it the moment there is
           // actually a box to open; the lesson retires itself on the first cut.
@@ -2681,7 +2681,7 @@ function frame(ts) {
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
           // quietly delete them either — the order is still out there and will try again.
-          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
+          toast(`🚫 The van could not unload - the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
         }
       }
     }
@@ -2748,11 +2748,11 @@ function frame(ts) {
       if (app.state.tutorial && !app.state.tutorial.complete) {
         const tut = tickTutorial(app.state);
         if (!app.state.tutorial.hidden) {
-          for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+          for (const step of tut.advanced) toast(`🎯 ${step.title} - done.`);
         }
         if (tut.advanced.length) {
           if (app.state.tutorial.complete && !app.state.tutorial.hidden) {
-            toast('The guide retires — the club is yours now. The Open awaits.', '');
+            toast('The guide retires - the club is yours now. The Open awaits.', '');
           }
           objectivesPanel.refresh();
         }
@@ -2800,7 +2800,7 @@ function registerPrompt() {
     case 'payment': return `Choose card or cash on the register screen${exit}`;
     case 'card-present': return `Take the customer's card, then use the terminal${exit}`;
     case 'card-ready': return `Run the card through the terminal${exit}`;
-    case 'card-busy': return 'Authorising card — please wait';
+    case 'card-busy': return 'Authorising card - please wait';
     case 'card-declined': return `Card declined · try another card or choose cash${exit}`;
     case 'cash-tender': return `Take the customer's cash · [D] open the drawer${exit}`;
     case 'cash-drawer': {
@@ -2869,7 +2869,7 @@ function updateWalkOverlay(dtMs = 16.7) {
   if (ovEl.dirtReticle) {
     const aimed = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense().aimed : null;
     const reticleText = aimed
-      ? (aimed.kind === 'litter' ? 'litter — sweep it' : 'loose dirt — sweep it')
+      ? (aimed.kind === 'litter' ? 'litter - sweep it' : 'loose dirt - sweep it')
       : '';
     if (reticleText !== ovLast.dirtReticleText) {
       ovLast.dirtReticleText = reticleText;
@@ -2927,7 +2927,7 @@ function updateWalkOverlay(dtMs = 16.7) {
     frontDeskLessonSeen = true;
     triggerContextTutorial(app.state, 'front-desk');
     objectivesPanel.refresh();
-  } else if (frontDeskLessonSeen && label?.startsWith('Register — yesterday')) {
+  } else if (frontDeskLessonSeen && label?.startsWith('Register - yesterday')) {
     tutorialFlag(app.state, 'frontDeskCheckedIn');
     frontDeskLessonSeen = false;
   }
@@ -2964,7 +2964,7 @@ function updateWalkOverlay(dtMs = 16.7) {
       if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
       const c = shopCondition(app.state);
       const word = CONDITION_WORD(c);
-      condText = `🧹 Shop condition ${c} — ${word}`;
+      condText = `🧹 Shop condition ${c} - ${word}`;
       if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
       lastCondWord = word;
     }
@@ -2993,9 +2993,9 @@ function checkBigMoments() {
     modal('🏆 THE WILLOW CREEK OPEN', (box, close) => {
       box.append(
         el('div', { class: 'row', style: 'font-size:1.05rem;line-height:1.5' },
-          'You did it. The muni nobody wanted became the club everyone talks about — and today it hosted a major. ' +
+          'You did it. The muni nobody wanted became the club everyone talks about - and today it hosted a major. ' +
           'The greens rolled true, the members watched from the clubhouse they helped build, and the write-ups are glowing.'),
-        el('div', { class: 'row muted' }, 'The club keeps running — there is always another season. Thanks for building it.'),
+        el('div', { class: 'row muted' }, 'The club keeps running - there is always another season. Thanks for building it.'),
         el('div', { class: 'row', style: 'margin-top:12px' },
           el('button', { class: 'primary', text: 'Back to the course', onclick: () => { app.speedIdx = 1; close(); } })),
       );

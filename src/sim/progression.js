@@ -164,7 +164,7 @@ export function purchaseUpgrade(state, id) {
   if (!spec) return { ok: false, reason: 'No such improvement.' };
   if (hasUpgrade(state, id)) return { ok: false, reason: 'Already owned.' };
   if (state.progression.prestige < spec.prestige) {
-    return { ok: false, reason: `Needs prestige ${spec.prestige} — the golf world isn't ready to sell you this yet.` };
+    return { ok: false, reason: `Needs prestige ${spec.prestige} - the golf world isn't ready to sell you this yet.` };
   }
   if (state.cash < spec.cost) return { ok: false, reason: 'Not enough cash.' };
   const day = calendarOf(state.clock.minutes).dayAbs;
@@ -270,7 +270,7 @@ export function scheduleTournament(state, tier) {
     state.club.feed.unshift({
       kind: 'event',
       day: calendarOf(state.clock.minutes).dayAbs,
-      text: `${spec.name} is on the calendar — ${spec.leadDays} days to get the course ready.`,
+      text: `${spec.name} is on the calendar - ${spec.leadDays} days to get the course ready.`,
     });
     if (state.club.feed.length > 20) state.club.feed.pop();
   }
@@ -300,7 +300,7 @@ export function resolveTournamentIfDue(state, closingDay) {
     success,
     condition: Math.round(condition),
     note: success
-      ? `${spec.name} was a triumph — condition ${Math.round(condition)} with the whole course open.`
+      ? `${spec.name} was a triumph - condition ${Math.round(condition)} with the whole course open.`
       : openHoles < 9
         ? `${spec.name} played over a broken routing (${openHoles}/9 holes). The write-ups were brutal.`
         : `${spec.name} exposed the turf (condition ${Math.round(condition)} vs ${spec.conditionReq} needed). Embarrassing.`,

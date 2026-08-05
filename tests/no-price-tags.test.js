@@ -25,7 +25,7 @@ test('the product swing tag is deleted, not disabled', () => {
   assert.doesNotMatch(source, /new THREE\.PlaneGeometry\(0\.078, 0\.046\)/,
     'the tag backing geometry is gone');
   assert.doesNotMatch(source, /includeCheckoutSwingTag/,
-    'and so is the flag that used to switch it off — a flag is not a removal');
+    'and so is the flag that used to switch it off - a flag is not a removal');
   // the barcode SURFACE stays: it decides which way a product turns to scan,
   // and every product still needs one
   assert.match(source, /barcodeSurface/, 'the scan-normal contract is untouched');

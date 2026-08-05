@@ -57,7 +57,7 @@ test('a desk with no return leg has nothing to draw and nothing to collide with'
   assert.ok(Number.isFinite(active.minX), 'returnRun stays a rect so its consumers keep working');
 });
 
-test('v1 keeps its return leg — this is a v2 ruling, not a global one', () => {
+test('v1 keeps its return leg - this is a v2 ruling, not a global one', () => {
   assert.equal(v1.staffReturn, true);
   assert.ok(v1.returnStaffExtent > v1.frontDepth / 2 + 0.5,
     'the v1 return still crosses its corridor');

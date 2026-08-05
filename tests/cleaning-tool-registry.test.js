@@ -34,7 +34,7 @@ test('every tool is completely specified', () => {
     assert.ok(t.audio && t.audio.loop, `${id}: needs at least a loop sound`);
     assert.ok(t.equipToast, `${id}: needs an equip line`);
     assert.ok(t.sockets && Object.keys(t.sockets).length,
-      `${id}: needs at least one socket — effects must come out of the tool`);
+      `${id}: needs at least one socket - effects must come out of the tool`);
   }
 });
 
@@ -111,8 +111,8 @@ test('a held tool is a sane size and sits in front of the camera', () => {
       // A mop is long; a sponge is not. The ceiling allows for a floor tool whose head is a stride
       // and a half ahead AND whose hose trails back past the player — the vacuum is legitimately
       // ~2.8 yd end to end. Anything past 3 is a scale error, not a long tool.
-      assert.ok(longest > 0.05, `${id}: ${longest.toFixed(3)} across — too small to read`);
-      assert.ok(longest < 3.0, `${id}: ${longest.toFixed(3)} across — that is a scale error`);
+      assert.ok(longest > 0.05, `${id}: ${longest.toFixed(3)} across - too small to read`);
+      assert.ok(longest < 3.0, `${id}: ${longest.toFixed(3)} across - that is a scale error`);
       // In front of the camera, which looks down -Z.
       assert.ok(bb.max.z < 1.4, `${id}: geometry reaches z=${bb.max.z.toFixed(2)}, behind the eye`);
     }

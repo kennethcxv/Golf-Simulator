@@ -36,7 +36,7 @@ test('the held reach does not breathe, because the fan is laid out once at the g
   const end = character.indexOf("char.mode === 'Receive'", start);
   const branch = character.slice(start, end);
   assert.match(branch, /shR = -1\.12;/, 'the arm reaches');
-  assert.ok(!branch.includes('Math.sin'), 'and holds still — a bobbing wrist detaches the cash');
+  assert.ok(!branch.includes('Math.sin'), 'and holds still - a bobbing wrist detaches the cash');
 });
 
 test('the checkout camera holds one frame; only the drawer and check-in move it', () => {
@@ -67,7 +67,7 @@ test('the receipt files silently and payment flows straight into the bag transfe
   assert.match(begin, /printReceipt\(tx\)/, 'the sim receipt still files');
   assert.ok(!begin.includes('ensureReceiptMesh'), 'no paper strip is modelled');
   assert.match(begin, /return finishAutomaticFulfillment\(\)/,
-    'payment flows straight into fulfilment — there is no hand-over beat to wait for');
+    'payment flows straight into fulfilment - there is no hand-over beat to wait for');
   const delivery = register.slice(register.indexOf('function updateDelivery'), register.indexOf('function updateCashMotions'));
   assert.ok(!delivery.includes('receipt-deliver'), 'no receipt travel leg survives');
   assert.match(delivery, /deliveryPhase === 'bag-deliver'/, 'the bag transfer is the one physical delivery');
@@ -116,7 +116,7 @@ test('the checkout summary column is laid out from its panel, not from literals'
   assert.ok(column.includes('if (fit.lines > 1) { fit.lines = 1; return true; }'),
     'a shorter instruction before a number disappears');
   assert.ok(column.includes('if (fit.tail[index].keep < fit.tail[weakest].keep) weakest = index;'),
-    'and when a tender row must go it is the LEAST load-bearing one — dropping '
+    'and when a tender row must go it is the LEAST load-bearing one - dropping '
     + 'the topmost lost CHANGE DUE while SELECTED survived, on the one screen '
     + 'where the player is counting change');
   assert.match(column, /if \(discount > 0\) breakdown\.push/,
@@ -135,5 +135,5 @@ test('a control the player cannot read is not a control', () => {
   assert.match(source, /function drawActionGrid\(actions, x, y, width, height, forcedColumns = null\)/,
     'and the grid accepts that instruction');
   assert.match(source, /for \(const size of \[19, 18, 17, 16, 15\]\)/,
-    'the status heading shrinks before it truncates — "TRANSACTION COMPLETE" is the longest');
+    'the status heading shrinks before it truncates - "TRANSACTION COMPLETE" is the longest');
 });

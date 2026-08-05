@@ -25,7 +25,7 @@ test('every placement declares who owns its collider', () => {
   for (const placement of PROP_PLACEMENTS) {
     assert.equal(
       typeof placement.collision, 'string',
-      `asset ${placement.n} has no collision declaration — silence reads as "none" and gets no hull`,
+      `asset ${placement.n} has no collision declaration - silence reads as "none" and gets no hull`,
     );
   }
 });

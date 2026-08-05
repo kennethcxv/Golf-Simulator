@@ -67,7 +67,7 @@ test('the money lives in a sticky rail so Place Order never leaves the lid', () 
   assert.ok(rail.includes('lt-shipping'), 'the delivery chooser rides the rail');
   assert.ok(rail.includes("money('Subtotal'"), 'so do the totals');
   assert.ok(rail.includes("primaryBtn('Place Order'"), 'and the button that spends the money');
-  assert.ok(!rail.includes('lt-cartitem'), 'the line items do NOT — they are the column that scrolls');
+  assert.ok(!rail.includes('lt-cartitem'), 'the line items do NOT - they are the column that scrolls');
   // The stickiness itself is CSS, and a class with no position:sticky behind it is decor.
   assert.match(styles, /\.lt-cartrail \{[^}]*position: sticky/s);
   assert.match(styles, /\.lt-cartsplit \{[^}]*grid-template-columns/s);

@@ -1171,12 +1171,12 @@ export function createCustomerView(B, options) {
     const entity = actor.entity;
     if (entity.intent === CUSTOMER_INTENT.RESERVATION_CHECK_IN) {
       const reservation = reservationById(state, entity.reservationId);
-      if (!reservation) return `Front desk — [E] help ${entity.name} find their booking`;
+      if (!reservation) return `Front desk - [E] help ${entity.name} find their booking`;
       const late = calendarOf(state.clock.minutes).minuteOfDay - reservation.minute;
       const suffix = late > 0 ? ` · ${Math.round(late)} min late` : '';
-      return `Front desk — [E] check in ${entity.name} (${fmtSlot(reservation.minute)}, $${Math.round(reservation.fee)})${suffix}`;
+      return `Front desk - [E] check in ${entity.name} (${fmtSlot(reservation.minute)}, $${Math.round(reservation.fee)})${suffix}`;
     }
-    return `Front desk — [E] help ${entity.name} with a walk-in tee time`;
+    return `Front desk - [E] help ${entity.name} with a walk-in tee time`;
   }
 
   function frontDeskReservationId() {

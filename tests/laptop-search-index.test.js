@@ -405,7 +405,7 @@ test('the kind mark and the kind tag appear only when the results differ in kind
     'and the labels actually differ, or they would be noise again');
 });
 
-test('the results REPLACE the page — no second page underneath, no stray bar', () => {
+test('the results REPLACE the page - no second page underneath, no stray bar', () => {
   // "The results list appears ABOVE the full underlying page, which is still rendered below
   // it. I see search results and a whole Pro Shop dashboard at once," and "there is a stray
   // 'PRO SHOP › INVENTORY / Open →' bar between the results and the page content."
@@ -415,7 +415,7 @@ test('the results REPLACE the page — no second page underneath, no stray bar',
   typeQuery(lap, 'kit');
   const headings = collect(lap.root, 'lt-h1').map((n) => n.textContent);
   assert.equal(headings.length, 1, `two page headings means two pages on screen: ${headings}`);
-  assert.match(headings[0], /^Search — /, 'and the one heading is the search');
+  assert.match(headings[0], /^Search - /, 'and the one heading is the search');
   assert.equal(collect(lap.root, 'lt-searchpreview').length, 0, 'no page is previewed under the list');
   assert.equal(collect(lap.root, 'lt-previewbar').length, 0, 'and the bar that labelled it is gone');
   assert.equal(collect(lap.root, 'lt-hitopen').length, 0, 'the second "Open →" button is gone with it');
@@ -443,7 +443,7 @@ test('the arrow keys walk the results and Enter opens the highlighted one', () =
   assert.equal(lap.lastSearchReveal().anchor, 'Clubhouse repair components');
 });
 
-test('NEGATIVE CONTROL — an anchor that is not on the destination reports found:false', () => {
+test('NEGATIVE CONTROL - an anchor that is not on the destination reports found:false', () => {
   // The instrument has to be able to say no. If revealAnchor claimed a hit for anything, all
   // three tests above would pass with the highlight wired to nothing at all.
   //

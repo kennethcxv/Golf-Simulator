@@ -45,7 +45,7 @@ test('the standing figure is ~1.9 m tall with a real head above the shoulders', 
   character.dispose();
 });
 
-test('the body is vertically continuous — no floating head, no detached limbs', () => {
+test('the body is vertically continuous - no floating head, no detached limbs', () => {
   const character = makeCharacter();
   character.setMode('Idle');
   character.update(0.4);
@@ -56,7 +56,7 @@ test('the body is vertically continuous — no floating head, no detached limbs'
   const covered = (y) => spans.some(([lo, hi]) => y >= lo - 0.005 && y <= hi + 0.005);
   const holes = [];
   for (let y = 0.08; y <= top - 0.06; y += 0.02) if (!covered(y)) holes.push(+y.toFixed(2));
-  assert.equal(holes.length, 0, `vertical gaps in the body at y=${holes.join(', ')} — a part is floating`);
+  assert.equal(holes.length, 0, `vertical gaps in the body at y=${holes.join(', ')} - a part is floating`);
   character.dispose();
 });
 

@@ -83,7 +83,7 @@ test('a long wait at the register does get mentioned', () => {
     `somebody says so: ${texts.slice(0, 3).join(' | ')}`);
 });
 
-test('a review names its cause — praise, complaint, or both', () => {
+test('a review names its cause - praise, complaint, or both', () => {
   const st = newGame('relaxed', 8);
   for (let i = 0; i < 20; i++) {
     const r = reviewFor(st, visit(), i);
@@ -116,7 +116,7 @@ test('fixing the thing people complained about raises the score', () => {
     `the work shows: ${avg(before).toFixed(2)} -> ${avg(after).toFixed(2)} stars`);
 });
 
-test('the same day and the same reviewer read the same — reviews are not dice', () => {
+test('the same day and the same reviewer read the same - reviews are not dice', () => {
   const st = newGame('relaxed', 8);
   const a = reviewFor(st, visit(), 7);
   const b = reviewFor(st, visit(), 7);

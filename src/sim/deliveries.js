@@ -972,7 +972,7 @@ export function arriveOrder(state, order, { maxBoxes = Infinity } = {}) {
     : (lineCount > 1 ? `${lineCount} products` : 'Mixed shipment');
   notify(state, {
     kind: 'delivery',
-    text: `Delivery arriving: ${what} × ${arrivalOrder.qty} — the van checked in with ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} for receiving.`,
+    text: `Delivery arriving: ${what} × ${arrivalOrder.qty} - the van checked in with ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} for receiving.`,
     dedupeKey: `arrived:${arrivalOrder.id}`,
   });
   return made;
@@ -1090,7 +1090,7 @@ export function pickUpBox(state, id) {
       return { ok: false, reason: 'Move the carton stacked above it first.' };
     }
   }
-  if (carriedBox(state)) return { ok: false, reason: 'Your arms are full — set that one down first.' };
+  if (carriedBox(state)) return { ok: false, reason: 'Your arms are full - set that one down first.' };
   // arms are arms: a box OR an armful of goods, never both
   const goods = state.shop.carry;
   if (goods) {
@@ -1182,7 +1182,7 @@ export const CENTRE_SEAM = 0.6;
 export function cutTape(state, id, amount = 1) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
-  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first — you need both hands.' };
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first - you need both hands.' };
   if (box.flat) return { ok: false, reason: 'It is already flattened.' };
   if (tapeCut(box)) return { ok: false, reason: 'The tape is already cut.', done: true };
   const before = box.cutProgress ?? box.tape ?? 0;
@@ -1391,8 +1391,8 @@ export function takeFromBox(state, id, want) {
     return {
       ok: false,
       reason: holding
-        ? `You are already carrying ${holding.name.toLowerCase()} — put those down first.`
-        : 'Your arms are full — go and put those down.',
+        ? `You are already carrying ${holding.name.toLowerCase()} - put those down first.`
+        : 'Your arms are full - go and put those down.',
     };
   }
 

@@ -2952,7 +2952,7 @@ export function createRegisterMode(B) {
       paintTermBandedFace(ctx, W, H, {
         caption: `Processing${dots}`,
         amount: `$${totalOf(tx).toFixed(2)}`,
-        footer: 'AUTHORIZING — DO NOT REMOVE THE CARD',
+        footer: 'AUTHORIZING - DO NOT REMOVE THE CARD',
       });
     } else if (stage === 'card-declined') {
       paintTermBandedFace(ctx, W, H, {
@@ -5796,13 +5796,13 @@ export function createRegisterMode(B) {
     if (!tx || tx.stage !== 'cash-drawer' || !tx.deposited) return false;
     const giving = changeGivingState(tx);
     if (giving.state === 'short') {
-      cashValidationWarning(`Short by $${(Math.abs(giving.deltaCents) / 100).toFixed(2)} — the customer must receive full change.`);
+      cashValidationWarning(`Short by $${(Math.abs(giving.deltaCents) / 100).toFixed(2)} - the customer must receive full change.`);
       sfx('thunk');
       drawScreen();
       return false;
     }
     if (giving.state === 'excess') {
-      cashValidationWarning('Too much — the register allows at most $5.00 extra.');
+      cashValidationWarning('Too much - the register allows at most $5.00 extra.');
       sfx('thunk');
       drawScreen();
       return false;
@@ -6703,12 +6703,12 @@ export function createRegisterMode(B) {
           target = slotHotspots.find(
             (spot) => Number(spot.userData.denom) === Number(object.userData.denom),
           ) || object;
-          tip = `${moneyLabel(Number(object.userData.denom))} — click: give one · right-click: take back`;
+          tip = `${moneyLabel(Number(object.userData.denom))} - click: give one · right-click: take back`;
         }
       } else if (kind === 'money') {
         target = object;
         if (object.userData.from === 'change') {
-          tip = `${moneyLabel(Number(object.userData.denom))} — click: take back`;
+          tip = `${moneyLabel(Number(object.userData.denom))} - click: take back`;
         }
       } else if (kind === 'payment-card' && tx?.stage === 'card-ready') {
         // the offered card reads as clickable before it is clicked

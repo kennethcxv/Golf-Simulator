@@ -38,7 +38,7 @@ test('the repair needs every chore done, then flips exactly once', () => {
   assert.equal(repairTractor(state).ok, false, 'still missing the belt');
   tractorStep(state, 'belt');
   const res = repairTractor(state);
-  assert.ok(res.ok, 'all chores done — she runs');
+  assert.ok(res.ok, 'all chores done - she runs');
   assert.equal(state.tractor.repaired, true);
   assert.equal(state.tractor.attachment, 'mower');
   assert.equal(state.tractor.fuel, 1);
@@ -57,7 +57,7 @@ test('tractor state survives save/load; pre-tractor saves keep their working mac
   const migrated = deserialize(JSON.stringify(raw));
   assert.ok(migrated.tractor, 'old saves gain tractor state');
   assert.equal(migrated.tractor.repaired, true,
-    'old saves already had a drivable tractor — migration must not take it away');
+    'old saves already had a drivable tractor - migration must not take it away');
 });
 
 test('ensureTractor is a no-op when state exists', () => {

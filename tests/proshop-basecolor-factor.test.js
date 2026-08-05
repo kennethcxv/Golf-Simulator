@@ -109,7 +109,7 @@ test('a material with an albedo map ships a baseColorFactor', () => {
     'These materials carry a base-colour texture with no baseColorFactor, so glTF\n'
     + 'defaults them to (1,1,1,1) and they ship as the raw untinted source image.\n'
     + 'In Blender the tint must come from a ShaderNodeMix (NOT ShaderNodeMixRGB) with\n'
-    + 'data_type RGBA, blend_type MULTIPLY and Factor pinned to exactly 1.0 — see\n'
+    + 'data_type RGBA, blend_type MULTIPLY and Factor pinned to exactly 1.0 - see\n'
     + 'tools/blender/build_assets_61_70.py and ART_BIBLE.md §7.4.1.\n'
     + offenders.join('\n'),
   );
@@ -122,7 +122,7 @@ test('the known-untinted list has not grown stale', () => {
   const gone = [...KNOWN_UNTINTED].filter((id) => !present.has(id));
   assert.deepStrictEqual(
     gone, [],
-    `these exemptions no longer match any shipped material — delete them:\n${gone.join('\n')}`,
+    `these exemptions no longer match any shipped material - delete them:\n${gone.join('\n')}`,
   );
 });
 
@@ -147,7 +147,7 @@ test('asset_065 ships the calibrated factors solved by cc0_calibrate.py', () => 
   for (const entry of manifest.materials) {
     const name = `MAT_CC065_${entry.name}`;
     const factor = byName.get(name);
-    assert.ok(factor, `${name} has no baseColorFactor — the tint was dropped on export`);
+    assert.ok(factor, `${name} has no baseColorFactor - the tint was dropped on export`);
     entry.tintLinear.forEach((expected, i) => {
       assert.ok(
         Math.abs(factor[i] - expected) < 1e-4,

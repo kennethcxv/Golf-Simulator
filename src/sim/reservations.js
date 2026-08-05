@@ -663,7 +663,7 @@ export function resolveTeeTimeRequest(state, dayAbs, requestedMinute, options = 
     none: false,
     nearest: best.slot,
     deltaMin,
-    reason: `Nothing within ${windowMin} minutes of ${fmtSlot(asked)} — the closest open time is ${fmtSlot(best.slot.minute)}.`,
+    reason: `Nothing within ${windowMin} minutes of ${fmtSlot(asked)} - the closest open time is ${fmtSlot(best.slot.minute)}.`,
   };
 }
 
@@ -743,7 +743,7 @@ function mainLedgerCash(state, reservation, entry) {
     idempotencyKey: `golf-operations:${entry.id}`,
     relatedId: reservation.id,
     category: entry.category,
-    description: `${entry.kind} — ${reservation.reservationHolder}`,
+    description: `${entry.kind} - ${reservation.reservationHolder}`,
     source: 'golf-operations',
     day: entry.dayAbs,
     timestamp: entry.postedAtMinute,
@@ -1524,7 +1524,7 @@ export function createWalkInBooking(state, input = {}) {
         askedMinute: asked,
         offeredMinute: Math.floor(minute),
         deltaMin: verdict.deltaMin,
-        reason: `${holder || 'The customer'} asked for ${fmtSlot(asked)} — ${fmtSlot(Math.floor(minute))} is ${away} minutes off, further than they will wait, and they pass.`,
+        reason: `${holder || 'The customer'} asked for ${fmtSlot(asked)} - ${fmtSlot(Math.floor(minute))} is ${away} minutes off, further than they will wait, and they pass.`,
       };
     }
   }
@@ -2215,13 +2215,13 @@ export function resetGolfOperationsQA(state, options = {}) {
       cashImpact: -entry.cashDelta,
       profitImpact: -entry.cashDelta,
       aggregate: { side: 'revenue', key: entry.category, amount: -entry.cashDelta },
-      description: `QA fixture reversal — ${entry.kind}`,
+      description: `QA fixture reversal - ${entry.kind}`,
       source: 'golf-operations-qa',
     });
     else if (entry.cashDelta < -EPSILON) unbill(state, 'bookingRefunds', Math.abs(entry.cashDelta), {
       idempotencyKey: `golf-qa-reset:${entry.id}`,
       relatedId: entry.reservationId,
-      description: `QA fixture refund reversal — ${entry.kind}`,
+      description: `QA fixture refund reversal - ${entry.kind}`,
       source: 'golf-operations-qa',
     });
   }

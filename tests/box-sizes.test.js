@@ -35,7 +35,7 @@ test('a club ships in a long box and a tee bag does not', () => {
   const smallBox = boxDims(boxKindFor(tees));
   // the distinguishing feature of a club box is that it is 45 inches long, not that it is bulky
   assert.ok(clubBox.w > smallBox.w * 2.5, `a club box is long (${clubBox.w} vs ${smallBox.w})`);
-  assert.ok(clubBox.h < smallBox.h, 'and flat — it is a sleeve, not a crate');
+  assert.ok(clubBox.h < smallBox.h, 'and flat - it is a sleeve, not a crate');
 });
 
 test('a golf bag gets the tallest carton on the pad', () => {
@@ -47,7 +47,7 @@ test('a golf bag gets the tallest carton on the pad', () => {
   assert.ok(bagKind.h > 0.9, 'tall enough to be a genuine nuisance to carry, which is the point');
 });
 
-test('every catalog line has packaging — nothing falls through to a default', () => {
+test('every catalog line has packaging - nothing falls through to a default', () => {
   for (const sku of SHOP_CATALOG) {
     const kind = boxKindFor(sku);
     assert.ok(kind, `${sku.id} (${sku.cat}) has a box kind`);

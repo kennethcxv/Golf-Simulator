@@ -46,7 +46,7 @@ test('the launch flag is used when there is no query', () => {
   assert.equal(r.source, 'launch-flag');
 });
 
-test('the persisted setting is used when nothing else asks — the case the brief needs', () => {
+test('the persisted setting is used when nothing else asks - the case the brief needs', () => {
   // This is the whole point: plain `npm run dev`, no query, no flag.
   const r = resolveClubhouseVariantRequest({ search: '', argv: [], stored: 'pine-hills-v2' });
   assert.equal(r.variant, 'pine-hills-v2');

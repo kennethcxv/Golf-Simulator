@@ -12,7 +12,7 @@ test('a normal mouse move turns the view a small, proportional amount', () => {
   assert.ok(Math.abs(b.yaw) > Math.abs(a.yaw), 'a bigger move turns more');
 });
 
-test('an enormous reacquisition delta is clamped — no 180 whip', () => {
+test('an enormous reacquisition delta is clamped - no 180 whip', () => {
   const huge = applyMouseLook(0, 0, 8000, 0, 1);
   const capped = applyMouseLook(0, 0, MOUSE_DELTA_MAX, 0, 1);
   assert.equal(huge.yaw, capped.yaw, 'a 8000px jump lands exactly where the cap does');

@@ -82,7 +82,7 @@ test('hold points are spaced wider than a body, so waiting is not the new shovin
   const ring = ringConfig();
   const gap = ring.spanX / (ring.slotsPerRow - 1);
   assert.ok(gap > 0.68,
-    `hold points are ${gap.toFixed(2)} yd apart — a customer is 0.68 wide, so they would still touch`);
+    `hold points are ${gap.toFixed(2)} yd apart - a customer is 0.68 wide, so they would still touch`);
   assert.ok(ring.rowStep > 0.68,
     'and the rows behind are clear of each other too');
 });
@@ -124,12 +124,12 @@ test('hold points rotate with the display, like the browse pose does', () => {
 test('a waiter keeps its slot, so waiters do not swap places every frame', () => {
   const body = functionBody('waitSlotFor');
   assert.match(body, /if \(c\.waitFixtureId === fixtureId && Number\.isFinite\(c\.waitSlot\)\) return c\.waitSlot;/,
-    'a slot already held is returned unchanged — reshuffling would be its own churn');
+    'a slot already held is returned unchanged - reshuffling would be its own churn');
   assert.match(body, /taken\.add\(other\.waitSlot\)/,
     'and two waiters cannot be handed the same slot');
 });
 
-test('the crowd is bounded — past the last slot a shopper moves on', () => {
+test('the crowd is bounded - past the last slot a shopper moves on', () => {
   const ring = ringConfig();
   assert.ok(ring.maxSlots > 0 && ring.maxSlots <= 12, 'a real bound exists');
   const body = functionBody('waitSlotFor');
@@ -139,7 +139,7 @@ test('the crowd is bounded — past the last slot a shopper moves on', () => {
     'a shopper that cannot even get a hold point gives the stand up rather than joining a scrum');
 });
 
-test('the claim is always released — a departing shopper cannot close a display', () => {
+test('the claim is always released - a departing shopper cannot close a display', () => {
   const release = functionBody('releaseFixtureClaim');
   assert.match(release, /fixtureClaims\.delete\(c\.fixtureClaim\)/);
   assert.match(release, /c\.waitSlot = null/, 'and the slot is freed with it');

@@ -68,7 +68,7 @@ test('an open shop is never completely empty of prospects, and a closed one alwa
   assert.equal(shopFootfallTarget(shopAt(85, 1), 0), 0, 'a room with no capacity holds nobody');
 });
 
-test('cleanliness moves the number on its own — sweeping has to pay', () => {
+test('cleanliness moves the number on its own - sweeping has to pay', () => {
   const dirty = shopFootfallDrive(shopAt(60, 0));
   const clean = shopFootfallDrive(shopAt(60, 1));
   assert.ok(clean > dirty, `cleaning at the same reputation must help (${dirty} vs ${clean})`);
@@ -90,5 +90,5 @@ test('the arrival loop no longer feeds footfall its own output', () => {
   // shopCondition() walks the grime and window arrays; solving it every frame
   // for a number that cannot change inside a game minute is waste.
   assert.match(source, /const wholeMinute = Math\.floor\(minute\);/,
-    'the cache key is the WHOLE minute — the fractional one re-solved every frame');
+    'the cache key is the WHOLE minute - the fractional one re-solved every frame');
 });

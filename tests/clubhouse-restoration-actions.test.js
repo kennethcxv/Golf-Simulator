@@ -413,14 +413,14 @@ test('once the circuit is live the same repair lands', () => {
   assert.equal(restorationSnapshot(state).lightPanels['panel-07'], 'working');
 });
 
-test('free play has power — the circuit gate is a campaign beat, not a tax', () => {
+test('free play has power - the circuit gate is a campaign beat, not a tax', () => {
   const state = minimalState('property-freeplay');
   assert.equal(state.campaign, undefined);
   assert.equal(ceilingCircuitPowered(state), true);
   assert.equal(restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-02' }).ok, true);
 });
 
-test('each panel repair spends one kit — one kit does not service the building', () => {
+test('each panel repair spends one kit - one kit does not service the building', () => {
   // Before this, repair-light consumed nothing: the first kit a player ever
   // owned repaired every panel forever, and the "kit required" prompt was
   // decoration.
@@ -488,7 +488,7 @@ test('the fault name appears only once there is power to make it true', () => {
     powered: true,
     kitAvailable: true,
   });
-  assert.equal(lit, 'Flickering ceiling panel — [E] repair with clubhouse kit');
+  assert.equal(lit, 'Flickering ceiling panel - [E] repair with clubhouse kit');
 });
 
 test('the kit gate is reported second, after the circuit gate', () => {
@@ -499,7 +499,7 @@ test('the kit gate is reported second, after the circuit gate', () => {
   );
   assert.equal(
     ceilingPanelPromptLabel({ faultName: 'Dead ceiling panel', powered: true, kitAvailable: false }),
-    'Dead ceiling panel — repair kit required, from the back room shelves',
+    'Dead ceiling panel - repair kit required, from the back room shelves',
   );
 });
 
@@ -521,6 +521,6 @@ test('a room with no fault word in its name is unaffected', () => {
     ceilingPanelPromptLabel({
       faultName: 'PANEL-02', unpoweredName: 'PANEL-02', powered: false, kitAvailable: true,
     }),
-    'PANEL-02 — the ceiling circuit is dead; repair the ceiling first',
+    'PANEL-02 - the ceiling circuit is dead; repair the ceiling first',
   );
 });

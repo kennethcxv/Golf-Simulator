@@ -853,10 +853,10 @@ export function createShedInterior({
         if (!c) return 'Mop bucket';
         if (hooks.getTool?.() === 'mop') {
           return c.bucket.level > 0.02
-            ? `Mop bucket · ${c.bucket.water} water — [E] wring the mop`
-            : 'Mop bucket empty — [X] change the water';
+            ? `Mop bucket · ${c.bucket.water} water - [E] wring the mop`
+            : 'Mop bucket empty - [X] change the water';
         }
-        return `Mop bucket · ${c.bucket.water} water — equip the mop to wring`;
+        return `Mop bucket · ${c.bucket.water} water - equip the mop to wring`;
       },
       get secondaryLabel() { return hooks.getTool?.() === 'mop' ? 'change bucket water' : null; },
       secondaryAction: () => {
@@ -865,7 +865,7 @@ export function createShedInterior({
       action: () => {
         if (hooks.getTool?.() !== 'mop') { say('Equip the mop to wring it here.', 'warn'); return; }
         const result = serviceMop(state);
-        if (!result.ok) { say('The bucket is empty — press [X] here to change the water.', 'warn'); return; }
+        if (!result.ok) { say('The bucket is empty - press [X] here to change the water.', 'warn'); return; }
         hooks.sfx?.('mopStart');
         say(`Mop wrung and ready · bucket water ${result.water}.`);
       },
@@ -880,9 +880,9 @@ export function createShedInterior({
       label: () => {
         const c = cleaningStatus(state);
         if (!c) return 'Waste bin';
-        if (c.pan.load > 0) return `Waste bin — [E] empty the dustpan (${c.pan.load.toFixed(1)})`;
-        if (c.bag.tied) return 'Waste bin — [E] dispose the tied bag';
-        if (c.bag.load > 0) return `Waste bin — [E] tie & dispose the bag (${c.bag.load.toFixed(1)})`;
+        if (c.pan.load > 0) return `Waste bin - [E] empty the dustpan (${c.pan.load.toFixed(1)})`;
+        if (c.bag.tied) return 'Waste bin - [E] dispose the tied bag';
+        if (c.bag.load > 0) return `Waste bin - [E] tie & dispose the bag (${c.bag.load.toFixed(1)})`;
         return 'Waste bin';
       },
       action: () => {
@@ -921,7 +921,7 @@ export function createShedInterior({
     const w = L2W(p.x, p.z);
     const pizzaProp = {
       x: w.x, z: w.z, r: p.radius, aimY: crateTop + 0.1,
-      label: () => (targetProgress('trash:pizza-box') >= 1 ? null : 'Greasy pizza box — [E] throw it out'),
+      label: () => (targetProgress('trash:pizza-box') >= 1 ? null : 'Greasy pizza box - [E] throw it out'),
       action: () => {
         if (targetProgress('trash:pizza-box') >= 1) return;
         shedTargetAction(state, { targetId: 'trash:pizza-box', progress: 1 });
@@ -953,7 +953,7 @@ export function createShedInterior({
     if (introPending && hooks.toast) {
       introPending = false;
       introShown = true;
-      hooks.toast("This shed hasn't been touched in years — clean it out. Tap F for tools.");
+      hooks.toast("This shed hasn't been touched in years - clean it out. Tap F for tools.");
     }
     swayClock += step;
     cobwebSway.forEach((g, i) => {

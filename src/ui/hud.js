@@ -106,12 +106,12 @@ export function makeHud(app, handlers) {
       // nothing to a player mid-game; "Windows is holding it, tap it" is an
       // instruction they can follow without leaving the room.
       if (osStuck.length) {
-        modifiers.textContent = `⚠ ${osStuck.join(' + ')} held by the system — tap and release it`;
+        modifiers.textContent = `⚠ ${osStuck.join(' + ')} held by the system - tap and release it`;
         modifiers.title = `Your operating system reports ${osStuck.join(' and ')} as held down. `
           + 'While it is, the OS takes your keypresses as shortcuts before the game sees them. '
-          + 'Nothing in the game can release it — press and release the physical key.';
+          + 'Nothing in the game can release it - press and release the physical key.';
       } else if (pageStuck.length) {
-        modifiers.textContent = `⚠ ${pageStuck.join(' + ')} held — keys may not reach the game`;
+        modifiers.textContent = `⚠ ${pageStuck.join(' + ')} held - keys may not reach the game`;
         modifiers.title = 'A modifier is down that nothing in the game uses. It should clear as '
           + 'soon as you look around; if it does not, tap and release the key.';
       } else {

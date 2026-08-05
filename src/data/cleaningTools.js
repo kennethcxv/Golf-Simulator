@@ -193,7 +193,7 @@ export const CLEANING_TOOLS = {
     toolClass: TOOL_CLASS.STROKE,
     floorAnchored: true, // worked against the floor: the head stays down when you look about
     belt: true,
-    equipToast: 'press and move to mop. Hard floors only — carpet just soaks.',
+    equipToast: 'press and move to mop. Hard floors only - carpet just soaks.',
     reach: 2.2,
     radius: 0.40,
     strength: 0.85,
@@ -412,7 +412,7 @@ export const CLEANING_TOOLS = {
     label: 'Scouring sponge',
     toolClass: TOOL_CLASS.STROKE,
     belt: true,
-    equipToast: 'scrub the stubborn grime — it takes a few passes.',
+    equipToast: 'scrub the stubborn grime - it takes a few passes.',
     reach: 1.2,
     radius: 0.16,
     strength: 0.75,    // slower than the cloth, but it shifts what the cloth cannot

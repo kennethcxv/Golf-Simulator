@@ -97,7 +97,7 @@ test('processing, dispatch, transit and player-facing ETA all update from one cl
   assert.equal(deliveryEtaText(o, o.deliveryMin - 10), 'Arriving soon');
   o.status = 'received';
   o.blocked = true;
-  assert.equal(deliveryEtaText(o, o.deliveryMin + 1), 'Delayed — receiving area blocked');
+  assert.equal(deliveryEtaText(o, o.deliveryMin + 1), 'Delayed - receiving area blocked');
 });
 
 test('multiple orders queue at the receiving pad and blocked ETA explains the action', () => {
@@ -111,5 +111,5 @@ test('multiple orders queue at the receiving pad and blocked ETA explains the ac
   tickDeliveries(state, due);
   assert.equal(state.shop.orders.length, 2);
   assert.ok(state.shop.orders.every((o) => o.blocked));
-  assert.ok(state.shop.orders.every((o) => deliveryEtaText(o, due) === 'Delayed — receiving area blocked'));
+  assert.ok(state.shop.orders.every((o) => deliveryEtaText(o, due) === 'Delayed - receiving area blocked'));
 });

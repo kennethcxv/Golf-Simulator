@@ -80,12 +80,12 @@ test('an active articulated prop retains focus only inside its authored reach', 
 test('the prompt composer passes labels through unchanged, whatever tool is in hand', () => {
   assert.equal(
     walkFocusPromptLabel(
-      'Accessory case · 8 inside — press [E] to tear the tape',
+      'Accessory case · 8 inside - press [E] to tear the tape',
       'shelf-feeder',
       null,
       'reposition closed carton',
     ),
-    'Accessory case · 8 inside — press [E] to tear the tape'
+    'Accessory case · 8 inside - press [E] to tear the tape'
       + ' · [X] reposition closed carton',
     'a requested-but-unequipped contextual tool must not rewrite the label',
   );

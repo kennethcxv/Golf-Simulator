@@ -631,9 +631,9 @@ function interactionLabel(placement, stateRecord) {
     const on = statefulLightEnabled(stateRecord, spec.state);
     const verb = on ? (spec.state === 'on' ? 'switch off' : 'close')
       : (spec.state === 'on' ? 'switch on' : 'open');
-    return `${spec.label} — [E] ${verb}`;
+    return `${spec.label} - [E] ${verb}`;
   }
-  return `${spec.label} — [E] use`;
+  return `${spec.label} - [E] use`;
 }
 
 /**
@@ -789,7 +789,7 @@ export function buildProps({
       tool,
       label: () => {
         if (!passesVisibilityGate(entry.n)) return null;
-        if (tool) return `${CLEANING_TOOLS[tool]?.label || tool} — [E] equip`;
+        if (tool) return `${CLEANING_TOOLS[tool]?.label || tool} - [E] equip`;
         return interactionLabel(placement, stateRecord);
       },
       focusPoint: () => localSocketWorld(entry.root, socket),

@@ -67,7 +67,7 @@ test('the tools that lift grime are exactly the ones whose gate branch calls cle
   );
 });
 
-test('the sprayer removes nothing — it prepares a surface', () => {
+test('the sprayer removes nothing - it prepares a surface', () => {
   const sprayer = Object.values(CLEANING_TOOLS).find((t) => t.toolClass === TOOL_CLASS.SPRAY);
   assert.ok(sprayer, 'no spray-class tool');
   assert.deepEqual(toolMedia(sprayer.id), []);

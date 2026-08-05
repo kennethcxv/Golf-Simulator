@@ -1806,10 +1806,10 @@ export function makeClubhouse(ctx) {
       const due = dueForCheckIn(state);
       if (due.length) {
         const reservation = due[0];
-        return `Tee desk — [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
+        return `Tee desk - [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
           + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
       }
-      return 'Tee desk — [E] arrivals, check-in & walk-ins';
+      return 'Tee desk - [E] arrivals, check-in & walk-ins';
     },
     action: () => {
       if (!facilityInstalled(state, 'frontCounter') || !facilityInstalled(state, 'registerHardware')) {
@@ -2137,7 +2137,7 @@ export function makeClubhouse(ctx) {
     const mapWp = L2W(OFFICE.map.x, OFFICE.map.z - 0.5);
     addProp({
       x: mapWp.x, z: mapWp.z, r: 2.2,
-      label: () => 'Course wall map — [E] step back to the overview camera',
+      label: () => 'Course wall map - [E] step back to the overview camera',
       action: () => { if (hooks.toggleOverview) hooks.toggleOverview(); },
     });
 
@@ -2350,7 +2350,7 @@ export function makeClubhouse(ctx) {
       c2.fillText(clock12(), 256, 224);
       c2.fillStyle = '#5d7a64';
       c2.font = '12px system-ui, sans-serif';
-      c2.fillText('GOLF SIMULATOR — press E to sign in', 256, 286);
+      c2.fillText('GOLF SIMULATOR - press E to sign in', 256, 286);
       screenTex.needsUpdate = true;
     }
     // The front-desk machine must read as the management hub before the player
@@ -2403,7 +2403,7 @@ export function makeClubhouse(ctx) {
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
       label: () => facilityInstalled(state, 'laptop')
-        ? 'Laptop — [E] open GOLF SIMULATOR'
+        ? 'Laptop - [E] open GOLF SIMULATOR'
         : null,
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
@@ -3081,7 +3081,7 @@ export function makeClubhouse(ctx) {
     const wp = L2W(pile.x, pile.z);
     const prop = addProp({
       x: wp.x, z: wp.z, r: 1.9,
-      label: () => 'Old clutter — [E] haul it out',
+      label: () => 'Old clutter - [E] haul it out',
       action: () => {
         const res = clearClutter(state, idx);
         if (!res.ok) return;
@@ -3438,7 +3438,7 @@ export function makeClubhouse(ctx) {
     if (!ghost) {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
-        label: () => `${sku.name} — [E] pack it back up`,
+        label: () => `${sku.name} - [E] pack it back up`,
         action: () => {
           const removed = placementId
             ? removeDecorPlacement(state, placementId)
@@ -3450,7 +3450,7 @@ export function makeClubhouse(ctx) {
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
-          if (hooks.toast) hooks.toast(`${sku.name} packed up — it's back in the backroom.`);
+          if (hooks.toast) hooks.toast(`${sku.name} packed up - it's back in the backroom.`);
         },
       });
       entry.prop.playerPlacedFurniture = true;
@@ -3507,7 +3507,7 @@ export function makeClubhouse(ctx) {
             // the crosshair with nearby fixtures.  Give the authored 3D handle
             // a modest priority once the player is already inside its reach.
             focusBias: 0.34,
-            label: () => `${sku.name} ${componentNoun.toLowerCase()} — [E] ${component.isOpen() ? 'close' : 'open'}`,
+            label: () => `${sku.name} ${componentNoun.toLowerCase()} - [E] ${component.isOpen() ? 'close' : 'open'}`,
             action: () => component.toggle(),
           };
           prop.playerPlacedFurniture = true;
@@ -3531,8 +3531,8 @@ export function makeClubhouse(ctx) {
               const circuit = lightController.isCircuitPowered();
               const verb = lightController.isOn() ? 'switch off' : 'switch on';
               return circuit
-                ? `${sku.name} — [E] ${verb}`
-                : `${sku.name} — ceiling circuit has no power · [E] ${verb}`;
+                ? `${sku.name} - [E] ${verb}`
+                : `${sku.name} - ceiling circuit has no power · [E] ${verb}`;
             },
             action: () => lightController.toggle(),
           };
@@ -3553,7 +3553,7 @@ export function makeClubhouse(ctx) {
               aimY: initial.y,
               focusPoint,
               focusBias: 0.86,
-              label: () => `${sku.name} spotlight ${head.index + 1} — [E] change aim (${head.presetLabel})`,
+              label: () => `${sku.name} spotlight ${head.index + 1} - [E] change aim (${head.presetLabel})`,
               action: () => head.cycle(),
             };
             prop.playerPlacedFurniture = true;
@@ -3707,7 +3707,7 @@ export function makeClubhouse(ctx) {
     } else {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
-        label: () => `Place the ${sku.name.toLowerCase()} here — [E]`,
+        label: () => `Place the ${sku.name.toLowerCase()} here - [E]`,
         action: () => {
           const res = placeDecor(state, skuId, spotIdx);
           if (!res.ok) {
@@ -3718,7 +3718,7 @@ export function makeClubhouse(ctx) {
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
-          if (hooks.toast) hooks.toast(`${sku.name} placed — the shop is coming together.`);
+          if (hooks.toast) hooks.toast(`${sku.name} placed - the shop is coming together.`);
         },
       });
       entry.props.push(entry.prop);
@@ -5722,9 +5722,9 @@ export function makeClubhouse(ctx) {
     if (!reno) return null;
     const cx = Math.floor(((l.x + RENO.room.w / 2) / RENO.room.w) * RENO.grid.w);
     const cy = Math.floor(((l.z + RENO.room.d / 2) / RENO.room.d) * RENO.grid.h);
-    if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return 'Vacuum — aim at the floor';
+    if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return 'Vacuum - aim at the floor';
     const d = reno.grime[cy * RENO.grid.w + cx];
-    return d > 0.05 ? `Vacuum — this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum — this patch is clean';
+    return d > 0.05 ? `Vacuum - this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum - this patch is clean';
   }
 
   function emptyDustpanIntoBag() {
@@ -5759,8 +5759,8 @@ export function makeClubhouse(ctx) {
       label: () => {
         const pan = state.shop.reno.pan || 0;
         const bag = state.shop.reno.bag || 0;
-        if (pan > 0) return 'Cleaning disposal — [E] empty the dustpan into the trash bag';
-        if (bag > 0) return 'Cleaning disposal — [E] tie and discard the filled trash bag';
+        if (pan > 0) return 'Cleaning disposal - [E] empty the dustpan into the trash bag';
+        if (bag > 0) return 'Cleaning disposal - [E] tie and discard the filled trash bag';
         return null;
       },
       action: () => {
@@ -5773,7 +5773,7 @@ export function makeClubhouse(ctx) {
         const bag = disposeCleaningBag();
         if (bag > 0) {
           if (hooks.sfx) hooks.sfx('disposal');
-          if (hooks.toast) hooks.toast('Filled trash bag disposed — the cleaning bay is clear.');
+          if (hooks.toast) hooks.toast('Filled trash bag disposed - the cleaning bay is clear.');
           presentRestorationFeedback(syncGenericCleanupMilestone(state));
         }
       },
@@ -7522,25 +7522,25 @@ export function makeClubhouse(ctx) {
     const name = sku?.name || box.skuId || 'carton';
     const recyclingWorld = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
     if (recyclingDrop?.id === box.id) {
-      return 'Recycling — lowering the flattened carton in...';
+      return 'Recycling - lowering the flattened carton in...';
     }
     if (box.flat && Math.hypot(
       recyclingWorld.x - walk.x,
       recyclingWorld.z - walk.z,
     ) <= 1.8) {
-      return 'Recycling — [E] drop the flattened carton in';
+      return 'Recycling - [E] drop the flattened carton in';
     }
     if (!boxPlacementMode?.isActive()) {
-      return `Carrying ${name} ×${box.qty} — [E] choose a placement`;
+      return `Carrying ${name} ×${box.qty} - [E] choose a placement`;
     }
     const diagnostics = boxPlacementMode.diagnostics();
     if (!diagnostics.visible) {
-      return `Carrying ${name} ×${box.qty} — aim down at an approved surface · [R] rotate`;
+      return `Carrying ${name} ×${box.qty} - aim down at an approved surface · [R] rotate`;
     }
     if (!diagnostics.legal) {
       return `${diagnostics.reason || 'That placement is blocked.'} · [R] rotate · [Esc] keep carrying`;
     }
-    return `Carrying ${name} ×${box.qty} — [E] place · [R] rotate · [Esc] keep carrying`;
+    return `Carrying ${name} ×${box.qty} - [E] place · [R] rotate · [Esc] keep carrying`;
   }
 
   // a box in the stockroom is unpacked in place; anywhere else, [E] lifts it into your arms
@@ -7624,10 +7624,10 @@ export function makeClubhouse(ctx) {
         if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return null;
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
-        if (b.flat) return 'Flattened carton — [E] carry it to the recycling';
+        if (b.flat) return 'Flattened carton - [E] carry it to the recycling';
         if (isEmpty(b)) return boxFlattenAnimations.has(b.id)
           ? `Folding the empty ${name} carton...`
-          : `Empty ${name} box — [E] flatten it`;
+          : `Empty ${name} box - [E] flatten it`;
         if (!unpackHere(prop, b)) {
           const zone = b.loc === 'pad' ? 'Pad delivery: '
             : b.loc === 'receiving-fallback' ? 'Safe receiving: '
@@ -7637,7 +7637,7 @@ export function makeClubhouse(ctx) {
           // whose surface cannot be resolved at all — and deliberately no longer
           // recites a list of approved surfaces, because naming the rule was
           // never the fix. The rule was.
-          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
+          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} - [E] pick up`;
         }
         // One source of truth for "what does the next press do": nextBoxStep
         // decides, and action() below asks the same question. The prompt
@@ -7645,23 +7645,23 @@ export function makeClubhouse(ctx) {
         // bug, and it stops being possible when both read the same function.
         if (boxOpeningAnimations.has(b.id)) {
           return boxOpeningPhases.get(b.id) === 0
-            ? `${name} — tearing the tape...`
-            : `${name} — opening the carton...`;
+            ? `${name} - tearing the tape...`
+            : `${name} - opening the carton...`;
         }
         const held = carriedGoods(state);
         const handsFull = !!(held && held.skuId !== b.skuId);
         switch (nextBoxStep(b, { canUnpack: true, handsFull })) {
           case BOX_STEP.TEAR:
-            return `${name} case · ${b.qty} inside — [E] tear the tape open`;
+            return `${name} case · ${b.qty} inside - [E] tear the tape open`;
           case BOX_STEP.FLAP:
-            return `${name} — [E] open the other flap`;
+            return `${name} - [E] open the other flap`;
           case BOX_STEP.BLOCKED:
             // NAME THE KEY. This prompt used to say "put down what you're holding first"
             // when no key put anything down — an instruction the player could not follow.
-            return `${name} ×${b.qty}, open — [Z] set down what you're holding first`;
+            return `${name} ×${b.qty}, open - [Z] set down what you're holding first`;
           case BOX_STEP.TAKE:
           default:
-            return `${name} ×${b.qty} in the case — [E] take an armful`;
+            return `${name} ×${b.qty} in the case - [E] take an armful`;
         }
       },
       // NO TOOL. A carton used to demand the box cutter be equipped and then
@@ -7730,7 +7730,7 @@ export function makeClubhouse(ctx) {
         // into a carton has goods knocking each other, which that cue does not contain.
         sfx('boxContentsShift');
         tutorialFlag(state, 'boxCarried');
-        if (r.left <= 0) say(`${r.taken} × ${name} — the case is empty.`);
+        if (r.left <= 0) say(`${r.taken} × ${name} - the case is empty.`);
         rebuildBoxes();
       },
     });
@@ -7825,7 +7825,7 @@ export function makeClubhouse(ctx) {
         if (inStockroomBounds(l.x, l.z)) {
           const fixture = homeFixture(cg.skuId);
           const units = cg.qty === 1 ? 'this unit' : 'these units';
-          return `Holding ${sku.name} ×${cg.qty} — [E] store ${units} in back · sales floor: ${fixture?.title || 'assigned display'}`;
+          return `Holding ${sku.name} ×${cg.qty} - [E] store ${units} in back · sales floor: ${fixture?.title || 'assigned display'}`;
         }
         // Outside the stockroom, let the real shelf fixture own the prompt.
         // This helper follows 0.9 m ahead and otherwise always wins nearest-
@@ -7869,21 +7869,21 @@ export function makeClubhouse(ctx) {
           const water = status.bucket.water === 'empty'
             ? 'empty'
             : `${status.bucket.water} water ${Math.round(status.bucket.level * 100)}%`;
-          return `Mop bucket · ${water} · mop ${charge}% — [E] insert and wring`;
+          return `Mop bucket · ${water} · mop ${charge}% - [E] insert and wring`;
         }
         if (held === 'dustpan') {
           return status.pan.load > 0
-            ? `Trash bag · pan ${status.pan.load.toFixed(1)}/${status.pan.capacity} — [E] empty pan into bag`
+            ? `Trash bag · pan ${status.pan.load.toFixed(1)}/${status.pan.capacity} - [E] empty pan into bag`
             : 'Dustpan empty · sweep a pile into it first';
         }
         if (held === 'trashbag') {
-          if (status.bag.tied) return 'Trash bag tied — carry it to the waste station';
+          if (status.bag.tied) return 'Trash bag tied - carry it to the waste station';
           if (status.bag.load > 0) {
-            return `Trash bag ${status.bag.load.toFixed(1)}/${status.bag.capacity} — [E] tie bag`;
+            return `Trash bag ${status.bag.load.toFixed(1)}/${status.bag.capacity} - [E] tie bag`;
           }
-          return 'Fresh trash bag — collect loose debris or empty the dustpan here';
+          return 'Fresh trash bag - collect loose debris or empty the dustpan here';
         }
-        return 'Cleaning bay — equip the mop, dustpan, or trash bag';
+        return 'Cleaning bay - equip the mop, dustpan, or trash bag';
       },
       get secondaryLabel() {
         return hooks.getTool?.() === 'mop' ? 'change bucket water' : null;
@@ -7901,7 +7901,7 @@ export function makeClubhouse(ctx) {
         if (held === 'mop') {
           const result = serviceMop(state);
           if (!result.ok) {
-            say('The bucket is empty — press [X] here to change the water.', 'warn');
+            say('The bucket is empty - press [X] here to change the water.', 'warn');
             return;
           }
           syncBucketVisual();
@@ -7945,16 +7945,16 @@ export function makeClubhouse(ctx) {
         const held = hooks.getTool?.();
         const cleaning = cleaningStatus(state);
         if (held === 'trashbag' && cleaning) {
-          if (cleaning.bag.tied) return 'Waste station — [E] dispose tied trash bag';
-          if (cleaning.bag.load > 0) return 'Waste station — tie the loaded bag at the cleaning bay first';
-          return 'Waste station — the trash bag is empty';
+          if (cleaning.bag.tied) return 'Waste station - [E] dispose tied trash bag';
+          if (cleaning.bag.load > 0) return 'Waste station - tie the loaded bag at the cleaning bay first';
+          return 'Waste station - the trash bag is empty';
         }
         const cb = carriedBox(state);
-        if (recyclingDrop) return 'Recycling — lowering the flattened carton in...';
-        if (cb && cb.flat) return 'Recycling — [E] drop the flattened carton in';
+        if (recyclingDrop) return 'Recycling - lowering the flattened carton in...';
+        if (cb && cb.flat) return 'Recycling - [E] drop the flattened carton in';
         const dd = state.shop.deliveries;
         const flatNear = dd && dd.boxes.some((b) => b.flat && b.loc !== 'carried');
-        return flatNear || (dd && dd.trash > 0) ? 'Recycling — [E] break down the flattened cartons' : null;
+        return flatNear || (dd && dd.trash > 0) ? 'Recycling - [E] break down the flattened cartons' : null;
       },
       action: () => {
         if (hooks.getTool?.() === 'trashbag') {
@@ -7973,7 +7973,7 @@ export function makeClubhouse(ctx) {
           startRecyclingDrop(cb);
           return;
         }
-        if (emptyTrash(state).ok) { sfx('disposal'); say('Cardboard recycled — the stockroom breathes again.'); rebuildBoxes(); }
+        if (emptyTrash(state).ok) { sfx('disposal'); say('Cardboard recycled - the stockroom breathes again.'); rebuildBoxes(); }
       },
     });
   }
@@ -8170,15 +8170,15 @@ export function makeClubhouse(ctx) {
         retainFocus: () => !!deliveryEquipment?.diagnostics().handTruck.active,
         label: () => {
           const status = deliveryEquipment?.diagnostics().handTruck;
-          if (status?.active) return 'Delivery hand truck — checking the axle balance...';
+          if (status?.active) return 'Delivery hand truck - checking the axle balance...';
           const box = carriedBox(state);
           if (box) {
             const placement = handTruckPlacementForCarriedBox(state, box.id);
             return placement.ok
-              ? 'Delivery hand truck — [E] place the carton on the toe plate'
-              : `Delivery hand truck — ${placement.reason}`;
+              ? 'Delivery hand truck - [E] place the carton on the toe plate'
+              : `Delivery hand truck - ${placement.reason}`;
           }
-          return 'Delivery hand truck — [E] tip it back and check the load balance';
+          return 'Delivery hand truck - [E] tip it back and check the load balance';
         },
         action: () => {
           if (deliveryEquipment?.diagnostics().handTruck.active) return;
@@ -8201,16 +8201,16 @@ export function makeClubhouse(ctx) {
           if (box) {
             const placement = stockingCartPlacementForCarriedBox(state, box.id);
             return placement.ok
-              ? 'Stocking cart — [E] place the carton on the top deck'
-              : `Stocking cart — ${placement.reason}`;
+              ? 'Stocking cart - [E] place the carton on the top deck'
+              : `Stocking cart - ${placement.reason}`;
           }
           const occupied = boxesOf(state).filter((boxEntry) => (
             boxEntry.loc === 'equipment'
             && boxEntry.equipmentId === 'delivery_stocking_cart'
           )).length;
           return occupied
-            ? `Stocking cart — ${occupied} saved carton position${occupied === 1 ? '' : 's'} in use`
-            : 'Stocking cart — top deck ready for a delivery carton';
+            ? `Stocking cart - ${occupied} saved carton position${occupied === 1 ? '' : 's'} in use`
+            : 'Stocking cart - top deck ready for a delivery carton';
         },
         action: () => {
           if (carriedBox(state)) {
@@ -8225,10 +8225,10 @@ export function makeClubhouse(ctx) {
       ...common,
       label: () => {
         const status = deliveryEquipment?.diagnostics().palletJack;
-        if (status?.active) return 'Pallet jack — hydraulic stroke in progress...';
+        if (status?.active) return 'Pallet jack - hydraulic stroke in progress...';
         return status?.raised
-          ? 'Pallet jack — [E] pump once to lower the forks'
-          : 'Pallet jack — [E] pump once to raise the forks';
+          ? 'Pallet jack - [E] pump once to lower the forks'
+          : 'Pallet jack - [E] pump once to raise the forks';
       },
       action: () => {
         const started = deliveryEquipment?.triggerPalletJackPump?.();
@@ -8697,8 +8697,8 @@ export function makeClubhouse(ctx) {
       z: hang.z,
       r: 1.9,
       label: () => (signIsOpen(state)
-        ? 'Door sign: OPEN — [E] close up'
-        : 'Door sign: CLOSED — [E] open for business'),
+        ? 'Door sign: OPEN - [E] close up'
+        : 'Door sign: CLOSED - [E] open for business'),
       action: () => {
         const result = flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
         if (!result.ok) return;

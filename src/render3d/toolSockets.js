@@ -58,7 +58,7 @@ export function socketWorld(tool, name, target) {
   const socket = findSocket(tool, name);
   if (!socket) {
     throw new Error(
-      `toolSockets: no socket '${name}' on ${tool?.name || 'tool'} — ` +
+      `toolSockets: no socket '${name}' on ${tool?.name || 'tool'} - ` +
       `expected a child named '${SOCKET_PREFIX}${name}'`,
     );
   }
@@ -71,7 +71,7 @@ export function socketWorldDirection(tool, name, target) {
   const socket = findSocket(tool, name);
   if (!socket) {
     throw new Error(
-      `toolSockets: no socket '${name}' on ${tool?.name || 'tool'} — ` +
+      `toolSockets: no socket '${name}' on ${tool?.name || 'tool'} - ` +
       `expected a child named '${SOCKET_PREFIX}${name}'`,
     );
   }

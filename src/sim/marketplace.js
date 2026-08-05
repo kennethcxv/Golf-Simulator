@@ -83,7 +83,7 @@ const ARCHETYPES = [
   {
     id: 'bent-pines',
     name: 'Bent Pines Golf Club',
-    blurb: 'A genuinely superb routing left to rot — doglegs, real land movement, ten bunkers full of weeds. The agronomy is a crime scene; the architecture is not.',
+    blurb: 'A genuinely superb routing left to rot - doglegs, real land movement, ten bunkers full of weeds. The agronomy is a crime scene; the architecture is not.',
     size: 9,
     layout: {
       kind: 'serpentine', margin: 8, bands: 6, roughR: 4.6, fairwayR: 2.3,
@@ -117,7 +117,7 @@ const ARCHETYPES = [
   {
     id: 'saltgrass-point',
     name: 'Saltgrass Point',
-    blurb: 'A tight little executive nine in the coastal scrub — small fierce greens, wind, five proper pot bunkers. Cheap to run, loved by the people who know it.',
+    blurb: 'A tight little executive nine in the coastal scrub - small fierce greens, wind, five proper pot bunkers. Cheap to run, loved by the people who know it.',
     size: 9,
     layout: {
       kind: 'serpentine', margin: 8, bands: 4, roughR: 4.2, fairwayR: 2.1,
@@ -134,7 +134,7 @@ const ARCHETYPES = [
   {
     id: 'thornbury-estate',
     name: 'Thornbury Estate G&CC',
-    blurb: 'A sprawling championship eighteen gone to seed — the full tour: water twice, doglegs, real length. Every yard of it needs money, and there are a lot of yards.',
+    blurb: 'A sprawling championship eighteen gone to seed - the full tour: water twice, doglegs, real length. Every yard of it needs money, and there are a lot of yards.',
     size: 18,
     layout: {
       kind: 'serpentine', margin: 6, bands: 10, roughR: 3.6, fairwayR: 2.2,
@@ -168,7 +168,7 @@ const ARCHETYPES = [
   {
     id: 'cypress-hollow',
     name: 'Cypress Hollow',
-    blurb: 'Water everywhere and most of it in the turf — three ponds, saturated fairways, brown patch chewing the low greens. Fix the drainage story and the golf is honest.',
+    blurb: 'Water everywhere and most of it in the turf - three ponds, saturated fairways, brown patch chewing the low greens. Fix the drainage story and the golf is honest.',
     size: 9,
     layout: {
       kind: 'serpentine', margin: 8, bands: 6, roughR: 4.5, fairwayR: 2.3,
@@ -185,7 +185,7 @@ const ARCHETYPES = [
   {
     id: 'fairview-commons',
     name: 'Fairview Commons',
-    blurb: 'A perfectly adequate nine priced on sentiment — the family wants a legacy number for grandpa\'s course. Decent shape, ordinary golf, ambitious ask.',
+    blurb: 'A perfectly adequate nine priced on sentiment - the family wants a legacy number for grandpa\'s course. Decent shape, ordinary golf, ambitious ask.',
     size: 9,
     layout: {
       kind: 'serpentine', margin: 8, bands: 6, roughR: 4.5, fairwayR: 2.3,
@@ -500,7 +500,7 @@ const LISTING_TEMPLATES = [
       parWeights: { 3: 2, 4: 5, 5: 2 },
     },
     blurbs: [
-      'The routing is the real thing — doglegs, movement, angles. Everything growing on top of it is a disgrace. A competent crew could save this.',
+      'The routing is the real thing - doglegs, movement, angles. Everything growing on top of it is a disgrace. A competent crew could save this.',
       'Under the knee-high fescue and the dead greens there is a course people used to drive an hour for. The bones never stopped being good; everyone just stopped paying the water bill.',
       'Foreclosure special: superb land, criminal upkeep. The bank wants it gone before another irrigation main lets go.',
     ],
@@ -548,7 +548,7 @@ const LISTING_TEMPLATES = [
       parWeights: { 3: 6, 4: 3 }, parRange: { 3: [16, 26], 4: [34, 42] },
     },
     blurbs: [
-      'A tight executive nine that punches far above its yardage — small vicious greens and bunkers that mean it. Cheap to water, cheap to mow, easy to love.',
+      'A tight executive nine that punches far above its yardage - small vicious greens and bunkers that mean it. Cheap to water, cheap to mow, easy to love.',
       'Short, sharp, and beloved by the lunch-hour crowd. No length, no pretension, surprisingly defensible economics.',
       'Par is a rumor here: knee-knocker par 3s and two honest short 4s. Runs on a shoestring and knows it.',
     ],
@@ -580,7 +580,7 @@ const LISTING_TEMPLATES = [
       parWeights: { 3: 2, 4: 7 },
     },
     blurbs: [
-      'Grandpa built it, the family priced it. The course is fine — the ask includes forty years of sentiment at compound interest.',
+      'Grandpa built it, the family priced it. The course is fine - the ask includes forty years of sentiment at compound interest.',
       'A perfectly adequate nine wearing a championship price tag. The listing agent talks about heritage a lot.',
       'Decent shape, ordinary golf, and a number arrived at by seance. Somebody will overpay; it does not have to be you.',
     ],
@@ -597,7 +597,7 @@ const LISTING_TEMPLATES = [
     },
     blurbs: [
       'A full eighteen with tournament pedigree and a decade of neglect on every yard of it. The scale that made it famous makes it expensive to save.',
-      'Championship length, championship decay. Everything works at half strength across twice the acreage — bring money and a plan.',
+      'Championship length, championship decay. Everything works at half strength across twice the acreage - bring money and a plan.',
       'The county\'s grand old eighteen, seized and shuttered. Water on the front, real length everywhere, ruin all over.',
     ],
   },
@@ -732,10 +732,10 @@ export function generateListing(seed, opts = {}) {
 
 export function marketConditionLabel(condition) {
   if (condition <= 0.96) {
-    return { key: 'buyers', label: 'Buyer’s market', hint: 'Asking prices are running soft — a good time to acquire.' };
+    return { key: 'buyers', label: 'Buyer’s market', hint: 'Asking prices are running soft - a good time to acquire.' };
   }
   if (condition >= 1.04) {
-    return { key: 'sellers', label: 'Seller’s market', hint: 'Asking prices are running rich — patience pays.' };
+    return { key: 'sellers', label: 'Seller’s market', hint: 'Asking prices are running rich - patience pays.' };
   }
   return { key: 'balanced', label: 'Balanced market', hint: 'Asking prices sit near true form.' };
 }
@@ -743,7 +743,7 @@ export function marketConditionLabel(condition) {
 export function listingAgeLabel(daysOnMarket) {
   if (daysOnMarket <= 2) return 'Just listed';
   if (daysOnMarket < MARKET.minDaysListed) return 'A week or two on the market';
-  return 'Been sitting — rival buyers circling';
+  return 'Been sitting - rival buyers circling';
 }
 
 // --- debug dump -------------------------------------------------------------------------
@@ -751,7 +751,7 @@ export function listingAgeLabel(daysOnMarket) {
 
 export function dumpMarketplace(properties) {
   const money = (v) => '$' + v.toLocaleString('en-US');
-  const lines = ['GOLF EMPIRE — property marketplace', ''];
+  const lines = ['GOLF EMPIRE - property marketplace', ''];
   for (const p of properties) {
     const ratio = p.askingPrice / p.trueValue;
     const note = ratio < 0.92 ? 'underpriced' : ratio > 1.08 ? 'OVERPRICED' : 'fair-ish';

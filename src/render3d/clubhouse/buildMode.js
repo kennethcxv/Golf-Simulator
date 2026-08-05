@@ -560,7 +560,7 @@ export function buildBuildMode(B, deps) {
       if (anchor) anchor.visible = false;
       setFixtureCollidersActive(f.id, false);
       setFixtureStockVisible(f.id, false);
-      if (hooks.toast) hooks.toast(`${f.title || f.kind} — [E] set down · [R] turn · [X] into the back · [RMB] cancel`);
+      if (hooks.toast) hooks.toast(`${f.title || f.kind} - [E] set down · [R] turn · [X] into the back · [RMB] cancel`);
       return true;
     },
 

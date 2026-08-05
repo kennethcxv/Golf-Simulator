@@ -55,7 +55,7 @@ test('a wider field of view seats you closer, for the same coverage', () => {
 test('the framing is a huge improvement on what was measured', () => {
   const opts = { ...SCREEN, fovDeg: 60, aspect: 16 / 9 };
   const c = coverage({ ...opts, dist: fitDistance(opts) });
-  assert.ok(c.areaFrac > 0.45, `screen area ${(c.areaFrac * 100).toFixed(0)}% — was 9.7%`);
+  assert.ok(c.areaFrac > 0.45, `screen area ${(c.areaFrac * 100).toFixed(0)}% - was 9.7%`);
 });
 
 test('coverage and fit are inverses', () => {

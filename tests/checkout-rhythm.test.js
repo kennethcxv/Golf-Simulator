@@ -32,7 +32,7 @@ test('a finished sale is no longer a dead end with one way out', () => {
   );
   assert.match(source, /id: 'clear-post-sale', label: 'Ready for the next customer', kind: 'primary'/);
   assert.match(source, /\{ id: 'exit', label: 'Return to Shop' \}/,
-    'leaving is still offered — it is just no longer the only thing offered');
+    'leaving is still offered - it is just no longer the only thing offered');
 });
 
 test('the finished sale clears itself on a timer, not only on a click', () => {

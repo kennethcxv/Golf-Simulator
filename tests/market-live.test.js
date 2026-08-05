@@ -186,7 +186,7 @@ test('ignored listings go to rival buyers within a reasonable window, never sile
   for (const r of removals) {
     const age = r.day - r.listedDay;
     assert.ok(age >= MARKET.minDaysListed,
-      `${r.name} went to a rival after ${age} days — never inside the grace window`);
+      `${r.name} went to a rival after ${age} days - never inside the grace window`);
     assert.ok([...notices].some((t) => t.includes(r.name)),
       `${r.name} left with a visible notice, not a silent disappearance`);
   }

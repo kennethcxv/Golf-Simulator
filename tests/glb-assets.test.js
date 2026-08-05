@@ -44,7 +44,7 @@ test('no GLB carries an exported camera or uncontrolled light', () => {
   assert.deepEqual(offenders, [], `assets with baked cameras/lights:\n${offenders.join('\n')}`);
 });
 
-test('no GLB is degenerate — every asset has geometry and finite bounds', () => {
+test('no GLB is degenerate - every asset has geometry and finite bounds', () => {
   const bad = [];
   for (const f of files) {
     let rec;

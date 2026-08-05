@@ -355,7 +355,7 @@ export function buildDoors(B, { dormant = false } = {}) {
     if (registerInteraction) {
       const interactionProp = {
         x: wp.x, z: wp.z, r: 2.1,
-        label: () => `${name} — [E] ${door.open ? 'close' : 'open'}`,
+        label: () => `${name} - [E] ${door.open ? 'close' : 'open'}`,
         action: () => {
           if (door.open) {
             const blocker = doorBlockedBy(door);
@@ -461,7 +461,7 @@ export function buildDoors(B, { dormant = false } = {}) {
       const lp = W2L(walk.x, walk.z);
       const leaf = lp.x > DOOR_MAIN.x ? 'right' : 'left';
       const selected = leaf === 'right' ? mainDoorRight : mainDoor;
-      return `Shop doors — [E] ${mainDoor.open ? 'close both' : 'open both'} · [X] ${selected.desiredOpen ? 'close' : 'open'} ${leaf} leaf`;
+      return `Shop doors - [E] ${mainDoor.open ? 'close both' : 'open both'} · [X] ${selected.desiredOpen ? 'close' : 'open'} ${leaf} leaf`;
     },
     action: () => {
       if (mainDoor.open) {

@@ -64,7 +64,7 @@ export const REVIEW_FACTORS = [
     weight: 0.9,
     read: (st) => clamp(0.55 * exteriorWashScore(st) + 0.45 * exteriorScore(st), 0, 1),
     praise: () => 'the place looked well kept from the car park',
-    gripe: () => 'the outside of the clubhouse is a state — dirty siding, weeds up the wall',
+    gripe: () => 'the outside of the clubhouse is a state - dirty siding, weeds up the wall',
   },
   {
     id: 'courseCondition',
@@ -87,7 +87,7 @@ export const REVIEW_FACTORS = [
     praise: () => 'the shop was properly stocked',
     gripe: (st, v) => (v.productAvailability === 0 || v.foundWhatTheyWanted === false
       ? 'the item I came for was unavailable'
-      : 'half the shelves were bare — I could not find what I came for'),
+      : 'half the shelves were bare - I could not find what I came for'),
   },
   {
     id: 'prices',
@@ -508,15 +508,15 @@ export function explainVisitors(state, { today, yesterday, rainedToday }) {
 
   if (Math.abs(delta) < 5) {
     return causes.length
-      ? `Visitors held at ${today} — still held back by ${list(causes)}.`
+      ? `Visitors held at ${today} - still held back by ${list(causes)}.`
       : `Visitors held at ${today}.`;
   }
   const dir = delta < 0 ? 'fell' : 'rose';
   if (delta < 0 && causes.length) {
-    return `Visitors ${dir} ${Math.abs(delta)}% to ${today} — ${list(causes)}.`;
+    return `Visitors ${dir} ${Math.abs(delta)}% to ${today} - ${list(causes)}.`;
   }
   if (delta > 0 && !causes.length) {
-    return `Visitors ${dir} ${delta}% to ${today} — the place is in good order.`;
+    return `Visitors ${dir} ${delta}% to ${today} - the place is in good order.`;
   }
   return `Visitors ${dir} ${Math.abs(delta)}% to ${today}.`;
 }

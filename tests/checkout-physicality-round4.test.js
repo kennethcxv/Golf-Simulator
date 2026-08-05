@@ -78,7 +78,7 @@ test('every denomination in the tray carries its own ink', () => {
     tints.set(Number(denom), hex.toLowerCase());
   }
   for (const denom of DENOMS) {
-    assert.ok(tints.has(denom), `${denom} has no tint — it would draw as kit-default stock`);
+    assert.ok(tints.has(denom), `${denom} has no tint - it would draw as kit-default stock`);
   }
   assert.equal(new Set(tints.values()).size, tints.size,
     'two denominations share a tint, which is the "five identical rectangles" read');
@@ -107,7 +107,7 @@ test('the open till carries no lamps of its own', () => {
   assert.doesNotMatch(functionBody('updateDrawer'), /PointLight/);
 });
 
-test('the till opens briskly — it is spring-loaded, not motorised', () => {
+test('the till opens briskly - it is spring-loaded, not motorised', () => {
   // At 1.0 the tray took a full second to clear the slab, and that second is
   // the one moment the player is waiting on the register.
   const speed = Number(/const DRAWER_OPEN_SPEED = ([\d.]+)/.exec(source)[1]);
@@ -125,7 +125,7 @@ test('counting change cannot swing the cash summary off the top of the frame', (
 
 // --- ITEM 2: the reader's keys ---------------------------------------------
 
-test('red X cancels, yellow backspaces, green enters — and the caps say so', () => {
+test('red X cancels, yellow backspaces, green enters - and the caps say so', () => {
   assert.deepEqual(CHECKOUT_TERMINAL_KEY_ROLES.clear, { colour: 'red', label: 'X', role: 'cancel' });
   assert.deepEqual(CHECKOUT_TERMINAL_KEY_ROLES.backspace, { colour: 'yellow', label: '⌫', role: 'backspace' });
   assert.deepEqual(CHECKOUT_TERMINAL_KEY_ROLES.confirm, { colour: 'green', label: 'OK', role: 'enter' });
@@ -268,7 +268,7 @@ test('the working frame is solved from the counter, not typed', () => {
       `the solve still depends on ${transient}, so the frame drifts when it disappears`);
   }
   assert.match(solved, /solveFramingPose\(\{/, 'it goes through the shared framing solver');
-  assert.match(solved, /workPoseCache/, 'the solve is cached — a frame that chases the customer is a ride');
+  assert.match(solved, /workPoseCache/, 'the solve is cached - a frame that chases the customer is a ride');
   const dynamic = functionBody('dynamicPose');
   assert.match(dynamic, /key === 'overview' \|\| key === 'scan'\) return derivedWorkingPose/,
     'browsing and scanning both use the derived frame');

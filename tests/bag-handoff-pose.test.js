@@ -59,7 +59,7 @@ test('the arm that moves to receive the bag is the arm the bag attaches to', () 
   const reached = receiving[bagSide].forward - idle[bagSide].forward;
   const otherMoved = receiving[other].forward - idle[other].forward;
   assert.ok(reached > 0.06,
-    `the ${bagSide} hand — the one the bag attaches to — only came forward ${reached.toFixed(3)} yd`);
+    `the ${bagSide} hand - the one the bag attaches to - only came forward ${reached.toFixed(3)} yd`);
   assert.ok(reached > Math.abs(otherMoved) * 2,
     `the ${other} hand moved ${otherMoved.toFixed(3)} against the receiving hand's `
     + `${reached.toFixed(3)}: the wrong arm is doing the reaching`);
@@ -70,7 +70,7 @@ test('receiving the bag does not lift either hand toward the shoulder', () => {
   for (const side of ['left', 'right']) {
     assert.ok(receiving[side].heightFraction < (HIP + SHOULDER) / 2,
       `the ${side} hand sits at ${receiving[side].heightFraction} of standing height, `
-      + `which is above the hip — "taken at hip height" is the whole request`);
+      + `which is above the hip - "taken at hip height" is the whole request`);
   }
   const bagSide = BAG_SIDE === 'L' ? 'left' : 'right';
   assert.ok(Math.abs(receiving[bagSide].heightFraction - HIP) < 0.14,

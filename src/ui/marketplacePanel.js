@@ -39,7 +39,7 @@ export function openMarketplace(app, handlers) {
         ),
       ];
       if (!empire.market.length) {
-        rows.push(el('div', { class: 'row muted', text: 'Nothing listed right now — you bought the whole county.' }));
+        rows.push(el('div', { class: 'row muted', text: 'Nothing listed right now - you bought the whole county.' }));
       }
       for (const p of empire.market) {
         const tier = propertyTier(p);

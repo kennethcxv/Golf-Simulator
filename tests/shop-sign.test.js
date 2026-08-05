@@ -29,7 +29,7 @@ const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').rep
 const clubhouseSource = read('../src/render3d/clubhouse.js');
 const shellSource = read('../src/render3d/clubhouse/shell.js');
 
-test('a fresh shop opens CLOSED — the morning is the player\'s to prepare', () => {
+test('a fresh shop opens CLOSED - the morning is the player\'s to prepare', () => {
   const state = newGame('normal', 11);
   assert.equal(signIsOpen(state), false);
   // …and mid-morning, inside trading hours, still nobody comes in
@@ -56,7 +56,7 @@ test('the sign cannot conjure customers outside trading hours', () => {
   assert.equal(flipped.open, true, 'the player may still flip it');
   assert.equal(flipped.withinHours, false, 'and the caller can say so');
   assert.equal(shopAcceptsWalkIns(state, 180), false,
-    'but the world keeps its own hours — the sign gates within them, it does not extend them');
+    'but the world keeps its own hours - the sign gates within them, it does not extend them');
 });
 
 test('opening late is measured, not announced', () => {
@@ -67,7 +67,7 @@ test('opening late is measured, not announced', () => {
   assert.equal(state.shop.signOpenedAtMinute, SHOP_HOURS.openMinute + 95);
 });
 
-test('a new day starts CLOSED — the preparation window survives the rollover', () => {
+test('a new day starts CLOSED - the preparation window survives the rollover', () => {
   const state = newGame('normal', 15);
   flipSign(state, 600);
   assert.equal(signIsOpen(state), true);
@@ -92,7 +92,7 @@ test('a save written before the sign existed still trades', () => {
   delete state.shop.signOpenedAtMinute;
   assert.equal(healShopSign(state), true, 'the healer fires exactly once');
   assert.equal(signIsOpen(state), true,
-    'heal to what that player last experienced — an always-open shop — not the new default');
+    'heal to what that player last experienced - an always-open shop - not the new default');
   assert.equal(healShopSign(state), false, 'and never again');
 });
 
@@ -152,7 +152,7 @@ test('the card and the hotspot that flips it are the same point in two frames', 
     'the world form is derived from it, not computed separately');
   assert.match(clubhouseSource,
     /group\.position\.set\(signLocal\.x, signLocal\.y, signLocal\.z\);/,
-    'the card takes the local point — passing it a world point offsets it twice');
+    'the card takes the local point - passing it a world point offsets it twice');
   assert.match(clubhouseSource, /addProp\(\{\s*\n\s*x: hang\.x,\s*\n\s*z: hang\.z,/,
     'and the hotspot takes the world form of that same point');
 });
@@ -289,7 +289,7 @@ test('no sign paints an OPEN or CLOSED word outside the registry', () => {
 
 test('the exterior board is registered and repainted, not left to a campaign flag', () => {
   assert.match(shellSource, /sign\.name = 'LegacyBusinessHoursSign';/,
-    'the board still exists — deleting it is the other valid answer, and it was not taken');
+    'the board still exists - deleting it is the other valid answer, and it was not taken');
   assert.match(shellSource, /repaintBusinessSign = \(face\) => \{/,
     'it takes a FACE; a boolean is what let a milestone stand in for tonight');
   assert.doesNotMatch(shellSource, /campaignAllowsBusiness/,

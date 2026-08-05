@@ -28,7 +28,7 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 // loader detached is what turns "a KTX2 asset shipped by mistake" into a clear
 // error at parse time instead of a CSP EvalError from inside a worker.
 
-const REJECTION = 'KTX2 is disabled by decision — see Designs/ProShop/TEXTURE_MEMORY_POLICY.md §3';
+const REJECTION = 'KTX2 is disabled by decision - see Designs/ProShop/TEXTURE_MEMORY_POLICY.md §3';
 
 let shared = null;
 let supportDetected = false;

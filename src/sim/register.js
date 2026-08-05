@@ -458,7 +458,7 @@ export function recoverUnresolvedCardAuthorization(tx) {
 
 export function runCard(tx, { timeout = false, force = null } = {}) {
   if (tx.stage !== 'card-busy') {
-    return { ok: false, reason: tx.stage === 'card-declined' ? 'Declined — they need another card.' : 'No card presented.' };
+    return { ok: false, reason: tx.stage === 'card-declined' ? 'Declined - they need another card.' : 'No card presented.' };
   }
   tx.cardAttempts += 1;
   if (timeout) {
@@ -784,10 +784,10 @@ export function handOverChange(tx, drawer) {
   const { deltaCents } = changeGivingState(tx);
 
   if (deltaCents < 0) {
-    return { ok: false, reason: 'Not enough — count it again.' };
+    return { ok: false, reason: 'Not enough - count it again.' };
   }
   if (deltaCents > MAX_EXTRA_CHANGE_CENTS) {
-    return { ok: false, reason: 'Too much — count it again.' };
+    return { ok: false, reason: 'Too much - count it again.' };
   }
 
   tx.lost = dollars(deltaCents);
@@ -997,7 +997,7 @@ export function bankServiceCharge(state, {
     idempotencyKey: serviceLedgerKey(type, referenceId, 'revenue'),
     relatedId: referenceId,
     category: revenueKey,
-    description: `${itemName} — ${customer}`,
+    description: `${itemName} - ${customer}`,
     source: 'service-charge',
     customerCount: 1,
     metadata: { type, method },
@@ -1146,7 +1146,7 @@ export function completeServicePayment(state, tx, {
       idempotencyKey: serviceLedgerKey(type, referenceId, 'revenue'),
       relatedId: referenceId,
       category: revenueKey,
-      description: `Service payment — ${customer}`,
+      description: `Service payment - ${customer}`,
       source: 'service-payment',
       customerCount: 1,
       metadata: { type, method: tx.method },
@@ -1316,7 +1316,7 @@ export function completeSale(state, tx, who = 'A customer') {
     idempotencyKey: saleKey,
     relatedId: tx.id,
     category: 'shopSales',
-    description: `Register sale — ${customerName}`,
+    description: `Register sale - ${customerName}`,
     source: 'checkout',
     units: tx.items.length,
     customerCount: 1,
@@ -1342,7 +1342,7 @@ export function completeSale(state, tx, who = 'A customer') {
   const cogsMeta = goodsCost > 0 ? {
     idempotencyKey: `checkout:${tx.id}:cogs`,
     relatedId: tx.id,
-    description: `Cost of goods — ${customerName}`,
+    description: `Cost of goods - ${customerName}`,
     source: 'checkout',
     units: tx.items.length,
     metadata: { skuIds: tx.items.map((item) => item.skuId) },
@@ -1421,7 +1421,7 @@ export function completeSale(state, tx, who = 'A customer') {
     accrueSalesTax(state, saleTax, {
       idempotencyKey: taxKey,
       relatedId: tx.id,
-      description: `Sales tax collected — ${customerName}`,
+      description: `Sales tax collected - ${customerName}`,
       source: 'checkout',
       customerCount: 1,
       taxableSales: saleRevenue,

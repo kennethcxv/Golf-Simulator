@@ -114,7 +114,7 @@ test('a discount reduces the taxable sale price, because that is what was paid f
   assert.equal(totalOf(tx), 96.3);
 });
 
-test('NEGATIVE CONTROL — a zero-rate property charges exactly the subtotal', () => {
+test('NEGATIVE CONTROL - a zero-rate property charges exactly the subtotal', () => {
   // If taxOf() ignored the rate, or defaulted to something non-zero, this is where it shows.
   const tx = createTx({ items: [{ uid: 'a', skuId: 'balls1', name: 'Balls', price: 24 }], taxRate: 0 });
   scanItem(tx, 'a');
@@ -261,7 +261,7 @@ test('the register books goods and tax separately when a real sale completes', (
 
 // --- 4. the supplier side is still exempt --------------------------------------------------
 
-test('supplier orders remain untaxed — the resale exemption, still wired at zero', () => {
+test('supplier orders remain untaxed - the resale exemption, still wired at zero', () => {
   // The reporter's ruling: "Wholesale goods bought for resale are exempt from sales tax in the
   // US — the resale exemption. So do NOT tax supplier orders. Leave
   // BALANCE.wholesaleSalesTaxRate at 0 and keep it wired as-is."

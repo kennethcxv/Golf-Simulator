@@ -49,7 +49,7 @@ test('every catalog line has a supplier, a unit weight and a box that holds a wh
   }
 });
 
-test('a golf bag ships one to a carton — the per-category default would have sent twelve', () => {
+test('a golf bag ships one to a carton - the per-category default would have sent twelve', () => {
   // bag1's CATEGORY is 'accessories', which packs twelve to a carton. Twelve stand bags in one
   // box is the kind of thing a category default does to you when nobody looks at the result.
   assert.equal(unitsPerBox(skuById('bag1')), 1);
@@ -80,7 +80,7 @@ test('the manifest is a promise: what the screen says is what lands on the pad',
   assert.deepEqual(
     landed.map((b) => b.qty).sort(),
     o.manifest.boxes.map((b) => b.qty).sort(),
-    'split the same way, too — not three boxes of ten',
+    'split the same way, too - not three boxes of ten',
   );
 });
 
@@ -115,12 +115,12 @@ test('the delivery fee is real money, and cancelling gives back the fee as well 
 
   const c = cancelOrder(s, s.shop.orders[0].id);
   assert.ok(c.ok);
-  assert.equal(c.refund, p.cost, 'the freight comes back too — the van never rolled');
+  assert.equal(c.refund, p.cost, 'the freight comes back too - the van never rolled');
   assert.equal(s.cash, cash0);
   assert.equal(s.ledger.today.expense.shopOrders || 0, spent0, 'no trace in the books');
 });
 
-test('the status walks the whole flow — received to arriving — in order, and never backwards', () => {
+test('the status walks the whole flow - received to arriving - in order, and never backwards', () => {
   const s = setup();
   placeOrder(s, 'polo1', 8);
   const o = s.shop.orders[0];
@@ -221,7 +221,7 @@ test('the past-day delivery safety net obeys the same receiving capacity', () =>
   assert.equal(s.shop.orders[0].blocked, true);
 });
 
-test('planShipment is pure — the same order always packs the same way', () => {
+test('planShipment is pure - the same order always packs the same way', () => {
   const a = planShipment(skuById('shoe1'), 9);
   const b = planShipment(skuById('shoe1'), 9);
   assert.deepEqual(a, b);

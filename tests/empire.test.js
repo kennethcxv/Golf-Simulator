@@ -179,7 +179,7 @@ test('selling pays the live valuation and the property is genuinely gone', () =>
   assert.ok(Math.abs(e.cash - (cashBefore + expected)) < 0.01, 'payout landed in the wallet');
   assert.equal(e.holdings.length, 0, 'holding removed');
   assert.equal(e.activeId, null, 'no active property after selling it');
-  assert.ok(!e.market.some((p) => p.id === 'willow-creek'), 'sold forever — not quietly re-listed');
+  assert.ok(!e.market.some((p) => p.id === 'willow-creek'), 'sold forever - not quietly re-listed');
   assert.equal(activeState(e), null);
 });
 

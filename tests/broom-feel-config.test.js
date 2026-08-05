@@ -73,7 +73,7 @@ test('the audio loop answers both interior surface kinds', () => {
     'carpet is the duller drag, boards the bright bristle');
 });
 
-test('the debris push beats the walk speed — dirt recedes, it is not overrun', () => {
+test('the debris push beats the walk speed - dirt recedes, it is not overrun', () => {
   // Walking is 2.2 yd/s. A push slower than that walks OVER its own pile and
   // the debris pops out behind the bristles — the round-1 "dirt lag".
   assert.ok(BROOM_FEEL.dirt.pushSpeed > 2.2,
@@ -82,7 +82,7 @@ test('the debris push beats the walk speed — dirt recedes, it is not overrun',
     'a stroke still cannot fling debris across the room');
 });
 
-test('the head-follow spring is under-damped — it settles, it does not snap', () => {
+test('the head-follow spring is under-damped - it settles, it does not snap', () => {
   assert.ok(BROOM_FEEL.weight.lagHz > 0, 'the spring has a natural frequency');
   assert.ok(BROOM_FEEL.weight.lagDamping > 0 && BROOM_FEEL.weight.lagDamping < 1,
     'damping < 1 gives the visible overshoot-and-settle');
@@ -171,11 +171,11 @@ test('the handle can physically REACH the floor from where the hands are held', 
   const gripAboveFloor = EYE_YD + BROOM_FEEL.compose.gripAnchor[1];
   assert.ok(gripAboveFloor < HANDLE_YD,
     `the hands are held ${gripAboveFloor.toFixed(3)} yd up but the handle is only `
-    + `${HANDLE_YD} yd — the head could never reach the boards`);
+    + `${HANDLE_YD} yd - the head could never reach the boards`);
   // and with enough left over to reach FORWARD, not just straight down
   const reach = Math.sqrt(HANDLE_YD ** 2 - gripAboveFloor ** 2);
   assert.ok(reach > 0.35,
-    `only ${reach.toFixed(3)} yd of forward reach at full plant — the broom would `
+    `only ${reach.toFixed(3)} yd of forward reach at full plant - the broom would `
     + 'sweep vertically at the player\'s feet');
 });
 

@@ -47,7 +47,7 @@ test('fast-forward moves bodies up to the cap and no further', () => {
     `rung 16 is capped at x${GOLFER_LOCOMOTION_SPEED_CAP} (got ${(at16 / (58 / 60)).toFixed(2)}x)`);
 });
 
-test('a doctored day length cannot move the wall rate — the shopper-split control', () => {
+test('a doctored day length cannot move the wall rate - the shopper-split control', () => {
   // The exact control the locomotion pin uses: change ONLY the day length and
   // prove the body's wall speed does not move. If pace read the compression
   // wrong, this is where it shows.

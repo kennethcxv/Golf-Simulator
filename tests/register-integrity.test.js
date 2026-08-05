@@ -125,9 +125,9 @@ test('object customer identities stay readable across ticket and ledger postings
   const postings = state.ledger.entries.filter((entry) => entry.relatedId === tx.id);
   assert.equal(postings.length, 2, 'the sale retains revenue and non-cash COGS postings');
   assert.equal(postings.find((entry) => entry.category === 'shopSales')?.description,
-    'Register sale — Rhea Osborne');
+    'Register sale - Rhea Osborne');
   assert.equal(postings.find((entry) => entry.category === 'costOfGoods')?.description,
-    'Cost of goods — Rhea Osborne');
+    'Cost of goods - Rhea Osborne');
   assert.equal(state.shop.transactionHistory[0].customer, 'Rhea Osborne');
   assert.equal(state.shop.transactionHistory[0].customerId, 'customer-rhea');
 });
@@ -180,7 +180,7 @@ test('realistic over-change reduces cash and books a cash-over-short expense', (
   assert.equal(state.shop.salesLive.revenue, 10, 'sales analytics retain the ticket value');
 });
 
-test('short-changing the customer is impossible in every mode — the handover refuses', () => {
+test('short-changing the customer is impossible in every mode - the handover refuses', () => {
   const state = newGame('realistic', 104);
   state.shop.drawer = newDrawer();
   const item = { uid: 'cash-unit', skuId: 'balls3', name: 'Tour dozen', price: 10 };

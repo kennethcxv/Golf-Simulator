@@ -9,7 +9,7 @@ test('manual load slots inspect save recovery independently from optional metada
   assert.match(mainSource, /Promise\.all\(\[inspectData\(scopedKey\(slot\), SAVE_LIMITS\), inspectData\(scopedKey\(`\$\{slot\}-meta`\)\)\]\)/);
   assert.match(mainSource, /record\.data \? summarizeSave\(record\.data, metadata\.data\) : null/);
   assert.match(mainSource, /action\.disabled = mode === 'load' && !\['ok', 'recovered'\]\.includes\(record\.status\)/);
-  assert.match(mainSource, /Unreadable — saving here will preserve the damaged copy as a backup/);
+  assert.match(mainSource, /Unreadable - saving here will preserve the damaged copy as a backup/);
 });
 
 test('successful load recovery notices wait until the opaque prewarm veil clears', () => {

@@ -864,7 +864,7 @@ export function validateObjectPlacement(state, id, candidateValue, options = {})
   if (!result.reasons.length && candidate.surface === 'floor' && meta.collision?.blocksCustomers
     && (meta.fixture || meta.render?.kind !== 'existing')
     && !routesIntact(state, { id: meta.id, place: candidate })) {
-    addReason(result, 'navigation-blocked', 'That would cut the shop off — customers could not reach a required area.');
+    addReason(result, 'navigation-blocked', 'That would cut the shop off - customers could not reach a required area.');
   }
   result.ok = result.reasons.length === 0;
   return result;

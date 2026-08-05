@@ -861,7 +861,7 @@ export function makeCourseScene(canvas, state) {
           const proc = fallback();
           tex.image = proc.image;
           tex.needsUpdate = true;
-          console.warn(`ground texture ${file} missing — procedural fallback in use`);
+          console.warn(`ground texture ${file} missing - procedural fallback in use`);
         }
       },
     );
@@ -1136,7 +1136,7 @@ export function makeCourseScene(canvas, state) {
         '#include <map_fragment>',
         /* glsl */ `
         {
-          // geometry row 0 sits at -z but UV v runs the other way — flip v so the
+          // geometry row 0 sits at -z but UV v runs the other way - flip v so the
           // data textures line up with world positions
           vec2 flippedUv = vec2(vMapUv.x, 1.0 - vMapUv.y);
           vec2 cellUv = flippedUv * uCells;
@@ -1149,7 +1149,7 @@ export function makeCourseScene(canvas, state) {
           // signed distance to the winning zone's boundary, in yards (neg = inside)
           float edgeYd = (zoneSample.g * 255.0 - 128.0) / 32.0 * ${CELL_YD.toFixed(1)};
           // turf condition stays at simulation resolution (it IS sim data).
-          // Disease TYPE is categorical, so it alone keeps the nearest read —
+          // Disease TYPE is categorical, so it alone keeps the nearest read -
           // interpolating between two disease ids would name a third.
           vec2 sUv = (floor(cellUv) + 0.5) / uCells;
           vec4 ax = texture2D(uAuxTex, sUv);
@@ -1179,7 +1179,7 @@ export function makeCourseScene(canvas, state) {
           float hRel = zSmooth.a * 255.0 / 64.0;
           float disSev = aSmooth.g;
 
-          // real PBR surfaces — sample every set in uniform control flow so mip
+          // real PBR surfaces - sample every set in uniform control flow so mip
           // derivatives stay valid across warped zone borders, then select
           vec2 wxz = vWp.xz;
           vec2 uvFair = wxz * 0.16;   // ~6 yd repeat: blade detail at play zoom
@@ -1240,7 +1240,7 @@ export function makeCourseScene(canvas, state) {
           float stripeFreq = 0.0;
           float modeSel = 0.0;
           bool followFlow = false;
-          if (zone < 0.5) {        // OUT — native scrub
+          if (zone < 0.5) {        // OUT - native scrub
             col = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
           } else if (zone < 1.5) { // ROUGH
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
@@ -1255,23 +1255,23 @@ export function makeCourseScene(canvas, state) {
           } else if (zone < 4.5) { // TEE
             col = colTee; gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
             stripeAmp = 0.06; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
-          } else if (zone < 5.5) { // BUNKER — warm sand on a gentler curve (never blows to white)
+          } else if (zone < 5.5) { // BUNKER - warm sand on a gentler curve (never blows to white)
             col = colSand;
             gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) { // WATER bed
             col = FW_STYLIZE(dScrub, vec3(0.13, 0.205, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
-          } else if (zone < 7.5) { // PATH — a dusty worn shoulder; the ribbon mesh is the pavement
+          } else if (zone < 7.5) { // PATH - a dusty worn shoulder; the ribbon mesh is the pavement
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.95;
-          } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
+          } else if (zone < 8.5) { // FRINGE - a shade deeper than green, tight cut
             col = colFringe; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
-          } else if (zone < 9.5) { // HEAVY rough — tall, warm, golden-tipped
+          } else if (zone < 9.5) { // HEAVY rough - tall, warm, golden-tipped
             col = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
             col = mix(col, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16); // seedhead shimmer
           } else if (zone < 10.5) { // DIRT
             col = FW_STYLIZE(dPath, vec3(0.42, 0.31, 0.20)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.95;
-          } else if (zone < 11.5) { // BED — dark mulch
+          } else if (zone < 11.5) { // BED - dark mulch
             col = FW_STYLIZE(dScrub, vec3(0.23, 0.15, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.98;
-          } else {                 // SEMI — first cut between fairway and rough
+          } else {                 // SEMI - first cut between fairway and rough
             col = colSemi; gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.95;
             stripeAmp = 0.055; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
           }
@@ -1343,7 +1343,7 @@ export function makeCourseScene(canvas, state) {
           col *= 0.96 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.08;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
-            // overgrown turf softens the bands but never erases the pattern —
+            // overgrown turf softens the bands but never erases the pattern -
             // a freshly-mown surface still pops the most
             float fade = max(0.4, clamp(1.7 - hRel, 0.0, 1.0));
             // mow bands follow the HOLE: per-cell direction from the flow field
@@ -1378,7 +1378,7 @@ export function makeCourseScene(canvas, state) {
             // §1: decay reads as OLIVE-TAN desaturation, never brown-black
             col = mix(col, vec3(0.42, 0.40, 0.16), dry * 0.55);
             col = mix(col, vec3(0.40, 0.35, 0.18), smoothstep(0.45, 1.0, wear) * 0.5);
-            // freshly-watered turf reads darker until it drains — the hand-hose's
+            // freshly-watered turf reads darker until it drains - the hand-hose's
             // visible feedback, and honest for any saturated ground
             col *= 1.0 - smoothstep(0.58, 1.0, moisture) * 0.2;
             if (disSev > 0.03) {
@@ -1396,14 +1396,14 @@ export function makeCourseScene(canvas, state) {
             // grass-lip shadow: the sand right under the rolled turf edge sits in
             // shade; the middle of the bunker takes full sun (negative inside).
             // Driven by the bunker's own LINEAR distance channel rather than the
-            // nearest-sampled, quarter-yard-quantized edgeYd — a 20% darkening
+            // nearest-sampled, quarter-yard-quantized edgeYd - a 20% darkening
             // ramp off a quantized input banded visibly across the sand.
             float lip = smoothstep(-3.5, -0.4, surfaceDistanceYd.a);
             col *= mix(1.0, 0.80, lip);
             // faint rake grooves following the sand's long axis
             float rake = sin(dot(vWp.xz, vec2(0.82, 0.30)) * 2.6) * 0.5 + 0.5;
             col *= 0.96 + 0.04 * rake * (1.0 - lip);
-            // footprinted sand: visibly churned and shadowed — raking smooths it back
+            // footprinted sand: visibly churned and shadowed - raking smooths it back
             float foot = smoothstep(0.1, 0.8, wear);
             col *= 1.0 - foot * 0.24;
             float churn = fwNoise(cellUv * 9.0) * 0.6 + fwNoise(cellUv * 23.0) * 0.4;
@@ -2942,7 +2942,7 @@ export function makeCourseScene(canvas, state) {
         rebuildFloraFromModels(assets);
       } else {
         activeFloraAssets = null;
-        console.warn('flora models unavailable — procedural fallback in use');
+        console.warn('flora models unavailable - procedural fallback in use');
         rebuildTreesProcedural();
       }
       freezeStaticCourse(); // freshly planted forests are still furniture
@@ -3061,7 +3061,7 @@ export function makeCourseScene(canvas, state) {
         .replace('#include <common>', `#include <common>
           varying float vBladeH;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-          // slightly darker at the base, brighter tips — depth in the sward
+          // slightly darker at the base, brighter tips - depth in the sward
           diffuseColor.rgb *= mix(0.97, 1.04, vBladeH);`);
     };
     grassMesh = new THREE.InstancedMesh(geo, mat, GRASS_COUNT);
@@ -5144,8 +5144,8 @@ export function makeCourseScene(canvas, state) {
           && ['booked', 'confirmed'].includes(reservation.status)
         ));
         return waiting.length
-          ? `Starter desk — [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
-          : 'Starter desk — [E] arrivals, check-in & walk-ins';
+          ? `Starter desk - [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
+          : 'Starter desk - [E] arrivals, check-in & walk-ins';
       },
       action: () => {
         const waiting = (state.reservations?.booked || []).filter((reservation) => (
@@ -7339,14 +7339,14 @@ export function makeCourseScene(canvas, state) {
 
   function cleaningBlockMessage(reason) {
     return ({
-      carpet: 'Mops stay off carpet — use the vacuum there.',
-      'mop-dry': 'The mop is dry — wring it in the cleaning-bay bucket.',
-      'pan-full': 'The dustpan is full — empty it into the trash bag.',
-      'bag-full': 'The trash bag is full — tie it at the cleaning bay.',
-      'bag-tied': 'That bag is tied — dispose it at the stockroom waste station.',
+      carpet: 'Mops stay off carpet - use the vacuum there.',
+      'mop-dry': 'The mop is dry - wring it in the cleaning-bay bucket.',
+      'pan-full': 'The dustpan is full - empty it into the trash bag.',
+      'bag-full': 'The trash bag is full - tie it at the cleaning bay.',
+      'bag-tied': 'That bag is tied - dispose it at the stockroom waste station.',
       'spray-first': 'Loosen it with spray first.',
       'sweep-first': 'Sweep the pile together first.',
-      dry: 'Nothing to wipe yet — spray the surface first.',
+      dry: 'Nothing to wipe yet - spray the surface first.',
       blocked: 'The tool is against a fixture, not the floor.',
       occluded: 'A counter or wall blocks the tool contact.',
     })[reason] || 'Nothing to clean at that contact point.';
@@ -7439,7 +7439,7 @@ export function makeCourseScene(canvas, state) {
       if (dist < 3.6) {
         const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
         if (facing > 0.35) {
-          walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
+          walkFocus = { kind: 'cart', label: 'Tractor - [E] take the wheel' };
           return;
         }
       }
@@ -7470,7 +7470,7 @@ export function makeCourseScene(canvas, state) {
           kind: 'tool',
           label: clubhouseApi.isInside(ax, az)
             ? clubhouseApi.vacuumLabelAt(ax, az)
-            : 'Vacuum — take it inside the shop · [F] choose another tool',
+            : 'Vacuum - take it inside the shop · [F] choose another tool',
           cell: null,
         };
         return;
@@ -7478,7 +7478,7 @@ export function makeCourseScene(canvas, state) {
       if (walkTool === 'washer') {
         walkFocus = {
           kind: 'tool',
-          label: 'Pressure washer — hold [LMB] to wash · hold [RMB] to apply soap · [F] tools',
+          label: 'Pressure washer - hold [LMB] to wash · hold [RMB] to apply soap · [F] tools',
           cell: null,
         };
         return;
@@ -7562,7 +7562,7 @@ export function makeCourseScene(canvas, state) {
         const az = walk.z - Math.cos(walk.yaw) * 1.5;
         const label = clubhouseApi.isInside(ax, az)
           ? clubhouseApi.vacuumLabelAt(ax, az)
-          : 'Vacuum — take it inside the shop';
+          : 'Vacuum - take it inside the shop';
         if (label) {
           walkFocus = { kind: 'hose', label, cell: null };
           return;
@@ -8281,7 +8281,7 @@ export function makeCourseScene(canvas, state) {
           if (res.blocked && !walkSoaping) washHintClock -= dt;
           if (washHintClock <= 0 && res.blocked) {
             washHintClock = 4;
-            if (walkHooks.toast) walkHooks.toast('The water is running straight off it — this needs soap first (hold the right button).', 'warn');
+            if (walkHooks.toast) walkHooks.toast('The water is running straight off it - this needs soap first (hold the right button).', 'warn');
           }
           // The stream starts at the lance tip. This used to be a camera-local constant that
           // approximated the tip while the player stood still — it ignored heldRoot, so during the
@@ -10602,13 +10602,13 @@ export function makeCourseScene(canvas, state) {
     let leavesMesh = null;
     const leavesProp = {
       x: yardBx + 11.8, z: bz + 20.4, r: 2.4,
-      label: () => 'Old leaves and junk — [E] clear it out',
+      label: () => 'Old leaves and junk - [E] clear it out',
       action: () => {
         if (!tractorStep(state, 'cleared').ok) return;
         if (leavesMesh) tweenOut(leavesMesh, () => removeOwnedObject(leavesMesh));
         walkProps.splice(walkProps.indexOf(leavesProp), 1);
         play('thunk');
-        say('Junk cleared — you can get at the engine now.');
+        say('Junk cleared - you can get at the engine now.');
       },
     };
     putModel('vendor/models/leaves_pile.glb', 2.2, leavesProp.x, leavesProp.z, 0.4, (m) => { leavesMesh = m; });
@@ -10618,13 +10618,13 @@ export function makeCourseScene(canvas, state) {
     let canMesh = null;
     const canProp = {
       x: yardBx + 17.4, z: bz + 18.9, r: 2.0,
-      label: () => 'Fuel can — [E] fill the tractor’s tank',
+      label: () => 'Fuel can - [E] fill the tractor’s tank',
       action: () => {
         if (!tractorStep(state, 'fuel').ok) return;
         if (canMesh) tweenOut(canMesh, () => removeOwnedObject(canMesh));
         walkProps.splice(walkProps.indexOf(canProp), 1);
         play('thunk');
-        say('Tank filled — smells like a running machine already.');
+        say('Tank filled - smells like a running machine already.');
       },
     };
     putModel('vendor/models/gas_can.glb', 0.55, canProp.x, canProp.z, 0.9, (m) => { canMesh = m; });
@@ -10634,13 +10634,13 @@ export function makeCourseScene(canvas, state) {
     let beltMesh = null;
     const beltProp = {
       x: yardBx + 21.0, z: bz + 18.8, r: 2.0,
-      label: () => 'Drive belt — [E] fit it to the tractor',
+      label: () => 'Drive belt - [E] fit it to the tractor',
       action: () => {
         if (!tractorStep(state, 'belt').ok) return;
         if (beltMesh) tweenOut(beltMesh, () => removeOwnedObject(beltMesh));
         walkProps.splice(walkProps.indexOf(beltProp), 1);
         play('thunk');
-        say('Belt on the pulleys — one pull of the starter to go.');
+        say('Belt on the pulleys - one pull of the starter to go.');
       },
     };
     putModel('vendor/models/belt.glb', 0.7, beltProp.x, beltProp.z, 0.3, (m) => { beltMesh = m; });
@@ -10651,8 +10651,8 @@ export function makeCourseScene(canvas, state) {
       x: yard.x, z: yard.z, r: 3.4,
       label: () => {
         const left = tractorRemaining(state);
-        if (left.length) return `Broken tractor — needs ${left.map((s) => STEP_LABEL[s]).join(', ')}`;
-        return 'Broken tractor — [E] get her running';
+        if (left.length) return `Broken tractor - needs ${left.map((s) => STEP_LABEL[s]).join(', ')}`;
+        return 'Broken tractor - [E] get her running';
       },
       action: () => {
         if (!repairTractor(state).ok) return;
@@ -10667,7 +10667,7 @@ export function makeCourseScene(canvas, state) {
         placeCartMesh();
         attachMower();
         play('chime');
-        say('She lives! The tractor is yours — mower deck hitched. [E] to take the wheel.');
+        say('She lives! The tractor is yours - mower deck hitched. [E] to take the wheel.');
       },
     };
     walkProps.push(tractorProp);
@@ -10881,14 +10881,14 @@ export function makeCourseScene(canvas, state) {
       let mesh = null;
       const prop = {
         x: wx, z: wz, r: 2.6,
-        label: () => 'Storm debris — [E] haul it away',
+        label: () => 'Storm debris - [E] haul it away',
         action: () => {
           if (!clearLitter(state, idx).ok) return;
           if (mesh) tweenOut(mesh, () => removeOwnedObject(mesh));
           walkProps.splice(walkProps.indexOf(prop), 1);
           updateTurf(state); // the flattened grass under it recovers
           if (walkHooks.sfx) walkHooks.sfx('thunk');
-          if (walkHooks.toast) walkHooks.toast('Debris hauled off — the grass under it can breathe.');
+          if (walkHooks.toast) walkHooks.toast('Debris hauled off - the grass under it can breathe.');
         },
       };
       putModel('vendor/models/leaves_pile.glb', 1.9, wx, wz, (idx * 1.7) % 6.28, (m) => { mesh = m; });
@@ -10919,7 +10919,7 @@ export function makeCourseScene(canvas, state) {
     if (!props.teeSignFixed) {
       const signProp = {
         x: sx, z: sz, r: 2.6,
-        label: () => `Broken tee sign — [E] repair it (${PROPS.signRepairCost} dollars)`,
+        label: () => `Broken tee sign - [E] repair it (${PROPS.signRepairCost} dollars)`,
         action: () => {
           const res = fixTeeSign(state);
           if (!res.ok) {
@@ -10929,7 +10929,7 @@ export function makeCourseScene(canvas, state) {
           placeSign(false);
           walkProps.splice(walkProps.indexOf(signProp), 1);
           if (walkHooks.sfx) walkHooks.sfx('chime');
-          if (walkHooks.toast) walkHooks.toast('Tee sign restored — first impressions matter.');
+          if (walkHooks.toast) walkHooks.toast('Tee sign restored - first impressions matter.');
         },
       };
       walkProps.push(signProp);
@@ -11050,7 +11050,7 @@ export function makeCourseScene(canvas, state) {
         propColliders.push({ minX: bx - 40, maxX: bx - 20, minZ: bz + 21, maxZ: bz + 33 });
         walkProps.push({
           x: bx - 30, z: bz + 24, r: 4.5,
-          label: () => "The groundskeeper's house — someone kept a nicer yard than the course",
+          label: () => "The groundskeeper's house - someone kept a nicer yard than the course",
           action: null,
         });
       }

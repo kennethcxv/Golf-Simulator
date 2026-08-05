@@ -53,7 +53,7 @@ test('switching restores the target completely and preserves the parked club', (
   const back = switchProperty(e, 'willow-creek');
   assert.equal(back.ok, true);
   assert.deepEqual(fingerprint(activeState(e)), willowBefore,
-    'everything at Willow — golfers, staff, turf, books — survived the round trip untouched');
+    'everything at Willow - golfers, staff, turf, books - survived the round trip untouched');
 });
 
 test('unknown future empire and holding data survives an integrated round trip', () => {
@@ -122,7 +122,7 @@ test('passive drift and income stay bounded over very long absences', () => {
   assert.ok(Number.isFinite(e.cash) && e.cash > -100000, 'wallet never runs away');
 });
 
-test('a wreck parked below the floor holds — the caretaker does not restore it for free', () => {
+test('a wreck parked below the floor holds - the caretaker does not restore it for free', () => {
   const e = ownTwo(); // bent pines arrives at C≈30, parked from birth
   const bent = e.holdings.find((h) => h.property.id === 'bent-pines');
   const est0 = bent.passive.conditionEst;

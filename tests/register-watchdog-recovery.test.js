@@ -288,7 +288,7 @@ test('the offered card survives a player who takes a long look at it', () => {
   assert.equal(checkoutStateTimedOut(flow, 1000 + 6000), false,
     'six seconds of looking for the card is not a fault');
   assert.equal(checkoutStateTimedOut(flow, 1000 + 120000), false,
-    'nor is two minutes — the offer is the customer standing there holding it out');
+    'nor is two minutes - the offer is the customer standing there holding it out');
 });
 
 test('a recovery the renderer cannot reconcile can always be let go', () => {
@@ -312,7 +312,7 @@ test('a recovery the renderer cannot reconcile can always be let go', () => {
   });
   assert.equal(released.ok, true);
   assert.equal(released.flow.state, 'AllProductsScanned',
-    'an unauthorized sale drops back to the scanned basket — the same place the reader X lands');
+    'an unauthorized sale drops back to the scanned basket - the same place the reader X lands');
   assert.equal(released.flow.recovery, null, 'and it is no longer in recovery at all');
 
   // A basket that is not fully rung up goes back to scanning instead.

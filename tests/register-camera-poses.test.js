@@ -158,7 +158,7 @@ test('handoff and terminal poses share one desk-local direction with no 180 spin
 test('poseKey never cuts to the card: the reader floats instead (2026-07-30 stillness)', () => {
   const poseKey = functionBody(registerSource, 'poseKey');
   assert.ok(!poseKey.includes("'cardTake'") && !poseKey.includes("return 'card'"),
-    'the card workspace must not own a camera pose — the terminal lifts to the player');
+    'the card workspace must not own a camera pose - the terminal lifts to the player');
   assert.match(registerSource, /function terminalShouldFloat\(/);
 });
 test('fixed register views and fallback payment handoffs follow the rotated desk frame', () => {

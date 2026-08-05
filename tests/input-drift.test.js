@@ -213,13 +213,13 @@ test('a modifier the OS still holds survives the reconcile and stays on the read
   const dropped = reconcileModifiers(held, keyEvent({ Control: true }));
   assert.deepEqual(dropped, ['Meta'], 'only the one the OS disagrees about');
   assert.deepEqual(heldModifierNames(held), ['Control'],
-    'the survivor is what the HUD must show — it is the half no fix can reach');
+    'the survivor is what the HUD must show - it is the half no fix can reach');
 });
 
 test('every reconcilable modifier can also be named for the readout', () => {
   for (const m of HELD_MODIFIERS) {
     assert.deepEqual(heldModifierNames(new Set([m.toLowerCase()])), [m],
-      `${m} is reconcilable but invisible — a modifier that cannot be shown cannot be diagnosed`);
+      `${m} is reconcilable but invisible - a modifier that cannot be shown cannot be diagnosed`);
   }
 });
 

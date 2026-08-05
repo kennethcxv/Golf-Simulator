@@ -68,7 +68,7 @@ export function tickProperty(state, dayAbs) {
     p.warnedFor = p.nextDueDay;
     const owed = Math.round(p.arrears);
     out.warning = owed > 0
-      ? `Property bill of $${due} due in ${WARN_DAYS} days — plus $${owed} you already owe.`
+      ? `Property bill of $${due} due in ${WARN_DAYS} days - plus $${owed} you already owe.`
       : `Property bill of $${due} due in ${WARN_DAYS} days.`;
     out.message = out.warning;
     notify(state, { kind: 'money', text: out.warning, dedupeKey: `rentwarn:${p.nextDueDay}` });
@@ -94,8 +94,8 @@ export function tickProperty(state, dayAbs) {
     out.paid = true;
     out.arrears = 0;
     out.message = p.missedTotal > 0
-      ? `Property bill settled — $${Math.round(owed)}, including the back rent.`
-      : `Property bill paid — $${due}.`;
+      ? `Property bill settled - $${Math.round(owed)}, including the back rent.`
+      : `Property bill paid - $${due}.`;
     return out;
   }
 
@@ -109,7 +109,7 @@ export function tickProperty(state, dayAbs) {
   out.arrears = Math.round(p.arrears);
   out.severe = p.missedTotal >= SEVERE_AFTER;
   out.message = out.severe
-    ? `You are ${p.missedTotal} weeks behind on the property. $${out.arrears} in arrears — the bank is asking questions.`
+    ? `You are ${p.missedTotal} weeks behind on the property. $${out.arrears} in arrears - the bank is asking questions.`
     : `Could not cover the property bill. $${out.arrears} now owed, and it is accruing interest.`;
   notify(state, { kind: 'money', text: out.message, dedupeKey: `rentmiss:${dayAbs}` });
   return out;

@@ -236,8 +236,8 @@ export function makeSettingsPanel({
   // shipping runtime can be tested. It appears only in a development session; see
   // isDevSession in src/data/clubhouseVariant.js.
   const VARIANT_LABELS = {
-    'pine-hills-v2': 'Pine Hills v2 — Phase 3 greybox',
-    'pine-hills': 'Pine Hills — v1 authored room',
+    'pine-hills-v2': 'Pine Hills v2 - Phase 3 greybox',
+    'pine-hills': 'Pine Hills - v1 authored room',
     'modern-public': 'Modern municipal (default)',
     'mountain-lodge': 'Mountain lodge',
     legacy: 'Legacy envelope',
@@ -285,7 +285,7 @@ export function makeSettingsPanel({
     return section('Developer', 'Not player-facing. Visible because this is a development session.',
       status,
       row('Clubhouse room', 'Which clubhouse the next load builds. Saved, so plain `npm run dev` keeps returning to it.', select),
-      row('Apply', 'Saves the choice and reloads — the floor plan resolves once, at load, so nothing changes until then.',
+      row('Apply', 'Saves the choice and reloads - the floor plan resolves once, at load, so nothing changes until then.',
         el('button', { type: 'button', class: 'primary', text: 'Save and reload', onclick: applyRoom })),
     );
   }

@@ -75,7 +75,7 @@ test('the entry display shows the total AND the typed amount; the keypad stays p
   const entry = source.slice(start, end);
   assert.match(entry, /totalOf\(tx\)/, 'the amount due stays on the glass');
   assert.match(entry, /cardEnteredAmount\(tx\)/, 'the running amount renders as typed');
-  assert.ok(!entry.includes('fillRect(key'), 'still no drawn keypad — presses are mesh raycasts');
+  assert.ok(!entry.includes('fillRect(key'), 'still no drawn keypad - presses are mesh raycasts');
 });
 test('a successful press visibly gives, and the pulse restores the authored scale', () => {
   assert.match(sliceFn('handleTerminalKey'), /pulseTerminalKey\(action\)/);

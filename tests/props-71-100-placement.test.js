@@ -71,7 +71,7 @@ test('the entrance clearway stays clear of anything solid', () => {
   }
 });
 
-test('the receiving doorway stays clear — boxes come through it in your arms', () => {
+test('the receiving doorway stays clear - boxes come through it in your arms', () => {
   for (const p of PROP_PLACEMENTS) {
     const inside = p.x >= BACKDOOR_CLEARWAY.minX && p.x <= BACKDOOR_CLEARWAY.maxX
       && p.z >= BACKDOOR_CLEARWAY.minZ && p.z <= BACKDOOR_CLEARWAY.maxZ;
@@ -157,11 +157,11 @@ test('the cleaning bay props are actually in the stockroom', () => {
 test('desk props sit at a desk height, not on the floor', () => {
   for (const n of [83, 85]) {           // lamp, telephone
     const p = byNumber(n);
-    assert.ok((p.y || 0) > 0.6, `${n} is at y ${p.y} — that is on the floor, not on the desk`);
+    assert.ok((p.y || 0) > 0.6, `${n} is at y ${p.y} - that is on the floor, not on the desk`);
   }
   for (const n of [89, 90]) {           // clipboard, scorecard holder
     const p = byNumber(n);
-    assert.ok((p.y || 0) > 1.0, `${n} is at y ${p.y} — that is not on the counter`);
+    assert.ok((p.y || 0) > 1.0, `${n} is at y ${p.y} - that is not on the counter`);
   }
 });
 
@@ -185,7 +185,7 @@ test('the welcome mat lies flat inside the threshold', () => {
 test('every placement records why it is where it is', () => {
   for (const p of PROP_PLACEMENTS) {
     assert.ok(p.note && p.note.length > 12,
-      `${p.n} has no note — a coordinate with no reason is a coordinate nobody can safely move`);
+      `${p.n} has no note - a coordinate with no reason is a coordinate nobody can safely move`);
   }
 });
 

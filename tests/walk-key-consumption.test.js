@@ -33,7 +33,7 @@ test('the movement keys are consumed', () => {
   }
 });
 
-test('X is consumed — the reported bug', () => {
+test('X is consumed - the reported bug', () => {
   // Win+X opens the Windows Quick Link menu, Ctrl+X cuts. Neither belongs to a player
   // opening a box. preventDefault cannot stop the OS-level chord, but leaving the key
   // unclaimed by the page is a defect in its own right.

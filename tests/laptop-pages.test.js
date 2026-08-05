@@ -154,7 +154,7 @@ test('every sidebar destination draws on a brand-new club without throwing', () 
   lap.close();
 });
 
-test('every page also draws on a lived-in club — orders, bookings, staff, reviews, days', () => {
+test('every page also draws on a lived-in club - orders, bookings, staff, reviews, days', () => {
   const st = newGame('relaxed', 72);
   st.cash = 60000;
   st.shop.unlockedTier = 3;
@@ -411,7 +411,7 @@ test('opening-day management headlines distinguish history, sentiment, and shelf
 // then got undefined and read `.cat`/`.name` straight off it, and the whole
 // page went down — after the order had already committed, which is why the
 // notification said "orders received" while the screen showed a crash.
-test('a multi-line order draws — its skuId is null by design, not by accident', async () => {
+test('a multi-line order draws - its skuId is null by design, not by accident', async () => {
   const { submitPurchaseOrders } = await import('../src/sim/inventoryLifecycle.js');
   const st = newGame('relaxed', 71);
   st.cash = 5000;
@@ -435,7 +435,7 @@ test('a multi-line order draws — its skuId is null by design, not by accident'
   lap.go('shop');
   assert.equal(crashCard(lap.root), null, 'the shop page must draw with a mixed order pending');
   lap.go('deliveries');
-  assert.equal(crashCard(lap.root), null, 'the deliveries tab hosts the order rows — it must draw too');
+  assert.equal(crashCard(lap.root), null, 'the deliveries tab hosts the order rows - it must draw too');
   // and it must actually SAY something useful about the shipment
   assert.match(lap.root.textContent, /3 items × 5 units/);
   lap.close();

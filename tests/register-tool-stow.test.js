@@ -52,7 +52,7 @@ test('the stow names no tool, so a tool added later is covered the day it is add
   // …and it does not reach into one tool's private render pass either, which is
   // what the previous attempt did.
   assert.doesNotMatch(body, /broomVm/,
-    'no tool-specific viewmodel is touched here — walkSetTool owns every pass');
+    'no tool-specific viewmodel is touched here - walkSetTool owns every pass');
 });
 
 test('the stow is ticked every frame, not only when something remembers to call it', () => {

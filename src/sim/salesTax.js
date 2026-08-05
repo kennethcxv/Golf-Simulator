@@ -145,7 +145,7 @@ export function remitSalesTax(state, dayAbs, meta = {}) {
     aggregate: null,
     amount: owed,
     day: Number.isInteger(dayAbs) ? dayAbs : undefined,
-    description: `Sales tax remitted — ${j.state}`,
+    description: `Sales tax remitted - ${j.state}`,
     source: 'salesTax',
   });
   if (!posted.ok) return posted;

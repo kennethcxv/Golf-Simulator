@@ -28,7 +28,7 @@ const clubAt = (minuteOfDay, seed = 4242) => {
   return st;
 };
 
-test('an open requested slot resolves EXACT — a 4:00 ask books 4:00, not 8:30', () => {
+test('an open requested slot resolves EXACT - a 4:00 ask books 4:00, not 8:30', () => {
   const st = clubAt(9 * 60);
   const cal = calendarOf(st.clock.minutes);
   const open = availableSlots(st, cal.dayAbs, { partySize: 2, walkIn: true });
@@ -218,7 +218,7 @@ test('a declined walk-in leaves, with the reason on the record', () => {
   assert.ok(entity.reasons.some((reason) => /4:00 PM/.test(reason)));
 });
 
-test('CHECK_IN may legally flow into shopping — the combined visit transition', () => {
+test('CHECK_IN may legally flow into shopping - the combined visit transition', () => {
   const st = clubAt(9 * 60, 909);
   const sim = customerSimulationOf(st);
   sim.active.push({

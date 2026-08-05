@@ -208,7 +208,7 @@ export function beginShopExpansion(state, targetId) {
   };
   notify(state, {
     kind: 'money',
-    text: `${target.label} pro-shop construction started — ${target.days} days.`,
+    text: `${target.label} pro-shop construction started - ${target.days} days.`,
     dedupeKey: `shop-tier-start:${target.id}:${progression.pending.startedDay}`,
   });
   return { ok: true, target, pending: progression.pending };

@@ -117,9 +117,9 @@ export function makeWorksPanel(app, handlers) {
       'div',
       { class: 'row' },
       toolBtn('marker:tee', '⛳ Place tee', null, () => ({ kind: 'marker', which: 'tee', holeId: Number(holeSelect.value) }),
-        `${formatMoney(BALANCE.holeMoveCost)} — must sit on a tee pad`),
+        `${formatMoney(BALANCE.holeMoveCost)} - must sit on a tee pad`),
       toolBtn('marker:pin', '🚩 Place pin', null, () => ({ kind: 'marker', which: 'pin', holeId: Number(holeSelect.value) }),
-        `${formatMoney(BALANCE.holeMoveCost)} — must sit on a green`),
+        `${formatMoney(BALANCE.holeMoveCost)} - must sit on a green`),
     ),
     el('div', { class: 'row' },
       el('button', {
@@ -127,7 +127,7 @@ export function makeWorksPanel(app, handlers) {
         onclick: () => {
           handlers.newHole();
           refreshHoles();
-          toast('New hole added — paint a tee pad and a green, then place its markers.');
+          toast('New hole added - paint a tee pad and a green, then place its markers.');
         },
       }),
     ),
@@ -136,7 +136,7 @@ export function makeWorksPanel(app, handlers) {
 
   // --- plan bar -----------------------------------------------------------
 
-  const costLabel = el('span', { class: 'cost', text: '—' });
+  const costLabel = el('span', { class: 'cost', text: '-' });
   const detailLabel = el('span', { class: 'muted', text: 'Paint changes to plan a project.' });
   const warnLabel = el('span', { class: 'warn', text: '' });
   const confirmBtn = el('button', { class: 'primary', text: 'Confirm works', onclick: () => handlers.confirmPlan() });
@@ -148,7 +148,7 @@ export function makeWorksPanel(app, handlers) {
     const plan = app.plan;
     const st = app.state;
     if (!plan || plan.cells.size === 0) {
-      costLabel.textContent = '—';
+      costLabel.textContent = '-';
       detailLabel.textContent = 'Paint changes to plan a project.';
       warnLabel.textContent = '';
       confirmBtn.disabled = true;

@@ -23,7 +23,7 @@ test('the generated metrics match the GLB on disk (hash and value)', () => {
   assert.equal(BROOM_METRICS.sourceGlb, SOURCE_GLB,
     'the generated file must name the same asset this test measures');
   assert.equal(BROOM_METRICS.sourceSha256, measured.sha256,
-    `the FP broom GLB changed on disk without regenerating broomMetrics — `
+    `the FP broom GLB changed on disk without regenerating broomMetrics - `
     + 'run npm run gen:broom-metrics and re-solve anything that depends on the reach');
   assert.ok(Math.abs(BROOM_METRICS.gripToFloorYd - measured.gripToFloorYd) < 1e-6,
     `generated ${BROOM_METRICS.gripToFloorYd} vs measured ${measured.gripToFloorYd}`);

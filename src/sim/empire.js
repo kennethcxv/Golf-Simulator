@@ -269,7 +269,7 @@ export function buyProperty(empire, propertyId) {
   if (empire.cash < property.askingPrice) {
     return {
       ok: false,
-      reason: `Not enough cash — ${property.name} is asking ${formatMoney(property.askingPrice)} and the empire holds ${formatMoney(empire.cash)}.`,
+      reason: `Not enough cash - ${property.name} is asking ${formatMoney(property.askingPrice)} and the empire holds ${formatMoney(empire.cash)}.`,
     };
   }
   empire.market.splice(i, 1);
@@ -638,7 +638,7 @@ function marketDay(empire, day) {
     if (day - (p.listedDay ?? 0) < MARKET.minDaysListed) continue;
     if (!rng.chance(MARKET.rivalDailyChance)) continue;
     empire.market.splice(i, 1);
-    empireLog(empire, `${RIVALS[rng.int(RIVALS.length)]} bought ${p.name} — it's off the market.`, 'rival', day);
+    empireLog(empire, `${RIVALS[rng.int(RIVALS.length)]} bought ${p.name} - it's off the market.`, 'rival', day);
   }
   if (day % MARKET.refreshEveryDays === 0 && empire.market.length < MARKET.maxListings) {
     const chance = empire.market.length <= MARKET.dryMarketFloor ? 1 : MARKET.refreshChance;
@@ -654,7 +654,7 @@ function marketDay(empire, day) {
       });
       listing.listedDay = day;
       empire.market.push(listing);
-      empireLog(empire, `New on the market: ${listing.name} — asking ${formatMoney(listing.askingPrice)}.`, 'market', day);
+      empireLog(empire, `New on the market: ${listing.name} - asking ${formatMoney(listing.askingPrice)}.`, 'market', day);
     }
   }
   empire.marketRngState = rng.getState();

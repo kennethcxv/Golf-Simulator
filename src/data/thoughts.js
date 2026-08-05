@@ -21,13 +21,13 @@ const over = (g) => g.score - g.par;
 export const THOUGHTS = [
   // ─── greens: pace & purity ────────────────────────────────────────────────
   T('grn-pure', 'good', 'greens', (c) => c.round.greensSpeed >= 10.5 && c.round.greensHealth >= 78,
-    (c) => `These greens roll pure — ${c.round.greensSpeed} on the stimp, easy.`),
+    (c) => `These greens roll pure - ${c.round.greensSpeed} on the stimp, easy.`),
   T('grn-fast-scary', 'good', 'greens', (c) => c.round.greensSpeed >= 11.8,
     (c) => `Lightning greens today. Downhill putts had my heart going.`),
   T('grn-true', 'good', 'greens', (c) => c.round.greensHealth >= 85 && c.round.greensSpeed >= 9,
     () => `Every putt held its line. Whoever cuts these greens knows their trade.`),
   T('grn-slow', 'bad', 'greens', (c) => c.round.greensSpeed <= 7.4,
-    (c) => `Greens are crawling — barely ${c.round.greensSpeed} out there. Like putting through porridge.`),
+    (c) => `Greens are crawling - barely ${c.round.greensSpeed} out there. Like putting through porridge.`),
   T('grn-shaggy', 'bad', 'greens', (c) => c.round.greensSpeed <= 8.2 && c.round.greensHealth >= 60,
     () => `Somebody skipped a mow. The greens are healthy but woolly.`),
   T('grn-bumpy', 'bad', 'greens', (c) => c.round.greensHealth <= 45,
@@ -37,9 +37,9 @@ export const THOUGHTS = [
   T('grn-disease-bad', 'bad', 'greens', (c) => c.round.diseasedGreens >= 3,
     () => `Half the greens have blotch. I've seen healthier turf in a parking lot.`),
   T('grn-mid', 'neutral', 'greens', (c) => c.round.greensSpeed > 8.2 && c.round.greensSpeed < 9.4 && c.round.greensHealth > 55,
-    (c) => `Greens were fine. Not fast, not slow — ${c.round.greensSpeed}-ish.`),
+    (c) => `Greens were fine. Not fast, not slow - ${c.round.greensSpeed}-ish.`),
   T('grn-recover', 'good', 'greens', (c) => c.round.greensHealth >= 68 && c.round.diseasedGreens === 0 && c.golfer.satisfaction < 50,
-    () => `Credit where due — the greens are coming back around.`),
+    () => `Credit where due - the greens are coming back around.`),
 
   // ─── fairways / tees / rough ──────────────────────────────────────────────
   T('fw-carpet', 'good', 'fairway', (c) => c.round.fairwayHealth >= 78,
@@ -49,11 +49,11 @@ export const THOUGHTS = [
   T('fw-thin', 'bad', 'fairway', (c) => c.round.fairwayHealth <= 45,
     () => `Fairway lies are bare dirt in spots. Hard to hit crisp off that.`),
   T('fw-patchy', 'bad', 'fairway', (c) => c.round.fairwayHealth > 45 && c.round.fairwayHealth <= 58,
-    () => `Fairways are patchy — one hole plush, the next one scruffy.`),
+    () => `Fairways are patchy - one hole plush, the next one scruffy.`),
   T('rough-jungle', 'bad', 'rough', (c) => c.round.roughHeightMm >= 70,
     () => `Lost two balls in rough that should be baled for hay. Mow it!`),
   T('rough-fair', 'good', 'rough', (c) => c.round.roughHeightMm > 35 && c.round.roughHeightMm < 60,
-    () => `Rough is honest — you get punished, but you can find your ball.`),
+    () => `Rough is honest - you get punished, but you can find your ball.`),
   T('rough-none', 'neutral', 'rough', (c) => c.round.roughHeightMm <= 30,
     () => `Rough's cut so short it may as well be fairway. Plays easy.`),
   T('tee-level', 'good', 'tee', (c) => c.round.fairwayHealth >= 60 && c.round.greensHealth >= 60 && over(c.round) <= 2,
@@ -69,7 +69,7 @@ export const THOUGHTS = [
   T('dsg-reno', 'bad', 'design', (c) => c.round.renovations >= 1,
     (c) => `${c.round.renovations} hole${c.round.renovations > 1 ? 's' : ''} closed for works today. The routing felt like a detour.`),
   T('dsg-reno-hope', 'good', 'design', (c) => c.round.renovations >= 1 && c.golfer.persona === 'conditions',
-    () => `They're actually investing in the course. Pardon the dust — I like it.`),
+    () => `They're actually investing in the course. Pardon the dust - I like it.`),
   T('dsg-full9', 'good', 'design', (c) => c.round.renovations === 0 && c.round.par >= 33 && c.round.par <= 36,
     () => `A proper nine. Par threes, a real five, nothing gimmicky.`),
 
@@ -95,7 +95,7 @@ export const THOUGHTS = [
   T('pace-empty', 'good', 'pace', (c) => c.round.playersToday <= 10,
     () => `Had the course practically to myself. Played in under two hours.`),
   T('pace-good', 'good', 'pace', (c) => c.round.waitMin <= 5 && c.round.playersToday > 10,
-    () => `Busy but moving — never waited on a tee. Well marshaled.`),
+    () => `Busy but moving - never waited on a tee. Well marshaled.`),
   T('pace-ok', 'neutral', 'pace', (c) => c.round.waitMin > 5 && c.round.waitMin <= 14,
     () => `Usual weekend rhythm. A short wait on the par threes.`),
   T('pace-slow', 'bad', 'pace', (c) => c.round.waitMin > 14 && c.round.waitMin <= 25,
@@ -105,7 +105,7 @@ export const THOUGHTS = [
   T('pace-outing', 'bad', 'pace', (c) => c.club.outingToday,
     () => `Corporate crowd took over the course today. We got squeezed around them.`),
   T('pace-outing-ok', 'neutral', 'pace', (c) => c.club.outingToday && c.golfer.persona !== 'pace',
-    () => `Big outing in today — good money for the club, I suppose.`),
+    () => `Big outing in today - good money for the club, I suppose.`),
 
   // ─── pricing / value ─────────────────────────────────────────────────────────────
   T('val-steal', 'good', 'value', (c) => c.club.greenFee <= c.club.fairFee * 0.75,
@@ -149,7 +149,7 @@ export const THOUGHTS = [
   T('shop-thin', 'bad', 'shop', (c) => c.shop.stockRatio <= 0.15 && !c.shop.lostSale,
     () => `The shop's half empty shelves make the whole club feel broke.`),
   T('shop-stocked', 'good', 'shop', (c) => c.shop.stockRatio >= 0.55,
-    () => `Shop's looking sharp — racks full, new gear out front.`),
+    () => `Shop's looking sharp - racks full, new gear out front.`),
   T('shop-pricey', 'bad', 'shop', (c) => c.shop.markupMax >= 1.5,
     () => `Checked a price tag in the shop and put it right back down. Fifty percent over book!`),
   T('shop-deal', 'good', 'shop', (c) => c.shop.markupMax <= 0.9,
@@ -157,7 +157,7 @@ export const THOUGHTS = [
   T('shop-fitted', 'good', 'shop', (c) => c.shop.fittedRecently,
     () => `That fitting changed my game. The new setup feels dialed.`),
   T('shop-fit-flush', 'good', 'shop', (c) => c.shop.fittedRecently && over(c.round) <= 1,
-    (c) => `Best round in years — ${c.round.score}. The fitted clubs are earning their keep.`),
+    (c) => `Best round in years - ${c.round.score}. The fitted clubs are earning their keep.`),
   T('shop-browse', 'neutral', 'shop', (c) => c.shop.stockRatio > 0.15 && c.shop.stockRatio < 0.55 && !c.shop.bought,
     () => `Browsed the shop. Decent basics, nothing that made me reach for the wallet.`),
   T('shop-persona', 'good', 'shop', (c) => c.golfer.persona === 'shop' && c.shop.stockRatio >= 0.4,
@@ -207,7 +207,7 @@ export const THOUGHTS = [
   T('score-blowup', 'bad', 'score', (c) => over(c.round) > 14,
     (c) => `Carded a ${c.round.score}. Between me and this course, one of us was a mess.`),
   T('score-blame-greens', 'bad', 'score', (c) => over(c.round) > 9 && c.round.greensHealth < 50,
-    () => `I putted fine — the greens just wouldn't hold a line. Fix them.`),
+    () => `I putted fine - the greens just wouldn't hold a line. Fix them.`),
   T('score-hot-streak', 'good', 'score', (c) => c.golfer.skillTrend === 'improving' && over(c.round) <= 5,
     () => `Three rounds, three season bests. This course fits my eye.`),
 
@@ -239,7 +239,7 @@ export const THOUGHTS = [
 
   // ─── weather+condition combos ─────────────────────────────────────────────────────────────────
   T('mix-rain-drain', 'good', 'mix', (c) => c.round.weather.rainIn > 0.3 && c.round.fairwayHealth >= 65,
-    () => `Rained all morning and the fairways still played firm. Great drainage — great turf.`),
+    () => `Rained all morning and the fairways still played firm. Great drainage - great turf.`),
   T('mix-rain-swamp', 'bad', 'mix', (c) => c.round.weather.rainIn > 0.3 && c.round.fairwayHealth < 50,
     () => `One shower and the fairways turned to soup. That turf has no roots.`),
   T('mix-heat-crisp', 'good', 'mix', (c) => c.round.weather.tempHiF >= 88 && c.round.greensHealth >= 75,
@@ -275,7 +275,7 @@ export const THOUGHTS = [
   T('num-crowd', 'neutral', 'pace', (c) => c.round.playersToday >= 35,
     (c) => `${c.round.playersToday} players through today. This place is getting discovered.`),
   T('num-dead-quiet', 'neutral', 'pace', (c) => c.round.playersToday <= 5 && c.round.seasonIndex !== 3,
-    () => `Practically nobody out. Peaceful — but a club needs heartbeat.`),
+    () => `Practically nobody out. Peaceful - but a club needs heartbeat.`),
   T('num-fee-cheap-sus', 'neutral', 'value', (c) => c.club.greenFee <= c.club.fairFee * 0.55,
     (c) => `${c.club.greenFee} bucks? Either a bargain or a warning sign. Turned out fine.`),
 ];

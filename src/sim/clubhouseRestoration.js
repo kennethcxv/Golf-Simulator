@@ -234,13 +234,13 @@ export function ceilingPanelPromptLabel({
   // teach you is not teaching diegetically; it is a hint behind a wrong answer.
   // The circuit is restored by repairing the CEILING component, which is a
   // hold-E site the player can already see, so the prompt says so.
-  if (!powered) return `${unpoweredName} — the ceiling circuit is dead; repair the ceiling first`;
+  if (!powered) return `${unpoweredName} - the ceiling circuit is dead; repair the ceiling first`;
   // C8, the second rung: "repair kit required" is the one prompt where WHERE IT
   // COMES FROM is the question the player has, and it was the one prompt that
   // did not answer it. availableSupplyUnits counts the back-room shelving (plus
   // what is already in hand), so that is what it names.
-  if (!kitAvailable) return `${faultName} — repair kit required, from the back room shelves`;
-  return `${faultName} — [E] repair with clubhouse kit`;
+  if (!kitAvailable) return `${faultName} - repair kit required, from the back room shelves`;
+  return `${faultName} - [E] repair with clubhouse kit`;
 }
 
 const PANEL_FAULT_DEFAULTS = deepFreeze({
@@ -947,7 +947,7 @@ export function restorationAction(state, action) {
     // ring changes nothing the player can see, and reporting that as a repair
     // is the lie this gate exists to stop.
     if (!ceilingCircuitPowered(state)) {
-      return invalid('The ceiling circuit is dead — repair the office power and ceiling first.');
+      return invalid('The ceiling circuit is dead - repair the office power and ceiling first.');
     }
     // A panel costs a kit, like every other repair. Without this the first kit
     // the player ever owns services every panel in the building forever.

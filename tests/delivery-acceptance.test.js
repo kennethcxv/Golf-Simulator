@@ -114,7 +114,7 @@ test('drop every box a few times: identities and contents survive, nothing dupli
   assert.equal(new Set(boxesOf(st).map((b) => b.id)).size, ids.length, 'no box duplicated');
 });
 
-test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — conserved throughout', () => {
+test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking - conserved throughout', () => {
   let st = newGame('relaxed', 13);
   st.cash = 200000; st.shop.unlockedTier = 3; st.shop.progression.tier = 'luxury';
   for (const [id, q] of ORDER) placeOrder(st, id, q);
@@ -131,7 +131,7 @@ test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — con
     const t = takeFromBox(st, box.id);
     assert.ok(t.ok);
     storeInBack(st);   // put the armful in the back so we can open the next box
-    assert.ok(box.qty > 0, `${id} is a PARTIAL box — some left in the cardboard`);
+    assert.ok(box.qty > 0, `${id} is a PARTIAL box - some left in the cardboard`);
     assert.equal(boxState(box), 'partial contents');
   }
   // the shipments report partially unpacked

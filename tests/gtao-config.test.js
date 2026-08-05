@@ -35,7 +35,7 @@ test('GTAO_CONFIG is the single source of truth for the pass setup', async () =>
   // Intensity and resolution are what buy grounding.
   assert.ok(GTAO_CONFIG.blendIntensity > 0.4, 'blendIntensity must exceed the old 0.4, which left contact effectively absent');
   assert.ok(GTAO_CONFIG.samples >= 24, 'sample count must stay at or above 24');
-  assert.equal(GTAO_CONFIG.resolutionScale, 1, 'AO must run at full resolution — half res was removing the only indoor contact darkening');
+  assert.equal(GTAO_CONFIG.resolutionScale, 1, 'AO must run at full resolution - half res was removing the only indoor contact darkening');
 });
 
 test('the live gtaoMaterial uniform matches the configured radius', async () => {
@@ -55,7 +55,7 @@ test('the live gtaoMaterial uniform matches the configured radius', async () => 
   const live = pass.gtaoMaterial?.uniforms?.radius?.value;
   assert.equal(
     live, GTAO_CONFIG.radius,
-    'the running shader uniform must equal the configured radius — if this fails, the value is being set somewhere that GTAOPass does not read',
+    'the running shader uniform must equal the configured radius - if this fails, the value is being set somewhere that GTAOPass does not read',
   );
   assert.equal(pass.blendIntensity, GTAO_CONFIG.blendIntensity);
 

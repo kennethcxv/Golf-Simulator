@@ -50,14 +50,14 @@ test('every waived defect id is filed in DEFECTS.md', () => {
   }
 });
 
-test('a waived defect is still OPEN — the exemption expires when it is fixed', () => {
+test('a waived defect is still OPEN - the exemption expires when it is fixed', () => {
   for (const id of waivedIds(harness)) {
     assert.equal(
       statusOf(defects, id),
       'OPEN',
       `${id} is no longer OPEN in DEFECTS.md, but the customer-day gate still waives `
       + 'episodes attributed to it. Delete the DEFECT_EXEMPTIONS entry in the same commit '
-      + 'that closes the defect — the episodes it was covering must now face the 20s cap '
+      + 'that closes the defect - the episodes it was covering must now face the 20s cap '
       + 'and the recovery floor.',
     );
   }
@@ -76,7 +76,7 @@ test('NAV-WAIT-001 is fixed, and its waiver went with it', () => {
   assert.equal(statusOf(defects, 'NAV-WAIT-001'), 'FIXED');
   assert.ok(
     !waivedIds(harness).includes('NAV-WAIT-001'),
-    'the defect is fixed, so the gate must no longer waive episodes attributed to it — '
+    'the defect is fixed, so the gate must no longer waive episodes attributed to it - '
     + 'those episodes now face the 20s cap and the recovery floor like every other block',
   );
   // The thresholds were never relaxed to accommodate the defect, and must not
@@ -98,7 +98,7 @@ test('nothing is exempt from the churn gate any more', () => {
   );
 });
 
-test('attribution stays narrow — a waived episode must be a stand wait, not any block', () => {
+test('attribution stays narrow - a waived episode must be a stand wait, not any block', () => {
   // If these conditions ever loosen into "anything near a fixture", the waiver
   // becomes the class-wide exemption the ruling rejected. Pin the shape.
   assert.match(harness, /const STAND_OCCUPIED_YD = 0\.45;/);

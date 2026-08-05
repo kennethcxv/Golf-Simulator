@@ -118,7 +118,7 @@ test('the Arm C bug shape is materially different from the correct value', () =>
   for (let i = 0; i < 3; i += 1) {
     assert.ok(
       Math.abs(actual[i] - naive[i]) > 1e-3,
-      `channel ${i} equals the raw byte value ${naive[i]} — baseColorFactor is linear, not sRGB`,
+      `channel ${i} equals the raw byte value ${naive[i]} - baseColorFactor is linear, not sRGB`,
     );
   }
 
@@ -154,7 +154,7 @@ test('the Blender builder library re-exports the shared conversion, not a copy',
   );
   assert.ok(
     !/def\s+hex_to_linear_rgba\s*\(/.test(lib),
-    'assets_51_100_lib.py redefines hex_to_linear_rgba — there must be exactly one implementation',
+    'assets_51_100_lib.py redefines hex_to_linear_rgba - there must be exactly one implementation',
   );
   assert.ok(
     !/\*\*\s*2\.2\b/.test(lib),

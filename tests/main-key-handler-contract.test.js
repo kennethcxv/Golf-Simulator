@@ -41,6 +41,6 @@ test('every bare call in main.js keydown handlers resolves to a definition or im
   const { missing, handlerCount } = undefinedCallees(source);
   assert.ok(handlerCount >= 1, `expected at least one keydown handler in main.js, found ${handlerCount}`);
   assert.deepEqual(missing, [],
-    `keydown handlers call identifiers main.js never defines: ${missing.join(', ')} — `
+    `keydown handlers call identifiers main.js never defines: ${missing.join(', ')} - `
     + 'this is the H1 fault class (a key that throws a live ReferenceError into the fault veil)');
 });

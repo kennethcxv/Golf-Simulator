@@ -155,7 +155,7 @@ test('handed-off bag cleanup preserves the customer copy and retry resets safely
   );
 });
 
-test('exactly the physically handed bag survives the banking boundary — with no paper', () => {
+test('exactly the physically handed bag survives the banking boundary - with no paper', () => {
   const onCustomerPaid = clubhouseFunction('onCustomerPaid');
   assert.match(onCustomerPaid, /const handedBag = c\.checkoutHandoffBag \|\| null/,
     'paid ownership reuses the bag seen reaching the customer');

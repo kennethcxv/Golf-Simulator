@@ -685,7 +685,7 @@ export function makeFrontDesk(app, options = {}) {
       el('span', {
         text: asker.requestedTeeMinute == null ? 'Any open slot suits them.'
           : resolved?.exact ? 'That exact time is open.'
-            : resolved?.ok ? `Nearest open is ${fmtSlot(resolved.slot.minute)} (${Math.abs(resolved.deltaMin)} min ${resolved.deltaMin > 0 ? 'later' : 'earlier'}) — they will take anything within an hour.`
+            : resolved?.ok ? `Nearest open is ${fmtSlot(resolved.slot.minute)} (${Math.abs(resolved.deltaMin)} min ${resolved.deltaMin > 0 ? 'later' : 'earlier'}) - they will take anything within an hour.`
               : resolved?.reason || 'Nothing near that time is open.',
       })) : null;
 
@@ -724,7 +724,7 @@ export function makeFrontDesk(app, options = {}) {
           el('span', {}, el('strong', { text: 'TEE DESK' }), el('small', { text: app.state.clubName }))),
         el('div', { class: 'fd-header-stats' },
           el('span', {}, el('small', { text: 'WAITING' }), el('strong', { text: String(summary.waiting.length) })),
-          el('span', {}, el('small', { text: 'NEXT' }), el('strong', { text: summary.nextArrival ? fmtSlot(summary.nextArrival.minute) : '—' })),
+          el('span', {}, el('small', { text: 'NEXT' }), el('strong', { text: summary.nextArrival ? fmtSlot(summary.nextArrival.minute) : '-' })),
           el('span', {}, el('small', { text: 'TODAY' }), el('strong', { text: `${Math.round(summary.utilization * 100)}%` }))),
         button('Close  Esc', () => options.close?.(), 'close')),
       el('div', { class: 'fd-tabs' },

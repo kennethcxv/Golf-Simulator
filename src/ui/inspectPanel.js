@@ -86,7 +86,7 @@ export function makeInspectPanel(app, onStateChanged) {
         if (foot > 5) {
           rows.push(el('div', {
             class: 'row muted',
-            text: `Footprints ${foot} — ${foot > 50 ? 'churned up; bring the rake' : foot > 25 ? 'needs raking' : 'a light pass would do'}`,
+            text: `Footprints ${foot} - ${foot > 50 ? 'churned up; bring the rake' : foot > 25 ? 'needs raking' : 'a light pass would do'}`,
           }));
         } else {
           rows.push(el('div', { class: 'row muted', text: 'Sand raked smooth.' }));

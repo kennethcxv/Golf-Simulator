@@ -152,7 +152,7 @@ export function startKeyCapture(app) {
     const wasd = events.filter(interesting);
     const summary = ['KeyW', 'KeyA', 'KeyS', 'KeyD'].map((code) => {
       const downs = wasd.filter((r) => r.code === code && r.type === 'keydown');
-      if (!downs.length) return `${code.slice(3)}  — not pressed yet`;
+      if (!downs.length) return `${code.slice(3)}  - not pressed yet`;
       const last = downs[downs.length - 1];
       const bubbled = downs.filter((r) => r.reachedBubble).length;
       const inHeld = downs.filter((r) => r.heldHasKey).length;

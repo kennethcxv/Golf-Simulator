@@ -939,9 +939,9 @@ export function makeCourseEditor(app, hooks) {
     }
     const n = holeNumber(state().course, hole.id);
     const yd = hole.tee && hole.pin ? ` · ${Math.round(holeDistanceYd(hole))} yd` : '';
-    const named = hole.name && hole.name !== `Hole ${n}` ? ` — ${hole.name}` : '';
+    const named = hole.name && hole.name !== `Hole ${n}` ? ` - ${hole.name}` : '';
     label.textContent = `Hole ${n}${named} · Par ${holePar(hole)}${yd}`;
-    ui.holeChip.title = `${label.textContent} — click to select or edit a hole`;
+    ui.holeChip.title = `${label.textContent} - click to select or edit a hole`;
   }
 
   function setCameraView(mode, hole = selectedHole()) {
@@ -1274,7 +1274,7 @@ export function makeCourseEditor(app, hooks) {
               const res = duplicateObject(state(), session, selected.id, { protectPlay: true });
               if (res.ok) {
                 refreshObjects();
-                toast('Copied — drag it into place.');
+                toast('Copied - drag it into place.');
                 setSelected(res.object);
               } else toast(res.reason || 'There is no clear space for a copy.', 'warn');
             },
@@ -1613,7 +1613,7 @@ export function makeCourseEditor(app, hooks) {
             && (!query || o.name.toLocaleLowerCase().includes(query)));
           grid.replaceChildren(...entries.map((o) => el('button', {
             class: opt.objects.type === o.type ? 'on' : '',
-            title: `${o.name} — exact final preview`,
+            title: `${o.name} - exact final preview`,
             onclick: (e) => {
               opt.objects.type = o.type;
               renderToolPanel();
@@ -2167,7 +2167,7 @@ export function makeCourseEditor(app, hooks) {
       onclick: () => {
         const res = newHole(state(), session);
         if (res.ok) {
-          toast(`Hole ${state().course.holes.length} surveyed (${formatMoney(res.cost)} pending) — paint its fairway, green and tee.`);
+          toast(`Hole ${state().course.holes.length} surveyed (${formatMoney(res.cost)} pending) - paint its fairway, green and tee.`);
           refreshTop();
           closeModal();
           openHoleSelect();
@@ -2217,7 +2217,7 @@ export function makeCourseEditor(app, hooks) {
 
     openModal(
       el('div', { class: 'ced-modal-head' },
-        el('b', { text: `${hole.name} — settings` }),
+        el('b', { text: `${hole.name} - settings` }),
         el('button', { text: '✕', class: 'ced-x', onclick: closeModal }),
       ),
       el('div', { class: 'ced-settings' },
@@ -2277,12 +2277,12 @@ export function makeCourseEditor(app, hooks) {
         }),
         el('button', {
           text: 'Duplicate settings',
-          title: 'Creates a new unbuilt hole with these settings — paint its ground, then place tee and pin',
+          title: 'Creates a new unbuilt hole with these settings - paint its ground, then place tee and pin',
           onclick: () => {
             const res = newHole(state(), session);
             if (res.ok) {
               setHoleSettings(state(), session, res.hole.id, { name: `${name.value} II`, handicap: Number(handicap.value) || hole.handicap, parOverride: parOv });
-              toast('New hole added with these settings — it needs its own tee, fairway and green.');
+              toast('New hole added with these settings - it needs its own tee, fairway and green.');
               refreshTop();
             }
           },
@@ -2322,8 +2322,8 @@ export function makeCourseEditor(app, hooks) {
         el('div', { class: 'ced-save-fields' },
           el('div', { class: 'ced-row' }, el('label', { text: 'Course name' }), nameInput),
           bill > 0
-            ? el('div', { class: 'ced-note warn', text: `Unbuilt works worth ${formatMoney(bill)} are pending — Build applies and pays for them first.` })
-            : el('div', { class: 'ced-note', text: 'The course is settled — saving stores it to the autosave.' }),
+            ? el('div', { class: 'ced-note warn', text: `Unbuilt works worth ${formatMoney(bill)} are pending - Build applies and pays for them first.` })
+            : el('div', { class: 'ced-note', text: 'The course is settled - saving stores it to the autosave.' }),
           el('div', { class: 'ced-note', text: lastSavedText ? `Last saved: ${lastSavedText}` : 'Not saved from the editor yet this visit.' }),
         ),
         el('div', { class: 'ced-save-thumbwrap' },
@@ -2394,7 +2394,7 @@ export function makeCourseEditor(app, hooks) {
     }
     hooks.afterApply();
     const closed = res.report.holesAffected.length;
-    toast(`Works complete — ${formatMoney(res.report.cost)}${closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''}.`);
+    toast(`Works complete - ${formatMoney(res.report.cost)}${closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''}.`);
     refreshTop();
     renderToolPanel();
     return true;
@@ -3053,7 +3053,7 @@ export function makeCourseEditor(app, hooks) {
           refreshTop();
           renderToolPanel();
         } else {
-          toast(res.reason || 'No sand here — bunkers dig into grass.', 'warn');
+          toast(res.reason || 'No sand here - bunkers dig into grass.', 'warn');
         }
         break;
       }
@@ -3662,7 +3662,7 @@ export function makeCourseEditor(app, hooks) {
     flyover = beginCourseCameraFlyover(hole, restoreView);
     renderFlyoverStatus();
     sc.flyoverHole(hole, 0);
-    hint('Flying the hole — click or press Esc to stop');
+    hint('Flying the hole - click or press Esc to stop');
     refreshTop(); // the flyover button becomes the stop control while flying
   }
 
@@ -3691,7 +3691,7 @@ export function makeCourseEditor(app, hooks) {
   function enterPlaytest(holeId = null) {
     const holes = holesOf().filter((h) => h.tee && h.pin);
     if (!holes.length) {
-      toast('No playable hole yet — a hole needs a tee and a pin.', 'warn');
+      toast('No playable hole yet - a hole needs a tee and a pin.', 'warn');
       return;
     }
     const sc = scene();
