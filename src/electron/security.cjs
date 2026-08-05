@@ -9,6 +9,11 @@ const { pathToFileURL } = require('node:url');
 const SCENE_SCOPES = ['shed'];
 const BASE_SAVE_KEYS = [
   'autosave', 'autosave-meta',
+  // H2's rotated generation. First landed WITHOUT this entry: fw:save threw
+  // "Unsupported save key", the renderer's rotation guard swallowed it, and
+  // the rotation silently never happened — caught only because the verify
+  // driver checks for the file on disk rather than trusting the code path.
+  'autosave-prev',
   'slot1', 'slot2', 'slot3',
   'slot1-meta', 'slot2-meta', 'slot3-meta',
 ];

@@ -2698,3 +2698,27 @@ body.register-mode .view-toggle { display: none !important; }
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* H2: the autosave chip. Small, bottom-right, gone in under two seconds —
+   the save itself is the feature, this is just the proof it happened. */
+.hud-autosave {
+  position: fixed;
+  right: 16px;
+  bottom: 14px;
+  z-index: 60;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #dfe8d9;
+  background: rgba(20, 32, 24, 0.82);
+  border: 1px solid rgba(202, 174, 104, 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 220ms ease, transform 220ms ease;
+  pointer-events: none;
+}
+.hud-autosave.show {
+  opacity: 1;
+  transform: none;
+}

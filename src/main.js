@@ -1165,11 +1165,52 @@ async function loadEmpireSave(key, label) {
   }
 }
 
-async function autosave() {
+// H2: the game saves by itself — every 5 minutes, on day rollover, and on quit
+// — and every write records its TRIGGER in the meta. The trigger matters
+// because ~15 mutation sites already call autosave(): "a fresh file exists"
+// proves nothing about WHY it was written, so a driver asserting the timer
+// reads the trigger field inside a mutation-free window rather than the mtime.
+const AUTOSAVE_INTERVAL_MS = 5 * 60_000;
+// The store already keeps primary + .bak per key. Rotating one more generation
+// (autosave-prev, with its own .bak) happens on the timed/boundary triggers
+// only: a mutation autosave can fire many times a minute in the editor, and
+// doubling an ~800 KB write on each buys nothing the .bak does not already
+// cover inside a session. Across sessions the prev generation is what survives
+// a bad write landing at the worst moment.
+const AUTOSAVE_ROTATING_TRIGGERS = new Set(['interval', 'rollover', 'quit']);
+let autosaveChipTimer = 0;
+
+function showAutosaveChip() {
+  let chip = document.querySelector('.hud-autosave');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.className = 'hud-autosave';
+    chip.textContent = 'Autosaved';
+    document.getElementById('ui').append(chip);
+  }
+  chip.classList.add('show');
+  clearTimeout(autosaveChipTimer);
+  autosaveChipTimer = setTimeout(() => chip.classList.remove('show'), 1700);
+}
+
+async function autosave(reason = 'mutation') {
   if (!app.empire) return;
   try {
+    if (AUTOSAVE_ROTATING_TRIGGERS.has(reason)) {
+      try {
+        const current = await loadDataWithStatus(scopedKey('autosave'), { repair: false });
+        if (current.value != null) await saveData(scopedKey('autosave-prev'), current.value);
+      } catch (error) {
+        // Rotation must never block the save itself — but it must not fail
+        // SILENTLY either: the first landing of this feature swallowed an
+        // "Unsupported save key" from the IPC allowlist right here and the
+        // rotation quietly never happened.
+        console.warn('autosave rotation skipped', error);
+      }
+    }
     await saveData(scopedKey('autosave'), empireSnapshot(app.empire));
-    await saveData(scopedKey('autosave-meta'), currentSaveMetadata());
+    await saveData(scopedKey('autosave-meta'), { ...currentSaveMetadata(), trigger: reason });
+    showAutosaveChip();
     return { ok: true };
   } catch (error) {
     notify({
@@ -1183,6 +1224,18 @@ async function autosave() {
     return { ok: false, error };
   }
 }
+
+// The timer itself. Armed once at module load; the guard keeps it silent on
+// the menu, in scoped test scenes without an empire, and while paused.
+setInterval(() => {
+  if (app.screen === 'game' && app.empire && !isPauseOpen()) autosave('interval');
+}, AUTOSAVE_INTERVAL_MS);
+
+// OS-level close (the window X, a reload): best-effort — the in-game quit
+// buttons await a real autosave('quit') and remain the reliable path.
+window.addEventListener('beforeunload', () => {
+  if (app.empire && app.screen === 'game') autosave('quit');
+});
 
 function currentSaveMetadata() {
   const state = app.state || activeState(app.empire);
@@ -1638,7 +1691,7 @@ function openPauseMenu() {
             confirmLabel: 'Save and return',
             danger: true,
             onConfirm: async () => {
-              const result = await autosave();
+              const result = await autosave('quit');
               if (!result?.ok) return false;
               closePauseMenu({ resume: false });
               exitToMenu();
@@ -1655,7 +1708,7 @@ function openPauseMenu() {
             detail: 'The game will not quit if the autosave fails.',
             confirmLabel: 'Save and quit', danger: true,
             onConfirm: async () => {
-              const result = await autosave();
+              const result = await autosave('quit');
               if (!result?.ok) return false;
               await window.fairwayNative.quit();
               return true;
@@ -2536,6 +2589,10 @@ function frame(ts) {
       }
       const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
+        // H2: a day boundary is a natural save point, whatever moved the clock.
+        // Watching daysPassed rather than any particular code path means sleep
+        // skips and multi-day batches save exactly once per crossing too.
+        autosave('rollover');
         rebuildSectionIndex();
         app.scene3d.updateHoles();
         announceReopenings();
@@ -3025,7 +3082,11 @@ function boot() {
       await autosave();
     },
     async onContinue() {
-      const empire = await loadEmpireSave('autosave', 'Autosave');
+      // H2: the rotated generation is a real fallback, not just a file on disk.
+      // If the whole autosave pair (primary + .bak) fails validation, the
+      // previous generation still boots the run.
+      const empire = await loadEmpireSave('autosave', 'Autosave')
+        || await loadEmpireSave('autosave-prev', 'Previous autosave');
       if (empire) bootEmpire(empire);
     },
     async onLoad(_data, slot) {
