@@ -65,7 +65,15 @@ async (page) => {
   const rows = [];
   // The three the question asks for, plus a steep control at each end. Ordered
   // high-to-low so the settle at each step is a small move.
-  for (const pitch of [0.30, 0.0, -0.30, -1.00]) {
+  // D7: THE SURVIVING COPY OF THE C2 INCIDENT.
+  //
+  // This stopped at +0.30 — BROOM_FEEL.pitch.maxPitch, which is a reach-curve
+  // clamp and not the look limit. mouseLook.js owns PITCH_LIMIT (1.35), so the
+  // whole band from +0.30 to full up-look was outside every reading this driver
+  // ever took. The top of the sweep now comes from that module.
+  const LOOK_LIMIT = await page.evaluate(async () => (await import(
+    new URL('src/render3d/mouseLook.js', document.baseURI).href)).PITCH_LIMIT);
+  for (const pitch of [LOOK_LIMIT, 0.60, 0.30, 0.0, -0.30, -1.00]) {
     await page.evaluate((p) => { window.__fw.scene3d.walk.state.pitch = p; }, pitch);
     // The pitch-driven reach is an eased follower (followRate 10/s), so a
     // reading taken immediately after the set measures the PREVIOUS pose.

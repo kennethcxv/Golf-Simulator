@@ -58,7 +58,8 @@ async (page) => {
     const app = window.__fw;
     const w = app.scene3d.walk;
     const camera = app.scene3d.camera;
-    const LIMIT = 1.35;                 // mouseLook.js PITCH_LIMIT
+    // the real look limit, read from the module that clamps it
+    const { PITCH_LIMIT: LIMIT } = await import(new URL('src/render3d/mouseLook.js', document.baseURI).href);
     const DURATION = 6000;
     const rows = [];
     const started = performance.now();

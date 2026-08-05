@@ -310,3 +310,65 @@ does because it needs the file anyway.
 The four raw-`Continue` drivers, the stale `New Empire` sweep, `laptop-tour`'s
 economy fixture and the five dead feel keys are all exactly as §4 left them.
 Nothing in this session touched them.
+
+---
+
+# §7 — SELF-REFERENTIAL CHECKS: the `BROOM_FEEL.pitch.maxPitch` class
+
+*Swept 2026-08-04 (D7). ~400 `src/` imports across 393 test files and 455 QA
+drivers, plus a keyword hunt for duplicated literals.*
+
+**The defect:** a test and its driver both read the same production constant and
+use it as the *bound, expected value or threshold* they are checking. The check
+is then true by construction — it cannot fail if the production value is wrong,
+only if the code disagrees with itself. The named example: a driver swept the
+broom's pitch to `BROOM_FEEL.pitch.maxPitch` (0.30) believing it was the look
+limit. It is a reach-curve clamp; `mouseLook.js` owns `PITCH_LIMIT = 1.35`. The
+driver measured 22 % of its range for its entire life and the test agreed.
+
+**The multiplier:** a constant is far more dangerous when a *competing authority*
+exists elsewhere. Eleven instances found; three are load-bearing.
+
+| # | constant | authority | harness reader | use | competing authority | sev |
+|---|---|---|---|---|---|---|
+| 1 | `BROOM_FEEL.dirt.pushSpeed` = 2.6 | `src/data/broomFeel.js:307` | `tests/broom-feel-config.test.js:64-71` | threshold vs retyped `2.2` | **yes** — `walk.speed: 3.4`, `src/render3d/courseScene.js:5758` | **HIGH — firing now** |
+| 2 | `BROOM_FEEL.walk.bobRate` = 8.7 | `src/data/broomFeel.js:268` | `tests/broom-feel-config.test.js:25-29` | expected value vs retyped literal | **yes** — `courseScene.js:6957`, `characterAsset.js:415` | HIGH |
+| 3 | `BROOM_FEEL.pitch.maxPitch` = 0.30 | `src/data/broomFeel.js:323` | `tools/qa/broom-hover-origin.js:68` | sweep bound | **yes** — `PITCH_LIMIT`, `src/render3d/mouseLook.js:16` | HIGH — **FIXED** below |
+| 4 | `PITCH_LIMIT` = 1.35, retyped | `src/render3d/mouseLook.js:16` | `broom-lookup-clip.js:61`, `broom-c2-reverify.js:59`, `broom-lookup-float.js:53`, `tool-standard-audit.js:97` | sweep bounds | itself | HIGH — **2 of 4 FIXED** |
+| 5 | eye height 1.62 | `simplifiedRegisterMode.js:345` + `clubhouse.js:719-722` | `tests/broom-floor-anchor.test.js:24`, `broom-feel-config.test.js:154` | geometry input, retyped | yes, several | MEDIUM |
+| 6 | walk FOV 66 | `courseScene.js:5765` | `broom-feel-config.test.js:32` | inequality guard vs retyped literal | yes | MEDIUM |
+| 7 | `DELIVERY_CARRY_RENDER_LAYER` = 30 | `clubhouse.js:5827` | `broom-feel-config.test.js:34` | inequality guard vs retyped literal | yes (the export itself) | MEDIUM |
+| 8 | broom handle 1.247 yd | the GLB's socket distance | `broom-feel-config.test.js:153` | reach-contract input | the asset | MEDIUM |
+| 9 | `carryHover` / `floorKiss` | `broomFeel.js:142,354` | `broom-hover-origin.js:86-122` | expected value from the same source | none — deliberate internal-consistency check, and it says so | LOW |
+| 10 | `RENO.grid` / `RENO.room` | `src/sim/shop.js` | 5 files | sweep bounds + `grime.length == w*h` | room dims vs `INTERIOR`, but that sync is separately pinned (`tests/shop-layout.test.js:25-28`) | LOW |
+| 11 | `TX_LOG_CAP`, `NOTIF_CAP`, `PAD_CAPACITY`, the two schema versions, `LEAD_DAYS`, `GRID_W/H` | various | ~10 test files | overfill-then-assert-cap, round-trips | **none found** — sole definitions, and the checks verify enforcement wiring rather than the value | LOW |
+
+Setup-only readers (`REGISTER`/`COUNTER_TOP` for camera placement, `MINUTES_PER_DAY`
+as a time step, `CLEANING_TOOLS` as an enumeration) are correct and not listed.
+
+## The three that matter
+
+**1 — `pushSpeed` is a live defect, not a latent one.** The review bar it guards
+is *"dirt recedes with visible immediacy; a slower push walks over its own pile"*,
+enforced as `pushSpeed > 2.2`. The player walks at **3.4** yd/s
+(`courseScene.js:5758`, applied `:8138`, ×1.8 running). At 2.6 the broom cannot
+beat a walking player — the round-1 "dirt lag" condition is arithmetically back —
+and the test is green because it compares against a `2.2` that no longer exists
+anywhere authoritative. Production carries the same stale copy at
+`courseScene.js:8419` (`speedNorm … / 2.2`). **Not fixed here:** the repair is a
+feel-tuning change and this session could not playtest sweeping to confirm it.
+Recorded rather than guessed at.
+
+**3 and 4 — the pitch sweeps.** `broom-hover-origin.js` now reads `PITCH_LIMIT`
+from `mouseLook.js` and sweeps to it (confirmed: `headAboveFloor` holds at 0.600
+from +1.35 down to level, which the old +0.30 ceiling could never have shown).
+`broom-lookup-clip.js` and `broom-c2-reverify.js` now import it instead of
+retyping `1.35`. **Still retyped:** `broom-lookup-float.js:53` and
+`tool-standard-audit.js:97`.
+
+**2 — `bobRate` 8.7.** The config's own comment says it *"MUST match the
+characters' stride rate"*, and nothing enforces that. Four copies of 8.7 exist
+(`courseScene.js:6957`, `characterAsset.js:415`, `broomFeel.js:268`, and the
+test's literal). Any stride retune desynchronises the held-tool bob — the "tool
+reads as detached from the body" regression the constant exists to prevent —
+with every check green. **Not fixed here.**

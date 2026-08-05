@@ -47,6 +47,47 @@ measured by the same code in the same run.
 
 ## What the table says
 
+> ## CORRECTION, 2026-08-04 (E2)
+> **§1's diagnosis below was wrong, and the table is now out of date.** The
+> ±0.06 clamp was NOT saturating — it never engaged as the constraint at all.
+> Measured from inside the solve (`walk.floorAnchorDiagnostics`, added with the
+> fix), the correction was computed correctly every frame — −0.28 yd for the
+> mop, −0.99 for the vacuum, −1.00 for the dustpan — and then discarded by
+> `group.position.copy(rest)` in the idle rest-pose reset a few hundred lines
+> later, which restores y along with everything else. That reset already carried
+> an exception for the broom, added in Phase 6 with a comment describing this
+> exact failure; it was made once, for one tool.
+>
+> This is worth keeping as a worked example: **from outside, "corrected as far
+> as it could and fell short" and "corrected fully and was discarded" are the
+> same picture.** Every number in the table below is consistent with both, which
+> is why an inference from the table picked the wrong one. Only the solve's own
+> inputs could tell them apart.
+>
+> Two further faults had to be fixed before the numbers moved: the guard belongs
+> on the INPUT (a stray sample is a bad floor height, so the accepted floor
+> height is rate-limited and the pose applies the whole correction at once), and
+> the correction is a WORLD-Y move applied to a group parented to the camera, so
+> local +Y delivers only cos(pitch) of it.
+>
+> Post-fix, measured by the same driver in Electron:
+>
+> | tool | reach | carried spread | floor-ref | poses |
+> |---|---:|---:|:--:|---:|
+> | **broom** *(control)* | 0.012 | 0.007 | yes | 112 |
+> | mop | **0.000** | **0.000** | **yes** | 143 |
+> | vacuum | **0.000** | **0.000** | **yes** | 114 |
+> | dustpan | **0.000** | **0.000** | **yes** | 165 |
+> | washer | 0.977 | 1.367 | no | **124** |
+> | spray | 1.292 | 0.788 | no | **17** |
+> | trashbag | 0.542 | 1.676 | no | **133** |
+>
+> §3's four static tools are also closed: motion is declared per tool
+> (`cleaningTools.js` `useMotion`) and driven above the cleaning block's
+> toolClass fork — the washer never reached that fork at all, being `external`.
+> §2 and §4 are unchanged: the hand/surface tools' reach column is still the
+> wrong question, and the collider clamp (§4) is still not ported.
+
 ### 1. The floor anchor is broom-only, and it is the biggest gap
 
 `mop`, `vacuum` and `dustpan` all carry `floorAnchored: true` in the registry —
