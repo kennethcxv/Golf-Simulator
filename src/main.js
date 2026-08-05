@@ -54,7 +54,9 @@ import {
 } from './sim/register.js';
 import { ownedWasher } from './sim/washing.js';
 import { liveGolfSummary, setGolfSimulationFocus } from './sim/golfDay.js';
-import { BELT_ORDER, CLEANING_TOOLS } from './data/cleaningTools.js';
+import {
+  BELT_ORDER, CLEANING_TOOLS, MEDIUM, MEDIUM_STYLE, toolMedia,
+} from './data/cleaningTools.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 import { deliveryEtaText } from './sim/deliveryEta.js';
@@ -2868,8 +2870,12 @@ function updateWalkOverlay(dtMs = 16.7) {
   }
   if (ovEl.dirtReticle) {
     const aimed = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense().aimed : null;
+    // J2: the reticle names the MEDIUM from the legend authority, so what you
+    // aim at, the marker colour and the HUD chips all say the same thing.
     const reticleText = aimed
-      ? (aimed.kind === 'litter' ? 'litter - sweep it' : 'loose dirt - sweep it')
+      ? (aimed.kind === 'litter'
+        ? 'Litter - sweep or bag it'
+        : `${MEDIUM_STYLE[MEDIUM.DEBRIS].label} - ${MEDIUM_STYLE[MEDIUM.DEBRIS].verb}`)
       : '';
     if (reticleText !== ovLast.dirtReticleText) {
       ovLast.dirtReticleText = reticleText;
@@ -2891,6 +2897,29 @@ function updateWalkOverlay(dtMs = 16.7) {
     if (senseOn !== ovLast.senseOn) {
       ovLast.senseOn = senseOn;
       ovEl.dirtSense.classList.toggle('is-on', senseOn);
+    }
+    // J2: THE LEGEND, literally. While the reveal is up, the hint shows which
+    // media the held tool can shift as coloured chips — the same colours the
+    // markers use, from the same authority. No tool = both media (the bare
+    // reveal shows everything). One DOM write per change of tool/state.
+    const senseTool = app.scene3d.walk.getTool ? app.scene3d.walk.getTool() : null;
+    const senseMedia = senseOn
+      ? (CLEANING_TOOLS[senseTool] ? toolMedia(senseTool) : [MEDIUM.DEBRIS, MEDIUM.GRIME])
+      : [];
+    const senseMediaKey = senseMedia.join(',');
+    if (senseMediaKey !== ovLast.senseMediaKey) {
+      ovLast.senseMediaKey = senseMediaKey;
+      let chips = ovEl.dirtSense.querySelector('.dirt-sense-media');
+      if (!chips) {
+        chips = el('span', { class: 'dirt-sense-media' });
+        ovEl.dirtSense.append(chips);
+      }
+      chips.replaceChildren(...senseMedia.map((medium) => el('span', { class: 'dirt-medium-chip' },
+        el('span', {
+          class: 'dirt-medium-dot',
+          style: `background:#${MEDIUM_STYLE[medium].color.toString(16).padStart(6, '0')}`,
+        }),
+        el('span', { text: MEDIUM_STYLE[medium].label }))));
     }
   }
   // build mode speaks over the world's own prompts: while it is on, the only controls that

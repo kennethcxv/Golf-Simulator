@@ -531,6 +531,30 @@ export function toolMedia(id) {
   return MEDIA_BY_CLASS[t.toolClass] || [];
 }
 
+// --- J2: THE REVEAL IS A LEGEND --------------------------------------------
+//
+// One colour and one plain name per medium, owned here so the marker mesh, the
+// HUD legend and the reticle cannot drift apart. Two media is the honest
+// number: the floor carries loose DEBRIS (piles you sweep, scoop and bag) and
+// ground-in GRIME (a cell field you vacuum, mop or wash) — and the overlaps
+// are DECLARED, not painted over: the broom/dustpan/trashbag trio is a
+// pipeline over one medium by design, and the vacuum genuinely lifts both
+// (dry piles into the intake, ground-in dust off the boards). Inventing six
+// colours for two sim media would be a legend that lies.
+//
+// Amber = dry, loose, sweepable. Cyan = worked into the surface, wet-or-
+// suction work. Warm/cool reads apart for every common colour-vision type.
+export const MEDIUM_STYLE = Object.freeze({
+  [MEDIUM.DEBRIS]: Object.freeze({ color: 0xffc24d, label: 'Loose debris', verb: 'sweep it' }),
+  [MEDIUM.GRIME]: Object.freeze({ color: 0x53d6ff, label: 'Ground-in grime', verb: 'vacuum or mop it' }),
+});
+
+/** Every tool that can shift this medium — DERIVED from the routing above, so
+ * the legend can never disagree with what the cleaning gate actually does. */
+export function toolsForMedium(medium) {
+  return TOOL_IDS.filter((id) => toolMedia(id).includes(medium));
+}
+
 /**
  * The trash bag is the one tool that discriminates WITHIN a medium — collectAt
  * is called with a `kind === 'litter'` predicate, so it walks past grit. Null

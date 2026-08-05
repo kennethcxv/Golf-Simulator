@@ -195,7 +195,7 @@ import {
   wetGridForRoom,
 } from '../sim/cleaningWet.js';
 import {
-  CLEANING_TOOLS, TOOL_CLASS, MEDIUM, toolMedia, toolDebrisKinds,
+  CLEANING_TOOLS, TOOL_CLASS, MEDIUM, MEDIUM_STYLE, toolMedia, toolDebrisKinds,
 } from '../data/cleaningTools.js';
 import {
   ensureCleaningToolState, cleaningStatus, panSpace, bagSpace, addToPan, addToBag,
@@ -5229,9 +5229,14 @@ export function makeClubhouse(ctx) {
   // Loose debris keeps the established cyan; grime is a warm ochre, because it
   // is the colour of the thing itself and because the two must be tellable
   // apart at a glance and through a wall.
+  // J2: the marker colours come from the ONE legend authority, so the mesh,
+  // the HUD chips and the reticle name the same medium the same way. (They
+  // used to be hand-typed here — blue circles for debris, orange for grime —
+  // which is exactly the "tells me where, not what" the review of the reveal
+  // called out.)
   const SENSE_COLOR = {
-    debris: new THREE.Color(0x74e0ff),
-    grime: new THREE.Color(0xffa94d),
+    [MEDIUM.DEBRIS]: new THREE.Color(MEDIUM_STYLE[MEDIUM.DEBRIS].color),
+    [MEDIUM.GRIME]: new THREE.Color(MEDIUM_STYLE[MEDIUM.GRIME].color),
   };
   const senseMesh = new THREE.InstancedMesh(senseGeo, senseMat, SENSE_CAP);
   senseMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

@@ -2722,3 +2722,25 @@ body.register-mode .view-toggle { display: none !important; }
   opacity: 1;
   transform: none;
 }
+
+/* J2: the reveal's legend chips - the same colours the markers use, from the
+   same authority, naming what the held tool can shift. */
+.dirt-sense-media {
+  display: inline-flex;
+  gap: 10px;
+  margin-left: 10px;
+}
+.dirt-medium-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #e8e4d4;
+  white-space: nowrap;
+}
+.dirt-medium-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
