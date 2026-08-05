@@ -254,7 +254,7 @@ function makeHand(mats, mirror = 1) {
   const KNUCKLE_Z = -0.033;
   const knuckleArc = [-0.002, -0.004, -0.001, 0.005]; // index, middle, ring, pinky
   const RIDGE_Y = 0.016; // dorsal side; the palm's own half-height is now 0.022
-  const RIDGE_R = 0.0065;
+  const RIDGE_R = 0.008; // I4: was 0.0065 - crested the palm by ~0.0005 and read flat
 
   // four fingers across the knuckle line, index outermost on the thumb side
   const fingers = [];
@@ -268,9 +268,9 @@ function makeHand(mats, mirror = 1) {
     fingers.push(f);
     // a knuckle-ridge bump at each finger root, on the back of the hand. Raised
     // and enlarged so it CRESTS the flattened palm instead of sitting inside it.
-    const knuckleBump = new THREE.Mesh(new THREE.SphereGeometry(0.0130, 8, 6), fingerSkins[i]);
+    const knuckleBump = new THREE.Mesh(new THREE.SphereGeometry(0.0145, 8, 6), fingerSkins[i]);
     knuckleBump.scale.set(1, 0.78, 1);
-    knuckleBump.position.set(kx, 0.010, kz);
+    knuckleBump.position.set(kx, 0.013, kz); // I4: crest 0.024 vs palm top 0.022 - proud for real
     g.add(knuckleBump);
 
     // The metacarpal running back from that knuckle toward the wrist. These are

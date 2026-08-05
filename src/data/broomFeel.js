@@ -155,8 +155,15 @@ export const BROOM_FEEL = Object.freeze({
     // Both hands now grip from the same side, 0.25 rad apart, which is both how
     // a push broom is actually held and what puts fingers and knuckles on the
     // camera side of BOTH hands.
+    // I4 (2026-08-05): OPPOSED, the way a person holds a push broom - upper
+    // palm over the shaft, lower palm under it. The same-side pair (-2.70 /
+    // -2.95, 0.25 rad apart) was a deliberate round-D2 change to put fingers
+    // camera-side on both hands, and it read wrong on screen ("both hands on
+    // the same side of the shaft"). The camera-side problem is solved by the
+    // grip cluster's own diagonal (compose.bearingOffset lays the shaft across
+    // the lower frame), not by twisting both wrists to face the lens.
     handRollUpper: -2.70,
-    handRollLower: -2.95,
+    handRollLower: 0.19,
     // ROUND 5: the wrist sits OFF the shaft centreline by this much. It used
     // to be placed exactly on the axis, so the palm straddled the handle and
     // its flat far side poked out as a pale disc beside the shaft — the hand
