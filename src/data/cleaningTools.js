@@ -21,6 +21,28 @@ export const TOOL_CLASS = {
   CARRY: 'carry',     // held, fills, gets emptied
 };
 
+// HOW A TOOL MOVES WHILE IT IS BEING USED, in its own local frame.
+//
+// E1 measured four tools — dustpan, spray, washer, trashbag — returning ONE
+// distinct transform across two full seconds of held use. Not a small
+// animation: no animation. They were static props in the hands while mop,
+// cloth, sponge and vacuum all had a stroke. The machinery was never
+// per-tool; those four were simply not wired into it, because the driver
+// dispatched on toolClass and three classes had no branch at all.
+//
+// So the motion is declared here rather than switched on there, and one shared
+// driver in courseScene reads it. A tool with no `useMotion` is a static prop
+// ON PURPOSE and says so by omission.
+//
+//   rate   drive speed in rad/s
+//   swing  [x, z] amplitude in yards; z is 90 deg out of phase with x, which
+//          turns a lateral slide into a push-and-return
+//   roll   radians about the tool's own z, in phase with x
+//   jitter yards of per-frame tremble (a pressurised line, not a swing)
+//
+// Deliberately no y and no pitch: the floor solve owns both for anchored tools
+// and a second writer would fight it. See courseScene's floor-contact block.
+
 // What a surface is dirtied WITH decides what shifts it.
 export const DIRT = {
   FILM: 'film',       // light exterior weathering — water alone
@@ -86,6 +108,9 @@ export const CLEANING_TOOLS = {
     sockets: { nozzle: { pos: [0, 0.0678, -0.7444], rot: [-0.16, 0, 0] } },
     grip: { pos: [0.0, -0.13, 0.20], rot: [-0.35, 0, 0.12] },
     support: { pos: [0.0, 0.015, -0.30], rot: [-0.30, 0, 0.9] },
+    // a pressurised wand does not swing, it trembles and pushes back against
+    // the hands; the tremble is what sells the pressure
+    useMotion: { rate: 15.0, swing: [0.006, 0.013], roll: 0.014, jitter: 0.005 },
     recoil: 0.055,
     audio: { loop: 'washerLoop', start: 'washerStart', stop: 'washerStop' },
   },
@@ -257,6 +282,9 @@ export const CLEANING_TOOLS = {
     sockets: { contact: { pos: [0, -0.066, -1.60], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.10, 0, 0.08] },
     support: null,
+    // a scoop is a short brisk push into the pile and a draw back, with the
+    // pan rolling a little as the lip rides the boards
+    useMotion: { rate: 5.2, swing: [0.030, 0.055], roll: 0.055 },
     recoil: 0.014,
     audio: { loop: 'dustpanCollect', start: 'dustpanStart', stop: 'dustpanStop' },
   },
@@ -409,6 +437,9 @@ export const CLEANING_TOOLS = {
     sockets: { contact: { pos: [0, -0.30, -0.03], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.098, 0.010], rot: [-1.05, 0, 0.16] },
     support: null,
+    // heavier and slower than the pan: you are stooping and gathering, and the
+    // weight in the bag lags the hands
+    useMotion: { rate: 2.6, swing: [0.050, 0.034], roll: 0.075 },
     recoil: 0.010,
     audio: { loop: 'bagRustle', start: 'bagPickup', stop: 'bagStop' },
   },

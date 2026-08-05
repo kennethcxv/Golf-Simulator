@@ -102,6 +102,15 @@ import {
 
 // tools worked against the boards; resolved once rather than filtered every frame
 const FLOOR_ANCHORED_TOOLS = Object.values(CLEANING_TOOLS).filter((t) => t.floorAnchored).map((t) => t.id);
+// How fast the ACCEPTED floor height under a held tool may travel. This is the
+// stray-sample guard: a real floor does not jump, so a garbage groundYAt can
+// only move the tool 1.6 yd/s (0.027 yd on a 60 Hz frame) no matter what it
+// returns, while a genuine step is crossed in a fifth of a second. It bounds
+// the INPUT, so the pose itself stays free to answer a fast look at full speed.
+const FLOOR_SAMPLE_RATE = 1.6;
+// A sanity bound on the solved offset, not a working range. Nothing legitimate
+// asks a held tool to move two yards; anything that does is a broken sample.
+const FLOOR_ANCHOR_ENVELOPE = 2.0;
 
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
 const METERS_TO_YARDS = 1.0936133;
@@ -6395,6 +6404,10 @@ export function makeCourseScene(canvas, state) {
   const _washNozzle = new THREE.Vector3();
   const _washJetTo = new THREE.Vector3(); // the pressure-lag-ramped visual endpoint of the jet
   const _toolContact = new THREE.Vector3();
+  // the same socket sampled AFTER the floor solve has moved the group. The
+  // residual it yields is what proves the correction LANDED rather than merely
+  // being computed — the distinction this whole item turned on.
+  const _toolContactAfter = new THREE.Vector3();
   let cleaningLastResult = null;
   const cleaningLastContact = new THREE.Vector3();
   const cleaningLastTarget = new THREE.Vector3();
@@ -6824,6 +6837,22 @@ export function makeCourseScene(canvas, state) {
   const SPRAY_CYCLE = SPRAY_SQUEEZE + SPRAY_RELEASE;      // 0.25 s
   const SPRAY_DUTY_SCALE = SPRAY_CYCLE / SPRAY_SQUEEZE;   // 0.25 / 0.09 ≈ 2.778
   let sprayCadenceT = 0; let spraySqueezeActive = false;
+  // The bottle's own kick on each squeeze: full over SPRAY_RECOIL_FALL seconds,
+  // squared so it snaps and settles. TWIST turns the same impulse into a small
+  // roll, because a trigger is pulled off-centre.
+  const SPRAY_RECOIL_FALL = 0.13; const SPRAY_RECOIL_TWIST = 2.4;
+  let sprayRecoilT = 0;
+  // The accepted floor height under each held floor tool — see FLOOR_SAMPLE_RATE.
+  const floorAnchorSampleY = new Map();
+  // E2: WHY THE SOLVE DID OR DID NOT RUN, per tool, per frame.
+  //
+  // The audit inferred from the outside that the old clamp was saturating.
+  // It was not: the solve was not reaching the visible tool at all, and no
+  // number anywhere could tell those two apart — both look like "the head
+  // rides the view". This records the solve's own inputs and its decision, so
+  // "it ran and could not correct enough" and "it never ran" are different
+  // readings instead of the same one.
+  const floorAnchorDebug = { frame: 0, tools: {} };
   // Held-tool idle: a slow ±0.4° yaw drift on the whole held rig, 7 s period, for life at rest.
   const IDLE_YAW_AMP = (0.4 * Math.PI) / 180; const IDLE_YAW_RATE = (2 * Math.PI) / 7;
   // Belt-switch debounce: at most one actual tool change per 0.12 s (rapid F-taps keep one pending).
@@ -8258,26 +8287,122 @@ export function makeCourseScene(canvas, state) {
     // on the floor a stride and a half ahead — regardless of where the player is looking. So the
     // tool declares its world pitch and we solve the local rotation that preserves it. Look at the
     // horizon and the head correctly swings below the frame; look down to work and it is there.
+    floorAnchorDebug.frame += 1;
     for (const id of FLOOR_ANCHORED_TOOLS) {
       const g = heldGroups[id];
-      if (!g || !g.visible) continue;
+      // Dropping the tool forgets its accepted floor sample, so the next equip
+      // snaps to the boards on its first frame instead of easing up from
+      // wherever the last room's floor happened to be.
+      if (!g || !g.visible) {
+        floorAnchorSampleY.delete(id);
+        floorAnchorDebug.tools[id] = { ran: false, why: g ? 'group not visible' : 'no group' };
+        continue;
+      }
       // Phase 6: the broom's pose is owned by its viewmodel rig (pitch-driven
       // reach with the head planted, not a floor-plane re-solve).
-      if (id === 'broom' && broomVm.isActive()) continue;
+      if (id === 'broom' && broomVm.isActive()) {
+        floorAnchorSampleY.delete(id);
+        floorAnchorDebug.tools[id] = { ran: false, why: 'broom viewmodel owns the pose' };
+        continue;
+      }
       g.rotation.x = CLEANING_TOOLS[id].worldPitch - walk.pitch;
       // FLOOR-CONTACT SOLVE. The fixed world pitch keeps the head aimed down, but the head can still
       // hover or clip depending on stance and the equip/bob height. Sample the flat interior floor
       // under the contact socket and nudge the whole group in Y so strands/bristles/nozzle just kiss
-      // the boards. groundYAt is O(1) indoors (a flat constant — no raycast); the offset is clamped
-      // hard so a stray sample can never fling the tool, and reset from rest each frame so it never
-      // accumulates. Sampling runs AFTER updateHeldFeel, so the socket already carries the gait bob.
+      // the boards. groundYAt is O(1) indoors (a flat constant — no raycast). Sampling runs AFTER
+      // updateHeldFeel, so the socket already carries the gait bob.
+      //
+      // E1/E2: THE GUARD USED TO BE THE SOLVE, AND IT SATURATED ON FRAME ONE.
+      //
+      // This applied `clamp(floorY - contactY, ±0.06)`. The comment called that
+      // clamp a guard against a stray groundYAt sample, which is a real thing to
+      // want — but the correction it has to make is 0.6 yd across the carried
+      // band, an order of magnitude larger than the guard. So the clamp was
+      // pinned at its limit on every frame and the head simply rode the camera
+      // the rest of the way: mop, vacuum and dustpan all declared
+      // `floorAnchored: true` and measured 0.61-0.64 yd of carried spread
+      // (Designs/ProShop/TOOL_STANDARD_AUDIT.md). The flag was honest about
+      // intent; the implementation could not deliver it at any tuning.
+      //
+      // The fix is to put the guard where it belongs. A stray sample is a bad
+      // FLOOR HEIGHT, so guard the floor height: a real floor does not jump, so
+      // the accepted sample may only travel FLOOR_SAMPLE_RATE yd/s. The pose
+      // then applies the whole remaining correction immediately, so it responds
+      // to a fast look at full speed and cannot saturate. The absolute envelope
+      // below it is a sanity bound on a garbage sample, not a working range —
+      // nothing legitimate asks a held tool to move two yards.
       const rest = g.userData.cleaningRestPosition;
-      const floorY = clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
-      if (rest && floorY != null) {
-        g.position.y = rest.y;
-        const contactSocket = CLEANING_TOOLS[id].sockets.contact ? 'contact' : 'nozzle';
-        socketWorld(g, contactSocket, _toolContact);
-        g.position.y = rest.y + Math.max(-0.06, Math.min(0.06, floorY - _toolContact.y));
+      const rawFloorY = clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+      if (!rest || rawFloorY == null) {
+        floorAnchorDebug.tools[id] = {
+          ran: false,
+          why: !rest ? 'no cleaningRestPosition on the group' : 'no groundYAt sample',
+        };
+        continue;
+      }
+      const prevFloorY = floorAnchorSampleY.get(id);
+      const step = FLOOR_SAMPLE_RATE * dt;
+      const floorY = prevFloorY === undefined ? rawFloorY
+        : prevFloorY + Math.max(-step, Math.min(step, rawFloorY - prevFloorY));
+      floorAnchorSampleY.set(id, floorY);
+      g.position.copy(rest);
+      const contactSocket = CLEANING_TOOLS[id].sockets.contact ? 'contact' : 'nozzle';
+      socketWorld(g, contactSocket, _toolContact);
+      const need = floorY - _toolContact.y;
+      const applied = Math.max(-FLOOR_ANCHOR_ENVELOPE, Math.min(FLOOR_ANCHOR_ENVELOPE, need));
+      // THE CORRECTION IS A WORLD-Y MOVE AND THE GROUP IS A CHILD OF THE CAMERA.
+      //
+      // Writing `position.y += need` looks right and is not: local +Y under a
+      // camera pitched by p delivers only cos(p) of world +Y and drags the tool
+      // backwards by the rest. That under-correction is invisible at the horizon
+      // (cos 0 = 1) and total at the top of the look range (cos 1.35 = 0.22),
+      // which is exactly the shape of "anchored when you work, rides the view
+      // when you look up". So the move is decomposed into the frame the group
+      // actually lives in. `residual` below re-samples the socket afterwards and
+      // is the proof: if this decomposition were wrong it would not be ~0.
+      const cp = Math.cos(walk.pitch);
+      const sp = Math.sin(walk.pitch);
+      g.position.set(rest.x, rest.y + applied * cp, rest.z - applied * sp);
+      socketWorld(g, contactSocket, _toolContactAfter);
+      floorAnchorDebug.tools[id] = {
+        ran: true,
+        floorY: +floorY.toFixed(4),
+        contactYBefore: +_toolContact.y.toFixed(4),
+        need: +need.toFixed(4),
+        applied: +applied.toFixed(4),
+        saturated: Math.abs(applied) >= FLOOR_ANCHOR_ENVELOPE - 1e-6,
+        residual: +(floorY - _toolContactAfter.y).toFixed(4),
+      };
+    }
+    // E1/E2: THE FOUR STATIC TOOLS.
+    //
+    // dustpan, spray, washer and trashbag each returned ONE distinct transform
+    // across two full seconds of held use — not a small animation, none at all —
+    // while mop, cloth, sponge and vacuum all had a stroke. The machinery was
+    // never per-tool: the cleaning block dispatches on toolClass, scoop, jet and
+    // carry had no branch, and the washer does not even reach that block because
+    // it is `external` and the pressure-jet path owns it.
+    //
+    // So the motion is declared on the tool (cleaningTools.js `useMotion`) and
+    // driven HERE, above every one of those forks, where a held tool is a held
+    // tool. A new class needs data rather than a fifth branch.
+    //
+    // x, z and roll only: the floor-contact solve above is authoritative on y
+    // and pitch for anchored tools, and this is exactly the collision that cost
+    // this item its first two attempts.
+    if (walkSpraying && !cart.mounted && CLEANING_TOOLS[walkTool]?.useMotion) {
+      const g = heldGroups[walkTool];
+      const rest = g?.userData?.cleaningRestPosition;
+      if (g && g.visible && rest) {
+        const m = CLEANING_TOOLS[walkTool].useMotion;
+        const phase = time * m.rate;
+        const sx = Math.sin(phase);
+        const cz = Math.cos(phase);
+        const shake = m.jitter ? (Math.random() - 0.5) * m.jitter : 0;
+        g.position.x = rest.x + sx * (m.swing?.[0] ?? 0) + shake;
+        g.position.z = (CLEANING_TOOLS[walkTool].floorAnchored ? g.position.z : rest.z)
+          + cz * (m.swing?.[1] ?? 0) + shake;
+        g.rotation.z = g.userData.cleaningRestRotationZ + sx * (m.roll ?? 0);
       }
     }
     // Phase 6: the broom viewmodel rig owns the broom pose. It runs BEFORE the
@@ -8488,8 +8613,21 @@ export function makeCourseScene(canvas, state) {
             walkHooks.onSprayPulse?.(walkTool);
             toolViewmodels.play(walkTool, 'trigger');
             emitSprayMist(group, aim?.point && !aim.blocked ? aim.point : null);
+            sprayRecoilT = 1;
           }
           spraySqueezeActive = squeezing;
+          // E1/E2: THE BOTTLE RECOILS, NOT ONLY THE HANDS.
+          //
+          // fpHands.kick() moved the rig and left the bottle rigid inside it, so
+          // the spray tool measured ONE distinct transform across two seconds of
+          // pumping — the pump had no tell on the object itself. It has the
+          // pulse already; it just never reached the group. Squared decay, so
+          // the kick is a snap and a settle rather than a wobble.
+          sprayRecoilT = Math.max(0, sprayRecoilT - dt / SPRAY_RECOIL_FALL);
+          const recoilNow = sprayRecoilT * sprayRecoilT;
+          group.position.z = rest.z + (def.recoil ?? 0) * recoilNow;
+          group.rotation.z = group.userData.cleaningRestRotationZ
+            - (def.recoil ?? 0) * SPRAY_RECOIL_TWIST * recoilNow;
           gatedDt = squeezing ? dt * SPRAY_DUTY_SCALE : 0;
         }
         socketWorld(group, socketName, _toolContact);
@@ -8590,6 +8728,29 @@ export function makeCourseScene(canvas, state) {
         // every frame the player was not actively sweeping, which is exactly
         // why the idle broom hung in the air while a held stroke looked right.
         if (id === 'broom' && broomVm.isActive()) continue;
+        // E2: THE SAME TRAP, THREE TOOLS OVER — AND THIS IS THE WHOLE E1 GAP.
+        //
+        // mop, vacuum and dustpan declare `floorAnchored: true` and the floor
+        // solve above computes a real correction for them every frame: measured
+        // -0.28, -0.99 and -1.00 yd. Every one of those was thrown away HERE, a
+        // few hundred lines later, because `position.copy(rest)` restores y as
+        // well — so the head rode the camera and the flag looked like a lie.
+        //
+        // Note what this means for the audit that sent us here: the ±0.06 clamp
+        // it blamed was never the constraint. It was not saturating. The solve
+        // ran, produced the right number, and was overwritten. From outside,
+        // "corrected as far as it could and fell short" and "corrected fully and
+        // was discarded" are the same picture, which is why the inference was
+        // wrong and only the solve's own inputs could settle it
+        // (walk.floorAnchorDiagnostics).
+        //
+        // The reset still owns x, z and roll — the idle pose should snap back.
+        // It just may not own the axis another solve is authoritative on. The
+        // broom exception above is the same fix, made once for one tool.
+        if (CLEANING_TOOLS[id].floorAnchored && floorAnchorSampleY.has(id)) {
+          group.rotation.z = group.userData.cleaningRestRotationZ;
+          continue;
+        }
         group.position.copy(rest);
         group.rotation.z = group.userData.cleaningRestRotationZ;
       }
@@ -11277,6 +11438,28 @@ export function makeCourseScene(canvas, state) {
       // from the live rig rather than from its registry entry. The registry
       // says what a tool declares; this says where its geometry actually ended
       // up after the frame posed it.
+      floorAnchorDiagnostics: () => ({
+        frame: floorAnchorDebug.frame,
+        anchoredTools: FLOOR_ANCHORED_TOOLS,
+        tools: JSON.parse(JSON.stringify(floorAnchorDebug.tools)),
+        // What the group actually carries NOW, read from outside the frame. If
+        // this disagrees with `applied` above, something downstream is
+        // overwriting the solve and the solve is not the thing to fix.
+        live: FLOOR_ANCHORED_TOOLS.map((id) => {
+          const g = heldGroups[id];
+          const rest = g?.userData?.cleaningRestPosition;
+          return {
+            id,
+            visible: !!g?.visible,
+            positionY: g ? +g.position.y.toFixed(4) : null,
+            restY: rest ? +rest.y.toFixed(4) : null,
+            offsetY: g && rest ? +(g.position.y - rest.y).toFixed(4) : null,
+            restIsPosition: !!(g && rest === g.position),
+          };
+        }),
+        walkAt: { x: +walk.x.toFixed(3), z: +walk.z.toFixed(3) },
+        groundYAtWalk: clubhouseApi?.groundYAt ? +clubhouseApi.groundYAt(walk.x, walk.z).toFixed(4) : null,
+      }),
       heldToolGeometry: () => {
         if (!walkTool) return null;
         const def = CLEANING_TOOLS[walkTool];
