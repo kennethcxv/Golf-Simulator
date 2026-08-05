@@ -327,14 +327,21 @@ export const BROOM_FEEL = Object.freeze({
   // against the same stale literal the comment did. Derived from the authority
   // now, so it moves when locomotion does and no copy can go stale.
   dirt: Object.freeze({
-    // I2/I6 (2026-08-05): 15% clear of the FASTEST speed a player can sustain
-    // with the broom out — which is tool-run, not walk, now that I2 capped
-    // shift-with-tool at TOOL_RUN_SPEED_YD_S (4.25). Deriving from the walk
-    // while a faster tool-run existed would have recreated the original
-    // pushSpeed defect one shelf higher: an invariant true against one
-    // authority and false against the speed the player actually reaches.
-    // (Empty-handed sprint is 6.12 and irrelevant here: no broom, no push.)
-    pushSpeed: +(TOOL_RUN_SPEED_YD_S * 1.15).toFixed(2),
+    // I2/I6 (2026-08-05): clear of the FASTEST speed a player can sustain
+    // with the broom out — tool-run, not walk, since I2 capped shift-with-
+    // tool at TOOL_RUN_SPEED_YD_S (4.25). Deriving from the walk while a
+    // faster tool-run existed would have recreated the original pushSpeed
+    // defect one shelf higher. (Empty-handed sprint is 6.12 and irrelevant:
+    // no broom, no push.)
+    //
+    // The margin is 1.30, not the first-guess 1.15, because a DRIVEN pile
+    // rides where bite × pushSpeed equals the player's speed (sweepAt tapers
+    // bite toward the head's rim): at ×1.15 the tool-run equilibrium sat
+    // INSIDE the brush (measured gapEnd −0.08), at ×1.30 the equilibrium
+    // bite (4.27/5.53 = 0.77) sits at the rim and the pile stays ahead of
+    // the bristles at both walk and tool-run — measured, not derived, in
+    // tools/qa/broom-push-beats-walk.js.
+    pushSpeed: +(TOOL_RUN_SPEED_YD_S * 1.30).toFixed(2),
     // The hand speed at which sweep audio and particles reach full strength.
     // Deliberately BELOW a walk so an ordinary stroke reads at full intensity;
     // it lived in courseScene as a bare 2.2 that looked like the walk speed.
