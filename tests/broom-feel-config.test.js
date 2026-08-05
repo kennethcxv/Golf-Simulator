@@ -6,6 +6,7 @@ import { BROOM_FEEL } from '../src/data/broomFeel.js';
 // compare a config value against a hand-written literal now compares it
 // against the module that owns the number.
 import { WALK_SPEED_YD_S, STRIDE_RATE_RAD_S, WALK_FOV_DEG } from '../src/data/locomotion.js';
+import { BROOM_METRICS } from '../src/data/broomMetrics.js';
 import { CARRY_RENDER_LAYER } from '../src/render3d/clubhouse.js';
 import { CHECKOUT_STANDING_EYE_ABOVE_FLOOR } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
@@ -158,15 +159,14 @@ test('the handle can physically REACH the floor from where the hands are held', 
   // bristles hung in mid-air at every pitch and no tuning could ever plant
   // them. Any future change to gripAnchor.y has to keep the reach real.
   //
-  // The handle length is the ASSET's, measured from its own sockets at
-  // runtime; 1.247 is that measurement recorded here so this test does not
-  // need a GLB parser. If the broom asset is re-authored, this number moves.
-  // HANDLE_YD is a MEASUREMENT of the shipped FP asset (GripPrimary ->
-  // FloorContact), not a constant anything owns, so it stays a literal — but it
-  // is a recorded measurement and rots silently if the asset is re-authored.
-  // tests/broom-asset-sockets.test.js is where that would be caught; noted here
-  // in the D7 sweep as a known-blind rather than dressed up as an authority.
-  const HANDLE_YD = 1.247;
+  // The handle length is the ASSET's, measured from its own sockets. It used
+  // to be a hand-typed 1.247 literal here, with a comment pointing at a
+  // broom-asset-sockets test that did not exist — the D7 known-blind. I7
+  // (2026-08-05) built the authority: tools/build/extract-broom-metrics.mjs
+  // measures the GLB and generates src/data/broomMetrics.js, and the (now
+  // real) tests/broom-asset-sockets.test.js fails whenever the GLB on disk and
+  // the generated value disagree. This test reads the authority.
+  const HANDLE_YD = BROOM_METRICS.gripToFloorYd;
   const EYE_YD = CHECKOUT_STANDING_EYE_ABOVE_FLOOR;
   const gripAboveFloor = EYE_YD + BROOM_FEEL.compose.gripAnchor[1];
   assert.ok(gripAboveFloor < HANDLE_YD,
