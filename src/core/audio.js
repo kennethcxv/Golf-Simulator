@@ -4,6 +4,7 @@
 // preferences own volume, accessibility, and lifecycle policy.
 
 import { BROOM_FEEL } from '../data/broomFeel.js';
+import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 
 export const CHECKOUT_CUE_APIS = Object.freeze([
   'productPlace', 'productPickup', 'productRotate',
@@ -1709,6 +1710,49 @@ export function makeAudio(preferences = null) {
     }
   }
 
+  // E3 — THE OTHER EIGHT TOOLS GET A CONTACT LAYER.
+  //
+  // Every tool declares audio.start and audio.stop; 26 of the 27 declared names
+  // did not exist, so only the broom made a sound when it bit and when it lifted.
+  // The rest played one flat loop from button-down to button-up, which is why
+  // the kit sounded like one machine with the pitch changed.
+  //
+  // One renderer, driven by the SHAPE each tool declares (cleaningTools.js
+  // `tone`), rather than eight hand-written functions — the same reason
+  // `useMotion` is data. The broom is untouched: it has its own authored pair
+  // below and it is the standard the rest are being brought up to.
+  function shapedBurst(hz, q, gain, seconds) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * seconds)), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = hz;
+    band.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(Math.max(0.0002, gain), t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+    src.connect(band).connect(g).connect(sfxBus);
+    src.start(t);
+    src.stop(t + seconds + 0.01);
+  }
+
+  function toolContactStart(kind) {
+    const tone = CLEANING_TOOLS[kind]?.tone;
+    if (!ctx || !tone) return;
+    shapedBurst(tone.startHz, tone.q, tone.startGain, 0.10);
+  }
+
+  function toolContactStop(kind) {
+    const tone = CLEANING_TOOLS[kind]?.tone;
+    if (!ctx || !tone) return;
+    shapedBurst(tone.stopHz, tone.q * 0.8, tone.startGain * 0.55, tone.stopTail);
+  }
+
   function broomStart() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -1830,6 +1874,8 @@ export function makeAudio(preferences = null) {
     // Task-4 stroke/spray hooks (main.js routes them via the generic audio[name]
     // pattern); cleanSparkle/vacuumPickup are fired by cue mappings and particles.
     strokeAccent,
+    toolContactStart,
+    toolContactStop,
     sprayPulse,
     cleanSparkle,
     vacuumPickup,

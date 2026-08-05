@@ -783,6 +783,24 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     if (!inContact && broomContactWas && audio.broomStop) audio.broomStop();
     broomContactWas = inContact;
   };
+  // E3 — the same three layers for the other eight tools. The broom keeps its
+  // own authored transients above; this drives every other tool's loop from the
+  // live stroke intensity and fires a shaped contact/release burst on the edges,
+  // rendered from the shape the tool itself declares (cleaningTools.js `tone`).
+  let toolContactWas = false;
+  let toolContactKind = null;
+  app.scene3d.walk.hooks.onToolFeel = (toolId, intensity, inContact, surface) => {
+    if (!audio.ready) return;
+    audio.setToolLoopIntensity?.(toolId, intensity, surface);
+    if (inContact && !toolContactWas) audio.toolContactStart?.(toolId);
+    // Release on the tool that was actually in contact, not on whatever is in
+    // hand by the time the edge lands — swapping mid-stroke would otherwise play
+    // the new tool's tail for the old tool's work.
+    if (!inContact && toolContactWas) audio.toolContactStop?.(toolContactKind || toolId);
+    toolContactWas = inContact;
+    if (inContact) toolContactKind = toolId;
+  };
+
   // Switching, stowing, focus loss, and mode changes are all trigger releases. The renderer owns
   // those lifecycle edges, so it tells audio here instead of waiting for a pointerup that may
   // never arrive (alt-tab and rapid belt cycling are the common cases).

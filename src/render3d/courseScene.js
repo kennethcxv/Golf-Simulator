@@ -6841,6 +6841,9 @@ export function makeCourseScene(canvas, state) {
   const SPRAY_CYCLE = SPRAY_SQUEEZE + SPRAY_RELEASE;      // 0.25 s
   const SPRAY_DUTY_SCALE = SPRAY_CYCLE / SPRAY_SQUEEZE;   // 0.25 / 0.09 ≈ 2.778
   let sprayCadenceT = 0; let spraySqueezeActive = false;
+  // E3: the live intensity of whatever tool is in use, so the audio layer can
+  // follow the stroke for every tool instead of only for the broom.
+  let toolFeelIntensity = 0; let toolFeelContact = false;
   // The bottle's own kick on each squeeze: full over SPRAY_RECOIL_FALL seconds,
   // squared so it snaps and settles. TWIST turns the same impulse into a small
   // roll, because a trigger is pulled off-centre.
@@ -8407,6 +8410,8 @@ export function makeCourseScene(canvas, state) {
         g.position.z = (CLEANING_TOOLS[walkTool].floorAnchored ? g.position.z : rest.z)
           + cz * (m.swing?.[1] ?? 0) + shake;
         g.rotation.z = g.userData.cleaningRestRotationZ + sx * (m.roll ?? 0);
+        toolFeelIntensity = Math.abs(cz);
+        toolFeelContact = true;
       }
     }
     // Phase 6: the broom viewmodel rig owns the broom pose. It runs BEFORE the
@@ -8440,6 +8445,20 @@ export function makeCourseScene(canvas, state) {
         broomPose.intensity, broomPose.inContact && broomPose.planted, broomSurface,
       );
     }
+    // E3: THE SAME THREE LAYERS, FOR EVERY OTHER TOOL.
+    //
+    // onBroomFeel has driven the broom's start transient, its intensity- and
+    // surface-following loop and its release tail since Phase 6. Nothing emitted
+    // the equivalent for the other eight, so their loops were flat and their
+    // declared start/stop sounds were never called (and did not exist). One hook,
+    // same shape, for whatever is in hand.
+    if (walkTool && walkTool !== 'broom' && CLEANING_TOOLS[walkTool]) {
+      const surface = (toolFeelContact && clubhouseApi?.cleaningSurfaceAt)
+        ? clubhouseApi.cleaningSurfaceAt(walk.x, walk.z) : null;
+      walkHooks.onToolFeel?.(walkTool, toolFeelIntensity, toolFeelContact, surface);
+    }
+    toolFeelIntensity = 0;
+    toolFeelContact = false;
     // --- DIRT SENSE ---------------------------------------------------------
     // Hold Q: every remaining pile lights up through the geometry, so the piles
     // behind the counter stop being invisible. Using a tool cancels it outright
@@ -8572,6 +8591,10 @@ export function makeCourseScene(canvas, state) {
           // frame; the sim is linear in dt, so this sum-preserving redistribution is outcome-
           // preserving — NET cleaning over any stroke equals the ungated loop (rate-neutral). The
           // invariant holds: strokeGateAccum resets to 0 on every contact frame, so Σ gatedDt == Σ dt.
+          // the stroke is fastest mid-pass and stalls at the turnarounds, which is
+          // exactly the envelope the loop should follow
+          toolFeelIntensity = Math.abs(cosPhase);
+          toolFeelContact = true;
           if (Math.abs(cosPhase) >= STROKE_CONTACT_COS) {
             gatedDt = dt + strokeGateAccum;
             strokeGateAccum = 0;
@@ -8606,6 +8629,8 @@ export function makeCourseScene(canvas, state) {
             toolViewmodels.play('vacuum', vacuumStrokeLeft ? 'strokeleft' : 'strokeright');
             walkHooks.onStrokeReversal?.('vacuum', VACUUM_SPAN * VACUUM_RATE);
           }
+          toolFeelIntensity = Math.abs(Math.cos(phase));
+          toolFeelContact = true;
           vacuumLastSign = sign;
         } else if (rest && def.toolClass === 'spray') {
           // SPRAY CADENCE: a metronomic pump, not a continuous stream. Each cycle is one squeeze
@@ -8637,6 +8662,8 @@ export function makeCourseScene(canvas, state) {
           group.position.z = rest.z + (def.recoil ?? 0) * recoilNow;
           group.rotation.z = group.userData.cleaningRestRotationZ
             - (def.recoil ?? 0) * SPRAY_RECOIL_TWIST * recoilNow;
+          toolFeelIntensity = squeezing ? 1 : 0.15;
+          toolFeelContact = true;
           gatedDt = squeezing ? dt * SPRAY_DUTY_SCALE : 0;
         }
         socketWorld(group, socketName, _toolContact);

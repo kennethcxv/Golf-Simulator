@@ -11,6 +11,25 @@
 // Geometry is authored against the reference sheets (Sheet 8 — cleaning equipment, and the two
 // first-person sheets). Colours are the club's: Pineview green, brass, cream.
 
+// WHAT A TOOL SOUNDS LIKE WHEN IT BITES, as data.
+//
+// E3 measured it: every tool declares three sound names (`audio.loop/start/stop`)
+// and 26 of the 27 declared names DO NOT EXIST in the audio module. Only the
+// broom had a start transient and a release tail, and only the broom had its
+// loop respond to stroke intensity and floor surface — every other tool played
+// one flat loop from the moment you pressed the button to the moment you let go.
+//
+// The fix is not 26 bespoke synth functions. The broom's contact layer is a
+// shaped noise burst; every one of these tools is also a shaped noise burst, and
+// what differs between a mop slap and a bristle scratch is where the band sits
+// and how fast it dies. So the SHAPE is declared here and one pair of functions
+// in core/audio.js renders it.
+//
+//   startHz/stopHz  band centre of the bite and of the release, in Hz
+//   startGain       peak of the bite
+//   stopTail        seconds the release takes to fade
+//   q               band sharpness; low is airy, high is a defined scrape
+
 export const TOOL_CLASS = {
   JET: 'jet',         // pressurised water — erodes grime along the stream
   SUCTION: 'suction', // draws loose debris into an intake
@@ -112,6 +131,10 @@ export const CLEANING_TOOLS = {
     // the hands; the tremble is what sells the pressure
     useMotion: { rate: 15.0, swing: [0.006, 0.013], roll: 0.014, jitter: 0.005 },
     recoil: 0.055,
+    // a pressurised hit, low and broad
+    tone: { startHz: 900, stopHz: 520, startGain: 0.075, stopTail: 0.30, q: 0.8 },
+    // wetter and rounder than the cloth
+    tone: { startHz: 1900, stopHz: 1150, startGain: 0.030, stopTail: 0.18, q: 1.0 },
     audio: { loop: 'washerLoop', start: 'washerStart', stop: 'washerStop' },
   },
 
@@ -158,6 +181,8 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.005, 0.10], rot: [-0.10, 0, 0.05] },
     support: null,
     recoil: 0.012,
+    // the motor taking a bite of air
+    tone: { startHz: 640, stopHz: 300, startGain: 0.060, stopTail: 0.34, q: 0.7 },
     audio: { loop: 'vacuumLoop', start: 'vacuumStart', stop: 'vacuumStop', pickup: 'vacuumPickup' },
   },
 
@@ -200,6 +225,8 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
     support: { pos: [-0.015, 0.0, -0.46], rot: [-0.10, 0, -0.20] },
     recoil: 0.018,
+    // a wet slap, duller than bristles
+    tone: { startHz: 1150, stopHz: 700, startGain: 0.038, stopTail: 0.22, q: 0.9 },
     audio: { loop: 'mopSwish', start: 'mopStart', stop: 'mopStop' },
   },
 
@@ -239,6 +266,10 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
     support: { pos: [-0.015, 0.0, -0.48], rot: [-0.10, 0, -0.18] },
     recoil: 0.020,
+    // No `tone`: the broom is the approved standard and keeps its own
+    // hand-authored broomStart/broomStop in core/audio.js. The shared
+    // renderer below exists to bring the other eight UP to it, not to
+    // replace it.
     audio: { loop: 'broomSweep', start: 'broomStart', stop: 'broomStop' },
   },
 
@@ -286,6 +317,8 @@ export const CLEANING_TOOLS = {
     // pan rolling a little as the lip rides the boards
     useMotion: { rate: 5.2, swing: [0.030, 0.055], roll: 0.055 },
     recoil: 0.014,
+    // plastic lip on boards — bright and short
+    tone: { startHz: 2100, stopHz: 1250, startGain: 0.034, stopTail: 0.14, q: 1.4 },
     audio: { loop: 'dustpanCollect', start: 'dustpanStart', stop: 'dustpanStop' },
   },
 
@@ -330,6 +363,8 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.05, 0.055], rot: [-0.16, 0, 0.10] },
     support: null,
     recoil: 0.030,
+    // the hiss of the nozzle, brightest in the kit
+    tone: { startHz: 3200, stopHz: 2100, startGain: 0.030, stopTail: 0.10, q: 1.6 },
     audio: { loop: 'sprayLoop', start: 'sprayTrigger', stop: 'sprayStop' },
   },
 
@@ -366,6 +401,8 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.062, 0.028], rot: [-1.32, 0, 0.10] }, // palm down, flat on the surface
     support: null,
     recoil: 0.016,
+    // a soft drag; barely there on purpose
+    tone: { startHz: 2600, stopHz: 1600, startGain: 0.026, stopTail: 0.16, q: 1.1 },
     audio: { loop: 'clothWipe', start: 'clothStart', stop: 'clothStop' },
   },
 
@@ -400,6 +437,8 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.060, 0.020], rot: [-1.30, 0, 0.10] },
     support: null,
     recoil: 0.022,
+    // wetter and rounder than the cloth
+    tone: { startHz: 1900, stopHz: 1150, startGain: 0.030, stopTail: 0.18, q: 1.0 },
     audio: { loop: 'spongeScrub', start: 'spongeStart', stop: 'spongeStop' },
   },
 
@@ -441,6 +480,8 @@ export const CLEANING_TOOLS = {
     // weight in the bag lags the hands
     useMotion: { rate: 2.6, swing: [0.050, 0.034], roll: 0.075 },
     recoil: 0.010,
+    // poly crackle, bright but loose
+    tone: { startHz: 2900, stopHz: 1800, startGain: 0.032, stopTail: 0.20, q: 1.3 },
     audio: { loop: 'bagRustle', start: 'bagPickup', stop: 'bagStop' },
   },
 };
