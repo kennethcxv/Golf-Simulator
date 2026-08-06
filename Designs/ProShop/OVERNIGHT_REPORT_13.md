@@ -460,3 +460,160 @@ d9ee8b9  M1 (part 1): wanting a tee time is a purpose, not a personality trait
 a28ae8f  I1: the broom's rig becomes every stick tool's rig - mop full, two findings measured
 5a5c6d0  O1 + N1/N4 drivers: em dashes out of player text; settings and saves re-verified
 ```
+
+---
+---
+
+# Session 13b - the ledger book, the reveal, the counter order, the nav, the languages
+
+Continues the same branch. Everything below was verified in Electron at the
+player's camera, never in Chrome, and never on a green suite alone.
+**Suite at time of writing: 2787 pass / 0 fail.** Commits pushed as they landed.
+
+## If a verifier reads one thing
+
+Two claims here were **false when first measured, and the instrument was the
+liar, not the game**:
+
+1. **The card-hover "87% of the crop changed"** was not a broken highlight. Every
+   checkout flow auto-inserts the customer's card within about a second of
+   presentation and the workspace camera re-frames with it, so both "quiet"
+   captures straddled a global change. Rebuilt on the beat that actually holds
+   ('card-entry', waiting on the player's amount).
+2. **Two accessibility settings reported as inert** were working. The probe read
+   `documentElement.className`; `applyDocumentPreferences` writes them as
+   `data-*` attributes.
+
+A third, same family: a nav path request whose endpoints sit inside colliders
+returns an **empty** path, which a naive check reads as a perfectly straight
+line. Two attempts passed that way before the run was made self-discovering.
+
+## The club register (the book ruling, twice over)
+
+Built in Blender against `Designs/LedgerBook`:
+`tools/blender/build_ledger_book.py` -> `vendor/models/clubhouse/ledger_book.glb`.
+Green leather, gold-embossed double border, brass corner caps with edge lips
+and studs, five raised spine bands between brass caps, strap-and-buckle clasp,
+layered arched page block, ribbon. Two subtrees the runtime toggles
+(`LB_Closed` with a hinged `LB_CoverFront`, `LB_Open` with curved `LB_FaceL/R`
+carrying the live page canvases), so the cover swing and the open spread are
+the same book rather than two props.
+
+| Complaint | What changed | Evidence |
+|---|---|---|
+| "it's all backwards" | Both the GLB page UVs and the turning leaf's were mirrored. Viewer-left is local +x; the exporter flips v leaving Blender, so the leaf's front and back need opposite u. | `qa/electron/journal-probe/02-open-contents.png` |
+| "make the ui and text bigger" | One `TYPE_SCALE` (1.34) drives every glyph; rows per page 6 -> 5 so the type has room; every column and layout constant moved with it. | same frame |
+| "closer to the user... up and on an angle" | 0.40 m from the eye, tilted 0.60 rad off vertical: a lectern, not a table. | same frame |
+| "not too white where we cant see it well" | Page material tinted to `0xd7cfb8`. An unlit canvas at full white read as a glowing screen. | same frame |
+| "instructions on the bottom for how to switch pages" | Printed in the page's own foot; labels come from the LIVE binding table, so a rebound interact key cannot leave the book teaching the wrong key. | same frame |
+| "make the page swipes look super cool" | A segmented sheet that BENDS through the arc, hinged on the viewer-right edge so a forward turn lifts the right page across. | `03-mid-turn-*-TURNING.png` |
+| tools should stow like at the register | C10's station predicate gains the reading desk, so every tool present and future is covered by the one setter. | `courseScene.js syncStationToolStow` |
+
+The turn had a real bug behind the cosmetics: it swung the wrong way about +z
+and dived **through** the page block, so nothing was visible. The mid-turn frame
+also could not be captured by Playwright at all - the screenshot round-trip is
+slower than the 0.55 s turn, so every "mid-turn" shot was really an after-turn
+shot. It is captured in-page now.
+
+Drivers: `tools/qa/ledger-book.js` **20/20**, `tools/qa/house-notes.js` **11/11**.
+The ledger driver's negative control was sharpened: the old page-wide dark-ink
+counter was measuring printed table furniture (~3.7k px on a blank register).
+It now measures the **signature band** - **0** blank, **942** with one signature.
+
+**L4 rides here.** The dead-panel house note followed the wrong gate. While the
+office circuit is unpowered it now blames the circuit; once power is restored
+and the panel still gives nothing it blames the fitting. The old wording kept
+claiming "the ceiling circuit is dead" after the player had repaired that very
+circuit. House notes also paginate - the starter's 9 notes overflowed one page
+and the floor and beam teachings were silently dropped.
+
+## Q1 - the reveal shows the mess, not the room
+
+One filled quad per grime **cell** was the blob: a cell is 1.375 m across, so a
+dirty floor lit up as a wall of tiles saying nothing the condition chip does
+not. Grime is now speckles scattered inside each cell, count and size scaling
+with how dirty it is, placed by a deterministic hash so the same floor shows
+the same patches every boot.
+
+`tools/qa/reveal-specificity.js` **7/7**: **167 speckles over 20 dirty cells**
+(8 per cell, where the blob build drew 1) and the largest is **0.371 m against
+a 1.375 m cell - 27%**, so no single mark can read as a slab. The cell size
+comes from the renderer's own grid through diagnostics, not a number copied
+into the driver. Control: reveal off gives 0 instances and 0 alpha; releasing
+the key returns alpha below 0.01 (polled, because the fade is exponential and a
+fixed wait was measuring the fade rather than the off).
+
+## Q4 - the goods come first, the tee time is asked about afterwards
+
+A combined visit read backwards: check in at the desk, get handed a shopping
+errand, wander to the shelves, queue a second time. The errand is walked FIRST
+now and the desk business is raised at the counter once the sale banks, worded
+for whether they hold a booking or are hoping for one.
+
+`tools/qa/combined-visit-order.js` **6/6**, by recording the customer's phase
+every frame: the combined visitor's first phase is `shopping|shop` with a
+2-item cart while the desk errand is still pending, and the ask is unspoken
+until the sale banks. Control: a desk-only arrival never enters a shopping
+phase and carries no cart.
+
+Two harness fixes were needed because the staging could not reach the case:
+`sendWalkInToDesk` hard-coded a pure desk errand, and the combined-visit roll
+is now pinnable from QA.
+
+## Q5 - a box on the floor is a box the customers can see
+
+Only boxes the **player** had put down registered a nav collider, on the
+reasoning that delivered pad and stock stacks "sit at known-clear spots". They
+do not. Resting on the floor is the honest predicate, whoever put it there.
+
+`tools/qa/npc-obstacle-nav.js` **7/7** on a 10 m run the grid chose for itself:
+clear, one waypoint and zero offset (a string-pulled straight shot); with a box
+on the midpoint, four waypoints bending **1.5 m** and none inside the box
+footprint; box removed, straight again. A live customer walked the same floor
+with **zero** nav-block escalations.
+
+## Q3 - languages, and settings that are not placebos
+
+`src/core/i18n.js`: one table, English is the key set, other locales are
+overlays, a missing line falls through to English rather than showing a raw
+key, placeholders are named so word order can differ. Coverage is reported on
+the page rather than implied.
+
+`tools/qa/settings-language.js` **7/7**: choosing Spanish through the real
+select turns the tabs into Sonido / Camara / Controles / Pantalla / Idioma /
+Accesibilidad, the page body follows, and the choice is in the saved document.
+Control: back to English restores the tab strip and body **byte-identically**.
+Plus 10 unit tests on the fallthrough, placeholder and coverage rules.
+
+The same driver audits whether settings DO anything, reading the thing each
+drives rather than the value it stores: fov moves the camera, shadows move
+`renderer.shadowMap.enabled`, uiScale moves the CSS custom property, high
+contrast and reduced motion move their document attributes, mute and invert-Y
+move the live document. **Zero inert.**
+
+## N2 / F2 - full key rebinding, in one piece
+
+One table drives walk, prompts, settings capture and the book.
+`tools/qa/rebinding.js` **10/10**. The walk probe measures the best of four
+headings, because the register stand faces a collider and a live key blocked by
+furniture read as dead.
+
+## NOT DONE (session 13b)
+
+| Item | State |
+|---|---|
+| **Q2** card reader UI modernised | Not started. |
+| **Q6** characters - hat intersects the skull, real golf clothes | Not started. |
+| **Q7** one hand per tool, per-tool animation / sound / physics | Not started. Largest remaining piece; reference is `Screenshot 2026-08-06 021333.png` - a single hand wrapping the shaft, forearm running out of frame. |
+| **O2** rewrite player copy | Worklist drafted. Should land WITH the i18n row labels: rewriting and translating the same string twice is wasted work. |
+| **O3** final polish walk | Blocked on the above. |
+| **P1** texture pass, 19 files | Deliberately last, all-or-none. |
+| **M1** combined-visit share across a full 1x day | The ORDER is fixed and proven; the day-long share measurement is still outstanding. |
+| **A8** broom hand pose and sleeves | Reserved: graded personally. |
+
+## Known and accepted
+
+- Ignored walk-ins never leave. Patience is re-pinned each time they are
+  re-queued; this matches the reservation desk's policy and was left alone.
+- Settings row labels are English while tabs and headers translate. The
+  coverage line on the Language page says so rather than implying full support.
