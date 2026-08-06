@@ -9,43 +9,83 @@ Branch `feature/pro-shop-vertical-slice`. All verification in **Electron**,
 `--clubhouse=pine-hills-v2`, via `node tools/qa/run-electron.cjs <driver>`.
 Suite green (**2792 pass / 0 fail**) before each of the four commits, all pushed.
 
-`3872e0e` tags · `7927c8d` ledger · `5f9652c` tools 7+9 · `ee4bf1e` item 14 · `+1` item 12.
+Seven commits, all pushed. Suite green (**2794 pass / 0 fail**) before each.
 
-**I did not finish the queue.** Items 8, 10, 11, 13 and 15–25 are NOT DONE and listed at
-the bottom. I went deep on what I reached rather than shallow across all of it; the ledger
-block alone took a third of the session because three of its measurements were wrong
-before they were right. Whether that trade was correct is yours to judge.
+**I did not finish the queue.** Substantively worked: TAGS, ledger 1–6, tools 7 and 9,
+checkout 12, customers 14 — **seven of twenty-five items**. Items 8, 10, 11, 13 and 15–25
+are NOT DONE and listed at the bottom. I went deep on what I reached rather than shallow
+across all of it; TAGS alone took two passes and the ledger a third of the session,
+because in both cases the first answer was wrong and the instrument said otherwise.
+Whether that trade was correct is yours to judge — 2 of 4 sections is 2 of 4.
 
 ---
 
-## TAGS — asked three times, reported done twice
+## TAGS — asked three times, reported done twice · **done**
 
-**What changed.** Deleted `productBarcodeTexture` (a 512×256 white barcode canvas), the
-`RuntimeProductBarcode` plane `buildItemMesh` mounted on every item that crossed the
-counter, and `scanPoseFor`/`scanReadFor` — which posed a product by its printed label and
-judged a ray against it, dead since the scan arc became a click-slide, and the label's
-only remaining consumers. `barcodeFor` stays: the barcode is a transaction string on
-`userData`, and nothing draws it.
+### What I got wrong first, and the correction
 
-**Why it survived two "done" reports — the instrument.** The previous session's driver
-asserted `stickersPresent: counts.barcode >= 1`. It was written to *require* the label,
-and `checkout-scan-presentation.test.js` pinned `/RuntimeProductBarcode/` in the source.
-A green sweep was evidence for the opposite of what was asked. The first pass deleted
-shelf price rails; the second deleted the checkout swing tag but kept the sticker,
-reasoning that a sticker is packaging where a tag is signage. It still reads as a tag at
-the counter, which is where it was seen.
+My first commit tonight deleted the runtime checkout sticker and I reported TAGS
+done. **That was overstated and I am correcting it here.** It was the same
+mistake as the two passes before it: each deleted the tag it happened to be
+looking at and stopped. Nobody had ever swept the whole shipped set.
 
-Both assertions are now inverted, and the driver carries a **negative control**: it mounts
-a decoy label on a staged product, re-runs the audit, requires the decoy to be caught **by
-name and by shape** (unlit plane + canvas map parented to an item), then removes it. An
-audit that cannot see a tag cannot prove there isn't one.
+A scan of **all 531 GLBs** under `vendor/models` found **nine more** still
+carrying printed codes after the runtime sticker was gone:
+
+| Asset | What it carried |
+|---|---|
+| `checkout/scannable_product_box` | `PRODUCT_BARCODE` plane + `M_BoxBarcode` |
+| `clubhouse/checkout_product_shoe_box` | 12 × `ShoeBoxBarcodeBar_*` |
+| `clubhouse/checkout_product_folded_bottom` | `FoldedSizeTag` |
+| `clubhouse/delivery_fixture_product_*` (×5) | 11 bars each |
+| `clubhouse/provisions_fairway_spring_water` | backing + 13 bars |
+
+The five delivery cartons stand on the shop floor in every screenshot of the
+room, and the water bottle is a product the player picks up. **Those were the
+tags that were still there.**
+
+### The runtime sticker (first pass)
+
+Deleted `productBarcodeTexture` (a 512×256 white barcode canvas), the
+`RuntimeProductBarcode` plane `buildItemMesh` mounted on every item crossing the
+counter, and `scanPoseFor`/`scanReadFor` — dead since the scan became a
+click-slide, and the label's only remaining consumers. `barcodeFor` stays: the
+barcode is a transaction string, and nothing draws it.
+
+**Why it survived two "done" reports.** The previous session's driver asserted
+`stickersPresent: counts.barcode >= 1` — written to *require* the label — and
+`checkout-scan-presentation.test.js` pinned `/RuntimeProductBarcode/`. A green
+sweep was evidence for the opposite of what was asked.
+
+### The world assets (second pass)
+
+All removed at SOURCE in the Blender builders, six assets rebuilt, the scannable
+box synced into `vendor/`. Kept deliberately: the `BARCODE_AREA` /
+`ANCHOR_ProductBarcode` **empties**, which draw nothing and only record which
+face a reader would point at, and the shoe box's own brand/model/fit/size
+printing, which is packaging rather than signage.
+
+**Five more tests had to be inverted or re-baselined**, every one of them pinning
+the geometry being removed — the same trap, five more times.
+
+A result worth reading rather than skimming: the water bottle is instanced twelve
+per carton, so removing one printed code took 14 source meshes, a whole material
+batch and **3,168 triangles off every carton** — 63,360 triangles and 20
+instanced meshes across the twenty the census test builds.
+
+### Verification
 
 | | |
 |---|---|
-| Driver | `tools/qa/h3-tag-free-checkout.js` |
-| Result | clean: 0 label nodes, 0 unlit label planes; control caught both ways |
-| Screenshot | `qa/electron/h3-tags/counter-staged-close.png` — glove, polo, ball carton on the counter mid-sale, none carrying a label |
+| Sweep | **531 GLBs scanned, 0 hits** |
+| Permanent guard | `tests/no-printed-tags-in-assets.test.js` (0.7 s), with a negative control asserting the matcher recognises signage AND does not flag the invisible anchors |
+| Counter, mid-sale | `qa/electron/h3-tags/counter-staged-close.png` — glove, polo, ball carton, no labels; decoy control still fires |
+| **Delivery carton, close** | `qa/electron/tag-free-room/04-RECYCLE_FRONT_LIP.png` — label reads FAIRWAY SUPPLY / FRAGILE and nothing else; it carried 11 bars this morning |
+| **Room wide** | `qa/electron/tag-free-room/room-wide.png` — three more cartons on the shop floor, all bare |
 | Bar met | **yes** |
+
+The room shot took three attempts, each of which failed while still looking
+green — all recorded in the driver, and listed at the end of this report.
 
 ---
 
@@ -334,5 +374,15 @@ Recorded because a wrong instrument is exactly how the tag survived two "done" r
 10. Note-hover driver could not distinguish **a missing accessor** from an empty result,
     and reported "0 notes on the desk" when the truth was "this method was never
     forwarded through the register facade".
+11. Carton room shot set `walk.state` while the **register owned the camera** — the pose
+    never moved and it re-photographed the till.
+12. Carton room shot searched for the cartons by **GLB filename**; runtime node names are
+    not file names, so it found nothing, took zero screenshots, and four of its five
+    checks still passed.
+13. The wide room shot added `club.center` to `interior.position`, **double-counting the
+    offset**, and photographed the fairway.
+14. My fix for (13) was first written as `wideShotIsIndoors: true` — **a literal, not a
+    check**. It now asks the clubhouse whether the camera is inside its walls. This is
+    the exact habit that let a tag survive two green sweeps, committed by me, tonight.
 
 Every surviving probe now carries a negative control that is shown to fire.
