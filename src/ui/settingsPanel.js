@@ -9,6 +9,7 @@ import {
   storeClubhouseVariant,
 } from '../data/clubhouseVariant.js';
 import { CLUBHOUSE_VARIANT_REQUEST } from '../data/shopLayout.js';
+import { DEFAULT_LOCALE, LOCALES, coverage, onLocaleChange, t } from '../core/i18n.js';
 import { el, notify } from './ui.js';
 
 const pct = (value) => `${Math.round(Number(value) * 100)}%`;
@@ -110,7 +111,7 @@ export function makeSettingsPanel({
 
   function audioPage() {
     const mute = toggle('Mute all audio', 'Silences the master output without changing the category levels.', 'audio.muted', { on: 'Muted', off: 'Sound on' });
-    return section('Audio', 'Each category is mixed through one lifecycle-safe audio graph.',
+    return section(t('settings.audio.title'), t('settings.audio.intro'),
       mute,
       slider('Master volume', 'Overall game volume.', 'audio.master'),
       slider('Effects volume', 'Tools, doors, products, checkout, and movement feedback.', 'audio.effects'),
@@ -120,7 +121,7 @@ export function makeSettingsPanel({
   }
 
   function cameraPage() {
-    return section('Camera', 'Changes apply immediately and are restored on every mode transition.',
+    return section(t('settings.camera.title'), t('settings.camera.intro'),
       slider('Mouse sensitivity', 'How quickly the first-person camera turns.', 'camera.sensitivity', {
         min: 0.35, max: 2.5, step: 0.05, format: (value) => Number(value).toFixed(2),
       }),
@@ -195,7 +196,7 @@ export function makeSettingsPanel({
       value, text, selected: preferences.values.display.quality === value ? true : null,
       disabled: value === 'custom' ? true : null,
     })));
-    const page = section('Display', 'Visual settings change real renderer features; unsupported toggles are intentionally omitted.',
+    const page = section(t('settings.display.title'), t('settings.display.intro'),
       row('Graphics quality', 'Sets render scale, ambient occlusion, bloom, and shadows together.', quality),
       slider('Render scale', 'Internal 3D resolution. The interface remains at full clarity.', 'display.renderScale', {
         min: 0.65, max: 1.35, step: 0.05, format: pct,
@@ -306,7 +307,7 @@ export function makeSettingsPanel({
       },
     })));
 
-    return section('Controls', 'Click a keycap, then press the key you want. Prompts across the game follow the new key immediately.',
+    return section(t('settings.controls.title'), t('settings.controls.intro'),
       conflictNote(),
       ...rows,
     );
@@ -324,13 +325,43 @@ export function makeSettingsPanel({
           }) : null,
         ))
       : null;
-    return section('Accessibility', 'Critical state is paired with text and symbols; no setting depends on color alone.',
+    return section(t('settings.accessibility.title'), t('settings.accessibility.intro'),
       toggle('Reduced motion', 'Removes menu animation, camera bob, tool sway, and eased focus transitions.', 'accessibility.reducedMotion'),
       toggle('High-contrast interface', 'Strengthens panel, focus, prompt, and status boundaries.', 'accessibility.highContrast'),
       choice('Sustained tool use', 'Choose whether cleaning and maintenance tools run while held or toggle on each press.', 'accessibility.toolActivation', [
         ['hold', 'Hold button'], ['toggle', 'Press to toggle'],
       ]),
       tutorialControls,
+    );
+  }
+
+  // --- Language ------------------------------------------------------------------
+  // Q3 (2026-08-06): "add a languages section in the settings so people who speak
+  // spanish, french, english etc can play my game just fine". The picker is
+  // labelled in each language's OWN name, because someone who cannot read the
+  // current language still has to be able to find theirs. Coverage is reported
+  // honestly rather than implied: anything not yet translated stays in English
+  // and the page says how much that is.
+  function languagePage() {
+    const current = preferences.get('locale') || DEFAULT_LOCALE;
+    const select = el('select', {
+      'aria-label': t('settings.language.select'),
+      class: 'setting-language-select',
+      onchange: (event) => {
+        set('locale', event.currentTarget.value);
+        render(); // the page itself is written in the language being chosen
+      },
+    }, ...LOCALES.map((entry) => el('option', {
+      value: entry.id,
+      text: entry.id === current ? entry.endonym : `${entry.endonym} (${entry.label})`,
+      selected: entry.id === current ? true : null,
+    })));
+    const cover = coverage(current);
+    return section(t('settings.language.title'), t('settings.language.intro'),
+      row(t('settings.language.select'), t('settings.language.select.detail'), select),
+      el('div', { class: 'setting-native-status', role: 'status' },
+        description(t('settings.language.coverage', { done: cover.done, total: cover.total })),
+      ),
     );
   }
 
@@ -400,6 +431,7 @@ export function makeSettingsPanel({
     camera: cameraPage,
     controls: controlsPage,
     display: displayPage,
+    language: languagePage,
     accessibility: accessibilityPage,
     ...(devSessionActive() ? { developer: developerPage } : {}),
   };
@@ -416,20 +448,17 @@ export function makeSettingsPanel({
 
   // Driven off `pages` so the Developer tab cannot be present in one list and missing
   // from the other — the arrow-key handler indexes the same keys.
-  const TAB_LABELS = {
-    audio: 'Audio',
-    camera: 'Camera',
-    controls: 'Controls',
-    display: 'Display',
-    accessibility: 'Accessibility',
-    developer: 'Developer',
-  };
-  for (const [id, label] of Object.keys(pages).map((id) => [id, TAB_LABELS[id] || id])) {
-    tabs.append(el('button', {
-      type: 'button', role: 'tab', class: 'settings-tab', text: label, 'data-page': id,
+  // the tab strip is drawn in the chosen language too, so it is rebuilt on a
+  // language change rather than left in the one the player just left
+  const tabLabel = (id) => t(`settings.tab.${id}`);
+  function buildTabs() {
+    tabs.replaceChildren(...Object.keys(pages).map((id) => el('button', {
+      type: 'button', role: 'tab', class: 'settings-tab', text: tabLabel(id), 'data-page': id,
       onclick: () => { active = id; render(); audio?.uiTick?.(); },
-    }));
+    })));
   }
+  buildTabs();
+  onLocaleChange(() => { buildTabs(); render(); });
   tabs.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();

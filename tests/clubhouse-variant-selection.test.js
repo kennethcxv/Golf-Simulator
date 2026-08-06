@@ -229,6 +229,11 @@ test('the Developer tab is wired into the settings panel', () => {
   assert.match(panel, /devSessionActive\(\) \? \{ developer: developerPage \} : \{\}/);
   assert.match(panel, /storeClubhouseVariant/);
   // The tab strip and the arrow-key handler must be driven from the same key list, or
-  // the conditional tab exists in one and not the other.
-  assert.match(panel, /Object\.keys\(pages\)\.map\(\(id\) => \[id, TAB_LABELS\[id\] \|\| id\]\)/);
+  // the conditional tab exists in one and not the other. Q3 moved the strip into
+  // buildTabs() so a language change can redraw it; the INTENT is unchanged and is
+  // what this pins - the buttons still come from Object.keys(pages).
+  assert.match(panel, /function buildTabs\(\)/);
+  assert.match(panel, /tabs\.replaceChildren\(\.\.\.Object\.keys\(pages\)\.map\(/);
+  // and a language change rebuilds it, or the strip keeps the language just left
+  assert.match(panel, /onLocaleChange\(\(\) => \{ buildTabs\(\); render\(\); \}\)/);
 });

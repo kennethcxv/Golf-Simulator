@@ -3,6 +3,7 @@
 // prevents each surface from inventing its own idea of "settings".
 
 import { DEFAULT_BINDINGS, normalizeBindings } from './keyBindings.js';
+import { DEFAULT_LOCALE, isLocale, setLocale } from './i18n.js';
 
 export const PREFERENCES_KEY = 'golfempire:preferences:v1';
 
@@ -33,6 +34,8 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     highContrast: false,
     toolActivation: 'hold',
   }),
+  // Q3: the language everything the player reads is drawn in (src/core/i18n.js)
+  locale: DEFAULT_LOCALE,
   // N2/F2: the one binding table every key read resolves through
   controls: Object.freeze({
     bindings: DEFAULT_BINDINGS,
@@ -78,6 +81,9 @@ export function normalizePreferences(raw = {}) {
       highContrast: bool(accessibility.highContrast, DEFAULT_PREFERENCES.accessibility.highContrast),
       toolActivation: oneOf(accessibility.toolActivation, ['hold', 'toggle'], DEFAULT_PREFERENCES.accessibility.toolActivation),
     },
+    // Q3: an unknown or missing locale falls back to English rather than
+    // leaving the game drawing from a table that does not exist
+    locale: isLocale(raw.locale) ? raw.locale : DEFAULT_LOCALE,
     controls: {
       bindings: normalizeBindings(raw.controls?.bindings),
     },
@@ -147,6 +153,10 @@ export function makePreferences(storage = globalThis.localStorage) {
   }
 
   function publish(result) {
+    // Q3: the i18n table follows the document, so every surface that draws a
+    // line through t() is already correct by the time the listeners run. One
+    // place does this, so no screen can be left drawing the old language.
+    setLocale(values.locale);
     for (const listener of listeners) listener(values, result);
     return result;
   }
@@ -171,7 +181,9 @@ export function makePreferences(storage = globalThis.localStorage) {
     return publish(persist());
   }
 
-  // Persist a migrated document so the next launch has one source of truth.
+  // Persist a migrated document so the next launch has one source of truth,
+  // and put the saved language in force before anything draws.
+  setLocale(values.locale);
   persist();
 
   return {

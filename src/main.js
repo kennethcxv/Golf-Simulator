@@ -118,6 +118,9 @@ const scopedKey = (key) => (sceneScope ? `${sceneScope}-${key}` : key);
 setNotificationScope(sceneScope);
 
 const app = {
+  // the live preferences document, so a QA driver can audit whether a setting
+  // actually drives anything instead of only being written to storage
+  preferences,
   screen: 'menu', // 'menu' | 'market' | 'game'
   view: 'course', // one continuous world — the shop is a building you walk into
   courseMode: 'walk', // 'walk' (first-person, default) | 'overview' (management rig) | 'editor' (course editor)
