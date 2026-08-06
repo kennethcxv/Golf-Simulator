@@ -11713,6 +11713,14 @@ export function makeClubhouse(ctx) {
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
+      // ITEM 12: the offered notes INDIVIDUALLY. presentedCashScreenPoint
+      // returns the pile's one generous hit sphere, which is the right target
+      // to click and the wrong one to aim a per-note hover test at. This
+      // facade is a hand-written whitelist, so a method added to the register
+      // is invisible until it is forwarded here — which is exactly how the
+      // first run of the note-hover driver reported "0 notes on the desk"
+      // when it should have said "the accessor never existed".
+      presentedTenderScreenPoints: () => register.presentedTenderScreenPoints(),
       presentedCardScreenPoint: () => register.presentedCardScreenPoint(),
       cardTerminalScreenPoint: () => register.cardTerminalScreenPoint(),
       insertAt: () => register.insertAt(),

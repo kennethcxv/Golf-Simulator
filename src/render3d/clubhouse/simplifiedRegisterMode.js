@@ -6828,7 +6828,42 @@ export function createRegisterMode(B) {
 
   // Is this pick the payment the customer is holding out? Those get the green
   // grabbable rim; everything else keeps the brass working outline.
-  function offeredPaymentTarget(object) {
+  // ITEM 12 (2026-08-06): "hovering a note outlines THAT note only. Thin
+  // outline, no fill."
+  //
+  // It outlined the whole pile, because this returned `tenderMeshes` — every
+  // note the customer laid down — the moment the cursor touched any of them.
+  // And it had to: the pick that reaches here is usually `tenderHandful`, one
+  // generous invisible sphere over the entire pile, which exists so that
+  // taking a payment is not a hunt for a 2 mm note edge. A hit on the sphere
+  // says "the pile", never "which note".
+  //
+  // Both wants are satisfiable. The CLICK keeps the generous sphere — it takes
+  // the whole payment anyway, so precision there buys nothing. The OUTLINE
+  // resolves the note under the cursor for itself: a direct ray against the
+  // notes, and if the cursor is over the sphere but between notes, the note
+  // whose centre lies nearest the ray. One note, always.
+  function noteUnderCursor(event) {
+    if (!tenderMeshes.length) return null;
+    if (!event) return tenderMeshes[0];
+    setNdc(event);
+    ray.setFromCamera(ndc, camera);
+    const direct = ray.intersectObjects(tenderMeshes, false);
+    if (direct.length) return direct[0].object;
+    // nothing struck: fall back to the note closest to the cursor's ray, so a
+    // hover in the gaps between notes still names exactly one of them
+    let best = null;
+    let bestDistance = Infinity;
+    const centre = new THREE.Vector3();
+    for (const mesh of tenderMeshes) {
+      mesh.getWorldPosition(centre);
+      const distance = ray.ray.distanceToPoint(centre);
+      if (distance < bestDistance) { bestDistance = distance; best = mesh; }
+    }
+    return best;
+  }
+
+  function offeredPaymentTarget(object, event = null) {
     if (!object || !tx) return null;
     const kind = object.userData.kind;
     if (kind === 'payment-card' && tx.stage === 'card-ready' && cardMesh) {
@@ -6837,7 +6872,9 @@ export function createRegisterMode(B) {
     const offeredCash = tx.stage === 'cash-tender'
       || (tx.stage === 'cash-drawer' && !tx.deposited);
     if (kind === 'money' && object.userData.from === 'tender' && offeredCash) {
-      return tenderMeshes.length ? tenderMeshes : [object];
+      // THAT note, not the pile
+      const note = noteUnderCursor(event);
+      return note ? [note] : [object];
     }
     return null;
   }
@@ -6850,7 +6887,7 @@ export function createRegisterMode(B) {
     const object = physicalPick(event);
     let target = null;
     let tip = '';
-    const offered = offeredPaymentTarget(object);
+    const offered = offeredPaymentTarget(object, event);
     if (offered) {
       setGrabOutline(offered);
       showTip('Take payment', event);
@@ -6989,7 +7026,7 @@ export function createRegisterMode(B) {
     if (workspace === 'card') {
       // the customer's offered card rims green under the cursor — the same
       // grabbable affordance the offered cash carries (reference 154506)
-      const offered = offeredPaymentTarget(physicalPick(event));
+      const offered = offeredPaymentTarget(physicalPick(event), event);
       setGrabOutline(offered);
       showTip(offered ? 'Take payment' : '', event);
       setHoverCursor(!!offered || !!terminalKeyAt(event) || terminalXHitAt(event)
@@ -7014,7 +7051,7 @@ export function createRegisterMode(B) {
       // direct click targets from the monitor view. The customer's offered
       // cash gets the bright-green grabbable rim; goods keep the brass box.
       const object = physicalPick(event);
-      const offered = offeredPaymentTarget(object);
+      const offered = offeredPaymentTarget(object, event);
       if (offered) {
         setGrabOutline(offered);
         showTip('Take payment', event);
@@ -8207,6 +8244,16 @@ export function createRegisterMode(B) {
     return point ? { ...point, clickable: !!(tx && tx.stage === 'card-ready') } : null;
   };
   const cardTerminalScreenPoint = () => meshScreenPoint(termScreenPlane);
+  // ITEM 12: the offered notes, each on its own, so a driver can hover ONE of
+  // them and check that only that one is outlined. The pile's click target is
+  // a single generous sphere, so there was no way to aim at an individual
+  // note from outside.
+  const presentedTenderScreenPoints = () => tenderMeshes
+    .map((mesh, index) => {
+      const point = meshScreenPoint(mesh);
+      return point ? { ...point, index, denom: mesh.userData?.denom ?? null, uuid: mesh.uuid } : null;
+    })
+    .filter(Boolean);
   const insertAt = () => ({
     start: { x: cardInsertStart.x, y: cardInsertStart.y, z: cardInsertStart.z },
     inserted: { x: cardInserted.x, y: cardInserted.y, z: cardInserted.z },
@@ -8291,6 +8338,7 @@ export function createRegisterMode(B) {
     simplified: true,
     presentedCashScreenPoint,
     presentedCardScreenPoint,
+    presentedTenderScreenPoints,
     // QA-only: the game's own X hit-test and screen UV at a page point, so a
     // driver can measure the exact math a real click runs instead of rebuilding
     // it outside and diverging (which is how a probe blamed the wrong canvas).
