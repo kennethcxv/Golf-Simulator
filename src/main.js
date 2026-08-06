@@ -2261,9 +2261,14 @@ window.addEventListener('keydown', (e) => {
       if (walkActive() && app.scene3d?.walk?.cart?.mounted) return;
       app.speedIdx = app.speedIdx === 0 ? 1 : 0;
       return;
-    case '1': app.speedIdx = 1; return;
-    case '2': app.speedIdx = 2; return;
-    case '3': app.speedIdx = 3; return;
+  }
+  // ITEM 23: the speed keys are BOUND, not literal. They were three `case '1'`
+  // arms here, so no amount of rebinding could reach them.
+  {
+    const speed = boundAction(e);
+    if (speed === 'speedPause') { app.speedIdx = 1; return; }
+    if (speed === 'speedNormal') { app.speedIdx = 2; return; }
+    if (speed === 'speedFast') { app.speedIdx = 3; return; }
   }
 
   // Tab must never reach DOM focus in-game, whatever it is bound to
@@ -2303,18 +2308,16 @@ window.addEventListener('keydown', (e) => {
         placement.rotate();
         return;
       }
-      switch (e.key) {
-        case 'Escape':
-          if (placement.isActive()) {
-            e.preventDefault();
-            placement.cancel();
-            return;
-          }
-          break;
-        case 'b': case 'B':
-          toast('Set down or recycle the carton before rearranging fixtures.', 'warn');
-          return;
-        default: break;
+      // ITEM 23: the build key is BOUND here too. Escape stays literal because
+      // keyBindings reserves it.
+      if (placementAction === 'buildMode') {
+        toast('Set down or recycle the carton before rearranging fixtures.', 'warn');
+        return;
+      }
+      if (e.key === 'Escape' && placement.isActive()) {
+        e.preventDefault();
+        placement.cancel();
+        return;
       }
     }
 
@@ -2342,6 +2345,25 @@ window.addEventListener('keydown', (e) => {
         }
         return;
       }
+      // ITEM 23: build mode's own keys. The two that duplicate a MAIN binding
+      // are routed through it - the inventory key is the maintenance-panel
+      // binding and the exit key is the build-mode binding, so rebinding either
+      // moves both places at once. The rest (rotate, stow, undo, arrows) are
+      // build-mode-only verbs with no row on the rebinding screen; they are
+      // recorded in the report as the remaining literal set rather than
+      // invented bindings nobody asked for.
+      const buildAction = boundAction(e);
+      if (buildAction === 'maintenancePanel') {
+        e.preventDefault();
+        if (!e.repeat) bld.toggleInventory();
+        return;
+      }
+      if (buildAction === 'buildMode') {
+        e.preventDefault();
+        bld.exit();
+        toast('Back to work.');
+        return;
+      }
       switch (e.key) {
         case 'e': case 'E':
           e.preventDefault();
@@ -2354,10 +2376,6 @@ window.addEventListener('keydown', (e) => {
         case 'x': case 'X':
           e.preventDefault();
           if (!e.repeat) bld.stow();
-          return;
-        case 'i': case 'I':
-          e.preventDefault();
-          if (!e.repeat) bld.toggleInventory();
           return;
         case 'ArrowUp': case 'ArrowLeft':
           e.preventDefault();
@@ -2374,11 +2392,6 @@ window.addEventListener('keydown', (e) => {
         case 'z': case 'Z':
           e.preventDefault();
           if (!e.repeat) bld.undo();
-          return;
-        case 'b': case 'B':
-          e.preventDefault();
-          bld.exit();
-          toast('Back to work.');
           return;
         case 'Escape':
           e.preventDefault();
@@ -2489,10 +2502,13 @@ window.addEventListener('keydown', (e) => {
         handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
         return;
       }
-      default: break; // not a bound action: the literal mode keys below
-    }
-    switch (e.key) {
-      case 'b': case 'B': {
+      // ITEM 23: build mode and the four panel toggles now live HERE, in the
+      // bound-action switch, instead of as literal `case 'b'` arms in the
+      // switch below. They were the eight verbs the rebinding screen offered
+      // no row for, and two of them were written out twice - once for inside
+      // the clubhouse and once for outside - so the same key had to be changed
+      // in two places and neither was reachable from settings.
+      case 'buildMode': {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         const w = app.scene3d.walk.state;
         if (!ch || !ch.isInside(w.x, w.z)) {
@@ -2504,31 +2520,35 @@ window.addEventListener('keydown', (e) => {
         objectivesPanel.refresh();
         break;
       }
-      case 'i': case 'I':
+      case 'maintenancePanel':
         setMaintenanceVisible(!maintenancePanel?.isVisible());
         break;
-      case 'g': case 'G':
+      case 'groundsPanel':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
         handlers.toggleGrounds();
         break;
-      case 'c': case 'C':
+      case 'clubPanel':
         if (document.pointerLockElement) document.exitPointerLock();
         handlers.toggleClub();
         break;
-      case 'm': case 'M':
+      case 'empirePanel':
         if (document.pointerLockElement) document.exitPointerLock();
         handlers.toggleEmpire();
         break;
-      case 'Escape':
-        e.preventDefault();
-        if (app.selectedSection) inspectPanel.hide();
-        else if (app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
-        else {
-          stopToolUse();
-          if (document.pointerLockElement) document.exitPointerLock();
-          openPauseMenu();
-        }
-        break;
+      default: break;
+    }
+    // ESCAPE STAYS LITERAL, and must: keyBindings reserves it precisely so the
+    // pause-menu escape hatch can never be rebound away. boundAction returns
+    // null for it, so it cannot live in the switch above.
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (app.selectedSection) inspectPanel.hide();
+      else if (app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
+      else {
+        stopToolUse();
+        if (document.pointerLockElement) document.exitPointerLock();
+        openPauseMenu();
+      }
     }
     return;
   }
@@ -2545,14 +2565,17 @@ window.addEventListener('keydown', (e) => {
     handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
     return;
   }
-  switch (e.key) {
-    case 'g': case 'G':
+  // ITEM 23: the overview map's panel toggles were a SECOND literal copy of
+  // the same three keys, so rebinding had to be done twice and could be done
+  // in neither. One binding, one place.
+  switch (overviewAction) {
+    case 'groundsPanel':
       handlers.toggleGrounds();
       break;
-    case 'c': case 'C':
+    case 'clubPanel':
       handlers.toggleClub();
       break;
-    case 'm': case 'M':
+    case 'empirePanel':
       handlers.toggleEmpire();
       break;
     case 'Escape':

@@ -31,6 +31,23 @@ export const BINDABLE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'cartLights', label: 'Cart lights', group: 'Driving', defaultKey: 'l' }),
   Object.freeze({ id: 'cartCamera', label: 'Cart camera', group: 'Driving', defaultKey: 'v' }),
   Object.freeze({ id: 'mowerBlades', label: 'Mower blades', group: 'Driving', defaultKey: 'r' }),
+  // ITEM 23 (2026-08-06): "full key rebinding, IN ONE PIECE."
+  //
+  // Rebinding already existed and was good — a row per verb, conflict
+  // detection, reset to defaults — but eight player-facing verbs never reached
+  // it. They were handled as literal `case 'b': case 'B':` in main.js's key
+  // switch, several of them written out twice (once inside the clubhouse, once
+  // outside), so a player who rebound everything the panel offered still could
+  // not move build mode off B or the speed keys off 1/2/3. Half a rebinding
+  // screen is arguably worse than none: it tells you the keys are yours.
+  Object.freeze({ id: 'buildMode', label: 'Build / rearrange mode', group: 'Interface', defaultKey: 'b' }),
+  Object.freeze({ id: 'maintenancePanel', label: 'Maintenance panel', group: 'Interface', defaultKey: 'i' }),
+  Object.freeze({ id: 'groundsPanel', label: 'Grounds panel', group: 'Interface', defaultKey: 'g' }),
+  Object.freeze({ id: 'clubPanel', label: 'Club panel', group: 'Interface', defaultKey: 'c' }),
+  Object.freeze({ id: 'empirePanel', label: 'Empire panel', group: 'Interface', defaultKey: 'm' }),
+  Object.freeze({ id: 'speedPause', label: 'Speed: paused', group: 'Time', defaultKey: '1' }),
+  Object.freeze({ id: 'speedNormal', label: 'Speed: normal', group: 'Time', defaultKey: '2' }),
+  Object.freeze({ id: 'speedFast', label: 'Speed: fast', group: 'Time', defaultKey: '3' }),
 ]);
 
 export const DEFAULT_BINDINGS = Object.freeze(Object.fromEntries(
