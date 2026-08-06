@@ -1731,6 +1731,9 @@ export function makeClubhouse(ctx) {
     }
     leaveReview(c, true);
     clearCustomerItemMeshes(c);
+    // the goods are paid for; if they also came for the course, THIS is where
+    // they raise it - after everything is scanned, at the same counter
+    beginPendingDesk(c);
     // FINALIZE is the ownership boundary: only after the sale banks do the
     // branded carrier, receipt, and any oversize goods attach to the customer.
     // This keeps unpaid props at the counter while ensuring paid goods remain
@@ -8589,7 +8592,9 @@ export function makeClubhouse(ctx) {
   // "no other reason to be here" branch. 0.45 is the rate a real pro shop
   // recognises — most people at the desk glance at the wall on the way past —
   // and it is a named constant so the measured share can be moved deliberately.
-  const COMBINED_VISIT_CHANCE = 0.45;
+  // QA can pin this so a driver observes the case it means to observe rather
+  // than waiting on a coin flip; the live game always uses the default.
+  let COMBINED_VISIT_CHANCE = 0.45;
   // The C6 acceptance instrument. Counting live customers cannot answer "N of M
   // visits", because a visit ends by being removed from the array — so the tally
   // is incremented at the four moments and read afterwards.
@@ -9060,34 +9065,33 @@ export function makeClubhouse(ctx) {
     return { organicPlan, stops };
   }
 
-  // Hand a golfer the retail errand they arrived carrying, instead of the exit.
-  // Called from the two desk-release sites; returns false when there is nothing
-  // pending, which keeps both call sites' existing behaviour untouched.
-  function beginPendingRetail(c) {
-    if (!c || !c.pendingRetail || !c.pendingRetail.stops.length) return false;
-    const { organicPlan, stops } = c.pendingRetail;
-    c.pendingRetail = null;
-    c.combinedVisit = true;
-    const exitIdx = c.stops.findIndex((stop) => stop.kind === 'exit');
-    const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
-    const tail = [
-      ...stops,
-      { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z },
-    ];
-    c.stops = exitIdx >= 0
-      ? [...c.stops.slice(0, exitIdx), ...tail, ...c.stops.slice(exitIdx)]
-      : [...c.stops, ...tail];
-    c.stopIdx = Math.max(0, exitIdx >= 0 ? exitIdx : c.stops.length - tail.length);
-    c.targetCartSize = organicPlan.target;
-    // Same expression spawnCustomer uses, so a spliced errand and a spawned one
-    // enter the phase machine in exactly the same state.
-    c.checkoutPhase = organicPlan.target ? 'shopping' : 'browsing';
-    c.currentDestination = 'shop';
+  // THE SECOND HALF OF A COMBINED VISIT (2026-08-06 order ruling).
+  //
+  // The shopping is walked first now, so what is held back is the DESK
+  // business: the golfer pays for their goods, then asks about their tee time
+  // at the same counter without queueing twice. Called from the paid-sale
+  // site; returns false when there is nothing pending, which leaves a
+  // shop-only customer's behaviour exactly as it was.
+  function beginPendingDesk(c) {
+    if (!c || !c.deskErrandPending) return false;
+    if (c.reservationId == null && !c.requestedTeeMinute) return false;
+    c.deskErrandPending = false;
+    // they stay where they are - already at the head of the counter - and
+    // become desk business, which is what puts them on the check-in list
+    c.checkoutPhase = c.reservationId != null ? 'reservation-waiting' : 'walk-in-waiting';
+    c.currentDestination = 'front-desk';
     c.awaitingCheckout = false;
-    c.checkoutFlow = organicPlan.target ? createCheckoutFlow({ nowMs: flowNow() }) : null;
-    c.path = null;
-    c.pathGoal = null;
-    c.linger = 1.5;
+    c.patience = PATIENCE_FULL;
+    setPatience(c);
+    if (!c.deskErrandSpoken) {
+      c.deskErrandSpoken = true;
+      // asked AFTER the goods, and the wording follows whether they hold a
+      // booking or are hoping for one
+      c.dialogue = c.reservationId != null
+        ? 'While I am here, can I check in for my tee time?'
+        : 'One more thing, have you got a time free today?';
+      if (hooks.toast) hooks.toast(`${c.name}: ${c.dialogue}`, 'info');
+    }
     visitTally.combinedStarted += 1;
     return true;
   }
@@ -9201,9 +9205,10 @@ export function makeClubhouse(ctx) {
     // the approach: porch step, then just inside the door (the doorbell moment)
     stops.push({ kind: 'walk', x: doorW.x, z: doorW.z + 2.6 });
     stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
-    // C6: a shopping plan is no longer welded to "arrived with no other reason".
-    // A tee-time arrival gets one too, on a roll, and carries it as
-    // `pendingRetail` until the desk is finished with them.
+    // C6: a shopping plan is no longer welded to "arrived with no other
+    // reason" - a tee-time arrival gets one too, on a roll. Since the
+    // 2026-08-06 order ruling they WALK it first and hold the desk business
+    // back (`deskErrandPending`) until the goods are paid for.
     const combinedIntent = (toCounter || walkInRequest)
       && options.skipRetailPlan !== true
       && rng.chance(COMBINED_VISIT_CHANCE)
@@ -9214,7 +9219,13 @@ export function makeClubhouse(ctx) {
     visitTally.arrivals += 1;
     if (toCounter || walkInRequest) visitTally.deskErrands += 1; else visitTally.retailOnly += 1;
     if (combinedIntent) visitTally.combinedOffered += 1;
-    if (retailPlan && !combinedIntent) {
+    // 2026-08-06 ruling: "they first buy things from the shop and then on top
+    // of that after you scan everything they say can i also check in for my
+    // time". So a combined visit SHOPS FIRST and raises the desk errand at the
+    // counter once the goods are scanned. Previously the desk came first and
+    // the shopping was spliced in afterwards, which read backwards: the golfer
+    // checked in, wandered off, and queued a second time.
+    if (retailPlan) {
       organicPlan = retailPlan.organicPlan;
       stops.push(...retailPlan.stops);
     }
@@ -9289,23 +9300,28 @@ export function makeClubhouse(ctx) {
       rangBell: false,
       cart: [],
       targetCartSize: organicPlan.target,
-      // C6: the retail errand a golfer arrived carrying, handed to them by
-      // beginPendingRetail() once the desk is done rather than at spawn — a
-      // customer who is browsing must not still be on the desk's list.
-      pendingRetail: combinedIntent ? retailPlan : null,
-      combinedVisit: false,
+      // C6 + the 2026-08-06 order ruling: the errand is now walked FIRST, so
+      // nothing is held pending. What IS held is the desk business, raised at
+      // the counter after the goods are scanned.
+      deskErrandPending: combinedIntent,
+      deskErrandSpoken: false,
+      combinedVisit: combinedIntent,
       scanned: 0,
       patience: PATIENCE_FULL,   // the 3-minute register clock; browsing never drains it
       awaitingCheckout: false,
       itemMeshes: new Map(),
       checkoutProductResources: createRegisterItemResources(),
       oversizeCarryRoot: null,
+      // a combined visitor is a SHOPPER until the goods are paid for; only
+      // then do they become desk business
       checkoutPhase: organicPlan.target
         ? 'shopping'
         : (reservationId != null
           ? (loungeEarly ? 'reservation-arriving' : 'reservation-arriving')
           : walkInRequest ? 'walk-in-arriving' : 'browsing'),
-      currentDestination: loungeEarly ? 'lounge' : (toCounter || walkInRequest ? 'front-desk' : 'shop'),
+      currentDestination: loungeEarly
+        ? 'lounge'
+        : ((toCounter || walkInRequest) && !combinedIntent ? 'front-desk' : 'shop'),
       loungeUntil: loungeEarly ? deskReadyAt : null,
       deskGreetingSpoken: false,
       dialogue: '',
@@ -10078,7 +10094,6 @@ export function makeClubhouse(ctx) {
     if (reason === 'checked-in' || reason === 'completed') {
       visitTally.checkInsCompleted += 1;
       leaveQueue(c);
-      if (beginPendingRetail(c)) return true;
     }
     c.checkoutPhase = 'reservation-leaving';
     c.currentDestination = 'exit';
@@ -11717,15 +11732,24 @@ export function makeClubhouse(ctx) {
     // all run the production path. options.requestedTeeMinute pins the ask
     // for deterministic tests; omitted, the customer draws one at spawn.
     sendWalkInToDesk(options = {}) {
+      // A staged desk errand is PURE by default: a rolled combined-visit
+      // retail plan would send the walker to the shelves instead of the
+      // queue, and every L1 driver depends on them arriving at the desk.
+      // Pass skipRetailPlan:false to stage the COMBINED case instead, which
+      // needs the natural route left alone so the shop half is actually
+      // walked before the counter.
+      const pureDeskErrand = options.skipRetailPlan !== false;
       const c = spawnCustomer(false, null, {
         forceWalkIn: true,
-        // a staged desk errand is pure: a rolled combined-visit retail plan
-        // would send the walker to the shelves instead of the queue
-        skipRetailPlan: true,
+        skipRetailPlan: pureDeskErrand,
         requestedTeeMinute: options.requestedTeeMinute,
       });
       if (!c) return null;
       c.scriptedVisit = true;
+      if (!pureDeskErrand) {
+        c.entered = true;
+        return c;
+      }
       const q = queueSlotW(0);
       c.mesh.position.set(q.x, c.mesh.position.y, q.z);
       const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
@@ -12023,6 +12047,13 @@ export function makeClubhouse(ctx) {
     // exactly why every NPC quantity used to be wall-bound.
     setSimSpeed,
     simTimeDiagnostics,
+    // QA-only: pin the combined-visit roll so a driver can observe the
+    // combined case and the desk-only case deliberately instead of waiting on
+    // chance. Never called by the game.
+    setCombinedVisitChance: (value) => {
+      COMBINED_VISIT_CHANCE = Math.max(0, Math.min(1, Number(value) || 0));
+      return COMBINED_VISIT_CHANCE;
+    },
     clearWalkins: () => { // QA: empty the floor (returns every held cart to the shelf) so a scripted run starts clean
       for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
     },
