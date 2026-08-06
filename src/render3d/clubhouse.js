@@ -7476,11 +7476,16 @@ export function makeClubhouse(ctx) {
         m.userData.deliveryPresentationState = box.loc === 'pad' ? 'pallet-ready' : 'world-ready';
         m.userData.deliveryInteractionEnabled = true;
 
-        // a set-down box occupies the floor: register a collider so the player AND the
-        // customer nav grid (which bakes from the same list) both treat it as solid. Only
-        // WORLD drops — the ones a player can put anywhere; pad/stock stacks sit at
-        // known-clear spots. The sig gate means a hold-to-cut (same spot) never re-bakes nav.
-        if (box.loc === 'world' && resolvedSurfaceId === FLOOR_BOX_SURFACE_ID) {
+        // A box on the floor occupies the floor: register a collider so the player AND
+        // the customer nav grid (which bakes from the same list) both treat it as solid.
+        // The sig gate means a hold-to-cut (same spot) never re-bakes nav.
+        //
+        // This used to also require box.loc === 'world' - only boxes the PLAYER had put
+        // down - on the reasoning that delivered pad and stock stacks "sit at known-clear
+        // spots". They do not: a delivery lands them on the sales floor and customers
+        // walked straight into them, because the grid could not see them and the path went
+        // through. Resting on the floor is the honest predicate, whoever put it there.
+        if (resolvedSurfaceId === FLOOR_BOX_SURFACE_ID) {
           const cdim = boxDims(box.box || 'carton');
           const cosine = Math.abs(Math.cos(ry));
           const sine = Math.abs(Math.sin(ry));
@@ -10392,6 +10397,7 @@ export function makeClubhouse(ctx) {
   // navBlockDiagnostics(); the QA day runs assert against it.
   const navBlockLog = [];
   let navBlocksTotal = 0;
+  const debugFloorBoxCols = []; // QA-only: obstacles a driver dropped, so it can take them away
   function recordNavBlock(c, action, tx, tz, wp) {
     navBlocksTotal += 1;
     const near = [];
@@ -11702,6 +11708,54 @@ export function makeClubhouse(ctx) {
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.
     navBlockDiagnostics: () => ({ total: navBlocksTotal, recent: navBlockLog.slice(-120) }),
+    // QA-only: the three things a nav claim needs to be measurable rather than
+    // asserted - the path the customers' own grid returns, a floor obstacle
+    // dropped where the driver wants one, and the ladder's running tally.
+    navBlockReport: () => navBlockLog.slice(),
+    // Path between two points the GRID chose, not two a driver guessed. A
+    // request that starts or ends inside a collider returns an empty path,
+    // which reads to a naive driver as a perfectly straight line - so the
+    // endpoints are snapped, and the run itself is discovered by sweeping the
+    // sales floor for the longest clear span the grid will actually walk.
+    debugCustomerRun: (span = 5.0) => {
+      const grid = navFresh();
+      const seedW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      const anchor = grid.nearestOpenWorld(seedW.x, seedW.z + 3.0, 10);
+      if (!anchor) return null;
+      const openAt = (x, z) => {
+        const p = grid.nearestOpenWorld(x, z, 0.35);
+        return p && Math.hypot(p.x - x, p.z - z) < 0.35;
+      };
+      let a = { x: anchor.x, z: anchor.z };
+      let b = { x: anchor.x, z: anchor.z };
+      for (let d = 0.25; d <= span; d += 0.25) {
+        if (openAt(anchor.x - d, anchor.z)) a = { x: anchor.x - d, z: anchor.z };
+        if (openAt(anchor.x + d, anchor.z)) b = { x: anchor.x + d, z: anchor.z };
+      }
+      const world = grid.path(a.x, a.z, b.x, b.z) || [];
+      const mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+      const local = (p) => {
+        const l = W2L(p.x, p.z);
+        return { x: +l.x.toFixed(3), z: +l.z.toFixed(3) };
+      };
+      return {
+        from: { x: +a.x.toFixed(3), z: +a.z.toFixed(3) },
+        to: { x: +b.x.toFixed(3), z: +b.z.toFixed(3) },
+        midLocal: local(mid),
+        length: +Math.hypot(b.x - a.x, b.z - a.z).toFixed(3),
+        points: world.map((p) => ({ x: +p.x.toFixed(3), z: +p.z.toFixed(3) })),
+      };
+    },
+    debugDropFloorBox: (lx, lz, size = 0.7) => {
+      const col = addCol(colBoxAt(lx, lz, size, size));
+      debugFloorBoxCols.push(col);
+      return { x: +lx.toFixed(3), z: +lz.toFixed(3), half: size / 2 };
+    },
+    debugClearFloorBoxes: () => {
+      for (const col of debugFloorBoxCols) removeCol(col);
+      debugFloorBoxCols.length = 0;
+      return true;
+    },
     checkoutQueue: () => counterQueue.map((customer) => ({
       customerId: customer.customerId,
       name: customer.name,
