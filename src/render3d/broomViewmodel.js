@@ -283,6 +283,9 @@ export function createBroomViewmodel({
       socketRefs.support = byName(SUPPORT_NAMES);
       socketRefs.found = !!(socketRefs.contact && socketRefs.primary);
       if (!socketRefs.found) return null;
+      // the sockets are resolved, so the head's visual parts can be gathered
+      // onto a pivot that swings without moving the contact point
+      buildHeadLag();
     }
     broomGroup.updateWorldMatrix(true, true);
     _inv.copy(broomGroup.matrixWorld).invert();
@@ -307,6 +310,99 @@ export function createBroomViewmodel({
   let clampedNow = false;
   let lastHeadNdc = { x: 0, y: 0 };
   const state = {};
+
+  // Q7 (2026-08-06): "make sure the actual bristles for the mop and broom etc
+  // move with accurate physics."
+  //
+  // The head is a mass on the end of a stick: it TRAILS the stroke and flicks
+  // when the stroke reverses. That is one spring, driven by the head socket's
+  // own lateral speed, and it is what makes a sweep read as weight rather
+  // than a rigid prop sliding about.
+  //
+  // It is applied to a pivot holding the head's VISUAL meshes only - the
+  // contact socket itself never moves, so "the sim cleans exactly where the
+  // bristles are drawn" stays true and a lagging head cannot walk the
+  // cleaning point off the stroke.
+  const headLag = {
+    pivot: null,      // the inserted visual pivot, or null if there is nothing to swing
+    built: false,
+    angle: 0,         // radians, current
+    vel: 0,           // radians/s
+    lastPos: new THREE.Vector3(),
+    hasLast: false,
+    reason: 'not built',
+  };
+  const HEAD_LAG = {
+    // a broom head is light and springy; heavier mop yarn is handled by its
+    // own feel entry overriding these
+    stiffness: feel.headLag?.stiffness ?? 128,
+    damping: feel.headLag?.damping ?? 15,
+    drive: feel.headLag?.drive ?? 0.9,
+    maxAngle: feel.headLag?.maxAngle ?? 0.30,
+  };
+
+  function buildHeadLag() {
+    if (headLag.built) return;
+    headLag.built = true;
+    const socket = socketRefs.contact;
+    const parent = socket?.parent;
+    if (!socket || !parent) { headLag.reason = 'no contact socket'; return; }
+    // the head's visible parts are the socket's SIBLINGS: meshes under the
+    // same parent, near the socket. Wrapping those and leaving the socket
+    // where it is keeps the sim contact fixed.
+    const near = parent.children.filter((child) => (
+      child !== socket && child.type !== 'Bone'
+      && child.getObjectByProperty && hasMeshUnder(child)
+    ));
+    if (!near.length) { headLag.reason = 'no sibling meshes to swing'; return; }
+    const pivot = new THREE.Group();
+    pivot.name = 'ToolHeadLagPivot';
+    pivot.position.copy(socket.position);
+    parent.add(pivot);
+    for (const child of near) {
+      child.position.sub(socket.position);
+      pivot.add(child);
+    }
+    headLag.pivot = pivot;
+    headLag.reason = `swinging ${near.length} head part(s)`;
+  }
+
+  function hasMeshUnder(object) {
+    let found = false;
+    object.traverse((o) => { if (o.isMesh) found = true; });
+    return found;
+  }
+
+  function updateHeadLag(dt, headWorld) {
+    if (!headLag.pivot || !(dt > 0)) return;
+    // the head's own lateral speed across the sweep, in the tool's frame
+    if (!headLag.hasLast) {
+      headLag.lastPos.copy(headWorld);
+      headLag.hasLast = true;
+      return;
+    }
+    _tmp.copy(headWorld).sub(headLag.lastPos);
+    headLag.lastPos.copy(headWorld);
+    // strip the vertical: a head bobbing up and down should not fan sideways
+    _tmp.y = 0;
+    const camRight = _axisX.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    camRight.y = 0;
+    if (camRight.lengthSq() > 1e-6) camRight.normalize();
+    const lateral = _tmp.dot(camRight) / dt;
+    // spring toward zero, driven by how fast the head is being dragged
+    const target = Math.max(-HEAD_LAG.maxAngle, Math.min(
+      HEAD_LAG.maxAngle, -lateral * HEAD_LAG.drive * 0.06,
+    ));
+    const accel = (target - headLag.angle) * HEAD_LAG.stiffness
+      - headLag.vel * HEAD_LAG.damping;
+    headLag.vel += accel * dt;
+    headLag.angle += headLag.vel * dt;
+    headLag.angle = Math.max(-HEAD_LAG.maxAngle * 1.4,
+      Math.min(HEAD_LAG.maxAngle * 1.4, headLag.angle));
+    // swing about the shaft's own axis so the bristle line fans, which is the
+    // motion a real head makes
+    headLag.pivot.rotation.z = headLag.angle;
+  }
 
   const layerOnRecursive = (root, on) => {
     root.traverse((object) => {
@@ -874,6 +970,9 @@ export function createBroomViewmodel({
     // drawn head deliberately is not the sim contact.
     _headWorld.copy(geom.head); // the live asset's contact socket, tool-local
     broomGroup.localToWorld(_headWorld);
+    // the head trails the stroke, driven by where the contact point has just
+    // been. Run AFTER the shaft is solved, so the input is the real motion.
+    updateHeadLag(dt, _headWorld);
     // Project with THIS frame's camera pose: the render pass refreshes the
     // inverse after update, so relying on it here would read last frame's
     // matrices (and identity on the first).
@@ -882,6 +981,14 @@ export function createBroomViewmodel({
     _ndc.copy(_headWorld).project(vmCamera);
     lastHeadNdc = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
     state.workBlend = workBlend;
+    // Q7: the head's trail, so a driver can measure that it actually swings
+    // and settles rather than taking "it has physics" on trust
+    state.headLag = {
+      swinging: !!headLag.pivot,
+      reason: headLag.reason,
+      angle: +headLag.angle.toFixed(4),
+      vel: +headLag.vel.toFixed(3),
+    };
 
     // D2: WHERE EACH HAND LANDS IN THE FRAME.
     //
@@ -979,6 +1086,9 @@ export function createBroomViewmodel({
       vmActive: active,
       fov: vmCamera.fov,
       layer: feel.camera.layer,
+      // Q7: the head's trail, so "it has physics" is a number a driver reads
+      // rather than a claim it takes on trust
+      headLag: state.headLag || { swinging: false, reason: 'no frame yet', angle: 0, vel: 0 },
       reach: +reach.toFixed(3),
       drawReach: +(state.drawReach ?? reach).toFixed(3),
       workBlend: +(state.workBlend ?? 0).toFixed(3),

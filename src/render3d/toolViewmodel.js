@@ -371,9 +371,20 @@ export function buildToolViewmodels() {
       if (!entry) return null;
       // Resolve sockets after the current animation step so the hands follow authored motion.
       entry.group.updateWorldMatrix(true, true);
+      // Q7: THE REGISTRY DECIDES HOW MANY HANDS, not the GLB.
+      //
+      // Every authored tool ships a SOCKET_GripSupport whether or not the tool
+      // is held two-handed, so resolving the socket unconditionally handed a
+      // second hand back for tools the registry had already set to
+      // `support: null` - which is why turning the stick tools single-handed
+      // changed nothing on screen. The socket stays in the asset so a
+      // two-handed tool can opt back in by declaring a support again.
+      const wantsSupport = entry.gripFallbacks.left != null;
       return {
         grip: authoredGrip(entry.group, entry.root, entry.gripNames.right, entry.gripFallbacks.right),
-        support: authoredGrip(entry.group, entry.root, entry.gripNames.left, entry.gripFallbacks.left),
+        support: wantsSupport
+          ? authoredGrip(entry.group, entry.root, entry.gripNames.left, entry.gripFallbacks.left)
+          : null,
       };
     },
     // Normalised playhead (0..1) of a clip-driven tool's looping work action, or null when the tool
