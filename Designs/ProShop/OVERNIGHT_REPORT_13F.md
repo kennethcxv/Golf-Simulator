@@ -9,10 +9,10 @@ Branch `feature/pro-shop-vertical-slice`. All verification in **Electron**,
 `--clubhouse=pine-hills-v2`, via `node tools/qa/run-electron.cjs <driver>`.
 Suite green (**2792 pass / 0 fail**) before each of the four commits, all pushed.
 
-`3872e0e` tags · `7927c8d` ledger · `5f9652c` tools 7+9 · `ee4bf1e` item 14.
+`3872e0e` tags · `7927c8d` ledger · `5f9652c` tools 7+9 · `ee4bf1e` item 14 · `+1` item 12.
 
-**I did not finish the queue.** Items 8, 10–13 and 15–25 are NOT DONE and listed at the
-bottom. I went deep on what I reached rather than shallow across all of it; the ledger
+**I did not finish the queue.** Items 8, 10, 11, 13 and 15–25 are NOT DONE and listed at
+the bottom. I went deep on what I reached rather than shallow across all of it; the ledger
 block alone took a third of the session because three of its measurements were wrong
 before they were right. Whether that trade was correct is yours to judge.
 
@@ -206,6 +206,40 @@ screenshots are the evidence.
 
 ---
 
+## CHECKOUT
+
+### 12 — hovering a note outlines THAT note only · **done**
+
+`offeredPaymentTarget` returned `tenderMeshes` — **every** note the customer laid down —
+the moment the cursor touched any of it. And it had to: the pick that reaches it is
+usually `tenderHandful`, one generous invisible sphere over the entire pile, which exists
+so that taking a payment is not a hunt for a 2 mm note edge. A hit on that sphere says
+"the pile", never "which note".
+
+Both wants are satisfiable at once. The **click** keeps the generous sphere — it takes the
+whole payment anyway, so precision there buys nothing. The **outline** resolves the note
+for itself: a direct ray against the notes, falling back to the note whose centre lies
+nearest the ray when the cursor is over the sphere but between notes. Exactly one note,
+always.
+
+**Verified** on a real cash sale with two notes on the desk: 0 outline shells with the
+pointer parked away · exactly **1** distinct note outlined on hover · still exactly 1
+after moving to the other note · **0** filled plates (the shells are DoubleSide frame
+rings, not a fill). `qa/electron/note-hover/02-hover-note-a.png` — one note rimmed, one
+bare.
+
+**Bar met: yes.**
+
+The driver needed two corrections of its own, both recorded in it: it invented its own
+route to the tender and never reached the stage (the prologue is now lifted from
+`cash-hover-outline.js`, the proven route); and
+`reg.presentedTenderScreenPoints ? … : []` could not tell "the accessor is missing" from
+"there are no notes", reporting `noteCount 0` for the wrong reason. **The accessor WAS
+missing** — `clubhouse.js`'s `register` is a hand-written facade whitelist, so a method
+added to the register is invisible until it is forwarded there. Worth knowing generally.
+
+---
+
 ## CUSTOMERS
 
 ### 14 — they run into the box forever · **fixed, UNCONFIRMED in the build**
@@ -243,8 +277,7 @@ No code changed for any of these; nothing to un-shelve.
 | 8 | Mop fibres rigid — strands must trail, splay, swing behind | untouched |
 | 10 | Ranked quality table for every indoor cleaning asset, then fix the worst | raw material exists: full-frame held-pose shot of all nine plus triangle counts in `qa/electron/tool-hands/`. Not ranked, nothing fixed |
 | 11 | Q reveal invisible while brooming | observed in passing only: the "Q reveal dirt" chip **is** rendering bottom-left (`sweep-shipped.png`), so the complaint is likely the revealed markers, not the hint — unverified |
-| 12 | Hover outlines THAT note only | untouched |
-| 13 | Make change-due common; report the 1× split | untouched |
+| 13 | Make change-due common; report the 1× split | untouched. One incidental data point from item 12's run: that sale was RECEIVED $40.00 / TOTAL $35.31 / CHANGE $4.69 — change *was* due. One sale is not a distribution and I make no claim about the split |
 | 15 | Concurrency from rating + price + reputation | untouched |
 | 16 | Customer models, hats worst | untouched |
 | 17 | Restoration teaches itself; ceiling-repair first-timer path | untouched |
@@ -297,5 +330,9 @@ Recorded because a wrong instrument is exactly how the tag survived two "done" r
    correctly ignores — reading as "this probe cannot fail" when it can.
 7. Three tool-penetration metrics, all abandoned.
 8. "The washer draws nothing" — **retracted**, it is `external: true`.
+9. Note-hover driver invented its own route to the cash tender and never arrived.
+10. Note-hover driver could not distinguish **a missing accessor** from an empty result,
+    and reported "0 notes on the desk" when the truth was "this method was never
+    forwarded through the register facade".
 
 Every surviving probe now carries a negative control that is shown to fire.
