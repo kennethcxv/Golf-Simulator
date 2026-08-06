@@ -110,26 +110,26 @@ export function makeSettingsPanel({
   }
 
   function audioPage() {
-    const mute = toggle('Mute all audio', 'Silences the master output without changing the category levels.', 'audio.muted', { on: 'Muted', off: 'Sound on' });
+    const mute = toggle(t('settings.audio.mute'), t('settings.audio.mute.detail'), 'audio.muted', { on: t('settings.audio.mute.on'), off: t('settings.audio.mute.off') });
     return section(t('settings.audio.title'), t('settings.audio.intro'),
       mute,
-      slider('Master volume', 'Overall game volume.', 'audio.master'),
-      slider('Effects volume', 'Tools, doors, products, checkout, and movement feedback.', 'audio.effects'),
-      slider('Ambience volume', 'Weather, course life, and clubhouse atmosphere.', 'audio.ambience'),
-      slider('Interface volume', 'Menu navigation, confirmations, errors, and notifications.', 'audio.ui'),
+      slider(t('settings.audio.master'), t('settings.audio.master.detail'), 'audio.master'),
+      slider(t('settings.audio.effects'), t('settings.audio.effects.detail'), 'audio.effects'),
+      slider(t('settings.audio.ambience'), t('settings.audio.ambience.detail'), 'audio.ambience'),
+      slider(t('settings.audio.ui'), t('settings.audio.ui.detail'), 'audio.ui'),
     );
   }
 
   function cameraPage() {
     return section(t('settings.camera.title'), t('settings.camera.intro'),
-      slider('Mouse sensitivity', 'How quickly the first-person camera turns.', 'camera.sensitivity', {
+      slider(t('settings.camera.sensitivity'), t('settings.camera.sensitivity.detail'), 'camera.sensitivity', {
         min: 0.35, max: 2.5, step: 0.05, format: (value) => Number(value).toFixed(2),
       }),
-      toggle('Invert vertical look', 'Moving the mouse up looks down, and moving it down looks up.', 'camera.invertY', { on: 'Inverted', off: 'Standard' }),
-      slider('Field of view', 'First-person horizontal comfort range. Laptop focus uses its own readable lens.', 'camera.fov', {
+      toggle(t('settings.camera.invert'), t('settings.camera.invert.detail'), 'camera.invertY', { on: t('settings.camera.invert.on'), off: t('settings.camera.invert.off') }),
+      slider(t('settings.camera.fov'), t('settings.camera.fov.detail'), 'camera.fov', {
         min: 50, max: 90, step: 1, format: (value) => `${Math.round(value)}°`,
       }),
-      toggle('Camera movement', 'Adds a small walking motion and tool sway. Reduced motion always overrides this.', 'camera.bob', { on: 'Enabled', off: 'Disabled' }),
+      toggle(t('settings.camera.bob'), t('settings.camera.bob.detail'), 'camera.bob', { on: t('settings.camera.bob.on'), off: t('settings.camera.bob.off') }),
     );
   }
 
@@ -198,13 +198,13 @@ export function makeSettingsPanel({
     })));
     const page = section(t('settings.display.title'), t('settings.display.intro'),
       row('Graphics quality', 'Sets render scale, ambient occlusion, bloom, and shadows together.', quality),
-      slider('Render scale', 'Internal 3D resolution. The interface remains at full clarity.', 'display.renderScale', {
+      slider(t('settings.display.renderScale'), t('settings.display.renderScale.detail'), 'display.renderScale', {
         min: 0.65, max: 1.35, step: 0.05, format: pct,
       }),
-      toggle('Ambient occlusion', 'Adds contact depth around furniture, walls, and terrain.', 'display.ambientOcclusion'),
-      toggle('Bloom', 'Adds restrained glow to bright fixtures and highlights.', 'display.bloom'),
-      toggle('Shadows', 'Enables real-time object and terrain shadows.', 'display.shadows'),
-      slider('Interface scale', 'Scales menus, HUD, prompts, notifications, and the laptop interface.', 'display.uiScale', {
+      toggle(t('settings.display.ao'), t('settings.display.ao.detail'), 'display.ambientOcclusion'),
+      toggle(t('settings.display.bloom'), t('settings.display.bloom.detail'), 'display.bloom'),
+      toggle(t('settings.display.shadows'), t('settings.display.shadows.detail'), 'display.shadows'),
+      slider(t('settings.display.uiScale'), t('settings.display.uiScale.detail'), 'display.uiScale', {
         min: 0.9, max: 1.3, step: 0.05, format: pct,
       }),
     );
@@ -326,10 +326,11 @@ export function makeSettingsPanel({
         ))
       : null;
     return section(t('settings.accessibility.title'), t('settings.accessibility.intro'),
-      toggle('Reduced motion', 'Removes menu animation, camera bob, tool sway, and eased focus transitions.', 'accessibility.reducedMotion'),
-      toggle('High-contrast interface', 'Strengthens panel, focus, prompt, and status boundaries.', 'accessibility.highContrast'),
-      choice('Sustained tool use', 'Choose whether cleaning and maintenance tools run while held or toggle on each press.', 'accessibility.toolActivation', [
-        ['hold', 'Hold button'], ['toggle', 'Press to toggle'],
+      toggle(t('settings.accessibility.reducedMotion'), t('settings.accessibility.reducedMotion.detail'), 'accessibility.reducedMotion'),
+      toggle(t('settings.accessibility.highContrast'), t('settings.accessibility.highContrast.detail'), 'accessibility.highContrast'),
+      choice(t('settings.accessibility.toolActivation'), t('settings.accessibility.toolActivation.detail'), 'accessibility.toolActivation', [
+        ['hold', t('settings.accessibility.toolActivation.hold')],
+        ['toggle', t('settings.accessibility.toolActivation.toggle')],
       ]),
       tutorialControls,
     );
