@@ -37,7 +37,11 @@ async (page) => {
 
   await page.evaluate(() => {
     const app = window.__fw;
-    app.speedIdx = 0;
+    // 1x, NOT PAUSED. speedIdx 0 is paused; the brief asks for NPCs at 1x, and
+    // three runs of this driver watched a stopped game and reported "the walker
+    // never started walking" about a shopper the sim was not moving because the
+    // sim was not running.
+    app.speedIdx = 1;
     app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 11 * 60;
     if (app.state.campaign) app.state.campaign.businessOpen = true;
     if (app.state.shop) app.state.shop.signOpen = true;
@@ -86,9 +90,28 @@ async (page) => {
     club.debugClearFloorBoxes?.();
     const list = club.customers();
     for (const e of list) e.__watch = false;
-    const c = club.sendWalkInToDesk ? club.sendWalkInToDesk({}) : null;
+    // sendWalkInToDesk places the customer AT the desk: entered true, stop
+    // 'counter', speed 1.1 and NO PATH, because they have already arrived.
+    // Probed directly - 12 s of watching gave movedM 0 for exactly that reason,
+    // and the first two versions of this driver read that as "the walker never
+    // started walking". sendToCounter sends a shopper who actually crosses the
+    // floor, which is the only kind that can be blocked mid-route.
+    for (const id of ['tees1', 'marker1', 'balls1']) {
+      const inv = app.state.shop.inventory[id];
+      if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
+    }
+    club.rebuildStock?.();
+    const c = club.sendToCounter(['tees1', 'marker1', 'balls1'], 'cash');
+    // MATCH BY ID inside customers(). sendToCounter's return value is not
+    // necessarily the same object the walker loop iterates, so flagging it
+    // directly set __watch on something the loop never sees - which is why the
+    // wait for a path timed out and the driver reported "never started
+    // walking" about a shopper who was walking 14.6 m at the time.
     const all = club.customers();
-    const entity = (c && c.mesh) ? c : all[all.length - 1];
+    const wanted = c?.customerId ?? null;
+    const entity = (wanted && all.find((e) => e.customerId === wanted))
+      || all.find((e) => Array.isArray(e.path) && e.path.length)
+      || all[all.length - 1];
     if (!entity?.mesh) return { spawned: false };
     entity.__watch = true;
     entity.__pinProgress = !!disable;
@@ -97,8 +120,16 @@ async (page) => {
       // the old displacement test can fire. The bug must come back, or the fix
       // is not what is doing the work.
       window.__pinInstalled = true;
+      // PIN AT THE SOURCE, not the symptom. Zeroing noProgressT on rAF races
+      // the sim's own frame and leaked - the control reached 1.6 s of "no
+      // progress" while supposedly pinned. bestGoalDist is what the sim
+      // COMPARES against; holding it at Infinity makes every frame look like
+      // fresh progress, so noProgressT can never accumulate and only the old
+      // displacement test can fire.
       const tick = () => {
-        for (const e of club.customers()) if (e.__pinProgress) e.noProgressT = 0;
+        for (const e of club.customers()) {
+          if (e.__pinProgress) { e.bestGoalDist = Infinity; e.noProgressT = 0; }
+        }
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
@@ -157,27 +188,53 @@ async (page) => {
   }, seconds);
 
   const fixed = await runScenario(false);
-  // WAIT FOR A REAL PATH. A spawned walk-in takes a while to enter and start
-  // walking; the first cut dropped its box 2.5 s in, got "no path yet", and
-  // then measured a walker that never moved at all (movedM 0) as if that were
-  // a result.
-  const fixedMoving = await page.waitForFunction(() => {
+  // PICK THE WALKER BY WATCHING WHO MOVES. Selecting by the id sendToCounter
+  // returns is not reliable (its return value is not always the object the
+  // walker loop iterates), and selecting the last-added entity picks the one
+  // placed AT the desk with no path. Poll until somebody has actually covered
+  // half a metre, then flag that one.
+  const claimWalker = () => page.waitForFunction(() => {
     const club = window.__fw.scene3d.clubhouse();
-    const e = club.customers().find((x) => x.__watch);
-    return !!(e && Array.isArray(e.path) && e.path.length);
-  }, null, { timeout: 90000, polling: 250 }).then(() => true).catch(() => false);
-  const fixedBlock = fixedMoving ? await blockThePath() : { dropped: false, reason: 'walker never started walking' };
+    const list = club.customers();
+    window.__seen = window.__seen || new Map();
+    let claimed = null;
+    for (const e of list) {
+      if (!e.mesh) continue;
+      const id = e.customerId || String(list.indexOf(e));
+      const prev = window.__seen.get(id);
+      const now = { x: e.mesh.position.x, z: e.mesh.position.z };
+      if (prev) {
+        // ACCUMULATE. Requiring 0.5 m between two polls 400 ms apart is a
+        // 1.25 m/s threshold, and a shopper walks at 1.1 - so a walking
+        // customer could never trip it, which is why the first scenario always
+        // reported "no walker ever covered 0.5 m" while the second, whose
+        // shopper happened to walk at 1.35, always passed. Marginal by exactly
+        // the amount that makes it look intermittent rather than wrong.
+        const d = Math.hypot(now.x - prev.x, now.z - prev.z);
+        now.total = (prev.total || 0) + (d < 2 ? d : 0);
+        if (now.total > 0.5 && Array.isArray(e.path) && e.path.length) claimed = e;
+      }
+      window.__seen.set(id, now);
+    }
+    if (claimed) {
+      for (const e of list) e.__watch = false;
+      claimed.__watch = true;
+      return true;
+    }
+    return false;
+  }, null, { timeout: 120000, polling: 400 }).then(() => true).catch(() => false);
+
+  await page.waitForTimeout(2500);   // the first spawn needs the same settle the second gets
+  const fixedMoving = await claimWalker();
+  const fixedBlock = fixedMoving ? await blockThePath() : { dropped: false, reason: 'no walker ever covered 0.5 m' };
   const fixedTrack = fixed.spawned ? await watch(18) : [];
   await page.screenshot({ path: path.join(OUT, 'after-fix.png') });
   await page.evaluate(() => window.__fw.scene3d.clubhouse().debugClearFloorBoxes?.());
 
   const control = await runScenario(true);
-  const controlMoving = await page.waitForFunction(() => {
-    const club = window.__fw.scene3d.clubhouse();
-    const e = club.customers().find((x) => x.__watch);
-    return !!(e && Array.isArray(e.path) && e.path.length);
-  }, null, { timeout: 90000, polling: 250 }).then(() => true).catch(() => false);
-  const controlBlock = controlMoving ? await blockThePath() : { dropped: false, reason: 'walker never started walking' };
+  await page.evaluate(() => { window.__seen = new Map(); });
+  const controlMoving = await claimWalker();
+  const controlBlock = controlMoving ? await blockThePath() : { dropped: false, reason: 'no walker ever covered 0.5 m' };
   const controlTrack = control.spawned ? await watch(18) : [];
   await page.screenshot({ path: path.join(OUT, 'control-old-behaviour.png') });
   await page.evaluate(() => window.__fw.scene3d.clubhouse().debugClearFloorBoxes?.());
