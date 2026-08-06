@@ -211,19 +211,42 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   if (mCap) {
     // A soft golf cap: a domed crown hugging the skull, a top button, and a curved bill —
     // not a soup can with a slab stuck to it.
+    //
+    // Q6 (2026-08-06): "the persons hat is like phased in with there head." It
+    // was, and the numbers said so. The skull is a 0.155 sphere centred at
+    // y=0.06, so its crown reaches 0.215. The cap's crown was a 0.168 sphere
+    // scaled 0.94 in y and seated at 0.05, reaching 0.208 - SEVEN MILLIMETRES
+    // BELOW the head it was supposed to cover, so the skull came through the
+    // top. The cap now sits on the skull's own centre and keeps a real band of
+    // clearance all the way round rather than a coincidence at the sides.
+    const SKULL_R = 0.155;
+    const SKULL_Y = 0.06;
     const crown = new THREE.Mesh(new THREE.SphereGeometry(0.168, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), mCap);
-    crown.scale.set(1.02, 0.94, 1.06);
-    crown.position.y = 0.05;
+    crown.scale.set(1.05, 1.0, 1.08);
+    crown.position.y = SKULL_Y + 0.002;
     crown.castShadow = true;
     head.add(crown);
+    // the button rides the crown's actual top, not the old one's
+    const crownTop = crown.position.y + 0.168 * crown.scale.y;
     const button = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), mCap);
-    button.position.y = 0.196;
+    button.position.y = crownTop + 0.006;
     fineDetail(button);
     head.add(button);
-    // curved bill: a flattened, slightly down-tilted disc projecting from the crown front
-    const bill = ellipsoid(0.185, 0.026, 0.155, mCap, 0.108, 0.14, 16);
+    // curved bill: a flattened, slightly down-tilted disc projecting from the
+    // crown front, raised with the crown so it still meets the rim
+    const bill = ellipsoid(0.185, 0.026, 0.155, mCap, 0.118, 0.142, 16);
     bill.rotation.x = 0.17;
     head.add(bill);
+    // the sweatband: the dark inner rim a real cap shows under the crown edge,
+    // and the thing that makes the join read as a hat put ON a head
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(SKULL_R * 1.035, SKULL_R * 1.045, 0.030, 20, 1, true),
+      M(0x2f3a34, 0.9),
+    );
+    band.position.y = SKULL_Y - 0.052;
+    band.scale.set(1.02, 1, 1.06);
+    fineDetail(band);
+    head.add(band);
   } else {
     // bare head gets hair instead of a cap
     const hair = new THREE.Mesh(
