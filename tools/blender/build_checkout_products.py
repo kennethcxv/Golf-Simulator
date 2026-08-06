@@ -579,7 +579,7 @@ def build_shoe_box(M):
     label_y = -0.0925
     box("ShoeBoxFrontLabel", (0.286, 0.003, 0.060), (0, label_y, 0.047),
         M["cream"], bevel=0.002, parent=root,
-        props={"label_role": "brand_size_barcode", "label_facing": "-Y"})
+        props={"label_role": "brand_size", "label_facing": "-Y"})
     box("ShoeBoxBrandBand", (0.166, 0.0012, 0.017), (-0.057, -0.0940, 0.0665),
         M["green"], bevel=0.001, parent=root)
     flat_label_text("ShoeBoxBrand", "FAIRHOLLOW", (-0.057, -0.0938, 0.0665),
@@ -595,26 +595,15 @@ def build_shoe_box(M):
     flat_label_text("ShoeBoxSize", "10", (0.119, -0.0938, 0.047),
                     M["cream"], size=0.018, parent=root)
 
-    # A small physical barcode marks the same front-label location as the scan
-    # anchor.  Alternating widths/heights are enough to read as a real retail
-    # code without relying on a raster texture at shelf distance.
-    barcode_x = 0.046
-    widths = (1, 2, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1)
-    unit = 0.0018
-    cursor = barcode_x - (sum(widths) + len(widths) - 1) * unit / 2
-    for index, width in enumerate(widths, start=1):
-        bar_w = width * unit
-        bar_h = 0.020 if index in (1, 2, 6, 11, 12) else 0.016
-        box(f"ShoeBoxBarcodeBar_{index:02d}", (bar_w, 0.0010, bar_h),
-            (cursor + bar_w / 2, -0.09435, 0.038), M["charcoal"],
-            bevel=0.0, parent=root)
-        cursor += bar_w + (unit if index < len(widths) else 0)
-
+    # TAGS (2026-08-06): "hunt every tag/QR reference, delete all." Twelve
+    # charcoal bars used to be printed across this front label as a physical
+    # retail code. The brand, model, fit and size printing stays — that is a
+    # shoe box's own packaging — but the code is gone.
     return common_finish(
         root,
         dims,
         M,
-        barcode=(barcode_x, -0.095, 0.038),
+        barcode=(0.046, -0.095, 0.038),   # the ANCHOR keeps its place; the printed bars are gone
         primary=(0, 0, 0.066),
         collision=dims,
         barcode_kind="carton-side",
@@ -686,8 +675,8 @@ def build_folded_bottom(M):
         M["sku_accent"], bevel=0.004, parent=root)
     box("FoldedFly", (0.008, 0.076, 0.004), (0.020, -0.031, 0.096),
         M["brass"], bevel=0.001, parent=root)
-    box("FoldedSizeTag", (0.040, 0.028, 0.004), (0.070, -0.074, 0.096),
-        M["cream"], bevel=0.002, parent=root)
+    # TAGS: FoldedSizeTag is gone — a cream size tag stitched onto folded
+    # trousers is exactly the signage this sweep is removing.
     return common_finish(
         root, dims, M,
         barcode=(0.070, -0.100, 0.070),

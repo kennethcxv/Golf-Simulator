@@ -15,7 +15,11 @@ const REVIEWER_BASELINE_PER_CARTON = Object.freeze({
   meshes: 643,
   triangles: 83268,
 });
-const EFFECTIVELY_VISIBLE_TRIANGLES_PER_CARTON = 81360;
+// TAGS (2026-08-06): 81360 before the water bottle's printed barcode came off.
+// The bottles are instanced per carton, so removing a cream backing plus
+// thirteen charcoal bars from ONE product took 3,168 triangles off every
+// carton — 63,360 across the twenty this test builds.
+const EFFECTIVELY_VISIBLE_TRIANGLES_PER_CARTON = 78192;
 
 // The carton shell itself remains an authored hierarchy. These gates isolate
 // the avoidable contents multiplier while leaving headroom for metadata nodes:
@@ -187,27 +191,32 @@ test('twenty full open water cartons batch exact contents within deterministic r
   try {
     const all = census(scene);
     const visible = census(scene, { visibleOnly: true });
+    // TAGS (2026-08-06): the water bottle's printed barcode — a cream backing
+    // plus thirteen charcoal bars — is gone, and since the bottles are
+    // instanced per carton the saving multiplies: 20 fewer instanced meshes,
+    // 20 fewer geometries, one fewer material, and 63,360 fewer triangles
+    // across twenty cartons. The census is exact on purpose, so it moved.
     assert.deepEqual(all, {
-      objects: 2321,
-      meshes: 1220,
-      instancedMeshes: 120,
-      drawSubmissions: 1220,
+      objects: 2301,
+      meshes: 1200,
+      instancedMeshes: 100,
+      drawSubmissions: 1200,
       contentPlaceholders: 240,
-      triangles: 1662480,
-      geometries: 175,
-      materials: 14,
-      uniqueGeometryTriangles: 134708,
+      triangles: 1599120,
+      geometries: 155,
+      materials: 13,
+      uniqueGeometryTriangles: 129428,
     });
     assert.deepEqual(visible, {
-      objects: 1661,
-      meshes: 840,
-      instancedMeshes: 120,
-      drawSubmissions: 840,
+      objects: 1641,
+      meshes: 820,
+      instancedMeshes: 100,
+      drawSubmissions: 820,
       contentPlaceholders: 240,
       triangles: WATER_CARTON_COUNT * EFFECTIVELY_VISIBLE_TRIANGLES_PER_CARTON,
-      geometries: 156,
-      materials: 12,
-      uniqueGeometryTriangles: 132944,
+      geometries: 136,
+      materials: 11,
+      uniqueGeometryTriangles: 127664,
     });
     assert.ok(all.objects <= WORST_CASE_BUDGET.objects);
     assert.ok(all.meshes <= WORST_CASE_BUDGET.meshes);
@@ -237,13 +246,18 @@ test('twenty full open water cartons batch exact contents within deterministic r
     }
 
     for (const visual of visuals) {
-      assert.equal(visual.contentBatches.length, 6,
-        'the 48 visible source meshes merge to the six visible authored materials');
+      // Five, not six, since 2026-08-06: the charcoal the water bottle's
+      // printed barcode bars used was that product's ONLY use of it, so
+      // removing the code removed a whole batch as well as its triangles.
+      assert.equal(visual.contentBatches.length, 5,
+        'the visible source meshes merge to the five visible authored materials');
+      // 34, not 48: the fourteen meshes of the bottle's printed barcode (a
+      // cream backing plus thirteen charcoal bars) are gone from the source.
       assert.equal(visual.contentBatches
-        .reduce((sum, batch) => sum + batch.userData.deliveryContentSourceMeshCount, 0), 48);
+        .reduce((sum, batch) => sum + batch.userData.deliveryContentSourceMeshCount, 0), 34);
       assert.equal(visual.contentBatches.reduce((sum, batch) => (
         sum + (batch.geometry.index?.count ?? batch.geometry.attributes.position.count) / 3
-      ), 0), 6448, 'one exact visible water unit retains all non-collision triangles');
+      ), 0), 6184, 'one exact visible water unit retains all non-collision triangles');
       assert.ok(visual.contentBatches.every((batch) => batch.count === 12));
     }
 

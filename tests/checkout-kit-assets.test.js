@@ -233,9 +233,12 @@ test('bag, product box and helpers expose their sockets', async () => {
     assert.ok(bag.has(part), part);
   }
   const box = names((await kit.get('scannable_product_box')).scene);
-  for (const part of ['ProductBox_Body', 'PRODUCT_BARCODE', 'PRODUCT_GRAB_SOCKET', 'COL_ProductBox']) {
+  for (const part of ['ProductBox_Body', 'PRODUCT_GRAB_SOCKET', 'COL_ProductBox']) {
     assert.ok(box.has(part), part);
   }
+  // TAGS (2026-08-06): PRODUCT_BARCODE was a printed 52 x 28 mm plane standing
+  // proud of every delivery box in the shop. This list used to require it.
+  assert.ok(!box.has('PRODUCT_BARCODE'), 'the delivery box carries no printed barcode');
   const disp = names((await kit.get('customer_display')).scene);
   assert.ok(disp.has('CustomerDisplay_Screen'), 'CustomerDisplay_Screen');
   const stack = names((await kit.get('cash_handoff_stack')).scene);

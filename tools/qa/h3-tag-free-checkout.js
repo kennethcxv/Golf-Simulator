@@ -117,6 +117,44 @@ async (page) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(OUT, 'counter-staged-close.png') });
 
+  // AND THE ROOM. The counter was never the only place tags lived: a repo-wide
+  // GLB sweep found printed codes on five delivery cartons, the shoe box, the
+  // folded trousers and the water bottle. The cartons stand on the shop floor
+  // in every screenshot of the room, so the room gets photographed too.
+  await page.evaluate(() => {
+    const app = window.__fw;
+    const club = app.scene3d.clubhouse();
+    const off = club.interior.position;
+    const walk = app.scene3d.walk.state;
+    // find the nearest delivery carton and stand off it
+    let best = null;
+    club.interior.traverse((o) => {
+      if (!o.isMesh) return;
+      let vis = o.visible;
+      for (let p = o.parent; vis && p; p = p.parent) vis = p.visible;
+      if (!vis) return;
+      for (let p = o; p; p = p.parent) {
+        if (/delivery_fixture_product|ProductBox|provisions_/i.test(p.name || '')) {
+          const wp = o.getWorldPosition(new app.scene3d.camera.position.constructor());
+          if (!best) best = wp;
+          return;
+        }
+      }
+    });
+    if (best) {
+      walk.x = best.x + 1.15;
+      walk.z = best.z + 1.15;
+      const dx = best.x - walk.x;
+      const dz = best.z - walk.z;
+      const h = Math.hypot(dx, dz) || 0.001;
+      walk.yaw = Math.atan2(-dx / h, -dz / h);
+      walk.pitch = Math.atan2(best.y - app.scene3d.camera.position.y, h);
+    }
+    void off;
+  });
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: path.join(OUT, 'delivery-carton-close.png') });
+
   // NEGATIVE CONTROL — mount a decoy label and re-run the same audit.
   const control = await page.evaluate(async () => {
     const app = window.__fw;

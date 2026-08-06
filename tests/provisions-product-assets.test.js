@@ -24,7 +24,9 @@ const SPECS = Object.freeze({
       'WATER_LABEL_FRONT_FIELD',
       'WATER_TAMPER_BAND',
       'WATER_CAP',
-      'WATER_BARCODE_BACKING',
+      // TAGS (2026-08-06): WATER_BARCODE_BACKING and its thirteen printed bars
+      // are gone. The invisible BARCODE_AREA anchor below stays — it is an
+      // empty recording which face a reader would point at, and draws nothing.
       'BARCODE_AREA',
       'PICKUP_TARGET',
       'SHELF_TARGET',

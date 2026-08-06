@@ -1204,11 +1204,10 @@ def build_scannable_product_box(M):
     L.parent_keep(box, root)
     # top flap seam groove
     L.box("box_seam", (0.0025, BD - 0.01, 0.0018), (0, 0, BH + 0.0002), K.m_flat("M_BoxSeam", (0.16, 0.10, 0.05), rough=0.8), bevel=0.0, parent=root)
-    # dedicated barcode plane (slightly proud on -X side) for easy scanner alignment
-    bc = K.uv_plane("PRODUCT_BARCODE", 0.052, 0.028, (0, 0, 0), K.m_tex("M_BoxBarcode", K.barcode_img("BoxBarcode"), rough=0.6))
-    bc.rotation_euler = (0, 0, math.radians(90))
-    bc.location = (-BW / 2 - 0.0006, 0, 0.032)
-    L.parent_keep(bc, root)
+    # TAGS (2026-08-06): the dedicated 52 x 28 mm barcode plane is gone. It was
+    # a printed code standing proud of the -X face of every delivery box in the
+    # shop, and the scan has been a click-slide since 2026-07-30, so nothing
+    # ever read it. The grab socket below is what the box is actually for.
     K.empty("PRODUCT_GRAB_SOCKET", (0, 0, BH * 0.55), parent=root, size=0.04, props={"socket": "grab"})
     K.collision_box("COL_ProductBox", (BW, BD, BH), (0, 0, BH / 2), M, root)
     return root

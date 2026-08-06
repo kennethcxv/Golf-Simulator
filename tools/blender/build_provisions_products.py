@@ -279,31 +279,9 @@ def curved_label_panel(name, radius, height, center_z, half_angle, material, *, 
     return obj
 
 
-def add_barcode_geometry(root, materials):
-    # A deliberately simple scannable-looking code on the back of the paper label.
-    box(
-        "WATER_BARCODE_BACKING",
-        (0.028, 0.00055, 0.022),
-        (0.0, 0.0332, 0.106),
-        materials["cream"],
-        bevel=0.0005,
-        parent=root,
-    )
-    widths = (1, 2, 1, 1, 3, 1, 2, 1, 2, 1, 1, 2, 1)
-    cursor = -0.0114
-    unit = 0.00072
-    for index, width_units in enumerate(widths, start=1):
-        width = width_units * unit
-        height = 0.0145 if index % 4 else 0.0120
-        box(
-            f"WATER_BARCODE_BAR_{index:02d}",
-            (width, 0.00035, height),
-            (cursor + width / 2, 0.03365, 0.1075),
-            materials["charcoal"],
-            bevel=0.0,
-            parent=root,
-        )
-        cursor += width + unit
+# TAGS (2026-08-06): add_barcode_geometry is gone. It printed a scannable-looking
+# code onto the back of the bottle's paper label — a tag by any reading, on a
+# product the player picks up and holds.
 
 
 def build_water():
@@ -439,7 +417,6 @@ def build_water():
         parent=root,
         pixel=0.00038,
     )
-    add_barcode_geometry(root, materials)
 
     cylinder(
         "WATER_NECK_FINISH",
@@ -610,7 +587,8 @@ REQUIRED_NODES = {
         "WATER_LABEL_FRONT_FIELD",
         "WATER_TAMPER_BAND",
         "WATER_CAP",
-        "WATER_BARCODE_BACKING",
+        # WATER_BARCODE_BACKING is gone with the printed code it carried; the
+        # BARCODE_AREA anchor stays because it is an empty, not geometry.
         "BARCODE_AREA",
         "PICKUP_TARGET",
         "SHELF_TARGET",

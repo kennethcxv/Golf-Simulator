@@ -57,7 +57,8 @@ test('ref 27 retail shoe box ships exact scale, provenance, pivot and production
   const { gltf, root, audit } = await loadAsset();
   assert.ok(gltf.scene);
   assert.equal(root.userData.asset_id, SPEC.id);
-  assert.equal(root.userData.asset_version, 2);
+  // v3: the 2026-08-06 rebuild that removed the twelve printed barcode bars
+  assert.equal(root.userData.asset_version, 3);
   assert.equal(root.userData.units, 'meters');
   assert.deepEqual(Array.from(root.userData.target_dimensions_m || [], Number), SPEC.authorDimensions);
   assert.equal(root.userData.fictional_brand, 'Fairhollow Golf');
@@ -78,7 +79,9 @@ test('ref 27 retail shoe box ships exact scale, provenance, pivot and production
 
   assert.ok(audit.triangles >= 1200 && audit.triangles <= 3500,
     `${audit.triangles} triangles remains suitable for repeated shelf stock`);
-  assert.ok(audit.nodes >= 24 && audit.nodes <= 34, `${audit.nodes} purposeful nodes`);
+  // 24..34 counted the twelve printed barcode bars as purposeful nodes; with
+  // the code removed the box is 16 nodes of actual packaging.
+  assert.ok(audit.nodes >= 14 && audit.nodes <= 24, `${audit.nodes} purposeful nodes`);
   assert.ok(audit.materials >= 4 && audit.materials <= 7, `${audit.materials} palette materials`);
   assert.equal(audit.textures, 0, 'geometric label adds no repeated texture allocation');
   assert.equal(audit.animations, 0);
@@ -97,13 +100,18 @@ test('ref 27 keeps a separate lid, Fairhollow label, barcode, grip and collision
   assert.equal(base.userData.component, 'retail_carton_base');
   assert.equal(lid.parent, root);
   assert.equal(lid.userData.component, 'removable_lid');
-  assert.equal(label.userData.label_role, 'brand_size_barcode');
+  assert.equal(label.userData.label_role, 'brand_size');
   assert.equal(label.userData.label_facing, '-Y');
   assert.equal(sizeBadge.userData.size_us, '10');
   for (const node of ['ShoeBoxLidTopPanel', 'ShoeBoxLidCrest_L', 'ShoeBoxLidCrest_R',
     'ShoeBoxBrand', 'ShoeBoxModel', 'ShoeBoxFit', 'ShoeBoxSize']) exactNode(root, node);
+  // TAGS (2026-08-06): this used to REQUIRE twelve printed barcode bars on the
+  // shoe box's front label. That is the same shape of assertion that let the
+  // checkout sticker survive two "tags removed" reports — a test written to
+  // demand the thing being removed. Inverted: no printed code, by any name.
   for (let index = 1; index <= 12; index += 1) {
-    exactNode(root, `ShoeBoxBarcodeBar_${String(index).padStart(2, '0')}`);
+    assert.equal(root.getObjectByName(`ShoeBoxBarcodeBar_${String(index).padStart(2, '0')}`),
+      undefined, 'the shoe box carries no printed barcode bars');
   }
 
   const barcode = exactNode(root, 'ANCHOR_ProductBarcode');
