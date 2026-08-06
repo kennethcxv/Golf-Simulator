@@ -96,7 +96,10 @@ export const POSES = {
   // with the thumb crossing over them. ~177 deg does that, and the thumb comes up to match.
   wrap: { curl: 1.34, thumb: 1.06, spread: 0.025, index: 1.30 }, // a shaft or a handle
   trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
-  flat: { curl: 0.46, thumb: 0.52, spread: 0.008, index: 0.42 }, // fingers draped over a cloth pad
+  // ITEM 9: at curl 0.46 the fingers barely bend, so once the palm was lifted
+  // clear of the sponge they stood straight up off it and the hand read as
+  // waving rather than holding. A hand on a pad drapes over its front edge.
+  flat: { curl: 0.94, thumb: 0.84, spread: 0.010, index: 0.88 }, // fingers draped over a cloth pad
   hook: { curl: 1.06, thumb: 1.05, spread: 0.006, index: 1.02 }, // curled through the neck of a bag
   pinch: { curl: 0.60, thumb: 1.00, spread: 0.02, index: 0.55 },
 };

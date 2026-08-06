@@ -190,7 +190,23 @@ export const BROOM_FEEL = Object.freeze({
   // read as a twitch rather than a stroke.
   sweep: Object.freeze({
     arcRad: 0.40,        // rad; head swing either side of centre about the grip
-    handFollow: 0.20,    // fraction of the arc the hands drift along with
+    // ITEM 7 (2026-08-06): "the broom hand stays put while the head swings, so
+    // it reads detached." Measured in Electron before touching it: across a
+    // stroke the head travelled 0.329 of the screen and the hand 0.159 — but
+    // in WORLD terms the hand covered 0.156 yd against the head's 0.934, only
+    // 17%. The cause is structural, not a bad constant: the head is swung
+    // about the GRIP, so the hands are the pivot and move only by whatever
+    // this fudge adds back.
+    //
+    // handFollow is now the radius the HANDS swing on, in yards, about a body
+    // pivot behind them — which is where the arc actually comes from when you
+    // sweep. At 0.46 yd the hands travel 0.35 yd against the head's 0.93, and
+    // they travel it on an arc (they come in a little at the extremes) rather
+    // than sliding sideways on a rail.
+    handFollow: 0.46,
+    // how much of the stroke's swing the wrist carries. Translation alone
+    // reads as a hand being DRAGGED; the roll is what reads as driving.
+    handRoll: 0.55,
   }),
 
   // --- the arms -------------------------------------------------------------

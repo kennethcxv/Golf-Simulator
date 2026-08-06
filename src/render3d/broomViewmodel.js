@@ -696,12 +696,21 @@ export function createBroomViewmodel({
     const idleYaw = reducedMotion ? 0
       : Math.sin(state.idlePhase * idl.swayYawRate) * idl.swayYawAmp * atRest;
 
-    // the gripping hand, in world space (it rides the camera)
-    const handDrift = Math.sin(strokeX) * feel.sweep.handFollow;
+    // The gripping hand, in world space (it rides the camera).
+    //
+    // ITEM 7: the hands swing on their OWN ARC. handFollow is the radius they
+    // turn on about a body pivot behind them, so the sideways travel is
+    // sin(stroke) * R and the depth term is the arc's own sagitta — the hands
+    // come a little closer to the lens at the extremes, the way your shoulders
+    // carry your hands round rather than along a rail. A pure lateral slide is
+    // what made the hand read as dragged rather than driving.
+    const handRadius = feel.sweep.handFollow;
+    const handDrift = Math.sin(strokeX) * handRadius;
+    const handPull = (1 - Math.cos(strokeX)) * handRadius;
     _gripCam.set(
       cc.gripAnchor[0] + handDrift + yawSway * 0.5 + bobX,
       cc.gripAnchor[1] + bobY + breatheY,
-      cc.gripAnchor[2],
+      cc.gripAnchor[2] + handPull,
     ).applyMatrix4(camera.matrixWorld);
 
     // How far the head hangs BELOW the hand: a shallow carry at level look, the
@@ -910,8 +919,16 @@ export function createBroomViewmodel({
     if (gripFromHead < 1e-4) _dir.set(0, 0, -1);
     else _dir.divideScalar(gripFromHead);
     _qMin.setFromUnitVectors(geom.axis, _dir);
+    // ITEM 7: the wrist carries part of the stroke. rollLean alone is a
+    // VELOCITY lean — it peaks mid-stroke and passes through zero at both
+    // ends, so the hand's orientation at the two extremes of a sweep was
+    // identical and the grip read as a clamp sliding along a rail. Adding a
+    // term on the stroke ANGLE means the wrist is turned one way at the end of
+    // the push and the other way at the end of the pull, which is the cue that
+    // says the hand is driving the head rather than being towed by it.
     const rollLean = Math.max(-w.rollMax, Math.min(w.rollMax, state.lagV * w.rollVelGain));
-    _qRoll.setFromAxisAngle(_dir, (using ? rollLean : 0) + tilt * 0.5 * tiltAxis);
+    const rollStroke = strokeX * (feel.sweep.handRoll ?? 0);
+    _qRoll.setFromAxisAngle(_dir, (using ? rollLean + rollStroke : 0) + tilt * 0.5 * tiltAxis);
     broomGroup.quaternion.copy(_qRoll).multiply(_qMin);
     // position = head anchor minus the rotated tool-local head socket
     _tmp.copy(geom.head).applyQuaternion(broomGroup.quaternion);

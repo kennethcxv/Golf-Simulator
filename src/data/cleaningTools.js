@@ -416,7 +416,17 @@ export const CLEANING_TOOLS = {
       only: 'Cloth', // cloth and sponge share one authored set
     },
     sockets: { contact: { pos: [0, -0.056, -0.010], rot: [-Math.PI / 2, 0, 0] } },
-    grip: { pos: [0.0, 0.062, 0.028], rot: [-1.32, 0, 0.10] }, // palm down, flat on the surface
+    // ITEM 9 (2026-08-06): "hands still visible on sponge and cloth."
+    // Photographed at the held pose, the fingertips stand up THROUGH the folded
+    // cloth. The authored SOCKET_ClothGrip sits at the block's centre — right
+    // for a shaft, where the pole passes through the closed palm, and wrong for
+    // a 15 cm block, which cannot. `standoff` lifts the resolved socket in the
+    // tool's own frame so the palm rests on the top face and the fingers close
+    // over the front edge instead of through the middle.
+    grip: {
+      pos: [0.0, 0.062, 0.028], rot: [-1.32, 0, 0.10], // palm down, flat on the surface
+      standoff: [0.0, 0.112, 0.034],
+    },
     support: null,
     recoil: 0.016,
     // a soft drag; barely there on purpose
@@ -452,7 +462,11 @@ export const CLEANING_TOOLS = {
       only: 'Sponge', // cloth and sponge share one authored set
     },
     sockets: { contact: { pos: [0, -0.050, 0], rot: [-Math.PI / 2, 0, 0] } },
-    grip: { pos: [0.0, 0.060, 0.020], rot: [-1.30, 0, 0.10] },
+    // ITEM 9: same defect, same cause - see the cloth above.
+    grip: {
+      pos: [0.0, 0.060, 0.020], rot: [-1.30, 0, 0.10],
+      standoff: [0.0, 0.046, 0.014],
+    },
     support: null,
     recoil: 0.022,
     // wetter and rounder than the cloth

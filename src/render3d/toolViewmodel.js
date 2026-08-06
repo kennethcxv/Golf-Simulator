@@ -19,6 +19,7 @@ const _gripRel = new THREE.Matrix4();
 const _gripPos = new THREE.Vector3();
 const _gripQuat = new THREE.Quaternion();
 const _gripScale = new THREE.Vector3();
+const _gripStandoff = new THREE.Vector3();
 
 // One material per palette entry, shared by every tool. Disposed together.
 function makePalette() {
@@ -225,6 +226,26 @@ export function buildToolViewmodels() {
     _gripInv.copy(group.matrixWorld).invert();
     _gripRel.multiplyMatrices(_gripInv, node.matrixWorld);
     _gripRel.decompose(_gripPos, _gripQuat, _gripScale);
+    // ITEM 9 (2026-08-06): "hands still visible on sponge and cloth."
+    //
+    // Photographed at the held pose, five fingertips stand up THROUGH the top
+    // of the sponge and through the folded cloth — the hand is inside the tool,
+    // not holding it. The cause is here: the authored socket's position wins
+    // outright over the registry's, and on the palm-held tools that socket sits
+    // at the block's own centre, which is fine for a shaft (the hand closes
+    // around a 3 cm pole) and wrong for a 9 cm block (the hand closes through
+    // it).
+    //
+    // A tool that declares a grip `standoff` moves the resolved socket in the
+    // TOOL's own frame — the same frame the registry's fallback pos is written
+    // in, so the two numbers can be read against each other. A pole needs none
+    // (the shaft passes through the closed palm, which is correct); a block
+    // needs the hand lifted clear of its surface.
+    const standoff = fallback?.standoff;
+    if (Array.isArray(standoff) && standoff.length === 3) {
+      _gripStandoff.set(standoff[0], standoff[1], standoff[2]);
+      _gripPos.add(_gripStandoff);
+    }
     return {
       ...(fallback || {}),
       pos: [_gripPos.x, _gripPos.y, _gripPos.z],
