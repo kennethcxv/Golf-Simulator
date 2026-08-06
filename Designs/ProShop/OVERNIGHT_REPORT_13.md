@@ -617,3 +617,70 @@ furniture read as dead.
   re-queued; this matches the reservation desk's policy and was left alone.
 - Settings row labels are English while tabs and headers translate. The
   coverage line on the Language page says so rather than implying full support.
+
+---
+
+# Session 13c — the tools, the cap, the clothes
+
+Suite **2787 pass / 0 fail**. Four more commits, pushed.
+
+## Q7 — one hand on the shaft, and a head that trails
+
+The reference photograph is a single hand wrapping the handle with the forearm
+running out of frame. Two hands was also the source of the same-side grip
+complaint: with both on the shaft, whichever roll puts the fingers camera-side
+on one puts them camera-side on the other.
+
+**A fourth instrument-vs-reality case.** Setting `support: null` in the registry
+changed NOTHING on screen. `gripsFor()` resolved `SOCKET_GripSupport` from the
+GLB unconditionally, and every authored tool ships that socket whether or not
+it is held two-handed - the asset was overruling the registry. The registry
+decides now; the socket stays so a two-handed tool can opt back in.
+
+**The head is a mass on the end of a stick.** One spring driven by the head
+socket's own lateral speed, applied to a pivot holding the head's VISUAL meshes
+only - the contact socket never moves, so "the sim cleans exactly where the
+bristles are drawn" stays true and a lagging head cannot walk the cleaning
+point off the stroke.
+
+`tools/qa/tool-hands-and-head.js` **7/7**: all seven tools report one hand and
+no second; the broom's five head parts swing to **0.062 rad**, **change sign**
+with the stroke (physics, not a constant offset), and settle to **0.0004 rad**
+when the sweep stops. Screenshot per tool; `tool-broom.png` is the reference
+read.
+
+## Q6a — the cap sits on the head instead of through it
+
+The skull is a 0.155 sphere centred at y=0.06, reaching 0.215. The cap's crown
+was 0.168 scaled 0.94 in y at 0.05, reaching **0.208** - seven millimetres
+BELOW the head it covered. It happened to clear at the sides, which is why it
+survived a look but not a measurement.
+
+`tools/qa/character-headwear.js` **5/5**, by casting rays INWARD from 107
+directions where the cap covers and asking which surface is outermost: worst
+clearance **+15.2 mm**, zero pokes. NEGATIVE CONTROL: the same probe against a
+clone with the old seating restored fails on **38 of 107**, worst -6.4 mm.
+
+(The first probe cast OUTWARD from inside the head and found zero hits - a ray
+fired from inside a sphere meets only back faces, which a FrontSide material
+does not report.)
+
+## Q6b — golf clothes, not just clothes
+
+Contrast trim at collar and sleeve openings in a tone derived from the shirt;
+a real belt buckle; a pale midsole stripe and a trouser cuff that breaks over
+the shoe. Photographed at the player's camera.
+
+## Still not done
+
+| Item | State |
+|---|---|
+| **O2** rewrite player copy | Worklist drafted. Should land WITH the untranslated i18n row labels - rewriting and translating the same string twice is wasted work. |
+| **O3** final polish walk | Follows O2. |
+| **P1** texture pass, 19 files | Deliberately last, all-or-none. |
+| **M1** combined-visit share across a full 1x day | The ORDER is fixed and proven; the day-long share measurement is outstanding. |
+| **A8** broom hand pose and sleeves | Reserved: graded personally. |
+
+Per-tool unique SOUNDS were already in place from E3 (each tool carries its own
+`tone` and `audio` entries in the registry); this session added the per-tool
+head physics on top rather than redoing the audio.
