@@ -40,15 +40,11 @@ import { dueForCheckIn, fmtSlot, daySheet } from '../../sim/reservations.js';
 import {
   createReservationCheckInTx, finalizeReservationCheckIn,
 } from '../../sim/reservationCheckIn.js';
-import { BARCODE_MSG, barcodeFor, judgeBarcodeRead } from '../../sim/barcode.js';
+import { barcodeFor } from '../../sim/barcode.js';
 import { createRegisterItemResources } from './registerItemResources.js';
 import {
   buildCatalogProductProxy, catalogCheckoutLayout,
 } from './catalogProductVisual.js';
-import {
-  barcodeBits, CHECKOUT_SCAN_TARGET,
-  scanChoreographyAt, scanDuration, scannerReadFacts,
-} from './checkoutScanPresentation.js';
 import {
   changeBundleLayout, changeHandoffPoint, customerCardPoint,
   presentedTenderLayout, selectedChangeLayout as physicalChangeLayout,
@@ -645,40 +641,14 @@ function textTexture(text, {
   return texture;
 }
 
-function productBarcodeTexture(code) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const bits = barcodeBits(code);
-  ctx.fillStyle = '#fffdf5';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#171916';
-  const quiet = 34;
-  const top = 18;
-  const barHeight = 176;
-  const moduleWidth = (canvas.width - quiet * 2) / Math.max(1, bits.length);
-  for (let index = 0; index < bits.length; index += 1) {
-    if (bits[index] !== '1') continue;
-    const guard = index < 3 || index >= bits.length - 3
-      || Math.abs(index - bits.length / 2) < 3;
-    ctx.fillRect(
-      quiet + index * moduleWidth,
-      top,
-      Math.max(1, Math.ceil(moduleWidth)),
-      guard ? barHeight + 13 : barHeight,
-    );
-  }
-  ctx.fillStyle = '#173f2d';
-  ctx.font = '600 27px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(String(code), canvas.width / 2, 226);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  return texture;
-}
+// NO PRINTED LABEL ON ANY PRODUCT. productBarcodeTexture used to paint a
+// 512x256 white barcode canvas and buildItemMesh mounted it as an unlit
+// 74 x 40 mm plane on every item that crossed the counter. Two earlier passes
+// called the tags "gone" while this one stayed, because it was classed as
+// packaging rather than signage — and the H3 driver was written to ASSERT it
+// existed, so the sweep shipped green with the label still in frame. The
+// barcode STRING survives as transaction data (barcodeFor -> POS + evidence);
+// nothing draws it.
 
 function billTexture(denom, clubName = DEFAULT_DISPLAY_BRAND) {
   const canvas = document.createElement('canvas');
@@ -3823,29 +3793,9 @@ export function createRegisterMode(B) {
     const sku = skuById(item.skuId);
     const built = buildCatalogProductProxy({ sku, merch, mats, resources: itemResources });
     const mesh = built.root;
+    // The barcode is a transaction string, not a thing you can see. Nothing is
+    // mounted on the product: no sticker, no tag, no tether, no backing.
     const barcode = barcodeFor(item.skuId, item.price);
-    const barcodeTexture = itemResources.texture(productBarcodeTexture(barcode));
-    // H3 (2026-08-05): NO SWING TAG. This used to hang a brass tether and a
-    // green-backed label 9.5 cm off every checkout item — C7 deleted the shelf
-    // rails and the product swing tags, and this was the third tag nobody
-    // caught, riding every product across the counter. What remains is a flush
-    // barcode STICKER on the package face at the product's own anchor: the
-    // sticker is packaging, the tag was signage. The mesh keeps its name and
-    // userData because the scanner validates this plane's real transform.
-    const barcodeMesh = new THREE.Mesh(
-      itemResources.geometry(new THREE.PlaneGeometry(0.074, 0.040)),
-      itemResources.material(new THREE.MeshBasicMaterial({
-        map: barcodeTexture,
-        toneMapped: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-      })),
-    );
-    barcodeMesh.name = 'RuntimeProductBarcode';
-    barcodeMesh.position.z = 0.001;
-    barcodeMesh.userData = { barcode, itemUid: item.uid };
-    built.barcodeAnchor.add(barcodeMesh);
     mesh.userData = {
       ...mesh.userData,
       pick: true,
@@ -3854,8 +3804,6 @@ export function createRegisterMode(B) {
       skuId: item.skuId,
       originalScale: mesh.scale.clone(),
       barcode,
-      barcodeAnchor: built.barcodeAnchor,
-      barcodeMesh,
     };
     // A generous invisible click pad wrapping the whole product. A driver is a
     // centimetre-thin shaft — asking the player to hit that exact cylinder is
@@ -5567,95 +5515,11 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  function scanPoseFor(mesh) {
-    const barcodeAnchor = mesh?.userData?.barcodeAnchor;
-    const barcodeMesh = mesh?.userData?.barcodeMesh;
-    if (!barcodeAnchor || !barcodeMesh) return null;
-    mesh.updateWorldMatrix(true, true);
-    const barcodeLocalPosition = mesh.worldToLocal(
-      barcodeMesh.getWorldPosition(new THREE.Vector3()),
-    );
-    const meshWorldQuaternion = mesh.getWorldQuaternion(new THREE.Quaternion());
-    const barcodeLocalQuaternion = meshWorldQuaternion.clone().invert().multiply(
-      barcodeMesh.getWorldQuaternion(new THREE.Quaternion()),
-    );
-    const scanner = scannerRayPose();
-    const normal = scanner.direction.clone().multiplyScalar(-1).normalize();
-    let up = new THREE.Vector3(0, 1, 0);
-    if (Math.abs(up.dot(normal)) > 0.96) up = new THREE.Vector3(0, 0, 1);
-    const right = new THREE.Vector3().crossVectors(up, normal).normalize();
-    const correctedUp = new THREE.Vector3().crossVectors(normal, right).normalize();
-    const anchorQuaternion = new THREE.Quaternion().setFromRotationMatrix(
-      new THREE.Matrix4().makeBasis(right, correctedUp, normal),
-    );
-    const meshQuaternion = anchorQuaternion.clone().multiply(
-      barcodeLocalQuaternion.invert(),
-    );
-    const anchorOffset = barcodeLocalPosition
-      .multiply(mesh.scale)
-      .applyQuaternion(meshQuaternion);
-    const tangent = new THREE.Vector3().crossVectors(
-      new THREE.Vector3(0, 1, 0), scanner.direction,
-    ).normalize();
-    const centerTarget = scanner.origin.clone()
-      .addScaledVector(scanner.direction, CHECKOUT_SCAN_TARGET.distance)
-      .addScaledVector(tangent, CHECKOUT_SCAN_TARGET.sideOffset)
-      .addScaledVector(correctedUp, CHECKOUT_SCAN_TARGET.upOffset);
-    const entryTarget = centerTarget.clone()
-      .addScaledVector(tangent, -CHECKOUT_SCAN_TARGET.sweep);
-    const exitTarget = centerTarget.clone()
-      .addScaledVector(tangent, CHECKOUT_SCAN_TARGET.sweep);
-    return {
-      scanner,
-      quaternion: meshQuaternion,
-      entry: entryTarget.sub(anchorOffset),
-      center: centerTarget.sub(anchorOffset),
-      exit: exitTarget.sub(anchorOffset),
-    };
-  }
-
-  function scanReadFor(motion) {
-    root.updateMatrixWorld(true);
-    const barcodeMesh = motion.mesh.userData.barcodeMesh;
-    const barcodePosition = barcodeMesh.getWorldPosition(new THREE.Vector3());
-    const barcodeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(
-      barcodeMesh.getWorldQuaternion(new THREE.Quaternion()),
-    ).normalize();
-    const scanner = scannerRayPose();
-    const facts = scannerReadFacts({
-      barcodePosition: barcodePosition.toArray(),
-      barcodeNormal: barcodeNormal.toArray(),
-      rayOrigin: scanner.worldOrigin.toArray(),
-      rayDirection: scanner.worldDirection.toArray(),
-    });
-    const judgment = judgeBarcodeRead({
-      barcode: motion.barcode,
-      scanHit: facts.scanHit,
-      facingDot: facts.facingDot,
-      itemUid: motion.uid,
-      expectedUid: motion.item.uid,
-      alreadyScanned: motion.item.scanned,
-    });
-    lastScanEvidence = {
-      uid: motion.uid,
-      skuId: motion.item.skuId,
-      barcode: motion.barcode,
-      scannerSource: scanner.source,
-      phase: motion.phase,
-      ok: judgment.ok,
-      code: judgment.code,
-      scanHit: facts.scanHit,
-      facingDot: facts.facingDot,
-      distanceAlongRay: facts.distanceAlongRay,
-      lateralDistance: facts.lateralDistance,
-      barcodePosition: barcodePosition.toArray(),
-      barcodeNormal: barcodeNormal.toArray(),
-      rayOrigin: scanner.worldOrigin.toArray(),
-      rayDirection: scanner.worldDirection.toArray(),
-      capturedAtMs: performance.now(),
-    };
-    return { judgment, facts };
-  }
+  // The scan ARC is gone (2026-07-30 round two): the item never travels to a
+  // reader, so scanPoseFor/scanReadFor — which posed a product by its printed
+  // label and judged a ray against it — were dead the moment the label was.
+  // Removed with the label so nothing can quietly resurrect a visible barcode
+  // by asking for its transform.
 
   function rejectScanMotion(motion, message) {
     motion.mesh.position.copy(motion.from);

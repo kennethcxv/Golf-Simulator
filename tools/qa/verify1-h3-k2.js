@@ -67,8 +67,10 @@ async (page) => {
         bags.push({ visible, selfVisible: o.visible, layersMask: o.layers?.mask, world: { x: +wp.x.toFixed(2), y: +wp.y.toFixed(2), z: +wp.z.toFixed(2) } });
       }
     });
+    // Staged goods used to be counted by their printed barcode label. The label
+    // is gone (H3, 2026-08-06) — count the product meshes themselves.
     let stagedMeshes = 0;
-    clubhouse.interior.traverse((o) => { if (o.name === 'RuntimeProductBarcode') stagedMeshes += 1; });
+    clubhouse.interior.traverse((o) => { if (o.userData?.kind === 'item') stagedMeshes += 1; });
     const tx = reg?.getTx?.() || null;
     return {
       regActive: !!reg?.isActive?.(),
@@ -108,17 +110,15 @@ async (page) => {
   const audit = await page.evaluate(() => {
     const app = window.__fw;
     const interior = app.scene3d.clubhouse().interior;
-    const counts = { tether: 0, backing: 0, carrier: 0, barcode: 0, barcodeWithTexture: 0, bagNodes: 0 };
+    const counts = { tether: 0, backing: 0, carrier: 0, barcode: 0, stagedItems: 0, bagNodes: 0 };
     const suspects = [];
     const rx = /tether|backing|carrier|swing|price.?tag|pricerail|hangtag/i;
     interior.traverse((o) => {
       if (o.name === 'RuntimeProductBarcodeTether') counts.tether += 1;
       else if (o.name === 'RuntimeProductBarcodeBacking') counts.backing += 1;
       else if (o.name === 'RuntimeProductBarcodeCarrier') counts.carrier += 1;
-      else if (o.name === 'RuntimeProductBarcode') {
-        counts.barcode += 1;
-        if (o.material && o.material.map && o.material.map.image) counts.barcodeWithTexture += 1;
-      }
+      else if (o.name === 'RuntimeProductBarcode') counts.barcode += 1;
+      if (o.userData?.kind === 'item') counts.stagedItems += 1;
       if (o.name === 'FrontDeskShoppingBag') counts.bagNodes += 1;
       if (o.name && rx.test(o.name)) {
         let visible = o.visible; let p = o.parent;
@@ -259,8 +259,11 @@ async (page) => {
     noTether: audit.counts.tether === 0,
     noBacking: audit.counts.backing === 0,
     noCarrier: audit.counts.carrier === 0,
-    stickersPresent: audit.counts.barcode >= 1,
-    stickersTextured: audit.counts.barcode > 0 && audit.counts.barcodeWithTexture === audit.counts.barcode,
+    // INVERTED 2026-08-06: this used to require a printed sticker on every item.
+    // That assertion is why "tags removed" shipped green twice with a white
+    // label still riding the goods across the counter.
+    noPrintedLabelOnGoods: audit.counts.barcode === 0,
+    goodsActuallyStaged: audit.counts.stagedItems >= 1,
     regSweepRan: regSweep.filter((r) => !r.skipped).length === 36,
     noVeil: !regSweep.some((r) => r.veil),
     noPageErrors: faults.length === 0,
