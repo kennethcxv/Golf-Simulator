@@ -381,11 +381,83 @@ def emit(asset: str) -> dict:
     return manifest
 
 
+FAMILY_STATS = CALIBRATED_DIR / "family_stats.json"
+
+
+def _roughness_stats(family: str) -> dict:
+    """Mean of the family's roughness map, or nothing if it has none."""
+    path = CC0_DIR / f"{family}_1K-JPG_Roughness.jpg"
+    if not path.exists():
+        return {}
+    from PIL import Image
+    import numpy as np
+
+    grey = np.asarray(Image.open(path).convert("L"), dtype="float32") / 255.0
+    return {
+        "roughnessMapMean": round(float(grey.mean()), 6),
+        "roughnessMapP10": round(float(np.percentile(grey, 10)), 6),
+        "roughnessMapP90": round(float(np.percentile(grey, 90)), 6),
+    }
+
+
+def emit_family_stats() -> dict:
+    """Bake and measure every CC0 family on disk, keyed by family.
+
+    Why this exists alongside :func:`emit`. ``emit`` plans ONE asset against the §8
+    palette: it needs a target colour per slot written down in advance. The 19-file
+    pass cannot work that way — the slice ships more than forty distinct authored
+    colours across two sheets, and copying each of them into a second table is how a
+    palette silently drifts from the builder that draws it.
+
+    So the target is inverted. This measures the SOURCE once, and the builder solves
+    its own tint at build time from the colour it was already authoring. Nothing is
+    duplicated, and adding a texture to a slot cannot change the colour it ships.
+    """
+    CALIBRATED_DIR.mkdir(parents=True, exist_ok=True)
+    families: dict[str, dict] = {}
+    for src in sorted(CC0_DIR.glob("*_Color.jpg")):
+        family, variant = src.name.split("_", 1)[0], src.name.split("_")[1]
+        dst = CALIBRATED_DIR / f"{family}_calibrated_Color.jpg"
+        baked = bake(src, dst) if not dst.exists() else None
+        stats = measure(src)
+        families[family] = {
+            "family": family,
+            "variant": variant,
+            "sourceColor": str(src.relative_to(REPO)).replace("\\", "/"),
+            "calibratedMap": str(dst.relative_to(REPO)).replace("\\", "/"),
+            "maps": sorted(
+                p.name.rsplit("_", 1)[-1].removesuffix(".jpg")
+                for p in CC0_DIR.glob(f"{family}_*.jpg")
+            ),
+            "meanLuma": stats["meanLuma"],
+            "lumaP10": stats["lumaP10"],
+            "lumaP90": stats["lumaP90"],
+            "lumaP99": stats["lumaP99"],
+            "contrastP90overP10": stats["contrastP90overP10"],
+            "exposureGain": round(exposure_gain(stats["lumaP99"]), 4),
+            # glTF defines roughness = roughnessFactor x texture.g, a MULTIPLY with no
+            # offset, so the ONLY way to keep an authored roughness as the shipped mean
+            # is factor = authored / mapMean. That needs mapMean >= authored, which is
+            # why the mean is recorded here rather than assumed.
+            **_roughness_stats(family),
+            "bake": baked,
+        }
+    manifest = {
+        "procedure": "ART_BIBLE.md §7.4.1, source-measured form",
+        "note": "Targets are solved by the builder from the colour it already authors.",
+        "families": families,
+    }
+    FAMILY_STATS.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return manifest
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--report", action="store_true", help="measure the CC0 sources and solve tints")
     ap.add_argument("--bake", nargs=2, metavar=("SRC", "DST"), help="write a calibrated map")
     ap.add_argument("--emit", metavar="ASSET", help="bake maps + write the builder's tint manifest")
+    ap.add_argument("--emit-family-stats", action="store_true",
+                    help="bake + measure every local family for build-time tint solving")
     args = ap.parse_args()
 
     if args.bake:
@@ -393,6 +465,12 @@ def main() -> None:
         return
     if args.emit:
         print(json.dumps(emit(args.emit), indent=2))
+        return
+    if args.emit_family_stats:
+        stats = emit_family_stats()
+        for family, entry in stats["families"].items():
+            print(f"{family:14s} meanLuma={entry['meanLuma']:.4f} "
+                  f"contrast={entry['contrastP90overP10']:.2f} maps={entry['maps']}")
         return
     print(json.dumps(report(), indent=2))
 

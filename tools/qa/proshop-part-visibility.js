@@ -28,8 +28,14 @@ async (page) => {
   const dataDir = path.join(repo, 'Designs', 'ProShop', 'Discriminator', 'data');
   fs.mkdirSync(dataDir, { recursive: true });
 
+  // Under Electron the window already sits on the packaged app at file://, which has
+  // three.js and every GLB reachable relative to it. Navigating away would only swap
+  // that for an HTTP server that has to be running. Under Playwright the page starts
+  // blank, so it still needs the origin.
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  if (!page.url().startsWith('file://')) {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  }
   await page.waitForTimeout(800);
 
   // Population: every sheet under assets_51_100, asset number >= 61 with no upper
@@ -48,7 +54,9 @@ async (page) => {
       if (n < 61) continue;
       const bytes = fs.readFileSync(path.join(glbRoot, sheet, file));
       const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
-      list.push({ n, url: `/vendor/models/assets_51_100/${sheet}/${file}`, file, sheet, sha256 });
+      // Relative, not root-absolute. Resolved page-side against document.baseURI the
+      // same way three.js is, so the sweep runs unchanged on file:// and on http://.
+      list.push({ n, url: `vendor/models/assets_51_100/${sheet}/${file}`, file, sheet, sha256 });
     }
   }
   list.sort((a, b) => a.n - b.n);
@@ -83,7 +91,7 @@ async (page) => {
     const out = [];
     for (const asset of assets) {
       const gltf = await new Promise((resolve, reject) => {
-        loader.load(asset.url, resolve, undefined, reject);
+        loader.load(new URL(asset.url, document.baseURI).href, resolve, undefined, reject);
       });
       const root = gltf.scene;
       root.updateMatrixWorld(true);

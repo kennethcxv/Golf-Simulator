@@ -33,8 +33,22 @@
 
 const pool = new Map();
 
+// Second tier, added by the 19-file pass. The pool above shares whole Textures, so
+// `repeat`/`offset` MUST be in its key: replacing a texture tiled 2.4x with one tiled
+// 6.0x would silently retile the asset. But the GPU does not key on those at all —
+// they are shader uniforms, and three.js keys an upload on (Source, parameter key)
+// (`vendor/three.module.js`). So two Textures that differ ONLY in UV transform are two
+// uploads of one image for no reason.
+//
+// This tier shares the `Source` instead of the Texture: the decoded image is one
+// object, while `repeat`/`offset` stay per-Texture. Measured on the pass, the world
+// and first-person variants of a tool tile the same family at different scales, which
+// is exactly the case tier one has to refuse.
+const sourcePool = new Map();
+
 const stats = {
   interned: 0, // textures replaced by a pooled instance
+  sourceShared: 0, // textures kept, but pointed at a pooled decoded image
   pooled: 0, // distinct instances the pool holds
   skippedUnnamed: 0, // textures with no usable identity — cannot be pooled safely
   // Size of the textures this module displaced. This is an UPPER BOUND on the
@@ -86,6 +100,27 @@ function samplerKey(texture, slot) {
   ].join('|');
 }
 
+/** The GPU's own upload identity: everything in `samplerKey` EXCEPT the UV transform.
+ *
+ * `repeat`, `offset`, `rotation`, `center` and `channel` are shader-side and cannot
+ * affect what gets uploaded. Wrap modes, filters and `flipY` can, so they stay.
+ */
+function sourceKey(texture, slot) {
+  const image = texture.image;
+  return [
+    texture.name,
+    slot,
+    texture.colorSpace,
+    `${image?.width || 0}x${image?.height || 0}`,
+    texture.wrapS, texture.wrapT,
+    texture.magFilter, texture.minFilter,
+    texture.flipY ? 1 : 0,
+    texture.generateMipmaps ? 1 : 0,
+    texture.premultiplyAlpha ? 1 : 0,
+    texture.isCompressedTexture ? `c${texture.format}` : 'u',
+  ].join('|');
+}
+
 function estimateBytes(texture) {
   const w = texture.image?.width || 0;
   const h = texture.image?.height || 0;
@@ -101,6 +136,22 @@ function estimateBytes(texture) {
  * what it did so a caller — or a QA probe — can assert the sharing actually
  * happened rather than assuming it.
  */
+/** Point `texture` at an already-decoded image when one with the same GPU identity exists. */
+function shareSource(texture, slot) {
+  if (!texture.source || !texture.image?.width) return;
+  const key = sourceKey(texture, slot);
+  const existing = sourcePool.get(key);
+  if (!existing) {
+    sourcePool.set(key, texture.source);
+    return;
+  }
+  if (existing === texture.source) return;
+  texture.source = existing;
+  texture.needsUpdate = true;
+  stats.sourceShared += 1;
+  stats.displacedBytes += estimateBytes(texture);
+}
+
 export function internTextures(root) {
   if (!root) return { interned: 0, pooled: 0, skippedUnnamed: 0 };
   // Test seam. The saving this module claims is only credible if the same build
@@ -134,6 +185,9 @@ export function internTextures(root) {
         if (!existing) {
           pool.set(key, texture);
           stats.pooled += 1;
+          // Fall through: this texture is new to tier one, but its IMAGE may already
+          // be pooled from an asset that tiles the same family at another scale.
+          shareSource(texture, slot);
           continue;
         }
         if (existing === texture) continue;
@@ -142,12 +196,14 @@ export function internTextures(root) {
         material.needsUpdate = true;
         stats.interned += 1;
         stats.displacedBytes += estimateBytes(texture);
+        continue;
       }
     }
   });
 
   return {
     interned: stats.interned - before.interned,
+    sourceShared: stats.sourceShared - before.sourceShared,
     pooled: stats.pooled - before.pooled,
     skippedUnnamed: stats.skippedUnnamed - before.skippedUnnamed,
     displacedBytes: stats.displacedBytes - before.displacedBytes,
@@ -172,6 +228,7 @@ export function sharedTextureDiagnostics() {
  * parsed GLBs, so releasing one without the other keeps those images alive.
  */
 export function clearSharedTexturePool() {
+  sourcePool.clear();
   pool.clear();
   stats.interned = 0;
   stats.pooled = 0;

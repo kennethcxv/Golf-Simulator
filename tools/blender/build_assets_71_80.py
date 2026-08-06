@@ -219,40 +219,58 @@ def _root(number: int, *, first_person: bool = False, **properties: object):
         root["held_pose_axis"] = "tool points forward along -Y"
     for key, value in properties.items():
         root[key] = value
-    return root, A.palette_materials()
+    return root, A.palette_materials(textured=True)
 
 
 def _materials() -> dict[str, bpy.types.Material]:
     return {
-        "machine_green": A.material("S08_MachineGreen", (0.030, 0.088, 0.052, 1.0), roughness=0.44),
-        "machine_shell": A.material("S08_MachineShell", (0.055, 0.130, 0.082, 1.0), roughness=0.40),
-        "hard_black": A.material("S08_HardBlack", (0.021, 0.022, 0.024, 1.0), roughness=0.41),
-        "matte_black": A.material("S08_MatteBlack", (0.014, 0.015, 0.016, 1.0), roughness=0.72),
-        "hose_black": A.material("S08_HoseBlack", (0.026, 0.027, 0.030, 1.0), roughness=0.58),
+        "machine_green": A.material("S08_MachineGreen", (0.030, 0.088, 0.052, 1.0), roughness=0.44,
+                                    texture="PaintedMetal001", uv_scale=2.4),
+        "machine_shell": A.material("S08_MachineShell", (0.055, 0.130, 0.082, 1.0), roughness=0.40,
+                                    texture="PaintedMetal001", uv_scale=2.4),
+        "hard_black": A.material("S08_HardBlack", (0.021, 0.022, 0.024, 1.0), roughness=0.41,
+                                 texture="Rubber004", uv_scale=3.0),
+        "matte_black": A.material("S08_MatteBlack", (0.014, 0.015, 0.016, 1.0), roughness=0.72,
+                                  texture="Rubber004", uv_scale=3.0),
+        "hose_black": A.material("S08_HoseBlack", (0.026, 0.027, 0.030, 1.0), roughness=0.58,
+                                 texture="Rubber004", uv_scale=6.0),
         # Polythene gloss: a touch rougher than before but with a clear coat so the
         # sack catches a soft sheen rather than reading as a dead matte blob (defect #11).
-        "bag_black": A.material("S08_BagPolyethylene", (0.017, 0.018, 0.020, 1.0), roughness=0.34, coat=0.30),
-        "bucket_yellow": A.material("S08_BucketYellow", (0.62, 0.44, 0.030, 1.0), roughness=0.47),
-        "caution_black": A.material("S08_CautionMark", (0.035, 0.032, 0.020, 1.0), roughness=0.55),
+        "bag_black": A.material("S08_BagPolyethylene", (0.017, 0.018, 0.020, 1.0), roughness=0.34, coat=0.30,
+                                texture="Rubber004", uv_scale=2.0),
+        "bucket_yellow": A.material("S08_BucketYellow", (0.62, 0.44, 0.030, 1.0), roughness=0.47,
+                                    texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
+        "caution_black": A.material("S08_CautionMark", (0.035, 0.032, 0.020, 1.0), roughness=0.55,
+                                    texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
         # Warm ecru cotton yarn (#E4DCC6, linear-converted per lib convention) —
         # the straight white spoke-fan read as plastic; ecru reads as damp-able cotton.
-        "mop_cotton": A.material("S08_MopCotton", A.hex_to_linear_rgba("E4DCC6"), roughness=0.90),
-        "bristle": A.material("S08_Bristle", (0.038, 0.036, 0.034, 1.0), roughness=0.80),
+        "mop_cotton": A.material("S08_MopCotton", A.hex_to_linear_rgba("E4DCC6"), roughness=0.90,
+                                 texture="Fabric030", uv_scale=4.0),
+        "bristle": A.material("S08_Bristle", (0.038, 0.036, 0.034, 1.0), roughness=0.80,
+                              texture="Fabric030", uv_scale=5.0),
         # Medium walnut for the mop + broom timber (defect #8: the ash read too pale).
-        "wood_walnut": A.material("S08_WoodWalnut", A.hex_to_linear_rgba("704934"), roughness=0.50),
+        "wood_walnut": A.material("S08_WoodWalnut", A.hex_to_linear_rgba("704934"), roughness=0.50,
+                                  texture="Wood062", uv_scale=6.0),
         # Restrained brass for the mop head band + broom ferrule (Pinehollow palette).
-        "brass": A.material("S08_Brass", A.hex_to_linear_rgba("9B7A3B"), roughness=0.32, metallic=0.88),
+        "brass": A.material("S08_Brass", A.hex_to_linear_rgba("9B7A3B"), roughness=0.32, metallic=0.88,
+                            texture="Metal032", uv_scale=5.0),
         # Label plate + extruded lettering for the spray bottle (cream plate, deep-green text).
         "label_cream": A.material("S08_LabelCream", A.hex_to_linear_rgba("E8DFC9"), roughness=0.70),
         "label_green": A.material("S08_LabelGreen", A.hex_to_linear_rgba("173F32"), roughness=0.46),
-        "bottle_white": A.material("S08_BottleWhite", (0.74, 0.73, 0.70, 1.0), roughness=0.36),
+        "bottle_white": A.material("S08_BottleWhite", (0.74, 0.73, 0.70, 1.0), roughness=0.36,
+                                   texture="PaintedMetal001", uv_scale=3.0, texture_mode="surface"),
         "bottle_fluid": A.material("S08_CleanerFluid", (0.24, 0.42, 0.28, 1.0), roughness=0.18,
                                    alpha=0.55, transmission=0.55, double_sided=True),
-        "trigger_green": A.material("S08_TriggerGreen", (0.045, 0.175, 0.095, 1.0), roughness=0.42),
-        "cloth_green": A.material("S08_MicrofibreGreen", (0.055, 0.155, 0.105, 1.0), roughness=0.90),
-        "sponge_yellow": A.material("S08_SpongeYellow", (0.72, 0.58, 0.115, 1.0), roughness=0.93),
-        "sponge_scour": A.material("S08_SpongeScour", (0.048, 0.115, 0.062, 1.0), roughness=0.95),
-        "safety_yellow": A.material("S08_SafetyYellow", (0.72, 0.52, 0.045, 1.0), roughness=0.52),
+        "trigger_green": A.material("S08_TriggerGreen", (0.045, 0.175, 0.095, 1.0), roughness=0.42,
+                                    texture="PaintedMetal001", uv_scale=3.5, texture_mode="surface"),
+        "cloth_green": A.material("S08_MicrofibreGreen", (0.055, 0.155, 0.105, 1.0), roughness=0.90,
+                                  texture="Fabric030", uv_scale=4.0),
+        "sponge_yellow": A.material("S08_SpongeYellow", (0.72, 0.58, 0.115, 1.0), roughness=0.93,
+                                    texture="Foam001", uv_scale=3.0),
+        "sponge_scour": A.material("S08_SpongeScour", (0.048, 0.115, 0.062, 1.0), roughness=0.95,
+                                   texture="Foam001", uv_scale=4.0),
+        "safety_yellow": A.material("S08_SafetyYellow", (0.72, 0.52, 0.045, 1.0), roughness=0.52,
+                                    texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
     }
 
 
@@ -1660,6 +1678,12 @@ def _parse_cli(argv: Sequence[str]) -> tuple[int | None, bool, A.BuildOptions]:
     index = 0
     while index < len(argv):
         arg = argv[index]
+        # Same geometry, same colours, maps withheld — the control half of the
+        # before/after comparison for the CC0 pass.
+        if arg == "--untextured":
+            A.set_cc0_enabled(False)
+            index += 1
+            continue
         if arg == "--asset":
             if index + 1 >= len(argv):
                 raise SystemExit("--asset requires a number from 71 through 80")

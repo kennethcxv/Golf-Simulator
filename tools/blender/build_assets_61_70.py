@@ -124,16 +124,25 @@ def _root(number: int, **properties: object) -> tuple[bpy.types.Object, dict[str
     root["lod_policy"] = "authored LOD0 with runtime room/distance gating"
     for key, value in properties.items():
         root[key] = value
-    return root, A.palette_materials()
+    return root, A.palette_materials(textured=True)
 
 
 def _materials() -> dict[str, bpy.types.Material]:
     return {
-        "dark_walnut": A.material("S07_DarkWalnut", (0.105, 0.050, 0.026, 1.0), roughness=0.52),
-        "walnut_inset": A.material("S07_WalnutInset", (0.19, 0.090, 0.045, 1.0), roughness=0.58),
-        "leather": A.material("S07_ChestnutLeather", (0.19, 0.075, 0.035, 1.0), roughness=0.42, coat=0.13),
-        "leather_shadow": A.material("S07_LeatherShadow", (0.075, 0.025, 0.012, 1.0), roughness=0.50),
-        "curtain": A.material("S07_GreenCurtain", (0.045, 0.14, 0.095, 1.0), roughness=0.82, double_sided=True),
+        # CC0 families per slot. Colours are unchanged - the tint that multiplies each
+        # map is solved from the value already written here (assets_51_100_lib CC0 block).
+        # The mirror and the cabinet light take none: a normal map on a specular pane or
+        # an emissive lens is a defect rather than a detail.
+        "dark_walnut": A.material("S07_DarkWalnut", (0.105, 0.050, 0.026, 1.0), roughness=0.52,
+                                  texture="Wood062", uv_scale=2.4),
+        "walnut_inset": A.material("S07_WalnutInset", (0.19, 0.090, 0.045, 1.0), roughness=0.58,
+                                   texture="Wood062", uv_scale=2.8),
+        "leather": A.material("S07_ChestnutLeather", (0.19, 0.075, 0.035, 1.0), roughness=0.42, coat=0.13,
+                              texture="Leather011", uv_scale=9.0),
+        "leather_shadow": A.material("S07_LeatherShadow", (0.075, 0.025, 0.012, 1.0), roughness=0.50,
+                                     texture="Leather011", uv_scale=9.0),
+        "curtain": A.material("S07_GreenCurtain", (0.045, 0.14, 0.095, 1.0), roughness=0.82, double_sided=True,
+                              texture="Fabric030", uv_scale=3.5),
         "mirror": A.material("S07_Mirror", (0.42, 0.52, 0.51, 1.0), roughness=0.08, metallic=0.72),
         "warm_light": A.material("S07_WarmCabinetLight", (0.72, 0.49, 0.19, 1.0), roughness=0.28,
                                   emission_color=(1.0, 0.56, 0.22), emission_strength=1.6),
@@ -1152,6 +1161,7 @@ def _parse_cli(argv: Sequence[str]) -> tuple[int | None, A.BuildOptions]:
         arg = argv[index]
         if arg == "--untextured":
             UNTEXTURED = True
+            A.set_cc0_enabled(False)
             index += 1
             continue
         if arg == "--asset":
