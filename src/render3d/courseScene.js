@@ -8549,12 +8549,25 @@ export function makeCourseScene(canvas, state) {
     // release so a glance survives letting go of the key.
     if (clubhouseApi?.setDirtReveal) {
       const senseHeld = heldAction('dirtSense') && !cart.mounted;
-      if (walkSpraying) {
+      // ITEM 11 (2026-08-06): "Q reveal invisible while brooming, exactly when
+      // I need it."
+      //
+      // This branch used to test walkSpraying FIRST, so holding the use button
+      // killed the reveal outright and an explicit Q hold could never be seen:
+      // the alpha decayed to zero in 0.18 s and stayed there for as long as you
+      // swept. The reasoning above ("you are no longer looking, you are
+      // working") is sound for the LINGER — a reveal should not hang around
+      // while you work — but it was applied to the deliberate hold too, which
+      // is the one moment the player is asking for it on purpose.
+      //
+      // An explicit hold now wins. Working still cancels the linger, so the
+      // reveal never trails a stroke you have stopped asking for.
+      if (senseHeld) {
+        dirtSenseLinger = walkSpraying ? 0 : DIRT_SENSE.linger;
+        dirtSenseAlpha = Math.min(1, dirtSenseAlpha + dt * DIRT_SENSE.rise);
+      } else if (walkSpraying) {
         dirtSenseLinger = 0;
         dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / 0.18);
-      } else if (senseHeld) {
-        dirtSenseLinger = DIRT_SENSE.linger;
-        dirtSenseAlpha = Math.min(1, dirtSenseAlpha + dt * DIRT_SENSE.rise);
       } else if (dirtSenseLinger > 0) {
         dirtSenseLinger = Math.max(0, dirtSenseLinger - dt);
       } else if (dirtSenseAlpha > 0) {
