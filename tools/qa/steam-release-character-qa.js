@@ -33,7 +33,7 @@ async (page) => {
     app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
     app.scene3d.clubhouse().sendToCounter(['balls3', 'glove1'], 'card');
   });
-  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().customers.length > 0);
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().customers().length > 0);
   await page.waitForTimeout(900);
 
   const views = [

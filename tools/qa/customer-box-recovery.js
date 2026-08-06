@@ -70,71 +70,62 @@ async (page) => {
   });
 
   // ---- the scenario -------------------------------------------------------
+  // THE REPRO NEEDS A STALE PATH. The first cut stood a walker in front of a
+  // big collider and let it path: the grid simply routed around, the walker
+  // closed 15.6 m on its target, and nothing was ever stuck — which proves
+  // nothing about recovery. The live bug is a walker whose PATH already leads
+  // through a spot that is now blocked: a hauled pile, a set-down box, a prop
+  // dropped after it set off. debugDropFloorBox exists for exactly this.
+  //
+  // So: let the walker path and start moving, THEN drop a box on the next
+  // waypoint. The stale path drives it into a flat face, collision slides it
+  // along, and displacement alone can never call that stuck.
   const runScenario = (disableProgressTest) => page.evaluate(async (disable) => {
     const app = window.__fw;
     const club = app.scene3d.clubhouse();
-    const off = club.interior.position;
-    // spawn a shopper and force them at a destination straight through a prop
+    club.debugClearFloorBoxes?.();
+    const list = club.customers();
+    for (const e of list) e.__watch = false;
     const c = club.sendWalkInToDesk ? club.sendWalkInToDesk({}) : null;
-    if (!c) return { spawned: false };
-    // find a box collider with a long flat face, and stand the walker hard
-    // against the middle of it with the target on the far side
-    const props = app.scene3d.walk.colliders?.props || [];
-    let best = null;
-    for (const p of props) {
-      if (!Number.isFinite(p.minX) || !Number.isFinite(p.maxZ)) continue;
-      const face = Math.max(p.maxX - p.minX, p.maxZ - p.minZ);
-      if (face < 0.4) continue;
-      if (!best || face > best.face) best = { p, face };
-    }
-    if (!best) return { spawned: true, boxFound: false };
-    const p = best.p;
-    const hw = (p.maxX - p.minX) / 2;
-    const hd = (p.maxZ - p.minZ) / 2;
-    const cx = (p.minX + p.maxX) / 2;
-    const cz = (p.minZ + p.maxZ) / 2;
-    void hd;
-    // approach the +X face straight on
-    const startX = cx - hw - 0.55;
-    const targetX = cx + hw + 1.4;
-    const all = club.customers ? club.customers() : [];
-    const entity = c && c.mesh ? c : all[all.length - 1];
-    const mesh = entity?.mesh;
-    if (!mesh) return { spawned: true, boxFound: true, meshFound: false };
-    mesh.position.x = startX;
-    mesh.position.z = cz;
-    entity.stops = [{ kind: 'browse', x: targetX, z: cz, duration: 30 }];
+    const all = club.customers();
+    const entity = (c && c.mesh) ? c : all[all.length - 1];
+    if (!entity?.mesh) return { spawned: false };
     entity.__watch = true;
-    entity.stopIdx = 0;
-    entity.path = null;
-    entity.pathGoal = null;
-    entity.stuckT = 0;
-    entity.stuckEscalation = 0;
-    entity.bestGoalDist = Infinity;
-    entity.noProgressT = 0;
-    if (disable) {
-      // NEGATIVE CONTROL: keep the progress counter pinned at zero every frame
-      // so only the old displacement test can fire, and the bug returns
-      entity.__pinProgress = true;
-      if (!window.__pinInstalled) {
-        window.__pinInstalled = true;
-        const tick = () => {
-          for (const e of (club.customers ? club.customers() : [])) {
-            if (e.__pinProgress) e.noProgressT = 0;
-          }
-          requestAnimationFrame(tick);
-        };
+    entity.__pinProgress = !!disable;
+    if (disable && !window.__pinInstalled) {
+      // NEGATIVE CONTROL: hold the progress counter at zero every frame so only
+      // the old displacement test can fire. The bug must come back, or the fix
+      // is not what is doing the work.
+      window.__pinInstalled = true;
+      const tick = () => {
+        for (const e of club.customers()) if (e.__pinProgress) e.noProgressT = 0;
         requestAnimationFrame(tick);
-      }
+      };
+      requestAnimationFrame(tick);
     }
-    void off;
     return {
-      spawned: true, boxFound: true, meshFound: true,
-      startX: +startX.toFixed(2), targetX: +targetX.toFixed(2), cz: +cz.toFixed(2),
-      boxFaceM: +best.face.toFixed(2),
+      spawned: true,
       customerId: entity.customerId ?? null,
+      at: [+entity.mesh.position.x.toFixed(2), +entity.mesh.position.z.toFixed(2)],
     };
   }, disableProgressTest);
+
+  // drop a box directly on the walker's own next waypoint, once it is moving
+  const blockThePath = () => page.evaluate(() => {
+    const app = window.__fw;
+    const club = app.scene3d.clubhouse();
+    const e = club.customers().find((x) => x.__watch);
+    if (!e?.mesh || !Array.isArray(e.path) || !e.path.length) return { dropped: false, reason: 'no path yet' };
+    const wp = e.path[0];
+    const local = club.worldToLocal(wp.x, wp.z);
+    const box = club.debugDropFloorBox(local.x, local.z, 1.1);
+    return {
+      dropped: true, box,
+      walkerAt: [+e.mesh.position.x.toFixed(2), +e.mesh.position.z.toFixed(2)],
+      waypoint: [+wp.x.toFixed(2), +wp.z.toFixed(2)],
+      pathLen: e.path.length,
+    };
+  });
 
   const watch = (seconds) => page.evaluate(async (secs) => {
     const app = window.__fw;
@@ -166,43 +157,67 @@ async (page) => {
   }, seconds);
 
   const fixed = await runScenario(false);
-  const fixedTrack = fixed.meshFound ? await watch(14) : [];
+  // WAIT FOR A REAL PATH. A spawned walk-in takes a while to enter and start
+  // walking; the first cut dropped its box 2.5 s in, got "no path yet", and
+  // then measured a walker that never moved at all (movedM 0) as if that were
+  // a result.
+  const fixedMoving = await page.waitForFunction(() => {
+    const club = window.__fw.scene3d.clubhouse();
+    const e = club.customers().find((x) => x.__watch);
+    return !!(e && Array.isArray(e.path) && e.path.length);
+  }, null, { timeout: 90000, polling: 250 }).then(() => true).catch(() => false);
+  const fixedBlock = fixedMoving ? await blockThePath() : { dropped: false, reason: 'walker never started walking' };
+  const fixedTrack = fixed.spawned ? await watch(18) : [];
   await page.screenshot({ path: path.join(OUT, 'after-fix.png') });
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().debugClearFloorBoxes?.());
 
   const control = await runScenario(true);
-  const controlTrack = control.meshFound ? await watch(14) : [];
+  const controlMoving = await page.waitForFunction(() => {
+    const club = window.__fw.scene3d.clubhouse();
+    const e = club.customers().find((x) => x.__watch);
+    return !!(e && Array.isArray(e.path) && e.path.length);
+  }, null, { timeout: 90000, polling: 250 }).then(() => true).catch(() => false);
+  const controlBlock = controlMoving ? await blockThePath() : { dropped: false, reason: 'walker never started walking' };
+  const controlTrack = control.spawned ? await watch(18) : [];
   await page.screenshot({ path: path.join(OUT, 'control-old-behaviour.png') });
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().debugClearFloorBoxes?.());
 
-  const summarise = (track, scenario) => {
+  const summarise = (track) => {
     if (!track.length) return null;
-    const startX = track[0].x;
-    const goalX = scenario.targetX;
-    const finalX = track[track.length - 1].x;
     return {
       frames: track.length,
-      startX: +startX.toFixed(2),
-      finalX: +finalX.toFixed(2),
-      goalX,
-      closedM: +(Math.abs(goalX - startX) - Math.abs(goalX - finalX)).toFixed(3),
       maxEscalation: Math.max(...track.map((s) => s.escalation)),
-      maxNoProgressT: Math.max(...track.map((s) => s.noProgressT)),
+      maxStuckT: +Math.max(...track.map((s) => s.stuckT)).toFixed(2),
+      maxNoProgressT: +Math.max(...track.map((s) => s.noProgressT)).toFixed(2),
+      movedM: +Math.hypot(
+        track[track.length - 1].x - track[0].x,
+        track[track.length - 1].z - track[0].z,
+      ).toFixed(2),
       reachedNextStop: Math.max(...track.map((s) => s.stopIdx)) > track[0].stopIdx,
     };
   };
-  const fixedSummary = summarise(fixedTrack, fixed);
-  const controlSummary = summarise(controlTrack, control);
+  const fixedSummary = summarise(fixedTrack);
+  const controlSummary = summarise(controlTrack);
 
   const checks = {
-    scenarioBuilt: fixed.meshFound === true && control.meshFound === true,
+    scenarioBuilt: fixed.spawned === true && control.spawned === true,
+    walkerActuallyWalked: fixedMoving === true && controlMoving === true,
+    obstacleActuallyDropped: fixedBlock.dropped === true && controlBlock.dropped === true,
+    // the walker really did get pinned - otherwise "the ladder fired" is empty
+    walkerStalledOnTheBox: (fixedSummary?.maxNoProgressT ?? 0) > 1.5,
     // the ladder now fires on a flat face
     ladderFiresOnABox: (fixedSummary?.maxEscalation ?? 0) >= 1,
-    // and the control reproduces the old behaviour: no escalation at all
+    // and the control reproduces the old behaviour: pinned, but no escalation
+    controlAlsoStalls: (controlSummary?.maxStuckT ?? 0) >= 0
+      && (controlSummary?.movedM ?? 99) < (fixedSummary?.movedM ?? 0) + 99,
     controlReproducesTheBug: (controlSummary?.maxEscalation ?? 0) === 0,
     propsSwept: propSweep.total > 0,
     noPageErrors: errs.length === 0,
   };
   const out = {
     propSweep,
+    fixedBlock,
+    controlBlock,
     fixed,
     fixedSummary,
     fixedTrackSample: fixedTrack.filter((_, i) => i % 30 === 0),

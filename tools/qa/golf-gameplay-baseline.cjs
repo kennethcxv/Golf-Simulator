@@ -347,7 +347,7 @@ async function main() {
       })),
       greenFees: window.__fw.state.ledger.today.revenue.greenFees,
       activeRoundState: window.__fw.state.activeRounds ?? null,
-      clubhouseGolfers: window.__fw.scene3d.clubhouse().customers
+      clubhouseGolfers: window.__fw.scene3d.clubhouse().customers()
         .filter((customer) => customer.isGolfer)
         .map((customer) => ({ name: customer.name, queued: customer.queued, done: customer.done })),
     }));

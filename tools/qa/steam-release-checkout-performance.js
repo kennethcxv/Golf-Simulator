@@ -283,8 +283,8 @@ async (page) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
       const origin = clubhouse.interior.position;
-      while (clubhouse.customers.length < target) clubhouse.debugSpawn(false);
-      for (let i = 0; i < clubhouse.customers.length; i++) {
+      while (clubhouse.customers().length < target) clubhouse.debugSpawn(false);
+      for (let i = 0; i < clubhouse.customers().length; i++) {
         const customer = clubhouse.customers[i];
         const x = origin.x - 3.4 + (i % 4) * 1.75;
         const z = origin.z - 2.5 + Math.floor(i / 4) * 1.45;
@@ -307,7 +307,7 @@ async (page) => {
     // A 100-cycle soak intentionally takes longer than normal checkout patience.
     // Keep this fixture at the till so failures measure register re-entry, not a
     // shopper correctly abandoning an hour-long transaction.
-    const fixture = clubhouse.customers.at(-1);
+    const fixture = clubhouse.customers().at(-1);
     if (fixture) fixture.patience = 3600;
     return name;
   });

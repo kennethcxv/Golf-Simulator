@@ -12089,7 +12089,12 @@ export function makeClubhouse(ctx) {
     bagLoad: () => cleaningStatus(state)?.bag.load || 0,
     emptyPan: () => emptyPanIntoBag(state).moved,
     disposeBag: () => disposeTiedBag(state),
-    customers, doors, // QA access
+    // `customers` is NOT re-exported here. It was, and being the LATER key in
+    // the same object literal it silently overwrote the accessor 350 lines
+    // above, so `clubhouse().customers()` threw "not a function" for every
+    // driver that used the documented form — which is why item 14 could not be
+    // confirmed last session. One name, one meaning: customers() is a getter.
+    doors, // QA access
     // C6 acceptance: "N of M visits contained both a purchase and a booking".
     // A visit ends by leaving the customers array, so the answer has to be
     // accumulated as it happens rather than counted at the end.

@@ -110,7 +110,7 @@ async (page) => {
 
   const heldAtCounter = await page.evaluate((name) => {
     const app = window.__fw;
-    const customer = app.scene3d.clubhouse().customers.find((entry) => entry.name === name);
+    const customer = app.scene3d.clubhouse().customers().find((entry) => entry.name === name);
     return {
       uids: customer.cart.map((item) => item.uid),
       shelf: Object.fromEntries(customer.cart.map((item) => [
@@ -197,7 +197,7 @@ async (page) => {
   await page.evaluate(async (name) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const customer = clubhouse.customers.find((entry) => entry.name === name);
+    const customer = clubhouse.customers().find((entry) => entry.name === name);
     if (!customer) throw new Error('Patience customer disappeared before expiry was armed.');
     const { reviewFor } = await import(new URL('src/sim/reviews.js', document.baseURI).href);
     const visit = {
@@ -218,7 +218,7 @@ async (page) => {
   }, fixture.customerName);
 
   await page.waitForFunction((name) => {
-    const customer = window.__fw.scene3d.clubhouse().customers
+    const customer = window.__fw.scene3d.clubhouse().customers()
       .find((entry) => entry.name === name);
     return !!customer?.impatientBeat;
   }, fixture.customerName, { timeout: 5000, polling: 'raf' });
@@ -226,7 +226,7 @@ async (page) => {
 
   await page.waitForFunction((name) => {
     const clubhouse = window.__fw.scene3d.clubhouse();
-    const customer = clubhouse.customers.find((entry) => entry.name === name);
+    const customer = clubhouse.customers().find((entry) => entry.name === name);
     return customer?.giveUpHandled
       && customer.cart.length === 0
       && !customer.queued
@@ -237,7 +237,7 @@ async (page) => {
   const cleanup = await page.evaluate(({ name, skuIds, uids }) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const customer = clubhouse.customers.find((entry) => entry.name === name);
+    const customer = clubhouse.customers().find((entry) => entry.name === name);
     const held = app.state.shop.held || [];
     return {
       customer: customer ? {
@@ -279,7 +279,7 @@ async (page) => {
     'Abandonment changed cash, revenue, history, units, or transaction numbering.');
 
   await page.waitForFunction((name) => (
-    !window.__fw.scene3d.clubhouse().customers.some((entry) => entry.name === name)
+    !window.__fw.scene3d.clubhouse().customers().some((entry) => entry.name === name)
   ), fixture.customerName, { timeout: 60000 });
   await shot('05-customer-physically-departed.png');
 

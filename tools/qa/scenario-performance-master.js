@@ -1076,14 +1076,14 @@ async (page) => {
         minimumMs: 8000,
         action: async () => {
           await page.waitForFunction(() => {
-            const customers = window.__fw.scene3d.clubhouse().customers;
+            const customers = window.__fw.scene3d.clubhouse().customers();
             return Array.isArray(customers) && customers.some((customer) => customer.entered);
           }, null, { timeout: 30000 });
           await page.waitForTimeout(1000);
         },
       });
       if (cycle === 1) await screen('customer-entered');
-      const beforeLeave = await page.evaluate(() => window.__fw.scene3d.clubhouse().customers.map((customer) => ({
+      const beforeLeave = await page.evaluate(() => window.__fw.scene3d.clubhouse().customers().map((customer) => ({
         id: customer.customerId,
         entered: customer.entered,
         phase: customer.checkoutPhase,
@@ -1100,7 +1100,7 @@ async (page) => {
             app.empire.clockMinutes = app.state.clock.minutes;
           });
           await page.keyboard.press('3');
-          await page.waitForFunction(() => window.__fw.scene3d.clubhouse().customers.length === 0, null, { timeout: 45000 });
+          await page.waitForFunction(() => window.__fw.scene3d.clubhouse().customers().length === 0, null, { timeout: 45000 });
           await page.keyboard.press(' ');
           await page.waitForTimeout(800);
         },
@@ -1110,7 +1110,7 @@ async (page) => {
         beforeLeave,
         enterElapsedMs: enterMeasurement.elapsedMs,
         leaveElapsedMs: leaveMeasurement.elapsedMs,
-        remaining: await page.evaluate(() => window.__fw.scene3d.clubhouse().customers.length),
+        remaining: await page.evaluate(() => window.__fw.scene3d.clubhouse().customers().length),
       });
     }
     customerAudit = { cycles: customerCycles, records: customerRecords };
