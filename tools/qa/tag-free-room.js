@@ -42,6 +42,52 @@ async (page) => {
   });
   await page.waitForTimeout(1400);
 
+  // ---- THE COUNTER, MID-SALE, FROM WALK MODE -----------------------------
+  // The existing counter shot was taken from inside the REGISTER, which is a
+  // scripted camera. "Screenshot the counter mid-sale" means the counter as the
+  // player sees it walking up to it, so this stages a real sale and then stands
+  // in front of the desk WITHOUT pressing E.
+  const sale = await page.evaluate(async () => {
+    const app = window.__fw;
+    const club = app.scene3d.clubhouse();
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const skus = ['glove1', 'polo1', 'balls1'];
+    for (const id of skus) {
+      const inv = app.state.shop.inventory[id];
+      if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
+    }
+    club.rebuildStock?.();
+    const customer = club.sendToCounter(skus, 'cash');
+    return { staged: !!customer, stand: [REGISTER.stand.x, REGISTER.stand.z], goods: REGISTER.goods || REGISTER.scanner };
+  });
+  await page.waitForTimeout(9500);
+  const counterShot = await page.evaluate(async () => {
+    const app = window.__fw;
+    const club = app.scene3d.clubhouse();
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const off = club.interior.position;
+    const walk = app.scene3d.walk.state;
+    // the CUSTOMER's side of the desk, looking across the goods
+    const gx = (REGISTER.goods ? REGISTER.goods.x : REGISTER.scanner.x) + off.x;
+    const gz = (REGISTER.goods ? REGISTER.goods.z : REGISTER.scanner.z) + off.z;
+    const sx = REGISTER.stand.x + off.x;
+    const sz = REGISTER.stand.z + off.z;
+    // mirror the staff stand point through the goods to land on the far side
+    walk.x = gx + (gx - sx) * 0.85;
+    walk.z = gz + (gz - sz) * 0.85;
+    const dx = gx - walk.x; const dz = gz - walk.z;
+    const h = Math.hypot(dx, dz) || 0.001;
+    walk.yaw = Math.atan2(-dx / h, -dz / h);
+    walk.pitch = Math.atan2(1.12 - app.scene3d.camera.position.y, h);
+    return {
+      registerActive: !!club.register?.isActive?.(),
+      inside: typeof club.isInside === 'function' ? !!club.isInside(walk.x, walk.z) : null,
+      at: [+walk.x.toFixed(2), +walk.z.toFixed(2)],
+    };
+  });
+  await page.waitForTimeout(1100);
+  await page.screenshot({ path: path.join(OUT, 'counter-mid-sale-walkmode.png') });
+
   const targets = await page.evaluate(() => {
     const app = window.__fw;
     const V = app.scene3d.camera.position.constructor;
@@ -123,19 +169,37 @@ async (page) => {
   // interior offset — that double-counts, and the first run of this walked the
   // camera out onto the fairway and photographed grass. The cartons' own world
   // positions are already world space, so average them and stand back from that.
-  await page.evaluate((points) => {
+  await page.evaluate(async (points) => {
     const app = window.__fw;
+    const club = app.scene3d.clubhouse();
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const off = club.interior.position;
     const walk = app.scene3d.walk.state;
-    if (!points.length) return;
-    const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
-    const cz = points.reduce((sum, p) => sum + p[2], 0) / points.length;
-    walk.x = cx + 3.4;
-    walk.z = cz + 3.4;
-    const dx = cx - walk.x;
-    const dz = cz - walk.z;
-    const h = Math.hypot(dx, dz) || 0.001;
+    // Anchor on the COUNTER, which is known to be inside, and only pull toward
+    // the cartons by an amount that keeps the camera in the building. Averaging
+    // raw carton positions put the camera outside once already, and the shape
+    // search picks different objects once a sale is staged.
+    const ax = REGISTER.stand.x + off.x;
+    const az = REGISTER.stand.z + off.z;
+    let tx = ax; let tz = az;
+    const inside = points.filter(() => true);
+    if (inside.length) {
+      tx = inside.reduce((sum, p) => sum + p[0], 0) / inside.length;
+      tz = inside.reduce((sum, p) => sum + p[2], 0) / inside.length;
+    }
+    // walk back from the anchor toward the cartons, stopping while still inside
+    let bestX = ax; let bestZ = az;
+    for (let t = 0; t <= 1.0; t += 0.1) {
+      const cx = ax + (tx - ax) * t;
+      const cz = az + (tz - az) * t;
+      if (typeof club.isInside === 'function' && !club.isInside(cx, cz)) break;
+      bestX = cx; bestZ = cz;
+    }
+    walk.x = bestX; walk.z = bestZ;
+    const dx = tx - walk.x; const dz = tz - walk.z;
+    const h = Math.hypot(dx, dz) || 1;
     walk.yaw = Math.atan2(-dx / h, -dz / h);
-    walk.pitch = -0.22;
+    walk.pitch = -0.20;
   }, targets.picked.map((t) => t.at));
   await page.waitForTimeout(950);
   await page.screenshot({ path: path.join(OUT, 'room-wide.png') });
@@ -160,9 +224,13 @@ async (page) => {
       || new Set(shots.map((s) => `${s.framed.x},${s.framed.z}`)).size === shots.length,
     // the wide shot must be INDOORS - the first run framed the fairway
     wideShotIsIndoors: wideIndoors.inside === true,
+    // the counter shot is the PLAYER's camera, not the register's
+    counterSaleStaged: sale.staged === true,
+    counterShotFromWalkMode: counterShot.registerActive === false,
+    counterShotIsIndoors: counterShot.inside === true,
     noPageErrors: errs.length === 0,
   };
-  const out = { targets, shots, wideIndoors, errs: errs.slice(0, 8), checks };
+  const out = { sale, counterShot, targets, shots, wideIndoors, errs: errs.slice(0, 8), checks };
   out.ok = Object.values(checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'tag-free-room.json'), `${JSON.stringify(out, null, 1)}\n`);
   return out;
