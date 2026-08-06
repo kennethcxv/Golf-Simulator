@@ -468,7 +468,7 @@ export function postReview(state, review) {
   // one heads-up per day, however many land — the Reviews page holds the rest
   notify(state, {
     kind: 'review',
-    text: `New review${review.stars <= 2 ? ` — ${review.stars}★, worth reading` : `: ${review.stars}★`}. More may follow today.`,
+    text: `New review${review.stars <= 2 ? `: ${review.stars}★, worth reading` : `: ${review.stars}★`}. More may follow today.`,
     dedupeKey: `review:${review.day}`,
   });
   return review;

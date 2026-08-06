@@ -259,7 +259,7 @@ export function journalSections(state) {
       id: 'champions',
       title: 'Champions',
       locked: returning < 3,
-      lockedLine: `Waiting on regulars — ${returning} of 3 golfers have come back.`,
+      lockedLine: `Waiting on regulars. ${returning} of 3 golfers have come back.`,
     },
   ];
 }
