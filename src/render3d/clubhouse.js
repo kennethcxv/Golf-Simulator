@@ -5253,10 +5253,19 @@ export function makeClubhouse(ctx) {
   const senseGhostGritMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
   const senseGhostLitterMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
   const senseGrimeQuadMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.GRIME].color);
+  const GRIME_MARKER_MAX_CAP = 20; // mirrors GRIME_MARKER_MAX below
   const senseGhostGrit = new THREE.InstancedMesh(debrisGeo, senseGhostGritMat, DEBRIS_CAP);
   const senseGhostLitter = new THREE.InstancedMesh(litterGeo, senseGhostLitterMat, DEBRIS_CAP);
+  // 2026-08-06 ruling: the reveal must pick out "the specific mess", not "the
+  // huge blob". One filled quad per grid cell was the blob - a cell is over a
+  // metre across, so a dirty floor lit up as a wall of solid tiles that said
+  // nothing a condition number does not. Grime is now drawn as SPECKLES
+  // scattered inside each cell, as many as the cell is dirty, which reads as
+  // the actual patches of muck on the boards.
+  const GRIME_SPECKLES_PER_CELL = 9;
   const senseGrimeQuad = new THREE.InstancedMesh(
-    new THREE.PlaneGeometry(1, 1), senseGrimeQuadMat, RENO.grid.w * RENO.grid.h,
+    new THREE.PlaneGeometry(1, 1), senseGrimeQuadMat,
+    GRIME_MARKER_MAX_CAP * GRIME_SPECKLES_PER_CELL,
   );
   for (const ghost of [senseGhostGrit, senseGhostLitter, senseGrimeQuad]) {
     ghost.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -5309,7 +5318,7 @@ export function makeClubhouse(ctx) {
   // says. The reveal's job is WHERE TO GO FIRST, so it shows the worst patches
   // only. 20 is roughly a fifth of the grid: enough to describe the shape of
   // the mess, few enough to see the room through.
-  const GRIME_MARKER_MAX = 20;
+  const GRIME_MARKER_MAX = GRIME_MARKER_MAX_CAP;
   // Debris is a pile you walk up to; grime is IN the boards. Drawing both as
   // the same floating ball made a stained floor look like hovering fruit, so
   // grime markers are flattened onto the surface and read as a stain.
@@ -5391,15 +5400,35 @@ export function makeClubhouse(ctx) {
             place(x, z, Math.min(2.6, 0.7 + Math.sqrt(cell.amount) * 1.7), MEDIUM.GRIME);
           }
         } else {
-          // J1: the stain's REAL footprint — a flat quad fitted to the cell,
-          // lying on the boards, stronger where the cell is dirtier (carried
-          // by per-cell scale so a worst patch reads bigger than a faint one).
-          const fit = 0.55 + Math.min(0.45, cell.amount * 0.5);
-          _dp.set(x, 0.035, z);
-          _dq.setFromAxisAngle(_dRight, -Math.PI / 2);
-          _ds.set(cellW * fit, cellD * fit, 1);
-          _dm.compose(_dp, _dq, _ds);
-          senseGrimeQuad.setMatrixAt(grimeQuads++, _dm);
+          // THE SPECIFIC MESS, not a lit tile. Scatter small speckles inside
+          // the cell - more of them, and larger, the dirtier the cell is - so
+          // the reveal reads like grime seen through the boards rather than a
+          // highlighted square. The scatter is a deterministic hash of the
+          // cell, so the same floor shows the same patches every boot.
+          const count = Math.max(2, Math.round(
+            2 + Math.min(1, cell.amount) * (GRIME_SPECKLES_PER_CELL - 2),
+          ));
+          let h = (cell.cx * 73856093) ^ (cell.cy * 19349663);
+          const rand = () => {
+            h = Math.imul(h ^ (h >>> 15), h | 1);
+            h ^= h + Math.imul(h ^ (h >>> 7), h | 61);
+            return ((h ^ (h >>> 14)) >>> 0) / 4294967296;
+          };
+          for (let s = 0; s < count && grimeQuads < senseGrimeQuad.instanceMatrix.count; s += 1) {
+            // a speckle never grows past a third of its cell, so no single
+            // mark can read as a slab however dirty the cell is
+            const size = (0.10 + rand() * 0.12) * Math.min(cellW, cellD)
+              * (0.75 + Math.min(1, cell.amount) * 0.45);
+            _dp.set(
+              x + (rand() - 0.5) * cellW * 0.82,
+              0.035,
+              z + (rand() - 0.5) * cellD * 0.82,
+            );
+            _dq.setFromAxisAngle(_dRight, -Math.PI / 2);
+            _ds.set(size, size * (0.75 + rand() * 0.35), 1);
+            _dm.compose(_dp, _dq, _ds);
+            senseGrimeQuad.setMatrixAt(grimeQuads++, _dm);
+          }
         }
         senseTally.grime += 1;
       }
@@ -11896,6 +11925,12 @@ export function makeClubhouse(ctx) {
       ghostGrit: senseGhostGrit.count,
       ghostLitter: senseGhostLitter.count,
       grimeQuads: senseGrimeQuad.count,
+      // Q1: how many CELLS carry grime vs how many speckles were drawn for
+      // them. A blob-style reveal draws one per cell; the specific-mess
+      // reveal draws several, each far smaller than a cell.
+      grimeCellsDirty: senseTally.grimeCellsDirty ?? 0,
+      grimeCellsShown: senseTally.grime,
+      grimeCellSize: +Math.min(RENO.room.w / RENO.grid.w, RENO.room.d / RENO.grid.h).toFixed(3),
     }),
     cleaningLabel: (toolId) => {
       const status = cleaningStatus(state);
