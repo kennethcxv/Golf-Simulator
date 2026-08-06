@@ -240,3 +240,31 @@ predicted, not a failure to apply the pass — those assets carry relief, not al
   drop `Foam001` (serves only asset 077, ~4 MB), drop `Leather011` (serves 067/068, ~4 MB), or
   extend source-sharing to the pre-existing 85.8 MB of above-ceiling textures, which is 5×
   larger than anything this pass added.
+
+---
+
+## 9. Addendum — the same assets, in the room
+
+`tools/qa/p1-texture-in-room.js` (new). The pair harness in §5 renders each asset alone in
+a neutral studio, which is the right way to prove a map arrived and the wrong way to judge
+whether it reads: the shop has its own light, exposure and standoff distances.
+
+So this walks the live build, asks the **scene graph** which of the 19 it actually
+instantiated rather than guessing at vantage points, and frames each one through the game's
+own camera and post chain. The standoff direction is chosen by casting twelve rays outward
+and taking the clearest, because a fixed offset puts the camera inside a wall for anything
+placed against one — the first attempt photographed plaster and lawn.
+
+All 19 are placed and captured (`qa/p1-texture/in-room/`, contact sheet at
+`qa/p1-texture/contact-in-room.png`). The room renders correctly: no black materials, no
+missing maps, no page errors, and the casework, panelling and floors read as wood at
+walking distance.
+
+**What this set does not do:** the small backroom tools sit off-centre in their frames, because
+the clearest direction from a mop is not necessarily the direction that composes it well. This
+harness is a regression check and a sanity look, not the per-asset evidence — §5 is that, and
+§5 is complete at 27 of 27 with a self-pair control of 0.00%.
+
+The first-person variants are excluded here on purpose. They are parented to the camera rig
+and only take a position when a tool is held; in the world they sit at the origin, outside
+the building. §5 covers them.
