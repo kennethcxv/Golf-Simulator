@@ -461,6 +461,18 @@ def build(M):
                                            (i) / 6.0, (i + 1) / 6.0,
                                            0.0035 * (5 - i), cream if i % 2 else dim,
                                            book_open))
+        # R6 "page edges": the block is GILT ON THE FORE-EDGE. A ledger's edges
+        # are gilded so the closed book shows a gold band, and open it catches
+        # the light along the outer edge of each half. It is the one page-edge
+        # detail that reads from across a dim room, and the block had none.
+        gild_t = (arch_z(1.0) - block_floor_z(PAGE_W)) * 0.92
+        page_parts.append(L.box(
+            f"LB_GiltEdge{tag}",
+            (0.0022, PAGE_D - 0.006, gild_t),
+            (side * (PAGE_W - 0.0004),
+             0,
+             block_floor_z(PAGE_W) + gild_t / 2 + 0.0006),
+            gold, parent=book_open, bevel=0.0004, uv=False))
         page_face(f"LB_Face{tag}", side, face_mat, book_open)
         # brass caps on the open covers' outer corners, lips upward
         fx = side * _CW * math.cos(vee) - side * 0.004

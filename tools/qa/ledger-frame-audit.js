@@ -416,6 +416,20 @@ async (page) => {
     };
   });
 
+  // R6: the reading light must be ON while open and OFF while shut. Its own
+  // negative control - a light that is always on would light a closed book on
+  // the desk, which is worse than no light at all.
+  const lightOpen = openDiag.readingLight;
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForFunction(() => window.__fw.ledgerOpen === false, null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(1400);
+  const lightClosed = await page.evaluate(
+    () => window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().readingLight,
+  );
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__fw.ledgerOpen === true, null, { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+
   const frameControl = await page.evaluate(() => {
     const root = window.__fw.scene3d.clubhouse().interior.getObjectByName('FrontDeskLedgerBook');
     const before = root.scale.x;
@@ -553,9 +567,13 @@ async (page) => {
     lockedSectionIsPresent: !!lockedBefore.sections?.find((s) => s.id === 'course' && s.locked),
     sectionUnlocksOnItsOwn: unlocked === true
       && !!unlockedDiag.sections?.find((s) => s.id === 'course' && !s.locked),
+    // R6
+    readingLightOnWhenOpen: (lightOpen?.intensity || 0) > 0.5 && lightOpen?.visible === true,
+    readingLightOffWhenShut: (lightClosed?.intensity || 0) < 0.01 && lightClosed?.visible === false,
     noPageErrors: errs.length === 0,
   };
   const out = {
+    lightOpen, lightClosed,
     openDiag, frameWhole, framePages, clip, clipControl, frameControl, deskNeighbours,
     fullBand, emptyBand, controlBand,
     lockedBefore: { sections: lockedBefore.sections, spread: lockedBefore.spread },

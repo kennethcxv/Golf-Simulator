@@ -84,6 +84,25 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   openShell.visible = false;
   root.add(closedShell, openShell);
 
+  // R6, and the real reason the book "reads cheap": IT IS NOT LIT. The pages
+  // are unlit canvases so they always read, but the leather, the brass and the
+  // gold are MeshStandard in a clubhouse whose interior is deliberately dim —
+  // measured on the first pass, the boards came back near-black no matter what
+  // base colour they were given, and lifting the albedo just made a flat grey-
+  // green. Raising the albedo further would have been the wrong fix twice.
+  //
+  // A book held up to your face catches light, so the book carries its own. A
+  // small warm point light rides the spine, lives only while the book is open,
+  // and is scoped to the pages' own decay so it lights the object rather than
+  // the room. The gold turn-in and the new gilt fore-edges have nothing to
+  // catch without it.
+  const readingLight = new THREE.PointLight(0xffe6bd, 0, 0.85, 2.0);
+  readingLight.name = 'LedgerReadingLight';
+  readingLight.position.set(HINGE_X, 0.30, 0.16);
+  readingLight.castShadow = false;
+  root.add(readingLight);
+  const READING_LIGHT_MAX = 1.45;
+
   const fallbackSlab = new THREE.Group();
   {
     const slab = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.07, 0.226), leather);
@@ -1268,6 +1287,14 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       }
     }
 
+    // the reading light comes up with the rise and falls with the close, so it
+    // never pops on over a book still lying shut on the desk
+    const lightWant = bookState === 'open' ? 1
+      : bookState === 'opening' ? Math.min(1, stateT / 0.7)
+        : bookState === 'closing' ? Math.max(0, 1 - stateT / 0.5) : 0;
+    readingLight.intensity = lightWant * READING_LIGHT_MAX;
+    readingLight.visible = readingLight.intensity > 0.001;
+
     if (bookState === 'opening') {
       stateT = Math.min(1, stateT + dt / OPEN_SECONDS);
       const rise = smoothstep(Math.min(1, stateT / 0.75));
@@ -1407,6 +1434,11 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         pivotY: +gutterHeight.toFixed(4),
       } : null,
       footTop,
+      readingLight: {
+        intensity: +readingLight.intensity.toFixed(3),
+        visible: readingLight.visible,
+        max: READING_LIGHT_MAX,
+      },
       cues: cueLog.slice(-12),
       ...lastPaint,
     }),
