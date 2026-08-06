@@ -38,6 +38,7 @@
 import { clamp } from '../core/utils.js';
 import { shopCondition } from './shop.js';
 import { reputationOverall } from './reputation.js';
+import { clubRatings, amenityScore, fairGreenFee, demandMultiplier } from './club.js';
 
 export const SHOP_FOOTFALL = Object.freeze({
   // Below this the club is a rumour; above it word of mouth is saturated and
@@ -48,12 +49,54 @@ export const SHOP_FOOTFALL = Object.freeze({
   // return. Below this the cleanliness term contributes nothing.
   cleanlinessFloor: 25,
   cleanlinessCeiling: 100,
-  reputationShare: 0.75,
-  cleanlinessShare: 0.25,
+  // ITEM 15 (2026-08-06): "scaled by rating, price and reputation. A good
+  // cheap course is busy, a neglected dear one empty."
+  //
+  // Reputation and cleanliness alone could not express that sentence. Both are
+  // about the SHOP; neither knows what the course is like or what it costs, so
+  // a course rated 20 and a course rated 90 pulled identical crowds at
+  // identical reputation, and the green fee — the one number the player sets
+  // directly — did nothing at all.
+  //
+  // Rating joins the weighted base. PRICE does not: it is a MULTIPLIER, because
+  // "cheap" and "dear" are only meaningful against what the round is worth.
+  // The game already owns that judgement — fairGreenFee(rating, amenity) and
+  // demandMultiplier(price, fair) are what the round-count economy has always
+  // used — so this reuses them rather than inventing a second opinion about
+  // value that could drift from the first.
+  reputationShare: 0.55,
+  cleanlinessShare: 0.20,
+  ratingShare: 0.25,
+  // A bargain fills the room but cannot conjure a crowd out of nothing, and
+  // gouging empties it without quite closing the door. Tighter than the
+  // round-count model's 0.1..1.8 because concurrency is a small integer: at
+  // capacity 6 the full range would swing the floor by four people on price
+  // alone, which reads as a bug rather than a pricing decision.
+  priceFloor: 0.55,
+  priceCeiling: 1.35,
   // An open shop always has room for one person. A shop that is open and
   // completely empty of prospects is a bug the player cannot diagnose.
   openFloor: 1,
 });
+
+/**
+ * The formula itself, with the four terms handed in. Pure, so it can be tested
+ * on the numbers rather than by sculpting a state — a fixture cannot cheaply
+ * build a badly-conditioned course (section health is computed from turf cells,
+ * not stored), and a test that cannot move its input is a test that compares a
+ * thing to itself.
+ *
+ * @param reputation  0..1 normalised club standing
+ * @param cleanliness 0..1 normalised shop condition
+ * @param rating      0..1 normalised course rating
+ * @param priceFactor demand multiplier, already clamped
+ */
+export function footfallDriveFrom({ reputation = 0, cleanliness = 0, rating = 0, priceFactor = 1 }) {
+  const base = clamp(reputation, 0, 1) * SHOP_FOOTFALL.reputationShare
+    + clamp(cleanliness, 0, 1) * SHOP_FOOTFALL.cleanlinessShare
+    + clamp(rating, 0, 1) * SHOP_FOOTFALL.ratingShare;
+  return clamp(base * priceFactor, 0, 1);
+}
 
 // 0..1: how much of the room's capacity the club's standing justifies filling.
 export function shopFootfallDrive(state) {
@@ -67,11 +110,62 @@ export function shopFootfallDrive(state) {
       / (SHOP_FOOTFALL.cleanlinessCeiling - SHOP_FOOTFALL.cleanlinessFloor),
     0, 1,
   );
-  return clamp(
-    reputation * SHOP_FOOTFALL.reputationShare
-      + cleanliness * SHOP_FOOTFALL.cleanlinessShare,
+  let rating = 0;
+  let price = 1;
+  try {
+    const ratings = clubRatings(state);
+    rating = clamp(ratings.overall / 100, 0, 1);
+    const amenity = amenityScore(state);
+    const fair = fairGreenFee(ratings.overall, amenity);
+    const asked = Number(state?.club?.greenFee) || fair;
+    price = clamp(
+      demandMultiplier(asked, fair),
+      SHOP_FOOTFALL.priceFloor,
+      SHOP_FOOTFALL.priceCeiling,
+    );
+  } catch {
+    // A save without a course still has a shop. Rating and price fall out of
+    // the model rather than taking the whole thing down with them.
+    rating = 0;
+    price = 1;
+  }
+  return footfallDriveFrom({ reputation, cleanliness, rating, priceFactor: price });
+}
+
+/** The terms behind the drive, so a driver can say WHY the floor is that busy. */
+export function shopFootfallBreakdown(state) {
+  const reputation = clamp(
+    (reputationOverall(state) - SHOP_FOOTFALL.reputationFloor)
+      / (SHOP_FOOTFALL.reputationCeiling - SHOP_FOOTFALL.reputationFloor),
     0, 1,
   );
+  const cleanliness = clamp(
+    (shopCondition(state) - SHOP_FOOTFALL.cleanlinessFloor)
+      / (SHOP_FOOTFALL.cleanlinessCeiling - SHOP_FOOTFALL.cleanlinessFloor),
+    0, 1,
+  );
+  let rating = 0;
+  let fair = null;
+  let asked = null;
+  let price = 1;
+  try {
+    const ratings = clubRatings(state);
+    rating = clamp(ratings.overall / 100, 0, 1);
+    const amenity = amenityScore(state);
+    fair = fairGreenFee(ratings.overall, amenity);
+    asked = Number(state?.club?.greenFee) || fair;
+    price = clamp(demandMultiplier(asked, fair),
+      SHOP_FOOTFALL.priceFloor, SHOP_FOOTFALL.priceCeiling);
+  } catch { /* no course: the terms drop out */ }
+  return {
+    reputation: +reputation.toFixed(3),
+    cleanliness: +cleanliness.toFixed(3),
+    rating: +rating.toFixed(3),
+    fairFee: fair == null ? null : +fair.toFixed(2),
+    askedFee: asked == null ? null : +asked.toFixed(2),
+    priceFactor: +price.toFixed(3),
+    drive: +shopFootfallDrive(state).toFixed(3),
+  };
 }
 
 // How many shoppers the floor should be carrying right now. `capacity` is the
