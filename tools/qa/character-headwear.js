@@ -127,6 +127,46 @@ async (page) => {
   await page.waitForTimeout(1200);
   await page.screenshot({ path: path.join(OUT, '01-customer-at-counter.png') });
 
+  // Q6b: the golf clothes, framed on the customer rather than the room. The
+  // camera is put an arm's length in front of them at chest height, which is
+  // where a player actually reads an outfit.
+  const dressed = await page.evaluate(async () => {
+    try {
+      const app = window.__fw;
+      const club = app.scene3d.clubhouse();
+      // Build a figure and stand it in front of the camera rather than waiting
+      // on a live customer: a shopper who has already left makes the frame a
+      // picture of an empty room, which is not evidence of anything.
+      const { makeCharacter } = await import(new URL('src/render3d/characterAsset.js', document.baseURI).href);
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+      const cam = app.scene3d.camera;
+      cam.updateMatrixWorld(true);
+      const model = makeCharacter({ polo: 0x2f6d4f, khaki: 0xd8c9a4, cap: 0xf2efe4 });
+      const m = model.root;
+      // Stand them along the camera's ACTUAL forward. The first attempt put
+      // them at a fixed -z and photographed the counter instead.
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+      forward.y = 0;
+      forward.normalize();
+      const wx = cam.position.x + forward.x * 2.1;
+      const wz = cam.position.z + forward.z * 2.1;
+      const floor = club.interior.position.y;
+      m.position.set(wx, floor, wz);
+      // face the camera
+      m.rotation.y = Math.atan2(-forward.x, -forward.z);
+      app.scene3d.scene.add(m);
+      const walk = app.scene3d.walk.state;
+      walk.pitch = -0.06;
+      let parts = 0;
+      m.traverse((o) => { if (o.isMesh) parts += 1; });
+      return { parts, at: { x: +wx.toFixed(2), z: +wz.toFixed(2) } };
+    } catch (error) {
+      return { error: String(error && error.message ? error.message : error) };
+    }
+  });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(OUT, '02-golf-clothes.png') });
+
   const checks = {
     capActuallyCovers: measure.live.samples > 20,
     // the claim: nowhere the cap covers does the skull come through it
@@ -136,7 +176,7 @@ async (page) => {
     controlSunkCapStillIntersects: measure.control.directionsSkullPokesThrough > 0,
     noPageErrors: errs.length === 0,
   };
-  const out = { ...measure, errs: errs.slice(0, 8), checks };
+  const out = { ...measure, dressed, errs: errs.slice(0, 8), checks };
   out.ok = Object.values(checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'headwear.json'), `${JSON.stringify(out, null, 1)}\n`);
   return out;

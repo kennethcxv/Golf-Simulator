@@ -104,6 +104,16 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   belt.scale.z = 0.74;
   belt.castShadow = true;
   root.add(belt);
+  // Q6: a real buckle. A plain dark band round the waist reads as a seam; the
+  // bright rectangle at the front is what says "belt", and a belt is most of
+  // what says the trousers are golf trousers rather than pyjamas.
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.044, 0.014), M(0xb9a06a, 0.34));
+  buckle.position.set(0, 1.055, 0.152);
+  buckle.castShadow = true;
+  root.add(buckle);
+  const buckleTongue = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.020, 0.008), mBelt);
+  buckleTongue.position.set(0, 1.055, 0.160);
+  root.add(buckleTongue);
 
   const chest = new THREE.Group();
   chest.position.y = 1.07;
@@ -151,6 +161,25 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   collar.position.y = 0.415;
   collar.castShadow = true;
   chest.add(collar);
+  // Q6 (2026-08-06): "add real golf clothes on them etc." The shirt was already
+  // a polo in shape - collar, placket, buttons - but nothing said GOLF polo.
+  // The tells a player actually recognises are contrast trim on the collar and
+  // sleeve openings, so they go on here in a tone derived from the shirt rather
+  // than a fixed colour, which keeps every randomised polo looking deliberate.
+  const trimTone = (base) => {
+    const c = new THREE.Color(base);
+    const hsl = { h: 0, s: 0, l: 0 };
+    c.getHSL(hsl);
+    // a crisp light trim on a dark shirt, a deep one on a pale shirt
+    return new THREE.Color().setHSL(hsl.h, Math.min(1, hsl.s * 0.55), hsl.l > 0.5 ? 0.20 : 0.86);
+  };
+  const mTrim = M(trimTone(polo).getHex(), 0.7);
+  const collarTrim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1105, 0.1105, 0.012, 18, 1, true), mTrim,
+  );
+  collarTrim.position.y = 0.441;
+  fineDetail(collarTrim);
+  chest.add(collarTrim);
   // A short placket + two buttons down the chest so the front reads as a polo.
   const placket = box(0.028, 0.17, 0.012, M(polo, 0.62), 0.30, 0.138);
   fineDetail(placket);
@@ -275,6 +304,12 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     sleeveCuff.position.y = -0.275;
     sleeveCuff.castShadow = true;
     shoulder.add(sleeveCuff);
+    // Q6: the matching contrast band at the sleeve opening - the other half of
+    // what makes a shirt read as a golf polo rather than any collared top
+    const sleeveTrim = new THREE.Mesh(new THREE.CylinderGeometry(0.0635, 0.0635, 0.011, 14), mTrim);
+    sleeveTrim.position.y = -0.288;
+    fineDetail(sleeveTrim);
+    shoulder.add(sleeveTrim);
     const elbow = new THREE.Group();
     elbow.name = `elbow${side}`;
     elbow.position.y = -0.32;
@@ -361,6 +396,19 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     tongue.rotation.x = -0.25;
     fineDetail(tongue);
     knee.add(tongue);
+    // Q6: a golf shoe, not a street shoe. Two tells, both cheap: a pale
+    // midsole stripe between the upper and the sole, and a trouser cuff that
+    // BREAKS over the shoe instead of a khaki tube ending in mid-air.
+    const midsole = box(0.138, 0.014, 0.302, M(0xe6e3dc, 0.62), -0.4335, -0.03);
+    fineDetail(midsole);
+    knee.add(midsole);
+    const trouserCuff = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.076, 0.084, 0.055, 14), mKhaki,
+    );
+    trouserCuff.position.set(0, -0.318, 0.006);
+    trouserCuff.scale.z = 0.94;
+    trouserCuff.castShadow = true;
+    knee.add(trouserCuff);
     limbs[`hip${side}`] = hip;
     limbs[`knee${side}`] = knee;
   }
