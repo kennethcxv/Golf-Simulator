@@ -197,7 +197,53 @@ export function takingsSummary(state) {
 // set of pages the reader can turn to; what is withheld is the content - the
 // completionist chase from the NamedGolfers spec made literal. Locks derive
 // from world state and never grant anything by being read.
+/**
+ * The course's own page, once it is open for play. Every line is a read of
+ * state the sim already keeps — the module still owns nothing.
+ */
+export function courseLogSummary(state) {
+  const holes = Array.isArray(state?.course?.holes) ? state.course.holes : [];
+  const count = (status) => holes.filter((hole) => hole.status === status).length;
+  const par = holes.reduce((total, hole) => total + (Number(hole.par) || 0), 0);
+  return {
+    holeCount: holes.length,
+    open: count('open'),
+    renovating: count('renovation'),
+    construction: count('construction'),
+    unbuilt: count('unbuilt'),
+    par,
+    greenFee: Number(state?.club?.greenFee) || 0,
+    reputation: Math.round(Number(state?.club?.reputation) || 0),
+  };
+}
+
+/**
+ * The golfers who keep coming back, most rounds first. "Champions" is what
+ * the club has actually earned: regulars, not invented tournament winners.
+ */
+export function championEntries(state, limit = 6) {
+  return rosterEntries(state)
+    .filter((entry) => entry.visits > 1)
+    .sort((a, b) => b.visits - a.visits
+      || (a.firstVisitDayAbs ?? Infinity) - (b.firstVisitDayAbs ?? Infinity)
+      || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
+/**
+ * The book's sections, and which of them the club has EARNED.
+ *
+ * R5 (2026-08-06): "Lock by section, not the book." Every section already had
+ * its own entry, but the two at the end were hardcoded `locked: true` — they
+ * could never open, so per-section locking existed on paper only. Each lock is
+ * now a read of the same state the rest of the book is a lens on, and each
+ * carries the condition in words the reader can act on.
+ */
 export function journalSections(state) {
+  const campaign = state?.campaign || null;
+  const courseOpen = !!campaign?.businessOpen || !campaign?.enabled;
+  const roster = rosterEntries(state);
+  const returning = roster.filter((entry) => entry.visits > 1).length;
   return [
     { id: 'guests', title: 'Guest Register', locked: false },
     { id: 'house', title: 'House Notes', locked: false },
@@ -206,14 +252,14 @@ export function journalSections(state) {
     {
       id: 'course',
       title: 'Course Log',
-      locked: true,
-      lockedLine: 'Tied shut until the course reopens.',
+      locked: !courseOpen,
+      lockedLine: 'Nothing to record until the course reopens for play.',
     },
     {
       id: 'champions',
       title: 'Champions',
-      locked: true,
-      lockedLine: 'Reserved for the names this club will earn.',
+      locked: returning < 3,
+      lockedLine: `Waiting on regulars — ${returning} of 3 golfers have come back.`,
     },
   ];
 }

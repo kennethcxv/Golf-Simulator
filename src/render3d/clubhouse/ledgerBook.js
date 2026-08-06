@@ -21,6 +21,7 @@
 import {
   rosterEntries, rosterDateShort, houseNotes,
   daySheetSummary, takingsSummary, journalSections,
+  courseLogSummary, championEntries,
 } from '../../sim/clubRoster.js';
 import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
 
@@ -47,8 +48,8 @@ const FOLLOW_RATE = 9;        // 1/s soft-follow while open
 
 // the Blender asset's one set of measurements (tools/blender/build_ledger_book.py)
 const HINGE_X = 0.151;        // the spine hinge line = the open book's gutter
-const LEAF_W = 0.278;         // the turning leaf, just inside the painted faces
-const LEAF_D = 0.184;
+const LEAF_W = 0.264;         // the turning leaf, just inside the painted faces
+const LEAF_D = 0.174;
 const LEAF_SEGS = 24;
 const SWAP_POINT = 0.72;      // cover swing fraction where closed<->open swap hides
 
@@ -146,9 +147,57 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   const leafGeoBack = makeLeafGeometry(false, true);
   const leafBase = leafGeoFront.attributes.position.array.slice();
   const leafPivot = new THREE.Group();
-  // clear of the arched stacks (which top out near 0.034) or the whole turn
-  // happens INSIDE the page block and is never seen
-  leafPivot.position.set(HINGE_X, 0.038, 0);
+  leafPivot.name = 'LedgerTurningLeafPivot';
+  // R1/R4: the leaf's rest height USED to be the constant 0.038 — "clear of
+  // the arched stacks (which top out near 0.034)". Once the block was rebuilt
+  // to sit ON the covers instead of inside them it tops out at 0.048, so a
+  // fixed height would start every turn from inside the paper. The profile is
+  // now SAMPLED from the shipped page mesh, so the leaf lies on whatever the
+  // GLB actually is and cannot drift from it.
+  //   pageProfile[u] = height of the page surface u of the way from the
+  //   gutter to the fore-edge, in the book's own frame.
+  const PROFILE_SAMPLES = 33;
+  let pageProfile = null;   // Float32Array | null until the GLB lands
+  let gutterHeight = 0.021;
+  leafPivot.position.set(HINGE_X, gutterHeight, 0);
+
+  function samplePageProfile(faceMesh) {
+    // LB_FaceL/R carry no local transform inside LB_Open, so their vertex
+    // positions are already the open book's own frame: |x| is the distance
+    // from the gutter, y is the surface height.
+    const position = faceMesh?.geometry?.attributes?.position;
+    if (!position || position.count < 4) return null;
+    const bins = new Float32Array(PROFILE_SAMPLES);
+    const hits = new Uint16Array(PROFILE_SAMPLES);
+    let maxX = 0;
+    for (let i = 0; i < position.count; i += 1) maxX = Math.max(maxX, Math.abs(position.getX(i)));
+    if (maxX <= 1e-5) return null;
+    for (let i = 0; i < position.count; i += 1) {
+      const u = Math.abs(position.getX(i)) / maxX;
+      const bin = Math.min(PROFILE_SAMPLES - 1, Math.round(u * (PROFILE_SAMPLES - 1)));
+      bins[bin] += position.getY(i);
+      hits[bin] += 1;
+    }
+    // fill any empty bin from its nearest filled neighbour
+    let last = null;
+    for (let i = 0; i < PROFILE_SAMPLES; i += 1) {
+      if (hits[i] > 0) { bins[i] /= hits[i]; last = bins[i]; } else if (last !== null) bins[i] = last;
+    }
+    for (let i = PROFILE_SAMPLES - 1; i >= 0; i -= 1) {
+      if (hits[i] === 0 && i + 1 < PROFILE_SAMPLES) bins[i] = bins[i + 1];
+      else if (hits[i] > 0) break;
+    }
+    return bins;
+  }
+
+  function pageHeightAt(u) {
+    if (!pageProfile) return 0.038;
+    const clamped = Math.max(0, Math.min(1, u)) * (PROFILE_SAMPLES - 1);
+    const lo = Math.floor(clamped);
+    const hi = Math.min(PROFILE_SAMPLES - 1, lo + 1);
+    const f = clamped - lo;
+    return pageProfile[lo] * (1 - f) + pageProfile[hi] * f;
+  }
   const leafFront = makePageCanvas();
   const leafBack = makePageCanvas();
   {
@@ -164,6 +213,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         map: leafBack.texture, toneMapped: false, color: 0xd7cfb8, side: THREE.BackSide,
       }),
     );
+    // NAMED, so the turn can be probed. Unnamed, the only handle on the leaf
+    // was "a node with two 768x512 planes under it" — which also describes
+    // LB_Open, and a driver looking for the turning leaf measured the two
+    // static page faces instead and reported a leaf that never moved.
+    front.name = 'LedgerTurningLeafFront';
+    back.name = 'LedgerTurningLeafBack';
     leafFront.mesh = front;
     leafBack.mesh = back;
     leafPivot.add(front, back);
@@ -172,15 +227,28 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   openShell.add(leafPivot);
 
   function bendLeaf(turnProgress) {
-    // the sheet arcs hardest mid-turn and lies flat at both ends, with the
-    // free edge curling a touch more than the hinge side - paper, not a door
-    const arc = Math.sin(Math.min(1, Math.max(0, turnProgress)) * Math.PI);
+    // The sheet has to do three things at once: LIE on the page it starts
+    // from, BEND through the middle, and SETTLE onto the page it lands on.
+    //
+    // The pivot rotates by theta = progress * PI about the gutter, and that
+    // rotation maps local (x, y) -> (-x, -y) at the end. So a rest height of
+    // +h would land at -h, i.e. under the left page. The conforming term is
+    // therefore h*cos(theta): +h flat on the right page at the start, -h at
+    // the end, which the rotation turns back into +h on the left page. The
+    // bend rides sin(theta), strongest side-on where it actually reads.
+    const p = Math.min(1, Math.max(0, turnProgress));
+    const theta = p * Math.PI;
+    const conform = Math.cos(theta);
+    const arc = Math.sin(theta);
     for (const geometry of [leafGeoFront, leafGeoBack]) {
       const positions = geometry.attributes.position;
       for (let i = 0; i < positions.count; i += 1) {
         const baseX = leafBase[i * 3];
         const u = Math.max(0, Math.min(1, (-baseX - 0.004) / LEAF_W));
+        // height of the page under this point, relative to the pivot
+        const rest = pageHeightAt(u) - gutterHeight;
         positions.array[i * 3 + 1] = leafBase[i * 3 + 1]
+          + rest * conform
           + Math.sin(u * Math.PI * 0.92) * 0.040 * arc * (0.62 + 0.38 * u);
       }
       positions.needsUpdate = true;
@@ -220,6 +288,13 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       faceTitle.material = pageMaterial(titleFace.texture);
       titleFace.mesh = faceTitle;
     }
+    // the turning leaf takes its rest shape from the page it will lie on
+    pageProfile = samplePageProfile(faceR) || samplePageProfile(faceL);
+    if (pageProfile) {
+      gutterHeight = pageProfile[0] + 0.0012;
+      leafPivot.position.set(HINGE_X, gutterHeight, 0);
+      bendLeaf(0);
+    }
     glbNodes.ready = true;
     glbNodes.cover = coverNode;
     glbNodes.faceL = faceL;
@@ -239,6 +314,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       titleAnchor.add(titlePlane);
     }
     paintTitleFace();
+    // the framing solve needs the real book, so it is re-measured the moment
+    // the GLB replaces the fallback slab
+    openBounds = null;
     // if the player opened the book during the load, the update loop owns
     // the shells from the next frame - only a closed book gets reposed here
     if (bookState === 'closed') applyClosedPose();
@@ -365,22 +443,107 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // bottom for how to switch pages"). Written into the page's own foot in the
   // desk's hand, so nothing floats over the world and the keys can never drift
   // from what is bound - the labels come from the live binding table.
+  //
+  // R3 (2026-08-06): "'Ahead X on that day' overlaps the page controls.
+  // Measure before you draw." It did — the takings summary's box ran
+  // 463..500 straight through the control line at 479..501, and the summary
+  // moves with the number's length, so eyeballing one figure proved nothing.
+  //
+  // The page now has a FOOT BAND that the controls and the folio own outright,
+  // and its top edge is MEASURED from the glyphs actually drawn in it rather
+  // than assumed. Every content painter stops at FOOT_TOP. The row inside the
+  // band is laid out by measurement too: left cell, right cell, and the folio
+  // in whatever centre gap survives — if it does not survive, the folio is
+  // dropped rather than printed over a control.
   let footerHint = { prev: 'A', next: 'D', close: 'E' };
-  function pageControls(ctx, side) {
+  const FOOT_PAD = 14;              // breathing room above the band
+  const FOOT_MARGIN = 40;           // side margin the foot row keeps
+  const CONTROL_FONT = () => `400 ${T(17)}px Georgia, serif`;
+  const FOLIO_FONT = () => `400 ${T(18)}px Georgia, serif`;
+  const controlBaseline = () => PAGE_H - 16;
+  const folioBaseline = () => PAGE_H - 15;
+
+  let measureCtx = null;
+  function measurer() {
+    if (!measureCtx) {
+      const canvas = document.createElement('canvas');
+      canvas.width = PAGE_W;
+      canvas.height = PAGE_H;
+      measureCtx = canvas.getContext('2d');
+    }
+    return measureCtx;
+  }
+  function textBox(ctx, text, font, x, baseline, align = 'left') {
+    ctx.font = font;
+    const m = ctx.measureText(String(text));
+    const ascent = m.actualBoundingBoxAscent || 0;
+    const descent = m.actualBoundingBoxDescent || 0;
+    let x0 = x;
+    if (align === 'right') x0 = x - m.width;
+    else if (align === 'center') x0 = x - m.width / 2;
+    return { x0, x1: x0 + m.width, y0: baseline - ascent, y1: baseline + descent, width: m.width };
+  }
+
+  // the labels that will actually be printed in the band, for this binding
+  function footCells(side) {
+    if (side === 'left') {
+      return { left: `◀  ${footerHint.prev}  previous page`, right: null };
+    }
+    return { left: `${footerHint.close}  close the book`, right: `next page  ${footerHint.next}  ▶` };
+  }
+
+  // The band's top edge: the highest ink any foot row can reach, over BOTH
+  // pages and the current key labels. Recomputed whenever the bindings change.
+  let footTop = PAGE_H - 34;
+  function remeasureFoot() {
+    const ctx = measurer();
+    let top = PAGE_H;
+    for (const side of ['left', 'right']) {
+      const cells = footCells(side);
+      if (cells.left) {
+        top = Math.min(top, textBox(ctx, cells.left, CONTROL_FONT(), FOOT_MARGIN, controlBaseline()).y0);
+      }
+      if (cells.right) {
+        top = Math.min(top, textBox(ctx, cells.right, CONTROL_FONT(), PAGE_W - FOOT_MARGIN, controlBaseline(), 'right').y0);
+      }
+    }
+    top = Math.min(top, textBox(ctx, '888', FOLIO_FONT(), PAGE_W / 2, folioBaseline(), 'center').y0);
+    footTop = Math.floor(top - FOOT_PAD);
+    return footTop;
+  }
+  remeasureFoot();
+  const contentBottom = () => footTop;
+
+  function pageFoot(ctx, side, folio) {
     ctx.save();
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = 'rgba(78,66,46,0.72)';
-    ctx.font = `400 ${T(17)}px Georgia, serif`;
-    const y = PAGE_H - 16;
-    if (side === 'left') {
+    ctx.font = CONTROL_FONT();
+    const cells = footCells(side);
+    const y = controlBaseline();
+    let leftEdge = FOOT_MARGIN;
+    let rightEdge = PAGE_W - FOOT_MARGIN;
+    if (cells.left) {
       ctx.textAlign = 'left';
-      ctx.fillText(`◀  ${footerHint.prev}  previous page`, 40, y);
-    } else {
-      ctx.textAlign = 'right';
-      ctx.fillText(`next page  ${footerHint.next}  ▶`, PAGE_W - 40, y);
-      ctx.textAlign = 'left';
-      ctx.fillText(`${footerHint.close}  close the book`, 40, y);
+      ctx.fillText(cells.left, FOOT_MARGIN, y);
+      leftEdge = textBox(ctx, cells.left, CONTROL_FONT(), FOOT_MARGIN, y).x1;
     }
+    if (cells.right) {
+      ctx.textAlign = 'right';
+      ctx.fillText(cells.right, PAGE_W - FOOT_MARGIN, y);
+      rightEdge = textBox(ctx, cells.right, CONTROL_FONT(), PAGE_W - FOOT_MARGIN, y, 'right').x0;
+    }
+    // the folio only prints if the measured gap actually holds it
+    if (Number.isFinite(folio)) {
+      const box = textBox(ctx, folio, FOLIO_FONT(), PAGE_W / 2, folioBaseline(), 'center');
+      if (box.x0 > leftEdge + 16 && box.x1 < rightEdge - 16) {
+        ctx.fillStyle = '#9a927e';
+        ctx.font = FOLIO_FONT();
+        ctx.textAlign = 'center';
+        ctx.fillText(String(folio), PAGE_W / 2, folioBaseline());
+      }
+    }
+    ctx.textAlign = 'left';
     ctx.restore();
   }
 
@@ -408,13 +571,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     titleFace.texture.needsUpdate = true;
   }
 
-  function pageFooter(ctx, index) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#9a927e';
-    ctx.font = `400 ${T(18)}px Georgia, serif`;
-    ctx.fillText(String(index), PAGE_W / 2, PAGE_H - 15);
-    ctx.textAlign = 'left';
-  }
+  // The folio is drawn by pageFoot now, which measures the gap first. Kept as
+  // a no-op seam so a painter that forgets is a missing number, not an
+  // overlap — the number is the least important thing on the page.
+  function pageFooter() {}
 
   function fitLine(ctx, value, maxWidth) {
     let text = String(value || '');
@@ -448,9 +608,13 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     ctx.lineTo(PAGE_W - 160, 208);
     ctx.stroke();
     // the table of contents IS the pitch: what the book holds, and what is
-    // still locked - the chase on page one
-    // six rows have to clear the controls line at PAGE_H-16
-    let y = 246;
+    // still locked - the chase on page one. The step is solved from the row
+    // count so a seventh section shortens the rows instead of writing one
+    // into the foot band.
+    const tocTop = 246;
+    const step = Math.min(41, Math.max(26,
+      (contentBottom() - 12 - tocTop) / Math.max(1, sections.length)));
+    let y = tocTop;
     for (const section of sections) {
       ctx.textAlign = 'left';
       ctx.fillStyle = section.locked ? '#8a8272' : '#3f4a42';
@@ -474,10 +638,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.strokeStyle = 'rgba(90,80,58,0.22)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(92, y + 11);
-      ctx.lineTo(PAGE_W - 92, y + 11);
+      ctx.moveTo(92, y + step * 0.27);
+      ctx.lineTo(PAGE_W - 92, y + step * 0.27);
       ctx.stroke();
-      y += 41;
+      y += step;
     }
     face.texture.needsUpdate = true;
     return sections.length;
@@ -496,7 +660,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     paperGround(ctx);
     pageHeader(ctx, 'Members and Guests');
     const top = 100;
-    const bottom = PAGE_H - 44;
+    const bottom = contentBottom();
     const headRow = 42;
     ctx.fillStyle = '#6b5a40';
     ctx.font = `700 ${T(15)}px Georgia, serif`;
@@ -555,10 +719,13 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
     pageHeader(ctx, 'House Notes');
-    let y = 148;
+    const notesTop = 148;
+    const shown = notes.slice(notesPage * NOTES_PER_PAGE, notesPage * NOTES_PER_PAGE + NOTES_PER_PAGE);
+    const step = Math.min(72, Math.max(34,
+      (contentBottom() - 8 - notesTop) / Math.max(1, shown.length)));
+    let y = notesTop;
     let written = 0;
-    const from = notesPage * NOTES_PER_PAGE;
-    for (const note of notes.slice(from, from + NOTES_PER_PAGE)) {
+    for (const note of shown) {
       if (note.outstanding) {
         ctx.fillStyle = '#7a4a34';
         ctx.fillRect(40, y - 19, 13, 13);
@@ -571,7 +738,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         ctx.fillText(fitLine(ctx, note.text, PAGE_W - 72), 36, y);
       }
       written += 1;
-      y += 72;
+      y += step;
     }
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
@@ -591,7 +758,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ['Rounds played', String(day.played)],
       ['Next open time', hourLabel(day.nextOpenMinute)],
     ];
-    let y = 216;
+    const daysTop = 216;
+    const step = Math.min(74, Math.max(38,
+      (contentBottom() - 10 - daysTop) / Math.max(1, rows.length)));
+    let y = daysTop;
     for (const [label, value] of rows) {
       ctx.fillStyle = '#6b7268';
       ctx.font = `400 ${T(24)}px Georgia, serif`;
@@ -604,10 +774,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.strokeStyle = 'rgba(90,80,58,0.22)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(48, y + 16);
-      ctx.lineTo(PAGE_W - 48, y + 16);
+      ctx.moveTo(48, y + step * 0.22);
+      ctx.lineTo(PAGE_W - 48, y + step * 0.22);
       ctx.stroke();
-      y += 74;
+      y += step;
     }
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
@@ -625,7 +795,20 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ['Taken today', money(takings.revenueTotal)],
       ['Spent today', money(takings.expenseTotal)],
     ];
-    let y = 158;
+    // MEASURE, THEN DRAW. The summary line is the tallest thing on the page
+    // and the only one whose width follows the money, so the layout is solved
+    // from the bottom up: the summary sits on the last line that clears the
+    // foot band, and the rows share whatever height is left above it.
+    const ahead = takings.net >= 0;
+    const summary = `${ahead ? 'Ahead' : 'Down'} ${money(Math.abs(takings.net))} on the day.`;
+    const summaryFont = `italic 700 ${T(28)}px Georgia, serif`;
+    const probe = textBox(measurer(), summary, summaryFont, 48, 0);
+    const summaryHeight = probe.y1 - probe.y0;
+    const summaryBaseline = contentBottom() - (probe.y1 - 0);   // descent clears the band
+    const top = 152;
+    const available = summaryBaseline - summaryHeight - 18 - top;
+    const step = Math.min(64, Math.max(34, available / rows.length));
+    let y = top;
     for (const [index, [label, value]] of rows.entries()) {
       const strong = index === 3;
       ctx.fillStyle = strong ? '#3f4a42' : '#6b7268';
@@ -639,47 +822,137 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.strokeStyle = index === 2 ? 'rgba(90,80,58,0.5)' : 'rgba(90,80,58,0.22)';
       ctx.lineWidth = index === 2 ? 1.8 : 1;
       ctx.beginPath();
-      ctx.moveTo(48, y + 16);
-      ctx.lineTo(PAGE_W - 48, y + 16);
+      ctx.moveTo(48, y + step * 0.25);
+      ctx.lineTo(PAGE_W - 48, y + step * 0.25);
       ctx.stroke();
-      y += 64;
+      y += step;
     }
-    const ahead = takings.net >= 0;
+    // and if the money is long enough to run past the page, shrink to fit
+    // rather than print off the edge
+    let font = summaryFont;
+    let size = T(28);
+    while (textBox(measurer(), summary, font, 48, 0).width > PAGE_W - 96 && size > T(17)) {
+      size -= 1;
+      font = `italic 700 ${size}px Georgia, serif`;
+    }
     ctx.fillStyle = ahead ? '#2f5c46' : '#7a3a30';
-    ctx.font = `italic 700 ${T(28)}px Georgia, serif`;
-    ctx.fillText(`${ahead ? 'Ahead' : 'Down'} ${money(Math.abs(takings.net))} on the day.`, 48, y + 14);
+    ctx.font = font;
+    ctx.fillText(summary, 48, summaryBaseline);
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
     return rows.length;
   }
 
+  // R5: "unearned = blank ruled pages". The locked spread used to be a drawn
+  // leather strap and a brass buckle laid across the paper — a graphic saying
+  // FORBIDDEN, which reads like a store page, not a book. A real ledger's
+  // unearned sections are simply pages nobody has written on yet: the section
+  // is headed, the lines are ruled and waiting, and one quiet italic says what
+  // will fill them. Nothing is barred; there is just nothing there yet.
   function paintLocked(face, section, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
+    pageHeader(ctx, section.title);
+    const top = 128;
+    const bottom = contentBottom() - 40;
+    const lines = Math.max(4, Math.floor((bottom - top) / 44));
+    const step = (bottom - top) / lines;
+    ctx.strokeStyle = 'rgba(96,78,50,0.24)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < lines; i += 1) {
+      const y = top + step * (i + 1);
+      ctx.moveTo(56, y);
+      ctx.lineTo(PAGE_W - 56, y);
+    }
+    ctx.stroke();
+    // the ruled margin a bound register carries down its inner edge
+    ctx.strokeStyle = 'rgba(150,86,66,0.24)';
+    ctx.beginPath();
+    ctx.moveTo(104, top);
+    ctx.lineTo(104, bottom);
+    ctx.stroke();
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(90,80,58,0.55)';
-    ctx.font = `700 ${T(40)}px Georgia, serif`;
-    ctx.fillText(section.title.toUpperCase(), PAGE_W / 2, 130);
-    // the strap: a leather band drawn corner to corner with a brass buckle -
-    // these pages are tied shut, not missing
-    ctx.save();
-    ctx.translate(PAGE_W / 2, PAGE_H / 2 + 30);
-    ctx.rotate(-0.16);
-    ctx.fillStyle = '#3a2f22';
-    ctx.fillRect(-PAGE_W / 2 - 40, -26, PAGE_W + 80, 52);
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(-PAGE_W / 2 - 40, -26, PAGE_W + 80, 8);
-    ctx.fillStyle = '#b58a42';
-    ctx.fillRect(-34, -34, 68, 68);
-    ctx.fillStyle = '#3a2f22';
-    ctx.fillRect(-20, -20, 40, 40);
-    ctx.restore();
-    ctx.fillStyle = '#6b7268';
-    ctx.font = `italic 400 ${T(24)}px Georgia, serif`;
-    ctx.fillText(section.lockedLine || 'Not yet.', PAGE_W / 2, PAGE_H - 90);
+    ctx.fillStyle = 'rgba(107,114,104,0.85)';
+    ctx.font = `italic 400 ${T(21)}px Georgia, serif`;
+    ctx.fillText(
+      fitLine(ctx, section.lockedLine || 'Nothing written here yet.', PAGE_W - 130),
+      PAGE_W / 2,
+      contentBottom() - 12,
+    );
+    ctx.textAlign = 'left';
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
     return 0;
+  }
+
+  function paintCourseLog(face, course, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'Course Log');
+    const rows = [
+      ['Holes open for play', `${course.open} of ${course.holeCount}`],
+      ['Under renovation', String(course.renovating)],
+      ['Still to build', String(course.construction + course.unbuilt)],
+      ['Par for the round', String(course.par)],
+      ['Green fee', money(course.greenFee)],
+      ['Standing', `${course.reputation} of 100`],
+    ];
+    const top = 152;
+    const step = Math.min(58, Math.max(32, (contentBottom() - 14 - top) / rows.length));
+    let y = top;
+    for (const [label, value] of rows) {
+      ctx.fillStyle = '#6b7268';
+      ctx.font = `400 ${T(23)}px Georgia, serif`;
+      ctx.fillText(label, 48, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#2c3e50';
+      ctx.font = `700 ${T(24)}px Georgia, serif`;
+      ctx.fillText(value, PAGE_W - 48, y);
+      ctx.textAlign = 'left';
+      ctx.strokeStyle = 'rgba(90,80,58,0.22)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(48, y + step * 0.24);
+      ctx.lineTo(PAGE_W - 48, y + step * 0.24);
+      ctx.stroke();
+      y += step;
+    }
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return rows.length;
+  }
+
+  function paintChampions(face, champions, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'Champions');
+    const top = 150;
+    const step = Math.min(62, Math.max(34,
+      (contentBottom() - 14 - top) / Math.max(1, champions.length)));
+    let y = top;
+    let written = 0;
+    for (const entry of champions) {
+      ctx.fillStyle = '#2c3a50';
+      ctx.font = `400 ${T(26)}px ${SCRIPT_FONT}`;
+      ctx.fillText(fitLine(ctx, entry.name, PAGE_W - 250), 56, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#3d3325';
+      ctx.font = `400 ${T(22)}px Georgia, serif`;
+      ctx.fillText(`${entry.visits} rounds`, PAGE_W - 56, y);
+      ctx.textAlign = 'left';
+      ctx.strokeStyle = 'rgba(96,78,50,0.24)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(56, y + step * 0.26);
+      ctx.lineTo(PAGE_W - 56, y + step * 0.26);
+      ctx.stroke();
+      written += 1;
+      y += step;
+    }
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return written;
   }
 
   function paintBlank(face) {
@@ -696,11 +969,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     let day = null;
     let takings = null;
     let sections = [];
+    let course = null;
+    let champions = [];
     try { entries = rosterEntries(state); } catch { entries = []; }
     try { notes = houseNotes(state); } catch { notes = []; }
     try { day = daySheetSummary(state); } catch { day = null; }
     try { takings = takingsSummary(state); } catch { takings = null; }
     try { sections = journalSections(state); } catch { sections = []; }
+    try { course = courseLogSummary(state); } catch { course = null; }
+    try { champions = championEntries(state); } catch { champions = []; }
     const guestPageCount = Math.max(1, Math.ceil(Math.max(1, entries.length) / ROWS_PER_PAGE));
     const pages = [{ kind: 'contents' }];
     const pageOfSection = {};
@@ -716,11 +993,17 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     pages.push({ kind: 'day' });
     pageOfSection.takings = pages.length + 1;
     pages.push({ kind: 'takings' });
-    for (const section of sections.filter((s) => s.locked)) {
+    // R5: the earned sections turn to their own page; the unearned ones turn
+    // to ruled blanks. Either way the LEAF exists — locking withholds what is
+    // written, never the page, so the book's thickness never changes under
+    // the reader's hand.
+    for (const section of sections.filter((entry) => ['course', 'champions'].includes(entry.id))) {
       pageOfSection[section.id] = pages.length + 1;
-      pages.push({ kind: 'locked', section });
+      if (section.locked) pages.push({ kind: 'locked', section });
+      else if (section.id === 'course') pages.push({ kind: 'course' });
+      else pages.push({ kind: 'champions' });
     }
-    return { entries, notes, day, takings, sections, pages, pageOfSection };
+    return { entries, notes, day, takings, sections, course, champions, pages, pageOfSection };
   }
 
   function paintIndexWith(model, face, index) {
@@ -734,6 +1017,8 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       case 'day': return paintDaySheet(face, model.day || {}, index + 1);
       case 'takings': return paintTakings(face, model.takings || {}, index + 1);
       case 'locked': return paintLocked(face, page.section, index + 1);
+      case 'course': return paintCourseLog(face, model.course || {}, index + 1);
+      case 'champions': return paintChampions(face, model.champions || [], index + 1);
       default: return paintBlank(face);
     }
   }
@@ -752,7 +1037,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   const scratchQuat = new THREE.Quaternion();
   const scratchEuler = new THREE.Euler();
 
-  const play = (name) => { if (sfx) sfx(name); };
+  // cueLog records what the book ASKED for, so a driver can check the paper
+  // cues fire on the turn and the settle without reaching into the mixer (the
+  // sfx reference is captured at construction, so wrapping it later misses).
+  const cueLog = [];
+  const play = (name) => {
+    cueLog.push(name);
+    if (cueLog.length > 64) cueLog.shift();
+    if (sfx) sfx(name);
+  };
 
   function spreadCount() {
     return model ? Math.ceil(model.pages.length / 2) : 1;
@@ -763,10 +1056,11 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     let painted = 0;
     painted += paintIndexWith(model, leftFace, spread * 2);
     painted += paintIndexWith(model, rightFace, spread * 2 + 1);
-    // the controls go on LAST, over whatever the page painted, so a long page
-    // can never bury them
-    pageControls(leftFace.canvas.getContext('2d'), 'left');
-    pageControls(rightFace.canvas.getContext('2d'), 'right');
+    // the foot row goes on LAST, over whatever the page painted, so a long
+    // page can never bury it - but the painters have already stopped at
+    // contentBottom(), so it should never have anything to cover
+    pageFoot(leftFace.canvas.getContext('2d'), 'left', spread * 2 + 1);
+    pageFoot(rightFace.canvas.getContext('2d'), 'right', spread * 2 + 2);
     leftFace.texture.needsUpdate = true;
     rightFace.texture.needsUpdate = true;
     lastPaint = {
@@ -781,22 +1075,89 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return lastPaint;
   }
 
+  // R2 (2026-08-06): "too wide, cut off by the frame edges — that is most of
+  // why it reads cheap. Whole spread in frame with margin on all four sides."
+  //
+  // Measured on the shipped build, the open book filled 90.5% of the frame's
+  // width and sat 42 px left of centre, leaving a 33 px margin on one side and
+  // 118 on the other. Both faults came from the same assumption: that the
+  // GUTTER is the book's centre, and that a hand-tuned FACE_DISTANCE would
+  // frame it. The gutter is not the centre — the covers, brass caps and the
+  // ribbon tail are not symmetric about it — and a fixed distance cannot know
+  // the aspect ratio it is being framed in.
+  //
+  // So the pose is SOLVED instead: measure the open book's own bounding box
+  // once, put its centre on the view axis, and set the distance from the
+  // camera's actual FOV so the box subtends at most FRAME_FILL of the frame in
+  // BOTH axes. The margin is then a guarantee at any window size, not a hope.
+  const FRAME_FILL = 0.74;      // the fraction of the frame the book may cover
+  let openBounds = null;        // { center: Vector3, corners: Vector3[] } in root space
+
+  function measureOpenBounds() {
+    if (!openShell.children.length) return null;
+    const wasVisible = openShell.visible;
+    openShell.visible = true;
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    let found = false;
+    openShell.traverse((node) => {
+      if (!node.isMesh || !node.geometry) return;
+      if (node === leafFront.mesh || node === leafBack.mesh) return;  // the leaf is transient
+      node.geometry.computeBoundingBox();
+      const bounds = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
+      if (found) box.union(bounds); else { box.copy(bounds); found = true; }
+    });
+    openShell.visible = wasVisible;
+    if (!found) return null;
+    // back into the root's own frame, so it survives the book being moved
+    const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const local = box.clone().applyMatrix4(inverse);
+    const min = local.min; const max = local.max;
+    const corners = [];
+    for (const x of [min.x, max.x]) {
+      for (const y of [min.y, max.y]) {
+        for (const z of [min.z, max.z]) corners.push(new THREE.Vector3(x, y, z));
+      }
+    }
+    return { center: local.getCenter(new THREE.Vector3()), corners };
+  }
+
   function computeFacePose() {
     if (!camera) return null;
     camera.updateMatrixWorld(true);
     const eye = camera.getWorldPosition(new THREE.Vector3());
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const position = eye.clone()
-      .addScaledVector(forward, FACE_DISTANCE)
-      .add(new THREE.Vector3(0, -FACE_DROP, 0));
     const yaw = Math.atan2(-forward.x, -forward.z);
     // the spread leans up toward the eye like a journal in two hands
     const quaternion = new THREE.Quaternion()
       .setFromEuler(new THREE.Euler(FACE_TILT - Math.PI / 2, yaw + Math.PI, 0, 'YXZ'));
-    // the open spread's centre is the GUTTER (local +HINGE_X), not the root
-    // origin - pull the root sideways so the spread sits on the view axis
-    const localX = new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion);
-    position.addScaledVector(localX, -HINGE_X);
+    if (!openBounds) openBounds = measureOpenBounds();
+
+    let distance = FACE_DISTANCE;
+    let offset = new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion).multiplyScalar(-HINGE_X);
+    if (openBounds && Number.isFinite(camera.fov) && Number.isFinite(camera.aspect)) {
+      // the book's extent along the camera's own right/up axes, once turned
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+      const center = openBounds.center.clone().applyQuaternion(quaternion);
+      let halfRight = 0; let halfUp = 0;
+      for (const corner of openBounds.corners) {
+        const turned = corner.clone().applyQuaternion(quaternion).sub(center);
+        halfRight = Math.max(halfRight, Math.abs(turned.dot(right)));
+        halfUp = Math.max(halfUp, Math.abs(turned.dot(up)));
+      }
+      const halfFovY = (camera.fov * Math.PI) / 360;
+      const halfFovX = Math.atan(Math.tan(halfFovY) * camera.aspect);
+      const needX = halfRight / (Math.tan(halfFovX) * FRAME_FILL);
+      const needY = halfUp / (Math.tan(halfFovY) * FRAME_FILL);
+      distance = Math.max(0.26, needX, needY);
+      // put the measured CENTRE on the axis, not the gutter
+      offset = center.clone().multiplyScalar(-1);
+    }
+    const position = eye.clone()
+      .addScaledVector(forward, distance)
+      .add(new THREE.Vector3(0, -FACE_DROP, 0))
+      .add(offset);
     return { position, quaternion };
   }
 
@@ -1027,6 +1388,26 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       pageCount: model ? model.pages.length : null,
       sections: model ? model.sections.map((s) => ({ id: s.id, locked: !!s.locked })) : [],
       turning: !!leaf,
+      // R2's solve, exposed so a driver reads the same numbers the pose used
+      frameFill: FRAME_FILL,
+      framed: openBounds ? {
+        center: openBounds.center.toArray().map((v) => +v.toFixed(4)),
+        span: [
+          +(Math.max(...openBounds.corners.map((c) => c.x))
+            - Math.min(...openBounds.corners.map((c) => c.x))).toFixed(4),
+          +(Math.max(...openBounds.corners.map((c) => c.y))
+            - Math.min(...openBounds.corners.map((c) => c.y))).toFixed(4),
+          +(Math.max(...openBounds.corners.map((c) => c.z))
+            - Math.min(...openBounds.corners.map((c) => c.z))).toFixed(4),
+        ],
+      } : null,
+      leafProfile: pageProfile ? {
+        gutter: +pageProfile[0].toFixed(4),
+        fore: +pageProfile[pageProfile.length - 1].toFixed(4),
+        pivotY: +gutterHeight.toFixed(4),
+      } : null,
+      footTop,
+      cues: cueLog.slice(-12),
       ...lastPaint,
     }),
   };

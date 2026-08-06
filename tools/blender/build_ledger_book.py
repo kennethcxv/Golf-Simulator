@@ -41,9 +41,23 @@ BLOCK_T = 0.059      # closed page block
 BOOK_T = COVER_T * 2 + BLOCK_T
 HINGE_X = COVER_W / 2  # the spine hinge line
 
-PAGE_W = 0.290       # one OPEN half, gutter to fore-edge (a full page width)
-PAGE_D = 0.1935      # open page depth - PAGE_W / 1.5, the painters' canvas aspect
+# R2/R6 (2026-08-06): the block ran to 0.290 against a 0.2975 board, leaving a
+# 7 mm overhang at the fore-edge and 17 mm at head and foot — so the boards read
+# as a lopsided black rim, and there was nowhere to tool the turn-in. A bound
+# book's SQUARES (the board's overhang past the block) are even all round.
+# Narrowing the block gives 21 mm on all four edges, room for the gold, and a
+# book that is genuinely narrower in frame.
+PAGE_W = 0.276       # one OPEN half, gutter to fore-edge (a full page width)
+PAGE_D = 0.184       # open page depth - PAGE_W / 1.5, the painters' canvas aspect
 ARCH_SEGS = 24
+
+
+def _leather_book(name="M_LBLeather"):
+    # R6: the shared M_Green reads near-black on the open boards, which are the
+    # only leather the reader ever looks at closely. Lifted and given a little
+    # more sheen so it reads as green morocco under the clubhouse's dim light.
+    return L.mat_tex(name, L.leather_image("LBLeather", (0.082, 0.196, 0.133)),
+                     roughness=0.44)
 
 
 def _leather_dark(name="M_LBLeatherDk"):
@@ -109,11 +123,64 @@ def gold_frame(name, cx, cy, w, d, z, material, parent, *, bar=0.0034, t=0.0012)
           parent=parent, bevel=0.0004, uv=False)
 
 
+# ---- the V the open covers lie in, and the surface the page block rests on --
+# R1 (2026-08-06): "it clips through its own cover opening. Covers and page
+# block must never intersect." They did, everywhere. The page block was built
+# on the TABLE PLANE (layer 0's underside pinned at z=0.0015) while the covers
+# lie in a 4.5 degree V whose top surface climbs from z=0.0070 at the gutter to
+# z=0.0298 at the fore-edge — so the whole block was 5 to 29 mm inside the
+# boards, and even the top layer's fore-edge (arch 0.0283) sank under the
+# cover's lip. The old arch_z's docstring claimed the lip was "~0.027"; it was
+# never measured.
+#
+# So the cover plane is now DERIVED from the cover's own placement, and every
+# page layer is built above it. Both surfaces move together if the V changes.
+COVER_VEE = math.radians(4.5)
+_CW = COVER_W * 0.985                  # the open cover board's width
+_C_LOC_X = (_CW / 2) * math.cos(COVER_VEE) + 0.001
+_C_LOC_Z = COVER_T / 2 + (_CW / 2) * math.sin(COVER_VEE)
+
+
+def _cover_top_corner(local_x):
+    """A point on the open cover's TOP face, in the open book's own frame."""
+    a = -COVER_VEE
+    lz = COVER_T / 2
+    return (
+        _C_LOC_X + local_x * math.cos(a) + lz * math.sin(a),
+        _C_LOC_Z + (-local_x * math.sin(a) + lz * math.cos(a)),
+    )
+
+
+_CT_GUTTER = _cover_top_corner(-_CW / 2)
+_CT_FORE = _cover_top_corner(_CW / 2)
+_CT_SLOPE = (_CT_FORE[1] - _CT_GUTTER[1]) / (_CT_FORE[0] - _CT_GUTTER[0])
+PAGE_CLEARANCE = 0.0013   # the gap the block keeps off the board, everywhere
+
+
+def cover_top_z(x):
+    """Height of the open cover's top face at distance `x` from the gutter."""
+    return _CT_GUTTER[1] + (x - _CT_GUTTER[0]) * _CT_SLOPE
+
+
+def block_floor_z(x):
+    """Where the page block's underside lies: on the board, never in it."""
+    return cover_top_z(x) + PAGE_CLEARANCE
+
+
+def arch_h(t):
+    """The page block's THICKNESS, gutter (t=0) to fore-edge (t=1).
+
+    Thin where the leaves fold into the gutter, bellied past centre where the
+    stack is deepest, easing back at the fore-edge. Height above the board —
+    the board's own rise is added by block_floor_z, so the silhouette is the
+    real one: a shallow V with a belly, fore-edges proudest."""
+    return 0.0075 + 0.0135 * math.sin(math.pi * (0.10 + 0.66 * t))
+
+
 def arch_z(t):
-    """The open block's master silhouette, gutter (t=0) to fore-edge (t=1):
-    low in the gutter's V, a gentle hump past centre, and a fore-edge that
-    stays proud of the open cover's raised lip (~0.027)."""
-    return 0.012 + 0.023 * math.sin(math.pi * (0.08 + 0.67 * t))
+    """The open block's TOP surface, gutter to fore-edge, in the open frame."""
+    x = 0.002 + (PAGE_W - 0.002) * t
+    return block_floor_z(x) + arch_h(t)
 
 
 def arched_layer(name, side, frac_lo, frac_hi, inset, material, parent):
@@ -131,8 +198,12 @@ def arched_layer(name, side, frac_lo, frac_hi, inset, material, parent):
     for level, frac in ((0, frac_lo), (1, frac_hi)):
         for i in range(n + 1):
             t = i / n
-            x = (x_gutter + (x_fore - x_gutter) * t) * side
-            z = max(0.0015, arch_z(t) * frac)
+            ax = x_gutter + (x_fore - x_gutter) * t
+            x = ax * side
+            # every leaf lies ON the board and takes its share of the block's
+            # thickness above it - the layer stack grows upward from the cover,
+            # never down through it
+            z = block_floor_z(ax) + max(0.0004, arch_h(t) * frac)
             verts.append((x, -depth / 2, z))
             verts.append((x, depth / 2, z))
     faces = []
@@ -231,7 +302,7 @@ def join_group(objs, name, parent):
 
 
 def build(M):
-    green = M["green"]
+    green = _leather_book()
     dark = _leather_dark()
     brass = M["brass"]
     gold = M["gold"]
@@ -357,46 +428,127 @@ def build(M):
 
     # =============================================================== OPEN ====
     book_open = L.empty("LB_Open", (0, 0, 0), parent=root)
-    ostatic = []
-    vee = math.radians(4.5)
+    # The open book joins into TWO named bodies, not one. R1 is a claim about
+    # covers versus pages, and a claim you cannot measure is a claim you cannot
+    # keep — with a single LB_OpenBody the runtime had no way to tell them
+    # apart, which is how the block came to be built inside the boards.
+    cover_parts = []
+    cap_parts = []
+    page_parts = []
+    vee = COVER_VEE
     for side, tag in ((1, "R"), (-1, "L")):
-        cover = L.box(f"LB_OpenCover{tag}", (COVER_W * 0.985, COVER_D, COVER_T),
+        cover = L.box(f"LB_OpenCover{tag}", (_CW, COVER_D, COVER_T),
                       (0, 0, 0), green, parent=book_open, bevel=0.0018)
         cover.rotation_mode = "XYZ"
-        cover.location = (side * (COVER_W * 0.985 / 2) * math.cos(vee) + side * 0.001,
-                          0,
-                          COVER_T / 2 + (COVER_W * 0.985 / 2) * math.sin(vee))
+        cover.location = (side * _C_LOC_X, 0, _C_LOC_Z)
         cover.rotation_euler = (0, -side * vee, 0)
-        ostatic.append(cover)
+        cover_parts.append(cover)
+        # R6 (2026-08-06): "fix what still reads cheap: leather, gold, page
+        # edges, ink." Open, the board reads as a flat dark slab framing the
+        # paper — the gold lived only on the CLOSED front cover, so the whole
+        # thing the reader actually looks at carried none of it. A real bound
+        # ledger's turn-in is tooled: a double gold rule runs the board's inner
+        # face just outside the block. Drawn in the board's own rotated frame
+        # so it rides the V instead of floating over it.
+        for inset, bar in ((0.010, 0.0026), (0.020, 0.0013)):
+            gold_frame(f"LB_OpenTurnIn{tag}{int(inset * 1000)}",
+                       0, 0, _CW - inset * 2, COVER_D - inset * 2,
+                       COVER_T / 2 + 0.0007, gold, parent=cover, bar=bar, t=0.0009)
+        cover_parts.extend([c for c in cover.children
+                            if c.name.startswith(f"LB_OpenTurnIn{tag}")])
         for i in range(6):
-            ostatic.append(arched_layer(f"LB_Layer{tag}{i}", side,
-                                        (i) / 6.0, (i + 1) / 6.0,
-                                        0.0035 * (5 - i), cream if i % 2 else dim,
-                                        book_open))
+            page_parts.append(arched_layer(f"LB_Layer{tag}{i}", side,
+                                           (i) / 6.0, (i + 1) / 6.0,
+                                           0.0035 * (5 - i), cream if i % 2 else dim,
+                                           book_open))
         page_face(f"LB_Face{tag}", side, face_mat, book_open)
         # brass caps on the open covers' outer corners, lips upward
-        fx = side * (COVER_W * 0.985) * math.cos(vee) - side * 0.004
-        cz = COVER_T + abs(COVER_W * 0.985) * math.sin(vee) - 0.0015
-        corner_cap(f"LB_OpenCap{tag}A", fx, -COVER_D / 2 + 0.002, -side, 1,
-                   cz, brass, book_open)
-        corner_cap(f"LB_OpenCap{tag}B", fx, COVER_D / 2 - 0.002, -side, -1,
-                   cz, brass, book_open)
-    # spine bump under the gutter + the ribbon lying over the bottom edge
-    ostatic.append(L.box("LB_OpenSpine", (0.030, COVER_D - 0.004, 0.010),
-                         (0, 0, 0.006), dark, parent=book_open, bevel=0.002, uv=False))
-    ostatic.append(L.box("LB_OpenRibbon", (0.016, PAGE_D * 0.62, 0.0022),
-                         (0.010, -PAGE_D * 0.28, 0.0187), felt,
-                         parent=book_open, bevel=0.0005, uv=False))
-    tail = L.box("LB_OpenRibbonTail", (0.016, 0.080, 0.0022),
-                 (0.013, -COVER_D / 2 - 0.018, 0.0075), felt,
+        fx = side * _CW * math.cos(vee) - side * 0.004
+        cz = COVER_T + abs(_CW) * math.sin(vee) - 0.0015
+        # the caps join SEPARATELY: they are proud brass fittings standing off
+        # the board's outer corners, and folding them into the cover body made
+        # the board's fitted thickness read 4.96 mm instead of 3.5, eating a
+        # millimetre of the clearance R1 is about
+        cap_parts.append(corner_cap(f"LB_OpenCap{tag}A", fx, -COVER_D / 2 + 0.002, -side, 1,
+                                    cz, brass, book_open))
+        cap_parts.append(corner_cap(f"LB_OpenCap{tag}B", fx, COVER_D / 2 - 0.002, -side, -1,
+                                    cz, brass, book_open))
+    # the spine bump fills the V's trough BELOW the block's gutter floor
+    gutter_floor = block_floor_z(0.002)
+    spine_t = 0.009
+    # the spine bump stays its OWN object: it straddles the gutter, so folding
+    # it into either board turned the board's fitted box from 297 x 228 x 7 mm
+    # into 388 x 228 x 10 and made every clearance number read short
+    L.box("LB_OpenSpine", (0.030, COVER_D - 0.004, spine_t),
+          (0, 0, gutter_floor - spine_t / 2 - 0.0004), dark,
+          parent=book_open, bevel=0.002, uv=False)
+    # THE RIBBON LIES ON THE PAGE, NOT IN IT. It used to be pinned at z=0.0187
+    # while the painted face at the same x sat at 0.0190 — the marker was sawn
+    # in half lengthwise by the page it was supposed to be resting on.
+    #
+    # AND IT HANGS OFF THE RIGHT EDGE. Blender +Y maps to glTF -Z, and the
+    # reading pose turns glTF +Z UP toward the eye — so a ribbon laid toward
+    # -Y overhung the page at the top of the frame and photographed as a green
+    # post standing out of the gutter. It runs the other way now: down the
+    # page, past the FOOT, where a marker actually falls.
+    ribbon_x = 0.026
+    ribbon_t = 0.0022
+    ribbon_w = 0.013
+    ribbon_z = arch_z((ribbon_x - 0.002) / (PAGE_W - 0.002)) + 0.0012 + ribbon_t / 2
+    page_parts.append(L.box("LB_OpenRibbon", (ribbon_w, PAGE_D * 0.66, ribbon_t),
+                            (ribbon_x, PAGE_D * 0.24, ribbon_z), felt,
+                            parent=book_open, bevel=0.0005, uv=False))
+    # The TAIL used to be pinned near the closed book's cover height and ran
+    # back UNDER the board — 5 mm inside it. A ribbon end hangs in free air
+    # past the board's edge, so it now starts beyond that edge and droops from
+    # the ribbon's own height rather than from the table's.
+    tail_len = 0.055
+    tail_near = COVER_D / 2 - 0.010           # just inside the board's foot edge
+    tail_mid = tail_near + tail_len / 2
+    tail_droop = math.radians(-7)              # the far end falls away past the board
+    tail = L.box("LB_OpenRibbonTail", (ribbon_w, tail_len, ribbon_t),
+                 (ribbon_x + 0.002, tail_mid,
+                  ribbon_z - 0.0010 + (tail_len / 2) * math.sin(tail_droop)), felt,
                  parent=book_open, bevel=0.0005, uv=False)
     tail.rotation_mode = "XYZ"
-    tail.rotation_euler = (math.radians(-6), 0, math.radians(5))
-    ostatic.append(tail)
+    tail.rotation_euler = (tail_droop, 0, math.radians(-4))
+    page_parts.append(tail)
     L.empty("LB_LeafAnchor", (0, 0, arch_z(0.0) + 0.0012), parent=book_open)
-    join_group(ostatic, "LB_OpenBody", book_open)
+    _assert_no_cover_page_overlap()
+    join_group(cover_parts, "LB_OpenCovers", book_open)
+    join_group(cap_parts, "LB_OpenCaps", book_open)
+    join_group(page_parts, "LB_OpenPages", book_open)
 
     return root
+
+
+def _assert_no_cover_page_overlap():
+    """R1's guard, run at BUILD time on the numbers the meshes are made from.
+
+    Samples the width and requires the page block's underside to stay above
+    the cover board's top face at every point. If the V, the board thickness
+    or the arch is ever retuned, this fails here rather than shipping a book
+    that saws through its own covers again."""
+    worst = None
+    for i in range(201):
+        t = i / 200.0
+        x = 0.002 + (PAGE_W - 0.002) * t
+        gap = block_floor_z(x) - cover_top_z(x)
+        if worst is None or gap < worst[1]:
+            worst = (x, gap)
+    if worst[1] < 0.0008:
+        raise SystemExit(
+            f"LEDGER R1: page block clears the cover by only {worst[1] * 1000:.2f} mm "
+            f"at x={worst[0]:.4f} — covers and page block must never intersect."
+        )
+    top_fore = arch_z(1.0)
+    if top_fore <= cover_top_z(PAGE_W) + 0.0008:
+        raise SystemExit(
+            f"LEDGER R1: the block's fore-edge ({top_fore:.4f}) sinks into the "
+            f"cover lip ({cover_top_z(PAGE_W):.4f})."
+        )
+    print(f"LEDGER R1 OK | min cover clearance {worst[1] * 1000:.2f} mm | "
+          f"fore-edge proud by {(top_fore - cover_top_z(PAGE_W)) * 1000:.2f} mm")
 
 
 def main():
