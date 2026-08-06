@@ -49,6 +49,12 @@ async (page) => {
     const mod = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
     return Object.keys(mod.CLEANING_TOOLS);
   });
+  // tools whose geometry is built outside the registry, so an empty
+  // Tool_<id> group is correct rather than a missing model
+  const EXTERNAL_TOOLS = await page.evaluate(async () => {
+    const mod = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
+    return Object.values(mod.CLEANING_TOOLS).filter((d) => d.external).map((d) => d.id);
+  });
 
   // the probe: count hand meshes and measure screen coverage of hands and tool
   await page.evaluate(() => {
@@ -273,11 +279,18 @@ async (page) => {
     .sort((a, b) => b.penetration.deepestMm - a.penetration.deepestMm);
   const checks = {
     everyToolEquipped: rows.every((r) => r.equippedAs === r.tool),
-    probeSeesGeometry: rows.filter((r) => r.tool !== 'washer').every((r) => r.toolMeshes > 0),
+    probeSeesGeometry: rows.filter((r) => !EXTERNAL_TOOLS.includes(r.tool)).every((r) => r.toolMeshes > 0),
     handProbeCanBeZero: noToolHands === 0,
     everyToolHasHands: rows.every((r) => r.handMeshes > 0),
-    // the washer equips and draws NOTHING - found by this audit, unasked
-    washerDrawsSomething: rows.find((r) => r.tool === 'washer')?.toolGroupVisible === true,
+    // NOT A BUG, and worth recording as such. This audit first reported "the
+    // washer equips and draws nothing" because Tool_washer is empty and never
+    // shown. It is empty by design: the registry marks the washer
+    // `external: true` and courseScene builds its geometry itself, so the
+    // registry group is a socket carrier, not the mesh. Checked before the
+    // finding was believed. Every NON-external tool must draw.
+    everyOwnGeometryToolDraws: rows
+      .filter((r) => !EXTERNAL_TOOLS.includes(r.tool))
+      .every((r) => r.toolGroupVisible === true),
     // NOT GATED, and here is why. Three cuts of a penetration metric all
     // failed: the tool's whole AABB called every tool 100% buried; per-mesh
     // AABBs call a rotated 1.3 m broom handle "bulk" because its box is large
@@ -290,6 +303,7 @@ async (page) => {
     noPageErrors: errs.length === 0,
   };
   const out = {
+    externalTools: EXTERNAL_TOOLS,
     penetrationRanking: worst.map((r) => ({
       tool: r.tool, deepestMm: r.penetration.deepestMm, insideFrac: r.penetration.insideFrac,
       handVertsInBulk: r.penetration.handVertsInBulk, culprit: r.penetration.culprit,

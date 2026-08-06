@@ -10946,6 +10946,9 @@ export function makeClubhouse(ctx) {
           c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
           c.pathGoal = { x: tx, z: tz };
           c.stuckT = 0;
+          // a new destination means the old best distance means nothing
+          c.bestGoalDist = Infinity;
+          c.noProgressT = 0;
         }
         while (c.path.length > 1
           && Math.hypot(c.path[0].x - c.mesh.position.x, c.path[0].z - c.mesh.position.z) < 0.3) {
@@ -10974,7 +10977,30 @@ export function makeClubhouse(ctx) {
         // see); rung 4 projects the TARGET to its nearest reachable point (the
         // stand point itself is inside an inflated collider, so arrival could
         // never happen); rung 5 abandons the stop rather than freeze the day.
-        if (step > 0.001 && moved < step * 0.25) {
+        // ITEM 14 (2026-08-06): "they run into the box at the top left forever.
+        // Find why the recovery ladder never fires on that obstacle."
+        //
+        // Because the ladder's only stuck test is DISPLACEMENT — did I move a
+        // quarter of the step I asked for. Walk into a corner and you move
+        // nothing, so it fires. Walk into the flat FACE of a box and
+        // resolveCustomer slides you along it: you move most of your step,
+        // every frame, forever, and `moved < step * 0.25` is never true. The
+        // ladder was never reached on that obstacle, so none of its five rungs
+        // could help. The shape of the prop decided whether recovery existed.
+        //
+        // Displacement is the wrong question. The right one is PROGRESS: is the
+        // target getting closer. A customer grinding along a box face is moving
+        // and getting nowhere, and that is what the ladder needs to hear.
+        const goalDist = Math.hypot(tx - c.mesh.position.x, tz - c.mesh.position.z);
+        if (!Number.isFinite(c.bestGoalDist) || goalDist < c.bestGoalDist - 0.08) {
+          c.bestGoalDist = goalDist;
+          c.noProgressT = 0;
+        } else {
+          c.noProgressT = (c.noProgressT || 0) + dt;
+        }
+        // 2.5 s of moving without closing on the target is a slide, not a walk
+        const slidingNowhere = c.noProgressT > 2.5;
+        if (step > 0.001 && (moved < step * 0.25 || slidingNowhere)) {
           c.stuckT = (c.stuckT || 0) + dt;
           if (c.stuckT > 3.0) {
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
@@ -11008,12 +11034,16 @@ export function makeClubhouse(ctx) {
             c.pathGoal = null;
             c.stuckT = 0;
             c.repathed = false;
+            // a rung has just moved them or their target; give the progress
+            // test a fresh baseline or it re-fires on the next frame
+            c.bestGoalDist = Infinity;
+            c.noProgressT = 0;
           } else if (c.stuckT > 1.2 && !c.repathed) {
             c.pathGoal = null;
             navVersion = -1; // rebake — a door or hauled pile may have changed the world
             c.repathed = true;
           }
-        } else if (moved > step * 0.6) {
+        } else if (moved > step * 0.6 && !slidingNowhere) {
           c.stuckT = 0;
           c.repathed = false;
           c.stuckEscalation = 0;
