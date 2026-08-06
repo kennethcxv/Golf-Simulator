@@ -623,6 +623,11 @@ export function createBroomViewmodel({
       }
     }
     const strokeX = state.lagX;
+    // ITEM 8: a tool that hangs strands off its head gets them driven from the
+    // rig's own stroke, so the yarn trails the SAME swing the head is on rather
+    // than a second rhythm of its own.
+    const strandRig = broomGroup?.userData?.strandRig;
+    if (strandRig) strandRig.update(dt, strokeX, state.lagV || 0, state.workBlend ?? 0);
     const cosPhase = Math.cos(phase);
     const inContact = using && Math.abs(cosPhase) >= s.contactCos;
     let wantIntensity = using ? (inContact ? Math.abs(cosPhase) : 0.25) : 0;

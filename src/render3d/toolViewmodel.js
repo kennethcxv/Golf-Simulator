@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { CLEANING_TOOLS, PALETTE } from '../data/cleaningTools.js';
 import { attachSocket } from './toolSockets.js';
+import { createMopStrands } from './mopStrands.js';
 
 // Scratch for resolving an authored socket into the tool group's frame. Reused every frame the
 // hands re-sync onto live sockets, so allocating here rather than per-call keeps it off the heap.
@@ -363,6 +364,24 @@ export function buildToolViewmodels() {
             loaded.set(def.id, entry);
             if (def.id === equippedTool) setEquipped(def.id, true);
             if (activeTools.has(def.id)) setUsing(def.id, true);
+            // ITEM 8: the mop's authored head is one solid cone, so it can
+            // never trail or splay. Hang real strands off it. They are built on
+            // the GROUP rather than inside the GLB so a re-adopt cannot orphan
+            // them, and the rig drives them from its own stroke each frame.
+            if (def.id === 'mop' && !entry.strandRig) {
+              const skirt = root.getObjectByName('MESH_MopSkirt');
+              const collar = root.getObjectByName('MESH_MopCollar') || skirt;
+              if (collar) {
+                const yarn = new THREE.MeshStandardMaterial({
+                  color: 0xe4dcc6, roughness: 0.95, metalness: 0,
+                });
+                const rig = createMopStrands({ THREE, material: yarn });
+                collar.add(rig.root);
+                entry.strandRig = rig;
+                entry.strandMaterial = yarn;
+                group.userData.strandRig = rig;
+              }
+            }
             resolve({ id: def.id, ok: true });
           } catch (err) {
             resolve({ id: def.id, ok: false, reason: err.message });
