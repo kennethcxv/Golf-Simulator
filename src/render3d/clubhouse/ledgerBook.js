@@ -19,7 +19,7 @@
 // anything.
 
 import {
-  rosterEntries, rosterDateLabel, houseNotes,
+  rosterEntries, rosterDateShort, houseNotes,
   daySheetSummary, takingsSummary, journalSections,
 } from '../../sim/clubRoster.js';
 import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
@@ -485,7 +485,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
 
   // the reference sheet's ruled table: column dividers, a full grid to the
   // page's foot, and entries in a written hand
-  const GUEST_COLS = [36, 166, 448, 614, 732];
+  // Column edges. The date columns were 130px and 166px against a 12-character
+  // stamp and both truncated; the name column had room to spare. Widened to fit
+  // `rosterDateShort` with margin, taking the space from NAME.
+  const GUEST_COLS = [36, 204, 448, 616, 732];
   const SCRIPT_FONT = "'Segoe Script', 'Comic Sans MS', cursive";
 
   function paintGuests(face, entries, guestPage, pageIndex) {
@@ -531,13 +534,13 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       const base = top + headRow + row * rowHeight + rowHeight * 0.68;
       ctx.fillStyle = '#3d3325';
       ctx.font = `400 ${T(21)}px ${SCRIPT_FONT}`;
-      ctx.fillText(fitLine(ctx, rosterDateLabel(entry.firstVisitDayAbs), GUEST_COLS[1] - GUEST_COLS[0] - 18), GUEST_COLS[0] + 10, base);
+      ctx.fillText(fitLine(ctx, rosterDateShort(entry.firstVisitDayAbs), GUEST_COLS[1] - GUEST_COLS[0] - 18), GUEST_COLS[0] + 10, base);
       ctx.fillStyle = '#2c3a50';
       ctx.font = `400 ${T(26)}px ${SCRIPT_FONT}`;
       ctx.fillText(fitLine(ctx, entry.name, GUEST_COLS[2] - GUEST_COLS[1] - 20), GUEST_COLS[1] + 12, base);
       ctx.fillStyle = '#3d3325';
       ctx.font = `400 ${T(21)}px ${SCRIPT_FONT}`;
-      ctx.fillText(fitLine(ctx, rosterDateLabel(entry.lastVisitDayAbs), GUEST_COLS[3] - GUEST_COLS[2] - 18), GUEST_COLS[2] + 10, base);
+      ctx.fillText(fitLine(ctx, rosterDateShort(entry.lastVisitDayAbs), GUEST_COLS[3] - GUEST_COLS[2] - 18), GUEST_COLS[2] + 10, base);
       ctx.textAlign = 'center';
       ctx.font = `400 ${T(24)}px ${SCRIPT_FONT}`;
       ctx.fillText(String(entry.visits), (GUEST_COLS[3] + GUEST_COLS[4]) / 2, base);

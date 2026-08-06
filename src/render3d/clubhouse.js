@@ -11746,6 +11746,25 @@ export function makeClubhouse(ctx) {
         points: world.map((p) => ({ x: +p.x.toFixed(3), z: +p.z.toFixed(3) })),
       };
     },
+    // The path between endpoints the CALLER pins, so a before/after comparison is the
+    // same route twice. `debugCustomerRun` re-derives its own span each call, which is
+    // right for discovering a clear stretch and wrong for comparing one: dropping a box
+    // shrinks the span it can find, so the two probes end up measuring different routes.
+    debugPathBetween: (ax, az, bx, bz) => {
+      const grid = navFresh();
+      const world = grid.path(ax, az, bx, bz) || [];
+      // Local coordinates alongside world, because a caller that wants to put something
+      // ON this path has to hand `debugDropFloorBox` an interior-local point.
+      return {
+        from: { x: +ax.toFixed(3), z: +az.toFixed(3) },
+        to: { x: +bx.toFixed(3), z: +bz.toFixed(3) },
+        points: world.map((p) => ({ x: +p.x.toFixed(3), z: +p.z.toFixed(3) })),
+        pointsLocal: world.map((p) => {
+          const l = W2L(p.x, p.z);
+          return { x: +l.x.toFixed(3), z: +l.z.toFixed(3) };
+        }),
+      };
+    },
     debugDropFloorBox: (lx, lz, size = 0.7) => {
       const col = addCol(colBoxAt(lx, lz, size, size));
       debugFloorBoxCols.push(col);

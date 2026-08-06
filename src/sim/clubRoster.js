@@ -46,6 +46,21 @@ export function rosterDateLabel(dayAbs) {
   return Number.isFinite(dayAbs) ? dateKey(dayAbs) : '';
 }
 
+/** The same date, short enough to fit a register column.
+ *
+ * `dateKey` writes `Y1-Spring-D1`, which is right on the tee sheet where the column is
+ * wide. In the book's guest table it does not fit, and a truncated date reading
+ * "Y1-Spr..." tells the player nothing at all - the day is the part that got cut. This
+ * abbreviates the season instead, which is the part a reader can infer.
+ */
+export function rosterDateShort(dayAbs) {
+  const full = rosterDateLabel(dayAbs);
+  if (!full) return '';
+  const parts = full.split('-');
+  if (parts.length !== 3) return full;
+  return `${parts[0]} ${parts[1].slice(0, 3)} ${parts[2].replace(/^D/, '')}`;
+}
+
 // --- HOUSE NOTES (L4) -------------------------------------------------------
 // The register's back page: what the house itself needs, written the way the
 // desk would write it. Another pure lens - it reads the restoration state the
