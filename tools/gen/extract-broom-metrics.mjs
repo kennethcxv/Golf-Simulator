@@ -27,7 +27,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const SOURCE_GLB = 'assets/assets_51_100/glb/firstperson/asset_074_broom_fp.glb';
+// THE FILE THE GAME LOADS. This pointed at assets/assets_51_100/glb/... — the
+// authoring output — while cleaningTools.js loads
+// vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb. They are
+// DIFFERENT FILES (sha fff6e5.. against 53ec5d..), so the whole authority,
+// its SHA guard and its test were measuring a broom the player never holds,
+// and all three were passing. Measure what ships.
+export const SOURCE_GLB = 'vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb';
 const GRIP = 'SOCKET_GripPrimary';
 const FLOOR = 'SOCKET_FloorContact';
 
