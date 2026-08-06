@@ -149,6 +149,7 @@ function buildArm(mats, mirror) {
   // the rolled cuff wraps the elbow joint, aimed along the forearm; it is NOT
   // a child of the scaled pivot, so span adjustments never stretch the roll
   const cuff = new THREE.Group();
+  cuff.name = mirror > 0 ? 'BroomRightCuff' : 'BroomLeftCuff';
   // the roll and the sleeve mouth are sized off the ELBOW radius now that the
   // forearm tapers — sized off the wrist they stood proud of the arm they wrap
   const cuffRoll = new THREE.Mesh(
@@ -168,6 +169,7 @@ function buildArm(mats, mirror) {
     new THREE.CapsuleGeometry(a.sleeveRadius, a.sleeveLength, 6, 12), mats.cuff,
   );
   sleeve.rotation.x = Math.PI / 2;
+  sleeve.name = mirror > 0 ? 'BroomRightSleeve' : 'BroomLeftSleeve';
   const sleevePivot = new THREE.Group();
   sleevePivot.add(sleeve);
   sleeve.position.z = a.sleeveLength / 2;
@@ -207,6 +209,11 @@ export function createBroomViewmodel({
   // head visibly buried. When provided, meshRoot() returns the interior group
   // and the clamp also honours the first drawn face along the reach ray.
   meshRoot = null,
+  // A8: false leaves the shaft in ONE hand, with the support arm never built.
+  // The registry is the authority (src/data/cleaningTools.js); this parameter
+  // only carries its answer in. Defaults true so a caller that predates the
+  // flag keeps the two-handed rig it was tuned for.
+  twoHanded = true,
 }) {
   const vmCamera = new THREE.PerspectiveCamera(
     feel.camera.fov, camera.aspect, feel.camera.near, feel.camera.far,
@@ -220,10 +227,14 @@ export function createBroomViewmodel({
     cuffDark: new THREE.MeshStandardMaterial({ color: CUFF_DARK, roughness: 0.85 }),
   };
   const right = buildArm(mats, 1);
-  const left = buildArm(mats, -1);
-  broomGroup.add(right.group, left.group);
+  // Not built at all when the tool is single-handed: an invisible arm still
+  // costs a traverse every frame and, more to the point, leaves something that
+  // a later change can switch back on by accident.
+  const left = twoHanded ? buildArm(mats, -1) : null;
+  broomGroup.add(right.group);
+  if (left) broomGroup.add(left.group);
   right.group.visible = false;
-  left.group.visible = false;
+  if (left) left.group.visible = false;
 
   // Arm anchors from the ONE tuning file. Elbows are WRIST-RELATIVE in camera
   // axes (right/up/toward-viewer), so the forearm enters foreshortened just
@@ -417,7 +428,7 @@ export function createBroomViewmodel({
     // the authored GLB may have adopted since the last equip — re-find sockets
     if (active) socketRefs.found = false;
     right.group.visible = active;
-    left.group.visible = active;
+    if (left) left.group.visible = active;
     // The full arms replace the stub forearm + cuff for the duration.
     fpHands.setArmStubsVisible?.(!active);
     // …and the hands read at the broom's own size while it owns them, then go
@@ -951,7 +962,8 @@ export function createBroomViewmodel({
       hand.position.add(_palmOut);
     };
     seat(rightHand, geom.upper, c.handRollUpper);
-    seat(leftHand, geom.lower, c.handRollLower);
+    if (twoHanded) seat(leftHand, geom.lower, c.handRollLower);
+    else if (leftHand) leftHand.visible = false;
     // how far the seated hand ended up from the socket it grips — the number
     // that caught the cached-socket bug (0.39 yd off) and must stay ~0
     state.seatError = rightHand ? _tmp.copy(rightHand.position)
@@ -961,8 +973,8 @@ export function createBroomViewmodel({
     state.armR = state.armR || {};
     state.armL = state.armL || {};
     if (rightHand) poseArm(right, rightHand, elbowOffsetRight, 1, state.armR);
-    if (leftHand && leftHand.visible) poseArm(left, leftHand, elbowOffsetLeft, -1, state.armL);
-    left.group.visible = !!(leftHand && leftHand.visible);
+    if (left && leftHand && leftHand.visible) poseArm(left, leftHand, elbowOffsetLeft, -1, state.armL);
+    if (left) left.group.visible = !!(leftHand && leftHand.visible);
 
     // --- head NDC (the level-pitch acceptance number) -----------------------
     // Measured on the DRAWN head — the rig-posed contact point — because the

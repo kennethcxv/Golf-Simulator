@@ -6553,6 +6553,11 @@ export function makeCourseScene(canvas, state) {
       colliderQuery: broomColliderQuery,
       floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
       feel: TOOL_VM_FEEL[rigId],
+      // A8: the REGISTRY decides how many hands here too. Q7 made the shared
+      // toolViewmodel path read `support`, but this bespoke rig built both arms
+      // unconditionally, so the broom - the one tool the ruling was written
+      // against - kept two hands on screen while its registry entry said one.
+      twoHanded: !!CLEANING_TOOLS[rigId]?.support,
       // I5: the drawn interior for the mesh-true clamp (held tools are camera
       // children, so this root can never self-hit the tool)
       meshRoot: () => (clubhouseApi ? clubhouseApi.interior : null),

@@ -89,7 +89,12 @@ function orientHand(hand, grip, poseName, mirror) {
 // How a hand closes. `curl` drives the finger chain, `thumb` the thumb, `spread` the fan across
 // the knuckles, and `index` lets one finger stay out on a trigger while the rest wrap.
 export const POSES = {
-  wrap: { curl: 1.18, thumb: 0.92, spread: 0.025, index: 1.15 }, // a shaft or a handle
+  // A8: closed HARDER round a shaft. At 1.18 the chain bent ~156 deg total, which lays
+  // the fingers along the top of a handle rather than round it - on screen the shaft ran
+  // in front of the fingertips and the hand read as resting on the pole, not gripping it.
+  // The reference the player supplied has the fingers meeting the palm on the far side
+  // with the thumb crossing over them. ~177 deg does that, and the thumb comes up to match.
+  wrap: { curl: 1.34, thumb: 1.06, spread: 0.025, index: 1.30 }, // a shaft or a handle
   trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
   flat: { curl: 0.46, thumb: 0.52, spread: 0.008, index: 0.42 }, // fingers draped over a cloth pad
   hook: { curl: 1.06, thumb: 1.05, spread: 0.006, index: 1.02 }, // curled through the neck of a bag
