@@ -198,9 +198,26 @@ test('the reader glass reads as a current terminal: one ground, hierarchy in the
   assert.match(face, /termRoundedPath/, 'the glass is still a rounded card');
   assert.match(face, /ctx\.textAlign = 'left'/, 'the face hangs off a left margin');
   assert.match(face, /const inner = H - TERM_PAD \* 2/, 'it is sized off the glass');
-  // the bands are GONE, not merely restyled
-  assert.doesNotMatch(face, /createLinearGradient/,
-    'a modern face has one ground; stacked gradient bands are what read as dated');
+  // THE BANDS ARE GONE, not merely restyled. The dated face stacked several
+  // full-width COLOURED strips, one per section. Q2 (2026-08-06) gave the
+  // glass a single soft ground gradient plus a top sheen, which is depth on
+  // one ground rather than a stack of sections - so the guard pins the intent
+  // (how many, and what colour) instead of banning the primitive outright,
+  // which would have made "cooler and more modern" unimplementable.
+  const gradients = [...face.matchAll(/createLinearGradient/g)].length;
+  assert.ok(gradients <= 2,
+    `one ground and at most a sheen; ${gradients} gradients is a stack of bands again`);
+  // and neither may be tinted with the accent: a coloured strip IS a band
+  const gradientStops = [...face.matchAll(/addColorStop\([^,]+,\s*'([^']+)'/g)].map((m) => m[1]);
+  for (const stop of gradientStops) {
+    assert.ok(/^#[0-9A-Fa-f]{6}$|^rgba\(255,255,255/.test(stop),
+      `the ground carries no colour; ${stop} is a band by another name`);
+  }
+  for (const stop of gradientStops.filter((s) => s.startsWith('#'))) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(stop.slice(i, i + 2), 16));
+    assert.ok(Math.max(r, g, b) - Math.min(r, g, b) < 24,
+      `the ground stays near-neutral; ${stop} is a tinted band`);
+  }
   assert.ok(!source.includes('paintTermLightFace'), 'the flat pale face is deleted, not orphaned');
   assert.ok(!source.includes('paintTermBandedFaceLegacy'),
     'the banded face is deleted, not left dormant beside its replacement');

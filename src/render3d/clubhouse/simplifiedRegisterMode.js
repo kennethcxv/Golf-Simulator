@@ -2968,10 +2968,28 @@ export function createRegisterMode(B) {
     const inner = H - TERM_PAD * 2;
     const left = x0 + 34;              // the margin everything hangs off
     ctx.save();
-    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 16);
-    ctx.fillStyle = '#F4F7F4';
+    // Q2 (2026-08-06): "the card reader ui is a bit too boring make it a bit
+    // cooler and a bit more modern with the ui and not too bright white."
+    //
+    // K5 already ruled OUT going back to a near-black ground, so the answer is
+    // neither pole: a cool off-white glass with a real vertical gradient and a
+    // seated inner panel, the way a current terminal reads, instead of one
+    // flat #F4F7F4 rectangle. The amount stays dominant and near-black, which
+    // is C13's ruling and is not up for renegotiation.
+    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 20);
+    const glass = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + inner);
+    glass.addColorStop(0, '#EDF2EF');
+    glass.addColorStop(0.55, '#E3EAE6');
+    glass.addColorStop(1, '#D8E1DC');
+    ctx.fillStyle = glass;
     ctx.fill();
     ctx.clip();
+    // a soft top sheen, so the glass reads as glass rather than as paper
+    const sheen = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + inner * 0.34);
+    sheen.addColorStop(0, 'rgba(255,255,255,0.55)');
+    sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(x0, TERM_PAD, w, inner * 0.34);
 
     // --- status line ---------------------------------------------------------
     const statusY = TERM_PAD + 40;
@@ -3005,12 +3023,30 @@ export function createRegisterMode(B) {
     ctx.fillStyle = 'rgba(15,23,18,0.14)';
     ctx.fillRect(left, statusY + 30, w - 68, 2);
 
+    // --- the amount PANEL: the figure sits on something ----------------------
+    // A modern terminal seats the number on a card rather than floating it on
+    // the ground. The panel is a shade lighter than the glass with a hairline,
+    // so the hierarchy reads even before the type does.
+    const panelTop = statusY + 52;
+    const panelH = inner - (panelTop - TERM_PAD) - 66;
+    termRoundedPath(ctx, left - 18, panelTop, w - 68 + 36, panelH, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(15,23,18,0.09)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     // --- the eyebrow: what the figure below IS -------------------------------
+    // with the accent as a short bar beside it, which is where the colour
+    // budget goes on a modern reader
+    ctx.fillStyle = tone;
+    termRoundedPath(ctx, left, statusY + 74, 5, 20, 2.5);
+    ctx.fill();
     ctx.textAlign = 'left';
     setTermTracking(ctx, 3.4);
     ctx.font = '700 22px Arial, sans-serif';
     ctx.fillStyle = tone;
-    ctx.fillText(String(caption).toUpperCase(), left, statusY + 88);
+    ctx.fillText(String(caption).toUpperCase(), left + 18, statusY + 88);
     setTermTracking(ctx, 0);
 
     // --- the figure, dominant ------------------------------------------------
