@@ -11,12 +11,12 @@ night into one thing.
 
 | # | Item | Status | Bar met |
 |---|---|---|---|
-| 26 | `customers()` + item 14 confirmation + prop sweep | 2 of 3 | partial |
+| 26 | `customers()` + prop sweep + walker confirmation | 2 of 3 | partial |
 | 27 | The drawer half of 13 | done | **y** |
 | 8 | Mop fibres | done | **y** |
 | 11 | Q reveal while brooming | done | **y** |
 | 12 | (last session) | done | y |
-| 15 | Concurrency from rating, price, reputation | done | **y** |
+| 15 | Concurrency from rating, price, reputation | done, live 1x measured | **y** |
 | 18 | Externalise every string | measured, declined | see below |
 | 19 | Every settings control | done | **y** |
 | 22 | Handle length 1.247 authority | done | **y** |
@@ -42,10 +42,23 @@ documented form had been silently dead; nine drivers updated to one meaning.
 displacement-only stuck test can never rescue, because a walker slides along any of them
 while "moving".
 
-**Still UNCONFIRMED:** the recovery itself on a live walker. The repro needs a stale path —
-walker sets off, obstacle lands on its next waypoint — and `debugDropFloorBox` exists for
-exactly that, but a spawned walk-in never starts walking in the driver (movedM 0 over
-2,000 frames). Logged at the cap.
+**The walker now walks, and four instrument faults were behind it not doing so.** The
+driver set `app.speedIdx = 0`, which is PAUSED, so three runs watched a stopped game.
+`sendWalkInToDesk` places a customer AT the desk, already arrived with no path.
+`sendToCounter`'s return value is not always the object the walker loop iterates. And
+the walker-claim polled for 0.5 m between polls 400 ms apart, a 1.25 m/s bar against a
+1.1 m/s shopper, so it could never trip.
+
+**Now confirmed at 1x on a real walker:** a box dropped on its own next waypoint
+(0.35, 2.45, half 0.55; walker at -358.16, 6.36; waypoint -359.65, 6.45; path length 3),
+the walker stalls (stuckT 1.20, noProgressT 1.66) and recovers (reachedNextStop true).
+
+**Still UNCONFIRMED, and I am not claiming it:** that the recovery is due to MY progress
+test rather than the displacement test already there. noProgressT peaks at 1.66 s
+against my 2.5 s threshold, so my branch never fires; the walker frees itself first. The
+A/B is also not clean, because the control pins the counter from rAF, which races the
+sim frame and leaks. This reproduces "a walker meets a box and gets past it", not the
+"runs into the box forever" the brief describes.
 
 ## 27 — the drawer does open, and does get worked
 
@@ -118,7 +131,24 @@ concurrency is a small integer.
 | mid — rep 55, half clean, fair | 0.494 | 1 | 4 |
 | high — rep 85, clean, 0.65x fair | 1.000 | 2 | 8 |
 
-**Not measured across a live 1x day** — the table is from the sim. Flagged below.
+**And measured live at 1x**, shop open, organic walk-ins on, sampled once a second for
+150 s per scenario:
+
+| scenario | drive | target | live mean | peak | cap |
+|---|---|---|---|---|---|
+| low | 0.095 | 1 | 1.00 | 1 | 2 |
+| mid | 0.448 | 1 | 1.00 | 1 | 2 |
+| high | 0.993 | 2 | 2.00 | 2 | 2 |
+
+Live concurrency lands on the model's own target in all three, so the formula and the
+floor agree. The starter tier caps at 2, which is why low and mid both read 1: the
+spread lives in the drive and shows as people only once the room can hold them.
+
+Control: sign closed. The floor does not empty in ninety seconds and should not, since
+customers inside finish first, so the claim measured is that no NEW ones arrive. At
+close 2 on the floor, peak 2 while closed, mean falling to 1.42 as they leave.
+
+Evidence: `qa/electron/footfall-day/`.
 
 ## 18 — the count, and why I stopped there
 
@@ -260,10 +290,10 @@ undefined, and a convention that a new probe ships with the control proving it f
 
 ## UNCONFIRMED
 
-- **Item 26 / 14** — the slide-recovery fix on a live walker. Cause identified, fix in,
-  suite green, but a spawned walk-in never walks in the driver.
-- **Item 15** — the concurrency table is from the sim, **not from a live 1x day** as the
-  brief asked. The formula and its terms are verified; the day run is not done.
+- **Item 26 / 14** — that the recovery is attributable to the progress test I added. A
+  live walker now demonstrably meets a box and gets past it, but in that scenario the new
+  branch never fires, so nothing I have built exercises the fix. The "forever" case in the
+  brief is still not reproduced.
 
 ## NOT DONE
 
@@ -319,6 +349,17 @@ or passed a broken one.
     turning it into a binary file. Reverted and redone.
 14. The footfall fixture's third attempt set `section.health`, which sections do not carry
     either, caught only by the drive coming back identical.
+15. The box-recovery driver ran the whole scenario at `speedIdx = 0`, which is PAUSED, and
+    reported "the walker never started walking" three times about a stopped game.
+16. It then used `sendWalkInToDesk`, which places a customer AT the desk with no path, so
+    movedM 0 was the correct answer to the wrong question.
+17. Its walker-claim required 0.5 m of travel between polls 400 ms apart: a 1.25 m/s bar
+    against a 1.1 m/s shopper. It could never trip, and passed only when a scenario's
+    shopper happened to walk at 1.35 - marginal by exactly the amount that reads as
+    intermittent rather than wrong.
+18. The live-footfall driver asked for capacity two wrong ways and got null both times,
+    which reads as "no target" rather than "you asked the wrong thing". The clubhouse
+    has `footfallDiagnostics()`, built for exactly that measurement.
 
 Every surviving probe carries a negative control that is shown to fire. No check in this
 session is a literal.
