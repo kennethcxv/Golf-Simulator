@@ -2,11 +2,12 @@
 
 Branch `feature/pro-shop-vertical-slice`. All runtime verification in **Electron**,
 `--clubhouse=pine-hills-v2`, via `node tools/qa/run-electron.cjs <driver>`.
-Suite green (**2796 pass / 0 fail**) before every commit. Nine commits, all pushed.
+Suite green (**2796 pass / 0 fail**) before every commit. Fourteen commits, all pushed.
 
 The brief said go broad, cap at ~40 minutes an item, and prefer 15 touched to 3
-perfected. **Nine items closed, one measured-and-declined, one part-done.** Where I hit
-the cap I logged it and moved rather than sinking the night into one thing.
+perfected. **Fifteen items touched:** twelve closed, one measured-and-declined (18), two
+part-done (26, 10). Where I hit the cap I logged it and moved rather than sinking the
+night into one thing.
 
 | # | Item | Status | Bar met |
 |---|---|---|---|
@@ -20,7 +21,11 @@ the cap I logged it and moved rather than sinking the night into one thing.
 | 19 | Every settings control | done | **y** |
 | 22 | Handle length 1.247 authority | done | **y** |
 | 28 | Em dashes in player copy | done | **y** |
-| 10, 16, 17, 20, 21, 23, 24, 25, 29 | — | NOT DONE | n |
+| 10 | Ranked table + fix worst three | table done, fixes not | partial |
+| 17 | Restoration teaches itself | done | **y** |
+| 23 | Full key rebinding, in one piece | done | **y** |
+| 25 | What I think this game most needs | done | **y** |
+| 16, 20, 21, 24, 29 | — | NOT DONE | n |
 
 ---
 
@@ -178,6 +183,79 @@ two the player reads were `clubRoster` ("Waiting on regulars — N of 3", writte
 session) and `reviews` ("New review — 2★"). Pinned as a test with a control proving the
 scanner sees a dash inside a literal and ignores one inside a comment.
 
+## 10 — the ranked table, and a placement bug
+
+Density is triangles per 1% of frame covered, all nine at the same pose, because triangle
+count alone would call a sponge worse than a broom for being a sponge.
+
+| tool | screen% | tris | density |
+|---|---|---|---|
+| broom | 25.5 | 10164 | **398** |
+| mop | 19.6 | 10184 | **520** |
+| trashbag | 6.8 | 5646 | **833** |
+| dustpan | 6.1 | 5472 | 897 |
+| vacuum | 9.1 | 8624 | 949 |
+| cloth | 3.9 | 4994 | 1292 |
+| sponge | 2.9 | 4454 | 1540 |
+| spray | 3.0 | 8058 | 2703 |
+
+Worst three: broom, mop, trashbag. The ones the player looks at hardest, spending least
+per pixel. **Fixes NOT DONE.**
+
+Found while ranking, and more important than the ranking: **the dustpan is not in your
+hands.** See `FOUND_UNASKED_14.md` item 1.
+
+## 17 — the ledger says what to do, not only what is wrong
+
+House Notes answered one of the four questions and stopped. Every outstanding note now
+carries its standing instruction underneath.
+
+```
+PANEL-02 flickers. The wiring is on its way out.
+    Replacement fitting. Face the panel and hold [E].
+The ceiling beams want attention.
+    Repair kit. Face the ceiling and hold [E]. Power comes back with it.
+```
+
+While the circuit is out the panel instruction reads "Repair the ceiling first; the
+circuit feeds every panel", because sending someone to replace a fitting that cannot light
+is sending them at the wrong job.
+
+**The shortest first-timer path through the ceiling repair:** walk in, open the ledger with
+[E], House Notes ([D]) shows the dead panels and "repair the ceiling first", one more page
+gives the ceiling note and its instruction, close ([E]), take a repair kit, face the
+ceiling and hold [E]. The circuit goes live and the panel notes change to a replacement
+fitting each. Seven steps, every one answered by an object in the room. The ceiling is
+deliberately first: `repairPrerequisite` exempts it from the laptop gate that blocks every
+other component.
+
+## 23 — rebinding covers every main-mode verb
+
+Eight verbs never reached the rebinding screen: build mode, four panel toggles and the
+three speed keys, all literal `case 'b':` arms, three of them written out **twice** (once
+inside the clubhouse, once on the overview). 16 bindable actions became 24.
+
+Verified in the build, and the second half is the one that is easy to miss:
+
+```
+'b' fires buildMode, 'k' fires nothing
+rebind buildMode -> 'k'
+'k' fires buildMode, and 'b' now fires NOTHING
+```
+
+A binding that adds a key without vacating the old one is not a rebinding. Escape stays
+literal and must: `keyBindings` reserves it so the pause hatch can never be rebound away.
+Remaining literal keys are `e r x z`, all build-mode-only verbs with no row on the screen.
+
+## 25 — my own list
+
+`Designs/ProShop/FOUND_UNASKED_14.md`. Seven items, worst first. The pattern under six of
+them is the same and is the real finding: **a check that was green about the wrong thing.**
+Across two sessions, fourteen instruments were wrong before they were right. Ahead of any
+queue item I would spend a session making the existing checks incapable of being quietly
+wrong: a linter (there is none over `src/`), QA accessors that throw rather than return
+undefined, and a convention that a new probe ships with the control proving it fires.
+
 ---
 
 ## UNCONFIRMED
@@ -191,14 +269,11 @@ scanner sees a dash inside a literal and ignores one inside a comment.
 
 | # | Item | Note |
 |---|---|---|
-| 10 | Ranked quality table, fix worst three | raw material exists (held-pose shots + triangle counts, `qa/electron/tool-hands/`); not ranked, nothing fixed |
+| 10 | Fix the worst three, and the dustpan placement | table delivered; fixes not started |
 | 16 | Customer models, hats | untouched |
-| 17 | Restoration teaches itself; ceiling-repair path | untouched |
 | 20 | I5 collider clamp, nine tools | untouched |
 | 21 | I6 pushSpeed playtest at full walking speed | untouched |
-| 23 | F2 full key rebinding | untouched |
 | 24 | Texture pass, 19 files | untouched |
-| 25 | My own list | untouched |
 | 29 | Rewrite player-facing copy | untouched — and see item 18: this should come before translation |
 
 ## Found unasked
@@ -236,6 +311,14 @@ or passed a broken one.
 9. Footfall fixture set `hole.quality` and `section.health`, **neither of which exists**,
    so two tests compared a course against itself and passed for the wrong reason.
 10. Em-dash scan counted block-comment continuation lines as code — 13 hits, 11 false.
+11. Tool ranking projected through whichever lens gave the larger box, not the one that
+    DRAWS, which is how the dustpan reported 6.1% of frame while being invisible.
+12. Item 23's first pass moved `Escape` into the bound-action switch, where `actionForKey`
+    returns null for it by design and it could never have fired again.
+13. Item 23's second pass wrote literal NUL bytes into `main.js` as case-label markers,
+    turning it into a binary file. Reverted and redone.
+14. The footfall fixture's third attempt set `section.health`, which sections do not carry
+    either, caught only by the drive coming back identical.
 
 Every surviving probe carries a negative control that is shown to fire. No check in this
 session is a literal.
