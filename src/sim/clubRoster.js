@@ -90,6 +90,31 @@ const COMPONENT_NOTES = Object.freeze({
   floor: 'The floor is worn to the nail heads.',
 });
 
+// ITEM 17 (2026-08-06): "Restoration must teach itself. The player should always
+// know what is broken, what it needs, where to get it and what to press, from
+// the world. The ledger can hold standing instructions."
+//
+// The book already said what was WRONG and stopped there, which answers one of
+// the four questions. A note that says "the ceiling beams want attention" and
+// nothing else leaves a first-timer to guess the verb. Each outstanding note now
+// carries its standing instruction: the thing it needs, and the key that does
+// it. Kept to one short clause so the page stays a ledger rather than a manual.
+const COMPONENT_ACTIONS = Object.freeze({
+  shell: 'Repair kit. Face it and hold [E].',
+  porch: 'Repair kit. Face it and hold [E].',
+  windows: 'Repair kit. Face the frame and hold [E].',
+  panels: 'Repair kit. Face the wall and hold [E].',
+  trim: 'Repair kit. Face the trim and hold [E].',
+  ceiling: 'Repair kit. Face the ceiling and hold [E]. Power comes back with it.',
+  floor: 'Repair kit. Face the boards and hold [E].',
+});
+
+const PANEL_ACTIONS = Object.freeze({
+  dead: 'Repair the ceiling first; the circuit feeds every panel.',
+  deadPowered: 'Replacement fitting. Face the panel and hold [E].',
+  flicker: 'Replacement fitting. Face the panel and hold [E].',
+});
+
 /**
  * Outstanding house work, as dry desk notes. Empty house trouble = one
  * all-clear line, so the page never reads as broken.
@@ -108,9 +133,11 @@ export function houseNotes(state) {
       ? PANEL_STATE_NOTES.deadPowered
       : PANEL_STATE_NOTES[panelState];
     if (!line) continue;
+    const panelKey = panelState === 'dead' && circuitLive ? 'deadPowered' : panelState;
     notes.push({
       id: `light:${panelId}`,
       text: `${panelId.toUpperCase()} ${line}`,
+      action: PANEL_ACTIONS[panelKey] || null,
       outstanding: true,
     });
   }
@@ -121,11 +148,17 @@ export function houseNotes(state) {
     notes.push({
       id: `component:${component}`,
       text: COMPONENT_NOTES[component] || `${ARCHITECTURE_COMPONENT_LABELS[component]} needs seeing to.`,
+      action: COMPONENT_ACTIONS[component] || 'Repair kit. Face it and hold [E].',
       outstanding: true,
     });
   }
   if (!notes.length) {
-    notes.push({ id: 'all-clear', text: 'Nothing outstanding. The house behaves.', outstanding: false });
+    notes.push({
+      id: 'all-clear',
+      text: 'Nothing outstanding. The house behaves.',
+      action: null,
+      outstanding: false,
+    });
   }
   return notes;
 }

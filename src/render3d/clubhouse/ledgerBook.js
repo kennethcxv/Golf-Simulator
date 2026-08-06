@@ -751,6 +751,14 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         ctx.fillStyle = '#3f4a42';
         ctx.font = `400 ${T(21)}px Georgia, serif`;
         ctx.fillText(fitLine(ctx, note.text, PAGE_W - 100), 66, y);
+        // ITEM 17: the standing instruction, under the note that needs it, in
+        // the desk's quieter hand. What it needs and what to press - the two
+        // questions the book used to leave a first-timer to guess.
+        if (note.action) {
+          ctx.fillStyle = 'rgba(107,114,104,0.92)';
+          ctx.font = `italic 400 ${T(16)}px Georgia, serif`;
+          ctx.fillText(fitLine(ctx, note.action, PAGE_W - 120), 66, y + T(19));
+        }
       } else {
         ctx.fillStyle = '#6b7268';
         ctx.font = `italic 400 ${T(21)}px Georgia, serif`;
