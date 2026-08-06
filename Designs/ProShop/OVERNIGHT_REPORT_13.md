@@ -684,3 +684,88 @@ the shoe. Photographed at the player's camera.
 Per-tool unique SOUNDS were already in place from E3 (each tool carries its own
 `tone` and `audio` entries in the registry); this session added the per-tool
 head physics on top rather than redoing the audio.
+
+---
+
+# Session 13d — tags, copy, the split, and the sweep
+
+Suite **2787 pass / 0 fail**. Four more commits, pushed.
+
+## Price tags — a clean negative, not a fix
+
+C7 deleted the runtime tag code and H3 deleted the checkout swing tag, and both
+really are gone from the source. But the source was already fixed the last two
+times this was raised, so re-reading it proves nothing.
+`tools/qa/price-tag-sweep.js` walks the LIVE scene graph during a staged sale
+and asks what the code cannot: is any drawn mesh NAMED like a tag, and is
+anything SHAPED like one hanging where goods are. **Zero and zero.** Nothing was
+invented to fix.
+
+The first pass flagged one candidate, and why it is not a tag matters: an
+untextured grey plate, 7.2 x 11.5 cm, at y=-0.20 - below the floor, under an
+anonymous group, carrying no printing. Shape alone is a thin-quad detector.
+Requiring printing and goods height is what makes it a tag detector.
+
+## O2 — the settings say what they do, in three languages
+
+"Master volume / How loud everything is" instead of "Overall game volume".
+"Effects / Tools, doors, products, the till, footsteps" instead of "Tools,
+doors, products, checkout, and movement feedback". "Using a tool / Hold the
+button to work, or press once to start and again to stop" instead of "Choose
+whether cleaning and maintenance tools run while held or toggle on each press".
+
+The rewrite went THROUGH the translation table rather than around it, which is
+why it waited for Q3 - rewriting a string and then translating the old one is
+work done twice. Spanish and French were written at the same time, so coverage
+is **87/87 in all three locales**. Re-verified in Electron with zero inert
+settings after the change.
+
+## M1 — the split, on a denominator worth quoting
+
+Over **240 real arrivals** through the live spawn path
+(`tools/qa/combined-visit-share.js`, 7/7):
+
+| | |
+|---|---|
+| buy only | 120 |
+| book only | 70 |
+| **BOTH** | **50** |
+
+**41.7% of desk arrivals also shop.** Common by any reading, and still a split
+rather than a takeover.
+
+Controls run in BOTH directions, because a tally that only goes up proves
+nothing: pin the roll to 0 and the run reports 0 of 60; pin it to 1 and it
+reports 60 of 60.
+
+STATED HONESTLY: 240 arrivals through the real spawn path, **not** a played 1x
+day - that is ~10.5 wall-hours per leg. The arrival decision is the whole
+mechanism the ruling is about, and the sample size is quoted rather than
+implied.
+
+## O3 — the polish walk
+
+Every driver built across this session run together in one sweep, to catch the
+case where two fixes are each fine alone and break each other:
+
+```
+ledger-book PASS   house-notes PASS      rebinding PASS
+reveal-specificity PASS   combined-visit-order PASS
+npc-obstacle-nav PASS     settings-language PASS
+tool-hands-and-head PASS  character-headwear PASS
+price-tag-sweep PASS      card-hover-outline PASS
+cash-hover-outline PASS
+```
+
+**12 of 12**, plus the 2787-test suite.
+
+## What is left, and why
+
+**P1 — the 19-file texture pass.** NOT STARTED, deliberately. It is explicitly
+ruled all-or-none, and it is a sourcing-and-UV job across 19 assets with a
+texture-memory budget to measure before and after. Starting it and stopping
+half way would be the one outcome its own rule forbids. It wants a session of
+its own with room to finish.
+
+**A8 — broom hand pose and sleeves.** Reserved: graded personally, on
+instruction not to mark it complete.
