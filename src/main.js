@@ -45,7 +45,7 @@ import {
   inspectData, loadDataWithStatus, saveData, summarizeSave,
 } from './core/storage.js';
 import { applyDocumentPreferences, makePreferences } from './core/preferences.js';
-import { actionForKey } from './core/keyBindings.js';
+import { actionForKey, keyForAction, describeKey } from './core/keyBindings.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import {
@@ -491,6 +491,12 @@ function enterLedger() {
   const book = ledgerBookApi();
   if (!book) return;
   cancelToolKey();
+  // the book's own footer teaches the keys, so it needs the LIVE bindings
+  book.setControlLabels?.({
+    prev: describeKey(keyForAction(preferences.values.controls?.bindings, 'moveLeft')) || 'A',
+    next: describeKey(keyForAction(preferences.values.controls?.bindings, 'moveRight')) || 'D',
+    close: describeKey(keyForAction(preferences.values.controls?.bindings, 'interact')) || 'E',
+  });
   // THE BOOK COMES TO THE PLAYER (2026-08-05 ruling): no lens change, no
   // camera focus — the journal rises to the face, the clasp frees, the cover
   // swings. The camera holds still, exactly like the card reader.

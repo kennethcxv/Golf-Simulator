@@ -98,16 +98,27 @@ async (page) => {
       if (local.x < bestX) { bestX = local.x; best = image; }
     });
     if (!best) return { error: 'right page canvas not found' };
+    // Measure the SIGNATURE BAND only (the NAME column's data rows). The
+    // guest page is now a ruled table in the reference's style, so whole-page
+    // dark ink is dominated by printed furniture that is there whether or not
+    // anyone signed - a whole-page counter cannot tell a blank register from
+    // a signed one by absolute value any more.
+    const BAND = { x0: 166, x1: 448, y0: 142, y1: 468 };
     const scratch = document.createElement('canvas');
     scratch.width = best.width; scratch.height = best.height;
     const ctx = scratch.getContext('2d');
     ctx.drawImage(best, 0, 0);
-    const data = ctx.getImageData(0, 0, best.width, best.height).data;
+    const all = ctx.getImageData(0, 0, best.width, best.height).data;
     let ink = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      if (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2] < 100) ink += 1;
+    for (let i = 0; i < all.length; i += 4) {
+      if (0.2126 * all[i] + 0.7152 * all[i + 1] + 0.0722 * all[i + 2] < 100) ink += 1;
     }
-    return { ink };
+    const band = ctx.getImageData(BAND.x0, BAND.y0, BAND.x1 - BAND.x0, BAND.y1 - BAND.y0).data;
+    let bandInk = 0;
+    for (let i = 0; i < band.length; i += 4) {
+      if (0.2126 * band[i] + 0.7152 * band[i + 1] + 0.0722 * band[i + 2] < 100) bandInk += 1;
+    }
+    return { ink, bandInk };
   });
 
   // ---- blank state ---------------------------------------------------------
@@ -350,7 +361,11 @@ async (page) => {
     // the contents page (one line per section) + zero guest rows
     blankBookIsBlank: blankDiag.entries === 0
       && blankDiag.painted === (blankDiag.sections?.length ?? -1),
-    blankInkControlQuiet: !blankInk.error && blankInk.ink < 60,
+    // NEGATIVE CONTROL: nobody has signed, so the signature band carries only
+    // the rules crossing it. An absolute page-wide floor stopped working when
+    // the page became a printed table (VERIFY: blank page-wide ink is ~3.7k of
+    // pure furniture), so the control is the BAND, where a name would land.
+    blankInkControlQuiet: !blankInk.error && blankInk.bandInk < 400,
     // a blank journal still carries its full skeleton: contents, one guest
     // page, house notes, day sheet, takings, and the two locked sections
     blankBookSpreads: blankDiag.spreadCount === 4 && blankTurn === true
@@ -362,7 +377,8 @@ async (page) => {
       && roster[0].visits === 1 && Number.isFinite(roster[0].firstVisitDayAbs),
     signedPagePainted: signedDiag.entries === 1 && signedDiag.contentReady === true
       && signedDiag.state === 'open',
-    signatureInkPresent: !signedInk.error && signedInk.ink > blankInk.ink + 200,
+    // and the signature itself is ink appearing IN that band
+    signatureInkPresent: !signedInk.error && signedInk.bandInk > blankInk.bandInk + 200,
     pagesTurnForward: fullDiag.spreadCount >= 2 && turned === true
       && midTurn.turning === true && afterTurn.turning === false && afterTurn.spread === 1,
     pagesTurnBack: turnedBack === true && backAgain.spread === 0,

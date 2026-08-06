@@ -7289,9 +7289,15 @@ export function makeCourseScene(canvas, state) {
   // viewmodels, the spray points and the effect timers. A tool added tomorrow
   // is covered the day it is added, because being held at all goes through the
   // same setter.
+  // 2026-08-06 ruling: "make sure that items such as the spray, broom etc
+  // switch to the hand automatically when we click on the book the same way
+  // we did for the cash register". The READING DESK is a work station too -
+  // you cannot hold a mop and a ledger. Same predicate, one more station, so
+  // every tool present and future is covered by the same setter.
   let stationStowedTool = null;
   function syncStationToolStow() {
-    const stationOpen = !!clubhouseApi?.register?.isActive?.();
+    const stationOpen = !!clubhouseApi?.register?.isActive?.()
+      || !!clubhouseApi?.ledgerBook?.isOpen?.();
     if (stationOpen) {
       if (stationStowedTool !== null || !walkTool) return;
       stationStowedTool = walkTool;

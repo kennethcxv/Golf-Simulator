@@ -22,18 +22,35 @@ import {
   rosterEntries, rosterDateLabel, houseNotes,
   daySheetSummary, takingsSummary, journalSections,
 } from '../../sim/clubRoster.js';
+import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
 
 const PAGE_W = 768;
 const PAGE_H = 512;
-const ROWS_PER_PAGE = 6;
-const NOTES_PER_PAGE = 7;
-const LEAF_SECONDS = 0.38;
+// 2026-08-06 ruling: "make the ui and text bigger". One scale drives every
+// glyph on every page, so the whole book stays in proportion when it moves.
+// Rows per page come DOWN to buy the height the larger type needs.
+const TYPE_SCALE = 1.34;
+const T = (px) => Math.round(px * TYPE_SCALE);
+const ROWS_PER_PAGE = 5;
+const NOTES_PER_PAGE = 5;
+const LEAF_SECONDS = 0.55;
 const OPEN_SECONDS = 0.85;
 const CLOSE_SECONDS = 0.65;
-const FACE_DISTANCE = 0.50;   // metres ahead of the eye
-const FACE_DROP = 0.11;       // below the view axis, like a held journal
-const FACE_TILT = 1.12;       // radians the spread leans up toward the eye
+// 2026-08-06 ruling: "closer to the user so its more visible... up and on an
+// angle". FACE_TILT is measured from VERTICAL: PI/2 lies the spread flat on
+// its back, 0 stands it straight up. 0.60 rad is a lectern angle - the pages
+// face the eye, the fore-edges still read as a book rather than a poster.
+const FACE_DISTANCE = 0.40;   // metres ahead of the eye
+const FACE_DROP = 0.055;      // below the view axis - held UP, per the ruling
+const FACE_TILT = 0.60;       // radians off vertical
 const FOLLOW_RATE = 9;        // 1/s soft-follow while open
+
+// the Blender asset's one set of measurements (tools/blender/build_ledger_book.py)
+const HINGE_X = 0.151;        // the spine hinge line = the open book's gutter
+const LEAF_W = 0.278;         // the turning leaf, just inside the painted faces
+const LEAF_D = 0.184;
+const LEAF_SEGS = 24;
+const SWAP_POINT = 0.72;      // cover swing fraction where closed<->open swap hides
 
 const smoothstep = (t) => t * t * (3 - 2 * t);
 
@@ -50,180 +67,353 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   root.position.set(spawn.x, Number.isFinite(spawn.y) ? spawn.y : counterTop, spawn.z);
   root.rotation.y = spawn.ry || 0;
 
-  // ---- materials -----------------------------------------------------------
+  // ---- the body: the Blender asset -----------------------------------------
+  // vendor/models/clubhouse/ledger_book.glb (tools/blender/build_ledger_book.py,
+  // authored against Designs/LedgerBook): green leather, gold double border,
+  // brass corner caps, five spine bands, clasp + buckle, layered arched page
+  // stacks. Two subtrees the state machine toggles: LB_Closed (with the
+  // hinged LB_CoverFront the swing animates) and LB_Open (whose LB_FaceL/R
+  // curved quads carry the live page canvases). Until the GLB lands - or if
+  // it never does - a plain slab holds the desk spot so the prompt works.
   const leather = new THREE.MeshStandardMaterial({ color: 0x24382e, roughness: 0.72, metalness: 0.04 });
-  const leatherDark = new THREE.MeshStandardMaterial({ color: 0x18271f, roughness: 0.78, metalness: 0.04 });
-  const endpaper = new THREE.MeshStandardMaterial({ color: 0xded2b4, roughness: 0.9, metalness: 0 });
   const pageEdge = new THREE.MeshStandardMaterial({ color: 0xe6dcc2, roughness: 0.92, metalness: 0 });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xb58a42, roughness: 0.42, metalness: 0.55 });
-  const ribbonMat = new THREE.MeshStandardMaterial({
-    color: 0x2f5c46, roughness: 0.6, metalness: 0, side: THREE.DoubleSide,
-  });
 
-  // ---- the body ------------------------------------------------------------
-  // Base board and the right half of the page block never move. The COVER is
-  // a hinged assembly at the spine carrying the top board, the title plate
-  // and its half of the clasp; opening swings it through PI to lie flat on
-  // the left, exactly as a book does.
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.006, 0.22), leather);
-  back.position.y = 0.003;
-  const blockRight = new THREE.Mesh(new THREE.BoxGeometry(0.284, 0.018, 0.206), pageEdge);
-  blockRight.position.set(0.002, 0.015, 0);
-  const spine = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.040, 0.224), leatherDark);
-  // VERIFY2_L: the first build hinged the book mirror-image and the open
-  // spread read RIGHT-TO-LEFT from the reading pose (photographed). The
-  // reader faces local -z, so their LEFT is local +x: spine at +x, clasp and
-  // fore-edge at -x, cover swinging -x over to +x.
-  spine.position.set(0.152, 0.019, 0);
-  const claspBase = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.014, 0.030), brass);
-  claspBase.position.set(-0.150, 0.012, 0);
-  root.add(back, blockRight, spine, claspBase);
+  const closedShell = new THREE.Group();
+  const openShell = new THREE.Group();
+  openShell.visible = false;
+  root.add(closedShell, openShell);
 
-  const coverPivot = new THREE.Group();
-  coverPivot.position.set(0.146, 0.028, 0);
-  const cover = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.008, 0.22), leather);
-  cover.position.set(-0.15, 0.004, 0);
-  const coverInner = new THREE.Mesh(new THREE.PlaneGeometry(0.284, 0.206), endpaper);
-  coverInner.rotation.x = Math.PI / 2; // faces down while closed, up when opened over
-  coverInner.position.set(-0.15, -0.0005, 0);
-  const titlePlate = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.15, 0.05),
-    new THREE.MeshStandardMaterial({ map: coverPlateTexture(THREE), roughness: 0.6, metalness: 0.1 }),
-  );
-  titlePlate.rotation.x = -Math.PI / 2;
-  titlePlate.position.set(-0.162, 0.0085, 0);
-  const claspStrap = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.006, 0.028), brass);
-  claspStrap.position.set(-0.298, -0.004, 0);
-  coverPivot.add(cover, coverInner, titlePlate, claspStrap);
-  root.add(coverPivot);
+  const fallbackSlab = new THREE.Group();
+  {
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.07, 0.226), leather);
+    slab.position.y = 0.035;
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.284, 0.052, 0.21), pageEdge);
+    edge.position.set(-0.004, 0.036, 0);
+    fallbackSlab.add(slab, edge);
+  }
+  closedShell.add(fallbackSlab);
 
-  // ---- the open spread -----------------------------------------------------
-  const openGroup = new THREE.Group();
-  openGroup.visible = false;
-  // open anatomy: the spine (x +0.152) is the MIDDLE of the spread - the
-  // left page stack lies over the swung cover beside it, the right stack is
-  // the block that never moved. The first at-face build kept closed-book
-  // coordinates and the left page hid UNDER the cover (photographed).
-  // the left stack RESTS ON the swung cover (its inner face tops out at
-  // y~0.028), not at desk-stack height - the first fix left it buried
-  const blockLeft = new THREE.Mesh(new THREE.BoxGeometry(0.284, 0.010, 0.206), pageEdge);
-  blockLeft.position.set(0.294, 0.034, 0);
-  openGroup.add(blockLeft);
+  // a stub the diagnostics + swing math can address before the GLB arrives
+  const coverStub = new THREE.Group();
+  const glbNodes = {
+    ready: false,
+    cover: coverStub,
+    faceL: null,
+    faceR: null,
+    faceTitle: null,
+    titleAnchor: null,
+  };
 
-  const makePageFace = () => {
+  const makePageCanvas = () => {
     const canvas = document.createElement('canvas');
     canvas.width = PAGE_W;
     canvas.height = PAGE_H;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.276, 0.190),
-      new THREE.MeshBasicMaterial({ map: texture, toneMapped: false }),
-    );
-    // face up, canvas top at the page's far edge from the reader (who stands
-    // at local -z when it lies on the desk, and faces it when held up)
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.rotation.z = Math.PI;
-    return { canvas, texture, mesh };
+    return { canvas, texture };
   };
-  const leftFace = makePageFace();
-  leftFace.mesh.position.set(0.294, 0.0398, 0);
-  const rightFace = makePageFace();
-  rightFace.mesh.position.set(0.002, 0.0255, 0);
-  openGroup.add(leftFace.mesh, rightFace.mesh);
+  // the live page surfaces; their meshes are the GLB's curved face quads
+  const leftFace = makePageCanvas();
+  const rightFace = makePageCanvas();
+  const titleFace = makePageCanvas();
 
-  // the turning leaf, pivoted at the spine
+  // ---- the turning leaf: a real sheet that BENDS through the turn ----------
+  // One shared segmented geometry deformed per-frame; front and back meshes
+  // carry the outgoing and incoming page canvases.
+  // Two geometries, one shape. The FRONT carries the page being turned away
+  // and the BACK the page arriving; a back face seen through a sheet is
+  // mirrored, so its u runs the other way - one shared buffer would have
+  // printed the incoming page in reverse.
+  function makeLeafGeometry(flipU, flipV) {
+    const geometry = new THREE.PlaneGeometry(LEAF_W, LEAF_D, LEAF_SEGS, 1);
+    geometry.rotateX(-Math.PI / 2);           // lie flat, normal +y
+    // the sheet extends toward VIEWER-RIGHT (local -x) so a forward turn lifts
+    // the right page and lays it on the left, the way a book actually reads
+    geometry.translate(-(LEAF_W / 2 + 0.004), 0, 0);
+    // PlaneGeometry's default winding printed the turning page rotated 180
+    // degrees against the GLB's own pages (the exporter flips v on the way
+    // out of Blender). Photographed, then corrected on both axes.
+    const uv = geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i += 1) {
+      if (flipU) uv.setX(i, 1 - uv.getX(i));
+      if (flipV) uv.setY(i, 1 - uv.getY(i));
+    }
+    uv.needsUpdate = true;
+    return geometry;
+  }
+  const leafGeoFront = makeLeafGeometry(true, true);
+  const leafGeoBack = makeLeafGeometry(false, true);
+  const leafBase = leafGeoFront.attributes.position.array.slice();
   const leafPivot = new THREE.Group();
-  leafPivot.position.set(0.152, 0.033, 0);
-  const leafFront = makePageFace();
-  leafFront.mesh.rotation.set(-Math.PI / 2, 0, Math.PI);
-  leafFront.mesh.position.set(-0.150, 0.0012, 0);
-  const leafBack = makePageFace();
-  leafBack.mesh.rotation.set(Math.PI / 2, 0, Math.PI);
-  leafBack.mesh.position.set(-0.150, -0.0012, 0);
-  leafPivot.add(leafFront.mesh, leafBack.mesh);
-  leafPivot.visible = false;
-  openGroup.add(leafPivot);
-
-  // two blank riffle leaves that flutter home as the cover lands
-  const riffles = [];
-  for (let i = 0; i < 2; i += 1) {
-    const pivot = new THREE.Group();
-    pivot.position.set(0.152, 0.032 + i * 0.0015, 0);
-    const sheet = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.276, 0.190),
-      new THREE.MeshStandardMaterial({ color: 0xefe6cd, roughness: 0.95, side: THREE.DoubleSide }),
+  // clear of the arched stacks (which top out near 0.034) or the whole turn
+  // happens INSIDE the page block and is never seen
+  leafPivot.position.set(HINGE_X, 0.038, 0);
+  const leafFront = makePageCanvas();
+  const leafBack = makePageCanvas();
+  {
+    const front = new THREE.Mesh(
+      leafGeoFront,
+      new THREE.MeshBasicMaterial({
+        map: leafFront.texture, toneMapped: false, color: 0xd7cfb8, side: THREE.FrontSide,
+      }),
     );
-    sheet.rotation.x = -Math.PI / 2;
-    sheet.position.set(-0.15, 0, 0);
-    pivot.add(sheet);
-    pivot.visible = false;
-    openGroup.add(pivot);
-    riffles.push({ pivot, t: -1, delay: 0.10 + i * 0.16 });
+    const back = new THREE.Mesh(
+      leafGeoBack,
+      new THREE.MeshBasicMaterial({
+        map: leafBack.texture, toneMapped: false, color: 0xd7cfb8, side: THREE.BackSide,
+      }),
+    );
+    leafFront.mesh = front;
+    leafBack.mesh = back;
+    leafPivot.add(front, back);
+  }
+  leafPivot.visible = false;
+  openShell.add(leafPivot);
+
+  function bendLeaf(turnProgress) {
+    // the sheet arcs hardest mid-turn and lies flat at both ends, with the
+    // free edge curling a touch more than the hinge side - paper, not a door
+    const arc = Math.sin(Math.min(1, Math.max(0, turnProgress)) * Math.PI);
+    for (const geometry of [leafGeoFront, leafGeoBack]) {
+      const positions = geometry.attributes.position;
+      for (let i = 0; i < positions.count; i += 1) {
+        const baseX = leafBase[i * 3];
+        const u = Math.max(0, Math.min(1, (-baseX - 0.004) / LEAF_W));
+        positions.array[i * 3 + 1] = leafBase[i * 3 + 1]
+          + Math.sin(u * Math.PI * 0.92) * 0.040 * arc * (0.62 + 0.38 * u);
+      }
+      positions.needsUpdate = true;
+      geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+    }
   }
 
-  // the bookmark ribbon, draped over the right page
-  const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(0.016, 0.16), ribbonMat);
-  ribbon.rotation.x = -Math.PI / 2;
-  ribbon.rotation.z = 0.06;
-  ribbon.position.set(0.128, 0.0285, 0.055);
-  ribbon.visible = false;
-  openGroup.add(ribbon);
-  root.add(openGroup);
+  function wireGlb(scene) {
+    const closedNode = scene.getObjectByName('LB_Closed');
+    const openNode = scene.getObjectByName('LB_Open');
+    const coverNode = scene.getObjectByName('LB_CoverFront');
+    const faceL = scene.getObjectByName('LB_FaceL');
+    const faceR = scene.getObjectByName('LB_FaceR');
+    const faceTitle = scene.getObjectByName('LB_FaceTitle');
+    const titleAnchor = scene.getObjectByName('LB_TitleAnchor');
+    if (!closedNode || !openNode || !coverNode || !faceL || !faceR) return false;
+    // the open subtree's gutter sits ON the closed book's spine hinge, so the
+    // mid-swing swap does not jump
+    openNode.position.x += HINGE_X;
+    closedShell.remove(fallbackSlab);
+    closedShell.add(closedNode);
+    openShell.add(openNode);
+    // unlit so the page is always legible in the dark clubhouse, but tinted
+    // DOWN: at full white the canvas read as a glowing screen rather than
+    // paper ("not too white where we cant see it well", 2026-08-06)
+    const pageMaterial = (texture) => new THREE.MeshBasicMaterial({
+      map: texture, toneMapped: false, color: 0xd7cfb8,
+    });
+    // viewer-left is local +x from the reading pose (VERIFY2_L photographed):
+    // the +x half (LB_FaceR, authored side +1) carries the LEFT page canvas
+    faceR.material = pageMaterial(leftFace.texture);
+    faceL.material = pageMaterial(rightFace.texture);
+    leftFace.mesh = faceR;
+    rightFace.mesh = faceL;
+    if (faceTitle) {
+      faceTitle.material = pageMaterial(titleFace.texture);
+      titleFace.mesh = faceTitle;
+    }
+    glbNodes.ready = true;
+    glbNodes.cover = coverNode;
+    glbNodes.faceL = faceL;
+    glbNodes.faceR = faceR;
+    glbNodes.faceTitle = faceTitle;
+    glbNodes.titleAnchor = titleAnchor;
+    // the embossed cover title follows the CLUB NAME, so it is a canvas the
+    // runtime paints, hung on the authored anchor and riding the cover swing
+    if (titleAnchor) {
+      const titlePlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.215, 0.15),
+        new THREE.MeshBasicMaterial({
+          map: coverTitleTexture(), transparent: true, toneMapped: false,
+        }),
+      );
+      titlePlane.rotation.x = -Math.PI / 2;
+      titleAnchor.add(titlePlane);
+    }
+    paintTitleFace();
+    // if the player opened the book during the load, the update loop owns
+    // the shells from the next frame - only a closed book gets reposed here
+    if (bookState === 'closed') applyClosedPose();
+    return true;
+  }
+
+  new GLTFLoader().load(
+    'vendor/models/clubhouse/ledger_book.glb',
+    (gltf) => { wireGlb(gltf.scene); },
+    undefined,
+    () => { /* the fallback slab stays; every interaction still works */ },
+  );
 
   // ---- textures ------------------------------------------------------------
-  function coverPlateTexture(three) {
+  const clubNameOf = () => state?.club?.name || state?.shop?.name || 'Pine Hills Municipal Golf';
+
+  function coverTitleTexture() {
+    // gold lettering on TRANSPARENT ground - the leather shows through, so
+    // this reads as embossing rather than a sticker
     const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 100;
+    canvas.width = 640;
+    canvas.height = 448;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#b58a42';
-    ctx.fillRect(0, 0, 300, 100);
-    ctx.strokeStyle = '#7d5c26';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(8, 8, 284, 84);
-    ctx.fillStyle = '#2c2313';
-    ctx.font = '700 34px Georgia, serif';
+    ctx.clearRect(0, 0, 640, 448);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('CLUB REGISTER', 150, 52);
-    const texture = new three.CanvasTexture(canvas);
-    texture.colorSpace = three.SRGBColorSpace;
+    ctx.fillStyle = '#c9a44a';
+    ctx.strokeStyle = '#c9a44a';
+    let size = 52;
+    ctx.font = `700 ${size}px Georgia, serif`;
+    const name = clubNameOf().toUpperCase();
+    while (ctx.measureText(name).width > 560 && size > 24) {
+      size -= 2;
+      ctx.font = `700 ${size}px Georgia, serif`;
+    }
+    ctx.fillText(name, 320, 180);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(200, 226);
+    ctx.lineTo(300, 226);
+    ctx.moveTo(340, 226);
+    ctx.lineTo(440, 226);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(320, 219);
+    ctx.lineTo(327, 226);
+    ctx.lineTo(320, 233);
+    ctx.lineTo(313, 226);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = '700 30px Georgia, serif';
+    ctx.fillText('MEMBERS AND GUESTS', 320, 272);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
     return texture;
   }
 
+  // deterministic foxing: the same aged page every boot, no Math.random
+  function mulberry(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
   function paperGround(ctx) {
-    ctx.fillStyle = '#efe6cd';
+    // aged parchment: warm centre, browned edges, a scatter of foxing
+    const base = ctx.createRadialGradient(
+      PAGE_W / 2, PAGE_H / 2, PAGE_H * 0.2,
+      PAGE_W / 2, PAGE_H / 2, PAGE_W * 0.62,
+    );
+    base.addColorStop(0, '#efe4c8');
+    base.addColorStop(0.72, '#e9dcba');
+    base.addColorStop(1, '#dcc9a0');
+    ctx.fillStyle = base;
     ctx.fillRect(0, 0, PAGE_W, PAGE_H);
     const edge = ctx.createLinearGradient(0, 0, PAGE_W, 0);
-    edge.addColorStop(0, 'rgba(120,96,58,0.10)');
-    edge.addColorStop(0.12, 'rgba(120,96,58,0)');
-    edge.addColorStop(0.88, 'rgba(120,96,58,0)');
-    edge.addColorStop(1, 'rgba(120,96,58,0.10)');
+    edge.addColorStop(0, 'rgba(122,94,54,0.14)');
+    edge.addColorStop(0.10, 'rgba(122,94,54,0)');
+    edge.addColorStop(0.90, 'rgba(122,94,54,0)');
+    edge.addColorStop(1, 'rgba(122,94,54,0.14)');
     ctx.fillStyle = edge;
     ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    const rand = mulberry(0x5eed);
+    for (let i = 0; i < 14; i += 1) {
+      const x = rand() * PAGE_W;
+      const y = rand() * PAGE_H;
+      const r = 6 + rand() * 22;
+      const fox = ctx.createRadialGradient(x, y, 0, x, y, r);
+      fox.addColorStop(0, `rgba(150,112,62,${0.045 + rand() * 0.05})`);
+      fox.addColorStop(1, 'rgba(150,112,62,0)');
+      ctx.fillStyle = fox;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
   }
 
   function pageHeader(ctx, title) {
-    ctx.textAlign = 'left';
+    // the reference's centred header with a double rule beneath
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#8a8272';
-    ctx.font = '700 24px Georgia, serif';
-    ctx.fillText(title, 44, 64);
-    ctx.strokeStyle = 'rgba(90,80,58,0.45)';
-    ctx.lineWidth = 1.6;
+    ctx.fillStyle = '#4a3b2a';
+    ctx.font = `400 ${T(30)}px Georgia, serif`;
+    ctx.fillText(title, PAGE_W / 2, 62);
+    ctx.strokeStyle = 'rgba(90,74,48,0.55)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.moveTo(36, 82);
-    ctx.lineTo(PAGE_W - 36, 82);
+    ctx.moveTo(40, 78);
+    ctx.lineTo(PAGE_W - 40, 78);
     ctx.stroke();
+    ctx.strokeStyle = 'rgba(90,74,48,0.28)';
+    ctx.beginPath();
+    ctx.moveTo(40, 83);
+    ctx.lineTo(PAGE_W - 40, 83);
+    ctx.stroke();
+    ctx.textAlign = 'left';
+  }
+
+  // THE CONTROLS LIVE IN THE BOOK (2026-08-06 ruling: "add instructions on the
+  // bottom for how to switch pages"). Written into the page's own foot in the
+  // desk's hand, so nothing floats over the world and the keys can never drift
+  // from what is bound - the labels come from the live binding table.
+  let footerHint = { prev: 'A', next: 'D', close: 'E' };
+  function pageControls(ctx, side) {
+    ctx.save();
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(78,66,46,0.72)';
+    ctx.font = `400 ${T(17)}px Georgia, serif`;
+    const y = PAGE_H - 16;
+    if (side === 'left') {
+      ctx.textAlign = 'left';
+      ctx.fillText(`◀  ${footerHint.prev}  previous page`, 40, y);
+    } else {
+      ctx.textAlign = 'right';
+      ctx.fillText(`next page  ${footerHint.next}  ▶`, PAGE_W - 40, y);
+      ctx.textAlign = 'left';
+      ctx.fillText(`${footerHint.close}  close the book`, 40, y);
+    }
+    ctx.restore();
+  }
+
+  function paintTitleFace() {
+    // the page the cover swing reveals on the closed block
+    if (!titleFace) return;
+    const ctx = titleFace.canvas.getContext('2d');
+    paperGround(ctx);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#3a4a40';
+    ctx.font = '700 54px Georgia, serif';
+    ctx.fillText('CLUB REGISTER', PAGE_W / 2, 205);
+    ctx.font = 'italic 400 32px Georgia, serif';
+    ctx.fillText(clubNameOf(), PAGE_W / 2, 258);
+    ctx.strokeStyle = '#b58a42';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(190, 300);
+    ctx.lineTo(PAGE_W - 190, 300);
+    ctx.stroke();
+    ctx.fillStyle = '#6b7268';
+    ctx.font = 'italic 400 24px Georgia, serif';
+    ctx.fillText('Members and guests sign within.', PAGE_W / 2, 345);
+    ctx.textAlign = 'left';
+    titleFace.texture.needsUpdate = true;
   }
 
   function pageFooter(ctx, index) {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#9a927e';
-    ctx.font = '400 18px Georgia, serif';
-    ctx.fillText(String(index), PAGE_W / 2, PAGE_H - 22);
+    ctx.font = `400 ${T(18)}px Georgia, serif`;
+    ctx.fillText(String(index), PAGE_W / 2, PAGE_H - 15);
+    ctx.textAlign = 'left';
   }
 
   function fitLine(ctx, value, maxWidth) {
@@ -247,84 +437,110 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     paperGround(ctx);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#3a4a40';
-    ctx.font = '700 46px Georgia, serif';
-    ctx.fillText('CLUB REGISTER', PAGE_W / 2, 120);
-    ctx.font = 'italic 400 28px Georgia, serif';
-    ctx.fillText(clubName, PAGE_W / 2, 164);
+    ctx.font = `700 ${T(46)}px Georgia, serif`;
+    ctx.fillText('CLUB REGISTER', PAGE_W / 2, 122);
+    ctx.font = `italic 400 ${T(28)}px Georgia, serif`;
+    ctx.fillText(clubName, PAGE_W / 2, 176);
     ctx.strokeStyle = '#b58a42';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(150, 198);
-    ctx.lineTo(PAGE_W - 150, 198);
+    ctx.moveTo(160, 208);
+    ctx.lineTo(PAGE_W - 160, 208);
     ctx.stroke();
     // the table of contents IS the pitch: what the book holds, and what is
     // still locked - the chase on page one
-    let y = 254;
+    // six rows have to clear the controls line at PAGE_H-16
+    let y = 246;
     for (const section of sections) {
       ctx.textAlign = 'left';
       ctx.fillStyle = section.locked ? '#8a8272' : '#3f4a42';
-      ctx.font = section.locked ? 'italic 400 25px Georgia, serif' : '400 25px Georgia, serif';
-      ctx.fillText(section.title, 120, y);
+      ctx.font = section.locked ? `italic 400 ${T(25)}px Georgia, serif` : `400 ${T(25)}px Georgia, serif`;
+      ctx.fillText(section.title, 92, y);
       ctx.textAlign = 'right';
       if (section.locked) {
         // a small drawn padlock, not an emoji
-        const lx = PAGE_W - 138;
+        const lx = PAGE_W - 118;
         ctx.strokeStyle = '#8a8272';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(lx, y - 16, 16, 12);
+        ctx.lineWidth = 3.4;
+        ctx.strokeRect(lx, y - 20, 20, 15);
         ctx.beginPath();
-        ctx.arc(lx + 8, y - 16, 6, Math.PI, 0);
+        ctx.arc(lx + 10, y - 20, 7.5, Math.PI, 0);
         ctx.stroke();
       } else {
         ctx.fillStyle = '#6b7268';
-        ctx.font = '400 22px Georgia, serif';
-        ctx.fillText(String(pageOfSection[section.id] ?? ''), PAGE_W - 120, y);
+        ctx.font = `400 ${T(22)}px Georgia, serif`;
+        ctx.fillText(String(pageOfSection[section.id] ?? ''), PAGE_W - 92, y);
       }
       ctx.strokeStyle = 'rgba(90,80,58,0.22)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(120, y + 10);
-      ctx.lineTo(PAGE_W - 120, y + 10);
+      ctx.moveTo(92, y + 11);
+      ctx.lineTo(PAGE_W - 92, y + 11);
       ctx.stroke();
-      y += 42;
+      y += 41;
     }
     face.texture.needsUpdate = true;
     return sections.length;
   }
 
+  // the reference sheet's ruled table: column dividers, a full grid to the
+  // page's foot, and entries in a written hand
+  const GUEST_COLS = [36, 166, 448, 614, 732];
+  const SCRIPT_FONT = "'Segoe Script', 'Comic Sans MS', cursive";
+
   function paintGuests(face, entries, guestPage, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
-    pageHeader(ctx, 'GUEST REGISTER');
-    ctx.fillStyle = '#8a8272';
-    ctx.font = '700 19px Georgia, serif';
-    ctx.fillText('SIGNATURE', 44, 112);
-    ctx.fillText('FIRST VISIT', 372, 112);
-    ctx.fillText('LAST SEEN', 532, 112);
-    ctx.fillText('ROUNDS', 676, 112);
-    const rowHeight = (PAGE_H - 158) / ROWS_PER_PAGE;
+    pageHeader(ctx, 'Members and Guests');
+    const top = 100;
+    const bottom = PAGE_H - 44;
+    const headRow = 42;
+    ctx.fillStyle = '#6b5a40';
+    ctx.font = `700 ${T(15)}px Georgia, serif`;
+    ctx.textAlign = 'center';
+    const labels = ['FIRST VISIT', 'NAME', 'LAST SEEN', 'ROUNDS'];
+    for (let c = 0; c < labels.length; c += 1) {
+      ctx.fillText(labels[c], (GUEST_COLS[c] + GUEST_COLS[c + 1]) / 2, top + 29);
+    }
+    ctx.textAlign = 'left';
+    const rowHeight = (bottom - (top + headRow)) / ROWS_PER_PAGE;
+    ctx.strokeStyle = 'rgba(96,78,50,0.42)';
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(GUEST_COLS[0], top, GUEST_COLS[4] - GUEST_COLS[0], bottom - top);
+    ctx.beginPath();
+    for (let c = 1; c < 4; c += 1) {
+      ctx.moveTo(GUEST_COLS[c], top);
+      ctx.lineTo(GUEST_COLS[c], bottom);
+    }
+    ctx.moveTo(GUEST_COLS[0], top + headRow);
+    ctx.lineTo(GUEST_COLS[4], top + headRow);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(96,78,50,0.26)';
+    ctx.beginPath();
+    for (let row = 1; row < ROWS_PER_PAGE; row += 1) {
+      const y = top + headRow + row * rowHeight;
+      ctx.moveTo(GUEST_COLS[0], y);
+      ctx.lineTo(GUEST_COLS[4], y);
+    }
+    ctx.stroke();
     let painted = 0;
     for (let row = 0; row < ROWS_PER_PAGE; row += 1) {
-      const y = 122 + (row + 1) * rowHeight;
-      ctx.strokeStyle = 'rgba(90,80,58,0.28)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(36, y);
-      ctx.lineTo(PAGE_W - 36, y);
-      ctx.stroke();
       const entry = entries[guestPage * ROWS_PER_PAGE + row];
       if (!entry) continue;
       painted += 1;
-      ctx.fillStyle = '#2c3e50';
-      ctx.font = 'italic 700 28px Georgia, serif';
-      ctx.fillText(fitLine(ctx, entry.name, 300), 44, y - 12);
-      ctx.fillStyle = '#4a5248';
-      ctx.font = '400 20px Georgia, serif';
-      ctx.fillText(rosterDateLabel(entry.firstVisitDayAbs), 372, y - 15);
-      ctx.fillText(rosterDateLabel(entry.lastVisitDayAbs), 532, y - 15);
+      const base = top + headRow + row * rowHeight + rowHeight * 0.68;
+      ctx.fillStyle = '#3d3325';
+      ctx.font = `400 ${T(21)}px ${SCRIPT_FONT}`;
+      ctx.fillText(fitLine(ctx, rosterDateLabel(entry.firstVisitDayAbs), GUEST_COLS[1] - GUEST_COLS[0] - 18), GUEST_COLS[0] + 10, base);
+      ctx.fillStyle = '#2c3a50';
+      ctx.font = `400 ${T(26)}px ${SCRIPT_FONT}`;
+      ctx.fillText(fitLine(ctx, entry.name, GUEST_COLS[2] - GUEST_COLS[1] - 20), GUEST_COLS[1] + 12, base);
+      ctx.fillStyle = '#3d3325';
+      ctx.font = `400 ${T(21)}px ${SCRIPT_FONT}`;
+      ctx.fillText(fitLine(ctx, rosterDateLabel(entry.lastVisitDayAbs), GUEST_COLS[3] - GUEST_COLS[2] - 18), GUEST_COLS[2] + 10, base);
       ctx.textAlign = 'center';
-      ctx.font = '700 25px Georgia, serif';
-      ctx.fillText(String(entry.visits), 706, y - 15);
+      ctx.font = `400 ${T(24)}px ${SCRIPT_FONT}`;
+      ctx.fillText(String(entry.visits), (GUEST_COLS[3] + GUEST_COLS[4]) / 2, base);
       ctx.textAlign = 'left';
     }
     pageFooter(ctx, pageIndex);
@@ -335,24 +551,24 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   function paintNotes(face, notes, notesPage, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
-    pageHeader(ctx, 'HOUSE NOTES');
-    let y = 134;
+    pageHeader(ctx, 'House Notes');
+    let y = 148;
     let written = 0;
     const from = notesPage * NOTES_PER_PAGE;
     for (const note of notes.slice(from, from + NOTES_PER_PAGE)) {
       if (note.outstanding) {
         ctx.fillStyle = '#7a4a34';
-        ctx.fillRect(44, y - 15, 10, 10);
+        ctx.fillRect(40, y - 19, 13, 13);
         ctx.fillStyle = '#3f4a42';
-        ctx.font = '400 24px Georgia, serif';
-        ctx.fillText(fitLine(ctx, note.text, PAGE_W - 120), 68, y);
+        ctx.font = `400 ${T(21)}px Georgia, serif`;
+        ctx.fillText(fitLine(ctx, note.text, PAGE_W - 100), 66, y);
       } else {
         ctx.fillStyle = '#6b7268';
-        ctx.font = 'italic 400 24px Georgia, serif';
-        ctx.fillText(fitLine(ctx, note.text, PAGE_W - 100), 44, y);
+        ctx.font = `italic 400 ${T(21)}px Georgia, serif`;
+        ctx.fillText(fitLine(ctx, note.text, PAGE_W - 72), 36, y);
       }
       written += 1;
-      y += 54;
+      y += 72;
     }
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
@@ -362,33 +578,33 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   function paintDaySheet(face, day, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
-    pageHeader(ctx, 'DAY SHEET');
+    pageHeader(ctx, 'Day Sheet');
     ctx.fillStyle = '#3a4a40';
-    ctx.font = 'italic 700 30px Georgia, serif';
-    ctx.fillText(day.dateLabel || 'Today', 44, 136);
+    ctx.font = `italic 700 ${T(30)}px Georgia, serif`;
+    ctx.fillText(day.dateLabel || 'Today', 40, 148);
     const rows = [
       ['Tee times filled', `${day.filledSlots} of ${day.slotCount}`],
       ['Players booked', String(day.bookedPlayers)],
       ['Rounds played', String(day.played)],
       ['Next open time', hourLabel(day.nextOpenMinute)],
     ];
-    let y = 200;
+    let y = 216;
     for (const [label, value] of rows) {
       ctx.fillStyle = '#6b7268';
-      ctx.font = '400 24px Georgia, serif';
-      ctx.fillText(label, 60, y);
+      ctx.font = `400 ${T(24)}px Georgia, serif`;
+      ctx.fillText(label, 48, y);
       ctx.textAlign = 'right';
       ctx.fillStyle = '#2c3e50';
-      ctx.font = '700 26px Georgia, serif';
-      ctx.fillText(value, PAGE_W - 80, y);
+      ctx.font = `700 ${T(26)}px Georgia, serif`;
+      ctx.fillText(value, PAGE_W - 48, y);
       ctx.textAlign = 'left';
       ctx.strokeStyle = 'rgba(90,80,58,0.22)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(60, y + 14);
-      ctx.lineTo(PAGE_W - 80, y + 14);
+      ctx.moveTo(48, y + 16);
+      ctx.lineTo(PAGE_W - 48, y + 16);
       ctx.stroke();
-      y += 62;
+      y += 74;
     }
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
@@ -398,7 +614,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   function paintTakings(face, takings, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
-    pageHeader(ctx, 'TAKINGS');
+    pageHeader(ctx, 'Takings');
     const rows = [
       ['Green fees', money(takings.greenFees)],
       ['Shop sales', money(takings.shopSales)],
@@ -406,29 +622,29 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ['Taken today', money(takings.revenueTotal)],
       ['Spent today', money(takings.expenseTotal)],
     ];
-    let y = 160;
+    let y = 158;
     for (const [index, [label, value]] of rows.entries()) {
       const strong = index === 3;
       ctx.fillStyle = strong ? '#3f4a42' : '#6b7268';
-      ctx.font = `${strong ? 700 : 400} 24px Georgia, serif`;
-      ctx.fillText(label, 60, y);
+      ctx.font = `${strong ? 700 : 400} ${T(24)}px Georgia, serif`;
+      ctx.fillText(label, 48, y);
       ctx.textAlign = 'right';
       ctx.fillStyle = '#2c3e50';
-      ctx.font = `${strong ? 700 : 400} 26px Georgia, serif`;
-      ctx.fillText(value, PAGE_W - 80, y);
+      ctx.font = `${strong ? 700 : 400} ${T(26)}px Georgia, serif`;
+      ctx.fillText(value, PAGE_W - 48, y);
       ctx.textAlign = 'left';
       ctx.strokeStyle = index === 2 ? 'rgba(90,80,58,0.5)' : 'rgba(90,80,58,0.22)';
       ctx.lineWidth = index === 2 ? 1.8 : 1;
       ctx.beginPath();
-      ctx.moveTo(60, y + 14);
-      ctx.lineTo(PAGE_W - 80, y + 14);
+      ctx.moveTo(48, y + 16);
+      ctx.lineTo(PAGE_W - 48, y + 16);
       ctx.stroke();
-      y += 56;
+      y += 64;
     }
     const ahead = takings.net >= 0;
     ctx.fillStyle = ahead ? '#2f5c46' : '#7a3a30';
-    ctx.font = 'italic 700 28px Georgia, serif';
-    ctx.fillText(`${ahead ? 'Ahead' : 'Down'} ${money(Math.abs(takings.net))} on the day.`, 60, y + 12);
+    ctx.font = `italic 700 ${T(28)}px Georgia, serif`;
+    ctx.fillText(`${ahead ? 'Ahead' : 'Down'} ${money(Math.abs(takings.net))} on the day.`, 48, y + 14);
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
     return rows.length;
@@ -439,7 +655,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     paperGround(ctx);
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(90,80,58,0.55)';
-    ctx.font = '700 40px Georgia, serif';
+    ctx.font = `700 ${T(40)}px Georgia, serif`;
     ctx.fillText(section.title.toUpperCase(), PAGE_W / 2, 130);
     // the strap: a leather band drawn corner to corner with a brass buckle -
     // these pages are tied shut, not missing
@@ -456,7 +672,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     ctx.fillRect(-20, -20, 40, 40);
     ctx.restore();
     ctx.fillStyle = '#6b7268';
-    ctx.font = 'italic 400 24px Georgia, serif';
+    ctx.font = `italic 400 ${T(24)}px Georgia, serif`;
     ctx.fillText(section.lockedLine || 'Not yet.', PAGE_W / 2, PAGE_H - 90);
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
@@ -544,6 +760,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     let painted = 0;
     painted += paintIndexWith(model, leftFace, spread * 2);
     painted += paintIndexWith(model, rightFace, spread * 2 + 1);
+    // the controls go on LAST, over whatever the page painted, so a long page
+    // can never bury them
+    pageControls(leftFace.canvas.getContext('2d'), 'left');
+    pageControls(rightFace.canvas.getContext('2d'), 'right');
+    leftFace.texture.needsUpdate = true;
+    rightFace.texture.needsUpdate = true;
     lastPaint = {
       entries: model.entries.length,
       notes: model.notes.length,
@@ -568,10 +790,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // the spread leans up toward the eye like a journal in two hands
     const quaternion = new THREE.Quaternion()
       .setFromEuler(new THREE.Euler(FACE_TILT - Math.PI / 2, yaw + Math.PI, 0, 'YXZ'));
-    // the open spread's centre is the SPINE (local +0.146), not the root
+    // the open spread's centre is the GUTTER (local +HINGE_X), not the root
     // origin - pull the root sideways so the spread sits on the view axis
     const localX = new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion);
-    position.addScaledVector(localX, -0.146);
+    position.addScaledVector(localX, -HINGE_X);
     return { position, quaternion };
   }
 
@@ -595,10 +817,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         };
       }
       facePose = computeFacePose();
+      paintTitleFace();
       // reversing mid-close continues from the matching point of the rise
       stateT = bookState === 'closing' ? Math.max(0, 1 - stateT) : 0;
       bookState = 'opening';
-      for (const r of riffles) r.t = -1;
       play('paper');
     } else {
       stateT = bookState === 'opening' ? Math.max(0, 1 - stateT) : 0;
@@ -628,9 +850,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     }
     spread = next;
     paintSpread();
-    leaf = { direction: direction > 0 ? 1 : -1, t: 0 };
+    leaf = { direction: direction > 0 ? 1 : -1, t: 0, settled: false };
     leafPivot.visible = true;
     leafPivot.rotation.z = leaf.direction > 0 ? 0 : -Math.PI;
+    bendLeaf(0);
     play('paper');
     return true;
   }
@@ -644,23 +867,40 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return true;
   }
 
+  // Blender's hinge swing (rotation about its -Y) lands in glTF as rotation
+  // about +Z: positive angles open the cover over the spine
+  const COVER_SIGN = 1;
+  function setCoverSwing(fraction) {
+    glbNodes.cover.rotation.z = COVER_SIGN * fraction * Math.PI;
+  }
+
   function applyClosedPose() {
-    coverPivot.rotation.z = 0;
-    openGroup.visible = false;
-    coverPivot.visible = true;
-    claspStrap.visible = true;
-    ribbon.visible = false;
+    setCoverSwing(0);
+    openShell.visible = false;
+    closedShell.visible = true;
+    leafPivot.visible = false;
   }
 
   function update(dt) {
-    // the leaf turn, whatever else is happening
+    // the leaf turn, whatever else is happening: an eased arc with a real
+    // paper BEND through the middle and a settle cue as it lands
     if (leaf) {
-      leaf.t += dt / LEAF_SECONDS;
-      const eased = leaf.t >= 1 ? 1 : 1 - (1 - leaf.t) ** 2;
+      leaf.t = Math.min(1, leaf.t + dt / LEAF_SECONDS);
+      const eased = smoothstep(leaf.t);
+      // The sheet hangs toward viewer-right (local -x). Rotating about +z by a
+      // NEGATIVE angle lifts that edge: (-1,0) -> (-cos, +sin) for theta<0.
+      // Positive angles drove it down THROUGH the page block, which is why
+      // the turn photographed as nothing happening at all.
       leafPivot.rotation.z = leaf.direction > 0 ? -eased * Math.PI : -(1 - eased) * Math.PI;
+      bendLeaf(eased);
+      if (!leaf.settled && leaf.t >= 0.82) {
+        leaf.settled = true;
+        play('paper');
+      }
       if (leaf.t >= 1) {
         leaf = null;
         leafPivot.visible = false;
+        bendLeaf(0);
       }
     }
 
@@ -677,25 +917,18 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         scratchQuat.setFromEuler(scratchEuler);
         root.quaternion.copy(scratchQuat).slerp(facePose.quaternion, rise);
       }
-      // the clasp frees early, the cover swings through the middle of the
-      // rise, the riffle leaves land as it settles
-      if (stateT > 0.12) claspStrap.visible = false;
-      const swing = smoothstep(Math.max(0, Math.min(1, (stateT - 0.30) / 0.55)));
-      coverPivot.rotation.z = -swing * Math.PI;
-      if (swing > 0.12 && !openGroup.visible) openGroup.visible = true;
-      if (swing > 0.9) {
-        ribbon.visible = true;
-        for (const r of riffles) {
-          if (r.t < 0 && stateT > 0.62 + r.delay * 0.3) {
-            r.t = 0;
-            r.pivot.visible = true;
-            play('paper');
-          }
-        }
+      // the cover swings through the middle of the rise; the closed block
+      // exchanges for the arched open spread behind it at the swap point
+      const swing = smoothstep(Math.max(0, Math.min(1, (stateT - 0.26) / 0.58)));
+      setCoverSwing(swing);
+      if (swing > SWAP_POINT && !openShell.visible) {
+        openShell.visible = true;
+        closedShell.visible = false;
+        play('paper');
       }
       if (stateT >= 1) {
         bookState = 'open';
-        coverPivot.rotation.z = -Math.PI;
+        setCoverSwing(1);
       }
     } else if (bookState === 'open') {
       // soft-follow the face so the journal rides the reader's view without
@@ -710,9 +943,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       stateT = Math.min(1, stateT + dt / CLOSE_SECONDS);
       const fall = smoothstep(stateT);
       const swing = 1 - smoothstep(Math.min(1, stateT / 0.6));
-      coverPivot.rotation.z = -swing * Math.PI;
-      if (swing < 0.12 && openGroup.visible) openGroup.visible = false;
-      if (stateT > 0.85) claspStrap.visible = true;
+      setCoverSwing(swing);
+      if (swing < SWAP_POINT && openShell.visible) {
+        openShell.visible = false;
+        closedShell.visible = true;
+        play('paper');
+      }
       if (facePose && deskSpot && root.parent) {
         const from = root.parent.worldToLocal(facePose.position.clone());
         scratchPos.copy(from).lerp(new THREE.Vector3(deskSpot.x, deskSpot.y, deskSpot.z), fall);
@@ -729,15 +965,6 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
           root.rotation.set(0, deskSpot.ry, 0);
         }
       }
-    }
-
-    // riffle leaves settle
-    for (const r of riffles) {
-      if (r.t < 0 || !r.pivot.visible) continue;
-      r.t += dt / (0.22 + r.delay);
-      const eased = r.t >= 1 ? 1 : 1 - (1 - r.t) ** 3;
-      r.pivot.rotation.z = -(1 - eased) * (Math.PI * 0.9);
-      if (r.t >= 1) r.pivot.visible = false;
     }
   }
 
@@ -778,13 +1005,20 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     position: () => ({ x: root.position.x, y: root.position.y, z: root.position.z }),
     turnPage,
     goToSection,
+    // the footer's key labels come from the LIVE binding table (N2), so a
+    // rebound interact key cannot leave the book teaching the wrong key
+    setControlLabels: (labels) => {
+      footerHint = { ...footerHint, ...(labels || {}) };
+      if (isOpen()) paintSpread();
+    },
     update,
     diagnostics: () => ({
       state: bookState,
       open: isOpen(),
       carried,
+      glbReady: glbNodes.ready,
       float: bookState === 'open' ? 1 : (bookState === 'opening' ? +stateT.toFixed(2) : 0),
-      cover: +Math.abs(coverPivot.rotation.z / Math.PI).toFixed(2),
+      cover: +Math.abs(glbNodes.cover.rotation.z / Math.PI).toFixed(2),
       spread,
       spreadCount: spreadCount(),
       pageCount: model ? model.pages.length : null,
