@@ -833,13 +833,20 @@ function displayBrandTexture(clubName, {
     // "MUNICIPAL GOLF" measured ~660 px on a 640 px canvas — the fitter gave
     // up above the canvas width and the stamp printed cut off mid-letter on
     // every bag (photographed, qa/electron/bag-presentation-k1/before).
-    setFittedCanvasFont(ctx, line, {
+    let fitted = setFittedCanvasFont(ctx, line, {
       maxWidth: width - 100,
       startSize: lineSize,
       minimumSize: height * 0.04,
       weight: 700,
       family: 'Georgia, serif',
     });
+    // VERIFY2_K: a 58-character single WORD still overflowed at the floor and
+    // printed amputated at both edges. On a stamp, FIT beats taste every
+    // time — keep shrinking past the floor until the line actually fits.
+    while (ctx.measureText(line).width > width - 100 && fitted > 9) {
+      fitted -= 2;
+      ctx.font = `700 ${Math.round(fitted)}px Georgia, serif`;
+    }
     const offset = lines.length === 1 ? 0 : (index === 0 ? -height * 0.10 : height * 0.10);
     ctx.fillText(line, width / 2, height * 0.44 + offset);
   });
@@ -1574,17 +1581,17 @@ export function createRegisterMode(B) {
     }
     grabOutlineShells.length = 0;
   }
-  // The ring geometry for one flat face: outer edge GRAB_OUTLINE_RIM outside
-  // the footprint, inner edge exactly on it, elliptical for coin-like rounds.
-  function grabOutlineFrameGeometry(halfX, halfY, round) {
+  // The ring geometry for one flat face: outer edge `rim` outside the
+  // footprint, inner edge exactly on it, elliptical for coin-like rounds.
+  function grabOutlineFrameGeometry(halfX, halfY, round, rim) {
     const shape = new THREE.Shape();
     const hole = new THREE.Path();
     if (round) {
-      shape.absellipse(0, 0, halfX + GRAB_OUTLINE_RIM, halfY + GRAB_OUTLINE_RIM, 0, Math.PI * 2);
+      shape.absellipse(0, 0, halfX + rim, halfY + rim, 0, Math.PI * 2);
       hole.absellipse(0, 0, halfX, halfY, 0, Math.PI * 2, true);
     } else {
-      const ox = halfX + GRAB_OUTLINE_RIM;
-      const oy = halfY + GRAB_OUTLINE_RIM;
+      const ox = halfX + rim;
+      const oy = halfY + rim;
       shape.moveTo(-ox, -oy); shape.lineTo(ox, -oy);
       shape.lineTo(ox, oy); shape.lineTo(-ox, oy); shape.closePath();
       hole.moveTo(-halfX, -halfY); hole.lineTo(-halfX, halfY);
@@ -1595,6 +1602,11 @@ export function createRegisterMode(B) {
   }
   function applyGrabHighlight(list) {
     for (const object of list) {
+      // VERIFY2_K pass 1: measure every flat mesh first. The presented card
+      // carries its CHIP as its own small flat mesh, and framing the chip
+      // painted a patch in the middle of the card's face — a flat mesh only
+      // gets a frame when its footprint is a real share of the piece.
+      const flats = [];
       object.traverse((mesh) => {
         if (!mesh.isMesh || !mesh.geometry) return;
         if (mesh.userData.grabOutlineShell) return; // never outline an outline
@@ -1608,11 +1620,14 @@ export function createRegisterMode(B) {
         const axes = ['x', 'y', 'z'].sort((a, b) => size[a] - size[b]);
         const thin = axes[0];
         const flat = size[thin] < Math.max(size[axes[1]], 1e-6) * 0.35;
+        const area = size[axes[1]] * size[axes[2]];
+        flats.push({ mesh, size, centre, thin, flat, area });
+      });
+      const maxFlatArea = flats.reduce((max, f) => (f.flat ? Math.max(max, f.area) : max), 0);
+      for (const entry of flats) {
+        const { mesh, size, centre, thin, flat } = entry;
         if (flat) {
-          // ---- the frame path: notes, the card, coins ----
-          const round = /Cylinder/i.test(mesh.geometry.type || '');
-          // ShapeGeometry lies in XY with +Z normal; rotate it so the normal
-          // runs down the thin axis and the shape spans the two broad ones.
+          if (maxFlatArea > 0 && entry.area < maxFlatArea * 0.3) continue; // the chip, not the card
           let halfX; let halfY; let rotate = null;
           if (thin === 'y') {
             halfX = size.x / 2; halfY = size.z / 2;
@@ -1623,10 +1638,18 @@ export function createRegisterMode(B) {
           } else {
             halfX = size.x / 2; halfY = size.y / 2;
           }
-          // one frame off each broad face, so the outline reads from both
-          // sides of a note or a held card
-          for (const sign of [1, -1]) {
-            const geometry = grabOutlineFrameGeometry(halfX, halfY, round);
+          // VERIFY2_K: roundness from the FOOTPRINT, not the geometry class —
+          // kit coins are GLTF BufferGeometry, so the CylinderGeometry test
+          // was a dead branch and every coin wore a square. A near-equal
+          // footprint is a round piece; a note is 2.3:1.
+          const round = Math.abs(halfX - halfY) < Math.max(halfX, halfY) * 0.25;
+          // small pieces get a proportional rim - 4.5mm around a 14mm coin
+          // read as a hoop, not an outline
+          const rim = Math.min(GRAB_OUTLINE_RIM, Math.min(halfX, halfY) * 0.3);
+          // a note or card reads from both sides; a coin on the desk needs
+          // only its up-side ring (the second one doubled its edge)
+          for (const sign of round ? [1] : [1, -1]) {
+            const geometry = grabOutlineFrameGeometry(halfX, halfY, round, rim);
             if (rotate) rotate(geometry);
             const frame = new THREE.Mesh(geometry, grabOutlineFlatMaterial);
             frame.userData = { grabOutlineShell: true, grabOutlineOwnsGeometry: true, pick: false };
@@ -1636,7 +1659,7 @@ export function createRegisterMode(B) {
             mesh.add(frame);
             grabOutlineShells.push(frame);
           }
-          return;
+          continue;
         }
         const shell = new THREE.Mesh(mesh.geometry, grabOutlineMaterial);
         shell.userData = { grabOutlineShell: true, pick: false };
@@ -1652,7 +1675,7 @@ export function createRegisterMode(B) {
         shell.raycast = () => {}; // the outline must never eat the click
         mesh.add(shell);
         grabOutlineShells.push(shell);
-      });
+      }
     }
   }
 
@@ -8386,6 +8409,35 @@ export function createRegisterMode(B) {
     debugWorkingPose: () => {
       const solved = dynamicPose('overview');
       return { ...solved.pose, fov: solved.fov, poseKey: poseKey() };
+    },
+    // QA-only: apply/clear the REAL hover highlight on the card mesh. The
+    // live pointer path is timing-gated - the customer's own card inserts
+    // itself within a second of being presented - so no mouse-driven capture
+    // protocol can hold the hover long enough to photograph its shape. This
+    // invokes the same setGrabOutline a pick would apply; the pick step
+    // itself is proven by the cash hover drivers on the identical pipeline.
+    debugCardGrabOutline: (on) => {
+      if (!on) { setGrabOutline(null); return { cleared: true }; }
+      if (!cardMesh) return false;
+      setGrabOutline(cardMesh);
+      // the structural half of the chip-suppression proof: every shell's
+      // OWNER footprint. The card body and its full-size brand panel are
+      // card-sized; the refuted build also framed the chip, whose footprint
+      // is a small fraction of the card's.
+      const footprint = (shell) => {
+        const owner = shell.parent;
+        if (!owner?.geometry) return null;
+        if (!owner.geometry.boundingBox) owner.geometry.computeBoundingBox();
+        const box = owner.geometry.boundingBox;
+        if (!box) return null;
+        const size = box.getSize(new THREE.Vector3());
+        return +Math.max(size.x, size.y, size.z).toFixed(4);
+      };
+      return {
+        applied: true,
+        shellCount: grabOutlineShells.length,
+        shellOwnerSpans: grabOutlineShells.map(footprint),
+      };
     },
     insertAt,
     root,

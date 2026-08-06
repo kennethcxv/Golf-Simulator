@@ -267,15 +267,193 @@ async (page) => {
     };
   }
 
+  // ======================= VERIFY2_K legs: coins + card ======================
+  // The K verifier refuted the first shipped version on exactly these two:
+  // square frames on round kit coins (the roundness test keyed on a geometry
+  // class GLTF never reports) and a face patch on the presented card (its CHIP
+  // mesh wore its own frame). These legs pin the fixes.
+
+  // clear the bills customer, stage the odd-cents one (tender carries coins)
+  await page.evaluate(() => {
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    clubhouse.register.abandon?.();
+    clubhouse.register.leave?.({ restorePointer: false });
+    clubhouse.clearWalkins();
+  });
+  await page.waitForTimeout(900);
+  const stagedCoins = await page.evaluate(async (skuIds) => {
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    for (const id of Object.keys(app.state.shop.inventory)) {
+      const inventory = app.state.shop.inventory[id];
+      if (skuIds.includes(id)) inventory.shelf = Math.max(inventory.shelf, 12);
+    }
+    clubhouse.rebuildStock();
+    return { customer: !!clubhouse.sendToCounter(skuIds, 'cash') };
+  }, SKUS);
+  assert(stagedCoins.customer, 'no coin-tender fixture customer');
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx && tx.items.length === 3;
+  }, null, { timeout: 30000 });
+  await page.evaluate(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    const prices = [6.90, 9.20, 19.62];
+    tx.items.forEach((item, index) => {
+      item.price = prices[index];
+      item.priceCents = Math.round(prices[index] * 100);
+    });
+    tx.rng = () => 0.2; // odd-cents: the tender includes coins
+  });
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 8000 });
+  await page.waitForTimeout(1500);
+  const coinUids = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid)
+  ));
+  for (const uid of coinUids) {
+    let point = null;
+    for (let settle = 0; settle < 22; settle += 1) {
+      const next = await page.evaluate(async (id) => {
+        const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+        const app = window.__fw;
+        let found = null;
+        app.scene3d.clubhouse().interior.traverse((o) => {
+          if (!found && o.visible && o.userData?.kind === 'item' && o.userData?.uid === id) found = o;
+        });
+        if (!found) return null;
+        const bounds = new THREE.Box3().setFromObject(found);
+        const world = bounds.isEmpty()
+          ? found.getWorldPosition(new THREE.Vector3())
+          : bounds.getCenter(new THREE.Vector3());
+        world.project(app.scene3d.camera);
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        return {
+          x: rect.left + ((world.x + 1) / 2) * rect.width,
+          y: rect.top + ((-world.y + 1) / 2) * rect.height,
+          inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+        };
+      }, uid);
+      if (next && point && Math.abs(next.x - point.x) < 1.5 && Math.abs(next.y - point.y) < 1.5) {
+        point = next; break;
+      }
+      point = next;
+      await page.waitForTimeout(160);
+    }
+    assert(point && point.inView, `coin-leg item ${uid} not in frame`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForFunction((id) => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      const item = tx?.items.find((candidate) => candidate.uid === id);
+      return !!(item?.scanned && item?.bagged);
+    }, uid, { timeout: 10000 });
+  }
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
+  ), null, { timeout: 20000 });
+  await page.waitForTimeout(1400);
+  await page.mouse.move(VIEWPORT.width - 40, 60);
+  await page.waitForTimeout(400);
+  const coinProbe = await page.evaluate(async () => {
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const bounds = new THREE.Box3();
+    let pieces = 0;
+    let coins = 0;
+    clubhouse.interior.traverse((o) => {
+      if (o.userData?.kind === 'money' && o.userData?.from === 'tender' && o.visible
+        && o.material?.visible !== false) {
+        bounds.expandByObject(o);
+        pieces += 1;
+        if ((o.userData.denom || 1) < 1) coins += 1;
+      }
+    });
+    if (!pieces || bounds.isEmpty()) return { error: 'no tender pieces' };
+    const centre = bounds.getCenter(new THREE.Vector3());
+    const eye = app.scene3d.camera.getWorldPosition(new THREE.Vector3());
+    const probe = new THREE.PerspectiveCamera(34, 16 / 9, 0.02, 40);
+    probe.position.copy(centre).addScaledVector(eye.sub(centre).normalize(), 0.38);
+    probe.lookAt(centre);
+    probe.updateMatrixWorld(true);
+    window.__k3coin = { probe };
+    return { pieces, coins };
+  });
+  assert(!coinProbe.error && coinProbe.coins > 0, 'coin leg has no coins in the tender');
+  const coinShot = async (name) => {
+    const dataUrl = await page.evaluate(() => {
+      const scene3d = window.__fw.scene3d;
+      scene3d.renderer.render(scene3d.scene, window.__k3coin.probe);
+      return document.querySelector('canvas').toDataURL('image/png');
+    });
+    const buf = Buffer.from(dataUrl.split(',')[1], 'base64');
+    fs.writeFileSync(path.join(OUT, name), buf);
+    return buf;
+  };
+  const coinBefore = await coinShot('coins-unhovered.png');
+  const coinHandful = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
+  ));
+  assert(coinHandful?.inView, 'coin tender not in view');
+  await page.mouse.move(coinHandful.x, coinHandful.y);
+  await page.waitForTimeout(600);
+  const coinAfter = await coinShot('coins-hovered.png');
+
+  let coinVerdict = { skipped: 'sharp unavailable' };
+  if (sharp) {
+    const raw = async (buf) => {
+      const img = sharp(buf).ensureAlpha().raw();
+      const { data, info } = await img.toBuffer({ resolveWithObject: true });
+      return { data, w: info.width, h: info.height };
+    };
+    const A = await raw(coinBefore); const C = await raw(coinAfter);
+    const luma = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const mask = new Uint8Array(A.w * A.h);
+    let changed = 0;
+    for (let p = 0; p < A.w * A.h; p += 1) {
+      const i = p * 4;
+      if (Math.abs(luma(A.data, i) - luma(C.data, i)) > 12) { mask[p] = 1; changed += 1; }
+    }
+    const frameH = 2 * 0.38 * Math.tan((34 / 2) * (Math.PI / 180));
+    const rimPx = 0.0045 * (A.h / frameH);
+    const R = Math.max(5, Math.ceil(rimPx * 1.25));
+    let blob = 0;
+    for (let y = R; y < A.h - R; y += 1) {
+      for (let x = R; x < A.w - R; x += 1) {
+        if (!mask[y * A.w + x]) continue;
+        let full = true;
+        for (let dy = -R; full && dy <= R; dy += 1) {
+          for (let dx = -R; dx <= R; dx += 1) {
+            if (!mask[(y + dy) * A.w + (x + dx)]) { full = false; break; }
+          }
+        }
+        if (full) blob += 1;
+      }
+    }
+    coinVerdict = {
+      changed,
+      blobPixels: blob,
+      blobFraction: changed ? +(blob / changed).toFixed(4) : 0,
+    };
+  }
+
   const checks = {
     controlDiffQuiet: !!verdict.pixels && verdict.controlChanged < verdict.pixels * 0.005,
     hoverDrawsSomething: !!verdict.pixels && verdict.hoverChanged > 200,
     outlineNotBlob: !!verdict.pixels && verdict.blobFraction < 0.03,
     noteFaceUntouched: !!verdict.pixels && verdict.centreChanged === 0,
     shellsPresentNoSprites: shellCount.shells > 0 && shellCount.sprites === 0,
+    // VERIFY2_K: coins in the tender hover as thin rings too - no solid
+    // masses anywhere in the coin-leg diff
+    coinTenderHasCoins: coinProbe.coins > 0,
+    coinHoverDraws: !!coinVerdict.changed && coinVerdict.changed > 120,
+    coinRingsNotBlobs: coinVerdict.blobFraction !== undefined && coinVerdict.blobFraction < 0.03,
     noPageErrors: errs.length === 0,
   };
-  const out = { probeReady, shellCount, verdict, errs: errs.slice(0, 10), checks };
+  const out = {
+    probeReady, shellCount, verdict, coinProbe, coinVerdict,
+    errs: errs.slice(0, 10), checks,
+  };
   out.ok = Object.values(checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'cash-hover.json'), `${JSON.stringify(out, null, 1)}\n`);
   return out;

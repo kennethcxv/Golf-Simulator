@@ -287,13 +287,15 @@ export function createFrontDeskMonitorUi(canvas) {
     setFont(ctx, 14, 600);
     ctx.fillStyle = COLORS.brassPale;
     ctx.fillText('GOLF CLUB  /  FRONT DESK', 24, 54);
-    addHotspot('home', 'Home', 'nav', 16, 10, 330, 58);
 
     drawButton({ id: 'exit', label: 'Exit', kind: 'secondary', disabled: false }, 886, 17, 114, 46);
 
     // The cash exchange owns the full screen below the brand bar; offering tab
-    // navigation mid-count would only orphan the open drawer.
+    // navigation mid-count would only orphan the open drawer. VERIFY2_L: the
+    // brand block's own 'home' hotspot has to sit behind this gate too - it
+    // was the one live control that could swap the glass off a cash count.
     if (app === 'cash') return;
+    addHotspot('home', 'Home', 'nav', 16, 10, 330, 58);
 
     const tabs = [
       { id: 'tab-check-in', label: 'Check In', app: 'check-in', x: 24 },

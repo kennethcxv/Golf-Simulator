@@ -3200,10 +3200,12 @@ export function makeLaptop(app, opts) {
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }),
           // Committing on Enter fires change while the field is still focused, and the
           // render that follows used to delete the element under the caret.
+          // VERIFY2_K: no length cap let a 58-character single word through to
+          // every branded surface; 40 covers the longest real club names.
           keepField('settings-clubname', () => el('input', {
-            class: 'lt-input', type: 'text', value: st.clubName || '',
+            class: 'lt-input', type: 'text', value: st.clubName || '', maxlength: 40,
             onchange: (e) => {
-              const v = e.target.value.trim();
+              const v = e.target.value.trim().slice(0, 40);
               if (!v) { toast('The club needs a name.', 'warn'); e.target.value = st.clubName; return; }
               st.clubName = v;
               toast(`The club is now ${v}.`);

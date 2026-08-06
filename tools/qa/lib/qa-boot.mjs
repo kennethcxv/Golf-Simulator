@@ -18,13 +18,20 @@
 export async function clickThroughMenu(page) {
   // "Continue" renders on every menu — DISABLED on a clean profile. Resume
   // only when it is actually clickable; otherwise start fresh.
+  //
+  // VERIFY2_L: the exact-match regex could never see an ENABLED Continue —
+  // the live button carries label+detail spans, so its flattened textContent
+  // is never the bare word. Match containment on the button, click the node
+  // directly.
   const canResume = await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')]
-      .find((candidate) => /^\s*Continue\s*$/.test(candidate.textContent || ''));
-    return !!button && !button.disabled;
+      .find((candidate) => /\bContinue\b/.test(candidate.textContent || ''));
+    if (!button || button.disabled) return false;
+    button.dataset.qaResume = 'true';
+    return true;
   }).catch(() => false);
   if (canResume) {
-    await page.getByText('Continue', { exact: true }).click();
+    await page.click('button[data-qa-resume="true"]');
     return 'continue';
   }
   // The menu renders its buttons disabled until the boot manifest is ready;
