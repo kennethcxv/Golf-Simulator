@@ -280,3 +280,86 @@ what it says.
   disagreement is the finding (Requirement 2) and I chase that, not the number.
 - **Rough time:** 4 h+, and it may be bigger than it looks. If it is, I say so
   rather than shipping a shallow version.
+
+## Phase 2 — adversarial review of the Section A plan
+
+Four reviewers, given the brief's own context: 44 logged instrument faults, and
+six consecutive rounds on the mop and broom that shipped measurements
+disagreeing with the screen. Their job was to predict false greens, not to
+improve the implementation. Every objection is below with my answer beside it.
+I did not require agreement to proceed.
+
+**Headline: the plan was wrong about what A1 is.** Two independent reviewers
+showed that the post-veil window is the window already proven CLEAN, and that
+the regression the owner feels lives in the load itself. The plan is corrected
+below rather than defended.
+
+### Reviewer 1 — VERIFICATION (can the check fail on a broken build?)
+
+| # | objection | answer |
+| --- | --- | --- |
+| 1.1 | A1's "frame deltas for the first 30 s" names no player activity; the 42 late programs arrive on first-visit poses, so a driver that stands still reads clean on today's broken build. | **Accepted.** The A1 driver scripts the owner's own thirty seconds - walk in, 360 turn, cross the doorway - and must be shown RED on the unfixed build before any after-number is banked. |
+| 1.2 | The "cold" run is not cold: Chromium persists compiled shaders to disk, so before and after can both read clean. | **Accepted.** GPUCache and DawnCache under the profile are deleted before every cold leg, and the before-leg must show compile-attributed hitches or the instrument is not trusted. |
+| 1.3 | The veil-extension fix path passes by construction: hold the veil 60 s and the post-veil table is perfect. | **Accepted, and it is now a gate.** Time from launch to control is reported in the same table with a stated budget, so buying smoothness with load time shows up as the trade it is. |
+| 1.4 | A3's "worst delta in the 2 s window" cannot fail on the intended fix's failure modes: deferred work, blank pages, or a smooth fill that freezes the mouse. | **Accepted, all three.** A3 now measures E-press to the first frame where the page is legible (pixels, not frames), samples until an instrumented "pages painted" event rather than a fixed window, and injects real mouse motion during the fill asserting the camera moves every frame. |
+| 1.5 | A2 states no failing number, and a cost scheduled a tick after the swing lands outside the window. | **Accepted.** Gate is the 16 ms invariant; window runs from keypress to animation-end plus 2 s. |
+| 1.6 | A4's click-window sampler misses deferred recompiles; the "already-selected preset" control passes on every build; a capturePage during a freeze returns the overlay either way. | **Accepted.** Sampling continues through a real 360 turn and a room change until the program count is stable, and input is asserted live DURING the applying state rather than photographed. |
+| 1.7 | A5's probes all read the WINDOW; the DPR cap can leave the drawing buffer far smaller, and a blurry upscale passes every stated read. | **Accepted - this is the single most valuable objection in the section.** See A5 below: the probe now reports `getDrawingBufferSize()` against a stated expectation, and the window/buffer divergence is a first-class number. |
+| 1.8 | A6's screenshot cannot be evidence: the resolution list is a native select whose popup Electron cannot capture. | **Accepted.** A6 asserts the exact rendered option text and disabled state for every candidate, plus the "this display has room for" line, which reads a different field and can disagree. |
+| 1.9 | No Section A check is ever shown red; Requirement 8 appears nowhere in Phase 1. | **Accepted.** Every item's check runs once against a deliberately broken state before its green is banked. R1's check was already handled this way (three breaks, three reds, restored). |
+
+### Reviewer 2 — HISTORY (which mistake is this repeating?)
+
+| # | objection | answer |
+| --- | --- | --- |
+| 2.1 | A1's premise restates a claim Verifier 2 DISPROVED last session: the post-veil first ten seconds were the CLEAN part (0-8 frames over 33 ms, zero over 100 ms), the ~7.3 s stall sits BEHIND the veil, and the worst 30 s stall came with the program count FLAT 208-208 - a non-compile class. | **Accepted, and A1 is re-scoped.** The item's target is no longer "warm the shaders so the post-veil window improves". It is the load the owner waits through: page to playable, 7.8 s on both baselines against 22.1-22.8 s on the final HEAD. The per-commit bisect inside 8baa596..HEAD is the first action, not the last. The compile class is still real and still gets fixed, but it is a second finding, not the headline. |
+| 2.2 | "Hold the veil until warm" is the regression's own mechanism: walk-active to veil-gone grew 2.2 s to 3.9 s to 10.4-12.4 s as work migrated behind the veil. | **Accepted.** Veil-hold is now disqualified as a primary fix and permitted only with page-to-playable guarded and reported. |
+| 2.3 | Program and draw-call counters are reused without their logged failure modes (faults 29-31, 33): `needsUpdate` compiles nothing, `programs.length` is a NET count, a pre-first-draw baseline over-charges, and `render.calls` sampled once varied 133/351/273/686 at one pose. | **Accepted.** Program count is sampled as a series with the net caveat stated, never as a single before/after pair, and draw calls are averaged over frames or not reported. |
+| 2.4 | A3's 2 s window is smaller than the known 2.0-2.9 s freeze (fault 69: a window must prove it contains the transition). | **Accepted.** The window is open-ended until the painted event, and the driver asserts the transition is inside what it sampled. |
+| 2.5 | A3's press-timed sampling names none of the three mitigations already paid for: fault 57 (presses never stamped the mark; a turn read 6.5 s from a stale click), fault 52 (an unfocused window rAF-throttles to ~1 fps), fault 61 (re-staging inside the measured window). | **Accepted.** The driver stamps the press through a window-capture keydown listener registered before the game's handler, calls `bringToFront()`, and stages every mutation outside the sampled span. |
+| 2.6 | A3's "first open of a session" will be warm if staged the usual way: localStorage seeding is a no-op in Electron, so the run measures whatever profile sits in userData. | **Accepted.** Coldness is established at the native save level (a fresh userData profile per cold leg), and the driver reports which it got rather than assuming. |
+| 2.7 | A3's candidate list re-litigates acquitted suspects: the seven summaries were moved out of the open frame in report 15, paints measured at 0.3 ms, and report 16 convicted the ~55 ms canvas-to-texture sync. | **Accepted.** A3 starts at the convicted mechanism and at first-visibility of the open shell, not at the summaries. |
+| 2.8 | A5/A6's `FW_FAKE_DISPLAY=` env control cannot reach main (fault 54); only the marker file ever worked, and a stale marker poisons real legs (fault 53). | **Accepted.** Controls are delivered by the marker file, written and deleted by the driver, and each leg reports `qaFakeDisplay` back so a stale file shows itself. |
+| 2.9 | Fault 72 is cited in the preamble but not bound: no verify step requires a commit hash on its numbers. | **Accepted.** Every performance number in the report carries the commit it was measured on, in the same line. |
+
+### Reviewer 3 — THE DIVERGENCE (would this notice the player seeing something else?)
+
+| # | objection | answer |
+| --- | --- | --- |
+| 3.1 | A5 is the flagship exposure and the same class as the mop strands: the window can be 4K while the picture is upscaled from far fewer pixels, and capturePage grabs the composited surface so the screenshot cannot tell. | **Accepted.** The drawing-buffer size is reported, and a sharpness reading is taken from the real screenshot rather than assumed. |
+| 3.2 | A6's assert reads the IPC payload while the screenshot is filed as evidence; if the panel paints before `fw:display-info` resolves, the data can be right and the first paint wrong. Also A5 sizes from `getPrimaryDisplay()` while display-info uses `getDisplayMatching(win.getBounds())` - two definitions of "the display". | **Accepted.** The two definitions are reconciled to one helper in main.cjs, and the assert reads the panel's first paint. |
+| 3.3 | A3's frame deltas cannot see "the book arrived late": a perfectly paced three-second fill is green on every frame and still makes the player wait. | **Accepted** - already folded into 1.4. The headline A3 number becomes press-to-legible, in milliseconds. |
+| 3.4 | A2's lurch may not be a frame-time event at all: a 10 Hz fitted shadow refit or mousemove starvation both leave deltas flat. | **Accepted.** The A2 driver holds the camera still through the swing and diffs successive captured frames, so a lighting pop shows up with clean timings. |
+| 3.5 | A4's recompile is lazy - it fires at each material's next draw, so the stall lands thirty seconds later at the first doorway; and an applying state that freezes the mouse is Requirement 5's forbidden freeze wearing a label. | **Accepted** - folded into 1.6. |
+| 3.6 | A1: an idle probe, a code-event t0 (veil removed but first real frame late), and a warm disk cache can each fake the win; if the fix is a longer veil, that must be reported as a longer load. | **Accepted** - folded into 1.1, 1.2, 1.3 and 2.2. |
+
+### Reviewer 4 — BLAST RADIUS (what else does this touch?)
+
+| # | objection | answer |
+| --- | --- | --- |
+| 4.1 | Every Electron driver inherits the new window; nothing anywhere asserts screenshot dimensions. | **Accepted.** A shared assertion goes into the QA boot helper and is called by the Section A drivers. |
+| 4.2 | **The linchpin.** 382 files call `setViewportSize`; the run-electron shim maps it to `setContentSize` with no `unmaximize()`. On Windows a maximised window may refuse the resize, so 382 drivers would believe their stated size while running display-sized - and 117 of them use fixed click coordinates. | **Accepted, and it is now a prerequisite: A5 does not land until the shim unmaximizes and verifies the size it asked for.** This is the highest-consequence finding of the review. |
+| 4.3 | Pixel floors calibrated at 1280x720 (the hands check's `FLOOR = 400`) silently weaken at 2.4x area; 41 files compute NDC and the aspect moves 1.70 to 1.84. | **Accepted.** Recorded as a standing consequence; the affected drivers are re-run in Phase 5 at the new default and any floor that moved is recalibrated with its reasoning stated. |
+| 4.4 | Five CSS media queries flip state between 1600 and 2560 (course-editor rail at 1700/1500/1420, menu grid at 1250), and rem text is physically smaller in a 4K frame, so every legibility verdict recalibrates. | **Accepted.** The new default gets its own screenshot sweep, and the text-overlap invariants are re-run there rather than inherited. |
+| 4.5 | The drawing buffer goes roughly 2.37x, so every previously-banked perf acceptance was calibrated at the small buffer, and ~23 pinned-viewport drivers keep passing while measuring a size the player no longer sees. | **Accepted.** The cost is measured and reported in the same breath as shipping A5, per Requirement 7. If it breaks the 16 ms invariant that is a finding about the renderer, not a reason to keep the small window. |
+| 4.6 | Human-judged reference folders were captured at the old size, so future A/B compares different-sized frames. | **Accepted, recorded.** No automated fix; the report says which references predate the change. |
+| 4.7 | A5's own negative control rides the dead env channel, and `activeDisplay()` needs `win.getBounds()` while `createWindow` runs before `win` exists. | **Accepted.** createWindow gets a display read that honours the marker file and does not require an existing window. |
+| 4.8 | Deferring A4's shadow recompile opens a window where `shadowMap.enabled` is flipped but materials are not rebuilt - a state main.js documents as producing a continuous GL_INVALID_OPERATION stream, and nothing fails a run on GL errors. | **Accepted.** The A4 driver fails on a GL error stream, which is a check this project has never had. |
+| 4.9 | A3's lazy fill makes the ledger's overlap instrument vacuous: overlaps=0 on an unpainted page would poison Section C's baseline. | **Accepted, and it is a cross-section trap.** The overlap recorder must assert the page was painted before it reports zero. Carried into Section C's plan. |
+| 4.10 | A1's material interning breaks per-instance mutation: hover outlines, the probe paint, and tint identity all depend on materials not being shared. | **Accepted - interning is effectively disqualified** unless it is restricted to materials nothing mutates, and the report will say so. |
+| 4.11 | Deferring A2's nav rebake past the door animation has no check for NPCs pathing through a just-opened door on the first frame. | **Accepted.** If the fix defers a rebake, that check gets written. |
+
+### What the review changed
+
+1. **A1 is re-scoped** from "warm the shaders" to "the load the owner waits
+   through", with the compile class as a second finding. Two reviewers
+   independently showed the plan was aimed at the window already proven clean.
+2. **A5 gains a prerequisite** - the harness shim must unmaximize and verify -
+   and a new headline number, the drawing buffer, without which the fix could
+   ship blurry and green.
+3. **A3's headline number changes** from worst frame delta to press-to-legible
+   milliseconds, because the accepted fix path makes frame deltas blind.
+4. **A6's evidence changes** from a screenshot to asserted option text, because
+   the control is a native select whose popup cannot be captured.
+5. **Every control moves off the env-var channel** onto the marker file, which
+   is the only one measured to arrive.

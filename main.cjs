@@ -73,9 +73,26 @@ function trustedSaveKey(event, key) {
 }
 
 function createWindow() {
+  // A5 (Goal 17) — OPEN FULL-WINDOW AT THE DISPLAY'S OWN SIZE.
+  //
+  // It opened 1600x940 DIP regardless of the monitor. On the owner's 4K panel
+  // that is a small window in the corner of the screen, and it is also why
+  // every QA screenshot for six rounds was graded at roughly 62% of the linear
+  // resolution the owner actually plays at (tools/qa/lib/qa-boot.mjs says so in
+  // its own comment, and worked around it per-driver).
+  //
+  // READING TAKEN: "full-window" is the window FILLING the display, not
+  // exclusive fullscreen — the settings panel already owns a fullscreen toggle,
+  // and launching fullscreen would take a control away from the player to
+  // satisfy a sizing request. Maximised over the work area is the reading that
+  // changes the game without colliding with a control that already exists.
+  const startDisplay = activeDisplay();
+  const area = startDisplay.workArea || startDisplay.bounds || null;
   win = new BrowserWindow({
-    width: 1600,
-    height: 940,
+    x: area && Number.isFinite(area.x) ? area.x : undefined,
+    y: area && Number.isFinite(area.y) ? area.y : undefined,
+    width: area ? area.width : 1600,
+    height: area ? area.height : 940,
     minWidth: 1100,
     minHeight: 680,
     backgroundColor: '#141d12',
@@ -99,7 +116,19 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.setMenuBarVisibility(false);
   win.loadFile('index.html');
-  win.once('ready-to-show', () => win && win.show());
+  win.once('ready-to-show', () => {
+    if (!win) return;
+    // Maximise BEFORE the first paint, so the player never sees a small window
+    // snap outward. The explicit bounds above already cover the work area; this
+    // closes the rounding gap and puts the window in the OS's own maximised
+    // state, which is what "full-window" means to anyone using it.
+    //
+    // ...unless a QA fake display is in force, where maximising to the real
+    // monitor would erase the simulation and hand the negative control a result
+    // it could not fail.
+    if (!usingFakeDisplay) win.maximize();
+    win.show();
+  });
   if (DEV) {
     win.webContents.openDevTools({ mode: 'detach' });
     win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
@@ -174,6 +203,10 @@ ipcMain.handle('fw:list', async (event) => {
 //
 // FW_FAKE_DISPLAY ("1600x900@1") injects at this boundary so the QA negative
 // control exercises the SHIPPED comparison, not a parallel branch.
+// Set by activeDisplay() whenever a QA fake display is in force. createWindow
+// reads it: maximising to the REAL monitor would override the simulated one and
+// leave the negative control unable to fail, which is the whole point of it.
+let usingFakeDisplay = false;
 const activeDisplay = () => {
   // argv is the channel proven to reach main (the --clubhouse flag rides
   // it); the env form never arrived through the QA launcher (measured:
@@ -190,6 +223,7 @@ const activeDisplay = () => {
   if (fake) {
     const m = /^(\d+)x(\d+)@([\d.]+)$/.exec(fake);
     if (m) {
+      usingFakeDisplay = true;
       const scale = Number(m[3]) || 1;
       const dipW = Math.round(Number(m[1]) / scale);
       const dipH = Math.round(Number(m[2]) / scale);
@@ -201,7 +235,11 @@ const activeDisplay = () => {
       };
     }
   }
-  return screen.getDisplayMatching(win.getBounds());
+  // A5 (Goal 17): ONE definition of "the active display", and it has to answer
+  // before the window exists, because createWindow now sizes itself from it.
+  // There used to be two — this, and whatever createWindow hard-coded — and
+  // they only agree on a single-monitor machine.
+  return win ? screen.getDisplayMatching(win.getBounds()) : screen.getPrimaryDisplay();
 };
 
 ipcMain.handle('fw:display-info', (event) => {
@@ -233,8 +271,12 @@ ipcMain.handle('fw:display-info', (event) => {
   }
   candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return {
-    qaFakeDisplay: !!(process.argv.some((a) => a.startsWith('--fw-fake-display='))
-      || process.env.FW_FAKE_DISPLAY),
+    // Every channel, including the marker file. It used to report only argv and
+    // env, so a LEFTOVER fw-fake-display.txt sat there faking the display while
+    // this flag said "real" — the stale-control fault (53) with no way to see
+    // it. `usingFakeDisplay` is set by activeDisplay() above, whichever channel
+    // delivered it.
+    qaFakeDisplay: usingFakeDisplay,
     mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
     width: currentPhysical.width,
     height: currentPhysical.height,

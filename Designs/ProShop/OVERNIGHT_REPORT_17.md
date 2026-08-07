@@ -105,6 +105,105 @@ tool moves while you drag.
 
 ---
 
+# SECTION A — PERFORMANCE
+
+Plan, four-reviewer objections and my answers are in `Designs/ProShop/PLAN_17.md`.
+The review changed the section materially before a line was written; the biggest
+change is that **A1 was re-scoped** — two reviewers independently showed the
+plan was aimed at the window Verifier 2 had already proved was the clean one.
+
+## A5 — the game opens full-window at the display's own resolution
+
+Measured on commit `3cad241` + this change. Driver `tools/qa/electron-a5-window.js`,
+Electron, `--clubhouse=pine-hills-v2`, fresh profile, default camera, nothing
+resized by the harness.
+
+**What changed:** `main.cjs` `createWindow()` sized itself 1600x940 DIP no matter
+what monitor it was on. It now reads the active display and opens over its work
+area, then maximises before the first paint so the player never sees a small
+window snap outward.
+
+**Reading taken:** "full-window" means *the window fills the display*, not
+exclusive fullscreen. The settings panel already owns a fullscreen toggle;
+launching fullscreen would take a control away from the player to satisfy a
+sizing request. Recorded because the brief asks which reading I took.
+
+### The measurement the reviewers insisted on
+
+Every obvious probe here reads the WINDOW — content bounds times scale factor,
+`innerWidth` times devicePixelRatio, the screenshot's own dimensions — and all
+three report 4K on a maximised 4K window however few pixels the scene actually
+drew. The DPR cap could leave the buffer far smaller and the compositor would
+upscale it: a soft picture with every reading green. So the headline number is
+the **drawing buffer**.
+
+| | before (1600x940 DIP) | after (maximised) |
+| --- | --- | --- |
+| window content, DIP | 1600 x 940 | **2560 x 1370** |
+| window content, physical | 2400 x 1410 | **3840 x 2055** |
+| **drawing buffer** | 2400 x 1410 | **3840 x 2055** |
+| buffer shortfall against the window | 0% | **0%** |
+| display | 3840 x 2160 physical @1.5 scale | same |
+
+The buffer matches the window exactly, so the picture genuinely has those pixels
+— it is not being upscaled. The window is short of the full 3840x2160 by
+**72 physical pixels of taskbar** and **33 of title bar**, which is what
+"maximised" means on Windows; both are reported by the driver rather than
+rounded away.
+
+### Negative control
+
+The control is delivered by the marker file `fw-fake-display.txt`, not by an env
+var — main.cjs records that env never crosses the QA launcher into the main
+process (fault 54). With `1600x900@1` in force the window opened **1586x863 DIP
+and did not maximise**, and the gate read `windowFillsDisplay: false`. The check
+can fail. The driver deletes the marker, and `qaFakeDisplay` now reports the
+marker-file channel too — it used to report only argv and env, so a leftover
+marker could fake the display while the flag said "real" (fault 53 with no way
+to see it).
+
+### What it costs, in the same breath (Requirement 7)
+
+2.33x the pixels. Same scripted walk loop, both sizes, fresh profile each,
+12 s settle first so this is steady cost and not load:
+
+| | 1600x940 (3.4 MPix) | maximised (7.9 MPix) |
+| --- | --- | --- |
+| median frame | 9.1 ms | **9.9 ms** |
+| p95 | 30.5 ms | 32.4 ms |
+| p99 | 35.5 ms | 39.0 ms |
+| frames over 16 ms | 300 of 1251 (24%) | 321 of 1122 (**29%**) |
+| frames over 33 ms | 24 | 53 |
+| frames over 100 ms | 1 | 3 |
+| worst single frame | 5707.8 ms | 2983.4 ms |
+
+**The finding is the flatness.** More than doubling the pixels costs about 9% of
+median frame time, which says this renderer is not fill-bound at 4K — the cost
+is on the CPU and in draw submission, not in the pixels. That matters for the
+rest of Section A: resolution is not the lag.
+
+**And the numbers are bad at both sizes.** A quarter to a third of frames exceed
+16 ms and there are multi-second single frames *after* a twelve-second settle,
+on a walk with no doors, no ledger and no register. Standing Invariant 1 is
+violated on the unfixed build at the OLD size as well as the new one, so this is
+not something A5 introduced. It is Section A's actual work, and A1 now starts
+from these frames rather than from the shader-compile theory.
+
+### Prerequisite this landed on top of (Reviewer 4's linchpin)
+
+The harness shim mapped `setViewportSize` to `setContentSize` with no
+`unmaximize()`. Windows does not honour a content resize on a maximised window,
+so from the moment the game launched maximised, **382 driver files** would have
+believed their stated size while running display-sized — and **117 of them click
+fixed coordinates**, which would then land in the wrong quadrant. Silently. The
+shim now unmaximizes first, reads the size back, prints a loud line when the
+display clamps it, and **throws** if the window stayed maximised. That guard was
+written before A5 landed, not after.
+
+**Twenty-minute-stranger bar: yes.** It opens filling the monitor.
+
+---
+
 ## RUNNING LISTS
 
 ### UNCONFIRMED (claimed but not yet proven at the player's camera)

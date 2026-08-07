@@ -61,16 +61,41 @@ function shimPage(window, app) {
       // renderer has no other way to ask for one. Drivers that do not touch it
       // are unaffected.
       if (prop === 'electronApp') return app;
+      // A5 (Goal 17) MADE THIS DANGEROUS, SO IT NOW VERIFIES ITSELF.
+      //
+      // The game launches MAXIMISED from this session on. Windows does not
+      // honour a content resize on a maximised window, and 382 driver files
+      // call setViewportSize while 117 of them click fixed coordinates — so a
+      // silent no-op here would leave every one of them believing its stated
+      // size while actually running display-sized, with its clicks landing in
+      // the wrong quadrant. That is the divergence fault installed at the root
+      // of the harness. Unmaximize first, then read the size back and say so.
       if (prop === 'setViewportSize') {
         return async (size) => {
           if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height)) return;
-          await app.evaluate(async ({ BrowserWindow }, wanted) => {
+          const got = await app.evaluate(async ({ BrowserWindow }, wanted) => {
             const win = BrowserWindow.getAllWindows()[0];
-            if (!win) return;
+            if (!win) return null;
+            if (win.isFullScreen()) win.setFullScreen(false);
+            if (win.isMaximized()) win.unmaximize();
             win.setResizable(true);
             win.setContentSize(Math.round(wanted.width), Math.round(wanted.height));
+            const bounds = win.getContentBounds();
+            return { width: bounds.width, height: bounds.height, maximized: win.isMaximized() };
           }, size);
           await target.waitForTimeout(220);
+          const want = { width: Math.round(size.width), height: Math.round(size.height) };
+          if (got && (got.width !== want.width || got.height !== want.height)) {
+            // Loud, always: a driver grading frames at a size it did not ask
+            // for must never do it quietly. A window the OS clamped to the
+            // display is a warning; a window that stayed MAXIMISED is the
+            // failure this guard exists for, and it stops the run.
+            const line = `[qa] setViewportSize asked ${want.width}x${want.height} DIP, `
+              + `window is ${got.width}x${got.height}`;
+            if (got.maximized) throw new Error(`${line} — the window refused to leave maximised.`);
+            console.log(`${line} (clamped by the display; every coordinate below is at the second size)`);
+          }
+          return got;
         };
       }
       const value = Reflect.get(target, prop, target);
