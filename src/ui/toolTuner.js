@@ -142,7 +142,7 @@ export function makeToolTuner(appRef) {
               const snap = walk()?.toolFeelSnapshot?.() || {};
               const payload = { mop: snap.mop, broom: snap.broom };
               const res = await window.fairwayNative?.saveToolFeel?.(payload);
-              setStatus(res ? `saved → ${res.path}` : 'no native bridge (browser run) — not saved');
+              setStatus(res ? `saved → ${res.path}` : 'no native bridge (browser run): not saved');
             } catch (error) { setStatus(`save failed: ${error.message}`); }
           },
         }),
