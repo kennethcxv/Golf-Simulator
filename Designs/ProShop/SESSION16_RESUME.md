@@ -30,13 +30,16 @@ must record both misfires under instrument faults. B0-driver note: its mop
 leg re-shows the hidden skirt after its control — reorder before next use
 (the share step measured a driver-made state, not the game's).
 
-NEXT = B5: equip each tool, open F9 overlay, exercise mode on, tune by eye
-(anchor/rolls/hover/strand params), Save (writes toolFeelOverrides.json —
-COMMIT that file with the landed values listed in the report per goal B5),
-record after-clips (VIDEO_DIR=qa/electron/b1/broom-after QA_B1_TOOL=broom
-node tools/qa/run-electron.cjs tools/qa/electron-b1-watch.js
---clubhouse=pine-hills-v2; same mop), extract frames (webm-frames.js),
-WATCH, describe in report. B4 DONE AND VERIFIED (electron-b4-plant.js all 8 checks green: legal
+B5 DONE pending commit: values broom carryHover .60→.44; mop bearing
+-.20→-.34, anchor.x .257→.30, hover .60→.44; saved to
+src/data/toolFeelOverrides.json (ship path, FULL-table pin — documented);
+B0 exit 3/3/3 green at tuned values; before/after clips + frames watched,
+described in report. AWAITING suite bek9gq664 → commit
+(toolFeelOverrides.json, tools/qa/electron-b5-tune.js, report, resume) →
+push → SECTION B COMPLETE. THEN: A2/C ledger bundle (250ms open; turn
+split+cache; C1 keep lock, OPEN_SECONDS .85→.4, face re-solve/frame; C6
+consume A/D live-bindings; C2 paper; C3 overlap recorder + live-Electron
+leg; C4 locks align) per PLAN R-E/R-J; then A3; D2-D5; G; E; F; Phase 4. B4 DONE AND VERIFIED (electron-b4-plant.js all 8 checks green: legal
 reaches plant at kiss 0.012, below-floor -2.0/-2.4 REFUSE with blend 0 +
 head at carry hover, up-look sweeps clean did:0, work pitch cleans; plus
 courseScene cleaning gate extended broom-only → rig-owned pair so the mop

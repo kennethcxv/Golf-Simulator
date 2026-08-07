@@ -1,0 +1,339 @@
+{
+  "mop": {
+    "camera": {
+      "fov": 78,
+      "near": 0.05,
+      "far": 12,
+      "layer": 29
+    },
+    "frame": {
+      "place": [
+        0.42,
+        -0.48,
+        -0.6
+      ],
+      "yaw": 0.22,
+      "headForward": 1.42
+    },
+    "compose": {
+      "gripAnchor": [
+        0.3,
+        -0.44,
+        -0.749
+      ],
+      "bearingOffset": -0.34,
+      "carryHover": 0.44,
+      "handRollUpper": -2.7,
+      "handRollLower": 0.19,
+      "handShaftOffset": 0.034,
+      "handScale": 1.22
+    },
+    "sweep": {
+      "arcRad": 0.32000000000000006,
+      "handFollow": 0.46,
+      "handRoll": 0.55
+    },
+    "arms": {
+      "forearmSpan": 0.26,
+      "forearmDepthRef": 0.72,
+      "forearmWristRadius": 0.026,
+      "forearmElbowRadius": 0.044,
+      "wristInset": 0.01,
+      "spanScaleMin": 0.85,
+      "spanScaleMax": 1.2,
+      "elbowOffsetRight": [
+        0.15,
+        -0.3,
+        0.22
+      ],
+      "elbowOffsetLeft": [
+        -0.14,
+        -0.3,
+        0.21
+      ],
+      "sleeveDir": [
+        0.17,
+        -1,
+        0.3
+      ],
+      "sleeveRadius": 0.05,
+      "sleeveLength": 0.4
+    },
+    "equip": {
+      "duration": 0.34,
+      "settleOvershoot": 0.014,
+      "settleTime": 0.09,
+      "ease": "easeOutCubic"
+    },
+    "unequip": {
+      "duration": 0.24,
+      "ease": "easeInCubic"
+    },
+    "idle": {
+      "swayYawAmp": 0.008,
+      "swayYawRate": 0.9,
+      "breatheAmp": 0.004,
+      "breatheRate": 1.7
+    },
+    "walk": {
+      "bobAmp": 0.016,
+      "bobRate": 8.7,
+      "swayAmp": 0.011,
+      "swayPhase": 0.5,
+      "blendIn": 6
+    },
+    "stroke": {
+      "rate": 4.08,
+      "span": 0.16,
+      "contactCos": 0.58
+    },
+    "weight": {
+      "lagHz": 4.76,
+      "lagDamping": 0.55,
+      "rollVelGain": 0.055,
+      "rollMax": 0.1,
+      "yawLagRate": 9,
+      "yawLagMax": 0.085,
+      "speedBoost": 0.35
+    },
+    "dirt": {
+      "pushSpeed": 5.53,
+      "sweepIntensityFullYdS": 2.2,
+      "maxStep": 0.42,
+      "sideBias": 0.35
+    },
+    "pitch": {
+      "minPitch": -1.25,
+      "maxPitch": 0.3,
+      "reachNear": 0.62,
+      "reachFar": 1.42,
+      "followRate": 10,
+      "carryAbove": -0.1,
+      "workBelow": -0.4
+    },
+    "surface": {
+      "tiltMax": 0.3,
+      "tiltRate": 9,
+      "floorKiss": 0.02
+    },
+    "collision": {
+      "headHalfWidth": 0.23,
+      "standoff": 0.05,
+      "probeAhead": 0.1,
+      "slideRate": 12,
+      "stallSquash": 0.45,
+      "stallIntensity": 0.55
+    },
+    "cameraKick": {
+      "maxDeg": 1.1,
+      "inTime": 0.07,
+      "outTime": 0.2
+    },
+    "audio": {
+      "startGain": 0.16,
+      "loopGain": 0.04,
+      "loopGainSlope": 0.55,
+      "loopRateBase": 2.6,
+      "loopRateSlope": 1.3,
+      "stopTail": 0.24,
+      "reversalAccent": 0.5,
+      "surface": {
+        "hard-floor": {
+          "hz": 1500,
+          "gainScale": 1
+        },
+        "carpet": {
+          "hz": 820,
+          "gainScale": 0.78
+        }
+      }
+    },
+    "particles": {
+      "burstPerContact": 7,
+      "driftAlongStroke": 0.15,
+      "hop": 0.15,
+      "amountRef": 0.45,
+      "sizeMin": 0.55,
+      "sizeMax": 1.5,
+      "surface": {
+        "hard-floor": {
+          "color": 10455656,
+          "size": 0.052
+        },
+        "carpet": {
+          "color": 12035468,
+          "size": 0.064
+        }
+      }
+    },
+    "anchor": "floor"
+  },
+  "broom": {
+    "camera": {
+      "fov": 78,
+      "near": 0.05,
+      "far": 12,
+      "layer": 29
+    },
+    "frame": {
+      "place": [
+        0.42,
+        -0.48,
+        -0.6
+      ],
+      "yaw": 0.22,
+      "headForward": 1.42
+    },
+    "compose": {
+      "gripAnchor": [
+        0.257,
+        -0.44,
+        -0.749
+      ],
+      "bearingOffset": -0.2,
+      "carryHover": 0.44,
+      "handRollUpper": -2.7,
+      "handRollLower": 0.19,
+      "handShaftOffset": 0.034,
+      "handScale": 1.22
+    },
+    "sweep": {
+      "arcRad": 0.4,
+      "handFollow": 0.46,
+      "handRoll": 0.55
+    },
+    "arms": {
+      "forearmSpan": 0.26,
+      "forearmDepthRef": 0.72,
+      "forearmWristRadius": 0.026,
+      "forearmElbowRadius": 0.044,
+      "wristInset": 0.01,
+      "spanScaleMin": 0.85,
+      "spanScaleMax": 1.2,
+      "elbowOffsetRight": [
+        0.15,
+        -0.3,
+        0.22
+      ],
+      "elbowOffsetLeft": [
+        -0.14,
+        -0.3,
+        0.21
+      ],
+      "sleeveDir": [
+        0.17,
+        -1,
+        0.3
+      ],
+      "sleeveRadius": 0.05,
+      "sleeveLength": 0.4
+    },
+    "equip": {
+      "duration": 0.34,
+      "settleOvershoot": 0.014,
+      "settleTime": 0.09,
+      "ease": "easeOutCubic"
+    },
+    "unequip": {
+      "duration": 0.24,
+      "ease": "easeInCubic"
+    },
+    "idle": {
+      "swayYawAmp": 0.008,
+      "swayYawRate": 0.9,
+      "breatheAmp": 0.004,
+      "breatheRate": 1.7
+    },
+    "walk": {
+      "bobAmp": 0.016,
+      "bobRate": 8.7,
+      "swayAmp": 0.011,
+      "swayPhase": 0.5,
+      "blendIn": 6
+    },
+    "stroke": {
+      "rate": 4.8,
+      "span": 0.16,
+      "contactCos": 0.58
+    },
+    "weight": {
+      "lagHz": 5.6,
+      "lagDamping": 0.55,
+      "rollVelGain": 0.055,
+      "rollMax": 0.1,
+      "yawLagRate": 9,
+      "yawLagMax": 0.085,
+      "speedBoost": 0.35
+    },
+    "dirt": {
+      "pushSpeed": 5.53,
+      "sweepIntensityFullYdS": 2.2,
+      "maxStep": 0.42,
+      "sideBias": 0.35
+    },
+    "pitch": {
+      "minPitch": -1.25,
+      "maxPitch": 0.3,
+      "reachNear": 0.62,
+      "reachFar": 1.42,
+      "followRate": 10,
+      "carryAbove": -0.1,
+      "workBelow": -0.4
+    },
+    "surface": {
+      "tiltMax": 0.3,
+      "tiltRate": 9,
+      "floorKiss": 0.012
+    },
+    "collision": {
+      "headHalfWidth": 0.23,
+      "standoff": 0.05,
+      "probeAhead": 0.1,
+      "slideRate": 12,
+      "stallSquash": 0.45,
+      "stallIntensity": 0.55
+    },
+    "cameraKick": {
+      "maxDeg": 1.1,
+      "inTime": 0.07,
+      "outTime": 0.2
+    },
+    "audio": {
+      "startGain": 0.16,
+      "loopGain": 0.04,
+      "loopGainSlope": 0.55,
+      "loopRateBase": 2.6,
+      "loopRateSlope": 1.3,
+      "stopTail": 0.24,
+      "reversalAccent": 0.5,
+      "surface": {
+        "hard-floor": {
+          "hz": 1500,
+          "gainScale": 1
+        },
+        "carpet": {
+          "hz": 820,
+          "gainScale": 0.78
+        }
+      }
+    },
+    "particles": {
+      "burstPerContact": 7,
+      "driftAlongStroke": 0.15,
+      "hop": 0.15,
+      "amountRef": 0.45,
+      "sizeMin": 0.55,
+      "sizeMax": 1.5,
+      "surface": {
+        "hard-floor": {
+          "color": 10455656,
+          "size": 0.052
+        },
+        "carpet": {
+          "color": 12035468,
+          "size": 0.064
+        }
+      }
+    }
+  }
+}

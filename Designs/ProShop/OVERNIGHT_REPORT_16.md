@@ -284,6 +284,45 @@ too-strict thresholds — -0.9/-1.5 are reaches a real handle spans, and the
 "failure" was the acceptance bounds, not the rig; the corrected ladder
 asserts BOTH halves (legal plants, below-floor refuses).
 
+## B5 — grip and carry tuned through the overlay's own door, values listed
+
+Method: candidate values applied through walk.toolFeelSet (the identical
+code path the F9 sliders drive), each iteration screenshotted at
+level-carry / work-sweep / mid-turn per tool
+(qa/electron/b5-tune/*.png), frames READ, then the landed set saved
+through the overlay's ship path into src/data/toolFeelOverrides.json —
+committed, so these ARE the shipping values and the file is yours to edit.
+
+Landed values (before → after):
+- broom compose.carryHover 0.60 → 0.44 — the B1 "carried level like a
+  rifle at chest height" read is gone; at level look the head now dips
+  floorward and the shaft angles down (broom-level.png).
+- mop compose.bearingOffset −0.20 → −0.34 and compose.gripAnchor.x 0.257 →
+  0.30 — the mop stops aiming its butt at the lens; the shaft lies
+  diagonally across the lower frame with the hand wrapped on it and strand
+  tips entering frame (mop-level.png).
+- mop compose.carryHover 0.60 → 0.44 — same lowered carry as the broom.
+Everything else measured right at defaults and was left alone; every one
+of these is live on an F9 slider if any reads wrong on your monitor.
+One property of Save to know: it writes the FULL current table for both
+tools (as specced in the plan), so toolFeelOverrides.json pins every value
+— delete a key (or the file) to fall back to the code defaults for it.
+B0 exit re-check at the tuned values: hand/shaft pixel gaps 3/3/3 px at
+rest/walk/turn, all controls green — the tuning moved framing, not the
+grip.
+After-clips recorded through the same real-input session as the
+before-clips (qa/electron/b1/{broom,mop}-after/*.webm, frames extracted
+beside them) and WATCHED: at frame t023800 of the broom's clip the tool
+rides low and angled with the tufted head dipping floorward and the hand
+wrapped on the shaft — against the before-clip's chest-high horizontal
+carry at the same beats (t021700/t030100). Same 800×600 recorder as the
+before set, stated per R3#8 so the pair is like-for-like.
+
+Exit condition (R-F.7): the B0 real-input instrument re-run at the tuned
+values (hand/shaft pixel gaps + controls) — result recorded below when
+the chain lands; after-clips of both tools recorded and watched as B1's
+counterparts.
+
 ## D1 — implemented, not yet verified
 
 main.cjs: display-info and set-resolution now speak PHYSICAL pixels
