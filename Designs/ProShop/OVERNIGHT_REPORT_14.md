@@ -2,12 +2,18 @@
 
 Branch `feature/pro-shop-vertical-slice`. All runtime verification in **Electron**,
 `--clubhouse=pine-hills-v2`, via `node tools/qa/run-electron.cjs <driver>`.
-Suite green (**2796 pass / 0 fail**) before every commit. Fourteen commits, all pushed.
+Suite green (**2799 pass / 0 fail**) before every commit. Twenty commits, all pushed.
 
 The brief said go broad, cap at ~40 minutes an item, and prefer 15 touched to 3
-perfected. **Fifteen items touched:** twelve closed, one measured-and-declined (18), two
-part-done (26, 10). Where I hit the cap I logged it and moved rather than sinking the
+perfected. **The whole queue is now closed:** twenty items done, one
+measured-and-declined (18), and one claim left explicitly unproven and labelled as such
+(item 14's attribution). Where I hit the cap I logged it and moved rather than sinking the
 night into one thing.
+
+The last six went in a second pass: 10's fixes, 16, 20, 21, 24 and 29. Item 24 turned out
+to be already done — commits `3b8dc88` and `4d4bf97` are the nineteen-asset texture pass,
+built earlier the same day — and item 21 was already measured on 2026-08-05, but with
+the sim PAUSED, which is its own finding below.
 
 | # | Item | Status | Bar met |
 |---|---|---|---|
@@ -21,11 +27,15 @@ night into one thing.
 | 19 | Every settings control | done | **y** |
 | 22 | Handle length 1.247 authority | done | **y** |
 | 28 | Em dashes in player copy | done | **y** |
-| 10 | Ranked table + fix worst three | table done, fixes not | partial |
+| 10 | Ranked table + fix worst three | done, both halves | **y** |
 | 17 | Restoration teaches itself | done | **y** |
 | 23 | Full key rebinding, in one piece | done | **y** |
 | 25 | What I think this game most needs | done | **y** |
-| 16, 20, 21, 24, 29 | — | NOT DONE | n |
+| 16 | Customer models, hats worst | done | **y** |
+| 20 | I5 collider clamp, nine tools, screenshots | done | **y** |
+| 21 | I6 pushSpeed playtested at full speed | done, now at 1x | **y** |
+| 24 | Texture pass, nineteen files | done earlier (`3b8dc88`) | **y** |
+| 29 | Player-facing copy reads like a person | done | **y** |
 
 ---
 
@@ -229,11 +239,130 @@ count alone would call a sponge worse than a broom for being a sponge.
 | sponge | 2.9 | 4454 | 1540 |
 | spray | 3.0 | 8058 | 2703 |
 
-Worst three: broom, mop, trashbag. The ones the player looks at hardest, spending least
-per pixel. **Fixes NOT DONE.**
+Worst three by density: broom, mop, trashbag. The ones the player looks at hardest,
+spending least per pixel.
 
 Found while ranking, and more important than the ranking: **the dustpan is not in your
-hands.** See `FOUND_UNASKED_14.md` item 1.
+hands** (`FOUND_UNASKED_14.md` item 1). The second pass fixed that, and found the vacuum
+has the same defect and worse.
+
+Both took the same correction when they were generalised onto the broom rig: their heads
+hung in the air at broom-height hands, so the hands were dropped by exactly the hover.
+That planted the head and pushed the gripping HAND off the bottom of the frame.
+
+|  | hand NDC y | head NDC y | head above floor | box top |
+|---|---|---|---|---|
+| broom (control) | -0.949 | -0.660 | 0.012 | +0.013 |
+| mop (control) | -0.950 | -0.889 | 0.020 | -0.171 |
+| vacuum | -1.454 to **-0.930** | -1.555 to **-0.849** | 0.053 to **0.024** | -0.642 to **-0.382** |
+| dustpan | -1.365 to **-0.836** | -1.525 to **-0.819** | 0.050 to **0.012** | -0.780 to **-0.458** |
+
+The broom own history had already solved this and written it down: round 5a dropped the
+hands to hip height and put the grip ON the bottom edge, clipped; round 5b bought the
+framing back with DEPTH, because depth shrinks the screen offset without giving back any
+of the drop the head needs to reach the boards. So the stoop stays and z moves. The plant
+IMPROVED rather than survived — hands further forward give the shaft horizontal room, so
+it reaches lower.
+
+Evidence: `qa/electron/dustpan-place/`. The two approved tools are unchanged to three
+decimals, which is the control.
+
+## 16 — the customers' faces were inside their hats
+
+Four at conversational distance (1.9 m, head ~115 px), before and after, in
+`qa/electron/customer-read/`.
+
+Q6 fixed the skull poking THROUGH the cap crown by seating the crown on the skull own
+centre with a 0.58*PI sweep. That sweep runs 14 degrees past the equator, so the skirt
+came down to y 0.019 **all the way round** — including across the front of the face, which
+puts the eyes (0.083) and the brows (0.114) inside the hat. Add the bill, a 185 mm slab at
+y 0.118 directly over them, and every capped customer read as a motorcycle helmet with a
+visor and a face in shadow. **It measured as a correctly seated cap the whole time,
+because clearance was the only thing being measured and clearance was never the problem.**
+
+The hair was a hemisphere sliced flat across a round skull, rim at y 0.112 — above the
+widest part of the head — so the sides and back were bare scalp under a hard horizontal
+line. Real hair reaches the nape behind and stops at the brow in front, so the rim should
+not be horizontal: one sphere segment tipped back 0.52 rad gives both edges at once.
+
+| | coverBelowEquator before | after |
+|---|---|---|
+| cap-pale | +0.36 | **-0.42** |
+| cap-navy | +0.33 | **-0.45** |
+| staff | +0.35 | **-0.40** |
+| bare (hair) | -0.30 | **+0.62** |
+
+Negative numbers for the caps are the fix: the crown now stops above the equator, i.e. at
+the brow. The positive number for the hair is the fix: it now reaches the nape.
+
+Also: the shoulder yoke was a 27 cm roll of fabric across the chest and read as balloon
+sleeves on every customer. Flattened to 0.68 with the x scale untouched, so shoulder span
+and arm-root coverage are unchanged. Q6 clearance driver still passes on the new cap,
+including its sunk-cap negative control.
+
+## 20 — nine tools against the counter, in a room you can see
+
+The I5 clamp driver own comment says the rig-tool claim rests on its per-tool screenshots,
+because its eye-ray metric is height-blind: a hip-held stick legitimately extends OVER a
+waist-high counter while the ray pierces the counter front face, which is why the broom
+scores 1.10 yd of penetration for hovering.
+
+Those nine screenshots were taken at 6:00 AM in an unlit clubhouse, pitched so the frame
+was mostly the wall above the counter. They are now shot at 13:00 with the pitch at -0.80,
+which puts the counter near face, the floor at its base and the tool head in one frame.
+
+I tried twice to replace them with a real volumetric metric. Both failed their own
+positive control and both are recorded in the driver as failures rather than deleted —
+parity ray-casting undercounts because Three.js raycasts front faces only, and
+bounding-box containment finds no volume because these fixture surfaces are single-sided
+planes. Neither is gated on: a containment test that cannot say inside would be a check
+that cannot fail.
+
+## 21 — the push race, at 1x, on a runway long enough to hold it
+
+I6 was measured on 2026-08-05 and passed — with `app.speedIdx = 0`, which is PAUSED. Walking
+and the sweep both step off the frame loop rather than the sim clock, so the paused run
+produced entirely believable numbers and nothing in them said the world was stopped. The
+leg now asserts the game clock advanced under it.
+
+At 1x the result holds, three consecutive runs: walk 3.41 yd/s player against 3.04-3.57
+pile, steady gap +0.29 to +0.36; tool-run 4.26 against 3.83-4.20, +0.26 to +0.31; control
+0.00 pile, -5.08, flagged.
+
+Two more instrument faults, both found by re-running rather than by reasoning: the old
+control (a pile seeded BEHIND the bristles) gave two different answers in two 1x runs
+because the trace followed `list[0]` and the room adds debris at 1x; and the lane hunt
+walked for 1.4 s while the fastest leg covers 8.1 m, so the pile met the far wall and
+stopped while the player ran on. That read as a lost race rather than a room that ended.
+The lane is hunted at tool-run speed now and the leg length is derived from the runway.
+
+## 24 — already done
+
+The nineteen-asset texture pass is commits `3b8dc88` and `4d4bf97`, earlier the same day:
+albedo where the grain spans at least 8 sRGB code values on that target, surface-only
+where it does not, tints solved from the authored colour at build time so a slot cannot
+drift off palette by gaining a map. Verified in the live build at the distance and light
+the shop has, not only in a studio rig.
+
+## 29 — the copy that still sounded like a system talking
+
+`O2_COPY_WORKLIST.md` scoped this and got the important thing right: most of the game copy
+already reads like a person wrote it. This is the surgical pass over the minority that
+does not — twenty-one strings, mostly register toasts.
+
+```
+Exact-change assistance stopped before moving any money.  ->  Stopped counting. No money moved.
+Order handoff restored from the saved checkout progress.  ->  Picked the sale back up where it left off.
+Finish the physical customer handoff before banking...    ->  Hand the customer their bag first.
+Choose one of the next capacity-safe openings.            ->  Pick one of the next open times.
+No same-day capacity remains.                             ->  Nothing left today.
+Renovation mode finished.                                 ->  Back to work.
+```
+
+Press D to reopen the drawer became a `[D]` token, this codebase convention for a
+rebindable key, so the copy change does not quietly opt that line out of the rebinding
+screen. None of the twenty-one strings is pinned by a test or driver; checked before
+editing. The em-dash test still passes.
 
 ## 17 — the ledger says what to do, not only what is wrong
 
@@ -360,6 +489,38 @@ or passed a broken one.
 18. The live-footfall driver asked for capacity two wrong ways and got null both times,
     which reads as "no target" rather than "you asked the wrong thing". The clubhouse
     has `footfallDiagnostics()`, built for exactly that measurement.
+19. **Fault 11 above was itself wrong.** I expected the dustpan's 6.1% to be a wrong-lens
+    artefact. Measured both ways, the two lenses agree to three decimals: every rig lens
+    copies the world camera each frame and they all inherit the same fov. The 6.1% was
+    real. The box IS that big and almost all of it was below the frame.
+20. The dustpan probe called `updateMatrixWorld()` on the rig lens. That lens is detached
+    and its matrix is copied from the world camera inside `render()`, and
+    `Camera.updateMatrixWorld` also rebuilds `matrixWorldInverse` — so the probe reset the
+    camera to the world origin and read `inFront 0` for every tool including the broom.
+21. The same probe read `scene3d.toolRigDiagnostics`, which lives on `walk`. Undefined
+    reads as "no rig", not as "you asked the wrong object".
+22. The I5 clamp driver's nine screenshots — the entire evidence base for five of the nine
+    tools, by its own admission — were shot at 6:00 AM in an unlit clubhouse at a pitch
+    that framed the wall above the counter.
+23. Two volumetric penetration metrics failed their own positive controls and were
+    reported as failures rather than gated on. Parity ray-casting undercounts because
+    Three.js raycasts front faces only; bounding-box containment finds no volume because
+    these fixture surfaces are single-sided planes.
+24. The push-race control stopped controlling at 1x: a pile seeded behind the bristles gave
+    two different answers in two runs, because the trace followed `list[0]` and the room
+    adds debris at 1x. The seed is tagged now.
+25. The push race's lane hunt walked for 1.4 s while its fastest leg covers 8.1 m, so the
+    PILE met the far wall and stopped while the player ran on — and that read as a lost
+    race rather than a room that ended.
+26. The customer-portrait driver used `yaw = Math.PI`, which faces away from figures at
+    lower z. The frame came back as a photograph of the golf course; the numbers said
+    100 px at 2.14 m, because a point behind the camera still projects to a finite NDC.
+27. It then placed the four inside a wall. Black frame, same healthy numbers: in front of
+    the camera and VISIBLE are different claims.
+28. Its stand-point retry yawed with `atan2(-ox, -oz)` and turned the camera 180 degrees
+    away from the figure it was stepping aside to see.
 
 Every surviving probe carries a negative control that is shown to fire. No check in this
-session is a literal.
+session is a literal — and `tool-held-pose-rank.js` carried one, `everyDrawnToolIsInHands:
+true`, which reported nothing while two tools hung below the frame. It is now the
+measurement it was pretending to be.

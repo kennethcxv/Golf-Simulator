@@ -16,6 +16,11 @@ is below the frame with a sliver at the bottom right that does not read as a too
 
 Evidence: `qa/electron/tool-rank/dustpan.png`, `qa/electron/tool-hands/dustpan-full.png`.
 
+**FIXED 2026-08-06** (commit `ec3dcc8`), and the vacuum had the same defect and worse.
+The gripping hand was at NDC y -1.365 (dustpan) and -1.454 (vacuum); both are back in
+frame at -0.836 and -0.930, with the head plant improved rather than merely preserved.
+Evidence: `qa/electron/dustpan-place/`.
+
 This is not "reads low quality". It is a tool the player selects and cannot see. Of
 everything in this document it is the one I would fix first, and it is the reason I would
 push back gently on item 10's framing: the ranked table found a placement bug, not a
