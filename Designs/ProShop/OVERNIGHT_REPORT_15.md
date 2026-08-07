@@ -32,7 +32,8 @@ where a control failed, the failure is written down instead of the result.
 | **F3** make fixing the light easier | **done** | the book shows what blocks what |
 | **G1** lint | **done** | and it found one |
 | **G2** item 14 prove-or-revert | **reverted, with the number** | it rescued nobody in 150 s while displacement caught four |
-| **G3–G5** | **NOT DONE** | |
+| **G3** item 20 metric-or-statement | **a metric, and it survives its controls** | no tool is inside a fixture at any of 16 swept poses |
+| **G4–G5** | **NOT DONE** | |
 
 ## A — the frame rate was never the problem
 
@@ -435,6 +436,37 @@ they cost nothing and they are exactly the evidence that would reopen this:
 `slidingRescues` counts the frames where progress would have been the SOLE
 signal, `navBlockDiagnostics()` reports it, and if a future run shows it climbing
 the branch comes back with a number behind it instead of an argument.
+
+## G3 — item 20 is measurable after all, and both earlier attempts looked at the wrong geometry
+
+Parity ray-casting undercounted because three.js raycasts front faces only —
+and it could not have worked anyway, because parity is only defined for a CLOSED
+surface and the fixture faces are open single-sided planes. Bounding-box
+containment found no volume for the same reason: there is none there to find.
+
+**The mistake in both was looking at the visible geometry.** The authored assets
+carry `COL_`/`COLLISION_`/`VOLUME_` proxies — simplified closed hulls, kept in
+the scene as invisible meshes. 168 of them in this room. A closed hull has an
+inside, so the metric is the contact socket's depth inside one, computed in the
+hull's OWN frame so a rotated counter is not measured against a world-axis box.
+
+**Both controls pass.** A point at the biggest hull's centre reads **0.1499 yd
+inside**; a point a yard clear of its top face reads **0**. So the number can
+tell inside from outside, which is exactly what the previous two could not.
+
+**And one distinction the first sweep got wrong.** All four floor tools initially
+read 0.12–0.14 yd inside `COL_Foundation` — which is the floor slab. A floor
+tool's contact socket sits ON the boards; that is the tool working, not the tool
+clipping. Item 20 is about a tool being inside the COUNTER. The ground hulls are
+reported separately now.
+
+**Result: no tool's working end is inside a fixture at any of 16 swept poses**
+(four stand points × four pitches against the front desk), for broom, mop,
+vacuum, dustpan, washer and spray. The screenshots are no longer all there is.
+
+One honest limit: `worst` is chosen by fixture depth, so the "any hull" column
+reports that same pose rather than its own maximum. The fixture claim is
+unaffected; the ground column is informational.
 
 ## Instrument faults, 29 to 41
 
