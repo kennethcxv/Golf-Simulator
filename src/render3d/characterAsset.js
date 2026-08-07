@@ -143,8 +143,14 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   // A polo shoulder yoke lying across the top of the chest, tying both arm-roots into the body.
   const yoke = new THREE.Mesh(new THREE.CapsuleGeometry(0.135, 0.26, 6, 14), mPolo);
   yoke.rotation.z = Math.PI / 2;
-  yoke.scale.set(1, 1, 0.82);
-  yoke.position.y = 0.4;
+  // ITEM 16, proportions: at scale 1 this is a 27 cm roll of fabric lying
+  // across the shoulders from y 0.265 to y 0.535, and the four-up portrait
+  // reads it as balloon sleeves on every customer. Flattened to 0.68 it becomes
+  // a shoulder LINE. The x scale is untouched, so the shoulder span and the
+  // deltoid coverage at the arm root are exactly as they were - only the
+  // roundness goes.
+  yoke.scale.set(1, 0.68, 0.82);
+  yoke.position.y = 0.392;
   yoke.castShadow = true;
   chest.add(yoke);
   // A skin neck rising out of the collar and into the skull — no more floating head.
@@ -250,39 +256,85 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     // clearance all the way round rather than a coincidence at the sides.
     const SKULL_R = 0.155;
     const SKULL_Y = 0.06;
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.168, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), mCap);
-    crown.scale.set(1.05, 1.0, 1.08);
-    crown.position.y = SKULL_Y + 0.002;
+    // ITEM 16: "hats worst", and the four-up portrait says why. Q6 fixed the
+    // skull poking THROUGH the crown by seating the crown on the skull's own
+    // centre and giving it a 0.58*PI sweep. That sweep runs 14 degrees past the
+    // equator, so the crown skirt came down to y=0.019 ALL THE WAY ROUND -
+    // including across the front of the face, which puts the eyes (y 0.083) and
+    // the brows (y 0.114) inside the hat. Add the old bill, a 0.185-wide slab
+    // sitting at y 0.118 directly over them, and the result reads as a
+    // motorcycle helmet with a visor and a face in shadow. It measured as a
+    // well-seated cap the whole time because clearance was the only thing being
+    // measured.
+    //
+    // A cap's crown stops at the brow. So the crown is now a plain hemisphere
+    // whose RIM is the brow line: sweep PI/2 exactly, so the rim sits at the
+    // crown's own centre height, and that centre is placed at brow height
+    // rather than at the skull's.
+    const CAP_RIM_Y = 0.135; // ~15 mm above the top of the brow (0.120)
+    const crown = new THREE.Mesh(
+      new THREE.SphereGeometry(0.145, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), mCap,
+    );
+    // shallower than a ball: a cap crown is a low dome, and 0.66 puts its top
+    // 16 mm clear of the skull's 0.215 instead of 19 mm of headroom
+    crown.scale.set(1.0, 0.66, 1.04);
+    crown.position.y = CAP_RIM_Y;
     crown.castShadow = true;
     head.add(crown);
     // the button rides the crown's actual top, not the old one's
-    const crownTop = crown.position.y + 0.168 * crown.scale.y;
-    const button = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), mCap);
-    button.position.y = crownTop + 0.006;
+    const crownTop = crown.position.y + 0.145 * crown.scale.y;
+    const button = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), mCap);
+    button.position.y = crownTop + 0.004;
     fineDetail(button);
     head.add(button);
-    // curved bill: a flattened, slightly down-tilted disc projecting from the
-    // crown front, raised with the crown so it still meets the rim
-    const bill = ellipsoid(0.185, 0.026, 0.155, mCap, 0.118, 0.142, 16);
-    bill.rotation.x = 0.17;
+    // The bill projects FORWARD from the rim and stays above the brow. Its
+    // underside at y 0.121 is 38 mm clear of the eyes; the old one's was 8 mm
+    // clear and its tilt took it lower still.
+    // ...and it has to PROJECT, or it reads as part of the dome and the whole
+    // thing looks like a beret. The crown's front edge is at z 0.151, so a bill
+    // ending at 0.205 clears it by 54 mm; a real peak stands about 85 mm proud,
+    // which is what separates the two shapes at conversational distance.
+    const bill = ellipsoid(0.165, 0.021, 0.215, mCap, CAP_RIM_Y - 0.003, 0.128, 18);
+    bill.rotation.x = 0.24;
+    bill.castShadow = true;
     head.add(bill);
-    // the sweatband: the dark inner rim a real cap shows under the crown edge,
-    // and the thing that makes the join read as a hat put ON a head
+    // the sweatband: the dark inner rim a real cap shows under the crown edge.
+    // It sits AT the rim now (the old one was 87 mm lower, level with the ears,
+    // where a cap has no band).
     const band = new THREE.Mesh(
-      new THREE.CylinderGeometry(SKULL_R * 1.035, SKULL_R * 1.045, 0.030, 20, 1, true),
+      new THREE.CylinderGeometry(0.1425, 0.1435, 0.022, 22, 1, true),
       M(0x2f3a34, 0.9),
     );
-    band.position.y = SKULL_Y - 0.052;
-    band.scale.set(1.02, 1, 1.06);
+    band.position.y = CAP_RIM_Y - 0.010;
+    band.scale.set(1.0, 1, 1.04);
     fineDetail(band);
     head.add(band);
   } else {
-    // bare head gets hair instead of a cap
+    // ITEM 16: the bare head wore a hemisphere sliced flat across a round
+    // skull. Its rim sat at y 0.112 - ABOVE the skull's widest point - so the
+    // sides and back of the head were bare scalp below a hard horizontal line,
+    // and the portrait read as a swim cap. Measured as coverBelowEquator
+    // -0.30: the covering stopped three tenths of a skull radius short of even
+    // reaching the equator.
+    //
+    // Real hair reaches the nape at the back and stops at the brow in front, so
+    // the rim is not horizontal - it is TILTED. One sphere segment, swept a
+    // little past its own equator and tipped back, gives both edges at once:
+    // the front rim rises to the hairline and the back rim drops to the neck.
+    const HAIR_R = 0.163;
+    const HAIR_SWEEP = Math.PI * 0.56; // 10.8 degrees past the equator
     const hair = new THREE.Mesh(
-      G('hair', () => new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1)),
-      M(0x4a3a28, 0.95),
+      G('hair', () => new THREE.SphereGeometry(HAIR_R, 20, 14, 0, Math.PI * 2, 0, HAIR_SWEEP)),
+      M(0x3d3024, 0.82),
     );
-    hair.position.y = 0.1;
+    hair.position.y = 0.075;
+    // Tipped back 0.52 rad: the rim circle is 0.160 across, so each edge moves
+    // 0.160*sin(0.52) = 79 mm. Front hairline lands at y 0.124, 4 mm above the
+    // top of the brow; the back reaches y -0.034, below the ears and onto the
+    // nape. A sphere is rotation-invariant, so tipping it moves the rim without
+    // touching the clearance Q6 measured.
+    hair.rotation.x = -0.52;
+    hair.castShadow = true;
     head.add(hair);
   }
 
@@ -293,7 +345,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     chest.add(shoulder);
     // deltoid cap at the pivot: a polo ball merging the yoke into the sleeve. Sitting on
     // the joint centre, it caps the shoulder at every arm angle without a visible socket.
-    const deltoid = ball(0.080, mPolo, 16);
+    // ITEM 16: 0.080 against a 0.056 upper arm is a 24 mm bulb at the joint,
+    // and with the yoke behind it every customer read as balloon sleeves. 0.071
+    // still clears the arm by 15 mm, so the joint stays closed at every angle -
+    // which is the only reason this ball exists - without the balloon.
+    const deltoid = ball(0.071, mPolo, 16);
     deltoid.scale.set(0.94, 0.90, 0.84);
     shoulder.add(deltoid);
     const upperArm = capsule(0.056, 0.20, mPolo, -0.15);
