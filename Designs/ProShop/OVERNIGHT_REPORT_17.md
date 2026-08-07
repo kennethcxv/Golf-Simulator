@@ -1301,6 +1301,36 @@ What that leaves genuinely open for the mop is different and visible in the B1
 frame: the head does not sit FLAT on the boards, it hangs at an angle. That is
 about head orientation, not about reach, and it is on NOT DONE.
 
+## The class behind three of this session's wrong findings, and the guard for it
+
+Three findings this session were artefacts of measuring a tool that was not
+switched on, and every one of them looked convincing enough to publish - two of
+them I did publish:
+
+| # | the finding | what was actually true |
+| --- | --- | --- |
+| 1 | the mop's strands are "31% of the picture", from a stroke with a frozen-strand control | the mop was **DRY and refusing to run**, and the game said so in the corner of my own evidence screenshot |
+| 2 | the fix for that: "charged: true" | `cleaningStatus()` returns `{ ...c.mop }`, a **fresh copy every call**, so the write went to a throwaway |
+| 3 | "the hand anchor has a dead zone across most of its range" | four sweep steps taken **before the rig had started** - `seatError` exactly 0, `headAboveFloor` null |
+
+**One shape, three times: the driver assumed the tool was working because it had
+asked for it.** Requirement 6 says fix the class, so:
+
+`toolIsLive(page, tool)` now lives in `tools/qa/lib/qa-boot.mjs` beside
+`clickThroughMenu`. It waits for the rig to report a **solved pose** (not merely
+an equipped tool - `headAboveFloor` is null until the rig has actually run),
+reads the consumable gates **through the accessor the game itself reads**, and
+returns the evidence so a driver can print it and a reader can see it. A dry
+mop, a tied bag or a full pan all come back `blocked: true`.
+
+It deliberately prepares nothing. Preparation is the driver's business; this
+just refuses to let a run continue on a tool that is not live.
+
+**The deeper lesson, which is the one worth keeping:** every one of these three
+was caught by a *screenshot* or by a control, never by the metric. The metric
+was healthy and precise in all three cases. Numbers cannot tell you they are
+about nothing.
+
 ---
 
 ## RUNNING LISTS
@@ -1331,8 +1361,15 @@ _Updated continuously, not at the end._
 - **Six QA drivers name-scan `MopStrand_<i>_<s>`** and will silently count zero
   now that the fibres are instanced. They must be ported to `strandCount` /
   `tipsLocal()` before Phase 5 re-runs them, or they will report a false red.
-- **B1, B3, B4, B5** open. B0 (the stale-asset check) is done and disproven;
-  B1's research step is done.
+- **B1's motion tuning.** The mop now works in a driver and the strands move
+  0.4578 m in the head's own frame, but no tuning values have been chosen with
+  the overlay against a working tool, which is what B1 asks for.
+- **B1: the mop head hangs at an angle rather than sitting flat on the boards.**
+  Visible in the frame; about orientation, not reach.
+- **B1: the handle, the grip and the floor contact** are untouched - this pass
+  did the strands only.
+- **B3** (broom bristle motion) not yet measured on a working broom; **B5**
+  (leave the other seven alone) is being honoured by omission.
 - **The load itself.** Verifier 2's disproof of the previous session's first-load
   numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
   baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.

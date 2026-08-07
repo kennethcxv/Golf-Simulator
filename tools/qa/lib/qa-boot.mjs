@@ -101,3 +101,67 @@ export async function clickThroughMenu(page) {
   if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click();
   return 'new-game';
 }
+
+// GOAL 17 — THE TOOL-IS-ACTUALLY-LIVE GATE.
+//
+// Three separate findings in one session were artefacts of measuring a tool
+// that was not switched on, and each one looked completely convincing:
+//
+//   * the mop's strand divergence, measured across a "stroke" on a mop that
+//     was DRY and refusing to run - the banner saying so was in the corner of
+//     the evidence screenshot
+//   * the fix for that, which set the charge on the object `cleaningStatus()`
+//     returns - a fresh copy every call - and reported success
+//   * a "dead zone in the hand anchor", which was four sweep steps taken
+//     before the rig had started (seatError exactly 0, headAboveFloor null)
+//
+// One shape, three times: the driver assumed the tool was working because it
+// had asked for it. This is the assertion those three needed. It does not
+// prepare anything by itself - preparation is the driver's business - it just
+// refuses to let a run continue on a tool that is not live, and hands back the
+// evidence so the driver can print it.
+//
+//   const live = await toolIsLive(page, 'mop');
+//   if (!live.ok) { console.log('ABORT', JSON.stringify(live)); return { live }; }
+export async function toolIsLive(page, tool, { timeoutMs = 20000 } = {}) {
+  const rigReady = await page.waitForFunction((id) => {
+    const w = window.__fw?.scene3d?.walk;
+    if (w?.getTool?.() !== id) return false;
+    const d = w.toolRigDiagnostics?.(id);
+    // headAboveFloor is null until the rig has actually solved a pose, which
+    // is the difference between "equipped" and "running".
+    return !!(d && d.headAboveFloor != null);
+  }, tool, { timeout: timeoutMs }).then(() => true).catch(() => false);
+
+  const detail = await page.evaluate((id) => {
+    const app = window.__fw;
+    const w = app?.scene3d?.walk;
+    const d = w?.toolRigDiagnostics?.(id) ?? null;
+    // The consumable gates, read through the SAME accessor the game reads, not
+    // from a store the driver happens to know about.
+    const status = app?.scene3d?.clubhouse?.()?.cleaningStatus?.() ?? null;
+    const gates = {};
+    if (id === 'mop') {
+      gates.mopCharge = status?.mop?.charge ?? null;
+      gates.mopWet = status?.mop?.wet ?? null;
+      // A dry mop REFUSES to work and says so on screen. Measuring a stroke
+      // with this false is measuring nothing.
+      gates.blocked = !(status?.mop?.charge > 0);
+    }
+    if (id === 'trashbag') gates.blocked = !!status?.bag?.tied;
+    if (id === 'dustpan') gates.blocked = !!status?.pan?.full;
+    return {
+      held: w?.getTool?.() ?? null,
+      headAboveFloor: d?.headAboveFloor ?? null,
+      seatError: d?.seatError ?? null,
+      geomSource: d?.geomSource ?? null,
+      gates,
+    };
+  }, tool);
+
+  return {
+    ok: rigReady && detail.held === tool && detail.gates.blocked !== true,
+    rigReady,
+    ...detail,
+  };
+}
