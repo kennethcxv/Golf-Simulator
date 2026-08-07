@@ -21,14 +21,32 @@ the comb). B4 BUILT (plant authority fades over 12cm as hands sink below
 plant height; workBlendEff drives planted flag+strands) — NOT yet
 instrument-verified (sweep re-run pending). Broom gaps still 3/3/3 px.
 
-PENDING RIGHT NOW: suite re-run bauuqi7ie on settled tree must name the 1
-failing test from the mixed-state run (suspect: a test pinning buildHeadLag
-reason string or strand module shape). FIX IT, suite green, then COMMIT
-B2+B3+B4: files = src/ui/toolTuner.js (new), src/main.js, preload.cjs,
-main.cjs (IPC), src/render3d/{broomViewmodel,courseScene,mopStrands,
-toolViewmodel}.js, tools/qa/electron-tool-tuner.js, report+resume. Then
-push. B0-driver note: its mop leg re-shows the hidden skirt after its
-control — reorder before next use (share step measured a driver state).
+DONE SINCE: B2+B3+B4 COMMITTED AND PUSHED (dfb4b4b + 68a8e18 + 2dd0c3f),
+final suite 2821/0 green. PROCESS FAULT #49 for the report: dfb4b4b and
+68a8e18 both went in with no-em-dash-in-player-copy RED (first: tail
+swallowed the fail line; second: grep's exit code matched "# fail 1" and
+the && chain committed anyway) — closed properly in 2dd0c3f; the report
+must record both misfires under instrument faults. B0-driver note: its mop
+leg re-shows the hidden skirt after its control — reorder before next use
+(the share step measured a driver-made state, not the game's).
+
+NEXT = B5: equip each tool, open F9 overlay, exercise mode on, tune by eye
+(anchor/rolls/hover/strand params), Save (writes toolFeelOverrides.json —
+COMMIT that file with the landed values listed in the report per goal B5),
+record after-clips (VIDEO_DIR=qa/electron/b1/broom-after QA_B1_TOOL=broom
+node tools/qa/run-electron.cjs tools/qa/electron-b1-watch.js
+--clubhouse=pine-hills-v2; same mop), extract frames (webm-frames.js),
+WATCH, describe in report. B4 DONE AND VERIFIED (electron-b4-plant.js all 8 checks green: legal
+reaches plant at kiss 0.012, below-floor -2.0/-2.4 REFUSE with blend 0 +
+head at carry hover, up-look sweeps clean did:0, work pitch cleans; plus
+courseScene cleaning gate extended broom-only → rig-owned pair so the mop
+banks unplanted strokes too; fault #50 = the ladder's own first
+thresholds). AWAITING suite b9d92x2m3 → commit B4 (courseScene.js,
+electron-b4-plant.js, report, resume) → push → then B5. Then A2/C bundle
+(ledger 250ms open + turn split/cache + C1 pointer-lock-keeps + C6 A/D
+consume), A3 ladder removal, D2-D5, G before E/F, Phase 4 verifiers,
+final report assembly per goal (verification section, disproven claims at
+TOP, UNCONFIRMED/NOT-DONE lists).
 
 THEN (order): B5 tune with overlay (record after-clips electron-b1-watch
 per tool + watch + report values); A2/C bundle; A3; D2-D5; G; E; F. Phase 4

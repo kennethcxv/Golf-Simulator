@@ -8781,10 +8781,15 @@ export function makeCourseScene(canvas, state) {
             strokeGateAccum += dt;
             gatedDt = 0;
           }
-          // Phase 6: a CARRIED broom cleans nothing. Until the rig's pose has
+          // Phase 6: a CARRIED tool cleans nothing. Until the rig's pose has
           // blended onto the boards, contact dt banks instead of landing —
           // sweeping only counts where the bristles visibly are.
-          if (walkTool === 'broom' && broomPose && !broomPose.planted && gatedDt > 0) {
+          // B4 (2026-08-07): this guard named the BROOM alone — the same
+          // broom-only family as the stroke clobber — so an unplanted mop
+          // kept cleaning. Any rig-owned tool's planted flag gates now, and
+          // with B4's reach authority in the flag, hands that cannot span
+          // the floor clean nothing at any pitch.
+          if (rigOwnsHeldTool && rigPose && !rigPose.planted && gatedDt > 0) {
             strokeGateAccum += gatedDt;
             gatedDt = 0;
           }

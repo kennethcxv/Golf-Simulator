@@ -261,15 +261,28 @@ b0-divergence/broom-fresh/01-equipped-default-pitch.png — a visible comb
 of individual tufts where the slab was. Hand/shaft gaps re-verified 3/3/3
 px after the change.
 
-## B4 — plant authority follows reach (built; sweep re-run pending)
+## B4 — plant authority follows reach: BUILT AND VERIFIED
 
-The from-below fake (the sweep's "plants at 0.073 yd for an anchor 2 yd
-under the eye") is closed: work-pose authority fades over a 12 cm ease as
-the hands sink below the plant height (broomViewmodel workBlendEff);
-`planted` — the flag that gates cleaning — follows the effective blend, so
-cleaning cannot land while the head is visibly unplanted. The too-high
-side already hung the head on the shaft sphere by construction. The
-framing-sweep re-run and up-look pixel leg are the remaining verification.
+Work-pose authority fades over a 12 cm ease as the hands sink below the
+plant height (broomViewmodel workBlendEff); `planted` follows the
+effective blend; and the courseScene cleaning gate — which named the BROOM
+alone, the same broom-only family as B0's clobber — now banks unplanted
+strokes for the rig-owned pair, so the mop stops cleaning while carried
+too. Verified by a dedicated ladder instrument
+(tools/qa/electron-b4-plant.js, qa/electron/b4-plant/b4.json, all 8
+checks): geomSource 'live' on every rung (null = FAIL); shipped anchor
+plants at the kiss (headAboveFloor 0.012, workBlend 1); LEGAL low anchors
+(-0.9, -1.5 — hands still above the floor holding a 1.247 yd handle) still
+plant, which the instrument's own first run taught it; the scandal case —
+hands BELOW the floor (-2.0, -2.4) — now REFUSES (workBlend 0, head riding
+the carry hover at 0.54-0.60 yd) where the old rig faked 0.073; shipped
+rung sampled first and last agrees (no drift); a real held sweep at full
+up-look cleans exactly ZERO (`did: 0` with the gate banking dt) while the
+same instrument sees cleaning land at work pitch (positive control).
+Instrument fault #50 for the ledger: the ladder's first run failed its own
+too-strict thresholds — -0.9/-1.5 are reaches a real handle spans, and the
+"failure" was the acceptance bounds, not the rig; the corrected ladder
+asserts BOTH halves (legal plants, below-floor refuses).
 
 ## D1 — implemented, not yet verified
 
