@@ -1228,7 +1228,7 @@ where the collar meets the yarn.
 tuning values are reported yet, because the brief asks for values chosen with
 the overlay against a working tool - which, as of this run, is finally possible.
 
-## B4 — the stated hypothesis is disproven, and there is a worse bug behind it
+## B4 — the described defect does not reproduce, and I got it wrong once on the way
 
 The brief names both the defect and a cause:
 
@@ -1238,52 +1238,68 @@ The brief names both the defect and a cause:
 
 That sentence names a measurement nobody had taken: **the drawn grip-to-head
 distance against the length the handle actually is.** A plant number alone can
-never show a stretched shaft, which is exactly why six rounds of plant numbers
-all looked fine. `tools/qa/electron-b4-plant.js` sweeps the hand anchor through
-its whole range using the same live door the tuning overlay writes with, and
-reads the span at every step.
+never show a stretched shaft, which is why six rounds of plant numbers all
+looked fine. `tools/qa/electron-b4-plant.js` sweeps the hand anchor through its
+range using the same live door the tuning overlay writes with, and reads the
+span at every step.
 
-### The shaft is rigid. The hypothesis is wrong.
+### The correction I have to make first
+
+**My first run of this produced a confident finding that was an artefact, and I
+published it.** It showed four consecutive anchor values giving a bit-identical
+pose and I called it "a dead zone across most of the anchor's useful range" -
+with a table. The tool simply was not in hand yet: `seatError` read exactly 0
+and `headAboveFloor` read null, which is equally the signature of a rig that has
+not started.
+
+**That is the third time this session an unready or switched-off tool produced a
+finding** - the dry mop, the copy-writing setter, and now this. The driver now
+waits for `toolRigDiagnostics` to report a live plant before it sweeps anything,
+and prints `rigReady` beside every result.
+
+### With the rig actually running
 
 | anchor Y | grip world Y | head world Y | **grip-to-head span** | head above floor |
 | --- | --- | --- | --- | --- |
-| -0.10 | 3.1757 | 1.9158 | **1.3640** | none (not planted) |
-| -0.30 | 3.1757 | 1.9158 | **1.3640** | none |
-| -0.44 | 3.1757 | 1.9158 | **1.3640** | none |
-| -0.60 | 3.1757 | 1.9158 | **1.3640** | none |
-| -0.85 | 2.1051 | 1.4526 | **1.3640** | 0.044 |
-| -1.10 | 1.8725 | 1.4519 | **1.3640** | 0.043 |
-| -1.20 | 1.7775 | 1.4520 | **1.3640** | 0.043 |
+| -0.10 | 2.6116 | 1.2685 | **1.3640** | **0.058** |
+| -0.30 | 2.4210 | 1.2528 | **1.3640** | 0.042 |
+| -0.44 | 2.2872 | 1.2533 | **1.3640** | 0.043 |
+| -0.60 | 2.1363 | 1.2536 | **1.3640** | 0.043 |
+| -0.85 | 1.9028 | 1.2535 | **1.3640** | 0.043 |
+| -1.10 | 1.6705 | 1.2535 | **1.3640** | 0.043 |
+| -1.20 | 1.5791 | 1.2541 | **1.3640** | 0.044 |
 
-**Span spread across the entire sweep: 0.0000.** The handle keeps its authored
-1.364 yd at every hand position, planted or not. The shaft is NOT being drawn
-between two points that do not belong together, and the head is not being pinned
-to the floor at the handle's expense. That reading is disproven, and it is worth
-disproving because it is the explanation the last six rounds were working from.
+Three things, and none of them is the reported defect:
 
-### What the same table shows instead, and it is worse
+1. **The shaft is rigid.** Span 1.3640 yd at every anchor, spread **0.0000**.
+   It is never drawn between two points that do not belong together. **The
+   brief's stated cause is disproven** - worth disproving, because it is the
+   explanation the last six rounds were working from.
+2. **The grip moves monotonically with the anchor**, 2.6116 down to 1.5791 -
+   a full 1.03 yd of travel with no dead zone and no cliff. There is nothing
+   wrong with the anchor.
+3. **The head holds station at 1.253 while the hands fall a yard**, which is
+   not a bug - it is what a broom does. Lower your hands with the head on the
+   floor and the handle rotates toward vertical. A rigid shaft plus a planted
+   head REQUIRES the grip to move and the head not to.
 
-**Four consecutive anchor values produce a bit-identical pose.** From -0.10 to
--0.60 the hand anchor moves half a yard and the grip does not move at all -
-3.1757 to four decimal places, four times, with the head equally frozen at
-1.9158. Then between -0.60 and -0.85 the grip drops **1.07 yd** for a 0.25
-change in input.
+And the reach limit is working: at anchor -0.10 the grip sits at 2.6116, above
+the 2.574 the handle can span to the boards from, and the head **lifts to 0.058**
+instead of staying pinned. That is precisely the behaviour B4 asks for, already
+present.
 
-**The hand anchor has a dead zone across most of its useful range, and a cliff
-at the end of it.** That is a much better explanation of "every candidate in the
-sweep read the same plant number" than a stretched shaft: half the candidates
-were never actually different poses. It also means **every hand-position sweep
-this project has run may have been comparing values that produced identical
-frames**, and the tuning overlay's own anchor slider spends most of its travel
-doing nothing.
+### So what B4 turns into
 
-The plant number itself does behave as the brief describes once it engages -
-0.043, 0.043, 0.044, near-constant - but now that is a consequence of the dead
-zone rather than a mystery.
+**The defect as described does not reproduce on this build.** The fix logged in
+the previous session appears to work, and the brief's description reflects the
+state before it. Reported as such rather than manufacturing a change: the
+honest answer to "fix the plant you logged and did not fix" is that it now
+plants only when the handle reaches, and here are the seven measurements that
+say so.
 
-**On NOT DONE**: finding what clamps or saturates the anchor between -0.10 and
--0.60. It is the next thing I would do in this section, and it is a prerequisite
-for any tuning value being meaningful - including the ones B5 asks me to report.
+What that leaves genuinely open for the mop is different and visible in the B1
+frame: the head does not sit FLAT on the boards, it hangs at an angle. That is
+about head orientation, not about reach, and it is on NOT DONE.
 
 ---
 

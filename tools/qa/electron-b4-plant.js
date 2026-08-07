@@ -104,6 +104,18 @@ async (page) => {
     };
   }, TOOL);
 
+  // THE TOOL MUST ACTUALLY BE IN HAND BEFORE ANY OF THIS MEANS ANYTHING.
+  // The first run of this driver showed four consecutive anchor values
+  // producing a bit-identical pose with seatError exactly 0 and
+  // headAboveFloor null - which is equally the signature of a rig that is not
+  // running yet. Waiting for the rig to report itself active, and saying so,
+  // is what tells a dead zone from an unequipped tool.
+  out.rigReady = await page.waitForFunction((tool) => {
+    const d = window.__fw.scene3d.walk.toolRigDiagnostics?.(tool);
+    return !!(d && d.headAboveFloor != null);
+  }, TOOL, { timeout: 20000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(600);
+
   // Rest reading first, before anything is moved.
   out.rest = await readStep();
 
@@ -135,6 +147,7 @@ async (page) => {
   };
   await page.screenshot({ path: path.join(OUT, `b4-${TOOL}-last.png`) });
   fs.writeFileSync(path.join(OUT, `b4-${TOOL}.json`), `${JSON.stringify(out, null, 2)}\n`);
+  console.log(`B4[${TOOL}] equipped`, out.equipped, 'rigReady', out.rigReady);
   console.log(`B4[${TOOL}] authored`, JSON.stringify(out.authored));
   console.log(`B4[${TOOL}] verdict`, JSON.stringify(out.verdict));
   console.log(`B4[${TOOL}] steps`, JSON.stringify(steps));
