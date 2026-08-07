@@ -1502,6 +1502,57 @@ stays for the next attempt. **On NOT DONE with both screenshots.**
 
 **Twenty-minute-stranger bar: the sequence, yes. The cover, no.**
 
+## C2/C3 — the ellipsis is gone, and the recorder found the page the brief named
+
+### C2: no string in this book can show an ellipsis any more
+
+`fitLine` cut characters off the end and appended one, and **seventeen call
+sites used it** - the guest register, the notes, the day sheet, the complaints,
+the deed, the locked-section lines. The brief is absolute: "Overflow is a layout
+decision, not a truncation."
+
+Nothing is cut now. `drawFitted` **shrinks** the text until it fits, down to a
+70% floor, and puts the font back. It had to be a draw helper rather than a
+string helper: shrinking means changing `ctx.font` for exactly one `fillText`,
+and a function that returns a string cannot restore the font before whatever
+draws next. Fourteen sites converted mechanically; the two that MEASURE rather
+than draw keep `fitLine`, which is now the identity, so an underline measures
+the real string.
+
+**Ellipsis characters remaining in `ledgerBook.js`: zero.**
+
+### C3: and anything that still will not fit is recorded rather than drawn tiny
+
+A string that overflows even at the floor is a page that needs paginating, so
+`drawFitted` records it. That recorder sits beside the overlap recorder the book
+already had, and both are on `diagnostics()`.
+
+### What they found, on the page the brief calls the worst
+
+Sweeping all five spreads with the book **open** (see below - the first attempt
+swept it shut):
+
+| recorder | finding |
+| --- | --- |
+| **squeeze** | `"PANEL-07 gives nothing. The ceiling circuit is dead."` needs **643 px** in a **468 px** box at 28px Georgia - **37% too wide**, and still too wide shrunk to the floor |
+| **overlap** | the same string collides with `"not said yet"` by **142.4 px horizontally and 27 px vertically**, on page index 2 |
+
+Two recorders, built independently, converging on one string on the complaints
+page - which is exactly where C2 says to look ("Complaints and Fixes is the
+worst"). That string is 52 characters of prose in a box sized for a label, and
+the honest fix is to **wrap it onto a second line and paginate what that pushes
+off**, which is C2's own instruction and is the next item.
+
+### The instrument fault, again, and caught by its own number
+
+The first run of the sweep reported **0 overlaps and 0 squeezes** - and
+`spreadsWalked: 1`. It was running **after** the third E press had shut the
+book, so it walked one spread of a closed ledger and found nothing, exactly as
+it should have. That is the same shape as the dry mop and the unready rig: a
+measurement taken in a state the thing under test does not occupy. The
+`spreadsWalked` count is what gave it away, which is an argument for reporting
+how much a sweep actually covered rather than only what it found.
+
 ---
 
 ## RUNNING LISTS

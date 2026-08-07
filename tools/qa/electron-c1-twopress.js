@@ -101,9 +101,41 @@ async (page) => {
   // THE CONTROL: a key bound to nothing. The state must not move.
   const sControl = await step('control-unbound-key', 'k', 900);
   const s2 = await step('press2-should-be-open', keys.interact || 'e');
+  // C2/C3 — SWEEP EVERY SPREAD, WHILE THE BOOK IS STILL OPEN. The first
+  // version of this ran after the third press had shut it: one spread walked,
+  // zero overlaps, zero squeezes, all of it meaningless. Same fault class as
+  // the dry mop.
+  // SWEEP EVERY SPREAD while the book is open, and read the book's own
+  // recorders: overlaps (already there) and squeezes (new - a string that would
+  // not fit even shrunk to the floor, which is a page that needs paginating).
+  out.pages = await page.evaluate(async () => {
+    const ch = window.__fw.scene3d.clubhouse();
+    const book = ch.ledgerBook;
+    const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
+    const seen = [];
+    const total = book.diagnostics().spreadCount || 0;
+    for (let i = 0; i < total + 1; i += 1) {
+      const d = book.diagnostics();
+      seen.push({ spread: d.spread, pageCount: d.pageCount });
+      if (!book.turnPage(1)) break;
+      await sleep(900);
+    }
+    const d = book.diagnostics();
+    return {
+      spreadsWalked: seen.length,
+      spreadCount: total,
+      overlaps: d.overlaps || [],
+      squeezes: d.squeezes || [],
+    };
+  });
+
+
   const s3 = await step('press3-should-shut', keys.interact || 'e', 1800);
 
   out.verdict = {
+    ledgerOverlaps: out.pages?.overlaps?.length ?? null,
+    ledgerSqueezes: out.pages?.squeezes?.length ?? null,
+    spreadsWalked: out.pages?.spreadsWalked ?? null,
     startedClosed: out.before.state === 'closed',
     // press 1: in hand, SHUT. `held` is the state C1 asks to exist.
     firstPressRaisesShut: (s1.state === 'held' || s1.state === 'raising')

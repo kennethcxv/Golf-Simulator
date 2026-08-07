@@ -659,10 +659,63 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // overlap — the number is the least important thing on the page.
   function pageFooter() {}
 
-  function fitLine(ctx, value, maxWidth) {
-    let text = String(value || '');
-    while (text.length > 2 && ctx.measureText(text).width > maxWidth) text = text.slice(0, -1);
-    return text === String(value || '') ? text : `${text}…`;
+  // C2 (Goal 17) — NO STRING IN THIS BOOK MAY EVER SHOW AN ELLIPSIS.
+  //
+  // fitLine used to cut characters off the end and add one. Seventeen call
+  // sites used it, so an ellipsis was reachable on the guest register, the
+  // notes, the day sheet, the complaints, the deed and the locked-section
+  // lines. The brief is absolute about this: "Overflow is a layout decision,
+  // not a truncation."
+  //
+  // So nothing is cut. The text is SHRUNK until it fits, down to a floor, and
+  // anything that still will not fit at the floor is RECORDED rather than
+  // silently drawn tiny - that recording is the list of places that genuinely
+  // need pagination, which is the other half of C2.
+  //
+  // It has to be a draw helper rather than a string helper: shrinking means
+  // changing ctx.font for exactly one fillText and putting it back, and a
+  // function that returns a string cannot do that without leaking the font
+  // into whatever draws next.
+  const LEDGER_SQUEEZES = [];
+  const FIT_FLOOR = 0.70;
+  function drawFitted(ctx, value, x, y, maxWidth) {
+    const text = String(value == null ? '' : value);
+    if (!text) return text;
+    if (!(maxWidth > 0) || ctx.measureText(text).width <= maxWidth) {
+      ctx.fillText(text, x, y);
+      return text;
+    }
+    const font = ctx.font;
+    const parts = /^(.*?)(\d+(?:\.\d+)?)px(.*)$/.exec(font);
+    if (parts) {
+      const basePx = Number(parts[2]);
+      for (let scale = 0.95; scale >= FIT_FLOOR; scale -= 0.05) {
+        ctx.font = `${parts[1]}${(basePx * scale).toFixed(1)}px${parts[3]}`;
+        if (ctx.measureText(text).width <= maxWidth) {
+          ctx.fillText(text, x, y);
+          ctx.font = font;
+          return text;
+        }
+      }
+      ctx.font = font;
+    }
+    // Still too wide at the floor: draw it whole and RECORD it. A recorded
+    // overflow is a page that needs paginating; a silent one is a lie.
+    if (LEDGER_SQUEEZES.length < 60) {
+      LEDGER_SQUEEZES.push({
+        text: text.slice(0, 60), maxWidth: Math.round(maxWidth),
+        width: Math.round(ctx.measureText(text).width), font,
+      });
+    }
+    ctx.fillText(text, x, y);
+    return text;
+  }
+
+  // Kept for the two sites that MEASURE rather than draw. It no longer cuts or
+  // adds anything - it is now the identity, so a caller that measures gets the
+  // real width of the real string.
+  function fitLine(ctx, value) {
+    return String(value == null ? '' : value);
   }
 
   const hourLabel = (minute) => {
@@ -793,13 +846,13 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       const base = top + headRow + row * rowHeight + rowHeight * 0.68;
       ctx.fillStyle = '#3d3325';
       ctx.font = `400 ${T(21)}px ${SCRIPT_FONT}`;
-      ctx.fillText(fitLine(ctx, rosterDateShort(entry.firstVisitDayAbs), GUEST_COLS[1] - GUEST_COLS[0] - 18), GUEST_COLS[0] + 10, base);
+      drawFitted(ctx, rosterDateShort(entry.firstVisitDayAbs), GUEST_COLS[0] + 10, base, GUEST_COLS[1] - GUEST_COLS[0] - 18);
       ctx.fillStyle = '#2c3a50';
       ctx.font = `400 ${T(26)}px ${SCRIPT_FONT}`;
-      ctx.fillText(fitLine(ctx, entry.name, GUEST_COLS[2] - GUEST_COLS[1] - 20), GUEST_COLS[1] + 12, base);
+      drawFitted(ctx, entry.name, GUEST_COLS[1] + 12, base, GUEST_COLS[2] - GUEST_COLS[1] - 20);
       ctx.fillStyle = '#3d3325';
       ctx.font = `400 ${T(21)}px ${SCRIPT_FONT}`;
-      ctx.fillText(fitLine(ctx, rosterDateShort(entry.lastVisitDayAbs), GUEST_COLS[3] - GUEST_COLS[2] - 18), GUEST_COLS[2] + 10, base);
+      drawFitted(ctx, rosterDateShort(entry.lastVisitDayAbs), GUEST_COLS[2] + 10, base, GUEST_COLS[3] - GUEST_COLS[2] - 18);
       ctx.textAlign = 'center';
       ctx.font = `400 ${T(24)}px ${SCRIPT_FONT}`;
       ctx.fillText(String(entry.visits), (GUEST_COLS[3] + GUEST_COLS[4]) / 2, base);
@@ -826,19 +879,19 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         ctx.fillRect(40, y - 19, 13, 13);
         ctx.fillStyle = '#3f4a42';
         ctx.font = `400 ${T(21)}px Georgia, serif`;
-        ctx.fillText(fitLine(ctx, note.text, PAGE_W - 100), 66, y);
+        drawFitted(ctx, note.text, 66, y, PAGE_W - 100);
         // ITEM 17: the standing instruction, under the note that needs it, in
         // the desk's quieter hand. What it needs and what to press - the two
         // questions the book used to leave a first-timer to guess.
         if (note.action) {
           ctx.fillStyle = 'rgba(107,114,104,0.92)';
           ctx.font = `italic 400 ${T(16)}px Georgia, serif`;
-          ctx.fillText(fitLine(ctx, note.action, PAGE_W - 120), 66, y + T(19));
+          drawFitted(ctx, note.action, 66, y + T(19), PAGE_W - 120);
         }
       } else {
         ctx.fillStyle = '#6b7268';
         ctx.font = `italic 400 ${T(21)}px Georgia, serif`;
-        ctx.fillText(fitLine(ctx, note.text, PAGE_W - 72), 36, y);
+        drawFitted(ctx, note.text, 36, y, PAGE_W - 72);
       }
       written += 1;
       y += step;
@@ -913,7 +966,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       const muted = !!row.muted;
       ctx.fillStyle = muted ? 'rgba(107,114,104,0.72)' : strong ? '#3f4a42' : '#6b7268';
       ctx.font = `${strong ? 700 : 400} ${T(labelFont)}px Georgia, serif`;
-      ctx.fillText(fitLine(ctx, row.label, PAGE_W - 300), 48, y);
+      drawFitted(ctx, row.label, 48, y, PAGE_W - 300);
       if (row.value != null) {
         ctx.textAlign = 'right';
         ctx.fillStyle = row.valueColor || (muted ? 'rgba(107,114,104,0.72)' : '#2c3e50');
@@ -921,7 +974,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         // the page MESH curves into the gutter and crops the canvas's last
         // ~25 px: a value ending at -48 rasterises clipped ("waiting on the
         // ceili..."). The shared right edge pulls in to survive the crop.
-        ctx.fillText(fitLine(ctx, String(row.value), 205), PAGE_W - 72, y);
+        drawFitted(ctx, String(row.value), PAGE_W - 72, y, 205);
         ctx.textAlign = 'left';
       }
       // a settled complaint is struck through, not deleted: "we had that
@@ -938,7 +991,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       if (row.note) {
         ctx.fillStyle = 'rgba(107,114,104,0.92)';
         ctx.font = `italic 400 ${T(15)}px Georgia, serif`;
-        ctx.fillText(fitLine(ctx, row.note, PAGE_W - 120), 66, y + T(17));
+        drawFitted(ctx, row.note, 66, y + T(17), PAGE_W - 120);
         noteDrop = noteExtra;
       }
       ctx.strokeStyle = 'rgba(90,80,58,0.20)';
@@ -961,7 +1014,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const heading = model.reviewsRead
       ? `${model.outstanding} still standing, ${model.settled} dealt with, from ${model.reviewsRead} reviews`
       : 'Nobody has written anything yet.';
-    ctx.fillText(fitLine(ctx, heading, PAGE_W - 80), 40, 144);
+    drawFitted(ctx, heading, 40, 144, PAGE_W - 80);
     const rows = model.complaints.map((row) => ({
       label: row.label,
       value: row.count > 1 ? `${row.count} times` : 'once',
@@ -1060,7 +1113,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       const strong = !row.closed;
       ctx.fillStyle = strong ? '#3f4a42' : '#6b7268';
       ctx.font = `${strong ? 700 : 400} ${T(18)}px Georgia, serif`;
-      ctx.fillText(fitLine(ctx, row.dateLabel, 240), 48, y);
+      drawFitted(ctx, row.dateLabel, 48, y, 240);
       ctx.textAlign = 'right';
       ctx.font = `400 ${T(18)}px Georgia, serif`;
       ctx.fillStyle = '#6b7268';
@@ -1090,11 +1143,11 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     ctx.textAlign = 'center';
     ctx.fillStyle = '#3a4a40';
     ctx.font = `italic 700 ${T(30)}px Georgia, serif`;
-    ctx.fillText(fitLine(ctx, deed.clubName, PAGE_W - 96), PAGE_W / 2, 158);
+    drawFitted(ctx, deed.clubName, PAGE_W / 2, 158, PAGE_W - 96);
     if (deed.location) {
       ctx.fillStyle = '#6b7268';
       ctx.font = `italic 400 ${T(19)}px Georgia, serif`;
-      ctx.fillText(fitLine(ctx, deed.location, PAGE_W - 120), PAGE_W / 2, 188);
+      drawFitted(ctx, deed.location, PAGE_W / 2, 188, PAGE_W - 120);
     }
     ctx.textAlign = 'left';
     const na = (value, format) => (value == null ? 'not recorded' : format(value));
@@ -1263,7 +1316,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     for (const entry of champions) {
       ctx.fillStyle = '#2c3a50';
       ctx.font = `400 ${T(26)}px ${SCRIPT_FONT}`;
-      ctx.fillText(fitLine(ctx, entry.name, PAGE_W - 250), 56, y);
+      drawFitted(ctx, entry.name, 56, y, PAGE_W - 250);
       ctx.textAlign = 'right';
       ctx.fillStyle = '#3d3325';
       ctx.font = `400 ${T(22)}px Georgia, serif`;
@@ -2038,6 +2091,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // deferred visibility slots — the phase split a driver grades
       paintStats: { ...paintStats, deferredPending: turnDeferred.length },
       overlaps: LEDGER_OVERLAPS.slice(0, 60),
+      squeezes: LEDGER_SQUEEZES.slice(0, 60),
       glbReady: glbNodes.ready,
       float: bookState === 'open' ? 1 : (bookState === 'opening' ? +stateT.toFixed(2) : 0),
       cover: +Math.abs(glbNodes.cover.rotation.z / Math.PI).toFixed(2),
