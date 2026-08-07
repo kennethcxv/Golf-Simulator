@@ -789,6 +789,53 @@ player's camera, which needs the Electron slot.
 Sources read: PC Gamer's House Flipper 2 review, the House Flipper wikis and
 community efficiency guides. No footage was watched.
 
+## B2 — the broom read as a rake because it was one
+
+The numbers were in the constructor the whole time. 22 tufts across a 0.46 m
+block is one every **46 mm**, and a tuft is **26 mm** thick, in two rows 50 mm
+apart. That is **20 mm of daylight between neighbours** - separated tines with
+gaps you can see through, which is the definition of a rake.
+
+### Density was the fix, and density was unaffordable
+
+Every segment of every strand was its own `Mesh`: **44 draw calls for the broom,
+42 for the mop**. A1 measured this renderer at 870-1982 draw calls a frame and
+**draw-call bound, not fill bound**, so tripling the tuft count the obvious way
+would have put ~150 more calls into the frame the player already misses budget
+on.
+
+So the fibre rig now draws **instanced** - one `InstancedMesh` per segment
+index, however many strands there are:
+
+| | before | after |
+| --- | --- | --- |
+| broom draw calls | 44 | **2** |
+| mop draw calls | 42 | **3** |
+| broom tufts | 22 | **96** |
+| tuft spacing / thickness | 46 mm / 26 mm (20 mm gap) | **19 mm / 22 mm (they overlap)** |
+| rows | 2 | 4 |
+
+The motion is unchanged - same chase, same drag, same carry deficit, same splay
+- but composed into instance matrices on the CPU rather than through the scene
+graph, which is a few hundred matrix operations a frame. **The dense head is
+cheaper than the sparse one it replaces.**
+
+### Known blast radius, recorded rather than hidden
+
+Instanced layers cannot carry per-strand mesh names, and **six QA drivers scan
+for `MopStrand_<i>_<s>` by name**: `mop-strands.js`,
+`electron-mop-strands-trail.js`, `electron-b0-divergence.js`,
+`electron-v1-b4b.js`, `electron-v1-fix.js`, `electron-v1-tools.js`. They will
+now count **zero strands rather than fail loudly**, which is exactly the
+false-red this project keeps hitting. The rig exposes `strandCount`,
+`drawCalls` and `tipsLocal()` - the last reading back from the drawn instance
+matrices, which is a better instrument than name-scanning ever was - and those
+drivers need porting before Phase 5 re-runs them. On NOT DONE.
+
+**UNCONFIRMED.** Not yet seen at the player's camera: the Electron slot is held
+by Section A's verifier. It is a visual claim, so by this brief's own rule it is
+not done until there is a screenshot.
+
 ---
 
 ## RUNNING LISTS
@@ -797,9 +844,9 @@ _Updated continuously, not at the end._
 
 ### UNCONFIRMED (claimed but not yet proven at the player's camera)
 
-- Nothing currently. Every item banked so far carries a player-camera
-  measurement or, for A6, the rendered strings a screenshot physically cannot
-  capture (a native select popup), with that limitation stated.
+- **B2, the dense instanced broom head.** The geometry and the draw-call counts
+  are certain; how it LOOKS is not, and it is a visual item. Needs a
+  player-camera screenshot the moment the Electron slot frees.
 
 ### NOT DONE
 
@@ -817,7 +864,11 @@ _Updated continuously, not at the end._
 - **A1: `warm-composer-render` is 5532 ms of the 8803 ms prewarm** - 63% of the
   load in one phase, never examined. The obvious first stop for the
   page-to-playable regression a verifier measured at 22.1-22.8 s.
-- **A4: quality preset switching.** Not started.
+- **Six QA drivers name-scan `MopStrand_<i>_<s>`** and will silently count zero
+  now that the fibres are instanced. They must be ported to `strandCount` /
+  `tipsLocal()` before Phase 5 re-runs them, or they will report a false red.
+- **B1, B3, B4, B5** open. B0 (the stale-asset check) is done and disproven;
+  B1's research step is done.
 - **The load itself.** Verifier 2's disproof of the previous session's first-load
   numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
   baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
