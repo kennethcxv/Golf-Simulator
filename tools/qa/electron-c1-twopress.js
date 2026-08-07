@@ -170,6 +170,39 @@ async (page) => {
 
   const s3 = await step('press3-should-shut', keys.interact || 'e', 1800);
 
+  // C5 — WHICH MESH IS THE GREEN STRIP? The book is open here, so ask the scene
+  // what it is drawing and what colour it is. A pale green strap-shaped mesh
+  // down the middle of the left page is the thing the brief calls the bookmark,
+  // and it matches no searchable name in the code or the GLB.
+  out.c5 = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    const root = ch.ledgerBook.root;
+    const found = [];
+    root.traverse((o) => {
+      if (!o.isMesh || !o.visible) return;
+      const c = o.material?.color;
+      if (!c) return;
+      // greenish: g clearly above r and b
+      const greenish = c.g > c.r * 1.08 && c.g > c.b * 1.08;
+      if (!greenish) return;
+      o.geometry.computeBoundingBox();
+      const bb = o.geometry.boundingBox;
+      found.push({
+        name: o.name || '(unnamed)',
+        colour: `#${c.getHexString()}`,
+        size: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
+          .map((v) => +v.toFixed(4)),
+      });
+    });
+    // strap-shaped: one dimension far longer than the other two
+    for (const f of found) {
+      const d = [...f.size].sort((a, b) => b - a);
+      f.strapRatio = d[1] > 0 ? +(d[0] / d[1]).toFixed(2) : null;
+    }
+    found.sort((a, b) => (b.strapRatio || 0) - (a.strapRatio || 0));
+    return found.slice(0, 8);
+  });
+
   out.turnCost = await page.evaluate(() => {
     const s = window.__c6;
     s.stop = true;

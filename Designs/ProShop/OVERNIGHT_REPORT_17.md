@@ -1647,14 +1647,30 @@ something else - the clasp assembly is the strongest candidate, since
 `LB_ClaspTongue` and four buckle parts are the only strap-shaped things in the
 file, and the closed book's clasp has to go somewhere when the book opens.
 
-**Not fixed.** Identifying it is real progress on an item that would otherwise
-have been reported as "cannot find the subject", but changing geometry on a
-strong candidate rather than a confirmed one is exactly the guess this session
-has already been burned by three times. The next step is one probe that toggles
-`LB_ClaspTongue` and re-shoots - a minute of work with the tool already written
-(`electron-c1-twopress.js` opens the book and screenshots it) - and then the
-fix, which per the brief is to move it to the spine head, turn it round, and
-give it a tail worth looking at.
+### Confirmed by probe, and the clasp guess was wrong
+
+Rather than change geometry on a guess, I asked the open book what it was
+drawing: every visible mesh, its material colour, and its proportions. One
+answer, unambiguous:
+
+| mesh | colour | size (m) | strap ratio |
+| --- | --- | --- | --- |
+| **`LB_LayerR0_3`** | **#3c6552** | 0.0169 x 0.0098 x **0.1758** | **10.4** |
+
+A **176 mm long, 17 mm wide green strap** - and nothing else in the open book is
+both green and strap-shaped (the runner-up scores 2.11 and is part of the back
+cover). My own clasp hypothesis was wrong: `LB_ClaspTongue` is not it.
+
+**This is why the item looked stale.** The bookmark is called `LB_LayerR0_3` - a
+generated layer name from whatever built the page block. Searching the codebase
+for what the owner calls it could never have found it, and the confirming
+question was not "where is the bookmark" but "what in this book is green and
+long and thin".
+
+**Still not fixed** - but it now has a name, a colour, a size and a screenshot,
+which is the difference between an item someone can pick up and one they cannot.
+Per the brief the fix is to move it to the spine head, turn it round so it hangs
+the right way, and give it a tail worth looking at.
 
 Screenshot: `qa/electron/c1-twopress/open-crop.png`.
 
