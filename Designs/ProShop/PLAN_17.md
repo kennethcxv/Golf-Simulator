@@ -509,3 +509,43 @@ VERIFICATION and DIVERGENCE roles, which between them produced most of Section
 A's useful objections - because context is finite and I would rather spend it on
 the work than on a third and fourth opinion about a plan. Recorded here as a
 deliberate reduction rather than an omission.
+
+
+---
+
+# SECTION D — CARRYING THINGS
+
+## Phase 0 — the section explained back, as verbs
+
+- **D1.** I am going to **make a carried thing follow the player or be put
+  down, never abandoned in mid-air.** Today: carry the book, click the cashier,
+  and the book hangs in the air where you were standing.
+- **D2.** I am going to **add a put-down verb for the book**, the same verb every
+  other carryable already uses.
+- **D3.** I am going to **block the tool belt while carrying.** Today you can
+  cycle cleaning tools with a ledger in your arms. Your hands are full.
+- **D4.** I am going to **find every carryable object and give them all the same
+  rules** - one pick-up verb, one put-down verb, no tool switching while
+  carrying, nothing left floating, and the carried thing comes with you into and
+  out of every station. Then **report the full list and confirm each obeys**,
+  and add it to the invariant suite.
+
+### Why this section is worth taking before C8
+
+Standing Invariant 6 ("nothing the player carries is ever left floating, ever
+unputdownable, and never allows a tool swap") is one of the seven my Phase 5
+gate reports as **NO CHECK EXISTS**. D is the section that writes it. C8 is
+typography polish on a book that already reads cleanly; D is a system the brief
+calls broken, with an invariant attached and nothing watching it.
+
+### What I expect to be wrong about
+
+1. **"Carrying" may not be one mechanism.** The ledger has `setCarried`, boxes
+   have a placement mode, and deliveries have their own carry profile. If those
+   are three systems rather than one, D4's "make this one system" is the real
+   work and D1-D3 are symptoms of it - and the honest first deliverable is the
+   list, not a fix.
+2. **The floating book may be a station-entry problem, not a carry problem.**
+   "Click the cashier" enters a station; if station entry does not ask what the
+   player is holding, then every station is a place a carried thing can be
+   stranded, and fixing the cashier alone would leave the class untouched.

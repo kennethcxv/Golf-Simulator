@@ -343,6 +343,26 @@ function hasCarriedCarton() {
   return !!app.state?.shop?.deliveries?.boxes?.some((box) => box.loc === 'carried');
 }
 
+// D3/D4 (Goal 17) — ONE QUESTION: IS ANYTHING IN THE PLAYER'S HANDS?
+//
+// Carrying was never one mechanism. Cartons go through boxPlacementMode
+// (`hasCarriedBox`), the ledger has its own `setCarried`/`isCarried`, and
+// deliveries carry a third notion in save state. `hasCarriedCarton()` above
+// knows about the first and third and nothing about the book - which is why you
+// can cycle the whole cleaning belt with a ledger in your arms.
+//
+// This is the single predicate the belt, the prompts and the invariant all ask.
+// Adding a new carryable means adding one line HERE, not remembering to guard
+// four call sites, which is the "make this one system" D4 asks for.
+function carriedThing() {
+  if (hasCarriedCarton()) return 'carton';
+  try {
+    const book = app.scene3d?.clubhouse?.()?.ledgerBook;
+    if (book?.isCarried?.()) return 'ledger';
+  } catch { /* no clubhouse in this scene */ }
+  return null;
+}
+
 function seatPose(ch) {
   // the seat is fitted to the live camera, so the screen fills the view at any FOV or window shape
   const cam = app.scene3d && app.scene3d.camera;
@@ -2168,6 +2188,15 @@ function selectWalkTool(tool) {
 }
 
 function cycleWalkTool(direction = 1) {
+  // D3: your hands are full. The belt is refused rather than silently
+  // swapping a tool into an arm that is already holding something.
+  const carried = carriedThing();
+  if (carried) {
+    toast(carried === 'ledger'
+      ? 'Put the book down first.'
+      : 'Put that down first.', 'warn');
+    return;
+  }
   const entries = walkToolEntries().filter((entry) => entry.available !== false);
   if (!entries.length) return;
   const current = app.scene3d.walk.getTool();
@@ -2228,6 +2257,14 @@ function setMaintenanceVisible(visible) {
 
 function showToolWheel() {
   if (!walkActive() || regActive() || app.laptopOpen || buildApi()?.isActive() || isPauseOpen()) return;
+  // D3: the wheel is the other half of the belt. Guarding only the tap-to-cycle
+  // path would leave hold-to-open working, and a player who can SEE the wheel
+  // with a book in their arms has been told the belt is available.
+  const carried = carriedThing();
+  if (carried) {
+    toast(carried === 'ledger' ? 'Put the book down first.' : 'Put that down first.', 'warn');
+    return;
+  }
   toolHoldOpened = true;
   resetCameraInput();
   app.scene3d.walk.setSpraying(false);
