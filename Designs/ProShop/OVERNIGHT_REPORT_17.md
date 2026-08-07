@@ -386,6 +386,72 @@ quoting the broken line, which is why it scans statements and not prose.)
 
 **Twenty-minute-stranger bar: yes.**
 
+## A2 — opening a door: measured, and the door is innocent
+
+Measured on commit `79cb414`. Driver `tools/qa/electron-a2-door.js`, five real
+doors per leg, real interact key, fresh profile.
+
+The brief says to find what a door opening actually costs — geometry, nav
+rebake, light re-count, shadow refit — and fix it. So the instrument records,
+per frame: the frame delta, the renderer's program count (a compile), **the
+number of visible lights** (the mechanism A3 had just convicted), and draw
+calls. Attribution before repair.
+
+### Five doors, opened for real
+
+| door | worst frame | frames over 16 ms | over 33 ms | programs | visible lights |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 29.5 ms | 32 | 0 | 209 → 209 | 10 → 10 |
+| 2 | 29.1 ms | 51 | 0 | 209 → 209 | 10 → 10 |
+| 3 | 26.2 ms | 41 | 0 | 209 → 209 | 10 → 10 |
+| 4 | 30.1 ms | 53 | 0 | 209 → 209 | 10 → 10 |
+| 5 | 25.3 ms | 32 | 0 | 209 → 209 | 10 → 10 |
+
+No compiles. No light churn. No frame over 33 ms, on the first door or the
+fifth.
+
+### The negative control: the identical approach, no press
+
+| door | worst frame | frames over 16 ms | over 33 ms |
+| --- | --- | --- | --- |
+| 1 | 28.0 ms | 55 | 0 |
+| 2 | 25.2 ms | 58 | 0 |
+| 3 | 26.7 ms | 57 | 0 |
+| 4 | 25.5 ms | 54 | 0 |
+| 5 | 29.0 ms | 57 | 0 |
+
+**The control is as bad as the press, and slightly worse.** Walking up to a door
+and not touching it costs the same as walking up and opening it.
+
+### What that means, stated plainly
+
+A2 asked me to find a door's cost and remove it. The measurement says **a door
+opening has no measurable cost**. What the owner feels at a doorway is the
+game's baseline frame pacing while moving: a worst frame of 25-30 ms and a
+quarter to a third of every 2.2 s window over 16 ms — present whether or not
+anything opens, and matching the steady-state walk measured under A5 exactly
+(29% over 16 ms, p95 32.4 ms).
+
+So this is not a door item. **Standing Invariant 1 is violated continuously
+during ordinary movement**, and the door is where the owner happened to notice
+it. The repair belongs to the baseline frame budget, which is A1's work, and
+A2's contribution is the attribution that stops anyone rebuilding door code
+looking for a cost that is not there.
+
+Recorded per the brief's instruction: if an item turns out to be something
+other than it looks, say so rather than shipping a shallow version of it.
+
+### Instrument note
+
+The first two runs of this driver reported "no doors found" while the player
+stood next to four of them. A door object carries interior-LOCAL `lx`/`lz`, not
+a world node, and the driver was asking for `getWorldPosition`. Logged as fault
+74 — the same shape as reading a bounding box where a pixel was needed: the
+probe asked the wrong question and got a confident, wrong answer.
+
+**Twenty-minute-stranger bar: no, and not because of doors** — the baseline
+frame pacing is the thing a stranger would feel, and it is open as A1.
+
 ---
 
 ## RUNNING LISTS
