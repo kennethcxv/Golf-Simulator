@@ -34,11 +34,16 @@ async (page) => {
   try { sharp = require2('sharp'); } catch { /* no verdict without it */ }
   const OUT = path.resolve('qa/electron/b1-divergence');
   fs.mkdirSync(OUT, { recursive: true });
-  const out = { errs: [] };
+  // B3 runs the identical measurement on the broom: same rig, same control,
+  // sized for bristle instead of yarn. One driver, because the question is the
+  // same question and two copies would drift.
+  const TOOL = process.env.B1_TOOL || 'mop';
+  const out = { tool: TOOL, errs: [] };
   page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
 
   const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
-  await (await import(`file:///${bootPath}`)).clickThroughMenu(page);
+  const boot = await import(`file:///${bootPath}`);
+  await boot.clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -70,14 +75,19 @@ async (page) => {
     return el ? [...el.querySelectorAll('.tool-wheel-item')]
       .map((b) => b.querySelector('.tool-wheel-label')?.textContent || '') : [];
   });
-  const at = items.findIndex((label) => /^mop$/i.test(label.trim()) || /\bmop\b/i.test(label));
+  // The tool this run is about. Getting this wrong is not hypothetical: the
+  // first generalised run asked for the broom, silently equipped the mop, and
+  // would have published mop numbers under a broom heading. The live gate below
+  // caught it, which is the first thing that gate has paid for.
+  const want = TOOL === 'broom' ? /broom/i : /\bmop\b/i;
+  const at = items.findIndex((label) => want.test(label));
   if (at >= 0) await page.keyboard.press(String(at === 9 ? 0 : at + 1));
   await page.waitForTimeout(1000);
   out.equipped = await page.evaluate(() => window.__fw.scene3d.walk.getTool?.() || null);
-  out.rig = await page.evaluate(() => {
-    const r = window.__fw.scene3d.walk.strandRigFor?.('mop');
+  out.rig = await page.evaluate((TOOLNAME) => {
+    const r = window.__fw.scene3d.walk.strandRigFor?.(TOOLNAME);
     return r ? { strands: r.strandCount, drawCalls: r.drawCalls, params: r.params() } : null;
-  });
+  }, TOOL);
 
   // WET THE MOP. THIS IS WHY EVERY EARLIER NUMBER IN THIS ITEM WAS WORTHLESS.
   //
@@ -113,16 +123,28 @@ async (page) => {
   await page.waitForTimeout(500);
 
   // The head's position on screen, through the lens that DREW it.
-  const headNdc = () => page.evaluate(() => {
+  const headNdc = () => page.evaluate((TOOLNAME) => {
     const s3 = window.__fw.scene3d;
-    const group = s3.scene.getObjectByName('Tool_mop');
+    const group = s3.scene.getObjectByName(`Tool_${TOOLNAME}`);
     const contact = group?.getObjectByName('SOCKET_FloorContact');
-    const cam = s3.walk.toolDrawCamera?.('mop');
+    const cam = s3.walk.toolDrawCamera?.(TOOLNAME);
     if (!contact || !cam) return null;
     const V = Object.getPrototypeOf(contact.position).constructor;
     const n = contact.getWorldPosition(new V()).project(cam);
     return { x: n.x, y: n.y };
-  });
+  }, TOOL);
+  // THE SHARED GATE (Goal 17): three findings this session were artefacts of a
+  // tool that was not live. This refuses to continue on one.
+  const live = await boot.toolIsLive(page, TOOL);
+  out.liveGate = live;
+  out.live0Gate = live.ok;
+  if (!live.ok) {
+    fs.writeFileSync(path.join(OUT, `b1-${TOOL}.json`), `${JSON.stringify(out, null, 2)}
+`);
+    console.log(`B1[${TOOL}] ABORT - tool not live`, JSON.stringify(live));
+    return out;
+  }
+
   out.headNdc = await headNdc();
 
   // Pixel difference inside a box centred on the head, in IMAGE pixels. A
@@ -154,8 +176,8 @@ async (page) => {
 
   // World-space tip travel, sampled over the same window: the number that was
   // REPORTED, measured beside the number the eye gets.
-  const tipTravel = async (ms) => page.evaluate(async (dur) => {
-    const rig = window.__fw.scene3d.walk.strandRigFor?.('mop');
+  const tipTravel = async (ms) => page.evaluate(async ({ dur, TOOLNAME }) => {
+    const rig = window.__fw.scene3d.walk.strandRigFor?.(TOOLNAME);
     if (!rig?.tipsLocal) return null;
     const first = rig.tipsLocal().map((v) => ({ x: v.x, y: v.y, z: v.z }));
     const maxima = new Array(first.length).fill(0);
@@ -174,9 +196,11 @@ async (page) => {
       worstTipMetres: +maxima[0].toFixed(4),
       medianTipMetres: +maxima[Math.floor(maxima.length / 2)].toFixed(4),
     };
-  }, ms);
+  }, { dur: ms, TOOLNAME: TOOL });
 
   // ONE STROKE, driven by a real held mouse button, sampled as pixels.
+  // Only the mop has a consumable; the broom always runs, so its witness is the
+  // live gate rather than a falling charge.
   const chargeNow = () => page.evaluate(
     () => window.__fw.scene3d.clubhouse?.()?.cleaningStatus?.()?.mop?.charge ?? null,
   );
@@ -202,8 +226,9 @@ async (page) => {
       tag,
       chargeBefore,
       chargeAfter,
-      toolActuallyWorked: chargeBefore != null && chargeAfter != null
-        && chargeBefore - chargeAfter > 0.05,
+      toolActuallyWorked: TOOL === 'broom'
+        ? out.live0Gate === true
+        : (chargeBefore != null && chargeAfter != null && chargeBefore - chargeAfter > 0.05),
       travel,
       startToMid: await diffHead(before, mid),
       midToLate: await diffHead(mid, late),
@@ -221,8 +246,8 @@ async (page) => {
   //
   // Waiting for the tips to actually stop is the fix, and it is also the honest
   // thing to report: how long they take to settle is a property of the tuning.
-  out.settle = await page.evaluate(async () => {
-    const rig = window.__fw.scene3d.walk.strandRigFor?.('mop');
+  out.settle = await page.evaluate(async (TOOLNAME) => {
+    const rig = window.__fw.scene3d.walk.strandRigFor?.(TOOLNAME);
     if (!rig?.tipsLocal) return null;
     const t0 = performance.now();
     let prev = rig.tipsLocal();
@@ -240,7 +265,7 @@ async (page) => {
       if (quiet >= 4) return { settledMs: Math.round(performance.now() - t0), timedOut: false };
     }
     return { settledMs: 12000, timedOut: true };
-  });
+  }, TOOL);
 
   // NOISE: two frames, no input at all. Everything else must clear this.
   const n0 = await shot('noise-a');
@@ -253,18 +278,18 @@ async (page) => {
 
   // B. THE CONTROL: fibres welded to the head, through the same live door the
   // tuning overlay writes with, so nothing else about the frame changes.
-  await page.evaluate(() => {
+  await page.evaluate((TOOLNAME) => {
     const w = window.__fw.scene3d.walk;
-    const f = w.toolFeelLive?.('mop');
+    const f = w.toolFeelLive?.(TOOLNAME);
     if (f && !f.strands) f.strands = {};
     for (const [k, v] of Object.entries({
       pushGain: 0, dragGain: 0, splayBase: 0, splayGrow: 0,
       deficitBase: 0, deficitGrow: 0, targetBase: 0, targetGrow: 0,
-    })) w.toolFeelSet?.('mop', `strands.${k}`, v);
-  });
+    })) w.toolFeelSet?.(TOOLNAME, `strands.${k}`, v);
+  }, TOOL);
   await page.waitForTimeout(700);
   out.frozenParams = await page.evaluate(
-    () => window.__fw.scene3d.walk.strandRigFor?.('mop')?.params?.() ?? null,
+    (TOOLNAME) => window.__fw.scene3d.walk.strandRigFor?.(TOOLNAME)?.params?.() ?? null, TOOL,
   );
   out.frozen = await strokeLeg('frozen');
 

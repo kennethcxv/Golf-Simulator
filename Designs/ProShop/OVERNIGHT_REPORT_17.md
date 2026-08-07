@@ -1331,6 +1331,54 @@ was caught by a *screenshot* or by a control, never by the metric. The metric
 was healthy and precise in all three cases. Numbers cannot tell you they are
 about nothing.
 
+## B3 — the broom's bristles move, and they are sized like bristles
+
+B3: "Only the mop was given strands, and they do not work either. Once the mop
+is right, apply the same system to the broom, sized for a stiff push broom -
+shorter travel, faster settle, less slack than yarn."
+
+Measured with the same driver as B1, the same frozen-strand control, and the
+shared live gate. `B1_TOOL=broom`.
+
+| | broom | mop, for scale |
+| --- | --- | --- |
+| **tip travel in the head's own frame** | **0.0293 m** | 0.4578 m |
+| the same, frozen | **0.0000 m** | 0.0001 m |
+| pixels changed, live / frozen | 76 822 / 25 954 (**2.96x**) | 91 982 / 151 933 |
+| noise floor | 3 901 | 34 589 |
+| `chaseBase` (settle rate) | **26** | 5.5 |
+| `slackScale` | **0.55** | 1.0 |
+
+**All three of B3's requirements hold, and they hold as ratios rather than as
+assertions:** the broom's tips travel **1/16th** of the mop's, it settles at
+**4.7x** the chase rate, and it carries **half** the slack. That is bristle
+against yarn, in the numbers.
+
+It is also the same system - one `createMopStrands` in `bar` layout, one set of
+parameters, one instanced draw path - so B3's "apply the same system" is
+literally true rather than a second implementation that happens to look similar.
+
+**Note on the pixel ratio, which behaves differently here than on the mop.** The
+broom's live frame changes 2.96x more than its frozen one, where the mop's
+changes LESS. That is consistent rather than contradictory: the metric measures
+how much stuff crosses the frame, so it rises with small fibre motion and falls
+with large lag that holds the mass back. The mop's yarn lags so far it travels
+less; the broom's bristles barely lag at all. Both readings say the same thing
+once you know what the number is about - which is the lesson from the retraction
+above, applied.
+
+**Honest limit:** motion cannot be proven by a still, and I have not recorded a
+clip. The frozen-strand control is the evidence here, and it is a control rather
+than a screenshot. Marked as measured-not-filmed.
+
+### And the live gate paid for itself immediately
+
+The first generalised run of this driver asked for the broom, **silently
+equipped the mop**, and would have published mop numbers under a broom heading.
+`toolIsLive()` refused the run with `held: "mop"` instead. That is the fourth
+instance this session of a tool not being what the driver thought it was, and
+the first one caught before it became a finding.
+
 ---
 
 ## RUNNING LISTS
@@ -1368,8 +1416,10 @@ _Updated continuously, not at the end._
   Visible in the frame; about orientation, not reach.
 - **B1: the handle, the grip and the floor contact** are untouched - this pass
   did the strands only.
-- **B3** (broom bristle motion) not yet measured on a working broom; **B5**
-  (leave the other seven alone) is being honoured by omission.
+- **B3 measured and satisfied** (0.0293 m tip travel against 0 frozen, 1/16th
+  the mop's, 4.7x the settle rate, half the slack) but **not filmed** - motion
+  cannot be proven by a still.
+- **B5** (leave the other seven alone) is being honoured by omission.
 - **The load itself.** Verifier 2's disproof of the previous session's first-load
   numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
   baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
