@@ -269,18 +269,42 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   const leafFront = makePageCanvas(0.5);
   const leafBack = makePageCanvas(0.5);
   {
+    // C4 (Goal 17) — THE TURNING LEAF PHASED THROUGH THE PAGE UNDER IT.
+    //
+    // The leaf hangs from a pivot 1.2 mm above the page profile
+    // (`gutterHeight = pageProfile[0] + 0.0012`) and BENDS across its length,
+    // so at the shallow end of the flip its far edge is a fraction of a
+    // millimetre off a page that is itself curved. At that separation the depth
+    // buffer cannot separate them and the page beneath shows through the leaf
+    // in slices - the "phases through the previous page" of the brief.
+    //
+    // Lifting the leaf is the wrong fix: any clearance big enough to survive
+    // the curve is big enough to see, and a page that floats is a worse
+    // artefact than one that z-fights.
+    //
+    // polygonOffset is the fix for exactly this - two surfaces that are
+    // geometrically coplanar where one must always win. The leaf is pushed
+    // toward the camera in DEPTH ONLY, so nothing moves on screen and the
+    // slices cannot appear. `renderOrder` backs it up so the leaf is submitted
+    // after the static faces, which settles the tie for any driver that ignores
+    // the offset.
+    const leafDepthBias = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
     const front = new THREE.Mesh(
       leafGeoFront,
       new THREE.MeshBasicMaterial({
         map: leafFront.texture, toneMapped: false, color: 0xd7cfb8, side: THREE.FrontSide,
+        ...leafDepthBias,
       }),
     );
     const back = new THREE.Mesh(
       leafGeoBack,
       new THREE.MeshBasicMaterial({
         map: leafBack.texture, toneMapped: false, color: 0xd7cfb8, side: THREE.BackSide,
+        ...leafDepthBias,
       }),
     );
+    front.renderOrder = 3;
+    back.renderOrder = 3;
     // NAMED, so the turn can be probed. Unnamed, the only handle on the leaf
     // was "a node with two 768x512 planes under it" — which also describes
     // LB_Open, and a driver looking for the turning leaf measured the two

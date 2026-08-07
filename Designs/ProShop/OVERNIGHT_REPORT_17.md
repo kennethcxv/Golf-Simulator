@@ -1745,6 +1745,43 @@ right-aligned with 2, 3, 5, 7 and 9, at the same height. Sweep still clean -
 (`bodyW = bodyH * 1.55`), where a real padlock is taller than wide. That is
 shape rather than alignment, and C7 asked for alignment.
 
+## C4 — the turning leaf given a depth bias, at no measurable cost
+
+C4: "Flipping shows a slice of the last page through the turning leaf."
+
+The leaf hangs from a pivot **1.2 mm** above the page profile
+(`gutterHeight = pageProfile[0] + 0.0012`) and **bends** across its length, so
+at the shallow end of the flip its far edge is a fraction of a millimetre off a
+page that is itself curved. At that separation the depth buffer cannot tell them
+apart and the page beneath shows through in slices.
+
+**Lifting the leaf is the wrong fix** - any clearance big enough to survive the
+curve is big enough to see, and a page that visibly floats is a worse artefact
+than one that z-fights. `polygonOffset` is the fix for exactly this case: two
+surfaces that are geometrically coplanar where one must always win. The leaf is
+pushed toward the camera **in depth only**, so nothing moves on screen, with
+`renderOrder` backing it up so the leaf is submitted after the static faces.
+
+### The cost, measured, because I had just been caught by one
+
+| page-turn worst frame | runs |
+| --- | --- |
+| before | 39.2, 49.0, 43.2, 46.4 ms |
+| **with the depth bias** | 218.8, **49.0, 46.3** ms |
+
+The first run read 218.8 and I checked rather than assumed - having reverted the
+C5 dye an hour earlier for exactly this reason. Two more runs came back at 49.0
+and 46.3, squarely inside the baseline. **The 218.8 was variance.** That is the
+expected answer: `polygonOffset` is a raster state, not part of a program's
+cache key, so unlike a cloned material it compiles nothing.
+
+**UNCONFIRMED visually.** The mechanism is right and the cost is nil, but I have
+not caught a mid-turn frame showing the slices gone - a page turn is ~900 ms and
+the artefact appears only at the shallow end of it, so a still has to be timed
+into a window I have not built. By this brief's own rule that makes it
+unconfirmed rather than done, and it stays on the list until a timed capture or
+a clip says otherwise.
+
 ---
 
 ## RUNNING LISTS
