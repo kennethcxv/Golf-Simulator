@@ -1,4 +1,4 @@
-// B2 — THE LIVE TUNING OVERLAY. Full_Goal_16's most-wanted deliverable:
+// B2 - THE LIVE TUNING OVERLAY. Full_Goal_16's most-wanted deliverable:
 // "a dev-only in-game panel with sliders for every value that governs how
 // the mop and broom look and feel … update the held tool LIVE as I drag …
 // a button writes the current values back to the config file … show the
@@ -10,13 +10,13 @@
 // rig per frame, and toolFeelSet calls refreshFromFeel for the handful that
 // are constructor-captured, plus pushes strand params. Save serializes the
 // live clones to src/data/toolFeelOverrides.json through the main process,
-// and courseScene merges that file back over the defaults at boot — what
+// and courseScene merges that file back over the defaults at boot - what
 // you tune is what ships, and the JSON is hand-editable afterwards.
 //
 // Honest limitations, stated: F9 is reachable in any session (the panel is
 // dev-only by audience, not by lock); the exercise replay drives the walk
 // key handlers with synthetic KeyboardEvents and pulses the work state
-// through walk.setSpraying — one mouse cannot drag a slider and hold the
+// through walk.setSpraying - one mouse cannot drag a slider and hold the
 // work button at once, and the replay exists so stroke/weight values are
 // tuned against the motion they govern rather than a statue.
 import { el } from './ui.js';
@@ -49,7 +49,7 @@ const SLIDERS = [
   { group: 'Strands', label: 'push gain', path: 'strands.pushGain', min: 0, max: 3, step: 0.01, strands: true },
   { group: 'Strands', label: 'splay', path: 'strands.splayBase', min: 0, max: 1.2, step: 0.01, strands: true },
   { group: 'Strands', label: 'slack', path: 'strands.slackScale', min: 0.2, max: 2.5, step: 0.01, strands: true },
-  // R-F: the placebo control — deliberately wired to NOTHING. If dragging
+  // R-F: the placebo control - deliberately wired to NOTHING. If dragging
   // this changes anything on screen, the panel cannot be trusted.
   { group: 'QA', label: 'dead control (QA)', path: null, min: 0, max: 1, step: 0.01, dead: true },
 ];
@@ -158,7 +158,7 @@ export function makeToolTuner(appRef) {
   }
 
   // Exercise: replay walk/turn/sweep against the real key handlers so motion
-  // values are tuned against motion. Work state pulses through setSpraying —
+  // values are tuned against motion. Work state pulses through setSpraying -
   // the one synthetic step, because pointer lock owns the real button.
   function startExercise() {
     let beat = 0;
@@ -196,7 +196,7 @@ export function makeToolTuner(appRef) {
   // Diagnostics at 4 Hz: the rig's own numbers PLUS two rendered-frame rows
   // (which camera drew the tool; pixel motion in the head region) so the
   // sliders and the screen can disagree VISIBLY when something downstream
-  // eats the rig's output — the six-round failure, made observable.
+  // eats the rig's output - the six-round failure, made observable.
   let diagTimer = null;
   let prevCrop = null;
   const cropCanvas = document.createElement('canvas');
@@ -208,8 +208,8 @@ export function makeToolTuner(appRef) {
     if (!w || !s3) return;
     const d = w.toolRigDiagnostics?.(tool);
     const active = w.getTool?.() === tool;
-    let regionDiff = '—';
-    let palm = '—';
+    let regionDiff = 'n/a';
+    let palm = 'n/a';
     try {
       const group = s3.scene.getObjectByName(`Tool_${tool}`);
       const socket = group?.getObjectByName('SOCKET_GripPrimary');
@@ -251,12 +251,12 @@ export function makeToolTuner(appRef) {
       const camNow = w.toolDrawCamera?.(tool);
       const mainFov = s3.camera?.fov;
       diag.textContent = [
-        `tool ${tool}  ${active ? 'EQUIPPED' : 'not equipped — F wheel to hold it'}`,
+        `tool ${tool}  ${active ? 'EQUIPPED' : 'not equipped - F wheel to hold it'}`,
         `drawn by ${camNow && camNow.fov !== mainFov ? `VM lens fov ${camNow.fov}` : `MAIN camera fov ${mainFov}`}`,
-        `palm-to-shaft ${palm} yd   seatError ${d ? d.seatError : '—'}`,
-        `head above floor ${d && d.headAboveFloor != null ? d.headAboveFloor : '—'} yd   headNdc ${d ? JSON.stringify(d.headNdc) : '—'}`,
-        `hand NDC ${d && d.handNdcUpper ? JSON.stringify(d.handNdcUpper) : '—'}   geom ${d ? d.geomSource : '—'}`,
-        `headLag ${d ? `${d.headLag.reason} @ ${d.headLag.angle}` : '—'}`,
+        `palm-to-shaft ${palm} yd   seatError ${d ? d.seatError : 'n/a'}`,
+        `head above floor ${d && d.headAboveFloor != null ? d.headAboveFloor : 'n/a'} yd   headNdc ${d ? JSON.stringify(d.headNdc) : 'n/a'}`,
+        `hand NDC ${d && d.handNdcUpper ? JSON.stringify(d.handNdcUpper) : 'n/a'}   geom ${d ? d.geomSource : 'n/a'}`,
+        `headLag ${d ? `${d.headLag.reason} @ ${d.headLag.angle}` : 'n/a'}`,
         `region pixel motion (4 Hz) ${regionDiff}`,
       ].join('\n');
     } catch (error) {
