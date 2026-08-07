@@ -112,6 +112,13 @@ and only one was asked for.
 this pass, but it has been reachable from Settings for as long as the toggle has
 existed, and it is two clicks from the pause menu.
 
+### 10b — the first time they hover the customer's money
+
+**Fixed this pass**: the outline covered one note of the handful while the click
+took all of it. It covers the whole payment now. And in the drawer, where a
+click really does give one piece, the outline covers that piece rather than the
+whole labelled well.
+
 ### 11 — whenever they overpay at the till
 
 **Fixed this pass**: *"OVER BY $2.50 — CUSTOMER RECEIVES EXTRA CHANGE"* drew as

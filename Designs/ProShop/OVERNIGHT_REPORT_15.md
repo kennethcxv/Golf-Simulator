@@ -16,7 +16,10 @@ where a control failed, the failure is written down instead of the result.
 | **B2** rebuild them properly | **NOT DONE** | the largest single item in the brief; scoped, not built |
 | **B3** broom hand follows the head, mop strands | **NOT DONE** | |
 | **B4** hands on the handheld tools | **partly** | the pad grip fixed; the vacuum and washer measured and diagnosed, not fixed |
-| **C1–C6** checkout | **NOT DONE** | |
+| **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
+| **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
+| **C3–C5** change position, item position, stand point | **NOT DONE** | |
+| **C6** delete the white under-desk reader | **done** | |
 | **C7** "Customer rec…" cut off | **done** | and a test that finds the next three |
 | **D1** a prompt near the ledger | **done** | |
 | **D2** the open animation | **partly** | 112.5 ms → 70.8 ms; one frame still over 40 |
@@ -196,6 +199,28 @@ normalizer a fresh launch uses.
 | **`__qaNoSuchSetting`** (control) | 1.5 → 1.5 | **no** | — |
 | **`display.__qaAlsoNothing`** (control) | true → true | **no** | — |
 
+## C — the checkout, in part
+
+**C2 and C1 are opposites and both are about scope.** The money the customer
+holds out now outlines ALL of it: the click takes the entire payment, so
+outlining one note of five promises a precision the verb does not have. Item 12
+had made it outline exactly one note, on the ask "hovering a note outlines THAT
+note only" — right for the drawer, wrong for the handful. In the DRAWER the
+distinction is real, because clicking gives exactly one piece, and there the
+outline was describing a box the size of the whole stack; it names the note
+under the cursor now, scoped by denomination so a nearest-centre search cannot
+reach into the adjacent tray.
+
+Verified on the existing K3 outline probe with both changes in: still an outline
+and not a blob, the note's own face untouched, real shell geometry rather than
+sprites. **C1 has no photograph of its own**, so by this brief's rule it is
+unconfirmed until one exists.
+
+**C6.** The white-faced pin pad in the under-desk shelf is gone. Two terminals
+in one bay reads as clutter rather than as a till, and the white face was the
+brightest thing in a dark alcove — the eye went to the device that does nothing
+over the one the whole card flow runs through.
+
 ## G1 — the linter, and the one it found
 
 No new dependency. A scanner in the suite: blank the comments, strings,
@@ -265,7 +290,7 @@ Running total: **41**.
 - **B2**, the rebuild itself. The design answer is written and the standard is
   named; no geometry has been authored. This is the largest item in the brief.
 - **B3**, the broom hand and the mop strands, on a clip.
-- **C1–C6**, the whole checkout list.
+- **C3, C4 and C5** — where the change, the customer's items and the player's stand point sit.
 - **F1**, the tee-time ellipsis — audited nine front-desk screens and none
   truncates a time. It is somewhere this has not looked.
 - **F3**, making the light repair easier to understand.
