@@ -530,12 +530,16 @@ export function makeLaptop(app, opts) {
     el('div', { class: 'lt-brand' }, icon('logo'), el('span', { text: 'GOLF SIMULATOR' })),
     el('div', { class: 'lt-navlist' },
       ...NAV.map((n) => {
-        const b = el('button', { class: 'lt-navbtn lt-navbtn-big', title: n.label, onclick: () => go(n.id) },
+        // E1 (Full_Goal_16): the nav rail clicks like every page button —
+        // these called go() straight and were the silent majority of laptop
+        // presses. click() stays out of go() itself so programmatic jumps
+        // (aliases, search) never ghost-tick.
+        const b = el('button', { class: 'lt-navbtn lt-navbtn-big', title: n.label, onclick: () => { click(); go(n.id); } },
           el('span', { class: 'lt-navicon' }, icon(n.icon)), el('span', { text: n.label }));
         navBtns[n.id] = b;
         return b;
       })),
-    el('button', { class: 'lt-navbtn lt-close', onclick: () => opts.close() },
+    el('button', { class: 'lt-navbtn lt-close', onclick: () => { click(); opts.close(); } },
       el('span', { class: 'lt-navicon' }, icon('power')), el('span', { text: 'Close Laptop' })),
   );
 

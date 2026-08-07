@@ -370,9 +370,15 @@ export function makeAudio(preferences = null) {
     }
   }
 
+  let lastUiTickAt = -1;
   function uiTick() {
     if (!ctx) return;
     const t0 = ctx.currentTime;
+    // E1: one click per press. The button factory speaks on pointerdown and
+    // several surfaces still fire their own tick on click a few ms later;
+    // within one press-window only the first speaks.
+    if (t0 - lastUiTickAt < 0.12) return;
+    lastUiTickAt = t0;
     const osc = ctx.createOscillator();
     osc.frequency.value = 520;
     const g = ctx.createGain();
@@ -413,6 +419,287 @@ export function makeAudio(preferences = null) {
       osc.start(t0 + offset);
       osc.stop(t0 + offset + 0.17);
     }
+  }
+
+
+  // A QA-pollable tap on the same post-volume master node the capture
+  // analyser reads: instantaneous RMS/peak plus the context state, so a
+  // driver can put a floor under "this click made sound within 50 ms"
+  // instead of trusting dispatch counters. Costs nothing until called.
+  function qaMasterTap() {
+    if (!ctx || !master) return null;
+    const analyser = ctx.createAnalyser();
+    // 2048 bins ≈ 42 ms of history per read: a poll ANY time within 40 ms of
+    // a short burst still carries its energy — at 512 a 25 ms tick lived or
+    // died by 4 ms polling luck
+    analyser.fftSize = 2048;
+    master.connect(analyser);
+    const data = new Float32Array(analyser.fftSize);
+    return {
+      read() {
+        analyser.getFloatTimeDomainData(data);
+        let peak = 0;
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 1) {
+          const v = data[i];
+          peak = Math.max(peak, Math.abs(v));
+          sum += v * v;
+        }
+        return { rms: Math.sqrt(sum / data.length), peak, state: ctx.state };
+      },
+      stop() {
+        try { master.disconnect(analyser); } catch { /* already gone */ }
+      },
+    };
+  }
+
+  // --- the walking body and the rooms it works in (E, Full_Goal_16) --------------------
+
+  // A footfall is a pitched heel thud plus a surface voice: boards knock in a
+  // tight woody band, turf presses low with a faint grass hiss on top. One
+  // shared shape, two voices, narrow variation so a walk reads as a gait and
+  // never as a metronome.
+  function footstep(surface = 'turf', intensity = 1) {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const level = Math.max(0.25, Math.min(1.35, Number(intensity) || 1));
+    const boards = surface === 'boards';
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    const f0 = varied(boards ? 132 : 88, 0.06);
+    osc.frequency.setValueAtTime(f0, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40, f0 * 0.55), t0 + 0.07);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime((boards ? 0.065 : 0.05) * level, t0);
+    og.gain.exponentialRampToValueAtTime(0.0001, t0 + (boards ? 0.09 : 0.12));
+    osc.connect(og).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.14);
+    const dur = boards ? 0.06 : 0.11;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i += 1) {
+      const t = i / d.length;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, boards ? 3.5 : 2.0);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    if (boards) {
+      f.type = 'bandpass';
+      f.frequency.value = varied(760, 0.08);
+      f.Q.value = 2.2;
+    } else {
+      f.type = 'lowpass';
+      f.frequency.value = varied(420, 0.08);
+    }
+    const g = ctx.createGain();
+    g.gain.value = (boards ? 0.05 : 0.045) * level;
+    src.connect(f).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + dur);
+    if (!boards) {
+      const hbuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.09), ctx.sampleRate);
+      const hd = hbuf.getChannelData(0);
+      for (let i = 0; i < hd.length; i += 1) {
+        const t = i / hd.length;
+        hd[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.6);
+      }
+      const hsrc = ctx.createBufferSource();
+      hsrc.buffer = hbuf;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 3200;
+      const hg = ctx.createGain();
+      hg.gain.value = 0.011 * level;
+      hsrc.connect(hp).connect(hg).connect(sfxBus);
+      hsrc.start(t0 + 0.012);
+      hsrc.stop(t0 + 0.11);
+    }
+  }
+
+  // a short band of cloth movement; the shared body of stepping in and away
+  function clothSwish(t0, centre, peak, dur) {
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i += 1) {
+      const t = i / d.length;
+      d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * Math.min(1, t * 1.15)) ** 2;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = varied(centre, 0.08);
+    f.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.value = peak;
+    src.connect(f).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + dur);
+  }
+
+  // stepping in behind the till: cloth settles, then one knuckle on the counter
+  function stationEnter() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    clothSwish(t0, 1300, 0.055, 0.16);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(varied(185, 0.05), t0 + 0.09);
+    osc.frequency.exponentialRampToValueAtTime(118, t0 + 0.16);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.08, t0 + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0 + 0.09);
+    osc.stop(t0 + 0.22);
+  }
+
+  // stepping away: the same cloth, lower and longer, and no knock
+  function stationLeave() {
+    if (!ctx) return;
+    clothSwish(ctx.currentTime, 950, 0.09, 0.2);
+  }
+
+  // a cardboard card on a string turned over: two quick flaps and a small swing
+  function signFlip() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const offset of [0, 0.07]) {
+      const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i += 1) {
+        const t = i / d.length;
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.6);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = varied(1800, 0.07);
+      f.Q.value = 1.6;
+      const g = ctx.createGain();
+      g.gain.value = offset === 0 ? 0.14 : 0.10;
+      src.connect(f).connect(g).connect(sfxBus);
+      src.start(t0 + offset);
+      src.stop(t0 + offset + 0.05);
+    }
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(96, t0 + 0.05);
+    osc.frequency.linearRampToValueAtTime(64, t0 + 0.3);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.022, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0 + 0.05);
+    osc.stop(t0 + 0.34);
+  }
+
+  // heavy ledger paper: longer and lower than the receipt hiss, with a spine
+  // creak under the leaf so it reads as a bound book and not a loose slip
+  function ledgerLeaf(t0, peak) {
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.3), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i += 1) {
+      const t = i / d.length;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.9) * (0.55 + 0.45 * Math.sin(t * 62));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = varied(1700, 0.06);
+    const g = ctx.createGain();
+    g.gain.value = peak;
+    src.connect(hp).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + 0.3);
+  }
+
+  function ledgerTurn() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    ledgerLeaf(t0, 0.06);
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(varied(230, 0.08), t0);
+    osc.frequency.linearRampToValueAtTime(180, t0 + 0.08);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.012, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.12);
+  }
+
+  // the clasp frees, the cover thuds open, the first leaf settles
+  function ledgerOpen() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const tick = ctx.createOscillator();
+    tick.type = 'square';
+    tick.frequency.value = varied(2400, 0.05);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.016, t0);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
+    tick.connect(tg).connect(sfxBus);
+    tick.start(t0);
+    tick.stop(t0 + 0.04);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, t0 + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(62, t0 + 0.17);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.09, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.24);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0 + 0.05);
+    osc.stop(t0 + 0.26);
+    ledgerLeaf(t0 + 0.16, 0.045);
+  }
+
+  // the leaves settle, then the cover shuts on them
+  function ledgerClose() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    ledgerLeaf(t0, 0.04);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110, t0 + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(56, t0 + 0.22);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.1, t0 + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0 + 0.12);
+    osc.stop(t0 + 0.32);
+  }
+
+  // a terminal key: plastic under a finger — a tiny high tick over a short
+  // body tap, quieter and duller than the interface tick
+  function keypadTap() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const tick = ctx.createOscillator();
+    tick.type = 'square';
+    tick.frequency.value = varied(1850, 0.06);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.02, t0);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.025);
+    tick.connect(tg).connect(sfxBus);
+    tick.start(t0);
+    tick.stop(t0 + 0.03);
+    const body = ctx.createOscillator();
+    body.type = 'sine';
+    body.frequency.value = varied(210, 0.05);
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.045, t0);
+    bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+    body.connect(bg).connect(sfxBus);
+    body.start(t0);
+    body.stop(t0 + 0.06);
   }
 
   // --- hand-tool audio (same procedural language as everything above) ------------
@@ -1852,6 +2139,16 @@ export function makeAudio(preferences = null) {
     uiTick,
     uiConfirm,
     uiError,
+    // E (Full_Goal_16): the walking body and the rooms it works in
+    qaMasterTap,
+    footstep,
+    stationEnter,
+    stationLeave,
+    signFlip,
+    ledgerOpen,
+    ledgerTurn,
+    ledgerClose,
+    keypadTap,
     doorSwing,
     doorShut,
     scanBeep,

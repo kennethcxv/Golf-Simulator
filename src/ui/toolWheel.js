@@ -132,6 +132,10 @@ export function makeToolWheel({ onSelect, onClose, onPause, onSwap, onUnavailabl
       if (entries[index]) {
         event.stopPropagation();
         event.preventDefault();
+        // E1 (Full_Goal_16): the digit press clicks like every other press —
+        // arrows, scroll and hover already ticked; digits were silent until
+        // the equip sound landed frames later
+        audio?.uiTick?.();
         if (entries[index].available !== false) choose(index);
         else highlight(index, { focus: true });
       }
@@ -141,6 +145,7 @@ export function makeToolWheel({ onSelect, onClose, onPause, onSwap, onUnavailabl
     if (shortcutIndex >= 0) {
       event.stopPropagation();
       event.preventDefault();
+      audio?.uiTick?.(); // E1: shortcut activation clicks too
       choose(shortcutIndex);
       return;
     }

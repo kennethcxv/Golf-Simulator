@@ -1,43 +1,45 @@
 # SESSION 16 RESUME MAP (live; delete at night end)
 
-## Exact resume point (UPDATED after G)
+## Exact resume point (UPDATED mid-E/F)
 
-STATE NOW: A, B (all of B0–B5), C, D committed and pushed through 3f38f51
-(+ D4/D5 in 14c5523). A3 committed (speeds [0,1], Space the only time
-control, day length measured). G BUILT AND VERIFIED tonight, committing
-next: characterAsset one vertical law (pelvis/belt/buckle/tongue `+ bob`)
-+ full-radial feature seats (brow z 0.139, mouth z 0.133); driver
-tools/qa/electron-g-characters.js green AFTER (lockstep 0/0, control
-0.0399, seats −0.9/+0.3 mm) and red BEFORE via stash swap (lockstep red,
-brow +14.2 mm, mouth +19.7 mm); profile screenshot pair under
-qa/electron/g-characters/{before,after}/ (face-on hides a normal-axis
-float — fault 56). Suite 2821/0. Report carries G section + faults 47–56.
+STATE NOW: A-D + G committed and pushed (G = 7509071). E BUILT AND GREEN:
+electron-e-audio.js run 17 all 14 checks; run 18 = second-green
+confirmation with the turn-stall retry. E product: audio.js eight voices +
+qaMasterTap(2048) + uiTick debounce; ui.js el() pointerdown hook; main.js
+sfx router warning + footstep hook + __fwUiClick sink + delegated
+fallback + ledger cues; courseScene bobPhase RELOCATED to walk update
+(barehanded gait existed nowhere before) + footfall detector (0.22 yd
+gate, teleport clamp, idle reset); toolWheel digit/shortcut ticks;
+laptop nav-rail clicks. F PRODUCT LANDED (drivers partly pending):
+F1 station-priority focus (walkStationPropInReach + station flags on till
+prop 1880 + ledger prop + overview-interact guard in main.js + walk API
+stations()/stationInReach()); F2 monitor note band 496/grid 512 + rect
+recorder MONITOR_OVERLAPS + planted control; F3 bag occluder shell +
+full-size slide-in + hide (both paths + restore), contracts re-pinned;
+F4 customerCash quarter-gate (audit 135/400 sub-quarter -> 0/400,
+f4-cash-audit.mjs); F5 queue head -0.26 (world 3.04, slot2 unchanged at
+4.42 via pitch 0.69) + tender -0.38 + clamp -0.48 + face the cashier
+(staffStand), layout test re-pinned; F6 CashLaid pose + flow-map split
+(cash lands -> arm back; card held; both settle after PaymentComplete);
+F7 caps 5/8/10/12 + tests re-pinned (footfallDiagnostics is the probe);
+F8 escape closed (openWalkInCustomer empty-cart gate + __f8LegacyClassifier
+QA flag + loud exit invariant [F8-INVARIANT]/__f8Violations). Drivers
+BUILT not yet run: electron-f1-station.js, electron-f8-escape.js.
+Suite: one flaky-looking 2820/1 (em-dash?) then clean re-runs; an
+authoritative run is in flight before the E/F commits.
 
-IN PROGRESS: E (audio). Design = PLAN_16.md R-G (RMS depth per surface,
-breadth enumeration, unknown-cue warning ships with E1; footstep zone/cue
-100% agreement, count ±20% of bobPhase minima; ledger flip cue within
-50 ms of leaf start). Anchors found so far:
-- audio.js: return block 1818, uiTick 373, varied() 935, thunk 480,
-  paper 643; uiBus for UI one-shots.
-- main.js:880 = walk.hooks.sfx router (silently swallows unknown names —
-  add the warning + QA counter here).
-- ui.js el() = the button factory for menus/settings; laptop.js:499
-  ALREADY plays uiTick centrally for laptop clicks → el() hook must skip
-  `.laptop` or laptop buttons double-tick.
-- clubhouse.js:8915 sign flip fires sfx('uiTick') → becomes 'signFlip'.
-- courseScene.js bobPhase: declared 6951, advanced 7044 (walkMoving
-  gate exists), used for held sway 8292. Footstep = sin(bobPhase) minima
-  + displacement gate + boards/turf via clubhouse containment.
-STILL TO FIND: ledger open/turn/close cue sites in main.js ledger key
-handler; register keypad tap site; cashier station enter/leave site.
+COMMIT PLAN (shared hot files force the split): commit 1 "E" =
+audio/ui/toolWheel/laptop/main/courseScene + report + resume; commit 2
+"F product pass" = clubhouse/customers/characterAsset/
+simplifiedRegisterMode/frontDeskMonitorUi/shopLayout/shopProgression/
+sim-register + re-pinned tests + f-drivers + f4 audit. One push.
 
-THEN: F (checkout, R-H — biggest remaining build), first-load instrument
-run (A1 remainder, electron-first-load.js exists), Phase 4 verifiers
-(game-only), final report assembly + disproven-claims-at-top + owner
-five-minute script on page 1. Carry-forward NOT DONE (already in report):
-A3's ten QA fast-forward drivers, vacuum/dustpan clobber (B6), GL
-sampler-mismatch warnings lead, C2 full typography pass, C4 locked-state
-screenshot.
+THEN: F drivers (f1, f8-escape, the combined checkout driver for
+F3/F4-mesh/F5-fractions/F6-clips, F7 seeds, F2 sweep), first-load run
+(A1 remainder), Phase 4 verifiers, final report. F8 one-payment merge =
+the plan's first NOT-REACHED candidate; steps 1+4 are DONE, 2-3 (green-fee
+line into the open retail tx, one tender) NOT DONE unless time allows —
+the seam and design live in PLAN_16.md F8.
 
 ## Key facts a fresh context must not re-derive
 

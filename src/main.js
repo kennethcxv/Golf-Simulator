@@ -536,12 +536,12 @@ function enterLedger() {
       event.preventDefault();
       event.stopPropagation();
       const turned = ledgerBookApi()?.turnPage(1);
-      if (turned && audio.ready) audio.uiTick();
+      if (turned && audio.ready) audio.ledgerTurn();
     } else if (key === 'arrowleft' || action === 'moveLeft') {
       event.preventDefault();
       event.stopPropagation();
       const turned = ledgerBookApi()?.turnPage(-1);
-      if (turned && audio.ready) audio.uiTick();
+      if (turned && audio.ready) audio.ledgerTurn();
     }
   };
   ledgerClickHandler = (event) => {
@@ -553,11 +553,12 @@ function enterLedger() {
       ? (event.button === 2 ? -1 : 1)
       : (event.clientX > window.innerWidth / 2 ? 1 : -1);
     const turned = ledgerBookApi()?.turnPage(direction);
-    if (turned && audio.ready) audio.uiTick();
+    if (turned && audio.ready) audio.ledgerTurn();
   };
   window.addEventListener('keydown', ledgerKeyHandler, true);
   window.addEventListener('pointerdown', ledgerClickHandler, true);
-  if (audio.ready) audio.uiTick();
+  // E2: the book has its own voice — clasp, cover, leaves — not a menu tick
+  if (audio.ready) audio.ledgerOpen();
 }
 function exitLedger(silent = false) {
   if (!app.ledgerOpen) return;
@@ -570,6 +571,7 @@ function exitLedger(silent = false) {
   // the close beat runs in the book itself: cover shuts, clasp returns, and
   // it floats back to wherever it rose from
   ledgerBookApi()?.setOpen(false);
+  if (!silent && audio.ready) audio.ledgerClose();
   const viewToggle = document.querySelector('.view-toggle');
   if (viewToggle) viewToggle.style.display = '';
   resetCameraInput();
@@ -877,7 +879,39 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
   );
-  app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
+  app.scene3d.walk.hooks.sfx = (name) => {
+    if (!audio.ready) return;
+    if (audio[name]) { audio[name](); return; }
+    // E1: an unmapped cue is a sender defect, not a silent no-op. Named once
+    // per cue; the list stays readable for QA drivers.
+    window.__fwUnknownCues = window.__fwUnknownCues || [];
+    if (!window.__fwUnknownCues.includes(name)) {
+      window.__fwUnknownCues.push(name);
+      console.warn('[audio] unknown cue:', name);
+    }
+  };
+  app.scene3d.walk.hooks.footstep = (surface, intensity) => {
+    if (audio.ready) audio.footstep(surface, intensity);
+    // R-G: the surface is logged beside each step so a driver can assert
+    // 100% agreement between where the player stands and which voice spoke.
+    const log = (window.__fwFootsteps = window.__fwFootsteps || []);
+    const w = app.scene3d?.walk?.state;
+    log.push({ at: performance.now(), surface, x: w ? +w.x.toFixed(2) : null, z: w ? +w.z.toFixed(2) : null });
+    if (log.length > 240) log.splice(0, log.length - 240);
+  };
+  // E1: the button-factory click sink. The laptop subtree is excluded here
+  // (its dispatcher already ticks every press centrally in laptop.js).
+  window.__fwUiClick = (node) => {
+    if (!audio.ready) return;
+    if (node && node.closest && node.closest('.laptop-screen')) return;
+    audio.uiTick();
+  };
+  // buttons born outside the factory still click
+  document.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest('button') : null;
+    if (btn && !btn.__fwClickCue) window.__fwUiClick(btn);
+  }, true);
   // Task-4 cleaning cadence hooks, routed through the generic audio surface: a stroke turnaround
   // fires a velocity-scaled accent (rate-limited in audio), a spray squeeze fires a trigger puff.
   app.scene3d.walk.hooks.onStrokeReversal = (toolId, intensity) => {
@@ -2643,6 +2677,12 @@ window.addEventListener('keydown', (e) => {
   // bound camera key cycles the turf view; panel toggles stay literal
   const overviewAction = boundAction(e);
   if (overviewAction === 'interact' || overviewAction === 'courseEditor') {
+    // F1 (Full_Goal_16): E at an OPEN station must never fall through to the
+    // drafting table — the register/ledger/laptop/front-desk own the screen.
+    // The editor still opens from the overview proper, and always on its own
+    // bound key.
+    if (overviewAction === 'interact'
+      && (regActive() || app.ledgerOpen || app.laptopOpen || app.frontDeskOpen)) return;
     enterEditor();
     return;
   }

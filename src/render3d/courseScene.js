@@ -6950,6 +6950,13 @@ export function makeCourseScene(canvas, state) {
   let trashSwallowT = 1; let trashPopT = 1; let lastBagLoad = 0;
   let bobPhase = 0;
   let walkMoving = false;
+  // E2 footsteps: the gait bob's minima are the footfalls. Displacement
+  // gates them (pushing into a wall pumps the bob but plants nothing) and
+  // the clubhouse slab picks the surface voice.
+  let stepBobSin = 0;
+  let stepBobDelta = 0;
+  let stepDistAccum = 0;
+  let stepIdleS = 0;
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -7040,8 +7047,8 @@ export function makeCourseScene(canvas, state) {
     } else if (heldAnim.show && heldAnim.t < 1) {
       heldAnim.settle = 0;
     }
-    // gait-synced bob: strong under way, a slow breathe at rest
-    bobPhase += dt * (walkMoving ? STRIDE_RATE_RAD_S : IDLE_SWAY_RATE_RAD_S);
+    // gait-synced bob (the phase itself advances in the walk update — E2
+    // moved it there so the gait exists barehanded; this block only reads it)
     const sway = walk.reducedMotion || !walk.cameraBob ? 0 : (walkMoving ? 1 : 0.25);
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
@@ -7487,6 +7494,24 @@ export function makeCourseScene(canvas, state) {
     return { x: cx, y: cy, worldX: ax, worldZ: az };
   }
 
+  // F1 (Full_Goal_16): find a work station (till, ledger desk) within its
+  // own radius. The cone is deliberately wide — anything not directly behind
+  // you — because the player arrives at a counter looking DOWN at the floor
+  // they were just mopping, and at point-blank range direction means nothing.
+  function walkStationPropInReach() {
+    for (const p of walkProps) {
+      if (!p.station) continue;
+      const dx = p.x - walk.x;
+      const dz = p.z - walk.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > (p.r || 0)) continue;
+      const facing = dist < 0.6 ? 1
+        : ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
+      if (facing > -0.2) return p;
+    }
+    return null;
+  }
+
   function walkFindFocus() {
     if (cart.mounted) {
       if (cart.vehicleKind === 'golf-cart') {
@@ -7535,6 +7560,18 @@ export function makeCourseScene(canvas, state) {
           walkFocus = { kind: 'prop', label: retainedLabel, prop: retainedProp };
           return;
         }
+      }
+    }
+    // F1 (Full_Goal_16): a work station in reach OUTRANKS the equipped
+    // tool's prompt — Q+mop at the till must read the till, not the mop.
+    // The tool blocks below return early and used to leave E dead at the
+    // counter (label hijack, facing gate, hose fallback — all three).
+    const stationProp = walkStationPropInReach();
+    if (stationProp) {
+      const stationLabel = typeof stationProp.label === 'function' ? stationProp.label() : stationProp.label;
+      if (stationLabel) {
+        walkFocus = { kind: 'prop', label: stationLabel, prop: stationProp };
+        return;
       }
     }
     // A tool the player deliberately equipped owns the prompt. Nearby props no
@@ -8272,6 +8309,11 @@ export function makeCourseScene(canvas, state) {
 
     walkRecover(dtMs, px0, pz0);
     const distanceMoved = Math.hypot(walk.x - px0, walk.z - pz0);
+    // E2 (Full_Goal_16): the gait phase lives with the WALK, not with the
+    // held-tool viewmodel — its old home early-returned whenever no tool was
+    // drawn, freezing bobPhase (and with it the camera bob and any footfall)
+    // for the bare-handed player. One advance per frame, here.
+    bobPhase += dt * (walkMoving ? STRIDE_RATE_RAD_S : IDLE_SWAY_RATE_RAD_S);
     updatePushedEquipment(dt, distanceMoved);
     if (!routeArrivalNotified && yardHome && Math.hypot(walk.x - yardHome.x, walk.z - yardHome.z) < 12) {
       routeArrivalNotified = true;
@@ -8287,6 +8329,32 @@ export function makeCourseScene(canvas, state) {
     // inside the clubhouse (or on its porch) you stand on the level floor slab
     const floorY = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
     const groundY = floorY !== null && floorY !== undefined ? floorY : walkSurfaceHeightAt(walk.x, walk.z);
+    const stepSin = Math.sin(bobPhase);
+    const stepDelta = stepSin - stepBobSin;
+    // a teleport (door warp, QA staging) is not a stride — a frame that moved
+    // more than any legal step clears the gate instead of loading it
+    if (distanceMoved < 1.0) stepDistAccum += distanceMoved;
+    else stepDistAccum = 0;
+    // standing still forfeits stride credit: the first step after a pause is
+    // a full step, and credit can never carry across a staging teleport
+    // (position assignment between frames is invisible to distanceMoved)
+    if (!walkMoving) {
+      stepIdleS += dt;
+      if (stepIdleS > 0.35) stepDistAccum = 0;
+    } else {
+      stepIdleS = 0;
+    }
+    if (walkMoving && mb <= 0.001 && stepBobDelta < 0 && stepDelta >= 0 && stepDistAccum > 0.22) {
+      if (walkHooks.footstep) {
+        walkHooks.footstep(
+          floorY !== null && floorY !== undefined ? 'boards' : 'turf',
+          heldAction('run') ? 1.25 : 1,
+        );
+      }
+      stepDistAccum = 0;
+    }
+    stepBobSin = stepSin;
+    stepBobDelta = stepDelta;
     if (mb <= 0.001) {
       const bob = walk.cameraBob && !walk.reducedMotion && walkMoving
         ? Math.sin(bobPhase) * 0.018
@@ -12069,6 +12137,14 @@ export function makeCourseScene(canvas, state) {
       aimCell: walkAimCell,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
+      // F1 read-only QA surface: where the work stations are, and whether one
+      // outranks the tool prompt right now — the driver asserts the same
+      // predicate the focus scan uses instead of reverse-engineering it.
+      stations: () => walkProps.filter((p) => p.station).map((p) => ({ x: p.x, z: p.z, r: p.r })),
+      stationInReach: () => {
+        const p = walkStationPropInReach();
+        return p ? { x: p.x, z: p.z, r: p.r } : null;
+      },
       cart, // cart state, same purpose
       // read-only for QA. `props` is what the clubhouse and the facilities
       // register into — the list that decides whether a doorway is walkable, and

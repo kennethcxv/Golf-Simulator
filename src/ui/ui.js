@@ -3,6 +3,17 @@
 
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
+  // E1 (Full_Goal_16): every button clicks. Nearly all player-facing buttons
+  // are born here, so the cue rides pointerdown at the factory; the sink
+  // (main.js __fwUiClick) excludes the laptop, whose own dispatcher already
+  // ticks centrally, and uiTick's press-window absorbs surfaces that still
+  // fire their own tick on click.
+  if (tag === 'button') {
+    node.__fwClickCue = true;
+    node.addEventListener('pointerdown', () => {
+      if (typeof window !== 'undefined' && window.__fwUiClick) window.__fwUiClick(node);
+    }, { passive: true });
+  }
   for (const [key, value] of Object.entries(attrs)) {
     if (key === 'class') node.className = value;
     else if (key === 'text') node.textContent = value;

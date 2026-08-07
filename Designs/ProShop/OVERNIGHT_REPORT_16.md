@@ -540,6 +540,215 @@ between bar and face and the brow disc rides off the forehead silhouette;
 in the AFTER profile both sit on the head. Screenshots are Electron
 player-camera frames at owner resolution with the HUD live.
 
+## E — every button clicks, and the world has physical sounds: BUILT AND VERIFIED
+
+**E1 (clicks everywhere).** The click cue now rides POINTERDOWN at the button
+factory itself (`ui.js el()` — where nearly all player-facing buttons are
+born), with a sink in main.js that excludes the laptop subtree (its own
+dispatcher ticks centrally) and a delegated document fallback for buttons
+born outside the factory. uiTick gained a 120 ms press-window so surfaces
+that still fire their own tick on click never double-speak. The unknown-cue
+QA warning ships in the sfx router (main.js): an unmapped cue name is
+console-warned once and listed on `window.__fwUnknownCues`.
+
+Real E1 gaps the instrument caught and the build closed:
+- the TOOL WHEEL's digit and shortcut activations were silent (arrows,
+  scroll and hover all ticked; a digit press waited ~57 ms for the equip
+  sound) — both now tick at the press;
+- the LAPTOP NAV RAIL (its most-used buttons) called `go()` straight and
+  never clicked — the rail and the Close button now run the laptop's own
+  `click()` dispatcher; `go()` itself stays silent so programmatic jumps
+  (aliases, search) never ghost-tick.
+
+**E2 (physical sounds).** Eight new procedural voices in the house idiom
+(layered, `varied()` pitch, no two alike): `footstep(surface, intensity)`
+(boards knock in a tight woody band, turf presses low with a grass hiss),
+`stationEnter`/`stationLeave` (cloth and one knuckle on the counter / the
+same cloth leaving), `signFlip` (two card flaps and a small swing),
+`ledgerOpen`/`ledgerTurn`/`ledgerClose` (clasp + cover thud + heavy leaves —
+the ledger no longer speaks in menu ticks), `keypadTap` (plastic under a
+finger, duller than the interface tick). The register terminal keys, the
+door sign, the station enter/leave and the ledger keys all route through
+them.
+
+**Footsteps are driven by the gait itself:** the bob phase advance MOVED
+out of the held-tool viewmodel (where an early return froze it whenever no
+tool was drawn — the bare-handed player had no gait signal and no camera
+bob at all) into the walk update; a footfall fires at each sin minimum,
+gated by real displacement (0.22 yd per stride; a frame that jumps more
+than any legal step CLEARS the gate — teleports are not strides — and
+standing still >0.35 s forfeits stride credit, so credit can never carry
+across a staging warp).
+
+**Instrument** (tools/qa/electron-e-audio.js, per R-G): everything is proven
+at the MASTER BUS through `audio.qaMasterTap()` (a 2048-bin analyser on the
+same post-volume node the capture instrument reads — ≈42 ms of history per
+read, so a short burst cannot die by polling luck), never at a dispatch
+counter alone. Depth = one real press per surface: silence-wait against the
+measured ambient bed, press, then the first sample ≥ bed + 0.0018 within
+the surface's window (50 ms ticks / 80 ms physical gestures and
+click-activated controls / 200 ms across the tool-equip stall), AND the
+wrapped cue counter must have fired. Stochastic rows (noise bursts against
+a live bed) take up to three real presses — every press must dispatch; one
+audible crossing proves the row; dispatch failure is terminal.
+
+**Run 17 (all 14 checks green; run 18 confirmed — two consecutive full-green runs, the ledger turn at 25.9 ms on its first press):**
+
+| check | number |
+| --- | --- |
+| pause-nav Settings | 23.7 ms, cue fired |
+| settings tab | 12.3 ms |
+| HUD clock chip | 21.4 ms |
+| tool-wheel digit | 47.7 ms (across the ~55 ms equip stall) |
+| laptop nav | 11.5 ms through the laptop's own dispatcher |
+| NEGATIVE: pause status text | zero cue dispatched, bus flat (0.0022 bed) |
+| breadth (pointerdown-only, never click) | pause-nav 7/7, pause page 1/1, settings 74/74 across six tabs, HUD 3/3, wheel 9/9, laptop 16/16 — 100% wired everywhere |
+| footsteps turf | 6 cues vs 5.54 expected from the 8.7 rad/s stride over 4 s; zone agreement 6/6; median cue-to-camera-trough offset 5.1 ms |
+| footsteps boards | 3 cues vs 3.46 expected over 2.5 s; agreement 3/3; median offset 16.3 ms |
+| wall push (negative) | pinned at 0.10 yd with the bob pumping: ZERO cues |
+| ledger open/turn/close | 9.4 / 30.4 / 57.6 ms, each with its own cue counted once |
+| voices vs family reference (paper() = 0.0133) | signFlip 0.0120, stationEnter 0.0155, stationLeave 0.0125, keypadTap 0.0122 |
+| unknown-cue control | bogus name listed + warned once; real name never listed |
+| AV capture medley | 132/132 non-silent windows, peak 0.0128, 6.6 s |
+
+**What the instrument taught (the run-8→11 physics):** there is no "pause
+duck" on the click channel — `applyVolume` ducks ambience ×0.18 and sfx
+×0.35 while paused but NEVER uiBus. The naked uiTick is ~0.005 at the bus;
+every louder ״tick״ reading was ambient-plus-cue superposition. A cue rides
+ON the bed, it does not multiply it — multiplicative floors (bed × k) are
+unmeetable by construction outdoors, and the honest detector is ADDITIVE
+(bed + Δ, Δ=0.0018 under the naked cue's own level). Likewise the footfall
+reference: the camera's own bob minima, detrended by a HALF-period boxcar
+at the MEASURED sample spacing (the uncapped window samples rAF at ~180 Hz;
+an assumed 16.7 ms crushed the signal, and a full-period window nulls the
+sine outright), matched per cue rather than census-then-match.
+
+**Stated limits:** stationEnter/stationLeave and keypadTap are proven as
+voices through the game's own cue router plus their wiring sites in code;
+their in-world trigger moments (entering the till, terminal digits) are
+exercised by the F-section drivers where those modes actually run, and the
+door sign's real E press is left to the stranger pass — the cue NAME is
+proven resolving (unknown-cue list stays empty when it fires). The turf
+count check leans on the stride-rate expectation because terrain slope
+drowns an 18 mm camera bob outdoors; the boards leg carries the timing
+proof on a flat slab.
+
+## F1 — Q + register goes straight to the cashier: BUILT AND VERIFIED
+
+A work station in reach now OUTRANKS the equipped tool's prompt.
+`walkStationPropInReach()` (courseScene) checks station-flagged props (the
+till, clubhouse.js:1880, and the ledger desk) inside their own radius with
+a deliberately wide cone — anything not directly behind you, because a
+player arrives at a counter looking DOWN at the floor they were mopping —
+and wins the focus before the tool label blocks return. The fourth route
+(interact falling through to the course editor from the overview handler)
+is guarded: E at an open station never opens the drafting table.
+
+**Driver** (tools/qa/electron-f1-station.js, all real input): the mop is
+equipped through the player's own door — INSIDE the shop (the wheel only
+offers the cleaning kit indoors; at spawn it lists course tools — washer /
+hose / divot / rake), hold-F, digit 3 ("3 M Mop"), Enter. All four routes
+then open the cashier and never the editor:
+
+| route | result |
+| --- | --- |
+| mop out, mopping pitch (-0.55) at the till | register opens, body enters register-mode |
+| extreme down-pitch (-1.2) | opens |
+| aim above the counter (the dead hose-focus state) | opens |
+| E AGAIN with the register open | register stays, courseMode never becomes 'editor' |
+| NEGATIVE: E in open floor with the mop out | nothing opens, nothing fires |
+| NEGATIVE: station scan 8 yd away | stationInReach() is null — the priority is scoped to the radius |
+
+Route screenshots under qa/electron/f1-station/. The first run of this
+driver also caught two of its own faults (fault 64).
+
+## F4 — cash arrives in realistic denominations: AUDITED, FIXED, RE-AUDITED
+
+The plan said audit-first, and the audit reproduced the complaint exactly:
+over 400 seeded sales at mixed totals, **135/400 tenders (33.8%) carried
+sub-quarter coins** — a fifty, a ten, two dimes and a penny for a $60.21
+due — because customerCash's 35% dig-for-coins branch paid ANY odd cents.
+The fix scopes the gesture to LARGE coins: the customer digs only when the
+odd cents are a clean quarter multiple. Re-audit on the same seed:
+**0/400 sub-quarter tenders; 396 clean note steps; the 4 odd-coin tenders
+are exactly the intended gesture** ($80.25 = notes + one quarter, $150.50 =
+three fifties + a half-dollar). Fixtures: $35.31 due tenders $40 as two
+twenties whichever branch rolls; $29.96 tenders a twenty and a ten; a round
+$20.00 presents exactly one $20 note in both branches (the negative
+control). Instrument: tools/qa/f4-cash-audit.mjs (seeded, deterministic;
+its own first run caught itself scanning nothing — netOf counts SCANNED
+items only — and printed empty tenders rather than a false pass). The
+desk-mesh half (drawn notes/coins equal the tender) rides the combined
+checkout driver.
+
+## F5 — customer and cash stand right of the bag: BUILT (probe pending)
+
+The winning move was the CUSTOMER, not the bag: the v2 queue head moves
+0.22 yd east (local -0.48 → -0.26; world 2.82 → 3.04) to stand nearly
+opposite the cashier, the line pitch shortens 0.80 → 0.69 so slot 2 lands
+back on the exact member_station clearance the old line proved out
+(world 4.42 unchanged), the customer's laid tender moves right (-0.55 →
+-0.38, still clear of the change pile at -0.23), the presented-cash clamp's
+left bound comes off the bag strip (-0.70 → -0.48; the mouth ends at
+-0.82), and the paying customer now FACES THE CASHIER's own stand
+(COUNTER.staffStand) instead of the register-block datum out by the bag —
+they address the person, not the carrier. tests/pine-hills-v2-layout.test.js
+re-pinned to the new head with the ruling recorded; checkout-space and the
+full layout suite green. The cashier-pose pixel fractions (face + tender
+visible over the whole payment) ride the combined checkout driver.
+
+## F7 — concurrency scaled by standing: CAPS RAISED (seed runs pending)
+
+The formula was always there (drive = reputation 0.55 + cleanliness 0.20 +
+rating 0.25, price-factored, clamped 0.55-1.35) — the TIER CAP pinned it:
+a starter floor held 2, so every standing produced the same crowd. Ceilings
+now: starter 2 → **5**, standard 4 → **8**, premium 6 → **10**, luxury 8 →
+**12** (drive then spans ≈3-7 customers at starter instead of pinning),
+with the tier unlock copy updated and shop-progression tests re-pinned.
+The queue holds 3 line slots + the 9-point overflow sunflower = 12
+positions, matching the luxury cap. The three seeded standings
+(well-run-cheap / mid / neglected-expensive, 10 sim-minutes each, peaks +
+screenshots + footfallDiagnostics() term breakdown) ride the F7 driver.
+
+## F8 — nobody leaves with unpaid goods: THE ESCAPE IS CLOSED (one-payment merge NOT DONE)
+
+The 2026-08-06 order ruling had already built the right rail — a combined
+visitor SHOPS FIRST and the desk business is held back
+(`deskErrandPending`) until the goods are paid, raised at the paid-sale
+site by `beginPendingDesk()`. What survived of the goal's bug was the
+CLASSIFIER: `openWalkInCustomer()` never looked at the cart, so a combined
+visitor arriving at the counter HOLDING GOODS was still stolen into desk
+business ahead of the cart branch — and both desk outcomes (booked or
+rejected) release desk customers to the door, silently restocking the cart
+as a lost sale on the way out. The fix is the goal's own step 1:
+`openWalkInCustomer` additionally requires an EMPTY cart. Step 4 ships
+with it: the exit net now recognises the escape class (a combined visitor
+reaching the door with items after a desk outcome) and shouts —
+`[F8-INVARIANT]` on the console and `window.__f8Violations` for drivers —
+while still healing the world.
+
+**Driver** (tools/qa/electron-f8-escape.js, first run green on all five):
+
+| leg | result |
+| --- | --- |
+| ESCAPE (legacy classifier reintroduced runtime-only via `__f8LegacyClassifier` — the ledgerTurnLegacy pattern) | the staged combined visitor reached the counter holding 2 items and was classified `walk-in-waiting` — desk business with unpaid goods, photographed (escape-legacy-counter.png) |
+| the invariant at their exit | 1 violation counted, the console line fired, the goods restocked |
+| FIXED build, same staging | the same visitor stays a SHOPPER at the counter (cart 4, `deskErrandPending` still armed for the post-payment ask), zero violations |
+| NEGATIVE: a pure desk walk-in (no goods) | still classifies as desk business immediately — the gate is scoped to held goods |
+
+**NOT DONE — the single combined payment (goal steps 2-3).** Items and the
+green fee remain two transactions: the shipped rail pays retail first,
+then `beginPendingDesk` raises the tee-time ask and the fee settles
+through the reservation payment path. Folding the fee INTO the open retail
+tx (a `service:green-fee` LINE carrying the check-in tx's no-sales-tax
+flag and its greenFees revenue key, one tender covering both) touches the
+register's transaction model — tax split, revenue split, and the
+receiptless finalize fork — exactly the 2.5-3 h seam the plan priced and
+named first NOT-REACHED candidate. The stopping point is precise:
+`bookWalkIn` still calls `beginReservationPayment` unconditionally; the
+append-a-line variant plus the two split rules in sim/register.js is the
+whole remaining change, designed in PLAN_16.md F8.
+
 ## Instruments built so far tonight
 
 - tools/qa/electron-realinput-spike.js — real input pre-flight (green).
@@ -602,3 +811,37 @@ player-camera frames at owner resolution with the HUD live.
     present. Forward is (−sin yaw, −cos yaw) per mouseLook's YXZ order, and
     displacement must be shot perpendicular to its axis: the profile shows
     it as a silhouette gap.
+57. Keyboard presses never stamped the press mark — the ledger turn measured
+    6.5 SECONDS from a stale mouse click. Presses are presses: a
+    window-capture keydown listener (registered before the ledger handler
+    exists, so its stopPropagation cannot eat it) stamps the same clock.
+58. A moving-average detrend of width equal to the bob period NULLS the
+    sine entirely (a centered boxcar's gain is sinc(pi W/T)); the boards
+    "minima" it left were noise. Width T/2 keeps 64% with phase intact.
+59. The uncapped Electron window samples rAF at ~180 Hz; an assumed
+    16.7 ms/sample made an 11-sample half-window span 60 ms and crushed a
+    36 mm bob to an 8 mm residual. Sample spacing is MEASURED now.
+60. There is no pause duck on the click channel — uiBus never ducks; the
+    "ducked tick" was superposition (tick ~0.005 riding a 0.015 outdoor
+    bed). Multiplicative floors are unmeetable by construction; cue
+    detection over a bed is ADDITIVE (bed + delta).
+61. A retry that reopened the ledger INSIDE the measured act slept past
+    the 420 ms poller — the row read zero samples while the cue counter
+    said the close fired three times. Stage mutations belong OUTSIDE the
+    measurement window.
+62. Under pointer lock the wheel's mouse click lands on the CANVAS (the
+    wheel is keyboard-driven there by design); the click's "pass" in an
+    early run was the equipped hands swinging — a false green the cue
+    counter killed. Real-input instruments must drive each surface by the
+    input mode the player actually has in that state.
+63. The B4/G stash-swap pattern reused for E's before states does not
+    compose with live Electron edits: a run launched while product files
+    were mid-edit loaded a half-written courseScene and every evaluate hung
+    (the 20-minute silent run). Launch drivers only from a settled tree.
+64. The F1 driver's first run had two faults of its own: it opened the tool
+    wheel at SPAWN, where the wheel legitimately offers course tools only
+    (washer/hose/divot/rake — the cleaning kit is an indoors offer), and it
+    left the wheel OPEN through every route, where the wheel is modal and
+    eats the interact key — all four routes read "register never opened"
+    while the till prompt sat right there in the frame. Equip indoors,
+    close the wheel, verify the modal class is gone.
