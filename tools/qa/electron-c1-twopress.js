@@ -192,6 +192,14 @@ async (page) => {
         colour: `#${c.getHexString()}`,
         size: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
           .map((v) => +v.toFixed(4)),
+        // where it sits and which way it points, so the fix is arithmetic
+        // rather than another guess
+        parent: o.parent?.name || null,
+        pos: [o.position.x, o.position.y, o.position.z].map((v) => +v.toFixed(4)),
+        rot: [o.rotation.x, o.rotation.y, o.rotation.z].map((v) => +v.toFixed(4)),
+        bbMin: [bb.min.x, bb.min.y, bb.min.z].map((v) => +v.toFixed(4)),
+        bbMax: [bb.max.x, bb.max.y, bb.max.z].map((v) => +v.toFixed(4)),
+        roughness: o.material?.roughness ?? null,
       });
     });
     // strap-shaped: one dimension far longer than the other two

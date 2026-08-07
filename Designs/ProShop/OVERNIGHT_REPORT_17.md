@@ -1674,6 +1674,46 @@ the right way, and give it a tail worth looking at.
 
 Screenshot: `qa/electron/c1-twopress/open-crop.png`.
 
+## C5 (part two) — the bookmark fixed, and the dye job reverted for costing 40x the turn budget
+
+Found by **shape, not by name**, so a rebuild that renames the generated layer
+still finds it: the one mesh in the open book that is green and has a
+long-to-wide ratio above 6. Measured 176 x 17 x 10 mm at ratio 10.4; the
+runner-up scores 2.11 and is part of the back cover.
+
+Two of the three complaints fixed, in arithmetic rather than by eye:
+
+| complaint | change |
+| --- | --- |
+| "it is backwards, it should hang up" | a half turn about the book's vertical, so the free tail is at the **head** of the spine instead of the foot |
+| "it sits in the middle" | the x band restored after the turn (or the flip throws it across the gutter onto the facing page), then tucked toward the crease so it no longer lies across the table of contents |
+
+The screenshot shows it rising from the gutter head instead of running down the
+middle of the contents list.
+
+### The third complaint cost too much, and I measured that before shipping it
+
+"It looks bad" - flat matte green at roughness 0.85 reads as felt rather than
+silk. Re-dyeing it meant **cloning its material**, and a cloned material is a
+NEW material, which means a new shader program compiled the first time it draws.
+**A3 convicted this exact mechanism elsewhere in this same file**, and it
+appeared here too:
+
+| page-turn worst frame | runs |
+| --- | --- |
+| before the dye | 39.2, 49.0 ms |
+| **with the cloned material** | **1673.7, 186.1, 579.3 ms** |
+| with the dye dropped | 46.4, 43.2 ms |
+
+Three-for-three in the wrong direction is a regression, not variance, and
+removing the clone puts it straight back. **4x to 40x the turn budget for a
+darker green is not a trade worth making**, so the dye is dropped and the
+geometry ships on its own. Doing it properly means recolouring the SHARED
+material at build time in Blender, where it costs nothing.
+
+Requirement 7 asks for the cost named in the same breath as the change. This is
+that, and the answer was to not ship half of it.
+
 ---
 
 ## RUNNING LISTS

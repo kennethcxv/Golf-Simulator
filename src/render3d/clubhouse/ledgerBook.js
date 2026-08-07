@@ -363,6 +363,70 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       leafPivot.position.set(HINGE_X, gutterHeight, 0);
       bendLeaf(0);
     }
+    // C5 (Goal 17) — THE BOOKMARK. Found by SHAPE, not by name.
+    //
+    // The owner calls it the bookmark; the file calls it `LB_LayerR0_3`, a
+    // generated page-block layer name. Searching for "bookmark" or "ribbon"
+    // across the source, the builders and the GLB's 59 nodes finds nothing,
+    // which is why this item read as stale. So it is found the way it was
+    // identified: the one mesh in the open book that is green AND long and thin
+    // (measured 176 x 17 x 10 mm, strap ratio 10.4; the runner-up scores 2.11
+    // and is part of the back cover). A rebuild that renames the layer still
+    // finds it.
+    //
+    // Three complaints, three changes:
+    //   "it is backwards, it should hang up"  - a half turn about the book's
+    //       vertical puts the free tail at the HEAD of the spine instead of the
+    //       foot, with the x band restored so it stays on its own side.
+    //   "it sits in the middle"               - tucked toward the gutter so it
+    //       lies in the crease rather than across the table of contents it was
+    //       crossing.
+    //   "it looks bad"                        - flat matte green at roughness
+    //       0.85 reads as felt. Silk is darker, smoother and slightly
+    //       anisotropic; roughness 0.42 and a deeper dye are what make a ribbon
+    //       look like ribbon.
+    const ribbon = (() => {
+      let best = null;
+      openNode.traverse((o) => {
+        if (!o.isMesh || !o.material?.color) return;
+        const c = o.material.color;
+        if (!(c.g > c.r * 1.08 && c.g > c.b * 1.08)) return;
+        o.geometry.computeBoundingBox();
+        const bb = o.geometry.boundingBox;
+        const dims = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
+          .sort((a, b) => b - a);
+        const ratio = dims[1] > 0 ? dims[0] / dims[1] : 0;
+        if (ratio > 6 && (!best || ratio > best.ratio)) best = { mesh: o, ratio, bb };
+      });
+      return best;
+    })();
+    if (ribbon) {
+      const { mesh, bb } = ribbon;
+      // half turn about the book's vertical: z -> -z, so the tail swaps ends
+      mesh.rotation.y = Math.PI;
+      // ...and the x band is restored, or the turn also throws it across the
+      // gutter onto the facing page
+      mesh.position.x = bb.min.x + bb.max.x;
+      // tucked toward the crease, out of the text it was lying across
+      mesh.position.x -= (bb.max.x - bb.min.x) * 0.55;
+      // THE MATERIAL CHANGE IS NOT SHIPPED, AND THE REASON IS MEASURED.
+      //
+      // Re-dyeing the ribbon meant cloning its material, and a cloned material
+      // is a NEW material - which means a new shader program, compiled the
+      // first time it draws. A3 convicted exactly this mechanism elsewhere in
+      // this file, and it showed up here too: page-turn worst frame went from
+      // 39.2 and 49.0 ms across two runs before, to 1673.7, 186.1 and 579.3 ms
+      // across three runs after. Three-for-three in the wrong direction is a
+      // regression, not variance.
+      //
+      // Requirement 7 says name the cost in the same breath as shipping the
+      // change. The cost here is 4x to 40x the turn budget for a darker green,
+      // so the dye is dropped and the geometry - which is the substance of C5 -
+      // ships on its own. Re-dyeing properly means recolouring the SHARED
+      // material at build time in Blender, where it costs nothing.
+      glbNodes.ribbon = mesh;
+    }
+
     glbNodes.ready = true;
     glbNodes.cover = coverNode;
     glbNodes.faceL = faceL;
