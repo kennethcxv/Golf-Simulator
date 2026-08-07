@@ -490,6 +490,56 @@ colon for the Chinese full-width dash) rather than exempted.
 
 ## D4/D5 — committed 14c5523 (scroll owner + spacing), all checks green
 
+## G — the torso is one piece and the face sits on the skull: BUILT AND VERIFIED
+
+**G1 (the pumping stomach).** The old vertical law moved the chest by the
+full walk bob, the pelvis by 0.7x of it, and left the belt/buckle planted:
+up to 2 cm of relative slide at the waist every stride, which reads as the
+shirt detaching from the trousers and the stomach pumping. characterAsset.js
+now applies ONE law: pelvis, belt, buckle and buckle tongue all carry `+ bob`
+exactly as the chest does.
+
+**G2 (the floating brows and moustache).** The brows sat at head-local
+z 0.145 and the moustache bar at z 0.150 against a skull of radius 0.155
+centred at z 0.054 — but the features sit at x ±0.058 / y −0.088, where the
+sphere's surface is much closer than its equator. Both now seat by the full
+radial solve (rear face pressed to the sphere along the feature's own radial):
+brow z 0.139, mouth z 0.133.
+
+**Instrument** (tools/qa/electron-g-characters.js): four customers built from
+four seeds on the real shop floor, stepped through 120 REAL update() frames.
+G1 metric: spread (max−min) of belt-vs-chest and pelvis-vs-chest vertical
+offsets across the stride — a single law shows 0, relative slide shows the
+slide. Negative control: the old static-belt law reintroduced runtime-only
+for 40 frames must light the same metric. G2 metric: radial distance of each
+feature's rear face from the skull centre minus the radius, computed in the
+head group's own space (features are direct children; for a SphereGeometry
+skull the analytic surface IS the mesh; local space makes it scale-proof
+across the 0.87–0.99 per-seed root scales). Acceptance ≤ 2.5 mm proud and
+≥ −6 mm pressed, ≥ 8 features across the seeds.
+
+**Build-level negative control:** the same driver ran against the OLD
+characterAsset (product edit stash-swapped out) and went red on both fronts
+— exactly the failures the goal describes, measured:
+
+| | before (old build) | after (fix) |
+| --- | --- | --- |
+| lockstep spread belt-vs-chest / pelvis-vs-chest | red (differential present) | **0.00000 / 0.00000** |
+| runtime-reintroduction control sees differential | yes (0.0399) | yes (0.03994) |
+| brow rear-face radial gap | **+14.2 mm proud** (all 8) | **−0.9 mm** (all 8) |
+| moustache-bar rear-face radial gap | **+19.7 mm proud** (all 4) | **+0.3 mm** (all 4) |
+| page errors | 0 | 0 |
+
+**Player-camera evidence** (qa/electron/g-characters/{before,after}/):
+`four-faces.png` (the row face-on), `close-face.png` (conversational
+distance), and `profile-face.png` — the pair that actually shows it. The
+float is along the face normal, so a face-on camera cannot see it by
+construction (the first face-on pair looked identical; fault 56). In the
+BEFORE profile the moustache bar hangs clear of the chin with wall visible
+between bar and face and the brow disc rides off the forehead silhouette;
+in the AFTER profile both sit on the head. Screenshots are Electron
+player-camera frames at owner resolution with the HUD live.
+
 ## Instruments built so far tonight
 
 - tools/qa/electron-realinput-spike.js — real input pre-flight (green).
@@ -512,3 +562,43 @@ colon for the Chinese full-width dash) rather than exempted.
     the canvas intercepted the click at owner resolution; the run died
     before writing its JSON. The wheel's own keyboard surface (digits +
     Enter) is resolution-independent and is the player's path too.
+47. `sharp` was required mid-driver after an earlier use of the same name
+    — TDZ crash that a stale JSON read then masked. Declarations via
+    createRequire live at the top of a driver, before any awaits.
+48. Range inputs snap assigned values to their step grid; twelve tuner
+    sliders "failed" against raw float targets. Compare against the
+    post-assignment input.value, and snapshot the dead-control check
+    immediately before its own dispatch.
+49. (process) Two commits rode a red em-dash linter: the first because the
+    suite tail swallowed the fail line, the second because `grep` exiting 0
+    on the text "# fail 1" satisfied the `&&` chain. Never gate a commit on
+    grepping pass/fail prose; gate on the runner's exit code.
+50. The B4 reach ladder's own thresholds were wrong: its −0.9/−1.5 anchors
+    are LEGAL reaches (hands above the floor with a 1.247 yd handle must
+    plant), and an up-look returns `{did:0}`, not null. The instrument was
+    failing correct behaviour; the fix was to the instrument.
+51. C6's held-D leg pressed during the ledger's 0.4 s 'opening' phase, which
+    turnPage refuses by design; the driver read it as a broken key. Wait for
+    state === 'open' before judging turn keys.
+52. With the Electron window unfocused, rAF throttles to ~1 fps and every
+    timing read shows ~950 ms phantom frames. page.bringToFront() before any
+    frame-cost measurement.
+53. The D1 fake-display control run THREW inside the apply legs, died before
+    writing its JSON, and three "control failed" readings were a stale file
+    from the previous run. Control modes must skip the legs they cannot
+    perform, and drivers must write their JSON even on early exit.
+54. Neither env nor argv crosses Playwright's electron.launch into the main
+    process on this stack; the D1 fake display reached main.cjs only via a
+    marker file beside it (fw-fake-display.txt).
+55. G2's first seat instrument raycast from each feature toward the skull
+    centre — from INSIDE the sphere for the moustache bar, so the ray exited
+    the far side and returned null ("cannot measure" read as a feature
+    fault). Replaced with the head-local radial-distance solve, which is
+    mesh-true for a SphereGeometry skull and scale-proof per seed.
+56. The G2 evidence camera missed twice: the first pair shot the stage from
+    an assumed yaw (a window, no subjects in frame), and the second was
+    face-on, where a float along the face normal is invisible by
+    construction — both frames looked identical while 14–20 mm of float was
+    present. Forward is (−sin yaw, −cos yaw) per mouseLook's YXZ order, and
+    displacement must be shot perpendicular to its axis: the profile shows
+    it as a silhouette gap.

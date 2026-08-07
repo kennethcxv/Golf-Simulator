@@ -225,7 +225,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     head.add(catchlight);
     const brow = box(0.052, 0.012, 0.014, mBrow, 0.114, 0.137);
     brow.position.x = x * 1.02;
-    brow.position.z = 0.158;
+    // G2: seated on the skull along the FULL radial — the first fix used
+    // the x=0 surface (0.145) and left the brows 10 mm proud on their
+    // diagonal at x ±0.058, which the mesh-raycast instrument caught. The
+    // surface at (x, y 0.114) is sqrt(0.155^2 - x^2 - 0.054^2) ≈ 0.133.
+    brow.position.z = 0.139;
     brow.rotation.z = x < 0 ? 0.14 : -0.14;
     fineDetail(brow);
     head.add(brow);
@@ -233,7 +237,10 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const nose = ellipsoid(0.034, 0.045, 0.030, mSkin, 0.043, 0.163, 8);
   fineDetail(nose);
   head.add(nose);
-  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.158);
+  // G2: this dark slab at z 0.158 hovered ~25 mm off the skull (surface z
+  // at mouth height is 0.1276) and read in profile as a floating moustache
+  // — there IS no moustache mesh; this was it. Seated now, <=2 mm proud.
+  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.133);
   mouth.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
   fineDetail(mouth);
   head.add(mouth);
@@ -716,7 +723,16 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     chest.rotation.y = twist;
     head.rotation.x = headTilt;
     chest.position.y = 1.07 + bob; // bob lives on the body — root stays placeable
-    pelvis.position.y = 0.98 + bob * 0.7;
+    // G1 (Full_Goal_16): FOUR vertical laws used to meet at the waist —
+    // shirt 1.0x bob, stomach 0.7x, belt and buckle never, hips never — so
+    // at stride the hem slid against a static belt at 2.8 Hz and the torso
+    // read as pumping apart. One law now: the whole trunk rides the same
+    // bob, and the only remaining seam (pelvis-to-hip) is the one hipCap
+    // already covers.
+    pelvis.position.y = 0.98 + bob;
+    belt.position.y = 1.055 + bob;
+    buckle.position.y = 1.055 + bob;
+    buckleTongue.position.y = 1.055 + bob;
   };
 
   char.update(0.001); // land in a valid pose immediately
