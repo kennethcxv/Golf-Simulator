@@ -33,7 +33,8 @@ where a control failed, the failure is written down instead of the result.
 | **G1** lint | **done** | and it found one |
 | **G2** item 14 prove-or-revert | **reverted, with the number** | it rescued nobody in 150 s while displacement caught four |
 | **G3** item 20 metric-or-statement | **a metric, and it survives its controls** | no tool is inside a fixture at any of 16 swept poses |
-| **G4–G5** | **NOT DONE** | |
+| **G4** item 10 density | **NOT DONE** | |
+| **G5** item 18 the t() migration | **the settings screen is done, with a guard** | 28 keys to 55; the rest of the codebase is not |
 
 ## A — the frame rate was never the problem
 
@@ -467,6 +468,35 @@ vacuum, dustpan, washer and spray. The screenshots are no longer all there is.
 One honest limit: `worst` is chosen by fixture depth, so the "any hull" column
 reports that same pose rather than its own maximum. The fixture claim is
 unaffected; the ground column is informational.
+
+## G5 — the settings screen reads in the player's language
+
+Report 14 measured the whole codebase at **1,551 hardcoded player strings against
+59 going through `t()`** and declined the migration as too large to do safely in
+one pass. That was an honest measurement and a reasonable decline, but it left
+the worst surface untranslated: **the settings screen is where a player goes to
+change the language, and it was asking them to do that in English.**
+
+That surface is migrated — 28 `t()` calls to 55, with 28 new keys — and
+`tests/settings-panel-localised.test.js` holds it. The guard is narrow on
+purpose (a quoted sentence reaching a `text:`, `message:`, `label` or `row(...)`
+argument) because a broad "no capitalised strings" rule would flag half the file
+and be switched off. It carries its own control: a planted string must be found,
+and CSS classes, comments and ALL-CAPS tokens must not be.
+
+Verified live afterwards — all fifteen settings still reach the runtime and still
+persist, and switching to French still changes the tab strip.
+
+**And the migration immediately broke G1's linter open.** Two of my new keys
+collided with existing ones (`settings.display.quality`,
+`settings.controls.reset`) and the lint reported the tree CLEAN — because it
+blanks every string literal before looking for `name:`, so a *quoted* key is
+whitespace by the time it looks. It had found the unquoted case the brief named
+and been blind to the shape that makes up most of this codebase. Fixed: string
+spans are kept and read back, with a fixture for the quoted case, and it then
+caught both collisions at once.
+
+**The rest of the codebase is not migrated**, and the 1,551 number stands for it.
 
 ## Instrument faults, 29 to 41
 

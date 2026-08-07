@@ -31,7 +31,7 @@ export function makeSettingsPanel({
     apply?.();
     if (!result?.ok) {
       notify({
-        message: 'This setting works for this session, but it could not be saved. Check that the game can write to local storage.',
+        message: t('settings.error.save'),
         category: 'save-failure',
         persistent: true,
         dedupeKey: 'preferences-write-failed',
@@ -136,18 +136,18 @@ export function makeSettingsPanel({
   function nativeDisplayRows(container) {
     const native = window.fairwayNative;
     if (!native?.displayInfo || !native?.setWindowMode || !native?.setResolution) return;
-    const status = el('div', { class: 'setting-native-status', role: 'status', text: 'Reading display…' });
+    const status = el('div', { class: 'setting-native-status', role: 'status', text: t('settings.display.reading') });
     container.append(status);
     native.displayInfo().then((info) => {
       status.replaceChildren();
       const mode = el('select', {
-        'aria-label': 'Window mode',
+        'aria-label': t('settings.display.windowMode'),
         onchange: async (event) => {
           try {
             await native.setWindowMode(event.currentTarget.value);
             status.dataset.state = 'ready';
           } catch (error) {
-            notify({ message: 'Window mode could not be changed. Try again after returning to the main menu.', category: 'invalid' });
+            notify({ message: t('settings.error.windowMode'), category: 'invalid' });
             console.error('window mode change failed', error);
           }
         },
@@ -156,14 +156,14 @@ export function makeSettingsPanel({
       el('option', { value: 'fullscreen', text: 'Fullscreen', selected: info.mode === 'fullscreen' ? true : null }));
       const resolutions = info.resolutions || [];
       const resolution = el('select', {
-        'aria-label': 'Window resolution',
+        'aria-label': t('settings.display.resolution'),
         disabled: info.mode === 'fullscreen' ? true : null,
         onchange: async (event) => {
           const [width, height] = event.currentTarget.value.split('x').map(Number);
           try {
             await native.setResolution(width, height);
           } catch (error) {
-            notify({ message: 'That window size is not available on this display.', category: 'invalid' });
+            notify({ message: t('settings.error.resolution'), category: 'invalid' });
             console.error('resolution change failed', error);
           }
         },
@@ -180,8 +180,8 @@ export function makeSettingsPanel({
         ? `This display has room for ${info.workArea.width} × ${info.workArea.height}.`
         : '';
       status.append(
-        row('Window mode', 'Fullscreen uses the active display. Windowed mode supports explicit sizes.', mode),
-        row('Window resolution', `Available while windowed; the game UI remains responsive. ${area}`.trim(), resolution),
+        row(t('settings.display.windowMode'), t('settings.display.windowMode.detail'), mode),
+        row(t('settings.display.resolution'), `${t('settings.display.resolution.detail')} ${area}`.trim(), resolution),
       );
     }).catch((error) => {
       status.textContent = 'Native display controls are unavailable in this session.';
@@ -191,7 +191,7 @@ export function makeSettingsPanel({
 
   function displayPage() {
     const quality = el('select', {
-      'aria-label': 'Graphics quality',
+      'aria-label': t('settings.display.quality'),
       onchange: (event) => {
         const preset = QUALITY_PRESETS[event.currentTarget.value];
         if (preset) update({ display: preset });
@@ -221,7 +221,7 @@ export function makeSettingsPanel({
       value, text, selected: preferences.values.display.shadowQuality === value ? true : null,
     })));
     const page = section(t('settings.display.title'), t('settings.display.intro'),
-      row('Graphics quality', 'Sets render scale, ambient occlusion, bloom, and shadows together.', quality),
+      row(t('settings.display.qualityRow'), t('settings.display.quality.detail'), quality),
       qualityNote,
       slider(t('settings.display.renderScale'), t('settings.display.renderScale.detail'), 'display.renderScale', {
         min: 0.65, max: 1.35, step: 0.05, format: pct,
@@ -229,7 +229,7 @@ export function makeSettingsPanel({
       toggle(t('settings.display.ao'), t('settings.display.ao.detail'), 'display.ambientOcclusion'),
       toggle(t('settings.display.bloom'), t('settings.display.bloom.detail'), 'display.bloom'),
       toggle(t('settings.display.shadows'), t('settings.display.shadows.detail'), 'display.shadows'),
-      row('Shadow detail', 'How big the sun\'s shadow map is and how often it is redrawn. The single biggest cost in the shop.', shadowQuality),
+      row(t('settings.display.shadowDetail'), t('settings.display.shadowDetail.detail'), shadowQuality),
       slider(t('settings.display.uiScale'), t('settings.display.uiScale.detail'), 'display.uiScale', {
         min: 0.9, max: 1.3, step: 0.05, format: pct,
       }),
@@ -342,9 +342,9 @@ export function makeSettingsPanel({
         rows.push(row(action.label, action.hold ? 'Hold and tap both follow this key.' : '', button));
       }
     }
-    rows.push(row('Reset controls', 'Every verb returns to its shipped key.', el('button', {
+    rows.push(row(t('settings.controls.resetRow'), t('settings.controls.reset.detail'), el('button', {
       type: 'button',
-      text: 'Reset to defaults',
+      text: t('settings.reset.button'),
       onclick: () => {
         stopCapture();
         set('controls.bindings', { ...DEFAULT_BINDINGS });
@@ -360,13 +360,13 @@ export function makeSettingsPanel({
 
   function accessibilityPage() {
     const tutorialControls = onResetTutorials || onDisableTutorials
-      ? row('Contextual tutorials', 'Progress is saved with the current game. Reset re-enables every first-use lesson.',
+      ? row(t('settings.tutorials.title'), t('settings.tutorials.detail'),
         el('div', { class: 'setting-inline' },
           onResetTutorials ? el('button', {
-            type: 'button', text: 'Reset tutorials', onclick: () => { onResetTutorials(); audio?.uiTick?.(); },
+            type: 'button', text: t('settings.tutorials.reset'), onclick: () => { onResetTutorials(); audio?.uiTick?.(); },
           }) : null,
           tutorialEnabled && onDisableTutorials ? el('button', {
-            type: 'button', text: 'Disable guidance', onclick: () => { onDisableTutorials(); audio?.uiTick?.(); },
+            type: 'button', text: t('settings.tutorials.disable'), onclick: () => { onDisableTutorials(); audio?.uiTick?.(); },
           }) : null,
         ))
       : null;
@@ -454,7 +454,7 @@ export function makeSettingsPanel({
 
     let pending = active || '';
     const select = el('select', {
-      'aria-label': 'Clubhouse room',
+      'aria-label': t('settings.developer.room'),
       onchange: (event) => { pending = event.currentTarget.value; },
     },
     el('option', { value: '', text: VARIANT_LABELS['modern-public'], selected: pending ? null : true }),
@@ -465,7 +465,7 @@ export function makeSettingsPanel({
     const applyRoom = () => {
       const result = storeClubhouseVariant(pending || null);
       if (!result.ok) {
-        notify({ message: 'The room choice could not be saved. Check that the game can write to local storage.', category: 'invalid' });
+        notify({ message: t('settings.error.room'), category: 'invalid' });
         return;
       }
       // Every clubhouse datum was frozen at module load, so the room can only change on
@@ -473,11 +473,11 @@ export function makeSettingsPanel({
       globalThis.location?.reload?.();
     };
 
-    return section('Developer', 'Not player-facing. Visible because this is a development session.',
+    return section('Developer', t('settings.developer.intro'),
       status,
-      row('Clubhouse room', 'Which clubhouse the next load builds. Saved, so plain `npm run dev` keeps returning to it.', select),
-      row('Apply', 'Saves the choice and reloads - the floor plan resolves once, at load, so nothing changes until then.',
-        el('button', { type: 'button', class: 'primary', text: 'Save and reload', onclick: applyRoom })),
+      row(t('settings.developer.room'), t('settings.developer.room.detail'), select),
+      row(t('settings.developer.apply'), t('settings.developer.apply.detail'),
+        el('button', { type: 'button', class: 'primary', text: t('settings.developer.save'), onclick: applyRoom })),
     );
   }
 
@@ -512,11 +512,11 @@ export function makeSettingsPanel({
         confirmingReset = false;
         changed(preferences.reset());
         render();
-        notify({ message: 'Settings are back to their defaults.', category: 'settings-reset' });
+        notify({ message: t('settings.reset.done'), category: 'settings-reset' });
       },
     });
     return el('div', { class: 'settings-footer' },
-      el('div', { class: 'setting-description', text: 'Audio, camera, display, controls, language and accessibility - all of it.' }),
+      el('div', { class: 'setting-description', text: t('settings.reset.detail') }),
       button);
   }
 

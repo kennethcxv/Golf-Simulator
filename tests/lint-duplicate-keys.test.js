@@ -36,6 +36,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Replace every comment, string, template and regex body with spaces of the
 // same length, so offsets and line numbers survive.
 function blankLiterals(source) {
+  // A QUOTED KEY IS STILL A KEY, and the first version of this scanner could
+  // not see one. It blanked every string literal before looking for `name:`,
+  // so `'settings.display.quality': 'Quality preset'` became whitespace and the
+  // duplicate two of them formed was invisible. It found the unquoted case in
+  // the brief and reported the tree clean while src/core/i18n.js carried two
+  // pairs. So the spans of simple single-token strings are kept here and the
+  // key scanner reads them back.
+  const strings = [];
   const out = source.split('');
   let i = 0;
   const n = source.length;
@@ -60,6 +68,10 @@ function blankLiterals(source) {
     if (c === '"' || c === "'") {
       let j = i + 1;
       while (j < n && source[j] !== c) { if (source[j] === '\\') j++; j++; }
+      const value = source.slice(i + 1, Math.min(n, j));
+      // Only a plain token can be an object key worth tracking; anything with a
+      // space, a newline or an escape in it is prose, not a key.
+      if (/^[\w$.:@/-]+$/.test(value)) strings.push({ start: i, end: Math.min(n, j + 1), value });
       blank(i, Math.min(n, j + 1)); i = j + 1; continue;
     }
     if (c === '`') {
@@ -92,7 +104,7 @@ function blankLiterals(source) {
     }
     i++;
   }
-  return out.join('');
+  return { code: out.join(''), strings };
 }
 
 const lineOf = (source, index) => source.slice(0, index).split('\n').length;
@@ -101,7 +113,8 @@ const lineOf = (source, index) => source.slice(0, index).split('\n').length;
 // before it is one of `=(,:[?&|` or a fat arrow — otherwise it is a block, a
 // class body or a function body and its `label:` is a labelled statement.
 export function findDuplicateKeys(source) {
-  const code = blankLiterals(source);
+  const { code, strings } = blankLiterals(source);
+  const stringAt = new Map(strings.map((entry) => [entry.start, entry]));
   const stack = [];
   const found = [];
   for (let i = 0; i < code.length; i++) {
@@ -128,8 +141,24 @@ export function findDuplicateKeys(source) {
     // a comma at this depth ends the property, and with it any unmatched `?`
     if (c === ',') { frame.ternary = 0; continue; }
     const top = frame.keys;
-    // a key is an identifier or a quoted name (already blanked, so only bare
-    // identifiers are readable) followed by a colon, at this object's own depth
+    // a QUOTED key: the span was recorded before blanking
+    const quoted = stringAt.get(i);
+    if (quoted) {
+      let k = quoted.end;
+      while (k < code.length && /\s/.test(code[k])) k++;
+      if (code[k] === ':' && frame.ternary === 0) {
+        if (top.has(quoted.value)) {
+          found.push({ key: quoted.value, first: top.get(quoted.value), second: lineOf(source, i) });
+        } else {
+          top.set(quoted.value, lineOf(source, i));
+        }
+        i = k;
+        continue;
+      }
+      i = quoted.end - 1;
+      continue;
+    }
+    // a bare identifier key
     if (!/[A-Za-z_$]/.test(c)) continue;
     if (i > 0 && /[A-Za-z0-9_$.]/.test(code[i - 1])) continue;
     let j = i;
@@ -199,6 +228,21 @@ test('the duplicate-key scanner catches the real ones it was written for', () =>
   // and the one the brief names
   const customers = `const model = { golfers: [], customers: 1, staff: 0, customers: 2 };`;
   assert.equal(findDuplicateKeys(customers).map((h) => h.key).join(), 'customers');
+
+  // A QUOTED KEY IS STILL A KEY. The first version blanked every string literal
+  // before looking for `name:`, so a translation table's `'settings.x': '...'`
+  // was whitespace by the time it looked - and it reported src/ clean while
+  // src/core/i18n.js carried two duplicate pairs. This is the shape it missed.
+  const table = `const EN = Object.freeze({
+    'settings.display.quality': 'Graphics quality',
+    'settings.audio.title': 'Audio',
+    'settings.display.quality': 'Quality preset',
+  });`;
+  assert.equal(findDuplicateKeys(table).map((h) => h.key).join(), 'settings.display.quality');
+
+  // ...and a quoted key colliding with a BARE one of the same name still counts
+  const mixed = `const a = { 'tone': 1, other: 2, tone: 3 };`;
+  assert.equal(findDuplicateKeys(mixed).map((h) => h.key).join(), 'tone');
 });
 
 test('the scanner does not cry wolf on the things that are not duplicate keys', () => {
