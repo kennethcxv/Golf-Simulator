@@ -868,15 +868,39 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         // row's text. The old glyph ended 6 px left of the number column
         // with its shackle poking above the row — the "unaligned, sloppy"
         // read, worst on Firsts because Firsts is usually the locked one.
-        const bodyW = 20;
-        const bodyH = 12;
-        const lx = PAGE_W - 92 - bodyW;
-        const by = y - bodyH - 2; // body top; baseline-aligned like a digit
+        // C7 (Goal 17) — ALIGNED TO THE DIGIT IT STANDS IN FOR, MEASURED.
+        //
+        // The lock replaces a page number, so it should occupy the same box as
+        // one. It did not, in two ways that are arithmetic rather than taste:
+        //
+        //   * `strokeRect` centres its stroke on the path, so a 3 px outline
+        //     put the lock's VISIBLE right edge 1.5 px PAST the column the
+        //     numbers are right-aligned to. Every lock sat a whisker right of
+        //     every digit.
+        //   * the shackle is a radius-6 arc on top of a 12 px body, so the
+        //     glyph stood ~21.5 px above the baseline against a digit's cap
+        //     height of ~15 - it poked out of the row, worst on Firsts because
+        //     Firsts is usually the locked one.
+        //
+        // Both are now solved from the digit's OWN measured box rather than
+        // from constants, so a font change carries the lock with it.
+        ctx.font = `400 ${T(22)}px Georgia, serif`;
+        const digit = ctx.measureText('8');
+        const capH = digit.actualBoundingBoxAscent || T(22) * 0.7;
+        const lw = Math.max(2, Math.round(capH * 0.16));
+        // total height (shackle + body + stroke) equals the digit's cap height
+        const shackleR = Math.max(3, (capH - lw) * 0.32);
+        const bodyH = Math.max(5, capH - shackleR - lw);
+        const bodyW = Math.round(bodyH * 1.55);
+        // the stroke's OUTER edge lands on the number column, not its centre
+        const right = PAGE_W - 92 - lw / 2;
+        const lx = right - bodyW;
+        const by = y - bodyH - lw / 2;   // body bottom sits on the baseline
         ctx.strokeStyle = '#8a8272';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = lw;
         ctx.strokeRect(lx, by, bodyW, bodyH);
         ctx.beginPath();
-        ctx.arc(lx + bodyW / 2, by, 6, Math.PI, 0);
+        ctx.arc(lx + bodyW / 2, by, shackleR, Math.PI, 0);
         ctx.stroke();
       } else {
         ctx.fillStyle = '#6b7268';

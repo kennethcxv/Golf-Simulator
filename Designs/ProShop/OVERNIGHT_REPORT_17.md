@@ -1714,6 +1714,37 @@ material at build time in Blender, where it costs nothing.
 Requirement 7 asks for the cost named in the same breath as the change. This is
 that, and the answer was to not ship half of it.
 
+## C7 — the section locks, aligned to the digit they stand in for
+
+C7: "The section locks look unaligned and sloppy. Firsts is the worst. Align
+them and make the locked state read as deliberate."
+
+A lock replaces a page number, so it should occupy the same box as one. It did
+not, in two ways that are arithmetic rather than taste:
+
+1. **`strokeRect` centres its stroke on the path.** A 3 px outline put the
+   lock's VISIBLE right edge **1.5 px past** the column the page numbers are
+   right-aligned to. Every lock sat a whisker right of every digit - too small
+   to name, exactly the size that reads as "sloppy".
+2. **The glyph was taller than a digit.** A radius-6 shackle on a 12 px body
+   stands ~21.5 px above the baseline, against a digit's cap height of ~15. The
+   shackle poked out of the row - worst on Firsts, because Firsts is usually the
+   locked one, which is precisely the row the brief names.
+
+Both are now solved from the digit's **own measured box** rather than from
+constants: `measureText('8').actualBoundingBoxAscent` gives the cap height, the
+stroke width and shackle radius derive from it, the body height is whatever is
+left, and the stroke's **outer** edge - not its centre - lands on the number
+column. A font change now carries the lock with it instead of stranding it.
+
+Verified at the player's camera: the two locked rows (Firsts, Course Log) sit
+right-aligned with 2, 3, 5, 7 and 9, at the same height. Sweep still clean -
+0 overlaps, 0 squeezes across 5 of 5 spreads.
+
+**Left as a nicety, not claimed:** the body is still wider than it is tall
+(`bodyW = bodyH * 1.55`), where a real padlock is taller than wide. That is
+shape rather than alignment, and C7 asked for alignment.
+
 ---
 
 ## RUNNING LISTS
