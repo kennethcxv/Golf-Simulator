@@ -963,6 +963,49 @@ Driver `tools/qa/electron-a4-rows.js`, real change events, both directions:
 The check was watched going red on the unfixed build and green on restore, so
 it is a check and not a decoration.
 
+### B2 CONFIRMED at the player's camera, and it took two more findings to get there
+
+`tools/qa/electron-b2-broomhead.js` - real wheel equip, default camera, work
+pitch, plus a 420 px crop on the head taken through **the lens that actually
+drew the tool** (the rig's own viewmodel camera, not the world camera - the
+wrong-lens fault is logged here). Frame 3840x2055. Artifacts in
+`qa/electron/b2-broomhead/`.
+
+**The density fix alone did not do it.** The first confirmation shot at 96
+tufts still showed separated tines. Two further findings, each measured rather
+than guessed:
+
+1. **The bristle field did not match the block.** `tools/qa/electron-b2-blockbounds.js`
+   measured `MESH_BroomBlock` at **0.52 x 0.078** in the rig's local space
+   against a hand-written field of **0.46 x 0.075** - inset thirty millimetres
+   either side, which is the daylight visible past the last tuft in the crop.
+   Nothing had ever checked those layout constants against the block they exist
+   to fill.
+2. **And then the picture still disagreed with the arithmetic.** At 36 columns
+   the spacing is 14.3 mm and the tuft is 18 mm at its top, which should
+   overlap - but the tuft **tapers to 11 mm at the tip, and the tip is what the
+   eye reads.** 11 mm of bristle every 14.3 mm is a gap, so it went on looking
+   like a comb while the numbers said brush. A real push broom barely tapers.
+
+| | original | shipped |
+| --- | --- | --- |
+| tufts | 22 | **200** |
+| rows | 2 | 5 |
+| field | 0.46 x 0.05 | **0.50 x 0.062** (block is 0.52 x 0.078) |
+| tip diameter vs spacing | 18 mm / 46 mm - **28 mm of daylight** | **17.6 mm / 12.8 mm - they overlap** |
+| draw calls | 44 | **2** |
+
+**The other two things B2 asks for were already there.** The scene dump shows
+`MESH_BroomBlock`, `MESH_BroomBlockCap`, `MESH_BroomFerrule` and
+`MESH_BroomFerrulePin` all present and visible - the block is defined and the
+brass ferrule reads clearly where the handle meets the head in the crop. So the
+complaint was entirely about the bristles, and saying that plainly is worth more
+than modelling a ferrule that already exists.
+
+**Verdict: it reads as a brush.** The field is a continuous mass with fine
+vertical striation instead of separated tines, spanning the full block, and it
+costs 2 draw calls where the sparse comb cost 44.
+
 ---
 
 ## RUNNING LISTS
@@ -971,9 +1014,7 @@ _Updated continuously, not at the end._
 
 ### UNCONFIRMED (claimed but not yet proven at the player's camera)
 
-- **B2, the dense instanced broom head.** The geometry and the draw-call counts
-  are certain; how it LOOKS is not, and it is a visual item. Needs a
-  player-camera screenshot the moment the Electron slot frees.
+- Nothing outstanding. B2 is now confirmed at the player's camera.
 
 ### NOT DONE
 

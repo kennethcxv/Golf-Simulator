@@ -431,14 +431,33 @@ export function buildToolViewmodels() {
                   THREE,
                   material: bristle,
                   layout: 'bar',
-                  count: 96,
+                  // MEASURED, not guessed (tools/qa/electron-b2-blockbounds.js):
+                  // MESH_BroomBlock is 0.52 x 0.078 in this local space. The
+                  // field was 0.46 x 0.075, inset THIRTY MILLIMETRES either
+                  // side, which is the daylight visible past the last tuft in
+                  // the player-camera crop. Nothing had ever checked the layout
+                  // constants against the block they are meant to fill.
+                  //
+                  // 36 columns across 0.50 m is 14.3 mm spacing against an 18 mm
+                  // tuft, so neighbours overlap by a fifth and the field reads
+                  // as a brush; 5 rows over 0.062 m does the same front to back.
+                  // 180 tufts is affordable because they are instanced: still
+                  // 2 draw calls, where the original 22-tuft comb cost 44.
+                  // ...AND THEN THE PICTURE STILL DISAGREED WITH THE ARITHMETIC.
+                  // At 36 columns the spacing is 14.3 mm and the tuft is 18 mm
+                  // at its TOP, which should overlap - but the tuft TAPERS to
+                  // 11 mm at the tip, and the tip is the part the eye reads.
+                  // 11 mm of bristle every 14.3 mm is a gap, so it went on
+                  // looking like a comb while the numbers said brush. A real
+                  // push broom's bristles barely taper at all.
+                  count: 200,
                   segments: 2,
                   length: 0.115,        // GLB-local metres: block underside to floor
-                  barWidth: 0.46,
-                  barDepth: 0.075,
-                  barRows: 4,
-                  strandRadiusTop: 0.011,
-                  strandRadiusBottom: 0.008,
+                  barWidth: 0.50,       // block is 0.52; 10 mm inset each side
+                  barDepth: 0.062,      // block is 0.078; 8 mm inset front and back
+                  barRows: 5,
+                  strandRadiusTop: 0.010,
+                  strandRadiusBottom: 0.0088,
                   // push-broom character: fast settle, short travel, little slack
                   params: {
                     chaseBase: 26, chaseFall: 5, pushGain: 0.55, dragGain: 0.05,
