@@ -11753,6 +11753,12 @@ export function makeCourseScene(canvas, state) {
       // that measures where a part lands ON SCREEN must project through this
       // camera, not the world one.
       broomViewmodelCamera: () => broomVm.vmCamera,
+      // ...and there is one rig PER STICK TOOL, each with its own lens. Asking
+      // the broom's camera where the dustpan landed projects through a lens
+      // that did not draw it, which is how a tool with no dustpan in frame
+      // measured 6.1% of screen and ranked mid-table. This returns the lens
+      // that actually rendered `id`, or the world camera when no rig owns it.
+      toolDrawCamera: (id) => (toolRigs[id]?.isActive() ? toolRigs[id].vmCamera : camera),
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks

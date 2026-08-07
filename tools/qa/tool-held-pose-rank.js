@@ -173,8 +173,10 @@ async (page) => {
     noToolShowsNothing: noTool.onScreen === false && noTool.groupFound === false,
     bogusToolShowsNothing: bogus.onScreen === false && bogus.groupFound === false,
     somethingWasDrawn: drawn.length > 0,
-    // reported, not gated - the fix is item 10's second half
-    everyDrawnToolIsInHands: true,
+    // WAS `everyDrawnToolIsInHands: true` - a literal, which cannot fail and so
+    // reported nothing while the dustpan and the vacuum were both hanging below
+    // the frame. It is now the measurement it was pretending to be.
+    everyDrawnToolIsInHands: rows.filter((r) => r.onScreen).every((r) => r.inHands === true),
     noPageErrors: errs.length === 0,
   };
   const strandedAbove = rows.filter((r) => r.onScreen && r.inHands === false);

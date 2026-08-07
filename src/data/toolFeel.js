@@ -73,7 +73,29 @@ export const TOOL_VM_FEEL = Object.freeze({
     // Measured: GripPrimary→DirtIntake is 0.796 yd against the broom's 1.247,
     // so hands at broom height saturate the drop and the head hung 0.276 yd
     // up. A person STOOPS with a short wand — the hands ride lower.
-    compose: { gripAnchor: [0.24, -0.73, -0.66] },
+    //
+    // ITEM 10: THE STOOP WAS RIGHT AND THE DEPTH WAS NOT, AND THE BROOM HAD
+    // ALREADY LEARNED THIS. Dropping y from 0.50 to 0.73 without moving z put
+    // the gripping hand at NDC y −1.454 and the head at −1.555: hands, wand and
+    // all, entirely below the bottom edge. That is round 5a of the broom's own
+    // history — "hands at hip height fixed the reach and put the grip ON the
+    // bottom edge, clipped" — and round 5b's answer was depth, not height,
+    // because depth shrinks the screen offset without giving back any of the
+    // drop the head needs to touch the boards.
+    //
+    // So the stoop stays exactly where it is (the head keeps its plant, 0.053 yd
+    // over the boards) and the framing is bought with z. The screen offset of a
+    // hand at the anchor is (|y|/|z|)/tan(fov/2); the broom holds 0.50/0.70 =
+    // 0.714 and reads at NDC −0.95, so matching that ratio puts these hands
+    // where the approved tool's are. 0.73/0.714 = 1.02.
+    //
+    // A pressure wand held a yard out in front is also the honest pose: you
+    // extend a wand, you do not tuck it under your chin.
+    //
+    // x rides with z to hold the screen composition (0.24/0.70 = 0.343), or the
+    // depth change alone drags the wand into the centre of the frame and under
+    // the tool HUD. 1.02 → 0.35.
+    compose: { gripAnchor: [0.35, -0.73, -1.02] },
   }),
 
   // The pan: a short one-handed stick (fpHands already hides the support hand
@@ -86,7 +108,26 @@ export const TOOL_VM_FEEL = Object.freeze({
     weight: { lagHz: BROOM_FEEL.weight.lagHz * 1.5, lagDamping: 0.75 },
     // Same stoop as the vacuum, shallower: the pan's grip→lip run measured
     // ~0.85 yd and the head hung 0.176 yd up at broom-height hands.
-    compose: { gripAnchor: [0.22, -0.64, -0.62] },
+    //
+    // ITEM 10: and the same correction. At [0.22, −0.64, −0.62] the gripping
+    // hand sat at NDC y −1.365 and the pan lip at −1.525 — the frame contained
+    // no dustpan at all, only a sliver of its top edge at y −0.78. The pan was
+    // never in the player's hands. Depth restores the framing without touching
+    // the plant: 0.64/0.714 = 0.90.
+    //
+    // 0.90 put the hand back in frame (−0.931) but left the planted LIP on the
+    // bottom edge at −0.95, because a 0.85 yd shaft hangs nearly vertical and
+    // the head has no horizontal run of its own — the only thing that lifts a
+    // floor-planted head up the frame is depth. Measured 2.05 NDC per yard of
+    // grip depth on this tool, so 1.00 carries the lip to about −0.75 and the
+    // hand to −0.78. That is the pan held out in front and down, which is how
+    // you hold one.
+    //
+    // x rides with z for the same reason it does in the broom's round-4 note:
+    // screen offset is x/z, so holding the depth change without holding x drags
+    // the tool toward the centre of the frame, where it lands behind the tool
+    // HUD. The broom's composition is 0.24/0.70 = 0.343, so 1.00 → 0.34.
+    compose: { gripAnchor: [0.34, -0.64, -1.00] },
   }),
 
   // The pressure wand: 'carry' — no floor plant, no reach cap, no stow,
