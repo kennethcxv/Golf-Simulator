@@ -363,6 +363,41 @@ function carriedThing() {
   return null;
 }
 
+// D1/D2 (Goal 17) — NOTHING IS EVER ABANDONED IN MID-AIR.
+//
+// The mechanism, found rather than guessed: the carried ledger is positioned
+// every frame by `followCarry`, driven from `walk.x/walk.z/walk.yaw`
+// (clubhouse.js). Enter a station and the walk controller stops driving those,
+// so the book simply STOPS - hanging at waist height wherever the player last
+// stood. That is "the book stays hanging in the air where I was standing",
+// verbatim, and it is not a bug in carrying. It is a bug at the STATION
+// BOUNDARY, which means every station is a place a carried thing can be
+// stranded and fixing the cashier alone would leave the class untouched.
+//
+// So it is fixed once, here, at the boundary itself: anything in the player's
+// hands is put DOWN before a station takes over the camera. Put down where they
+// stand, which is where a person would set a book to use a till.
+function putDownCarried() {
+  const carried = carriedThing();
+  if (!carried) return null;
+  if (carried === 'ledger') {
+    const book = app.scene3d?.clubhouse?.()?.ledgerBook;
+    const walk = app.scene3d?.walk;
+    if (!book || !walk) return null;
+    const off = app.scene3d.clubhouse().interior.position;
+    book.placeAt({
+      x: walk.x - Math.sin(walk.yaw) * 0.52 - off.x,
+      z: walk.z - Math.cos(walk.yaw) * 0.52 - off.z,
+      ry: walk.yaw,
+    });
+    if (audio.ready) audio.ledgerClose?.();
+    return 'ledger';
+  }
+  // Cartons already have their own placement verb and their own put-down; this
+  // predicate exists so a future carryable cannot be forgotten here.
+  return carried;
+}
+
 function seatPose(ch) {
   // the seat is fitted to the live camera, so the screen fills the view at any FOV or window shape
   const cam = app.scene3d && app.scene3d.camera;
@@ -395,6 +430,7 @@ function setCameraLens(fov, near) {
 }
 
 function enterLaptop(startPage = null) {
+  putDownCarried(); // D1: a station takes the camera; nothing is left floating
   if (!walkActive() || app.laptopOpen || app.frontDeskOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
@@ -472,6 +508,7 @@ function exitLaptop(silent) {
 // workflows remain independent. This mode borrows only the proven cashier pose;
 // it never enters registerMode or touches its live sale.
 function enterFrontDesk(reservationId = null) {
+  putDownCarried(); // D1: a station takes the camera; nothing is left floating
   if (!walkActive() || app.frontDeskOpen || app.laptopOpen || regActive()) return;
   const ch = app.scene3d?.clubhouse?.();
   const pose = ch?.register?.cashierPose?.();
@@ -2681,6 +2718,19 @@ window.addEventListener('keydown', (e) => {
       case 'setDown': {
         if (e.repeat) return;
         e.preventDefault();
+        // D2 (Goal 17) — THE BOOK GETS THE SAME VERB AS EVERY OTHER CARRYABLE.
+        //
+        // "There is no way to put the book down. Add one. The same verb as
+        // every other carryable thing." The verb already exists and the HUD
+        // already teaches it - "Z set down" - it simply only ever asked the
+        // carton system. One extra branch, deliberately BEFORE the carton
+        // branch, and the book answers the key the player has already been
+        // taught.
+        if (carriedThing() === 'ledger') {
+          putDownCarried();
+          toast('Book set down.');
+          return;
+        }
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         if (!ch?.setDownCarried) return;
         const w = app.scene3d.walk.state;
