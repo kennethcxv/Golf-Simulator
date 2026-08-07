@@ -1444,6 +1444,66 @@ because it cries wolf. It now invokes the test runner directly.
 
 ---
 
+# SECTION C — THE LEDGER
+
+## C1 — E brings the book up shut; E again opens it
+
+The brief calls the old opening "the wrong animation, not a mistuned one", and
+looking at the code before rewriting showed exactly why: **one E press ran the
+rise, the cover swing and the closed/open shell swap together**, in a single
+0.4 s state. The swap fired partway through a rise the player reads as the
+opening, which is the "left side appears already open and then swings" verbatim.
+
+**Replaced with the sequence the brief asks for.** The book's state machine
+gained `held` - in your hands, shut - and the rise and the cover swing are now
+two animations on two presses:
+
+`closed -> raising -> held -> opening -> open -> closing -> lowering -> closed`
+
+`isOpen()` now means READABLE, so page turns cannot work on a shut book, and a
+new `isInHand()` is what the E key and the HUD read.
+
+### Verified with a real keyboard, and a control
+
+`tools/qa/electron-c1-twopress.js` presses E three times and reads the book's
+**own state** after each, screenshotting at every step.
+
+| press | state after | cover swing | verdict |
+| --- | --- | --- | --- |
+| (before) | `closed` | 0 | on the desk |
+| **1** | **`held`** | **0** | in hand, SHUT |
+| control: a key bound to nothing | `held` | 0 | **inert** |
+| **2** | **`open`** | **1** | open to the first page |
+| **3** | `closed` | 0 | shut and back down |
+
+The control matters: an unbound key between the real presses left the state
+untouched, so the driver is reading the game rather than its own key handler.
+
+### The screenshot found a defect the old animation had been hiding
+
+The two-press sequence creates a state **nobody had ever seen** - the ledger
+held in the hands, closed - and the first player-camera shot of it showed the
+cover lettering **mirrored**, "PINE HILLS MUNICIPAL GOLF" reading backwards. The
+face pose was authored for the OPEN book, where the front cover has already
+swung away and the pages face the reader; applying it to a shut book presents
+the back.
+
+**Two attempts at the fix, both measured, neither shipped:**
+
+| attempt | result |
+| --- | --- |
+| half turn about the book's local **Y** | lettering correct, but the book reads **vertically** - the turn went about a tilted axis and came out as a roll |
+| half turn about local **Z** | worse: the book presents **edge-on**, showing the page block and the clasp |
+
+The correct axis is neither, and guessing a third is how this project ends up
+with a pose that looks right in one frame. **The turn ships as zero** - a book
+that reads backwards is better than one that reads sideways - and the machinery
+stays for the next attempt. **On NOT DONE with both screenshots.**
+
+**Twenty-minute-stranger bar: the sequence, yes. The cover, no.**
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._

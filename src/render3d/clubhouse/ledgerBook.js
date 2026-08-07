@@ -39,6 +39,13 @@ const LEAF_SECONDS = 0.55;
 // C1 (Full_Goal_16): 0.85 -> 0.4. The long rise WAS the "control is taken
 // away" complaint's other half — with pointer lock now kept through the
 // open, a brisk rise reads as picking a book up rather than a cutscene.
+// C1 (Goal 17): the open is now TWO presses, so it is two animations. The rise
+// brings the book up SHUT; the cover swing happens only on the second press.
+// They used to be one 0.4 s state that did both at once, which is exactly the
+// "the left side appears already open and then swings" the brief describes -
+// the shell swap fired partway through a rise the player read as the opening.
+const RAISE_SECONDS = 0.34;
+const COVER_SECONDS = 0.34;
 const OPEN_SECONDS = 0.4;
 const CLOSE_SECONDS = 0.65;
 // 2026-08-06 ruling: "closer to the user so its more visible... up and on an
@@ -1398,7 +1405,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   }
 
   // ---- state ---------------------------------------------------------------
-  let bookState = 'closed'; // closed | opening | open | closing
+  // closed -> raising -> held -> opening -> open -> closing -> lowering -> closed
+  // `held` is the new one and the whole of C1: the book is in your hands, SHUT.
+  let bookState = 'closed';
   let stateT = 0;
   let carried = false;
   let spread = 0;
@@ -1650,13 +1659,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
           ry: root.rotation.y,
         };
       }
-      // reversing mid-close continues from the matching point of the rise
-      stateT = bookState === 'closing' ? Math.max(0, 1 - stateT) : 0;
-      bookState = 'opening';
+      // reversing mid-lower continues from the matching point of the rise
+      stateT = bookState === 'lowering' ? Math.max(0, 1 - stateT) : 0;
+      bookState = 'raising';
       play('paper');
     } else {
       stateT = bookState === 'opening' ? Math.max(0, 1 - stateT) : 0;
-      bookState = 'closing';
+      // From a book that is merely HELD there is no cover to shut, so it goes
+      // straight back down.
+      bookState = (bookState === 'held' || bookState === 'raising') ? 'lowering' : 'closing';
       leaf = null;
       leafPivot.visible = false;
       play('paper');
@@ -1664,8 +1675,67 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return wantOpen;
   }
 
+  // "Open" means READABLE - the pages are showing. A book raised and shut is in
+  // hand but not open, and page turns must not work on it.
   function isOpen() {
     return bookState === 'open' || bookState === 'opening';
+  }
+
+  // In your hands at all, shut or not: what the E key and the HUD care about.
+  function isInHand() {
+    return bookState !== 'closed';
+  }
+
+  // C1, SECOND FINDING — THE SHUT BOOK CAME UP BACK-TO-FRONT.
+  //
+  // The two-press sequence created a state nobody had ever seen: the ledger
+  // held in the hands, closed. The first player-camera screenshot of it showed
+  // the cover lettering MIRRORED - "PINE HILLS MUNICIPAL GOLF" reading
+  // backwards - because the face pose was authored for the OPEN book, where the
+  // front cover has already swung away and the PAGES face the reader. Applying
+  // that same orientation to a shut book presents its back.
+  //
+  // A real book held shut shows its front cover; opening it swings that cover
+  // away and reveals the pages in the same place. So the shut states get a half
+  // turn about the book's own up axis, and it unwinds across the cover swing -
+  // which is the book turning to open, not a correction being hidden.
+  // TWO ATTEMPTS, BOTH RECORDED, NEITHER SHIPPED. A half turn about the book's
+  // local Y put the lettering the right way round but left the book reading
+  // VERTICALLY - the turn went about a tilted axis and came out as a roll. A
+  // half turn about local Z was worse: the book presents edge-on, showing the
+  // page block and the clasp. The correct axis is neither, and guessing a third
+  // is how this project ends up with a fix that looks right in one pose.
+  //
+  // So the turn is ZERO and the mirrored cover is on NOT DONE with its evidence.
+  // The machinery stays because the next attempt needs it, and shipping a book
+  // that reads sideways would be worse than shipping one that reads backwards.
+  const SHUT_PRESENT_TURN = 0;
+  const _shutEuler = new THREE.Euler();
+  const _shutQuat = new THREE.Quaternion();
+  function applyShutPresentation(amount) {
+    if (amount <= 0.0001) return;
+    _shutEuler.set(0, SHUT_PRESENT_TURN * amount, 0, 'YXZ');
+    _shutQuat.setFromEuler(_shutEuler);
+    root.quaternion.multiply(_shutQuat);
+  }
+
+  // C1 — ONE KEY, THREE MEANINGS, IN ORDER. Press E on a book on the desk and it
+  // comes up shut; press again and it opens; press again and it shuts and goes
+  // back down. This is the whole of C1 and it replaces a single press that did
+  // the rise, the cover swing and the shell swap together.
+  function advance() {
+    if (carried) return bookState;
+    if (bookState === 'closed' || bookState === 'lowering') { setOpen(true); return bookState; }
+    if (bookState === 'raising' || bookState === 'held') {
+      // second press: swing the cover from wherever the rise has got to
+      if (!prewarm() && spread !== 0) { spread = 0; paintSpread(); }
+      stateT = 0;
+      bookState = 'opening';
+      play('paper');
+      return bookState;
+    }
+    setOpen(false);
+    return bookState;
   }
 
   function turnPage(direction) {
@@ -1797,9 +1867,38 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // full recompile of the room.
     readingLight.visible = true;
 
-    if (bookState === 'opening') {
-      stateT = Math.min(1, stateT + dt / OPEN_SECONDS);
-      const rise = smoothstep(Math.min(1, stateT / 0.75));
+    if (bookState === 'raising') {
+      // THE RISE, SHUT. No cover swing, no shell swap - the closed block comes
+      // up to the hands and stops there.
+      stateT = Math.min(1, stateT + dt / RAISE_SECONDS);
+      const rise = smoothstep(stateT);
+      const liveFace = computeFacePose();
+      if (liveFace) facePose = liveFace;
+      if (facePose && deskSpot && root.parent) {
+        scratchPos.set(deskSpot.x, deskSpot.y, deskSpot.z).lerp(
+          root.parent.worldToLocal(facePose.position.clone()), rise,
+        );
+        root.position.copy(scratchPos);
+        scratchEuler.set(0, deskSpot.ry, 0, 'YXZ');
+        scratchQuat.setFromEuler(scratchEuler);
+        root.quaternion.copy(scratchQuat).slerp(facePose.quaternion, rise);
+      }
+      applyShutPresentation(rise);
+      setCoverSwing(0);
+      if (stateT >= 1) { bookState = 'held'; stateT = 0; }
+    } else if (bookState === 'held') {
+      // in your hands, shut, following your view the way the open book does
+      const pose = computeFacePose();
+      if (pose && root.parent) {
+        const alpha = Math.min(1, FOLLOW_RATE * dt);
+        root.position.lerp(root.parent.worldToLocal(pose.position.clone()), alpha);
+        root.quaternion.slerp(pose.quaternion, alpha);
+      }
+      applyShutPresentation(1);
+      setCoverSwing(0);
+    } else if (bookState === 'opening') {
+      stateT = Math.min(1, stateT + dt / COVER_SECONDS);
+      const rise = 1;
       // C1: the face pose is re-solved every frame of the RISE, not captured
       // once at setOpen — pointer lock stays on now, so a player who turns
       // while the book comes up must have it come up to where they are
@@ -1818,7 +1917,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       }
       // the cover swings through the middle of the rise; the closed block
       // exchanges for the arched open spread behind it at the swap point
-      const swing = smoothstep(Math.max(0, Math.min(1, (stateT - 0.26) / 0.58)));
+      const swing = smoothstep(stateT);
+      // the half turn unwinds as the cover opens: the book turns to face you
+      applyShutPresentation(1 - swing);
       setCoverSwing(swing);
       if (swing > SWAP_POINT && !openShell.visible) {
         openShell.visible = true;
@@ -1848,6 +1949,20 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         closedShell.visible = true;
         play('paper');
       }
+      if (facePose && deskSpot && root.parent) {
+        const from = root.parent.worldToLocal(facePose.position.clone());
+        scratchPos.copy(from).lerp(new THREE.Vector3(deskSpot.x, deskSpot.y, deskSpot.z), fall);
+        root.position.copy(scratchPos);
+        scratchEuler.set(0, deskSpot.ry, 0, 'YXZ');
+        scratchQuat.setFromEuler(scratchEuler);
+        root.quaternion.copy(facePose.quaternion).slerp(scratchQuat, fall);
+      }
+      if (stateT >= 1) { bookState = 'lowering'; stateT = 0; }
+    } else if (bookState === 'lowering') {
+      stateT = Math.min(1, stateT + dt / RAISE_SECONDS);
+      const fall = smoothstep(stateT);
+      applyShutPresentation(1 - fall);
+      setCoverSwing(0);
       if (facePose && deskSpot && root.parent) {
         const from = root.parent.worldToLocal(facePose.position.clone());
         scratchPos.copy(from).lerp(new THREE.Vector3(deskSpot.x, deskSpot.y, deskSpot.z), fall);
@@ -1896,9 +2011,11 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   return {
     root,
     setOpen,
+    advance,
     prewarm,
     prewarmVisual,
     isOpen,
+    isInHand,
     setCarried,
     isCarried: () => carried,
     followCarry,

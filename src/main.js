@@ -508,7 +508,11 @@ function enterLedger() {
   // THE BOOK COMES TO THE PLAYER (2026-08-05 ruling): no lens change, no
   // camera focus — the journal rises to the face, the clasp frees, the cover
   // swings. The camera holds still, exactly like the card reader.
-  if (!book.setOpen(true)) return; // e.g. it is in your arms right now
+  // C1 (Goal 17): the FIRST press only brings the book up, SHUT. The second
+  // press opens it. advance() owns that order; this just refuses to continue if
+  // the book would not come (it is in your arms right now).
+  book.advance();
+  if (!book.isInHand?.()) return;
   app.ledgerOpen = true;
   document.body.classList.add('ledger-mode');
   // C1 (Full_Goal_16): NEVER take control away. resetCameraInput() clears
@@ -529,10 +533,22 @@ function enterLedger() {
     // CONSUMES the key: without it the walk controller's bubble listener
     // still records the hold and the character strafes under the book.
     const action = boundAction(event);
-    if (key === 'escape' || action === 'interact') {
+    if (key === 'escape') {
       event.preventDefault();
       event.stopPropagation();
       exitLedger();
+    } else if (action === 'interact') {
+      event.preventDefault();
+      event.stopPropagation();
+      // C1: E means the next step, not "shut it". A book raised and shut opens;
+      // an open book shuts and goes back down.
+      const held = ledgerBookApi();
+      if (held && !held.isOpen()) {
+        held.advance();
+        if (audio.ready) audio.ledgerOpen();
+      } else {
+        exitLedger();
+      }
     } else if (key === 'arrowright' || action === 'moveRight') {
       event.preventDefault();
       event.stopPropagation();
