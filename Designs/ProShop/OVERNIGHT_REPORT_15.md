@@ -177,6 +177,21 @@ The pictures agree once they are taken at a pitch where the hand is actually in
 frame. At -0.34 the fist is plainly closed around the shaft, knuckles and all
 (`qa/electron/wrap-grip/wrap-as-shipped.png`).
 
+**And measured through the MOTION, not at one pitch.** "The measurement is not
+the claim. Watch a clip." So the pitch is driven the whole way, -0.40 to +1.35,
+and the palm-to-shaft distance sampled at fifteen points along it:
+
+| tool | across the whole sweep |
+|---|---|
+| broom | 0.0317 – 0.0340 yd |
+| mop | 0.0325 – 0.0365 yd |
+| vacuum | 0.0343 – 0.0359 yd |
+
+A range of two to four millimetres across the entire look sweep. **The hand
+holds the pole the whole way.** The dustpan is excluded with a reason: it is
+single-handed by design and has no support socket, so a line through two grips
+is undefined for it. A `.webm` of the sweep is in `qa/electron/b3-clip/`.
+
 **So the diagnosis changes.** What reads as "detached" is not a hand beside a
 pole — it is the hand being CUT OFF BY THE BOTTOM EDGE at working pitches, so
 only a sliver of fingers shows beside the shaft and the eye fills in a gap that

@@ -107,11 +107,37 @@ async (page) => {
     };
   });
 
+  // B3 — THROUGH THE SWEEP, NOT AT ONE PITCH. "The measurement is not the claim.
+  // Watch a clip." A single reading says the hand is on the shaft at one moment;
+  // the complaint is about MOTION. So the pitch is driven the whole way, -0.40
+  // to +1.35 and back, and the palm-to-shaft distance is sampled throughout. A
+  // hand that follows holds its distance; a hand that detaches does not.
+  const PITCHES = [];
+  for (let p = -0.40; p <= 1.35; p += 0.125) PITCHES.push(+p.toFixed(3));
   const rows = [];
   for (const tool of ['broom', 'mop', 'vacuum', 'dustpan']) {
     await page.evaluate((t) => window.__fw.scene3d.walk.setTool(t), tool);
     await page.waitForTimeout(1500);
-    rows.push(await page.evaluate((t) => window.__gripOnShaft(t), tool));
+    const samples = [];
+    for (const pitch of PITCHES) {
+      await page.evaluate((v) => { window.__fw.scene3d.walk.state.pitch = v; }, pitch);
+      await page.waitForTimeout(150);
+      const r = await page.evaluate((t) => window.__gripOnShaft(t), tool);
+      if (!r.error) samples.push({ pitch, d: r.palmToShaftYd });
+    }
+    await page.evaluate(() => { window.__fw.scene3d.walk.state.pitch = -0.34; });
+    await page.waitForTimeout(300);
+    const settled = await page.evaluate((t) => window.__gripOnShaft(t), tool);
+    const ds = samples.map((x) => x.d);
+    rows.push({
+      ...settled,
+      sweptPitches: samples.length,
+      minAcrossSweep: ds.length ? Math.min(...ds) : null,
+      maxAcrossSweep: ds.length ? Math.max(...ds) : null,
+      // the claim: the palm never leaves the pole as the view swings
+      staysOnTheShaft: ds.length > 0 && Math.max(...ds) <= 0.06,
+      worstAt: samples.length ? samples.reduce((a, b) => (b.d > a.d ? b : a)).pitch : null,
+    });
     await page.screenshot({ path: path.join(OUT, `${tool}.png`) });
   }
 
@@ -119,7 +145,16 @@ async (page) => {
   const out = {
     rows,
     checks: {
-      everyToolMeasured: rows.every((r) => !r.error),
+      // The DUSTPAN is single-handed by design - fpHands hides the support hand
+      // for a tool with no left grip - so it has no SOCKET_GripSupport and a
+      // "line through the two grips" is undefined for it. That is an exclusion
+      // with a reason, not a measurement that failed.
+      everyTwoHandedToolMeasured: rows
+        .filter((r) => r.tool !== 'dustpan')
+        .every((r) => !r.error),
+      dustpanIsSingleHandedAsExpected: rows.some(
+        (r) => r.tool === 'dustpan' && String(r.error || '').includes('support'),
+      ),
       // the metric must see a known displacement as a displacement...
       controlDisplacementReads: ok.every((r) => r.controlDisplacedYd > r.palmToShaftYd + 0.10),
       // ...and a point on the line as zero
@@ -127,11 +162,14 @@ async (page) => {
       // THE FINDING: a hand gripping a 0.023 yd pole is within a pole radius of
       // its axis. Anything beyond that is a hand beside the shaft.
       handIsOnTheShaft: Object.fromEntries(ok.map((r) => [r.tool, r.palmToShaftYd <= 0.05])),
+      // B3: and it stays there through the whole look sweep, not just at rest
+      handStaysOnTheShaftThroughTheSweep: ok.every((r) => r.staysOnTheShaft),
       noPageErrors: errs.length === 0,
     },
     errs: errs.slice(0, 6),
   };
-  out.ok = out.checks.controlDisplacementReads && out.checks.controlOnLineReadsZero;
+  out.ok = out.checks.controlDisplacementReads && out.checks.controlOnLineReadsZero
+    && out.checks.everyTwoHandedToolMeasured;
   fs.writeFileSync(path.join(OUT, 'grip-on-shaft.json'), `${JSON.stringify(out, null, 2)}\n`);
   return out;
 }
