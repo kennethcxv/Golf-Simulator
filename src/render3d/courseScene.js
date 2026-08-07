@@ -11443,6 +11443,37 @@ export function makeCourseScene(canvas, state) {
       clubhouseApi?.ledgerBook?.prewarmVisual?.(renderer, camera, scene);
       phaseAt = markPrewarm('ledger-first-visibility', phaseAt);
     }
+    // A1 (Goal 17) — AND THE SAME MECHANISM, GENERALISED.
+    //
+    // compile() walks traverseVisible, so NOTHING hidden at load has ever been
+    // warmed by this pass. The ledger's page faces were one instance; measured
+    // across a plain 30-second walk in a settled session, seven more programs
+    // still compiled, and the two frames that carried them took 1600.0 ms and
+    // 2201.7 ms with zero new geometries and zero new textures. That is the
+    // "far laggier" the brief opens with, arriving minutes into play.
+    //
+    // So every hidden object is revealed for the length of one compile.
+    //
+    // LIGHTS ARE DELIBERATELY EXCLUDED. A program's cache key carries the
+    // scene's light counts (A3 proved that the expensive way), so revealing a
+    // hidden light here would warm programs keyed to a light list that never
+    // occurs in play AND leave the real ones cold - strictly worse than doing
+    // nothing.
+    if (alive()) {
+      const forced = [];
+      scene.traverse((object) => {
+        if (!object.visible && !object.isLight) {
+          forced.push(object);
+          object.visible = true;
+        }
+      });
+      if (forced.length) {
+        renderer.compile(scene, camera);
+        for (const object of forced) object.visible = false;
+      }
+      prewarmTimings.push({ label: 'hidden-objects-revealed', ms: forced.length });
+      phaseAt = markPrewarm('compile-hidden', phaseAt);
+    }
     await tick();
     if (!alive()) return false;
     step('Uploading textures');

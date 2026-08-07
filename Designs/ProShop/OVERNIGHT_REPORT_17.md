@@ -452,6 +452,124 @@ probe asked the wrong question and got a confident, wrong answer.
 **Twenty-minute-stranger bar: no, and not because of doors** — the baseline
 frame pacing is the thing a stranger would feel, and it is open as A1.
 
+## A1 — the lag, attributed; one class fixed, one named and left open
+
+Measured on commit `2224ea1`. Driver `tools/qa/electron-a1-attribute.js`, fresh
+profile per run, real keyboard and mouse, 12 s settle so this is **settled
+play**, not load.
+
+### The item changed shape twice before any code moved
+
+The brief frames A1 as first-visit shader compiles arriving after the load veil
+lifts. Two things overruled that before I wrote a line:
+
+1. **Verifier 2 (previous session) had already disproved it.** The post-veil
+   first ten seconds are the *clean* part — 0-8 frames over 33 ms, zero over 100
+   ms — and the worst stall in a 30 s walk came with the program count FLAT.
+2. **A2's negative control redirected it.** Doors cost nothing; the game misses
+   16 ms on a quarter to a third of frames during any ordinary movement.
+
+So A1's question became: **what makes an ordinary walking frame miss?**
+
+### The attribution
+
+The instrument splits every frame into two populations using the renderer's own
+bake counter, so a shadow re-render can be told from everything else, and
+carries program, geometry and texture counts so a compile can be told from an
+upload.
+
+| population | share | median | p90 | over 16 ms |
+| --- | --- | --- | --- | --- |
+| frames carrying a 10 Hz shadow bake | 12.4% | **19.3 ms** | 26.2 ms | 53.8% |
+| every other frame | 87.6% | 9.9 ms | 22.6 ms | 27.6% |
+
+The bake roughly **doubles** the median of the frame it lands on and misses
+budget twice as often — but it is one frame in eight, and the other seven miss
+budget 27.6% of the time on their own. **The bake is a real contributor and not
+the main one.** Median draw calls across these runs: **870-1982 per frame**. Read
+with A5's finding that 2.33x the pixels cost 9% of frame time, the picture is
+consistent: this renderer is **draw-call bound, not fill bound**.
+
+### The multi-second stalls, and what they actually are
+
+Every stall over 250 ms was captured with what changed across it:
+
+```
+dt 1600.0 ms   programs +1   geometries +0   textures +0
+dt 2201.7 ms   programs +6   geometries +0   textures +0
+dt 7266.5 ms   programs +4   geometries +0   textures +0
+dt 2797.3 ms   programs +1   geometries +0   textures +0
+```
+
+**Every one is a shader compile.** No geometry arriving, no textures uploading.
+Seven programs compile during a plain thirty-second walk in a settled session,
+and they cost whole seconds. That is the "far laggier" the brief opens with, and
+it happens minutes into play, nowhere near the veil.
+
+### The fix: the same mechanism A3 found, generalised
+
+`renderer.compile()` walks `traverseVisible`. **Nothing hidden at load has ever
+been warmed by the prewarm.** The ledger's page faces (A3) were one instance of
+that; there were 700 more.
+
+The prewarm now reveals every hidden object for the length of one compile and
+puts it back. **Lights are deliberately excluded**: a program's cache key
+carries the scene's light counts — A3 proved that the expensive way — so
+revealing a hidden light would warm programs keyed to a light list that never
+occurs *and* leave the real ones cold, which is strictly worse than nothing.
+
+| | measured |
+| --- | --- |
+| hidden objects found and warmed | **701** |
+| what warming them cost | **54.1 ms** |
+| total prewarm before / after | 8812.6 ms / **8802.9 ms** (unchanged) |
+
+### Before and after, four runs against three
+
+The multi-program compile stall — the expensive one:
+
+| | pre-fix | post-fix |
+| --- | --- | --- |
+| observed values | 365.4, 1429.2, 2201.7, **7266.5** ms | 455.5, 537.5, **689.7** ms |
+| worst seen | **7266.5 ms** | **689.7 ms** |
+| spread | 365 - 7267 (20x) | 455 - 690 (1.5x) |
+
+The fix does not make that compile free — the same seven programs still compile
+— but it **removes the tail**: the worst multi-program stall drops from 7.3
+seconds to 0.7, and the spread collapses from twentyfold to half. The mechanism
+is that the identical GLSL has already been through the driver's compiler under
+a different cache key, so the later re-link is cheap.
+
+### What it did NOT fix, stated plainly
+
+**The single-program stall is unchanged.** Pre-fix: 601.4, 1200.2, 1600.0,
+2797.3, 2822.3 ms. Post-fix: 956.1, 2808 ms. One program still costs up to 2.8
+seconds and warming hidden geometry does nothing for it — because it is not a
+hidden object. It is a program keyed on **frame state**: the light counts, the
+shadow map size, the clipping planes, exactly as the brief describes. Finding
+which frame property differs, and warming that, is the next lever and it is on
+NOT DONE.
+
+**The over-16 ms rate is essentially unchanged** (30.8% before, 28.8-32.0%
+after) because it was never the compiles: it is ~900-2000 draw calls a frame,
+plus the shadow bake on one frame in eight. Named, not fixed.
+
+### Honest gaps in this item
+
+- The brief asks for "the measured frame times through the first 30 seconds,
+  before and after". I measured **settled play** instead, because the evidence
+  said the first thirty seconds is the clean window and the stalls live later.
+  The first-30-seconds table is on NOT DONE with that reasoning attached.
+- `warm-composer-render` is **5532 ms of the 8803 ms prewarm** — 63% of the
+  load, in one phase. That is the biggest single number in the load and nobody
+  has looked at it. On NOT DONE, and it is the obvious first stop for the
+  page-to-playable regression Verifier 2 measured at 22.1-22.8 s.
+
+**Twenty-minute-stranger bar: no.** A stranger would still feel a sub-second
+hitch or two in their first walk, and the frame pacing is uneven throughout.
+This item is genuinely bigger than one session and is reported as such rather
+than shipped shallow.
+
 ---
 
 ## RUNNING LISTS
