@@ -410,18 +410,35 @@ export function buildToolViewmodels() {
                 const bristle = new THREE.MeshStandardMaterial({
                   color: 0x27231f, roughness: 0.85, metalness: 0,
                 });
+                // B2 (Goal 17) — IT READ AS A RAKE BECAUSE IT WAS ONE.
+                //
+                // 22 tufts across a 0.46 m block is one every 46 mm, and a tuft
+                // is 26 mm thick: twenty millimetres of daylight between
+                // neighbours, in two rows 50 mm apart. Separated tines with
+                // gaps you can see through is the definition of a rake.
+                //
+                // A real push broom's bristles touch. 96 tufts in 4 rows puts
+                // them at 19 mm across a 0.46 m block against a 22 mm tuft, so
+                // neighbours now overlap slightly and the block reads solid
+                // from every angle a first-person camera can reach.
+                //
+                // This is only affordable because the fibres are INSTANCED now
+                // (see mopStrands.js): 96 tufts x 2 segments is 2 draw calls,
+                // where the old 22 tufts cost 44. A1 measured this renderer as
+                // draw-call bound, so the dense head is CHEAPER than the sparse
+                // one it replaces.
                 const rig = createMopStrands({
                   THREE,
                   material: bristle,
                   layout: 'bar',
-                  count: 22,
+                  count: 96,
                   segments: 2,
                   length: 0.115,        // GLB-local metres: block underside to floor
                   barWidth: 0.46,
-                  barDepth: 0.05,
-                  barRows: 2,
-                  strandRadiusTop: 0.013,
-                  strandRadiusBottom: 0.009,
+                  barDepth: 0.075,
+                  barRows: 4,
+                  strandRadiusTop: 0.011,
+                  strandRadiusBottom: 0.008,
                   // push-broom character: fast settle, short travel, little slack
                   params: {
                     chaseBase: 26, chaseFall: 5, pushGain: 0.55, dragGain: 0.05,

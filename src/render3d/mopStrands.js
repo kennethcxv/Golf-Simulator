@@ -1,30 +1,40 @@
-// ITEM 8 — "Mop fibres are rigid. Strands must trail, splay on the floor, and
-// swing behind."
+// FIBRES — the mop's yarn and the broom's bristles, one rig, drawn INSTANCED.
 //
-// They read rigid because there are no fibres. The authored mop head is ONE
-// mesh — MESH_MopSkirt, a solid cone — so nothing about it could ever trail or
-// splay; the whole head moved as a block because the whole head IS a block.
+// ITEM 8 (Goal 16) asked for fibres that trail, splay on the floor and swing
+// behind. The motion below is that, unchanged in behaviour: each strand is a
+// short chain of segments, each segment lags the one above it, so a stroke
+// travels DOWN the strand instead of teleporting the whole length at once. The
+// tips arrive late, which is what "swings behind" means, and they keep arriving
+// after the head has stopped, which is what makes it read as cloth rather than
+// plastic. Where the strands meet the floor they cannot continue down, so the
+// leftover length lays outward along the direction of travel: the splay.
 //
-// This builds real strands around that cone and moves them. Each strand is a
-// three-segment chain hanging from the collar, and each segment lags the one
-// above it, so a stroke travels DOWN the strand instead of teleporting the
-// whole length at once. That lag is the entire effect: the tips arrive late,
-// which is what "swings behind" means, and they keep arriving after the head
-// has stopped, which is what makes it read as cloth rather than plastic.
+// WHAT CHANGED (Goal 17, B2) AND WHY IT HAD TO:
 //
-// Where the strands meet the floor they cannot continue down, so the leftover
-// length lays outward along the direction of travel. That is the splay.
+// The broom read as "a rake, not a brush", and the geometry says exactly that.
+// 22 tufts across a 0.46 m block is one every 46 mm, and a tuft is 26 mm thick,
+// so there was TWENTY MILLIMETRES OF DAYLIGHT between neighbours - separated
+// tines with gaps you can see through, which is a rake.
 //
-// Kept deliberately cheap: 14 strands x 3 segments of a shared 5-sided tapered
-// cylinder, one shared material, no per-frame allocation. The mop is a
-// viewmodel seen at arm's length, but it is on screen for minutes at a time.
+// The fix is density, and density was unaffordable in the old construction:
+// every segment of every strand was its own Mesh, so the broom cost 44 draw
+// calls and the mop 42. A1 measured this renderer at 870-1982 draw calls a
+// frame and draw-call bound rather than fill bound, so tripling the tuft count
+// the obvious way would have put 150 more calls into the frame the player
+// already misses budget on.
+//
+// So the segments are now InstancedMesh - ONE per segment index, however many
+// strands there are. The broom goes from 44 draw calls to 2 and the mop from 42
+// to 3, which buys the density outright and gives frame time back on top.
+// Per frame the rig composes one matrix per segment per strand on the CPU
+// (a few hundred, trivial) instead of relying on the scene graph.
 
 const STRAND_COUNT = 14;
 const SEGMENTS = 3;
 
-// B2 — every number the motion runs on, LIVE. The tuning overlay writes
-// these through setParams while the tool is in hand; nothing is captured
-// into closures at build time any more. Defaults are the shipped values.
+// B2 — every number the motion runs on, LIVE. The tuning overlay writes these
+// through setParams while the tool is in hand; nothing is captured into
+// closures at build time. Defaults are the shipped values.
 const DEFAULT_PARAMS = Object.freeze({
   pushGain: 1.15,   // stroke angle -> strand push
   dragGain: 0.10,   // velocity term SUBTRACTED (drag, not anticipation)
@@ -40,13 +50,10 @@ const DEFAULT_PARAMS = Object.freeze({
   targetGrow: 0.34,
 });
 
-// B3 — the same trailing-segment machinery in two LAYOUTS:
-//   'ring' (default) — yarn hanging around a collar: the mop.
-//   'bar'            — stiff tuft rows under a rectangular block: the push
-//                      broom. columns x rows tufts spanning barWidth x
-//                      barDepth in the anchor's local XZ, shorter segments,
-//                      and the caller passes push-broom params (fast chase,
-//                      low slack) so it settles like bristle, not yarn.
+// Two LAYOUTS off the same machinery:
+//   'ring' - yarn hanging around a collar: the mop.
+//   'bar'  - tuft rows under a rectangular block: the push broom. columns x
+//            rows spanning barWidth x barDepth in the anchor's local XZ.
 export function createMopStrands({
   THREE, material, radius = 0.115, length = 0.30, params = {},
   layout = 'ring', count = STRAND_COUNT, segments = SEGMENTS,
@@ -57,15 +64,15 @@ export function createMopStrands({
   const root = new THREE.Group();
   root.name = 'MopStrandRig';
 
-  // one geometry for every segment: a tapered length of yarn/bristle, origin
-  // at its top so a segment rotates about where it joins the one above
   const SEGS = Math.max(1, segments);
   const segLen = length / SEGS;
+  // One geometry for every segment: a tapered length of yarn or bristle, origin
+  // at its TOP so a segment rotates about where it joins the one above.
   const geometry = new THREE.CylinderGeometry(strandRadiusTop, strandRadiusBottom, segLen, 5, 1, true);
   geometry.translate(0, -segLen / 2, 0);
 
-  // placement per layout; angle keeps its two update() roles — cos = how much
-  // of the stroke this strand feels, sin = which way it splays on the floor
+  // Placement per layout. `angle` keeps its two roles: cos = how much of the
+  // stroke this strand feels, sin = which way it splays on the floor.
   const places = [];
   if (layout === 'bar') {
     const cols = Math.max(2, Math.round(count / Math.max(1, barRows)));
@@ -75,8 +82,7 @@ export function createMopStrands({
         places.push({
           x: xNorm * (barWidth / 2),
           z: barRows === 1 ? 0 : ((r / (barRows - 1)) * 2 - 1) * (barDepth / 2),
-          // near-full stroke response for every tuft, outward splay by column:
-          // sin(angle) carries the sign of x, cos stays close to 1
+          // near-full stroke response for every tuft, outward splay by column
           angle: Math.asin(Math.max(-1, Math.min(1, xNorm))) * 0.55,
         });
       }
@@ -93,38 +99,41 @@ export function createMopStrands({
     }
   }
 
-  const strands = [];
-  for (let i = 0; i < places.length; i += 1) {
-    const p = places[i];
-    const anchor = new THREE.Group();
-    anchor.position.set(p.x, 0, p.z);
-    root.add(anchor);
-    const joints = [];
-    let parent = anchor;
-    for (let s = 0; s < SEGS; s += 1) {
-      const joint = new THREE.Group();
-      if (s > 0) joint.position.y = -segLen;
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      mesh.name = `MopStrand_${i}_${s}`;
-      joint.add(mesh);
-      parent.add(joint);
-      joints.push(joint);
-      parent = joint;
-    }
-    // a little variation so the bundle is not a machined row
-    strands.push({
-      anchor,
-      joints,
-      angle: p.angle,
-      phase: (i * 0.61803) % 1,
-      slack: 0.82 + ((i * 0.37) % 1) * 0.36,
-      lag: joints.map(() => 0),
-      carry: joints.map(() => 0),
-    });
+  const N = places.length;
+  // ONE InstancedMesh per segment index. Segment 0 of every strand draws in one
+  // call, segment 1 in the next, and so on.
+  const layers = [];
+  for (let s = 0; s < SEGS; s += 1) {
+    const mesh = new THREE.InstancedMesh(geometry, material, N);
+    mesh.name = `MopStrandLayer_${s}`;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    // The fibres move every frame, so three must not cache their matrices.
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // A bundle of fibres is small and always near the camera that draws it;
+    // culling it per-instance costs more than it saves and can pop the whole
+    // head when the bounding sphere is stale.
+    mesh.frustumCulled = false;
+    root.add(mesh);
+    layers.push(mesh);
   }
 
+  const strands = places.map((p, i) => ({
+    x: p.x,
+    z: p.z,
+    angle: p.angle,
+    phase: (i * 0.61803) % 1,
+    slack: 0.82 + ((i * 0.37) % 1) * 0.36,
+    lag: new Float32Array(SEGS),
+    carry: new Float32Array(SEGS),
+  }));
+
+  // Scratch, allocated once: the update runs every frame for every fibre.
+  const _m = new THREE.Matrix4();
+  const _acc = new THREE.Matrix4();
+  const _rot = new THREE.Matrix4();
+  const _euler = new THREE.Euler();
+  const _down = new THREE.Matrix4().makeTranslation(0, -segLen, 0);
   let time = 0;
 
   /**
@@ -137,68 +146,69 @@ export function createMopStrands({
    * `carry` is the correction for a defect the first version could not have
    * caught. The strands hang off the collar, and the collar is BELOW the head's
    * fan pivot, so the head's swing was already being applied to them by the
-   * scene graph — rigidly. Measured in the collar's frame they moved 0.004 yd
-   * while being carried, which is the idle shimmer and nothing else: a mop
-   * swung across a room had yarn welded to it.
+   * transform above - rigidly. Measured in the collar's frame they moved 0.004
+   * yd while being carried, which is idle shimmer and nothing else: a mop swung
+   * across a room had yarn welded to it.
    *
    * The parent has already applied `carry`, so what a trailing strand needs is
-   * the DEFICIT — how far behind the head it still is. That relaxes to zero, so
+   * the DEFICIT - how far behind the head it still is. That relaxes to zero, so
    * a mop held still hangs straight, and it costs one filter per segment.
    */
   function update(dt, stroke = 0, strokeVel = 0, contact = 0, carry = 0) {
     time += dt;
     const drive = Math.max(-2.4, Math.min(2.4, strokeVel));
-    for (const strand of strands) {
+    for (let i = 0; i < N; i += 1) {
+      const strand = strands[i];
       // How much this strand feels the stroke: one on the outside of the arc,
       // less on the inside, so the bundle fans instead of moving as a slab.
       const facing = Math.cos(strand.angle);
       const slack = strand.slack * live.slackScale;
-      // The velocity term used to be ADDED, which is a phase lead: the yarn
-      // reached the end of the stroke fractionally before the head did. That is
-      // anticipation, and cloth does not anticipate the hand carrying it — it
-      // is dragged. Measured, the lead cancelled the chase filter's delay
-      // almost exactly and the tips tracked the stroke at zero frames of lag
-      // with r=0.97, which is a mop head moving as one piece.
-      //
-      // Subtracting it makes the term drag: the faster the head is driven, the
-      // further behind the yarn sits, which is the direction the physics
-      // actually points.
+      // The velocity term is SUBTRACTED. Added, it is a phase lead: the yarn
+      // reaches the end of the stroke fractionally before the head does, and
+      // cloth does not anticipate the hand carrying it - it is dragged.
       const push = (stroke * live.pushGain - drive * live.dragGain) * slack;
+      // Start at the strand's anchor on the block, then walk down the chain
+      // accumulating each segment's rotation.
+      _acc.makeTranslation(strand.x, 0, strand.z);
       for (let s = 0; s < SEGS; s += 1) {
-        // each segment chases the one above it, and more slowly further down —
-        // this is the trail, and it is why the tips are still moving when the
-        // head has stopped
         const chase = live.chaseBase - s * live.chaseFall;
         const target = push * (live.targetBase + s * live.targetGrow) * (0.55 + 0.45 * facing);
         strand.lag[s] += (target - strand.lag[s]) * Math.min(1, dt * chase);
         // the carried head's fan, arrived at late: the deeper the segment the
         // slower it catches up, so the deficit grows down the strand
-        strand.carry[s] += (carry - strand.carry[s])
-          * Math.min(1, dt * chase * live.carryChase);
+        strand.carry[s] += (carry - strand.carry[s]) * Math.min(1, dt * chase * live.carryChase);
         const deficit = (strand.carry[s] - carry)
           * (live.deficitBase + s * live.deficitGrow) * slack;
-        const joint = strand.joints[s];
-        // swing across the stroke, and trail behind the carry...
-        joint.rotation.z = strand.lag[s] + deficit;
+        // swing across the stroke and trail behind the carry...
+        const rz = strand.lag[s] + deficit;
         // ...and splay OUTWARD once the floor stops the strand going down. The
         // deeper the segment and the more planted the head, the flatter it lies.
         const splay = contact * (live.splayBase + s * live.splayGrow) * slack;
-        joint.rotation.x = Math.sin(strand.angle) * splay
+        const rx = Math.sin(strand.angle) * splay
           + Math.sin(time * 1.7 + strand.phase * 6.28) * 0.02 * (1 - contact);
+        _euler.set(rx, 0, rz);
+        _rot.makeRotationFromEuler(_euler);
+        _acc.multiply(_rot);
+        _m.copy(_acc);
+        layers[s].setMatrixAt(i, _m);
+        // the next segment hangs from the bottom of this one
+        _acc.multiply(_down);
       }
     }
+    for (let s = 0; s < SEGS; s += 1) layers[s].instanceMatrix.needsUpdate = true;
   }
 
   function dispose() {
     geometry.dispose();
+    for (const layer of layers) layer.dispose();
   }
 
   return {
     root,
     update,
     dispose,
-    // B2: the overlay's live surface — read/patch the motion numbers with the
-    // tool in hand; nothing is captured at build time.
+    // the overlay's live surface - read and patch the motion numbers with the
+    // tool in hand; nothing is captured at build time
     params: () => ({ ...live }),
     setParams(patch = {}) {
       for (const [key, value] of Object.entries(patch)) {
@@ -207,9 +217,26 @@ export function createMopStrands({
       return { ...live };
     },
     defaults: () => ({ ...DEFAULT_PARAMS }),
-    // for a driver: the world position of every tip, which is the only honest
-    // way to ask whether the strands actually moved
-    tipCount: strands.length,
-    tips: () => strands.map((strand) => strand.joints[SEGS - 1]),
+    // For a driver: the LOCAL position of every tip, which is the only honest
+    // way to ask whether the fibres actually moved. Read from the instance
+    // matrices, so it reports what was drawn rather than what was intended.
+    tipCount: N,
+    strandCount: N,
+    drawCalls: SEGS,
+    tipsLocal: () => {
+      const last = layers[SEGS - 1];
+      const out = [];
+      const m = new THREE.Matrix4();
+      const v = new THREE.Vector3();
+      for (let i = 0; i < N; i += 1) {
+        last.getMatrixAt(i, m);
+        v.set(0, -segLen, 0).applyMatrix4(m);
+        out.push(v.clone());
+      }
+      return out;
+    },
+    // The old API returned Object3Ds; the callers that used it wanted world
+    // positions, so hand back the layer plus an index rather than a fake node.
+    tipLayer: () => layers[SEGS - 1],
   };
 }
