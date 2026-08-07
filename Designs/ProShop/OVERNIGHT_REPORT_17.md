@@ -574,18 +574,85 @@ than shipped shallow.
 
 ## RUNNING LISTS
 
+_Updated continuously, not at the end._
+
 ### UNCONFIRMED (claimed but not yet proven at the player's camera)
 
-- _(empty)_
+- Nothing currently. Every item banked so far carries a player-camera
+  measurement or, for A6, the rendered strings a screenshot physically cannot
+  capture (a native select popup), with that limitation stated.
 
 ### NOT DONE
 
-- _(empty)_
+- **A1: the single-program compile stall, up to 2.8 s.** Warming hidden objects
+  did nothing for it because it is keyed on FRAME state (light counts, shadow
+  map size, clipping planes), not on a hidden object. Finding which frame
+  property differs, and warming that, is the next lever.
+- **A1: the over-16 ms rate, 29-34% of frames during ordinary movement.** Not
+  the compiles; ~900-2000 draw calls a frame plus the 10 Hz shadow bake on one
+  frame in eight. Named and measured, not fixed. This is Standing Invariant 1
+  and it is violated continuously.
+- **A1: the first-30-seconds table the brief asks for.** I measured settled play
+  instead, because the evidence says the first thirty seconds is the clean
+  window and the stalls live later. Reasoning attached in the A1 section.
+- **A1: `warm-composer-render` is 5532 ms of the 8803 ms prewarm** - 63% of the
+  load in one phase, never examined. The obvious first stop for the
+  page-to-playable regression a verifier measured at 22.1-22.8 s.
+- **A4: quality preset switching.** Not started.
+- **The load itself.** Verifier 2's disproof of the previous session's first-load
+  numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
+  baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
+- **Sections B through H.** Not started.
 
 ### VERIFIER FINDINGS STILL OPEN
 
-- _(empty)_
+- None from this session's own verification yet - Section A's Phase 4 verifiers
+  have not run. The four Phase 2 reviewers' objections are all answered in
+  PLAN_17.md, and the ones they were right about changed the work: A1 was
+  re-scoped, A5 gained the drawing-buffer measurement, A3's headline number
+  changed from frame deltas to press-to-legible, A6's evidence changed from a
+  screenshot to rendered strings, and every control moved off the env-var
+  channel onto the marker file.
+- **Carried from Goal 16, still open:** Verifier 3 (the stranger's twenty
+  minutes) never ran - an orphaned Electron from Verifier 2 held the
+  machine-exclusive slot. Nothing in report 16 was confirmed or disproved by it.
 
 ### FIXED WITHOUT BEING ASKED
 
-- _(empty)_
+- **The tuning overlay could not be clicked at all** (R1). Not in the brief as a
+  defect; found by driving it with a real mouse for the first time.
+- **The harness shim would have silently lied about window size** once the game
+  launched maximised: 382 drivers believing their stated size while running
+  display-sized, 117 of them clicking fixed coordinates. Found by the
+  blast-radius reviewer, fixed before A5 landed.
+- **`qaFakeDisplay` ignored the marker-file channel**, so a leftover
+  fw-fake-display.txt would fake the display while the flag reported "real".
+- **Saved fibre parameters never reached the broom's bristle rig** -
+  `applyToolFeelOverrides` pushed to 'mop' and only 'mop', so a saved broom
+  block was merged into the live feel and then silently dropped.
+- **The A2 door driver's own bug is recorded rather than quietly fixed** (fault
+  74): it asked doors for `getWorldPosition` when they carry interior-local
+  lx/lz, and confidently reported "no doors" while the player stood beside four.
+
+---
+
+## INSTRUMENT FAULTS LOGGED THIS SESSION
+
+73. (carried from Goal 16's close-out) A serialized verifier chain gated on a
+    marker file assumes the previous stage released the machine. It did not -
+    an orphaned Electron held the exclusive slot - and both sides failed
+    silently. A gate on a marker must also check the resource is free.
+74. A door carries interior-LOCAL `lx`/`lz`, not a world node. The A2 driver
+    asked for `getWorldPosition`, got nothing, and reported "no doors found"
+    while standing next to four of them. Same shape as measuring a bounding box
+    where a pixel was needed: the probe asked the wrong question and got a
+    confident wrong answer.
+75. **A screenshot is in PHYSICAL pixels; `setViewportSize` speaks CSS pixels.**
+    At this machine's 1.5 DPR a 1600x900 viewport files a 2400x1350 png, so a
+    crop written in viewport units measured the top-left 52% of the frame - a
+    patch of static ceiling - and reported 0 moved pixels while the broom swung
+    through the middle of the shot. Every region must be scaled by the image's
+    own metadata, never by the viewport.
+76. A source-scanning test that quotes the broken code in its own explanatory
+    comment will find its own prose and report the defect it just fixed. Scan
+    statements, not comments.
