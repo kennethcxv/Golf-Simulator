@@ -10197,9 +10197,16 @@ export function makeClubhouse(ctx) {
       // at y=0.
       aimY: interior.position.y + start.y + 0.03,
       focusBias: 0.55,
-      label: () => (ledgerBook.isOpen() || ledgerBook.isCarried()
-        ? null
-        : 'Club register - [E] read · [X] carry'),
+      label: () => {
+        if (ledgerBook.isOpen() || ledgerBook.isCarried()) return null;
+        // D2: this callback fires only when the player is inside the book's
+        // reach and roughly facing it, which is the last quiet moment before
+        // they press E. Build the pages here so the swing has nothing to do.
+        ledgerBook.prewarm?.();
+        // D1: say WHAT it is. "Club register" is what the object is called; the
+        // player is looking for the book that tells them how the club is doing.
+        return 'The club ledger - [E] read the book · [X] carry it';
+      },
       action: () => { if (hooks.openLedger) hooks.openLedger(); },
       secondaryAction: () => {
         if (ledgerBook.isOpen() || ledgerBook.isCarried()) return;

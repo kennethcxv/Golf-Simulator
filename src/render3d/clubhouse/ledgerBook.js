@@ -22,6 +22,7 @@ import {
   rosterEntries, rosterDateShort, houseNotes,
   daySheetSummary, takingsSummary, journalSections,
   courseLogSummary, championEntries,
+  complaintsAndFixes, restorationRecord, firstsEntries, takingsHistory, deedSummary,
 } from '../../sim/clubRoster.js';
 import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
 
@@ -811,6 +812,216 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return rows.length;
   }
 
+  // D3 — THE FIVE NEW SECTIONS.
+  //
+  // Every one of them is a lens on state the sim already keeps, per the rule the
+  // top of clubRoster.js sets: the book owns nothing and invents nothing. A line
+  // that has not happened yet is PRINTED and says "not yet", because an empty
+  // ruled line is an invitation and a missing line is a secret.
+
+  // A ruled table with a label column and a value column, the shape three of
+  // these pages want. Returns the y it finished at so a caller can put a footer
+  // note under it.
+  function ruledRows(ctx, rows, top, { labelFont = 21, valueFont = 22, maxStep = 56 } = {}) {
+    const step = Math.min(maxStep, Math.max(28,
+      (contentBottom() - 14 - top) / Math.max(1, rows.length)));
+    let y = top;
+    for (const row of rows) {
+      const strong = !!row.strong;
+      const muted = !!row.muted;
+      ctx.fillStyle = muted ? 'rgba(107,114,104,0.72)' : strong ? '#3f4a42' : '#6b7268';
+      ctx.font = `${strong ? 700 : 400} ${T(labelFont)}px Georgia, serif`;
+      ctx.fillText(fitLine(ctx, row.label, PAGE_W - 300), 48, y);
+      if (row.value != null) {
+        ctx.textAlign = 'right';
+        ctx.fillStyle = row.valueColor || (muted ? 'rgba(107,114,104,0.72)' : '#2c3e50');
+        ctx.font = `${strong ? 700 : 400} ${T(valueFont)}px Georgia, serif`;
+        ctx.fillText(fitLine(ctx, String(row.value), 230), PAGE_W - 48, y);
+        ctx.textAlign = 'left';
+      }
+      // a settled complaint is struck through, not deleted: "we had that
+      // problem and we dealt with it" is the sentence this page exists to say
+      if (row.struck) {
+        ctx.strokeStyle = 'rgba(90,80,58,0.55)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(46, y - T(labelFont) * 0.3);
+        ctx.lineTo(48 + ctx.measureText(fitLine(ctx, row.label, PAGE_W - 300)).width + 4, y - T(labelFont) * 0.3);
+        ctx.stroke();
+      }
+      if (row.note) {
+        ctx.fillStyle = 'rgba(107,114,104,0.92)';
+        ctx.font = `italic 400 ${T(15)}px Georgia, serif`;
+        ctx.fillText(fitLine(ctx, row.note, PAGE_W - 120), 66, y + T(17));
+      }
+      ctx.strokeStyle = 'rgba(90,80,58,0.20)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(48, y + step * 0.24);
+      ctx.lineTo(PAGE_W - 48, y + step * 0.24);
+      ctx.stroke();
+      y += step;
+    }
+    return y;
+  }
+
+  function paintComplaints(face, model, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'Complaints and Fixes');
+    ctx.fillStyle = '#3a4a40';
+    ctx.font = `italic 400 ${T(19)}px Georgia, serif`;
+    const heading = model.reviewsRead
+      ? `${model.outstanding} still standing, ${model.settled} dealt with, from ${model.reviewsRead} reviews`
+      : 'Nobody has written anything yet.';
+    ctx.fillText(fitLine(ctx, heading, PAGE_W - 80), 40, 144);
+    const rows = model.complaints.map((row) => ({
+      label: row.label,
+      value: row.count > 1 ? `${row.count} times` : 'once',
+      struck: row.settled,
+      muted: row.settled,
+      note: row.settled ? 'put right' : (row.lastLabel ? `last heard ${row.lastLabel}` : ''),
+    }));
+    // and the jobs nobody has had to complain about yet, because the doors have
+    // not been open long enough for anyone to see them
+    for (const note of model.house.slice(0, Math.max(0, 7 - rows.length))) {
+      rows.push({ label: note.text, value: 'not said yet', note: note.action || '' });
+    }
+    if (!rows.length) rows.push({ label: 'Nothing outstanding. The house behaves.', muted: true });
+    ruledRows(ctx, rows.slice(0, 7), 190);
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return rows.length;
+  }
+
+  function paintRestoration(face, model, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'The Restoration Record');
+    ctx.fillStyle = '#3a4a40';
+    ctx.font = `italic 700 ${T(26)}px Georgia, serif`;
+    ctx.fillText(model.total
+      ? `${model.done} of ${model.total} put right`
+      : 'Nothing surveyed yet.', 40, 148);
+    let lastGroup = null;
+    const rows = [];
+    for (const row of model.rows.slice(0, 8)) {
+      if (row.group !== lastGroup) {
+        lastGroup = row.group;
+        rows.push({ label: row.group.toUpperCase(), strong: true, muted: true });
+      }
+      rows.push({
+        label: `   ${row.label}`,
+        value: row.done ? 'done' : row.state,
+        valueColor: row.done ? '#3f6b4a' : '#7a4a34',
+        muted: row.done,
+      });
+    }
+    if (!rows.length) rows.push({ label: 'The survey has not been done.', muted: true });
+    ruledRows(ctx, rows.slice(0, 9), 196, { labelFont: 19, valueFont: 19, maxStep: 44 });
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return rows.length;
+  }
+
+  function paintFirsts(face, firsts, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'Firsts');
+    ctx.fillStyle = '#3a4a40';
+    ctx.font = `italic 400 ${T(19)}px Georgia, serif`;
+    const done = firsts.filter((entry) => entry.done).length;
+    ctx.fillText(`${done} of ${firsts.length} have happened.`, 40, 144);
+    ruledRows(ctx, firsts.map((entry) => ({
+      label: entry.label,
+      value: entry.dateLabel,
+      muted: !entry.done,
+      valueColor: entry.done ? '#2c3e50' : 'rgba(107,114,104,0.66)',
+      note: entry.done && entry.detail ? entry.detail : '',
+    })), 190, { maxStep: 52 });
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return firsts.length;
+  }
+
+  function paintTakingsHistory(face, model, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'The Takings');
+    ctx.fillStyle = '#3a4a40';
+    ctx.font = `italic 400 ${T(18)}px Georgia, serif`;
+    ctx.fillText(model.daysClosed
+      ? `${model.daysClosed} days closed. Best ${money(model.best?.net || 0)}, worst ${money(model.worst?.net || 0)}.`
+      : 'The first day is not closed yet.', 40, 140);
+    // a column head, because this page is a table and the others are lists
+    ctx.fillStyle = 'rgba(107,114,104,0.8)';
+    ctx.font = `400 ${T(15)}px Georgia, serif`;
+    ctx.fillText('DAY', 48, 172);
+    ctx.textAlign = 'right';
+    ctx.fillText('IN', PAGE_W - 300, 172);
+    ctx.fillText('OUT', PAGE_W - 176, 172);
+    ctx.fillText('NET', PAGE_W - 48, 172);
+    ctx.textAlign = 'left';
+    const rows = model.rows.slice(-9);
+    const top = 202;
+    const step = Math.min(46, Math.max(24, (contentBottom() - 14 - top) / Math.max(1, rows.length)));
+    let y = top;
+    for (const row of rows) {
+      const strong = !row.closed;
+      ctx.fillStyle = strong ? '#3f4a42' : '#6b7268';
+      ctx.font = `${strong ? 700 : 400} ${T(18)}px Georgia, serif`;
+      ctx.fillText(fitLine(ctx, row.dateLabel, 240), 48, y);
+      ctx.textAlign = 'right';
+      ctx.font = `400 ${T(18)}px Georgia, serif`;
+      ctx.fillStyle = '#6b7268';
+      ctx.fillText(money(row.revenue), PAGE_W - 300, y);
+      ctx.fillText(money(row.expense), PAGE_W - 176, y);
+      ctx.fillStyle = row.net >= 0 ? '#3f6b4a' : '#7a4a34';
+      ctx.font = `700 ${T(18)}px Georgia, serif`;
+      ctx.fillText(money(row.net), PAGE_W - 48, y);
+      ctx.textAlign = 'left';
+      ctx.strokeStyle = 'rgba(90,80,58,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(48, y + step * 0.24);
+      ctx.lineTo(PAGE_W - 48, y + step * 0.24);
+      ctx.stroke();
+      y += step;
+    }
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return rows.length;
+  }
+
+  function paintDeed(face, deed, pageIndex) {
+    const ctx = face.canvas.getContext('2d');
+    paperGround(ctx);
+    pageHeader(ctx, 'The Deed');
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#3a4a40';
+    ctx.font = `italic 700 ${T(30)}px Georgia, serif`;
+    ctx.fillText(fitLine(ctx, deed.clubName, PAGE_W - 96), PAGE_W / 2, 158);
+    if (deed.location) {
+      ctx.fillStyle = '#6b7268';
+      ctx.font = `italic 400 ${T(19)}px Georgia, serif`;
+      ctx.fillText(fitLine(ctx, deed.location, PAGE_W - 120), PAGE_W / 2, 188);
+    }
+    ctx.textAlign = 'left';
+    const na = (value, format) => (value == null ? 'not recorded' : format(value));
+    ruledRows(ctx, [
+      { label: 'Acquired', value: deed.acquiredLabel, strong: true },
+      { label: 'Paid', value: na(deed.paid, (v) => money(v)) },
+      { label: 'Valued at', value: na(deed.valuation, (v) => money(v)) },
+      { label: 'Ground rent', value: na(deed.rent, (v) => `${money(v)} a month`) },
+      { label: 'Land', value: na(deed.acres, (v) => `${v} acres`) },
+      { label: 'Holes', value: deed.holes == null ? 'not recorded' : String(deed.holes) },
+      { label: 'Standing', value: `${deed.reputation} reputation` },
+    ], 226, { maxStep: 50 });
+    pageFooter(ctx, pageIndex);
+    face.texture.needsUpdate = true;
+    return 7;
+  }
+
   function paintTakings(face, takings, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
@@ -1005,6 +1216,18 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     try { sections = journalSections(state); } catch { sections = []; }
     try { course = courseLogSummary(state); } catch { course = null; }
     try { champions = championEntries(state); } catch { champions = []; }
+    // D3 — each new page reads its own summary, each behind its own guard, so a
+    // save shaped by an older build loses one PAGE rather than the whole book.
+    let complaints = null;
+    let restoration = null;
+    let firsts = [];
+    let history = null;
+    let deed = null;
+    try { complaints = complaintsAndFixes(state); } catch { complaints = null; }
+    try { restoration = restorationRecord(state); } catch { restoration = null; }
+    try { firsts = firstsEntries(state); } catch { firsts = []; }
+    try { history = takingsHistory(state); } catch { history = null; }
+    try { deed = deedSummary(state); } catch { deed = null; }
     const guestPageCount = Math.max(1, Math.ceil(Math.max(1, entries.length) / ROWS_PER_PAGE));
     const pages = [{ kind: 'contents' }];
     const pageOfSection = {};
@@ -1013,24 +1236,34 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // the house section paginates like the guest register - a dilapidated
     // starter has more notes than one page holds, and a note the book never
     // shows is teaching silently thrown away
-    const notesPageCount = Math.max(1, Math.ceil(Math.max(1, notes.length) / NOTES_PER_PAGE));
-    pageOfSection.house = pages.length + 1;
+    // D3: the seven sections the brief names, in its order. `notes` is still
+    // paginated because a dilapidated starter has more outstanding jobs than one
+    // page holds, and a note the book never shows is teaching thrown away — but
+    // it now lives INSIDE Complaints and Fixes rather than as its own section.
+    pageOfSection.complaints = pages.length + 1;
+    pages.push({ kind: 'complaints' });
+    const notesPageCount = Math.max(0, Math.ceil(Math.max(0, notes.filter((n) => n.outstanding).length - 7) / NOTES_PER_PAGE));
     for (let p = 0; p < notesPageCount; p += 1) pages.push({ kind: 'notes', notesPage: p });
-    pageOfSection.day = pages.length + 1;
-    pages.push({ kind: 'day' });
+    pageOfSection.restoration = pages.length + 1;
+    pages.push({ kind: 'restoration' });
+    pageOfSection.firsts = pages.length + 1;
+    pages.push({ kind: 'firsts' });
     pageOfSection.takings = pages.length + 1;
     pages.push({ kind: 'takings' });
     // R5: the earned sections turn to their own page; the unearned ones turn
     // to ruled blanks. Either way the LEAF exists — locking withholds what is
     // written, never the page, so the book's thickness never changes under
     // the reader's hand.
-    for (const section of sections.filter((entry) => ['course', 'champions'].includes(entry.id))) {
+    for (const section of sections.filter((entry) => ['course', 'deed'].includes(entry.id))) {
       pageOfSection[section.id] = pages.length + 1;
       if (section.locked) pages.push({ kind: 'locked', section });
       else if (section.id === 'course') pages.push({ kind: 'course' });
-      else pages.push({ kind: 'champions' });
+      else pages.push({ kind: 'deed' });
     }
-    return { entries, notes, day, takings, sections, course, champions, pages, pageOfSection };
+    return {
+      entries, notes, day, takings, sections, course, champions, pages, pageOfSection,
+      complaints, restoration, firsts, takingsHistory: history, deed,
+    };
   }
 
   function paintIndexWith(model, face, index) {
@@ -1042,7 +1275,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       case 'guests': return paintGuests(face, model.entries, page.guestPage, index + 1);
       case 'notes': return paintNotes(face, model.notes, page.notesPage, index + 1);
       case 'day': return paintDaySheet(face, model.day || {}, index + 1);
-      case 'takings': return paintTakings(face, model.takings || {}, index + 1);
+      case 'complaints': return paintComplaints(face,
+        model.complaints || { complaints: [], house: [], outstanding: 0, settled: 0, reviewsRead: 0 }, index + 1);
+      case 'restoration': return paintRestoration(face,
+        model.restoration || { rows: [], done: 0, total: 0 }, index + 1);
+      case 'firsts': return paintFirsts(face, model.firsts || [], index + 1);
+      case 'takings': return model.takingsHistory
+        ? paintTakingsHistory(face, model.takingsHistory, index + 1)
+        : paintTakings(face, model.takings || {}, index + 1);
+      case 'deed': return paintDeed(face, model.deed || { clubName: 'Pine Hills Municipal Golf', acquiredLabel: 'not recorded', reputation: 0 }, index + 1);
       case 'locked': return paintLocked(face, page.section, index + 1);
       case 'course': return paintCourseLog(face, model.course || {}, index + 1);
       case 'champions': return paintChampions(face, model.champions || [], index + 1);
@@ -1188,15 +1429,52 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return { position, quaternion };
   }
 
+  // D1/D2 — WARM THE BOOK WHILE THE PLAYER IS STILL WALKING UP TO IT.
+  //
+  // Called from the desk prop's own label callback, which fires exactly when the
+  // player is inside the book's reach and roughly facing it — the same moment
+  // the "[E] read" prompt appears. Cheap on every call after the first: the
+  // model is rebuilt only when the day has turned or the page count has moved,
+  // because the summaries behind it are day-granular.
+  let prewarmedKey = null;
+  function prewarm() {
+    const dayAbs = Math.floor((state?.clock?.minutes || 0) / 1440);
+    const key = `${dayAbs}:${state?.club?.reviews?.length || 0}:${state?.ledger?.history?.length || 0}`;
+    if (model && prewarmedKey === key) return false;
+    model = readModel();
+    prewarmedKey = key;
+    facePose = computeFacePose();
+    paintTitleFace();
+    // ...AND THE FIRST SPREAD. Moving only readModel() out of the swing left the
+    // stall at 104 ms against 112: the summaries are arithmetic, and the cost is
+    // painting two 768px page canvases and uploading them. The spread the book
+    // opens ON is always spread 0, so it can be painted now.
+    spread = 0;
+    paintSpread();
+    return true;
+  }
+
   function setOpen(next) {
     const wantOpen = !!next;
     const isOpenish = bookState === 'open' || bookState === 'opening';
     if (wantOpen === isOpenish) return isOpenish;
     if (wantOpen) {
       if (carried) return false; // a book in your arms is not a book to read
-      model = readModel();
-      spread = 0;
-      paintSpread();
+      // D2 — THE GLITCH IN THE OPEN IS WORK, NOT MOTION.
+      //
+      // Measured in Electron (tools/qa/electron-ledger-prompt-and-pages.js,
+      // 2026-08-06): across 436 frames of the swing the cover angle moves in
+      // steps of at most 0.03 of PI — the animation itself is smooth — but ONE
+      // frame costs 112.5 ms. It is this line and the two below it: readModel()
+      // runs all seven page summaries and paintSpread() paints two 768px
+      // canvases and uploads them, all inside the frame that starts the swing.
+      // So the book stands still for a tenth of a second and then jumps.
+      //
+      // prewarm() does the same work while the player is walking up to the desk,
+      // and is a no-op if it has already run for this state. By the time E is
+      // pressed there is nothing left to compute.
+      // repaints only if the day turned since the walk-up; otherwise free
+      if (!prewarm() && spread !== 0) { spread = 0; paintSpread(); }
       // the spot it will return to is where it LAY, never a mid-flight
       // position from a re-open during the close beat
       if (bookState === 'closed' || !deskSpot) {
@@ -1207,8 +1485,6 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
           ry: root.rotation.y,
         };
       }
-      facePose = computeFacePose();
-      paintTitleFace();
       // reversing mid-close continues from the matching point of the rise
       stateT = bookState === 'closing' ? Math.max(0, 1 - stateT) : 0;
       bookState = 'opening';
@@ -1396,6 +1672,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   return {
     root,
     setOpen,
+    prewarm,
     isOpen,
     setCarried,
     isCarried: () => carried,

@@ -95,9 +95,31 @@ function setFont(ctx, size, weight = 500) {
   ctx.font = `${weight} ${Math.round(size * scale)}px Arial, sans-serif`;
 }
 
+// EVERY STRING THIS SCREEN HAS EVER HAD TO CUT.
+//
+// F1/C7: two of the complaints in this brief are the same defect seen twice —
+// "Tee times read 'x am ...'" and "'Customer rec...' on overpay is cut off".
+// Both are this function doing its job on copy that was written without checking
+// it fits. There was no way to find the others except by opening every screen in
+// every state and reading them, so now the screen remembers: anything it
+// truncates is recorded once, with the width it had and the width it needed.
+// tests/front-desk-monitor-fits.test.js reads this and fails on a new one.
+export const MONITOR_TRUNCATIONS = [];
+const seenTruncations = new Set();
+
 function fitText(ctx, value, maxWidth) {
   const source = text(value);
-  if (ctx.measureText(source).width <= maxWidth) return source;
+  const full = ctx.measureText(source).width;
+  if (full <= maxWidth) return source;
+  if (!seenTruncations.has(source)) {
+    seenTruncations.add(source);
+    MONITOR_TRUNCATIONS.push({
+      text: source,
+      maxWidth,
+      neededWidth: Math.round(full),
+      overBy: Math.round(full - maxWidth),
+    });
+  }
   const suffix = '...';
   let low = 0;
   let high = source.length;
@@ -279,8 +301,14 @@ export function createFrontDeskMonitorUi(canvas) {
     ctx.fillStyle = COLORS.white;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    // THE CLUB'S OWN NAME WAS BEING CUT. "PINE HILLS MUNICIPAL GOLF" needs
+    // 383px at 22px bold and the box was 322, so the default club in the default
+    // save drew its own masthead as "PINE HILLS MUNICIPAL G...". The bar runs
+    // the full 1024 and the Exit button starts at 886, so the width was simply
+    // never checked against the name it ships with. 560 leaves the button clear
+    // and still truncates a genuinely long custom name rather than colliding.
     ctx.fillText(
-      fitText(ctx, text(clubName, 'Pine Hills Municipal Golf').toUpperCase(), 322),
+      fitText(ctx, text(clubName, 'Pine Hills Municipal Golf').toUpperCase(), 560),
       24,
       29,
     );
@@ -611,7 +639,9 @@ export function createFrontDeskMonitorUi(canvas) {
     const taxRate = finite(data.taxRate);
     const taxLabel = taxRate > 0
       ? `Sales tax ${(taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`
-      : 'Sales tax (none in state)';
+      // "Sales tax (none in state)" needed 263px in a 246px column and drew as
+      // "Sales tax (none in st...". A parenthetical is the first thing to go.
+      : 'Sales tax - none';
     const breakdown = [['Subtotal', money(data.subtotal)]];
     // A "DISCOUNT $0.00" row on every single sale is the clutter, not the
     // spacing. It appears when there IS one.
@@ -850,7 +880,10 @@ export function createFrontDeskMonitorUi(canvas) {
     let caption;
     if (model.awaitingCash) caption = 'CLICK THE CUSTOMER’S CASH TO TAKE IT';
     else if (givingState === 'exact') caption = 'EXACT CHANGE';
-    else if (givingState === 'over') caption = `OVER BY ${deltaText} - CUSTOMER RECEIVES EXTRA CHANGE`;
+    // C7: "OVER BY $2.50 - CUSTOMER RECEIVES EXTRA CHANGE" is 45 characters at
+    // 24px bold and the box is 500px, so it drew as "...CUSTOMER REC...". The
+    // captions either side of it are three words; this one was a sentence.
+    else if (givingState === 'over') caption = `${deltaText} OVER - THEY KEEP IT`;
     else if (givingState === 'excess') caption = 'TOO MUCH - MAX EXTRA IS $5.00';
     else caption = finite(model.givingDeltaCents) === 0 && !model.deposited
       ? 'SORTING THE RECEIVED CASH'

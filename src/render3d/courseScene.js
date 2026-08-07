@@ -8562,7 +8562,17 @@ export function makeCourseScene(canvas, state) {
       //
       // An explicit hold now wins. Working still cancels the linger, so the
       // reveal never trails a stroke you have stopped asking for.
-      if (senseHeld) {
+      // F2: A PANEL IS NOT A GLANCE. With the register, the laptop or the
+      // ledger open the player is reading a screen, not looking round the room —
+      // and the reveal was still lit behind it, glowing through the furniture
+      // under the UI, with the "[Q] reveal dirt" affordance still offered for a
+      // key that now does nothing. Cut to zero immediately rather than fading:
+      // a fade reads as the reveal following you into the panel.
+      const stationOpen = !!walkHooks.stationOpen?.();
+      if (stationOpen) {
+        dirtSenseLinger = 0;
+        dirtSenseAlpha = 0;
+      } else if (senseHeld) {
         dirtSenseLinger = walkSpraying ? 0 : DIRT_SENSE.linger;
         dirtSenseAlpha = Math.min(1, dirtSenseAlpha + dt * DIRT_SENSE.rise);
       } else if (walkSpraying) {

@@ -275,24 +275,271 @@ export function championEntries(state, limit = 6) {
 export function journalSections(state) {
   const campaign = state?.campaign || null;
   const courseOpen = !!campaign?.businessOpen || !campaign?.enabled;
-  const roster = rosterEntries(state);
-  const returning = roster.filter((entry) => entry.visits > 1).length;
+  const reviews = Array.isArray(state?.club?.reviews) ? state.club.reviews : [];
+  const history = Array.isArray(state?.ledger?.history) ? state.ledger.history : [];
+  const firsts = firstsEntries(state);
+  // D3: the seven the brief names, in the order it names them. `House Notes`,
+  // `Day Sheet` and `Champions` are gone as sections — what they held is now
+  // inside Complaints and Fixes, The Takings and Firsts respectively, which is
+  // where a reader would look for it.
   return [
     { id: 'guests', title: 'Guest Register', locked: false },
-    { id: 'house', title: 'House Notes', locked: false },
-    { id: 'day', title: 'Day Sheet', locked: false },
-    { id: 'takings', title: 'Takings', locked: false },
+    {
+      id: 'complaints',
+      title: 'Complaints and Fixes',
+      locked: !reviews.length && !state?.shop?.reno,
+      lockedLine: 'Nobody has said anything yet. Open up and let them in.',
+    },
+    { id: 'restoration', title: 'The Restoration Record', locked: false },
+    {
+      id: 'firsts',
+      title: 'Firsts',
+      locked: firsts.every((entry) => !entry.done),
+      lockedLine: 'Nothing has happened for the first time yet.',
+    },
+    {
+      id: 'takings',
+      title: 'The Takings',
+      locked: false,
+      // not a lock, a note: the page is a HISTORY, and on day one it is one row
+      subtitle: history.length > 1 ? `${history.length} days closed` : 'Today only, so far',
+    },
     {
       id: 'course',
       title: 'Course Log',
       locked: !courseOpen,
       lockedLine: 'Nothing to record until the course reopens for play.',
     },
-    {
-      id: 'champions',
-      title: 'Champions',
-      locked: returning < 3,
-      lockedLine: `Waiting on regulars. ${returning} of 3 golfers have come back.`,
-    },
+    { id: 'deed', title: 'The Deed', locked: false },
   ];
+}
+
+// --- COMPLAINTS AND FIXES --------------------------------------------------
+//
+// The left column is what people actually SAID — the negative factors cited in
+// the reviews the club has collected, tallied, worst first. The right column is
+// what has been PUT RIGHT since, read from the restoration state. A complaint
+// with a matching fix is struck through rather than deleted, because "we had
+// that problem and we dealt with it" is the sentence the page exists to say.
+//
+// Nothing is invented: reviews only cite factors whose predicate was true, and
+// every fix is a flag some player action set.
+const COMPLAINT_LABELS = Object.freeze({
+  shopClean: 'The shop was dirty',
+  exterior: 'The place looked neglected outside',
+  courseCondition: 'The course was in poor condition',
+  stock: 'Half the shelves were empty',
+  prices: 'The shop prices were steep',
+  coursePrice: 'The green fee was steep',
+  waitTime: 'They waited too long to get out',
+  queue: 'The queue at the desk was long',
+});
+
+const FIX_FOR_COMPLAINT = Object.freeze({
+  shopClean: 'cleanup',
+  exterior: 'wash',
+  stock: 'restock',
+  courseCondition: 'course',
+});
+
+export function complaintsAndFixes(state) {
+  const reviews = Array.isArray(state?.club?.reviews) ? state.club.reviews : [];
+  const tally = new Map();
+  for (const review of reviews) {
+    // a review of three stars or fewer is a complaint; above that the cited
+    // factors are what they LIKED and belong on nobody's problem list
+    if (Number(review?.stars) > 3) continue;
+    for (const id of review?.cited || []) {
+      if (!COMPLAINT_LABELS[id]) continue;
+      const row = tally.get(id) || { id, label: COMPLAINT_LABELS[id], count: 0, lastDay: null };
+      row.count += 1;
+      const day = Number(review.day);
+      if (Number.isFinite(day) && (row.lastDay == null || day > row.lastDay)) row.lastDay = day;
+      tally.set(id, row);
+    }
+  }
+  const reno = state?.shop?.reno || null;
+  const done = {
+    cleanup: !!reno && Object.values(reno.cleanupMilestones || {}).every(Boolean)
+      && Object.keys(reno.cleanupMilestones || {}).length > 0,
+    restock: !!reno && Object.values(reno.restockMilestones || {}).every(Boolean)
+      && Object.keys(reno.restockMilestones || {}).length > 0,
+    wash: Number(state?.shop?.exteriorClean ?? 0) >= 0.98,
+    course: Number(state?.club?.courseCondition ?? 0) >= 80,
+  };
+  const complaints = [...tally.values()]
+    .map((row) => ({
+      ...row,
+      settled: !!done[FIX_FOR_COMPLAINT[row.id]],
+      lastLabel: row.lastDay == null ? '' : rosterDateLabel(row.lastDay),
+    }))
+    .sort((a, b) => Number(a.settled) - Number(b.settled) || b.count - a.count);
+  return {
+    complaints,
+    outstanding: complaints.filter((row) => !row.settled).length,
+    settled: complaints.filter((row) => row.settled).length,
+    reviewsRead: reviews.length,
+    // the house's own outstanding jobs, which nobody has had to complain about
+    // yet because the shop has not been open long enough for anyone to see them
+    house: houseNotes(state).filter((note) => note.outstanding),
+  };
+}
+
+// --- THE RESTORATION RECORD ------------------------------------------------
+//
+// The building's own repair log, in the order a surveyor would walk it: the
+// power, then the lights it feeds, then the fabric, then the paint. Every line
+// is a read of `shop.reno`, which is the same state the repair verbs write.
+export function restorationRecord(state) {
+  const reno = state?.shop?.reno || null;
+  const rows = [];
+  if (!reno) return { rows, done: 0, total: 0, circuitLive: false };
+  const circuitLive = ceilingCircuitPoweredView(state);
+  rows.push({
+    id: 'circuit',
+    group: 'Power',
+    label: 'Ceiling circuit',
+    state: circuitLive ? 'live' : 'dead',
+    done: circuitLive,
+  });
+  for (const [panelId, panelState] of Object.entries(reno.lightPanels || {})) {
+    rows.push({
+      id: `panel:${panelId}`,
+      group: 'Lights',
+      label: `${String(panelId).toUpperCase()} panel`,
+      state: panelState,
+      done: panelState === 'working',
+    });
+  }
+  const components = reno.architecture?.components || {};
+  for (const [componentId, entry] of Object.entries(components)) {
+    rows.push({
+      id: `component:${componentId}`,
+      group: 'Fabric',
+      label: ARCHITECTURE_COMPONENT_LABELS[componentId] || componentId,
+      state: entry?.restored ? 'restored' : 'needs work',
+      done: !!entry?.restored,
+    });
+  }
+  for (const [componentId, paint] of Object.entries(reno.componentPaintApplications || {})) {
+    if (!paint) continue;
+    rows.push({
+      id: `paint:${componentId}`,
+      group: 'Paint',
+      label: `${ARCHITECTURE_COMPONENT_LABELS[componentId] || componentId} painted`,
+      state: typeof paint === 'string' ? paint : 'done',
+      done: true,
+    });
+  }
+  const done = rows.filter((row) => row.done).length;
+  return { rows, done, total: rows.length, circuitLive };
+}
+
+// --- FIRSTS ----------------------------------------------------------------
+//
+// The moments a club only gets once. Each is a read of state that already
+// exists, with the day it happened where the day is recoverable and a plain
+// "not yet" where it is not. A first that has not happened is still PRINTED —
+// the empty line is the invitation.
+export function firstsEntries(state) {
+  const roster = rosterEntries(state);
+  const firstGuest = roster.length
+    ? roster.reduce((a, b) => ((a.firstVisitDayAbs ?? Infinity) <= (b.firstVisitDayAbs ?? Infinity) ? a : b))
+    : null;
+  const history = Array.isArray(state?.ledger?.history) ? state.ledger.history : [];
+  const firstWith = (pick) => history.find((entry) => pick(entry) > 0) || null;
+  const firstSaleDay = firstWith((entry) => Number(entry?.revenue?.shopSales) || 0);
+  const firstFeeDay = firstWith((entry) => (Number(entry?.revenue?.greenFees) || 0)
+    + (Number(entry?.revenue?.walkInRevenue) || 0) + (Number(entry?.revenue?.bookingRevenue) || 0));
+  const firstProfitDay = history.find((entry) => Number(entry?.net) > 0) || null;
+  const reviews = Array.isArray(state?.club?.reviews) ? state.club.reviews : [];
+  const firstReview = reviews.length ? reviews[reviews.length - 1] : null;
+  const fiveStar = reviews.filter((review) => Number(review?.stars) >= 5)
+    .sort((a, b) => Number(a.day) - Number(b.day))[0] || null;
+  const returning = roster.filter((entry) => entry.visits > 1)
+    .sort((a, b) => (a.firstVisitDayAbs ?? 0) - (b.firstVisitDayAbs ?? 0))[0] || null;
+
+  const line = (id, label, dayAbs, detail) => ({
+    id,
+    label,
+    done: Number.isFinite(dayAbs),
+    dayAbs: Number.isFinite(dayAbs) ? dayAbs : null,
+    dateLabel: Number.isFinite(dayAbs) ? rosterDateLabel(dayAbs) : 'not yet',
+    detail: detail || '',
+  });
+
+  return [
+    line('guest', 'First guest through the door', firstGuest?.firstVisitDayAbs, firstGuest?.name || ''),
+    line('fee', 'First green fee taken', Number(firstFeeDay?.dayAbs), ''),
+    line('sale', 'First sale over the counter', Number(firstSaleDay?.dayAbs), ''),
+    line('review', 'First review written', Number(firstReview?.day), firstReview ? `${firstReview.stars} stars` : ''),
+    line('regular', 'First golfer who came back', returning?.lastVisitDayAbs, returning?.name || ''),
+    line('fivestar', 'First five-star review', Number(fiveStar?.day), ''),
+    line('profit', 'First day that finished ahead', Number(firstProfitDay?.dayAbs), firstProfitDay ? `$${Math.round(firstProfitDay.net)}` : ''),
+  ];
+}
+
+// --- THE TAKINGS, AS HISTORY -----------------------------------------------
+//
+// The brief asks for the takings "as history", and the sim already keeps sixty
+// closed days in `ledger.history`. Today is appended live from `ledger.today` so
+// the page is never one day behind the room it is sitting in.
+export function takingsHistory(state, limit = 14) {
+  const history = Array.isArray(state?.ledger?.history) ? state.ledger.history : [];
+  const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+  const rows = history.slice(-limit).map((entry) => ({
+    dayAbs: Number(entry?.dayAbs),
+    dateLabel: rosterDateLabel(Number(entry?.dayAbs)),
+    revenue: round2(entry?.revenueTotal),
+    expense: round2(entry?.expenseTotal),
+    net: round2(entry?.net),
+    closed: true,
+  }));
+  const today = takingsSummary(state);
+  rows.push({
+    dayAbs: Math.floor((state?.clock?.minutes || 0) / 1440),
+    dateLabel: 'today, so far',
+    revenue: today.revenueTotal,
+    expense: today.expenseTotal,
+    net: today.net,
+    closed: false,
+  });
+  const closed = rows.filter((row) => row.closed);
+  const best = closed.length ? closed.reduce((a, b) => (a.net >= b.net ? a : b)) : null;
+  const worst = closed.length ? closed.reduce((a, b) => (a.net <= b.net ? a : b)) : null;
+  return {
+    rows,
+    today,
+    best,
+    worst,
+    runningNet: round2(rows.reduce((total, row) => total + row.net, 0)),
+    daysClosed: closed.length,
+  };
+}
+
+// --- THE DEED --------------------------------------------------------------
+//
+// What the club actually IS, on paper: the name, what was paid for it, when,
+// what it sits on, and what it is worth now. The property record is the source;
+// where a field was never recorded the line says so rather than printing a zero
+// that reads like a fact.
+export function deedSummary(state, empire = null) {
+  const property = state?.property || empire?.property || null;
+  const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+  const paid = num(property?.purchasePrice ?? property?.price ?? property?.askingPrice);
+  const acquiredDay = num(property?.acquiredDayAbs ?? property?.purchasedDayAbs);
+  const holes = Array.isArray(state?.course?.holes) ? state.course.holes.length : null;
+  return {
+    clubName: state?.club?.name || state?.shop?.name || 'Pine Hills Municipal Golf',
+    propertyName: property?.name || null,
+    location: property?.location || property?.region || null,
+    acres: num(property?.acres ?? property?.acreage),
+    holes,
+    paid,
+    acquiredDayAbs: acquiredDay,
+    acquiredLabel: acquiredDay == null ? 'not recorded' : rosterDateLabel(acquiredDay),
+    valuation: num(property?.value ?? property?.estimatedValue),
+    rent: num(property?.rent ?? property?.monthlyRent),
+    reputation: Math.round(Number(state?.club?.reputation) || 0),
+  };
 }

@@ -908,6 +908,12 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = (startPage = null) => enterLaptop(startPage);
   app.scene3d.walk.hooks.openLedger = () => enterLedger();
+  // F2: the one place that knows a station panel is up. courseScene's dirt
+  // sense asks it every frame so the reveal cannot stay lit behind the till, the
+  // laptop lid or the ledger — the player is reading, not looking round.
+  app.scene3d.walk.hooks.stationOpen = () => !!(
+    app.laptopOpen || app.ledgerOpen || app.frontDeskOpen || regActive()
+  );
   // N2/F2: the walk controller resolves movement and hold verbs through the
   // same binding table as the dispatcher above
   app.scene3d.walk.hooks.bindings = () => preferences.values.controls.bindings;
@@ -3074,7 +3080,10 @@ function updateWalkOverlay(dtMs = 16.7) {
   if (ovEl.dirtSense) {
     const sense = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense() : null;
     const clusters = sense?.overlay?.clusters || 0;
-    const senseDisplay = clusters > 0 && document.pointerLockElement ? 'flex' : 'none';
+    // F2: and the affordance goes with it. Offering "[Q] reveal dirt" while a
+    // panel is up advertises a key that does nothing.
+    const stationUp = app.laptopOpen || app.ledgerOpen || app.frontDeskOpen || regActive();
+    const senseDisplay = clusters > 0 && document.pointerLockElement && !stationUp ? 'flex' : 'none';
     if (senseDisplay !== ovLast.senseDisplay) {
       ovLast.senseDisplay = senseDisplay;
       ovEl.dirtSense.style.display = senseDisplay;
