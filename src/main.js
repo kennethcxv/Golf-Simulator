@@ -2340,14 +2340,9 @@ window.addEventListener('keydown', (e) => {
       toolTuner?.toggle();
       return;
   }
-  // ITEM 23: the speed keys are BOUND, not literal. They were three `case '1'`
-  // arms here, so no amount of rebinding could reach them.
-  {
-    const speed = boundAction(e);
-    if (speed === 'speedPause') { app.speedIdx = 1; return; }
-    if (speed === 'speedNormal') { app.speedIdx = 2; return; }
-    if (speed === 'speedFast') { app.speedIdx = 3; return; }
-  }
+  // A3: the speed ladder above 1x is deleted — Space is the only time
+  // control (pause/resume). The old bound 1/2/3 actions are gone from the
+  // bindings table; rebinds stored for them normalize away on load.
 
   // Tab must never reach DOM focus in-game, whatever it is bound to
   if (e.key === 'Tab') e.preventDefault();

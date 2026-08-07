@@ -412,6 +412,40 @@ control exercises the shipped comparison. Verification (driver applying 4K
 + asserting content bounds × scale, list screenshot on this 4K machine,
 fake-display control) still to run.
 
+## A3 — the speed-up is gone, and the day is measured
+
+The ladder is `[0, 1]`: pause survives (editor, pause menu, prewarm and
+two hundred QA drivers freeze with it), and 1x is the only speed a
+running world has. The HUD chip is a pause/play toggle; the bound 1/2/3
+speed actions are deleted from the bindings table (orphaned rebinds
+normalize away); `simSpeedMultipliers` is no longer a speed feature —
+it is the day-compression constant (decision 4x the NPC authoring
+baseline, which the shop's population NEEDS; locomotion 1) — and
+`golferPaceScale` ignores whatever rung a legacy save presents. Saves
+carrying old rungs are clamped at the deserializer door with a repair
+note. The pace test that pinned "fast-forward moves bodies" now pins
+the opposite contract: no rung moves a body, ever.
+
+Measured live (tools/qa/electron-a3-speed.js, all checks green):
+**0.1333 game-minutes per real second → a full calendar day is 180.0
+real minutes and the 6:00→20:00 trading window is 105.0 real minutes.**
+Pressing the old '2'/'3' keys changes nothing while the clock keeps
+advancing (the pause key is the probe's positive control: Space stops
+the clock to 0.000 drift); a save planted with speedRung 4 reloads at 1
+through a real save→reload→Continue cycle. QA drivers that used
+fast-forward to REACH states (golf-gameplay-normal.cjs and five others
+named in PLAN_16 A3) and the four whose PURPOSE was the ladder are
+retire-or-reseed work listed under NOT DONE for tonight — the product
+and its tests carry the deletion.
+
+## D1 — resolution list fix (committed 03c73e1; driver verification pending)
+
+main.cjs speaks physical pixels (activeDisplay + FW_FAKE_DISPLAY at the
+API boundary, borderless apply for sizes a chromed window cannot hold).
+The R-M verification driver (apply 4K → assert contentSize × scale,
+fake-display negative control, settings-page screenshot on this 4K
+machine) runs in the D pass.
+
 ## Instruments built so far tonight
 
 - tools/qa/electron-realinput-spike.js — real input pre-flight (green).

@@ -1619,6 +1619,14 @@ export function deserializeWithReport(json) {
   for (const key of domains) {
     state[key] = mergeSaveDefaults(state[key], raw[key], report, `$.${key}`);
   }
+  // A3: the speed ladder above 1x is deleted, but golfDay.speedRung
+  // PERSISTS in saves and prices golfer pace on load — a save written at
+  // the old 2x/4x would walk its golfers at ghost speed between deserialize
+  // and the first frame-loop overwrite. Clamp at the door.
+  if (state.golfDay && Number(state.golfDay.speedRung) > 1) {
+    state.golfDay.speedRung = 1;
+    noteRepair(report, '$.golfDay.speedRung', 'legacy speed rung clamped to 1x');
+  }
   if (!isRecord(raw.tractor)) state.tractor = null;
   if (!isRecord(raw.propertyInventory)) state.propertyInventory = null;
   state.turf = normalizeTurf(raw.turf, state.turf, report);

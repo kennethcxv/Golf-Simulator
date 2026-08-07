@@ -18,8 +18,8 @@ export function makeHud(app, handlers) {
   // pause → 1× → 4× → 16× (Space and 1/2/3 remain the fast path)
   const clock = el('button', {
     class: 'hud-chip hud-clock',
-    title: 'Click: cycle speed · Space: pause · 1/2/3: speeds',
-    onclick: () => handlers.setSpeed((app.speedIdx + 1) % BALANCE.speeds.length),
+    title: 'Click or Space: pause / resume',
+    onclick: () => handlers.setSpeed(app.speedIdx === 0 ? 1 : 0),
   });
 
   // MODIFIER CHIP — what is holding a modifier, on screen.
@@ -71,7 +71,7 @@ export function makeHud(app, handlers) {
     root.style.display = quiet ? 'none' : '';
     if (quiet) return;
     const cal = calendarOf(app.state.clock.minutes);
-    const glyph = ['⏸', '▶', '▶▶', '▶▶▶'][app.speedIdx] || '▶';
+    const glyph = ['⏸', '▶'][app.speedIdx] || '▶' || '▶';
     const line = `${formatDate(cal)} · ${formatClock(cal.minuteOfDay)} ${glyph}`;
     if (line !== lastClock) {
       lastClock = line;

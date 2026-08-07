@@ -45,9 +45,8 @@ export const BINDABLE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'groundsPanel', label: 'Grounds panel', group: 'Interface', defaultKey: 'g' }),
   Object.freeze({ id: 'clubPanel', label: 'Club panel', group: 'Interface', defaultKey: 'c' }),
   Object.freeze({ id: 'empirePanel', label: 'Empire panel', group: 'Interface', defaultKey: 'm' }),
-  Object.freeze({ id: 'speedPause', label: 'Speed: paused', group: 'Time', defaultKey: '1' }),
-  Object.freeze({ id: 'speedNormal', label: 'Speed: normal', group: 'Time', defaultKey: '2' }),
-  Object.freeze({ id: 'speedFast', label: 'Speed: fast', group: 'Time', defaultKey: '3' }),
+  // A3: the three speed rows are gone with the ladder — Space is the one
+  // time control (pause/resume) and it is deliberately not rebindable.
 ]);
 
 export const DEFAULT_BINDINGS = Object.freeze(Object.fromEntries(

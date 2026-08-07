@@ -30,6 +30,24 @@ must record both misfires under instrument faults. B0-driver note: its mop
 leg re-shows the hidden skirt after its control — reorder before next use
 (the share step measured a driver-made state, not the game's).
 
+=== A3 STATE (live) ===
+C DONE (b7c1ae9). A3 PRODUCT IN (uncommitted): balance speeds [0,1] +
+simSpeedMultipliers = day-compression constant (decision 4, locomotion 1,
+speedIdx ignored) + golferPaceScale ignores rung; main.js speed-key block
+deleted (Space = only time control); keyBindings three speed rows deleted
+(normalize drops orphan rebinds); hud chip ⏸/▶ toggle; state.js
+deserialize clamps golfDay.speedRung>1 → 1 with noteRepair. AWAITING
+suite bxrr01r5n → rewrite pinned tests (expect: sim-time-locomotion
+[iterates BALANCE.speeds, wants decision>1 at default ✓ still true,
+top-rung cases die], golfer-pace [rung-16 cap cases die], maybe
+keybinding-count tests). Then day-length measurement (goal wants MEASURED
+live: sample state.clock.minutes over 60 real s at 1x → report
+game-min/real-min → trading window 840/x minutes) via tiny driver or
+in first-load run. Then commit A3. QA drivers pressing '2'/'3' (6 reach +
+4 measure, list in PLAN A3) = retire-notes in report tonight, convert if
+time. THEN: D2-D5, G, E, F, first-load instrument run (A1 remainder),
+Phase 4 verifiers, final report.
+
 === LEDGER BUNDLE STATE (live) ===
 C1+C6+A2 PRODUCT CODE IN (uncommitted): main.js enterLedger keeps pointer
 lock, resetCameraInput stays, handler consumes via boundAction moveLeft/
