@@ -1625,6 +1625,39 @@ off the turn frame exists. **Not attempted - measured and left open**, because
 guessing at it with the remaining budget would be the shallow version the brief
 warns against.
 
+## C5 — the bookmark located, and it is not where anyone would have looked for it
+
+C5: "The bookmark is wrong. It sits in the middle, it looks bad, and I am fairly
+sure it is backwards - it should hang up and it hangs down."
+
+**There is no bookmark in the code.** Searching `ledgerBook.js`, the whole of
+`src/`, and the Blender builders for "bookmark" or "ribbon" returns one comment
+and nothing else. Listing the shipped GLB's **59 nodes** turns up covers, caps,
+buckles, a clasp tongue, faces and spines - and no ribbon.
+
+So I looked at the frame instead, and it is plainly there: **a pale green strip
+running from the gutter DOWN the middle of the left page and past the bottom
+edge**, flat and untextured, crossing the table of contents. The brief's
+description is exact on all three counts - middle, hangs down, looks bad.
+
+That it exists on screen while matching no searchable name is worth recording on
+its own: **the next person to work C5 will search for "bookmark", find nothing,
+and conclude the item is stale.** It is not. It is drawn by something named for
+something else - the clasp assembly is the strongest candidate, since
+`LB_ClaspTongue` and four buckle parts are the only strap-shaped things in the
+file, and the closed book's clasp has to go somewhere when the book opens.
+
+**Not fixed.** Identifying it is real progress on an item that would otherwise
+have been reported as "cannot find the subject", but changing geometry on a
+strong candidate rather than a confirmed one is exactly the guess this session
+has already been burned by three times. The next step is one probe that toggles
+`LB_ClaspTongue` and re-shoots - a minute of work with the tool already written
+(`electron-c1-twopress.js` opens the book and screenshots it) - and then the
+fix, which per the brief is to move it to the spine head, turn it round, and
+give it a tail worth looking at.
+
+Screenshot: `qa/electron/c1-twopress/open-crop.png`.
+
 ---
 
 ## RUNNING LISTS
