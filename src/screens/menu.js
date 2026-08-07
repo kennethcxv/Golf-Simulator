@@ -6,6 +6,7 @@ import { inspectData, summarizeSave } from '../core/storage.js';
 import { EMPIRE_VERSION } from '../sim/empire.js';
 import { SAVE_VERSION } from '../sim/state.js';
 import { confirmDialog, el, modal, notify } from '../ui/ui.js';
+import { devSessionActive } from '../data/clubhouseVariant.js';
 
 const SLOTS = ['slot1', 'slot2', 'slot3'];
 const LIMITS = { empireVersion: EMPIRE_VERSION, saveVersion: SAVE_VERSION };
@@ -196,11 +197,17 @@ export function makeMenu(handlers) {
       el('span', { class: 'menu-action-label', text: 'Quit' })) : null,
     // Dev/QA entry point: boots straight into the maintenance-shed test scene
     // (its own save keys — never touches a real player's autosave or slots).
-    el('button', {
+    //
+    // GATED, 2026-08-07: the Section A verifier found this on the SHIPPING main
+    // menu with no gate at all, one row below Quit. A player launching the game
+    // was one click from a developer test scene. It now appears only in a dev
+    // session, which is the same test every other dev affordance in this
+    // codebase already uses.
+    devSessionActive() ? el('button', {
       class: 'menu-action', type: 'button',
       onclick: () => { location.search = '?scene=shed'; },
     },
-    el('span', { class: 'menu-action-label', text: 'Test scene: Maintenance Shed' })),
+    el('span', { class: 'menu-action-label', text: 'Test scene: Maintenance Shed' })) : null,
   );
   actionList.addEventListener('keydown', (event) => {
     const actions = [...actionList.querySelectorAll('.menu-action:not([disabled])')];

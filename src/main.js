@@ -1609,9 +1609,40 @@ function applySettings() {
   // DEFAULT ceiling, so it applies only while the player is at or below 100%.
   const scale = values.display.renderScale;
   const dprCeiling = scale > 1 ? 2 : 1.5;
-  app.scene3d.renderer.setPixelRatio(
-    Math.min(dprCeiling, (window.devicePixelRatio || 1) * scale),
-  );
+  const nativeRatio = window.devicePixelRatio || 1;
+  let pixelRatio = Math.min(dprCeiling, nativeRatio * scale);
+  // A4 (Goal 17), AFTER THE VERIFIER — A PIXEL BUDGET, BECAUSE A5 CHANGED THE
+  // SIZE THIS SETTING IS PAID AT.
+  //
+  // Ultra asks for renderScale 1.15: "sharper than the screen, then
+  // downsampled". On the 1600x940 window that used to ship, that was a 2760 x
+  // 1621 target and nobody noticed. Since A5 the window fills a 4K panel, and
+  // the same 1.15 asks for 4416 x 2363 - 10.4 MPix, a THIRD more than the
+  // display can show.
+  //
+  // Measured by the Section A verifier on two fresh profiles: switching to
+  // Ultra froze the game for 10 814 ms and 9 884.8 ms, with zero animation
+  // frames in between and no program growth. That is the render target being
+  // reallocated, and I had published 78.7 ms for it because I measured before
+  // the window changed size underneath the number.
+  //
+  // So the buffer is capped at what a 4K display can actually show.
+  // Supersampling still works where it is cheap and visible - a 1080p window at
+  // 1.15 is 2.7 MPix and untouched - but a window already at 4K stops paying
+  // for pixels no monitor will draw.
+  const canvas = app.scene3d.renderer.domElement;
+  const cssW = canvas.clientWidth || window.innerWidth;
+  const cssH = canvas.clientHeight || window.innerHeight;
+  const PIXEL_BUDGET = 3840 * 2160;
+  if (cssW > 0 && cssH > 0) {
+    const budgetRatio = Math.sqrt(PIXEL_BUDGET / (cssW * cssH));
+    pixelRatio = Math.min(pixelRatio, budgetRatio);
+    // ...and snap to the display's own ratio when the cap lands within a few
+    // per cent of it, so a preset change does not reallocate every buffer in
+    // the post chain to gain 4% of area nobody can see.
+    if (Math.abs(pixelRatio - nativeRatio) / nativeRatio < 0.06) pixelRatio = nativeRatio;
+  }
+  app.scene3d.renderer.setPixelRatio(pixelRatio);
   // TOGGLING shadowMap.enabled REQUIRES RECOMPILING EVERY MATERIAL. Three bakes
   // the shadow sampler declarations into the shader, so a program compiled with
   // shadows on keeps sampling a map that is no longer being written. Measured in

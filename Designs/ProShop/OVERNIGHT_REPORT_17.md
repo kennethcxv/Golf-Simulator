@@ -910,6 +910,39 @@ drivers need porting before Phase 5 re-runs them. On NOT DONE.
 by Section A's verifier. It is a visual claim, so by this brief's own rule it is
 not done until there is a screenshot.
 
+## Answering the verifier: the pixel budget, the gate, and an instrument that cannot see the bug
+
+### A4 — the mechanism, fixed; the measurement, still not mine
+
+The verifier isolated the cause precisely: Ultra asks for renderScale 1.15, and
+since A5 the window fills a 4K panel, so the switch reallocates the render
+target to **4416 x 2363 - 10.4 MPix, a third more than the display can show**.
+
+**Fix: the drawing buffer is now capped at what a 4K display can actually
+show.** Supersampling still works where it is cheap and visible (a 1080p window
+at 1.15 is 2.7 MPix and untouched); a window already at 4K stops paying for
+pixels no monitor will draw. The ratio also snaps to the display's own when the
+cap lands within 6% of it, so a preset change does not reallocate every buffer
+in the post chain to gain 4% of area nobody can see.
+
+**And here is the part I cannot dress up: my A4 driver measures 68.3 ms for the
+Ultra switch both before and after this change.** It measured 78.7 ms before the
+verifier ran, and 10 814 ms is what the verifier measured on the same sequence.
+**My instrument does not reproduce the defect**, so it also cannot prove the
+fix. The change is justified by the mechanism and by first principles - never
+allocate more buffer than the display shows - not by a before/after I am
+entitled to claim.
+
+This goes on NOT DONE as **"A4 fix unproven"** until a verifier that CAN see the
+freeze re-runs it. Finding out why my driver misses a ten-second freeze that
+another harness catches twice is itself the next instrument question.
+
+### The ungated dev button: fixed
+
+"Test scene: Maintenance Shed" sat on the shipping main menu one row below Quit
+with no gate at all. It is now behind `devSessionActive()`, the same test every
+other dev affordance in this codebase uses.
+
 ---
 
 ## RUNNING LISTS
@@ -928,7 +961,8 @@ _Updated continuously, not at the end._
   did nothing for it because it is keyed on FRAME state (light counts, shadow
   map size, clipping planes), not on a hidden object. Finding which frame
   property differs, and warming that, is the next lever.
-- **A1: the over-16 ms rate, 29-34% of frames during ordinary movement.** Not
+- **A1: the over-16 ms rate is 97.1% on the outdoor spawn route**, not the
+  29-34% I published from an indoor one (verifier). Not
   the compiles; ~900-2000 draw calls a frame plus the 10 Hz shadow bake on one
   frame in eight. Named and measured, not fixed. This is Standing Invariant 1
   and it is violated continuously.
