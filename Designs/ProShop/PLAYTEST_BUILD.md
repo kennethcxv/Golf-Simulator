@@ -74,8 +74,9 @@ not. Report 15, section A.
 **The vacuum's hands and head are below the bottom of the screen.** Looking down
 at the floor — which is the only way to vacuum — puts the top of the tool's
 bounding box at NDC y −1.39, entirely off-frame. The player sees a sliver of
-hose. Geometric, not a tuning error: the authored grip-to-intake span is 0.796 yd
-where the floor solve needs 0.82.
+hose. The obvious cause — a grip-to-intake span of 0.796 yd where the floor
+solve needs 0.82 — was tested by rebuilding the asset with a proper 1.10 m wand
+and is NOT the cause: the hands did not move. Still open.
 
 ### 5 — the moment they try a cloth or a sponge (beat 4)
 

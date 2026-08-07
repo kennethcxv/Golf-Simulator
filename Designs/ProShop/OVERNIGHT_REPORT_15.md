@@ -122,7 +122,24 @@ which is when they are used. Top edges at NDC y −1.39 and −1.35. For the vac
 this is geometric rather than a tuning error: its authored `SOCKET_GripPrimary`
 to `SOCKET_DirtIntake` span is 0.796 yd against the broom's 1.247, and the floor
 solve needs 0.82 yd of drop at that pitch. No hand placement closes that gap.
-**The wand is too short.** That is the single most actionable B2 item.
+**The wand is too short.**
+
+**That hypothesis was then tested and it was wrong.** The asset was rebuilt with
+a `grip_along` parameter putting the grip 1.10 m above the head — a real stick
+vacuum's reach — and **the hands did not move by a thousandth**. Same anchor,
+same NDC, before and after. The hands are pinned to `gripAnchor`; the shaft
+length decides where the HEAD sits relative to them, not where they go. Moving
+the anchor to the broom's own values was tried in the same pass and made it
+worse (-8.296 to -1.448 against -3.477 to -1.389), which says the vacuum's arm
+pose differs from the broom's by more than the anchor does. That has not been
+measured.
+
+The rebuild was **reverted**: it fixed nothing it was built to fix, and
+repacking the GLB to KTX2 broke the hash-gated part-visibility sweep, whose
+loader has no KTX2 support and throws outright rather than falling back. A
+change that fixes nothing and breaks a gate is not worth its risk. The reasoning
+is left in `toolFeel.js` so the next attempt starts from the measurement rather
+than from the same wrong idea.
 
 ## D — the book
 

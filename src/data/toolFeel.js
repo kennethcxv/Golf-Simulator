@@ -95,6 +95,34 @@ export const TOOL_VM_FEEL = Object.freeze({
     // x rides with z to hold the screen composition (0.24/0.70 = 0.343), or the
     // depth change alone drags the wand into the centre of the frame and under
     // the tool HUD. 1.02 → 0.35.
+    //
+    //
+    // 2026-08-06 — TRIED AND REVERTED, AND THE HYPOTHESIS WAS WRONG.
+    //
+    // The vacuum's hands sit entirely below the frame at a working pitch: the
+    // top of the hand box measures NDC y -1.39, so the player vacuums by
+    // looking at a sliver of hose. Report 15 diagnosed that as geometric — a
+    // 0.796 yd grip-to-intake span against the broom's 1.247, too short for the
+    // floor solve to reach the boards from a normal grip height.
+    //
+    // The asset was actually rebuilt to test it: `_vacuum_wand_geometry` gained
+    // a `grip_along` parameter and the grip moved to 1.10 m above the head, a
+    // real stick vacuum's reach. THE HANDS DID NOT MOVE BY A THOUSANDTH. Same
+    // anchor, same NDC, before and after. The hands are PINNED to gripAnchor;
+    // the shaft length decides where the HEAD sits relative to them, not where
+    // they go, so the span was answering a different question than the one
+    // asked.
+    //
+    // Moving the anchor to the broom's own [0.24, -0.50, -0.70] was tried in
+    // the same pass and made it WORSE (-8.296 to -1.448 against -3.477 to
+    // -1.389), which says the vacuum's arm pose differs from the broom's by
+    // more than the anchor does. That is the next thing to measure and it has
+    // not been measured.
+    //
+    // The rebuild was reverted rather than kept: it fixed nothing it was built
+    // to fix, and repacking the GLB to KTX2 broke the hash-gated part-visibility
+    // sweep, whose loader has no KTX2 support. A change that fixes nothing and
+    // breaks a gate is not worth its risk.
     compose: { gripAnchor: [0.35, -0.73, -1.02] },
   }),
 
