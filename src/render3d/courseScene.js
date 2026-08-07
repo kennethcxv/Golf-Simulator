@@ -11917,6 +11917,12 @@ export function makeCourseScene(canvas, state) {
       // tool the rig does not own, so a driver cannot mistake "no rig" for a
       // healthy pose.
       toolRigDiagnostics: (id) => (toolRigs[id] ? toolRigs[id].diagnostics() : null),
+      // B3/B4: the framing sweep sets a tool's hand anchor live and reads the
+      // head's plant back, so the two constraints can be satisfied together
+      // instead of one being tuned until the other breaks.
+      toolRigSetGripAnchor: (id, next) => (
+        toolRigs[id]?.setGripAnchorOverride ? toolRigs[id].setGripAnchorOverride(next) : null
+      ),
       toolRigIds: () => Object.keys(toolRigs),
       // Dirt sense: the held-key reveal's own state, plus what the crosshair is
       // currently over. Both are what the acceptance driver reads.

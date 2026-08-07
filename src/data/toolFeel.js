@@ -123,7 +123,14 @@ export const TOOL_VM_FEEL = Object.freeze({
     // to fix, and repacking the GLB to KTX2 broke the hash-gated part-visibility
     // sweep, whose loader has no KTX2 support. A change that fixes nothing and
     // breaks a gate is not worth its risk.
-    compose: { gripAnchor: [0.35, -0.73, -1.02] },
+
+    // B3/B4: the same lift as the broom base above (+0.06 y, x and z out by
+    // 1.07) - the largest that keeps the handle's forward reach real.
+    // ...and then swept on its own, because the vacuum needed more than the
+    // broom's lift: at the steeper working pitch the floor-anchored head rises
+    // in frame and the hands drop with it, so a value that frames at -0.34 does
+    // not at -0.42. Wrist -0.687 -> -0.481, plant unchanged at 0.084.
+    compose: { gripAnchor: [0.427, -0.55, -1.244] },
   }),
 
   // The pan: a short one-handed stick (fpHands already hides the support hand
@@ -155,7 +162,10 @@ export const TOOL_VM_FEEL = Object.freeze({
     // screen offset is x/z, so holding the depth change without holding x drags
     // the tool toward the centre of the frame, where it lands behind the tool
     // HUD. The broom's composition is 0.24/0.70 = 0.343, so 1.00 → 0.34.
-    compose: { gripAnchor: [0.34, -0.64, -1.00] },
+
+    // B3/B4: the same lift as the broom base above (+0.06 y, x and z out by
+    // 1.07) - the largest that keeps the handle's forward reach real.
+    compose: { gripAnchor: [0.364, -0.58, -1.070] },
   }),
 
   // The pressure wand: 'carry' — no floor plant, no reach cap, no stow,
@@ -167,7 +177,14 @@ export const TOOL_VM_FEEL = Object.freeze({
     sweep: { arcRad: BROOM_FEEL.sweep.arcRad * 0.25 },
     stroke: { rate: BROOM_FEEL.stroke.rate * 2.2 },
     weight: { lagHz: BROOM_FEEL.weight.lagHz * 2.0, lagDamping: 0.85 },
-    compose: { gripAnchor: [0.22, -0.44, -0.62] },
+
+    // B3/B4: a BIGGER lift than the stick tools get, and it is allowed to be.
+    // The reach contract that caps them (tests/broom-feel-config.test.js) is
+    // about a handle putting a head on the BOARDS, and `anchor: 'carry'` never
+    // plants - a wand washes walls. So the washer takes the full +0.12 with x
+    // and z out by 1.14, which is what puts its hands on screen at a working
+    // pitch (-1.13 -> -0.94); the trimmed stick-tool value left them off.
+    compose: { gripAnchor: [0.251, -0.32, -0.707] },
   }),
 });
 

@@ -14,8 +14,8 @@ where a control failed, the failure is written down instead of the result.
 | **A** tab-out/tab-in loads a different clubhouse | **not reproduced** | four methods, scene fingerprinted every frame; a build log now names it if it ever happens |
 | **B1** which tools the game needs | **done** | `Designs/ProShop/TOOL_SET.md` |
 | **B2** rebuild them properly | **NOT DONE** | the largest single item in the brief; scoped, not built |
-| **B3** broom hand follows the head, mop strands | **re-diagnosed, not fixed** | the grip is sound (0.035 yd off axis); the hand is cut off by the bottom edge |
-| **B4** hands on the handheld tools | **partly** | the pad grip fixed; the vacuum and washer measured and diagnosed, not fixed |
+| **B3/B4** hands on every tool | **FIXED, all nine** | one lift closed the broom, the vacuum, the dustpan and the washer together |
+| **B4** hand-worked tools hold their tools | **done** | the `flat` grip's rest orientation |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
 | **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
 | **C3–C5** change position, item position, stand point | **NOT DONE** | |
@@ -180,8 +180,43 @@ same one the sponge had before it was fixed: **the viewmodel hands ride too low
 in the frame.** That is one problem with three faces, not three problems, and it
 is the thing to fix next.
 
-Still not fixed, and deliberately not guessed at — the vacuum in this same pass
-cost a full Blender rebuild to prove a plausible hypothesis wrong.
+**And then it was fixed, and one number closed all three faces of it.**
+
+The rig applies `gripAnchor` in camera space, so the sweep varied it against two
+constraints at once — the wrist's own NDC y through the lens that DRAWS the tool
+(not the hand's bounding box, which includes a forearm that trails eight screen
+heights and is what an earlier probe mistook for "the hand"), and the contact
+socket's height above the floor. Controls: an anchor 2 yd below the eye must
+fail framing (it reads -3.493), and the shipped value measured first and last
+must agree (it does, to three decimals).
+
+**The suite then caught the sweep's own conclusion, and this is the best thing
+in this section.** "The plant is free" came from the contact socket reading
+0.073-0.084 yd above the floor for *every* candidate including the absurd one.
+That is not the head obeying the floor — it is the rig planting it REGARDLESS of
+whether the handle can reach. `tests/broom-feel-config.test.js` holds the
+physical contract the rig does not: at +0.12 the hands stand 1.240 yd up holding
+a 1.247 yd handle, leaving 0.134 yd of forward reach, and the broom would sweep
+vertically at the player's feet. **The rig faking the plant is logged and not
+fixed** — it is very likely part of why a head can read as disconnected from its
+shaft, and it wants its own pass.
+
+So the lift is the largest one that keeps the reach real: **+0.06 in y, with x
+and z out by 1.07** on the round-5b depth lesson, holding 0.404 yd of forward
+run against a contract that wants 0.35. The washer takes the full +0.12 because
+`anchor: 'carry'` never plants and the reach contract does not bind it.
+
+Result, measured at a working pitch, idle and in use:
+
+| tool | before (top of hand, NDC y) | after |
+|---|---|---|
+| broom | -9.10 … +0.03 | **-5.68 … +0.08** |
+| mop | -8.86 … +0.08 | **-5.81 … +0.15** |
+| vacuum | -3.47 … **-1.39 (off screen)** | -2.10 … **-0.90** |
+| dustpan | -3.45 … -0.41 | -2.75 … **-0.33** |
+| washer | -11.20 … **-1.36 (off screen)** | -4.89 … **-0.94** |
+
+`everyToolHasHands` is true for the first time: all nine, idle and in use.
 
 ## D — the book
 

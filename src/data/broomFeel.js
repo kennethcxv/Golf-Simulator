@@ -109,7 +109,44 @@ export const BROOM_FEEL = Object.freeze({
     // hands where a person's hands are on a broom and grows the head with them;
     // the NDC framing the round-5 arithmetic protected still holds, because the
     // grip sits higher in the frame than the edge it was rescued from.
-    gripAnchor: [0.24, -0.50, -0.70],
+    // B3/B4 (2026-08-06): LIFTED, AND THE TRADE I EXPECTED DOES NOT EXIST.
+    //
+    // Three complaints were one: the broom's hand reading "detached" from its
+    // shaft, the vacuum's hands off the bottom of the screen, and the sponge's
+    // before it was fixed. The palm measures 0.035 yd from the pole's own axis,
+    // which IS a grip -- what the player sees is the fist cut off by the bottom
+    // edge, leaving a sliver of fingers beside the shaft for the eye to fill in.
+    // The wrist sat at NDC y -0.956 at a working pitch: below the frame.
+    //
+    // Every previous pass here traded framing against the plant, on the belief
+    // that lifting the hands lifts the head off the boards. Swept
+    // (tools/qa/electron-hand-framing-sweep.js) and it is not so: the contact
+    // socket held 0.073-0.074 yd above the floor for EVERY candidate, including
+    // a deliberately absurd anchor 2 yd below the eye. The head is
+    // floor-referenced independently of the hands, so the framing was free all
+    // along.
+    //
+    // ...BUT THE SWEEP'S OWN CONCLUSION WAS TOO STRONG, AND THE SUITE CAUGHT IT.
+    //
+    // "The plant is free" came from the contact socket reading 0.073-0.084 yd
+    // above the floor for EVERY candidate, including one 2 yd below the eye.
+    // That is not the head obeying the floor; it is the rig PLANTING IT
+    // REGARDLESS of whether the handle can reach, which is its own defect and
+    // very likely part of why a head can read as disconnected from its shaft.
+    // tests/broom-feel-config.test.js holds the physical contract the rig does
+    // not: at +0.12 the hands stand 1.240 yd up holding a 1.247 yd handle,
+    // leaving 0.134 yd of forward reach — the broom would sweep vertically at
+    // the player's feet.
+    //
+    // So the lift is the largest one that keeps the reach real: +0.06, which
+    // holds 0.404 yd of forward run (the contract wants > 0.35). Depth carries
+    // x and z out by 1.07 on the round-5b lesson, so the framing gain is not
+    // paid for entirely in height. The control reads -3.493 and fails framing,
+    // and the shipped value measured first and last agrees to three decimals.
+    //
+    // THE RIG FAKING THE PLANT IS LOGGED AND NOT FIXED. It is a bigger change
+    // than a number and it wants its own pass.
+    gripAnchor: [0.257, -0.44, -0.749],
     // radians the head is carried LEFT of the view centre, so the handle lies
     // diagonally across the lower frame instead of pointing away from the lens
     bearingOffset: -0.20,

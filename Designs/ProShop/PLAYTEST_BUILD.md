@@ -71,6 +71,11 @@ not. Report 15, section A.
 
 ### 4 — the moment they pick up a floor tool (beat 4)
 
+**FIXED this pass.** The vacuum's hands and head were below the bottom of the
+screen, and so were the washer's, and the broom's read as detached for the same
+reason. One lift to the hand anchor closed all of them.
+
+The old finding, kept because the reasoning matters:
 **The vacuum's hands and head are below the bottom of the screen.** Looking down
 at the floor — which is the only way to vacuum — puts the top of the tool's
 bounding box at NDC y −1.39, entirely off-frame. The player sees a sliver of

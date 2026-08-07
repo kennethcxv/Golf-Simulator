@@ -321,6 +321,8 @@ export function createBroomViewmodel({
   let clampedNow = false;
   let lastHeadNdc = { x: 0, y: 0 };
   const state = {};
+  // B3/B4 sweep hook; see the note at its use site in the frame solve.
+  let gripAnchorOverride = null;
 
   // Q7 (2026-08-06): "make sure the actual bristles for the mop and broom etc
   // move with accurate physics."
@@ -648,7 +650,13 @@ export function createBroomViewmodel({
     const yaw = ctx.yaw ?? 0;
     const fx = -Math.sin(yaw); const fz = -Math.cos(yaw);
     const rx = Math.cos(yaw); const rz = -Math.sin(yaw);
-    const cc = feel.compose;
+    // B3/B4: a live gripAnchor override, for the framing sweep. The shipped
+    // value in feel.compose stays authoritative; this is null unless a QA
+    // driver has set one, so nothing in the game reads a number the file does
+    // not say.
+    const cc = gripAnchorOverride
+      ? { ...feel.compose, gripAnchor: gripAnchorOverride }
+      : feel.compose;
     const live = readRigGeometry();
     const geom = live || FALLBACK_GEOM;
     // WHICH GEOMETRY THE SOLVE USED. This is not decoration: FALLBACK_GEOM's
@@ -1112,6 +1120,14 @@ export function createBroomViewmodel({
     vmCamera,
     setActive,
     isActive: () => active,
+    // B3/B4: set [x, y, z] to sweep the hand's camera-space anchor live, or
+    // null to go back to the authored value. QA only — no game code calls it.
+    setGripAnchorOverride: (next) => {
+      gripAnchorOverride = Array.isArray(next) && next.length === 3
+        ? [Number(next[0]), Number(next[1]), Number(next[2])]
+        : null;
+      return gripAnchorOverride;
+    },
     update,
     render,
     resize,
