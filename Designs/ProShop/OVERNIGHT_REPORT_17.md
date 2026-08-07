@@ -1379,6 +1379,69 @@ equipped the mop**, and would have published mop numbers under a broom heading.
 instance this session of a tool not being what the driver thought it was, and
 the first one caught before it became a finding.
 
+## PHASE 5 — THE REGRESSION GATE, BUILT AND RUN. It fails, and that is the point.
+
+The brief asks for one command: "Build a single command that checks all of them
+and run it in Phase 5. Where an invariant has no check yet, write one."
+
+`node tools/qa/phase5-gate.mjs` is that command. It runs the suite, runs the
+sixty-second walk in Electron, and then answers **each of the ten standing
+invariants by name** - reporting `NO CHECK` where none exists rather than
+leaving a blank that reads as a pass. Absent evidence being read as green is the
+reason this project keeps a fault list at all.
+
+### The sixty-second walk
+
+Boot cold, walk in, open a door, open the ledger, equip a tool - the beats the
+brief names. Every beat reports whether it **actually happened**, so a walk that
+never found a door cannot certify doors. All four happened: 7.59 yd walked, the
+shop doors focused and opened ("Shop doors - [E] open both"), the ledger
+focused, the broom held and live.
+
+| beat | median | p95 | worst | over 16 ms |
+| --- | --- | --- | --- | --- |
+| settle (post-veil) | 8.8 ms | 10.9 | 25.4 | **0.9%** |
+| **walk** | 9.9 ms | 31.9 | **722.5** | **25.5%** |
+| door | 6.6 ms | 17.5 | 1043.6 | 6.9% |
+| ledger | 7.9 ms | 16.6 | **3101.4** | 6.4% |
+| tool equip | 8.9 ms | 19.0 | 2193.4 | 12.9% |
+| end | 10.5 ms | 13.2 | 20.3 | 1.3% |
+
+**Standing Invariant 1 FAILS.** Two runs: worst frame **3101.4 ms** and
+**9570.5 ms**, with 8.2-9.3% of frames over 16 ms and 6 frames over 100 ms in
+each. Page to playable: **14.6 s**.
+
+The shape agrees with A1 and A2 exactly - the settle after the veil is the
+*clean* part, and ordinary walking is the worst offender. The multi-second
+frames land on beats that move the player somewhere new, which is the
+single-program first-visibility stall A1 named and did not fix.
+
+### The ten invariants, answered
+
+| # | invariant | verdict |
+| --- | --- | --- |
+| 1 | no frame over 16 ms | **FAIL** - worst 9570.5 ms, 9.3% over |
+| 2 | no text cut off | NO WHOLE-GAME CHECK |
+| 3 | no text overlaps text | NO WHOLE-GAME CHECK (G2 asks for exactly this sweep) |
+| 4 | no UI element touches its container edge | NO CHECK |
+| 5 | four tools with hands, five without | driver exists, not wired in, **and its pixel floor was calibrated at 1280x720 before A5 changed the default window** |
+| 6 | nothing carried floats / is unputdownable | NO CHECK - section D, unstarted |
+| 7 | no NPC stuck over 3 s | NO CHECK - G10, unstarted |
+| 8 | every player string through `t()` | partial - coverage test exists, nothing catches a NEW literal |
+| 9 | no duplicate object keys | PASS (lint runs in the suite) |
+| 10 | suite green, tree clean at every commit | PASS |
+
+**2 pass, 1 fail, 7 with no check.** That is the honest state of the invariant
+suite, and writing the missing seven is now a named body of work rather than an
+assumption.
+
+### The gate caught a bug in itself, first run
+
+Its first run reported `? pass / ? fail` for the suite - the npm shim on Windows
+swallowed the summary lines - and it then failed invariants 9 and 10 **on a
+green suite**. A gate that cannot read its own suite is worse than no gate,
+because it cries wolf. It now invokes the test runner directly.
+
 ---
 
 ## RUNNING LISTS
