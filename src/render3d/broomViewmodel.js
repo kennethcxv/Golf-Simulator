@@ -628,8 +628,15 @@ export function createBroomViewmodel({
     // ITEM 8: a tool that hangs strands off its head gets them driven from the
     // rig's own stroke, so the yarn trails the SAME swing the head is on rather
     // than a second rhythm of its own.
+    // B3: and from the head's CARRY fan as well, not only the mopping stroke.
+    // strokeTarget is zero whenever `using` is false, so a mop that was merely
+    // being walked across a room drove its yarn with nothing at all; the head
+    // fanned, the collar inherited the fan, and the strands rode it welded.
+    // headLag.angle is that fan, and it is the signal the yarn should trail.
     const strandRig = broomGroup?.userData?.strandRig;
-    if (strandRig) strandRig.update(dt, strokeX, state.lagV || 0, state.workBlend ?? 0);
+    if (strandRig) {
+      strandRig.update(dt, strokeX, state.lagV || 0, state.workBlend ?? 0, headLag.angle || 0);
+    }
     const cosPhase = Math.cos(phase);
     const inContact = using && Math.abs(cosPhase) >= s.contactCos;
     let wantIntensity = using ? (inContact ? Math.abs(cosPhase) : 0.25) : 0;
@@ -1141,6 +1148,11 @@ export function createBroomViewmodel({
       headLag: state.headLag || { swinging: false, reason: 'no frame yet', angle: 0, vel: 0 },
       reach: +reach.toFixed(3),
       drawReach: +(state.drawReach ?? reach).toFixed(3),
+      // B3: the head's drawn swing, which is what the mop's yarn is driven
+      // from. A driver asking "do the strands trail the head" has to correlate
+      // against THIS, not against headLag — they are two different oscillators
+      // and correlating the wrong pair reports no trail for a perfect one.
+      strokeX: +(state.lagX ?? 0).toFixed(4),
       workBlend: +(state.workBlend ?? 0).toFixed(3),
       clamped: clampedNow,
       tilt: +tilt.toFixed(3),

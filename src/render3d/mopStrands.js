@@ -66,6 +66,7 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
       phase: (i * 0.61803) % 1,
       slack: 0.82 + ((i * 0.37) % 1) * 0.36,
       lag: joints.map(() => 0),
+      carry: joints.map(() => 0),
     });
   }
 
@@ -76,15 +77,37 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
    * @param stroke    the rig's lagged sweep angle (radians); the head's swing
    * @param strokeVel the rig's lag velocity; how hard it is being driven
    * @param contact   0..1, how planted the head is on the floor
+   * @param carry     the head's own fan angle from being walked about (radians)
+   *
+   * `carry` is the correction for a defect the first version could not have
+   * caught. The strands hang off the collar, and the collar is BELOW the head's
+   * fan pivot, so the head's swing was already being applied to them by the
+   * scene graph — rigidly. Measured in the collar's frame they moved 0.004 yd
+   * while being carried, which is the idle shimmer and nothing else: a mop
+   * swung across a room had yarn welded to it.
+   *
+   * The parent has already applied `carry`, so what a trailing strand needs is
+   * the DEFICIT — how far behind the head it still is. That relaxes to zero, so
+   * a mop held still hangs straight, and it costs one filter per segment.
    */
-  function update(dt, stroke = 0, strokeVel = 0, contact = 0) {
+  function update(dt, stroke = 0, strokeVel = 0, contact = 0, carry = 0) {
     time += dt;
     const drive = Math.max(-2.4, Math.min(2.4, strokeVel));
     for (const strand of strands) {
       // How much this strand feels the stroke: one on the outside of the arc,
       // less on the inside, so the bundle fans instead of moving as a slab.
       const facing = Math.cos(strand.angle);
-      const push = (stroke * 1.15 + drive * 0.16) * strand.slack;
+      // The velocity term used to be ADDED, which is a phase lead: the yarn
+      // reached the end of the stroke fractionally before the head did. That is
+      // anticipation, and cloth does not anticipate the hand carrying it — it
+      // is dragged. Measured, the lead cancelled the chase filter's delay
+      // almost exactly and the tips tracked the stroke at zero frames of lag
+      // with r=0.97, which is a mop head moving as one piece.
+      //
+      // Subtracting it makes the term drag: the faster the head is driven, the
+      // further behind the yarn sits, which is the direction the physics
+      // actually points.
+      const push = (stroke * 1.15 - drive * 0.10) * strand.slack;
       for (let s = 0; s < SEGMENTS; s += 1) {
         // each segment chases the one above it, and more slowly further down —
         // this is the trail, and it is why the tips are still moving when the
@@ -92,9 +115,14 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
         const chase = 9.5 - s * 2.3;
         const target = push * (0.42 + s * 0.34) * (0.55 + 0.45 * facing);
         strand.lag[s] += (target - strand.lag[s]) * Math.min(1, dt * chase);
+        // the carried head's fan, arrived at late: the deeper the segment the
+        // slower it catches up, so the deficit grows down the strand
+        strand.carry[s] += (carry - strand.carry[s])
+          * Math.min(1, dt * chase * 0.62);
+        const deficit = (strand.carry[s] - carry) * (0.55 + s * 0.30) * strand.slack;
         const joint = strand.joints[s];
-        // swing across the stroke...
-        joint.rotation.z = strand.lag[s];
+        // swing across the stroke, and trail behind the carry...
+        joint.rotation.z = strand.lag[s] + deficit;
         // ...and splay OUTWARD once the floor stops the strand going down. The
         // deeper the segment and the more planted the head, the flatter it lies.
         const splay = contact * (0.30 + s * 0.42) * strand.slack;
