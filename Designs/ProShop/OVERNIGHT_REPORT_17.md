@@ -943,6 +943,26 @@ another harness catches twice is itself the next instrument question.
 with no gate at all. It is now behind `devSessionActive()`, the same test every
 other dev affordance in this codebase uses.
 
+### The settings rows that lied: fixed, and the check watched failing
+
+Every slider and toggle on the Display page is built **once** from preferences
+at construction time, so choosing a preset changed the values and left the
+controls showing the previous ones. The page now re-renders after a preset
+change, deferred one frame so the change event finishes before the element it
+fired on is replaced.
+
+Driver `tools/qa/electron-a4-rows.js`, real change events, both directions:
+
+| | render scale the game applied | render scale the row displayed |
+| --- | --- | --- |
+| **unfixed**, after picking Low | 0.65 | **1.00** |
+| **unfixed**, after picking Ultra | 1.15 | **1.00** |
+| **fixed**, after picking Low | 0.65 | **0.65** |
+| **fixed**, after picking Ultra | 1.15 | **1.15** |
+
+The check was watched going red on the unfixed build and green on restore, so
+it is a check and not a decoration.
+
 ---
 
 ## RUNNING LISTS

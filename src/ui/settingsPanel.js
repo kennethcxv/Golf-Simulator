@@ -194,7 +194,21 @@ export function makeSettingsPanel({
       'aria-label': t('settings.display.quality'),
       onchange: (event) => {
         const preset = QUALITY_PRESETS[event.currentTarget.value];
-        if (preset) update({ display: preset });
+        if (!preset) return;
+        update({ display: preset });
+        // THE ROWS BELOW WERE LYING (Section A verifier, 2026-08-07). Every
+        // slider and toggle on this page is built ONCE from preferences at
+        // construction time, so choosing a preset changed the values and left
+        // the controls showing the previous ones: pick Low and the rows still
+        // read 100%/On/On/On; pick Ultra and they read Low's 65%/Off/Off/Off.
+        // The preferences were always correct - the drawing buffer proves it -
+        // which is worse, because the panel was contradicting the game while
+        // being wrong about itself.
+        //
+        // Re-rendering the page is what makes the controls read the values that
+        // were just applied. Deferred a frame so the change event finishes
+        // before the element it fired on is replaced.
+        requestAnimationFrame(() => render());
       },
     }, ...[
       ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra'], ['custom', 'Custom'],
