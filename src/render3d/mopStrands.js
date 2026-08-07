@@ -88,14 +88,32 @@ export function createMopStrands({
       }
     }
   } else {
+    // B1 (Goal 17) — A MOP HEAD IS A SOLID BUNDLE, NOT TWO HOOPS.
+    //
+    // The old layout put every strand on one of two rings, at radius 1.0 and
+    // 0.62 of the head, and nothing in between or in the middle. At the
+    // player's camera that reads as a sparse spiky ball - the screenshot looks
+    // closer to a shaving brush than a mop, which is precisely B1's "not a cone
+    // with a texture on it".
+    //
+    // A sunflower distribution fills the disc EVENLY instead: radius grows as
+    // sqrt(i/N) so each ring of area gets its fair share of strands, and the
+    // golden angle between successive strands means no spokes, no banding and
+    // no seam - the same construction nature uses on a seed head, for the same
+    // reason. Deterministic, so two sessions are identical.
+    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < count; i += 1) {
-      // two rings, so the head reads as a bundle rather than a fringe
-      const ring = i < count * 0.6 ? 0 : 1;
-      const inRing = ring === 0 ? count * 0.6 : count * 0.4;
-      const indexInRing = ring === 0 ? i : i - Math.floor(count * 0.6);
-      const angle = (indexInRing / inRing) * Math.PI * 2 + (ring ? 0.22 : 0);
-      const r = radius * (ring ? 0.62 : 1.0);
-      places.push({ x: Math.cos(angle) * r, z: Math.sin(angle) * r, angle });
+      const r = radius * Math.sqrt((i + 0.5) / count);
+      const theta = i * GOLDEN;
+      places.push({
+        x: Math.cos(theta) * r,
+        z: Math.sin(theta) * r,
+        // `angle` keeps both its jobs: cos() is how much of the stroke this
+        // strand feels, sin() is which way it splays. Azimuth is still the
+        // right value for both; strands near the centre simply have less
+        // leverage, which is also true of a real mop.
+        angle: theta,
+      });
     }
   }
 

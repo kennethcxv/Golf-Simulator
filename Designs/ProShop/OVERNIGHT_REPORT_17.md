@@ -1135,6 +1135,45 @@ strand-specific delta against the 22 991 noise floor.
 The mop also carries only **26 strands in 3 draw calls**. Now that the rig is
 instanced, density is nearly free there too.
 
+## B1 (head geometry) — three looks at one screenshot, and a mop at the end of them
+
+With the measurement retracted, I went at B1 the way the brief says to: look at
+the frame, say what I see, fix that. Three passes, each driven by what the
+previous screenshot actually showed. Crops in `qa/electron/b1-divergence/`.
+
+| pass | what the frame showed | what the geometry said | change |
+| --- | --- | --- | --- |
+| 1 | a small sparse white blob, closer to a shaving brush | 26 strands on TWO HOOPS at radius 1.0 and 0.62 - nothing in between, nothing in the middle | fill the disc evenly |
+| 2 | full, but chunky - broken sticks, kindling | each segment 100 mm long and 18 mm thick, a **5:1 ratio** where real mop yarn is nearer **50:1** | thin them right down |
+| 3 | a dense bundle of fine yarn that reads as a mop | 480 strands at 7.6 mm, about half the disc before splay, overlapping into a solid mass | shipped |
+
+**The disc fill is a sunflower distribution** - radius growing as `sqrt(i/N)` so
+each ring of area gets its fair share, and the golden angle between successive
+strands so there are no spokes, no banding and no seam. The same construction a
+seed head uses, for the same reason, and deterministic so two sessions look
+identical.
+
+**The splay was also making a dandelion.** At `splayBase 0.45` every azimuth
+splayed equally outward, so a planted head burst into a starburst. Real yarn
+lies along the direction of travel; halving it keeps the floor contact without
+the seed-head silhouette.
+
+Costs, because density is the obvious thing to be suspicious of: **480 strands
+is 1440 instance matrices a frame and still 3 draw calls.** The old 26-strand
+fringe cost 78 draw calls. This is cheaper than what it replaces.
+
+### What is NOT done here, plainly
+
+- **The motion is still unverified.** The mop will not run in a driver even with
+  its charge set, so nothing here has measured a working stroke. Everything
+  about trailing, splaying and settling remains UNCONFIRMED.
+- **The head still is not right.** It is recognisably a mop now, but a real one
+  hangs longer and droopier, and there is a dark gap where the collar meets the
+  yarn. B1 says rebuild the head, the strands, the handle, the grip, the motion
+  and the floor contact - this pass did the strands and nothing else.
+- **No tuning values are reported** because the brief asks for values chosen
+  with the overlay against a working tool, and the tool does not work yet.
+
 ---
 
 ## RUNNING LISTS

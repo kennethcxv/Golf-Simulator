@@ -412,20 +412,42 @@ export function buildToolViewmodels() {
                 const rig = createMopStrands({
                   THREE,
                   material: yarn,
-                  count: 84,
+                  // A hollow ring of 84 read as a spiky ball. Filling the disc
+                  // evenly needs enough strands that the fill is continuous:
+                  // 240 over a 0.115 m radius is one per 17 mm^2, and at an
+                  // 18 mm strand they overlap heavily, which is what a mop head
+                  // is. Still 3 draw calls, because they are instanced.
+                  // ...AND THEN IT READ AS BROKEN STICKS, NOT YARN. At 240
+                  // strands the disc filled, but each segment was 100 mm long
+                  // and 18 mm thick - a 5:1 ratio, where real mop yarn is
+                  // nearer 50:1. Chunky cylinders at that scale look like
+                  // kindling however many you draw.
+                  //
+                  // Thinner is the whole answer, and thinner needs more of
+                  // them to keep the disc covered: 480 strands at 7.6 mm gives
+                  // about half the disc area before splay, which overlaps into
+                  // a solid bundle. 480 x 3 segments is 1440 instance matrices
+                  // a frame - a fraction of a millisecond - and still 3 draw
+                  // calls, so the only thing this costs is the CPU compose.
+                  count: 480,
                   radius: 0.115,
                   length: 0.30,
-                  strandRadiusTop: 0.009,
-                  strandRadiusBottom: 0.0062,
+                  strandRadiusTop: 0.0038,
+                  strandRadiusBottom: 0.0026,
                   params: {
+                    // A planted mop's yarn lies along the direction of travel,
+                    // it does not burst outward like a dandelion. The starburst
+                    // at splayBase 0.45 came from every azimuth splaying
+                    // equally; halving it keeps the floor contact reading
+                    // without the seed-head silhouette.
+                    splayBase: 0.22,
+                    splayGrow: 0.30,
                     pushGain: 2.2,      // was 1.15 - swing wider than the head
                     dragGain: 0.22,     // was 0.10 - fall further behind under speed
                     chaseBase: 5.5,     // was 9.5  - arrive later; this is the trail
                     chaseFall: 1.6,     // was 2.3  - keeps the last segment alive
                     targetBase: 0.55,   // was 0.42
                     targetGrow: 0.45,   // was 0.34 - the tip travels furthest
-                    splayBase: 0.45,    // was 0.30 - lie flatter on the boards
-                    splayGrow: 0.55,    // was 0.42
                     deficitBase: 0.85,  // was 0.55 - the carried-head answer
                     deficitGrow: 0.40,  // was 0.30
                   },
