@@ -1228,6 +1228,63 @@ where the collar meets the yarn.
 tuning values are reported yet, because the brief asks for values chosen with
 the overlay against a working tool - which, as of this run, is finally possible.
 
+## B4 — the stated hypothesis is disproven, and there is a worse bug behind it
+
+The brief names both the defect and a cause:
+
+> "a head pinned to the floor while the hands sit where the handle cannot span
+> means the shaft is drawn between two points that do not belong to the same
+> object."
+
+That sentence names a measurement nobody had taken: **the drawn grip-to-head
+distance against the length the handle actually is.** A plant number alone can
+never show a stretched shaft, which is exactly why six rounds of plant numbers
+all looked fine. `tools/qa/electron-b4-plant.js` sweeps the hand anchor through
+its whole range using the same live door the tuning overlay writes with, and
+reads the span at every step.
+
+### The shaft is rigid. The hypothesis is wrong.
+
+| anchor Y | grip world Y | head world Y | **grip-to-head span** | head above floor |
+| --- | --- | --- | --- | --- |
+| -0.10 | 3.1757 | 1.9158 | **1.3640** | none (not planted) |
+| -0.30 | 3.1757 | 1.9158 | **1.3640** | none |
+| -0.44 | 3.1757 | 1.9158 | **1.3640** | none |
+| -0.60 | 3.1757 | 1.9158 | **1.3640** | none |
+| -0.85 | 2.1051 | 1.4526 | **1.3640** | 0.044 |
+| -1.10 | 1.8725 | 1.4519 | **1.3640** | 0.043 |
+| -1.20 | 1.7775 | 1.4520 | **1.3640** | 0.043 |
+
+**Span spread across the entire sweep: 0.0000.** The handle keeps its authored
+1.364 yd at every hand position, planted or not. The shaft is NOT being drawn
+between two points that do not belong together, and the head is not being pinned
+to the floor at the handle's expense. That reading is disproven, and it is worth
+disproving because it is the explanation the last six rounds were working from.
+
+### What the same table shows instead, and it is worse
+
+**Four consecutive anchor values produce a bit-identical pose.** From -0.10 to
+-0.60 the hand anchor moves half a yard and the grip does not move at all -
+3.1757 to four decimal places, four times, with the head equally frozen at
+1.9158. Then between -0.60 and -0.85 the grip drops **1.07 yd** for a 0.25
+change in input.
+
+**The hand anchor has a dead zone across most of its useful range, and a cliff
+at the end of it.** That is a much better explanation of "every candidate in the
+sweep read the same plant number" than a stretched shaft: half the candidates
+were never actually different poses. It also means **every hand-position sweep
+this project has run may have been comparing values that produced identical
+frames**, and the tuning overlay's own anchor slider spends most of its travel
+doing nothing.
+
+The plant number itself does behave as the brief describes once it engages -
+0.043, 0.043, 0.044, near-constant - but now that is a consequence of the dead
+zone rather than a mystery.
+
+**On NOT DONE**: finding what clamps or saturates the anchor between -0.10 and
+-0.60. It is the next thing I would do in this section, and it is a prerequisite
+for any tuning value being meaningful - including the ones B5 asks me to report.
+
 ---
 
 ## RUNNING LISTS

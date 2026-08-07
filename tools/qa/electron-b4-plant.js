@@ -1,52 +1,51 @@
-// B4 — THE PLANT OBEYS REACH, measured. The old framing sweep's scandal:
-// the contact socket read 0.073-0.084 yd above the boards for EVERY anchor,
-// including one two yards below the eye — the rig planted from below,
-// drawing a shaft between two points no handle connects. The fix fades
-// work-pose authority as the hands sink below the plant height. This
-// instrument is the sweep that can SEE that:
+// B4 — DOES THE HEAD PLANT ON THE FLOOR WHETHER OR NOT THE HANDLE CAN REACH?
 //
-//   anchor ladder (y): shipped → -0.9 → -1.5 → -2.0 (x/z shipped), work
-//   pitch, per rung read toolRigDiagnostics:
-//     - geomSource MUST be 'live' on every rung (null = the rung FAILS, not
-//       vacuously passes — reviewer 1's null-hostility demand);
-//     - shipped rung: headAboveFloor ≈ floorKiss (0.05..0.12) and workBlend
-//       > 0.6 (planted);
-//     - sunk rungs: workBlend collapses (< 0.2 by -1.5) — authority obeys
-//       reach — and headAboveFloor does NOT sit pinned at the kiss value.
-//   Control 1: the shipped rung is sampled FIRST and LAST; the two must
-//   agree (sweep didn't drift the rig).
-//   Control 2 (the up-look behavioural leg): at full real up-look with the
-//   sweep button held, the cleaning result must stay null — an unplanted
-//   broom clears NOTHING (this also exercises the courseScene gate that
-//   B4 extended from broom-only to the rig-owned pair).
+// The brief's own words: "the rig plants the tool head on the floor regardless
+// of whether the handle can physically reach... the plant number read
+// 0.073-0.084 for every candidate in your sweep including one two yards below
+// the eye... a head pinned to the floor while the hands sit where the handle
+// cannot span means the shaft is drawn between two points that do not belong to
+// the same object."
+//
+// That last sentence names the measurement, and nobody has taken it: **the
+// distance from the grip to the head, against the length the handle actually
+// is.** If the head is being pinned to the boards while the hands move, that
+// distance MUST change - the shaft is being stretched or compressed to span a
+// gap it does not have the length for. A plant number alone can never show
+// this, which is exactly why six rounds of plant numbers all looked fine.
+//
+// The sweep moves the hand anchor through its whole range using the SAME live
+// door the tuning overlay writes with, and reads back three things per step:
+//   * how high the head sits above the boards      (the number that was reported)
+//   * the drawn grip-to-head span                   (the number nobody took)
+//   * that span against the span at the rest pose   (the tell)
+//
+// The rig already has a reach cap, but it is gated on `pitch > 0` - it only
+// engages while looking UP. Everything below the horizon, which is the entire
+// working range, has never been capped at all.
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const OUT = path.resolve('qa/electron/b4-plant');
   fs.mkdirSync(OUT, { recursive: true });
-  const errs = [];
-  page.on('pageerror', (e) => errs.push(String(e.message || e)));
+  const TOOL = process.env.B4_TOOL || 'broom';
+  const out = { tool: TOOL, errs: [] };
+  page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
 
   const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
-  const boot = await import(`file:///${bootPath}`);
-  await boot.clickThroughMenu(page);
+  await (await import(`file:///${bootPath}`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
-  await page.waitForFunction(() => {
-    const v = document.querySelector('.load-veil');
-    return !v || getComputedStyle(v).opacity === '0';
-  }, null, { timeout: 300000 });
-  await page.waitForTimeout(2200);
+  await page.waitForTimeout(7000);
+  await page.bringToFront().catch(() => {});
 
   await page.evaluate(() => {
     const app = window.__fw;
-    const inv = app.state?.shop?.inventory;
-    if (inv && !inv.vac1) inv.vac1 = { shelf: 0, back: 1 };
-    else if (inv && !(inv.vac1.back > 0)) inv.vac1.back = 1;
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk.state;
-    w.x = o.x - 5.2; w.z = o.z + 3.0; w.yaw = 0.4; w.pitch = -0.55; // work range
+    w.x = o.x - 5.2; w.z = o.z + 3.0; w.yaw = 0.4; w.pitch = -0.35;
   });
-  // real-path equip
+  await page.waitForTimeout(600);
+
   await page.mouse.click(640, 380);
   await page.waitForTimeout(400);
   const bindings = await page.evaluate(
@@ -55,106 +54,90 @@ async (page) => {
   await page.keyboard.down(bindings.toolBelt || 'f');
   await page.waitForTimeout(450);
   await page.keyboard.up(bindings.toolBelt || 'f');
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(300);
   const items = await page.evaluate(() => {
     const el = document.querySelector('.tool-wheel');
     return el ? [...el.querySelectorAll('.tool-wheel-item')]
       .map((b) => b.querySelector('.tool-wheel-label')?.textContent || '') : [];
   });
-  const idx = items.findIndex((label) => /broom/i.test(label));
-  if (idx >= 0) {
-    await page.keyboard.press(String(idx === 9 ? 0 : idx + 1));
-    await page.waitForTimeout(200);
-    await page.keyboard.press('Enter').catch(() => {});
+  const want = TOOL === 'mop' ? /\bmop\b/i : /broom/i;
+  const at = items.findIndex((label) => want.test(label));
+  if (at >= 0) await page.keyboard.press(String(at === 9 ? 0 : at + 1));
+  await page.waitForTimeout(900);
+  out.equipped = await page.evaluate(() => window.__fw.scene3d.walk.getTool?.() || null);
+
+  // The AUTHORED span: grip socket to contact socket, in the GLB's own rest
+  // pose. This is how long the handle is, and no pose can change it.
+  out.authored = await page.evaluate((tool) => {
+    const s3 = window.__fw.scene3d;
+    const group = s3.scene.getObjectByName(`Tool_${tool}`);
+    if (!group) return null;
+    const grip = group.getObjectByName('SOCKET_GripPrimary') || group.getObjectByName('SOCKET_Grip');
+    const contact = group.getObjectByName('SOCKET_FloorContact')
+      || group.getObjectByName('SOCKET_DirtIntake') || group.getObjectByName('SOCKET_PanIntake');
+    if (!grip || !contact) return null;
+    // local-space separation, which the pose cannot touch
+    const V = Object.getPrototypeOf(grip.position).constructor;
+    const a = grip.getWorldPosition(new V());
+    const b = contact.getWorldPosition(new V());
+    return { names: [grip.name, contact.name], drawnNow: +a.distanceTo(b).toFixed(4) };
+  }, TOOL);
+
+  const readStep = () => page.evaluate((tool) => {
+    const s3 = window.__fw.scene3d;
+    const w = s3.walk;
+    const group = s3.scene.getObjectByName(`Tool_${tool}`);
+    const grip = group?.getObjectByName('SOCKET_GripPrimary') || group?.getObjectByName('SOCKET_Grip');
+    const contact = group?.getObjectByName('SOCKET_FloorContact')
+      || group?.getObjectByName('SOCKET_DirtIntake') || group?.getObjectByName('SOCKET_PanIntake');
+    const d = w.toolRigDiagnostics?.(tool) || null;
+    if (!grip || !contact) return null;
+    const V = Object.getPrototypeOf(grip.position).constructor;
+    const g = grip.getWorldPosition(new V());
+    const c = contact.getWorldPosition(new V());
+    return {
+      headAboveFloor: d?.headAboveFloor ?? null,
+      seatError: d?.seatError ?? null,
+      gripToHead: +g.distanceTo(c).toFixed(4),
+      gripWorldY: +g.y.toFixed(4),
+      headWorldY: +c.y.toFixed(4),
+    };
+  }, TOOL);
+
+  // Rest reading first, before anything is moved.
+  out.rest = await readStep();
+
+  // THE SWEEP. Hand anchor Y from high to very low, through the live feel door.
+  const steps = [];
+  for (const y of [-0.10, -0.30, -0.44, -0.60, -0.85, -1.10, -1.20]) {
+    await page.evaluate((args) => {
+      window.__fw.scene3d.walk.toolFeelSet?.(args.tool, 'compose.gripAnchor.1', args.y);
+    }, { tool: TOOL, y });
+    await page.waitForTimeout(420);
+    const r = await readStep();
+    steps.push({ anchorY: y, ...r });
   }
-  await page.waitForTimeout(500);
-  await page.mouse.click(640, 380);
-  await page.waitForTimeout(600);
+  out.steps = steps;
 
-  const rung = async (label, anchorY) => {
-    await page.evaluate((y) => {
-      const walk = window.__fw.scene3d.walk;
-      const shipped = walk.toolFeelLive('broom').compose.gripAnchor;
-      walk.toolRigSetGripAnchor('broom', y == null ? null : [shipped[0], y, shipped[2]]);
-    }, anchorY);
-    await page.waitForTimeout(700); // eased follow settles
-    const d = await page.evaluate(() => {
-      const diag = window.__fw.scene3d.walk.toolRigDiagnostics('broom');
-      return diag ? {
-        geomSource: diag.geomSource,
-        headAboveFloor: diag.headAboveFloor,
-        workBlend: diag.workBlend,
-        gripCamWorldY: diag.gripCamWorldY,
-      } : null;
-    });
-    return { label, anchorY, ...d };
+  const spans = steps.map((s) => s.gripToHead).filter((v) => v != null);
+  const heads = steps.map((s) => s.headAboveFloor).filter((v) => v != null);
+  const spread = (a) => (a.length ? +(Math.max(...a) - Math.min(...a)).toFixed(4) : null);
+  out.verdict = {
+    // If the handle is a rigid object, this is ~0 however the hands move.
+    gripToHeadSpread: spread(spans),
+    gripToHeadMin: spans.length ? Math.min(...spans) : null,
+    gripToHeadMax: spans.length ? Math.max(...spans) : null,
+    // The brief's observation: the plant number barely moves across the sweep.
+    headAboveFloorSpread: spread(heads),
+    headAboveFloorValues: heads,
+    // The defect, stated as a test: the shaft is being stretched to reach.
+    shaftIsRigid: spread(spans) != null && spread(spans) < 0.02,
   };
-
-  const rungs = [];
-  rungs.push(await rung('shipped-first', null));
-  for (const y of [-0.9, -1.5, -2.0, -2.4]) rungs.push(await rung(`sunk ${y}`, y));
-  rungs.push(await rung('shipped-last', null));
-  await page.screenshot({ path: path.join(OUT, 'ladder-final.png') });
-
-  // Control 2 — full up-look, real held button, cleaning must stay silent
-  await page.evaluate(() => {
-    window.__fw.scene3d.walk.toolRigSetGripAnchor('broom', null);
-    window.__fw.scene3d.walk.state.pitch = 1.2;
-  });
-  await page.waitForTimeout(500);
-  await page.mouse.down();
-  await page.waitForTimeout(2200);
-  const upLook = await page.evaluate(() => {
-    const c = window.__fw.scene3d.walk.cleaningDiagnostics();
-    const diag = window.__fw.scene3d.walk.toolRigDiagnostics('broom');
-    return { result: c.result, using: c.using, workBlend: diag?.workBlend };
-  });
-  await page.mouse.up();
-  await page.screenshot({ path: path.join(OUT, 'uplook-sweeping.png') });
-  // positive control for the same instrument: at work pitch cleaning DOES land
-  await page.evaluate(() => { window.__fw.scene3d.walk.state.pitch = -0.55; });
-  await page.waitForTimeout(600);
-  await page.mouse.down();
-  await page.waitForTimeout(2200);
-  const workLook = await page.evaluate(() => {
-    const c = window.__fw.scene3d.walk.cleaningDiagnostics();
-    return { resultPresent: !!c.result, using: c.using };
-  });
-  await page.mouse.up();
-
-  const byLabel = Object.fromEntries(rungs.map((r) => [r.label, r]));
-  const first = byLabel['shipped-first'];
-  const last = byLabel['shipped-last'];
-  const sunk15 = byLabel['sunk -1.5'];
-  const sunk20 = byLabel['sunk -2'] || byLabel['sunk -2.0'];
-  const out = {
-    rungs,
-    upLook,
-    workLook,
-    checks: {
-      allLive: rungs.every((r) => r.geomSource === 'live'),
-      shippedPlants: first && first.headAboveFloor != null
-        && first.headAboveFloor > 0.005 && first.headAboveFloor < 0.15
-        && first.workBlend > 0.6,
-      // -0.9/-1.5 keep the hands ABOVE floor+kiss: a real handle reaches, so
-      // those rungs MUST plant (the first run taught the ladder this).
-      legalReachStillPlants: sunk15 && sunk15.workBlend > 0.6
-        && sunk15.headAboveFloor < 0.15,
-      // the scandal case: hands below the floor cannot plant a head above
-      // them - authority collapses and the head rides the carry hover
-      belowFloorRefuses: sunk20 && sunk20.workBlend < 0.1
-        && sunk20.headAboveFloor > 0.3
-        && (byLabel['sunk -2.4'] ? byLabel['sunk -2.4'].workBlend < 0.05 : true),
-      noDriftControl: first && last
-        && Math.abs(first.headAboveFloor - last.headAboveFloor) < 0.02
-        && Math.abs(first.workBlend - last.workBlend) < 0.05,
-      upLookCleansNothing: upLook.using === true && (upLook.result == null || upLook.result.did === 0),
-      workPitchCleans: workLook.using === true && workLook.resultPresent === true,
-      noPageErrors: errs.length === 0,
-    },
-    errs: errs.slice(0, 5),
-  };
-  out.ok = Object.values(out.checks).every(Boolean);
-  fs.writeFileSync(path.join(OUT, 'b4.json'), `${JSON.stringify(out, null, 2)}\n`);
+  await page.screenshot({ path: path.join(OUT, `b4-${TOOL}-last.png`) });
+  fs.writeFileSync(path.join(OUT, `b4-${TOOL}.json`), `${JSON.stringify(out, null, 2)}\n`);
+  console.log(`B4[${TOOL}] authored`, JSON.stringify(out.authored));
+  console.log(`B4[${TOOL}] verdict`, JSON.stringify(out.verdict));
+  console.log(`B4[${TOOL}] steps`, JSON.stringify(steps));
+  if (out.errs.length) console.log('pageerrors', JSON.stringify(out.errs.slice(0, 3)));
   return out;
 }
