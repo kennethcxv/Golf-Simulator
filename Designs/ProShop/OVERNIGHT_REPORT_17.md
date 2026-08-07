@@ -1598,6 +1598,33 @@ book. The driver now waits for `state === 'open'`, waits for each turn to report
 `turning: false`, and publishes **`sweptEverySpread`** beside its findings.
 Final: **5 of 5 spreads, 0 overlaps, 0 squeezes.**
 
+## C6 — page turns measured, and my own expectation was wrong
+
+My Phase 1 plan said C6 "may already be satisfied" - the previous session put
+per-turn cost at one hitch, worst 54.1 ms, and A3's light fix removed a
+recompile that had been firing on this book. The plan said measure before
+assuming there is work. Measured, there is.
+
+Sampled per frame across four real page turns, attributed to the turn in flight:
+
+| | worst frame | over 16 ms | over 33 ms |
+| --- | --- | --- | --- |
+| **during turns** | **39.2 ms** | **9** | **2** |
+
+C6 asks for under 16 ms. **It is not met.** Nine frames over budget across four
+turns, two of them over 33 ms.
+
+For scale: this is nowhere near what A3 was fixing (1624 ms to ink, a 2.8 s
+frozen frame). A 39 ms worst frame is one dropped frame, not a freeze. But the
+invariant says 16 ms and the measurement says 39.2, so it is open, not done.
+
+The likely mechanism is the one A3 convicted elsewhere in this same file: a
+canvas-to-texture upload landing in the turn frame. The book already defers some
+turn paints by visibility (`turnDeferred`), so the machinery to move the rest
+off the turn frame exists. **Not attempted - measured and left open**, because
+guessing at it with the remaining budget would be the shallow version the brief
+warns against.
+
 ---
 
 ## RUNNING LISTS

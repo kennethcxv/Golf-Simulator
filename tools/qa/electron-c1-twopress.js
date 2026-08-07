@@ -116,6 +116,24 @@ async (page) => {
   // SWEEP EVERY SPREAD while the book is open, and read the book's own
   // recorders: overlaps (already there) and squeezes (new - a string that would
   // not fit even shrunk to the floor, which is a page that needs paginating).
+  // C6 — WHAT A PAGE TURN COSTS. Measured before assuming there is work here:
+  // the previous session put per-turn cost at 1 hitch worst 54.1 ms, and A3's
+  // light fix removed a recompile that was firing on this book, so the number
+  // may already be inside budget. Sampled per frame across every turn of the
+  // sweep below, attributed to the turn that was in flight.
+  await page.evaluate(() => {
+    const s = { rows: [], turning: false, stop: false };
+    window.__c6 = s;
+    let last = performance.now();
+    const tick = () => {
+      const now = performance.now();
+      s.rows.push({ dt: +(now - last).toFixed(2), turning: s.turning });
+      last = now;
+      if (!s.stop) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
   out.pages = await page.evaluate(async () => {
     const ch = window.__fw.scene3d.clubhouse();
     const book = ch.ledgerBook;
@@ -125,7 +143,8 @@ async (page) => {
     for (let i = 0; i < total + 1; i += 1) {
       const d = book.diagnostics();
       seen.push({ spread: d.spread, pageCount: d.pageCount });
-      if (!book.turnPage(1)) break;
+      window.__c6.turning = true;
+      if (!book.turnPage(1)) { window.__c6.turning = false; break; }
       // turnPage REFUSES while a leaf is still in flight, so a fixed sleep
       // silently ends the sweep early: two spreads of five, reported clean.
       // Wait for the book to say the turn is done.
@@ -134,6 +153,7 @@ async (page) => {
         await sleep(80);
         if (!book.diagnostics().turning) break;
       }
+      window.__c6.turning = false;
       await sleep(160);
     }
     const d = book.diagnostics();
@@ -150,7 +170,25 @@ async (page) => {
 
   const s3 = await step('press3-should-shut', keys.interact || 'e', 1800);
 
+  out.turnCost = await page.evaluate(() => {
+    const s = window.__c6;
+    s.stop = true;
+    const during = s.rows.filter((r) => r.turning).map((r) => r.dt);
+    const idle = s.rows.filter((r) => !r.turning).map((r) => r.dt);
+    const stat = (list) => (list.length ? {
+      n: list.length,
+      median: +[...list].sort((a, b) => a - b)[Math.floor(list.length / 2)].toFixed(2),
+      worst: +Math.max(...list).toFixed(1),
+      over16: list.filter((x) => x > 16).length,
+      over33: list.filter((x) => x > 33).length,
+    } : null);
+    return { duringTurns: stat(during), betweenTurns: stat(idle) };
+  });
+
   out.verdict = {
+    turnWorstMs: out.turnCost?.duringTurns?.worst ?? null,
+    turnsOver16: out.turnCost?.duringTurns?.over16 ?? null,
+    turnsOver33: out.turnCost?.duringTurns?.over33 ?? null,
     sweptEverySpread: out.pages?.coveredAll === true,
     ledgerOverlaps: out.pages?.overlaps?.length ?? null,
     ledgerSqueezes: out.pages?.squeezes?.length ?? null,
