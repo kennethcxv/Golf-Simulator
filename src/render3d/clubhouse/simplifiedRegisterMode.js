@@ -2643,7 +2643,8 @@ export function createRegisterMode(B) {
         selectedReservation: selectedWalkIn ? {
           id: `walkin:${selectedWalkIn.customerId}`,
           name: selectedWalkIn.fullName || selectedWalkIn.name,
-          time: ask ? `Asking for ${fmtSlot(ask.asked)}` : 'Choose an available tee time',
+          // F1: "Choose an available tee time" needed 350px in a 300px row.
+          time: ask ? `Asking for ${fmtSlot(ask.asked)}` : 'Pick a tee time',
           partySize: selectedWalkIn.partySize || 1,
           visit: 'Walk-in tee request',
           extras: 'Book a same-day time',
@@ -2690,7 +2691,9 @@ export function createRegisterMode(B) {
           }] : []),
           {
             id: 'reject-walkin',
-            label: slots.length ? 'Turn Away' : 'No Times Available',
+            // F1: "No Times Available" needed 262px in a 92px button. Even at
+            // two columns it is the longest thing on the row for no gain.
+            label: slots.length ? 'Turn Away' : 'None Today',
             kind: 'danger',
             disabled: locked || selectedWalkIn.queueIndex !== 0,
           },

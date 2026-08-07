@@ -915,6 +915,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         value: row.done ? 'done' : row.state,
         valueColor: row.done ? '#3f6b4a' : '#7a4a34',
         muted: row.done,
+        // F3: the job that unblocks this one, under it, in the desk's quieter
+        // hand. "dead" teaches nothing; "do the ceiling beams first" does.
+        note: row.blockedBy ? `do ${row.blockedBy} first` : '',
       });
     }
     if (!rows.length) rows.push({ label: 'The survey has not been done.', muted: true });

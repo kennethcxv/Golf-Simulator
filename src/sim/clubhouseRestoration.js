@@ -244,6 +244,13 @@ export function ceilingPanelPromptLabel({
   // teach you is not teaching diegetically; it is a hint behind a wrong answer.
   // The circuit is restored by repairing the CEILING component, which is a
   // hold-E site the player can already see, so the prompt says so.
+  // F3, TRIED AND REVERTED: naming the VERB here ("face the ceiling beams and
+  // hold [E]") broke three contracts in clubhouse-restoration-actions.test.js,
+  // and they are right. This prompt is read AT THE PANEL, and a prompt at the
+  // panel that shows [E] offers an action which visibly does nothing while the
+  // circuit is dead — the exact thing C8 built this copy to avoid. The verb
+  // belongs where the ceiling is, and the ledger's Restoration Record now
+  // carries the dependency instead.
   if (!powered) return `${unpoweredName} - the ceiling circuit is dead; repair the ceiling first`;
   // C8, the second rung: "repair kit required" is the one prompt where WHERE IT
   // COMES FROM is the question the player has, and it was the one prompt that

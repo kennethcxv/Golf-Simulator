@@ -27,9 +27,9 @@ where a control failed, the failure is written down instead of the result.
 | **D2** the open animation | **partly** | 112.5 ms → 70.8 ms; one frame still over 40 |
 | **D3** what is in the book | **done** | all seven sections |
 | **E1–E7** settings | **done** | all seven, with the E7 table |
-| **F1** tee times read "x am …" | **NOT FOUND** | nine monitor states audited, none truncates a time |
+| **F1** tee times read "x am …" | **found and fixed** | four walk-in buttons across a 494 px strip, 92 px each |
 | **F2** Q reveal off behind a panel | **done** | |
-| **F3** make fixing the light easier | **NOT DONE** | |
+| **F3** make fixing the light easier | **done** | the book shows what blocks what |
 | **G1** lint | **done** | and it found one |
 | **G2–G5** | **NOT DONE** | |
 
@@ -347,6 +347,48 @@ cleared. The measuring stub called itself "a little generous" and was the
 opposite: narrower than real Arial, so it let through exactly the strings it
 exists to catch. Every advance is scaled up 15% now, so a string that passes has
 genuine margin, and the caption is *"CLICK THEIR CASH TO TAKE IT"*.
+
+## F1 — found, and it was never a tee time being truncated
+
+Nine synthetic monitor states audited clean while the defect was on screen in
+the shipping build, because none of them was the WALK-IN check-in. That flow
+offers up to four buttons — two slot times, the full sheet, turn away — into a
+494 px strip 64 px tall, and the grid's height heuristic put all four ACROSS at
+**92 px a button**. A slot label is built as `` `${fmtSlot(minute)} asked` ``
+and needs 187 px, so **"11:30 AM ASKED" drew as "11:30 AM ..."** — the reported
+string, verbatim. A bare "11:48 AM" needs 104 and did not fit either, nor did
+"FULL SHEET" or "NO TIMES AVAILABLE".
+
+No font size puts fourteen characters in 92 px, so both check-in action strips
+are two columns over two rows now, running to the detail panel's own bottom edge
+at 616. Each button is 242 px. "No Times Available" became "None Today" and
+"Choose an available tee time" (350 px in a 300 px row) became "Pick a tee time".
+
+## F3 — the light chain, shown instead of discovered
+
+Fixing a light is a chain: the ceiling has to be repaired before the circuit
+carries anything, the circuit has to be live before a panel can be swapped, and
+the swap wants a kit from the back room. The player met that chain **one refusal
+at a time**, because every surface named only the step in front of them and a row
+reading "dead" teaches nothing.
+
+The Restoration Record now carries the dependency:
+
+```
+BEFORE                                      AFTER the ceiling is repaired
+Power   Ceiling circuit  waiting on the      Power   Ceiling circuit  live
+                         ceiling
+        -> do the ceiling beams first
+Lights  PANEL-02 panel   waiting on the      Lights  PANEL-02 panel   flicker
+                         circuit
+        -> do the ceiling circuit first
+```
+
+**Tried and reverted:** naming the verb in the panel's own prompt ("face the
+ceiling beams and hold [E]") broke three contracts in
+`clubhouse-restoration-actions.test.js`, and they are right. That prompt is read
+AT THE PANEL, and showing `[E]` there offers an action which visibly does nothing
+while the circuit is dead — the exact thing C8 wrote the copy to avoid.
 
 ## G1 — the linter, and the one it found
 

@@ -395,23 +395,35 @@ export function restorationRecord(state) {
   const rows = [];
   if (!reno) return { rows, done: 0, total: 0, circuitLive: false };
   const circuitLive = ceilingCircuitPoweredView(state);
+  const components = reno.architecture?.components || {};
+  const ceilingDone = !!components.ceiling?.restored;
+  // F3 — THE PAGE SHOWS WHAT BLOCKS WHAT.
+  //
+  // Fixing a light is a chain: the ceiling has to be repaired before the
+  // circuit carries anything, the circuit has to be live before a panel can be
+  // swapped, and the swap wants a kit from the back room. The player met that
+  // chain one refusal at a time, because every surface named only the step in
+  // front of them. A row that says "dead" teaches nothing; a row that says
+  // "waiting on the ceiling" names the job that unblocks it.
   rows.push({
     id: 'circuit',
     group: 'Power',
     label: 'Ceiling circuit',
-    state: circuitLive ? 'live' : 'dead',
+    state: circuitLive ? 'live' : (ceilingDone ? 'dead' : 'waiting on the ceiling'),
+    blockedBy: circuitLive || ceilingDone ? null : 'the ceiling beams',
     done: circuitLive,
   });
   for (const [panelId, panelState] of Object.entries(reno.lightPanels || {})) {
+    const working = panelState === 'working';
     rows.push({
       id: `panel:${panelId}`,
       group: 'Lights',
       label: `${String(panelId).toUpperCase()} panel`,
-      state: panelState,
-      done: panelState === 'working',
+      state: working ? 'working' : (circuitLive ? panelState : 'waiting on the circuit'),
+      blockedBy: working || circuitLive ? null : 'the ceiling circuit',
+      done: working,
     });
   }
-  const components = reno.architecture?.components || {};
   for (const [componentId, entry] of Object.entries(components)) {
     rows.push({
       id: `component:${componentId}`,

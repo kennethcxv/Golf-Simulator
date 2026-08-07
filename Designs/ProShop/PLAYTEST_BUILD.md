@@ -152,8 +152,9 @@ a 322 px box it needs 383 for.
 scene fingerprinted every frame: identical throughout, one clubhouse ever built.
 A build log now names both buildings if it ever happens.
 
-**"Tee times read 'x am …'".** Nine front-desk screen states audited; no
-tee-time string truncates. Not found.
+**"Tee times read 'x am …'".** FOUND AND FIXED. Not a tee time being truncated —
+the walk-in check-in packs four buttons across a 494 px strip at 92 px each, and
+a slot button reading "11:30 AM ASKED" needs 187. Two columns over two rows now.
 
 ## The one-line summary
 

@@ -480,7 +480,20 @@ export function createFrontDeskMonitorUi(canvas) {
       setFont(ctx, 16, 500);
       ctx.fillStyle = COLORS.muted;
       ctx.fillText('Guest details and check-in actions appear here.', 729, 376);
-      drawActionGrid(model.actions, 482, 528, 494, 64);
+      // F1 — THIS IS WHERE "x am ..." COMES FROM.
+      //
+      // The walk-in flow offers up to four buttons here (two slot times, the
+      // full sheet, and turn away) and this strip was 64px tall, so the grid's
+      // height heuristic put all four ACROSS: 92px a button. A slot label is
+      // built as `${fmtSlot(minute)} asked` and needs 187px, so "11:30 AM
+      // ASKED" drew as "11:30 AM ..." - which is the reported defect, verbatim.
+      // A bare "11:48 AM" needs 104 and did not fit either.
+      //
+      // No font size puts fourteen characters in 92px, so the strip gets two
+      // columns over two rows instead. It runs to 616, which is the detail
+      // panel's own bottom edge, and each button is 242px - room for the
+      // longest label with margin.
+      drawActionGrid(model.actions, 482, 500, 494, 116, 2);
       return;
     }
 
@@ -521,7 +534,10 @@ export function createFrontDeskMonitorUi(canvas) {
       ctx.textAlign = 'left';
       ctx.fillText(fitText(ctx, note, 494), 482, 502);
     }
-    drawActionGrid(model.actions, 482, 518, 494, 74);
+    // F1: the same two-columns-over-two-rows as the walk-in strip above. At 74px
+    // tall the grid put four buttons across at 92px each and every label with a
+    // time in it truncated.
+    drawActionGrid(model.actions, 482, 500, 494, 116, 2);
   }
 
   function drawCheckIn(model) {

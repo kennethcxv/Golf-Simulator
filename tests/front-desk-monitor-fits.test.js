@@ -143,6 +143,35 @@ const MODELS = [
   { view: 'checkout', givingState: 'short', giving: 100, changeDue: 250, givingDeltaCents: -150, clubName: 'Pine Hills Municipal Golf' },
   { view: 'checkout', awaitingCash: true, changeDue: 250, clubName: 'Pine Hills Municipal Golf' },
   { view: 'cash', heading: 'Cash', clubName: 'Pine Hills Municipal Golf' },
+  // F1: THE WALK-IN CHECK-IN, which is where the reported "x am ..." lives. Its
+  // action buttons are built from fmtSlot() and carry a suffix, and they are
+  // fitted into a grid cell rather than a row. The first nine states above did
+  // not include it, which is why nine screens audited clean while the defect was
+  // on screen in the shipping build.
+  {
+    view: 'check-in',
+    heading: 'Check-in',
+    selectedReservation: { ...RESERVATION, time: 'Asking for 11:30 AM', status: 'WALK-IN' },
+    sheet: SHEET,
+    clubName: 'Pine Hills Municipal Golf',
+    actions: [
+      { id: 'select-walkin-slot:a', label: '11:30 AM asked', kind: 'primary' },
+      { id: 'select-walkin-slot:b', label: '11:48 AM', kind: 'primary' },
+      { id: 'tab-tee-sheet', label: 'Full Sheet', kind: 'secondary' },
+      { id: 'reject-walkin', label: 'None Today', kind: 'danger' },
+    ],
+  },
+  {
+    view: 'check-in',
+    heading: 'Check-in',
+    selectedReservation: { ...RESERVATION, time: 'Pick a tee time' },
+    sheet: SHEET,
+    clubName: 'Pine Hills Municipal Golf',
+    actions: [
+      { id: 'reservation-check-in', label: 'Check In · CARD', kind: 'primary' },
+      { id: 'reject-walkin', label: 'Turn Away', kind: 'danger' },
+    ],
+  },
 ];
 
 test('no front-desk monitor screen has to truncate its own copy', () => {
