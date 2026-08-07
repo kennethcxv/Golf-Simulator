@@ -421,3 +421,91 @@ Requirement 2 is explicit: **delete the packed asset cache, rebuild from source,
 and confirm the GLB hash the game loads is the one I built.** If they differ,
 that alone may explain six rounds of tool measurements. Nothing in this section
 gets measured until that check has an answer.
+
+
+---
+
+# SECTION C — THE LEDGER
+
+## Phase 0 — the section explained back, as verbs
+
+- **C1.** I am going to **replace the ledger's opening animation entirely** with a
+  two-press sequence: press E and the book comes up to my hands **closed**;
+  press E again and it opens to the first page. What plays now - one press, a
+  left side that appears already open and then swings toward the closing
+  direction until it aligns with the right - is the wrong animation, not a
+  mistuned one, so it goes rather than gets adjusted. (The 3-5 second delay and
+  the input freeze were A3 and are already fixed: press-to-ink 1624 ms to 123
+  ms, camera free throughout.)
+- **C2.** I am going to **paginate any page whose content overflows**, using the
+  machinery the guest register already uses, and make it impossible for any
+  string in the book to show an ellipsis. Complaints and Fixes is the worst
+  offender and is where I start. I will sweep every page at full content and at
+  empty.
+- **C3.** I am going to **fix every place words overlap words in the book**, and
+  then fix the class: measure text before drawing it, and extend the existing
+  truncation recorder so it records **overlaps** as well as cuts.
+- **C4.** I am going to **stop the turning leaf showing a slice of the previous
+  page through itself** - depth sorting, the leaf's own thickness, or the order
+  the faces draw.
+- **C5.** I am going to **move, reorient and restyle the bookmark**. It sits in
+  the middle, it looks bad, and it is probably backwards: it should hang up and
+  it hangs down.
+- **C6.** I am going to **get page turns under 16 ms.**
+- **C7.** I am going to **align the section locks and make the locked state read
+  as deliberate.** Firsts is the worst.
+- **C8.** I am going to **make the pages look like paper** - typography, ruling,
+  ink weight, margins, the paper itself. It currently reads as a canvas with
+  text on it.
+
+### What I expect to be wrong about
+
+1. **C1 says "the left side appears already open".** That sounds like the open
+   subtree being revealed before the cover has swung, i.e. a swap-point problem
+   rather than an animation-curve problem. If so the fix is in the swap, and
+   "replace the animation" would be treating the symptom. I will look before I
+   rewrite.
+2. **C6 may already be satisfied.** The previous session measured per-turn cost
+   at 1 hitch worst 54.1 ms, and A3's light fix removed a recompile that was
+   firing on the book. Turns need re-measuring on this build before I assume
+   there is work here.
+
+## Phase 1 — the plan
+
+**Order: C1 first** (it is the item that most changes the game and it gates how
+every other ledger item is seen), then C3+C2 together (both are text-layout and
+share the recorder), then C7, C5, C4, C8, with C6 measured first and worked only
+if it is real.
+
+- **C1.** Change: the book's state machine gains a **closed-in-hand** state
+  between `closed` and `opening`. E from `closed` raises it to the hands and
+  stops; E from `carried-closed` opens it; E from `open` closes and lowers it.
+  Files: `src/render3d/clubhouse/ledgerBook.js` (states, `setOpen` becomes
+  `advance`), `src/main.js` (the E handler must not toggle open/shut in one
+  press).
+  **Verify:** a driver that presses E on a real keyboard and reads the book's
+  own state after each press - closed, carried-closed, open - plus a
+  player-camera screenshot at each of the three states.
+  **Negative control:** pressing a key bound to nothing must not advance the
+  state. If it does, the driver is reading its own key handler.
+  **Done, in a player's words:** "I press E and the book comes up shut. I press
+  E again and it opens."
+- **C2/C3.** Change: the paint functions measure every string before drawing it
+  and record a rect; the recorder gains overlap detection to match the existing
+  cut detection. Any page whose content exceeds its box paginates instead of
+  shrinking or clipping.
+  **Verify:** the recorder's own output across every page, at full content and
+  at empty, with the counts reported.
+  **Negative control:** a deliberately planted overlapping pair must be caught -
+  the monitor recorder already uses a self-pairing plant and it works.
+- **C6.** Measure first: press-to-painted for a turn, on a real key, with the
+  frame deltas. Work it only if it is over budget.
+
+### The reduced review, recorded as a divergence
+
+The brief asks for four reviewers per section. I ran four on Section A and their
+objections changed the work materially. For Section C I am running **two** - the
+VERIFICATION and DIVERGENCE roles, which between them produced most of Section
+A's useful objections - because context is finite and I would rather spend it on
+the work than on a third and fourth opinion about a plan. Recorded here as a
+deliberate reduction rather than an omission.
