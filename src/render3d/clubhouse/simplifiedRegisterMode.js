@@ -1428,51 +1428,15 @@ export function createRegisterMode(B) {
       wall.position.set(x, y, z);
       terminalBay.add(wall);
     }
-    // the second small device from the reference: a white-faced pin pad
-    // standing on the alcove floor, leaning back against the lit panel. Sized
-    // from the opening so it cannot poke through any wall.
-    const padH = Math.min(0.108, BAY.height - 0.03);
-    const pinPad = new THREE.Group();
-    const pinBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.062, padH, 0.017),
-      new THREE.MeshStandardMaterial({ color: 0x2a2e33, roughness: 0.5 }),
-    );
-    const pinFaceCanvas = document.createElement('canvas');
-    pinFaceCanvas.width = 96;
-    pinFaceCanvas.height = 160;
-    {
-      const c2 = pinFaceCanvas.getContext('2d');
-      c2.fillStyle = '#eef0ec';
-      c2.fillRect(0, 0, 96, 160);
-      c2.fillStyle = '#20241f';
-      c2.fillRect(10, 10, 76, 34); // its own little screen
-      c2.fillStyle = '#c2c7c0';
-      for (let row = 0; row < 4; row += 1) {
-        for (let col = 0; col < 3; col += 1) {
-          c2.fillRect(12 + col * 26, 56 + row * 25, 20, 17);
-        }
-      }
-    }
-    const pinFaceTexture = new THREE.CanvasTexture(pinFaceCanvas);
-    pinFaceTexture.colorSpace = THREE.SRGBColorSpace;
-    const pinFace = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.054, padH - 0.008),
-      new THREE.MeshBasicMaterial({ map: pinFaceTexture, toneMapped: false }),
-    );
-    pinFace.position.z = 0.0091;
-    pinPad.add(pinBody, pinFace);
-    // stand it on the floor: half its leaned height above the floor plane,
-    // and far enough forward that leaning back keeps it clear of the panel
-    const lean = BAY.seatPitch;
-    const padRise = (padH / 2) * Math.cos(lean);
-    const padSet = (padH / 2) * Math.abs(Math.sin(lean));
-    pinPad.position.set(
-      BAY.pinPadOffsetX,
-      -halfH + padRise + 0.004,
-      Math.min(BAY.reach - 0.02, 0.014 + padSet + 0.012),
-    );
-    pinPad.rotation.x = lean;
-    terminalBay.add(pinPad);
+    // C6 — THE WHITE PIN PAD IS GONE, AND THE BLACK READER STAYS.
+    //
+    // A second white-faced device stood on the alcove floor beside the parked
+    // card reader, built from the reference sheet. Two terminals in one shelf
+    // reads as clutter rather than as a till, and the white face was the
+    // brightest thing in a dark bay - the eye went to the device that does
+    // nothing over the one the whole card flow runs through. The bay keeps its
+    // lit back panel and the reader keeps its seat; BAY.pinPadOffsetX is left
+    // in the config because a future second device would want the same slot.
     suppressInteriorSunShadows(terminalBay);
     root.add(terminalBay);
   }
@@ -6863,6 +6827,50 @@ export function createRegisterMode(B) {
     return best;
   }
 
+  // C1 — WHICH DRAWER NOTE THE CURSOR IS ON.
+  //
+  // The same resolve as noteUnderCursor, scoped to one well: the direct ray
+  // first, then the nearest note's centre to the ray so a cursor in the gap
+  // between two notes still names one of them. Scoped by DENOMINATION rather
+  // than by position, because the pick that gets here already knows which well
+  // was struck and the wells are adjacent — a nearest-centre search across the
+  // whole drawer would happily reach into the tray next door.
+  //
+  // Returns null when that well has no note meshes (a coin well, or an empty
+  // one), and the caller falls back to the labelled hotspot.
+  function noteInDrawerUnderCursor(event, denom) {
+    if (!event || !drawerMoney) return null;
+    const notes = [];
+    drawerMoney.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData.from !== 'drawer') return;
+      if (Number(o.userData.denom) !== Number(denom)) return;
+      notes.push(o);
+    });
+    if (!notes.length) return null;
+    // An authored note is a GLB subtree, so a hit lands on a child mesh. Climb
+    // to the piece drawerMoney actually holds, or the outline covers one face
+    // of a note instead of the note.
+    const wholeNote = (object) => {
+      let node = object;
+      while (node && node.parent && node.parent !== drawerMoney) node = node.parent;
+      return node && node.parent === drawerMoney ? node : object;
+    };
+    setNdc(event);
+    ray.setFromCamera(ndc, camera);
+    const direct = ray.intersectObjects(notes, false);
+    if (direct.length) return wholeNote(direct[0].object);
+    let best = null;
+    let bestDistance = Infinity;
+    const centre = new THREE.Vector3();
+    for (const mesh of notes) {
+      mesh.getWorldPosition(centre);
+      const distance = ray.ray.distanceToPoint(centre);
+      if (distance < bestDistance) { bestDistance = distance; best = mesh; }
+    }
+    return best ? wholeNote(best) : null;
+  }
+
   function offeredPaymentTarget(object, event = null) {
     if (!object || !tx) return null;
     const kind = object.userData.kind;
@@ -6872,9 +6880,18 @@ export function createRegisterMode(B) {
     const offeredCash = tx.stage === 'cash-tender'
       || (tx.stage === 'cash-drawer' && !tx.deposited);
     if (kind === 'money' && object.userData.from === 'tender' && offeredCash) {
-      // THAT note, not the pile
-      const note = noteUnderCursor(event);
-      return note ? [note] : [object];
+      // C2 — THE WHOLE HANDFUL, NOT ONE NOTE OF IT.
+      //
+      // Item 12 made this outline exactly one note, because the ask then was
+      // "hovering a note outlines THAT note only". For the money the CUSTOMER
+      // is holding out that turned out to be the wrong read: the click takes
+      // the entire payment, so outlining one note of five promises a precision
+      // the verb does not have and invites a hunt for the right edge. What the
+      // outline should say is what the click will do.
+      //
+      // The per-note resolver stays and is used by C1 in the DRAWER, where
+      // clicking really does give one piece and the distinction is real.
+      return tenderMeshes.length ? [...tenderMeshes] : [object];
     }
     return null;
   }
@@ -6898,10 +6915,19 @@ export function createRegisterMode(B) {
       const kind = object.userData.kind;
       if (kind === 'drawer-slot' || (kind === 'money' && object.userData.from === 'drawer')) {
         if (tx && tx.deposited) {
-          target = slotHotspots.find(
-            (spot) => Number(spot.userData.denom) === Number(object.userData.denom),
-          ) || object;
-          tip = `${moneyLabel(Number(object.userData.denom))} - click: give one · right-click: take back`;
+          // C1 — THE NOTE UNDER THE CURSOR, NOT THE WHOLE WELL.
+          //
+          // This outlined the labelled well, which is a box the size of the
+          // denomination's whole stack. Clicking gives exactly ONE piece, so
+          // the outline was describing a bigger thing than the verb touches.
+          // A direct ray against that well's own notes names the one the
+          // cursor is on; the well remains the fallback when the cursor is on
+          // the tray itself rather than on any note.
+          const denom = Number(object.userData.denom);
+          target = noteInDrawerUnderCursor(event, denom)
+            || slotHotspots.find((spot) => Number(spot.userData.denom) === denom)
+            || object;
+          tip = `${moneyLabel(denom)} - click: give one · right-click: take back`;
         }
       } else if (kind === 'money') {
         target = object;
