@@ -8648,6 +8648,11 @@ export function makeCourseScene(canvas, state) {
           const rayDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
           aim = clubhouseApi.cleaningAim(camera.position, rayDir, def.reach + 1.0);
         }
+        // B0: which tools' drawn pose belongs to the viewmodel rig this frame.
+        // Mop+broom tonight (goal B6 scopes the change); vacuum/dustpan carry
+        // the same two-writer defect and are logged for their own session.
+        const rigOwnsHeldTool = (walkTool === 'broom' || walkTool === 'mop')
+          && !!rigFor(walkTool)?.isActive();
         if (rest && (def.toolClass === 'stroke' || def.toolClass === 'sweep')) {
           // Per-tool retiming: mop = slow heavy push-pull, broom = brisker sweep, cloth = gentle
           // wipe, sponge = quick scrub. (Mop and broom were both the 4.8 / 0.16 fallback before.)
@@ -8676,12 +8681,23 @@ export function makeCourseScene(canvas, state) {
               group.position.z = rest.z + second;
               group.position.y = rest.y;
             }
-          } else if (!(walkTool === 'broom' && broomVm.isActive())) {
-            // Mop: a lateral push-pull across the boards. (The broom's stroke
-            // motion is composed by its viewmodel rig from the same phase.)
+          } else if (!rigOwnsHeldTool) {
+            // Mop: a lateral push-pull across the boards. (A rig tool's
+            // stroke motion is composed by its viewmodel rig from the same
+            // phase.)
+            //
+            // B0 (2026-08-07): this guard used to name the BROOM alone, so
+            // the MOP's rig solved its pose at the rig slot above and then
+            // THESE TWO WRITES clobbered the drawn x and roll every using
+            // frame — measured live: drawn x swept exactly rest.x ± MOP_SPAN
+            // and roll exactly ±0.035 while the rig's diagnostics reported a
+            // perfect solve. Six rounds of mop feel tuning never reached the
+            // screen while the button was held. Scoped to mop+broom tonight
+            // per the goal's B6; the vacuum and dustpan rigs are clobbered
+            // the same way and are logged for their own pass.
             group.position.x = rest.x + Math.sin(phase) * span;
           }
-          if (!(walkTool === 'broom' && broomVm.isActive())) {
+          if (!rigOwnsHeldTool) {
             group.rotation.z = group.userData.cleaningRestRotationZ + cosPhase * 0.035;
           }
           dirX = Math.cos(walk.yaw) * sign;

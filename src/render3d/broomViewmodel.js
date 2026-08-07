@@ -359,20 +359,69 @@ export function createBroomViewmodel({
     maxAngle: feel.headLag?.maxAngle ?? 0.30,
   };
 
+  // B0 (2026-08-07): THE PIVOT USED TO GRAB THE WHOLE TOOL, AND THE HAND
+  // STAYED BEHIND. "The socket's siblings" was written for a GLB whose head
+  // meshes were separate nodes beside the socket; the rebuilt assets parent
+  // EVERYTHING to one LOD0 node, so the sweep wrapped all 13 broom meshes —
+  // handle and grip wrap included — and every fast head motion (a real
+  // camera turn, above all) swung the entire drawn broom about the contact
+  // point while the sockets, and the hand seated on them, stayed put.
+  // Measured: hand-to-socket 0.035 yd all night while the drawn hand-to-
+  // grip-wrap pixel gap hit 302 px mid-turn. The mop had the MIRROR bug:
+  // its pivot was built while the procedural fallback meshes were the
+  // siblings, adoptAuthored() then removed them, and `built` stayed
+  // latched — an EMPTY pivot, no head life at all.
+  //
+  // So: selection is bounded — a mesh joins the head pivot only if it is
+  // head-NAMED, or its world centre sits within headRadius of the contact
+  // socket AND it is not shaft-named. And the pivot REBUILDS whenever the
+  // contact socket node changes (fallback -> authored adoption, re-equip),
+  // instead of latching on the first build forever.
+  const HEAD_NAME = /bristle|block|skirt|collar|head|pan(?!el)|intake|nozzle/i;
+  const SHAFT_NAME = /handle|gripwrap|gripband|buttcap|hanghole|ferrule|shaft|pole/i;
+  const HEAD_RADIUS_YD = 0.5;
+  const _headSel = new THREE.Vector3();
+  const _sockSel = new THREE.Vector3();
+
+  function teardownHeadLag() {
+    const pivot = headLag.pivot;
+    if (!pivot || !pivot.parent) { headLag.pivot = null; return; }
+    const parent = pivot.parent;
+    // un-swing before handing children back, or a mid-swing teardown bakes
+    // the current lag angle into every child's rest offset
+    pivot.rotation.set(0, 0, 0);
+    pivot.updateMatrixWorld(true);
+    for (const child of [...pivot.children]) {
+      child.position.add(pivot.position);
+      parent.add(child);
+    }
+    parent.remove(pivot);
+    headLag.pivot = null;
+    headLag.angle = 0;
+    headLag.vel = 0;
+    headLag.hasLast = false;
+  }
+
   function buildHeadLag() {
-    if (headLag.built) return;
-    headLag.built = true;
     const socket = socketRefs.contact;
+    if (headLag.built && headLag.socketNode === socket && headLag.pivot
+      && headLag.pivot.children.length) return;
+    teardownHeadLag();
+    headLag.built = true;
+    headLag.socketNode = socket || null;
     const parent = socket?.parent;
     if (!socket || !parent) { headLag.reason = 'no contact socket'; return; }
-    // the head's visible parts are the socket's SIBLINGS: meshes under the
-    // same parent, near the socket. Wrapping those and leaving the socket
-    // where it is keeps the sim contact fixed.
-    const near = parent.children.filter((child) => (
-      child !== socket && child.type !== 'Bone'
-      && child.getObjectByProperty && hasMeshUnder(child)
-    ));
-    if (!near.length) { headLag.reason = 'no sibling meshes to swing'; return; }
+    socket.getWorldPosition(_sockSel);
+    const near = parent.children.filter((child) => {
+      if (child === socket || child.type === 'Bone') return false;
+      if (!child.getObjectByProperty || !hasMeshUnder(child)) return false;
+      const name = child.name || '';
+      if (SHAFT_NAME.test(name)) return false;
+      if (HEAD_NAME.test(name)) return true;
+      child.getWorldPosition(_headSel);
+      return _headSel.distanceTo(_sockSel) <= HEAD_RADIUS_YD;
+    });
+    if (!near.length) { headLag.reason = 'no head meshes to swing'; return; }
     const pivot = new THREE.Group();
     pivot.name = 'ToolHeadLagPivot';
     pivot.position.copy(socket.position);
@@ -382,7 +431,7 @@ export function createBroomViewmodel({
       pivot.add(child);
     }
     headLag.pivot = pivot;
-    headLag.reason = `swinging ${near.length} head part(s)`;
+    headLag.reason = `swinging ${near.length} head part(s) of ${parent.children.length - 1} siblings`;
   }
 
   function hasMeshUnder(object) {
@@ -391,22 +440,28 @@ export function createBroomViewmodel({
     return found;
   }
 
+  const _camInvLag = new THREE.Matrix4();
+  const _headCamLocal = new THREE.Vector3();
   function updateHeadLag(dt, headWorld) {
     if (!headLag.pivot || !(dt > 0)) return;
-    // the head's own lateral speed across the sweep, in the tool's frame
+    // B0: the head's lateral speed, measured in the CAMERA frame. The old
+    // world-frame difference read a camera TURN as a huge lateral sweep —
+    // yaw-rate x reach — and slammed the lag to its clamp exactly when the
+    // player looks around. In camera space a turn barely moves the held
+    // head (it rides the view); a STROKE moves it plenty. Strokes swing,
+    // turns do not, which is what a head on a stick does.
+    _camInvLag.copy(camera.matrixWorld).invert();
+    _headCamLocal.copy(headWorld).applyMatrix4(_camInvLag);
     if (!headLag.hasLast) {
-      headLag.lastPos.copy(headWorld);
+      headLag.lastPos.copy(_headCamLocal);
       headLag.hasLast = true;
       return;
     }
-    _tmp.copy(headWorld).sub(headLag.lastPos);
-    headLag.lastPos.copy(headWorld);
+    _tmp.copy(_headCamLocal).sub(headLag.lastPos);
+    headLag.lastPos.copy(_headCamLocal);
     // strip the vertical: a head bobbing up and down should not fan sideways
     _tmp.y = 0;
-    const camRight = _axisX.set(1, 0, 0).applyQuaternion(camera.quaternion);
-    camRight.y = 0;
-    if (camRight.lengthSq() > 1e-6) camRight.normalize();
-    const lateral = _tmp.dot(camRight) / dt;
+    const lateral = _tmp.x / dt;
     // spring toward zero, driven by how fast the head is being dragged
     const target = Math.max(-HEAD_LAG.maxAngle, Math.min(
       HEAD_LAG.maxAngle, -lateral * HEAD_LAG.drive * 0.06,

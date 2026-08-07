@@ -15,6 +15,60 @@
 // otherwise start a fresh Relaxed game. Only the MENU is handled here — each
 // driver keeps its own post-boot waits, so no timing behaviour changes.
 
+// PLAN_16 R-A — OWNER-RESOLUTION ACCEPTANCE.
+//
+// Verified during the Phase 2 review: every driver inherits main.cjs's
+// 1600x940 DIP window while the owner plays this machine's 4K display, so
+// every screenshot, legibility verdict and perf acceptance in six rounds was
+// judged at ~62% of the owner's linear resolution with nobody saying so.
+//
+// This sizes the REAL BrowserWindow to the primary display's full bounds
+// (borderless-style maximised bounds, native DIP size; the shipped DPR cap
+// stays in force because the acceptance environment reproduces the shipped
+// pipeline at the owner's window — it does not invent a new one) and returns
+// the caption every acceptance artifact must carry. Falls back verbosely: a
+// driver that cannot size the window must SAY so in its output rather than
+// silently grading small frames.
+//
+// Usage, after boot:
+//   const cap = await ownerResolution(page, electronApp);
+//   out.windowCaption = cap.caption;   // e.g. "2560x1392 DIP @2.0 scale (4K)"
+export async function ownerResolution(page, electronApp) {
+  // run-electron.cjs's page shim exposes the Electron app as page.electronApp.
+  const app = electronApp || page?.electronApp || null;
+  try {
+    const info = await (app
+      ? app.evaluate(({ screen, BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        const display = screen.getDisplayMatching(win.getBounds());
+        win.setBounds(display.bounds);
+        const content = win.getContentBounds();
+        return {
+          dipW: content.width,
+          dipH: content.height,
+          scale: display.scaleFactor,
+          physW: Math.round(display.bounds.width * display.scaleFactor),
+          physH: Math.round(display.bounds.height * display.scaleFactor),
+        };
+      })
+      : Promise.reject(new Error('no electronApp handle')));
+    const dpr = await page.evaluate(() => window.devicePixelRatio);
+    return {
+      ok: true,
+      ...info,
+      dpr,
+      caption: `${info.dipW}x${info.dipH} DIP @${info.scale} scale `
+        + `(display ${info.physW}x${info.physH} physical, dpr ${dpr})`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      caption: `OWNER-RES UNAVAILABLE (${String(error?.message || error)}) — `
+        + 'frames are harness-sized, NOT acceptance grade',
+    };
+  }
+}
+
 export async function clickThroughMenu(page) {
   // "Continue" renders on every menu — DISABLED on a clean profile. Resume
   // only when it is actually clickable; otherwise start fresh.
