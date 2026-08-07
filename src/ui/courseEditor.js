@@ -2517,7 +2517,7 @@ export function makeCourseEditor(app, hooks) {
               console.error('course editor discard refresh failed', error);
               button.disabled = false;
               button.textContent = 'Discard';
-              toast('The rollback could not finish rendering. Try again.', 'warn');
+              toast('The undo did not finish drawing. Try again.', 'warn');
             }
           },
         }),
@@ -2667,7 +2667,7 @@ export function makeCourseEditor(app, hooks) {
                 console.error('course editor discard-and-leave refresh failed', error);
                 button.disabled = false;
                 button.textContent = 'Discard & leave';
-                toast('The rollback could not finish rendering. Try again.', 'warn');
+                toast('The undo did not finish drawing. Try again.', 'warn');
               }
             },
           }),

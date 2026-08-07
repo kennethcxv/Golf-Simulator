@@ -5146,7 +5146,7 @@ export function makeCourseScene(canvas, state) {
         ));
         return waiting.length
           ? `Starter desk - [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
-          : 'Starter desk - [E] arrivals, check-in & walk-ins';
+          : 'Starter desk - [E] arrivals, check-ins and walk-ins';
       },
       action: () => {
         const waiting = (state.reservations?.booked || []).filter((reservation) => (

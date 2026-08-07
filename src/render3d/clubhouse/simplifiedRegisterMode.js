@@ -2297,7 +2297,7 @@ export function createRegisterMode(B) {
     if (cashRecoveryTimer > 0) return true;
     layoutAcceptedTender();
     setWorkspace('cash');
-    toast('Cash restored safely. Press D to reopen the drawer.');
+    toast('Cash is back. [D] reopens the drawer.');
     return true;
   }
 
@@ -2371,7 +2371,7 @@ export function createRegisterMode(B) {
       }
       const resumed = resumeCheckout(tx.checkoutFlow, { nowMs: nowMs + 0.001 });
       if (!resumed.ok) {
-        toast(`Checkout recovery could not resume: ${resumed.reason}`, 'warn');
+        toast(`Could not pick the sale back up: ${resumed.reason}`, 'warn');
         return true;
       }
       syncFlow(resumed.flow);
@@ -2678,7 +2678,7 @@ export function createRegisterMode(B) {
           time: ask ? `Asking for ${fmtSlot(ask.asked)}` : 'Choose an available tee time',
           partySize: selectedWalkIn.partySize || 1,
           visit: 'Walk-in tee request',
-          extras: 'Manual same-day slot selection',
+          extras: 'Book a same-day time',
           depositPaid: 0,
           balanceDue: (state.club ? state.club.greenFee : 0) * (selectedWalkIn.partySize || 1),
           status: selectedWalkIn.queueIndex === 0 ? 'READY AT DESK' : 'WAITING IN QUEUE',
@@ -2690,7 +2690,7 @@ export function createRegisterMode(B) {
               : ask.verdict?.ok
                 ? `${fmtSlot(ask.asked)} is not available. The nearest open time is ${fmtSlot(ask.verdict.slot.minute)}.`
                 : ask.verdict?.reason || 'Nothing near their asked time remains.')
-            : slots.length ? 'Choose one of the next capacity-safe openings.' : 'No same-day capacity remains.',
+            : slots.length ? 'Pick one of the next open times.' : 'Nothing left today.',
         } : selected ? {
           ...selected,
           name: selected.fullName || selected.name,
@@ -5346,7 +5346,7 @@ export function createRegisterMode(B) {
     customerCash(tx);
     if (!makeChangeFrom(drawerContents(tx, drawer), changeDue(tx))) {
       tx.tendered = makeChange(cashTotalOf(tx));
-      toast('The customer provides exact cash because the till cannot make that change.');
+      toast('The till cannot make that change, so they hand over the exact amount.');
     }
     for (const [rawDenom, count] of Object.entries(tx.tendered || {})) {
       const denom = Number(rawDenom);
@@ -5476,7 +5476,7 @@ export function createRegisterMode(B) {
     }
     cashMotionRefillPending = true;
     setWorkspace('cash');
-    toast('Cash accepted. The drawer is opening; count the required change.');
+    toast('Cash taken. The drawer is opening - count their change.');
     sfx('drawerUnlock');
     sfx('drawerOpen');
     sfx('billHandle');
@@ -5819,7 +5819,7 @@ export function createRegisterMode(B) {
       if (checkoutFlowState() === 'DepositingCash') {
         flowTo('SelectingChange', 'player-secured-all-received-cash');
       }
-      toast('All received cash is secured. Count the change.');
+      toast('Cash is in. Count the change.');
     }
     drawScreen();
     return true;
@@ -5888,7 +5888,7 @@ export function createRegisterMode(B) {
     if (selectedChangeMeshes.length || handTotal(tx) > 0) return false;
     const plan = makeChangeFrom(drawerContents(tx, drawer), changeDue(tx));
     if (!plan) {
-      toast('The drawer cannot make exact change. Choose an allowed amount manually.', 'warn');
+      toast('The drawer cannot make that change. Pick an amount it can.', 'warn');
       return false;
     }
     let pieces = 0;
@@ -5897,7 +5897,7 @@ export function createRegisterMode(B) {
       for (let index = 0; index < count; index += 1) {
         if (!selectChangeFromSlot(denom, { assisted: true, silent: true, deferDraw: true })) {
           clearSelectedChange();
-          toast('Exact-change assistance stopped before moving any money.', 'warn');
+          toast('Stopped counting. No money moved.', 'warn');
           return false;
         }
         pieces += 1;
@@ -5982,7 +5982,7 @@ export function createRegisterMode(B) {
           return false;
         }
       }
-      if (!automatic) toast('Drawer is still opening. Change is queued.');
+      if (!automatic) toast('The drawer is still opening. One moment.');
       return true;
     }
     if (readiness !== 'ready') return false;
@@ -6348,7 +6348,7 @@ export function createRegisterMode(B) {
     setBagPickable(false);
     const deliveryStarted = beginBagDeliveryOrRelease();
     if (!deliveryStarted) {
-      toast('The customer handoff could not start. Try the bag handles again.', 'warn');
+      toast('That did not take. Try the bag handles again.', 'warn');
       return false;
     }
     autoFulfilled = true;
@@ -6518,12 +6518,12 @@ export function createRegisterMode(B) {
     if (transactionKind === 'retail') {
       if (tx.stage === 'receipt' && !tx.receiptPrinted) return beginAutomaticReceipt();
       const projected = durableProjectRetailFulfillment();
-      if (projected) toast('Order handoff restored from the saved checkout progress.');
+      if (projected) toast('Picked the sale back up where it left off.');
       return projected;
     }
     resetBagAtCounter();
     const restarted = finishAutomaticFulfillment();
-    if (restarted) toast('Order handoff restarted safely.');
+    if (restarted) toast('Handing it over again.');
     return restarted;
   }
 
@@ -6533,7 +6533,7 @@ export function createRegisterMode(B) {
       return false;
     }
     if (checkoutFlowState() !== 'CustomerLeaving') {
-      toast('Finish the physical customer handoff before banking the sale.', 'warn');
+      toast('Hand the customer their bag first.', 'warn');
       return false;
     }
     const finishedTx = tx;
@@ -6623,7 +6623,7 @@ export function createRegisterMode(B) {
     if (action === 'tab-checkout') {
       activeTab = 'checkout';
       if (!tx && !postSaleDisplay) {
-        toast('No shopper is ready at the checkout yet. The screen will update when a customer reaches the counter.');
+        toast('Nobody at the counter yet. This fills in when someone arrives.');
         setWorkspace('monitor');
       } else if (tx?.stage === 'scanning' && unscannedCount(tx) > 0) {
         setWorkspace('scan');

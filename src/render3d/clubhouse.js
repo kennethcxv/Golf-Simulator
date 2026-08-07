@@ -1814,7 +1814,7 @@ export function makeClubhouse(ctx) {
         return `Tee desk - [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
           + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
       }
-      return 'Tee desk - [E] arrivals, check-in & walk-ins';
+      return 'Tee desk - [E] arrivals, check-ins and walk-ins';
     },
     action: () => {
       if (!facilityInstalled(state, 'frontCounter') || !facilityInstalled(state, 'registerHardware')) {

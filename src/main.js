@@ -605,7 +605,7 @@ function handleGuideTick(result) {
   if (!result) return;
   const advanced = result.advanced || [];
   if (advanced.length > 3) {
-    toast(`${advanced.length} completed objectives were recovered from the real world state.`, 'good');
+    toast(`${advanced.length} ${advanced.length === 1 ? 'job was' : 'jobs were'} already done. Ticked off.`, 'good');
   } else {
     for (const step of advanced) toast(`✓ ${step.title}`, 'good');
   }
@@ -2341,7 +2341,7 @@ window.addEventListener('keydown', (e) => {
         } else if (e.key === 'b' || e.key === 'B') {
           e.preventDefault();
           bld.exit();
-          toast('Renovation mode finished.');
+          toast('Back to work.');
         }
         return;
       }
