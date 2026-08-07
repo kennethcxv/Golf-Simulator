@@ -737,6 +737,58 @@ it is downstream of the asset: in the rig, in what draws, or in the size of the
 motion relative to what the eye can see at arm's length. B1 starts there instead,
 and one candidate cause is now eliminated rather than assumed.
 
+## B1 (research step) — what House Flipper actually does, and what I could not do
+
+Requirement 4 says to copy an existing game rather than invent, and B1 says to
+find footage of House Flipper's mop, watch it, and describe what it does that
+ours does not.
+
+**I cannot watch video. I am not going to pretend otherwise**, and a description
+of footage I did not see would be exactly the kind of confident-and-wrong
+artefact this brief exists to stamp out. What I could do is read, and two things
+came back that change the plan more than a clip would have.
+
+### 1. House Flipper 2 deleted the mop
+
+The sequel does not have one. Floors, walls and ceilings are all cleaned with a
+single cloth. The studio that owns this reference had a mop, shipped it, and
+then decided the tool was not worth keeping.
+
+That does not mean ours should go - the brief is explicit that the mop stays and
+gets rebuilt - but it does mean **there is no current House Flipper mop to
+match**, and the thing to copy is House Flipper 1's.
+
+### 2. In House Flipper 1 the mop is a crosshair-aimed area tool, not a physics object
+
+The mop is the first tool the player gets. It is used by holding the mouse
+button while the reticle hovers dirt, and the community's efficiency technique
+is to hug a wall and walk a continuous perimeter with the reticle held on the
+seam where the floor meets the baseboard, because that angle maximises the
+tool's area-of-effect hitbox and takes the lower wall and floor edge at once.
+
+**That is a targeting mechanic, not a simulated mop head.** The feel comes from
+where the crosshair is and how fast the dirt goes, and the visual is a looping
+animation attached to the camera. Nothing in how that game plays depends on
+individual strands trailing behind the head.
+
+### What that does to the plan
+
+B1 asks for strands that trail, splay, swing behind on a direction change and
+settle. That is a *higher* bar than the reference sets, and it is worth knowing
+that before spending the section's budget on fibre physics. It also sharpens the
+open question from B0: the strands were measured moving 0.25 yd and the owner
+sees nothing, and if the reference game gets away with no strand motion at all,
+then the thing that reads as "cheap" on our mop may not be the strands.
+
+**This does not overrule the brief.** The instruction is to make the strands
+visibly move and I will. It is recorded because Requirement 4 asks what the
+reference does that we do not, and the honest answer is: **less**, and the gap
+worth closing may be elsewhere. The next step is the divergence itself, at the
+player's camera, which needs the Electron slot.
+
+Sources read: PC Gamer's House Flipper 2 review, the House Flipper wikis and
+community efficiency guides. No footage was watched.
+
 ---
 
 ## RUNNING LISTS
