@@ -1157,45 +1157,101 @@
       "n": 74,
       "file": "asset_074_broom.glb",
       "sheet": "sheet_08",
-      "sha256": "3618a492f1c326a61ce769047c5555513624a890c295d577d75db392c74b66f4",
-      "opaqueParts": 5,
+      "sha256": "33443d782175583f1d9ae9b177470689aa8c7d46f75e8bb2231626cb833488ec",
+      "opaqueParts": 13,
       "transparentParts": [],
       "animations": [],
       "parts": [
         {
           "name": "MESH_BroomBlock",
           "triangles": 108,
-          "maxPx": 3594,
+          "maxPx": 3006,
           "seenAngles": 26,
-          "sharePct": 23.458
+          "sharePct": 20.623
         },
         {
           "name": "MESH_BroomBlockCap",
           "triangles": 108,
-          "maxPx": 1424,
+          "maxPx": 1420,
           "seenAngles": 23,
-          "sharePct": 10.401
+          "sharePct": 10.129
         },
         {
           "name": "MESH_BroomBristles",
           "triangles": 5184,
-          "maxPx": 5799,
-          "seenAngles": 25,
-          "sharePct": 32.729
+          "maxPx": 5850,
+          "seenAngles": 26,
+          "sharePct": 31.975
+        },
+        {
+          "name": "MESH_BroomBristleSeat",
+          "triangles": 108,
+          "maxPx": 1923,
+          "seenAngles": 15,
+          "sharePct": 2.284
+        },
+        {
+          "name": "MESH_BroomButtCap",
+          "triangles": 212,
+          "maxPx": 144,
+          "seenAngles": 26,
+          "sharePct": 0.945
         },
         {
           "name": "MESH_BroomFerrule",
-          "triangles": 140,
-          "maxPx": 298,
+          "triangles": 188,
+          "maxPx": 268,
           "seenAngles": 26,
-          "sharePct": 2.73
+          "sharePct": 2.315
+        },
+        {
+          "name": "MESH_BroomFerrulePin",
+          "triangles": 168,
+          "maxPx": 56,
+          "seenAngles": 26,
+          "sharePct": 0.527
+        },
+        {
+          "name": "MESH_BroomGripBand_0",
+          "triangles": 168,
+          "maxPx": 15,
+          "seenAngles": 26,
+          "sharePct": 0.195
+        },
+        {
+          "name": "MESH_BroomGripBand_1",
+          "triangles": 168,
+          "maxPx": 17,
+          "seenAngles": 26,
+          "sharePct": 0.198
+        },
+        {
+          "name": "MESH_BroomGripBand_2",
+          "triangles": 168,
+          "maxPx": 24,
+          "seenAngles": 26,
+          "sharePct": 0.21
+        },
+        {
+          "name": "MESH_BroomGripWrap",
+          "triangles": 236,
+          "maxPx": 1292,
+          "seenAngles": 26,
+          "sharePct": 13.391
         },
         {
           "name": "MESH_BroomHandle",
-          "triangles": 164,
-          "maxPx": 2515,
+          "triangles": 236,
+          "maxPx": 1419,
           "seenAngles": 26,
-          "sharePct": 30.682
+          "sharePct": 17.185
+        },
+        {
+          "name": "MESH_BroomHangHole",
+          "triangles": 144,
+          "maxPx": 8,
+          "seenAngles": 12,
+          "sharePct": 0.024
         }
       ],
       "invisible": [],

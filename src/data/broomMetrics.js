@@ -8,5 +8,5 @@
 export const BROOM_METRICS = Object.freeze({
   gripToFloorYd: 1.247202,
   sourceGlb: 'vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb',
-  sourceSha256: '53ec5dca021fbf84c297f68b5f68b242aa5183cc238c4811b9c4ab0af4759e8f',
+  sourceSha256: '43256a46e46dc458a4bc6ceb9aab5a4a72a35b5b1655886b5b61e1fad73fab0d',
 });

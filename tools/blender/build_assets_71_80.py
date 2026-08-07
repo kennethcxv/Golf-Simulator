@@ -251,6 +251,16 @@ def _materials() -> dict[str, bpy.types.Material]:
         # Medium walnut for the mop + broom timber (defect #8: the ash read too pale).
         "wood_walnut": A.material("S08_WoodWalnut", A.hex_to_linear_rgba("704934"), roughness=0.50,
                                   texture="Wood062", uv_scale=6.0),
+        # B2/G4 — TWO MATERIALS THE BROOM WAS MISSING, both from TOOL_SET.md's
+        # criteria: a material break on a real part boundary, and something that
+        # catches a highlight. The whole handle was one matte walnut, so a
+        # 1.32 m pole filling the lower frame had nothing on it for the eye to
+        # land on. The lacquer is the same timber finished; the wrap is where
+        # the hands actually go.
+        "wood_lacquer": A.material("S08_WoodLacquer", A.hex_to_linear_rgba("7A5238"), roughness=0.22,
+                                   texture="Wood062", uv_scale=6.0),
+        "grip_wrap": A.material("S08_GripWrap", A.hex_to_linear_rgba("2C3A32"), roughness=0.78,
+                                texture="Fabric030", uv_scale=8.0),
         # Restrained brass for the mop head band + broom ferrule (Pinehollow palette).
         "brass": A.material("S08_Brass", A.hex_to_linear_rgba("9B7A3B"), roughness=0.32, metallic=0.88,
                             texture="Metal032", uv_scale=5.0),
@@ -497,10 +507,49 @@ def _broom_geometry(parent: bpy.types.Object, m: dict, *, floor_z: float = 0.0,
     def along(distance: float) -> tuple[float, float, float]:
         return (0.0, dy * distance, base_z + dz * distance)
 
+    # B2/G4 — REBUILT TO THE COUNTER'S STANDARD (Designs/ProShop/TOOL_SET.md).
+    #
+    # The broom ranks WORST of the nine by density: 10,164 triangles spread over
+    # 2.8% of the frame, which is the most screen any tool asks for per triangle
+    # it spends. That is not a call to add polygons for their own sake — it is
+    # what the four criteria in TOOL_SET.md are for:
+    #
+    #   chamfered edges      already true, and kept
+    #   material breaks on   the handle was ONE matte walnut from ferrule to
+    #   real boundaries      butt. A real push broom has a finished pole, a
+    #                        wrapped grip and a capped end.
+    #   something to catch   nothing but the brass collar. A lacquered band at
+    #   a highlight          roughness 0.22 gives the pole a specular run.
+    #   detail at VIEWMODEL  the pole was a 14-sided cylinder held half a yard
+    #   distance             from the eye — the facets are visible. 20 sides.
     A.cylinder("BroomFerrule", 0.026, 0.075, along(0.030), m["brass"],
-               rotation=(-tilt, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
-    A.cylinder("BroomHandle", 0.0155, handle_len, along(handle_len / 2.0), m["wood_walnut"],
-               rotation=(-tilt, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               rotation=(-tilt, 0.0, 0.0), vertices=16, parent=parent, bevel=0.003)
+    # a second collar where the ferrule is pinned, so the joint reads as made
+    A.torus("BroomFerrulePin", 0.0262, 0.0045, along(0.062), m["brass"],
+            rotation=(-tilt, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
+    A.cylinder("BroomHandle", 0.0155, handle_len, along(handle_len / 2.0), m["wood_lacquer"],
+               rotation=(-tilt, 0.0, 0.0), vertices=20, parent=parent, bevel=0.003)
+    # THE GRIP, where the hands are and therefore where the eye is. Slightly
+    # proud of the pole so it reads by silhouette as well as by colour, and
+    # spanning both authored grip sockets rather than an arbitrary stretch.
+    grip_lo, grip_hi = handle_len * 0.52, handle_len * 0.90
+    A.cylinder("BroomGripWrap", 0.0178, grip_hi - grip_lo, along((grip_lo + grip_hi) / 2.0),
+               m["grip_wrap"], rotation=(-tilt, 0.0, 0.0), vertices=20, parent=parent, bevel=0.002)
+    for k in range(3):
+        A.torus(f"BroomGripBand_{k}", 0.0181, 0.0026, along(grip_lo + 0.02 + k * 0.145),
+                m["brass"], rotation=(-tilt, 0.0, 0.0), major_segments=14, minor_segments=6,
+                parent=parent)
+    # A CAPPED BUTT with a hanging hole: the end of the pole was a bare disc, and
+    # it is the part nearest the lens at every working pitch.
+    A.cylinder("BroomButtCap", 0.0172, 0.028, along(handle_len - 0.014), m["brass"],
+               rotation=(-tilt, 0.0, 0.0), vertices=18, parent=parent, bevel=0.004)
+    A.torus("BroomHangHole", 0.0072, 0.0022, along(handle_len - 0.006), m["brass"],
+            rotation=(-tilt + math.pi / 2.0, 0.0, 0.0), major_segments=12, minor_segments=6,
+            parent=parent)
+    # the seat where the bristles enter the block: a darker inset strip, so the
+    # bristle field looks bedded into timber instead of glued under it
+    A.box("BroomBristleSeat", (0.500, 0.060, 0.012), (0.0, 0.0, block_z - 0.028),
+          m["bristle"], parent=parent, bevel=0.003)
     return {
         "block_z": block_z, "tilt": tilt, "handle_len": handle_len,
         "contact": (0.0, 0.0, floor_z + 0.004),
