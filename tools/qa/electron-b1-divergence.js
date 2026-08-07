@@ -91,12 +91,24 @@ async (page) => {
   // Charging it here is staging, not state-forcing the thing under test: the
   // player would wring it at the bucket, and what is being measured is what the
   // fibres do once it works.
+  //
+  // AND THE FIRST ATTEMPT AT THIS WROTE TO A COPY. `cleaningStatus(state)`
+  // returns `{ ...c.mop }` - a fresh object every call - so setting `.charge`
+  // on it changed a throwaway and the tool stayed dry, while the driver
+  // cheerfully reported `charged: true`. The live store is
+  // `state.shop.reno.cleaning`. A setter that reports success without writing
+  // anywhere is the same family as the tuning panel that could not be clicked.
   out.charged = await page.evaluate(() => {
-    const ch = window.__fw.scene3d.clubhouse?.();
-    const c = ch?.cleaningStatus?.();
-    if (!c?.mop) return { ok: false };
+    const st = window.__fw.state;
+    const c = st?.shop?.reno?.cleaning;
+    if (!c?.mop) return { ok: false, why: 'no live cleaning state' };
     c.mop.charge = c.mop.capacity;
-    return { ok: true, charge: c.mop.charge, capacity: c.mop.capacity };
+    c.mop.soil = 0;
+    if (c.bucket) { c.bucket.water = 'clean'; c.bucket.soil = 0; }
+    // read it back THROUGH the accessor the game uses, so "it took" is proven
+    // rather than assumed
+    const seen = window.__fw.scene3d.clubhouse?.()?.cleaningStatus?.()?.mop ?? null;
+    return { ok: true, wrote: c.mop.charge, readBack: seen };
   });
   await page.waitForTimeout(500);
 

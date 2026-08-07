@@ -1174,6 +1174,60 @@ fringe cost 78 draw calls. This is cheaper than what it replaces.
 - **No tuning values are reported** because the brief asks for values chosen
   with the overlay against a working tool, and the tool does not work yet.
 
+## B1 — a working mop at last, and the pixel metric turned out to be inverted
+
+Two more instrument faults had to fall before anything could be measured.
+
+**The setter wrote to a copy.** `cleaningStatus(state)` returns `{ ...c.mop }` -
+a fresh object every call - so the driver set `.charge` on a throwaway, the tool
+stayed dry, and the driver reported `charged: true`. The live store is
+`state.shop.reno.cleaning`. **A setter that reports success without writing
+anywhere is the same family as the tuning panel that could not be clicked**, and
+that is two in one session. The driver now writes to the live store and reads
+back **through the accessor the game uses**, so "it took" is proven rather than
+assumed.
+
+With that fixed, the charge witness reads **`toolActuallyWorked: true`** for the
+first time, and the frame shows "Mop wet 98% - hard floors only" with water
+droplets coming off the head. **This is the first measurement in this item taken
+on a mop that was switched on.**
+
+### And the number came out backwards, which is the finding
+
+| | live strands | strands frozen |
+| --- | --- | --- |
+| pixels changed in the head region | 91 982 | **151 933** |
+| tip travel in the head's own frame | **0.4578 m** | **0.0001 m** |
+
+**Frozen strands change MORE of the screen than live ones.** That is not a bug,
+it is what the metric measures: welded fibres sweep rigidly across the frame
+with the head, so every one of them crosses the maximum number of pixels. Live
+fibres LAG, so the mass travels less far and more softly, and fewer pixels
+change.
+
+So the pixel-difference metric was answering "how rigidly is the head coupled to
+the fibres" and I had been reading it as "do the fibres move". **It is inverted
+for the question B1 asks**, and every ratio I derived from it - including the
+ones I already retracted - was worse than useless.
+
+**The right measure was there all along**: tip travel in the head's own frame,
+which is exactly what `tipsLocal()` reads back off the drawn instance matrices.
+It says the strands move **0.4578 m relative to their own anchor** while frozen
+strands move **0.0001 m**. That is decisive, it is measured on a working tool,
+and it needs no ratio.
+
+### Where that leaves B1
+
+The strands move, a lot, relative to the head - so "they do not move at all" is
+not about the strand rig failing to run. With a working mop on screen the
+remaining candidates are visible in the frame rather than in a number: the head
+does not plant flat on the boards (which is B4's item), and there is a dark gap
+where the collar meets the yarn.
+
+**Still not done**: the handle, the grip, the floor contact and the plant. And no
+tuning values are reported yet, because the brief asks for values chosen with
+the overlay against a working tool - which, as of this run, is finally possible.
+
 ---
 
 ## RUNNING LISTS
