@@ -366,7 +366,42 @@ distance). Instrument faults 51–52 logged: the D-hold that read
 "no page turned" from a leaf-in-flight guard, and the focus-throttle
 that produced 950 ms phantom frames until bringToFront.
 
-## D1 — implemented, not yet verified
+## C2/C3/C4 — the pages, the overlap class, the locks
+
+C3, the class fix: every page canvas now RECORDS the rect of every string
+it draws (a fillText wrap installed at canvas creation), and every paint
+scans for collisions into an overlap ledger exposed via diagnostics —
+the front desk records truncations, the ledger records collisions. On
+its FIRST live run it caught two real classes at real content: (1) the
+Contents rows collided by ~3.5 px at seven sections (the solved row step
+ran tighter than the glyph height — the row font now fits the step); (2)
+`ruledRows`' NOTE lines ran into the next row's label by 10.7 px at the
+28 px floor (note rows now carry their own budgeted height, and the
+separator rule moved below the note it used to cross). Third catch, by
+eye on the screenshots: the value column rasterised into the page MESH's
+gutter crop ("waiting on the ceili…") — texture-space text clipped at
+the UV edge, the reviewer's predicted class — pulled in to −72.
+Final sweep: **zero overlaps across all seven sections in the live
+build** (qa/electron/ledger-pages/pages.json + section-*.png at the
+owner window). Control caveat, stated: the artificial planted-collision
+control came back inconclusive (the plant landed on an unscanned
+canvas), but the recorder demonstrated it can fail loudly by catching
+two real collision classes before its clean sweep — that is the
+stronger form of the same evidence.
+
+C4: the ToC padlock right-aligns to the page-number column edge and
+centres on its row like a digit (was 6 px off-column with the shackle
+poking above the row). No section is locked in tonight's fresh-save
+staging, so the realigned glyph ships code-verified with the recorder
+armed; a locked-state screenshot is listed under UNCONFIRMED rather than
+faked.
+
+C2: paper fibre (130 deterministic laid-lines at whisper alpha) joins
+the existing aged-parchment ground; leaf pages at half res and no
+mipmaps on page textures (from A2's chain). The Firsts/Restoration
+spread screenshot reads as ruled paper with even rows and an aligned
+"not yet" column. A full typography pass (ink weights per painter)
+remains open and is listed honestly rather than claimed.
 
 main.cjs: display-info and set-resolution now speak PHYSICAL pixels
 (`size × scaleFactor`); `fits` compares against the display, not the DIP

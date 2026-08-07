@@ -139,6 +139,30 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     canvas.width = Math.round(PAGE_W * scale);
     canvas.height = Math.round(PAGE_H * scale);
     if (scale !== 1) canvas.getContext('2d').setTransform(scale, 0, 0, scale, 0, 0);
+    // C3: every string this face ever draws records its rect (PAGE-space —
+    // the transform applies at raster, not here), so overlap detection is a
+    // property of the CLASS of painters, not a per-painter promise. The
+    // front desk records truncations; the ledger records collisions.
+    const face = {};
+    const ctx = canvas.getContext('2d');
+    face.draws = [];
+    const origFillText = ctx.fillText.bind(ctx);
+    ctx.fillText = (text, x, y, maxWidth) => {
+      try {
+        const metrics = ctx.measureText(String(text));
+        const w = Math.min(metrics.width, maxWidth ?? Infinity);
+        const asc = metrics.actualBoundingBoxAscent ?? 18;
+        const desc = metrics.actualBoundingBoxDescent ?? 5;
+        let left = x;
+        if (ctx.textAlign === 'center') left = x - w / 2;
+        else if (ctx.textAlign === 'right' || ctx.textAlign === 'end') left = x - w;
+        face.draws.push({
+          text: String(text).slice(0, 48), x: +left.toFixed(1), y: +(y - asc).toFixed(1),
+          w: +w.toFixed(1), h: +(asc + desc).toFixed(1),
+        });
+      } catch { /* recording must never break painting */ }
+      return origFillText(text, x, y, maxWidth);
+    };
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     // A2/C5 (measured, run 8): every needsUpdate paid a ~55 ms frame
@@ -149,7 +173,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     texture.generateMipmaps = false;
     texture.minFilter = THREE.LinearFilter;
     texture.anisotropy = 8;
-    return { canvas, texture };
+    return Object.assign(face, { canvas, texture });
   };
   // the live page surfaces; their meshes are the GLB's curved face quads
   const leftFace = makePageCanvas();
@@ -442,6 +466,21 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     edge.addColorStop(1, 'rgba(122,94,54,0.14)');
     ctx.fillStyle = edge;
     ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    // C2: paper FIBRE — the missing cue between "canvas with text" and a
+    // page. Short horizontal laid-lines at whisper alpha, deterministic so
+    // reprints are identical and the driver's pixel checks stay stable.
+    const fibre = mulberry(0xf1b3e);
+    ctx.strokeStyle = 'rgba(96,78,48,0.045)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 130; i += 1) {
+      const fx = fibre() * PAGE_W;
+      const fy = fibre() * PAGE_H;
+      const len = 14 + fibre() * 46;
+      ctx.beginPath();
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + len, fy + (fibre() - 0.5) * 2.2);
+      ctx.stroke();
+    }
     const rand = mulberry(0x5eed);
     for (let i = 0; i < 14; i += 1) {
       const x = rand() * PAGE_W;
@@ -651,21 +690,33 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const tocTop = 246;
     const step = Math.min(41, Math.max(26,
       (contentBottom() - 12 - tocTop) / Math.max(1, sections.length)));
+    // C3 (caught by the new overlap recorder on its first live run): at
+    // seven sections the solved step ran tighter than a T(25) Georgia line's
+    // ascent+descent and adjacent titles collided by ~3.5 px. The FONT now
+    // fits the STEP — rows can tighten without their glyphs touching.
+    const rowPx = Math.min(T(25), Math.floor(step * 0.68));
     let y = tocTop;
     for (const section of sections) {
       ctx.textAlign = 'left';
       ctx.fillStyle = section.locked ? '#8a8272' : '#3f4a42';
-      ctx.font = section.locked ? `italic 400 ${T(25)}px Georgia, serif` : `400 ${T(25)}px Georgia, serif`;
+      ctx.font = section.locked ? `italic 400 ${rowPx}px Georgia, serif` : `400 ${rowPx}px Georgia, serif`;
       ctx.fillText(section.title, 92, y);
       ctx.textAlign = 'right';
       if (section.locked) {
-        // a small drawn padlock, not an emoji
-        const lx = PAGE_W - 118;
+        // C4: a small drawn padlock, RIGHT-ALIGNED to the same column edge
+        // the page numbers use (PAGE_W - 92) and optically centred on the
+        // row's text. The old glyph ended 6 px left of the number column
+        // with its shackle poking above the row — the "unaligned, sloppy"
+        // read, worst on Firsts because Firsts is usually the locked one.
+        const bodyW = 20;
+        const bodyH = 12;
+        const lx = PAGE_W - 92 - bodyW;
+        const by = y - bodyH - 2; // body top; baseline-aligned like a digit
         ctx.strokeStyle = '#8a8272';
-        ctx.lineWidth = 3.4;
-        ctx.strokeRect(lx, y - 20, 20, 15);
+        ctx.lineWidth = 3;
+        ctx.strokeRect(lx, by, bodyW, bodyH);
         ctx.beginPath();
-        ctx.arc(lx + 10, y - 20, 7.5, Math.PI, 0);
+        ctx.arc(lx + bodyW / 2, by, 6, Math.PI, 0);
         ctx.stroke();
       } else {
         ctx.fillStyle = '#6b7268';
@@ -840,8 +891,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // these pages want. Returns the y it finished at so a caller can put a footer
   // note under it.
   function ruledRows(ctx, rows, top, { labelFont = 21, valueFont = 22, maxStep = 56 } = {}) {
-    const step = Math.min(maxStep, Math.max(28,
-      (contentBottom() - 14 - top) / Math.max(1, rows.length)));
+    // C3 (recorder catch #2, complaints page at real content): a row's NOTE
+    // line sits ~T(17) below its baseline, and a floor step of 28 marched
+    // the NEXT label straight through it (10.7 px of collision). Note rows
+    // now carry their own extra height, budgeted out of the available run,
+    // and the separator rule moves BELOW the note it used to cross.
+    const noteExtra = T(17) + 6;
+    const noteCount = rows.filter((row) => row.note).length;
+    const step = Math.min(maxStep, Math.max(24,
+      (contentBottom() - 14 - top - noteCount * noteExtra) / Math.max(1, rows.length)));
     let y = top;
     for (const row of rows) {
       const strong = !!row.strong;
@@ -853,7 +911,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         ctx.textAlign = 'right';
         ctx.fillStyle = row.valueColor || (muted ? 'rgba(107,114,104,0.72)' : '#2c3e50');
         ctx.font = `${strong ? 700 : 400} ${T(valueFont)}px Georgia, serif`;
-        ctx.fillText(fitLine(ctx, String(row.value), 230), PAGE_W - 48, y);
+        // the page MESH curves into the gutter and crops the canvas's last
+        // ~25 px: a value ending at -48 rasterises clipped ("waiting on the
+        // ceili..."). The shared right edge pulls in to survive the crop.
+        ctx.fillText(fitLine(ctx, String(row.value), 205), PAGE_W - 72, y);
         ctx.textAlign = 'left';
       }
       // a settled complaint is struck through, not deleted: "we had that
@@ -866,18 +927,20 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         ctx.lineTo(48 + ctx.measureText(fitLine(ctx, row.label, PAGE_W - 300)).width + 4, y - T(labelFont) * 0.3);
         ctx.stroke();
       }
+      let noteDrop = 0;
       if (row.note) {
         ctx.fillStyle = 'rgba(107,114,104,0.92)';
         ctx.font = `italic 400 ${T(15)}px Georgia, serif`;
         ctx.fillText(fitLine(ctx, row.note, PAGE_W - 120), 66, y + T(17));
+        noteDrop = noteExtra;
       }
       ctx.strokeStyle = 'rgba(90,80,58,0.20)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(48, y + step * 0.24);
-      ctx.lineTo(PAGE_W - 48, y + step * 0.24);
+      ctx.moveTo(48, y + noteDrop + step * 0.24);
+      ctx.lineTo(PAGE_W - 48, y + noteDrop + step * 0.24);
       ctx.stroke();
-      y += step;
+      y += step + noteDrop;
     }
     return y;
   }
@@ -1286,7 +1349,30 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     };
   }
 
+  // C3: the overlap ledger — {pageIndex, a, b} for every intersecting pair
+  // of drawn strings, capped so a pathological page cannot flood memory.
+  const LEDGER_OVERLAPS = [];
   function paintIndexWith(model, face, index) {
+    const r = paintIndexWithInner(model, face, index);
+    scanOverlaps(face, index);
+    return r;
+  }
+  function scanOverlaps(face, pageIndex) {
+    const draws = face.draws || [];
+    for (let i = 0; i < draws.length; i += 1) {
+      for (let j = i + 1; j < draws.length; j += 1) {
+        const a = draws[i]; const b = draws[j];
+        const xOver = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const yOver = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        // >2px both axes = a real collision, not kerning-tight neighbours
+        if (xOver > 2 && yOver > 2 && LEDGER_OVERLAPS.length < 60) {
+          LEDGER_OVERLAPS.push({ pageIndex, a: a.text, b: b.text, xOver: +xOver.toFixed(1), yOver: +yOver.toFixed(1) });
+        }
+      }
+    }
+  }
+  function paintIndexWithInner(model, face, index) {
+    if (face.draws) face.draws.length = 0;
     const clubName = state?.club?.name || state?.shop?.name || 'Pine Hills Municipal Golf';
     const page = model.pages[index];
     if (!page) return paintBlank(face);
@@ -1759,6 +1845,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // A2/C5: what the last turn actually paid at the turn frame vs in the
       // deferred visibility slots — the phase split a driver grades
       paintStats: { ...paintStats, deferredPending: turnDeferred.length },
+      overlaps: LEDGER_OVERLAPS.slice(0, 60),
       glbReady: glbNodes.ready,
       float: bookState === 'open' ? 1 : (bookState === 'opening' ? +stateT.toFixed(2) : 0),
       cover: +Math.abs(glbNodes.cover.rotation.z / Math.PI).toFixed(2),
