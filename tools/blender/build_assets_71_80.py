@@ -604,13 +604,28 @@ def _dustpan_geometry(parent: bpy.types.Object, m: dict, *, floor_z: float = 0.0
     def along(distance: float) -> tuple[float, float, float]:
         return (0.0, base_y + dy * distance, base_z + dz * distance)
 
+    # B2: same three faults as the broom, same three answers. A 12-sided pole
+    # held near the lens shows its facets; hard_black on matte_black is not a
+    # material BREAK, it is two blacks; and nothing on it caught a light.
     A.cylinder("DustpanHandle", 0.014, handle_len, along(handle_len / 2.0),
-               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
+               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=18, parent=parent, bevel=0.003)
     A.cylinder("DustpanHandleGrip", 0.020, 0.115, along(handle_len - 0.070),
-               m["matte_black"], rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.004)
-    A.torus("DustpanHangLoop", 0.020, 0.005, along(handle_len + 0.016), m["hard_black"],
+               m["grip_wrap"], rotation=(-rake, 0.0, 0.0), vertices=18, parent=parent, bevel=0.004)
+    for k in range(2):
+        A.torus(f"DustpanGripBand_{k}", 0.0206, 0.0024, along(handle_len - 0.115 + k * 0.090),
+                m["brass"], rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6,
+                parent=parent)
+    A.torus("DustpanHangLoop", 0.020, 0.005, along(handle_len + 0.016), m["brass"],
             rotation=(math.pi / 2.0 - rake, 0.0, 0.0), major_segments=16, minor_segments=6,
             parent=parent)
+    # a brass wear strip along the lip: the edge that scrapes the floor, and the
+    # one part of a dustpan that is always polished bright by use
+    # The part-visibility sweep caught the first attempt at this BURIED: at
+    # y -pan_d/2 - 0.009 it sat entirely inside DustpanLip, which is 0.020 deep
+    # and centred 3 mm behind it. A wear strip has to be PROUD of the lip it
+    # protects, so it stands 2 mm in front of the lip's own front face.
+    A.box("DustpanLipStrip", (pan_w * 0.96, 0.008, 0.007),
+          (0.0, -pan_d / 2.0 - 0.018, lip_z + 0.002), m["brass"], parent=parent, bevel=0.001)
     return {
         "pan_depth": pan_d,
         "intake": (0.0, -pan_d / 2.0 + 0.02, lip_z + 0.02),
@@ -638,6 +653,9 @@ def _spray_bottle_geometry(parent: bpy.types.Object, m: dict, *, base_z: float =
         parent=parent, bevel=0.004,
     )
     neck_z = base_z + body_h + 0.030
+    # B2: a brass ring at the neck, so the bottle has one bright fitting
+    A.torus("SprayNeckRing", 0.0216, 0.0030, (0.0, 0.0, neck_z + 0.028), m["brass"],
+            major_segments=16, minor_segments=6, parent=parent)
     A.cylinder("SprayCollar", 0.021, 0.026, (0.0, 0.0, neck_z + 0.013), m["trigger_green"],
                vertices=16, parent=parent, bevel=0.003)
     head_z = neck_z + 0.030
@@ -697,6 +715,13 @@ def _washer_gun_geometry(parent: bpy.types.Object, m: dict, *, origin_z: float =
     A.box("GunGrip", (0.042, 0.056, 0.145), (0.0, 0.055, grip_top_z - 0.082),
           m["hard_black"], parent=parent, bevel=0.012, bevel_segments=3,
           rotation=(math.radians(-13.0), 0.0, 0.0))
+    # B2: the wand's grip strap becomes a real material break, and the lance
+    # gets a brass union at the gun - the one bright fitting on a black tool.
+    # ...and the same sweep caught this one buried inside GunBody, which spans
+    # y -0.065..0.085. A union sits where the lance LEAVES the gun, forward of
+    # the body's own front face, and stands proud of the 0.0125 lance.
+    A.torus("GunLanceUnion", 0.0180, 0.0042, (0.0, -0.082, grip_top_z + 0.010), m["brass"],
+            rotation=(math.pi / 2.0, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
     A.box("GunGripStrap", (0.046, 0.020, 0.100), (0.0, 0.082, grip_top_z - 0.072),
           m["matte_black"], parent=parent, bevel=0.006)
     A.box("GunBody", (0.048, 0.150, 0.062), (0.0, 0.010, grip_top_z + 0.006),
@@ -771,8 +796,16 @@ def _vacuum_wand_geometry(parent: bpy.types.Object, m: dict) -> dict:
         along(wand_top), along(0.56), along(0.24), along(0.03),
         (0.0, -0.128, 0.044), (0.0, -0.150, 0.020),
     ), 0.019, m["matte_black"], parent=parent, resolution=4, bevel_resolution=4)
-    A.cylinder("VacWandGrip", 0.026, 0.150, along(0.580), m["hard_black"],
-               rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.004)
+    # B2: the wand's grip was hard_black on a matte_black spine - two blacks, no
+    # break, nothing to catch a light, and 14 sides at viewmodel distance.
+    A.cylinder("VacWandGrip", 0.026, 0.150, along(0.580), m["grip_wrap"],
+               rotation=(-rake, 0.0, 0.0), vertices=20, parent=parent, bevel=0.004)
+    for k in range(2):
+        A.torus(f"VacGripBand_{k}", 0.0264, 0.0026, along(0.520 + k * 0.120), m["brass"],
+                rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
+    # a brass collar where the wand telescopes, the one bright fitting on it
+    A.torus("VacWandJoint", 0.0212, 0.0038, along(0.330), m["brass"],
+            rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
     A.cylinder("VacWandCollar", 0.023, 0.040, along(0.060), m["hard_black"],
                rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.002)
     # Corrugated hose stub above the grip: shallow ribs where the flexible hose meets the
@@ -1619,6 +1652,11 @@ def build_77_fp() -> bpy.types.Object:
           parent=cloth, bevel=0.015, bevel_segments=2)
     # One corner flap hangs below the palm plane so the cloth drapes off a loose, weighted
     # corner rather than sitting as a rigid brick.
+    # B2: a stitched hem down two edges. A microfibre cloth is a hemmed square,
+    # and without it the pad was six untrimmed boxes of one colour.
+    for side, sy in (("A", -1.0), ("B", 1.0)):
+        A.box(f"ClothHem{side}", (0.171, 0.009, 0.062), (0.0, sy * 0.0735, 0.030),
+              m["grip_wrap"], parent=cloth, bevel=0.003)
     A.box("ClothCornerFlap", (0.072, 0.058, 0.028), (0.064, -0.050, -0.028), m["cloth_green"],
           parent=cloth, bevel=0.012, bevel_segments=2, rotation=(0.42, 0.0, -0.30))
     sponge = _group("SpongeHeld", root)
@@ -1626,6 +1664,10 @@ def build_77_fp() -> bpy.types.Object:
           m["sponge_yellow"], parent=sponge, bevel=0.010, bevel_segments=3)
     A.box("SpongeScourPad", (0.108, 0.068, 0.011), (0.180, 0.0, 0.001),
           m["sponge_scour"], parent=sponge, bevel=0.005)
+    # B2: the glue line between foam and scour. Two boxes stacked read as two
+    # boxes; a seam reads as one sponge.
+    A.box("SpongeSeam", (0.110, 0.070, 0.004), (0.180, 0.0, 0.008),
+          m["grip_wrap"], parent=sponge, bevel=0.001)
     _marker("ClothGrip", root, (0.0, 0.0, 0.058), rotation=FORWARD, hand="right")
     _marker("ClothContact", root, (0.0, 0.0, 0.000), rotation=DOWN,
             cleaning_contact=True, contact_radius_m=0.10, authoritative_emission=True)

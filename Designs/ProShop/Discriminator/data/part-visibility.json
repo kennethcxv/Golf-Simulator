@@ -868,8 +868,8 @@
       "n": 71,
       "file": "asset_071_vacuum_cleaner.glb",
       "sheet": "sheet_08",
-      "sha256": "30efa42a3c0496bf62ef61ce261510fc68a18cd6033166c005985e775b192a1c",
-      "opaqueParts": 20,
+      "sha256": "183b4e00d6c10c0573c5838331ee3dd3bf2566cd2180b326b94e65d6fa214fd2",
+      "opaqueParts": 23,
       "transparentParts": [],
       "animations": [],
       "parts": [
@@ -878,35 +878,49 @@
           "triangles": 332,
           "maxPx": 27323,
           "seenAngles": 25,
-          "sharePct": 46.041
+          "sharePct": 46.008
         },
         {
           "name": "Cylinder_1",
           "triangles": 332,
           "maxPx": 1463,
           "seenAngles": 24,
-          "sharePct": 2.867
+          "sharePct": 2.864
         },
         {
           "name": "Cylinder_2",
           "triangles": 1732,
           "maxPx": 17367,
           "seenAngles": 25,
-          "sharePct": 26.732
+          "sharePct": 26.715
         },
         {
           "name": "Cylinder_3",
           "triangles": 1384,
           "maxPx": 1604,
           "seenAngles": 26,
-          "sharePct": 2.453
+          "sharePct": 2.451
         },
         {
           "name": "MESH_VacHose",
           "triangles": 308,
           "maxPx": 4972,
           "seenAngles": 26,
-          "sharePct": 7.104
+          "sharePct": 7.1
+        },
+        {
+          "name": "MESH_VacGripBand_0",
+          "triangles": 168,
+          "maxPx": 47,
+          "seenAngles": 22,
+          "sharePct": 0.077
+        },
+        {
+          "name": "MESH_VacGripBand_1",
+          "triangles": 168,
+          "maxPx": 48,
+          "seenAngles": 24,
+          "sharePct": 0.081
         },
         {
           "name": "MESH_VacHeadBrushStrip",
@@ -927,14 +941,14 @@
           "triangles": 108,
           "maxPx": 1679,
           "seenAngles": 24,
-          "sharePct": 1.907
+          "sharePct": 1.906
         },
         {
           "name": "MESH_VacHeadSole",
           "triangles": 108,
           "maxPx": 4641,
           "seenAngles": 24,
-          "sharePct": 4.85
+          "sharePct": 4.845
         },
         {
           "name": "MESH_VacHeadWheelL",
@@ -955,7 +969,7 @@
           "triangles": 144,
           "maxPx": 150,
           "seenAngles": 24,
-          "sharePct": 0.26
+          "sharePct": 0.258
         },
         {
           "name": "MESH_VacHoseRib_1",
@@ -983,7 +997,7 @@
           "triangles": 144,
           "maxPx": 173,
           "seenAngles": 25,
-          "sharePct": 0.271
+          "sharePct": 0.27
         },
         {
           "name": "MESH_VacHoseRib_5",
@@ -1001,17 +1015,24 @@
         },
         {
           "name": "MESH_VacWandGrip",
-          "triangles": 164,
-          "maxPx": 1080,
+          "triangles": 236,
+          "maxPx": 1001,
           "seenAngles": 24,
-          "sharePct": 1.714
+          "sharePct": 1.595
+        },
+        {
+          "name": "MESH_VacWandJoint",
+          "triangles": 168,
+          "maxPx": 60,
+          "seenAngles": 20,
+          "sharePct": 0.095
         },
         {
           "name": "MESH_VacWandSpine",
           "triangles": 500,
-          "maxPx": 2747,
+          "maxPx": 2713,
           "seenAngles": 25,
-          "sharePct": 3.553
+          "sharePct": 3.485
         }
       ],
       "invisible": [
@@ -1296,66 +1317,87 @@
       "n": 75,
       "file": "asset_075_dustpan.glb",
       "sheet": "sheet_08",
-      "sha256": "1529a093842e076e8475c463f2b022f663b5ce9e253cb967cf59f8dc83da594c",
-      "opaqueParts": 8,
+      "sha256": "c8d670b5d3b7ce940015ecf25eec578d8d59bfef0eae64a82f615cab615c5f21",
+      "opaqueParts": 11,
       "transparentParts": [],
       "animations": [],
       "parts": [
         {
           "name": "MESH_DustpanBack",
           "triangles": 108,
-          "maxPx": 9742,
+          "maxPx": 9712,
           "seenAngles": 26,
-          "sharePct": 19.094
+          "sharePct": 18.706
         },
         {
           "name": "MESH_DustpanFloor",
           "triangles": 108,
-          "maxPx": 22342,
+          "maxPx": 22080,
           "seenAngles": 25,
-          "sharePct": 30.948
+          "sharePct": 30.529
+        },
+        {
+          "name": "MESH_DustpanGripBand_0",
+          "triangles": 168,
+          "maxPx": 65,
+          "seenAngles": 25,
+          "sharePct": 0.275
+        },
+        {
+          "name": "MESH_DustpanGripBand_1",
+          "triangles": 168,
+          "maxPx": 96,
+          "seenAngles": 25,
+          "sharePct": 0.294
         },
         {
           "name": "MESH_DustpanHandle",
-          "triangles": 140,
-          "maxPx": 3662,
+          "triangles": 212,
+          "maxPx": 3658,
           "seenAngles": 26,
-          "sharePct": 14.05
+          "sharePct": 13.942
         },
         {
           "name": "MESH_DustpanHandleGrip",
-          "triangles": 140,
-          "maxPx": 1243,
+          "triangles": 212,
+          "maxPx": 1133,
           "seenAngles": 25,
-          "sharePct": 4.854
+          "sharePct": 4.326
         },
         {
           "name": "MESH_DustpanHangLoop",
           "triangles": 192,
-          "maxPx": 346,
+          "maxPx": 342,
           "seenAngles": 25,
-          "sharePct": 0.976
+          "sharePct": 0.964
         },
         {
           "name": "MESH_DustpanLip",
           "triangles": 108,
-          "maxPx": 2496,
+          "maxPx": 2488,
           "seenAngles": 25,
-          "sharePct": 4.839
+          "sharePct": 4.014
+        },
+        {
+          "name": "MESH_DustpanLipStrip",
+          "triangles": 108,
+          "maxPx": 1078,
+          "seenAngles": 25,
+          "sharePct": 1.947
         },
         {
           "name": "MESH_DustpanWallL",
           "triangles": 108,
-          "maxPx": 6364,
+          "maxPx": 6420,
           "seenAngles": 26,
-          "sharePct": 12.617
+          "sharePct": 12.502
         },
         {
           "name": "MESH_DustpanWallR",
           "triangles": 108,
-          "maxPx": 6364,
+          "maxPx": 6420,
           "seenAngles": 26,
-          "sharePct": 12.622
+          "sharePct": 12.502
         }
       ],
       "invisible": [],
@@ -1365,8 +1407,8 @@
       "n": 76,
       "file": "asset_076_cleaning_spray_bottle.glb",
       "sheet": "sheet_08",
-      "sha256": "cae33941847fd3e2d771d448445f857ceaa091fc913581b72a980144b8a8cf37",
-      "opaqueParts": 11,
+      "sha256": "13222333f82b6d28d860c3b56834c0fd3bff441f32620760461a62ee0af1a694",
+      "opaqueParts": 12,
       "transparentParts": [
         "MESH_SprayFluid"
       ],
@@ -1379,77 +1421,84 @@
           "triangles": 188,
           "maxPx": 31969,
           "seenAngles": 26,
-          "sharePct": 59.842
+          "sharePct": 59.622
         },
         {
           "name": "MESH_SprayCollar",
           "triangles": 188,
-          "maxPx": 3047,
-          "seenAngles": 25,
-          "sharePct": 4.187
+          "maxPx": 2363,
+          "seenAngles": 24,
+          "sharePct": 3.694
         },
         {
           "name": "MESH_SprayHead",
           "triangles": 108,
           "maxPx": 6728,
           "seenAngles": 25,
-          "sharePct": 10.071
+          "sharePct": 9.465
         },
         {
           "name": "MESH_SprayLabelBrand",
           "triangles": 444,
           "maxPx": 823,
           "seenAngles": 18,
-          "sharePct": 0.857
+          "sharePct": 0.854
         },
         {
           "name": "MESH_SprayLabelPlate",
           "triangles": 108,
           "maxPx": 12478,
           "seenAngles": 23,
-          "sharePct": 9.008
+          "sharePct": 8.975
         },
         {
           "name": "MESH_SprayLabelUse",
           "triangles": 2140,
           "maxPx": 656,
           "seenAngles": 16,
-          "sharePct": 0.664
+          "sharePct": 0.662
+        },
+        {
+          "name": "MESH_SprayNeckRing",
+          "triangles": 192,
+          "maxPx": 1100,
+          "seenAngles": 25,
+          "sharePct": 1.728
         },
         {
           "name": "MESH_SprayNozzle",
           "triangles": 140,
           "maxPx": 1688,
           "seenAngles": 24,
-          "sharePct": 2.139
+          "sharePct": 2.131
         },
         {
           "name": "MESH_SprayNozzleTip",
           "triangles": 116,
           "maxPx": 230,
           "seenAngles": 23,
-          "sharePct": 0.267
+          "sharePct": 0.266
         },
         {
           "name": "MESH_SprayOrificeRing",
           "triangles": 144,
           "maxPx": 372,
           "seenAngles": 24,
-          "sharePct": 0.408
+          "sharePct": 0.407
         },
         {
           "name": "MESH_SprayShoulder",
           "triangles": 108,
           "maxPx": 6490,
           "seenAngles": 25,
-          "sharePct": 10.811
+          "sharePct": 10.691
         },
         {
           "name": "MESH_SprayTriggerBlade",
           "triangles": 108,
-          "maxPx": 1654,
+          "maxPx": 1430,
           "seenAngles": 22,
-          "sharePct": 1.744
+          "sharePct": 1.506
         }
       ],
       "invisible": [],
@@ -1623,8 +1672,8 @@
       "n": 79,
       "file": "asset_079_pressure_washer_hose_and_wand.glb",
       "sheet": "sheet_08",
-      "sha256": "19d16d77cc2fef6cfc4a57b98dc041562c64f2cc380adb4167a0dad15f1db902",
-      "opaqueParts": 13,
+      "sha256": "5754f8b36d0d5e63d7812bb0a1c9e06c35769c8cde39bdddfb32de1e364ea6eb",
+      "opaqueParts": 14,
       "transparentParts": [],
       "animations": [
         "WasherWand_TriggerDown",
@@ -1636,91 +1685,98 @@
           "triangles": 108,
           "maxPx": 635,
           "seenAngles": 26,
-          "sharePct": 7.82
+          "sharePct": 7.675
         },
         {
           "name": "MESH_GunGrip",
           "triangles": 188,
           "maxPx": 507,
           "seenAngles": 26,
-          "sharePct": 5.712
+          "sharePct": 5.7
         },
         {
           "name": "MESH_GunGripStrap",
           "triangles": 108,
           "maxPx": 295,
           "seenAngles": 26,
-          "sharePct": 2.087
+          "sharePct": 2.083
         },
         {
           "name": "MESH_GunHoseInlet",
           "triangles": 140,
           "maxPx": 122,
           "seenAngles": 25,
-          "sharePct": 1.265
+          "sharePct": 1.262
         },
         {
           "name": "MESH_GunInletNut",
           "triangles": 140,
           "maxPx": 117,
           "seenAngles": 24,
-          "sharePct": 1.106
+          "sharePct": 1.103
+        },
+        {
+          "name": "MESH_GunLanceUnion",
+          "triangles": 168,
+          "maxPx": 45,
+          "seenAngles": 25,
+          "sharePct": 0.522
         },
         {
           "name": "MESH_GunShroud",
           "triangles": 108,
           "maxPx": 215,
           "seenAngles": 26,
-          "sharePct": 1.94
+          "sharePct": 1.935
         },
         {
           "name": "MESH_GunTriggerGuard",
           "triangles": 216,
           "maxPx": 87,
           "seenAngles": 21,
-          "sharePct": 0.844
+          "sharePct": 0.843
         },
         {
           "name": "MESH_WandLance",
           "triangles": 164,
-          "maxPx": 1252,
+          "maxPx": 1243,
           "seenAngles": 26,
-          "sharePct": 16.053
+          "sharePct": 15.828
         },
         {
           "name": "MESH_WandNozzle",
           "triangles": 140,
           "maxPx": 106,
           "seenAngles": 25,
-          "sharePct": 0.944
+          "sharePct": 0.942
         },
         {
           "name": "MESH_WandTipCollar",
           "triangles": 140,
           "maxPx": 189,
           "seenAngles": 26,
-          "sharePct": 2.001
+          "sharePct": 1.997
         },
         {
           "name": "MESH_WandTriggerBlade",
           "triangles": 108,
           "maxPx": 60,
           "seenAngles": 20,
-          "sharePct": 0.325
+          "sharePct": 0.324
         },
         {
           "name": "MESH_HoseMachineCoupler",
           "triangles": 140,
           "maxPx": 275,
           "seenAngles": 25,
-          "sharePct": 2.543
+          "sharePct": 2.538
         },
         {
           "name": "MESH_WasherHoseCoil",
           "triangles": 524,
           "maxPx": 5490,
           "seenAngles": 26,
-          "sharePct": 57.361
+          "sharePct": 57.248
         }
       ],
       "invisible": [],

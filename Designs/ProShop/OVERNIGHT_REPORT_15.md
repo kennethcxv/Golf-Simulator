@@ -13,7 +13,7 @@ where a control failed, the failure is written down instead of the result.
 | **A** performance, profiled and ranked | **done** | the frame rate was never the problem |
 | **A** tab-out/tab-in loads a different clubhouse | **not reproduced** | four methods, scene fingerprinted every frame; a build log now names it if it ever happens |
 | **B1** which tools the game needs | **done** | `Designs/ProShop/TOOL_SET.md` |
-| **B2/G4** rebuild them properly | **three built: broom, mop, trash bag** | the three the density ranking named; six of nine still on the old standard |
+| **B2/G4** rebuild them properly | **all nine built** | every tool up on density; the merge/delete decisions are still design-only |
 | **B3/B4** hands on every tool | **FIXED, all nine** | one lift closed the broom, the vacuum, the dustpan and the washer together |
 | **B4** hand-worked tools hold their tools | **done** | the `flat` grip's rest orientation |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
@@ -510,7 +510,12 @@ and a 14-sided cylinder held half a yard from the lens.
 |---|---|---|
 | broom | 359 | **411** |
 | mop | 502 | **551** |
-| trash bag | 673 | **738** |
+| cloth | 611 | **614** |
+| dustpan | 560 | **615** |
+| trash bag | 673 | **740** |
+| vacuum | 770 | **827** |
+| sponge | 910 | **979** |
+| spray | 1602 | **1668** |
 
 **Broom** — a lacquered pole at roughness 0.22 on 20 sides, a club-green grip
 wrap spanning both authored grip sockets and proud of the pole so it reads by
@@ -531,8 +536,27 @@ attempt earlier in this pass repacked to KTX2 and broke the hash-gated
 part-visibility sweep, whose loader cannot read it. Both gates that fired — the
 generated broom metrics and the sweep hash — were regenerated, not relaxed.
 
-**Six of the nine are still on the old standard**, and the merge/delete decisions
-in TOOL_SET.md are still a design on paper.
+**The other six took the same three answers**, sized to each: a wrapped grip
+with brass bands and an 18-to-20-sided pole on the dustpan and the vacuum wand
+(both were two shades of black on a 12-sided shaft), a brass ring at the spray
+bottle's neck, a stitched hem down the cloth, a glue seam between the sponge's
+foam and its scour pad, and a brass union where the washer's lance leaves the
+gun.
+
+**The discriminator caught two of my own new parts within minutes.** The
+dustpan's brass lip strip and the washer's lance union both rendered zero pixels
+from all 26 directions — buried entirely inside the parts they were meant to
+decorate. The strip sat inside a lip 0.020 deep and centred 3 mm behind it; the
+union sat inside a gun body spanning y -0.065 to 0.085. **Both were fixed in the
+assembly rather than whitelisted**: a wear strip stands proud of the lip it
+protects, and a union sits where the lance actually leaves the gun.
+
+After all nine: hands on screen for every tool, no tool inside a fixture at any
+swept pose, 18 runtime GLBs and none of them KTX2.
+
+**Still design-only:** the merge and delete decisions in TOOL_SET.md — cloth and
+sponge into one tool, spray folded into it, the trash bag becoming a bin in the
+room. Those are registry and sim changes, not geometry.
 
 ## Instrument faults, 29 to 41
 
