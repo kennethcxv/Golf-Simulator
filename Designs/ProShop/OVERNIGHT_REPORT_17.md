@@ -667,6 +667,78 @@ DONE.
 
 ---
 
+# SECTION B — THE MOP
+
+Phase 0 (the section explained back as verbs, written before reading any code)
+is in PLAN_17.md.
+
+## B0 — the stale-asset check the brief demanded first, and its answer
+
+> "Before any work in the tools section: delete the packed asset cache, rebuild
+> from source, and confirm the GLB hash the game loads matches the one you
+> built. If they differ, that alone may explain six rounds of tool
+> measurements."
+
+**It does not. The asset the game loads IS the asset in source, exactly.**
+
+### There really are two copies, and they really are different files
+
+The game fetches `vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb`.
+A second copy lives at `assets/assets_51_100/glb/firstperson/` and they are not
+the same file:
+
+| | canonical (`assets/`) | runtime (`vendor/models/`, what the game loads) |
+| --- | --- | --- |
+| mop | 13 504 444 bytes, sha `775b4721...` | 4 019 348 bytes, sha `114d15d5...` |
+| broom | 9 459 880 bytes, sha `07b1f125...` | 2 875 524 bytes, sha `43256a46...` |
+| textures | image/jpeg **and** image/png | image/png only |
+
+So a hash comparison between those two answers nothing, and the brief's
+"confirm the hash" cannot be taken literally: two runs of Blender's exporter
+differ in ordering and timestamps even from an unchanged scene. **What has to
+match is the rig**, so that is what I compared.
+
+### The check I built instead
+
+`tools/blender/dump_fp_source.py` opens the source `.blend` headless and dumps
+every object, its world position, mesh vertex counts, socket world positions and
+action names. `tools/qa/compare-shipped-asset.mjs` reads the **runtime GLB the
+game actually loads** and derives the same, walking the parent chain because a
+GLB node's translation is local and a socket whose PARENT moved would otherwise
+slip through. Blender is Z-up and the export is Y-up, so the comparison permutes
+the axes rather than pretending the raw numbers should match.
+
+### The result
+
+| asset | objects (blend / glb) | sockets shipped | actions shipped | **worst socket drift** | vertex ratio |
+| --- | --- | --- | --- | --- | --- |
+| mop | 16 / 16 | 4 of 4 | 5 of 5 | **0.0000 m** | 1.963 |
+| broom | 19 / 19 | all | 5 of 5 | **0.0000 m** | 1.636 |
+
+Every socket in the shipped file sits exactly where the source puts it, to four
+decimal places. The ~1.6-2.0x vertex ratio is the exporter splitting vertices at
+UV and normal seams, which is what a healthy export looks like, not a different
+mesh.
+
+### The negative control
+
+Pointing the broom's source dump at the **mop's** GLB - a deliberately wrong
+pairing - fails three of the four gates: `SOCKET_DebrisPush` missing, all five
+broom actions missing, and **0.2217 m** of socket drift. The check can detect a
+wrong asset, so its zero on the real pairs means something.
+
+### What this changes about Section B
+
+The brief offered this as the possible explanation for six rounds of tool
+measurements disagreeing with the screen. **It is not the explanation.** The
+mop and broom the player sees are built from the blends beside them, with the
+sockets the rig reads sitting where the source says. Whatever the divergence is,
+it is downstream of the asset: in the rig, in what draws, or in the size of the
+motion relative to what the eye can see at arm's length. B1 starts there instead,
+and one candidate cause is now eliminated rather than assumed.
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._

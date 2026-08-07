@@ -363,3 +363,61 @@ below rather than defended.
    the control is a native select whose popup cannot be captured.
 5. **Every control moves off the env-var channel** onto the marker file, which
    is the only one measured to arrive.
+
+---
+
+# SECTION B — THE MOP
+
+## Phase 0 — the section explained back, as verbs, before reading any code
+
+Written from the brief alone.
+
+- **B1.** I am going to **delete the current mop and build a new one** — head,
+  strands, handle, grip, motion and floor contact, all new geometry and all new
+  behaviour. Before I build anything I am going to **find footage of House
+  Flipper's mop, watch it, and write down in the report what it does that ours
+  does not**, then match that rather than invent. The strands have to *visibly*
+  move: trail the stroke, splay against the floor when planted, swing behind on
+  a direction change, and settle when I stop. And before any of that I have to
+  **resolve the standing contradiction** — I have been told the strands travel
+  0.25 yd and the owner sees no movement at all. One of those is wrong and
+  finding out which is the first task, not a footnote.
+- **B2.** I am going to **rebuild the broom's head so it reads as a brush and
+  not a rake**: dense bristles instead of separated tines, a defined block, and
+  a visible ferrule where the bristles meet the handle.
+- **B3.** I am going to **give the broom's bristles the mop's motion system**,
+  tuned for a stiff push broom rather than yarn — shorter travel, faster settle,
+  less slack. This happens *after* the mop is right, because the brief says the
+  mop's system does not work either yet.
+- **B4.** I am going to **stop the rig planting a tool head on the floor when
+  the handle cannot physically reach it**. My own earlier note says it plants
+  regardless, which is why every candidate in a sweep read a plant of
+  0.073-0.084 including one held two yards below the eye. The brief adds a
+  hypothesis I should test: this is probably *upstream* of the hands reading as
+  detached, because a head pinned to the floor while the hands sit where the
+  handle cannot span means the shaft is being drawn between two points that do
+  not belong to the same object.
+- **B5.** I am going to **leave the other seven tools alone.** No opportunistic
+  edits to the vacuum, dustpan, washer, spray, cloth, sponge or trash bag.
+
+### The two things I expect to be wrong about
+
+1. **"The strands do not move" may not be about the strands.** The measurement
+   says 0.25 yd of travel. If that is true and the owner still sees nothing,
+   the likely explanations are that the motion is real but far too small to read
+   at arm's length, that it is happening on a mesh the player is not looking at,
+   or that something downstream overwrites the pose before it draws. Requirement
+   2 says the disagreement IS the finding, so B1 starts there and does not
+   proceed until the two stories agree.
+2. **"Delete it and build a new one" may collide with B4.** If the plant bug is
+   upstream in the shared rig, a brand new mop hung off the same rig inherits
+   the same detached-hands problem. The order that follows from that is B4
+   first, or at least B4 understood first, even though the brief lists it
+   fourth. I will follow reality and record the divergence if so.
+
+### The cache check comes first, before any of it
+
+Requirement 2 is explicit: **delete the packed asset cache, rebuild from source,
+and confirm the GLB hash the game loads is the one I built.** If they differ,
+that alone may explain six rounds of tool measurements. Nothing in this section
+gets measured until that check has an answer.
