@@ -6603,9 +6603,14 @@ export function makeCourseScene(canvas, state) {
       toolRigs[id]?.refreshFromFeel?.();
     }
     let tries = 0;
+    // Goal 17 R1: EVERY rig that carries fibres, not just the mop. The broom
+    // grew a bristle rig in Goal 16 and this retry still named one tool, so a
+    // saved broom `strands` block was merged into the live feel and then never
+    // reached the rig that draws it — tuned values that silently did nothing.
+    const fibreTools = VM_RIG_TOOLS.filter((id) => liveToolFeel[id]?.strands);
     const strandRetry = () => {
       tries += 1;
-      const done = pushStrandParams('mop');
+      const done = fibreTools.length > 0 && fibreTools.every((id) => pushStrandParams(id));
       if (!done && tries < 20) setTimeout(strandRetry, 500);
     };
     strandRetry();

@@ -2189,7 +2189,13 @@ canvas.addEventListener('click', () => {
   }
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive() || editorActive() || toolWheel?.isOpen() || isPauseOpen()) return;
+  //
+  // ...nor while the tuning overlay is up (Goal 17 R1). The panel needs the
+  // cursor to drag a slider; a left click that silently re-locks the pointer
+  // turns every drag into a camera pan. RIGHT mouse still looks around, which
+  // is the panel's own documented gesture.
+  if (regActive() || editorActive() || toolWheel?.isOpen() || isPauseOpen()
+    || toolTuner?.isOpen()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
     return;
