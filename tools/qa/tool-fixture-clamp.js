@@ -28,6 +28,18 @@ async (page) => {
   await (await import(`file:///${bootPath}`)).clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
   await page.waitForTimeout(3000);
+  // MIDDAY. The nine per-tool screenshots are the evidence the rig-tool claim
+  // rests on, and every one of them was taken at 6:00 AM in an unlit clubhouse:
+  // in pressed-broom.png the counter is a dark mass and the broom is one lit
+  // knuckle. A screenshot that cannot show the thing it is offered as proof of
+  // is not proof.
+  await page.evaluate(() => {
+    const app = window.__fw;
+    app.speedIdx = 1;
+    app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 13 * 60;
+    app.scene3d.applyTimeWeather(13 * 60, app.state.weather);
+  });
+  await page.waitForTimeout(1200);
   await page.mouse.click(640, 360);
 
   const measure = () => page.evaluate(async () => {
@@ -64,6 +76,41 @@ async (page) => {
       }
     });
     if (!far) return { error: 'no drawn tool meshes' };
+
+    // IS THE DEEPEST TOOL POINT INSIDE SOLID GEOMETRY?
+    //
+    // The eye-ray overshoot below is height-blind, and this driver already knew
+    // it: a hip-held stick legitimately extends OVER a waist-high counter while
+    // the eye ray pierces the counter's FRONT FACE, so the broom scored 1.10 yd
+    // of "penetration" for hovering. That left the whole rig-tool claim resting
+    // on nine screenshots shot at 6:00 AM in an unlit room, which is not
+    // evidence of anything.
+    //
+    // FIRST ATTEMPT, AND WHY IT IS NOT HERE: an even/odd parity test — a point
+    // is inside a closed mesh when a ray from it crosses an odd number of
+    // faces. Its positive control (a point pushed 0.12 yd past the fixture face
+    // the eye ray found, which is inside solid geometry by construction) read
+    // OUTSIDE for all nine tools, and the per-ray odd counts came back 0, 1, 2
+    // and 3 on the same geometry. The cause is that Three.js raycasts FRONT
+    // faces only, so a ray leaving a solid never counts its exit and parity
+    // always undercounts. A control that fails is the instrument telling you
+    // the number is worthless; the number is not reported.
+    //
+    // SECOND ATTEMPT, ALSO NOT HERE: containment in the world bounding box of
+    // the mesh the eye ray hit. Its positive control failed too — a point 0.12 yd
+    // past that face read OUTSIDE the box for all nine tools — and the reason is
+    // the geometry itself. Every hit came back as an unnamed mesh whose box does
+    // not contain either control point, i.e. the fixture surfaces here are
+    // single-sided PLANES with no thickness. There is no volume to be inside of.
+    //
+    // So there is no cheap volumetric penetration metric available on this
+    // room's geometry, and the original driver was right to say the rig-tool
+    // claim rests on the screenshots. What was wrong was the screenshots: nine
+    // frames of an unlit 6:00 AM room. They are now shot at midday, pitched down
+    // so the counter top and the tool are in the same frame, and they are the
+    // evidence. The boxes and the parity test are reported as failures rather
+    // than deleted, because the next person to reach for one should find out
+    // here that it does not work and why.
     const toFar = far.clone().sub(camPos);
     const dist = toFar.length();
     const ray = new THREE.Raycaster(camPos, toFar.clone().normalize());
@@ -76,11 +123,37 @@ async (page) => {
       ? app.scene3d.walk.handToolClampDiagnostics() : {};
     const rig = app.scene3d.walk.toolRigDiagnostics
       ? app.scene3d.walk.toolRigDiagnostics(app.scene3d.walk.getTool()) : null;
+    // Containment against the fixture the tool is pressing into, with both
+    // controls computed from the same box on the same frame:
+    //   positive — a point 0.12 yd past the face the eye ray hit, which is
+    //              inside that fixture by construction;
+    //   negative — the camera's own eye, in open air unless the player is
+    //              standing inside a wall.
+    let fixtureBox = null;
+    let fixtureName = null;
+    if (first) {
+      fixtureName = first.object.name || '(unnamed)';
+      first.object.updateWorldMatrix(true, false);
+      fixtureBox = new THREE.Box3().setFromObject(first.object);
+    }
+    // a hair of slack, so a bristle tip resting ON the surface is not "inside"
+    const SKIN = 0.02;
+    const insideBox = (p) => (fixtureBox
+      ? p.x > fixtureBox.min.x + SKIN && p.x < fixtureBox.max.x - SKIN
+        && p.y > fixtureBox.min.y + SKIN && p.y < fixtureBox.max.y - SKIN
+        && p.z > fixtureBox.min.z + SKIN && p.z < fixtureBox.max.z - SKIN
+      : null);
     return {
       tool: app.scene3d.walk.getTool(),
       farPointDist: +dist.toFixed(3),
       firstFixtureHit: first ? +first.distance.toFixed(3) : null,
       penetrationYd: penetration,
+      fixtureName,
+      // the claim the screenshots were being asked to carry, as a number
+      deepestPointInsideFixture: insideBox(far),
+      controlPointInsideFixture: first
+        ? insideBox(first.point.clone().add(fwd.clone().multiplyScalar(0.12))) : null,
+      controlEyeInsideFixture: insideBox(camPos),
       handClampPull: clamp[app.scene3d.walk.getTool()] ?? null,
       rigClamped: rig ? rig.clamped : null,
     };
@@ -137,7 +210,14 @@ async (page) => {
     const dz = REGISTER.monitor.z - REGISTER.stand.z;
     const h = Math.hypot(dx, dz) || 0.001;
     w.state.yaw = Math.atan2(-dx / h, -dz / h);
-    w.state.pitch = -0.15;
+    // Pitched down from -0.15 so the counter and the tool are in the SAME
+    // frame. At -0.15 the shot was mostly the wall above the counter: nine
+    // screenshots of "the tool against a counter" contained neither clearly. At
+    // -0.45 the counter arrived and the tools were still below the edge. -0.80
+    // is where a player looking at what their tool is doing actually looks, and
+    // it puts the counter's near face, the floor at its base and the tool head
+    // in one frame - which is the only place the contact can be judged.
+    w.state.pitch = -0.80;
   });
   // open leg: the fairway south of the porch — measured 6.1 yd/s of free run,
   // provably nothing within tool reach
@@ -146,7 +226,7 @@ async (page) => {
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk;
     w.clearKeys();
-    w.state.x = o.x; w.state.z = o.z + 26; w.state.yaw = Math.PI; w.state.pitch = -0.15;
+    w.state.x = o.x; w.state.z = o.z + 26; w.state.yaw = Math.PI; w.state.pitch = -0.80;
   });
 
   const HAND = ['spray', 'cloth', 'sponge', 'trashbag'];
@@ -172,6 +252,10 @@ async (page) => {
     // meaningful — the below-counter hand tools — and the rig tools' claim is
     // clamp engagement + the per-tool screenshot.
     handToolsPenetrationZero: ['spray', 'cloth', 'sponge'].every((t) => (pressed[t]?.penetrationYd ?? 9) <= 0.05),
+    // `deepestPointInsideFixture` and its two controls are carried in the
+    // payload and NOT gated on, because the positive control never passes on
+    // this geometry (see the note in measure()). Gating on a test that cannot
+    // say "inside" would be a check that cannot fail.
     // rig tools report their own clamp engaged while pressed
     rigToolsClampEngaged: RIGGED.every((t) => pressed[t]?.rigClamped !== false || (pressed[t]?.penetrationYd ?? 9) <= 0.02),
     // hand tools applied a pull while pressed
@@ -188,7 +272,13 @@ async (page) => {
     checks,
     ok: out.ok,
     pressed: Object.fromEntries(TOOLS.map((t) => [t, {
-      pen: pressed[t]?.penetrationYd, pull: pressed[t]?.handClampPull, rig: pressed[t]?.rigClamped,
+      pen: pressed[t]?.penetrationYd,
+      fixture: pressed[t]?.fixtureName,
+      inside: pressed[t]?.deepestPointInsideFixture,
+      ctlIn: pressed[t]?.controlPointInsideFixture,
+      ctlOut: pressed[t]?.controlEyeInsideFixture,
+      pull: pressed[t]?.handClampPull,
+      rig: pressed[t]?.rigClamped,
     }])),
   };
 }
