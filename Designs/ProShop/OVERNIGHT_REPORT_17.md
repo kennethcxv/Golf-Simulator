@@ -1553,6 +1553,51 @@ measurement taken in a state the thing under test does not occupy. The
 `spreadsWalked` count is what gave it away, which is an argument for reporting
 how much a sweep actually covered rather than only what it found.
 
+## C2 (part two) — the complaints line wraps, and the fix made it worse before it made it better
+
+The recorded defect: `"PANEL-07 gives nothing. The ceiling circuit is dead."`
+wanting **643 px in a 468 px box**. Shrinking cannot save a sentence in a label
+slot, and the brief's answer is not a smaller font - it is to paginate, using
+the machinery the guest register already uses.
+
+**Labels now wrap onto a second line and carry their own extra height**,
+budgeted out of the available run **exactly as note rows already were** - the
+pattern was in the file, written for the same problem, and just had not been
+applied to labels. The wrap splits on words, never mid-word, and any tail that
+still will not fit is handed to `drawFitted`, so it is squeezed and recorded
+rather than cut.
+
+### The fix doubled the defect before it fixed it, and the recorder is what said so
+
+| | overlaps | squeezes | spreads swept |
+| --- | --- | --- | --- |
+| before | 2 | 2 | 5 |
+| **wrap added** | **8** | **0** | 5 |
+| wrap + the row advance corrected | **0** | **0** | 5 |
+
+Wrapping cleared the width immediately - squeezes went to zero - and then the
+second line **walked straight into the row underneath**, taking overlaps from 2
+to 8. I had carried the extra height into the note and the separator rule and
+forgotten the thing that matters most: the next row's `y`. That is a worse
+defect than the one it replaced, it would have shipped invisibly, and **the only
+reason it did not is that the recorder counts overlaps on every paint**.
+
+### Three coverage lies caught on the way, all by the same number
+
+The sweep's own `spreadsWalked` count exposed every one:
+
+1. **1 spread** - the sweep ran after the third E press had shut the book.
+2. **2 spreads** - it started while the book was still `opening` rather than
+   `open`.
+3. **2 spreads again** - `turnPage` REFUSES while a leaf is still in flight, so
+   a fixed 900 ms sleep ended the sweep early.
+
+Each of those reported **zero overlaps and zero squeezes**, which is a clean
+result on a third of the coverage - the same lie as a clean result on a shut
+book. The driver now waits for `state === 'open'`, waits for each turn to report
+`turning: false`, and publishes **`sweptEverySpread`** beside its findings.
+Final: **5 of 5 spreads, 0 overlaps, 0 squeezes.**
+
 ---
 
 ## RUNNING LISTS

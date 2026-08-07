@@ -711,6 +711,42 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return text;
   }
 
+  // C2 — WRAPPING, WHICH IS WHAT OVERFLOW ACTUALLY NEEDS.
+  //
+  // Shrinking saves a label that is a little too long. It cannot save a
+  // SENTENCE in a label slot, and the complaints page is full of them: measured,
+  // "PANEL-07 gives nothing. The ceiling circuit is dead." wants 643 px in a
+  // 468 px box and collides with the value beside it by 142 px. The brief's
+  // answer is not a smaller font, it is "paginate it - the book already
+  // paginates the guest register, so use the same machinery".
+  //
+  // Splitting on words, never mid-word, and never returning more lines than the
+  // caller has budgeted room for.
+  function wrapLines(ctx, value, maxWidth, maxLines = 2) {
+    const text = String(value == null ? '' : value).trim();
+    if (!text || !(maxWidth > 0)) return [text];
+    if (ctx.measureText(text).width <= maxWidth) return [text];
+    const words = text.split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (ctx.measureText(next).width <= maxWidth || !line) {
+        line = next;
+      } else {
+        lines.push(line);
+        line = word;
+        if (lines.length === maxLines - 1) break;
+      }
+    }
+    // whatever is left goes on the last line, which drawFitted will shrink if
+    // it has to - so the tail is never cut, only ever squeezed and recorded
+    const used = lines.join(' ').length;
+    const rest = used ? text.slice(used).trim() : text;
+    lines.push(line && lines.length < maxLines ? (lines.length === maxLines - 1 ? rest || line : line) : rest);
+    return lines.filter(Boolean).slice(0, maxLines);
+  }
+
   // Kept for the two sites that MEASURE rather than draw. It no longer cuts or
   // adds anything - it is now the identity, so a caller that measures gets the
   // real width of the real string.
@@ -958,15 +994,32 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // and the separator rule moves BELOW the note it used to cross.
     const noteExtra = T(17) + 6;
     const noteCount = rows.filter((row) => row.note).length;
+    // C2: a label that needs two lines carries its own extra height, budgeted
+    // out of the available run exactly as a note row already does. Measured
+    // with the SAME font the row will be drawn in, or the count is fiction.
+    const labelExtra = T(labelFont) + 4;
+    let wrapCount = 0;
+    const wrapped = new Map();
+    for (const row of rows) {
+      ctx.font = `${row.strong ? 700 : 400} ${T(labelFont)}px Georgia, serif`;
+      const lines = wrapLines(ctx, row.label, PAGE_W - 300, 2);
+      wrapped.set(row, lines);
+      if (lines.length > 1) wrapCount += 1;
+    }
     const step = Math.min(maxStep, Math.max(24,
-      (contentBottom() - 14 - top - noteCount * noteExtra) / Math.max(1, rows.length)));
+      (contentBottom() - 14 - top - noteCount * noteExtra - wrapCount * labelExtra)
+        / Math.max(1, rows.length)));
     let y = top;
     for (const row of rows) {
       const strong = !!row.strong;
       const muted = !!row.muted;
       ctx.fillStyle = muted ? 'rgba(107,114,104,0.72)' : strong ? '#3f4a42' : '#6b7268';
       ctx.font = `${strong ? 700 : 400} ${T(labelFont)}px Georgia, serif`;
-      drawFitted(ctx, row.label, 48, y, PAGE_W - 300);
+      const labelLines = wrapped.get(row) || [row.label];
+      for (let li = 0; li < labelLines.length; li += 1) {
+        drawFitted(ctx, labelLines[li], 48, y + li * labelExtra, PAGE_W - 300);
+      }
+      const labelDrop = (labelLines.length - 1) * labelExtra;
       if (row.value != null) {
         ctx.textAlign = 'right';
         ctx.fillStyle = row.valueColor || (muted ? 'rgba(107,114,104,0.72)' : '#2c3e50');
@@ -983,24 +1036,31 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         ctx.strokeStyle = 'rgba(90,80,58,0.55)';
         ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(46, y - T(labelFont) * 0.3);
-        ctx.lineTo(48 + ctx.measureText(fitLine(ctx, row.label, PAGE_W - 300)).width + 4, y - T(labelFont) * 0.3);
+        const lastLine = labelLines[labelLines.length - 1];
+        const strikeY = y + labelDrop - T(labelFont) * 0.3;
+        ctx.moveTo(46, strikeY);
+        ctx.lineTo(48 + ctx.measureText(lastLine).width + 4, strikeY);
         ctx.stroke();
       }
       let noteDrop = 0;
       if (row.note) {
         ctx.fillStyle = 'rgba(107,114,104,0.92)';
         ctx.font = `italic 400 ${T(15)}px Georgia, serif`;
-        drawFitted(ctx, row.note, 66, y + T(17), PAGE_W - 120);
+        drawFitted(ctx, row.note, 66, y + labelDrop + T(17), PAGE_W - 120);
         noteDrop = noteExtra;
       }
       ctx.strokeStyle = 'rgba(90,80,58,0.20)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(48, y + noteDrop + step * 0.24);
-      ctx.lineTo(PAGE_W - 48, y + noteDrop + step * 0.24);
+      // Both ends of the rule sit below the wrapped label, and the NEXT row
+      // starts below all of it. Missing labelDrop here took the overlap count
+      // from 2 to 8: the wrap fixed the width and then the second line walked
+      // straight into the row underneath, which is a worse defect than the one
+      // it replaced and exactly why the recorder is worth having.
+      ctx.moveTo(48, y + labelDrop + noteDrop + step * 0.24);
+      ctx.lineTo(PAGE_W - 48, y + labelDrop + noteDrop + step * 0.24);
       ctx.stroke();
-      y += step + noteDrop;
+      y += step + noteDrop + labelDrop;
     }
     return y;
   }

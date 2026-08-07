@@ -100,7 +100,15 @@ async (page) => {
   const s1 = await step('press1-should-be-held-shut', keys.interact || 'e');
   // THE CONTROL: a key bound to nothing. The state must not move.
   const sControl = await step('control-unbound-key', 'k', 900);
-  const s2 = await step('press2-should-be-open', keys.interact || 'e');
+  // Settle long enough that the book is fully `open`, not still `opening`. A
+  // sweep started mid-animation walks two spreads instead of five and then
+  // reports zero of everything - a clean result on a third of the coverage,
+  // which is the same lie as a clean result on a shut book.
+  const s2 = await step('press2-should-be-open', keys.interact || 'e', 2600);
+  await page.waitForFunction(
+    () => window.__fw.scene3d.clubhouse?.()?.ledgerBook?.diagnostics?.()?.state === 'open',
+    null, { timeout: 8000 },
+  ).catch(() => {});
   // C2/C3 — SWEEP EVERY SPREAD, WHILE THE BOOK IS STILL OPEN. The first
   // version of this ran after the third press had shut it: one spread walked,
   // zero overlaps, zero squeezes, all of it meaningless. Same fault class as
@@ -118,12 +126,22 @@ async (page) => {
       const d = book.diagnostics();
       seen.push({ spread: d.spread, pageCount: d.pageCount });
       if (!book.turnPage(1)) break;
-      await sleep(900);
+      // turnPage REFUSES while a leaf is still in flight, so a fixed sleep
+      // silently ends the sweep early: two spreads of five, reported clean.
+      // Wait for the book to say the turn is done.
+      const spun = Date.now();
+      while (Date.now() - spun < 4000) {
+        await sleep(80);
+        if (!book.diagnostics().turning) break;
+      }
+      await sleep(160);
     }
     const d = book.diagnostics();
     return {
       spreadsWalked: seen.length,
       spreadCount: total,
+      // coverage is part of the result, not a footnote
+      coveredAll: total > 0 && seen.length >= total,
       overlaps: d.overlaps || [],
       squeezes: d.squeezes || [],
     };
@@ -133,6 +151,7 @@ async (page) => {
   const s3 = await step('press3-should-shut', keys.interact || 'e', 1800);
 
   out.verdict = {
+    sweptEverySpread: out.pages?.coveredAll === true,
     ledgerOverlaps: out.pages?.overlaps?.length ?? null,
     ledgerSqueezes: out.pages?.squeezes?.length ?? null,
     spreadsWalked: out.pages?.spreadsWalked ?? null,
