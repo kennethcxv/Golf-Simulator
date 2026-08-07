@@ -251,7 +251,11 @@ export function makeSettingsPanel({
     const refreshButtons = () => {
       for (const [actionId, button] of buttons) {
         if (capture?.actionId === actionId) continue;
-        button.textContent = describeKey(bindingsNow()[actionId]);
+        // E5: an unbound action says so. describeKey renders '?' for nothing,
+        // which reads like a rendering fault rather than a job to do.
+        const bound = bindingsNow()[actionId];
+        button.textContent = bound ? describeKey(bound) : 'Needs a key';
+        button.classList.toggle('is-unbound', !bound);
       }
     };
 
@@ -280,13 +284,28 @@ export function makeSettingsPanel({
         if (key === 'escape') { stopCapture(); return; }
         if (!isBindableKey(key)) return; // stay in capture for a usable key
         const next = { ...bindingsNow() };
-        const previousKey = next[action.id];
         const holder = Object.entries(next)
           .find(([otherId, otherKey]) => otherKey === key && otherId !== action.id)?.[0];
         next[action.id] = key;
-        if (holder) next[holder] = previousKey; // swap - nothing goes unbound
+        // E5 — TAKING A KEY SAYS SO, AND THE OLD OWNER LOSES IT.
+        //
+        // This used to SWAP: the displaced action silently inherited whatever
+        // key you were replacing. That is worse than a conflict, because two
+        // bindings change on one keystroke and only one of them was asked for —
+        // a player rebinding Run to Shift would find Crouch had quietly moved to
+        // Ctrl and have no idea why. The key goes to the action being bound, the
+        // old owner is left UNBOUND, and the screen says which one and that it
+        // now needs a key.
+        if (holder) next[holder] = '';
         stopCapture();
         set('controls.bindings', next);
+        if (holder) {
+          notify({
+            message: `${describeKey(key)} was ${actionLabel(holder)}. It is ${actionLabel(action.id)} now, and ${actionLabel(holder)} has no key.`,
+            category: 'binding-taken',
+            dedupeKey: `binding-taken-${holder}`,
+          });
+        }
         refreshButtons();
       };
       window.addEventListener('keydown', onKey, true);
@@ -378,11 +397,20 @@ export function makeSettingsPanel({
         set('locale', event.currentTarget.value);
         render(); // the page itself is written in the language being chosen
       },
-    }, ...LOCALES.map((entry) => el('option', {
-      value: entry.id,
-      text: entry.id === current ? entry.endonym : `${entry.endonym} (${entry.label})`,
-      selected: entry.id === current ? true : null,
-    })));
+    }, ...LOCALES.map((entry) => {
+      // E3: say what is actually translated. Seven of the ten have no table yet
+      // and fall through to English; listing them without saying so would be a
+      // menu full of options that quietly do nothing.
+      const share = coverage(entry.id);
+      const state = share.fraction >= 0.999 ? ''
+        : share.fraction <= 0.001 ? ' - not translated yet'
+          : ` - ${Math.round(share.fraction * 100)}% translated`;
+      return el('option', {
+        value: entry.id,
+        text: `${entry.endonym}${entry.id === current ? '' : ` (${entry.label})`}${state}`,
+        selected: entry.id === current ? true : null,
+      });
+    }));
     const cover = coverage(current);
     return section(t('settings.language.title'), t('settings.language.intro'),
       row(t('settings.language.select'), t('settings.language.select.detail'), select),
@@ -463,6 +491,35 @@ export function makeSettingsPanel({
     ...(devSessionActive() ? { developer: developerPage } : {}),
   };
 
+  // E4 — RESET TO DEFAULTS, on every page, with a confirmation. It sits at the
+  // foot rather than in one tab because "put it back how it was" is a thought a
+  // player has while looking at whatever they just broke, not a thought that
+  // sends them hunting for a particular page.
+  let confirmingReset = false;
+  function resetFooter() {
+    const button = el('button', {
+      type: 'button',
+      class: `setting-reset${confirmingReset ? ' is-confirming' : ''}`,
+      text: confirmingReset ? 'Press again to reset everything' : 'Reset all settings to defaults',
+      onclick: () => {
+        if (!confirmingReset) {
+          confirmingReset = true;
+          render();
+          // a confirmation that never expires is a button with two states
+          setTimeout(() => { if (confirmingReset) { confirmingReset = false; render(); } }, 4000);
+          return;
+        }
+        confirmingReset = false;
+        changed(preferences.reset());
+        render();
+        notify({ message: 'Settings are back to their defaults.', category: 'settings-reset' });
+      },
+    });
+    return el('div', { class: 'settings-footer' },
+      el('div', { class: 'setting-description', text: 'Audio, camera, display, controls, language and accessibility - all of it.' }),
+      button);
+  }
+
   function render() {
     for (const button of tabs.children) {
       const selected = button.dataset.page === active;
@@ -470,7 +527,7 @@ export function makeSettingsPanel({
       button.setAttribute('aria-selected', String(selected));
       button.tabIndex = selected ? 0 : -1;
     }
-    content.replaceChildren(pages[active]());
+    content.replaceChildren(pages[active](), resetFooter());
   }
 
   // Driven off `pages` so the Developer tab cannot be present in one list and missing

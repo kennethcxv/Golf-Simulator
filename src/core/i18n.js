@@ -16,10 +16,26 @@
 //     differ per language - which is the whole reason a translation table
 //     exists rather than string concatenation.
 
+// E3 — THE TOP TEN LANGUAGES ON STEAM, in Steam's own order by share of users
+// (Simplified Chinese, English, Russian, Spanish, Portuguese-Brazil, German,
+// Japanese, Korean, French, Turkish). Each carries its endonym, because a
+// player looking for their own language scans for the word they call it by.
+//
+// LISTING A LANGUAGE IS NOT TRANSLATING IT. `coverage()` reports what fraction
+// of the key set each one actually has, and the settings screen prints that
+// beside the name — an untranslated entry says so instead of silently falling
+// back to English and looking broken.
 export const LOCALES = Object.freeze([
   { id: 'en', label: 'English', endonym: 'English' },
+  { id: 'zh-Hans', label: 'Simplified Chinese', endonym: '简体中文' },
+  { id: 'ru', label: 'Russian', endonym: 'Русский' },
   { id: 'es', label: 'Spanish', endonym: 'Español' },
+  { id: 'pt-BR', label: 'Portuguese (Brazil)', endonym: 'Português do Brasil' },
+  { id: 'de', label: 'German', endonym: 'Deutsch' },
+  { id: 'ja', label: 'Japanese', endonym: '日本語' },
+  { id: 'ko', label: 'Korean', endonym: '한국어' },
   { id: 'fr', label: 'French', endonym: 'Français' },
+  { id: 'tr', label: 'Turkish', endonym: 'Türkçe' },
 ]);
 
 export const DEFAULT_LOCALE = 'en';
@@ -332,7 +348,28 @@ const FR = Object.freeze({
   'book.close': 'fermer le livre',
 });
 
-const TABLES = Object.freeze({ en: EN, es: ES, fr: FR });
+// E3: the seven new entries have EMPTY tables, so every one of their keys falls
+// through to English. Empty and REGISTERED, not absent: `isLocale` gates what a
+// saved preference may hold, so an unregistered id would be silently rewritten
+// to English on load and the player's choice would not stick. Registered, the
+// choice persists, every line falls through, `coverage()` reports 0, and the
+// settings screen prints "not translated yet" beside the name.
+//
+// A language listed as untranslated is a promise the player can check. A
+// language listed as available that quietly draws English is a lie.
+const EMPTY = Object.freeze({});
+const TABLES = Object.freeze({
+  en: EN,
+  es: ES,
+  fr: FR,
+  'zh-Hans': EMPTY,
+  ru: EMPTY,
+  'pt-BR': EMPTY,
+  de: EMPTY,
+  ja: EMPTY,
+  ko: EMPTY,
+  tr: EMPTY,
+});
 
 let current = DEFAULT_LOCALE;
 const listeners = new Set();

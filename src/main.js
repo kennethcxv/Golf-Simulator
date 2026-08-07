@@ -2727,6 +2727,37 @@ let golfFocusClock = 0;
 let golfAudioSequence = 0;
 let golfAudioDay = null;
 
+// E6 — THE CONTROL HINT MUST SHOW THE PLAYER'S OWN KEYS.
+//
+// Both copies of the lock hint were literal strings: "WASD move · E interact ·
+// X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P
+// pause". Rebind anything and the line under the crosshair goes on teaching the
+// defaults - which is worse than no hint, because it is a wrong one the player
+// has no reason to distrust. Built from the same binding table every key read
+// resolves through, so it cannot drift.
+function walkControlHintText() {
+  const bindings = preferences.values.controls?.bindings || {};
+  const k = (id, fallback) => {
+    const key = keyForAction(bindings, id);
+    return key ? describeKey(key) : fallback;
+  };
+  const move = [k('moveForward', 'W'), k('moveLeft', 'A'), k('moveBack', 'S'), k('moveRight', 'D')];
+  // WASD reads as one word when it IS WASD, and as four keys when it is not
+  const moveLabel = move.join('').toUpperCase() === 'WASD' ? 'WASD' : move.join('/');
+  return [
+    'Click to look',
+    `${moveLabel} move`,
+    `${k('run', 'Shift')} run`,
+    `${k('interact', 'E')} interact`,
+    `${k('carry', 'X')} carry`,
+    `${k('setDown', 'Z')} set down`,
+    `tap/hold ${k('toolBelt', 'F')} tools`,
+    `${k('courseEditor', 'J')} course editor`,
+    `${k('overview', 'Tab')} overview`,
+    `${k('pause', 'P')} pause`,
+  ].join(' · ');
+}
+
 function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
   lastTs = ts;
@@ -3166,13 +3197,21 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovLast.lockDisp = lockDisp;
     ovEl.lockHint.style.display = lockDisp;
   }
+  // E6: THIS is the copy the player actually reads — the two built at
+  // construction are only the initial text. All three were literal, so a
+  // rebound key was taught wrong under the crosshair on every frame.
+  const bind = preferences.values.controls?.bindings || {};
+  const bk = (id, fallback) => {
+    const key = keyForAction(bind, id);
+    return key ? describeKey(key) : fallback;
+  };
   const lockText = learned
     ? (placement?.hasCarriedBox()
-      ? 'Click to resume · Carrying carton: E place · R rotate · Z set down · Esc keep carrying'
+      ? `Click to resume · Carrying carton: ${bk('interact', 'E')} place · R rotate · ${bk('setDown', 'Z')} set down · Esc keep carrying`
       : 'Click to resume looking')
     : (placement?.hasCarriedBox()
-      ? 'Click to look around · WASD walk · E place · R rotate · Z set down · Esc keep carrying'
-      : 'Click to look · WASD move · Shift run · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause');
+      ? `Click to look around · ${bk('moveForward', 'W')}${bk('moveLeft', 'A')}${bk('moveBack', 'S')}${bk('moveRight', 'D')} walk · ${bk('interact', 'E')} place · R rotate · ${bk('setDown', 'Z')} set down · Esc keep carrying`
+      : walkControlHintText());
   if (lockText !== ovLast.lockText) {
     ovLast.lockText = lockText;
     setPromptText(ovEl.lockHint, lockText);
@@ -3381,7 +3420,7 @@ function boot() {
 
   walkPrompt = el('div', { class: 'shop-prompt', text: '' });
   walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
-  walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · P pause' });
+  walkLockHint = el('div', { class: 'shop-lockhint', text: walkControlHintText() });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     // House Flipper 1's reticle behaviour: point at dirt and a small label
@@ -3400,7 +3439,7 @@ function boot() {
       el('span', { class: 'dirt-sense-text', text: 'reveal dirt' })),
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause' }),
+    el('div', { class: 'shop-lockhint', text: walkControlHintText() }),
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the

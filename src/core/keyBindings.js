@@ -85,6 +85,20 @@ export function normalizeBindings(raw = {}) {
   const out = {};
   const taken = new Map(); // key -> actionId
   for (const action of BINDABLE_ACTIONS) {
+    // E5 — AN EXPLICIT EMPTY STRING MEANS UNBOUND, AND SURVIVES.
+    //
+    // Rebinding a key that another action already owns now takes it from that
+    // action and leaves it with no key, so the player is told exactly what
+    // changed instead of having two bindings move on one keystroke. That only
+    // works if an unbind can be WRITTEN: this loop used to restore the default
+    // for any falsy key, which put the displaced action straight back onto the
+    // key it had just lost. A MISSING field still falls back to the default —
+    // only a deliberate '' is honoured — so a save from an older build, or one
+    // with a corrupt field, still boots fully bound.
+    if (Object.hasOwn(source, action.id) && source[action.id] === '') {
+      out[action.id] = '';
+      continue;
+    }
     let key = canonicalKeyName(source[action.id]);
     if (!key || !isBindableKey(key)) key = action.defaultKey;
     if (taken.has(key) && taken.get(key) !== action.id) key = action.defaultKey;

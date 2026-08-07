@@ -11879,6 +11879,21 @@ export function makeCourseScene(canvas, state) {
           camera.updateProjectionMatrix();
         }
       },
+      // E7: WHAT configure() ACTUALLY TOOK. Three camera settings — sensitivity,
+      // invert-Y and head bob — were delivered here by applySettings and then
+      // vanished into closure variables nothing could read, so an audit asking
+      // "does this control do anything" got null for all three and could not
+      // tell a working setting from a dead one. A setting the game cannot be
+      // asked about is a setting nobody can verify.
+      diagnostics: () => ({
+        sensitivity: walk.sens,
+        fov: walk.fov,
+        invertY: !!walk.invertY,
+        cameraBob: !!walk.cameraBob,
+        reducedMotion: !!walk.reducedMotion,
+        active: !!walk.active,
+        tool: walkTool,
+      }),
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
       setSoaping: walkSetSoaping,

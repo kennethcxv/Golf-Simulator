@@ -1995,8 +1995,22 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 /* Shared settings surface used by both menu and pause. */
 .settings-dialog { width: min(940px, 94vw); }
 .settings-shell { display: flex; flex-direction: column; min-height: 0; }
-.settings-tabs { display: flex; gap: 5px; padding-bottom: 10px; border-bottom: 1px solid #29312c; overflow-x: auto; }
-.settings-tab { flex: 1; min-width: 110px; background: transparent; border-color: transparent; color: var(--text-dim); padding: 8px 10px; }
+/* E1: THE NAV WRAPS, AND IT STAYS PUT.
+   Seven tabs at a 110px floor is 770px plus gaps in a panel narrower than that,
+   so `overflow-x: auto` gave every player a horizontal scroll bar under the
+   tabs. And the nav scrolled away with the page, so the Controls list - the
+   longest page in the panel - pushed it out of reach. Wrapping removes the
+   first; sticky removes the second. The background is opaque because a sticky
+   bar that shows the list sliding under it is worse than one that hides it. */
+.settings-tabs {
+  display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 0 10px;
+  border-bottom: 1px solid #29312c;
+  position: sticky; top: 0; z-index: 3; background: var(--panel, #151b17);
+}
+.settings-tab {
+  flex: 1 1 auto; min-width: 88px; background: transparent; border-color: transparent;
+  color: var(--text-dim); padding: 8px 10px; white-space: nowrap;
+}
 .settings-tab.is-active { color: var(--cream); background: #213427; border-color: #3d6045; }
 .settings-page { padding-top: 9px; }
 .settings-group { display: flex; flex-direction: column; }
@@ -2015,6 +2029,20 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 .setting-toggle.is-on { background: #285b3a; border-color: #477b53; color: #fff; }
 .setting-control select { min-width: 160px; }
 .setting-native-status { display: contents; }
+.settings-note { margin: 2px 2px 8px; color: #9aa79c; font-size: 0.74rem; line-height: 1.4; font-style: italic; }
+/* E4: the way back, on every page. Quiet until it is armed. */
+.settings-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 14px; padding-top: 11px; border-top: 1px solid #29312c;
+}
+.settings-footer .setting-description { margin: 0; flex: 1 1 auto; }
+.setting-reset { flex: 0 0 auto; background: transparent; border-color: #3a4740; color: var(--text-dim); }
+.setting-reset:hover { color: var(--cream); border-color: #5b7a63; }
+.setting-reset.is-confirming { background: #5a2b23; border-color: #8a4436; color: #ffe9e2; }
+/* E5: an action left without a key reads as a job, not as a rendering fault. */
+.keycap.is-unbound, .setting-keycap.is-unbound {
+  color: #e0a08e; border-color: #7a4438; background: #2a1c19; font-style: italic;
+}
 
 /* Reviews: what people said, and the factors they judged you on. The bar chart is the
    to-do list — whatever is red is the next job. */
