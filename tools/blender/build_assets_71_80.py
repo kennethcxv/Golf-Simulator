@@ -452,10 +452,25 @@ def _mop_geometry(parent: bpy.types.Object, m: dict, *, tip_z: float = 0.0,
     def along(distance: float) -> tuple[float, float, float]:
         return (0.0, dy * distance, tip_z + dz * distance)
 
+    # B2/G4 — SECOND WORST BY DENSITY, and the same three faults as the broom:
+    # one matte material down the whole pole, nothing to catch a light, and a
+    # 14-sided cylinder held half a yard from the lens. Same answers, sized for
+    # a mop: a finished pole, a wrap where the hands close, a capped end.
     A.cylinder("MopHandle", 0.016, handle_len, along(0.26 + handle_len / 2.0),
-               m["wood_walnut"], rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               m["wood_lacquer"], rotation=(-rake, 0.0, 0.0), vertices=20, parent=parent, bevel=0.003)
+    grip_lo = 0.26 + handle_len * 0.46
+    grip_hi = 0.26 + handle_len * 0.88
+    A.cylinder("MopGripWrap", 0.0182, grip_hi - grip_lo, along((grip_lo + grip_hi) / 2.0),
+               m["grip_wrap"], rotation=(-rake, 0.0, 0.0), vertices=20, parent=parent, bevel=0.002)
+    for k in range(3):
+        A.torus(f"MopGripBand_{k}", 0.0185, 0.0026, along(grip_lo + 0.02 + k * 0.155),
+                m["brass"], rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6,
+                parent=parent)
     A.cylinder("MopHandleCap", 0.018, 0.030, along(0.26 + handle_len + 0.004),
-               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               m["brass"], rotation=(-rake, 0.0, 0.0), vertices=18, parent=parent, bevel=0.003)
+    A.torus("MopHangHole", 0.0074, 0.0022, along(0.26 + handle_len + 0.014),
+            m["brass"], rotation=(-rake + math.pi / 2.0, 0.0, 0.0), major_segments=12,
+            minor_segments=6, parent=parent)
     A.cylinder("MopCollar", 0.042, 0.085, along(0.240),
                m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=16, parent=parent, bevel=0.004)
     # Brass band clamping the yarn at the head joint (defect #3).
@@ -822,6 +837,18 @@ def _trash_bag_geometry(parent: bpy.types.Object, m: dict, *, base_z: float = 0.
                vertices=14, parent=parent, bevel=0.014)
     A.box("BagKnot", (0.105, 0.085, 0.055), (0.0, 0.0, base_z + 0.688), m["bag_black"],
           parent=parent, bevel=0.022, bevel_segments=3)
+    # B2/G4 — THE BAG WAS ONE MATTE BLACK OVOID. Third of the three the brief
+    # names, and the one with the least on it: no seam, no tie, nothing that
+    # catches a light, so at viewmodel distance it read as a dark hole in the
+    # lower frame. A drawstring at the neck and a gusset seam down the belly are
+    # the two things a real sack has that a blob does not.
+    A.torus("BagDrawstring", 0.058, 0.0075, (0.0, 0.0, base_z + 0.648), m["grip_wrap"],
+            major_segments=18, minor_segments=8, parent=parent)
+    A.torus("BagTieRing", 0.030, 0.0055, (0.0, 0.0, base_z + 0.712), m["brass"],
+            major_segments=14, minor_segments=6, parent=parent)
+    for side, sx in (("R", 1.0), ("L", -1.0)):
+        A.box(f"BagSeam{side}", (0.012, 0.010, 0.44), (sx * 0.228, 0.0, base_z + 0.300),
+              m["grip_wrap"], parent=parent, bevel=0.004, bevel_segments=2)
     # Two pinched tie "ears" flaring off the knot — a thin triangular flap each, so they
     # read as gathered polythene rather than a pair of blocks.
     ear_profile = ((0.0, -0.028), (0.0, 0.052), (0.128, 0.016))

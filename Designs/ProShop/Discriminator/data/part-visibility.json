@@ -1023,45 +1023,80 @@
       "n": 72,
       "file": "asset_072_mop.glb",
       "sheet": "sheet_08",
-      "sha256": "d1324a98e93f5a35671c55a66d567b8f293b4af4c38e53e1f47d371d9d63026a",
-      "opaqueParts": 5,
+      "sha256": "b1249a9a3f2ab89bce5fc141d1f7a9c3fd350a9422da93e6c6a828c0545c0ea7",
+      "opaqueParts": 10,
       "transparentParts": [],
       "animations": [],
       "parts": [
         {
           "name": "MESH_MopBand",
           "triangles": 212,
-          "maxPx": 1023,
-          "seenAngles": 25,
-          "sharePct": 1.605
+          "maxPx": 1017,
+          "seenAngles": 26,
+          "sharePct": 1.582
         },
         {
           "name": "MESH_MopCollar",
           "triangles": 188,
-          "maxPx": 572,
+          "maxPx": 566,
           "seenAngles": 25,
-          "sharePct": 7.056
+          "sharePct": 6.911
+        },
+        {
+          "name": "MESH_MopGripBand_0",
+          "triangles": 168,
+          "maxPx": 16,
+          "seenAngles": 24,
+          "sharePct": 0.184
+        },
+        {
+          "name": "MESH_MopGripBand_1",
+          "triangles": 168,
+          "maxPx": 20,
+          "seenAngles": 24,
+          "sharePct": 0.205
+        },
+        {
+          "name": "MESH_MopGripBand_2",
+          "triangles": 168,
+          "maxPx": 21,
+          "seenAngles": 24,
+          "sharePct": 0.223
+        },
+        {
+          "name": "MESH_MopGripWrap",
+          "triangles": 236,
+          "maxPx": 1302,
+          "seenAngles": 24,
+          "sharePct": 15.231
         },
         {
           "name": "MESH_MopHandle",
-          "triangles": 164,
-          "maxPx": 2436,
+          "triangles": 236,
+          "maxPx": 1377,
           "seenAngles": 24,
-          "sharePct": 31.889
+          "sharePct": 17.608
         },
         {
           "name": "MESH_MopHandleCap",
-          "triangles": 164,
-          "maxPx": 163,
+          "triangles": 212,
+          "maxPx": 156,
           "seenAngles": 25,
-          "sharePct": 1.36
+          "sharePct": 1.295
+        },
+        {
+          "name": "MESH_MopHangHole",
+          "triangles": 144,
+          "maxPx": 11,
+          "seenAngles": 9,
+          "sharePct": 0.028
         },
         {
           "name": "MESH_MopSkirt",
           "triangles": 4576,
-          "maxPx": 6211,
+          "maxPx": 6171,
           "seenAngles": 26,
-          "sharePct": 58.091
+          "sharePct": 56.734
         }
       ],
       "invisible": [],
@@ -1695,8 +1730,8 @@
       "n": 80,
       "file": "asset_080_trash_bag.glb",
       "sheet": "sheet_08",
-      "sha256": "7531ea8b90029abb8e3b5f2acf0f7282c20560bbcde3b643cca4cc8efb5b6767",
-      "opaqueParts": 8,
+      "sha256": "d745bb8285009b48215f1d547a560a3c78a61f17834ec6d50b88dd7bbbb38c8b",
+      "opaqueParts": 12,
       "transparentParts": [],
       "animations": [],
       "parts": [
@@ -1705,56 +1740,84 @@
           "triangles": 300,
           "maxPx": 50560,
           "seenAngles": 25,
-          "sharePct": 51.666
+          "sharePct": 51.56
         },
         {
           "name": "MESH_BagBelly",
           "triangles": 300,
-          "maxPx": 18893,
+          "maxPx": 18500,
           "seenAngles": 25,
-          "sharePct": 27.275
+          "sharePct": 26.794
         },
         {
           "name": "MESH_BagCrinkle",
           "triangles": 188,
           "maxPx": 2480,
           "seenAngles": 13,
-          "sharePct": 0.93
+          "sharePct": 0.928
+        },
+        {
+          "name": "MESH_BagDrawstring",
+          "triangles": 288,
+          "maxPx": 526,
+          "seenAngles": 17,
+          "sharePct": 0.49
         },
         {
           "name": "MESH_BagEarL",
           "triangles": 80,
           "maxPx": 1824,
           "seenAngles": 23,
-          "sharePct": 1.592
+          "sharePct": 1.587
         },
         {
           "name": "MESH_BagEarR",
           "triangles": 80,
           "maxPx": 1824,
           "seenAngles": 23,
-          "sharePct": 1.592
+          "sharePct": 1.587
         },
         {
           "name": "MESH_BagKnot",
           "triangles": 188,
-          "maxPx": 2328,
+          "maxPx": 1968,
           "seenAngles": 17,
-          "sharePct": 1.397
+          "sharePct": 1.293
         },
         {
           "name": "MESH_BagNeck",
           "triangles": 164,
-          "maxPx": 990,
+          "maxPx": 630,
           "seenAngles": 17,
-          "sharePct": 0.895
+          "sharePct": 0.533
+        },
+        {
+          "name": "MESH_BagSeamL",
+          "triangles": 108,
+          "maxPx": 571,
+          "seenAngles": 14,
+          "sharePct": 0.326
+        },
+        {
+          "name": "MESH_BagSeamR",
+          "triangles": 108,
+          "maxPx": 571,
+          "seenAngles": 14,
+          "sharePct": 0.326
         },
         {
           "name": "MESH_BagShoulder",
           "triangles": 188,
-          "maxPx": 13068,
+          "maxPx": 12922,
           "seenAngles": 25,
-          "sharePct": 14.653
+          "sharePct": 14.474
+        },
+        {
+          "name": "MESH_BagTieRing",
+          "triangles": 168,
+          "maxPx": 360,
+          "seenAngles": 13,
+          "sharePct": 0.104
         }
       ],
       "invisible": [],

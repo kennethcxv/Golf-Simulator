@@ -13,7 +13,7 @@ where a control failed, the failure is written down instead of the result.
 | **A** performance, profiled and ranked | **done** | the frame rate was never the problem |
 | **A** tab-out/tab-in loads a different clubhouse | **not reproduced** | four methods, scene fingerprinted every frame; a build log now names it if it ever happens |
 | **B1** which tools the game needs | **done** | `Designs/ProShop/TOOL_SET.md` |
-| **B2** rebuild them properly | **NOT DONE** | the largest single item in the brief; scoped, not built |
+| **B2/G4** rebuild them properly | **three built: broom, mop, trash bag** | the three the density ranking named; six of nine still on the old standard |
 | **B3/B4** hands on every tool | **FIXED, all nine** | one lift closed the broom, the vacuum, the dustpan and the washer together |
 | **B4** hand-worked tools hold their tools | **done** | the `flat` grip's rest orientation |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
@@ -33,7 +33,7 @@ where a control failed, the failure is written down instead of the result.
 | **G1** lint | **done** | and it found one |
 | **G2** item 14 prove-or-revert | **reverted, with the number** | it rescued nobody in 150 s while displacement caught four |
 | **G3** item 20 metric-or-statement | **a metric, and it survives its controls** | no tool is inside a fixture at any of 16 swept poses |
-| **G4** item 10 density | **NOT DONE** | |
+| **G4** item 10 density | **done** | broom 359→411, mop 502→551, bag 673→738 |
 | **G5** item 18 the t() migration | **the settings screen is done, with a guard** | 28 keys to 55; the rest of the codebase is not |
 
 ## A — the frame rate was never the problem
@@ -497,6 +497,42 @@ spans are kept and read back, with a fixture for the quoted case, and it then
 caught both collisions at once.
 
 **The rest of the codebase is not migrated**, and the 1,551 number stands for it.
+
+## B2 / G4 — the three worst by density, rebuilt
+
+The density ranking is triangles per 1% of frame covered, so a LOW number is a
+big shape spending few triangles on itself. Broom, mop and trash bag were the
+three the brief named, and all three failed the same three of TOOL_SET.md's four
+criteria: one matte material down the whole object, nothing to catch a light,
+and a 14-sided cylinder held half a yard from the lens.
+
+| tool | before | after |
+|---|---|---|
+| broom | 359 | **411** |
+| mop | 502 | **551** |
+| trash bag | 673 | **738** |
+
+**Broom** — a lacquered pole at roughness 0.22 on 20 sides, a club-green grip
+wrap spanning both authored grip sockets and proud of the pole so it reads by
+silhouette as well as colour, three brass bands, a pinned second collar at the
+ferrule, a brass butt cap with a hanging hole (the part nearest the lens at every
+working pitch), and a darker seat where the bristles enter the block.
+
+**Mop** — the same answers sized for a mop: finished pole on 20 sides, wrap where
+the hands close, brass cap and hanging hole replacing a plain black disc.
+
+**Trash bag** — the one with least on it. A matte black ovoid with no seam, no
+tie and nothing to catch a light, which at viewmodel distance read as a dark hole
+in the lower frame. It has a drawstring at the neck, a brass tie ring, and gusset
+seams down both sides.
+
+All three packed with `--no-compress` so the runtime stays PNG. The vacuum
+attempt earlier in this pass repacked to KTX2 and broke the hash-gated
+part-visibility sweep, whose loader cannot read it. Both gates that fired — the
+generated broom metrics and the sweep hash — were regenerated, not relaxed.
+
+**Six of the nine are still on the old standard**, and the merge/delete decisions
+in TOOL_SET.md are still a design on paper.
 
 ## Instrument faults, 29 to 41
 
