@@ -13,6 +13,80 @@ The four running lists live at the bottom and are updated continuously.
 
 ---
 
+## DISPROVEN BY THE SECTION A VERIFIER — read this before anything else
+
+Ten Electron runs, every one on a fresh profile, five probes of the verifier's
+own design plus fresh runs of mine. Artifacts in `qa/electron/verify-a/`.
+
+### 1. A4's headline number was wrong by two orders of magnitude
+
+**I published: "switching to Ultra now costs a 78.7 ms worst frame."**
+
+**Measured by the verifier, twice, on fresh profiles: 10 814 ms and 9 884.8 ms
+of a single frozen frame, with zero animation frames in between.** Low cost
+2841.7 - 3058.8 ms, not the ~1.6 s I admitted, with programs still changing at
+7.65 - 7.9 s.
+
+And the label I shipped to cover it does not: **its first painted frame arrives
+9.9 - 10.8 seconds after the click** and it lives for two frames. Low's label
+first paints at ~1.6 s, after the block it is describing.
+
+The cause is one I created and then failed to re-measure against: **A5 made the
+window 4K, and Ultra sets renderScale 1.15, so switching to it reallocates the
+render target to 4416x2363** on top of the shadows-on mass invalidation. My
+78.7 ms reading did not survive the size the game now ships at. The verifier
+also isolated it precisely: a custom-to-Ultra switch with shadows ALREADY on
+showed no freeze, so the cliff rides the shadow toggle plus the target
+reallocation together.
+
+This is instrument fault 72 repeating in my own hands - a number published
+without being re-taken after the thing it depends on changed - and I named that
+fault in this very plan.
+
+### 2. A1's honesty about what it did not fix was itself too kind
+
+I wrote "the over-16 ms rate is ~29-34% of frames during ordinary movement".
+**On the spawn route at the window the game now ships, the verifier measured
+97.1% of frames over 16 ms, median 25.2 ms** (bake frames median 33.2,
+non-bake 23.9). Indoors it is 14.1%. So the honest statement is not "a third of
+frames miss" - it is **ordinary outdoor movement is almost always over budget**,
+and my figure came from an indoor route.
+
+Two more, smaller: my own driver on the verifier's fresh run produced an
+**808.2 ms, +6-program stall - above the 689.7 ms post-fix ceiling I
+published** - and a teleport-staged probe hit a **12 620 ms frame with +5 cold
+programs** the first time the stockroom quadrant drew. The 701-object warm does
+not reach those.
+
+### What the verifier CONFIRMED, with its own numbers
+
+A3 (cold ink 133 ms, worst 23.7 ms, camera free, light count pinned at 10),
+A5 (no-flags cold launch maximised, buffer = content = 3840x2055, 0% shortfall,
+twice), A2 (press worsts 28.4/23.2/26.2 ms against control 23.6/30.7/22.7 -
+the control again worse), A6 (both entries enabled, room line exact), and R1
+(179 717 changed pixels on a real drag against a noise floor of 8757 and a dead
+slider at 8445).
+
+It also verified the A3 fix has no side effect: the reading light reads
+intensity 0 with visible true when shut, and the desk is visually unlit, before
+and after rapid E-E-E toggling.
+
+### Three defects it found that I had not
+
+1. **The settings rows lag one preset behind.** With quality showing Low the
+   sub-rows still read 100%/On/On/On; with Ultra they read Low's
+   65%/Off/Off/Off. The preferences apply correctly - the buffer proves it - so
+   this is the UI lying about what is set.
+2. **An ungated dev button on the shipping main menu**: "Test scene:
+   Maintenance Shed" at `src/screens/menu.js:199`, with no QA or dev gate.
+3. **An 875 ms zero-delta stall on a plain indoor walk** with no program,
+   geometry or texture change - a stall class neither of my admissions names.
+
+All of the above are now on NOT DONE and are the next items, per the brief's
+rule that a verifier finding is not a note for later.
+
+---
+
 ## READINGS TAKEN ON AMBIGUOUS LINES
 
 The brief says: where a line is ambiguous, take the reading that CHANGES the game,
