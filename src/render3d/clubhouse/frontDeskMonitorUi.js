@@ -878,7 +878,9 @@ export function createFrontDeskMonitorUi(canvas) {
     const deltaCents = Math.abs(Math.round(finite(model.givingDeltaCents)));
     const deltaText = `$${(deltaCents / 100).toFixed(2)}`;
     let caption;
-    if (model.awaitingCash) caption = 'CLICK THE CUSTOMER’S CASH TO TAKE IT';
+    // C7/F1: 36 characters at 24px bold in a 500px box drew as "CLICK THE
+    // CUSTOMER'S CASH TO ..." in the shipping build. Photographed, not guessed.
+    if (model.awaitingCash) caption = 'CLICK THEIR CASH TO TAKE IT';
     else if (givingState === 'exact') caption = 'EXACT CHANGE';
     // C7: "OVER BY $2.50 - CUSTOMER RECEIVES EXTRA CHANGE" is 45 characters at
     // 24px bold and the box is 500px, so it drew as "...CUSTOMER REC...". The

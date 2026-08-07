@@ -18,7 +18,9 @@ where a control failed, the failure is written down instead of the result.
 | **B4** hand-worked tools hold their tools | **done** | the `flat` grip's rest orientation |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
 | **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
-| **C3–C5** change position, item position, stand point | **NOT DONE** | |
+| **C3** change left of the monitor | **done** | it was being laid THROUGH the screen |
+| **C4** customer's items and cash right of the bag | **done** | their cash had no anchor of its own |
+| **C5** stand point right of the bag | **already true, cannot go further** | +0.16 puts the bag out of reach |
 | **C6** delete the white under-desk reader | **done** | |
 | **C7** "Customer rec…" cut off | **done** | and a test that finds the next three |
 | **D1** a prompt near the ledger | **done** | |
@@ -314,6 +316,37 @@ unconfirmed until one exists.
 in one bay reads as clutter rather than as a till, and the white face was the
 brightest thing in a dark alcove — the eye went to the device that does nothing
 over the one the whole card flow runs through.
+
+## C3-C5 — the money had one address and needed two
+
+`changeHandoff` sat at local x 0.20 with a 0.38 footprint, spanning 0.01..0.39,
+and the monitor stands at 0.30. **The counted change was being laid through the
+screen.** Moved to -0.10 it spans -0.29..0.09, clear of the monitor's left edge,
+and the footprint is unchanged so the reach test, the camera composition and the
+money layout all still hold. Moving it in z instead pushed it 3 cm off the
+counter's front edge, which `checkout-workspace-trays.test.js` caught.
+
+**And the customer's own cash was landing on that same anchor.** Two different
+piles of notes in one place, on the staff side, and neither read as belonging to
+anybody — the money the customer held out was among the change being counted
+back to them. It has its own anchor now, on the CUSTOMER half beside the goods
+they put down: clearly right of the bag's mouth and clearly left of the change.
+The goods strip also starts at -0.74 rather than -0.85, so it no longer shares
+an edge with the bagging footprint; "clearly right of the bag" has to be a gap.
+
+**C5 was already true and cannot be made truer.** The stand is at local -0.10
+against the bag's -1.16 — more than a yard right of the carrier. Moving further
+right was tried, to +0.06, and `checkout-space.test.js` failed it immediately:
+*"bagging is 1.55 yd away at its far corner"*. The bag lies at the counter's far
+left and the player has to reach into its mouth; 0.16 yd of extra offset is the
+whole margin. Reverted, with the number recorded.
+
+**And a truncation the fit test had passed.** The staged register frame showed
+*"CLICK THE CUSTOMER'S CASH TO ..."* on the monitor — a string my own test had
+cleared. The measuring stub called itself "a little generous" and was the
+opposite: narrower than real Arial, so it let through exactly the strings it
+exists to catch. Every advance is scaled up 15% now, so a string that passes has
+genuine margin, and the caption is *"CLICK THEIR CASH TO TAKE IT"*.
 
 ## G1 — the linter, and the one it found
 

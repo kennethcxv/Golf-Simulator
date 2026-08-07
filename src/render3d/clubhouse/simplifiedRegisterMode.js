@@ -2055,10 +2055,14 @@ export function createRegisterMode(B) {
     cashMotions = [];
     cashMotionRefillPending = false;
     clearTenderHandful();
+    // C4: the customer's own cash, on the CUSTOMER half beside the goods they
+    // put down — not on changeHandoff, which is where the player counts change
+    // back to them. Sharing one anchor put two different piles of notes in one
+    // place and neither read as belonging to anybody.
     const bundle = new THREE.Vector3(
-      REGISTER.changeHandoff.x,
+      REGISTER.customerTender.x,
       COUNTER_TOP + 0.13,
-      REGISTER.changeHandoff.z,
+      REGISTER.customerTender.z,
     ).add(frontDeskOffsetVector3(0, 0, 0.01));
     let pieceIndex = 0;
     for (const [rawDenom, count] of Object.entries(tx.tendered || {})) {

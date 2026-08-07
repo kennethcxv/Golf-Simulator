@@ -24,10 +24,16 @@ import {
   FRONT_DESK_MONITOR_HEIGHT,
 } from '../src/render3d/clubhouse/frontDeskMonitorUi.js';
 
-// Arial-ish average advances as a fraction of the em, by character class. Bold
-// is wider. Deliberately a little GENEROUS (real Arial digits are 0.556em) so a
-// string this test passes has margin in the real face rather than sitting on the
-// line.
+// Arial-ish average advances as a fraction of the em, by character class.
+//
+// IT MUST OVER-ESTIMATE. The first version called itself "a little generous"
+// and was the opposite: it passed
+// "CLICK THE CUSTOMER'S CASH TO TAKE IT" in a 500px box, and the shipping build
+// drew that as "CLICK THE CUSTOMER'S CASH TO ..." — photographed on the real
+// monitor. A stub narrower than the real face lets exactly the strings this
+// test exists to catch through. Every class is now scaled up by 15% over the
+// nominal Arial advance, so a string that passes here has genuine margin and a
+// borderline one fails rather than shipping.
 function advanceFor(ch, bold) {
   const base = /[MW@]/.test(ch) ? 0.90
     : /[A-Z]/.test(ch) ? 0.70
@@ -36,7 +42,7 @@ function advanceFor(ch, bold) {
           : /[0-9$]/.test(ch) ? 0.58
             : ch === ' ' ? 0.28
               : 0.55;
-  return bold ? base * 1.06 : base;
+  return (bold ? base * 1.06 : base) * 1.15;
 }
 
 function makeMeasuringContext() {
@@ -146,11 +152,11 @@ test('no front-desk monitor screen has to truncate its own copy', () => {
   assert.ok(ui && typeof ui.draw === 'function', 'the monitor UI exposes draw()');
   for (const model of MODELS) ui.draw(model);
 
-  // A player NAME is allowed to be cut - names are unbounded and the screen has
-  // to cope. Everything else is copy this repository wrote and can shorten.
-  const authored = MONITOR_TRUNCATIONS.filter((t) => (
-    !t.text.includes('Featherstonehaugh') && !t.text.includes('Okonkwo-Baptiste')
-  ));
+  // UNBOUNDED DATA is allowed to be cut; AUTHORED COPY is not. A player's name
+  // and their list of rentals are as long as they are and the screen has to
+  // cope. Everything else is a string this repository wrote and can shorten.
+  const UNBOUNDED = ['Featherstonehaugh', 'Okonkwo-Baptiste', 'Cart, clubs, push trolley'];
+  const authored = MONITOR_TRUNCATIONS.filter((t) => !UNBOUNDED.some((u) => t.text.includes(u)));
   assert.deepEqual(
     authored.map((t) => `${t.text}  (needs ${t.neededWidth}px, has ${t.maxWidth}px)`),
     [],

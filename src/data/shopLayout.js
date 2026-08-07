@@ -963,6 +963,20 @@ const queueHead = V2_QUEUE
 const queuePitch = V2_QUEUE
   ? frontDeskVector(V2_QUEUE.pitchLocal.x, V2_QUEUE.pitchLocal.z)
   : frontDeskVector(-1.18, -0.45);
+// C5 (2026-08-06): THE STAND IS ALREADY RIGHT OF THE BAG, AND CANNOT GO FURTHER.
+//
+// Local -0.10 against the bag's -1.16: the player stands more than a yard to the
+// right of the carrier already. Moving further right was tried, to +0.06, so the
+// bag would sit deeper in the left of the working frame - and
+// tests/checkout-space.test.js failed it at once: "bagging is 1.55 yd away at
+// its far corner". The bag lies at the counter's far left and the player has to
+// be able to reach into its mouth; 0.16 yd of extra offset is the whole of the
+// margin. Reverted, and the number recorded so the next attempt does not spend
+// the afternoon rediscovering it.
+//
+// What DID move for C3/C4 is the money: the counted change now sits left of the
+// monitor instead of through it, and the customer's own cash has its own anchor
+// on their half of the counter beside the goods they put down.
 const staffDatum = frontDeskPoint(-0.10, 0.90);
 
 export const COUNTER = {
@@ -1074,7 +1088,10 @@ export const REGISTER = {
   // customer half (the side contract: shoppers set goods down on their half),
   // one bag-mouth line away, so the ring-up slide is left-along-the-counter
   // instead of a diagonal across it.
-  staging: registerRect(-0.85, -0.10, -0.16, -0.01),
+  // C4: the goods strip starts at -0.74 rather than -0.85, so it no longer
+  // overlaps the bagging footprint's right edge (-0.82). "Clearly right of the
+  // bag" has to be a gap, not a shared edge.
+  staging: registerRect(-0.74, -0.10, -0.16, -0.01),
   // Scanned goods stay visible and loose until payment is complete. This strip
   // is downstream of the reader but clear of both the open bag and POS hardware.
   scannedStaging: registerRect(-1.28, -0.62, -0.12, 0.04),
@@ -1082,7 +1099,24 @@ export const REGISTER = {
   // of the drawer, reference-style (the authored handoff tray prop was deleted
   // in the 2026-07-30 checkout-physicality round). The footprint bounds the
   // pile so money, reach tests and camera composition use one source of truth.
-  changeHandoff: { ...frontDeskPoint(0.20, 0.30), w: 0.38, d: 0.20 },
+  // C3 (2026-08-06): LEFT OF THE MONITOR, AND CLEAR OF IT.
+  //
+  // At x 0.20 with a 0.38 width the pile spanned 0.01..0.39 and the monitor
+  // stands at 0.30 — the change was laid THROUGH the screen. Moved to -0.10 it
+  // spans -0.29..0.09, clear of the monitor's own left edge (~0.13), and the
+  // FOOTPRINT IS UNCHANGED: the pile keeps its 0.38 x 0.20 so the reach test,
+  // the camera composition and the money layout all still hold. z stays at
+  // 0.30 — 0.34 pushed the pile 3 cm off the counter's front edge, which
+  // tests/checkout-workspace-trays.test.js caught.
+  changeHandoff: { ...frontDeskPoint(-0.10, 0.30), w: 0.38, d: 0.20 },
+  // C4: WHERE THE CUSTOMER'S OWN CASH LANDS, which is not where the player's
+  // counted change goes. Both used changeHandoff, so the money the customer
+  // held out was laid on the staff side among the change being counted back to
+  // them — two different piles of notes in one spot, and neither read as
+  // belonging to anybody. This sits on the CUSTOMER half beside the goods they
+  // put down, clearly right of the bag's mouth (which ends at -0.82) and
+  // clearly left of the change (-0.23).
+  customerTender: { ...frontDeskPoint(-0.55, -0.22), w: 0.26, d: 0.18 },
   // the bag handoff zone: the laid carrier's own footprint at counter-left;
   // rung-up items slide sideways into the mouth here
   bagging: registerRect(-1.22, -0.82, 0.02, 0.26),
