@@ -2785,3 +2785,20 @@ body.register-mode .view-toggle { display: none !important; }
   border-radius: 50%;
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
 }
+
+/* A4: the quality rebuild says what it is doing. Deliberately a small corner
+   label rather than a modal veil - Requirement 5 forbids taking control away,
+   and the player can keep looking around while it lands. */
+.quality-applying {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 70;
+  padding: 10px 16px;
+  border-radius: 4px;
+  background: rgba(20, 26, 18, 0.92);
+  border: 1px solid #4b5a50;
+  color: #dfd8c2;
+  font: 14px/1.3 system-ui, sans-serif;
+  pointer-events: none;
+}

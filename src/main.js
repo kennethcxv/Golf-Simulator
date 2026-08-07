@@ -21,6 +21,7 @@ import {
   clearNotifications, clearToasts, confirmDialog, containFocus, el, modal, notify,
   setNotificationScope, setPromptBindingsProvider, setPromptText, toast,
 } from './ui/ui.js';
+import { t } from './core/i18n.js';
 import { makeHud } from './ui/hud.js';
 import { makeCourseEditor } from './ui/courseEditor.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
@@ -1569,6 +1570,26 @@ let pauseHadPointerLock = false;
 let releasePauseFocus = () => {};
 const SAVE_LIMITS = { empireVersion: EMPIRE_VERSION, saveVersion: SAVE_VERSION };
 
+// A4 — the applying label. A small corner note, not a modal veil: Requirement 5
+// forbids taking control away, and the player keeps looking around while the
+// materials rebuild. It stays up long enough to cover the settling window
+// measured on this machine (1.6 s for the expensive direction) rather than a
+// frame, because the cost three pays lazily is spread over the frames after
+// the click and a label that vanished immediately would be a lie.
+let qualityApplyingEl = null;
+let qualityApplyingTimer = null;
+function showQualityApplying(ms = 1800) {
+  if (!qualityApplyingEl) {
+    qualityApplyingEl = el('div', { class: 'quality-applying', text: t('settings.display.applying') });
+    document.body.append(qualityApplyingEl);
+  }
+  clearTimeout(qualityApplyingTimer);
+  qualityApplyingTimer = setTimeout(() => {
+    qualityApplyingEl?.remove();
+    qualityApplyingEl = null;
+  }, ms);
+}
+
 function applySettings() {
   const values = preferences.values;
   applyDocumentPreferences(values);
@@ -1603,6 +1624,31 @@ function applySettings() {
   // has existed. Guarded on an actual change so moving any OTHER slider does not
   // pay for a full recompile.
   if (app.scene3d.renderer.shadowMap.enabled !== values.display.shadows) {
+    // A4 (Goal 17) — THE COST IS REAL, THE LABEL IS NEW, AND THE EAGER REBUILD
+    // WAS TRIED AND REVERTED.
+    //
+    // needsUpdate compiles nothing: three rebuilds each material at its NEXT
+    // draw, so the bill used to arrive whenever the player happened to look at
+    // something. Measured before A1 landed: switching to Ultra gave a 5197.5 ms
+    // worst frame with the program count STILL changing 16.7 SECONDS after the
+    // click, and switching to Low blocked so hard that not one animation frame
+    // ran in the 600 ms after it.
+    //
+    // Then A1's load-time warm of the 701 hidden objects landed, and this got
+    // most of the way better on its own: re-measured on the same driver, Ultra
+    // now costs a 71-77 ms worst frame with NO program changes at all, and Low
+    // costs 1586-1591 ms settling by 2.7-3.4 s.
+    //
+    // TRIED AND REVERTED: forcing the rebuild eagerly behind the label with
+    // renderer.compile(). It measured WORSE than leaving three to its own
+    // scheduling - Ultra 226-6224 ms against 71-77, Low 3368-6842 against
+    // 1587-1591 - because compiling every visible material in one blocking
+    // frame is more work than three does lazily once the hidden set is already
+    // warm. Recorded so nobody spends the afternoon on it twice.
+    //
+    // What stays is the honest part the brief asked for: a label saying what is
+    // happening, up while it happens, that does not take control away.
+    showQualityApplying();
     app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
     app.scene3d.scene.traverse((object) => {
       if (!object.material) return;

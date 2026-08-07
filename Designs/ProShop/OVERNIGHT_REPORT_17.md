@@ -570,6 +570,101 @@ hitch or two in their first walk, and the frame pacing is uneven throughout.
 This item is genuinely bigger than one session and is reported as such rather
 than shipped shallow.
 
+## A4 — quality presets: A1 fixed most of it, and my own fix measured worse
+
+Measured on commit `a8f9b22`. Driver `tools/qa/electron-a4-presets.js`, real
+clicks on the quality list through the pause menu, fresh profile per run.
+
+### The instrument, per the review
+
+`applySettings()` sets `material.needsUpdate = true`; three compiles nothing at
+that moment and rebuilds each material at its **next draw**. So a sampler that
+watches the click window measures the cheapest part, and — the reviewers'
+sharpest point — **any fix that "defers" or "spreads" the recompile moves an
+already-deferred cost further out and reads as a win while changing nothing.**
+
+This driver therefore samples from the click until the program count is stable,
+then drives a real 360-degree turn and a walk so the invalidated materials
+actually get drawn. It also watches for the GL error stream `main.js` documents
+as the consequence of shadows-off with stale programs — a check this project has
+never had. **No GL error stream appeared in any run**; the only console output
+was three's PCFSoftShadowMap deprecation notice.
+
+### Before anything: what it cost
+
+| | to Low | to Ultra |
+| --- | --- | --- |
+| worst frame | 1690.8 ms | **5197.5 ms** |
+| program count still changing at | — | **16 703 ms after the click** |
+| frames in the first 600 ms | **none at all** | none at all |
+| applying state | **did not exist** | did not exist |
+
+A player clicking Ultra got a five-second freeze and then shader compiles still
+arriving nearly seventeen seconds later.
+
+### Then A1 landed, and most of this went away on its own
+
+Re-measured on the identical driver with **no A4 code change at all**, after
+A1's load-time warm of the 701 hidden objects:
+
+| | to Low | to Ultra |
+| --- | --- | --- |
+| worst frame | 1586.9 / 1591.1 ms | **71.3 / 77.1 ms** |
+| program count still changing at | 2709 / 3447 ms | **never — zero program changes** |
+
+Switching to Ultra went from a 5.2 second freeze to a 77 millisecond one because
+the programs it needed had already been compiled at load. That is the class fix
+paying off in a second place, and it is worth stating plainly: **most of A4 was
+fixed by A1.**
+
+### TRIED AND REVERTED: forcing the rebuild eagerly
+
+I built what the brief describes — the rebuild moved behind an explicit applying
+state, with `renderer.compile()` called deliberately instead of leaving it to
+three. **It measured worse and is reverted.**
+
+| | to Low | to Ultra |
+| --- | --- | --- |
+| lazy (three's own scheduling) | 1586.9 - 1591.1 ms | 71.3 - 77.1 ms |
+| eager rebuild behind the label | **3367.9 - 6841.7 ms** | **226.8 - 6224.2 ms** |
+
+Compiling every visible material in one blocking frame is more work than three
+does lazily, once the hidden set is already warm. A variant that also revealed
+hidden objects (as the load-time pass does) was worse again — it rebuilt 108
+programs where the player needs about 67, lengthening the very pause the label
+was sitting over. Recorded in the source so nobody spends the afternoon on it
+twice.
+
+### What shipped
+
+The honest part the brief asked for: **a label that says what is happening**,
+and does not take control away. A small corner note rather than a modal veil,
+up for 1.8 s so it covers the settling window rather than vanishing in a frame
+and lying about it. It goes through `t()` and is translated into all ten
+languages.
+
+Final measurement:
+
+| | to Low | to Ultra |
+| --- | --- | --- |
+| worst frame | 1593.9 ms | **78.7 ms** |
+| frames the label was up for | 39 | 132 |
+| label first seen at | 1593 ms | **78 ms** |
+| program growth | +1 | **0** |
+| GL error stream | none | none |
+
+**Stated limitation:** on the *to Low* direction the label's first painted frame
+IS the expensive frame — the label is in the DOM before the block, but a DOM
+change only paints on the next frame, and that next frame is the 1.6 s one. On
+the *to Ultra* direction, which is the one that used to freeze for five seconds,
+the label is up at 78 ms and the stall is gone. Deferring the invalidation to
+make the label paint first was the variant that measured worse, so this is the
+trade I took.
+
+**Twenty-minute-stranger bar: yes for Ultra, no for Low** — a 1.6 second pause
+with a label on it is honest but still a 1.6 second pause. Low remains on NOT
+DONE.
+
 ---
 
 ## RUNNING LISTS
