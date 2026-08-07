@@ -30,11 +30,32 @@ path.
    and the room fills toward five; neglect it and price-gouge and it
    empties — same building, same cap.
 
-## DISPROVEN CLAIMS (Phase 4 verifiers write this section FIRST)
+## DISPROVEN CLAIMS (what the verifiers broke — read this first)
 
-_Pending: filled by the three game-only verifiers at night's end. Anything
-they break moves from its section to NOT DONE, and the broken claim is
-named here, at the top, before everything else._
+1. **"The first ledger open of a session pays a one-time 270-780 ms beat"
+   (A2/C section) — DISPROVEN by Verifier 2.** Measured on two clean
+   sessions tonight: **821 ms in one, ~2.0-2.9 s of render freeze in the
+   other** (a single frame delta across the 2 s window after the E press,
+   healthy 8.4 ms median immediately prior, content prewarmed in both).
+   The class is real — reopens NEVER pay it (worst reopen frame 25-29 ms,
+   zero >33 on the clean session) and per-turn cost holds at ≤1 hitch with
+   a worst warm beat of 54.1 ms — but the stated band was wrong by up to
+   4x, and the player's first read of the book tonight freezes the world
+   for up to ~3 seconds. Moved to NOT DONE as a live defect.
+
+2. **The A1 addendum's HEAD first-load numbers (veil gone 3.9 s after
+   walk-active; playable at 12.9 s; first ten seconds 9 hitches) —
+   DISPROVEN as a description of the final HEAD by Verifier 2.** Three
+   runs, owner resolution and a default-window control: **walk-active to
+   veil-gone 10.4-12.4 s; page to veil-gone 22.1-22.8 s** — and the first
+   ten seconds AFTER the veil are cleaner than the addendum claimed (0-8
+   frames over 33 ms, zero ≥100 ms anywhere, a ~7.3 s stall observed
+   BEHIND the veil). The addendum was measured on an intermediate evening
+   tree; the shipping HEAD loads slower still, with the cost concentrated
+   behind the veil rather than in play. The three-build comparison's
+   DIRECTION stands (both baselines: 7.8 s playable, static triangles),
+   but the final HEAD's first load is ~3x the baselines, not +65%. Band
+   corrected here; the bisect lead in NOT DONE is now urgent.
 
 ## NOT DONE / UNCONFIRMED (running list; finalized at night's end)
 
@@ -43,10 +64,15 @@ named here, at the top, before everything else._
   section.
 - **A3's ten QA fast-forward drivers**: retire/reseed logged in the A3
   section; not converted tonight.
-- **First-load +5.1 s vs both baselines**: measured and attributed to the
-  span's streamed content (A1 addendum); the per-commit bisection inside
-  8baa596→HEAD, and moving the late streams behind the veil, are the named
-  follow-ups.
+- **First-load regression, corrected band (Verifier 2)**: the FINAL HEAD
+  reaches veil-gone 22.1-22.8 s from page start vs 7.8 s playable on both
+  baselines (~3x), with the cost behind the veil and the post-veil start
+  clean. The per-commit bisection inside 8baa596→HEAD is the named
+  follow-up, now urgent.
+- **First ledger open freezes the world 0.8-2.9 s (Verifier 2)**: the
+  one-time class the C section under-stated; prewarm-before-veil or an
+  in-book paint spinner are the candidate fixes. Live defect, top of the
+  next session's queue.
 - **Vacuum/dustpan legacy stroke clobber**: same defect class as the mop's
   B0 item, logged and deliberately NOT fixed (B6 says leave the other
   seven tools alone).
@@ -54,14 +80,23 @@ named here, at the top, before everything else._
   chased.
 - **C2 full typography pass**: paper/ink direction landed; the full pass
   is future work.
-- **C4 locked-state screenshot**: the lock geometry landed and is pinned by
-  the recorder; a dedicated locked-state player-camera shot was not taken.
+- **C4 locked-state screenshot**: CLOSED by Verifier 2 —
+  qa/electron/verify-v2/ledger-02-open.png shows both padlocks seated in
+  the page-number column on a fresh save (which DOES carry two locked
+  sections; the C-section sentence claiming otherwise was wrong and is
+  corrected in the verification section).
 - **The door sign's real-E press**: cue name proven resolving; the physical
   press lands in the stranger verifier's walk.
 - **Register glass / canvas-on-mesh text surfaces**: no overlap recorder
   exists for them (F2 section lists every covered surface); UNCONFIRMED.
 - **F6 card-held hand-position variance**: verified as pose-mode constancy
   + screenshot, not as a yd-variance measurement.
+- **Plant-solve floor reference at wall bases** (Verifier 1): workBlend
+  can read 1 with the head reference −0.41 yd near a counter base; open
+  floor exact. Follow-up named.
+- **Rear-lane till approach** (Verifier 1): from the back-office lane a
+  filing cabinet takes E before the station is in reach; the front lane is
+  correct. Follow-up named.
 
 ## A1 — the regression, measured (three checkouts + noise bound)
 
@@ -957,6 +992,79 @@ additions included) arriving late rather than before the veil lifts. No
 by the same instrument on each. Per-commit bisection of the +5.1 s is
 named in NOT DONE.
 
+## PHASE 4 — WHAT THE VERIFIERS FOUND (game-only, adversarial)
+
+Three verifiers ran the GAME with their own drivers and their own numbers,
+serialized on the machine's one Electron. Anything they broke moves to NOT
+DONE and is named in DISPROVEN CLAIMS above.
+
+### Verifier 1 — tools on real input: FIVE OF FIVE CONFIRMED
+
+| claim | verifier's own evidence |
+| --- | --- |
+| mop equips through the real wheel and stays in the hands through 5 s of held-LMB mopping with real fast turns | 653-frame sampler: hand-to-SOCKET_GripPrimary 0.031–0.038 yd EVERY frame; flat-paint hand/shaft gap 3 px at rest AND 3 px mid-turn (the pre-fix class was 169–302 px); drawn roll span 0.216 rad (a live legacy clobber would pin ≤0.07); head-lag pivot wraps only the three head meshes, pure-turn swing 0.023 rad vs the 0.42 clamp; skirt welded slab hidden with 78/78 procedural strands drawn (3,409 sample-px) |
+| broom bristles are the real, moving fibres; sweeping pushes debris forward | 44/44 tufts drawn (green paint 361 px) while the welded MESH_BroomBristles reads visible:false and paints ZERO pixels; real held-LMB sweep moved the debris centroid +1.495 yd along facing with total amount conserved to 0.000 |
+| the head plants only when the handle reaches | real-pitch ladders: −0.92 → workBlend 1.0 / 0.01–0.02 yd above the floor (kiss); 0.0 → workBlend 0 / 0.44 yd hover; −0.28 → the 0.64/0.165 ease band; a full-horizon held sweep cleans exactly zero |
+| F1: one E at the till with the mop out opens the cashier, never the editor; Escape returns the mop; open-floor E stays dead | prompt reads the till over the mop label at real pitch −0.548; E → register active, courseMode stays 'walk'; second E never opens the editor; Escape → mop back in hands; open floor: stationInReach null, E changes nothing |
+| E2 footsteps: cues exist, zones match, a pinned wall stays silent | outdoors 6 cues at 716–729 ms cadence (the 8.7 rad/s stride = 720 ms), 6/6 zone agreement at the cues' own logged coordinates; indoors 'boards' agreement; wall-push 0.10 yd moved → ZERO cues |
+
+Verifier 1's rigor notes, kept verbatim in spirit: its own run 1 left a
+pause menu open and invalidated three sections — it re-ran them clean and
+cites only the valid runs; its first bristle census matched
+MESH_BroomBristleSeat with a loose regex and it built the dedicated
+blue-paint control before believing itself.
+
+**New findings from Verifier 1 (leads, not disproofs):**
+- near wall/counter BASES the plant solve's floor reference goes negative
+  (broom read workBlend 1 with headAboveFloor −0.41 aimed at a counter
+  base at close range) — open-floor behaviour is exactly as claimed; the
+  wall-base reference is a named follow-up;
+- the REAR approach lane to the till (the back-office side) lands E on a
+  filing-cabinet drawer before the station is ever in reach — the
+  front-of-desk lane behaves as designed; the rear-lane prop priority is a
+  named follow-up.
+
+### Verifier 2 — performance and the ledger: 6 CONFIRMED, 2 DISPROVEN
+
+| claim | verifier's own evidence |
+| --- | --- |
+| per-turn ledger cost ≤1 hitch | 10 real turns on the clean session: hitches per turn [1,0,1,0,0,0,0,0,1,0], worst beats 54.1/33.4/33.4 ms; taps during the ~900 ms turn animation are eaten by design (12 taps = 4 turns) |
+| first open 270-780 ms one-time | **DISPROVEN — 821 ms and ~2.0-2.9 s across two clean sessions** (top section) |
+| reopens clean | worst 25.1/29.2 ms, zero >33 over n=228/227 samples; the first-open class never recurs |
+| C1 pointer lock survives open/turn/close | exactly one locked:true transition, zero exits, locked at all 8 E presses across ~45 s incl. two reopens and a mid-strafe open |
+| C6 held keys never strafe under the book | held D 2.0 s: drift 0.0000 yd (bit-identical positions), spread advanced exactly +1; held A: 0.0000 yd, −1; replicated in three sessions; E mid-strafe froze the body bit-exact with D physically held, strafe resumed after close (1.51 yd/450 ms) |
+| A3 one speed | 8.0016 game-min/real-min = 179.96-real-minute day; real digit presses 2/3/1/4 leave the rate at 7.998-8.000 with speedIdx pinned; the chip click reads 0.0000 game-min over 12 s then resumes at 7.998; no speed UI anywhere |
+| A1 stall classes | 30 s real walk loop: 78 frames >33 ms, worst 837.3 ms with programs FLAT 208→208 (the non-compile stall class, live); the straight-walk control separately reproduced the mid-session compile class (208→215 programs, 454/317 ms) |
+| A1 addendum HEAD numbers | **DISPROVEN as stated — stale for the final HEAD** (top section) |
+
+Incidentals from Verifier 2, both actioned below: the fresh Relaxed save
+HAS two locked ledger sections (firsts, course) — the C4 sentence claiming
+otherwise was false and is corrected here — and its screenshot
+(qa/electron/verify-v2/ledger-02-open.png) IS the locked-state
+player-camera shot C4 had listed as missing: both ToC padlocks
+right-aligned in the page-number column, centred on their rows, the
+live-binding footer printed on the leaves. One lead: a real E ~1.2 s after
+a close was swallowed once (reopen needed a second press).
+
+### Verifier 3 — the stranger's first twenty minutes: NOT DELIVERED
+
+Recorded honestly rather than left pending. Verifier 3 launched on Verifier 2's
+DONE marker at 11:10 and produced nothing in the following half hour. The cause
+was found the next morning: **an Electron instance from Verifier 2's own last
+run never exited** (six processes, started 10:40:52, still alive at 11:41), and
+Electron here has no profile isolation, so the slot is exclusive machine-wide.
+Verifier 3 could not launch at all, and had no way to say so.
+
+That is an instrument fault, not a verdict: the stranger's twenty minutes were
+never run, so nothing in this report was confirmed OR disproved by them. The
+orphan was killed and the work moved on to Goal 17.
+
+**Lesson, added to the fault list as 73:** a serialized verifier chain that
+gates on a marker file assumes the previous stage released the machine. It did
+not, and the failure was SILENT in both directions - the gated agent sat
+waiting, and nothing checked that the previous Electron had actually exited. A
+gate on a marker file must also check that the resource is free.
+
 ## Instruments built so far tonight
 
 - tools/qa/electron-realinput-spike.js — real input pre-flight (green).
@@ -1094,3 +1202,10 @@ named in NOT DONE.
     time on the sheet") — the due-now seeding failed silently until the
     probe tried four leads. Sim seeding APIs validate; drivers read the
     reason, not just the boolean.
+72. (verifier-observed, main-loop lesson) The A1 first-load addendum was
+    measured on the evening's intermediate tree and published as "HEAD";
+    the tree kept moving and the final HEAD loads ~2x slower again. A
+    number labelled HEAD is stale the moment HEAD moves — first-load
+    measurements belong in the SAME run as the final commit, or the label
+    must carry the commit hash. (It now does: the addendum's numbers were
+    true of the mid-evening tree; Verifier 2's are true of 0ce7907.)
