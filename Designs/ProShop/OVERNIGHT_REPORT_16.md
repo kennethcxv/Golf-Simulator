@@ -438,13 +438,31 @@ named in PLAN_16 A3) and the four whose PURPOSE was the ladder are
 retire-or-reseed work listed under NOT DONE for tonight — the product
 and its tests carry the deletion.
 
-## D1 — resolution list fix (committed 03c73e1; driver verification pending)
+## D1 — the list reads the monitor, verified where the player touches it
 
-main.cjs speaks physical pixels (activeDisplay + FW_FAKE_DISPLAY at the
-API boundary, borderless apply for sizes a chromed window cannot hold).
-The R-M verification driver (apply 4K → assert contentSize × scale,
-fake-display negative control, settings-page screenshot on this 4K
-machine) runs in the D pass.
+What the display reports vs what the list shows, on this machine: the
+display reports **3840×2160 physical at scaleFactor 1.5**, and the list
+now shows 1440p and 4K as fitting — with 4K flagged borderless (a
+chromed window cannot hold it) and APPLYING as borderless-fullscreen at
+exactly 3840×2160. A 2560×1440 windowed apply lands at 2562×1442 — the
+DIP grid at scale 1.5 quantizes to 1.5-px steps, so ±3 px is
+exact-as-physically-possible and the bound says so. The negative control
+runs the SHIPPED comparison against a faked 1600×900 display (delivered
+by marker file after argv and env both failed to cross the QA launcher)
+and correctly refuses 1080p/1440p/4K while accepting 720p and native.
+Faults 53–54 for the ledger: the control's fake made the apply leg THROW
+by design, which crashed the driver before it wrote its JSON — three
+"control failed" readings were the previous run's stale file; and the
+launcher's env/argv channels silently do not reach Electron main on this
+stack (the marker file is the channel that cannot be stripped).
+
+## D3 — the controls display reads the live bindings
+
+The pause menu's Controls page rendered hardcoded key literals; it now
+builds every keycap from the bindings table at show time (rebind strafe
+to J and the Walk row says J, no reload), keeps the non-bindable rows
+(mouse, Space, Esc) written out, and the dead 1/2/3 speed row is gone
+with A3's ladder.
 
 ## Instruments built so far tonight
 

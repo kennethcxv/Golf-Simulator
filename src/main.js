@@ -1804,6 +1804,15 @@ function openPauseMenu() {
       }));
     },
     controls: (c) => {
+      // D3 (Full_Goal_16): this page used to print HARDCODED key literals,
+      // so a rebound key never appeared here. It renders from the live
+      // bindings table now — built fresh each time the page shows, which is
+      // the honest claim (no app reload, no stale caps). Rows the player
+      // cannot rebind (mouse, Space, Esc) stay written out.
+      const bindings = preferences.values.controls?.bindings || {};
+      const cap = (actionId, fallback) => describeKey(
+        keyForAction(bindings, actionId) || fallback || '',
+      ) || (fallback || 'unbound');
       const group = (title, rows) => {
         const g = el('div', { class: 'ctl-group' }, el('div', { class: 'ctl-title', text: title }));
         for (const [what, ...keys] of rows) {
@@ -1814,23 +1823,27 @@ function openPauseMenu() {
       c.append(
         el('div', { class: 'ctl-cols' },
           group('Move', [
-            ['Walk', 'W', 'A', 'S', 'D'], ['Run', 'Shift'], ['Look around', 'Mouse'],
-            ['Capture the mouse', 'Click'], ['Overview camera (hands free)', 'Tab'],
+            ['Walk', cap('moveForward', 'W'), cap('moveLeft', 'A'), cap('moveBack', 'S'), cap('moveRight', 'D')],
+            ['Run', cap('run', 'Shift')], ['Look around', 'Mouse'],
+            ['Capture the mouse', 'Click'], ['Overview camera (hands free)', cap('overview', 'Tab')],
           ]),
           group('Hands', [
-            ['Interact · pick up · place', 'E'], ['Secondary action · reposition carton', 'X'],
-            ['Tool belt: tap / hold', 'F'],
-            ['Previous tool', 'Q'], ['Use selected tool', 'LMB'],
-            ['Placement mode', 'B'], ['Rotate placement', 'R'], ['Cancel preview', 'Esc'],
+            ['Interact · pick up · place', cap('interact', 'E')],
+            ['Secondary action · reposition carton', cap('carry', 'X')],
+            ['Tool belt: tap / hold', cap('toolBelt', 'F')],
+            ['Previous tool', cap('dirtSense', 'Q')], ['Use selected tool', 'LMB'],
+            ['Placement mode', cap('buildMode', 'B')], ['Rotate placement', cap('mowerBlades', 'R')],
+            ['Cancel preview', 'Esc'],
           ]),
           group('Time & views', [
-            ['Pause menu', 'P', 'Esc'], ['Pause simulation clock', 'Space'],
-            ['Simulation speed', '1', '2', '3'], ['Course data view', 'V'],
+            ['Pause menu', cap('pause', 'P'), 'Esc'], ['Pause simulation clock', 'Space'],
+            ['Course data view', cap('cartCamera', 'V')],
           ]),
           group('Management', [
-            ['Course editor (hands free)', 'J'],
-            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire overview', 'M'],
-            ['Maintenance tablet', 'I'],
+            ['Course editor (hands free)', cap('courseEditor', 'J')],
+            ['Grounds desk', cap('groundsPanel', 'G')], ['Club office', cap('clubPanel', 'C')],
+            ['Empire overview', cap('empirePanel', 'M')],
+            ['Maintenance tablet', cap('maintenancePanel', 'I')],
             ['Leave laptop / register step back', 'Esc'],
           ]),
         ),

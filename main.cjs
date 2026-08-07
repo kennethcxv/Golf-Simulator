@@ -175,7 +175,18 @@ ipcMain.handle('fw:list', async (event) => {
 // FW_FAKE_DISPLAY ("1600x900@1") injects at this boundary so the QA negative
 // control exercises the SHIPPED comparison, not a parallel branch.
 const activeDisplay = () => {
-  const fake = process.env.FW_FAKE_DISPLAY;
+  // argv is the channel proven to reach main (the --clubhouse flag rides
+  // it); the env form never arrived through the QA launcher (measured:
+  // qaFakeEnv null while the parent shell held the var), so both are read.
+  const argvFake = process.argv.find((a) => a.startsWith('--fw-fake-display='));
+  let fileFake = null;
+  try {
+    // the one delivery channel that cannot be stripped by any launcher: a
+    // marker file beside main.cjs. QA writes it, runs, deletes it.
+    fileFake = fs.readFileSync(path.join(__dirname, 'fw-fake-display.txt'), 'utf8').trim() || null;
+  } catch { fileFake = null; }
+  const fake = (argvFake ? argvFake.slice('--fw-fake-display='.length) : null)
+    || process.env.FW_FAKE_DISPLAY || fileFake;
   if (fake) {
     const m = /^(\d+)x(\d+)@([\d.]+)$/.exec(fake);
     if (m) {
@@ -222,6 +233,8 @@ ipcMain.handle('fw:display-info', (event) => {
   }
   candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return {
+    qaFakeDisplay: !!(process.argv.some((a) => a.startsWith('--fw-fake-display='))
+      || process.env.FW_FAKE_DISPLAY),
     mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
     width: currentPhysical.width,
     height: currentPhysical.height,
