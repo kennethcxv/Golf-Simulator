@@ -1006,6 +1006,67 @@ than modelling a ferrule that already exists.
 vertical striation instead of separated tines, spanning the full block, and it
 costs 2 draw calls where the sparse comb cost 44.
 
+## B1 — THE DIVERGENCE, RESOLVED. Both statements were true.
+
+> "I have been told they move and shown a measurement of 0.25 yd of travel, and
+> they do not move at all on my screen. Resolve that before you build."
+
+Resolved, and the owner is right in the way that matters.
+
+`tools/qa/electron-b1-divergence.js`, Electron, default camera, mop equipped
+through the real wheel, stroke driven by a **real held mouse button**. The
+instrument measures the thing the eye is actually looking at - pixels in a box
+centred on the head, through the lens that drew the tool - and its control is
+the whole design: **the identical stroke is measured twice, once as shipped and
+once with the fibres WELDED to the head** (every motion parameter zeroed through
+the same live door the tuning overlay writes with, so nothing else about the
+frame changes).
+
+| | pixels changed in the head region |
+| --- | --- |
+| noise floor: two frames, **no input at all** | **22 991** |
+| a real stroke, strands live | **135 253** |
+| the same stroke, strands **frozen** | **92 905** |
+| ratio, live vs frozen | **1.46x** |
+
+World-space tip travel over the same window: **0.1349 m live, 0.0000 m frozen**
+- so the strands genuinely move, and the reported measurement was not a lie.
+
+### What the numbers mean together
+
+**69% of everything the eye sees during a stroke happens with the strands
+welded to the head.** That is the head swinging. The strands' own contribution
+is the remaining 42 348 pixels - and the idle noise floor, with no input at
+all, is 22 991. So the strand-specific signal is **1.84x the shimmer the
+viewmodel produces when nothing is happening**.
+
+That is the entire divergence, in one line: **the strands move, and their
+motion is roughly twice the idle noise and less than half the head's own
+swing.** At arm's length that reads exactly as the owner reports it - the head
+swings, and the yarn appears welded to it. A world-space number of 0.25 yd was
+true and told nobody anything, because it never asked how much of the picture it
+was responsible for.
+
+### The instrument fault this retires
+
+Every previous strand measurement in this project has been world-space tip
+travel. That number cannot distinguish "the fibre moved" from "the fibre was
+carried", and it has no denominator - nothing to compare against. The
+frozen-strand control supplies both: it holds the head's motion constant and
+subtracts it, and it is cheap because the overlay's live parameter door already
+exists.
+
+### What this makes B1
+
+Not "make the strands move" - they do. **Make the strands' share of the picture
+large enough to see**, which means their contribution has to dominate the head's
+rather than being a third of it. That is a tuning target with a number attached
+for the first time: the live-vs-frozen ratio, currently 1.46x, and the
+strand-specific delta against the 22 991 noise floor.
+
+The mop also carries only **26 strands in 3 draw calls**. Now that the rig is
+instanced, density is nearly free there too.
+
 ---
 
 ## RUNNING LISTS
