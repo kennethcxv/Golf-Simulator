@@ -1879,6 +1879,9 @@ export function makeClubhouse(ctx) {
 
   addProp({
     x: regWp.x, z: regWp.z, r: 2.2,
+    // F1 (Full_Goal_16): a work station — its prompt outranks an equipped
+    // tool's label inside this radius (courseScene walkFindFocus).
+    station: true,
     label: () => {
       if (!facilityInstalled(state, 'frontCounter')) return null;
       if (!facilityInstalled(state, 'registerHardware')) {
@@ -8912,7 +8915,8 @@ export function makeClubhouse(ctx) {
         const result = flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
         if (!result.ok) return;
         applyFacing(true); // swing it, do not teleport it
-        if (hooks.sfx) hooks.sfx('uiTick');
+        // E2: the sign is cardboard on a string, not a menu row
+        if (hooks.sfx) hooks.sfx('signFlip');
         // State the fact; no coaching, and no warning about opening late or
         // opening filthy — the player learns those (Designs/ROADMAP.md).
         if (hooks.toast) {
@@ -9351,7 +9355,10 @@ export function makeClubhouse(ctx) {
       });
     }
     if (toCounter || walkInRequest || organicPlan.picks.length) {
-      const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      // F5 (Full_Goal_16): the paying customer addresses the CASHIER'S
+      // stand, not the register-block datum out by the bag — face across the
+      // counter at the person serving them.
+      const regW = L2W(COUNTER.staffStand.x, COUNTER.staffStand.z);
       stops.push({ kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
     }
     stops.push({ kind: 'exit', x: doorW.x, z: doorW.z + 2.6 });
@@ -9922,7 +9929,7 @@ export function makeClubhouse(ctx) {
     if (hooks.sfx && walk.active && isInside(walk.x, walk.z)) hooks.sfx('product');
     // a pick means they're heading to the counter — make sure a stop exists
     if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
-      const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      const regW = L2W(COUNTER.staffStand.x, COUNTER.staffStand.z); // F5: face the cashier
       c.stops.splice(c.stops.length - 2, 0, { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
     }
   }
@@ -10132,7 +10139,18 @@ export function makeClubhouse(ctx) {
       && c.customerType === 'walk-in-tee'
       && c.reservationId == null
       && !c.reservationReleased
-      && !c.walkInRejected;
+      && !c.walkInRejected
+      // F8 (Full_Goal_16): a combined visitor still HOLDING GOODS is a
+      // shopper — the cart branch takes them first (pay, then the desk ask
+      // through beginPendingDesk). Classifying them as desk business here
+      // was the unpaid-exit escape: booked or rejected, both desk outcomes
+      // released them to the door and the goods silently restocked as a
+      // lost sale. (__f8LegacyClassifier is the QA-only reintroduction the
+      // escape driver's negative control flips on — the ledgerTurnLegacy
+      // pattern; never set by the game.)
+      && (typeof window !== 'undefined' && window.__f8LegacyClassifier
+        ? true
+        : !(c.cart && c.cart.length));
   }
 
   function openDeskCustomer(c) {
@@ -10247,6 +10265,7 @@ export function makeClubhouse(ctx) {
       // at y=0.
       aimY: interior.position.y + start.y + 0.03,
       focusBias: 0.55,
+      station: true, // F1: the reading desk is a work station too
       label: () => {
         if (ledgerBook.isOpen() || ledgerBook.isCarried()) return null;
         // D2: this callback fires only when the player is inside the book's
@@ -10789,6 +10808,20 @@ export function makeClubhouse(ctx) {
       // Silent: the register give-up path owns the messaging; this net only
       // catches structural leavers and should never narrate.
       if (c.cart.length && (stop.kind === 'exit' || stop.kind === 'gone')) {
+        // F8 invariant (Full_Goal_16): nobody leaves with unpaid goods. This
+        // net still heals the world (the goods go back), but a customer who
+        // reaches the door with a WALK-IN DESK OUTCOME behind them is the
+        // escape class F8 closed — that combination is a hard QA violation,
+        // counted and shouted, never silent.
+        if (c.combinedVisit && (c.walkInRejected || c.reservationReleased || c.reservationId != null)) {
+          const msg = `[F8-INVARIANT] combined visitor "${c.fullName}" reached the ${stop.kind} `
+            + `with ${c.cart.length} unpaid item(s) after a desk outcome`;
+          console.error(msg);
+          if (typeof window !== 'undefined') {
+            window.__f8Violations = (window.__f8Violations || []);
+            window.__f8Violations.push({ name: c.fullName, items: c.cart.length, kind: stop.kind });
+          }
+        }
         surrenderCart(c, { announce: false });
       }
 
@@ -10983,11 +11016,22 @@ export function makeClubhouse(ctx) {
             let checkoutMode = c.checkoutPhase === 'placing' ? 'Checkout' : 'Idle';
             if (['ChoosingPayment', 'CardPresented', 'CardInsertReady', 'CardInserting',
               'CardAmountEntry', 'CardProcessing', 'CardApproved', 'CashPresented',
-              'PaymentComplete', 'ReceiptPrinting'].includes(flowState)) checkoutMode = 'Present';
+              'PaymentComplete', 'ReceiptPrinting'].includes(flowState)) {
+              checkoutMode = 'Present';
+              // F6 (Full_Goal_16): cash goes DOWN and the arm comes back —
+              // once the tender fan has landed (the fly-in runs ~0.6 s from
+              // CashPresented entry) the customer settles to await change.
+              // The card keeps the held-out reach until it is taken; after
+              // PaymentComplete both methods stand settled.
+              const flowAgeMs = flowNow() - (c.checkoutFlow?.enteredAtMs || 0);
+              if (flowState === 'CashPresented' && flowAgeMs > 900) checkoutMode = 'CashLaid';
+              if (flowState === 'PaymentComplete') checkoutMode = 'CashLaid';
+            }
             else if (flowState === 'CardDeclined') checkoutMode = 'Declined';
             else if (['SelectingChange', 'GivingChange'].includes(flowState)) checkoutMode = 'Receive';
             else if (['Bagging', 'BagHandoff'].includes(flowState)) checkoutMode = 'ReceiveBag';
             char.setMode(checkoutMode);
+            c.qaPoseMode = checkoutMode; // read-only QA breadcrumb (F6 driver)
           }
           if (c.patience <= 0) beginCustomerImpatientBeat(c);
         } else if (!served) {

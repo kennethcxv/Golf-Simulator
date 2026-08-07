@@ -3299,7 +3299,7 @@ export function createRegisterMode(B) {
       toast(result?.reason || 'That key is unavailable.', 'warn');
       sfx('thunk');
     } else if (action !== 'confirm') {
-      sfx('uiTick');
+      sfx('keypadTap'); // E2: a terminal key is plastic under a finger, not a menu row
     }
     if (result?.ok) pulseTerminalKey(action); // the physical key visibly gives
     drawTerm();
@@ -4275,6 +4275,20 @@ export function createRegisterMode(B) {
     fallback.name = 'BagFallback';
     fallback.userData.checkoutOwnedFallback = true;
     builtBag.add(fallback);
+    // F3 (Full_Goal_16): the reason an item can vanish INTO a paper bag at
+    // full size — a depth-only shell filling the cavity. It writes depth
+    // before the goods draw (renderOrder -5) and never writes colour, so
+    // whatever slides past the mouth is occluded by the bag being AROUND it,
+    // not by a scale. 2 cm shy of the lip: you see a little way in.
+    const interiorOccluder = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.33, 0.15 * BAG_FLATTEN),
+      new THREE.MeshBasicMaterial({ colorWrite: false }),
+    );
+    interiorOccluder.position.set(0, 0.175, 0);
+    interiorOccluder.renderOrder = -5;
+    interiorOccluder.name = 'BagInteriorOccluder';
+    interiorOccluder.userData = { pick: false, kind: 'bag-occluder' };
+    builtBag.add(interiorOccluder);
     const bagPanel = CHECKOUT_DISPLAY_BRAND_PRESENTATION.bagPanel;
     const brandPanel = new THREE.Mesh(
       new THREE.PlaneGeometry(bagPanel.width, bagPanel.height),
@@ -4660,7 +4674,10 @@ export function createRegisterMode(B) {
   function tenderCounterPoint() {
     const at = customerLocalPosition();
     const local = frontDeskLocalPoint(at.x, at.z);
-    const spot = frontDeskPoint(THREE.MathUtils.clamp(local.x, -0.70, -0.15), -0.30);
+    // F5 (Full_Goal_16): the pile's left bound moved off the bag strip
+    // (-0.70 → -0.48; the mouth ends at -0.82) so presented cash can never
+    // wander behind the laid carrier from the cashier's frame.
+    const spot = frontDeskPoint(THREE.MathUtils.clamp(local.x, -0.48, -0.15), -0.30);
     return new THREE.Vector3(spot.x, COUNTER_TOP, spot.z);
   }
 
@@ -5158,6 +5175,7 @@ export function createRegisterMode(B) {
       document.body.classList.add('register-mode');
       drawScreen();
       drawTerm();
+      sfx('stationEnter'); // E2: stepping in behind the till
       entered = true;
       return true;
     } finally {
@@ -5182,6 +5200,7 @@ export function createRegisterMode(B) {
     }
     recoverInput('front-desk exit');
     active = false;
+    sfx('stationLeave'); // E2: stepping away from the till
     setWorkspace('monitor');
     clearFocus();
     setHoverCursor(false);
@@ -5570,6 +5589,11 @@ export function createRegisterMode(B) {
     // into the low half of the flattened mouth with no climb at all.
     const mouth = bagMouth.clone();
     mouth.y = REST_Y;
+    // F3: the slide does not STOP at the lip — it carries on into the cavity
+    // so the interior shell swallows the good at FULL SIZE. What ends its
+    // visibility is the bag being around it, not a shrink.
+    const intoBag = BAG_POS.clone().sub(bagMouth).setY(0).normalize();
+    mouth.add(intoBag.multiplyScalar(0.34 * BAG_COUNTER_SCALE));
     const destination = separateHandoff
       ? new THREE.Vector3(oversizePoint.x, REST_Y, oversizePoint.z)
       : mouth;
@@ -5626,30 +5650,21 @@ export function createRegisterMode(B) {
     if (t >= 0.42 && !motion.committed) {
       if (!commitScanMotion(motion)) return;
     }
-    // Compact goods scale down as they pass through the mouth.
-    if (motion.destinationKind === 'bag' && t > 0.62) {
-      const shrink = 1 - ((t - 0.62) / 0.38) * 0.52;
-      motion.mesh.scale.copy(motion.fromScale).multiplyScalar(shrink);
-    }
+    // F3: NO shrink through the mouth — the interior shell occludes the
+    // item at full size as it passes the lip.
     if (motion.elapsed < motion.duration) return;
     scanMotion = null;
     const bagResult = bagScannedItem(tx, motion.uid);
     if (!bagResult.ok) toast(bagResult.reason, 'warn');
     setObjectPickable(motion.mesh, false);
     if (motion.destinationKind === 'bag') {
+      // F3: fully past the mouth — the item now belongs to the carrier at
+      // FULL SIZE, hidden because the bag is around it. No miniature stack.
       bagGroup.add(motion.mesh);
-      const contents = bagContentsNode
-        ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-        : new THREE.Vector3(0, 0.18, 0);
-      const compactIndex = tx.items.filter((candidate) => candidate.bagged
-        && !itemMeshes.get(candidate.uid)?.userData?.catalogVisual?.separateHandoff).indexOf(motion.item);
-      motion.mesh.position.set(
-        contents.x + (compactIndex % 2 ? 0.04 : -0.04),
-        contents.y + 0.05 + Math.floor(Math.max(0, compactIndex) / 2) * 0.03,
-        contents.z,
-      );
+      motion.mesh.visible = false;
+      motion.mesh.position.set(0, 0.15, 0);
       motion.mesh.quaternion.identity();
-      motion.mesh.scale.copy(motion.fromScale).multiplyScalar(0.38);
+      motion.mesh.scale.copy(motion.fromScale);
       motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
       motion.mesh.userData.checkoutOwner = 'bag';
     } else {
@@ -6255,10 +6270,12 @@ export function createRegisterMode(B) {
       drawScreen();
       return true;
     }
+    const dropInto = BAG_POS.clone().sub(bagMouth).setY(0).normalize()
+      .multiplyScalar(0.30 * BAG_COUNTER_SCALE);
     bagDropMotions.push({
       mesh: drag.mesh,
       from: drag.mesh.position.clone(),
-      to: bagMouth.clone(),
+      to: bagMouth.clone().add(dropInto),
       fromQuaternion: drag.mesh.quaternion.clone(),
       elapsed: 0,
       duration: 0.46,
@@ -6333,16 +6350,14 @@ export function createRegisterMode(B) {
       const t = THREE.MathUtils.smoothstep(motion.elapsed / motion.duration, 0, 1);
       motion.mesh.position.lerpVectors(motion.from, motion.to, t);
       // Same rule as the clicked ring-up above: goods slide into the mouth,
-      // they are not lobbed over the rim.
-      motion.mesh.scale.copy(motion.baseScale).multiplyScalar(1 - t * 0.52);
+      // they are not lobbed over the rim — and per F3 they keep their size;
+      // the interior shell is what swallows them.
       if (motion.elapsed < motion.duration) continue;
       bagDropMotions.splice(index, 1);
       bagGroup.add(motion.mesh);
-      const contents = bagContentsNode
-        ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-        : new THREE.Vector3(0, 0.18, 0);
-      motion.mesh.position.set(contents.x, contents.y + 0.08, contents.z);
-      motion.mesh.scale.copy(motion.baseScale).multiplyScalar(0.38);
+      motion.mesh.visible = false;
+      motion.mesh.position.set(0, 0.15, 0);
+      motion.mesh.scale.copy(motion.baseScale);
       motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
       sfx('bagItem');
     }
@@ -6433,15 +6448,12 @@ export function createRegisterMode(B) {
           ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
           : new THREE.Vector3(0, 0.18, 0);
         const column = compactIndex % 2;
-        const row = Math.floor(compactIndex / 2);
-        mesh.position.set(
-          contents.x + (column ? 0.045 : -0.045),
-          contents.y + 0.055 + row * 0.035,
-          contents.z + (column ? 0.025 : -0.025),
-        );
+        // F3: restored contents are hidden at FULL SIZE inside the carrier,
+        // exactly like freshly bagged ones — no miniature stack on resume.
+        mesh.position.set(0, 0.15, 0);
         mesh.quaternion.identity();
-        mesh.scale.copy(mesh.userData.originalScale || new THREE.Vector3(1, 1, 1))
-          .multiplyScalar(0.38);
+        mesh.scale.copy(mesh.userData.originalScale || new THREE.Vector3(1, 1, 1));
+        mesh.visible = false;
         mesh.userData.checkoutVisualState = 'packed-in-bag';
         mesh.userData.checkoutOwner = 'bag';
         compactIndex += 1;

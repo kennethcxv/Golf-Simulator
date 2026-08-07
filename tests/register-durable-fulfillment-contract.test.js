@@ -202,8 +202,12 @@ test('separate-handoff products never enter the compact bag-drop scale path', ()
     'separate goods are neither miniaturized nor parented into the paper carrier');
 
   const compactMotion = registerFunction('updateBagDropMotions');
-  assert.match(compactMotion, /multiplyScalar\(0\.38\)/,
-    'the compact visual treatment remains explicit and isolated');
+  // F3 (Full_Goal_16): goods are never miniaturized — they keep their scale
+  // and the carrier's interior shell is what ends their visibility.
+  assert.match(compactMotion, /mesh\.visible = false/,
+    'bagged goods hide inside the carrier at full size');
+  assert.doesNotMatch(compactMotion, /multiplyScalar\(0\.(38|48|52)\)|1 - t \* 0\.52/,
+    'no scale collapse anywhere in the compact drop path');
 });
 
 test('separate-handoff products require customer-side contact before their durable commit', () => {

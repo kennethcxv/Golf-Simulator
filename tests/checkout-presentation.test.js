@@ -22,7 +22,12 @@ test('PayCash and PayCard are real poses, not names that fall through to slack a
   // neither existed in the rig — the unknown name fell to the default pose, so the tender fan
   // hung in the air beside a customer whose arms were at their sides.
   assert.match(character, /char\.mode === 'PayCash' \|\| char\.mode === 'PayCard'/);
-  assert.match(customers, /setMode\(entity\.payMethod === 'cash' \? 'PayCash' : 'PayCard'\)/);
+  // F6 (Full_Goal_16): cash is a TWO-BEAT gesture — reach while the tender
+  // lands, then the arm comes back (CashLaid) while awaiting change. The
+  // card stays held out. The controller routes cash by its landing timer.
+  assert.match(character, /char\.mode === 'CashLaid'/);
+  assert.match(customers, /\? \(actor\.stateTimer > 0\.9 \? 'CashLaid' : 'PayCash'\)/);
+  assert.match(customers, /: 'PayCard'\)/);
   // The register presents with the SAME modes, or the two controllers stomp each other's
   // arms every other frame.
   assert.match(register, /poseCustomerForCheckout\('PayCash'\)/);

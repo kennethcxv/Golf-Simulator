@@ -51,10 +51,14 @@ test('product drops resolve against the production bag mouth socket', () => {
   const settleProduct = registerFunction('settleBaggingProduct');
   assert.match(settleProduct, /distanceTo\(bagMouth\)/,
     'product acceptance measures physical 3D contact with the authored mouth');
-  assert.match(settleProduct, /to:\s*bagMouth\.clone\(\)/,
-    'the accepted product visibly travels through the same authored mouth');
-  assert.doesNotMatch(settleProduct, /BAG_POS/,
-    'product acceptance cannot use a different target from its drop animation');
+  // F3 (Full_Goal_16): the drop still travels THROUGH the authored mouth and
+  // then continues INSIDE along the mouth's own axis — the continuation is
+  // derived from the same two authored points (base minus mouth), never a
+  // separate target.
+  assert.match(settleProduct, /to:\s*bagMouth\.clone\(\)\.add\(dropInto\)/,
+    'the accepted product travels through the authored mouth and on inside');
+  assert.match(settleProduct, /BAG_POS\.clone\(\)\.sub\(bagMouth\)/,
+    'the into-bag continuation is the mouth socket\'s own axis, not a new target');
 });
 
 test('pending product-drop animations block handoff and teardown releases every motion', () => {

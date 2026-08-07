@@ -107,6 +107,53 @@ function setFont(ctx, size, weight = 500) {
 export const MONITOR_TRUNCATIONS = [];
 const seenTruncations = new Set();
 
+// F2 (Full_Goal_16): EVERY RECT THIS SCREEN DRAWS, while the audit is on.
+// Same idea as the truncation ledger above and the ledger book's overlap
+// recorder (C3): the screen remembers what it drew, and a scan after each
+// frame pairs any two rects that intersect. Exemption rule, stated before
+// the first run: a text rect fully inside a BUTTON is that button's own
+// label; everything else that crosses is an overlap. Off unless
+// window.__monitorRectAudit is truthy; zero cost in normal play.
+export const MONITOR_OVERLAPS = [];
+const monitorOverlapSeen = new Set();
+const monitorAuditRects = [];
+function monitorAuditOn() {
+  return typeof window !== 'undefined' && !!window.__monitorRectAudit;
+}
+function monitorRectContains(outer, inner) {
+  return inner.x >= outer.x - 1 && inner.y >= outer.y - 1
+    && inner.x + inner.w <= outer.x + outer.w + 1
+    && inner.y + inner.h <= outer.y + outer.h + 1;
+}
+function scanMonitorOverlaps(screen) {
+  const M = 1; // kissing borders are not overlaps
+  for (let i = 0; i < monitorAuditRects.length; i += 1) {
+    for (let j = i + 1; j < monitorAuditRects.length; j += 1) {
+      const a = monitorAuditRects[i];
+      const b = monitorAuditRects[j];
+      if ((a.kind === 'button' && b.kind === 'text' && monitorRectContains(a, b))
+        || (b.kind === 'button' && a.kind === 'text' && monitorRectContains(b, a))) continue;
+      const x = Math.max(a.x + M, b.x + M);
+      const y = Math.max(a.y + M, b.y + M);
+      const r = Math.min(a.x + a.w - M, b.x + b.w - M);
+      const bottom = Math.min(a.y + a.h - M, b.y + b.h - M);
+      if (r > x && bottom > y) {
+        const key = `${screen}|${a.label}|${b.label}`;
+        if (!monitorOverlapSeen.has(key)) {
+          monitorOverlapSeen.add(key);
+          MONITOR_OVERLAPS.push({
+            screen,
+            a: { kind: a.kind, label: a.label, x: Math.round(a.x), y: Math.round(a.y), w: Math.round(a.w), h: Math.round(a.h) },
+            b: { kind: b.kind, label: b.label, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) },
+            overlapW: Math.round(r - x),
+            overlapH: Math.round(bottom - y),
+          });
+        }
+      }
+    }
+  }
+}
+
 function fitText(ctx, value, maxWidth) {
   const source = text(value);
   const full = ctx.measureText(source).width;
@@ -263,6 +310,22 @@ export function createFrontDeskMonitorUi(canvas) {
 
   canvas.width = FRONT_DESK_MONITOR_WIDTH;
   canvas.height = FRONT_DESK_MONITOR_HEIGHT;
+  // F2 rect audit: record every drawn string's rect while the audit is on
+  const rawFillText = ctx.fillText.bind(ctx);
+  ctx.fillText = (str, x, y, maxWidth) => {
+    if (monitorAuditOn()) {
+      const m = ctx.measureText(String(str));
+      const w = Math.min(m.width, maxWidth === undefined ? Infinity : maxWidth);
+      const asc = Number.isFinite(m.actualBoundingBoxAscent) ? m.actualBoundingBoxAscent : 12;
+      const desc = Number.isFinite(m.actualBoundingBoxDescent) ? m.actualBoundingBoxDescent : 4;
+      let left = x;
+      if (ctx.textAlign === 'center') left = x - w / 2;
+      else if (ctx.textAlign === 'right' || ctx.textAlign === 'end') left = x - w;
+      const top = ctx.textBaseline === 'middle' ? y - (asc + desc) / 2 : y - asc;
+      monitorAuditRects.push({ kind: 'text', label: String(str).slice(0, 44), x: left, y: top, w, h: asc + desc });
+    }
+    return maxWidth === undefined ? rawFillText(str, x, y) : rawFillText(str, x, y, maxWidth);
+  };
 
   let activeHotspots = [];
   let targetPadding = 0;
@@ -284,6 +347,9 @@ export function createFrontDeskMonitorUi(canvas) {
 
   function drawButton(action, x, y, width, height) {
     const [background, foreground, stroke] = buttonPalette(action.kind, action.disabled);
+    if (monitorAuditOn()) {
+      monitorAuditRects.push({ kind: 'button', label: String(action.label || action.id).slice(0, 44), x, y, w: width, h: height });
+    }
     fillRound(ctx, x, y, width, height, 10, background, stroke, 2);
     setFont(ctx, height >= 54 ? 18 : 16, 700);
     ctx.fillStyle = foreground;
@@ -529,15 +595,18 @@ export function createFrontDeskMonitorUi(canvas) {
 
     const note = text(reservation.note ?? reservation.notes);
     if (note) {
+      // F2 (Full_Goal_16): the note owns the 482-500 band; the grid starts at
+      // 512. The old pair (baseline 502 over a grid at 500) drew the note
+      // INSIDE the first button.
       setFont(ctx, 14, 500);
       ctx.fillStyle = COLORS.muted;
       ctx.textAlign = 'left';
-      ctx.fillText(fitText(ctx, note, 494), 482, 502);
+      ctx.fillText(fitText(ctx, note, 494), 482, 496);
     }
     // F1: the same two-columns-over-two-rows as the walk-in strip above. At 74px
     // tall the grid put four buttons across at 92px each and every label with a
-    // time in it truncated.
-    drawActionGrid(model.actions, 482, 500, 494, 116, 2);
+    // time in it truncated. F2 moved it to 512/104 (same 616 bottom line).
+    drawActionGrid(model.actions, 482, 512, 494, 104, 2);
   }
 
   function drawCheckIn(model) {
@@ -1023,6 +1092,7 @@ export function createFrontDeskMonitorUi(canvas) {
     targetPadding = Math.max(0, Math.min(12, finite(accessibility.targetPadding, 0)));
     const app = canonicalApp(model.app ?? model.tab ?? model.view);
     ctx.save();
+    if (monitorAuditOn()) monitorAuditRects.length = 0;
     ctx.clearRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
     ctx.fillStyle = COLORS.cream;
     ctx.fillRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
@@ -1032,6 +1102,18 @@ export function createFrontDeskMonitorUi(canvas) {
     else if (app === 'cash') drawCashScreen(model);
     else if (app === 'tee-sheet') drawTeeSheet(model);
     else drawHome(model);
+    if (monitorAuditOn()) {
+      // negative control: a deliberately planted string across the action
+      // grid must be caught, or the clean sweep is not believable
+      if (typeof window !== 'undefined' && window.__monitorPlantOverlap && app === 'check-in') {
+        setFont(ctx, 14, 500);
+        ctx.fillStyle = '#c22222';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('PLANTED OVERLAP CONTROL', 500, 530);
+      }
+      scanMonitorOverlaps(app);
+    }
     ctx.restore();
     return api;
   }

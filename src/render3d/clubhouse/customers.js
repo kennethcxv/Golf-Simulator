@@ -919,7 +919,12 @@ export function createCustomerView(B, options) {
         abandonCustomer(actor, 'checkout service took too long');
       }
     } else if (stateName === CUSTOMER_STATE.PAYING) {
-      actor.character.setMode(entity.payMethod === 'cash' ? 'PayCash' : 'PayCard');
+      // F6 (Full_Goal_16): the cash gesture is two beats — reach while the
+      // tender lands (~0.9 s covers the fly-in), then the arm comes back and
+      // the customer waits with hands settled. A card stays held out.
+      actor.character.setMode(entity.payMethod === 'cash'
+        ? (actor.stateTimer > 0.9 ? 'CashLaid' : 'PayCash')
+        : 'PayCard');
       const ownsRegister = register.getCustomer() === actor;
       if (!ownsRegister && !actor.paid && actor.stateTimer > 0.6) {
         markCheckoutFailed(state, entity, 'payment did not complete');

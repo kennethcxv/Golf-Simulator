@@ -644,6 +644,17 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.62;
       lean = 0.13;
       headTilt = 0.08;
+    } else if (char.mode === 'CashLaid') {
+      // F6 (Full_Goal_16): the notes are DOWN on the counter — the arm comes
+      // back and the customer waits for change with hands settled, a touch
+      // of forward attention keeping them "at the counter" rather than idle.
+      // The card path never uses this: a card stays in the held-out hand
+      // until the cashier takes it.
+      shR = -0.30;
+      shL = -0.16;
+      elb = -0.18;
+      lean = 0.07;
+      headTilt = 0.05;
     } else if (char.mode === 'Receive') {
       shR = -1.05;
       shL = -0.10;

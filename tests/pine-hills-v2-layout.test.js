@@ -316,8 +316,13 @@ test('the queue ruling: line east along the desk face, exit lane never crossed',
     assert.ok(cur.z > 2.0 && cur.z < slab.minZ,
       `line slot ${i} off the desk-face band`);
   }
-  assert.ok(Math.abs(head.x - 2.82) < 1e-9 && Math.abs(head.z - 2.30) < 1e-9,
-    'the head moved - checkout reach circles and camera poses key off (2.82, 2.30)');
+  // F5 (Full_Goal_16): the paying customer stands RIGHT of the bag strip,
+  // opposite the cashier — the head moved 0.22 east (2.82 → 3.04) by
+  // instruction, and the pitch shortened (0.80 → 0.69) so slot 2 stays on
+  // the exact member_station clearance the old line proved out. Checkout
+  // reach interactions key off the LIVE customer position, not this point.
+  assert.ok(Math.abs(head.x - 3.04) < 1e-9 && Math.abs(head.z - 2.30) < 1e-9,
+    'the head moved - F5 fixed it at (3.04, 2.30); move it only with a new ruling');
 });
 
 test('the protected clearways stay empty', () => {

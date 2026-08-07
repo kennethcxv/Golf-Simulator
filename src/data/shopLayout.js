@@ -370,8 +370,15 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // line holds three; deeper indices (a no-cashier full house) wait in the
   // overflow pocket on the open floor south-east of centre.
   queue: Object.freeze({
-    headLocal: Object.freeze({ x: -0.48, z: -1.05 }),
-    pitchLocal: Object.freeze({ x: 0.80, z: 0.10 }),
+    // F5 (Full_Goal_16): the paying customer stands RIGHT of the bag's whole
+    // strip (mouth ends at -0.82), nearly opposite the cashier's own stand
+    // (-0.10), so the cashier's frame reads customer/cash right, carrier
+    // left. Was -0.48 — a bag-adjacent stand that hid the face behind the
+    // laid carrier from the working camera.
+    headLocal: Object.freeze({ x: -0.26, z: -1.05 }),
+    // pitch shortened with the F5 head move (0.80 → 0.69) so slot 2 lands on
+    // exactly the member_station clearance the old line proved out
+    pitchLocal: Object.freeze({ x: 0.69, z: 0.10 }),
     lineSlots: 3,
     // Room-absolute sunflower packing: r = min(r0 + rGrow*sqrt(k), rMax) at
     // angle k*goldenAngle. The nine points a full house uses (k 0-8) are all
@@ -1116,7 +1123,9 @@ export const REGISTER = {
   // belonging to anybody. This sits on the CUSTOMER half beside the goods they
   // put down, clearly right of the bag's mouth (which ends at -0.82) and
   // clearly left of the change (-0.23).
-  customerTender: { ...frontDeskPoint(-0.55, -0.22), w: 0.26, d: 0.18 },
+  // F5: nudged right (-0.55 → -0.38) with the customer's own stand — still
+  // clearly right of the mouth (-0.82) and clearly left of the change (-0.23).
+  customerTender: { ...frontDeskPoint(-0.38, -0.22), w: 0.26, d: 0.18 },
   // the bag handoff zone: the laid carrier's own footprint at counter-left;
   // rung-up items slide sideways into the mouth here
   bagging: registerRect(-1.22, -0.82, 0.02, 0.26),

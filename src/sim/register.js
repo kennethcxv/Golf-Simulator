@@ -569,8 +569,12 @@ export function customerCash(tx) {
   const step = due > 100 ? 50 : due > 40 ? 20 : due > 15 ? 10 : 5;
   let amount = Math.ceil(round2(due) / step) * step;
   if (tx.rng() < 0.35) {
+    // F4 (Full_Goal_16): the dig-for-coins gesture only happens when the odd
+    // cents come out in LARGE coins — "and a quarter", never ninety-six cents
+    // counted out in dimes and pennies. Audited 2026-08-07: the unrestricted
+    // branch put sub-quarter shrapnel in 34% of all cash tenders.
     const oddCents = Math.round(due * 100) % 100;
-    if (oddCents > 0) amount = round2(amount + oddCents / 100);
+    if (oddCents > 0 && oddCents % 25 === 0) amount = round2(amount + oddCents / 100);
   }
   tx.tendered = makeChange(amount);
   return tx.tendered;
