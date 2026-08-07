@@ -1994,7 +1994,16 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 
 /* Shared settings surface used by both menu and pause. */
 .settings-dialog { width: min(940px, 94vw); }
-.settings-shell { display: flex; flex-direction: column; min-height: 0; }
+.settings-shell { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+/* D4 (Full_Goal_16): the SCROLLBAR belongs to the section that scrolls.
+   The hosts (.pause-content / .modal) used to own the bar, so it framed the
+   entire panel - tabs, title, footer - while only the page body moved.
+   While a settings shell is mounted, the host stops scrolling and
+   .settings-page takes the bar; the tab strip no longer needs its sticky
+   hack because it simply never moves. */
+.pause-content:has(.settings-shell) { overflow: hidden; }
+.modal:has(.settings-shell) { overflow: hidden; display: flex; flex-direction: column; }
+.modal:has(.settings-shell) .settings-shell { flex: 1 1 auto; }
 /* E1: THE NAV WRAPS, AND IT STAYS PUT.
    Seven tabs at a 110px floor is 770px plus gaps in a panel narrower than that,
    so `overflow-x: auto` gave every player a horizontal scroll bar under the
@@ -2012,7 +2021,7 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
   color: var(--text-dim); padding: 8px 10px; white-space: nowrap;
 }
 .settings-tab.is-active { color: var(--cream); background: #213427; border-color: #3d6045; }
-.settings-page { padding-top: 9px; }
+.settings-page { padding-top: 9px; overflow-y: auto; min-height: 0; flex: 1 1 auto; padding-right: 8px; padding-bottom: 16px; }
 .settings-group { display: flex; flex-direction: column; }
 .settings-group-head { margin-bottom: 2px; }
 .settings-group-head h3 { margin: 0; color: var(--cream); font: 1.15rem Georgia, serif; text-transform: none; letter-spacing: 0; }
@@ -2034,6 +2043,8 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 .settings-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
   margin-top: 14px; padding-top: 11px; border-top: 1px solid #29312c;
+  /* D5: the reset row used to sit flush on the panel's bottom edge */
+  margin-bottom: 10px; padding-bottom: 6px;
 }
 .settings-footer .setting-description { margin: 0; flex: 1 1 auto; }
 .setting-reset { flex: 0 0 auto; background: transparent; border-color: #3a4740; color: var(--text-dim); }
