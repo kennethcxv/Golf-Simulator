@@ -34,6 +34,50 @@ audio/ui/toolWheel/laptop/main/courseScene + report + resume; commit 2
 simplifiedRegisterMode/frontDeskMonitorUi/shopLayout/shopProgression/
 sim-register + re-pinned tests + f-drivers + f4 audit. One push.
 
+F COMPLETE — every item verified: F1 (4 routes + 2 negatives), F2
+(6 monitor screens clean + planted control ×2 + clip-clamped DOM zero
+hits + tee-time-detail-after.png), F3 (pixels 10063→0, bbox 147-148
+steady, hidden-at-1.0 packed; BEFORE control: visible mini at 0.38 /
+90.2px; occluder control keeps 1045px), F4 (sim 0/400 sub-quarter +
+drawn {50:1,10:1} exact), F5 (head 16449/16449 baseline, tender 53453),
+F6 (cash trail Present×4→CashLaid; card held Present through
+CardInsertReady), F7 (poor/mid/rich = 1/3/5 on drive .096/.508/.916,
+same cap 5, withinOne everywhere), F8 (escape + invariant; one-payment
+NOT DONE). A1 addendum: first-load 3-build table (HEAD 12.9s vs 7.8s
+both baselines; +1.29M streamed triangles; programs flat; bisect =
+NOT DONE lead). Faults through 71. Suite 2821/0.
+
+NEXT: commit F-verified (clubhouse.js breadcrumb+accessor,
+frontDeskMonitorUi plant+telemetry, five drivers, report, resume) →
+push → mark #24 → DISPATCH the three verifiers
+(scratchpad/phase4-verifier-briefs.md + Electron-exclusivity note:
+poll `tasklist | grep electron` empty before any run-electron launch;
+verifiers run SEQUENTIALLY by agreement: V1 first, then V2, then V3 —
+stagger via their own polling). Then: disproven-claims + NOT DONE
+finalization, delete this file, final commit.
+
+OLD F-DRIVER STATE (superseded): F1 GREEN (all 4 routes + 2 negatives; equip
+indoors + close-the-wheel were its faults 64). F8-escape GREEN first run
+(escape reproduced under __f8LegacyClassifier, invariant fired, fixed
+build stays shopper, pure-desk control ✓). f-checkout run 5 IN FLIGHT:
+staging arc SOLVED (sendToCounter returns the NAME; clubhouse gained
+customerByName(n) accessor; sign opened; trail proves placing→hasTx→
+awaiting), F3 projection now self-sourced from mesh world position +
+debugPickAt verification (fault: __qaRegister is the acceptance
+harness's helper, not the game's). Watch pickResolves in f.json. F2
+sweep driver BUILT (electron-f2-sweep.js: monitor tabs via
+monitorActionPoint real clicks, seeded noted reservation via sim
+bookReservation, planted-overlap control, DOM leaf-rect audit of pause/
+settings/laptop). F7 driver BUILT (electron-f7-concurrency.js: three
+standings via reputation categories + greenFee, footfallDiagnostics
+samples, peak screenshots; sign opened via sim flipSign). Verifier
+briefs READY at scratchpad/phase4-verifier-briefs.md — ADD the
+Electron-exclusivity note when dispatching (no profile isolation:
+verifiers must poll for no running electron.exe before launching).
+Report front matter DONE (five-minute script + DISPROVEN placeholder +
+NOT DONE list). qaPoseMode breadcrumb + customerByName + occluder are
+UNCOMMITTED product deltas since 0f828cc — suite re-gate in flight.
+
 THEN: F drivers (f1, f8-escape, the combined checkout driver for
 F3/F4-mesh/F5-fractions/F6-clips, F7 seeds, F2 sweep), first-load run
 (A1 remainder), Phase 4 verifiers, final report. F8 one-payment merge =

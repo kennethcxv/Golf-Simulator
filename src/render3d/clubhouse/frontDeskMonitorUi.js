@@ -115,6 +115,9 @@ const seenTruncations = new Set();
 // label; everything else that crosses is an overlap. Off unless
 // window.__monitorRectAudit is truthy; zero cost in normal play.
 export const MONITOR_OVERLAPS = [];
+// audit telemetry: proves the recorder actually RAN in the register's own
+// draw path (the planted control cannot be debugged from silence)
+export const MONITOR_AUDIT_STATS = { draws: 0, rects: 0, lastScreen: null, plants: 0 };
 const monitorOverlapSeen = new Set();
 const monitorAuditRects = [];
 function monitorAuditOn() {
@@ -1092,7 +1095,7 @@ export function createFrontDeskMonitorUi(canvas) {
     targetPadding = Math.max(0, Math.min(12, finite(accessibility.targetPadding, 0)));
     const app = canonicalApp(model.app ?? model.tab ?? model.view);
     ctx.save();
-    if (monitorAuditOn()) monitorAuditRects.length = 0;
+    if (monitorAuditOn()) { monitorAuditRects.length = 0; MONITOR_AUDIT_STATS.draws += 1; }
     ctx.clearRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
     ctx.fillStyle = COLORS.cream;
     ctx.fillRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
@@ -1106,12 +1109,18 @@ export function createFrontDeskMonitorUi(canvas) {
       // negative control: a deliberately planted string across the action
       // grid must be caught, or the clean sweep is not believable
       if (typeof window !== 'undefined' && window.__monitorPlantOverlap && app === 'check-in') {
+        // SELF-PAIRING: two planted strings at overlapping rects, so the
+        // control cannot depend on what else the screen happened to draw
         setFont(ctx, 14, 500);
         ctx.fillStyle = '#c22222';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
         ctx.fillText('PLANTED OVERLAP CONTROL', 500, 530);
+        ctx.fillText('PLANTED OVERLAP PARTNER', 508, 534);
+        MONITOR_AUDIT_STATS.plants += 1;
       }
+      MONITOR_AUDIT_STATS.rects = monitorAuditRects.length;
+      MONITOR_AUDIT_STATS.lastScreen = app;
       scanMonitorOverlaps(app);
     }
     ctx.restore();

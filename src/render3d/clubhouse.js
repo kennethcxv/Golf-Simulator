@@ -12038,6 +12038,9 @@ export function makeClubhouse(ctx) {
       c.entered = true;
       return c;
     },
+    // read-only QA: the staged-customer HANDLE (sendToCounter returns the
+    // display name; drivers need the live entity to watch phases/poses)
+    customerByName: (n) => customers.find((c) => c.name === n || c.fullName === n) || null,
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;

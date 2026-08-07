@@ -6,6 +6,63 @@ all answered in PLAN_16.md's Phase 2 section, remedies R-A…R-M), IMPLEMENT
 land so nothing depends on session memory. Claims here carry their evidence
 path.
 
+## Try this first — the owner's five minutes
+
+1. **Mop at the till.** Grab the mop (hold F indoors, press 3, Enter), mop a
+   patch — the head plants when you reach the floor and hovers when you
+   can't — then walk to the till still holding it, look down like you're
+   working, and press E. You're the cashier, no map, no dead prompt. Escape
+   steps away and the mop is back in your hands.
+2. **The wheel clicks now.** Every digit press in the tool wheel ticks; so
+   does the laptop's nav rail, and every button everywhere else. Walk
+   outside and listen to your own footsteps change when you step off the
+   boards onto turf — then stop, and they stop.
+3. **The ledger speaks like a book.** E on the club ledger: clasp, cover,
+   the leaves. A and D turn pages (they never strafe the character), E
+   closes it. You never lose the mouse.
+4. **Sell something and watch the bag.** A customer at the counter: click a
+   good and it slides ACROSS the counter INTO the carrier's mouth and is
+   swallowed at full size — no shrinking toy. Cash lands ON the desk in
+   real notes (a $35.31 basket arrives as two twenties, never
+   ninety-six-cents counted out), the customer's arm comes BACK once the
+   money is down, and they stand right of the bag where you can see them.
+5. **The floor breathes with your standing.** Run the shop well and cheap
+   and the room fills toward five; neglect it and price-gouge and it
+   empties — same building, same cap.
+
+## DISPROVEN CLAIMS (Phase 4 verifiers write this section FIRST)
+
+_Pending: filled by the three game-only verifiers at night's end. Anything
+they break moves from its section to NOT DONE, and the broken claim is
+named here, at the top, before everything else._
+
+## NOT DONE / UNCONFIRMED (running list; finalized at night's end)
+
+- **F8 steps 2-3 — the single combined payment** (green-fee line into the
+  open retail tx, one tender): NOT DONE, stopping point named in the F8
+  section.
+- **A3's ten QA fast-forward drivers**: retire/reseed logged in the A3
+  section; not converted tonight.
+- **First-load +5.1 s vs both baselines**: measured and attributed to the
+  span's streamed content (A1 addendum); the per-commit bisection inside
+  8baa596→HEAD, and moving the late streams behind the veil, are the named
+  follow-ups.
+- **Vacuum/dustpan legacy stroke clobber**: same defect class as the mop's
+  B0 item, logged and deliberately NOT fixed (B6 says leave the other
+  seven tools alone).
+- **GL sampler-mismatch warnings**: lead logged in the C section, not
+  chased.
+- **C2 full typography pass**: paper/ink direction landed; the full pass
+  is future work.
+- **C4 locked-state screenshot**: the lock geometry landed and is pinned by
+  the recorder; a dedicated locked-state player-camera shot was not taken.
+- **The door sign's real-E press**: cue name proven resolving; the physical
+  press lands in the stranger verifier's walk.
+- **Register glass / canvas-on-mesh text surfaces**: no overlap recorder
+  exists for them (F2 section lists every covered surface); UNCONFIRMED.
+- **F6 card-held hand-position variance**: verified as pose-mode constancy
+  + screenshot, not as a yd-variance measurement.
+
 ## A1 — the regression, measured (three checkouts + noise bound)
 
 Same probe file (HEAD's perf-probe.js), Electron, pine-hills-v2, same
@@ -706,9 +763,27 @@ now: starter 2 → **5**, standard 4 → **8**, premium 6 → **10**, luxury 8 �
 **12** (drive then spans ≈3-7 customers at starter instead of pinning),
 with the tier unlock copy updated and shop-progression tests re-pinned.
 The queue holds 3 line slots + the 9-point overflow sunflower = 12
-positions, matching the luxury cap. The three seeded standings
-(well-run-cheap / mid / neglected-expensive, 10 sim-minutes each, peaks +
-screenshots + footfallDiagnostics() term breakdown) ride the F7 driver.
+positions, matching the luxury cap.
+
+**Driver results** (electron-f7-concurrency.js, sign opened through the
+sim's own flipSign, three standings seeded smallest-first — at 1x a crowd
+GROWS on arrivals alone but takes many sim-minutes to drain, so the seeds
+run poor → mid → rich and each window only ever fills; judged from
+sim-minute 5 of 10):
+
+| standing | drive | peak on floor | mean | target tracked |
+| --- | --- | --- | --- | --- |
+| neglected-expensive (reputation cats 25, fee 2x fair) | 0.096 | **1** | 1.0 | within one at every sample |
+| as-found (cats 55, fair fee) | 0.508 | **3** | 3.0 | within one |
+| well-run-cheap (cats 90, fee 0.6x fair) | 0.916 | **5** | 5.0 | within one |
+
+Same building, same starter cap of five — the room breathes with the
+standing, exactly the goal's ask. Peak screenshots per seed under
+qa/electron/f7-concurrency/; the drive term that moved is recorded beside
+every sample (reputation + price moved, cleanliness deliberately held).
+The old ceiling of 2 could never have shown the 1-vs-3-vs-5 spread.
+
+**F7 status: BUILT AND VERIFIED.**
 
 ## F8 — nobody leaves with unpaid goods: THE ESCAPE IS CLOSED (one-payment merge NOT DONE)
 
@@ -748,6 +823,139 @@ named first NOT-REACHED candidate. The stopping point is precise:
 `bookWalkIn` still calls `beginReservationPayment` unconditionally; the
 append-a-line variant plus the two split rules in sim/register.js is the
 whole remaining change, designed in PLAN_16.md F8.
+
+## F3 — items go INTO the bag at full size: BUILT AND VERIFIED
+
+The carrier gained a depth-only interior shell (`BagInteriorOccluder`:
+colorWrite off, depth written before the goods draw) and both motion paths
+lost their shrink: a rung-up good slides across the counter THROUGH the
+authored mouth and on inside along the mouth's own axis, swallowed because
+the bag is around it. Nothing is miniaturized — the packed item is parented
+into the carrier at FULL SCALE, hidden; the resume path restores the same
+way, and the fulfillment contracts are re-pinned to the new invariant.
+
+**Instrument** (electron-f-checkout.js over a staged real sale — a spawned
+cash customer walks in, places goods, the player enters with real E through
+the F1 door, and a real click rings the item): flat-paint pixel census per
+frame beside a per-frame projected-bbox tracker.
+
+| measure | fixed build | occluder-hidden CONTROL |
+| --- | --- | --- |
+| painted pixels across the slide | 10,063 → 0 by the mouth | 38,350 → settles at 1,045 and STAYS (the item sits visible in the mouth) |
+| projected bbox height over the whole track | 147.0 → 148.4 px (±0.5%) | — |
+| final state | visible=false, checkoutVisualState packed-in-bag, scale untouched | — |
+
+The bbox steadiness IS the anti-shrink signature, and the BEFORE control
+ran it against the pre-F3 register module (the E-commit's file, swapped in
+for one boot and restored): the old build packs the item **visible at 0.38
+scale** — a miniature keepsake sitting in the carrier at 1,045 painted
+pixels forever, its projected height collapsed to **90.2 px against the
+fixed build's steady 147–148 px** at the same camera. Old: a toy in the
+bag. New: the real thing, swallowed. The occluder control proves the
+occluder is what ends visibility: hide the shell and the same slide keeps
+its pixels.
+
+**F4's drawn half closed on the same run:** with the presented-channel
+filter, ancestor-walk root counting, and the unseen click PAD excluded,
+the desk meshes equal the tender exactly — **{50:1, 10:1} drawn for
+{50:1, 10:1} tendered**, and no sub-quarter coin exists to draw. F4 is
+sim-audited AND pixel-backed end to end.
+
+## F5 — customer and cash visible from the cashier's frame: VERIFIED
+
+From the working camera during a live cash wait, flat-paint censuses
+sampled through the payment: the customer's head at **16,449 px minimum
+against a 16,449 px bag-hidden baseline — 100% of the head stays visible
+with the carrier shown** — and the laid tender at **53,453 px minimum**
+(the notes are unmissable). The layout move behind the numbers is in the
+F5 build section above.
+
+## F6 — cash laid down, card held out: BUILT AND VERIFIED
+
+The pose map splits the payment into the goal's two beats, and the
+flow-tagged pose trail (sampled at 250 ms with the register's own flow
+state beside each entry) shows exactly the intended gesture:
+
+- **cash**: `Idle@ProductScanned → Present@CashPresented ×4 (the ~1 s reach
+  while the tender lands) → CashLaid@CashPresented` for the rest of the
+  wait — the arm comes back and the customer stands settled while the
+  notes rest on the desk.
+- **card** (its own staged run, f-card.json): `Idle → Present@CardPresented
+  → Present@CardInsertReady ×9+` — the card NEVER leaves the held-out
+  hand until taken. Screenshot f6-card-held.png.
+
+The arm-region pixel-diff between the two cash beats is visible in the F5
+sample series (same run, same frames); the numeric hand-variance
+measurement is listed under NOT DONE as approximated by pose-mode
+constancy.
+
+## F2 — the tee-time overlap, then every screen: BUILT AND VERIFIED
+
+The arithmetic bug was in source (the check-in note's baseline at y 502
+INSIDE a button row starting at y 500); the note now owns the 482-500 band
+and the grid starts at 512 with the same 616 bottom line. The monitor
+gained the C3-pattern rect recorder: while `window.__monitorRectAudit` is
+on, every drawn string and button leaves its rect and a scan pairs any two
+that intersect (exemption stated first: a button's own centred label).
+
+**Sweep** (electron-f2-sweep.js, real clicks at `monitorScreenPoint`
+projections): a due-now reservation seeded through the sim's own
+`bookReservation` carrying a 90-character note — the goal's case — plus a
+live walk-in ask. All six screens drawn and audited: home, checkout,
+check-in, the reservation DETAIL (screenshot
+tee-time-detail-after.png: the note in its band, the action button clear
+below), the walk-in detail, and the tee sheet. **MONITOR_OVERLAPS: empty
+across all of them.** The planted control (two self-pairing strings laid
+across the grid) was caught — 2 recorded pairs — before the clean sweep
+was believed.
+
+**DOM sweep** (same run): pause, all six settings pages, and the laptop's
+first page audited for intersecting text leaves with the declared
+exemptions (ancestor/descendant; invisible; borders may kiss; and rects
+CLAMPED to overflow-clipping ancestors — the first pass flagged a keycap
+whose layout rect ran under the pause footer while every drawn pixel was
+clipped away, the false-positive class the clamp exemption names).
+**Zero hits on every surface.**
+
+**Surfaces and their recorders (the enumeration R-H requires):** ledger
+book — its own C3 recorder (LEDGER_OVERLAPS, planted-control proven);
+front-desk/register monitor — MONITOR_OVERLAPS (this section); DOM
+(pause, settings, laptop, HUD text) — the clip-clamped leaf audit.
+UNCONFIRMED, no recorder exists: the card terminal's small canvas glyphs
+and transient toasts. Listed, not silently skipped.
+
+## A1 addendum — the FIRST LOAD, measured on three builds
+
+The fixed-pose probes called steady-state flat; the first-load instrument
+(electron-first-load.js — segments to playable, then the first ten seconds
+of play, with a content assertion and an injected-stall control) ran on
+HEAD and both baseline worktrees. The numbers, same machine, same scene
+(content fractions 0.877 / 0.899 / 0.878):
+
+| | pre-tools 8baa596 | pre-ledger 65ce987 | HEAD tonight |
+| --- | --- | --- | --- |
+| page → menu ready | 529 ms | 520 ms | 844 ms |
+| menu click → walk active | 639 ms | 624 ms | 1106 ms |
+| walk active → veil gone | 2206 ms | 2209 ms | 3944 ms |
+| **page → playable** | **7.8 s** | **7.8 s** | **12.9 s** |
+| first-10-s worst frame | 25.8 ms | 22.3 ms | 40 ms |
+| frames ≥ 33 ms / ≥ 100 ms | 0 / 0 | 0 / 0 | 9 / 0 |
+| median frame | 11 ms | 11 ms | 17 ms |
+| shader programs | 207 flat | 207 flat | 209 flat |
+| triangles over the ten seconds | 5.09 M static | 5.11 M static | **5.08 M → 6.36 M** (+358 draw calls) |
+
+**Finding, stated plainly: HEAD loads 5.1 s slower (+65%) and its first ten
+seconds are rougher (9 dropped-frame-class hitches vs zero, median +6 ms)
+than BOTH baselines — which agree with each other to within 70 ms.** The
+attribution the numbers support: programs are flat on every build (not
+shader compiles — the A1 stall-class conclusion holds), while HEAD alone
+STREAMS ~1.3 million triangles of content into the scene during the first
+ten seconds that the baselines never had. The regression is the added
+world of the 8baa596→HEAD span (strand rigs, retail deltas, tonight's
+additions included) arriving late rather than before the veil lifts. No
+≥100 ms hitch exists on any build; the injected 120 ms control was counted
+by the same instrument on each. Per-commit bisection of the +5.1 s is
+named in NOT DONE.
 
 ## Instruments built so far tonight
 
@@ -845,3 +1053,44 @@ whole remaining change, designed in PLAN_16.md F8.
     eats the interact key — all four routes read "register never opened"
     while the till prompt sat right there in the frame. Equip indoors,
     close the wheel, verify the modal class is gone.
+65. `sendToCounter` returns the customer's display NAME, not the entity —
+    two checkout-driver runs died dereferencing a string (`itemMeshes.get`
+    on run 2, `cart.length` on run 3) before clubhouse gained the
+    read-only `customerByName()` handle.
+66. The pose trail installed AFTER the control ring's node-side pixel
+    counting (~3.5 s of sharp work per 8-frame capture) and woke to a
+    tender already landed and aged — every sample read the settled beat.
+    Samplers start BEFORE the action whose onset they claim to witness,
+    and each entry carries the flow state so beats are judged against the
+    flow, not wall time.
+67. A bill GLB carries the money flag on its sub-meshes and nests
+    unflagged intermediate nodes, so the drawn-tender census counted every
+    note two and three times ({10:3, 50:2} for a fifty-and-a-ten), and a
+    direct-parent root test still double-counted — the root test walks
+    EVERY ancestor. The unfiltered first pass also matched the whole
+    drawer float and passed trivially: a filter that cannot name its
+    channel ('tender' vs 'drawer') is not a filter.
+68. (process) A patch script written against the wrong belief about which
+    round had applied crashed mid-file on a stale anchor, leaving a mixed
+    state — and its first delivery attempt had already died to the >20 kB
+    bash-heredoc truncation trap this session documented earlier. Patch
+    scripts go through Write-tool files, and every anchor is grepped
+    against the LIVE file before the script runs.
+69. The before-control's collapse-ratio formula read only the last 40
+    track samples — all post-pack steady-state — and reported "no
+    collapse" over a run whose endpoint facts (visible at 0.38 scale,
+    90.2 px against 147) were the collapse. Ratios computed over a window
+    must PROVE the window contains the transition; endpoints against the
+    other build's steady state are the safer comparison.
+70. Every monitor tab "click" of the first two sweep runs silently missed
+    the window: `monitorActionPoint` speaks MONITOR-CANVAS coordinates and
+    the driver fed them to the mouse as client pixels — the monitor drew
+    'home' once and the whole "clean sweep" covered one screen. The audit
+    telemetry counters (MONITOR_AUDIT_STATS.draws/lastScreen) exposed it in
+    one probe; `monitorScreenPoint` is the client-pixel projection. A
+    sweep must prove its surfaces were ENTERED, not only that its recorder
+    stayed quiet.
+71. `bookReservation` rejects minutes off the tee-sheet grid ("Not a tee
+    time on the sheet") — the due-now seeding failed silently until the
+    probe tried four leads. Sim seeding APIs validate; drivers read the
+    reason, not just the boolean.

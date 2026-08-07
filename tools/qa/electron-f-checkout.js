@@ -14,6 +14,7 @@
 //       while the tender rests, and the arm-region pixels move between the
 //       beats. (The card-held control runs as a second, card-method leg.)
 async (page) => {
+  const CARD_ONLY = process.env.QA_FCHK_CARD === '1';
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const { createRequire } = process.getBuiltinModule('node:module');
@@ -44,6 +45,88 @@ async (page) => {
   const MAGENTA = (r, g, b) => r > 190 && b > 190 && g < 90;
   const BLUE = (r, g, b) => b > 190 && r < 90 && g < 110;
 
+  if (CARD_ONLY) {
+    // ---- CARD-ONLY LEG (F6 control): held pose stays -----------------------
+    out.card = await page.evaluate(async () => {
+      const state = window.__fw.state;
+      const sign = await import(new URL('src/sim/shopSign.js', document.baseURI).href);
+      if (!sign.signIsOpen(state)) sign.flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
+      window.__fw.speedIdx = 1;
+      const stocked = Object.entries(state.shop.inventory || {})
+        .filter(([, inv]) => inv && inv.shelf > 0).map(([sku]) => sku).slice(0, 1);
+      if (!stocked.length) return { fail: 'no stock' };
+      const ch = window.__fw.scene3d.clubhouse();
+      const name2 = ch.sendToCounter(stocked, 'card');
+      window.__fc2 = ch.customerByName(name2);
+      return { spawned: !!window.__fc2 };
+    });
+    const cardStaged = await page.waitForFunction(() => {
+      const ch = window.__fw.scene3d.clubhouse();
+      return ch.register.hasTx() && !!window.__fc2?.awaitingCheckout;
+    }, null, { timeout: 120000 }).then(() => true).catch(() => false);
+    out.card.staged = cardStaged;
+    if (cardStaged) {
+      await page.evaluate(() => {
+        const s3 = window.__fw.scene3d;
+        const st = s3.walk.stations()[0];
+        const w = s3.walk.state;
+        w.x = st.x; w.z = st.z + 1.15;
+        w.yaw = Math.atan2(-(st.x - w.x), -(st.z - w.z));
+        w.pitch = -0.2;
+      });
+      await page.waitForTimeout(500);
+      await page.keyboard.press('e');
+      await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(800);
+      const pt = await page.evaluate(async () => {
+        const s3 = window.__fw.scene3d;
+        const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+        const tx = s3.clubhouse().register.getTx();
+        const uid = tx?.items?.[0]?.uid;
+        if (!uid) return null;
+        let mesh = null;
+        s3.scene.traverse((o) => { if (!mesh && o.userData && o.userData.uid === uid) mesh = o; });
+        if (!mesh) return null;
+        const v = mesh.getWorldPosition(new THREE.Vector3()).project(s3.camera);
+        return { x: (v.x + 1) / 2 * window.innerWidth, y: (1 - (v.y + 1) / 2) * window.innerHeight };
+      });
+      if (pt) {
+        await page.evaluate(() => {
+          window.__f6trail = [];
+          window.__f6iv = setInterval(() => {
+            const flow = window.__fw.scene3d.clubhouse().register.getFlow();
+            window.__f6trail.push({ m: window.__fc2?.qaPoseMode || null, f: flow ? flow.state : null });
+            if (window.__f6trail.length > 120) clearInterval(window.__f6iv);
+          }, 250);
+        });
+        await page.mouse.click(pt.x, pt.y);
+      }
+      const presented2 = await page.waitForFunction(() => {
+        const f = window.__fw.scene3d.clubhouse().register.getFlow();
+        return f && ['CardPresented', 'CardInsertReady'].includes(f.state);
+      }, null, { timeout: 30000 }).then(() => true).catch(() => false);
+      out.card.presented = presented2;
+      await page.waitForTimeout(2500);
+      out.card.trail = await page.evaluate(() => {
+        clearInterval(window.__f6iv);
+        return window.__f6trail.slice();
+      });
+      await page.screenshot({ path: path.join(OUT, 'f6-card-held.png') });
+      const cardStates = ['CardPresented', 'CardInsertReady', 'CardInserting'];
+      const during = (out.card.trail || []).filter((e) => e && cardStates.includes(e.f));
+      out.card.heldConstant = during.length >= 3 && during.every((e) => e.m === 'Present');
+    }
+    out.checks = {
+      cardStaged: !!out.card.staged,
+      cardPresented: !!out.card.presented,
+      cardHeldConstant: !!out.card.heldConstant,
+      noPageErrors: errs.length === 0,
+    };
+    out.ok = Object.values(out.checks).every(Boolean);
+    fs.writeFileSync(path.join(OUT, 'f-card.json'), `${JSON.stringify(out, null, 2)}\n`);
+    return out;
+  }
+
   // ---- stage: two in-stock compact skus, a cash customer ------------------
   out.stage = await page.evaluate(() => {
     const state = window.__fw.state;
@@ -54,20 +137,52 @@ async (page) => {
     const picks = stocked.slice(0, 2);
     if (picks.length < 2) return { fail: `only ${picks.length} stocked skus`, stocked: stocked.length };
     const ch = window.__fw.scene3d.clubhouse();
-    window.__fc = ch.sendToCounter(picks, 'cash');
-    return { picks, spawned: !!window.__fc };
+    const name = ch.sendToCounter(picks, 'cash'); // returns the display NAME
+    window.__fc = ch.customerByName(name);
+    return { picks, name, spawned: !!window.__fc };
   });
   if (out.stage.fail) {
     fs.writeFileSync(path.join(OUT, 'f.json'), `${JSON.stringify(out, null, 2)}\n`);
     return out;
   }
 
-  // wait for the goods to reach the mat and the register to take the tx
-  const staged = await page.waitForFunction(() => {
-    const ch = window.__fw.scene3d.clubhouse();
-    return ch.register.hasTx() && !!window.__fc?.awaitingCheckout;
-  }, null, { timeout: 90000 }).then(() => true).catch(() => false);
+  // the sign opens first (a fresh day starts CLOSED; scripted visits survive
+  // the sweep but the shop should be honestly open for a sale)
+  await page.evaluate(async () => {
+    const state = window.__fw.state;
+    const sign = await import(new URL('src/sim/shopSign.js', document.baseURI).href);
+    if (!sign.signIsOpen(state)) sign.flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
+    window.__fw.speedIdx = 1;
+  });
+  // wait for the goods to reach the mat and the register to take the tx,
+  // leaving a trail of what the customer was doing if it never happens
+  out.stagingTrail = [];
+  let staged = false;
+  const tStage = Date.now();
+  while (Date.now() - tStage < 120000) {
+    const snap = await page.evaluate(() => {
+      const ch = window.__fw.scene3d.clubhouse();
+      const c = window.__fc;
+      return {
+        hasTx: ch.register.hasTx(),
+        cart: c ? c.cart.length : null,
+        phase: c ? (c.checkoutPhase || null) : null,
+        awaiting: !!c?.awaitingCheckout,
+        queued: !!c?.queued,
+        stop: c && c.stops && c.stops[c.stopIdx] ? c.stops[c.stopIdx].kind : null,
+        reachedHead: !!c?.reachedRegHead,
+      };
+    });
+    out.stagingTrail.push(snap);
+    if (snap.hasTx && snap.awaiting) { staged = true; break; }
+    await page.waitForTimeout(5000);
+  }
   out.staged = staged;
+  if (!staged) {
+    fs.writeFileSync(path.join(OUT, 'f.json'), `${JSON.stringify(out, null, 2)}
+`);
+    return out;
+  }
 
   // enter the till through the F1 door: stand + real E
   await page.evaluate(() => {
@@ -132,7 +247,13 @@ async (page) => {
         return (hi - lo) / 2 * window.innerHeight;
       },
       itemMesh(uid) {
-        return window.__fc.itemMeshes.get(uid) || null;
+        // after handoff the REGISTER owns the meshes; find by the uid the
+        // register stamps on userData
+        let found = null;
+        s3.scene.traverse((o) => {
+          if (!found && o.userData && o.userData.uid === uid) found = o;
+        });
+        return found;
       },
     };
     return true;
@@ -156,13 +277,19 @@ async (page) => {
         if (window.__fckTrack.on !== false) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
-      const info = window.__qaRegister?.item?.(id);
-      if (!info) return { fail: 'no qaRegister item' };
-      const v = new window.__fck.THREE.Vector3(info.x, info.y, info.z).project(s3.camera);
+      // __qaRegister is the ACCEPTANCE harness's helper, not the game's —
+      // project the mesh's own world position, then verify the click point
+      // resolves to this item through the register's own picker
+      const wp = mesh.getWorldPosition(new window.__fck.THREE.Vector3());
+      const v = wp.clone().project(s3.camera);
+      const x = (v.x + 1) / 2 * window.innerWidth;
+      const y = (1 - (v.y + 1) / 2) * window.innerHeight;
+      const picked = reg.debugPickAt?.(x, y);
       return {
-        x: (v.x + 1) / 2 * window.innerWidth,
-        y: (1 - (v.y + 1) / 2) * window.innerHeight,
+        x,
+        y,
         occ: !!occ,
+        pickResolves: !!(picked && picked.physical && picked.physical.uid === id),
       };
     }, [uid, !!hideOccluder]);
     if (setup.fail) return { fail: setup.fail };
@@ -197,6 +324,19 @@ async (page) => {
   });
   out.f3 = await ringAndCapture(uids[0], 'f3-fixed', false);
   await page.waitForTimeout(1200);
+  // the two-beat proof needs the trail RUNNING before the LAST ring — that
+  // ring completes the basket and starts the auto-payment clock, and run 6's
+  // post-ring install (after ~3.5 s of node-side pixel counting) woke to a
+  // tender already landed and aged. Entries carry the flow state so the
+  // check reads beats against the flow, not against wall time.
+  await page.evaluate(() => {
+    window.__f6trail = [];
+    window.__f6iv = setInterval(() => {
+      const flow = window.__fw.scene3d.clubhouse().register.getFlow();
+      window.__f6trail.push({ m: window.__fc?.qaPoseMode || null, f: flow ? flow.state : null });
+      if (window.__f6trail.length > 120) clearInterval(window.__f6iv);
+    }, 250);
+  });
   out.f3control = await ringAndCapture(uids[1], 'f3-control-no-occluder', true);
   await page.waitForTimeout(1200);
 
@@ -208,25 +348,53 @@ async (page) => {
   out.cashPresented = presented;
 
   if (presented) {
-    // pose beats: sample qaPoseMode through the landing
-    const modes = [];
-    for (let i = 0; i < 10; i += 1) {
-      modes.push(await page.evaluate(() => window.__fc.qaPoseMode || null));
-      await page.waitForTimeout(300);
-    }
-    out.f6modes = modes;
+    await page.waitForTimeout(2500);
+    out.f6modes = await page.evaluate(() => {
+      clearInterval(window.__f6iv);
+      return window.__f6trail.slice();
+    });
 
-    // F4: drawn money vs the tender
+    // F4: drawn money vs the tender — PRESENTED pieces only (run 5's
+    // unfiltered traverse counted the whole drawer float and passed
+    // trivially). A presented piece is identified by its userData.from
+    // channel; the drawer's stacks are not part of the tender.
     out.f4 = await page.evaluate(() => {
       const s3 = window.__fw.scene3d;
       const tx = s3.clubhouse().register.getTx();
-      const money = [];
+      const all = [];
       s3.scene.traverse((o) => {
         if (o.userData && o.userData.kind === 'money' && o.visible) {
-          money.push(o.userData.denom ?? o.userData.value ?? o.name);
+          // a bill GLB carries the money flag on sub-meshes too - count only
+          // ROOTS or every note counts twice (run 6: {10:3, 50:2} for a
+          // fifty-and-a-ten)
+          // GLBs nest unflagged intermediate nodes (Scene > RootNode >
+          // Bill_Body), so the DIRECT parent test still double-counted —
+          // walk every ancestor
+          let anc = o.parent;
+          let parentMoney = false;
+          while (anc) {
+            if (anc.userData && anc.userData.kind === 'money') { parentMoney = true; break; }
+            anc = anc.parent;
+          }
+          if (!parentMoney) {
+            all.push({ denom: o.userData.denom ?? o.userData.value ?? null, from: o.userData.from ?? null, name: o.name });
+          }
         }
       });
-      return { tendered: tx ? tx.tendered : null, moneyMeshes: money };
+      const fromValues = [...new Set(all.map((m) => m.from))];
+      // the pile carries one generous UNSEEN click pad (kind money,
+      // denom set, no name, no children) - a pick target, not a note
+      const presented = all.filter((m) => m.from && /custom|tender|present/i.test(String(m.from)) && m.name);
+      const counts = {};
+      for (const m of presented) counts[m.denom] = (counts[m.denom] || 0) + 1;
+      return {
+        tendered: tx ? tx.tendered : null,
+        fromValues,
+        presentedCounts: counts,
+        totalMoneyMeshes: all.length,
+        sample: all.slice(0, 4),
+        presentedSample: presented.map((m) => ({ denom: m.denom, name: m.name })).slice(0, 8),
+      };
     });
 
     // F5: paint head green, money magenta, customer body blue; sample
@@ -288,25 +456,30 @@ async (page) => {
     out.f6laidShot = 'f5-5.png (last sample) vs f5-0.png (first)';
   }
 
-  // clean up the stage so later drivers meet an empty counter
+  // clean up the stage so the card leg meets a free register
   await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
     ch.register.leave?.();
     if (window.__fc) ch.completeCustomer?.(window.__fc.id);
   });
+  out.txCleared = await page.waitForFunction(
+    () => !window.__fw.scene3d.clubhouse().register.hasTx(),
+    null, { timeout: 30000 },
+  ).then(() => true).catch(() => false);
   await page.waitForTimeout(800);
 
   // ---- CARD LEG (F6 control): held pose stays ------------------------------
-  out.card = await page.evaluate(() => {
+  out.card = !out.txCleared ? { skipped: 'cash tx never cleared the register' } : await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
     const state = window.__fw.state;
     const stocked = Object.entries(state.shop.inventory || {})
       .filter(([, inv]) => inv && inv.shelf > 0).map(([sku]) => sku);
     if (!stocked.length) return { fail: 'no stock left' };
-    window.__fc2 = ch.sendToCounter([stocked[0]], 'card');
+    const name2 = ch.sendToCounter([stocked[0]], 'card');
+    window.__fc2 = ch.customerByName(name2);
     return { spawned: !!window.__fc2 };
   });
-  if (!out.card.fail) {
+  if (!out.card.fail && !out.card.skipped) {
     const cardStaged = await page.waitForFunction(() => {
       const ch = window.__fw.scene3d.clubhouse();
       return ch.register.hasTx() && !!window.__fc2?.awaitingCheckout;
@@ -332,9 +505,9 @@ async (page) => {
       if (uid2) {
         const pt = await page.evaluate(([id]) => {
           const s3 = window.__fw.scene3d;
-          const info = window.__qaRegister?.item?.(id);
-          if (!info) return null;
-          const v = new window.__fck.THREE.Vector3(info.x, info.y, info.z).project(s3.camera);
+          const mesh = window.__fck.itemMesh(id);
+          if (!mesh) return null;
+          const v = mesh.getWorldPosition(new window.__fck.THREE.Vector3()).project(s3.camera);
           return { x: (v.x + 1) / 2 * window.innerWidth, y: (1 - (v.y + 1) / 2) * window.innerHeight };
         }, [uid2]);
         if (pt) {
@@ -370,6 +543,7 @@ async (page) => {
   const firstRed = f3f.length ? f3f[0].red : 0;
   const lastRed = f3f.length ? f3f[f3f.length - 1].red : -1;
   const ctrlLast = f3c.length ? f3c[f3c.length - 1].red : -1;
+  const ctrlTail = f3c.slice(-4).map((f) => f.red);
   const hSamples = out.f3?.track?.samples || [];
   const hSpread = hSamples.length >= 4
     ? (Math.max(...hSamples) - Math.min(...hSamples)) / Math.max(1, hSamples[0])
@@ -383,13 +557,27 @@ async (page) => {
     f3PixelsVanish: firstRed > 400 && lastRed === 0,
     f3FullSizeHidden: out.f3?.track?.finalVisible === false && out.f3?.track?.owner === 'packed-in-bag',
     f3BboxSteady: hSpread !== null && hSpread < 0.35,
-    f3ControlKeepsPixels: ctrlLast > Math.max(150, firstRed * 0.15),
-    f4TenderMatchesMeshes: !!(out.f4 && out.f4.tendered && out.f4.moneyMeshes.length > 0),
+    f3ControlKeepsPixels: ctrlLast >= 150 && lastRed === 0
+      && ctrlTail.every((r2) => r2 >= 150),
+    f4TenderMatchesMeshes: !!(out.f4 && out.f4.tendered
+      && Object.keys(out.f4.tendered).length > 0
+      && Object.entries(out.f4.tendered).every(([d, n]) => out.f4.presentedCounts[d] === n)
+      && Object.keys(out.f4.presentedCounts).length === Object.keys(out.f4.tendered).length
+      && Object.keys(out.f4.presentedCounts).every((d) => Number(d) >= 0.25)),
     f5HeadVisible: !!(f5min && out.f5.headBaseline > 0 && f5min.head >= 0.6 * out.f5.headBaseline),
     f5TenderVisible: !!(f5min && f5min.tender >= 200),
-    f6TwoBeats: !!(out.f6modes && out.f6modes.includes('Present') && out.f6modes.includes('CashLaid')
-      && out.f6modes.indexOf('Present') < out.f6modes.lastIndexOf('CashLaid')),
-    f6CardHeld: !!(out.card && out.card.modes && out.card.modes.every((m) => m === 'Present')),
+    f6TwoBeats: (() => {
+      const t = out.f6modes || [];
+      const iPresent = t.findIndex((e) => e && e.m === 'Present');
+      const iLaid = t.map((e) => (e && e.m) || null).lastIndexOf('CashLaid');
+      return iPresent >= 0 && iLaid > iPresent;
+    })(),
+    f6CardHeld: (() => {
+      try {
+        const cardRun = JSON.parse(fs.readFileSync(path.join(OUT, 'f-card.json'), 'utf8'));
+        return !!cardRun.checks?.cardHeldConstant;
+      } catch { return false; }
+    })(),
     noPageErrors: errs.length === 0,
   };
   out.ok = Object.values(out.checks).every(Boolean);
