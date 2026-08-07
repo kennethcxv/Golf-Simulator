@@ -10044,7 +10044,14 @@ export function makeCourseScene(canvas, state) {
   // route, the every-frame bake was ~5ms of GPU per frame (90.5 → 164.1 fps frozen). Ten
   // bakes a second keeps character shadows visually glued to their feet and gives almost
   // all of that time back.
-  const SHADOW_BAKE_MS = 100;
+  // ...and it is a SETTING, because it is the single biggest lever on the number
+  // the player actually feels. Measured in Electron on pine-hills-v2 at a fixed
+  // shop-floor pose (tools/qa/electron-frame-profile.js, 2026-08-06): frames
+  // carrying a bake averaged 61.3 ms against 9.5 ms for frames that did not, and
+  // the 1% low at that pose was 1.9 fps against 39.9 fps with the shadow map
+  // switched off entirely. Average frame rate is not the problem in this game;
+  // the bake frame is.
+  let shadowBakeMs = 100;
   let shadowClock = Infinity; // Infinity → the very first frame always bakes
   let shadowBakes = 0; // perf probes read this to attribute frame spikes to bakes
 
@@ -10056,9 +10063,12 @@ export function makeCourseScene(canvas, state) {
   // 10Hz rebake never swims as the player moves.
   const SHADOW_WALK_SPAN = 120;
   const SHADOW_EDITOR_SPAN = 220;
-  const SHADOW_WALK_MAP = 2048;
-  const SHADOW_EDITOR_MAP = 2048;
-  const SHADOW_FULL_MAP = 4096;
+  // Tunable by the quality preset. fitSunShadow re-asserts these every mode
+  // change and on any drift, so they are the only place a size may be set from —
+  // a QA or settings hand on sun.shadow.mapSize is overwritten within a frame.
+  let SHADOW_WALK_MAP = 2048;
+  let SHADOW_EDITOR_MAP = 2048;
+  let SHADOW_FULL_MAP = 4096;
   let shadowFitMode = null;
   let editorShadowFocus = false;
   const shadowFwd = new THREE.Vector3();
@@ -10120,6 +10130,47 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
+  // THE SHADOW QUALITY LEVER, exposed so the settings preset can actually reach
+  // it. Sizes go through fitSunShadow's own re-assert rather than being written
+  // to sun.shadow.mapSize here: it owns that field, disposes the old GL target
+  // on a genuine size change, and re-fits the camera to match. Setting the map
+  // directly from outside left the fit half-applied, which is the bug the
+  // re-assert was added for.
+  //
+  // walkMap is the one that matters on foot — it is the map baked ten times a
+  // second while the player is inside the shop. fullMap only bakes in the
+  // overview. bakeMs trades shadow latency for frame time: at 100 ms a walking
+  // character's shadow is glued to its feet; at 200 ms it lags perceptibly on a
+  // fast turn, which is why that is a preset choice and not a default.
+  function setShadowQuality({ walkMap, editorMap, fullMap, bakeMs } = {}) {
+    const size = (value, current) => {
+      const n = Number(value);
+      return [512, 1024, 2048, 4096].includes(n) ? n : current;
+    };
+    SHADOW_WALK_MAP = size(walkMap, SHADOW_WALK_MAP);
+    SHADOW_EDITOR_MAP = size(editorMap, SHADOW_EDITOR_MAP);
+    SHADOW_FULL_MAP = size(fullMap, SHADOW_FULL_MAP);
+    const ms = Number(bakeMs);
+    if (Number.isFinite(ms) && ms >= 16 && ms <= 1000) shadowBakeMs = Math.round(ms);
+    // force the next frame to re-fit and re-bake at the new size
+    shadowFitMode = null;
+    shadowClock = Infinity;
+    return {
+      walkMap: SHADOW_WALK_MAP, editorMap: SHADOW_EDITOR_MAP, fullMap: SHADOW_FULL_MAP, bakeMs: shadowBakeMs,
+    };
+  }
+
+  // THE WHOLE POST CHAIN, off. Turning GTAO and bloom off individually still
+  // pays for the composer: a RenderPass into a 4x-MSAA half-float target, a
+  // resolve, and an OutputPass blit. On Low the player has already said they do
+  // not want the look, so skip the target entirely and draw to the back buffer.
+  // Kept separate from post.gtao.enabled / post.bloom.enabled so a player who
+  // wants bloom without AO still gets the composer.
+  function setPostEnabled(on) {
+    postEnabled = on !== false;
+    return postEnabled;
+  }
+
   function setEditorShadowFocus(active) {
     const next = !!active;
     if (editorShadowFocus === next) return;
@@ -10136,7 +10187,7 @@ export function makeCourseScene(canvas, state) {
     // partly rendered frame when the player crosses an LOD refresh boundary.
     floraLodUpdate?.();
     shadowClock += dtMs;
-    if (shadowClock >= SHADOW_BAKE_MS) {
+    if (shadowClock >= shadowBakeMs) {
       fitSunShadow();
       renderer.shadowMap.needsUpdate = true;
       shadowClock = 0;
@@ -11275,14 +11326,45 @@ export function makeCourseScene(canvas, state) {
     // load time to avoid, for a vanishing subset instead of all of it.
     const culled = [];
     const warmedPrograms = new Set();
-    const programKey = (object, material) => [
-      material.uuid,
-      object.isSkinnedMesh ? 's' : '',
-      object.isInstancedMesh ? 'i' : '',
-      object.geometry?.morphAttributes?.position ? 'm' : '',
-      object.geometry?.attributes?.color ? 'c' : '',
-      object.geometry?.attributes?.uv2 ? '2' : '',
-    ].join('|');
+    // THIS KEY HAS TO BE AT LEAST AS FINE AS THREE'S OWN, or the phase warms one
+    // representative of a group that is really several programs and the rest
+    // compile later, in front of the player.
+    //
+    // It was not. Measured in Electron on pine-hills-v2 2026-08-06
+    // (tools/qa/electron-stall-attribution.js): 42 programs arrived AFTER the
+    // load veil lifted, 36 of them `physical`, and diffing each late cacheKey
+    // against its nearest already-warm twin named the field that differed —
+    // `morphAttributeCount` on 35 of the 42, going 1→2, 3→2 and 6→2. The old key
+    // collapsed every morph count into one 'm' flag, so a material used by two
+    // geometries with different numbers of morph targets warmed ONE of them.
+    //
+    // The bill for the rest landed on the first walk into the shop: 2,460 ms of
+    // stalls across eight frames, worst 1,290 ms, against 232 ms for the
+    // identical spin once they were resident. A control that forces twenty
+    // brand-new programs in front of the eye costs 684 ms, so ~34 ms a program
+    // is the going rate on an RTX 5080 and these numbers are the right size.
+    //
+    // Morph COUNTS (not a boolean), and the two shadow flags, are the parameters
+    // three keys on that an object can differ in while sharing a material. The
+    // rest of its key is a function of the material, the renderer and the light
+    // set, which the representative already carries.
+    const programKey = (object, material) => {
+      const g = object.geometry;
+      const morph = g?.morphAttributes || null;
+      return [
+        material.uuid,
+        object.isSkinnedMesh ? 's' : '',
+        object.isInstancedMesh ? 'i' : '',
+        // the count, and which attributes are morphed — three bakes both into the shader
+        morph?.position?.length || 0,
+        morph?.normal?.length || 0,
+        morph?.color?.length || 0,
+        g?.attributes?.color ? 'c' : '',
+        g?.attributes?.uv2 ? '2' : '',
+        object.receiveShadow ? 'r' : '',
+        object.castShadow ? 'C' : '',
+      ].join('|');
+    };
     const _warmPos = new THREE.Vector3();
     const eyeNow = camera.getWorldPosition(new THREE.Vector3());
     let nearWarmed = 0;
@@ -11325,6 +11407,87 @@ export function makeCourseScene(canvas, state) {
     prewarmTimings.push({ label: 'gl-programs', ms: renderer.info.programs?.length ?? -1 });
     prewarmTimings.push({ label: 'distinct-programs', ms: warmedPrograms.size });
     phaseAt = markPrewarm('forced-full-draw', phaseAt);
+
+    // THE SHOP FLOOR, WARMED FROM INSIDE IT.
+    //
+    // The forced draw above disables frustum culling, so it submits every warm
+    // representative whatever the camera is looking at — geometry coverage is
+    // complete from one pose. But a GL program's cache key is not a function of
+    // the geometry alone: it carries the NUMBER of lights of each type, the
+    // shadow-map type and the clipping-plane count, all of which are properties
+    // of the FRAME. Standing at the spawn, outdoors, that frame has the exterior
+    // light set. Walking into the shop is a different frame, and every physical
+    // program in the world is a different program in it.
+    //
+    // Measured in Electron on pine-hills-v2 2026-08-06
+    // (tools/qa/electron-stall-attribution.js): the first spin on the shop floor
+    // cost 2.5-4.8 s across six to eight stalled frames, the worst 1,290 ms. The
+    // IDENTICAL spin immediately afterwards cost 43-330 ms with no program
+    // arrivals at all, and a fresh OUTDOOR pose — where the spawn warm stood —
+    // cost nothing. Standing still at the spawn for twelve seconds with the world
+    // running cost nothing either, so it is not the living world's churn.
+    //
+    // So: two more forced draws, one with the eye in the middle of the interior
+    // and one with the interior hidden, to compile both light states behind the
+    // veil. Geometry is already resident, so the marginal cost is the programs
+    // themselves. clubhouse.update() is deliberately NOT called — that would
+    // advance customers, deliveries and checkout state behind the veil, which is
+    // the mistake the editor-camera warm below documents.
+    const warmInterior = clubhouseApi?.interior || null;
+    if (warmInterior) {
+      const savedWarm = {
+        position: camera.position.clone(),
+        quaternion: camera.quaternion.clone(),
+        interiorVisible: warmInterior.visible,
+        walkActive: walk.active,
+        walkX: walk.x,
+        walkZ: walk.z,
+      };
+      const anchor = warmInterior.getWorldPosition(new THREE.Vector3());
+      // eye height above the floor the interior sits on, looking level
+      camera.position.set(anchor.x, anchor.y + 1.7, anchor.z);
+      camera.rotation.set(0, 0, 0, 'YXZ');
+      camera.updateMatrixWorld(true);
+      // walk mode picks the ±120yd fitted shadow box rather than the whole-course
+      // 4096 — a different shadowMapType/size and therefore different programs.
+      // fitSunShadow centres that box on walk.x/walk.z, NOT on the camera, so
+      // moving the eye alone leaves the shadow box back at the spawn and the
+      // interior's own depth pass never warms. (It did exactly that on the first
+      // attempt, which is why that attempt measured as doing nothing.)
+      walk.active = true;
+      walk.x = anchor.x;
+      walk.z = anchor.z;
+      for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        if (!alive()) return false;
+        camera.rotation.set(0, yaw, 0, 'YXZ');
+        camera.updateMatrixWorld(true);
+        clubhouseApi?.syncCameraVisibility?.();
+        fitSunShadow();
+        renderer.shadowMap.needsUpdate = true;
+        guardCourseWaterReflection.beginFrame();
+        try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+      }
+      prewarmTimings.push({ label: 'gl-programs-after-interior', ms: renderer.info.programs?.length ?? -1 });
+      // ...and the other side of the same switch: the exterior light set with the
+      // interior explicitly down, so stepping back out of the door is warm too.
+      warmInterior.visible = false;
+      camera.position.copy(savedWarm.position);
+      camera.quaternion.copy(savedWarm.quaternion);
+      camera.updateMatrixWorld(true);
+      walk.x = savedWarm.walkX;
+      walk.z = savedWarm.walkZ;
+      fitSunShadow();
+      renderer.shadowMap.needsUpdate = true;
+      guardCourseWaterReflection.beginFrame();
+      try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+      warmInterior.visible = savedWarm.interiorVisible;
+      walk.active = savedWarm.walkActive;
+      camera.updateMatrixWorld(true);
+      prewarmTimings.push({ label: 'gl-programs-after-both', ms: renderer.info.programs?.length ?? -1 });
+      phaseAt = markPrewarm('interior-camera-warm', phaseAt);
+      await tick();
+      if (!alive()) return false;
+    }
 
     // The editor camera can move beyond the clubhouse's draw radius. That hides
     // its interior PointLights and changes the light-count defines on every
@@ -11516,6 +11679,8 @@ export function makeCourseScene(canvas, state) {
     golferCount: () => golfers.length,
     setGolfersVisible: (v) => { golferGroup.visible = !!v; },
     setEditorShadowFocus,
+    setShadowQuality,
+    setPostEnabled,
     assetBarrier: (timeoutMs = 12000) => ({
       idle: !assetsInFlight,
       promise: whenAssetsIdle(timeoutMs),

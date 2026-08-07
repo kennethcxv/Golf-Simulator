@@ -40,6 +40,42 @@ export const SUPERSEDES = Object.freeze([
 export const EXTERIOR_VISIBLE_PROP_NUMBERS = Object.freeze([93, 94, 98, 99, 100]);
 const EXTERIOR_VISIBLE_PROP_SET = new Set(EXTERIOR_VISIBLE_PROP_NUMBERS);
 export const PROP_DETAIL_EXTERIOR_CLEARANCE_YD = 1.5;
+
+// ...BUT A PROP THAT OWNS A RUNTIME LIGHT IS EXEMPT FROM THAT CULL.
+//
+// Hiding a root prunes the whole subtree out of three's per-frame walk — lights
+// included — and the NUMBER of lights of each type is part of the cache key of
+// every standard-material program in the scene. So crossing this 1.5 yd
+// threshold took the point-light count from 5 to 3 and recompiled every
+// `physical` program in the world. ANGLE defers the real HLSL compile to a
+// program's first DRAW, so the bill arrives as a freeze, on the JS thread,
+// while the player is walking.
+//
+// Measured in Electron on pine-hills-v2 (tools/qa/electron-stall-attribution.js,
+// 2026-08-06): the first spin on the shop floor cost 2,460 ms across eight
+// stalled frames, the worst 1,290 ms; the IDENTICAL spin immediately after cost
+// 232 ms with no program arrivals. 42 programs arrived after the prewarm had
+// finished, 36 of them `physical`. A fresh outdoor pose — where the prewarm
+// camera stands — stalled not at all.
+//
+// What the cull was buying on these two props is a desk lamp and an emergency
+// light: a few hundred triangles seen through a window. What it cost was a
+// two-and-a-half-second freeze on the first walk into your own pro shop, and
+// another every time a light-bearing prop is installed thereafter.
+//
+// Derived from `placement.light`, not from asset numbers, for the reason
+// runtimeAssetNeedsLiveVisualHierarchy gives above: a new lamp added to
+// PROP_PLACEMENTS must not silently reintroduce the stall.
+export const LIGHT_BEARING_PROP_NUMBERS = Object.freeze(
+  PROP_PLACEMENTS.filter((placement) => placement && placement.light).map((placement) => placement.n),
+);
+const LIGHT_BEARING_PROP_SET = new Set(LIGHT_BEARING_PROP_NUMBERS);
+
+// The one gate the detail LOD may not close. Kept as a named function because
+// three call sites ask the same question and they drifted apart once already.
+const propSurvivesDetailCull = (number) => (
+  EXTERIOR_VISIBLE_PROP_SET.has(Number(number)) || LIGHT_BEARING_PROP_SET.has(Number(number))
+);
 export const FACILITY_GATED_PROP_ASSETS = Object.freeze({
   61: 'frontCounter',
   66: 'officeDesk',
@@ -713,7 +749,7 @@ export function buildProps({
     typeof visibilityForAsset === 'function'
     || Object.hasOwn(FACILITY_GATED_PROP_ASSETS, number)
     || Object.hasOwn(FIXTURE_GATED_PROP_ASSETS, number)
-    || EXTERIOR_VISIBLE_PROP_SET.has(number)
+    || propSurvivesDetailCull(number)
   );
 
   function anchorFor(fixtureId) {
@@ -909,7 +945,7 @@ export function buildProps({
       if (!socketAligned) failed.push({ n: placement.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
     }
     root.visible = passesVisibilityGate(placement.n)
-      && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(placement.n));
+      && (detailedVisible || propSurvivesDetailCull(placement.n));
 
     const spec = placement.interaction;
     if (spec?.kind === 'toggle' && stateRecord[spec.state]) {
@@ -1072,7 +1108,7 @@ export function buildProps({
     for (const [number, entries] of placedByNumber) {
       for (const entry of entries) {
         entry.root.visible = passesVisibilityGate(number)
-          && (detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(number));
+          && (detailedVisible || propSurvivesDetailCull(number));
         if (entry.root.visible) visible += 1;
         total += 1;
       }

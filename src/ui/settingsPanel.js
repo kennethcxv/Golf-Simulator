@@ -1,4 +1,4 @@
-import { QUALITY_PRESETS } from '../core/preferences.js';
+import { QUALITY_PRESETS, QUALITY_PRESET_NOTES, RESOLUTION_PRESETS } from '../core/preferences.js';
 import {
   BINDABLE_ACTIONS, DEFAULT_BINDINGS, actionLabel, bindingConflicts,
   canonicalKeyName, describeKey, isBindableKey,
@@ -167,15 +167,21 @@ export function makeSettingsPanel({
             console.error('resolution change failed', error);
           }
         },
-      }, ...resolutions.map(({ width, height }) => el('option', {
+      }, ...resolutions.map(({ width, height, label, fits }) => el('option', {
         value: `${width}x${height}`,
-        text: `${width} × ${height}`,
+        // A size the display cannot show is listed and greyed, with the reason,
+        // rather than omitted — an absent 4K reads as a missing feature.
+        text: `${width} × ${height}${label ? ` (${label})` : ''}${fits === false ? ' - larger than this display' : ''}`,
+        disabled: fits === false ? true : null,
         selected: width === info.width && height === info.height ? true : null,
       })));
       mode.addEventListener('change', () => { resolution.disabled = mode.value === 'fullscreen'; });
+      const area = info.workArea
+        ? `This display has room for ${info.workArea.width} × ${info.workArea.height}.`
+        : '';
       status.append(
         row('Window mode', 'Fullscreen uses the active display. Windowed mode supports explicit sizes.', mode),
-        row('Window resolution', 'Available while windowed; the game UI remains responsive.', resolution),
+        row('Window resolution', `Available while windowed; the game UI remains responsive. ${area}`.trim(), resolution),
       );
     }).catch((error) => {
       status.textContent = 'Native display controls are unavailable in this session.';
@@ -191,19 +197,39 @@ export function makeSettingsPanel({
         if (preset) update({ display: preset });
       },
     }, ...[
-      ['low', 'Low'], ['balanced', 'Balanced'], ['high', 'High'], ['custom', 'Custom'],
+      ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra'], ['custom', 'Custom'],
     ].map(([value, text]) => el('option', {
       value, text, selected: preferences.values.display.quality === value ? true : null,
       disabled: value === 'custom' ? true : null,
     })));
+    // E2: a preset that does not say what it does is a preset nobody dares move.
+    // The line comes from QUALITY_PRESET_NOTES so it cannot drift from the values.
+    const qualityNote = el('p', {
+      class: 'settings-note',
+      text: QUALITY_PRESET_NOTES[preferences.values.display.quality] || 'Your own mix of the settings below.',
+    });
+    quality.addEventListener('change', () => {
+      qualityNote.textContent = QUALITY_PRESET_NOTES[quality.value] || 'Your own mix of the settings below.';
+    });
+    const shadowQuality = el('select', {
+      'aria-label': 'Shadow quality',
+      onchange: (event) => set('display.shadowQuality', event.currentTarget.value),
+    }, ...[
+      ['off', 'Off'], ['low', 'Low - 1024, 5 per second'],
+      ['medium', 'Medium - 2048, 10 per second'], ['high', 'High - 4096, 16 per second'],
+    ].map(([value, text]) => el('option', {
+      value, text, selected: preferences.values.display.shadowQuality === value ? true : null,
+    })));
     const page = section(t('settings.display.title'), t('settings.display.intro'),
       row('Graphics quality', 'Sets render scale, ambient occlusion, bloom, and shadows together.', quality),
+      qualityNote,
       slider(t('settings.display.renderScale'), t('settings.display.renderScale.detail'), 'display.renderScale', {
         min: 0.65, max: 1.35, step: 0.05, format: pct,
       }),
       toggle(t('settings.display.ao'), t('settings.display.ao.detail'), 'display.ambientOcclusion'),
       toggle(t('settings.display.bloom'), t('settings.display.bloom.detail'), 'display.bloom'),
       toggle(t('settings.display.shadows'), t('settings.display.shadows.detail'), 'display.shadows'),
+      row('Shadow detail', 'How big the sun\'s shadow map is and how often it is redrawn. The single biggest cost in the shop.', shadowQuality),
       slider(t('settings.display.uiScale'), t('settings.display.uiScale.detail'), 'display.uiScale', {
         min: 0.9, max: 1.3, step: 0.05, format: pct,
       }),

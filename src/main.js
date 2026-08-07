@@ -44,7 +44,9 @@ import { makeMenu } from './screens/menu.js';
 import {
   inspectData, loadDataWithStatus, saveData, summarizeSave,
 } from './core/storage.js';
-import { applyDocumentPreferences, makePreferences } from './core/preferences.js';
+import {
+  applyDocumentPreferences, makePreferences, RESOLUTION_PRESETS, SHADOW_QUALITY_LEVELS,
+} from './core/preferences.js';
 import { actionForKey, keyForAction, describeKey } from './core/keyBindings.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
@@ -1518,13 +1520,59 @@ function applySettings() {
   // Cap device pixel ratio at 1.5 — the perf ceiling the scene is tuned for. A
   // 4K/retina panel at native DPR quadruples the pixel cost for no visible gain
   // at this art style. renderScale still lets the player trade sharpness for fps.
-  app.scene3d.renderer.setPixelRatio(Math.min(1.5, (window.devicePixelRatio || 1) * values.display.renderScale));
-  app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
+  //
+  // ...BUT THE CAP MUST NOT SWALLOW A DELIBERATE REQUEST FOR MORE. On a 1.5-DPR
+  // panel, `Math.min(1.5, 1.5 * renderScale)` returns 1.5 for renderScale 1.0
+  // AND 1.15, so Ultra rendered exactly as many pixels as High. Measured
+  // 2026-08-06 (tools/qa/electron-quality-presets.js): high→ultra separated by
+  // -2.1%, +3.9% and +1.3% at the three fixed poses, all inside the run's own
+  // 8.4% drift — a tier that cost nothing and gave nothing. The cap is a
+  // DEFAULT ceiling, so it applies only while the player is at or below 100%.
+  const scale = values.display.renderScale;
+  const dprCeiling = scale > 1 ? 2 : 1.5;
+  app.scene3d.renderer.setPixelRatio(
+    Math.min(dprCeiling, (window.devicePixelRatio || 1) * scale),
+  );
+  // TOGGLING shadowMap.enabled REQUIRES RECOMPILING EVERY MATERIAL. Three bakes
+  // the shadow sampler declarations into the shader, so a program compiled with
+  // shadows on keeps sampling a map that is no longer being written. Measured in
+  // Electron 2026-08-06 while A/Bing the quality presets: turning shadows off at
+  // runtime produced a continuous stream of
+  //   GL_INVALID_OPERATION: glDrawElements: Mismatch between texture format and
+  //   sampler type (signed/unsigned/float/shadow)
+  // — one per draw call, for as long as the setting stayed off. It has been
+  // possible to reach this from the settings screen for as long as the toggle
+  // has existed. Guarded on an actual change so moving any OTHER slider does not
+  // pay for a full recompile.
+  if (app.scene3d.renderer.shadowMap.enabled !== values.display.shadows) {
+    app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
+    app.scene3d.scene.traverse((object) => {
+      if (!object.material) return;
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (material) material.needsUpdate = true;
+      }
+    });
+  }
+  // E2/A: the shadow tier is the biggest single lever on the number the player
+  // feels. The map baked on foot and how often it is baked both come from here;
+  // courseScene owns sun.shadow.mapSize and re-asserts it, so this is a request
+  // rather than a write.
+  const shadowLevel = SHADOW_QUALITY_LEVELS[values.display.shadowQuality]
+    || SHADOW_QUALITY_LEVELS.medium;
+  app.scene3d.setShadowQuality?.({
+    walkMap: shadowLevel.walkMap,
+    editorMap: shadowLevel.walkMap,
+    fullMap: shadowLevel.fullMap,
+    bakeMs: shadowLevel.bakeMs,
+  });
   app.scene3d.resize();
   if (app.scene3d.post) {
     if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = values.display.ambientOcclusion;
     if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = values.display.bloom;
   }
+  // E2/A: Low skips the composer entirely rather than running it with both
+  // effects switched off — see the note on QUALITY_PRESETS.low.
+  app.scene3d.setPostEnabled?.(values.display.postProcessing !== false);
   app.scene3d.walk?.configure?.({
     sensitivity: values.camera.sensitivity,
     invertY: values.camera.invertY,

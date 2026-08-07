@@ -165,18 +165,30 @@ ipcMain.handle('fw:display-info', (event) => {
   if (!win) throw new Error('The game window is not ready.');
   const display = screen.getDisplayMatching(win.getBounds());
   const current = win.getContentBounds();
+  // E2: 1080p, 1440p and 4K by name, and 4K is new. The list used to be FILTERED
+  // by the work area, so a size the monitor could not show simply was not there
+  // — which reads as a missing feature rather than a physical limit. Every size
+  // is returned now, each carrying whether it fits, and the settings screen
+  // greys the ones that do not and says why.
   const candidates = [
-    [1100, 680], [1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440],
-  ].filter(([width, height]) => width <= display.workAreaSize.width && height <= display.workAreaSize.height);
+    [1100, 680, ''], [1280, 720, '720p'], [1366, 768, ''], [1600, 900, ''],
+    [1920, 1080, '1080p'], [2560, 1440, '1440p'], [3840, 2160, '4K'],
+  ];
   if (!candidates.some(([width, height]) => width === current.width && height === current.height)) {
-    candidates.push([current.width, current.height]);
+    candidates.push([current.width, current.height, 'current']);
   }
   candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return {
     mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
     width: current.width,
     height: current.height,
-    resolutions: candidates.map(([width, height]) => ({ width, height })),
+    workArea: { width: display.workAreaSize.width, height: display.workAreaSize.height },
+    resolutions: candidates.map(([width, height, label]) => ({
+      width,
+      height,
+      label,
+      fits: width <= display.workAreaSize.width && height <= display.workAreaSize.height,
+    })),
   };
 });
 

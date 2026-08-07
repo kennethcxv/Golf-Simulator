@@ -54,6 +54,13 @@ function shimPage(window, app) {
       if (prop === 'goto') {
         return async () => null;
       }
+      // THE REAL WINDOW, for the handful of acceptances that are about the
+      // window rather than the page. Minimising, restoring and focusing are
+      // main-process acts; CDP's Page.setWebLifecycleState('frozen') is ignored
+      // while a page is visible, so a driver that wants a genuinely backgrounded
+      // renderer has no other way to ask for one. Drivers that do not touch it
+      // are unaffected.
+      if (prop === 'electronApp') return app;
       if (prop === 'setViewportSize') {
         return async (size) => {
           if (!size || !Number.isFinite(size.width) || !Number.isFinite(size.height)) return;
