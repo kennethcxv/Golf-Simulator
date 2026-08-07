@@ -160,34 +160,84 @@ ipcMain.handle('fw:list', async (event) => {
 
 // Native-only presentation controls. Browser QA intentionally omits these
 // rather than displaying toggles that cannot work there.
+//
+// D1 (Full_Goal_16): THE LIST COMPARED PHYSICAL-PIXEL NAMES AGAINST DIP.
+// The candidates are physical sizes — that is what "1080p/1440p/4K" mean —
+// but `fits` compared them against display.workAreaSize, which Electron
+// reports in DIP (scale-factor-divided) and minus the taskbar. On this 4K
+// monitor at Windows scaling, the work area reads ~2560x1392, so 1440p and
+// 4K read "larger than this display" ON a 4K display — the reported bug,
+// verbatim. Everything below now speaks PHYSICAL pixels: the display's real
+// size is size x scaleFactor, `fits` compares against that, and the apply
+// path converts back to DIP (Electron's window units) — going borderless
+// when a size can only exist without window chrome.
+//
+// FW_FAKE_DISPLAY ("1600x900@1") injects at this boundary so the QA negative
+// control exercises the SHIPPED comparison, not a parallel branch.
+const activeDisplay = () => {
+  const fake = process.env.FW_FAKE_DISPLAY;
+  if (fake) {
+    const m = /^(\d+)x(\d+)@([\d.]+)$/.exec(fake);
+    if (m) {
+      const scale = Number(m[3]) || 1;
+      const dipW = Math.round(Number(m[1]) / scale);
+      const dipH = Math.round(Number(m[2]) / scale);
+      return {
+        size: { width: dipW, height: dipH },
+        workAreaSize: { width: dipW, height: dipH - Math.round(40 / scale) },
+        scaleFactor: scale,
+        bounds: { x: 0, y: 0, width: dipW, height: dipH },
+      };
+    }
+  }
+  return screen.getDisplayMatching(win.getBounds());
+};
+
 ipcMain.handle('fw:display-info', (event) => {
   assertTrusted(event);
   if (!win) throw new Error('The game window is not ready.');
-  const display = screen.getDisplayMatching(win.getBounds());
+  const display = activeDisplay();
+  const scale = display.scaleFactor || 1;
+  const physical = {
+    width: Math.round(display.size.width * scale),
+    height: Math.round(display.size.height * scale),
+  };
+  const workPhysical = {
+    width: Math.round(display.workAreaSize.width * scale),
+    height: Math.round(display.workAreaSize.height * scale),
+  };
   const current = win.getContentBounds();
-  // E2: 1080p, 1440p and 4K by name, and 4K is new. The list used to be FILTERED
-  // by the work area, so a size the monitor could not show simply was not there
-  // — which reads as a missing feature rather than a physical limit. Every size
-  // is returned now, each carrying whether it fits, and the settings screen
-  // greys the ones that do not and says why.
+  const currentPhysical = {
+    width: Math.round(current.width * scale),
+    height: Math.round(current.height * scale),
+  };
+  // E2: 1080p, 1440p and 4K by name. Sizes are PHYSICAL pixels throughout.
   const candidates = [
     [1100, 680, ''], [1280, 720, '720p'], [1366, 768, ''], [1600, 900, ''],
     [1920, 1080, '1080p'], [2560, 1440, '1440p'], [3840, 2160, '4K'],
   ];
-  if (!candidates.some(([width, height]) => width === current.width && height === current.height)) {
-    candidates.push([current.width, current.height, 'current']);
+  if (!candidates.some(([width, height]) => width === currentPhysical.width
+    && height === currentPhysical.height)) {
+    candidates.push([currentPhysical.width, currentPhysical.height, 'current']);
   }
   candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return {
     mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
-    width: current.width,
-    height: current.height,
-    workArea: { width: display.workAreaSize.width, height: display.workAreaSize.height },
+    width: currentPhysical.width,
+    height: currentPhysical.height,
+    scaleFactor: scale,
+    physical,
+    // kept for the windowed-mode detail line; now physical like everything else
+    workArea: workPhysical,
     resolutions: candidates.map(([width, height, label]) => ({
       width,
       height,
       label,
-      fits: width <= display.workAreaSize.width && height <= display.workAreaSize.height,
+      fits: width <= physical.width && height <= physical.height,
+      // a size the DISPLAY can show but the windowed work area cannot hold
+      // applies as borderless-fullscreen rather than a clipped window
+      needsBorderless: (width <= physical.width && height <= physical.height)
+        && (width > workPhysical.width || height > workPhysical.height),
     })),
   };
 });
@@ -202,14 +252,33 @@ ipcMain.handle('fw:set-window-mode', (event, mode) => {
 
 ipcMain.handle('fw:set-resolution', (event, width, height) => {
   assertTrusted(event);
-  if (!win || win.isFullScreen()) throw new Error('Window size can only change in windowed mode.');
+  if (!win) throw new Error('The game window is not ready.');
+  // D1: width/height arrive in PHYSICAL pixels (what the list now speaks).
   const w = Math.max(1100, Math.round(Number(width) || 0));
   const h = Math.max(680, Math.round(Number(height) || 0));
-  const display = screen.getDisplayMatching(win.getBounds());
-  if (w > display.workAreaSize.width || h > display.workAreaSize.height) {
+  const display = activeDisplay();
+  const scale = display.scaleFactor || 1;
+  const physical = {
+    width: Math.round(display.size.width * scale),
+    height: Math.round(display.size.height * scale),
+  };
+  if (w > physical.width || h > physical.height) {
     throw new Error('Resolution does not fit the active display.');
   }
-  win.setContentSize(w, h, true);
+  const workPhysical = {
+    width: Math.round(display.workAreaSize.width * scale),
+    height: Math.round(display.workAreaSize.height * scale),
+  };
+  if (w > workPhysical.width || h > workPhysical.height) {
+    // The display can show it but a chromed window cannot hold it: apply as
+    // borderless-fullscreen — which is what picking "4K" on a 4K monitor
+    // means. (Previously this path threw, which is the reported bug.)
+    win.setFullScreen(true);
+    return true;
+  }
+  if (win.isFullScreen()) win.setFullScreen(false);
+  // Electron sizes windows in DIP; convert so the CONTENT is w x h physical.
+  win.setContentSize(Math.round(w / scale), Math.round(h / scale), true);
   win.center();
   return true;
 });
