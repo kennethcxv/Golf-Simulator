@@ -14,7 +14,7 @@ where a control failed, the failure is written down instead of the result.
 | **A** tab-out/tab-in loads a different clubhouse | **not reproduced** | four methods, scene fingerprinted every frame; a build log now names it if it ever happens |
 | **B1** which tools the game needs | **done** | `Designs/ProShop/TOOL_SET.md` |
 | **B2** rebuild them properly | **NOT DONE** | the largest single item in the brief; scoped, not built |
-| **B3** broom hand follows the head, mop strands | **NOT DONE** | |
+| **B3** broom hand follows the head, mop strands | **confirmed on a clip, not fixed** | the fingers sit BESIDE the shaft, not on it |
 | **B4** hands on the handheld tools | **partly** | the pad grip fixed; the vacuum and washer measured and diagnosed, not fixed |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
 | **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
@@ -140,6 +140,32 @@ loader has no KTX2 support and throws outright rather than falling back. A
 change that fixes nothing and breaks a gate is not worth its risk. The reasoning
 is left in `toolFeel.js` so the next attempt starts from the measurement rather
 than from the same wrong idea.
+
+## B3 — watched, not measured, and it is real
+
+"The measurement is not the claim. Watch a clip." So a 34-frame flipbook was
+captured through the whole look sweep, -0.40 to +1.35 and back
+(`qa/electron/broom-b3-clear/`).
+
+**The first capture could not answer the question**, and that is worth recording:
+the driver clicks to request pointer lock, Electron does not grant it, so
+`.shop-lockhint` — a wide opaque bar across the bottom centre — stayed up for
+all 34 frames and sat squarely over the gripping hand. Every frame was being
+judged through the HUD. Hidden for the capture, and the frames became readable.
+
+**What the readable frames show, at the working sweep pitch (`dn-15.png`):** the
+head is planted on the boards, the shaft runs down to the lower right, and the
+fingers are a pale cluster sitting BESIDE the shaft rather than closed around
+it — offset to the left of the pole, with roughly half the hand below the
+bottom edge. The complaint is accurate and the earlier 0.167 → 0.329
+measurement was measuring something else.
+
+Not fixed. What it needs is the gripping hand pinned to the shaft AXIS rather
+than to a camera-space anchor that happens to be near it, which is the same
+family of problem as the vacuum's above — and the vacuum's taught that guessing
+at this costs a full asset rebuild for nothing. The next attempt should start by
+measuring the perpendicular distance from the hand's palm to the shaft line,
+because that is the number the picture is about and nobody has taken it.
 
 ## D — the book
 

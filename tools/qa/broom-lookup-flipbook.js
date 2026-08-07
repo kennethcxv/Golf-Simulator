@@ -34,6 +34,13 @@ async (page) => {
     app.speedIdx = 0;
   });
   await page.mouse.click(640, 360);
+  // B3: THE HUD CHIP SITS EXACTLY WHERE THE HAND IS. The click above requests
+  // pointer lock and Electron does not grant it here, so `.shop-lockhint` — a
+  // wide opaque bar across the bottom centre — stays up for the whole capture
+  // and lands squarely over the gripping hand. Every frame of this flipbook was
+  // being judged through it. Hidden for the capture only; nothing else about
+  // the pose changes, and the tool HUD is not what this driver is about.
+  await page.addStyleTag({ content: '.shop-lockhint, .dirt-sense-hint { display: none !important; }' });
   await page.evaluate(() => window.__fw.scene3d.walk.setTool('broom'));
   await page.waitForFunction(() => window.__fw.scene3d.walk.broomDiagnostics?.()?.vmActive === true,
     null, { timeout: 30000 });

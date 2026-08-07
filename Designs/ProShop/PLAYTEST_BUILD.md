@@ -78,6 +78,13 @@ hose. The obvious cause — a grip-to-intake span of 0.796 yd where the floor
 solve needs 0.82 — was tested by rebuilding the asset with a proper 1.10 m wand
 and is NOT the cause: the hands did not move. Still open.
 
+### 4b — the moment they pick up the broom (beat 4)
+
+**The gripping hand sits beside the shaft, not around it.** Watched on a 34-frame
+flipbook through the whole look sweep: at the working pitch the fingers are a
+pale cluster offset to the left of the pole, with about half the hand below the
+bottom edge. `qa/electron/broom-b3-clear/dn-15.png`. Confirmed, not fixed.
+
 ### 5 — the moment they try a cloth or a sponge (beat 4)
 
 **Fixed this pass**, and worth recording because it was in the first minute of
