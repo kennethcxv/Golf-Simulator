@@ -31,7 +31,8 @@ where a control failed, the failure is written down instead of the result.
 | **F2** Q reveal off behind a panel | **done** | |
 | **F3** make fixing the light easier | **done** | the book shows what blocks what |
 | **G1** lint | **done** | and it found one |
-| **G2–G5** | **NOT DONE** | |
+| **G2** item 14 prove-or-revert | **reverted, with the number** | it rescued nobody in 150 s while displacement caught four |
+| **G3–G5** | **NOT DONE** | |
 
 ## A — the frame rate was never the problem
 
@@ -405,6 +406,35 @@ twice on the pressure washer. A low broad pressurised band with a comment
 explaining it, overwritten by a wetter, quieter one copied down from a hand
 tool. **The pressure washer has been speaking with a cloth's voice**, and the
 band written for it had never been heard.
+
+## G2 — the progress test was reverted, and the number says why
+
+Item 14 added a second stuck test beside the original displacement one, on sound
+reasoning: walk into a CORNER and you move nothing, so `moved < step * 0.25`
+fires; walk into the flat FACE of a box and the resolver slides you along it, so
+you move most of your step every frame and displacement is never true. The shape
+of the prop decided whether the recovery ladder existed at all.
+
+The brief asked for proof or a revert.
+
+**The states are genuinely different** and a unit test drives both:
+`{ moved: 0.055, step: 0.06, noProgressT: 3.0 }` is a customer displacement calls
+healthy and progress calls stuck. That was never in doubt.
+
+**What could not be shown is that the difference matters in play.** Measured in
+Electron, shop open, organic walk-ins, 150 s at 1x: the no-progress clock reached
+**3.00 s — past the 2.5 s threshold, so the branch was live and eligible — and
+rescued exactly ZERO customers**, while displacement caught four (two sidesteps,
+a nudge, a retarget). Every frame on which progress would have fired,
+displacement had already fired: the clock's high-water mark was set on a frame
+that was itself a displacement stall. The control run, with the customer
+simulation suspended, moved neither number.
+
+So `sliding` is no longer a stuck reason. The clock and the counter stay, because
+they cost nothing and they are exactly the evidence that would reopen this:
+`slidingRescues` counts the frames where progress would have been the SOLE
+signal, `navBlockDiagnostics()` reports it, and if a future run shows it climbing
+the branch comes back with a number behind it instead of an argument.
 
 ## Instrument faults, 29 to 41
 

@@ -436,6 +436,56 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 // Every clubhouse ever constructed in this session, oldest first. See the note
 // at the push site in makeClubhouse. Never cleared: a rebuild that happened and
 // was then corrected is the whole thing this is here to catch.
+// G2 — IS THE PROGRESS TEST WORTH ITS KEEP?
+//
+// Item 14 added a second stuck test beside the original displacement one, on
+// this reasoning: walk into a CORNER and you move nothing, so `moved < step *
+// 0.25` fires; walk into the flat FACE of a box and resolveCustomer slides you
+// along it, so you move most of your step every frame, forever, and
+// displacement is never true. The shape of the prop decided whether the
+// recovery ladder existed at all.
+//
+// Report 14 could not confirm the branch had ever RESCUED anybody — the
+// no-progress clock peaked at 1.66 s against a 2.5 s threshold — so the brief
+// asks for proof or a revert. The verdict is a pure function so the proof does
+// not depend on catching the sim in the act: tests/nav-stuck-verdict.test.js
+// drives an input where displacement says "walking fine" and progress says
+// "stuck", which is the whole claim, and the live diagnostics report the
+// high-water mark so the threshold can be argued about with a number.
+export const NAV_PROGRESS_EPSILON_YD = 0.08;
+export const NAV_SLIDING_SECONDS = 2.5;
+
+/**
+ * G2, ANSWERED AND REVERTED. The brief said: prove the progress test rescues
+ * something displacement cannot, or revert it and record that displacement was
+ * sufficient. It could not be proved, so it is reverted.
+ *
+ * Measured in Electron on pine-hills-v2, shop open, organic walk-ins, 150 s at
+ * 1x (tools/qa/electron-nav-progress-peak.js). The no-progress clock reached
+ * 3.00 s — PAST the 2.5 s threshold, so the branch was live and eligible — and
+ * rescued exactly ZERO customers, while displacement caught four (two
+ * sidesteps, a nudge, a retarget). Every frame on which progress would have
+ * fired, displacement had already fired: the clock's high-water mark was set on
+ * a frame that was also a displacement stall. The control run, with the
+ * customer sim suspended, moved neither number.
+ *
+ * So `sliding` is no longer a stuck REASON. The clock and the counter stay,
+ * because they cost nothing and they are the evidence that would reopen this:
+ * `slidingRescues` counts the frames where progress WOULD have been the sole
+ * signal, and it is still reported by navBlockDiagnostics(). If a future run
+ * shows it climbing, the branch comes back with a number behind it instead of
+ * an argument.
+ *
+ * @param {{moved:number, step:number, noProgressT:number}} sample
+ * @returns {{stuck:boolean, reason:'none'|'displacement', wouldSlide:boolean}}
+ */
+export function navStuckVerdict({ moved, step, noProgressT }) {
+  if (!(step > 0.001)) return { stuck: false, reason: 'none', wouldSlide: false };
+  const wouldSlide = noProgressT > NAV_SLIDING_SECONDS;
+  if (moved < step * 0.25) return { stuck: true, reason: 'displacement', wouldSlide };
+  return { stuck: false, reason: 'none', wouldSlide };
+}
+
 export const CLUBHOUSE_BUILD_LOG = [];
 
 export const CLUBHOUSE_INTERIOR_DRAW_DISTANCE = 80;
@@ -10441,6 +10491,11 @@ export function makeClubhouse(ctx) {
   // navBlockDiagnostics(); the QA day runs assert against it.
   const navBlockLog = [];
   let navBlocksTotal = 0;
+  // G2 — the no-progress high-water mark and how often the sliding branch was
+  // the ONLY thing that flagged a customer. Both read by
+  // navBlockDiagnostics(); see NAV_STUCK note above.
+  let navProgressPeak = 0;
+  let navSlidingRescues = 0;
   const debugFloorBoxCols = []; // QA-only: obstacles a driver dropped, so it can take them away
   function recordNavBlock(c, action, tx, tz, wp) {
     navBlocksTotal += 1;
@@ -11036,15 +11091,25 @@ export function makeClubhouse(ctx) {
         // target getting closer. A customer grinding along a box face is moving
         // and getting nowhere, and that is what the ladder needs to hear.
         const goalDist = Math.hypot(tx - c.mesh.position.x, tz - c.mesh.position.z);
-        if (!Number.isFinite(c.bestGoalDist) || goalDist < c.bestGoalDist - 0.08) {
+        if (!Number.isFinite(c.bestGoalDist) || goalDist < c.bestGoalDist - NAV_PROGRESS_EPSILON_YD) {
           c.bestGoalDist = goalDist;
           c.noProgressT = 0;
         } else {
           c.noProgressT = (c.noProgressT || 0) + dt;
         }
-        // 2.5 s of moving without closing on the target is a slide, not a walk
-        const slidingNowhere = c.noProgressT > 2.5;
-        if (step > 0.001 && (moved < step * 0.25 || slidingNowhere)) {
+        // G2: the verdict is a pure function now, so the claim item 14 was
+        // built on — "there are states displacement cannot see and progress
+        // can" — is something a test can drive both branches of directly
+        // instead of something the sim has to be caught doing.
+        const verdict = navStuckVerdict({ moved, step, noProgressT: c.noProgressT });
+        // ...and the high-water mark of every customer's no-progress clock,
+        // whether or not it ever crossed the threshold. Report 14 could only say
+        // "the branch never fired"; this says how close it came.
+        if (c.noProgressT > navProgressPeak) navProgressPeak = c.noProgressT;
+        // the frames where progress WOULD have been the only signal. Zero in
+        // every run so far; the number is what would reopen the branch.
+        if (verdict.wouldSlide && !verdict.stuck) navSlidingRescues += 1;
+        if (verdict.stuck) {
           c.stuckT = (c.stuckT || 0) + dt;
           if (c.stuckT > 3.0) {
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
@@ -11087,7 +11152,11 @@ export function makeClubhouse(ctx) {
             navVersion = -1; // rebake — a door or hauled pile may have changed the world
             c.repathed = true;
           }
-        } else if (moved > step * 0.6 && !slidingNowhere) {
+        // G2: the clear-the-stuck-clock arm used to hold off while the progress
+        // clock was over its threshold. With `sliding` no longer a stuck reason
+        // that guard would keep a genuinely walking customer's escalation state
+        // alive for no reason, so it goes with the branch it belonged to.
+        } else if (moved > step * 0.6) {
           c.stuckT = 0;
           c.repathed = false;
           c.stuckEscalation = 0;
@@ -11789,7 +11858,15 @@ export function makeClubhouse(ctx) {
     // Every stuck escalation across the session, with positions, targets and the
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.
-    navBlockDiagnostics: () => ({ total: navBlocksTotal, recent: navBlockLog.slice(-120) }),
+    navBlockDiagnostics: () => ({
+      total: navBlocksTotal,
+      recent: navBlockLog.slice(-120),
+      // G2: how near the sliding branch came to firing, and how often it was
+      // the only thing that saw a stuck customer
+      progressPeakSeconds: +navProgressPeak.toFixed(2),
+      slidingRescues: navSlidingRescues,
+      slidingThresholdSeconds: NAV_SLIDING_SECONDS,
+    }),
     // QA-only: the three things a nav claim needs to be measurable rather than
     // asserted - the path the customers' own grid returns, a floor obstacle
     // dropped where the driver wants one, and the ladder's running tally.
