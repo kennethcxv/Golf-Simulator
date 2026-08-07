@@ -106,6 +106,12 @@ export const CLEANING_TOOLS = {
   // ---------------------------------------------------------------- 78/79 pressure washer -----
   washer: {
     id: 'washer',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Pressure washer',
     toolClass: TOOL_CLASS.JET,
     belt: true,
@@ -348,6 +354,12 @@ export const CLEANING_TOOLS = {
   // ------------------------------------------------------------------- 76 spray bottle --------
   spray: {
     id: 'spray',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'All-purpose cleaner',
     toolClass: TOOL_CLASS.SPRAY,
     belt: true,
@@ -394,6 +406,12 @@ export const CLEANING_TOOLS = {
   // -------------------------------------------------------------------------- 77 cloth --------
   cloth: {
     id: 'cloth',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Microfibre cloth',
     toolClass: TOOL_CLASS.STROKE,
     belt: true,
@@ -442,6 +460,12 @@ export const CLEANING_TOOLS = {
   // ------------------------------------------------------------------------- 77 sponge --------
   sponge: {
     id: 'sponge',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Scouring sponge',
     toolClass: TOOL_CLASS.STROKE,
     belt: true,
@@ -482,6 +506,12 @@ export const CLEANING_TOOLS = {
   // ---------------------------------------------------------------------- 80 trash bag --------
   trashbag: {
     id: 'trashbag',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Trash bag',
     toolClass: TOOL_CLASS.CARRY,
     belt: true,

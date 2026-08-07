@@ -401,6 +401,14 @@ export function makeFpHands() {
   // Phase 6: a full-arm rig (the broom's viewmodel) replaces the short stub
   // forearm + cuff; while it owns the frame the stubs stay hidden.
   let armStubsSuppressed = false;
+  // B4: some tools are DRAWN BARE - the tool sits in view with no hand on it.
+  // Declared per tool by `hands: false` in the registry, which is the single
+  // source; this flag is just how that reaches the hand rig. It is applied on
+  // top of the normal visibility rules rather than replacing them, so nothing
+  // else has to know about it and clearing it restores whatever the grip logic
+  // wanted.
+  let handsSuppressed = false;
+  let savedVisibility = null;
 
   // What the held RIG should do because of the trigger. The caller owns heldRoot; writing recoil
   // here would slide the hands along the tool they are gripping.
@@ -412,7 +420,7 @@ export function makeFpHands() {
     const primary = authored?.grip || g.grip;
     const support = authored?.support === undefined ? g.support : authored.support;
     const primaryPose = primary.pose || g.grip.pose || 'wrap';
-    left.group.visible = !!support;
+    left.group.visible = !!support && !handsSuppressed;
 
     // Position AND orientation update every frame so the hands ride live (equip/work) sockets. When
     // a grip carries an authored quaternion, the palm orientation is derived from it; otherwise the
@@ -471,6 +479,35 @@ export function makeFpHands() {
       left.group.scale.set(-base * value, base * value, base * value);
     },
 
+    // B4: draw this tool BARE, with no hand on it. Both hand groups are hit
+    // directly rather than only the root, because a viewmodel rig REPARENTS
+    // `right.group`/`left.group` out of the root into its own group — hiding
+    // the root alone would leave a rig-held hand on screen, which is exactly
+    // the washer's case.
+    // It must be SYMMETRIC. Forcing the groups hidden and then only clearing a
+    // flag leaves them hidden for whatever tool comes next: the first version
+    // of this took the hands off the mop, the vacuum and the dustpan as well,
+    // and only the broom kept them because the broom happened to be equipped
+    // before any bare tool was. So the previous visibility is saved and put
+    // back, rather than guessed at on the way out.
+    setHandsSuppressed(on) {
+      const next = !!on;
+      if (next === handsSuppressed) return;
+      handsSuppressed = next;
+      if (handsSuppressed) {
+        savedVisibility = { right: right.group.visible, left: left.group.visible, root: root.visible };
+        right.group.visible = false;
+        left.group.visible = false;
+        root.visible = false;
+      } else if (savedVisibility) {
+        right.group.visible = savedVisibility.right;
+        left.group.visible = savedVisibility.left;
+        root.visible = savedVisibility.root;
+        savedVisibility = null;
+      }
+    },
+    handsAreSuppressed: () => handsSuppressed,
+
     // Phase 6: hide/show the stub forearms + cuffs on BOTH hands while a
     // full-arm viewmodel rig owns them.
     setArmStubsVisible(on) {
@@ -498,7 +535,7 @@ export function makeFpHands() {
       // Retain the last valid pose while the hands ease below the camera. A
       // null tool starts the holster motion; it must not hide the rig in the
       // same frame and turn the authored lowering into a visual snap.
-      root.visible = show > 0.01 && !!pose;
+      root.visible = show > 0.01 && !!pose && !handsSuppressed;
 
       if (using) recoil = Math.min(1, recoil + dt * 7);
       else recoil = Math.max(0, recoil - dt * 5);

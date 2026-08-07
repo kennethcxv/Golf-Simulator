@@ -214,6 +214,11 @@ export function createBroomViewmodel({
   // only carries its answer in. Defaults true so a caller that predates the
   // flag keeps the two-handed rig it was tuned for.
   twoHanded = true,
+  // B4: a tool declared `hands: false` in the registry is drawn BARE. The rig
+  // owns hand visibility while it is active, so it has to honour the flag
+  // itself — the washer is a rig tool, and suppressing the shared fpHands root
+  // would not touch arms the rig has reparented into its own group.
+  showHands = true,
 }) {
   const vmCamera = new THREE.PerspectiveCamera(
     feel.camera.fov, camera.aspect, feel.camera.near, feel.camera.far,
@@ -429,8 +434,8 @@ export function createBroomViewmodel({
     active = !!on;
     // the authored GLB may have adopted since the last equip — re-find sockets
     if (active) socketRefs.found = false;
-    right.group.visible = active;
-    if (left) left.group.visible = active;
+    right.group.visible = active && showHands;
+    if (left) left.group.visible = active && showHands;
     // The full arms replace the stub forearm + cuff for the duration.
     fpHands.setArmStubsVisible?.(!active);
     // …and the hands read at the broom's own size while it owns them, then go
@@ -1011,7 +1016,7 @@ export function createBroomViewmodel({
     state.armL = state.armL || {};
     if (rightHand) poseArm(right, rightHand, elbowOffsetRight, 1, state.armR);
     if (left && leftHand && leftHand.visible) poseArm(left, leftHand, elbowOffsetLeft, -1, state.armL);
-    if (left) left.group.visible = !!(leftHand && leftHand.visible);
+    if (left) left.group.visible = showHands && !!(leftHand && leftHand.visible);
 
     // --- head NDC (the level-pitch acceptance number) -----------------------
     // Measured on the DRAWN head — the rig-posed contact point — because the

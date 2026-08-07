@@ -6558,6 +6558,9 @@ export function makeCourseScene(canvas, state) {
       // unconditionally, so the broom - the one tool the ruling was written
       // against - kept two hands on screen while its registry entry said one.
       twoHanded: !!CLEANING_TOOLS[rigId]?.support,
+      // B4: and the REGISTRY decides whether it has hands at all. The washer is
+      // drawn bare, and it is a rig tool, so the flag has to reach the rig.
+      showHands: CLEANING_TOOLS[rigId]?.hands !== false,
       // I5: the drawn interior for the mesh-true clamp (held tools are camera
       // children, so this root can never self-hit the tool)
       meshRoot: () => (clubhouseApi ? clubhouseApi.interior : null),
@@ -7250,6 +7253,10 @@ export function makeCourseScene(canvas, state) {
     toolViewmodels.setTool(tool, previousTool);
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
     // Every tool remains physically held.
+    // B4: a tool declared `hands: false` is DRAWN BARE — it sits in view with
+    // no first-person hand on it. The suppression is set before the grips are
+    // applied so a bare tool never shows a hand for the frame in between.
+    fpHands.setHandsSuppressed?.(CLEANING_TOOLS[tool]?.hands === false);
     if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
       fpHands.setTool(tool, toolViewmodels.gripsFor(tool));

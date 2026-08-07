@@ -1,5 +1,15 @@
 // B4 — "No hands visible on any handheld tool: scrubber, sponge, cloth, spray."
 //
+// THAT IS THE INSTRUCTION, not a defect report, and I had it backwards for most
+// of a session: I measured the hands, found them present, and argued the line
+// was a bug report. It is not. The hand-worked tools are meant to be DRAWN
+// BARE — the tool sits in view on its own with no first-person hand on it — and
+// the stick tools keep theirs.
+//
+// So this driver asserts BOTH halves, and both are needed. A build that lost
+// the hands everywhere would satisfy "the five read zero" while being badly
+// broken, and only the stick-tool half catches that.
+//
 // electron-hands-on-every-tool.js answers a WEAKER question than the brief asks.
 // Its verdict is `onScreen`: a bounding-box-versus-screen-rect overlap. That
 // proves the hands' box intersects the viewport, and cannot tell that apart from
@@ -220,20 +230,34 @@ async (page) => {
   const FLOOR = 400;
   // the WORSE of idle and in-use, so a tool cannot pass on one state alone
   const drew = (t) => Math.min(by[t]?.handPixels ?? 0, by[t]?.usingHandPixels ?? 0) >= FLOOR;
+  // ...and the BETTER of the two for a tool that must show nothing, so a bare
+  // tool cannot pass by being bare in only one of its states
+  const bare = (t) => Math.max(by[t]?.handPixels ?? 1e9, by[t]?.usingHandPixels ?? 1e9) === 0;
+
+  // B4: the hand-worked tools are DRAWN BARE - the tool sits in view with no
+  // hand on it. So this driver is now an INVERSE check for those five and the
+  // original check for the four stick tools, and it needs both halves: a build
+  // that lost the hands everywhere would satisfy "the five read zero" while
+  // being badly broken, and only the stick-tool half catches that.
+  const BARE = ['spray', 'cloth', 'sponge', 'washer', 'trashbag'];
+  const STICK = ['broom', 'mop', 'vacuum', 'dustpan'];
 
   const out = {
-    scrubberMapping: 'no tool id "scrubber" exists in the registry (washer, vacuum, mop, broom, dustpan, spray, cloth, sponge, trashbag), so every hand-worked tool is measured and the reading does not have to be guessed',
+    intent: 'B4: the five hand-worked tools are drawn BARE (no hand on the tool); the four stick tools keep their hands. Both halves are asserted.',
     rows,
     pixelsByTool: Object.fromEntries(rows.map((r) => [r.tool, r.handPixels])),
     checks: {
-      // THE FOUR THE BRIEF NAMES, each on its own line so a failure says which
-      sprayHasHandPixels: drew('spray'),
-      clothHasHandPixels: drew('cloth'),
-      spongeHasHandPixels: drew('sponge'),
-      washerHasHandPixels: drew('washer'),
-      // and the rest, so the answer is not four tools deep
-      everyToolHasHandPixels: rows.every((r) => Math.min(r.handPixels, r.usingHandPixels) >= FLOOR),
-      // CONTROL: the approved reference
+      // THE FIVE DRAWN BARE, each on its own line so a failure says which
+      sprayIsBare: bare('spray'),
+      clothIsBare: bare('cloth'),
+      spongeIsBare: bare('sponge'),
+      washerIsBare: bare('washer'),
+      trashbagIsBare: bare('trashbag'),
+      everyBareToolIsBare: BARE.every(bare),
+      // THE OTHER HALF, and it is not optional: without it, a build that lost
+      // the hands everywhere would read as a pass.
+      everyStickToolKeepsItsHands: STICK.every(drew),
+      // CONTROL: the approved reference still has hands
       controlBroomHasHandPixels: drew('broom'),
       // CONTROL: hiding the hands takes the count with it
       controlHidingHandsRemovesThem: rows.every(
@@ -241,8 +265,14 @@ async (page) => {
       ),
       // CONTROL: the counter matches a colour rather than returning a number
       controlAbsentColourReadsZero: rows.every((r) => r.absentColourPixels === 0),
-      // the probe found hands to paint at all
-      controlFoundHandMeshes: rows.every((r) => r.handMeshes > 0),
+      // CONTROL: the probe found hands to paint on the tools that have them. It
+      // cannot be asked of the bare five - their hand meshes are not drawn, so
+      // finding none is the expected result there, and demanding otherwise
+      // would make the check fail for the thing working correctly.
+      controlFoundHandMeshesOnStickTools: STICK.every((t) => (by[t]?.handMeshes ?? 0) > 0),
+      // ...and the bare five are SUPPRESSED, not deleted: the hand geometry is
+      // shared with the stick tools and still exists, it is simply not drawn.
+      controlBareToolsPaintNothingBecauseNothingIsDrawn: BARE.every((t) => (by[t]?.handMeshes ?? -1) === 0),
       noPageErrors: errs.length === 0,
     },
     errs: errs.slice(0, 6),

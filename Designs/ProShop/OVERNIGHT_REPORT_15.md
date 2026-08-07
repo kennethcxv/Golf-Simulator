@@ -17,8 +17,8 @@ where a control failed, the failure is written down instead of the result.
 | **B3/B4** hands on every tool | **FIXED, all nine** | one lift closed the broom, the vacuum, the dustpan and the washer together |
 | **B3** the grip, through the motion | **done** | palm-to-shaft holds within 2–4 mm across the whole look sweep |
 | **B3** the mop strands | **FIXED** | they were welded while merely CARRIED, 0.0042 → 0.2546 yd, and the mopping term was a phase lead |
-| **B4** hand-worked tools hold their tools | **done** | the `flat` grip's rest orientation |
-| **B4** hands proven in PIXELS, not boxes | **done** | all nine, idle and in use, with a hidden control at 0 |
+| **B4** the five hand-worked tools drawn BARE | **done** | spray, cloth, sponge, washer, trashbag all read 0 hand pixels; the four stick tools keep theirs |
+| **B4** hands proven in PIXELS, not boxes | **done** | the probe is now the inverse check and asserts both halves |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
 | **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
 | **C3** change left of the monitor | **done** | it was being laid THROUGH the screen |
@@ -294,7 +294,53 @@ trail at r=0.99.
 Clip in `qa/electron/mop-strand-clip/`, framed down so the head clears the
 bottom edge rather than being judged through a sliver.
 
-## B4 — the hands were there; the driver that said so could not have known
+## B4 — I read the instruction as a bug report, and it was an instruction
+
+**This section is written in the wrong direction below and I have left it that
+way, because the mistake is the useful part.** B4 says "No hands visible on any
+handheld tool: scrubber, sponge, cloth, spray." I read that as a defect report —
+*the hands are missing, put them back* — because every other line in the brief
+is a defect followed by an implied fix, and I argued that reading four times.
+
+It was an instruction. The hand-worked tools are meant to be **drawn bare**: the
+tool sits in view on its own with no first-person hand on it. So everything
+below, which measures hands into existence and then proves they survive a pitch
+sweep, was work aimed at the opposite of what was asked.
+
+**What shipped.** Five tools are drawn bare — spray, cloth, sponge, washer,
+trashbag — and the four stick tools keep their arms. The decision lives in one
+place, `hands: false` in the cleaning-tool registry, because two very different
+consumers need it: `fpHands` owns the shared hand rig, and `broomViewmodel` owns
+its own arms while a rig is active. **The washer is both** — a hand-worked tool
+that has a viewmodel rig — so suppressing the shared rig alone would have left
+its arms on screen.
+
+| tool | hand pixels, idle | in use |
+|---|---|---|
+| spray | **0** | **0** |
+| cloth | **0** | **0** |
+| sponge | **0** | **0** |
+| washer | **0** | **0** |
+| trashbag | **0** | **0** |
+| broom | 6,536 | 7,090 |
+| mop | 6,199 | 7,779 |
+| vacuum | 2,259 | 2,354 |
+| dustpan | 3,184 | 3,378 |
+
+The pixel probe is now the **inverse** check, and it asserts both halves on
+purpose: a build that lost the hands everywhere would satisfy "the five read
+zero" while being badly broken, and only the stick-tool half catches that.
+`tests/tool-hands-declaration.test.js` pins the declaration itself, including a
+case that fails if a new tool is added without anyone deciding which set it is
+in.
+
+**One bug in the first attempt, worth keeping.** Suppression was written as a
+one-way door — it forced the hand groups hidden and then only cleared a flag —
+so the mop, the vacuum and the dustpan lost their hands too, and only the broom
+kept them because the broom happened to be equipped before any bare tool was.
+The fix is to save the previous visibility and put it back.
+
+## B4, as originally misread — the hands were there; the driver that said so could not have known
 
 `everyToolHasHands` above is a **bounding box against the screen rect**. It
 proves the hands' box intersects the viewport, and it cannot tell that apart
