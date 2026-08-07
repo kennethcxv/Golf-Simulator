@@ -1,7 +1,7 @@
 # Overnight report 15
 
 Electron, `--clubhouse=pine-hills-v2`, NPCs at 1x, shop open, RTX 5080 at
-1600×900. Suite **2809 pass / 0 fail**. Six commits, all pushed.
+1600×900. Suite **2818 pass / 0 fail**. Every commit pushed.
 
 Every number below came from a driver that had to survive its own control, and
 where a control failed, the failure is written down instead of the result.
@@ -15,7 +15,10 @@ where a control failed, the failure is written down instead of the result.
 | **B1** which tools the game needs | **done** | `Designs/ProShop/TOOL_SET.md` |
 | **B2/G4** rebuild them properly | **all nine built** | every tool up on density; the merge/delete decisions are still design-only |
 | **B3/B4** hands on every tool | **FIXED, all nine** | one lift closed the broom, the vacuum, the dustpan and the washer together |
+| **B3** the grip, through the motion | **done** | palm-to-shaft holds within 2–4 mm across the whole look sweep |
+| **B3** the mop strands | **FIXED** | they were welded while merely CARRIED, 0.0042 → 0.2546 yd, and the mopping term was a phase lead |
 | **B4** hand-worked tools hold their tools | **done** | the `flat` grip's rest orientation |
+| **B4** hands proven in PIXELS, not boxes | **done** | all nine, idle and in use, with a hidden control at 0 |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
 | **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
 | **C3** change left of the monitor | **done** | it was being laid THROUGH the screen |
@@ -237,6 +240,93 @@ Result, measured at a working pitch, idle and in use:
 | washer | -11.20 … **-1.36 (off screen)** | -4.89 … **-0.94** |
 
 `everyToolHasHands` is true for the first time: all nine, idle and in use.
+
+## B3, second half — "same for the mop strands", and it was a different defect
+
+The sentence has two claims in it and only one of them is about the broom's
+grip. The mop half needed its own instrument, because a mop's strands MOVE ON
+SCREEN even when carved from one solid block — the head they hang from moves.
+Any measurement in world space therefore reports "the strands moved" for a mop
+that is welded shut, which is the same shape of error as everything else in the
+instrument-fault list.
+
+So the yarn is measured in the **collar's own local frame**. The collar is what
+the strands hang from; expressing a tip in its frame subtracts the head's motion
+exactly, and what is left is the only thing the complaint is about.
+
+Three controls, each killing a different way of being wrong, and all three read
+**0.00000**:
+
+| control | what it would catch | read |
+|---|---|---|
+| the authored solid cone (`MESH_MopSkirt`) | the frame subtraction being broken | 0 |
+| the strand anchors, never rotated by the update | the rig being carried rather than articulating | 0 |
+| a second pass with `update()` stubbed out | a metric that reports motion for a rig not being driven | 0 |
+
+**What it found, against me.** While merely CARRIED the tips moved **0.0042 yd** —
+the idle shimmer term and nothing else. `strokeTarget` is zero whenever `using`
+is false, so a mop walked across a room drove its yarn with nothing at all: the
+head fanned, the collar inherited the fan, and the strands rode it welded.
+Carrying is most of the game. The earlier item-8 work built the strand rig,
+attached it, and drove it only from the mopping stroke, so it was correct about
+mopping and silent about the state the player is actually in.
+
+The head's fan already exists as `headLag.angle`. The parent applies it, so what
+a trailing strand needs is the **deficit** — how far behind it still is — which
+relaxes to zero, so a mop held still hangs straight.
+
+| state | tip travel, collar-local | fan spread | lag | correlation |
+|---|---|---|---|---|
+| carried, before | 0.0042 yd | 0.0001 | — | — |
+| carried, after | **0.2546 yd** | 0.061 | 22 frames | 0.60 |
+| mopping, after | 0.1082 yd | 0.096 | **15 frames** | 0.99 |
+| frozen control | **0** | 0 | — | — |
+
+**And the mopping case found a second, smaller thing.** It first measured r=0.97
+at **zero** frames of lag: the yarn tracked the stroke with no delay at all,
+which is a mop head moving as one piece however many joints it has. The cause is
+in the model — `push` ADDED a velocity term to a position term, and a velocity
+term is a phase **lead**. The strands were reaching the end of the stroke
+fractionally *before* the head. Cloth does not anticipate the hand carrying it;
+it is dragged. Subtracting the term instead of adding it gives 15 frames of
+trail at r=0.99.
+
+Clip in `qa/electron/mop-strand-clip/`, framed down so the head clears the
+bottom edge rather than being judged through a sliver.
+
+## B4 — the hands were there; the driver that said so could not have known
+
+`everyToolHasHands` above is a **bounding box against the screen rect**. It
+proves the hands' box intersects the viewport, and it cannot tell that apart
+from a hand buried inside the tool, drawn on a layer the pass never carries, or
+facing away. The discriminator has already found two of my own parts that
+rendered zero pixels from all 26 directions while sitting exactly where their
+box said they were. A box is not a pixel. Its `ok` was also gated on the two
+controls alone, so it could have reported every tool handless and still exited
+green — that is fixed, the claims gate it now.
+
+So the hands are counted in **pixels, in the real screenshot**, per tool, idle
+and in use:
+
+| tool | idle | in use | hidden control | absent-colour control |
+|---|---|---|---|---|
+| spray | 30,010 | 38,752 | 0 | 0 |
+| cloth | 51,696 | 41,751 | 0 | 0 |
+| sponge | 34,251 | 20,123 | 0 | 0 |
+| washer | 7,557 | 7,549 | 0 | 0 |
+| broom (control) | 6,064 | 6,640 | 0 | 0 |
+| trashbag | 4,104 | 9,482 | 0 | 0 |
+| mop | 6,216 | 8,781 | 0 | 0 |
+| vacuum | 2,254 | 1,976 | 0 | 0 |
+| dustpan | 3,176 | 2,297 | 0 | 0 |
+
+**There is no tool called "scrubber" in the registry** (the ids are washer,
+vacuum, mop, broom, dustpan, spray, cloth, sponge, trashbag). Rather than pick a
+reading of which one the brief means, every hand-worked tool is measured, so the
+answer holds whichever it is.
+
+Getting to that table took three wrong instruments in a row, and each was wrong
+in a way worth naming — they are faults 42, 43 and 44 below.
 
 ## D — the book
 
@@ -573,7 +663,7 @@ swept pose, 18 runtime GLBs and none of them KTX2.
 sponge into one tool, spray folded into it, the trash bag becoming a bin in the
 room. Those are registry and sim changes, not geometry.
 
-## Instrument faults, 29 to 41
+## Instrument faults, 29 to 44
 
 The tally from reports 13 and 14 stood at 28. Thirteen more, all caught before
 anything was believed.
@@ -619,7 +709,31 @@ anything was believed.
     "no change", and the two deliberately-dead control rows looked exactly like
     the thirteen live ones — a green that could not fail.
 
-Running total: **41**.
+42. The strand driver measured the mop while **not mopping at all**. The stroke
+    is gated on `using`, so the only thing moving the yarn was a 0.02 rad idle
+    shimmer, and the run reported the tool rigid. The number was right; it was
+    right about a state the claim was not about.
+43. …and then correlated the tips against `headLag.angle` while they were being
+    driven by the mopping stroke. Two different oscillators, uncorrelated by
+    construction: "no trail" reported for a rig that trails. Then, having fixed
+    that, it swung the view AND mopped in the same run, putting both oscillators
+    into one signal — correlation about half against either, best shift landing
+    at zero. One driver per run now, and the output names which.
+44. The hand-pixel probe, three ways in one driver. It matched hand meshes by
+    `/hand|finger|thumb|palm/` and found five for all nine tools — five
+    INVISIBLE ones, because the real hand meshes are unnamed and their forearm is
+    called `FirstPersonRightForearm`, which contains no "hand". It then rendered
+    the scene itself, which forces a choice of camera, and chose wrongly for
+    half the set: the stick rigs draw on layer 29 through their own `vmCamera`,
+    the hand-worked tools on layer 0 through the main camera, so four confident
+    zeros appeared for tools whose hands are plainly visible in the screenshot
+    sitting beside the number. And when that was replaced by counting the real
+    screenshot, it counted **zero for all nine including the broom control**,
+    because a flat `0xff00ff` does not survive ACES tone mapping at exposure
+    1.12 plus the composer. The control is what caught it: the approved
+    reference failing is the signal that the probe is broken, not the game.
+
+Running total: **44**.
 
 ## What is not done, plainly
 

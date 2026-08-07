@@ -175,7 +175,15 @@ async (page) => {
     },
     errs: errs.slice(0, 6),
   };
-  out.ok = out.checks.controlBroomHasHandsOnScreen && out.checks.controlFoundHandGeometry;
+  // The verdict used to be the two CONTROLS only, so this driver could report
+  // every tool handless and still exit green - the claims it exists to make had
+  // no bearing on whether it passed. They gate it now.
+  //
+  // What it measures is still only a bounding box against the screen rect, which
+  // cannot tell a visible hand from one buried inside the tool. The pixel count
+  // lives in electron-hand-pixels.js; this one is kept for the layer and lens
+  // diagnostics it collects, which that one does not.
+  out.ok = Object.values(out.checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'hands.json'), `${JSON.stringify(out, null, 2)}\n`);
   return out;
 }
