@@ -464,6 +464,32 @@ to J and the Walk row says J, no reload), keeps the non-bindable rows
 (mouse, Space, Esc) written out, and the dead 1/2/3 speed row is gone
 with A3's ladder.
 
+## D2 — the settings surface in ten languages, honestly counted
+
+Every offered locale now carries a full table: **117/117 keys in en, es,
+fr, de, pt-BR, ru, zh-Hans, ja, ko and tr**, verified by the coverage
+instrument per locale and pinned by the updated i18n tests (the old tests
+pinned the empty-table world and were rewritten to the new contract:
+every locale full, translated locales draw their own words, missing lines
+still fall through to English and never to a raw key). On-screen proof:
+the existing language driver passes with its English negative control,
+and the tofu check is a read frame — qa/electron/d2-tofu/settings-*.png
+shows the zh-Hans page rendering real glyphs in a correct layout (视角 /
+按键 / 辅助功能 tabs, natural copy throughout), no box-tofu; ja/ko/ru
+frames captured beside it. The honest denominators, stated as the plan
+demands: these 117 keys are the SETTINGS SURFACE — roughly 1,500
+player-facing strings elsewhere in the game remain unrouted English, so
+"the game is translated" is NOT the claim; and the translations are
+model-authored pending native review. The screenshot also caught a
+wiring gap the coverage number could not: the reset FOOTER button was a
+hardcoded literal beside a translated description — two new keys
+(reset.footerButton, reset.confirm) now route it in all ten languages.
+The em-dash linter flagged my de/pt/ru/zh strings and each was re-set in
+locale-correct punctuation (en-dash for the Latin/Cyrillic scripts, a
+colon for the Chinese full-width dash) rather than exempted.
+
+## D4/D5 — committed 14c5523 (scroll owner + spacing), all checks green
+
 ## Instruments built so far tonight
 
 - tools/qa/electron-realinput-spike.js — real input pre-flight (green).

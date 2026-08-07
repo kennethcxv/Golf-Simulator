@@ -90,9 +90,10 @@ test('every key the panel asks for exists in English', () => {
   assert.deepEqual(missing, [], 'keys the English table does not define');
 });
 
-test('a key with no translation still draws English rather than the key', () => {
-  setLocale('ja'); // registered, empty table
+test('a translated key draws its own words rather than the key or English', () => {
+  setLocale('ja'); // D2: registered AND translated now
   const drawn = t('settings.reset.button');
-  assert.equal(drawn, 'Reset to defaults');
+  assert.ok(drawn && !drawn.startsWith('settings.'), `raw key leaked: ${drawn}`);
+  assert.notEqual(drawn, 'Reset to defaults', 'ja must not mirror English');
   setLocale('en');
 });

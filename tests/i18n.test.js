@@ -29,18 +29,22 @@ test('E3: the ten Steam languages are offered, and each says how translated it i
   }
   assert.equal(LOCALES.length, 10);
   assert.equal(coverage('en').fraction, 1);
-  // ...and an untranslated one reports zero rather than quietly reporting full
-  // coverage because every lookup fell through to English.
-  assert.equal(coverage('ja').done, 0);
-  assert.equal(coverage('ja').total, englishKeys().length, 'coverage is measured against the real key set');
+  // D2 (Full_Goal_16): every offered locale now carries a full table, and
+  // the coverage instrument must say so per locale rather than assuming it.
+  for (const id of ids) {
+    assert.equal(coverage(id).fraction, 1, `${id} reports full coverage`);
+    assert.equal(coverage(id).total, englishKeys().length, 'coverage is measured against the real key set');
+  }
 });
 
-test('an untranslated locale still draws English rather than a key', () => {
+test('a translated locale draws its own words, never a key and no longer English', () => {
+  // D2: ja carries a real table now. The fallback contract (missing lines
+  // draw English, never a raw key) is pinned separately below on `missing`.
   setLocale('ja');
   const drawn = t('settings.language.title');
   assert.ok(drawn && !drawn.includes('settings.'), `fell through to a key: ${drawn}`);
   setLocale('en');
-  assert.equal(t('settings.language.title'), drawn);
+  assert.notEqual(t('settings.language.title'), drawn, 'ja no longer mirrors English');
 });
 
 test('switching locale changes what a line reads', () => {

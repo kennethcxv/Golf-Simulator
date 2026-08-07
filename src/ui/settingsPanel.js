@@ -500,7 +500,7 @@ export function makeSettingsPanel({
     const button = el('button', {
       type: 'button',
       class: `setting-reset${confirmingReset ? ' is-confirming' : ''}`,
-      text: confirmingReset ? 'Press again to reset everything' : 'Reset all settings to defaults',
+      text: confirmingReset ? t('settings.reset.confirm') : t('settings.reset.footerButton'),
       onclick: () => {
         if (!confirmingReset) {
           confirmingReset = true;
