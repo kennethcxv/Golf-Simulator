@@ -14,7 +14,7 @@ where a control failed, the failure is written down instead of the result.
 | **A** tab-out/tab-in loads a different clubhouse | **not reproduced** | four methods, scene fingerprinted every frame; a build log now names it if it ever happens |
 | **B1** which tools the game needs | **done** | `Designs/ProShop/TOOL_SET.md` |
 | **B2** rebuild them properly | **NOT DONE** | the largest single item in the brief; scoped, not built |
-| **B3** broom hand follows the head, mop strands | **confirmed on a clip, not fixed** | the fingers sit BESIDE the shaft, not on it |
+| **B3** broom hand follows the head, mop strands | **re-diagnosed, not fixed** | the grip is sound (0.035 yd off axis); the hand is cut off by the bottom edge |
 | **B4** hands on the handheld tools | **partly** | the pad grip fixed; the vacuum and washer measured and diagnosed, not fixed |
 | **C1** per-note hover in the drawer | **done, unphotographed** | implemented and suite-green; no shot of its own yet |
 | **C2** the customer's cash highlights whole | **done** | verified on the K3 outline probe |
@@ -160,12 +160,28 @@ it — offset to the left of the pole, with roughly half the hand below the
 bottom edge. The complaint is accurate and the earlier 0.167 → 0.329
 measurement was measuring something else.
 
-Not fixed. What it needs is the gripping hand pinned to the shaft AXIS rather
-than to a camera-space anchor that happens to be near it, which is the same
-family of problem as the vacuum's above — and the vacuum's taught that guessing
-at this costs a full asset rebuild for nothing. The next attempt should start by
-measuring the perpendicular distance from the hand's palm to the shaft line,
-because that is the number the picture is about and nobody has taken it.
+**And then that number was taken, and it says the grip is fine.** The
+perpendicular distance from the palm to the line through the tool's two authored
+grip sockets — which is the pole, by definition — measures **0.035 yd** on the
+broom, 0.032 on the mop, 0.035 on the vacuum. A hand is about 3 cm thick, so a
+palm centre one hand-thickness off a 2 cm pole is exactly 3 to 4 cm from its
+axis. That is a grip. Both controls pass: a point deliberately displaced 0.25 yd
+reads 0.233 further out, and a point on the line reads exactly 0.
+
+The pictures agree once they are taken at a pitch where the hand is actually in
+frame. At -0.34 the fist is plainly closed around the shaft, knuckles and all
+(`qa/electron/wrap-grip/wrap-as-shipped.png`).
+
+**So the diagnosis changes.** What reads as "detached" is not a hand beside a
+pole — it is the hand being CUT OFF BY THE BOTTOM EDGE at working pitches, so
+only a sliver of fingers shows beside the shaft and the eye fills in a gap that
+is really the frame. Which makes this the same defect as the vacuum's, and the
+same one the sponge had before it was fixed: **the viewmodel hands ride too low
+in the frame.** That is one problem with three faces, not three problems, and it
+is the thing to fix next.
+
+Still not fixed, and deliberately not guessed at — the vacuum in this same pass
+cost a full Blender rebuild to prove a plausible hypothesis wrong.
 
 ## D — the book
 

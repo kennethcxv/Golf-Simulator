@@ -80,10 +80,14 @@ and is NOT the cause: the hands did not move. Still open.
 
 ### 4b — the moment they pick up the broom (beat 4)
 
-**The gripping hand sits beside the shaft, not around it.** Watched on a 34-frame
-flipbook through the whole look sweep: at the working pitch the fingers are a
-pale cluster offset to the left of the pole, with about half the hand below the
-bottom edge. `qa/electron/broom-b3-clear/dn-15.png`. Confirmed, not fixed.
+**The gripping hand reads as detached from the shaft.** It is not: the palm
+measures 0.035 yd from the pole's own axis, which is what a hand gripping a 2 cm
+pole measures, and at a pitch where the hand is fully in frame the fist is
+plainly closed around it. What the player sees is the hand being CUT OFF BY THE
+BOTTOM EDGE at working pitches, leaving a sliver of fingers beside the shaft.
+Same root cause as the vacuum above and as the sponge before it was fixed: the
+viewmodel hands ride too low. `qa/electron/broom-b3-clear/dn-15.png` against
+`qa/electron/wrap-grip/wrap-as-shipped.png`.
 
 ### 5 — the moment they try a cloth or a sponge (beat 4)
 

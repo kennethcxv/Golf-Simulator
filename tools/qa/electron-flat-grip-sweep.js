@@ -40,7 +40,7 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const OUT = path.resolve('qa/electron/flat-grip');
+  const OUT = path.resolve(process.env.SWEEP_OUT || 'qa/electron/flat-grip');
   fs.mkdirSync(OUT, { recursive: true });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e.message || e)));
@@ -67,6 +67,9 @@ async (page) => {
     w.x = o.x - 5.2; w.z = o.z + 3.0; w.yaw = 0.4; w.pitch = -0.34;
   });
   await page.mouse.click(640, 360);
+  // B3's lesson: the lock hint is a wide opaque bar exactly where the gripping
+  // hand is, and pointer lock is not granted here. Hidden for the capture only.
+  await page.addStyleTag({ content: '.shop-lockhint, .dirt-sense-hint { display: none !important; }' });
   await page.waitForTimeout(1500);
 
   await page.evaluate(async () => {
@@ -141,7 +144,18 @@ async (page) => {
   // The shipping value, then candidates. `flat` is a hand lying on a pad, so the
   // guess is that its 1.12 rad pitch is standing the hand up and what it wants
   // instead is roughly the shaft grip rolled onto its palm.
-  const CANDIDATES = [
+  const POSE = process.env.SWEEP_POSE || 'flat';
+  const TOOL = process.env.SWEEP_TOOL || 'sponge';
+  const SHIPPED = { flat: [0.42, 0.28, 0.02], wrap: [0.40, 0.30, 0.02] }[POSE] || [0.42, 0.28, 0.02];
+  const CANDIDATES = POSE === 'wrap' ? [
+    { name: 'as-shipped', e: SHIPPED },
+    { name: 'yaw-in', e: [0.40, 0.62, 0.02] },
+    { name: 'yaw-out', e: [0.40, -0.02, 0.02] },
+    { name: 'roll-neg', e: [0.40, 0.30, -0.45] },
+    { name: 'roll-pos', e: [0.40, 0.30, 0.45] },
+    { name: 'pitch-up', e: [0.05, 0.30, 0.02] },
+    { name: 'pitch-down', e: [0.78, 0.30, 0.02] },
+  ] : [
     { name: 'as-shipped', e: [1.12, 0.20, 0.02] },
     { name: 'wrap-like', e: [0.42, 0.28, 0.02] },
     { name: 'rolled-neg', e: [0.42, 0.28, -1.30] },
@@ -152,11 +166,11 @@ async (page) => {
   ];
   const rows = [];
   for (const c of CANDIDATES) {
-    await page.evaluate(({ e }) => window.__setRest('flat', e[0], e[1], e[2]), c);
+    await page.evaluate(({ e, pose }) => window.__setRest(pose, e[0], e[1], e[2]), { ...c, pose: POSE });
     // re-equip so the pose is rebuilt from the new alignment
     await page.evaluate(() => window.__fw.scene3d.walk.setTool('broom'));
     await page.waitForTimeout(500);
-    const s = await shapeFor('sponge', `flat-${c.name}`);
+    const s = await shapeFor(TOOL, `${POSE}-${c.name}`);
     rows.push({ ...c, ...s });
   }
 
