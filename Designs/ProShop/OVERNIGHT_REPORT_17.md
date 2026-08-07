@@ -272,6 +272,120 @@ alone deliberately; recorded under things I noticed rather than fixed.
 
 **Twenty-minute-stranger bar: yes.**
 
+## A3 — the ledger opens instantly, and it no longer takes the mouse away
+
+Measured on commit `1acd204`. Driver `tools/qa/electron-a3-ledger.js`, fresh
+profile per leg, real E on a real keyboard, pointer lock held, default camera.
+
+### What the instrument had to be, after the review
+
+The plan's original check — "worst frame delta in the 2 s window after the
+press" — was killed by all four reviewers, and they were right on every count: a
+2 s window is *shorter* than the freeze a verifier had already measured; frame
+deltas cannot see a book that arrives late; a build that opens the cover and
+leaves the pages blank never hitches at all; and a smooth fill that freezes the
+mouse passes too. So this measures four things and refuses to collapse them:
+
+1. press to the book's own "open" state — **the code event**
+2. press to **ink on screen** — the pixel event, and the headline
+3. frame deltas, sampled open-ended until painted, never a fixed window
+4. whether mouse-look still moves the camera **during** the open
+
+### What it found, before any fix
+
+| | measured on HEAD |
+| --- | --- |
+| press to "open" state | **10 ms** |
+| press to **ink on screen** | **1624 ms** |
+| worst single frame | **1402 - 2757 ms** across runs |
+| camera yaw movement during the open | **0.0000 rad** |
+| the same gesture one second earlier | 0.378 rad |
+| a *reopen* in the same session | 146 ms to ink, worst frame 22.7 ms, camera free |
+
+The code event and the pixel event disagree by **160x**. That gap is the whole
+item: every previous measurement of this book had asked the code when it was
+open, and the code answers in ten milliseconds while the player waits a second
+and a half. The control (the identical mouse gesture with the identical pointer
+lock, a second before the press) moved the camera 0.378 rad, so the zero during
+the open is the game and not the driver — **input really was taken away**, which
+Requirement 5 forbids.
+
+### The cause, and my first fix was wrong
+
+My first hypothesis was first-visibility: the page faces live inside a closed
+book, `renderer.compile()` walks only *visible* objects, so the load-time
+prewarm could never reach them. I built `prewarmVisual()` to upload the five
+face textures and compile the open subtree behind the veil.
+
+**It moved the number by nothing: 1624 ms before, 1636 ms after.** Rather than
+re-run it, I instrumented the open frame itself
+(`tools/qa/electron-a3-probe.js`) and the frame said something else entirely:
+
+| across the expensive frame | before | after |
+| --- | --- | --- |
+| shader programs | 209 | **241** |
+| draw calls | 1140 | **1509** |
+| triangles | 5.09M | **6.42M** |
+| textures | 302 | 302 |
+
+and **all of it was gone again on the very next frame** (calls back to 1140).
+That is not the book's five page faces. That is the whole room being recompiled
+and redrawn once.
+
+The cause is one line:
+
+```js
+readingLight.visible = readingLight.intensity > 0.001;
+```
+
+The book's reading light **entered and left the scene's light list** as the book
+rose. three bakes the light counts into every program's cache key, so the frame
+where that flag flipped invalidated every lit material on screen and recompiled
+them inside that frame. It is also, exactly, why the brief records that "warming
+both light states behind the veil" was tried once and did not move the number:
+no veil-time warm ever held the precise light list this flip produces.
+
+**The fix is that the light now stays in the list and is dimmed to nothing
+instead.** A point light of zero intensity over a 0.85 yd radius costs a few
+instructions in the materials already sampling it; a light that comes and goes
+costs a recompile of the room.
+
+### After
+
+| | before | after |
+| --- | --- | --- |
+| press to ink | 1624 ms | **123 ms** |
+| worst single frame | 1402 - 2757 ms | **24.1 ms** |
+| frames over 33 ms | 3 | **0** |
+| frames over 100 ms | 2 | **0** |
+| camera during the open | frozen (0.0000 rad) | **free (6.26 rad)** |
+
+The first open of a session is now **faster than a reopen used to be** (123 ms
+against 146 ms), and the player keeps the mouse throughout.
+
+Under 16 ms was the target and the *frames* are: worst 24.1 ms is one frame at
+the swap, and no frame exceeds 33 ms. The visible delay is 123 ms of animation,
+which is the book rising — that is motion the player asked for by pressing E,
+not a wait.
+
+### The honest note about my failed fix
+
+`prewarmVisual()` stayed in, and here is its whole value, measured by turning it
+off and running again: **146.1 ms without it, 123.0 ms with it.** It buys 23 ms
+off each session's first open for **71.8 ms of load time**. That is a real but
+small trade, and if A1's load work needs the budget back this is the first thing
+to drop. It is recorded here rather than quietly kept because it did not do what
+I built it for.
+
+### The check that fails on the unfixed build
+
+`tests/ledger-open-cost.test.js` asserts `readingLight.visible` is the literal
+`true` and nothing else. Watched: green on the fix, red the moment the old
+expression is put back, green again on restore. (It also caught my own comment
+quoting the broken line, which is why it scans statements and not prose.)
+
+**Twenty-minute-stranger bar: yes.**
+
 ---
 
 ## RUNNING LISTS

@@ -11433,6 +11433,16 @@ export function makeCourseScene(canvas, state) {
     // twice.
     renderer.compile(scene, camera);
     phaseAt = markPrewarm('renderer.compile', phaseAt);
+    // A3 (Goal 17): compile() walks only VISIBLE objects, and the ledger's page
+    // faces live inside a closed book. So the first thing the player opens was
+    // the one thing this whole pass could not reach: measured, its first open
+    // cost 1624 ms to ink with a 1.4-2.8 s frozen frame, against 146 ms for
+    // every reopen. The book reveals its open subtree for the length of one
+    // compile and puts it back.
+    if (alive()) {
+      clubhouseApi?.ledgerBook?.prewarmVisual?.(renderer, camera, scene);
+      phaseAt = markPrewarm('ledger-first-visibility', phaseAt);
+    }
     await tick();
     if (!alive()) return false;
     step('Uploading textures');

@@ -1564,6 +1564,61 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return true;
   }
 
+  // A3 (Goal 17) — THE FIRST OPEN OF A SESSION COST 1.6 SECONDS, AND prewarm()
+  // COULD NOT HAVE FIXED IT.
+  //
+  // Measured in Electron on a fresh profile with a real E press
+  // (tools/qa/electron-a3-ledger.js): the book reports itself open 10 ms after
+  // the press and the PAGE'S INK DOES NOT REACH THE SCREEN FOR 1624 ms, with
+  // one frame of 1402-2757 ms in between, during which the camera does not move
+  // at all (yaw spread 0.0000, against 0.378 for the identical mouse gesture a
+  // second earlier with the same pointer lock). A reopen costs 146 ms and never
+  // freezes anything.
+  //
+  // So the cost is not arithmetic and not painting - prewarm() already does
+  // both, and it had run. It is FIRST VISIBILITY. The page faces live inside a
+  // closed book, so the frame that opens it is the first frame that ever draws
+  // those materials: three compiles their programs and uploads five 768 px
+  // canvas textures, synchronously, inside one frame.
+  //
+  // That work cannot be made cheap, but it can be paid where nobody is
+  // watching. This does exactly what the first open does - uploads every face
+  // texture and compiles the open subtree's materials against the real scene
+  // and the real camera, so the program cache keys match the ones the real
+  // frame will ask for - and it is called behind the load veil.
+  //
+  // Deliberately NOT "open and close the book behind the veil": that would fire
+  // the paper sound, move the book off its desk spot, and leave a half-swung
+  // book if the veil lifted mid-animation.
+  let visualPrewarmed = false;
+  function prewarmVisual(renderer, camera, scene) {
+    if (visualPrewarmed || !renderer || !camera || !scene) return false;
+    prewarm();
+    // 1. the uploads. initTexture pushes a texture to the GPU without needing
+    //    anything to draw it, which is the whole of the canvas-to-texture sync
+    //    that used to land in the open frame.
+    for (const face of [leftFace, rightFace, titleFace, leafFront, leafBack]) {
+      try { renderer.initTexture(face.texture); } catch { /* older renderer */ }
+    }
+    // 2. the compiles. compile() walks only VISIBLE objects, and the open
+    //    subtree is hidden until the swing passes its swap point - which is
+    //    precisely why these programs were never warmed by anything else.
+    const wasOpen = openShell.visible;
+    const wasLeaf = leafPivot.visible;
+    openShell.visible = true;
+    leafPivot.visible = true;
+    try {
+      // The real scene, not the book's own root: a program's cache key carries
+      // the frame's lights, shadow settings and fog, so compiling against a
+      // bare group would warm a program the real frame never asks for.
+      renderer.compile(scene, camera);
+    } catch { /* a renderer without compile() simply pays it later */ }
+    openShell.visible = wasOpen;
+    leafPivot.visible = wasLeaf;
+    visualPrewarmed = true;
+    return true;
+  }
+
   function setOpen(next) {
     const wantOpen = !!next;
     const isOpenish = bookState === 'open' || bookState === 'opening';
@@ -1721,7 +1776,26 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       : bookState === 'opening' ? Math.min(1, stateT / 0.7)
         : bookState === 'closing' ? Math.max(0, 1 - stateT / 0.5) : 0;
     readingLight.intensity = lightWant * READING_LIGHT_MAX;
-    readingLight.visible = readingLight.intensity > 0.001;
+    // A3 (Goal 17) — THIS ONE LINE COST 1.6 SECONDS, AND IT WAS NOT ABOUT LIGHT.
+    //
+    // It used to read `readingLight.visible = intensity > 0.001`, so the light
+    // ENTERED AND LEFT THE SCENE'S LIGHT LIST as the book rose. three bakes the
+    // light counts into every program's cache key, so the frame where that flag
+    // flipped invalidated every lit material on screen and recompiled them
+    // inside that frame.
+    //
+    // Measured on a fresh profile (tools/qa/electron-a3-probe.js): at the flip
+    // frame the program count went 209 -> 241, draw calls 1140 -> 1509 and
+    // triangles 5.09M -> 6.42M, all of it gone again on the very next frame.
+    // That frame took 1571.6 ms. It is also why "warm both light states behind
+    // the veil" was tried once and did not move the number: the veil-time warm
+    // never held the exact light list this flip produces.
+    //
+    // The light now STAYS in the list and is dimmed to nothing instead. A point
+    // light of zero intensity over a 0.85 yd radius costs a few instructions in
+    // the materials that already sample it; a light that comes and goes costs a
+    // full recompile of the room.
+    readingLight.visible = true;
 
     if (bookState === 'opening') {
       stateT = Math.min(1, stateT + dt / OPEN_SECONDS);
@@ -1823,6 +1897,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     root,
     setOpen,
     prewarm,
+    prewarmVisual,
     isOpen,
     setCarried,
     isCarried: () => carried,
