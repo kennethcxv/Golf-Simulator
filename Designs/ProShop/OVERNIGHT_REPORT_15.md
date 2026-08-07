@@ -328,6 +328,34 @@ answer holds whichever it is.
 Getting to that table took three wrong instruments in a row, and each was wrong
 in a way worth naming — they are faults 42, 43 and 44 below.
 
+**And then that table was checked for the same error B3 was sent back for.**
+It reports one stand point and one pitch, which answers "were the hands there
+when I looked", not "are the hands there". There was a specific reason to
+distrust it: round 5b measured the vacuum's and the washer's hands sitting
+**entirely below the frame** whenever the player looks down at the floor — which
+is exactly when a floor tool is used — and the +0.06 lift that fixed it was then
+verified at *a* working pitch.
+
+So the pitch is swept across the whole usable look range, −0.85 (boots) to +0.60
+(shelves), and the hands counted at every step. The verdict is the worst sample:
+
+| tool | −0.85 | −0.62 | −0.45 | −0.30 | −0.10 | +0.15 | +0.40 | +0.60 | **worst** |
+|---|---|---|---|---|---|---|---|---|---|
+| spray | 30,332 | 30,039 | 29,896 | 30,338 | 30,996 | 30,282 | 29,957 | 30,030 | **29,896** |
+| cloth | 52,957 | 52,632 | 51,822 | 51,943 | 52,480 | 52,798 | 52,946 | 52,414 | **51,822** |
+| sponge | 33,168 | 33,830 | 34,324 | 32,413 | 32,788 | 34,278 | 33,174 | 33,343 | **32,413** |
+| washer | 6,235 | 6,951 | 7,337 | 7,584 | 7,750 | 7,232 | 7,518 | 7,749 | **6,235** |
+| broom (control) | 5,382 | 5,201 | 5,845 | 6,319 | 6,287 | 7,164 | 8,421 | 9,672 | **5,201** |
+
+**No pitch produces a blank.** The lowest reading anywhere is the washer at
+6,235 px looking straight down at the boots, and the screenshot at that exact
+pitch shows the fingers wrapped round the gun grip
+(`qa/electron/hand-pixels-sweep/washer-worst-pitch--0.85.png`). The hidden
+control reads ~0 and the absent-colour control reads 0 at every one of the forty
+samples.
+
+The four tools named in B4 have hands, drawn, everywhere a player can look.
+
 ## D — the book
 
 **D3.** The seven the brief names, in its order. House Notes, Day Sheet and
