@@ -323,6 +323,49 @@ values (hand/shaft pixel gaps + controls) — result recorded below when
 the chain lands; after-clips of both tools recorded and watched as B1's
 counterparts.
 
+## C1/C6 — control never leaves the player: BUILT AND VERIFIED
+
+C1: `enterLedger` keeps POINTER LOCK (the old exitPointerLock was the
+"control taken away"); OPEN_SECONDS 0.85 → 0.4; the rise re-solves the
+face pose EVERY frame, so turning mid-open brings the book to where you
+look now, and the open state's soft-follow already rode the view. Locked
+reading gets button paging (LMB next / RMB back — a locked cursor has no
+meaningful clientX). C6: page keys read the LIVE moveLeft/moveRight
+bindings and stopPropagation actually consumes them; opening mid-strafe
+clears held keys (the reviewer's ordering case). Verified on real input
+(tools/qa/electron-ledger-turn-cost.js): lock true through the whole
+open; held D for 0.9 s → pages turn AND body displacement 0.0000 yd; W
+with the book open walks 0.47 yd (movement deliberately stays alive —
+the reading that CHANGES the game); ambient control clean.
+
+## A2/C5 — the turn's cost, hunted to this stack's floor (11-run chain)
+
+What the instruments convicted, in order (all in
+qa/electron/ledger-turn-cost/ledger-cost.json history + code comment):
+paints are 0.3 ms (split across frames: no help — 3 hitch frames instead
+of 1); uploads size-independent (half-res leaf: no change); mipmaps off:
+no change; shader programGrowth across turns: 0; ambient windows at the
+same desk: 18–23 ms worst, ZERO over-33 (room acquitted); direct API
+turns identical to key turns (harness acquitted). Verdict: **every frame
+carrying canvas uploads pays one fixed ~55 ms ANGLE canvas→texture sync;
+same-frame uploads share it.** So the turn is BATCHED back to one
+upload frame — one ~55–62 ms beat per turn, this stack's floor — and
+the visibility-split that tripled the felt hitches was reverted on its
+own evidence. Final acceptance: ≤1 hitch frame per turn (measured 6
+over 16 turns, worst 62.2), ambient clean, C1/C6 green. The OPEN splits into two honest numbers: the FIRST open of a session
+pays a one-time 270–780 ms beat (first-visibility of the open shell +
+compiles + model read — varies run to run), and **every open after it is
+clean: worst frame 22.2 ms, ZERO frames over 33 in the final acceptance
+run** — the recurring experience meets the bound outright. The goal's
+"under 16 ms or explain exactly what stops you" is answered both ways:
+reopens effectively make it; the first open and the per-turn beat are
+stopped by the sync stall and session warm-up, with the probe chain as
+the exhibit. Leaf canvases stay half-res (less CPU paint, motion
+hides it) and page textures drop mipmaps (never needed at reading
+distance). Instrument faults 51–52 logged: the D-hold that read
+"no page turned" from a leaf-in-flight guard, and the focus-throttle
+that produced 950 ms phantom frames until bringToFront.
+
 ## D1 — implemented, not yet verified
 
 main.cjs: display-info and set-resolution now speak PHYSICAL pixels

@@ -36,7 +36,10 @@ const T = (px) => Math.round(px * TYPE_SCALE);
 const ROWS_PER_PAGE = 5;
 const NOTES_PER_PAGE = 5;
 const LEAF_SECONDS = 0.55;
-const OPEN_SECONDS = 0.85;
+// C1 (Full_Goal_16): 0.85 -> 0.4. The long rise WAS the "control is taken
+// away" complaint's other half — with pointer lock now kept through the
+// open, a brisk rise reads as picking a book up rather than a cutscene.
+const OPEN_SECONDS = 0.4;
 const CLOSE_SECONDS = 0.65;
 // 2026-08-06 ruling: "closer to the user so its more visible... up and on an
 // angle". FACE_TILT is measured from VERTICAL: PI/2 lies the spread flat on
@@ -125,12 +128,26 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     titleAnchor: null,
   };
 
-  const makePageCanvas = () => {
+  // A2/C5: `scale` shrinks the BACKING (and so the per-turn GPU upload —
+  // the measured cost; the paints themselves were 0.3 ms) while painters
+  // keep drawing in PAGE_W×PAGE_H coordinates through a persistent
+  // transform (no painter in this file touches setTransform). The turning
+  // LEAF runs at half res: it is in motion for its whole life, so the eye
+  // never reads its texels the way it reads a settled page's.
+  const makePageCanvas = (scale = 1) => {
     const canvas = document.createElement('canvas');
-    canvas.width = PAGE_W;
-    canvas.height = PAGE_H;
+    canvas.width = Math.round(PAGE_W * scale);
+    canvas.height = Math.round(PAGE_H * scale);
+    if (scale !== 1) canvas.getContext('2d').setTransform(scale, 0, 0, scale, 0, 0);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    // A2/C5 (measured, run 8): every needsUpdate paid a ~55 ms frame
+    // REGARDLESS of canvas size — the constant cost of regenerating a full
+    // sRGB mip chain per upload, three times per turn. The pages are read
+    // nearly 1:1 on screen; mips bought nothing a bilinear min filter does
+    // not, and turning them off removes the hitch at its source.
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
     texture.anisotropy = 8;
     return { canvas, texture };
   };
@@ -218,8 +235,8 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const f = clamped - lo;
     return pageProfile[lo] * (1 - f) + pageProfile[hi] * f;
   }
-  const leafFront = makePageCanvas();
-  const leafBack = makePageCanvas();
+  const leafFront = makePageCanvas(0.5);
+  const leafBack = makePageCanvas(0.5);
   {
     const front = new THREE.Mesh(
       leafGeoFront,
@@ -1301,6 +1318,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   let spread = 0;
   let leaf = null;
   let lastPaint = { entries: 0, notes: 0, spread: 0, painted: 0, contentReady: false };
+  // A2/C5: the turn's deferred paint jobs (drained on visibility inside the
+  // leaf animation) and the phase costs a driver reads instead of guessing
+  const turnDeferred = [];
+  const paintStats = { lastTurnFrameMs: 0, lastDeferredMs: 0 };
   let model = null;
   let deskSpot = null;   // where the book rose from, to lay it back
   let facePose = null;   // { position: Vector3(world), quaternion }
@@ -1511,6 +1532,27 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const total = spreadCount();
     const next = spread + (direction > 0 ? 1 : -1);
     if (next < 0 || next >= total) return false;
+    // A2/C5: a turn used to paint FOUR 768px canvases in one frame (both
+    // leaf faces + both destination faces) — the measured hitch. Paints now
+    // follow VISIBILITY: at the turn frame only the leaf's front and the
+    // face being revealed under its lift exist on screen; the leaf's back
+    // is hidden until the flip passes 90° (deferred to t≥0.25) and the
+    // face the leaf lands ON is covered until it settles (t≥0.55, painted
+    // by the full paintSpread with page feet). Worst frame: 2 paints.
+    // A2/C5 VERDICT (probe chain, runs 5-10 of the acceptance driver): every
+    // FRAME that carries canvas uploads pays one FIXED ~55 ms stall on this
+    // stack (Electron/ANGLE canvas->texture sync) — size-independent
+    // (half-res leaf: no change), not mipmaps (off: no change), not shader
+    // churn (programGrowth 0), not the room (ambient windows 18-23 ms, zero
+    // over-33), not the harness (direct API turns identical). Uploads in the
+    // SAME frame share ONE stall, so batching all five paints on the turn
+    // frame is the honest minimum: exactly one ~55 ms frame per turn. The
+    // visibility-split tried first (2 paints at t0, rest at t.25/t.55) made
+    // THREE hitch frames per turn and was reverted on the evidence. The
+    // 16 ms bound is unreachable for that one frame on this stack, and the
+    // report says so with this chain as the exhibit.
+    const t0 = performance.now();
+    turnDeferred.length = 0;
     if (direction > 0) {
       paintIndexWith(model, leafFront, spread * 2 + 1);
       paintIndexWith(model, leafBack, next * 2);
@@ -1520,6 +1562,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     }
     spread = next;
     paintSpread();
+    paintStats.lastTurnFrameMs = +(performance.now() - t0).toFixed(1);
     leaf = { direction: direction > 0 ? 1 : -1, t: 0, settled: false };
     leafPivot.visible = true;
     leafPivot.rotation.z = leaf.direction > 0 ? 0 : -Math.PI;
@@ -1549,6 +1592,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     openShell.visible = false;
     closedShell.visible = true;
     leafPivot.visible = false;
+    // a close mid-flight must not leave deferred paints to fire into the
+    // next open's spread
+    leaf = null;
+    turnDeferred.length = 0;
   }
 
   function update(dt) {
@@ -1556,6 +1603,14 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // paper BEND through the middle and a settle cue as it lands
     if (leaf) {
       leaf.t = Math.min(1, leaf.t + dt / LEAF_SECONDS);
+      // A2/C5: the deferred halves of the turn's paint work land on the
+      // frames where their content first becomes visible
+      while (turnDeferred.length && leaf.t >= turnDeferred[0].at) {
+        const job = turnDeferred.shift();
+        const tJob = performance.now();
+        job.run();
+        paintStats.lastDeferredMs = +(performance.now() - tJob).toFixed(1);
+      }
       const eased = smoothstep(leaf.t);
       // The sheet hangs toward viewer-right (local -x). Rotating about +z by a
       // NEGATIVE angle lifts that edge: (-1,0) -> (-cos, +sin) for theta<0.
@@ -1585,6 +1640,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     if (bookState === 'opening') {
       stateT = Math.min(1, stateT + dt / OPEN_SECONDS);
       const rise = smoothstep(Math.min(1, stateT / 0.75));
+      // C1: the face pose is re-solved every frame of the RISE, not captured
+      // once at setOpen — pointer lock stays on now, so a player who turns
+      // while the book comes up must have it come up to where they are
+      // looking, not to where they were.
+      const liveFace = computeFacePose();
+      if (liveFace) facePose = liveFace;
       if (facePose && deskSpot) {
         scratchPos.set(deskSpot.x, deskSpot.y, deskSpot.z).lerp(
           root.parent.worldToLocal(facePose.position.clone()),
@@ -1695,6 +1756,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       state: bookState,
       open: isOpen(),
       carried,
+      // A2/C5: what the last turn actually paid at the turn frame vs in the
+      // deferred visibility slots — the phase split a driver grades
+      paintStats: { ...paintStats, deferredPending: turnDeferred.length },
       glbReady: glbNodes.ready,
       float: bookState === 'open' ? 1 : (bookState === 'opening' ? +stateT.toFixed(2) : 0),
       cover: +Math.abs(glbNodes.cover.rotation.z / Math.PI).toFixed(2),

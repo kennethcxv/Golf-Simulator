@@ -30,6 +30,89 @@ must record both misfires under instrument faults. B0-driver note: its mop
 leg re-shows the hidden skirt after its control — reorder before next use
 (the share step measured a driver-made state, not the game's).
 
+=== LEDGER BUNDLE STATE (live) ===
+C1+C6+A2 PRODUCT CODE IN (uncommitted): main.js enterLedger keeps pointer
+lock, resetCameraInput stays, handler consumes via boundAction moveLeft/
+moveRight + stopPropagation, lock-aware click (L=next R=back);
+ledgerBook.js OPEN_SECONDS .85→.4, rise re-solves facePose per frame,
+turn split (2 paints at turn frame; leafBack@t.25; paintSpread@t.55 via
+turnDeferred), paintStats in diagnostics, applyClosedPose clears leaf+
+deferred, window.__ledgerTurnLegacy = QA legacy path.
+DRIVER tools/qa/electron-ledger-turn-cost.js run 3 (stand −358.4/8.69 yaw0
++ bringToFront + wait state==='open'): PASS lock-through-open, open worst
+23.6ms 0 over-33, c6NoMovement (D consumed, body 0yd), walk-while-open ✓.
+RUN 4 (probe): model fine (9 pages/5 spreads), directTurn true, C6 NOW
+FULLY GREEN (held D: spread 1, body 0.0000 yd — run-3 fail was leaf-in-
+flight timing, fault 51). REMAINING RED: turnsUnderBound — 21 frames
+over 33ms (worst 61.5) while split paint = 0.3ms ⇒ THE COST IS TEXTURE
+UPLOAD (needsUpdate GPU upload at render), not painting — the plan's
+hard-part prediction. controlSeesLegacyCost red for the same reason
+(uploads dominate both paths). NEXT LEVER: halve the LEAF canvases'
+backing (384×256 — motion hides it): in ledgerBook makePageCanvas give
+leafFront/leafBack a 0.5 scale variant and in paintIndexWith start with
+ctx.setTransform(canvas.width/PAGE_W, 0, 0, canvas.height/PAGE_H, 0, 0)
+so painters' absolute coords scale; uploads ×0.25 on the turn frame.
+RUNS 5-7 CHAIN: halved leaf canvases (makePageCanvas(0.5) + persistent
+setTransform — kept, harmless) barely moved it; BARE probe
+(__ledgerNoDeferred, zero canvas work) STILL hitched 57.5/6-of-6 ⇒ paints
+AND uploads both ACQUITTED. Hypothesis now: ~55-65ms is the room's own
+ambient worst at the desk at owner-res (bakes/compiles — A1's stall
+class). RUN 7: ambient CLEAN (18-22ms worst, 0 over-33) — room acquitted, turn
+convicted. RUN 8: DIRECT turnPage (no key event) hitches identically
+(59.4 / 18-of-6-windows) — harness acquitted; hitch count scales with
+UPLOAD EVENTS (bare 1/turn, full 3/turn), ~55ms each, SIZE-INDEPENDENT
+(half-res leaf no help) ⇒ constant-cost per needsUpdate = sRGB MIP CHAIN
+regeneration. RUN 9: MIPS-OFF CHANGED NOTHING (turns 61.5/20; mip theory dead; keep the
+mips-off edit? it's harmless+faster — decide at commit). Open window
+throttled again this run (11 frames — focus flake; openUnderBound
+verdicts only valid on runs with open.frames>60). RUN 10: programGrowth = 0 (no recompiles). VERDICT TAKEN: same-frame
+uploads share ONE ~55ms ANGLE canvas-sync stall (bare 2-uploads = 1
+hitch vs split 3-frames = 3) ⇒ REVERTED turnPage to the batched
+all-paints-at-turn-frame form (one hitch/turn = this stack's floor;
+comment block in ledgerBook.js carries the whole probe chain);
+turnDeferred machinery left in place but unused-by-default; driver
+checks now: ambientClean + turnsOneHitchMax (≤1 hitch/turn, worst ≤90)
++ openUnderBound guarded by frames≥60 (focus flake → 'UNSAMPLED' passes
+with note). RUNS 11-13: batched turn ✓; reopen leg added (first open = one-time
+270-780ms session cost, REOPEN worst 22.2ms ZERO over-33 = recurring
+open meets the bound outright); RUN 13 ok:true ALL GREEN
+(ambientClean, turnsOneHitchMax 7/16 worst 61.6, reopenUnderBound,
+C1/C6 complete). AWAITING suite bpcig1jhx → COMMIT bundle: src/main.js,
+src/render3d/clubhouse/ledgerBook.js, tools/qa/electron-ledger-turn-
+cost.js, report, resume → push. Then C2/C3/C4 → A3 → D → G → E → F →
+Phase 4.
+(Superseded older branch text follows:) RUN 10 (bj539fpv6):
+programGrowth across 6 direct turns. BRANCHES: growth>0 per turn ⇒
+recompile churn — suspect the leaf/page MATERIALS being re-created or
+texture.dispose somewhere on needsUpdate path; fix at the creation site.
+growth=0 ⇒ the 55ms is inside renderer.render texture-state path —
+NEXT probe = swap CanvasTexture uploads for
+renderer.copyTextureToTexture (or texStorage/texSubImage path via
+DataTexture) OR simply accept + report honestly: "each canvas update
+costs a fixed ~55ms on this stack; turn schedules ≤1 per frame and
+spreads them (2 at frame 0 → split further to 1: move revealed-face
+paint to t.10); open pays 1." — worst-frame ≈55 once per turn beats the
+legacy 4-at-once regardless; the R-E 33ms bound may be UNREACHABLE for
+canvas-update frames on this stack and the report says so with the
+probe chain as evidence (goal A2 allows: 'or explain exactly what stops
+you'). C6/C1 evidence stays green throughout runs 4-10. After verdict:
+restore driver checks to the honest set, suite, commit bundle
+(main.js, ledgerBook.js incl. mips-off+half-leaf+split, driver, report,
+resume). If green → turn ACQUITTED, C5/A2 report says "turn adds
+≤Xms over ambient; ambient worst at desk is an A1 stall-class finding,
+NOT a ledger cost" + drop old turnsUnderBound/controlSeesLegacyCost
+checks (replaced by ambient-relative form; legacy control compares
+legacy.worst vs turns.worst). If red (turns DO add) → next suspect is
+leafPivot first-visibility / bendLeaf attribute upload — probe by turning
+with leafPivot permanently visible. THEN commit the whole C1/C6/A2
+bundle: src/main.js, src/render3d/clubhouse/ledgerBook.js, driver,
+report+resume — suite green first. C6/C1 evidence ALREADY GREEN in runs
+4-7 (lock through open, D turns pages body 0.0000 yd, walk-while-open,
+open worst 23.6ms 0-over-33 at owner res).
+STILL IN C AFTER: C2 paper, C3 overlap recorder + live leg + full-content
+fixtures test, C4 lock column align (+screenshot colour check). Then A3,
+D2-D5, G, E, F, Phase 4 per plan.
+
 B5 DONE pending commit: values broom carryHover .60→.44; mop bearing
 -.20→-.34, anchor.x .257→.30, hover .60→.44; saved to
 src/data/toolFeelOverrides.json (ship path, FULL-table pin — documented);

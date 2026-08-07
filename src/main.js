@@ -510,8 +510,12 @@ function enterLedger() {
   if (!book.setOpen(true)) return; // e.g. it is in your arms right now
   app.ledgerOpen = true;
   document.body.classList.add('ledger-mode');
+  // C1 (Full_Goal_16): NEVER take control away. resetCameraInput() clears
+  // any strafe key held at the moment of opening (the C6 ordering case —
+  // open mid-strafe must not glide), but pointer lock STAYS: the player
+  // keeps looking around while the book rises, and the book follows the
+  // face. The old exitPointerLock() here was the "control is taken away".
   resetCameraInput();
-  if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
   walkOverlay.style.display = 'none';
   const viewToggle = document.querySelector('.view-toggle');
@@ -519,23 +523,35 @@ function enterLedger() {
   ledgerKeyHandler = (event) => {
     if (!app.ledgerOpen) return;
     const key = event.key.toLowerCase();
-    if (key === 'escape' || boundAction(event) === 'interact') {
+    // C6: page turns read the LIVE movement bindings, not literals — rebind
+    // strafe to J/L and J/L turn pages. stopPropagation is what actually
+    // CONSUMES the key: without it the walk controller's bubble listener
+    // still records the hold and the character strafes under the book.
+    const action = boundAction(event);
+    if (key === 'escape' || action === 'interact') {
       event.preventDefault();
       event.stopPropagation();
       exitLedger();
-    } else if (key === 'arrowright' || key === 'd') {
+    } else if (key === 'arrowright' || action === 'moveRight') {
       event.preventDefault();
+      event.stopPropagation();
       const turned = ledgerBookApi()?.turnPage(1);
       if (turned && audio.ready) audio.uiTick();
-    } else if (key === 'arrowleft' || key === 'a') {
+    } else if (key === 'arrowleft' || action === 'moveLeft') {
       event.preventDefault();
+      event.stopPropagation();
       const turned = ledgerBookApi()?.turnPage(-1);
       if (turned && audio.ready) audio.uiTick();
     }
   };
   ledgerClickHandler = (event) => {
     if (!app.ledgerOpen) return;
-    const direction = event.clientX > window.innerWidth / 2 ? 1 : -1;
+    // C1: pointer lock stays on while reading, and a locked cursor has no
+    // meaningful clientX — the mouse BUTTONS are the page directions there
+    // (left = next, right = back). Unlocked clicks keep the screen-half rule.
+    const direction = document.pointerLockElement
+      ? (event.button === 2 ? -1 : 1)
+      : (event.clientX > window.innerWidth / 2 ? 1 : -1);
     const turned = ledgerBookApi()?.turnPage(direction);
     if (turned && audio.ready) audio.uiTick();
   };
