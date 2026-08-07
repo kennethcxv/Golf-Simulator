@@ -202,6 +202,76 @@ written before A5 landed, not after.
 
 **Twenty-minute-stranger bar: yes.** It opens filling the monitor.
 
+## A6 — the resolution list compares against the monitor, not the window
+
+Measured on commit `ff9846c`. Driver `tools/qa/electron-a6-reslist.js`, both
+legs on fresh profiles.
+
+**Honest answer first: the comparison was already right, and Goal 16 fixed it**
+(commit `03c73e1`, "the resolution list compared 4K names against a DIP work
+area"). What was missing is that it had only ever been checked at the IPC layer.
+This checks the layer the player reads.
+
+**Why not a screenshot:** the list is a native `<select>`, and Electron cannot
+capture an OS-drawn dropdown popup — collapsed it shows one row. A screenshot
+filed as evidence here would look identical on a fixed and a broken build. So
+the evidence is the rendered option text and the disabled flag, read from the
+DOM after the panel's first paint of real content (the native rows arrive over
+IPC, so a check that read the payload instead would never see what was painted).
+
+### On the real 4K monitor
+
+```
+1100 × 680
+1280 × 720 (720p)
+1366 × 768
+1600 × 900
+1920 × 1080 (1080p)
+2560 × 1440 (1440p)
+3840 × 2055 (current)
+3840 × 2160 (4K)
+```
+
+Nothing greyed, nothing captioned "larger than this display", 4K and 1440p both
+offered. The detail line — which reads a *different* field from the one that
+decides `fits`, and so can disagree with it — reads "This display has room for
+3840 × 2088." That is the work area, correct to the taskbar.
+
+### Negative control: a simulated 1366 x 768 display
+
+```
+1100 × 680
+1280 × 720 (720p)
+1354 × 731 (current)
+1366 × 768
+1600 × 900          - larger than this display  [DISABLED]
+1920 × 1080 (1080p) - larger than this display  [DISABLED]
+2560 × 1440 (1440p) - larger than this display  [DISABLED]
+3840 × 2160 (4K)    - larger than this display  [DISABLED]
+```
+
+Four entries greyed with the reason, the small ones still offered, and the room
+line falls to "1366 × 728". The check can fail, and it fails on exactly the
+right rows.
+
+### The one thing this session changed
+
+`qaFakeDisplay` read only the argv and env channels, so a **leftover
+`fw-fake-display.txt` would fake the display while the flag reported "real"** —
+the stale-control fault with no way to see it. It now reports whichever channel
+delivered the fake. The control leg above proves it: `qaFakeDisplay: true` from
+the marker file, where the old code would have said false.
+
+### Cosmetic consequence of A5, noted not fixed
+
+Because the window now opens maximised, its content size (3840 x 2055) is not
+one of the named candidates, so the list carries **"3840 × 2055 (current)"**
+directly above "3840 × 2160 (4K)" — two near-identical 4K rows. It is truthful
+and it lets the player return to the maximised size, but it reads oddly. Left
+alone deliberately; recorded under things I noticed rather than fixed.
+
+**Twenty-minute-stranger bar: yes.**
+
 ---
 
 ## RUNNING LISTS
