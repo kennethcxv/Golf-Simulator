@@ -137,10 +137,15 @@ export const CLEANING_TOOLS = {
     // the hands; the tremble is what sells the pressure
     useMotion: { rate: 15.0, swing: [0.006, 0.013], roll: 0.014, jitter: 0.005 },
     recoil: 0.055,
-    // a pressurised hit, low and broad
+    // A PRESSURISED HIT, LOW AND BROAD.
+    //
+    // G1: this key was declared TWICE — this line and then a second, quieter
+    // `tone: { startHz: 1900, ... }` described as "wetter and rounder than the
+    // cloth", copied down from a hand tool. The second silently won, so the
+    // washer has been speaking with a cloth's voice and the band written for it
+    // has never been heard. Legal JavaScript, no warning, and nothing in the
+    // suite could see it until tests/lint-duplicate-keys.test.js.
     tone: { startHz: 900, stopHz: 520, startGain: 0.075, stopTail: 0.30, q: 0.8 },
-    // wetter and rounder than the cloth
-    tone: { startHz: 1900, stopHz: 1150, startGain: 0.030, stopTail: 0.18, q: 1.0 },
     audio: { loop: 'washerLoop', start: 'washerStart', stop: 'washerStop' },
   },
 
