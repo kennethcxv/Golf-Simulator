@@ -226,6 +226,51 @@ only exists below a pitch the player is never told to hold. That
 observation feeds B5's tuning (and the overlay's exercise mode makes it
 tunable live).
 
+## B2 — the live tuning overlay: BUILT AND VERIFIED
+
+F9 opens src/ui/toolTuner.js over the running game (sim keeps running, tool
+stays drawn). Broom|Mop tabs; sliders for every group the goal names (hand
+anchor xyz, grip rolls, hand scale, elbow offsets + forearm length + depth,
+strand stiffness/lag/splay/slack, sweep arc/stroke rate/hand follow/wrist
+roll, weight lagHz/damping/settle, carry hover + plant window); numbers
+beside each; diagnostics strip at 4 Hz including palm-to-shaft, head above
+floor, hand NDC, WHICH CAMERA DREW THE TOOL, and a rendered-frame region
+pixel-motion row (the two R-F rendered-frame rows). RMB over the game =
+look; Exercise replays walk/turn/work against the real key handlers.
+Save → src/data/toolFeelOverrides.json via IPC; courseScene merges it over
+the defaults at boot. Verified (tools/qa/electron-tool-tuner.js, two
+phases): **22/22 sliders live** (post-snap targets, fault 48), the
+deliberately-dead slider changed NOTHING, a +0.2 anchor drag moved the
+world grip +0.192, Save wrote the dragged values, and a RELAUNCH booted
+with exactly the saved values (ships test) — then the QA scribbles were
+deleted so they cannot ship as tuning. Panel screenshot:
+qa/electron/tool-tuner/panel-over-broom.png.
+
+## B3 — the moving fibres ARE the visible fibres now
+
+Mop: welded MESH_MopSkirt hidden at adopt; the procedural rig sized up to
+BE the skirt (26 strands × 3 segments, ~1.5× thicker). Proof in the
+player's pixels: hiding the procedural strands now kills the head region's
+motion energy (working p90 737 → 32, ≈ still-noise) — the thing that moves
+is the thing the eye sees. Broom: first bristles ever — welded
+MESH_BroomBristles hidden, a bar-layout rig (22 tufts × 2 rows × 2
+segments) hangs from the block with push-broom params (fast chase, low
+slack, small splay), riding the head-lag pivot so it fans with the swing.
+Screenshot (owner window, default pitch, real equip):
+b0-divergence/broom-fresh/01-equipped-default-pitch.png — a visible comb
+of individual tufts where the slab was. Hand/shaft gaps re-verified 3/3/3
+px after the change.
+
+## B4 — plant authority follows reach (built; sweep re-run pending)
+
+The from-below fake (the sweep's "plants at 0.073 yd for an anchor 2 yd
+under the eye") is closed: work-pose authority fades over a 12 cm ease as
+the hands sink below the plant height (broomViewmodel workBlendEff);
+`planted` — the flag that gates cleaning — follows the effective blend, so
+cleaning cannot land while the head is visibly unplanted. The too-high
+side already hung the head on the shaft sphere by construction. The
+framing-sweep re-run and up-look pixel leg are the remaining verification.
+
 ## D1 — implemented, not yet verified
 
 main.cjs: display-info and set-resolution now speak PHYSICAL pixels

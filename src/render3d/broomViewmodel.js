@@ -404,8 +404,13 @@ export function createBroomViewmodel({
 
   function buildHeadLag() {
     const socket = socketRefs.contact;
+    // rebuild when a strand/bristle rig attached AFTER the pivot was built —
+    // it must ride the head swing, not sit beside it as a sibling
+    const strayRig = socket?.parent?.children?.some(
+      (child) => /StrandRig/i.test(child.name || ''),
+    );
     if (headLag.built && headLag.socketNode === socket && headLag.pivot
-      && headLag.pivot.children.length) return;
+      && headLag.pivot.children.length && !strayRig) return;
     teardownHeadLag();
     headLag.built = true;
     headLag.socketNode = socket || null;
@@ -810,7 +815,20 @@ export function createBroomViewmodel({
     // level and 1.206 yd at maxPitch, a 0.605 yd lift bought purely by looking
     // up. carryHover is set to reproduce the level-look pose exactly, so round
     // 5's carried shaft angle is preserved and only the pitch response changes.
-    const hover = cc.carryHover * (1 - workBlend) + feel.surface.floorKiss * workBlend;
+    // B4 (2026-08-07): THE PLANT IS ONLY LEGAL WHEN THE HANDLE CAN SPAN IT.
+    // The framing sweep's own note — "the contact socket held 0.073-0.084 yd
+    // above the floor for EVERY candidate, including one 2 yd below the eye"
+    // — was the rig planting from BELOW: hands under the contact plane got a
+    // head snapped UP onto the boards, drawing a shaft between two points no
+    // handle connects. Authority over the work pose now fades as the hands
+    // sink through the plant height (12 cm ease, no pop at the boundary);
+    // the too-high side needs no gate — a saturated dropEff already hangs
+    // the head a rigid handle below the hands.
+    const workDrop = _gripCam.y - (floorWorldY + feel.surface.floorKiss);
+    const sinkYd = Math.max(0, -workDrop);
+    const plantAuthority = Math.max(0, Math.min(1, 1 - sinkYd / 0.12));
+    const workBlendEff = workBlend * plantAuthority;
+    const hover = cc.carryHover * (1 - workBlendEff) + feel.surface.floorKiss * workBlendEff;
 
     // C2: THE HANDS ARE WHAT RISE, AND A RIGID HANDLE HAS TO FOLLOW THEM.
     //
@@ -1089,7 +1107,10 @@ export function createBroomViewmodel({
     vmCamera.matrixWorldInverse.copy(vmCamera.matrixWorld).invert();
     _ndc.copy(_headWorld).project(vmCamera);
     lastHeadNdc = { x: +_ndc.x.toFixed(3), y: +_ndc.y.toFixed(3) };
-    state.workBlend = workBlend;
+    // B4: downstream consumers (strand contact, dirt gating, diagnostics)
+    // see the EFFECTIVE blend — pitch-wants-work x handle-can-reach
+    state.workBlend = workBlendEff;
+    state.plantAuthority = plantAuthority;
     // Q7: the head's trail, so a driver can measure that it actually swings
     // and settles rather than taking "it has physics" on trust
     state.headLag = {
@@ -1160,8 +1181,9 @@ export function createBroomViewmodel({
       clamped: clampedNow,
       inContact,
       // cleaning must not land while the broom is visibly CARRIED — the sim
-      // contact only counts once the pose has blended onto the boards.
-      planted: workBlend > 0.6,
+      // contact only counts once the pose has blended onto the boards, AND
+      // only when the handle can actually reach them (B4).
+      planted: workBlendEff > 0.6,
       intensity,
       cameraKickRad: (kick * feel.cameraKick.maxDeg * Math.PI) / 180,
     };
@@ -1183,10 +1205,54 @@ export function createBroomViewmodel({
     vmCamera.updateProjectionMatrix();
   }
 
+  // B2 — the tuning overlay mutates the (cloned, unfrozen) feel object's
+  // leaves; almost everything is read per-frame already, and this re-derives
+  // the handful of values captured at construction: the viewmodel lens, the
+  // elbow offset vectors, the head-lag spring constants, the hand scale,
+  // and the arm GEOMETRY (radii/spans live in vertex data).
+  function rebuildArmGeometries() {
+    const a = feel.arms;
+    for (const arm of [right, left]) {
+      if (!arm) continue;
+      const forearm = arm.forearmPivot.children[0];
+      forearm.geometry.dispose();
+      forearm.geometry = new THREE.CylinderGeometry(
+        a.forearmWristRadius, a.forearmElbowRadius, a.forearmSpan, 14, 1, false,
+      );
+      forearm.position.z = a.forearmSpan / 2;
+      const [cuffRoll, cuffBody] = arm.cuff.children;
+      cuffRoll.geometry.dispose();
+      cuffRoll.geometry = new THREE.TorusGeometry(a.forearmElbowRadius + 0.012, 0.015, 8, 18);
+      cuffBody.geometry.dispose();
+      cuffBody.geometry = new THREE.CylinderGeometry(
+        a.forearmElbowRadius + 0.008, a.sleeveRadius, 0.09, 12,
+      );
+      const sleeve = arm.sleevePivot.children[0];
+      sleeve.geometry.dispose();
+      sleeve.geometry = new THREE.CapsuleGeometry(a.sleeveRadius, a.sleeveLength, 6, 12);
+      sleeve.position.z = a.sleeveLength / 2;
+    }
+  }
+
   return {
     vmCamera,
     setActive,
     isActive: () => active,
+    refreshFromFeel() {
+      vmCamera.fov = feel.camera.fov;
+      vmCamera.near = feel.camera.near;
+      vmCamera.far = feel.camera.far;
+      vmCamera.updateProjectionMatrix();
+      elbowOffsetRight.set(...feel.arms.elbowOffsetRight);
+      elbowOffsetLeft.set(...feel.arms.elbowOffsetLeft);
+      HEAD_LAG.stiffness = feel.headLag?.stiffness ?? 128;
+      HEAD_LAG.damping = feel.headLag?.damping ?? 15;
+      HEAD_LAG.drive = feel.headLag?.drive ?? 0.9;
+      HEAD_LAG.maxAngle = feel.headLag?.maxAngle ?? 0.30;
+      if (active) fpHands.setHandScale?.(feel.compose.handScale || 1);
+      rebuildArmGeometries();
+      return true;
+    },
     // B3/B4: set [x, y, z] to sweep the hand's camera-space anchor live, or
     // null to go back to the authored value. QA only — no game code calls it.
     setGripAnchorOverride: (next) => {

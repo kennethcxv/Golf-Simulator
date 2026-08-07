@@ -8,7 +8,31 @@ acceptance (qa-boot ownerResolution), negative control per instrument,
 suite green before each commit, stage explicit paths only (parallel .blend
 session in tree), NPCs 1x.
 
-## Exact resume point
+## Exact resume point (UPDATED after B2/B3/B4 build)
+
+STATE NOW: B0/B1 committed+pushed (392b2bf, 03c73e1). B2 overlay BUILT AND
+VERIFIED (tuner driver green: 22/22 sliders live, dead control inert,
+save→relaunch ships, panel screenshot qa/electron/tool-tuner/). B3 BUILT
+AND VERIFIED in-game: mop rig is THE skirt (26×3 thicker strands, welded
+MESH_MopSkirt hidden at adopt; strandsHidden control kills motion 737→32);
+broom has real tuft rows (bar layout 22×2 under hidden MESH_BroomBristles,
+screenshot b0-divergence/broom-fresh/01-equipped-default-pitch.png shows
+the comb). B4 BUILT (plant authority fades over 12cm as hands sink below
+plant height; workBlendEff drives planted flag+strands) — NOT yet
+instrument-verified (sweep re-run pending). Broom gaps still 3/3/3 px.
+
+PENDING RIGHT NOW: suite re-run bauuqi7ie on settled tree must name the 1
+failing test from the mixed-state run (suspect: a test pinning buildHeadLag
+reason string or strand module shape). FIX IT, suite green, then COMMIT
+B2+B3+B4: files = src/ui/toolTuner.js (new), src/main.js, preload.cjs,
+main.cjs (IPC), src/render3d/{broomViewmodel,courseScene,mopStrands,
+toolViewmodel}.js, tools/qa/electron-tool-tuner.js, report+resume. Then
+push. B0-driver note: its mop leg re-shows the hidden skirt after its
+control — reorder before next use (share step measured a driver state).
+
+THEN (order): B5 tune with overlay (record after-clips electron-b1-watch
+per tool + watch + report values); A2/C bundle; A3; D2-D5; G; E; F. Phase 4
+verifiers at end. Full details in sections below + PLAN_16.md.
 
 1. Background bash b4s84ghrr = re-run of BOTH B0 legs against the FIXED
    build: `QA_B0_LEG=broom-fresh|mop-fresh node tools/qa/run-electron.cjs

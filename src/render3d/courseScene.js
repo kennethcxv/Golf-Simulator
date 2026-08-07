@@ -6541,6 +6541,23 @@ export function makeCourseScene(canvas, state) {
   // active one updates and draws, so five rigs cost what one did. `broomVm`
   // stays as the broom's instance because a session's diagnostics and a
   // shelf of drivers address it by that name.
+  // B2 — LIVE FEEL. Every rig reads a mutable deep clone of its feel table;
+  // the tuning overlay writes leaves of these clones and the held tool
+  // answers the same frame. structuredClone drops toolFeel's deep-freeze;
+  // the values are identical until someone drags a slider. Overrides saved
+  // by the overlay (src/data/toolFeelOverrides.json) are merged in at boot
+  // through applyToolFeelOverrides below, so what was tuned is what ships.
+  const liveToolFeel = {};
+  for (const rigId of VM_RIG_TOOLS) liveToolFeel[rigId] = structuredClone(TOOL_VM_FEEL[rigId]);
+  const feelDeepMerge = (base, patch) => {
+    for (const [key, value] of Object.entries(patch || {})) {
+      if (value && typeof value === 'object' && !Array.isArray(value)
+        && base[key] && typeof base[key] === 'object' && !Array.isArray(base[key])) {
+        feelDeepMerge(base[key], value);
+      } else base[key] = value;
+    }
+    return base;
+  };
   const toolRigs = {};
   for (const rigId of VM_RIG_TOOLS) {
     if (!heldGroups[rigId]) continue;
@@ -6552,7 +6569,7 @@ export function makeCourseScene(canvas, state) {
       fpHands,
       colliderQuery: broomColliderQuery,
       floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
-      feel: TOOL_VM_FEEL[rigId],
+      feel: liveToolFeel[rigId],
       // A8: the REGISTRY decides how many hands here too. Q7 made the shared
       // toolViewmodel path read `support`, but this bespoke rig built both arms
       // unconditionally, so the broom - the one tool the ruling was written
@@ -6569,6 +6586,36 @@ export function makeCourseScene(canvas, state) {
   const broomVm = toolRigs.broom;
   const rigFor = (id) => (id ? toolRigs[id] || null : null);
   const activeRig = () => rigFor(walkTool);
+  // B2: apply saved overrides once the native bridge answers; push strand
+  // params whenever the strand rig exists (it attaches when the authored
+  // GLB adopts, so retry briefly).
+  const pushStrandParams = (id) => {
+    const rig = heldGroups[id]?.userData?.strandRig;
+    const params = liveToolFeel[id]?.strands;
+    if (rig?.setParams && params) rig.setParams(params);
+    return !!(rig && params);
+  };
+  function applyToolFeelOverrides(overrides) {
+    if (!overrides || typeof overrides !== 'object') return false;
+    for (const [id, patch] of Object.entries(overrides)) {
+      if (!liveToolFeel[id] || !patch) continue;
+      feelDeepMerge(liveToolFeel[id], patch);
+      toolRigs[id]?.refreshFromFeel?.();
+    }
+    let tries = 0;
+    const strandRetry = () => {
+      tries += 1;
+      const done = pushStrandParams('mop');
+      if (!done && tries < 20) setTimeout(strandRetry, 500);
+    };
+    strandRetry();
+    return true;
+  }
+  try {
+    window.fairwayNative?.readToolFeel?.().then((saved) => {
+      if (saved) applyToolFeelOverrides(saved);
+    }).catch(() => {});
+  } catch { /* browser QA has no bridge; defaults stand */ }
   // The viewmodel pass renders with the world's lights: every light learns the
   // rig layer once per equip (idempotent, and catches lights created since).
   // Every rig shares BROOM_FEEL.camera.layer, so one sweep serves them all.
@@ -8500,7 +8547,9 @@ export function makeCourseScene(canvas, state) {
     // contact socket resolves from the rig-posed group). `broomPose` keeps its
     // name because the broom-specific dirt-push branches below key on it.
     const heldRig = rigFor(walkTool);
-    const rigFeel = heldRig ? TOOL_VM_FEEL[walkTool] : null;
+    // B2: the LIVE clone, not the frozen table — stroke.rate and anchor here
+    // must answer the tuning overlay the same frame a slider moves.
+    const rigFeel = heldRig ? liveToolFeel[walkTool] : null;
     const rigPose = heldRig && heldRig.isActive() ? heldRig.update(dt, {
       pitch: walk.pitch,
       yaw: walk.yaw,
@@ -8513,7 +8562,8 @@ export function makeCourseScene(canvas, state) {
       // sits deliberately BELOW a full walk so an ordinary stroke reads at
       // full strength. Named so it stops masquerading as a locomotion value.
       speedNorm: dt > 0
-        ? Math.min(1, (distanceMoved / dt) / BROOM_FEEL.dirt.sweepIntensityFullYdS) : 0,
+        ? Math.min(1, (distanceMoved / dt)
+          / (liveToolFeel.broom || BROOM_FEEL).dirt.sweepIntensityFullYdS) : 0,
     }) : null;
     const broomPose = walkTool === 'broom' ? rigPose : null;
     if (rigPose && rigPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
@@ -8708,7 +8758,7 @@ export function makeCourseScene(canvas, state) {
           // piles and, at push speed, ejected them out of the lane.) sweepAt
           // normalises, so only the direction matters here.
           if (walkTool === 'broom' && broomVm.isActive() && broomPose) {
-            const side = BROOM_FEEL.dirt.sideBias * sign;
+            const side = (liveToolFeel.broom || BROOM_FEEL).dirt.sideBias * sign;
             dirX = -Math.sin(walk.yaw) + Math.cos(walk.yaw) * side;
             dirZ = -Math.cos(walk.yaw) + -Math.sin(walk.yaw) * side;
           }
@@ -11940,6 +11990,33 @@ export function makeCourseScene(canvas, state) {
       // tool the rig does not own, so a driver cannot mistake "no rig" for a
       // healthy pose.
       toolRigDiagnostics: (id) => (toolRigs[id] ? toolRigs[id].diagnostics() : null),
+      // B2 — the tuning overlay's surface. toolFeelLive hands back the LIVE
+      // mutable clone (the overlay writes leaves directly and calls refresh
+      // for the constructor-captured set); toolFeelSet is the path-string
+      // form the QA driver uses so its writes go through the same door.
+      toolFeelLive: (id) => liveToolFeel[id] || null,
+      toolFeelSet: (id, path, value) => {
+        const feel = liveToolFeel[id];
+        if (!feel || typeof path !== 'string') return null;
+        const keys = path.split('.');
+        let node = feel;
+        for (let i = 0; i < keys.length - 1; i += 1) {
+          if (node[keys[i]] == null || typeof node[keys[i]] !== 'object') return null;
+          node = node[keys[i]];
+        }
+        const leaf = keys[keys.length - 1];
+        const idx = Number(leaf);
+        if (Array.isArray(node) && Number.isInteger(idx)) node[idx] = Number(value);
+        else node[leaf] = typeof node[leaf] === 'number' ? Number(value) : value;
+        toolRigs[id]?.refreshFromFeel?.();
+        if (path.startsWith('strands')) pushStrandParams(id);
+        return true;
+      },
+      toolFeelRefresh: (id) => (toolRigs[id]?.refreshFromFeel ? toolRigs[id].refreshFromFeel() : false),
+      toolFeelSnapshot: () => JSON.parse(JSON.stringify(liveToolFeel)),
+      toolFeelApplyOverrides: (overrides) => applyToolFeelOverrides(overrides),
+      strandRigFor: (id) => heldGroups[id]?.userData?.strandRig || null,
+      pushStrandParams,
       // B3/B4: the framing sweep sets a tool's hand anchor live and reads the
       // head's plant back, so the two constraints can be satisfied together
       // instead of one being tuned until the other breaks.

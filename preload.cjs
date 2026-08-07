@@ -32,4 +32,9 @@ contextBridge.exposeInMainWorld('fairwayNative', {
   // window it was printing to.
   reportError: (payload) => ipcRenderer.invoke('fw:report-error', payload),
   crashLog: () => ipcRenderer.invoke('fw:crash-log'),
+  // B2 (dev tuning overlay): the saved mop/broom feel overrides. What the
+  // overlay tunes is written to src/data/toolFeelOverrides.json and merged
+  // over the shipped defaults at boot — what you tune is what ships.
+  readToolFeel: () => ipcRenderer.invoke('fw:read-tool-feel'),
+  saveToolFeel: (overrides) => ipcRenderer.invoke('fw:save-tool-feel', overrides),
 });

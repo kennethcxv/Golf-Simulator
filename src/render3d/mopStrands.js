@@ -22,31 +22,86 @@
 const STRAND_COUNT = 14;
 const SEGMENTS = 3;
 
-export function createMopStrands({ THREE, material, radius = 0.115, length = 0.30 }) {
+// B2 — every number the motion runs on, LIVE. The tuning overlay writes
+// these through setParams while the tool is in hand; nothing is captured
+// into closures at build time any more. Defaults are the shipped values.
+const DEFAULT_PARAMS = Object.freeze({
+  pushGain: 1.15,   // stroke angle -> strand push
+  dragGain: 0.10,   // velocity term SUBTRACTED (drag, not anticipation)
+  chaseBase: 9.5,   // segment chase rate at the collar
+  chaseFall: 2.3,   // how much slower each segment down the strand
+  carryChase: 0.62, // fraction of chase used for the carry deficit filter
+  deficitBase: 0.55,
+  deficitGrow: 0.30,
+  splayBase: 0.30,
+  splayGrow: 0.42,
+  slackScale: 1.0,  // multiplies each strand's authored slack
+  targetBase: 0.42,
+  targetGrow: 0.34,
+});
+
+// B3 — the same trailing-segment machinery in two LAYOUTS:
+//   'ring' (default) — yarn hanging around a collar: the mop.
+//   'bar'            — stiff tuft rows under a rectangular block: the push
+//                      broom. columns x rows tufts spanning barWidth x
+//                      barDepth in the anchor's local XZ, shorter segments,
+//                      and the caller passes push-broom params (fast chase,
+//                      low slack) so it settles like bristle, not yarn.
+export function createMopStrands({
+  THREE, material, radius = 0.115, length = 0.30, params = {},
+  layout = 'ring', count = STRAND_COUNT, segments = SEGMENTS,
+  barWidth = 0.44, barDepth = 0.05, barRows = 2,
+  strandRadiusTop = 0.0072, strandRadiusBottom = 0.0052,
+}) {
+  const live = { ...DEFAULT_PARAMS, ...params };
   const root = new THREE.Group();
   root.name = 'MopStrandRig';
 
-  // one geometry for every segment: a tapered length of yarn, origin at its top
-  // so a segment rotates about where it joins the one above
-  const segLen = length / SEGMENTS;
-  const geometry = new THREE.CylinderGeometry(0.0072, 0.0052, segLen, 5, 1, true);
+  // one geometry for every segment: a tapered length of yarn/bristle, origin
+  // at its top so a segment rotates about where it joins the one above
+  const SEGS = Math.max(1, segments);
+  const segLen = length / SEGS;
+  const geometry = new THREE.CylinderGeometry(strandRadiusTop, strandRadiusBottom, segLen, 5, 1, true);
   geometry.translate(0, -segLen / 2, 0);
 
-  const strands = [];
-  for (let i = 0; i < STRAND_COUNT; i += 1) {
-    // two rings, so the head reads as a bundle rather than a fringe
-    const ring = i < STRAND_COUNT * 0.6 ? 0 : 1;
-    const inRing = ring === 0 ? STRAND_COUNT * 0.6 : STRAND_COUNT * 0.4;
-    const indexInRing = ring === 0 ? i : i - Math.floor(STRAND_COUNT * 0.6);
-    const angle = (indexInRing / inRing) * Math.PI * 2 + (ring ? 0.22 : 0);
-    const r = radius * (ring ? 0.62 : 1.0);
-    const anchor = new THREE.Group();
-    anchor.position.set(Math.cos(angle) * r, 0, Math.sin(angle) * r);
-    root.add(anchor);
+  // placement per layout; angle keeps its two update() roles — cos = how much
+  // of the stroke this strand feels, sin = which way it splays on the floor
+  const places = [];
+  if (layout === 'bar') {
+    const cols = Math.max(2, Math.round(count / Math.max(1, barRows)));
+    for (let r = 0; r < barRows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        const xNorm = cols === 1 ? 0 : (c / (cols - 1)) * 2 - 1; // -1..1
+        places.push({
+          x: xNorm * (barWidth / 2),
+          z: barRows === 1 ? 0 : ((r / (barRows - 1)) * 2 - 1) * (barDepth / 2),
+          // near-full stroke response for every tuft, outward splay by column:
+          // sin(angle) carries the sign of x, cos stays close to 1
+          angle: Math.asin(Math.max(-1, Math.min(1, xNorm))) * 0.55,
+        });
+      }
+    }
+  } else {
+    for (let i = 0; i < count; i += 1) {
+      // two rings, so the head reads as a bundle rather than a fringe
+      const ring = i < count * 0.6 ? 0 : 1;
+      const inRing = ring === 0 ? count * 0.6 : count * 0.4;
+      const indexInRing = ring === 0 ? i : i - Math.floor(count * 0.6);
+      const angle = (indexInRing / inRing) * Math.PI * 2 + (ring ? 0.22 : 0);
+      const r = radius * (ring ? 0.62 : 1.0);
+      places.push({ x: Math.cos(angle) * r, z: Math.sin(angle) * r, angle });
+    }
+  }
 
+  const strands = [];
+  for (let i = 0; i < places.length; i += 1) {
+    const p = places[i];
+    const anchor = new THREE.Group();
+    anchor.position.set(p.x, 0, p.z);
+    root.add(anchor);
     const joints = [];
     let parent = anchor;
-    for (let s = 0; s < SEGMENTS; s += 1) {
+    for (let s = 0; s < SEGS; s += 1) {
       const joint = new THREE.Group();
       if (s > 0) joint.position.y = -segLen;
       const mesh = new THREE.Mesh(geometry, material);
@@ -58,11 +113,11 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
       joints.push(joint);
       parent = joint;
     }
-    // a little variation so the bundle is not a machined ring
+    // a little variation so the bundle is not a machined row
     strands.push({
       anchor,
       joints,
-      angle,
+      angle: p.angle,
       phase: (i * 0.61803) % 1,
       slack: 0.82 + ((i * 0.37) % 1) * 0.36,
       lag: joints.map(() => 0),
@@ -97,6 +152,7 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
       // How much this strand feels the stroke: one on the outside of the arc,
       // less on the inside, so the bundle fans instead of moving as a slab.
       const facing = Math.cos(strand.angle);
+      const slack = strand.slack * live.slackScale;
       // The velocity term used to be ADDED, which is a phase lead: the yarn
       // reached the end of the stroke fractionally before the head did. That is
       // anticipation, and cloth does not anticipate the hand carrying it — it
@@ -107,25 +163,26 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
       // Subtracting it makes the term drag: the faster the head is driven, the
       // further behind the yarn sits, which is the direction the physics
       // actually points.
-      const push = (stroke * 1.15 - drive * 0.10) * strand.slack;
-      for (let s = 0; s < SEGMENTS; s += 1) {
+      const push = (stroke * live.pushGain - drive * live.dragGain) * slack;
+      for (let s = 0; s < SEGS; s += 1) {
         // each segment chases the one above it, and more slowly further down —
         // this is the trail, and it is why the tips are still moving when the
         // head has stopped
-        const chase = 9.5 - s * 2.3;
-        const target = push * (0.42 + s * 0.34) * (0.55 + 0.45 * facing);
+        const chase = live.chaseBase - s * live.chaseFall;
+        const target = push * (live.targetBase + s * live.targetGrow) * (0.55 + 0.45 * facing);
         strand.lag[s] += (target - strand.lag[s]) * Math.min(1, dt * chase);
         // the carried head's fan, arrived at late: the deeper the segment the
         // slower it catches up, so the deficit grows down the strand
         strand.carry[s] += (carry - strand.carry[s])
-          * Math.min(1, dt * chase * 0.62);
-        const deficit = (strand.carry[s] - carry) * (0.55 + s * 0.30) * strand.slack;
+          * Math.min(1, dt * chase * live.carryChase);
+        const deficit = (strand.carry[s] - carry)
+          * (live.deficitBase + s * live.deficitGrow) * slack;
         const joint = strand.joints[s];
         // swing across the stroke, and trail behind the carry...
         joint.rotation.z = strand.lag[s] + deficit;
         // ...and splay OUTWARD once the floor stops the strand going down. The
         // deeper the segment and the more planted the head, the flatter it lies.
-        const splay = contact * (0.30 + s * 0.42) * strand.slack;
+        const splay = contact * (live.splayBase + s * live.splayGrow) * slack;
         joint.rotation.x = Math.sin(strand.angle) * splay
           + Math.sin(time * 1.7 + strand.phase * 6.28) * 0.02 * (1 - contact);
       }
@@ -140,9 +197,19 @@ export function createMopStrands({ THREE, material, radius = 0.115, length = 0.3
     root,
     update,
     dispose,
+    // B2: the overlay's live surface — read/patch the motion numbers with the
+    // tool in hand; nothing is captured at build time.
+    params: () => ({ ...live }),
+    setParams(patch = {}) {
+      for (const [key, value] of Object.entries(patch)) {
+        if (key in live && Number.isFinite(Number(value))) live[key] = Number(value);
+      }
+      return { ...live };
+    },
+    defaults: () => ({ ...DEFAULT_PARAMS }),
     // for a driver: the world position of every tip, which is the only honest
     // way to ask whether the strands actually moved
-    tipCount: STRAND_COUNT,
-    tips: () => strands.map((strand) => strand.joints[SEGMENTS - 1]),
+    tipCount: strands.length,
+    tips: () => strands.map((strand) => strand.joints[SEGS - 1]),
   };
 }

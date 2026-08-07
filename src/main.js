@@ -35,6 +35,7 @@ import { makeGolfDayPanel } from './ui/golfDayPanel.js';
 import { makeLaptop } from './ui/laptop.js';
 import { makeSettingsPanel } from './ui/settingsPanel.js';
 import { makeToolWheel } from './ui/toolWheel.js';
+import { makeToolTuner } from './ui/toolTuner.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import {
@@ -178,6 +179,7 @@ let golfDayPanel = null;
 let menu = null;
 let gameUi = null;
 let toolWheel = null;
+let toolTuner = null; // B2: the live mop/broom tuning overlay (F9)
 let viewButtons = [];
 
 function walkActive() {
@@ -2315,6 +2317,12 @@ window.addEventListener('keydown', (e) => {
       if (walkActive() && app.scene3d?.walk?.cart?.mounted) return;
       app.speedIdx = app.speedIdx === 0 ? 1 : 0;
       return;
+    case 'F9':
+      // B2: the live mop/broom tuning overlay. Dev-facing; the sim keeps
+      // running and the held tool stays drawn while the panel is up.
+      e.preventDefault();
+      toolTuner?.toggle();
+      return;
   }
   // ITEM 23: the speed keys are BOUND, not literal. They were three `case '1'`
   // arms here, so no amount of rebinding could reach them.
@@ -3417,6 +3425,8 @@ function boot() {
       syncPresentationMode(presentationMode());
     },
   });
+  toolTuner = makeToolTuner(app);
+  app.toolTuner = toolTuner; // reachable from QA via window.__fw
 
   walkPrompt = el('div', { class: 'shop-prompt', text: '' });
   walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
@@ -3466,7 +3476,7 @@ function boot() {
   viewButtons[0].classList.add('active-tool');
   const viewToggle = el('div', { class: 'view-toggle', style: 'display:none' }, ...viewButtons);
 
-  gameUi.append(hud.root, golfDayPanel.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root,
+  gameUi.append(hud.root, golfDayPanel.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root, toolTuner.root,
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);

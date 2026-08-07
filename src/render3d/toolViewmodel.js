@@ -364,21 +364,77 @@ export function buildToolViewmodels() {
             loaded.set(def.id, entry);
             if (def.id === equippedTool) setEquipped(def.id, true);
             if (activeTools.has(def.id)) setUsing(def.id, true);
-            // ITEM 8: the mop's authored head is one solid cone, so it can
-            // never trail or splay. Hang real strands off it. They are built on
-            // the GROUP rather than inside the GLB so a re-adopt cannot orphan
-            // them, and the rig drives them from its own stroke each frame.
+            // ITEM 8 → B3 (2026-08-07): the moving fibres ARE the visible
+            // fibres now. B0 measured the old arrangement's lie in pixels:
+            // the authored MESH_MopSkirt is a WELDED bundle (the builder
+            // joins its modelled strands into one static mesh) and the 14
+            // thin procedural strands hung among it were only 25.2% of the
+            // skirt's pixels — the eye watched a solid block while the
+            // instruments truthfully measured the moving minority. The
+            // welded mesh is HIDDEN (kept in the GLB so hash gates and
+            // controls can still find it) and the procedural rig is sized
+            // up to BE the skirt. The broom gets the same treatment for the
+            // first time: its authored MESH_BroomBristles is the same
+            // welded construction, hidden here, replaced by stiff tuft rows
+            // driven from the rig's own stroke (bar layout, fast chase, low
+            // slack — push-broom character per the goal).
             if (def.id === 'mop' && !entry.strandRig) {
               const skirt = root.getObjectByName('MESH_MopSkirt');
               const collar = root.getObjectByName('MESH_MopCollar') || skirt;
               if (collar) {
+                if (skirt) skirt.visible = false;
                 const yarn = new THREE.MeshStandardMaterial({
                   color: 0xe4dcc6, roughness: 0.95, metalness: 0,
                 });
-                const rig = createMopStrands({ THREE, material: yarn });
+                const rig = createMopStrands({
+                  THREE,
+                  material: yarn,
+                  count: 26,
+                  radius: 0.115,
+                  length: 0.30,
+                  strandRadiusTop: 0.011,
+                  strandRadiusBottom: 0.0075,
+                });
                 collar.add(rig.root);
                 entry.strandRig = rig;
                 entry.strandMaterial = yarn;
+                group.userData.strandRig = rig;
+              }
+            }
+            if (def.id === 'broom' && !entry.strandRig) {
+              const weldedBristles = root.getObjectByName('MESH_BroomBristles');
+              const contact = root.getObjectByName('SOCKET_FloorContact');
+              const parent = contact?.parent || null;
+              if (parent) {
+                if (weldedBristles) weldedBristles.visible = false;
+                const bristle = new THREE.MeshStandardMaterial({
+                  color: 0x27231f, roughness: 0.85, metalness: 0,
+                });
+                const rig = createMopStrands({
+                  THREE,
+                  material: bristle,
+                  layout: 'bar',
+                  count: 22,
+                  segments: 2,
+                  length: 0.115,        // GLB-local metres: block underside to floor
+                  barWidth: 0.46,
+                  barDepth: 0.05,
+                  barRows: 2,
+                  strandRadiusTop: 0.013,
+                  strandRadiusBottom: 0.009,
+                  // push-broom character: fast settle, short travel, little slack
+                  params: {
+                    chaseBase: 26, chaseFall: 5, pushGain: 0.55, dragGain: 0.05,
+                    splayBase: 0.18, splayGrow: 0.22, slackScale: 0.55,
+                    deficitBase: 0.35, deficitGrow: 0.18, targetBase: 0.5,
+                    targetGrow: 0.22, carryChase: 0.8,
+                  },
+                });
+                rig.root.position.copy(contact.position);
+                rig.root.position.y += 0.115;
+                parent.add(rig.root);
+                entry.strandRig = rig;
+                entry.strandMaterial = bristle;
                 group.userData.strandRig = rig;
               }
             }

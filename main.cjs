@@ -289,6 +289,31 @@ ipcMain.handle('fw:quit', (event) => {
   return true;
 });
 
+// B2 — the dev tuning overlay's persistence. The overlay tunes the live
+// clones in the renderer; Save writes the full current mop/broom values
+// HERE so they ship with the repo (src/data/toolFeelOverrides.json is
+// merged over the defaults at boot). Dev-facing by design: the file lives
+// in the source tree, not in userData.
+const TOOL_FEEL_OVERRIDES_PATH = path.join(__dirname, 'src', 'data', 'toolFeelOverrides.json');
+ipcMain.handle('fw:read-tool-feel', (event) => {
+  assertTrusted(event);
+  try {
+    return JSON.parse(fs.readFileSync(TOOL_FEEL_OVERRIDES_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
+});
+ipcMain.handle('fw:save-tool-feel', (event, overrides) => {
+  assertTrusted(event);
+  if (!overrides || typeof overrides !== 'object') throw new Error('No overrides payload.');
+  const allowed = {};
+  for (const id of ['mop', 'broom']) {
+    if (overrides[id] && typeof overrides[id] === 'object') allowed[id] = overrides[id];
+  }
+  fs.writeFileSync(TOOL_FEEL_OVERRIDES_PATH, `${JSON.stringify(allowed, null, 2)}\n`);
+  return { saved: Object.keys(allowed), path: TOOL_FEEL_OVERRIDES_PATH };
+});
+
 // --- F3: crash handling -------------------------------------------------
 // Before this, a renderer that died took the window with it: blank screen, no
 // log, no way for a player to say what happened or to get back in without
