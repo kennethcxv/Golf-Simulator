@@ -433,6 +433,11 @@ export function makeGoodsMesh(carry, {
 }
 
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
+// Every clubhouse ever constructed in this session, oldest first. See the note
+// at the push site in makeClubhouse. Never cleared: a rebuild that happened and
+// was then corrected is the whole thing this is here to catch.
+export const CLUBHOUSE_BUILD_LOG = [];
+
 export const CLUBHOUSE_INTERIOR_DRAW_DISTANCE = 80;
 export const CLUBHOUSE_GTAO_EXCLUSION_CLEARANCE_YD = 15;
 // The east pallet in row one has an unobstructed authored +Z approach. Its
@@ -588,6 +593,38 @@ export function makeClubhouse(ctx) {
   // office/stockroom wing, the safety lights, the entrance mat. The v2 interior
   // module stands grey volumes in for what is vetoed here. Veto-only: the built-in
   // facility/fixture gates still apply to everything else.
+  // A2 — EVERY BUILD, RECORDED, WITH WHAT IT RESOLVED AND WHY.
+  //
+  // The complaint is "tabbing out and back loads a DIFFERENT clubhouse first,
+  // then mine", and the presentation switch above has a fallback to
+  // 'modern-public' — a genuinely different building — reached whenever neither
+  // the layout constant, the variant request, nor state.property.clubhouseVariant
+  // names something known. A rebuild that happens before the save's property
+  // field is populated would therefore draw the wrong building and then correct
+  // itself, which is exactly what that sentence describes.
+  //
+  // So the answer must not be reasoned about. Every construction appends here,
+  // with the three inputs it saw, and a driver can read the whole session's
+  // history: one entry means one building was ever built.
+  CLUBHOUSE_BUILD_LOG.push({
+    at: CLUBHOUSE_BUILD_LOG.length,
+    presentation: requestedClubhousePresentation,
+    layoutVariant: CLUBHOUSE_LAYOUT_VARIANT,
+    requested: CLUBHOUSE_VARIANT_REQUEST.variant || null,
+    fromSavedProperty: state?.property?.clubhouseVariant || null,
+  });
+  // ...and if it ever DOES change under the player, say so out loud. A silent
+  // swap is the reason this is hard to chase: the building is correct by the
+  // time anyone looks. This turns "I think I saw a different clubhouse" into a
+  // line in the console naming both of them.
+  const firstBuild = CLUBHOUSE_BUILD_LOG[0];
+  if (firstBuild.presentation !== requestedClubhousePresentation) {
+    console.warn(
+      `[clubhouse] presentation CHANGED mid-session: ${firstBuild.presentation} -> ${requestedClubhousePresentation}. `
+      + `layout=${CLUBHOUSE_LAYOUT_VARIANT} requested=${CLUBHOUSE_VARIANT_REQUEST.variant} `
+      + `savedProperty=${state?.property?.clubhouseVariant}. The player saw two different buildings.`,
+    );
+  }
   const greyboxPresentation = requestedClubhousePresentation === 'pine-hills-v2';
   const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set([
     61, 62, 63,        // desk shell, hutch cabinet, fitting booth — grey volumes instead
@@ -12105,6 +12142,10 @@ export function makeClubhouse(ctx) {
     frontDeskBridge: () => B.frontDeskReservations || null,
     // L3: the club register on the desk - main.js opens it (enterLedger)
     ledgerBook,
+    // A2: which building this is, and every building this session has built
+    // before it. One entry means one clubhouse was ever drawn.
+    presentation: requestedClubhousePresentation,
+    buildLog: () => CLUBHOUSE_BUILD_LOG.map((entry) => ({ ...entry })),
     collisionDiagnostics: () => Object.freeze(registeredCols.map((collider, index) => {
       const primitiveMetadata = {};
       for (const [key, value] of Object.entries(collider)) {

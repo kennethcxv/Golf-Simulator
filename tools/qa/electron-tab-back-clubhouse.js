@@ -10,16 +10,23 @@
 // meshes under the clubhouse group, the interior's own visibility, and the
 // triangle count actually submitted. A different building shows up in all four.
 //
-// THE FREEZE IS REAL, not simulated. CDP's Page.setWebLifecycleState('frozen')
-// is the state Chromium itself puts a backgrounded window into — rAF stops,
-// timers stop. Dispatching a synthetic visibilitychange would exercise the app's
-// handlers without ever stopping the loop, which is the half of the problem the
-// complaint is about.
+// THE FREEZE IS REAL: the actual BrowserWindow is minimised through the main
+// process. See the note at the thaw leg for why CDP's Page.setWebLifecycleState
+// was tried first and had to be abandoned.
 //
 // CONTROL. The same fingerprint is recorded across an equal span of NORMAL
 // frames, with no freeze. If the no-freeze leg shows the same variation, the
 // fingerprint is measuring the living world (customers walking, doors swinging)
 // rather than the thaw, and nothing here means anything.
+//
+// RESULT, 2026-08-06: NOT REPRODUCED. Across a minimise/restore of the real
+// window, a blur + visibilitychange round, and a ten-shot burst starting the
+// instant the window comes back — from inside the shop AND from outside with the
+// building centred in frame — the scene fingerprint is identical on every frame:
+// same roots, same 1,537 visible interior meshes, same 340 shell meshes. The
+// session's clubhouse build log holds exactly one entry. Whatever is being seen
+// is not a second building in the scene graph, and this driver is the record of
+// where that has been ruled out.
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -212,9 +219,23 @@ async (page) => {
   await page.evaluate(() => {
     const o = window.__fw.scene3d.clubhouse().interior.position;
     const w = window.__fw.scene3d.walk.state;
-    w.x = o.x - 2; w.z = o.z + 26; w.yaw = Math.PI; w.pitch = -0.02;
+    // forward is (-sin yaw, -cos yaw), so standing at +26z and facing the
+    // building is yaw 0, NOT PI. The first pass used PI and photographed the
+    // treeline for ten frames while reporting on the clubhouse.
+    w.x = o.x - 2; w.z = o.z + 26; w.yaw = 0; w.pitch = -0.02;
   });
   await page.waitForTimeout(2500);
+  // ...and prove it: the building has to be in the reference shot for the burst
+  // to be about the building. AFTER the settle, not before — walk.update writes
+  // camera.position on the next frame, so projecting immediately after moving
+  // the walk state projects through the camera's OLD pose.
+  const looksAtClubhouse = await page.evaluate(() => {
+    const s3 = window.__fw.scene3d;
+    const ch = s3.clubhouse();
+    const p = ch.group.getWorldPosition(new (Object.getPrototypeOf(s3.camera.position).constructor)());
+    const v = p.clone().project(s3.camera);
+    return { ndcX: +v.x.toFixed(3), ndcY: +v.y.toFixed(3), inFront: v.z > -1 && v.z < 1 };
+  });
   await page.screenshot({ path: path.join(OUT, 'burst-00-reference.png') });
   await page.electronApp.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.minimize();
@@ -234,8 +255,18 @@ async (page) => {
   await page.waitForTimeout(2500);
   await page.screenshot({ path: path.join(OUT, 'burst-99-settled.png') });
 
+  // EVERY BUILDING THIS SESSION HAS BUILT. The presentation switch in
+  // clubhouse.js falls back to 'modern-public' — a genuinely different building
+  // — when nothing names a known variant, and one of its inputs is
+  // state.property.clubhouseVariant, which is not populated until a save has
+  // loaded. A rebuild ordered before that would draw the wrong clubhouse and
+  // then correct itself, which is the sentence being investigated. So: read the
+  // log rather than argue about it.
+  const buildLog = await page.evaluate(() => window.__fw.scene3d.clubhouse().buildLog?.() || []);
+  const kinds = [...new Set(buildLog.map((b) => b.presentation))];
+
   const out = {
-    world, freezeMethod, control, thaw, blurRound, burst,
+    world, freezeMethod, control, thaw, blurRound, burst, looksAtClubhouse, buildLog, kinds,
     checks: {
       // the control has to be QUIET, or the fingerprint is watching the living
       // world rather than the thaw
@@ -252,6 +283,12 @@ async (page) => {
       thawFlashesADifferentRoom: thaw.distinctFingerprints > 1,
       blurFlashesADifferentRoom: blurRound.distinctFingerprints > 1,
       interiorMeshCountStableAcrossThaw: thaw.interiorMeshMin === thaw.interiorMeshMax,
+      // the burst is only about the clubhouse if the clubhouse is in it
+      // one building per session, and it is the one that was asked for
+      onlyOneClubhouseKindEverBuilt: kinds.length === 1,
+      builtTheRequestedRoom: kinds.length === 1 && kinds[0] === 'pine-hills-v2',
+      burstFramedTheClubhouse: !!looksAtClubhouse.inFront
+        && Math.abs(looksAtClubhouse.ndcX) < 0.9 && Math.abs(looksAtClubhouse.ndcY) < 0.9,
       noPageErrors: errs.length === 0,
     },
     errs: errs.slice(0, 6),

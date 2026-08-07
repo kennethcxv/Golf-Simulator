@@ -38,13 +38,39 @@ const AUTHORED_GRIP_REST_INV = AUTHORED_GRIP_REST.clone().invert();
 const REST_TARGET = {
   wrap: new THREE.Euler(0.40, 0.30, 0.02),
   trigger: new THREE.Euler(0.30, 0.26, 0.00),
-  flat: new THREE.Euler(1.12, 0.20, 0.02),
+  // B4: 1.12 STOOD THE HAND UP ON THE PAD. At that pitch the wrist rose vertically
+  // out of the cloth and the fingers splayed straight into the air — a hand waving
+  // beside a sponge, not one holding it, on both the cloth and the sponge, idle and
+  // in use. Item 9 had already raised `flat`'s curl from 0.46 to 0.94 chasing the
+  // same symptom; the curl was never the problem, the rest ORIENTATION was.
+  //
+  // The pad grip wants the SAME rest orientation as the shaft grip: palm down,
+  // knuckles to the lower right. Swept seven candidates in one run
+  // (tools/qa/electron-flat-grip-sweep.js) and this is the one where the palm lies
+  // on the sponge with the fingers across it. Rolling the wrist instead (z = -1.3
+  // or +1.3) puts the hand on its edge, which is worse.
+  flat: new THREE.Euler(0.42, 0.28, 0.02),
   hook: new THREE.Euler(1.02, 0.24, 0.04),
   pinch: new THREE.Euler(0.34, 0.22, 0.04),
 };
 const GRIP_ALIGN = {};
-for (const [name, euler] of Object.entries(REST_TARGET)) {
-  GRIP_ALIGN[name] = AUTHORED_GRIP_REST_INV.clone().multiply(new THREE.Quaternion().setFromEuler(euler));
+function rebuildGripAlign() {
+  for (const [name, euler] of Object.entries(REST_TARGET)) {
+    GRIP_ALIGN[name] = AUTHORED_GRIP_REST_INV.clone().multiply(new THREE.Quaternion().setFromEuler(euler));
+  }
+}
+rebuildGripAlign();
+
+// A grip's rest orientation is the hardest number in this file to reason about
+// — it is a hand orientation expressed in a tool frame that is itself defined
+// by a builder convention — and every one of them was found by looking at the
+// screen, not by deriving it. So make that loop cheap: a driver can sweep
+// candidates in ONE Electron run instead of one run per guess.
+export function setGripRestTarget(pose, x, y, z) {
+  if (!REST_TARGET[pose]) return null;
+  REST_TARGET[pose].set(x, y, z);
+  rebuildGripAlign();
+  return { pose, x, y, z };
 }
 // A per-pose nudge that lands the palm SURFACE (not the wrist origin) on the socket, in hand-local
 // coordinates so it rides the grip orientation.
