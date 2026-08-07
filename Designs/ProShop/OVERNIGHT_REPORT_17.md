@@ -13,6 +13,74 @@ The four running lists live at the bottom and are updated continuously.
 
 ---
 
+## RETRACTION — I disproved my own B1 finding a few hours after publishing it
+
+**The B1 divergence section below is WRONG and I am leaving it in place with
+this correction above it, because deleting it would hide the mistake.**
+
+I published: "69% of everything the eye sees during a stroke happens with the
+strands welded to the head", from a frozen-strand control that looked rigorous
+and had a real negative control.
+
+**The mop was never working.** A fresh save ships `mop.charge = 0`, the tool
+refuses to run dry, and the game says so **on screen**:
+
+> NOT AVAILABLE - The mop is dry, wring it in the cleaning-bay bucket.
+
+That banner is sitting in the corner of my own evidence screenshot. Every
+"stroke" I measured was a held mouse button over a tool that was doing nothing,
+so every ratio described idle sway. The numbers were real; they were about
+nothing.
+
+**No metric caught it. The screenshot did, and only because I finally looked at
+one** - which is the entire argument of this brief's Requirement 3 and rule
+about player-camera evidence, demonstrated at my own expense.
+
+### The second-order lesson, which is worse
+
+I then "tuned" against that broken instrument for three rounds - raised push
+gain, halved the chase, raised splay and carry deficit, tripled the density -
+and reported ratios of 1.82, 1.89 and 1.58 across three different builds. Those
+three numbers are indistinguishable from each other. **I was reading run-to-run
+variance and calling it a result**, on top of a measurement that was about
+nothing in the first place.
+
+### What the instrument does now
+
+It **wets the mop** during staging (the player would wring it at the bucket;
+charging it is a precondition, not the behaviour under test) and it carries a
+**witness**: a working mop burns charge, so the driver samples charge either
+side of the stroke and asserts it fell. `toolActuallyWorked` is now a gate on
+the verdict.
+
+On the current build that gate reads **false** - the mop still does not run even
+charged, so something else gates it (aim, surface, or the charge being
+re-zeroed). **The instrument now refuses to produce a verdict rather than
+producing a confident wrong one**, which is the only improvement here I am
+willing to claim.
+
+### What stands, and what does not
+
+- **RETRACTED**: the 69%/31% split, the "strands are 1.84x the noise floor"
+  figure, and every live-vs-frozen ratio in the section below.
+- **STANDS** (measured independently of the stroke): the fibres do move in world
+  space - 0.135 to 0.348 m of tip travel against 0.0000 m frozen - and the
+  frozen-strand control technique itself is sound. It just needs a tool that is
+  switched on.
+- **UNCONFIRMED, not claimed as improvements**: the mop at 84 strands in 3 draw
+  calls, and the per-strand chase and push variation. Both are defensible on
+  their own terms - a fringe of 26 cannot read as a mop head, and real yarn does
+  not move in lockstep - but neither has been shown to help, because nothing
+  here has yet measured a working mop.
+
+**And the screenshot shows something no number was ever going to.** At the
+player's camera the mop head reads as a small sparse white blob on the end of a
+stick - closer to a shaving brush than a mop. That is B1's real complaint ("not
+a cone with a texture on it") and it is a geometry and density problem, visible
+in one frame, which is where this item should have started.
+
+---
+
 ## DISPROVEN BY THE SECTION A VERIFIER — read this before anything else
 
 Ten Electron runs, every one on a fresh profile, five probes of the verifier's

@@ -118,12 +118,36 @@ export function createMopStrands({
     layers.push(mesh);
   }
 
+  // PER-STRAND VARIATION — B1's actual lever, and it took a failed experiment to
+  // find it.
+  //
+  // Measured with a settled instrument: at the shipped values the fibres
+  // already account for ~45% of the on-screen change during a stroke. Tripling
+  // pushGain, halving the chase, and raising splay and carry deficit moved that
+  // to ~47% - nothing, inside run-to-run noise - while world tip travel went up
+  // 0.145 m to 0.214 m. So the fibres were always moving plenty and MORE motion
+  // does not read as more motion.
+  //
+  // What it reads as instead is one mass swinging, because every strand is
+  // driven by the same stroke through the same filter and differs only by a
+  // smooth `facing` term. They start together, arrive together and stop
+  // together. Real yarn does not: each length is a little stiffer or looser
+  // than its neighbour, so the bundle BREAKS UP as it moves, and that breaking
+  // up is what the eye reads as fibre rather than flap.
+  //
+  // These multipliers are deterministic per index (no build-time randomness, so
+  // two sessions look identical), spread either side of 1, and deliberately
+  // coprime-ish so the pattern does not band across a ring or a row.
   const strands = places.map((p, i) => ({
     x: p.x,
     z: p.z,
     angle: p.angle,
     phase: (i * 0.61803) % 1,
     slack: 0.82 + ((i * 0.37) % 1) * 0.36,
+    // how fast this strand catches up: 0.62x to 1.38x of the shared rate
+    chaseMul: 0.62 + ((i * 0.6180339887) % 1) * 0.76,
+    // how hard the stroke drives it: 0.70x to 1.30x
+    pushMul: 0.70 + ((i * 0.4142135624) % 1) * 0.60,
     lag: new Float32Array(SEGS),
     carry: new Float32Array(SEGS),
   }));
@@ -166,12 +190,12 @@ export function createMopStrands({
       // The velocity term is SUBTRACTED. Added, it is a phase lead: the yarn
       // reaches the end of the stroke fractionally before the head does, and
       // cloth does not anticipate the hand carrying it - it is dragged.
-      const push = (stroke * live.pushGain - drive * live.dragGain) * slack;
+      const push = (stroke * live.pushGain - drive * live.dragGain) * slack * strand.pushMul;
       // Start at the strand's anchor on the block, then walk down the chain
       // accumulating each segment's rotation.
       _acc.makeTranslation(strand.x, 0, strand.z);
       for (let s = 0; s < SEGS; s += 1) {
-        const chase = live.chaseBase - s * live.chaseFall;
+        const chase = Math.max(0.5, (live.chaseBase - s * live.chaseFall) * strand.chaseMul);
         const target = push * (live.targetBase + s * live.targetGrow) * (0.55 + 0.45 * facing);
         strand.lag[s] += (target - strand.lag[s]) * Math.min(1, dt * chase);
         // the carried head's fan, arrived at late: the deeper the segment the

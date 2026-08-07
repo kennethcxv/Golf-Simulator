@@ -79,6 +79,27 @@ async (page) => {
     return r ? { strands: r.strandCount, drawCalls: r.drawCalls, params: r.params() } : null;
   });
 
+  // WET THE MOP. THIS IS WHY EVERY EARLIER NUMBER IN THIS ITEM WAS WORTHLESS.
+  //
+  // A fresh save ships mop.charge = 0, and the tool REFUSES TO WORK dry - the
+  // game says so on screen: "NOT AVAILABLE - The mop is dry, wring it in the
+  // cleaning-bay bucket." So every stroke this driver measured before now was
+  // a held mouse button over a tool that was doing nothing, and every ratio it
+  // produced described idle sway. No metric caught it; the SCREENSHOT did, and
+  // only because I finally looked at one.
+  //
+  // Charging it here is staging, not state-forcing the thing under test: the
+  // player would wring it at the bucket, and what is being measured is what the
+  // fibres do once it works.
+  out.charged = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse?.();
+    const c = ch?.cleaningStatus?.();
+    if (!c?.mop) return { ok: false };
+    c.mop.charge = c.mop.capacity;
+    return { ok: true, charge: c.mop.charge, capacity: c.mop.capacity };
+  });
+  await page.waitForTimeout(500);
+
   // The head's position on screen, through the lens that DREW it.
   const headNdc = () => page.evaluate(() => {
     const s3 = window.__fw.scene3d;
@@ -144,7 +165,16 @@ async (page) => {
   }, ms);
 
   // ONE STROKE, driven by a real held mouse button, sampled as pixels.
+  const chargeNow = () => page.evaluate(
+    () => window.__fw.scene3d.clubhouse?.()?.cleaningStatus?.()?.mop?.charge ?? null,
+  );
+
   const strokeLeg = async (tag) => {
+    // THE WITNESS. A working mop burns charge; a refused one does not. Sampling
+    // it either side of the stroke is what makes "the tool was actually on"
+    // something the driver PROVES rather than assumes - the exact assumption
+    // that made every earlier reading in this item meaningless.
+    const chargeBefore = await chargeNow();
     const before = await shot(`${tag}-a`);
     await page.mouse.down();
     await page.waitForTimeout(420);          // mid-stroke
@@ -155,14 +185,50 @@ async (page) => {
     await page.mouse.up();
     await page.waitForTimeout(900);          // let it settle
     const settled = await shot(`${tag}-d`);
+    const chargeAfter = await chargeNow();
     return {
       tag,
+      chargeBefore,
+      chargeAfter,
+      toolActuallyWorked: chargeBefore != null && chargeAfter != null
+        && chargeBefore - chargeAfter > 0.05,
       travel,
       startToMid: await diffHead(before, mid),
       midToLate: await diffHead(mid, late),
       lateToSettled: await diffHead(late, settled),
     };
   };
+
+  // SETTLE FIRST. The first run of this at raised motion values reported a
+  // noise floor of 318 070 against a live signal of 23 966 - noise thirteen
+  // times the signal, which is not a result, it is a broken measurement. The
+  // cause is the slower chase: at chaseBase 5.5 the deepest segment converges
+  // at ~2.3 per second, so the fibres are still swinging into place from the
+  // equip long after the old values had settled. A noise floor sampled during
+  // that is measuring the equip, not the idle.
+  //
+  // Waiting for the tips to actually stop is the fix, and it is also the honest
+  // thing to report: how long they take to settle is a property of the tuning.
+  out.settle = await page.evaluate(async () => {
+    const rig = window.__fw.scene3d.walk.strandRigFor?.('mop');
+    if (!rig?.tipsLocal) return null;
+    const t0 = performance.now();
+    let prev = rig.tipsLocal();
+    let quiet = 0;
+    while (performance.now() - t0 < 12000) {
+      await new Promise((r) => setTimeout(r, 100));
+      const now = rig.tipsLocal();
+      let worst = 0;
+      for (let i = 0; i < now.length; i += 1) {
+        const d = Math.hypot(now[i].x - prev[i].x, now[i].y - prev[i].y, now[i].z - prev[i].z);
+        if (d > worst) worst = d;
+      }
+      prev = now;
+      quiet = worst < 0.0004 ? quiet + 1 : 0;
+      if (quiet >= 4) return { settledMs: Math.round(performance.now() - t0), timedOut: false };
+    }
+    return { settledMs: 12000, timedOut: true };
+  });
 
   // NOISE: two frames, no input at all. Everything else must clear this.
   const n0 = await shot('noise-a');
@@ -198,7 +264,10 @@ async (page) => {
     // The question the brief actually asks: can the eye tell live from frozen?
     liveVsFrozenRatio: out.frozen.startToMid
       ? +(out.live.startToMid / out.frozen.startToMid).toFixed(2) : null,
-    strandsVisiblyMove: out.live.startToMid > floor * 3
+    toolWorkedLive: out.live.toolActuallyWorked,
+    toolWorkedFrozen: out.frozen.toolActuallyWorked,
+    strandsVisiblyMove: out.live.toolActuallyWorked === true
+      && out.live.startToMid > floor * 3
       && out.frozen.startToMid > 0
       && out.live.startToMid / out.frozen.startToMid > 1.25,
     worldTipTravelLiveMetres: out.live.travel?.worstTipMetres ?? null,
@@ -208,6 +277,7 @@ async (page) => {
   console.log('B1 equipped', out.equipped, 'rig', JSON.stringify(out.rig && {
     strands: out.rig.strands, drawCalls: out.rig.drawCalls,
   }));
+  console.log('B1 settle', JSON.stringify(out.settle));
   console.log('B1 verdict', JSON.stringify(out.verdict));
   console.log('B1 live', JSON.stringify(out.live), 'frozen', JSON.stringify(out.frozen));
   if (out.errs.length) console.log('pageerrors', JSON.stringify(out.errs.slice(0, 3)));

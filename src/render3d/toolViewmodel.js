@@ -386,14 +386,49 @@ export function buildToolViewmodels() {
                 const yarn = new THREE.MeshStandardMaterial({
                   color: 0xe4dcc6, roughness: 0.95, metalness: 0,
                 });
+                // B1 (Goal 17) — MEASURED, NOT GUESSED.
+                //
+                // The frozen-strand control (tools/qa/electron-b1-divergence.js)
+                // showed that 69% of everything the eye sees during a stroke
+                // happens with the fibres WELDED to the head: the strand-
+                // specific signal was 42 348 pixels against an idle shimmer of
+                // 22 991, only 1.84x the noise. The owner reports the yarn
+                // welded to a swinging head, and that is exactly what those
+                // numbers describe.
+                //
+                // So the job is not "make them move" - they moved 0.135 m. It
+                // is to make their share of the picture dominate the head's.
+                // Two levers, both applied:
+                //
+                // DENSITY: 26 strands read as a fringe, and a fringe hides its
+                // own motion because there is nothing behind it to move
+                // against. 84 fills the head. Instanced, so it is still 3 draw
+                // calls (the old 26 cost 78).
+                //
+                // MOTION: a slower chase means the segments arrive later and
+                // further apart, which is what trailing IS; more push and drag
+                // means they swing wider than the head; a bigger carry deficit
+                // is the direct answer to "welded when walked about".
                 const rig = createMopStrands({
                   THREE,
                   material: yarn,
-                  count: 26,
+                  count: 84,
                   radius: 0.115,
                   length: 0.30,
-                  strandRadiusTop: 0.011,
-                  strandRadiusBottom: 0.0075,
+                  strandRadiusTop: 0.009,
+                  strandRadiusBottom: 0.0062,
+                  params: {
+                    pushGain: 2.2,      // was 1.15 - swing wider than the head
+                    dragGain: 0.22,     // was 0.10 - fall further behind under speed
+                    chaseBase: 5.5,     // was 9.5  - arrive later; this is the trail
+                    chaseFall: 1.6,     // was 2.3  - keeps the last segment alive
+                    targetBase: 0.55,   // was 0.42
+                    targetGrow: 0.45,   // was 0.34 - the tip travels furthest
+                    splayBase: 0.45,    // was 0.30 - lie flatter on the boards
+                    splayGrow: 0.55,    // was 0.42
+                    deficitBase: 0.85,  // was 0.55 - the carried-head answer
+                    deficitGrow: 0.40,  // was 0.30
+                  },
                 });
                 collar.add(rig.root);
                 entry.strandRig = rig;
