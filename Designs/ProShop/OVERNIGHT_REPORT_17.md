@@ -9975,3 +9975,64 @@ one-to-one material/program correspondence, six eliminated fixes, two eliminated
 constructors, and one named line to check first — with the verification
 (Δ +9 -> 0, census +9 -> +0) already built and run six times.
 
+
+## THIRTIETH INSTANCE — AND IT UNDERMINES MY OWN "CHAIN CLOSED"
+
+Read `setActive` rather than resting on exclusion. `broomViewmodel.js:492`:
+
+```js
+function setActive(on) {
+  if (active === !!on) return;
+  active = !!on;
+  if (active) socketRefs.found = false;
+  right.group.visible = active && showHands;
+  if (left) left.group.visible = active && showHands;
+  fpHands.setArmStubsVisible?.(!active);
+  fpHands.setHandScale?.(active ? (feel.compose.handScale || 1) : 1);
+  layerOnRecursive(broomGroup, active);      // <- moves the whole group's LAYER
+}
+```
+
+**It constructs nothing.** Visibility, arm stubs, hand scale, and a recursive
+layer move — *"the broom (and the hands parented into it) leave the world pass
+entirely while the viewmodel pass owns them."*
+
+**Third constructor eliminated, and now none remain.** fpHands builds at
+creation, rigs build in a boot loop, `setActive` only flips flags. Nothing in the
+equip path constructs 54 meshes.
+
+### Which means my census is the thing to doubt
+
+The census located its subtree with a **fragile heuristic**:
+
+```js
+cam.traverse(o => { if (!held && o !== cam && o.type === 'Group' && o.children.length) held = o; });
+```
+
+**The first Group with children.** `setActive` changes `visible` on groups and
+moves layers recursively — either can change which group traversal reaches
+first. If the "before" and "after" samples anchored on **different subtrees**,
+then +54 meshes and +9 materials is an artefact of comparing two different
+things, not a measurement of one thing changing.
+
+**So "CHAIN CLOSED" is not established.** The +9 programs are real — measured
+independently by `renderer.info.programs` and by the cache-key diff. The claim
+that they correspond one-to-one with 9 newly created materials rests on a census
+I now cannot trust.
+
+### What must happen before that entry is believed
+
+Re-run the census anchored on a **stable, named** node — `heldRoot` by
+reference, obtained once and reused — rather than by structural search. If +54/+9
+survives, the chain stands. If it does not, the correspondence was coincidence
+and the real cause is still open.
+
+**Thirtieth instance, mine, and the most consequential**: I built an instrument
+with an implicit assumption (traversal order is stable), got a beautiful
+one-to-one result, and wrote "chain closed" on it. **The result being *elegant*
+is exactly what should have prompted the check** — a perfect 9-to-9 match is the
+kind of number that feels like proof and is often coincidence.
+
+The entry above stands in the report unedited, with this correction beneath it,
+because deleting it would hide the most instructive mistake in the thread.
+
