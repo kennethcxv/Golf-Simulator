@@ -5065,3 +5065,46 @@ that **instruments lie in the direction that looks like success**:
 Every one of those was caught by the brief's own rule: **watch the check fail on
 a broken build before believing it on a working one.** Nothing else in this
 session found as much.
+
+### G2 HUD: THE GEOMETRY IS CONFIRMED, THE SCREENSHOT IS NOT PROOF, AND I AM NOT CLAIMING IT IS
+
+The largest remaining gap this session is that every visual item is UNCONFIRMED,
+because the brief requires a player-camera screenshot at the DEFAULT camera. I
+built a driver to close one of them - the HUD prompt that used to draw over the
+controls line - and it did **half** of what I wanted.
+
+**Confirmed, at the default camera, nothing resized:**
+
+```
+camera        2560x1370 CSS, DPR 1.5, FOV 66   (untouched)
+prompt bottom 1306
+hint top      1321
+vertical gap  15 px      separated: true
+```
+
+The two boxes that used to overlap by 17x12px are now 15px apart. That is a real
+measurement of real layout at the shipped window, and it is stable across two
+runs.
+
+**NOT confirmed: that the prompt is actually rendered in the filed frame.** The
+driver's own control - `promptOnScreen` - **failed on both runs**, and I could
+not make it pass. The element carries text and a position but reports
+`opacity <= 0.05`, and waiting for opacity above 0.9 did not change it. The
+likely cause is that there are TWO `.shop-prompt` elements in the DOM (one
+standalone, one inside the overlay) and I am measuring the one that is not drawn.
+
+### Why this is recorded as a failure rather than a pass
+
+The gap number is right and the frame is filed at `qa/electron/g2-hud-shot/`. It
+would be easy to publish "confirmed at the default camera" and attach it. **But
+the control exists precisely to stop that**: if the prompt is not the drawn one,
+the screenshot shows a HUD with no prompt in it, and a reader comparing the
+picture to the claim would find nothing to look at.
+
+**So: G2's HUD fix is CONFIRMED GEOMETRICALLY and remains UNCONFIRMED VISUALLY.**
+The next session should resolve which `.shop-prompt` is drawn - one line of
+diagnosis - and the driver will then produce the frame the brief asks for.
+
+This is the same rule that has run through the whole session, applied to my own
+work at the end of it: **a check I cannot make pass is not evidence, and a
+screenshot I cannot verify is not a confirmation.**
