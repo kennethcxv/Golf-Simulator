@@ -105,3 +105,65 @@ test('the drop is timed as two legs, and the second one takes real time', () => 
   assert.match(updateBlock, /motion\.duration \+ \(motion\.sinkDuration/,
     'the motion does not finish until both legs have run');
 });
+
+// --- G4.1 / G4.4: THE COUNTER IS NEVER WITHOUT A BAG -----------------------
+//
+// "A bag is always present on the counter at the bagging position. The player
+// never spawns one, never fetches one, and never waits for one." and "A fresh
+// empty bag appears at the bagging position immediately."
+//
+// Three branches in clearPhysicalTransaction used to disagree: one dropped the
+// reference when the customer carried the bag out and made no replacement, one
+// reset it, and one simply hid it. A hidden bag is the player waiting for one.
+
+// Brace-matched, not terminated on the first `\n  }` the way the block above is.
+// That heuristic cut this function short - the branch this test is about sits
+// past the first two-space closer, so the scan silently examined a fragment and
+// reported the branch missing.
+const clearBlock = (() => {
+  const at = src.indexOf('function clearPhysicalTransaction(');
+  if (at < 0) return null;
+  // The BODY's brace, not the parameter's. This function takes a destructured
+  // argument - `clearPhysicalTransaction({ ... })` - so the first `{` after the
+  // name opens the PARAMETER, and matching from there captured the signature
+  // and nothing else. The scan then reported the branch missing on a build
+  // where it was present, which is a failing test that proves nothing.
+  const paramsEnd = src.indexOf(') {', at);
+  const open = paramsEnd < 0 ? src.indexOf('{', at) : paramsEnd + 2;
+  if (open < 0) return null;
+  let depth = 0;
+  let i = open;
+  for (; i < src.length; i += 1) {
+    if (src[i] === '{') depth += 1;
+    else if (src[i] === '}') {
+      depth -= 1;
+      if (depth === 0) break;
+    }
+  }
+  return src.slice(at, i + 1).replace(/\/\/.*$/gm, '');   // never match our own prose
+})();
+
+test('clearing a transaction never leaves the counter without a bag', () => {
+  assert.ok(clearBlock, 'the clear-transaction routine is still findable');
+  assert.doesNotMatch(clearBlock, /bagGroup\.visible = false/,
+    'hiding the counter bag is the player waiting for one');
+});
+
+test('the customer taking the bag is followed by a fresh one', () => {
+  // The branch that hands ownership to the customer must not simply null the
+  // reference: that leaves the bagging position empty until something else
+  // happens to reset it, which is exactly what G4.4 forbids.
+  // Anchored on the BRANCH, not on `checkoutOwner === 'customer'` alone - that
+  // string appears earlier in this same function for a different purpose, so the
+  // slice started in the wrong place and read code that was never the subject.
+  const owner = clearBlock.indexOf('preserveCustomerBag && bagGroup');
+  assert.ok(owner > 0, 'the customer-owns-it branch is still there');
+  // Bounded at the `} else`, not a fixed character count. A 420-char window ran
+  // past the end of this branch and into the else, which ALSO calls buildBag() -
+  // so deleting the replacement from this branch left the assertion green by
+  // reading its neighbour's code.
+  const elseAt = clearBlock.indexOf('} else', owner);
+  const branch = clearBlock.slice(owner, elseAt > owner ? elseAt : owner + 420);
+  assert.match(branch, /buildBag\(\)/, 'a replacement bag is built straight away');
+  assert.match(branch, /resetBagAtCounter\(\)/, 'and put at the bagging position');
+});

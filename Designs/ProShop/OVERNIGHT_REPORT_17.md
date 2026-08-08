@@ -3121,3 +3121,56 @@ Suite **2902 pass / 0 fail**.
 **STILL OPEN in G4:** points 1, 3 and 4 - a bag always present at the bagging
 position, the customer taking it out of the shop in their hand, and a fresh empty
 bag appearing immediately. Only point 2 is done.
+
+## G4.1 / G4.4 - THE COUNTER IS NEVER WITHOUT A BAG
+
+*"A bag is ALWAYS PRESENT on the counter at the bagging position. The player
+never spawns one, never fetches one, and never waits for one."* and *"A fresh
+empty bag appears at the bagging position IMMEDIATELY."*
+
+Three branches in `clearPhysicalTransaction` disagreed about that:
+
+| branch | what it did | against the brief |
+| --- | --- | --- |
+| customer owns the bag | dropped the reference, **no replacement** | counter stands empty until something else resets it |
+| `resetCounterBag` | built/reset one at the counter | correct |
+| otherwise | **`bagGroup.visible = false`** | a hidden bag IS the player waiting for one |
+
+Both wrong branches collapse into one rule once it is stated plainly: whatever
+just happened, this function ends with a bag on the counter. The customer still
+carries theirs out - that is G4.3 and it is untouched - and a fresh one is built
+behind it in the same breath.
+
+### FOUR instrument faults in one test file, all the same shape
+
+This one item produced a run of source-scanner failures worth recording together,
+because each looked like a result and none was:
+
+1. **the block matched its own comment** - the prose explaining why
+   `visible = false` was removed contains `visible = false`. Comments are now
+   stripped before scanning.
+2. **the pattern matched the wrong identifier** - `/motion\.sink/` also matches
+   `motion.sinkDuration`, so deleting the whole sink leg left the check green.
+3. **the block capture stopped early** - terminating on the first `
+  }` cut the
+   function short, and then the destructured parameter
+   `clearPhysicalTransaction({ ... })` meant brace-matching from the first `{`
+   captured the SIGNATURE and nothing else. The test reported the branch missing
+   on a build where it was present.
+4. **the anchor and the window were both wrong** -
+   `checkoutOwner === 'customer'` appears earlier in the same function, and a
+   fixed 420-character window ran past the branch into the `else`, which also
+   calls `buildBag()`. So the check read its neighbour's code and passed.
+
+Every one of these produced a confident answer about code it was not looking at.
+Faults 1, 2 and 4 all failed OPEN - green on a broken build - which is the
+dangerous direction.
+
+Both breaks are now watched failing: restoring the hide-the-bag branch, and
+removing the replacement bag from the customer branch.
+
+Suite **2904 pass / 0 fail**.
+
+**G4.3 - the customer carrying the bag out - is untouched and unverified.** The
+ownership transfer exists in code; that it reads as *taken* rather than handed
+over has not been seen.

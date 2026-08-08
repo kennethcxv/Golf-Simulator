@@ -4952,16 +4952,28 @@ export function createRegisterMode(B) {
     autoFulfilled = false;
     deliveryPhase = null;
     deliveryTimer = 0;
+    // G4.1: "A BAG IS ALWAYS PRESENT on the counter at the bagging position. The
+    // player never spawns one, never fetches one, and never waits for one."
+    // G4.4: "A fresh empty bag appears at the bagging position IMMEDIATELY."
+    //
+    // Three branches used to disagree about that. When the customer carried the
+    // bag out we dropped our reference and made no replacement, so the counter
+    // stood empty until something else happened to reset it; and the final
+    // branch simply hid the bag, which is the player waiting for one. Both are
+    // the same rule once it is stated: whatever just happened, the counter ends
+    // this function with a bag on it.
     if (preserveCustomerBag && bagGroup?.userData.checkoutOwner === 'customer') {
+      // The customer owns that one now - it leaves the shop in their hand.
       bagGroup = null;
       bagContentsNode = null;
       bagHandoffNode = null;
-    } else if (resetCounterBag) {
-      if (!bagGroup) buildBag();
+      buildBag();
       resetBagAtCounter();
       if (cust) cust.checkoutHandoffBag = null;
-    } else if (bagGroup) {
-      bagGroup.visible = false;
+    } else {
+      if (!bagGroup) buildBag();
+      resetBagAtCounter();
+      if (resetCounterBag && cust) cust.checkoutHandoffBag = null;
     }
     selectedItem = null;
     scanDrag = null;
