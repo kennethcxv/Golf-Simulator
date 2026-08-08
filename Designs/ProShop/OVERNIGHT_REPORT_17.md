@@ -11829,3 +11829,65 @@ regression check watched failing.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## THIRTEENTH REFUTATION — `renderer.compile()` IS EXHAUSTED
+
+The last untested mechanism, and the only attempt derived from a specific line
+rather than a guess: `broomViewmodel.js:1106` sets
+`vmCamera.matrixAutoUpdate = false` and copies `camera.matrixWorld` into it
+**every frame**, so at prewarm time that camera has an identity matrix and is not
+the camera that draws anything. Did what the rig does — copied the matrix and its
+inverse — then compiled through it with the hands in the scene.
+
+```
+suite                 2933 pass / 0 fail
+EQUIP PROGRAM DELTA   +9        (identical)
+added                 9  ->  physical: 4,  depth: 5
+```
+
+**No change whatsoever.** Reverted.
+
+### Eight compile configurations, all refuted
+
+```
+1  the boot prewarm as it stands
+2  compile on adoption
+3  compile after adoption
+4  compile per rig vmCamera
+5  compile with every layer enabled
+6  hands attached to the scene
+7  hands attached AND per-vmCamera
+8  hands attached AND vmCamera WITH the drawing matrix set
+```
+
+**`renderer.compile()` cannot warm these 9 programs.** That is now an
+exhaustively tested negative, not an impression — eight configurations, each
+measured, each reverted, the suite green throughout.
+
+### What that leaves, and it is a design choice rather than a trick
+
+**Reduce the programs instead of warming them.** The 5 `depth` programs exist
+only because these meshes render into the shadow map; the 4 `physical` ones
+exist because 7 distinct materials draw for the first time. Both counts fall if
+the hands stop casting shadows and share fewer materials — and this codebase
+already applies exactly that rule to every tool mesh
+(`toolViewmodel.js:99`, `:331`, `mopStrands.js:127` all set `castShadow = false`).
+
+**The two attempts at that failed for reasons unrelated to the idea** — one
+turned the suite red on an unrelated assertion, and neither covered every mesh
+that draws. It is the right direction and it has not been given a clean run.
+
+### Section A tool half — closed for this session
+
+**Measured, twice, with controls:** 54 meshes move in from an off-graph parent;
+7 materials; 9 programs (4 physical, 5 depth); 333-7855 ms first equip, ~24 ms
+second.
+
+**Thirteen fixes, thirteen refutations, all reverted, none shipped.** Eight of
+them eliminate `renderer.compile()` as a family.
+
+**One change shipped all session** — the material deduplication, with a
+regression check watched failing.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
