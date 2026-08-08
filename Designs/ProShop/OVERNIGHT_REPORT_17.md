@@ -9842,3 +9842,52 @@ flat, and the one thing in this thread that has never been done.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE NINE CACHE KEYS, READ AT LAST — AND THEY ARE ORDINARY
+
+Diffed `renderer.info.programs[].cacheKey` across the equip. No production change
+needed; the keys were readable from the driver all along.
+
+```
+before 216    after 225    ADDED 9
+
+[0] physical,STANDARD,,highp,srgb,false,,false,false,false,false,false,false,...
+[1] physical,STANDARD,,highp,srgb,false,,uv,false,false,false,false,uv,false,false,uv,uv,...
+[2] physical,STANDARD,,highp,srgb,false,,uv,false,false,false,false,uv,false,false,false,...
+```
+
+**All nine are plain `MeshStandardMaterial` programs**, differing only in which
+map slots are populated (`uv` present vs `false`). No `SKINNING`, no
+`INSTANCING`, no shadow-only defines, no unusual precision or encoding — nothing
+that a prewarm could not have produced.
+
+### What that eliminates, and what it leaves
+
+**Eliminated:** every "special render state" explanation. These are not
+viewmodel-pass variants, not shadow variants, not instanced variants. Six fixes
+were built on the idea that some exotic condition kept them out of reach; the
+keys say there is no exotic condition.
+
+**What remains** is the simplest possible reading, and the only one still
+standing after six refutations: **the objects carrying these nine materials are
+not in the scene, or not reachable by `compile()`, at prewarm time** — regardless
+of the fact that the rig is built at adoption. Something about *where* those
+meshes live, not *what state they are drawn in*, is the whole cause.
+
+**And that is directly checkable**, which nothing in this thread has been: count
+the meshes reachable from `heldRoot` at prewarm versus at equip. If the count
+rises, the meshes arrive late and the fix is to place them earlier. If it does
+not, `compile()` is skipping something reachable and the fix is in how it is
+called.
+
+### The state this thread ends in
+
+Twenty-eight findings, six refuted fixes, zero shipped, and **one measurement
+that turned an open-ended hunt into a binary question.** Every exotic hypothesis
+is dead; the remaining question has two outcomes and one cheap test.
+
+The keys are in the artifact for whoever picks this up — full strings, all nine,
+`qa/electron/phase5-walk/phase5-walk.json` under `keySetBefore` / `keySetAfter`.
+
+Suite 2929 pass / 0 fail.
+
