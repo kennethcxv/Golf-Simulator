@@ -11896,6 +11896,13 @@ export function makeClubhouse(ctx) {
     register: {
       isActive: () => register.isActive(),
       hasTx: () => register.hasTx(),
+      // G4.1: the counter bag, forwarded. `ch.register` is a NARROW FACADE, not
+      // the register-mode object, so an accessor added there is invisible here -
+      // which cost three driver runs and a wrong suspicion that the bag was
+      // never built. A probe reported registerKeysMatching /bag/i as [] and
+      // accessorType undefined, which is what settled it.
+      bagNode: () => (register.bagNode ? register.bagNode() : null),
+      bagIsAtCounter: () => (register.bagIsAtCounter ? register.bagIsAtCounter() : false),
       enter: () => register.enter(),
       leave: () => register.leave(),
       onDown: (e) => register.onDown(e),

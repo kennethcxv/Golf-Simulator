@@ -60,28 +60,41 @@ async (page) => {
   await page.waitForTimeout(1600);
 
   const look = () => page.evaluate(() => {
+    // NO `fw.THREE`. It is not exposed on the window, and reaching for it threw
+    // inside this function - which the driver reported as a stack trace rather
+    // than a verdict, i.e. a third way for this measurement to say nothing.
+    // World position comes straight out of matrixWorld instead.
     const fw = window.__fw;
-    const THREE = fw.THREE;
     const ch = fw.scene3d.clubhouse();
     const cam = fw.scene3d.camera;
+    const worldPos = (o) => {
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      return { x: e[12], y: e[13], z: e[14] };
+    };
     // find the counter bag by its own marker rather than by name guessing
     // ASK, do not search. The first version of this driver hunted the scene
     // graph for /bag/i, walked the wrong subtree, and reported the bag missing
     // when it was present - caught only because its own control hid nothing.
     const bag = ch.register?.bagNode?.() || null;
     if (!bag) return { found: false, why: 'register exposed no bag node' };
-    const p = bag.getWorldPosition(new THREE.Vector3());
+    const p = worldPos(bag);
     // is it drawn, and is it in front of the eye?
     let drawn = bag.visible;
     for (let n = bag.parent; n; n = n.parent) if (!n.visible) drawn = false;
-    const ndc = p.clone().project(cam);
+    const c = worldPos(cam);
+    const d = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z);
+    // in front of the camera: project the eye-to-bag vector onto the view axis
+    const m = cam.matrixWorld.elements;
+    const fwd = { x: -m[8], y: -m[9], z: -m[10] };
+    const ahead = (p.x - c.x) * fwd.x + (p.y - c.y) * fwd.y + (p.z - c.z) * fwd.z;
     return {
       found: true,
       name: bag.name,
       drawn,
-      onScreen: ndc.z > -1 && ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1,
-      ndc: { x: +ndc.x.toFixed(3), y: +ndc.y.toFixed(3), z: +ndc.z.toFixed(3) },
-      distanceYd: +p.distanceTo(cam.getWorldPosition(new THREE.Vector3())).toFixed(2),
+      onScreen: ahead > 0 && d < 12,
+      aheadYd: +ahead.toFixed(2),
+      distanceYd: +d.toFixed(2),
     };
   });
 

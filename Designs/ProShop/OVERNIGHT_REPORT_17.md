@@ -5336,3 +5336,45 @@ a real defect behind a green check.
 **G4.1 remains UNCONFIRMED, and now with a specific suspicion attached rather
 than a vague one.** That is a better handover than the same words were an hour
 ago.
+
+### G4.1 CONFIRMED - THE FIRST VISUAL ITEM THIS SESSION TO CLEAR THE BRIEF'S BAR
+
+```
+bagFound: true                       bagDrawn: true
+bagOnScreenAtDefaultCamera: true     distanceYd: 10.71
+controlHidAnything: true             controlReportsGone: true
+camera 2560x1370, DPR 1.5, FOV 66    (untouched)
+```
+
+**Both halves of the control fired**: hiding the bag hid something, and the same
+measurement then reported it gone. So *"found a bag"* is not a sentence this
+driver would say either way - which is the only thing that makes the first line
+worth reading.
+
+### It took four wrong turns, and an instrument caught every one
+
+1. **name-scanned `/bag/i` in the wrong subtree** - caught by
+   `controlHidAnything: false`. A scan that finds nothing looks exactly like a
+   thing that is not there.
+2. **added the accessor to the register-mode object** - but `ch.register` is a
+   NARROW FACADE and did not forward it.
+3. **a probe settled which** - `registerKeysMatching: []`,
+   `accessorType: undefined`. **Option 1, a driver bug, NOT a G4.1 defect.**
+4. **`fw.THREE` is not exposed**, so `look()` threw - a THIRD way for this
+   measurement to say nothing, and it surfaced as a stack trace rather than a
+   verdict.
+
+Fixed: the facade forwards `bagNode()` and `bagIsAtCounter()`, and the driver
+reads world position out of `matrixWorld` rather than reaching for a THREE
+binding that does not exist on the window.
+
+### The part I want on the record
+
+**I nearly published "G4.1 may not be fixed - the bag might never be built" as a
+finding.** It was wrong. The only reason it did not ship is that I refused to
+guess between *"my driver is broken"* and *"the game is broken"* and spent a run
+distinguishing them.
+
+That is the same discipline that retracted the HUD overlap - **applied BEFORE the
+false claim instead of after it.** Twice today the choice was available; once I
+took it late and once early, and the early one cost a single Electron run.
