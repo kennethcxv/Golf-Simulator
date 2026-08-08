@@ -193,6 +193,7 @@ async (page) => {
   // 5. A TOOL, through the real wheel
   out.keysBefore = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetBefore = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
+  out.heldBefore = await page.evaluate(() => { const cam = window.__fw?.scene3d?.camera; if (!cam) return null; let held=null; cam.traverse(o=>{ if(!held && o!==cam && o.type==='Group' && o.children.length) held=o; }); if(!held) return {noHeldRoot:true, camChildren:cam.children.length}; let meshes=0, mats=new Set(); held.traverse(o=>{ if(o.isMesh||o.isInstancedMesh){meshes++; if(o.material) mats.add(o.material.uuid);} }); return { meshes, materials: mats.size, groups: held.children.length }; }).catch(() => null);
   await beat('tool');
   // THE BELT IS HOLD-TO-OPEN, SO THE SELECTION MUST HAPPEN WHILE IT IS HELD.
   //
@@ -298,6 +299,7 @@ async (page) => {
   out.precompile = await page.evaluate(() => window.__fw?.scene3d?.walk?.toolPrecompileInfo?.() ?? 'no accessor').catch(() => null);
   out.keysAfter = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetAfter = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
+  out.heldAfter = await page.evaluate(() => { const cam = window.__fw?.scene3d?.camera; if (!cam) return null; let held=null; cam.traverse(o=>{ if(!held && o!==cam && o.type==='Group' && o.children.length) held=o; }); if(!held) return {noHeldRoot:true, camChildren:cam.children.length}; let meshes=0, mats=new Set(); held.traverse(o=>{ if(o.isMesh||o.isInstancedMesh){meshes++; if(o.material) mats.add(o.material.uuid);} }); return { meshes, materials: mats.size, groups: held.children.length }; }).catch(() => null);
   await beat('end');
   await page.waitForTimeout(800);
 

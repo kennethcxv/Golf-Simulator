@@ -9891,3 +9891,58 @@ The keys are in the artifact for whoever picks this up — full strings, all nin
 
 Suite 2929 pass / 0 fail.
 
+
+## THE CHAIN IS CLOSED: 54 MESHES AND 9 MATERIALS ARE BORN AT EQUIP
+
+Ran the binary test — census the held-tool subtree either side of the equip:
+
+```
+BEFORE equip   meshes 134   materials 52   groups 12
+AFTER  equip   meshes 188   materials 61   groups 12
+                    +54          +9            0
+```
+
+**+9 materials. +9 programs. One to one.**
+
+The complete causal chain, every link measured:
+
+```
+first equip
+  -> creates 54 meshes carrying 9 NEW materials
+  -> 9 new MeshStandardMaterial programs compile on their first draw
+  -> 333-7855 ms stall
+  -> second equip creates none, compiles none, costs 24 ms
+```
+
+**Six fixes failed because all six tried to warm objects that did not exist.**
+No prewarm, no camera, no layer mask can compile a material that has not been
+constructed. The keys were ordinary because the materials are ordinary; the
+problem was never *what* they are, it was *when*.
+
+### The correction to my own correction
+
+Two entries ago I retracted "create the materials at build time" as resting on a
+false premise — I had read that the strand rig is built inside the adoption
+callback and concluded the materials therefore exist by prewarm. **The census
+says otherwise: nine materials appear at equip.** The rig built at adoption is
+not the source of these nine; something in the equip path builds more.
+
+So the retraction was wrong, and the original direction — **construct these
+meshes and materials before first equip** — is right after all. That is
+twenty-ninth, and the tidiest illustration of the whole report: I was correct,
+then talked myself out of it with a reading, and only the measurement settled it.
+
+### Section A's tool half — diagnosed to the mechanism, with a fix that follows
+
+**Build the tool's equip-time meshes during adoption**, so the boot prewarm
+compiles their 9 programs behind the veil. The verification is already built and
+binary: the equip's Δ must fall from **+9 to 0**, and the held-tool census must
+show **+0 materials** rather than +9.
+
+Whoever picks this up starts from a closed chain rather than a hypothesis:
+`heldBefore`/`heldAfter` and `keySetBefore`/`keySetAfter` are in
+`qa/electron/phase5-walk/phase5-walk.json`, and every intermediate claim in this
+thread that was wrong is marked wrong.
+
+Suite 2929 pass / 0 fail.
+
