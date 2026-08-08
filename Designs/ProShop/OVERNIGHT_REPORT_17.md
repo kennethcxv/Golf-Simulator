@@ -4056,3 +4056,43 @@ Recording the retraction rather than quietly editing the earlier claim, because
 this session's whole method has been that a confident answer about something you
 have not actually looked at is the most expensive thing you can produce - and I
 just produced one.
+
+### The retraction resolves: it FOLLOWS PITCH, and the finding survives
+
+The retraction named three untested candidates and said the next session should
+start with the cheapest. I tested it instead of handing it over.
+
+**The experiment.** The sweep walks its pitch list in order, so the high pitches
+were also the LAST samples - meaning "vanishes at high pitch" and "vanishes late
+in the run" were indistinguishable. Reversing the list separates them:
+
+| | original order | reversed order |
+| --- | --- | --- |
+| broom blank at | 0.6 | **0.6** |
+| mop blank at | 0.4, 0.6 | **0.4, 0.6** |
+| max px | 9,049 / 6,155 | 9,023 / 5,885 |
+
+**Identical pitches, both directions.** So it is not a settle term, not an idle
+stow, not anything time-ordered. It follows PITCH.
+
+That kills the cheapest explanation and re-opens the uncomfortable one: the held
+rig is camera-attached with no pitch term in its placement, so it should be
+pinned to the same screen pixels at every angle - and it is not. Something
+between "the rig cannot move with pitch" and "the count follows pitch" is false,
+and the two surviving candidates are both in the counter, not the rig:
+
+1. the composer doing something view-dependent to the painted colour (the recipe
+   says kill ACES *and the composer*; this sweep paints flat but renders through
+   the full chain)
+2. a crop region that is not fixed in screen space
+
+**Status upgraded from "cause unknown" to "cause is in the counter or the
+composer, not in timing."** The max counts barely moved between runs (9,049 vs
+9,023; 6,155 vs 5,885), so the measurement is stable and repeatable - it is a
+real, reproducible pitch dependency, and the next test is to disable the composer
+for the counted frame and see whether the zeros survive.
+
+The retraction was still right to make. The claim I withdrew was *"a real,
+player-reachable game defect"*, and that is still not established - what IS
+established is that the number is genuine, repeatable, pitch-linked, and not
+explained by anything I have ruled out so far.
