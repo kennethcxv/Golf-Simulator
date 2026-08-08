@@ -9232,3 +9232,71 @@ stable control and identical drivers apart from the single variable. That is a
 reproducible experiment, and it is worth more than the fourth explanation I
 would otherwise have written down.
 
+
+## I AM ENDING THIS CHAIN WITH DATA, NOT A THEORY — THE THIRD MODEL IS ALSO DEAD
+
+Ran the separating measurement: one **tiny** look (8 px sweep) instead of sixty
+degrees.
+
+```
+settle     19.4  (19..20)        control — stable against 19.0 / 19.4 / 20.9
+lookOnly   19.5  (19..20)        the tiny look costs NOTHING
+walk     9921.6  (9729..10115)   TEN SECONDS
+tool      756.5  (334..1179)
+tool2      24.1  (23..25)
+```
+
+Every arm measured today, all with matching `settle` controls:
+
+| configuration | look | walk | tool |
+|---|---|---|---|
+| no look | — | **383** | **339** |
+| big look (600 px) | 125 | **32** | **5020** |
+| big look x2 | 125 / 22 | 32 | 2331 |
+| tiny look (8 px) | **19** | **9922** | 756 |
+
+**No model survives this table.** A big look makes `walk` 12x cheaper and `tool`
+15x dearer. A tiny look costs nothing itself, leaves `tool` near baseline, and
+makes `walk` **26x dearer than no look at all**. The cost is large, real, and
+its *placement and magnitude* both move unpredictably with the input sequence.
+
+### Three models proposed, three refuted, in three consecutive commits
+
+1. *"one first-draw cost paid by whichever action reveals geometry first"* —
+   refuted by ARM 1 vs ARM 2 (walk pre-pays and the equip stays cheap).
+2. *"something specific to rotation attaches cost to the next equip"* — refuted
+   here: a tiny rotation attaches nothing to the equip and ten seconds to the walk.
+3. *"the effect scales with rotation magnitude"* — refuted here: the tiny look
+   costs less and produces a far larger downstream cost.
+
+**Twenty-two, twenty-three and twenty-four.** Each was measured, each was
+stated carefully, each was wrong within one run.
+
+### So the honest deliverable is the table, not an explanation
+
+I could write a fourth model. This session's record says it would be refuted
+within a commit, and writing it would put a plausible sentence next to a real
+number — which is *the exact failure this entire report documents*, twenty-four
+times over.
+
+**What is genuinely established, and survives every arm:**
+
+- **within-run paired results are stable and repeatable**: the second look is
+  ~22 ms against a first of 125; the second equip is ~22-26 ms against a first
+  of 339+. **Whatever this is, it is one-time per subject.**
+- **`settle` is rock-stable at 19-21 ms across every arm** — the machine is not
+  the variable, so all of the above is a property of the build.
+- **the cost is enormous** — up to ten seconds — and a player pays it on their
+  first interaction, whichever that happens to be.
+
+**What is not established:** where it lands, why, or what governs its size.
+
+### The experiment the next session should run first
+
+Not another configuration of this driver. **A frame-level profile of one arm** —
+`performance.mark` around the render, the shadow refit, and the culling pass, on
+the single frame the sampler flags as worst. The beat-level harness has taken
+this as far as it can, and four models died proving that.
+
+Suite 2929 pass / 0 fail.
+

@@ -76,13 +76,8 @@ async (page) => {
   // visible geometry) from a movement-dependent one (streaming, broadphase).
   await beat('lookOnly');
   await page.mouse.move(500, 420);
-  await page.mouse.move(1100, 420, { steps: 24 });
-  await page.mouse.move(500, 420, { steps: 24 });
-  await page.waitForTimeout(900);
-  await beat('lookOnly2');
-  await page.mouse.move(500, 420);
-  await page.mouse.move(1100, 420, { steps: 24 });
-  await page.mouse.move(500, 420, { steps: 24 });
+  await page.mouse.move(508, 420, { steps: 4 });
+  await page.mouse.move(500, 420, { steps: 4 });
   await page.waitForTimeout(900);
   await beat('walk');
   const posBefore = await page.evaluate(() => {
