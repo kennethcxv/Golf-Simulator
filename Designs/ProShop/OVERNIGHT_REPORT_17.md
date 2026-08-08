@@ -14070,3 +14070,21 @@ All three are cheap to try and all three are now measurable to two decimal place
 against a 0.00 ms control. **The diagnosis is finished; the choice among those is
 a taste decision about how the game should look, which is not mine to make
 unilaterally at 3 a.m.**
+
+
+### Fault 102 — the backtick fault, repeated, in the commit above
+
+The MSAA commit's message reads *"has no  property"* where it should read *"has
+no `samples` property"*. Backticks inside a double-quoted `git commit -m` string
+are command substitution: bash ran `samples`, printed "samples: command not
+found", and substituted empty string into the message.
+
+**This session already logged that exact fault**, and the rule earned then was to
+author messages as files and pass `-F`. I have used `-F` for every long message
+today — then reached for inline `-m` on a "quick" one and hit it again.
+
+Not amending: the commit is pushed, the sentence immediately before already
+carries the finding, and rewriting published history to recover one word is the
+worse trade. **Twice makes it a pattern rather than a slip, so the rule is now
+unconditional: never put backticks in a shell string bash will expand — author
+every commit message as a file.**
