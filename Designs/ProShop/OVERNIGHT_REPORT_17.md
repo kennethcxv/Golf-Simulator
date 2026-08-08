@@ -7834,3 +7834,53 @@ baseline tracked its treatment. A coverage number measuring the dictionary. A
 marker scan matching a golf hole. **Every number correct; every name wider than
 the thing it measured.**
 
+
+## THE TURF HYPOTHESIS IS FALSIFIED — BY THE FIELD I ADDED TO TEST IT
+
+Added `stoodOn` to the tool beat and ran it. One run:
+
+```
+stoodOn: { known: true, surface: "boards", groundY: -1.4402931 }
+reason:  "the broom was selected but the rig never solved a pose"
+```
+
+**The player is on boards and `groundYAt` returns a real number.** So `floorY`
+resolves at that position, and the explanation I gave one commit ago — that
+`headAboveFloor` is structurally null outdoors — **does not apply here.** Dead,
+by the measurement I built specifically to test it.
+
+### What that leaves
+
+`headAboveFloor` is assigned in two places (`broomViewmodel.js:1159` and
+`:1172`). The first needs a floor, which we now know is available. So the null is
+coming from the **`else` branch at 1168**, which fires when the AUTHORED
+asset's sockets are not resolvable — the block that also nulls `shaftDrop`,
+`assetHeadNdc`, `assetHeadWorldY` and `assetGripWorldY` together.
+
+Which means the proxy is narrower again than my last correction said:
+**`headAboveFloor != null` tests whether the authored GLB's head socket
+resolved**, not whether a rig is running. A broom running on its procedural
+fallback would report exactly this — null diagnostics, working tool.
+
+**Stated as a hypothesis, not a result.** I have not read the condition guarding
+1168, and after fourteen instances of exactly this error I am not going to
+assert the branch without reading it. What IS established: the floor is present,
+so the floor is not the cause.
+
+### The value of having been wrong quickly
+
+The turf explanation was well-evidenced — four source lines, a comment in the
+game's own code mapping null to 'turf', and a plausible mechanism. **It was
+still wrong**, and it took one field and one run to find out, because the field
+was added specifically to falsify it rather than to confirm it.
+
+That is the difference between this and the fourteen: those were beliefs that
+went unchecked because the number beside them looked right. This one was checked
+*because* it looked right.
+
+**Next session, in order:** read the guard on `broomViewmodel.js:1168`; if it is
+the authored-asset path, fix `toolIsLive` to test rig health rather than GLB
+socket resolution, and re-measure invariant 1 with a beat that can pass.
+
+Suite 2929 pass / 0 fail.
+

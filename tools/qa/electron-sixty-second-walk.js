@@ -184,8 +184,23 @@ async (page) => {
   if (at >= 0) await page.keyboard.press(String(at === 9 ? 0 : at + 1));
   await page.waitForTimeout(1200);
   const live = await boot.toolIsLive(page, 'broom').catch(() => ({ ok: false }));
+  // BOARDS OR TURF, because toolIsLive's readiness proxy is `headAboveFloor !=
+  // null` and that quantity is SAMPLED FROM THE CLUBHOUSE FLOOR. courseScene
+  // says so itself: `floorY !== null ? 'boards' : 'turf'`. Outdoors there is no
+  // groundYAt answer, so the proxy is unsatisfiable however healthy the rig is.
+  // Without this field the beat cannot tell "the rig is broken" from "the
+  // player is standing on grass".
+  const stood = await page.evaluate(() => {
+    const fw = window.__fw;
+    const w = fw?.scene3d?.walk;
+    const ch = fw?.scene3d?.clubhouse?.();
+    if (!w || !ch?.groundYAt) return { known: false };
+    const g = ch.groundYAt(w.state?.x ?? w.x, w.state?.z ?? w.z);
+    return { known: true, surface: g == null ? 'turf' : 'boards', groundY: g ?? null };
+  }).catch(() => ({ known: false }));
   record('tool', live.ok === true, {
     held: live.held ?? null,
+    stoodOn: stood,
     // why it failed, in the artifact, instead of nowhere
     wheelOpened,
     wheelItems: items,
