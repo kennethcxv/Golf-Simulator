@@ -7939,3 +7939,45 @@ single `waitForFunction` away.
 and the walk it measures does not exercise a fully-adopted authored tool. The
 six causes closed against it in Section A were closed against that walk.
 
+
+### AND IT IS NOT A TIMING ISSUE — WHICH IS WHAT THE BRIEF PREDICTED ON PAGE ONE
+
+The last unknown was whether the authored asset adopts later. It does not, and
+no further run is needed to know it: `qa-boot.mjs:126` is
+
+```js
+export async function toolIsLive(page, tool, { timeoutMs = 20000 } = {}) {
+  const rigReady = await page.waitForFunction(..., { timeout: timeoutMs })
+```
+
+**It already waits twenty seconds** for `headAboveFloor != null`. The driver's
+1200 ms pause is irrelevant; the check that follows it polls for twenty. So the
+broom's authored GLB sockets do not resolve in that scenario **at all**, not
+merely slowly.
+
+### This is the check the brief opened with
+
+From the standing instructions:
+
+> *before any tool work delete the packed asset cache, rebuild from source, and
+> confirm the GLB hash the game loads is the one you built. **That check alone
+> may explain six rounds of tool measurements.***
+
+Section B's phase 0 ran that check and found the packed mop **fresh and
+identical** to its source, which retired the staleness hypothesis for the mop.
+But the brief's underlying suspicion — *the asset the game loads is not the
+asset you think it is* — was pointed at the right subsystem all along. It is not
+a stale hash. It is that **the authored asset is not adopted at all** in the
+scenario every tool measurement has been taken in, and the diagnostic that would
+have said so returns `null` and is read as "the rig is not running".
+
+Six rounds of tool measurements, and a readiness check that silently means
+something narrower than its name. **Fifteenth instance, and the one the brief
+warned about before any of this started.**
+
+**Where a next session begins, precisely:** find why `socketRefs.found` is false
+for the broom under the walk driver — the authored GLB loads for other drivers
+this session (A8's frame-coverage work used it), so the difference is scenario,
+not asset. Then invariant 1 can be measured against a walk holding a real tool,
+and Section A's six closed causes re-read against that number.
+
