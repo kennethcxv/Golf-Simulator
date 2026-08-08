@@ -223,7 +223,33 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   head.name = 'headJoint';
   head.position.y = 0.62;
   chest.add(head);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 20, 14), mSkin);
+  // H2 (Goal 17) — THE SAME CAUSE AS H3, ON A DIFFERENT PART OF THE BODY.
+  //
+  // "Eyebrows and moustaches float in front of the face. From the side they sit
+  // off the skin with a visible gap."
+  //
+  // The features ARE seated against the skull's nominal 0.155 radius - the brow
+  // at (0.058, 0.114, 0.137) sits 0.1523 from the skull centre on its inner
+  // face, comfortably inside 0.155. On paper it is buried.
+  //
+  // But the skull was a SphereGeometry(0.155, 20, 14), and a UV sphere is a
+  // POLYGON in both axes. Between its vertices the drawn surface pulls in by
+  // roughly cos(pi/20) * cos(pi/28) = 0.9814 - so the skin that actually gets
+  // drawn sits at about 0.1521, which is INSIDE the brow's inner face. The
+  // features were seated against a surface the renderer never draws, and the
+  // gap opens exactly where the brief says it does: from the side, on the
+  // facets.
+  //
+  // Raising the segment count is the fix for every feature at once - eyes,
+  // brows, catchlights, moustache - rather than re-seating each against a
+  // faceting allowance. At 28 x 20 the drawn surface is 0.1540, which is now
+  // OUTSIDE the brow's inner face by 1.7 mm, so the features are buried in skin
+  // from any angle.
+  //
+  // The cost is triangles, not draw calls: one mesh either way, 280 -> 560
+  // triangles on a head. A1 measured this renderer as draw-call bound, so this
+  // is the cheap axis to spend on.
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 28, 20), mSkin);
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);

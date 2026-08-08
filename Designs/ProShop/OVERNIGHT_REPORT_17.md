@@ -2248,6 +2248,51 @@ twice, once per cause: old radii with matched segments fails the clearance test;
 new radii with 18 segments fails the polygon test. Each break is caught by its
 own assertion.
 
+## H2 — the features were seated against a surface the renderer never draws
+
+H2: "Eyebrows and moustaches float in front of the face. From the side they sit
+off the skin with a visible gap."
+
+**On paper they were seated.** The brow's inner face sits **0.1523** from the
+skull centre, comfortably inside the skull's nominal **0.155** radius. Anyone
+checking the numbers would have called this fixed - and a previous session did.
+
+But the skull was `SphereGeometry(0.155, 20, 14)`, and a UV sphere is a
+**polygon in both axes**. Between its vertices the drawn surface pulls in by
+`cos(π/w) · cos(π/h)`:
+
+| | radius |
+| --- | --- |
+| brow's inner face | 0.1523 |
+| skull as **specified** | 0.1550 - the brow is buried 2.7 mm |
+| skull as **drawn**, at 20 x 14 | **0.1521** - the brow is **proud by 0.2 mm** |
+| skull as drawn, at 28 x 20 | **0.1536** - buried 1.2 mm |
+
+**This is the same class as H3's belt**, on a different part of the body:
+geometry seated against a nominal radius the renderer never draws. It is why the
+gap appears *from the side* - that is where the facets are - and why checking
+the numbers said it was fine.
+
+Raising the segment count fixes **every feature at once** - eyes, brows,
+catchlights, moustache - instead of re-seating each against a faceting
+allowance, which would bury them at the vertices to clear them at the facets.
+The cost is triangles, not draw calls: one mesh either way, 280 → 560 on a head,
+and A1 measured this renderer as **draw-call bound**, so this is the cheap axis.
+
+`tests/character-face-seating.test.js` measures against the **drawn** surface,
+and carries a second assertion that the skull stays round enough that nominal
+and drawn barely differ - a guard against "fix it by burying the feature
+deeper", which would trade a gap at the facets for a sunken brow at the
+vertices. Watched failing on the old 20 x 14 (2 of 3), green on restore.
+
+### The pattern across H2, H3 and B2
+
+Three separate complaints - a floating brow, skin through a belt, a broom that
+looked like a rake - and **all three were the same mistake**: a low-segment
+polygon measured as though it were the smooth shape it approximates. The brief's
+Requirement 6 says every named defect is naming a family. This family crosses
+sections.
+
 ---
 
 ## RUNNING LISTS
