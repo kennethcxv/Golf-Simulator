@@ -1,0 +1,92 @@
+// STANDING INVARIANT 8 — EVERY PLAYER-FACING STRING GOES THROUGH t().
+//
+// The gate carried this as NO CHECK with the note "partially covered by the i18n
+// coverage test; no check that a NEW literal is caught". Both halves of that
+// note are true, and the gap is bigger than it sounds.
+//
+// `tests/i18n.test.js` pins the MACHINERY - locales are real, a missing line
+// falls through to English, placeholders substitute after lookup. It never looks
+// at a call site. And `toast()` does not translate: it hands the message
+// straight to notify(). So a raw string at a toast call reaches the player in
+// English on every locale.
+//
+// Measured when this was written: 155 raw literals at player-facing sinks,
+// 0 wrapped in t(). Translating those is a real piece of work and not one to
+// start at the end of a session.
+//
+// So this is a RATCHET, not a fix. It freezes the count and fails when it GROWS,
+// which is exactly what the gate's note asked for: a check that catches a NEW
+// literal. The number is allowed to fall freely - every one that gets wrapped
+// makes the ceiling stricter on the next person - and the test says so when it
+// drops, so the baseline can be lowered deliberately rather than drifting.
+//
+// NEGATIVE CONTROL: the scanner must actually find the sinks it claims to. A
+// count of zero would pass the ceiling while proving nothing, so a floor is
+// asserted too.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Sinks whose first argument is read by the player as prose.
+const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])/g;
+const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
+
+// The measured state on the day this was written. Lower it when you wrap some.
+const BASELINE = 155;
+
+function jsFiles(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...jsFiles(p));
+    else if (entry.name.endsWith('.js')) out.push(p);
+  }
+  return out;
+}
+
+const src = path.resolve(new URL('../src', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+
+function scan() {
+  let raw = 0;
+  let wrapped = 0;
+  const byFile = [];
+  for (const file of jsFiles(src)) {
+    const text = fs.readFileSync(file, 'utf8');
+    const r = (text.match(new RegExp(SINK.source, 'g')) || []).length;
+    const w = (text.match(new RegExp(WRAPPED.source, 'g')) || []).length;
+    raw += r;
+    wrapped += w;
+    if (r) byFile.push({ file: path.relative(src, file), raw: r });
+  }
+  byFile.sort((a, b) => b.raw - a.raw);
+  return { raw, wrapped, byFile };
+}
+
+test('the scanner finds the player-facing sinks at all (control)', () => {
+  const { raw } = scan();
+  // A scanner that matched nothing would sail under any ceiling while proving
+  // nothing whatsoever. The floor is what stops a broken regex reading as clean.
+  assert.ok(raw > 50,
+    `the scanner should find the known sinks, found ${raw} - the pattern is probably broken`);
+});
+
+test('no NEW player-facing string bypasses t()', () => {
+  const { raw, byFile } = scan();
+  const worst = byFile.slice(0, 5).map((f) => `${f.file}:${f.raw}`).join(', ');
+  assert.ok(raw <= BASELINE,
+    `player-facing strings bypassing t() rose from ${BASELINE} to ${raw}. `
+    + `A string handed to toast() reaches the player in English on every locale. `
+    + `Worst files: ${worst}`);
+});
+
+test('the baseline is lowered deliberately, not left to drift', () => {
+  const { raw } = scan();
+  // When somebody wraps a batch, this fires and asks them to bank the win by
+  // moving BASELINE down. Without it the ceiling stays loose for ever and the
+  // ratchet only ever works in one direction by accident.
+  assert.ok(raw >= BASELINE - 10,
+    `${BASELINE - raw} strings have been wrapped since the baseline was set. `
+    + `Lower BASELINE in this file to ${raw} so the gain cannot be given back.`);
+});

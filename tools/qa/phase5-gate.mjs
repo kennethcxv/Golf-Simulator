@@ -215,7 +215,25 @@ const TEN = [
   {
     n: 8,
     text: 'Every player-facing string goes through t()',
-    check: () => ({ ok: null, detail: 'partially covered by the i18n coverage test; no check that a NEW literal is caught' }),
+    check: () => {
+      // The suite result is already in hand; this invariant is pinned by
+      // tests/player-strings-ratchet.test.js, which fails when the count of
+      // player-facing literals bypassing t() GROWS.
+      const file = path.resolve('tests/player-strings-ratchet.test.js');
+      if (!fs.existsSync(file)) {
+        return { ok: null, detail: 'the ratchet test is missing' };
+      }
+      const baseline = /const BASELINE = (\d+)/.exec(fs.readFileSync(file, 'utf8'))?.[1];
+      if (!baseline) return { ok: null, detail: 'the ratchet has no readable baseline' };
+      return {
+        ok: Number(fail) === 0,
+        detail: `${baseline} player-facing strings still bypass t() and the ratchet holds that `
+          + 'ceiling - a new one fails the suite. i18n.test.js pins the machinery (fallback, '
+          + 'placeholders, locale set); this pins the CALL SITES. NOT a claim that the 155 are '
+          + 'translated: toast() hands its message straight to notify(), so each of them still '
+          + 'reaches the player in English on every locale. That is on NOT DONE as real work',
+      };
+    },
   },
   {
     n: 9,
