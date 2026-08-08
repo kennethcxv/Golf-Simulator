@@ -12741,3 +12741,127 @@ precisely because it cost something to find.**
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+
+## B1 CONFIRMED AT THE PLAYER CAMERA — AND THE FIRST CAPTURE WAS A PICTURE OF NOTHING
+
+B1's whip retune shipped some time ago (`deficitBase` 0.85 -> 0.25, `chaseBase`
+5.5 -> 11.0, `dragGain` 0.22 -> 0.08, `pushGain` 2.2 -> 3.0) and measured +35%
+live pixel change, reproducible within 2%. Under the RULES that left it
+**UNCONFIRMED**: *"visual items need a player-camera screenshot at the DEFAULT
+camera or they are UNCONFIRMED."*
+
+Commit `d109dfc` took a capture and banked it **before looking at it**, saying so
+in its own message: *"The capture existing is not the confirmation; looking at it
+is."* Looking at it is what found the two faults below.
+
+### Fault 94 — the capture contained neither the mop head nor a stroke
+
+`b1-mop-midstroke.png` held a shaft, a brass butt cap and one hand at the bottom
+edge of the frame. **The strands — the entire subject of B1 — hung below the
+viewport.** The driver's own success field said `equipped2: mop`, which is true
+and answers a different question than the one a visual confirmation asks. *Is the
+tool equipped* is not *can the camera see the thing that changed.*
+
+The frame also carried the game's own refusal, in a toast, in the corner of the
+image I had banked: **"The tool is against a fixture, not the floor."** The equip
+happens at the checkout desk; `cleanWithTool` returned reason `blocked`
+(`courseScene.js:7570`); `mouse.down()` bought a rejection. **A still labelled
+"midstroke" that contains no stroke is worse than no still — it reads as
+evidence.**
+
+### The rebuilt capture, with the negative control the RULES require
+
+Everything is player input: `s` walks backward off the desk, ArrowDown pitches
+the view (`courseScene.js:8263`). No camera posed, no FOV touched — confirmed in
+the artifact as **fov 66, 2560x1370 css, dpr 1.5**.
+
+The instrument is `toolRigDiagnostics('mop').headNdc`, the drawn head projected
+through `vmCamera` — the same camera the viewmodel pass draws with
+(`broomViewmodel.js:1126-1129`), so NDC maps to the screen rect. **Its negative
+control was free**: read it before the look-down as well as after.
+
+| | head NDC | in frame | pitch |
+|---|---|---|---|
+| at equip | x 0.128, **y -1.296** | **no** | -0.452 |
+| after backing off | x 0.046, y -0.838 | no | -0.452 |
+| after looking down | x 0.045, **y -0.129** | **yes** | -1.350 |
+
+`controlHeld: true`. The instrument distinguishes the two states rather than
+reporting "fine" at both ends — and it independently reproduces what the round-1
+screenshot showed, from a completely different direction: **y -1.296 is the
+number for "below the bottom of the screen."**
+
+Eye height ~1.6yd, head working ~0.9yd ahead, is ~60 degrees below the horizon.
+A 66-degree vertical FOV **cannot contain the mop head at a level gaze.** The
+first capture was not unlucky; it was geometrically impossible.
+
+### What the pictures show
+
+Three frames across one held stroke, plus a rest frame as the control:
+
+- **`b1-mop-rest.png`** — the strands hang as a dense, **radially symmetric skirt
+  fully surrounding the ferrule**. A tidy concentric bell.
+- **`b1-mop-stroke-*.png`** — the mass is **displaced off the ferrule**: the head
+  sits at the upper-right of its own yarn, the bulk bunched away from the
+  direction of travel, and **individual strands flicked out past the head**. At
+  the larger excursion sampled on the previous run (`strokeX` -0.254) it reads as
+  a broad one-sided fan.
+
+The strands are legible as *strands*, not as a welded cone — that is B3's
+delivery — and **they move as a lagging mass rather than a rigid attachment**,
+which is B1's. **CONFIRMED.**
+
+### Fault 95 — my acceptance predicate conflated two different questions
+
+The first cut read `strokeAccepted = using && !blocked` and the run came back:
+
+```
+using: true    intensity 0.398 -> 0.592 -> 0.605    workBlend 1
+strokeX -0.2541 / 0.0260 / 0.0902      <- three distinct phases
+blocked: true, reason: "mop-dry"       <- and therefore did: 0
+```
+
+**A fully live swing, declared `usable: false`.** The mop has not been wrung in
+the cleaning-bay bucket, so it lifts no dirt — and the predicate had quietly
+asserted that a mop only swings when the mopping *works*.
+
+The strands are driven by head motion (`strokeX`, `broomViewmodel.js:1301`), not
+by the clean result. So the artifact now reports the two facts separately:
+`swingLive` (B1's question) and `cleanAccepted` + `cleanRefusedBecause` (a
+different one). Re-run: `swingLive: true`, `cleanAccepted: false`,
+`cleanRefusedBecause: "mop-dry"`, `usable: true`.
+
+This is instance 42 of the session's one recurring shape, and the purest example
+of it yet: **the measurement was right, and the sentence beside it was wrong.**
+Every number in that block was correct. The word `strokeAccepted` was not.
+
+### Housekeeping
+
+Deleted `b1-mop-midstroke.png`, because a misleading artifact sitting in the
+evidence directory is a trap for whoever reads it next, and its four replacements
+answer the question it was taken to answer.
+
+**And a correction to the sentence I first wrote here.** I wrote *"it survives in
+`d109dfc` if anyone wants it"* — it does not. **`/qa/` is gitignored**
+(`.gitignore:12`), so no capture this session has ever been committed; `d109dfc`
+contains the driver change and nothing else. Caught by running `git status` on
+the artifact paths and getting no output at all, which is the kind of silence
+worth reading rather than skipping past.
+
+What survives is the description above and **the driver that produced it**:
+checking out `d109dfc`'s `electron-sixty-second-walk.js` and re-running
+reproduces the empty frame exactly. That is the honest form of "recoverable"
+here, and it is worth stating because **every screenshot cited anywhere in this
+report is local-only**. A reader on a fresh clone has the numbers, the drivers
+and the prose; the images they must re-shoot.
+
+### Two observations, recorded not chased
+
+1. **A dry mop is refused with a good message** and the refusal is correct
+   behaviour, not a defect: *"The mop is dry - wring it in the cleaning-bay
+   bucket."*
+2. **A player mopping at a level gaze cannot see the mop head at all.** That is
+   the geometry, not a bug, and every first-person cleaner has it — but it is
+   worth knowing that the tool's best work happens where the player must look
+   down to watch it.

@@ -402,16 +402,127 @@ async (page) => {
   // This beat already equips the mop. Hold LMB so the strands are mid-stroke
   // rather than at rest — a still of a hanging mop proves nothing about motion —
   // and shoot at the DEFAULT camera, untouched.
+  //
+  // ROUND 1 (d109dfc) PRODUCED A PICTURE OF NOTHING. Looking at it is what said
+  // so, and it failed on two counts at once:
+  //
+  //   1. THE MOP HEAD WAS NOT IN FRAME. All the image held was a shaft, a brass
+  //      butt cap and one hand at the bottom edge; the strands — the entire
+  //      subject of B1 — hung below the viewport. `equipped2: mop` was true and
+  //      told me nothing about what the camera could see, which is the whole
+  //      question a visual confirmation asks.
+  //   2. THE STROKE WAS REFUSED. The frame carries the game's own toast: "The
+  //      tool is against a fixture, not the floor." The equip happens at the
+  //      checkout desk, `cleanWithTool` returned reason `blocked`
+  //      (courseScene.js:7570), and `mouse.down()` bought a rejection, not a
+  //      stroke. A still labelled "midstroke" that contains no stroke is worse
+  //      than no still: it reads as evidence.
+  //
+  // So this round stands the player somewhere legal, points the camera at the
+  // work, and PROVES both before shooting. The instrument is
+  // `toolRigDiagnostics('mop').headNdc` — the drawn head projected through
+  // `vmCamera`, the same camera the viewmodel pass draws with
+  // (broomViewmodel.js:1126-1129) — and its NEGATIVE CONTROL is free: the
+  // reading is taken before the look-down as well as after, and the before
+  // reading is expected to be OUT of frame. An instrument that says "in frame"
+  // at both ends is measuring nothing.
+  //
+  // Everything here is player input. Arrow keys pitch the view
+  // (courseScene.js:8263) and `s` walks backward; no camera is posed, no field
+  // of view touched, which is what "at the DEFAULT camera" requires.
   const equipped2 = await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? 'none').catch(() => null);
+  const b1 = { equipped2, shots: [] };
+  const b1Probe = () => page.evaluate(() => {
+    const w = window.__fw?.scene3d?.walk;
+    const rig = w?.toolRigDiagnostics?.('mop') || null;
+    const cln = w?.cleaningDiagnostics?.() || null;
+    return {
+      headNdc: rig?.headNdc ?? null,
+      strokeX: rig?.strokeX ?? null,
+      intensity: rig?.intensity ?? null,
+      workBlend: rig?.workBlend ?? null,
+      using: cln?.using ?? null,
+      did: cln?.result?.did ?? null,
+      blocked: cln?.result?.blocked ?? null,
+      reason: cln?.result?.reason ?? null,
+      // READ THE RENDER CAMERA, not a walk accessor. `walk` exposes no pitch and
+      // no position — inventing `debugState()` here would have returned
+      // undefined through an optional chain and reported `pitch: null` as if the
+      // camera were level, which is exactly the shape of null this session has
+      // been bitten by twice. camera.rotation.x IS the pitch the frame drew
+      // with, and camera.position IS where the eye stood.
+      pitch: +(window.__fw?.scene3d?.camera?.rotation?.x ?? 0).toFixed(3),
+      pos: {
+        x: +(window.__fw?.scene3d?.camera?.position?.x ?? 0).toFixed(2),
+        z: +(window.__fw?.scene3d?.camera?.position?.z ?? 0).toFixed(2),
+      },
+    };
+  }).catch((e) => ({ threw: String(e && e.message) }));
+  const inFrame = (n) => !!n && Math.abs(n.x) <= 1 && Math.abs(n.y) <= 1;
+
   if (equipped2 === 'mop') {
+    b1.atEquip = await b1Probe();
+    // OFF THE DESK. Round 1's refusal was positional, not a tool fault.
+    await page.keyboard.down('s');
+    await page.waitForTimeout(1600);
+    await page.keyboard.up('s');
+    await page.waitForTimeout(500);
+    b1.afterBackedOff = await b1Probe();
+    // LOOK DOWN AT THE FLOOR. Eye height is ~1.6yd and the head works about
+    // 0.9yd ahead, which is ~60 degrees below the horizon — outside a 66-degree
+    // vertical FOV by a wide margin. Level gaze CANNOT contain the mop head.
+    await page.keyboard.down('ArrowDown');
+    await page.waitForTimeout(750);
+    await page.keyboard.up('ArrowDown');
+    await page.waitForTimeout(400);
+    b1.afterLookDown = await b1Probe();
+    await page.screenshot({ path: path.join(OUT, 'b1-mop-rest.png') });
+    b1.shots.push('b1-mop-rest.png');
+    // THE STROKE ITSELF, sampled three times across it. One frame cannot show
+    // motion; three at different stroke phases can be compared to each other,
+    // and `strokeX` says which phase each one caught.
     await page.mouse.down();
-    await page.waitForTimeout(700);            // mid-stroke, not at rest
-    await page.screenshot({ path: path.join(OUT, 'b1-mop-midstroke.png') });
+    await page.waitForTimeout(450);
+    for (let i = 0; i < 3; i++) {
+      const name = `b1-mop-stroke-${i}.png`;
+      await page.screenshot({ path: path.join(OUT, name) });
+      b1.shots.push(name);
+      b1[`stroke${i}`] = await b1Probe();
+      await page.waitForTimeout(220);
+    }
     await page.mouse.up();
+    await page.waitForTimeout(300);
+    b1.afterRelease = await b1Probe();
+    // THE VERDICT THE ARTIFACT MUST CARRY, so a reader is not left inferring it
+    // from eight raw probes.
+    b1.headInFrameBefore = inFrame(b1.atEquip?.headNdc);
+    b1.headInFrameAfter = inFrame(b1.afterLookDown?.headNdc);
+    b1.controlHeld = b1.headInFrameAfter && !b1.headInFrameBefore;
+    b1.strokePhasesDiffer = new Set([0, 1, 2]
+      .map((i) => b1[`stroke${i}`]?.strokeX)).size > 1;
+    // TWO DIFFERENT QUESTIONS, KEPT APART ON PURPOSE.
+    //
+    // The first cut of this predicate read `using && !blocked` and called it
+    // `strokeAccepted`, which quietly asserted that a mop only swings when the
+    // mopping WORKS. It does not. The run came back `using: true`, intensity
+    // 0.398 -> 0.592 -> 0.605, workBlend 1, three distinct strokeX — a fully
+    // live swing — alongside `blocked: true, reason: 'mop-dry'`, because the mop
+    // has not been wrung in the cleaning-bay bucket yet and therefore lifts no
+    // dirt. The predicate declared that genuinely good capture `usable: false`.
+    //
+    // B1 is the STRAND WHIP. The strands are driven by head motion (`strokeX`,
+    // broomViewmodel.js:1301) and not by the clean result, so the swing is the
+    // question and the clean is a separate game fact that belongs in the
+    // artifact under its own name rather than gating a visual confirmation.
+    b1.swingLive = [0, 1, 2].some((i) => b1[`stroke${i}`]?.using === true
+      && (b1[`stroke${i}`]?.intensity ?? 0) > 0.1) && b1.strokePhasesDiffer;
+    b1.cleanAccepted = [0, 1, 2].some((i) => (b1[`stroke${i}`]?.did ?? 0) > 0);
+    b1.cleanRefusedBecause = b1.cleanAccepted ? null : (b1.stroke0?.reason ?? null);
+    b1.usable = b1.headInFrameAfter && b1.swingLive;
   }
   record('tool2', true, {
     equipped2,
-    b1Shot: equipped2 === 'mop' ? 'b1-mop-midstroke.png' : null,
+    b1,
     b1Camera: await page.evaluate(() => ({
       fov: window.__fw?.scene3d?.camera?.fov ?? null,
       css: { w: window.innerWidth, h: window.innerHeight },
