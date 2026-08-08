@@ -5568,3 +5568,45 @@ each one turned a failing measurement into a working one.
 **G7 is CONFIRMED. G5 remains UNCONFIRMED and needs a run over many tenders**,
 which is the same distribution argument its unit test already makes - now with a
 driver that can actually reach a tender to sample.
+
+### G7 FULLY CONFIRMED - BOTH PHASES, IN ORDER
+
+```
+modesSeen: ["PayCash", "CashLaid"]
+heldItOut: true      armCameBack: true      laidAfterHolding: TRUE
+itemsScanned 2       reachedTender true     controlNotAlreadyLaid true
+camera 2560x1370, DPR 1.5, FOV 66 (untouched)
+```
+
+The customer **holds the cash, then the arm comes back.** Both phases observed,
+in sequence, against a live transaction. That is G7's whole sentence:
+*"they lay it on the desk and take their hand back. They do not stand holding it
+out."*
+
+### The fix was a sampling rate, and the lesson is sharper than the fix
+
+`CASH_LAY_SECONDS` is 0.55. I had been sampling every **1500 ms**. **A 0.55 s
+event cannot be caught on a 1.5 s tick** - so the previous run saw only the
+end state and reported `heldItOut: false`.
+
+Had I trusted that, I would have published *"the customer never holds the cash
+out"* - the ABSENCE of a behaviour that was there the whole time, from a probe
+whose sample interval was three times the event. **That is the same failure as
+the dry mop, the shut book and the unready rig: measuring a subject in a state it
+does not occupy, or at a moment it has already left.**
+
+It was caught only because I wrote `laidAfterHolding` as UNPROVEN rather than
+false, which forced the question of why the ordering could not be seen.
+
+### Visual confirmations this session
+
+| item | state |
+| --- | --- |
+| G4.1 bag always at the counter | **CONFIRMED**, both control halves fired |
+| G1 till reads with a mop in hand, Q held | **CONFIRMED**, mop held at read time |
+| G7 cash laid, hand withdrawn | **CONFIRMED**, both phases in order |
+| G5 coins on the desk | still needs many tenders - 13.5% expected, one sample seen |
+| G3 / G4.2 the bag sink | not attempted; the driver that reaches a tender could now reach it |
+
+**Three visual items now clear the brief's bar**, from zero this morning - and
+the scenario driver that unlocked the last one can reach the remaining two.

@@ -155,12 +155,22 @@ async (page) => {
   ), null, { timeout: 40000 }).then(() => true).catch(() => false);
 
   // let them be accepted and reach the cash tender
+  // SAMPLE FAST ENOUGH TO SEE THE HOLD.
+  //
+  // CASH_LAY_SECONDS is 0.55, and the first run sampled every 1500 ms - so the
+  // PayCash phase had already ended before the first reading and the ORDERING
+  // claim (held, then laid) went unproven. A 0.55 s event cannot be caught on a
+  // 1.5 s tick, and reporting "heldItOut: false" from that would have been a
+  // measurement artifact dressed as a finding.
   out.samples = [];
-  for (let i = 0; i < 40; i += 1) {
-    await page.waitForTimeout(1500);
+  for (let i = 0; i < 160; i += 1) {
+    await page.waitForTimeout(120);
     const s = await rig();
     out.samples.push(s);
-    if (s.mode === 'CashLaid') break;
+    // stop only once BOTH phases have been seen, or well past the window
+    const seen = out.samples.map((x) => x.mode);
+    if (seen.includes('PayCash') && seen.includes('CashLaid')) break;
+    if (i > 60 && seen.includes('CashLaid')) break;
   }
   out.after = out.samples[out.samples.length - 1] || null;
 
