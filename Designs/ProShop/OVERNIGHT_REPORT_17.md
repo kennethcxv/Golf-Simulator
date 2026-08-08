@@ -3216,3 +3216,58 @@ green.** Six of the seven were found by reading outward from the fix to the path
 the player actually walks, not by running the suite.
 
 
+
+## G7 - CASH AND CARD WERE THE SAME GESTURE, LITERALLY
+
+*"Cash: they lay it on the desk and take their hand back. They do not stand
+holding it out. Card: they hold it up and keep holding it until I take it."*
+
+They were the same gesture in the most literal way the codebase allows - **one
+branch handled both**:
+
+```js
+} else if (char.mode === 'PayCash' || char.mode === 'PayCard') {
+```
+
+### And the right pose already existed
+
+`CashLaid` - arm back, waiting for change - was written for Goal 16 F6, and its
+own comment even states the rule: *"The card path never uses this: a card stays
+in the held-out hand until the cashier takes it."* The AMBIENT customer
+simulation uses it (`customers.js`, `clubhouse.js`).
+
+**The register the player actually operates never did.** Worse, it wrote
+`PayCash` on EVERY FRAME of the cash-tender stage, so a correct pose set from
+anywhere else would have been overwritten before it could be seen. The customer
+stood with an arm held out over money already lying on the desk: the card
+gesture, performed with cash.
+
+This is the eighth half-fix of the goal, and its most exact form yet - the fix
+existed, was correct, was documented, and was wired to everything except the
+thing the player looks at.
+
+### The fix
+
+`CASH_LAY_SECONDS = 0.55`: the hand stays on the money while it is being put
+down, then the arm comes back. Long enough to read as PLACING it rather than
+dropping it; short enough that they are not standing there holding it out.
+
+The timer resets inside `createTender()` rather than at its call sites - there
+are two routes that present cash (the normal one and the one after a card
+decline) and resetting at the callers means one can be missed, which would start
+the customer with their hand already withdrawn from money they had not put down.
+
+### Evidence
+
+Six checks, including one that the split is not cosmetic: the held reach is
+`-1.12` and the laid arm `-0.30`, and the test requires more than 0.5 rad between
+them so a relabel cannot pass. Watched two breaks fail: forcing the held-out
+pose every frame again, and moving the reset back to a single call site.
+
+**A third imprecise anchor** turned up here too - `"cash-tender"` appears 14
+times in that file and `indexOf` finds the first, which is not the per-frame
+block. Same fault as the two in G4; the anchor is now the whole condition.
+
+Suite **2910 pass / 0 fail**.
+
+**UNCONFIRMED:** source-level. No player-camera frame of the arm withdrawing.

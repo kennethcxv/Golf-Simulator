@@ -1712,6 +1712,11 @@ export function createRegisterMode(B) {
   const dragPlaneNormal = new THREE.Vector3();
   const dragPlanePoint = new THREE.Vector3();
   const dragHit = new THREE.Vector3();
+  // How long the customer's hand stays on the cash after it reaches the desk,
+  // before the arm comes back. Long enough to read as PLACING it rather than
+  // dropping it, short enough that they are not standing there holding it out.
+  const CASH_LAY_SECONDS = 0.55;
+  let cashLaidTimer = 0;
   const bagDropMotions = [];
   let scanReturnTimer = 0;
   let paymentAutoTimer = 0;
@@ -5370,6 +5375,11 @@ export function createRegisterMode(B) {
   }
 
   function createTender() {
+    // Reset here, not at the call sites: there are two of them (the normal cash
+    // route and the after-a-decline route) and a stale timer would start the
+    // customer with their hand already withdrawn from money they had not put
+    // down yet.
+    cashLaidTimer = 0;
     tenderMeshes.forEach((mesh) => mesh.removeFromParent());
     tenderMeshes = [];
     clearTenderHandful();
@@ -8244,7 +8254,23 @@ export function createRegisterMode(B) {
     // fan is laid out at the grip, and a Stage-pose frame would pull the hand
     // away from underneath it (see the matching note in updateCard).
     if (tx && tx.method === 'cash' && tx.stage === 'cash-tender') {
-      poseCustomerForCheckout('PayCash');
+      // G7: CASH AND CARD ARE DIFFERENT GESTURES.
+      //
+      // "Cash: they lay it on the desk and take their hand back. They do not
+      // stand holding it out. Card: they hold it up and keep holding it until I
+      // take it."
+      //
+      // This line forced the held-out pose EVERY FRAME the tender was on the
+      // counter, so the customer stood with an arm out over money that was
+      // already lying on the desk - the card gesture, performed with cash. The
+      // pose that does the right thing (`CashLaid`, arm back, waiting for
+      // change) already existed and the ambient customer sim already used it;
+      // the register the player actually operates never did, and this per-frame
+      // write would have overwritten it if it had.
+      //
+      // The hand stays on the money while it is being put down, then comes back.
+      cashLaidTimer += animationDt;
+      poseCustomerForCheckout(cashLaidTimer >= CASH_LAY_SECONDS ? 'CashLaid' : 'PayCash');
     }
     updateCard(animationDt);
     updateDrawer(animationDt);
