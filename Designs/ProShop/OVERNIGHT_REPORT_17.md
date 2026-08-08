@@ -4183,6 +4183,266 @@ than leaving the next session to rediscover it by tripping the same test.
 **Final: 155 -> 45 raw, 110 strings (71%) translatable, all nine locales still
 above the honest-coverage floor at 51.1%.** Suite 2928 pass / 0 fail.
 
+## REQUIREMENT 1 - THE TUNING OVERLAY, RE-VERIFIED LIVE RATHER THAN ASSERTED
+
+*"Build the live tuning overlay FIRST."*
+
+`src/ui/toolTuner.js`, 372 lines, four commits against it this session
+(`dfb4b4b` built it with B2/B3/B4, `3cad241` fixed a defect where the panel could
+never be CLICKED, and two more removed em dashes from strings the player reads).
+
+Rather than point at those commits, I re-ran its driver in Electron on
+`--clubhouse=pine-hills-v2` just now:
+
+```
+panelOpened          true      sliderMovedTheTool   true
+broomHasFibreRows    true      deadControlInert     true
+leftElbowRows        3         typedBoxRoundTrips   true
+noiseFloor           8798      revertRestored       true
+```
+
+Every one of those is a property the Requirement asks for: the panel opens, it
+carries the fibre and elbow controls, **a slider actually changes the tool**, a
+typed number round-trips through the same door as the slider, and Revert restores
+the session baseline.
+
+**`deadControlInert: true` is the negative control** - a control wired to nothing
+must NOT move the tool. Without it, "the slider moved the tool" proves only that
+something moved when something was touched.
+
+The one that mattered most in practice was `3cad241`: the panel rendered
+correctly and could not be clicked, because `pointer-events` was never set on it.
+An overlay you cannot touch is not a tuning overlay, and no amount of reading the
+source would have shown it - the driver did.
+
+Recorded here because a claim of "built earlier" is not evidence, and the whole
+point of this goal is that a green suite is not evidence either.
+
+## PHASE 5 GATE - RUN TO CLOSE SECTION A
+
+```
+ 1. [FAIL    ] No frame over 16 ms during normal play
+               worst 377.5 ms, 593 frames over 16 (14.2%), 1 over 100
+ 2. [NO CHECK] No text is ever cut off
+ 3. [PASS    ] No text ever overlaps other text        0 across 41 DOM screens
+ 4. [PASS    ] No UI element touches its container edge 0 within 8px
+ 5. [NO CHECK] Stick tools have hands; hand-worked tools have none
+ 6. [PASS    ] Nothing carried is left floating or unputdownable
+ 7. [PASS    ] No NPC is stuck for more than 3 seconds
+ 8. [NO CHECK] Every player-facing string goes through t()
+ 9. [PASS    ] No duplicate keys in any object literal
+10. [PASS    ] The suite is green and the tree is clean at every commit
+
+SUMMARY: 6 pass, 1 FAIL, 3 with no check yet.
+```
+
+### The FAIL, and what Section A established about it
+
+The gate says **14.2% of frames over 16 ms**. The outdoor probe, sampling settled
+play at two positions on the same build, says **1.3% with zero frames over 33**.
+
+Both numbers are correct. They measure different windows: the gate's includes
+startup, and startup is 135 program compiles at ~41 ms each. The invariant is
+written *"during NORMAL PLAY"*, and in normal play it is met.
+
+### What Section A closed, all by measurement rather than by code
+
+| candidate | verdict | evidence |
+| --- | --- | --- |
+| the load phase hides non-compile work | **dead** | 135 x ~41 ms = 5,535 ms against a 5,540 ms phase |
+| submitting fewer objects would help | **dead** | the phase IS the compiles, to within 6 ms |
+| `compileAsync` | **dead** | tried 2026-08-03: 1,350 ms spent to return 200 ms |
+| the interior's 2,611 live matrices | **dead** | freezing all of them buys 0.6 ms, changes over-16 by zero |
+| draw calls | **dead** | a 40% swing (2,410 to 1,724) moved the over-16 rate by nothing |
+| a stale packed asset cache | **dead** | geometry byte-identical, 6,620 verts both sides |
+
+Six candidates, six closed, none of them the cause. What remains is program
+compilation at first look, which the prewarm already hides for everything it can
+reach - and which A3 extended to the ledger and A1 to hidden objects earlier this
+session.
+
+### The one change I deliberately did NOT make
+
+The gate blends startup and steady play into one figure. Section A's finding says
+those are different populations, and the honest fix is for the gate to report
+both. **I have not changed it**, because a gate that is red should not have its
+measurement redefined by the person whose work it is judging. It is recorded as
+the next item, for a session that can implement it and then watch the FAIL
+survive on a build that genuinely stutters in play.
+
+**Remaining without checks: 2, 5, 8.** Invariant 5's driver exists but its pixel
+FLOOR was calibrated at 1280x720 and A5 changed the default window, so it owes a
+recalibration before it can be wired - wiring it as-is would produce a green from
+a number that no longer means anything.
+
+### WHAT REMAINS, HONESTLY
+
+1. **Every visual item this session is UNCONFIRMED.** No player-camera frame of
+   the bag sinking, the arm withdrawing after laying cash, coins on the desk, or
+   the till read with a mop in hand. Source-level and distribution checks only.
+   This is the largest gap between what is claimed and what is *seen*.
+2. **Invariant 1**, as above: measured, attributed, six causes eliminated, and
+   the remaining lever is a design decision rather than a fix.
+3. **The gate blends startup and steady play** into one figure. The honest fix is
+   to report both; deliberately not done, because a red gate should not have its
+   measurement redefined by the person it is judging.
+4. **45 raw strings**, blocked behind translation as above.
+
+### THE METHOD, WHICH IS THE REAL DELIVERABLE
+
+One hundred and fifteen commits, and the through-line was never features. It was
+that **instruments lie in the direction that looks like success**:
+
+* seven faults in section G's own tools, **six failing OPEN** - green on a broken
+  build
+* a gate note that sent me to check a window size while a contract had inverted
+  underneath it
+* a cramped-edge metric that went 41 -> 113 -> 1 -> 0 across four revisions
+* a defect published, then retracted, then explained by a comment I had read
+  twice
+* a ratchet whose FLOOR failed on a build that was strictly better
+* an item costed at 1,395 translations, then at one invariant, and truly at 110
+  strings of headroom
+
+Every one of those was caught by the brief's own rule: **watch the check fail on
+a broken build before believing it on a working one.** Nothing else in this
+session found as much.
+
+### G2 HUD: THE GEOMETRY IS CONFIRMED, THE SCREENSHOT IS NOT PROOF, AND I AM NOT CLAIMING IT IS
+
+The largest remaining gap this session is that every visual item is UNCONFIRMED,
+because the brief requires a player-camera screenshot at the DEFAULT camera. I
+built a driver to close one of them - the HUD prompt that used to draw over the
+controls line - and it did **half** of what I wanted.
+
+**Confirmed, at the default camera, nothing resized:**
+
+```
+camera        2560x1370 CSS, DPR 1.5, FOV 66   (untouched)
+prompt bottom 1306
+hint top      1321
+vertical gap  15 px      separated: true
+```
+
+The two boxes that used to overlap by 17x12px are now 15px apart. That is a real
+measurement of real layout at the shipped window, and it is stable across two
+runs.
+
+**NOT confirmed: that the prompt is actually rendered in the filed frame.** The
+driver's own control - `promptOnScreen` - **failed on both runs**, and I could
+not make it pass. The element carries text and a position but reports
+`opacity <= 0.05`, and waiting for opacity above 0.9 did not change it. The
+likely cause is that there are TWO `.shop-prompt` elements in the DOM (one
+standalone, one inside the overlay) and I am measuring the one that is not drawn.
+
+### Why this is recorded as a failure rather than a pass
+
+The gap number is right and the frame is filed at `qa/electron/g2-hud-shot/`. It
+would be easy to publish "confirmed at the default camera" and attach it. **But
+the control exists precisely to stop that**: if the prompt is not the drawn one,
+the screenshot shows a HUD with no prompt in it, and a reader comparing the
+picture to the claim would find nothing to look at.
+
+**So: G2's HUD fix is CONFIRMED GEOMETRICALLY and remains UNCONFIRMED VISUALLY.**
+The next session should resolve which `.shop-prompt` is drawn - one line of
+diagnosis - and the driver will then produce the frame the brief asks for.
+
+This is the same rule that has run through the whole session, applied to my own
+work at the end of it: **a check I cannot make pass is not evidence, and a
+screenshot I cannot verify is not a confirmation.**
+
+### RETRACTION: THE G2 HUD "OVERLAP" WAS A FALSE POSITIVE, AND MY SWEEP MADE IT
+
+Chasing the screenshot to the end produced a finding I did not want and have to
+publish: **the HUD overlap I fixed was probably never visible to a player.**
+
+### The sequence
+
+1. run one and two: prompt measured at `opacity: 0`. I assumed I had the wrong
+   element and said so.
+2. the candidate dump settled it - **there is only ONE `.shop-prompt`**, it
+   carries the right text, and it was transparent because **the driver never
+   captured the pointer.** The HUD hides itself when the player is not captured.
+   The driver was the thing behaving unlike a player.
+3. with the pointer locked: `promptOnScreen: true` - and **`hintOnScreen: false`**.
+
+**The lockhint is the "click to look" hint. It exists only while the pointer is
+NOT captured. The prompt exists only while it IS.** They are mutually exclusive,
+and they can never be on screen at the same moment.
+
+### Which makes the original measurement wrong, and the fault is mine
+
+The DOM sweep reported `.prompt-key` overlapping `.shop-lockhint` by 17x12px. It
+filtered elements by `getComputedStyle(el).opacity`, which is the element's **OWN**
+opacity - not its EFFECTIVE opacity including ancestors. A `.prompt-key` inside
+an `opacity: 0` parent reports `1`, so the sweep counted an invisible chip as
+visible and paired it with the one element that is only ever drawn in the
+opposite state.
+
+**That is an eighth instrument fault, and the only one this session that
+INVENTED a defect rather than hiding one.**
+
+### What I am changing and what I am not
+
+* **The CSS change stands.** Moving the prompt from `bottom:28px` to `64px` is
+  harmless and arguably better - the two are no longer stacked in layout even if
+  they never co-render. Reverting it would churn for nothing.
+* **The claim does not.** "The HUD prompt was drawing on top of the controls
+  line" is **withdrawn**. The measured 15px separation is real; the defect it was
+  separating was not.
+* **The sweep needs an effective-opacity check** before its zeros mean what I
+  said they meant. Invariants 3 and 4 in the gate read from that sweep, so their
+  greens are now **suspect in the same specific way** - they may be excluding
+  fewer invisible elements than intended. Written onto NOT DONE.
+
+### The honest summary of my own work here
+
+I published a defect, the fix was harmless, and the instrument that found it was
+wrong in a way that only showed up because I pushed for the screenshot the brief
+demands. **The screenshot requirement is what caught it** - three runs of a
+driver, not a test, and not a suite that has been green throughout.
+
+### THE OPACITY FAULT IS A CLASS, AND IT NOW HAS ONE CORRECT IMPLEMENTATION
+
+Requirement 6 says fix the class, not the instance. The effective-opacity fault
+that invented the G2 HUD overlap is not specific to that sweep - **twelve QA
+drivers touch `getComputedStyle(...).opacity`**.
+
+### But most of them are fine, and saying so matters
+
+Almost all of those check the LOAD VEIL:
+
+```js
+const v = document.querySelector('.load-veil');
+return !v || getComputedStyle(v).opacity === '0';
+```
+
+The veil is a top-level element with no transparent ancestor, so the naive check
+is **CORRECT** there. Rewriting twelve drivers to use an ancestor-walking helper
+would be churn dressed as rigour, and would make a dozen files harder to read to
+fix a bug none of them has.
+
+**The fault bites only when the subject is a CHILD of something that can fade.**
+
+### What was added
+
+`tools/qa/lib/qa-boot.mjs` - the module every driver already boots through - now
+exports `EFFECTIVE_OPACITY_SRC` and `isDrawnSrc()`. They return page-side
+function SOURCE, because `getComputedStyle` lives in the page and a driver has to
+inject it into `page.evaluate` rather than call it from Node.
+
+The comment on it carries the whole lesson, including why the naive form is
+still right for a veil, so the next person reaches for the correct one **only
+when it matters** rather than cargo-culting it everywhere.
+
+### The part worth keeping
+
+**A false defect is worse than false comfort.** False comfort wastes a check; a
+false defect wastes a day, and in this case it produced a CSS change, a
+measurement, a report section and a screenshot driver before anything caught it.
+What caught it was the brief's insistence on a player-camera frame - not the
+suite, which was green through all of it.
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
@@ -4332,7 +4592,13 @@ the rule.
 
 DONE: the front desk overlap audit now has coverage and a working reset; the
 check-in and walk-in action grids get a 38px page margin without losing button
-height; the HUD's interact prompt no longer draws on the controls line.
+height; the HUD's interact prompt no longer sits in the controls line's band.
+
+**CORRECTED LATER THE SAME SESSION:** the "overlap" that motivated that move was
+a FALSE POSITIVE of my own sweep - it judged visibility by an element's OWN
+opacity, so it counted a key chip inside an `opacity: 0` prompt and paired it
+with the lock hint, which is only ever drawn in the opposite state. The CSS
+change stands (harmless, arguably tidier); the CLAIM is withdrawn.
 
 NOT DONE, and named because the brief asked for *every* screen:
 
@@ -4941,262 +5207,40 @@ measures.** That is a real distinction and the gate should probably measure them
 separately - noted rather than changed, because moving a gate's goalposts while
 it is red is exactly the wrong instinct.
 
-## REQUIREMENT 1 - THE TUNING OVERLAY, RE-VERIFIED LIVE RATHER THAN ASSERTED
+## THE FINAL STATE, AFTER THE LAST CORRECTION
 
-*"Build the live tuning overlay FIRST."*
+### The gate
 
-`src/ui/toolTuner.js`, 372 lines, four commits against it this session
-(`dfb4b4b` built it with B2/B3/B4, `3cad241` fixed a defect where the panel could
-never be CLICKED, and two more removed em dashes from strings the player reads).
+**9 pass, 1 FAIL, 0 with no check** - from 4/1/5. Invariants 3 and 4 were briefly
+SUSPECT when the sweep's visibility test was found wrong, and are sound again now
+that it walks the ancestor chain. All three of the sweep's planted controls still
+fire after that fix, which is what proves the fix did not simply blind it.
 
-Rather than point at those commits, I re-ran its driver in Electron on
-`--clubhouse=pine-hills-v2` just now:
+### The eight instrument faults, and the one that is different
 
-```
-panelOpened          true      sliderMovedTheTool   true
-broomHasFibreRows    true      deadControlInert     true
-leftElbowRows        3         typedBoxRoundTrips   true
-noiseFloor           8798      revertRestored       true
-```
+Seven of them **failed OPEN** - green on a broken build, hiding a real defect.
+Dangerous, but cheap: you lose a check.
 
-Every one of those is a property the Requirement asks for: the panel opens, it
-carries the fibre and elbow controls, **a slider actually changes the tool**, a
-typed number round-trips through the same door as the slider, and Revert restores
-the session baseline.
+**The eighth failed CLOSED, and it is the expensive one.** The effective-opacity
+bug INVENTED a HUD overlap that could not exist, and before anything caught it I
+had produced a CSS change, a measurement, a report section and a screenshot
+driver. **A false defect costs a day; false comfort costs a check.**
 
-**`deadControlInert: true` is the negative control** - a control wired to nothing
-must NOT move the tool. Without it, "the slider moved the tool" proves only that
-something moved when something was touched.
+What caught it was the brief's rule that a visual item needs a player-camera
+screenshot. Three runs of a driver. **Not the suite, which was green through all
+of it** - which is the same sentence the brief opens with, arrived at from the
+other direction.
 
-The one that mattered most in practice was `3cad241`: the panel rendered
-correctly and could not be clicked, because `pointer-events` was never set on it.
-An overlay you cannot touch is not a tuning overlay, and no amount of reading the
-source would have shown it - the driver did.
+### Where the work stands
 
-Recorded here because a claim of "built earlier" is not evidence, and the whole
-point of this goal is that a green suite is not evidence either.
+| stream | state |
+| --- | --- |
+| Section A, invariant 1 | six causes closed by measurement; the invariant AS WRITTEN is met in play at 1.3% |
+| Section G | all thirteen items addressed |
+| standing invariants | all ten now have a check |
+| player-facing strings | 155 -> 45 raw, 110 translatable, blocked at the honest-coverage floor |
+| visual confirmation | **still the biggest gap: no player-camera frame for the bag sink, the withdrawn arm, coins on the desk, or the till with a mop in hand** |
 
-## PHASE 5 GATE - RUN TO CLOSE SECTION A
-
-```
- 1. [FAIL    ] No frame over 16 ms during normal play
-               worst 377.5 ms, 593 frames over 16 (14.2%), 1 over 100
- 2. [NO CHECK] No text is ever cut off
- 3. [PASS    ] No text ever overlaps other text        0 across 41 DOM screens
- 4. [PASS    ] No UI element touches its container edge 0 within 8px
- 5. [NO CHECK] Stick tools have hands; hand-worked tools have none
- 6. [PASS    ] Nothing carried is left floating or unputdownable
- 7. [PASS    ] No NPC is stuck for more than 3 seconds
- 8. [NO CHECK] Every player-facing string goes through t()
- 9. [PASS    ] No duplicate keys in any object literal
-10. [PASS    ] The suite is green and the tree is clean at every commit
-
-SUMMARY: 6 pass, 1 FAIL, 3 with no check yet.
-```
-
-### The FAIL, and what Section A established about it
-
-The gate says **14.2% of frames over 16 ms**. The outdoor probe, sampling settled
-play at two positions on the same build, says **1.3% with zero frames over 33**.
-
-Both numbers are correct. They measure different windows: the gate's includes
-startup, and startup is 135 program compiles at ~41 ms each. The invariant is
-written *"during NORMAL PLAY"*, and in normal play it is met.
-
-### What Section A closed, all by measurement rather than by code
-
-| candidate | verdict | evidence |
-| --- | --- | --- |
-| the load phase hides non-compile work | **dead** | 135 x ~41 ms = 5,535 ms against a 5,540 ms phase |
-| submitting fewer objects would help | **dead** | the phase IS the compiles, to within 6 ms |
-| `compileAsync` | **dead** | tried 2026-08-03: 1,350 ms spent to return 200 ms |
-| the interior's 2,611 live matrices | **dead** | freezing all of them buys 0.6 ms, changes over-16 by zero |
-| draw calls | **dead** | a 40% swing (2,410 to 1,724) moved the over-16 rate by nothing |
-| a stale packed asset cache | **dead** | geometry byte-identical, 6,620 verts both sides |
-
-Six candidates, six closed, none of them the cause. What remains is program
-compilation at first look, which the prewarm already hides for everything it can
-reach - and which A3 extended to the ledger and A1 to hidden objects earlier this
-session.
-
-### The one change I deliberately did NOT make
-
-The gate blends startup and steady play into one figure. Section A's finding says
-those are different populations, and the honest fix is for the gate to report
-both. **I have not changed it**, because a gate that is red should not have its
-measurement redefined by the person whose work it is judging. It is recorded as
-the next item, for a session that can implement it and then watch the FAIL
-survive on a build that genuinely stutters in play.
-
-**Remaining without checks: 2, 5, 8.** Invariant 5's driver exists but its pixel
-FLOOR was calibrated at 1280x720 and A5 changed the default window, so it owes a
-recalibration before it can be wired - wiring it as-is would produce a green from
-a number that no longer means anything.
-
-### WHAT REMAINS, HONESTLY
-
-1. **Every visual item this session is UNCONFIRMED.** No player-camera frame of
-   the bag sinking, the arm withdrawing after laying cash, coins on the desk, or
-   the till read with a mop in hand. Source-level and distribution checks only.
-   This is the largest gap between what is claimed and what is *seen*.
-2. **Invariant 1**, as above: measured, attributed, six causes eliminated, and
-   the remaining lever is a design decision rather than a fix.
-3. **The gate blends startup and steady play** into one figure. The honest fix is
-   to report both; deliberately not done, because a red gate should not have its
-   measurement redefined by the person it is judging.
-4. **45 raw strings**, blocked behind translation as above.
-
-### THE METHOD, WHICH IS THE REAL DELIVERABLE
-
-One hundred and fifteen commits, and the through-line was never features. It was
-that **instruments lie in the direction that looks like success**:
-
-* seven faults in section G's own tools, **six failing OPEN** - green on a broken
-  build
-* a gate note that sent me to check a window size while a contract had inverted
-  underneath it
-* a cramped-edge metric that went 41 -> 113 -> 1 -> 0 across four revisions
-* a defect published, then retracted, then explained by a comment I had read
-  twice
-* a ratchet whose FLOOR failed on a build that was strictly better
-* an item costed at 1,395 translations, then at one invariant, and truly at 110
-  strings of headroom
-
-Every one of those was caught by the brief's own rule: **watch the check fail on
-a broken build before believing it on a working one.** Nothing else in this
-session found as much.
-
-### G2 HUD: THE GEOMETRY IS CONFIRMED, THE SCREENSHOT IS NOT PROOF, AND I AM NOT CLAIMING IT IS
-
-The largest remaining gap this session is that every visual item is UNCONFIRMED,
-because the brief requires a player-camera screenshot at the DEFAULT camera. I
-built a driver to close one of them - the HUD prompt that used to draw over the
-controls line - and it did **half** of what I wanted.
-
-**Confirmed, at the default camera, nothing resized:**
-
-```
-camera        2560x1370 CSS, DPR 1.5, FOV 66   (untouched)
-prompt bottom 1306
-hint top      1321
-vertical gap  15 px      separated: true
-```
-
-The two boxes that used to overlap by 17x12px are now 15px apart. That is a real
-measurement of real layout at the shipped window, and it is stable across two
-runs.
-
-**NOT confirmed: that the prompt is actually rendered in the filed frame.** The
-driver's own control - `promptOnScreen` - **failed on both runs**, and I could
-not make it pass. The element carries text and a position but reports
-`opacity <= 0.05`, and waiting for opacity above 0.9 did not change it. The
-likely cause is that there are TWO `.shop-prompt` elements in the DOM (one
-standalone, one inside the overlay) and I am measuring the one that is not drawn.
-
-### Why this is recorded as a failure rather than a pass
-
-The gap number is right and the frame is filed at `qa/electron/g2-hud-shot/`. It
-would be easy to publish "confirmed at the default camera" and attach it. **But
-the control exists precisely to stop that**: if the prompt is not the drawn one,
-the screenshot shows a HUD with no prompt in it, and a reader comparing the
-picture to the claim would find nothing to look at.
-
-**So: G2's HUD fix is CONFIRMED GEOMETRICALLY and remains UNCONFIRMED VISUALLY.**
-The next session should resolve which `.shop-prompt` is drawn - one line of
-diagnosis - and the driver will then produce the frame the brief asks for.
-
-This is the same rule that has run through the whole session, applied to my own
-work at the end of it: **a check I cannot make pass is not evidence, and a
-screenshot I cannot verify is not a confirmation.**
-
-### RETRACTION: THE G2 HUD "OVERLAP" WAS A FALSE POSITIVE, AND MY SWEEP MADE IT
-
-Chasing the screenshot to the end produced a finding I did not want and have to
-publish: **the HUD overlap I fixed was probably never visible to a player.**
-
-### The sequence
-
-1. run one and two: prompt measured at `opacity: 0`. I assumed I had the wrong
-   element and said so.
-2. the candidate dump settled it - **there is only ONE `.shop-prompt`**, it
-   carries the right text, and it was transparent because **the driver never
-   captured the pointer.** The HUD hides itself when the player is not captured.
-   The driver was the thing behaving unlike a player.
-3. with the pointer locked: `promptOnScreen: true` - and **`hintOnScreen: false`**.
-
-**The lockhint is the "click to look" hint. It exists only while the pointer is
-NOT captured. The prompt exists only while it IS.** They are mutually exclusive,
-and they can never be on screen at the same moment.
-
-### Which makes the original measurement wrong, and the fault is mine
-
-The DOM sweep reported `.prompt-key` overlapping `.shop-lockhint` by 17x12px. It
-filtered elements by `getComputedStyle(el).opacity`, which is the element's **OWN**
-opacity - not its EFFECTIVE opacity including ancestors. A `.prompt-key` inside
-an `opacity: 0` parent reports `1`, so the sweep counted an invisible chip as
-visible and paired it with the one element that is only ever drawn in the
-opposite state.
-
-**That is an eighth instrument fault, and the only one this session that
-INVENTED a defect rather than hiding one.**
-
-### What I am changing and what I am not
-
-* **The CSS change stands.** Moving the prompt from `bottom:28px` to `64px` is
-  harmless and arguably better - the two are no longer stacked in layout even if
-  they never co-render. Reverting it would churn for nothing.
-* **The claim does not.** "The HUD prompt was drawing on top of the controls
-  line" is **withdrawn**. The measured 15px separation is real; the defect it was
-  separating was not.
-* **The sweep needs an effective-opacity check** before its zeros mean what I
-  said they meant. Invariants 3 and 4 in the gate read from that sweep, so their
-  greens are now **suspect in the same specific way** - they may be excluding
-  fewer invisible elements than intended. Written onto NOT DONE.
-
-### The honest summary of my own work here
-
-I published a defect, the fix was harmless, and the instrument that found it was
-wrong in a way that only showed up because I pushed for the screenshot the brief
-demands. **The screenshot requirement is what caught it** - three runs of a
-driver, not a test, and not a suite that has been green throughout.
-
-### THE OPACITY FAULT IS A CLASS, AND IT NOW HAS ONE CORRECT IMPLEMENTATION
-
-Requirement 6 says fix the class, not the instance. The effective-opacity fault
-that invented the G2 HUD overlap is not specific to that sweep - **twelve QA
-drivers touch `getComputedStyle(...).opacity`**.
-
-### But most of them are fine, and saying so matters
-
-Almost all of those check the LOAD VEIL:
-
-```js
-const v = document.querySelector('.load-veil');
-return !v || getComputedStyle(v).opacity === '0';
-```
-
-The veil is a top-level element with no transparent ancestor, so the naive check
-is **CORRECT** there. Rewriting twelve drivers to use an ancestor-walking helper
-would be churn dressed as rigour, and would make a dozen files harder to read to
-fix a bug none of them has.
-
-**The fault bites only when the subject is a CHILD of something that can fade.**
-
-### What was added
-
-`tools/qa/lib/qa-boot.mjs` - the module every driver already boots through - now
-exports `EFFECTIVE_OPACITY_SRC` and `isDrawnSrc()`. They return page-side
-function SOURCE, because `getComputedStyle` lives in the page and a driver has to
-inject it into `page.evaluate` rather than call it from Node.
-
-The comment on it carries the whole lesson, including why the naive form is
-still right for a veil, so the next person reaches for the correct one **only
-when it matters** rather than cargo-culting it everywhere.
-
-### The part worth keeping
-
-**A false defect is worse than false comfort.** False comfort wastes a check; a
-false defect wastes a day, and in this case it produced a CSS change, a
-measurement, a report section and a screenshot driver before anything caught it.
-What caught it was the brief's insistence on a player-camera frame - not the
-suite, which was green through all of it.
+The screenshot driver now works - it captures the pointer first, which was the
+thing missing - so the next session has a working pattern for exactly that gap
+rather than a blank page.
