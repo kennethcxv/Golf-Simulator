@@ -227,11 +227,13 @@ const TEN = [
       if (!baseline) return { ok: null, detail: 'the ratchet has no readable baseline' };
       return {
         ok: Number(fail) === 0,
-        detail: `${baseline} player-facing strings still bypass t() and the ratchet holds that `
-          + 'ceiling - a new one fails the suite. i18n.test.js pins the machinery (fallback, '
-          + 'placeholders, locale set); this pins the CALL SITES. NOT a claim that the 155 are '
-          + 'translated: toast() hands its message straight to notify(), so each of them still '
-          + 'reaches the player in English on every locale. That is on NOT DONE as real work',
+        detail: `${baseline} raw strings at FOUR SINKS (toast/announce/setPrompt/setHint plus `
+          + 'shop.log) are held under a ratchet - a new one there fails the suite. THAT IS THE '
+          + 'WHOLE OF WHAT THIS CHECKS, and it is a small fraction of the surface: measured '
+          + '2026-08-08, roughly 1,650 further player-facing literals live at prop labels, '
+          + 'el({text}), ctx.fillText and refusal reasons, none of them scanned. This invariant '
+          + 'reads PASS because its check is narrow, not because the game is translated. '
+          + 'Widening the sink list is on NOT DONE and is the honest next step',
       };
     },
   },

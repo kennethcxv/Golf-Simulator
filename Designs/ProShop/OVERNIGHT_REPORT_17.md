@@ -6049,3 +6049,48 @@ until I was tired.
 The revert is in the history rather than squashed away, because "I broke my own
 rule at commit 144" is exactly the kind of thing a report like this exists to
 record.
+
+### THE HONEST SCOPE OF INVARIANT 8 - MY CHECK COVERS ~3% OF IT
+
+Fault 91 raised the obvious question: **what else does the sink list miss?**
+Measured rather than left open:
+
+```
+  428  prop `label:`      the [E] prompts the player reads constantly
+  483  el({ text: })      every DOM label built by the factory
+  670  reason:            refusal messages - "you cannot do that because..."
+   61  ctx.fillText       the canvas screens (front desk, ledger)
+   14  notify({ message })
+-----
+1,656  player-facing strings OUTSIDE the ratchet
+   50  inside it
+```
+
+**Invariant 8 says "every player-facing string goes through t()". My check covers
+roughly 3% of the surface.** It has been reporting PASS all session.
+
+### This is the largest correction in the report
+
+Not because the ratchet is wrong - it does exactly what it claims at the four
+sinks it scans - but because **the invariant's name promises far more than the
+check delivers**, and a green next to that name reads as "done".
+
+The gate's detail line now says so in the gate itself, where anyone running it
+will see it: *"THAT IS THE WHOLE OF WHAT THIS CHECKS... This invariant reads PASS
+because its check is narrow, not because the game is translated."*
+
+### The pattern this session ends on
+
+Fault 85 invented a defect. Fault 91 hid five strings. **This hides sixteen
+hundred.** All three are the same failure - **an instrument that is correct about
+what it measures and silent about what it does not** - and the third only
+surfaced because I went looking after the second.
+
+**A negative control cannot find this class.** The plants all fired; the floor
+was healthy; every number was accurate within its own frame. The only thing that
+finds it is asking *"what is NOT in the frame?"* - which is a question no test
+asks on its own, and the reason the brief's rule about screenshots exists at all.
+
+**Recorded as the top item on NOT DONE**, above the 50 raw strings, because
+widening the sink list changes what the number MEANS rather than merely moving
+it.
