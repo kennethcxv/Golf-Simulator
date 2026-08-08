@@ -10,6 +10,7 @@
 // walkProps/propColliders in WORLD coordinates.
 
 import * as THREE from 'three';
+import { t } from '../core/i18n.js';
 import { fitDistance } from '../core/screenFit.js';
 import { clamp, rngOf } from '../core/utils.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
@@ -1926,13 +1927,13 @@ export function makeClubhouse(ctx) {
     },
     action: () => {
       if (!facilityInstalled(state, 'frontCounter') || !facilityInstalled(state, 'registerHardware')) {
-        if (hooks.toast) hooks.toast('Install the counter and register hardware before serving guests.', 'warn');
+        if (hooks.toast) hooks.toast(t('shop.installTheCounterAnd'), 'warn');
         return;
       }
       // The shared monitor owns selection and never mutates a reservation merely
       // because the player pressed E near the counter.
       if (register.enter() || register.isActive()) return;
-      if (hooks.toast) hooks.toast('The front desk is unavailable.', 'warn');
+      if (hooks.toast) hooks.toast(t('shop.theFrontDeskIs'), 'warn');
     },
   });
 
@@ -3217,7 +3218,7 @@ export function makeClubhouse(ctx) {
         refreshCondition();
         presentRestorationFeedback(res.restoration);
         if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Hauled a pile of junk out the back.');
+        if (hooks.toast) hooks.toast(t('shop.hauledAPileOf'));
       },
     });
     clutterObjs.push({ group: g, collider, prop });
@@ -6000,13 +6001,13 @@ export function makeClubhouse(ctx) {
         const pan = emptyDustpanIntoBag();
         if (pan > 0) {
           if (hooks.sfx) hooks.sfx('disposal');
-          if (hooks.toast) hooks.toast('Dustpan emptied into the trash bag. Tie it off here when the floor is clear.');
+          if (hooks.toast) hooks.toast(t('shop.dustpanEmptiedIntoThe'));
           return;
         }
         const bag = disposeCleaningBag();
         if (bag > 0) {
           if (hooks.sfx) hooks.sfx('disposal');
-          if (hooks.toast) hooks.toast('Filled trash bag disposed - the cleaning bay is clear.');
+          if (hooks.toast) hooks.toast(t('shop.filledTrashBagDisposed'));
           presentRestorationFeedback(syncGenericCleanupMilestone(state));
         }
       },
@@ -10308,11 +10309,11 @@ export function makeClubhouse(ctx) {
       secondaryAction: () => {
         if (ledgerBook.isOpen() || ledgerBook.isCarried()) return;
         if (carriedBox(state) || carriedGoods(state)) {
-          if (hooks.toast) hooks.toast('Your arms are already full.', 'warn');
+          if (hooks.toast) hooks.toast(t('shop.yourArmsAreAlready'), 'warn');
           return;
         }
         ledgerBook.setCarried(true);
-        if (hooks.toast) hooks.toast('Carrying the club register. [Z] sets it down.');
+        if (hooks.toast) hooks.toast(t('shop.carryingTheClubRegister'));
       },
     });
   })();

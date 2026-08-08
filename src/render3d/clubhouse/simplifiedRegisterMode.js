@@ -8,6 +8,7 @@
 // simulator reference and keep the shared counter readable.
 
 import * as THREE from 'three';
+import { t } from '../../core/i18n.js';
 import {
   FRONT_DESK_FRAME, REGISTER, COUNTER, COUNTER_TOP,
   frontDeskLocalPoint, frontDeskPoint, frontDeskVector, queueSlot,
@@ -2277,7 +2278,7 @@ export function createRegisterMode(B) {
     if (cashRecoveryTimer > 0) return true;
     layoutAcceptedTender();
     setWorkspace('cash');
-    toast('Cash is back. [D] reopens the drawer.');
+    toast(t('till.cashIsBackD'));
     return true;
   }
 
@@ -5105,7 +5106,7 @@ export function createRegisterMode(B) {
     // trip to the desk.
     if (tx) {
       if (tx.stage !== 'scanning' || tx.banked) {
-        toast('Add the tee time before starting payment.', 'warn');
+        toast(t('till.addTheTeeTime'), 'warn');
         return false;
       }
       const joined = attachGreenFeeToTx(state, tx, reservation.id);
@@ -5386,7 +5387,7 @@ export function createRegisterMode(B) {
     customerCash(tx);
     if (!makeChangeFrom(drawerContents(tx, drawer), changeDue(tx))) {
       tx.tendered = makeChange(cashTotalOf(tx));
-      toast('The till cannot make that change, so they hand over the exact amount.');
+      toast(t('till.theTillCannotMake'));
     }
     for (const [rawDenom, count] of Object.entries(tx.tendered || {})) {
       const denom = Number(rawDenom);
@@ -5516,7 +5517,7 @@ export function createRegisterMode(B) {
     }
     cashMotionRefillPending = true;
     setWorkspace('cash');
-    toast('Cash taken. The drawer is opening - count their change.');
+    toast(t('till.cashTakenTheDrawer'));
     sfx('drawerUnlock');
     sfx('drawerOpen');
     sfx('billHandle');
@@ -5832,7 +5833,7 @@ export function createRegisterMode(B) {
       drag.mesh.position.copy(drag.from);
       drag.mesh.quaternion.copy(drag.fromQuaternion);
       setObjectPickable(drag.mesh, true);
-      toast('Put that piece in its matching labelled drawer well.', 'warn');
+      toast(t('till.putThatPieceIn'), 'warn');
       sfx('thunk');
       return true;
     }
@@ -5855,7 +5856,7 @@ export function createRegisterMode(B) {
       if (checkoutFlowState() === 'DepositingCash') {
         flowTo('SelectingChange', 'player-secured-all-received-cash');
       }
-      toast('Cash is in. Count the change.');
+      toast(t('till.cashIsInCount'));
     }
     drawScreen();
     return true;
@@ -5924,7 +5925,7 @@ export function createRegisterMode(B) {
     if (selectedChangeMeshes.length || handTotal(tx) > 0) return false;
     const plan = makeChangeFrom(drawerContents(tx, drawer), changeDue(tx));
     if (!plan) {
-      toast('The drawer cannot make that change. Pick an amount it can.', 'warn');
+      toast(t('till.theDrawerCannotMake'), 'warn');
       return false;
     }
     let pieces = 0;
@@ -5933,7 +5934,7 @@ export function createRegisterMode(B) {
       for (let index = 0; index < count; index += 1) {
         if (!selectChangeFromSlot(denom, { assisted: true, silent: true, deferDraw: true })) {
           clearSelectedChange();
-          toast('Stopped counting. No money moved.', 'warn');
+          toast(t('till.stoppedCountingNoMoney'), 'warn');
           return false;
         }
         pieces += 1;
@@ -6018,7 +6019,7 @@ export function createRegisterMode(B) {
           return false;
         }
       }
-      if (!automatic) toast('The drawer is still opening. One moment.');
+      if (!automatic) toast(t('till.theDrawerIsStill'));
       return true;
     }
     if (readiness !== 'ready') return false;
@@ -6403,7 +6404,7 @@ export function createRegisterMode(B) {
     setBagPickable(false);
     const deliveryStarted = beginBagDeliveryOrRelease();
     if (!deliveryStarted) {
-      toast('That did not take. Try the bag handles again.', 'warn');
+      toast(t('till.thatDidNotTake'), 'warn');
       return false;
     }
     autoFulfilled = true;
@@ -6596,22 +6597,22 @@ export function createRegisterMode(B) {
     if (transactionKind === 'retail') {
       if (tx.stage === 'receipt' && !tx.receiptPrinted) return beginAutomaticReceipt();
       const projected = durableProjectRetailFulfillment();
-      if (projected) toast('Picked the sale back up where it left off.');
+      if (projected) toast(t('till.pickedTheSaleBack'));
       return projected;
     }
     resetBagAtCounter();
     const restarted = finishAutomaticFulfillment();
-    if (restarted) toast('Handing it over again.');
+    if (restarted) toast(t('till.handingItOverAgain'));
     return restarted;
   }
 
   function finalizeTransaction() {
     if (!tx || tx.stage !== 'done') {
-      toast('Finish payment before finalizing.', 'warn');
+      toast(t('till.finishPaymentBeforeFinalizing'), 'warn');
       return false;
     }
     if (checkoutFlowState() !== 'CustomerLeaving') {
-      toast('Hand the customer their bag first.', 'warn');
+      toast(t('till.handTheCustomerTheir'), 'warn');
       return false;
     }
     const finishedTx = tx;
@@ -6711,7 +6712,7 @@ export function createRegisterMode(B) {
     if (action === 'tab-checkout') {
       activeTab = 'checkout';
       if (!tx && !postSaleDisplay) {
-        toast('Nobody at the counter yet. This fills in when someone arrives.');
+        toast(t('till.nobodyAtTheCounter'));
         setWorkspace('monitor');
       } else if (tx?.stage === 'scanning' && unscannedCount(tx) > 0) {
         setWorkspace('scan');
@@ -6737,7 +6738,7 @@ export function createRegisterMode(B) {
     }
     if (action.startsWith('select-walkin:')) {
       if (tx) {
-        toast('Finish the active transaction before helping another customer.', 'warn');
+        toast(t('till.finishTheActiveTransaction'), 'warn');
         return true;
       }
       selectedWalkInCustomerId = action.slice('select-walkin:'.length);
@@ -6786,7 +6787,7 @@ export function createRegisterMode(B) {
       // selecting one is exactly what the player is here to do. Only a ticket
       // that has started payment is too late to add to.
       if (tx && (tx.stage !== 'scanning' || tx.banked)) {
-        toast('Finish the active transaction before selecting another reservation.', 'warn');
+        toast(t('till.finishTheActiveTransaction26'), 'warn');
         return true;
       }
       const raw = action.slice('select-reservation:'.length);

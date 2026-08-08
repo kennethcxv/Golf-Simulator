@@ -42,6 +42,34 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Wrapped from raw literals so they can be translated at all.
+  'world.theWaterIsRunning': "The water is running straight off it - this needs soap first (hold the right button).",
+  'world.debrisHauledOffThe': "Debris hauled off - the grass under it can breathe.",
+  'world.teeSignRestoredFirst': "Tee sign restored - first impressions matter.",
+  'shop.installTheCounterAnd': "Install the counter and register hardware before serving guests.",
+  'shop.theFrontDeskIs': "The front desk is unavailable.",
+  'shop.hauledAPileOf': "Hauled a pile of junk out the back.",
+  'shop.dustpanEmptiedIntoThe': "Dustpan emptied into the trash bag. Tie it off here when the floor is clear.",
+  'shop.filledTrashBagDisposed': "Filled trash bag disposed - the cleaning bay is clear.",
+  'shop.yourArmsAreAlready': "Your arms are already full.",
+  'shop.carryingTheClubRegister': "Carrying the club register. [Z] sets it down.",
+  'till.cashIsBackD': "Cash is back. [D] reopens the drawer.",
+  'till.addTheTeeTime': "Add the tee time before starting payment.",
+  'till.theTillCannotMake': "The till cannot make that change, so they hand over the exact amount.",
+  'till.cashTakenTheDrawer': "Cash taken. The drawer is opening - count their change.",
+  'till.putThatPieceIn': "Put that piece in its matching labelled drawer well.",
+  'till.cashIsInCount': "Cash is in. Count the change.",
+  'till.theDrawerCannotMake': "The drawer cannot make that change. Pick an amount it can.",
+  'till.stoppedCountingNoMoney': "Stopped counting. No money moved.",
+  'till.theDrawerIsStill': "The drawer is still opening. One moment.",
+  'till.thatDidNotTake': "That did not take. Try the bag handles again.",
+  'till.pickedTheSaleBack': "Picked the sale back up where it left off.",
+  'till.handingItOverAgain': "Handing it over again.",
+  'till.finishPaymentBeforeFinalizing': "Finish payment before finalizing.",
+  'till.handTheCustomerTheir': "Hand the customer their bag first.",
+  'till.nobodyAtTheCounter': "Nobody at the counter yet. This fills in when someone arrives.",
+  'till.finishTheActiveTransaction': "Finish the active transaction before helping another customer.",
+  'till.finishTheActiveTransaction26': "Finish the active transaction before selecting another reservation.",
   // Build mode. Wrapped from raw literals so they CAN be translated; the other
   // nine locales fall through to English until somebody translates them, which
   // is what the coverage fraction is for.

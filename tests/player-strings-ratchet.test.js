@@ -19,7 +19,8 @@
 // result was that none of them ever got wrapped. Now English is the key set and
 // the other locales report their true fraction.
 //
-// Measured when this was written: 146 raw literals at player-facing sinks,
+// Started at 155, then 146, now 119 as batches get wrapped.
+// Measured when this was written: 119 raw literals at player-facing sinks,
 // 0 wrapped in t(). Translating those is a real piece of work and not one to
 // start at the end of a session.
 //
@@ -43,7 +44,7 @@ const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
-const BASELINE = 146;
+const BASELINE = 119;
 
 function jsFiles(dir) {
   const out = [];

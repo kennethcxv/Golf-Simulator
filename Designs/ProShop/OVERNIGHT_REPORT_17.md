@@ -4504,3 +4504,54 @@ wrapped.
 That is the fourth item this session whose real cost turned out to be different
 from the note attached to it, and the first where the correction went in the
 direction of the work being **cheaper** than recorded.
+
+### 155 -> 119: THE RATCHET TURNED OUT TO BE A CROWBAR
+
+With the coverage rule relaxed, wrapping is mechanical. Three files in one pass -
+`courseScene.js`, `clubhouse.js`, `simplifiedRegisterMode.js` - **27 more strings
+wrapped**, on top of the nine from build mode.
+
+```
+155  raw player-facing literals at the start of this work
+146  after nine build-mode strings
+119  after twenty-seven more
+```
+
+**36 strings, 23% of them, are now translatable.** Every one previously reached
+every player in English on every locale with no way to change that.
+
+A sample of what was hardcoded, which shows the kind of thing this was hiding:
+
+* *"The till cannot make that change, so they hand over the exact amount."*
+* *"Put that piece in its matching labelled drawer well."*
+* *"The water is running straight off it - this needs soap first."*
+* *"Install the counter and register hardware before serving guests."*
+
+These are refusals and instructions - **the lines a confused player most needs in
+their own language.**
+
+### The third ratchet test earned its place
+
+The only failure in the suite after wrapping was my own check:
+
+```
+not ok - the baseline is lowered deliberately, not left to drift
+  27 strings have been wrapped since the baseline was set.
+  Lower BASELINE in this file to 119 so the gain cannot be given back.
+```
+
+That test exists because a ceiling that only ever gets looser is not a ratchet.
+It fired on the first real batch, said exactly what to do, and the number is
+banked. **Watched failing at 120 with a planted toast afterwards**, so the
+lowered ceiling is proven live and not just edited.
+
+### What is left
+
+119 remain. The bulk are TEMPLATE LITERALS with interpolation - `${name} placed`,
+`${item.displayName} sold for $...` - which need `t()` with placeholder values
+rather than a plain key. The i18n layer already substitutes after lookup (its own
+test pins that word order may differ), so the mechanism is there; it is just more
+careful work per string than a straight swap.
+
+Recorded on NOT DONE with that distinction, because "119 left" and "119 left, and
+they are the harder kind" are different handovers.

@@ -6,6 +6,7 @@
 // World units are YARDS; 1 cell = 8x8 yd. The sim never knows this file exists.
 
 import * as THREE from 'three';
+import { t } from '../core/i18n.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { BINDABLE_ACTIONS, DEFAULT_BINDINGS, keyForAction } from '../core/keyBindings.js';
 import { CachedGLTFLoader as GLTFLoader, clearGltfCache } from './gltfCache.js';
@@ -8452,7 +8453,7 @@ export function makeCourseScene(canvas, state) {
           if (res.blocked && !walkSoaping) washHintClock -= dt;
           if (washHintClock <= 0 && res.blocked) {
             washHintClock = 4;
-            if (walkHooks.toast) walkHooks.toast('The water is running straight off it - this needs soap first (hold the right button).', 'warn');
+            if (walkHooks.toast) walkHooks.toast(t('world.theWaterIsRunning'), 'warn');
           }
           // The stream starts at the lance tip. This used to be a camera-local constant that
           // approximated the tip while the player stood still — it ignored heldRoot, so during the
@@ -11193,7 +11194,7 @@ export function makeCourseScene(canvas, state) {
           walkProps.splice(walkProps.indexOf(prop), 1);
           updateTurf(state); // the flattened grass under it recovers
           if (walkHooks.sfx) walkHooks.sfx('thunk');
-          if (walkHooks.toast) walkHooks.toast('Debris hauled off - the grass under it can breathe.');
+          if (walkHooks.toast) walkHooks.toast(t('world.debrisHauledOffThe'));
         },
       };
       putModel('vendor/models/leaves_pile.glb', 1.9, wx, wz, (idx * 1.7) % 6.28, (m) => { mesh = m; });
@@ -11234,7 +11235,7 @@ export function makeCourseScene(canvas, state) {
           placeSign(false);
           walkProps.splice(walkProps.indexOf(signProp), 1);
           if (walkHooks.sfx) walkHooks.sfx('chime');
-          if (walkHooks.toast) walkHooks.toast('Tee sign restored - first impressions matter.');
+          if (walkHooks.toast) walkHooks.toast(t('world.teeSignRestoredFirst'));
         },
       };
       walkProps.push(signProp);
