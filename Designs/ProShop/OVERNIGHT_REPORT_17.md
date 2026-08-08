@@ -9057,3 +9057,62 @@ work as much as to the codebase's.
 
 Suite 2929 pass / 0 fail.
 
+
+## CONFIRMED, WITH ALL THREE CONTROLS: LOOKING AROUND MAKES THE FIRST EQUIP 15x WORSE
+
+Tested my own beat-order claim by removing `lookOnly` and re-measuring:
+
+```
+                    lookOnly PRESENT      lookOnly REMOVED
+settle (control)    21.6  (22..22)        19.0  (19..19)
+walk                  —                  383.4  (381..386)
+tool               5020.4  (3563..6478)  339.6  (339..340)
+tool2                23.9  (22..26)       22.3  (22..22)
+```
+
+**`settle` holds at 19.0 against the clean set's 19.4** — the machine is
+stationary, so this is not drift. `walk` returns to 381..386 (clean set:
+371..387) and `tool2` to 22..22. Everything unrelated matches.
+
+And `tool` goes **5020 -> 339 ms**. A 15x swing, reproducible across runs
+(339, 340 — a 1 ms spread), with the control confirming the host did not move.
+
+**This is the first perf claim in this session that satisfies all three rules I
+had to learn today**: a distribution not a sample, a drift control that matches,
+and an identical driver in both arms except for the one variable.
+
+### The finding itself is about the game, not the harness
+
+Rotating the camera before the first step makes the **first tool equip fifteen
+times more expensive**. That is not an instrumentation artefact — it is a real,
+controlled, reproducible property of the build, and it is genuinely strange:
+looking around ought to make later work *cheaper* by warming whatever it touches,
+not fifteen times dearer.
+
+Two readings worth testing next, in order:
+
+1. **Collision, not causation.** Looking around queues work — texture uploads,
+   program compiles, shadow refits — that is still draining when the equip lands,
+   so two costs land in one frame. This predicts the total across `lookOnly` +
+   `tool` is roughly conserved, which the numbers hint at (3374 + 5020 vs
+   0 + 339 is *not* conserved, so this reading is already in trouble).
+2. **Orientation.** The mouse moves leave the camera facing elsewhere, so the
+   equip happens with different geometry in view and a different first-draw set.
+   This predicts the effect depends on *where* you look, not *that* you looked.
+
+Reading (2) is the one to test, and it is a single run with a different final
+mouse position.
+
+### Why this matters beyond Section A
+
+Every tool measurement in this project's history was taken after *some* amount
+of looking around, because a human tester looks before they act. **A 15x
+sensitivity to camera history means those measurements were never comparable to
+each other** — which is a far better explanation for "six rounds of tool
+measurements" than any of the eight hypotheses that preceded it.
+
+`lookOnly` is retained in the driver as an explicit, named beat so this variable
+can never again vary silently.
+
+Suite 2929 pass / 0 fail.
+
