@@ -156,7 +156,16 @@ const TEN = [
   {
     n: 5,
     text: 'Four stick tools have visible hands; five hand-worked tools have none',
-    check: () => ({ ok: null, detail: 'tests/…hand-pixels driver covers both halves but is not wired into this gate; its pixel FLOOR was calibrated at 1280x720 and A5 changed the default window - recalibration owed' }),
+    check: () => ({
+      ok: null,
+      detail: 'NOT wired, and the reason is bigger than calibration: '
+        + 'electron-hand-pixels-sweep asserts spray/cloth/sponge/washer hands clear a 400px '
+        + 'floor, while cleaningTools.js gives those tools hands:false under the bare-hand '
+        + 'ruling. The driver pins the INVERSE of the shipped contract and would fail on '
+        + 'correct behaviour. It needs splitting - four stick tools above a floor, five '
+        + 'hand-worked tools near zero - with the floor re-derived at the DPR screenshots '
+        + 'are actually filed at (they are physical px; setViewportSize is CSS px)',
+    }),
   },
   {
     n: 6,

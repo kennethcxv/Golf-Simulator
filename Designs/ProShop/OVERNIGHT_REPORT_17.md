@@ -3870,3 +3870,58 @@ this session started measuring it.
 Still unchecked: **5** (the hand-pixels driver, owed a recalibration because A5
 changed the default window from the 1280x720 its pixel floor was tuned at) and
 **8** (no check that a NEW string literal escapes `t()`).
+
+## INVARIANT 5 - THE GATE UNDERSTATED WHY IT CANNOT BE WIRED
+
+The gate's note read: *"the hand-pixels driver covers both halves but is not
+wired into this gate; its pixel FLOOR was calibrated at 1280x720 and A5 changed
+the default window - recalibration owed."*
+
+Two things are wrong with that note, and the second is the real one.
+
+### 1. The window change is not the problem
+
+`tools/qa/electron-hand-pixels-sweep.js:32` calls
+`setViewportSize({ width: 1280, height: 720 })` itself. It does not inherit the
+default window, so A5 moving that window cannot have invalidated anything. (The
+variable that COULD still bite is DPR - screenshots are PHYSICAL pixels while
+`setViewportSize` speaks CSS pixels, so a 400-pixel floor means different things
+at DPR 1 and DPR 1.5. That is fault 75 from this session, and it is a real risk,
+just not the one the note names.)
+
+### 2. THE DRIVER PINS THE OPPOSITE OF THE SHIPPED RULING
+
+The sweep asserts, against `const FLOOR = 400`:
+
+```
+sprayHandsSurviveTheSweep     spray  minPx >= 400
+clothHandsSurviveTheSweep     cloth  minPx >= 400
+spongeHandsSurviveTheSweep    sponge minPx >= 400
+washerHandsSurviveTheSweep    washer minPx >= 400
+```
+
+`src/data/cleaningTools.js` carries `hands: false` on exactly five tools:
+**washer, spray, cloth, sponge, trashbag** - the bare-hand ruling, which says
+these are worked with NO hands drawn and that the suppression must be symmetric.
+
+**The driver demands hands on four of the five tools that are specified to have
+none.** Wiring invariant 5 as it stands would report FAIL on correct behaviour.
+
+That is the QA-harness-drift class: a strict driver pinning a contract the game
+has deliberately moved away from. It is worse than no check, because a red gate
+that is wrong trains everybody to ignore the gate.
+
+### What it needs, and why I am not doing it in the last hour of a session
+
+The sweep must be split along the ruling: **four stick tools asserted to HAVE
+hands above a floor, five hand-worked tools asserted to have essentially NONE** -
+and the floor re-derived at the DPR the screenshots are actually filed at, with
+a negative control proving the counter can tell a hand from an empty frame.
+
+That is a proper item with its own five phases and its own watched failure. It is
+recorded here with the exact assertions and the exact five tool names so the next
+session starts from the diagnosis rather than from the gate's misleading note.
+
+**The gate's note is now the thing that is wrong, and it is a finding in its own
+right**: an accurate-sounding explanation ("recalibration owed") that sent me
+looking at a window size when the contract had inverted underneath it.
