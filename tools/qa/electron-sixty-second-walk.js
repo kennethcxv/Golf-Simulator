@@ -173,6 +173,7 @@ async (page) => {
   // wheel before choosing.
   await page.keyboard.down(keys.toolBelt || 'f');
   await page.waitForTimeout(450);
+  const wheelReallyOpen = await page.evaluate(() => { const t = window.__fw?.toolWheel; return { hasApi: !!t, isOpen: t?.isOpen?.() ?? null }; }).catch(() => null);
   const items = await page.evaluate(() => {
     const el = document.querySelector('.tool-wheel');
     return el ? [...el.querySelectorAll('.tool-wheel-item')]
@@ -231,6 +232,7 @@ async (page) => {
   record('tool', live.ok === true, {
     held: live.held ?? null,
     stoodOn: stood,
+    wheelReallyOpen,
     equipped: await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? "none").catch(() => null),
     rigDiag: await page.evaluate(() => { const d = window.__fw?.scene3d?.walk?.toolRigDiagnostics?.("broom"); return d ? { shaftDrop: d.shaftDrop, headAboveFloor: d.headAboveFloor, assetHeadWorldY: d.assetHeadWorldY, assetGripWorldY: d.assetGripWorldY, keys: Object.keys(d).length } : null; }).catch(() => null),
     authored: await page.evaluate(() => window.__fw?.scene3d?.walk?.toolAuthoredResults?.() ?? "no accessor").catch(() => null),

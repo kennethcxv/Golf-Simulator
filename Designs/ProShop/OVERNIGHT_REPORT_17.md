@@ -8292,3 +8292,65 @@ The rig remains verified healthy. `toolIsLive` still fails on `getTool()`.
 
 Suite 2929 pass / 0 fail.
 
+
+## STOPPING THIS THREAD — AND SAYING WHY, WHICH IS THE POINT
+
+Probed `toolWheel.isOpen()` and got:
+
+```json
+{"hasApi": false, "isOpen": null}
+```
+
+**`window.__fw.toolWheel` does not exist.** It is a local in `main.js`, never
+exposed. So `isOpen: null` means *no accessor*, not *closed* — my probe could
+not answer the question it was built to answer, and its null is
+indistinguishable from the failure it was meant to detect.
+
+Seventeenth instance of this report's finding. **Third of mine in this thread
+alone**, after `wheelOpened` (markup ≠ open) and the missing-key probe.
+
+### I am stopping here deliberately
+
+Seven hypotheses, seven wrong. Each one plausible, each one measured, each one
+dead. The eighth would be another probe, and the honest expectation after this
+run of results is that it too would be pointed at slightly the wrong thing.
+
+**What stops the bleeding is not another guess. It is exposing
+`toolWheel` on `__fw`** so a driver can ask the wheel directly instead of
+inferring from DOM that exists either way — the same fix that
+`toolAuthoredResults()` was, and that one killed a hypothesis in a single run.
+That is a change to production code to serve a test, which is worth doing
+deliberately in daylight rather than as the eighth swing at the end of a long
+session.
+
+### What this thread actually delivered
+
+**Facts, all measured:**
+- the broom rig is HEALTHY — `shaftDrop −1.359`, `headAboveFloor −0.25`, sockets
+  resolved, asset adopted `ok:true`
+- **B4's subsystem is cleared** of everything this beat appeared to implicate,
+  and I had been ready to open surgery on it
+- `toolIsLive` fails on `getTool()`, never on rig health
+- **invariant 1's frame numbers are unaffected by any of this**
+
+**Two real driver defects found and fixed:** release-before-select ordering, and
+a positional-digit keypress against a wheel that selects on letters
+(`W V M B D S C G T`).
+
+**Four instruments that did not exist this morning:** beat failure reasons,
+surface stood on, per-tool authored adoption, equipped-tool readback.
+
+**And the unresolved part, stated plainly:** the tool beat still fails, the cause
+is in the driver's interaction with the wheel, and the next step is exposing the
+wheel's own state rather than guessing at it an eighth time.
+
+### The session's finding, final form
+
+Seventeen times, a number was correct and the name beside it was wider than what
+it measured. **Three of those I wrote myself today, while documenting the
+other fourteen.** That is not irony — it is the measurement: this failure mode
+is not carelessness, it is what happens by default when you name a thing after
+what you *want* it to mean instead of what it *does*.
+
+Suite 2929 pass / 0 fail.
+
