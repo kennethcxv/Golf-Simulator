@@ -9788,3 +9788,57 @@ thread came from the second habit; the one durable finding came from the first.
 
 Suite 2929 pass / 0 fail.
 
+
+## SIXTH FIX, SIXTH REFUTATION — AND THE NULL RESULT IS ITSELF INFORMATIVE
+
+Ran the prediction I wrote before implementing it: compile in the prewarm with
+`camera.clone()` + `layers.enableAll()`.
+
+```
+baseline programs   208    (unchanged — vmCamera attempt gave 279)
+EQUIP DELTA         +9     (prediction was 0)
+tool worst          336 ms
+settle (control)    23.6 ms
+```
+
+**Δ stayed +9. Refuted, at a cost of one run, exactly as written.**
+
+### The null is more interesting than a plain failure
+
+`enableAll()` compiled **nothing extra** — 208 programs, byte-identical to the
+run without it. The `vmCamera` attempt at least added 71. So enabling every layer
+on a cloned camera did not widen what `compile()` walked *at all*.
+
+That is evidence about the mechanism, not just about the fix: **the nine programs
+are not gated by layer visibility.** If they were, a camera seeing every layer
+would have compiled at least as much as one seeing a single viewmodel layer, and
+it compiled less.
+
+### Where six refutations leave this
+
+Every fix tried assumed the nine programs exist and are merely un-warmed:
+
+```
+1  add a prewarm                      one already existed
+2  compile on adoption                runs at programs:0, before the prewarm
+3  compile after the prewarm          right timing, wrong target
+4  create materials at build time     premise false — they exist at adoption
+5  compile with each vmCamera         +71 programs, equip still +9
+6  compile with all layers enabled    +0 programs, equip still +9
+```
+
+**Six attempts, one assumption, zero successes.** The assumption is now the most
+suspect thing in the thread: perhaps the nine programs **cannot** exist before
+the equip because something the equip does *creates* them — a material clone, a
+`needsUpdate`, a define toggled when a rig activates. That is a different class
+of cause from "not warmed yet", and every fix above is useless against it.
+
+**The next move is not a seventh fix.** It is to log the nine programs' cache
+keys at the moment they are created and read what distinguishes them — the
+measurement that has been one step away since `programKeyBreakdown()` came back
+flat, and the one thing in this thread that has never been done.
+
+**Reverted.** Zero measured benefit, and a `camera.clone()` per boot is not free.
+
+Suite 2929 pass / 0 fail.
+
