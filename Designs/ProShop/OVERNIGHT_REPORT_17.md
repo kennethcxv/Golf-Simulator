@@ -2405,6 +2405,50 @@ read as a busy shop. **A cap of 2 does not look like a bug in a diff** - it
 looks like a conservative default - which is exactly why it earns a check.
 Watched failing with the starter returned to 2.
 
+## G11 — the check-in window, and what a missed booking already costs
+
+G11 asks for a window that **opens one hour before the tee time and closes at
+it**, with two named cases: nobody checks in at 6:30 am for a 1 pm slot, and
+they cannot be late.
+
+**No window existed.** `reservationCheckIn.js` is a payment adapter and has no
+notion of time at all; nothing anywhere asked whether a booking was checkable-in
+yet.
+
+`checkInWindow(teeTimeAbs, nowAbs)` is now that question, as a pure function of
+two minutes so the desk, the tee sheet and anything later all ask it the same
+way rather than each re-deriving it. Measured across a 1 pm slot:
+
+| now | state | |
+| --- | --- | --- |
+| 6:30 am | **early** | 330 minutes until it opens - the brief's own example |
+| 11:59 am | early | 1 minute to go |
+| **12:00 noon** | **open** | exactly an hour before, inclusive |
+| 12:59 pm | open | |
+| **1:00 pm** | **missed** | the tee time itself is already late |
+| 1:20 pm | missed | 20 minutes late |
+
+The boundaries are the whole feature - an off-by-one at either end is the rule
+being wrong for one minute in sixty - so every one of them is pinned, including
+that **nonsense input fails closed**: an unparseable tee time must never read as
+`open`, or a broken record becomes a way in. Watched failing with a
+fifteen-minute grace period added.
+
+### What a missed booking costs, which the brief asked me to report
+
+This part already existed and is worth stating plainly rather than rebuilding:
+a missed booking becomes **status `noShow`**, carries a **$15 no-show fee**
+(`noShowFee: 15`), and the fee is tracked as charged or waived
+(`noShowFeeStatus`). **The slot does free up** - `reopenNoShowSlot: true`.
+
+So the answer to "does it count against anything" is yes, fifteen dollars and a
+recorded no-show; and the answer to "does the slot free up" is yes, immediately.
+
+**Not done:** the desk does not yet *use* this. The function exists and is
+correct, but wiring it into the front-desk flow - turning an early arrival away
+with "come back at noon", and offering a late arrival the next available slots -
+is the part the player would see, and it is unstarted.
+
 ---
 
 ## RUNNING LISTS

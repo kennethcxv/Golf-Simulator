@@ -105,6 +105,54 @@ export const dateKey = (dayAbs) => {
   return `Y${cal.year}-${cal.seasonName}-D${cal.dayOfSeason}`;
 };
 const slotIdOf = (dayAbs, minute) => `tee:${dayAbs}:${minute}`;
+
+// G11 (Goal 17) — THE CHECK-IN WINDOW.
+//
+// "Check-in opens ONE HOUR BEFORE the tee time and closes AT the tee time.
+// Nobody checks in at 6:30 am for a 1 pm slot. Before the window opens they are
+// told to come back. They cannot be late: past their tee time the booking is
+// gone, and the desk offers them the next available slots instead."
+//
+// A pure function of two absolute minutes, so the rule can be tested at every
+// boundary without a shop, a clock or a customer - and so the desk, the tee
+// sheet and any future path all ask the same question rather than each
+// re-deriving it.
+//
+// The boundaries are deliberate and both inclusive-at-the-open, exclusive-at-
+// the-close:
+//   * exactly 60 minutes before  -> OPEN (the window has just begun)
+//   * exactly at the tee time    -> MISSED (the brief says it closes AT the
+//     tee time, so the tee time itself is not still checkable-in)
+export const CHECK_IN_WINDOW_MINUTES = 60;
+
+/**
+ * @param {number} teeTimeAbs absolute minute of the booked slot
+ * @param {number} nowAbs     absolute minute now
+ * @returns {{state:'early'|'open'|'missed', minutesUntilOpen:number, minutesLate:number}}
+ */
+export function checkInWindow(teeTimeAbs, nowAbs) {
+  const tee = Number(teeTimeAbs);
+  const now = Number(nowAbs);
+  if (!Number.isFinite(tee) || !Number.isFinite(now)) {
+    return { state: 'early', minutesUntilOpen: Infinity, minutesLate: 0 };
+  }
+  const opensAt = tee - CHECK_IN_WINDOW_MINUTES;
+  if (now < opensAt) {
+    return { state: 'early', minutesUntilOpen: Math.ceil(opensAt - now), minutesLate: 0 };
+  }
+  if (now >= tee) {
+    return { state: 'missed', minutesUntilOpen: 0, minutesLate: Math.floor(now - tee) };
+  }
+  return { state: 'open', minutesUntilOpen: 0, minutesLate: 0 };
+}
+
+/** The same question asked of a reservation record rather than raw minutes. */
+export function reservationCheckInWindow(reservation, nowAbs) {
+  return checkInWindow(
+    reservation?.teeTimeAbs ?? absoluteMinute(reservation?.dayAbs, reservation?.minute),
+    nowAbs,
+  );
+}
 const nowOf = (state) => Math.floor(state.clock?.minutes || 0);
 const activeBook = (reservation) => reservation.status !== 'cancelled';
 const checkedIn = (reservation) => reservation.checkIn?.status === 'checked-in';
