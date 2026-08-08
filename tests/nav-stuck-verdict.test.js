@@ -30,18 +30,32 @@ import {
   navStuckVerdict, NAV_SLIDING_SECONDS,
 } from '../src/render3d/clubhouse.js';
 
-test('a slide is still invisible to displacement, and the verdict still sees it', () => {
-  // A customer sliding along a box face: asks for a 0.06 yd step, gets 0.055 of
-  // it every frame, and has been no closer to its target for 3 s.
-  const sliding = { moved: 0.055, step: 0.06, noProgressT: 3.0 };
+test('a slide is invisible to displacement, and NOW it escalates anyway', () => {
+  // G10 (Goal 17) REVERSED THIS TEST DELIBERATELY, AND THE OLD ONE IS QUOTED
+  // ABOVE IN THE SOURCE SO THE CHANGE IS NOT SILENT.
+  //
+  // A customer sliding along a box face asks for a 0.06 yd step, gets 0.055 of
+  // it every frame, and has been no closer to its target for three seconds.
+  // This used to assert `stuck: false` on the evidence that displacement always
+  // fired first - but that evidence came from a build where the progress test
+  // ran SECOND and therefore could never win. The brief settles it: "The
+  // threshold I want is 3 seconds of no progress, and it must fire regardless
+  // of what displacement thinks."
+  const sliding = { moved: 0.055, step: 0.06, noProgressT: 3.1 };
   assert.ok(sliding.moved >= sliding.step * 0.25, 'displacement sees a walking customer');
   const verdict = navStuckVerdict(sliding);
-  // the state is recognised...
   assert.equal(verdict.wouldSlide, true);
-  // ...and deliberately does NOT escalate, because in 150 s of a busy shop this
-  // never once happened without displacement having already fired.
-  assert.equal(verdict.stuck, false);
-  assert.equal(verdict.reason, 'none');
+  assert.equal(verdict.stuck, true, 'three seconds of no progress is stuck');
+  assert.equal(verdict.reason, 'no-progress',
+    'and it carries its own reason, because a wrong route needs a different answer from a wedge');
+});
+
+test('just under three seconds is not yet stuck', () => {
+  // The boundary matters: this is what stops an ordinary pause at a shelf being
+  // treated as a blocked route.
+  const nearly = navStuckVerdict({ moved: 0.055, step: 0.06, noProgressT: 2.9 });
+  assert.equal(nearly.stuck, false);
+  assert.equal(nearly.reason, 'none');
 });
 
 test('displacement still catches what it always caught', () => {
@@ -73,12 +87,22 @@ test('the slide flag respects its own threshold rather than tripping early', () 
   assert.equal(navStuckVerdict(over).wouldSlide, true);
 });
 
-test('a wedged customer that is ALSO making no progress escalates on displacement', () => {
-  // Both conditions true at once — which the live run says is the only way the
-  // progress clock ever crosses its threshold. The reason has to be the certain
-  // one, or the nav-block log would attribute corner wedges to box faces and
-  // send the next reader after the wrong prop.
+test('a wedged customer that is ALSO making no progress reports no-progress', () => {
+  // G10 flipped this too, and for the same reason. When both are true the
+  // walker has been going nowhere for three seconds AND is against something -
+  // and the useful answer is the one that changes the ROUTE, not the one that
+  // sidesteps into the same wall again. Nine seconds of no progress is not a
+  // wedge you nudge out of.
   const both = navStuckVerdict({ moved: 0, step: 0.06, noProgressT: 9 });
-  assert.equal(both.reason, 'displacement');
+  assert.equal(both.stuck, true);
+  assert.equal(both.reason, 'no-progress');
   assert.equal(both.wouldSlide, true);
+});
+
+test('a wedge with a healthy progress clock still reports displacement', () => {
+  // The other side of the same coin: a walker that has only just met a corner
+  // has made progress recently, so it gets the sidestep ladder it always had.
+  const wedgeOnly = navStuckVerdict({ moved: 0, step: 0.06, noProgressT: 0.2 });
+  assert.equal(wedgeOnly.stuck, true);
+  assert.equal(wedgeOnly.reason, 'displacement');
 });

@@ -630,3 +630,59 @@ between "buttons" and "pressable things" is where F1 will live.**
 voices are synthesised rather than recorded, then every one of them is arguably
 a placeholder, and an honest table of what exists against what the brief lists
 is worth more than adding a tenth synthesised knock.
+
+
+---
+
+# SECTION G — CHECKOUT AND CUSTOMERS
+
+## Phase 0 — the section explained back, as verbs
+
+Thirteen items. Written as actions; several were worked in Goal 16's F section,
+so the same rule as E and F applies - **verify before rebuilding**.
+
+- **G1.** Enter the register with Q held and the mop out, and land **straight on
+  the cashier** - no map, no Q overlay, no dirt reveal, no releasing Q first.
+- **G2.** Fix the tee-time screen's overlapping text and cramped buttons, then
+  **sweep every screen in the game** for the same class and report each one.
+- **G3.** Make scanned items **travel into the bag's mouth** and disappear
+  because the bag is around them - never by shrinking.
+- **G4.** Build the bag system exactly as specified: a bag is always there,
+  items go in and stay visible, **the customer takes it away**, a fresh one
+  appears at once.
+- **G5.** Give customers realistic money - coins as well as notes, the cash on
+  the desk matching what was handed over, and amounts a person would actually
+  offer.
+- **G6.** Move the customer's stand point and their cash to the right so the bag
+  stops blocking them.
+- **G7.** Make cash and card different gestures: cash is **laid down and the
+  hand withdrawn**; card is **held out until taken**.
+- **G8.** Delete the speed ladder above 1x entirely, and every path that reads
+  it. **Done in Goal 16** - one speed, a 180-real-minute day, measured. To be
+  confirmed rather than redone.
+- **G9.** Raise the concurrency ceiling and report measured crowd size at low,
+  mid and high standing.
+- **G10.** Make an NPC that has been **moving for 3 seconds without progress**
+  take a genuinely different route, and if none exists, abandon that stop.
+  Add it to the invariant suite.
+- **G11.** Open tee-time check-in **one hour before** the slot and close it
+  **at** the slot; nobody early, nobody late, and report what a missed booking
+  costs.
+- **G12.** Show online reservations on the tee sheet in **light grey**,
+  unassignable to walk-ins, with free / reserved / checked-in all distinct.
+- **G13.** Fix the flow that let a customer take goods and leave, and make a
+  combined visit **one transaction**: items down, scanned, then the tee time,
+  then one payment for both.
+
+### Where I am starting, and why
+
+**G10**, because it is the one item in this section carrying a **standing
+invariant that my own Phase 5 gate reports as having no check** (Invariant 7:
+"No NPC is stuck for more than 3 seconds"). D4 closed Invariant 6 the same way.
+Closing another of the seven gaps is worth more than a thirteenth cosmetic pass.
+
+The brief also hands me the previous attempt's post-mortem: the progress clock
+peaked at 1.66 s against a 2.5 s threshold and the branch was reverted because
+**displacement always fired first**. So the thing to fix is not the threshold -
+it is that a displacement test is pre-empting the no-progress test. **The brief
+is explicit that 3 seconds must fire regardless of what displacement thinks.**

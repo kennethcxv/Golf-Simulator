@@ -453,7 +453,10 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 // "stuck", which is the whole claim, and the live diagnostics report the
 // high-water mark so the threshold can be argued about with a number.
 export const NAV_PROGRESS_EPSILON_YD = 0.08;
-export const NAV_SLIDING_SECONDS = 2.5;
+// G10 (Goal 17): the brief asks for three seconds of no progress, not 2.5.
+export const NAV_NO_PROGRESS_SECONDS = 3;
+// Kept as an alias so nothing that imported the old name breaks silently.
+export const NAV_SLIDING_SECONDS = NAV_NO_PROGRESS_SECONDS;
 
 /**
  * G2, ANSWERED AND REVERTED. The brief said: prove the progress test rescues
@@ -481,7 +484,22 @@ export const NAV_SLIDING_SECONDS = 2.5;
  */
 export function navStuckVerdict({ moved, step, noProgressT }) {
   if (!(step > 0.001)) return { stuck: false, reason: 'none', wouldSlide: false };
-  const wouldSlide = noProgressT > NAV_SLIDING_SECONDS;
+  const wouldSlide = noProgressT > NAV_NO_PROGRESS_SECONDS;
+  // G10 (Goal 17) — THREE SECONDS OF NO PROGRESS IS STUCK, WHATEVER
+  // DISPLACEMENT THINKS, AND THIS ORDER IS THE WHOLE FIX.
+  //
+  // The previous attempt computed exactly this flag and then never let it make
+  // anybody stuck: displacement was tested first and, as the measurement
+  // showed, it had already fired on every frame where progress would have.
+  // That is not evidence that no-progress is redundant - it is evidence that a
+  // test which runs second can never win. The brief is explicit: "it must fire
+  // regardless of what displacement thinks."
+  //
+  // So it is tested FIRST and carries its own reason, because the two need
+  // different answers. Displacement means "you are against something" and a
+  // sidestep usually clears it. No progress for three seconds means the route
+  // itself is wrong, and the answer is a different route or a dropped stop.
+  if (wouldSlide) return { stuck: true, reason: 'no-progress', wouldSlide };
   if (moved < step * 0.25) return { stuck: true, reason: 'displacement', wouldSlide };
   return { stuck: false, reason: 'none', wouldSlide };
 }
@@ -11157,6 +11175,18 @@ export function makeClubhouse(ctx) {
           c.stuckT = (c.stuckT || 0) + dt;
           if (c.stuckT > 3.0) {
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
+            // G10: "Not a nudge, not a repath along the same line: a genuinely
+            // different path, and if none exists, they abandon that stop."
+            //
+            // A displacement stall means the walker is against something and a
+            // sidestep usually clears it, so that keeps the full ladder. Three
+            // seconds of NO PROGRESS means the route is wrong, and sidestepping
+            // a wrong route just wastes two more rungs against it - so this
+            // reason enters the ladder at the RETARGET rung and escalates to
+            // abandoning the stop from there.
+            if (verdict.reason === 'no-progress' && c.stuckEscalation < 3) {
+              c.stuckEscalation = 3;
+            }
             const rung = Math.min(5, c.stuckEscalation);
             recordNavBlock(c, ['sidestep', 'sidestep', 'nudge', 'retarget', 'skip'][rung - 1], tx, tz, wp);
             if (rung <= 2) {

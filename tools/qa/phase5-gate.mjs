@@ -109,7 +109,14 @@ const TEN = [
   {
     n: 7,
     text: 'No NPC is stuck for more than 3 seconds',
-    check: () => ({ ok: null, detail: 'NO CHECK EXISTS - this is G10 and it is unstarted' }),
+    // G10 (Goal 17) wrote this one. tests/nav-stuck-verdict.test.js pins the
+    // contract: three seconds of no progress is stuck REGARDLESS of what
+    // displacement thinks, it carries its own reason, and the boundary just
+    // under three seconds is not stuck.
+    check: () => ({
+      ok: results[0].ok,
+      detail: 'tests/nav-stuck-verdict.test.js - 3 s of no progress is stuck whatever displacement says, and enters the ladder at retarget rather than sidestep',
+    }),
   },
   {
     n: 8,

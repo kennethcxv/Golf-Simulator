@@ -2111,6 +2111,63 @@ honestly on NOT DONE.
 
 ---
 
+# SECTION G — CHECKOUT AND CUSTOMERS
+
+## G10 — three seconds of no progress, and the reason the last attempt could not win
+
+The brief hands over the previous attempt's post-mortem: the progress clock
+peaked at 1.66 s against a 2.5 s threshold, the branch rescued nobody, and it
+was reverted because **displacement always fired first**.
+
+Reading the code, that conclusion could not have come out any other way.
+`navStuckVerdict` computed the no-progress flag and then tested **displacement
+first**, returning on it. A test that runs second can never win, so "displacement
+had already fired on every frame where progress would have" is not evidence that
+the progress test is redundant - **it is a description of the ordering**.
+
+The brief settles it in one sentence: *"it must fire regardless of what
+displacement thinks."*
+
+### The change
+
+- `NAV_NO_PROGRESS_SECONDS = 3` (was 2.5), with the old name kept as an alias so
+  nothing breaks silently.
+- No-progress is tested **first** and carries **its own reason**, because the two
+  states need different answers. Displacement means *you are against something*
+  and a sidestep usually clears it. Three seconds of no progress means **the
+  route is wrong**.
+- So a no-progress stall **enters the recovery ladder at the retarget rung**
+  instead of the sidestep rungs, and escalates from there to abandoning the
+  stop. That is the brief's "not a nudge, not a repath along the same line: a
+  genuinely different path, and if none exists, they abandon that stop" - and it
+  matters, because sidestepping a wrong route just spends two rungs walking into
+  the same wall.
+
+### Two tests were reversed on purpose, and the old text is quoted in the new
+
+`tests/nav-stuck-verdict.test.js` asserted `stuck: false` for a sliding
+customer, and `reason: 'displacement'` when both conditions were true. **Both
+pinned the reverted design.** They now assert the opposite, each carrying the
+old assertion and the reason it changed, so nobody reads the flip as a mistake.
+Two boundary tests were added with them: 2.9 s is not yet stuck, and a fresh
+wedge with a healthy progress clock still reports `displacement` and still gets
+the sidestep ladder it always had.
+
+### Standing Invariant 7 now has a check
+
+**"No NPC is stuck for more than 3 seconds"** was one of the seven the Phase 5
+gate reported as `NO CHECK EXISTS`. `phase5-gate.mjs` now reports it as **PASS**.
+That is the **second** of the seven closed this session, after D4 closed
+Invariant 6. Five remain.
+
+**Honestly not done:** this is verified as a contract, not in a live shop. The
+previous attempt's whole problem was that a live 150-second run disagreed with
+the reasoning, and I have not re-run that measurement on this build. Until I do,
+what I can say is that the ordering bug is real, the fix follows the brief
+exactly, and the pure function now behaves as specified.
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
