@@ -6484,3 +6484,55 @@ are attached to.** The frozen control existed and had been run — but its outpu
 was read as a floor to clear, not as a rival to beat. A ratio of 0.6 was
 sitting in reach the whole time and nobody computed the division.
 
+
+### B1 IMPLEMENT — REVERSED THE LAG PARAMS. 0.60 -> 0.70, STILL SHORT.
+
+Retuned to the whip shape: carried WITH the head, overshooting past it.
+
+```
+deficitBase 0.85 -> 0.25    chaseBase  5.5 -> 11.0
+deficitGrow 0.40 -> 0.15    chaseFall  1.6 -> 2.0
+dragGain    0.22 -> 0.08    targetBase 0.55 -> 0.70
+pushGain    2.2  -> 3.0     targetGrow 0.45 -> 0.55
+splayBase   0.22 -> 0.28    splayGrow  0.30 -> 0.34
+```
+
+Re-measured on the same instrument:
+
+```
+            live px    frozen px   ratio
+before       76,134     127,938     0.60
+after       103,561     148,771     0.70
+```
+
+**Live pixels up 36%. The direction is confirmed correct.** But the ratio is
+still under 1.0 and `strandsVisiblyMove` is still false, so B1 is NOT closed.
+
+### A confound I introduced, declared rather than buried
+
+`splayBase` changes the RESTING pose, so the frozen control moved too —
+127,938 -> 148,771. **I changed the subject and its own baseline in one step**,
+which is the thing this report has spent 155 commits criticising. The 0.70 is
+therefore a soft number: the live gain is real (76k -> 103k is measured on a
+fixed camera and a fixed stroke) but the ratio's denominator is not the one that
+produced 0.60.
+
+The clean next step is to hold `splayBase`/`splayGrow` at their old values and
+re-run, so the control is identical across the comparison.
+
+### Whether ratio > 1.0 is even reachable — the honest doubt
+
+Frozen means the yarn traces the head's arc exactly: a dense bundle in rigid
+motion sweeps a large area every frame. A damped bundle moves less far per frame
+almost by construction. To EXCEED rigid, the tips must travel faster than the
+head, which only happens on genuine overshoot.
+
+So `> 1.0` may be the wrong acceptance number, and the ruling recorded earlier
+in this report may need replacing with a weaker one — *approach* 1.0 while the
+strand-specific signal clears the 34k noise floor. That is a judgement to make
+with a screenshot in hand, not from the numbers alone, and B1's remaining work
+is exactly that: a default-camera capture mid-stroke, which the RULES require
+before any of this can be called confirmed.
+
+Suite 2929 pass / 0 fail.
+

@@ -440,16 +440,40 @@ export function buildToolViewmodels() {
                     // at splayBase 0.45 came from every azimuth splaying
                     // equally; halving it keeps the floor contact reading
                     // without the seed-head silhouette.
-                    splayBase: 0.22,
-                    splayGrow: 0.30,
-                    pushGain: 2.2,      // was 1.15 - swing wider than the head
-                    dragGain: 0.22,     // was 0.10 - fall further behind under speed
-                    chaseBase: 5.5,     // was 9.5  - arrive later; this is the trail
-                    chaseFall: 1.6,     // was 2.3  - keeps the last segment alive
-                    targetBase: 0.55,   // was 0.42
-                    targetGrow: 0.45,   // was 0.34 - the tip travels furthest
-                    deficitBase: 0.85,  // was 0.55 - the carried-head answer
-                    deficitGrow: 0.40,  // was 0.30
+                    // B1 (Goal 17) — MEASURED AGAINST THE FROZEN CONTROL, AND
+                    // THE PREVIOUS DIRECTION WAS BACKWARDS.
+                    //
+                    // electron-b1-divergence, default camera:
+                    //     live 76,134 px    frozen 127,938 px    ratio 0.60
+                    // The rig changed FORTY PERCENT FEWER pixels than yarn
+                    // welded rigid to the head, while its tips travelled
+                    // 0.46 m. Motion was never the problem.
+                    //
+                    // Every value below used to push the same way - lag more.
+                    // Past a point "trail harder" stops meaning the yarn
+                    // sweeps behind the head and starts meaning THE HEAD
+                    // LEAVES THE YARN BEHIND. A strand that lags enough is a
+                    // strand that does not move on screen: the stick swings,
+                    // the fibres hang near where they already were, and the
+                    // eye sees static yarn on a moving pole. That is the
+                    // owner's "welded to a swinging head" exactly - not
+                    // frozen, too slow to keep up.
+                    //
+                    // The shape that beats the frozen baseline is a WHIP, not
+                    // a drag: carried WITH the head (low deficit, prompt
+                    // chase) and overshooting PAST it (high push, far target).
+                    // Rigid attachment scores 1.0 by definition, so anything
+                    // that only lags can never exceed it.
+                    splayBase: 0.28,    // was 0.22 - a little more floor splay
+                    splayGrow: 0.34,    // was 0.30
+                    pushGain: 3.0,      // was 2.2  - overshoot BEYOND the head
+                    dragGain: 0.08,     // was 0.22 - stop falling behind
+                    chaseBase: 11.0,    // was 5.5  - arrive promptly, keep up
+                    chaseFall: 2.0,     // was 1.6
+                    targetBase: 0.70,   // was 0.55 - travel further per stroke
+                    targetGrow: 0.55,   // was 0.45 - the tip travels furthest
+                    deficitBase: 0.25,  // was 0.85 - BE CARRIED, not left
+                    deficitGrow: 0.15,  // was 0.40
                   },
                 });
                 collar.add(rig.root);
