@@ -11196,3 +11196,57 @@ them and every structural property printed is identical across all of them.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE NINE KEYS ARE GENUINELY DISTINCT — AND THE DIFFERENCE IS NOT THE MATERIALS
+
+Snapshotted `renderer.info.programs[].cacheKey` either side of the equip in one
+run:
+
+```
+added programs: 9    distinct keys: 9
+
+[0] physical,STANDARD,,highp,srgb,false,,false,false,false,...
+[1] physical,STANDARD,,highp,srgb,false,,uv,false,...,uv,...,uv,uv,...
+[2] physical,STANDARD,,highp,srgb,false,,uv,false,...,uv,...
+[3] physical,STANDARD,,highp,srgb,false,,false,false,false,...
+```
+
+**Nine distinct keys, so nine genuine programs** — not a counting artefact, and
+not three.js failing to deduplicate.
+
+**Two things the prefixes settle:**
+
+1. **`[0]` and `[3]` are identical across every character printed** and still
+   count as distinct, so they diverge **beyond the 120-character truncation**.
+   The distinguishing fields are further along the key than I displayed.
+2. **`[1]` and `[2]` differ in `uv` slots.** Those reflect the **geometry's UV
+   attributes**, not the material's maps — which is why deduplicating materials
+   9 -> 7 left the program count at 9. **The keys vary by geometry, not by
+   material.**
+
+### That is why the material fix could not have worked
+
+The programs are keyed on **per-geometry attribute layouts**. Fifty-four hand
+meshes with differing UV/normal/attribute sets produce nine distinct layouts, and
+sharing a material across them changes nothing — the same material compiled
+against a different attribute set is a different program.
+
+**Every fix this session aimed at the wrong half of the key.** Nine tried to
+compile earlier; one reduced materials. **None touched geometry attributes**,
+which is where the variation actually lives.
+
+### Section A tool half — where it truly stands
+
+**Measured:** 9 distinct programs keyed on geometry attribute layout; 54 hand
+meshes and 54 geometries entering at first equip; 333-7855 ms first, ~24 ms
+second; material duplication real and fixed (9 -> 7) though not the cause.
+
+**Refuted:** pre-compilation (nine attempts), material count, one-to-one
+material/program correspondence.
+
+**The next measurement, and it is small:** print the keys **untruncated** and
+diff `[0]` against `[3]`. One field will differ, and that field names what varies
+across the hand geometries — the thing every fix so far has missed.
+
+Suite 2929 pass / 0 fail.
+

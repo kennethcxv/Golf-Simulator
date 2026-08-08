@@ -284,6 +284,9 @@ async (page) => {
     if (s3 && s3.scene) s3.scene.traverse((o) => { if (o.material) seen.push(o.material.uuid); });
     return seen;
   }).catch(() => []);
+  const keySnap = () => page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? [])
+    .map((pr) => String(pr.cacheKey ?? ''))).catch(() => []);
+  out.keysBefore = await keySnap();
   out.matIdsBefore = await matIds();
   out.geoIdsBefore = await geoIds();
   out.geoCountBefore = await sceneGeoCount();
@@ -394,6 +397,7 @@ async (page) => {
   out.keysAfter = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetAfter = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
   out.uuidAfter = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
+  out.keysAfter = await keySnap();
   out.geoCountAfter = await sceneGeoCount();
   // ATTRIBUTE THE NEW MATERIALS, not just the new meshes. The census showed the
   // +54 meshes are hands and I inferred the +9 materials were theirs too — but
