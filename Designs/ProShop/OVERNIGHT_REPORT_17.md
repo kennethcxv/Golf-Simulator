@@ -6206,3 +6206,59 @@ That is the honest size of invariant 8, and it took the whole session to find,
 because a green check with a confident name is the hardest kind of wrong thing to
 notice. The 110 strings genuinely wrapped today are real work; they are also **7%
 of the job**, and the report should not have implied otherwise until now.
+
+### SINK WIDENING, STEP 3: `text:` — 1,406 -> 2,108, AND THE AUDIT EARNS ITS KEEP
+
+The plan for this step carried a condition the other four did not: **audit
+before adding**, because the `el()` factory that builds these rows also builds
+debug rows. It found a fault on the first sample.
+
+The obvious pattern `text:\s*['"`]` matches **`context: 'walk'`** — because
+`context:` ends with the literal characters `text:`. Eleven internal tutorial
+state keys would have been counted as player prose, in a check whose entire
+value is that its number means what its name says. `\b` refuses them: `n` to
+`t` is word-char to word-char, so no boundary exists inside `context:`.
+
+**FAULT 93 — and the first one this session caught by the PLAN rather than by a
+failing run.** The other seven were found by watching an instrument behave
+impossibly: a comment matching its own assertion, a brace-match landing on a
+destructured parameter, a fixed window running into the neighbouring branch.
+Those were all caught *after* they had reported something false. This one was
+caught before it ever ran.
+
+The audit's other half came back clean. The sample is overwhelmingly real
+player prose — "Revenue", "Amenities", "Close Laptop", "Add a walk-in",
+"3 · Course access". The `text:` sink belonged in the list; it just needed the
+boundary.
+
+### The shape of the number changed, not just its size
+
+| step | sink added | count |
+|---|---|---|
+| — | four sinks | 45 |
+| fault 91 | `shop.log` | 50 |
+| 1 | `reason:` | 854 |
+| 2 | `label:` | 1,406 |
+| 3 | `text:` | **2,108** |
+
+Every earlier step drew from the 3D world and the sim. This one is dominated by
+the **back office**: `ui/laptop.js` 254 and `ui/courseEditor.js` 159 are now the
+top two files, ahead of `sim/register.js` 103.
+
+That reorders the problem. The laptop is a 24-page screen the player reads for
+minutes at a stretch; the register throws a toast that is gone in seconds. **The
+text a player spends the most time reading was the text no measurement had ever
+looked at** — not because anyone judged it lower priority, but because the
+scanner had only ever been pointed at 3D-world sinks.
+
+### Verified as the last two steps were
+
+Regex tested standalone before editing. Applied with the Edit tool, never a
+python escaping layer — that mangling is what produced fault 92. Full suite run
+*before* the commit: 2929 pass / 0 fail. Control watched failing at 2,109 on a
+planted back-office row and green on revert.
+
+Remaining in the planned order: `ctx.fillText` (61), `notify({message})` (14).
+Both are small; the widening is essentially finished at 2,108 of a likely
+~2,180.
+
