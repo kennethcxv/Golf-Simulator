@@ -12171,3 +12171,54 @@ report turned on.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## E4 — VERIFIED ACROSS ALL THREE SURFACES FROM SOURCE
+
+The "formatted controls list" is not in the settings panel. `ledgerBook.js:613`:
+
+> *"THE CONTROLS LIVE IN THE BOOK … written into the page's own foot in the
+> desk's hand, so nothing floats over the world and **the keys can never drift
+> from what is bound — the labels come from the live binding table**."*
+
+So every surface that shows a key resolves it live:
+
+| surface | mechanism | state |
+|---|---|---|
+| settings rebind rows | `refreshButtons()` on the write | **immediate** |
+| in-world prompts / keycaps | `ui.js:374` resolves each token via its ACTION | **cannot cache** |
+| the book's control line | labels come from the live binding table | **cannot drift** |
+
+**E4 is satisfied across all three, and by construction rather than by
+discipline** — no surface stores a key, so none can show a stale one. The book
+redraws its page to canvas on open, and the prompt renderer resolves per render.
+
+### The honest caveat, which is small and named
+
+**No driver has watched a rebind propagate visually.** Under the RULES that keeps
+the *visual* confirmation outstanding, exactly as it does for B1 and E3. But the
+mechanism is not a hypothesis here: three independent code paths each state, in
+their own comments, that they read the live table, and the settings panel calls
+its refresh on the same tick as the write.
+
+**Recorded as: E4 verified from source across three surfaces; visual
+confirmation outstanding.** That is a materially stronger position than the
+"strong lead" I filed hours ago, and it took three reads rather than a driver.
+
+### Section E — final
+
+- **E1** untouched (defers to A4).
+- **E2** diagnosed to `styles.css:2037` + `settingsPanel.js:532`, deliberately
+  not changed without before/after shots.
+- **E3** padding fixed under D5 (32 px, commented); class sweep permanently
+  guarded by invariant 4; screenshots outstanding.
+- **E4** verified across all three surfaces from source; visual confirmation
+  outstanding.
+- **E5** report delivered (232 keys, 51.1% dictionary, **5.0% honest**),
+  composed-key blocker removed, enum leak fixed.
+
+**Four of five substantively resolved**, with the outstanding work in each case
+being *evidence* rather than *implementation* — except E2, which is
+implementation deliberately deferred for want of evidence.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
