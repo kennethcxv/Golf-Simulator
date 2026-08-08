@@ -156,6 +156,25 @@ async (page) => {
   }
   record('ledger', ledgerHit.hit, { opened: await page.evaluate(() => !!window.__fw.ledgerOpen) });
 
+  // CLOSE THE BOOK BEFORE THE NEXT BEAT. This is the whole of the tool beat's
+  // failure: an open ledger owns the keyboard, so the tool-belt key never
+  // reached its handler and `getTool()` stayed "none". Measured
+  // `ledgerStillOpen: true` at beat 5.
+  //
+  // Eight hypotheses died before this one — turf, unadopted assets, a failed
+  // socket lookup, a broken rig, an off-by-one key map, a wheel closed too
+  // early, a wrong belt binding, a mounted cart — and every one of them was
+  // about the GAME or the tool. The cause was a beat that did not clean up
+  // after itself, three beats earlier.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(600);
+  if (await page.evaluate(() => !!window.__fw?.ledgerOpen)) {
+    await page.keyboard.press(keys.interact || 'e');
+    await page.waitForTimeout(600);
+  }
+  await page.mouse.click(700, 500);   // re-capture the pointer the book released
+  await page.waitForTimeout(300);
+
   // 5. A TOOL, through the real wheel
   await beat('tool');
   // THE BELT IS HOLD-TO-OPEN, SO THE SELECTION MUST HAPPEN WHILE IT IS HELD.
@@ -232,6 +251,8 @@ async (page) => {
   record('tool', live.ok === true, {
     held: live.held ?? null,
     stoodOn: stood,
+    ledgerStillOpen: await page.evaluate(() => !!window.__fw?.ledgerOpen).catch(() => null),
+    cartMounted: await page.evaluate(() => window.__fw?.scene3d?.walk?.cart?.mounted ?? "unknown").catch(() => null),
     wheelReallyOpen,
     equipped: await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? "none").catch(() => null),
     rigDiag: await page.evaluate(() => { const d = window.__fw?.scene3d?.walk?.toolRigDiagnostics?.("broom"); return d ? { shaftDrop: d.shaftDrop, headAboveFloor: d.headAboveFloor, assetHeadWorldY: d.assetHeadWorldY, assetGripWorldY: d.assetGripWorldY, keys: Object.keys(d).length } : null; }).catch(() => null),

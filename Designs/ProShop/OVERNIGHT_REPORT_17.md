@@ -8392,3 +8392,63 @@ that preceded it.
 
 Suite 2929 pass / 0 fail.
 
+
+## SOLVED — THE LEDGER BEAT NEVER CLOSED THE BOOK
+
+```
+everyBeatHappened: true      beatsThatDidNot: []
+ledgerStillOpen: false       equipped: "broom"
+```
+
+**The tool beat passes.** The cause was measured, not guessed:
+`ledgerStillOpen: true` at beat 5. The ledger beat opened the book and never
+closed it, an **open ledger owns the keyboard**, so the tool-belt key never
+reached its handler and `getTool()` stayed `"none"`.
+
+The fix is four lines at the end of the ledger beat: press Escape, verify
+closed, re-capture the pointer the book released.
+
+### Eight hypotheses died before this one
+
+```
+1 the walk never picks up a tool          5 off-by-one in the wheel key map
+2 headAboveFloor null - it's on turf      6 wheel closed before selecting
+3 the socketRefs.found guard failed       7 wrong belt binding ('q' not 'f')
+4 the authored asset never adopted        8 mounted in a cart
+```
+
+**Every one was about the game or the tool.** The cause was a QA beat that did
+not clean up after itself, three beats earlier. Nothing in `broomViewmodel.js`,
+the GLB, the sockets, the rig or the wheel was ever at fault — and I nearly
+opened surgery on B4's rig maths over it.
+
+### What the completed walk immediately reveals
+
+Invariant 1, now measured over a walk that actually equips a tool:
+
+```
+before (tool beat failing)   worst 374-827 ms   654 frames over 16  (15.6%)
+after  (tool beat passing)   worst 8282.8 ms    186 frames over 16   (9.6%)
+```
+
+**An 8.3-SECOND FRAME.** It appears the moment the walk reaches ground it had
+never covered — closing the ledger, re-capturing the pointer, opening the wheel,
+equipping a broom. Frames-over-16 fell by a third at the same time, because the
+walk now spends its time differently.
+
+**This is the single worst frame recorded anywhere in this report**, and it was
+invisible for as long as the beat failed. Section A measured six candidate
+causes against a walk that stopped before this happened.
+
+### Invariant 10 caught me mid-edit, correctly
+
+The gate read `8 pass, 2 FAIL` — invariant 10 is *"the suite is green and the
+tree is clean at every commit"*, and my driver edit was uncommitted when it ran.
+That is the invariant doing exactly its job, on me, in the same run that solved
+the thread. Committing restores it.
+
+**Section A's next question is now concrete and large:** what costs 8.3 seconds
+in the equip path, and does a player pay it too?
+
+Suite 2929 pass / 0 fail.
+
