@@ -3370,3 +3370,37 @@ Suite **2920 pass / 0 fail**.
 asserted at the sim layer (the stack is what `customerCash` returned) but has not
 been checked against what the DESK DRAWS. That is a renderer question and the
 right instrument is a pixel or mesh count at the counter, not a unit test.
+
+## PHASE 5 GATE - TWO MORE STANDING INVARIANTS CLOSED
+
+The gate names its own next item, and it named this one: invariants 3 and 4 read
+*"NO WHOLE-GAME CHECK EXISTS, and G2 asks for exactly that sweep"* and *"NO CHECK
+EXISTS"*. G2 had just built both instruments, so wiring them in was the next item
+rather than a note for later.
+
+| | before | after |
+| --- | --- | --- |
+| 3. No text ever overlaps other text | NO CHECK | **PASS** - 0 pairs across 41 DOM screens |
+| 4. No UI element touches its container edge | NO CHECK | **PASS** - 0 within 8px of a non-scrolling edge |
+
+**The gate reads the artifact but will not trust it blindly**, which matters more
+than the pass:
+
+* if the sweep has **never run**, it reports NO CHECK, not PASS
+* if the sweep ran but its **planted controls failed**, it reports **FAIL** with
+  the control states named - a sweep whose plants were missed is worth less than
+  no sweep at all, and its zeros must never read as a green
+* if the artifact is **over 24 hours old** it drops back to NO CHECK and says so
+  in the detail line, because a stale file is the oldest way to claim a green
+  nobody measured
+
+Standing invariants now **6 pass, 1 FAIL, 3 with no check**, from 4/1/5.
+
+The FAIL is invariant 1, the performance one, and it is the same A1 finding
+already on NOT DONE: 14.8% of frames over 16 ms. It is measured, attributed and
+unfixed - not a new regression.
+
+Remaining without checks: 2 (text cut off - whole-game), 5 (the hand-pixels
+driver exists but its pixel floor was calibrated at 1280x720 and A5 changed the
+default window, so it owes a recalibration before it can be wired), and 8 (no
+check that a NEW string literal escapes `t()`).

@@ -63,6 +63,33 @@ if (!FAST) {
 }
 
 // ---- 3. the ten standing invariants, each answered honestly ------------
+// G2's DOM sweep writes its verdict to disk. Read it rather than re-running an
+// Electron session inside the gate, but NEVER report a pass from a file alone:
+// a stale artifact is the oldest way to claim a green that nobody measured, and
+// a sweep whose planted controls failed is worth less than no sweep at all.
+function g2Sweep() {
+  const file = path.resolve('qa/electron/g2-screensweep/g2.json');
+  if (!fs.existsSync(file)) {
+    return { ok: null, detail: 'the G2 DOM sweep has never been run on this machine' };
+  }
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return { ok: null, detail: 'the G2 sweep artifact is unreadable' };
+  }
+  const v = data.verdict || {};
+  const ageH = (Date.now() - fs.statSync(file).mtimeMs) / 3600000;
+  if (!v.controlsValid) {
+    return {
+      ok: false,
+      detail: `the sweep ran but its PLANTED CONTROLS FAILED (overlap ${v.plantedOverlapFound}, `
+        + `edge ${v.plantedEdgeFound}) - its zeros mean nothing`,
+    };
+  }
+  return { data: v, ageH };
+}
+
 const TEN = [
   {
     n: 1,
@@ -82,12 +109,34 @@ const TEN = [
   {
     n: 3,
     text: 'No text ever overlaps other text',
-    check: () => ({ ok: null, detail: 'ledger + monitor overlap recorders exist; NO WHOLE-GAME CHECK EXISTS, and G2 asks for exactly that sweep' }),
+    check: () => {
+      const sweep = g2Sweep();
+      if (sweep.ok !== undefined && sweep.ok !== true) return sweep;
+      const { data, ageH } = sweep;
+      const stale = ageH > 24;
+      return {
+        ok: stale ? null : data.totalOverlaps === 0,
+        detail: `${data.totalOverlaps} overlapping text pairs across ${data.screensSwept} DOM screens`
+          + `, planted control found${stale ? `; ARTIFACT IS ${ageH.toFixed(0)} h OLD - re-run the sweep` : ''}`
+          + '; the canvas screens keep their own recorders (ledger, front desk)',
+      };
+    },
   },
   {
     n: 4,
     text: 'No UI element touches the edge of its container',
-    check: () => ({ ok: null, detail: 'NO CHECK EXISTS' }),
+    check: () => {
+      const sweep = g2Sweep();
+      if (sweep.ok !== undefined && sweep.ok !== true) return sweep;
+      const { data, ageH } = sweep;
+      const stale = ageH > 24;
+      return {
+        ok: stale ? null : data.totalCramped === 0,
+        detail: `${data.totalCramped} elements within 8px of a non-scrolling container edge`
+          + `, across ${data.screensSwept} screens, planted flush-edge control found`
+          + `${stale ? `; ARTIFACT IS ${ageH.toFixed(0)} h OLD - re-run the sweep` : ''}`,
+      };
+    },
   },
   {
     n: 5,
