@@ -5420,3 +5420,56 @@ the desk (G5). **All three need a customer mid-transaction**, which is the
 staging this session never built - not a missing instrument but a missing
 scenario. That is the honest distinction between what is left and what was
 merely hard.
+
+### G5 + G7: THE SCENARIO EXISTS, DRIVING IT DOES NOT - AND THAT IS THE HANDOVER
+
+The last two visual items need a customer mid-transaction. I said that was a
+missing SCENARIO rather than a missing instrument, and went looking. **The
+scenario hook is there:**
+
+```js
+clubhouse.sendToCounter(skuIds, payMethod)   // stages a shopper with goods
+clubhouse.sendWalkInToDesk(options)          // stages a tee-time errand
+clubhouse.customerByName(n)                  // the live handle, for watching poses
+```
+
+`sendToCounter(['balls3','glove1'], 'cash')` returns a customer and
+`scenarioStaged: true`. **They walk in. They never reach the till.**
+
+```
+modesSeen: ["Idle"]     across 40 samples over 60 seconds
+heldItOut: false        armCameBack: false      coinKindsOnDesk: null
+```
+
+Adding the player - standing at the counter, capturing the pointer, calling
+`register.enter()` - **changed nothing.** The customer sits at `Idle`.
+
+### What that tells the next session, precisely
+
+The gap is between *staged* and *served*. A staged customer exists and walks;
+something else has to accept them into a transaction, and it is not
+`register.enter()`. The likely candidate is in the source I read earlier:
+
+> *"a staged shopper is evicted before reaching the till whenever the shop is
+> SHUT - which is every fresh profile, since a new day opens CLOSED and a harness
+> has no reason to know it must flip the sign."*
+
+`sendToCounter` sets `scriptedVisit = true` to survive the eviction sweep, but
+surviving is not the same as SHOPPING. **The first thing to try is opening the
+shop before staging**, and the second is finding what the existing checkout
+drivers call between spawn and tender - `checkout-bag-handoff-path.js` reaches
+`getTx()` with a live transaction, so something in it knows the step I am
+missing.
+
+### Why I am stopping here rather than trying a fourth time
+
+Three runs, three identical results, and each attempt was a guess at the missing
+call. **Guessing is what produced the false HUD overlap earlier today.** The
+honest state is: the hooks are found and named, the failure is reproducible and
+specific, and the next person starts from "open the shop, then read
+checkout-bag-handoff-path" rather than from "find out how to stage a customer".
+
+**G5 and G7 remain UNCONFIRMED VISUALLY**, with their sim-level checks standing
+and the exact blocker written down. That is a materially better handover than
+this morning, when the blocker was "no scenario exists" - which turned out to be
+wrong.
