@@ -13769,3 +13769,47 @@ unguarded write match the pattern its own function documents.
 The HUD is still 5.0 points of ~23. The rest of its cost is the overlay's
 compositing rather than any write this file makes, and that is a layer/CSS
 question, not a JavaScript one.
+
+
+# RUNNING LISTS — AFTER THE INVARIANT 1 THREAD
+
+Gate: **9 pass, 1 FAIL, 0 unchecked**, unchanged. Suite **2946 pass / 0 fail**
+(three tests added this stretch, each watched failing).
+
+## 1. DONE AND VERIFIED
+
+- **Section B complete** — B1, B2 confirmed at the default camera; B4 verified two
+  ways; B3/B5 verified earlier.
+- **Invariant 1 localised and partly attributed.** Indoors only (21% vs 1%
+  outdoors). **DOM overlay 6.7 points -> 5.0 after a fix**; shadow bakes 1.2.
+  **Eight mechanisms eliminated under controls.**
+- **First actual fix to invariant 1 this session**: `hud.js`'s unguarded
+  per-frame `root.style.display` write, pinned by
+  `tests/hud-frame-writes-are-guarded.test.js`.
+- **Two QA drivers repaired** — the ledger turn-cost driver had been throwing
+  since C1 landed (wrong press count) and standing at stale absolute coordinates.
+
+## 2. MEASURED AND DELIBERATELY NOT ACTED ON
+
+- **Shadow bake cadence** — 1.2 points of 21, at the cost of every moving
+  caster's shadow. Refused.
+- **Texture uploads** — no effect to buy; 98% of spikes involve none.
+- **Game logic** — `walk.update` + `clubhouse.update` are 0.2 ms of a 22 ms
+  frame. Optimising the sim would be working on the 10%.
+
+## 3. OPEN, WITH THE SEARCH NARROWED
+
+- **Invariant 1's remaining ~16 points** — browser-side compositing of the page,
+  the only thing left outside every JS function a driver can wrap. A layer/CSS
+  question, not a JavaScript one.
+- **C1's third clause** — first-open stall, 3 runs in 10, 0.3-3.5 s, never
+  recurring. Rate known, mechanism not.
+- **C6** — turns are 0.8 ms; the room is 20. Also the driver grades at 33 ms
+  while the brief says 16.
+- **C8** — untouched, and no longer blocked by C6's budget the way it appeared.
+- **C2, C3, C4, C5, C7** — carry Goal-17 markers, not re-verified this session.
+- **The 2,108 unwrapped player-facing strings.**
+
+## 4. NOT STARTED
+
+- Sections D, E, F, G, H.
