@@ -3823,3 +3823,50 @@ survive on a build that genuinely stutters in play.
 FLOOR was calibrated at 1280x720 and A5 changed the default window, so it owes a
 recalibration before it can be wired - wiring it as-is would produce a green from
 a number that no longer means anything.
+
+## INVARIANT 2 CLOSED - AND INVARIANT 10 CAUGHT ME MID-EDIT
+
+The gate's `NO CHECK` list was the honest place to look for the next item, and
+invariant 2 was the one the existing sweep could reach.
+
+### What "cut off" means, stated before measuring
+
+Three ways a DOM node loses its text, and all three are silent:
+
+* **ellipsis** - `text-overflow` clips it and draws a `...`
+* **clipped** - `overflow: hidden` with content wider than the box
+* **squashed** - the box is shorter than one line of its own text
+
+And one thing that is NOT cut off: a node that SCROLLS. The text is reachable, so
+it is not lost. Same distinction that took four attempts to get right on the
+cramped-edge metric.
+
+### The result
+
+```
+0 strings clipped, ellipsised or squashed with no way to scroll to them,
+across 41 DOM screens, planted control found
+```
+
+A **third planted control** was added alongside the overlap and flush-edge ones:
+a 60px box containing a 50-character string with `text-overflow: ellipsis` and no
+scroll. It is found on every run. The gate's shared reader now demands all THREE
+controls before it will report any of the three invariants as green - a sweep
+whose plants were missed must never read as a pass.
+
+### And then invariant 10 failed, correctly
+
+Wiring invariant 2 took the gate to **6 pass, 2 FAIL** - and the second FAIL was
+invariant 10, *"the suite is green and the tree is clean at every commit"*. It
+was catching MY OWN uncommitted edits to the gate and the sweep driver, mid-item.
+
+That is the invariant doing exactly its job, on the person adding invariants. It
+is the cheapest check in the file and it caught a real state that the other nine
+would have sailed past.
+
+**Gate after committing: 7 pass, 1 FAIL, 2 with no check.** Up from 4/1/5 when
+this session started measuring it.
+
+Still unchecked: **5** (the hand-pixels driver, owed a recalibration because A5
+changed the default window from the 1280x720 its pixel floor was tuned at) and
+**8** (no check that a NEW string literal escapes `t()`).

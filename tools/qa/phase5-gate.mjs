@@ -84,7 +84,7 @@ function g2Sweep() {
     return {
       ok: false,
       detail: `the sweep ran but its PLANTED CONTROLS FAILED (overlap ${v.plantedOverlapFound}, `
-        + `edge ${v.plantedEdgeFound}) - its zeros mean nothing`,
+        + `edge ${v.plantedEdgeFound}, truncation ${v.plantedTruncationFound}) - its zeros mean nothing`,
     };
   }
   return { data: v, ageH };
@@ -104,7 +104,22 @@ const TEN = [
   {
     n: 2,
     text: 'No text is ever cut off',
-    check: () => ({ ok: null, detail: 'covered for the ledger and the front-desk monitor by their own recorders; NO WHOLE-GAME CHECK EXISTS' }),
+    check: () => {
+      const sweep = g2Sweep();
+      if (sweep.ok !== undefined && sweep.ok !== true) return sweep;
+      const { data, ageH } = sweep;
+      if (data.totalTruncated === undefined) {
+        return { ok: null, detail: 'the sweep artifact predates the truncation pass - re-run it' };
+      }
+      const stale = ageH > 24;
+      return {
+        ok: stale ? null : data.totalTruncated === 0,
+        detail: `${data.totalTruncated} strings clipped, ellipsised or squashed with no way to `
+          + `scroll to them, across ${data.screensSwept} DOM screens, planted control found`
+          + `${stale ? `; ARTIFACT IS ${ageH.toFixed(0)} h OLD - re-run the sweep` : ''}`
+          + '; the canvas screens keep their own truncation ledgers (ledger, front desk)',
+      };
+    },
   },
   {
     n: 3,

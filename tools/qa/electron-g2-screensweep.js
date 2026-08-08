@@ -164,12 +164,42 @@ async (page) => {
           }
         }
       }
+      // INVARIANT 2: NO TEXT IS EVER CUT OFF.
+      //
+      // Three ways a DOM node loses its text, and all three are silent:
+      //   * ellipsis  - text-overflow clips it and draws a "..."
+      //   * clipped   - overflow hidden and the content is wider than the box
+      //   * squashed  - the box is shorter than one line of its own text
+      // A node that SCROLLS is not cut off: the text is reachable.
+      const truncated = [];
+      for (const leaf of leaves) {
+        const st = getComputedStyle(leaf.el);
+        const el = leaf.el;
+        const overflowsX = el.scrollWidth > el.clientWidth + 1;
+        const overflowsY = el.scrollHeight > el.clientHeight + 1;
+        const canScrollX = /auto|scroll/.test(st.overflowX);
+        const canScrollY = /auto|scroll/.test(st.overflowY);
+        let why = null;
+        if (overflowsX && st.textOverflow === 'ellipsis') why = 'ellipsis';
+        else if (overflowsX && st.overflowX === 'hidden') why = 'clipped-x';
+        else if (overflowsY && st.overflowY === 'hidden') why = 'clipped-y';
+        if (why && !(canScrollX || canScrollY)) {
+          truncated.push({
+            text: leaf.text, cls: leaf.cls, why,
+            shownPx: Math.round(el.clientWidth),
+            neededPx: Math.round(el.scrollWidth),
+          });
+        }
+      }
+
       return {
         screen, leaves: leaves.length,
         overlaps: overlaps.slice(0, 25),
         overlapCount: overlaps.length,
         cramped: cramped.slice(0, 25),
         crampedCount: cramped.length,
+        truncated: truncated.slice(0, 25),
+        truncatedCount: truncated.length,
       };
     };
   });
@@ -197,6 +227,12 @@ async (page) => {
     c.style.cssText = 'position:absolute;left:0px;top:150px;padding:0;';
     host.append(a, b, c);
     document.body.appendChild(host);
+    // 3. a node whose text cannot fit and is clipped with no way to scroll
+    const t = document.createElement('div');
+    t.textContent = 'PLANTED TRUNCATION that is far too long for its box';
+    t.style.cssText = 'position:absolute;left:10px;top:100px;width:60px;'
+      + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    host.appendChild(t);
     const found = window.__g2sweep('control', '#__g2control');
     document.body.removeChild(host);
     return {
@@ -204,7 +240,8 @@ async (page) => {
         (o) => /PLANTED OVERLAP/.test(o.a) && /PLANTED OVERLAP/.test(o.b),
       ),
       plantedEdgeFound: found.cramped.some((c2) => /PLANTED FLUSH EDGE/.test(c2.text)),
-      raw: { overlaps: found.overlapCount, cramped: found.crampedCount },
+      plantedTruncationFound: (found.truncated || []).some((t2) => /PLANTED TRUNCATION/.test(t2.text)),
+      raw: { overlaps: found.overlapCount, cramped: found.crampedCount, truncated: found.truncatedCount },
     };
   });
 
@@ -295,8 +332,12 @@ async (page) => {
   // ---- VERDICT -------------------------------------------------------------
   const totalOverlaps = out.screens.reduce((a, s) => a + (s.overlapCount || 0), 0);
   const totalCramped = out.screens.reduce((a, s) => a + (s.crampedCount || 0), 0);
+  const totalTruncated = out.screens.reduce((a, s) => a + (s.truncatedCount || 0), 0);
   out.verdict = {
-    controlsValid: out.controls.plantedOverlapFound && out.controls.plantedEdgeFound,
+    controlsValid: out.controls.plantedOverlapFound && out.controls.plantedEdgeFound
+      && out.controls.plantedTruncationFound,
+    plantedTruncationFound: out.controls.plantedTruncationFound,
+    totalTruncated,
     plantedOverlapFound: out.controls.plantedOverlapFound,
     plantedEdgeFound: out.controls.plantedEdgeFound,
     screensSwept: out.screens.length,
@@ -309,13 +350,16 @@ async (page) => {
   fs.writeFileSync(path.join(OUT, 'g2.json'), `${JSON.stringify(out, null, 2)}\n`);
   console.log('G2 verdict', JSON.stringify(out.verdict));
   for (const s of out.screens) {
-    if (!s.overlapCount && !s.crampedCount) continue;
+    if (!s.overlapCount && !s.crampedCount && !s.truncatedCount) continue;
     console.log(`G2 ${s.screen}: overlaps=${s.overlapCount} cramped=${s.crampedCount}`);
     for (const o of (s.overlaps || []).slice(0, 4)) {
       console.log(`   OVERLAP "${o.a}" x "${o.b}" ${o.overlapW}x${o.overlapH}px at ${o.at}`);
     }
     for (const c of (s.cramped || []).slice(0, 4)) {
       console.log(`   CRAMPED "${c.text}" ${c.side} gap ${c.gap}px in .${c.host}`);
+    }
+    for (const t2 of (s.truncated || []).slice(0, 4)) {
+      console.log(`   CUT OFF "${t2.text}" ${t2.why} ${t2.shownPx}px shown of ${t2.neededPx}px`);
     }
   }
   if (out.errs.length) console.log('pageerrors', JSON.stringify(out.errs.slice(0, 3)));
