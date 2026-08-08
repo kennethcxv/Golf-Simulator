@@ -11400,6 +11400,7 @@ export function makeCourseScene(canvas, state) {
   // how far from the spawn eye counts as "the player will see this in the first
   // minute" — used only to report the near/far split of the warm set
   const PREWARM_NEAR_RADIUS_YD = 60;
+  let programKeyBreakdown = null;
   const prewarmTimings = [];
   function markPrewarm(label, sinceMs) {
     prewarmTimings.push({ label, ms: +(performance.now() - sinceMs).toFixed(1) });
@@ -11561,6 +11562,14 @@ export function makeCourseScene(canvas, state) {
     const programKey = (object, material) => {
       const g = object.geometry;
       const morph = g?.morphAttributes || null;
+      // KEYED ON THE MATERIAL INSTANCE, DELIBERATELY, AND IT IS NOT A PROGRAM
+      // COUNT. Two materials with identical flags share ONE GL program, so this
+      // set is an over-estimate by design: 846 keys covered 135 real programs
+      // when measured. That is the SAFE direction for a warm pass - over-warming
+      // costs a few extra draws behind the veil, under-warming ships a hitch at
+      // the moment the player first sees the object - so the key stays as it is
+      // and the LABEL was the thing that was wrong. See 'material-instances'
+      // below, which used to be reported as 'distinct-programs'.
       return [
         material.uuid,
         object.isSkinnedMesh ? 's' : '',
@@ -11615,7 +11624,52 @@ export function makeCourseScene(canvas, state) {
     phaseAt = markPrewarm('warm-composer-render', phaseAt);
     prewarmTimings.push({ label: 'uncalled-object-count', ms: culled.length });
     prewarmTimings.push({ label: 'gl-programs', ms: renderer.info.programs?.length ?? -1 });
-    prewarmTimings.push({ label: 'distinct-programs', ms: warmedPrograms.size });
+    // NOT 'distinct-programs'. This counts material INSTANCES warmed, which
+    // over-states the program count roughly six-fold. The real figure is
+    // renderer.info.programs, reported as 'gl-programs' above.
+    prewarmTimings.push({ label: 'material-instances', ms: warmedPrograms.size });
+    // A1: WHERE THE 132 PROGRAMS COME FROM.
+    //
+    // The load is dominated by one-time program compilation - measured at ~73 ms
+    // each, serialized on the JS thread because a program's real compile lands on
+    // its first draw. compileAsync was tried and cost more than it saved (see the
+    // note above), so the only lever left is COMPILING FEWER, and nothing had
+    // ever measured which axis of the key is generating the permutations.
+    //
+    // This breaks the warmed keys down by field so the biggest reducible axis is
+    // a number rather than a guess. Diagnostic only: it reads keys already
+    // collected and adds no GL work.
+    programKeyBreakdown = (() => {
+      const axes = {
+        type: new Map(), lights: new Map(), morph: new Map(),
+        vertexColor: new Map(), uv2: new Map(), shadow: new Map(),
+      };
+      const bump = (map, k) => map.set(k, (map.get(k) || 0) + 1);
+      for (const key of warmedPrograms) {
+        const f = String(key).split('|');
+        bump(axes.type, f[0] ?? '?');
+        bump(axes.lights, f[1] ?? '?');
+        bump(axes.morph, `${f[2] ?? '?'}/${f[3] ?? '?'}`);
+        bump(axes.vertexColor, f[4] ? 'yes' : 'no');
+        bump(axes.uv2, f[5] ? 'yes' : 'no');
+        bump(axes.shadow, `${f[6] ? 'r' : '-'}${f[7] ? 'C' : '-'}`);
+      }
+      const top = (map) => [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([k, n]) => ({ value: k, programs: n }));
+      return {
+        total: warmedPrograms.size,
+        // how many DISTINCT values each axis takes: an axis with one value
+        // costs nothing, an axis with eight is multiplying the others
+        spread: Object.fromEntries(
+          Object.entries(axes).map(([name, map]) => [name, map.size]),
+        ),
+        byAxis: Object.fromEntries(
+          Object.entries(axes).map(([name, map]) => [name, top(map)]),
+        ),
+      };
+    })();
     phaseAt = markPrewarm('forced-full-draw', phaseAt);
 
     // THE SHOP FLOOR, WARMED FROM INSIDE IT.
@@ -11809,6 +11863,10 @@ export function makeCourseScene(canvas, state) {
     prewarm,
     // Ranked, measured load cost. Empty until prewarm has run once.
     prewarmTimings: () => prewarmTimings.map((entry) => ({ ...entry })),
+    // A1: which axis of the program key is generating the permutations that
+    // dominate the load. Null until a prewarm has run.
+    programKeyBreakdown: () => (programKeyBreakdown
+      ? JSON.parse(JSON.stringify(programKeyBreakdown)) : null),
     whenAssetsIdle: () => whenAssetsIdle(10000),
     camera,
     rig,

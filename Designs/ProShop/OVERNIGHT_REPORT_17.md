@@ -3456,3 +3456,63 @@ signature: the scan matched something adjacent to its subject rather than its
 subject.
 
 Suite **2925 pass / 0 fail**.
+
+## A1 - WHERE THE LOAD ACTUALLY GOES, AND A LEVER CLOSED WITH ARITHMETIC
+
+`warm-composer-render` was on NOT DONE as *"5,532 ms of the 8,803 ms prewarm -
+63% of the load in one phase, never examined"*. Examined now.
+
+### The measurement nobody had taken
+
+The prewarm records which programs it warmed but nothing had ever broken those
+keys down by AXIS. Added that, with a control: the axes must multiply to at least
+the key total, or they are not describing these programs.
+
+```
+warm-composer-render   5,540.5 ms
+renderer.compile         109.2 ms
+gl-programs                  135
+material-instances           846      <- was reported as "distinct-programs"
+axis spread   type:799  lights:1  morph:2  vertexColor:1  uv2:1  shadow:2
+```
+
+### The first field of the warm key is a UUID
+
+`type: 799 distinct values`, and they are `432bdaac-61c6-...`. The key leads with
+`material.uuid`, so **every material INSTANCE is a separate entry**. Two materials
+with identical flags share one GL program, so the set over-states the program
+count roughly **six-fold**: 846 keys covering 135 real programs.
+
+The previous note in that file says "132 GL programs at ~73 ms each". The live
+numbers are **135 programs**, and the arithmetic is different.
+
+### The lever this closes
+
+```
+135 programs x ~41 ms  =  5,535 ms
+warm-composer-render   =  5,540.5 ms
+```
+
+**The phase IS the compiles, to within 6 ms.** There is no geometry, shadow or
+post-chain cost hiding in it - which the earlier session had already suspected
+("cutting the submitted set from 5,310 objects to 887 moved it by nothing") but
+could not close, because the UUID key meant that experiment never got below the
+846 objects the key forces. Now it is arithmetic: submitting fewer objects cannot
+make 135 compiles cheaper. **That lever is dead, and so is compileAsync** (tried
+2026-08-03, cost 1,350 ms to return 200 ms).
+
+The only remaining lever on this phase is **fewer distinct shader variants**,
+which is a rendering-feature decision and not a tuning change.
+
+### What I did NOT do, and why
+
+I did not "fix" the key to count programs properly. Over-warming costs a few
+extra draws behind a veil; under-warming ships a hitch at the moment the player
+first sees the object. The conservative key is the RIGHT key for a warm pass -
+**the label was the thing that was wrong**, and `distinct-programs` is now
+`material-instances` with the reasoning written at both sites.
+
+Renaming a number I had been reading as a program count for two sessions is worth
+more than a change that would have made the load slower and the coverage worse.
+
+Suite **2925 pass / 0 fail**.
