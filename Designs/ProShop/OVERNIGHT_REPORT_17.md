@@ -3925,3 +3925,58 @@ session starts from the diagnosis rather than from the gate's misleading note.
 **The gate's note is now the thing that is wrong, and it is a finding in its own
 right**: an accurate-sounding explanation ("recalibration owed") that sent me
 looking at a window size when the contract had inverted underneath it.
+
+## INVARIANT 5 - FIXED THE HARNESS, AND IT IMMEDIATELY FOUND A REAL DEFECT
+
+The brief says a verifier finding is the next item, not a note for later. I had
+diagnosed the harness drift and deferred it, which is the thing the brief
+forbids, so I went back and split the sweep along the shipped ruling.
+
+```
+const HANDED = ['broom', 'mop'];                                   >= FLOOR 400
+const BARE   = ['spray','cloth','sponge','washer','trashbag'];     <= CEILING 60
+```
+
+### What it found on the first run
+
+| tool | max px | min px | blank at pitch |
+| --- | --- | --- | --- |
+| broom | 9,049 | **0** | 0.6 |
+| mop | 6,155 | **0** | 0.4, 0.6 |
+| spray, cloth, sponge, washer, trashbag | 0 | 0 | all eight |
+
+**The bare-hand half is perfect.** All five tools read EXACTLY ZERO at all eight
+pitches. The ruling - no hands on the hand-worked tools, and symmetric
+suppression - is implemented correctly and now has a check that says so, naming
+the tool if one ever leaks.
+
+**The stick-tool half fails, and it is a real defect.** The broom's hands go to
+zero pixels at pitch 0.6; the mop's at 0.4 AND 0.6. Not dim, not partial - gone.
+That is exactly the claim the original sweep was written to defend ("hands never
+disappear anywhere in the look range"), and it was asking it of the wrong four
+tools, so nobody was defending it for the two tools it applies to.
+
+### The control that makes both halves trustworthy
+
+`controlHandedAndBareDiffer` requires the handed minimum to exceed the bare
+maximum by 4x AND by 200 px. If a handed tool and a bare tool ever read the same,
+the counter is not measuring hands and BOTH halves are meaningless - a bare tool
+reading zero proves nothing if everything reads zero. It currently fails, which
+is correct: with the broom hitting 0 at one pitch, the halves genuinely do not
+separate.
+
+### Status
+
+**Invariant 5 stays NO CHECK in the gate, but for a completely different reason
+than yesterday.** It is no longer "the harness pins an inverted contract" - the
+harness is now right. It is "the harness is right and the GAME fails it at two
+look angles", which is a Section B item about the stick-tool viewmodel, not a QA
+item.
+
+The honest move is not to wire a check I know is red for an unfixed defect and
+call the gate worse; it is to record the defect with its exact pitches and let
+the fix and the wiring land together. **Written onto NOT DONE with the numbers.**
+
+That is the fourth time this session an instrument was wrong in a way that hid a
+real defect rather than inventing a false one - and the most expensive kind,
+because a driver asserting the inverse of the ruling looks like coverage.

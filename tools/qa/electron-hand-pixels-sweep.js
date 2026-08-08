@@ -126,7 +126,16 @@ async (page) => {
   // tool in hand.
   const PITCHES = [-0.85, -0.62, -0.45, -0.30, -0.10, 0.15, 0.40, 0.60];
   // the four the brief names, plus the broom as the approved reference
-  const TOOLS = ['spray', 'cloth', 'sponge', 'washer', 'broom'];
+  // SPLIT ALONG THE SHIPPED RULING, not along what this sweep used to assume.
+  //
+  // cleaningTools.js gives hands:false to washer, spray, cloth, sponge and
+  // trashbag - they are worked bare-handed. This driver used to demand that
+  // spray/cloth/sponge/washer hands clear a 400px floor, which is the INVERSE of
+  // the shipped contract: it would fail on correct behaviour and train everyone
+  // to ignore a red gate. The stick tools are the ones that must show hands.
+  const HANDED = ['broom', 'mop'];
+  const BARE = ['spray', 'cloth', 'sponge', 'washer', 'trashbag'];
+  const TOOLS = [...HANDED, ...BARE];
   const rows = [];
 
   for (const id of TOOLS) {
@@ -173,19 +182,45 @@ async (page) => {
   }
 
   const FLOOR = 400;
+  // A bare-handed tool should read essentially zero hand-coloured pixels. The
+  // ceiling is not zero because the counter matches a colour and a few pixels of
+  // forearm or a colour-adjacent surface can survive antialiasing; it is far
+  // below the floor, so the two halves cannot both pass on the same frame.
+  const CEILING = 60;
   const out = {
     pitchesSwept: PITCHES,
     rows,
     minByTool: Object.fromEntries(rows.map((r) => [r.tool, r.minPx])),
+    handed: HANDED,
+    bare: BARE,
     checks: {
-      // THE CLAIM: hands never disappear anywhere in the look range
-      sprayHandsSurviveTheSweep: (rows.find((r) => r.tool === 'spray')?.minPx ?? 0) >= FLOOR,
-      clothHandsSurviveTheSweep: (rows.find((r) => r.tool === 'cloth')?.minPx ?? 0) >= FLOOR,
-      spongeHandsSurviveTheSweep: (rows.find((r) => r.tool === 'sponge')?.minPx ?? 0) >= FLOOR,
-      washerHandsSurviveTheSweep: (rows.find((r) => r.tool === 'washer')?.minPx ?? 0) >= FLOOR,
-      everyToolSurvivesEveryPitch: rows.every((r) => r.minPx >= FLOOR),
+      // THE CLAIM, HALF ONE: a stick tool's hands never disappear anywhere in
+      // the look range.
+      handedToolsKeepTheirHands: HANDED.every(
+        (t) => (rows.find((r) => r.tool === t)?.minPx ?? 0) >= FLOOR,
+      ),
+      // THE CLAIM, HALF TWO: a bare-handed tool draws no hands at ANY pitch.
+      // Asserted against a CEILING, which is the direction the ruling actually
+      // specifies - and the suppression must be symmetric, so one tool leaking
+      // hands at one pitch fails this.
+      bareToolsShowNoHands: BARE.every(
+        (t) => (rows.find((r) => r.tool === t)?.maxPx ?? Infinity) <= CEILING,
+      ),
+      // named individually so a failure says WHICH tool leaked
+      ...Object.fromEntries(BARE.map((t) => [
+        `${t}DrawsNoHands`,
+        (rows.find((r) => r.tool === t)?.maxPx ?? Infinity) <= CEILING,
+      ])),
       // CONTROL: the approved reference survives it too
       controlBroomSurvivesTheSweep: (rows.find((r) => r.tool === 'broom')?.minPx ?? 0) >= FLOOR,
+      // CONTROL: the two halves must DISAGREE. If a handed tool and a bare tool
+      // read the same, the counter is not measuring hands at all and both halves
+      // are meaningless.
+      controlHandedAndBareDiffer: (() => {
+        const h = Math.min(...HANDED.map((t) => rows.find((r) => r.tool === t)?.minPx ?? 0));
+        const b = Math.max(...BARE.map((t) => rows.find((r) => r.tool === t)?.maxPx ?? 0));
+        return h > b * 4 && h - b > 200;
+      })(),
       // CONTROL: hiding the hands removes them, at every pitch
       controlHidingRemovesThemEverywhere: rows.every((r) => r.samples.every(
         (s) => s.hiddenPx < Math.max(40, s.px * 0.05),
