@@ -4096,3 +4096,53 @@ The retraction was still right to make. The claim I withdrew was *"a real,
 player-reachable game defect"*, and that is still not established - what IS
 established is that the number is genuine, repeatable, pitch-linked, and not
 explained by anything I have ruled out so far.
+
+### RESOLVED - and the answer was written in the sweep's own comment
+
+The two surviving candidates were the composer and the crop. Both are dead, and
+the resolution was three lines below the pitch list the whole time.
+
+**The composer was never a candidate.** The sweep already carries
+`__flatShotMode`, which sets `NoToneMapping`, exposure 1 and
+`setPostEnabled(false)` before the counted frame, with its own comment: *"A flat
+colour does not survive ACES at exposure 1.12 plus the composer; without this the
+count is zero for everything, control included."* I raised a candidate the
+instrument had solved before I got there.
+
+**And the sweep states the geometry:**
+
+> *"Pitch is negative-DOWN in this game. -0.85 is looking at the floor right in
+> front of the boots, which is where a floor tool is worked; +0.60 is looking UP
+> AT THE SHELVES."*
+
+So the blanks are at `+0.40` and `+0.60` - **looking up at the shelves, with a
+floor tool in hand.** A mop is aimed at the floor plane under the crosshair
+(the aimed-tool floor-plane gating), and looking up at a shelf gives it no floor
+to aim at. The tool, and the hands gripping it, leave the frame.
+
+**That is the design working, not a defect.** And it means MY assertion was the
+wrong contract: I split the sweep correctly along hands-versus-no-hands, and then
+required the stick tools to clear a 400px floor at EVERY pitch in the range -
+including two angles where a floor tool is not being used at all.
+
+### The corrected reading
+
+* the **bare-hand half stands**: five tools, exactly zero hand pixels at all
+  eight pitches, symmetric, and it now names the offender if one ever leaks
+* the **handed half needs its range bounded** to the pitches where a floor tool
+  is actually worked (roughly -0.85 to +0.15), because above that the tool is
+  legitimately out of frame
+* `controlHandedAndBareDiffer` should compare within that bounded range too
+
+### What this cost, and what it is worth
+
+I published "a real player-reachable defect", retracted it, ran an experiment
+that correctly killed the timing explanation, then found the answer in a comment
+I had already read twice. **Three of the four steps were right and the first
+conclusion was wrong** - which is the honest shape of this kind of work, and the
+reason the retraction mattered more than the original claim.
+
+The lasting change is real: the harness no longer asserts the inverse of the
+bare-hand ruling, and that half is now genuinely checked. Invariant 5 stays
+NO CHECK until the handed range is bounded - one number, next session, with the
+sweep going green on the same run.
