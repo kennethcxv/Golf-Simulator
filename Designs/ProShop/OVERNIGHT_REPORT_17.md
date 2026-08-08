@@ -9735,3 +9735,56 @@ the five fixes would have been.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE READ: `vmCamera.layers.set(...)` — THE COMPILE IS LAYER-MASKED
+
+Did the read rather than guessing again. `broomViewmodel.js`:
+
+```js
+223  const vmCamera = new THREE.PerspectiveCamera(...);
+226  vmCamera.matrixAutoUpdate = false;
+227  vmCamera.layers.set(feel.camera.layer);     // <- ONE layer, exclusively
+```
+
+`layers.set(n)` **replaces** the mask: this camera sees layer *n* and nothing
+else. And `renderer.compile()` honours layer masks — it warms materials the given
+camera can actually see.
+
+**That reframes the failed test.** Compiling with `vmCamera` produced 71 programs
+because it compiled *whatever is already on that layer*. If the tool meshes are
+not on it at prewarm time — because a rig assigns its layer when it activates —
+then no camera-swap can reach them beforehand, and the main-camera compile cannot
+either, because that camera does not have the viewmodel layer enabled.
+
+**Both compiles miss the same nine programs for the same reason, and the reason
+is layers, not cameras.** This project already uses layers exactly this way: the
+notes record ten props drawn from a merged static batch via `layers.mask = 0`.
+
+### The fix this implies, with its prediction stated before it is run
+
+In the prewarm, compile with a camera whose layers are **all enabled**:
+
+```js
+const warm = camera.clone();
+warm.layers.enableAll();
+renderer.compile(scene, warm);
+```
+
+**Prediction: the equip's Δ falls from +9 to 0.** If it stays +9, layers are not
+the mechanism either and the candidate is dead — cost, one run.
+
+**Not implemented here.** Five fixes have now been proposed for this stall and I
+have no runway left to watch a sixth fail properly; shipping it unverified would
+be exactly the mistake this report has spent 27 findings on. It is a three-line
+change with a written prediction and a built verification, which is a better
+thing to hand over than a sixth unverified edit.
+
+### What made this read worth more than the four guesses before it
+
+`layers.set` was in a file I had already read three times today, on a line
+adjacent to ones I had quoted. **I found it by asking what differs between the
+two cameras rather than by proposing what might.** Every refuted model in this
+thread came from the second habit; the one durable finding came from the first.
+
+Suite 2929 pass / 0 fail.
+
