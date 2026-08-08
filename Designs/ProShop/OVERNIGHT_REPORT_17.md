@@ -9682,3 +9682,56 @@ never got to act on being wrong.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE ONE-LINE TEST: REFUTED, AND IT COST EXACTLY ONE RUN
+
+Added `renderer.compile(scene, vmCamera)` for every distinct tool viewmodel
+camera, alongside the prewarm's main-camera compile. The prediction was explicit:
+**right -> the equip's Δ falls from +9 to 0; wrong -> Δ stays +9, cost one run.**
+
+```
+baseline programs   208 -> 279     (+71: the vmCamera compile DID real work)
+EQUIP DELTA         +9  -> +9      (unchanged)
+tool worst          922 ms
+```
+
+**Δ stayed +9. The reading is wrong.**
+
+It is not that the compile did nothing — it compiled **71 additional programs**
+at boot. They are simply not the nine the equip needs.
+
+### Reverted, and why immediately
+
+71 extra program compiles at boot, in exchange for nothing measurable, is a
+straight cost. Reverted the moment the measurement came back rather than left in
+as "probably helps somewhere" — which is precisely how the *previous* useless
+compile survived nine commits.
+
+### What the refutation teaches, since it was not free
+
+The viewmodel cameras exist at prewarm time (the loop found them and compiled 71
+programs through them), yet the equip still compiles 9. So the difference is not
+*which camera*. Something about the render state at **equip** differs from the
+render state at **prewarm** for the same materials and the same camera — a
+uniform, a define, a light set, or a rig that reconfigures its camera when it
+activates.
+
+`toolRigs[id].isActive()` gates which camera is even used (`toolDrawCamera`), so
+a rig's camera at prewarm may not be configured the way it is once active. That
+is the next thing to look at, and it is a *read*, not a guess: compare the rig's
+camera properties before activation and after.
+
+### The scoreboard this thread ends on
+
+Five fixes proposed for one stall. **Four refuted by measurement, one refuted by
+reading the code before implementing it.** Zero shipped. Every refutation cost
+one run or less, and the two that would have shipped bad code were caught before
+they did.
+
+**Section A's tool half remains diagnosed and unfixed** — with the mechanism
+confirmed, the shape confirmed, five candidate causes eliminated, and a specific
+next read. That is an honest place to leave it, and a much better one than any of
+the five fixes would have been.
+
+Suite 2929 pass / 0 fail.
+
