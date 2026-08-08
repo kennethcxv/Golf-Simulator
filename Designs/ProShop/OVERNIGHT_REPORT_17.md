@@ -4818,3 +4818,33 @@ toggle twice, and that is verified rather than argued.
 ```
 
 **92 strings, 59%, translatable.** Ratchet lowered to 63. Suite 2928 pass / 0 fail.
+
+### 63 -> 57: the course editor
+
+Six from `courseEditor.js`: a hole deleted, undo and redo, a pin set, planting,
+a path laid. All pass genuine data - a hole name, an action label, a pin number,
+a count, a formatted cost.
+
+`{count} planted ({cost} pending)` is a good example of why the money goes
+through `formatMoney` BEFORE the placeholder rather than after. The currency
+format is a locale concern of its own, and the string should receive a formatted
+figure, not a raw number it would have to format itself.
+
+**Six were left**, and they are the conditional kind:
+
+```js
+`Select a ${kind === 'tee' ? 'tee box' : 'green'} first.`
+`Works complete - ${formatMoney(cost)}${closed ? ' (course closed)' : ''}`
+```
+
+The first embeds a choice of NOUN, the second an optional CLAUSE. Both need
+splitting into separate keys rather than a placeholder, because a translator
+cannot reorder or decline a fragment that arrives pre-assembled. That is the
+same class as the card/cash and opened/closed pairs, one level up: not a token
+but a phrase.
+
+```
+155 -> ... -> 63 -> 57
+```
+
+**98 strings, 63%, translatable.** Suite 2928 pass / 0 fail.

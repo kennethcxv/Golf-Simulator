@@ -42,6 +42,13 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // The course editor.
+  'editor.holeDeleted': "{hole} deleted.",
+  'editor.undid': "Undid: {what}",
+  'editor.redid': "Redid: {what}",
+  'editor.pinSet': "Pin {pin} set for {hole}.",
+  'editor.planted': "{count} planted ({cost} pending).",
+  'editor.pathLaid': "Path laid ({cost} pending).",
   // Cart hinges. The state word is LOOKED UP, not substituted raw.
   'cart.driverDoor': "{cart} driver door {state}.",
   'cart.windshield': "{cart} windshield {state}.",

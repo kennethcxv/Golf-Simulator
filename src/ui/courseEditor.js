@@ -2269,7 +2269,7 @@ export function makeCourseEditor(app, hooks) {
                     scene().updateHoles();
                     refreshTop();
                     closeModal();
-                    toast(`${hole.name} deleted.`);
+                    toast(t('editor.holeDeleted', { hole: hole.name }));
                   },
                 }),
               ),
@@ -2532,7 +2532,7 @@ export function makeCourseEditor(app, hooks) {
       clearFeatureSelections();
       clearPathSelection();
       refreshHistoryOp(res);
-      toast(`Undid: ${res.label}`);
+      toast(t('editor.undid', { what: res.label }));
     }
   }
 
@@ -2542,7 +2542,7 @@ export function makeCourseEditor(app, hooks) {
       clearFeatureSelections();
       clearPathSelection();
       refreshHistoryOp(res);
-      toast(`Redid: ${res.label}`);
+      toast(t('editor.redid', { what: res.label }));
     }
   }
 
@@ -3001,7 +3001,7 @@ export function makeCourseEditor(app, hooks) {
             scene().rebuildFlowField();
             refreshTop();
             renderToolPanel();
-            toast(`Pin ${opt.green.pin} set for ${hole.name}.`);
+            toast(t('editor.pinSet', { pin: opt.green.pin, hole: hole.name }));
           }
           break;
         }
@@ -3095,7 +3095,7 @@ export function makeCourseEditor(app, hooks) {
           if (!res.ok) toast(res.reason, 'warn');
           else {
             refreshObjects();
-            toast(`${res.count} planted (${formatMoney(res.cost)} pending).`);
+            toast(t('editor.planted', { count: res.count, cost: formatMoney(res.cost) }));
           }
           break;
         }
@@ -3495,7 +3495,7 @@ export function makeCourseEditor(app, hooks) {
       });
       if (res.ok) {
         refreshEditedPath([], drawingPath);
-        toast(`Path laid (${formatMoney(res.cost)} pending).`);
+        toast(t('editor.pathLaid', { cost: formatMoney(res.cost) }));
       } else toast(res.reason || 'The path needs a valid open route.', 'warn');
     } else {
       const res = stampStream(state(), session, drawingPath, {
