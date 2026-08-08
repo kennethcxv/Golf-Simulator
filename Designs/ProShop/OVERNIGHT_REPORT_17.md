@@ -9946,3 +9946,32 @@ thread that was wrong is marked wrong.
 
 Suite 2929 pass / 0 fail.
 
+
+### NARROWING THE CONSTRUCTOR: NOT fpHands, NOT RIG CREATION — `setActive(true)`
+
+With the chain closed, the remaining question is *what* builds the 54 meshes and
+9 materials. Eliminated two candidates by reading:
+
+- **`fpHands.setTool()`** (`fpHands.js:459`) constructs nothing. It sets `tool`,
+  `pose`, `root.scale`, two `visible` flags and calls `applyGrips`. The hand
+  meshes are built once when fpHands is created.
+- **Rig creation** is not lazy either. `courseScene.js:6689` builds every rig in
+  a boot loop: `for (const rigId of VM_RIG_TOOLS) toolRigs[rigId] =
+  createBroomViewmodel({...})`. The rigs exist before the player moves.
+
+**What remains is `toolRigs[tool]?.setActive(true)`** at `courseScene.js:7461`,
+which the equip path calls and which is the only equip-time entry point left
+that could construct. A rig that builds its bristle/strand instanced meshes on
+first activation would produce exactly the measured signature: +54 meshes, +9
+materials, once, never again.
+
+**Recorded as the narrowed target, not as confirmed** — I have eliminated two
+candidates by reading and identified the third by exclusion, which is weaker
+than measuring it. The measurement is cheap: census the held subtree either side
+of a direct `setActive(true)` call.
+
+**The handover for Section A's tool half is now:** a fully measured chain, a
+one-to-one material/program correspondence, six eliminated fixes, two eliminated
+constructors, and one named line to check first — with the verification
+(Δ +9 -> 0, census +9 -> +0) already built and run six times.
+
