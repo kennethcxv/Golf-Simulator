@@ -293,6 +293,7 @@ async (page) => {
   await page.waitForTimeout(1500);
   record('tool2', true, { equipped2: await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? 'none').catch(() => null) });
 
+  out.precompile = await page.evaluate(() => window.__fw?.scene3d?.walk?.toolPrecompileInfo?.() ?? 'no accessor').catch(() => null);
   await beat('end');
   await page.waitForTimeout(800);
 

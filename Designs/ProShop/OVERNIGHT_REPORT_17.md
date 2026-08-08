@@ -9357,3 +9357,51 @@ walk, and it converts an unverified commit into a confirmed fix or a dead one.
 
 Suite 2929 pass / 0 fail.
 
+
+## TWENTY-SIXTH INSTANCE, CAUGHT BEFORE PUBLISHING: AN INSTRUMENT THAT WAS NEVER WIRED
+
+Set out to verify the post-adoption compile by reporting whether it ran. The
+probe came back:
+
+```json
+{"ran": false, "note": "not reached"}
+```
+
+**That is the initial value.** The telemetry assignments inside the `.then()`
+never attached — the string replacement failed on an indentation mismatch and
+said nothing about it. `grep -c "toolPrecompile.ran = true"` returns **0**.
+
+So `"not reached"` was a constant the accessor had been holding since
+declaration, and it is **indistinguishable from the finding it was built to
+report**. One more step and this report would have carried "the post-adoption
+compile never runs" as a measured result.
+
+**Caught by asking whether the instrument attached before reading its output** —
+the same check that has now caught three of my own instruments today (the
+missing-key probe, the H-marker scan, this).
+
+### The dead accessor is removed, not left in place
+
+An accessor that always answers `"not reached"` is worse than no accessor: the
+next person to run it gets a confident, specific, permanently wrong answer.
+Removed rather than repaired, because a repair I cannot verify would be the same
+mistake twice.
+
+### What remains true and what is now unknown again
+
+**Still true:** the tool equip compiles 9 programs and costs 333–7855 ms; the
+second equip compiles 0 and costs ~24 ms. Measured directly by the program
+counter, which *is* wired and *is* verified — its numbers move with the beats.
+
+**Unknown again:** whether the post-adoption `renderer.compile()` executes at
+all. The `+9` at the tool beat says it does not *prevent* those compiles, which
+is consistent with either "it never runs" or "it runs and misses them" — and I
+no longer have an instrument that distinguishes them.
+
+**The next session's first move is unchanged but now better specified:** wire
+the telemetry with an assertion that it attached (`grep` the built source, or
+have the accessor return a value that could only come from inside the callback),
+then one walk answers it.
+
+Suite 2929 pass / 0 fail.
+
