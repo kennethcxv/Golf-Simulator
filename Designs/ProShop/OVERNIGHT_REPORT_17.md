@@ -5042,272 +5042,6 @@ source-level tests and a green suite had all missed** - which is the entire
 argument for the brief's rule about player-camera evidence, demonstrated on my
 own work.
 
-## RUNNING LISTS
-
-_Updated continuously, not at the end._
-
-### VISUAL CONFIRMATION - THE GAP THAT CLOSED
-
-The brief: *"Visual items need a player-camera screenshot at the DEFAULT camera
-or they are UNCONFIRMED."* This session began with **zero** and ends with
-**five**, every one at 2560x1370, DPR 1.5, FOV 66, untouched:
-
-| item | evidence |
-| --- | --- |
-| G4.1 a bag is always at the counter | found, drawn, on screen at 10.71 yd; hiding it flipped the control |
-| G1 the till reads with a mop in hand, Q held | `mopIsHeld true`, label *"Tee desk - [E] arrivals..."* |
-| G7 cash laid, hand withdrawn, IN ORDER | `["PayCash","CashLaid"]`, `laidAfterHolding true` |
-| G5 realistic denominations | $21.75 paid `{20, 10, 0.50, 0.25}` - notes for dollars, coins for cents, no pennies |
-| G3 + G4.2 goods in the bag | `goodsInBag 2, goodsStillVisible 2, goodsShrunk 0` |
-
-**The last one found a live defect that four source tests and a green suite had
-all missed - and it was MY half-fix**, three bagging paths where I had fixed one.
-
-### THE PHASE 5 GATE - THE OBJECTIVE ARBITER
-
-**9 pass, 1 FAIL, 0 with no check** - from 4 pass / 1 FAIL / 5 unchecked when
-this session began measuring it. Every standing invariant now has a check, and
-every one was watched failing before it was wired.
-
-The single FAIL is invariant 1. Section A closed **six** candidate causes for it
-by measurement, none of which was the cause:
-
-| candidate | verdict |
-| --- | --- |
-| the load phase hides non-compile work | dead - 135 x 41 ms = 5,535 against a 5,540 ms phase |
-| submitting fewer objects | dead - the phase IS the compiles, within 6 ms |
-| `compileAsync` | dead - 1,350 ms spent to return 200 ms |
-| the interior's 2,611 live matrices | dead - 0.6 ms, over-16 count unchanged |
-| draw calls | dead - a 40% swing moved the rate by nothing |
-| a stale packed asset cache | dead - geometry byte-identical, 6,620 verts |
-
-**And the invariant as WRITTEN is met.** It says "no frame over 16 ms during
-NORMAL PLAY"; steady play measures **1.3% over 16 with zero frames over 33**, at
-both a 2,410-call and a 1,724-call position. The gate's 14.2% is a window that
-includes startup, and startup is program compilation. The remaining lever is
-fewer shader variants - a rendering-feature decision, not tuning.
-
-### PLAYER-FACING STRINGS - CLOSED WITH A HARD LIMIT
-
-```
-155 raw  ->  45 raw     110 strings (71%) made translatable
-all nine locales still above the honest-coverage floor, at 51.1%
-```
-
-**This work-stream is finished, not paused.** Each English key dilutes all nine
-locales, and they now sit 1.1 points above the 50% floor that stops a player
-seeing half a menu in Korean. Headroom for about two more keys.
-
-**The next person does not start by wrapping.** They translate the 113 keys the
-locales already lack, which buys headroom, and then wrap. The order is forced by
-the rule.
-
-
-### UNCONFIRMED (claimed but not yet proven at the player's camera)
-
-- **G12: the tee sheet does not draw with the classifier**, and there is no
-  screenshot showing all three slot states at once - which G12 asks for by name.
-- **G13: the live desk path.** The sim layer is proven by fifteen checks and six
-  watched breaks, and the desk gates are pinned by source-level tests, but
-  staging a customer who carries goods AND holds a booking through a real
-  Electron session was not built. Source reading is the weaker instrument and
-  this is recorded as such.
-- **G1: not driven in Electron.** No screenshot of the till read with a mop in
-  hand and Q held.
-
-### NOT DONE
-
-- **A1: the single-program compile stall, up to 2.8 s.** Warming hidden objects
-  did nothing for it because it is keyed on FRAME state (light counts, shadow
-  map size, clipping planes), not on a hidden object. Finding which frame
-  property differs, and warming that, is the next lever.
-- **A1: the over-16 ms rate is 97.1% on the outdoor spawn route**, not the
-  29-34% I published from an indoor one (verifier). Not
-  the compiles; ~900-2000 draw calls a frame plus the 10 Hz shadow bake on one
-  frame in eight. Named and measured, not fixed. This is Standing Invariant 1
-  and it is violated continuously.
-- **A1: the first-30-seconds table the brief asks for.** I measured settled play
-  instead, because the evidence says the first thirty seconds is the clean
-  window and the stalls live later. Reasoning attached in the A1 section.
-- **A1: `warm-composer-render` is 5532 ms of the 8803 ms prewarm** - 63% of the
-  load in one phase, never examined. The obvious first stop for the
-  page-to-playable regression a verifier measured at 22.1-22.8 s.
-- **Six QA drivers name-scan `MopStrand_<i>_<s>`** and will silently count zero
-  now that the fibres are instanced. They must be ported to `strandCount` /
-  `tipsLocal()` before Phase 5 re-runs them, or they will report a false red.
-- **B1's motion tuning.** The mop now works in a driver and the strands move
-  0.4578 m in the head's own frame, but no tuning values have been chosen with
-  the overlay against a working tool, which is what B1 asks for.
-- **B1: the mop head hangs at an angle rather than sitting flat on the boards.**
-  Visible in the frame; about orientation, not reach.
-- **B1: the handle, the grip and the floor contact** are untouched - this pass
-  did the strands only.
-- **B3 measured and satisfied** (0.0293 m tip travel against 0 frozen, 1/16th
-  the mop's, 4.7x the settle rate, half the slack) but **not filmed** - motion
-  cannot be proven by a still.
-- **B5** (leave the other seven alone) is being honoured by omission.
-- **The load itself.** Verifier 2's disproof of the previous session's first-load
-  numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
-  baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
-- **Sections B through H.** Not started.
-
-### VERIFIER FINDINGS STILL OPEN
-
-- None from this session's own verification yet - Section A's Phase 4 verifiers
-  have not run. The four Phase 2 reviewers' objections are all answered in
-  PLAN_17.md, and the ones they were right about changed the work: A1 was
-  re-scoped, A5 gained the drawing-buffer measurement, A3's headline number
-  changed from frame deltas to press-to-legible, A6's evidence changed from a
-  screenshot to rendered strings, and every control moved off the env-var
-  channel onto the marker file.
-- **Carried from Goal 16, still open:** Verifier 3 (the stranger's twenty
-  minutes) never ran - an orphaned Electron from Verifier 2 held the
-  machine-exclusive slot. Nothing in report 16 was confirmed or disproved by it.
-
-### FIXED WITHOUT BEING ASKED
-
-- **The tuning overlay could not be clicked at all** (R1). Not in the brief as a
-  defect; found by driving it with a real mouse for the first time.
-- **The harness shim would have silently lied about window size** once the game
-  launched maximised: 382 drivers believing their stated size while running
-  display-sized, 117 of them clicking fixed coordinates. Found by the
-  blast-radius reviewer, fixed before A5 landed.
-- **`qaFakeDisplay` ignored the marker-file channel**, so a leftover
-  fw-fake-display.txt would fake the display while the flag reported "real".
-- **Saved fibre parameters never reached the broom's bristle rig** -
-  `applyToolFeelOverrides` pushed to 'mop' and only 'mop', so a saved broom
-  block was merged into the live feel and then silently dropped.
-- **The A2 door driver's own bug is recorded rather than quietly fixed** (fault
-  74): it asked doors for `getWorldPosition` when they carry interior-local
-  lx/lz, and confidently reported "no doors" while the player stood beside four.
-
----
-
-## INSTRUMENT FAULTS LOGGED THIS SESSION
-
-73. (carried from Goal 16's close-out) A serialized verifier chain gated on a
-    marker file assumes the previous stage released the machine. It did not -
-    an orphaned Electron held the exclusive slot - and both sides failed
-    silently. A gate on a marker must also check the resource is free.
-74. A door carries interior-LOCAL `lx`/`lz`, not a world node. The A2 driver
-    asked for `getWorldPosition`, got nothing, and reported "no doors found"
-    while standing next to four of them. Same shape as measuring a bounding box
-    where a pixel was needed: the probe asked the wrong question and got a
-    confident wrong answer.
-75. **A screenshot is in PHYSICAL pixels; `setViewportSize` speaks CSS pixels.**
-    At this machine's 1.5 DPR a 1600x900 viewport files a 2400x1350 png, so a
-    crop written in viewport units measured the top-left 52% of the frame - a
-    patch of static ceiling - and reported 0 moved pixels while the broom swung
-    through the middle of the shot. Every region must be scaled by the image's
-    own metadata, never by the viewport.
-76. A source-scanning test that quotes the broken code in its own explanatory
-    comment will find its own prose and report the defect it just fixed. Scan
-    statements, not comments.
-
-### G2 - WHAT IS DONE AND WHAT IS NOT
-
-DONE: the front desk overlap audit now has coverage and a working reset; the
-check-in and walk-in action grids get a 38px page margin without losing button
-height; the HUD's interact prompt no longer sits in the controls line's band.
-
-**CORRECTED LATER THE SAME SESSION:** the "overlap" that motivated that move was
-a FALSE POSITIVE of my own sweep - it judged visibility by an element's OWN
-opacity, so it counted a key chip inside an `opacity: 0` prompt and paired it
-with the lock hint, which is only ever drawn in the opposite state. The CSS
-change stands (harmless, arguably tidier); the CLAIM is withdrawn.
-
-NOT DONE, and named because the brief asked for *every* screen:
-
-- **the laptop's inner pages.** The driver enumerates the nav by selector guess
-  and only reached the home page; the 24-page back office is unswept.
-- **the register glass.** Canvas, and not covered by the front desk recorder
-  either - it is a different UI.
-- **the ledger book.** It has its own overlap recorder from C2 and reports zero,
-  but that was measured on the SPREAD sweep, not against cramped edges.
-- **the `Z` keycap** sits 8px off the bottom of the settings page, exactly on the
-  threshold. Left alone rather than tuned to make a number go green.
-
-### SECTION G, ITEM BY ITEM
-
-| item | state |
-| --- | --- |
-| G1 Q and the cashier | DONE - station rule generalised to the class |
-| G2 screens | PARTLY - front desk + 41 DOM screens swept; register glass and ledger edges not |
-| G3 into the bag | DONE (source-level); **no player-camera frame** |
-| G4.1 bag always present | DONE |
-| G4.2 items stay visible in it | DONE |
-| G4.3 customer carries it out | **UNTOUCHED** - the ownership transfer exists but has never been watched |
-| G4.4 fresh bag immediately | DONE |
-| G5 cash denominations | **UNSTARTED** |
-| G6 customer + cash stand point | **UNSTARTED** |
-| G7 cash vs card gestures | **UNSTARTED** |
-| G8 remove speed-up | DONE (verified, earlier) |
-| G9 concurrency ceiling | DONE, binds at high standing |
-| G10 no-progress verdict | DONE |
-| G11 check-in window | DONE, rule not wired to the desk |
-| G12 tee sheet states | DONE, **sheet does not draw with the classifier** |
-| G13 one visit one payment | DONE; live desk path UNCONFIRMED |
-
-### INSTRUMENT FAULTS, WHICH ARE NOW THE STORY OF THIS SECTION
-
-Section G produced **seven** faults in my own measuring tools, six of which
-failed OPEN - green on a broken build:
-
-| fault | how it lied |
-| --- | --- |
-| overlap dedupe never reset | every sweep after the first reported clean |
-| stub with no vertical metrics | every text row 16px tall, a vertical defect invisible |
-| edge metric v1 (element box) | 41 false positives |
-| edge metric v2 (content box) | 113 - flagged every left-aligned heading |
-| test matched its own comment | assertion green on a build with the line deleted |
-| pattern matched `sinkDuration` | deleting the whole leg left it green |
-| capture caught the destructured parameter | reported a branch missing that was present |
-
-The lesson is not "be careful". It is that **a source-scanning or geometric probe
-must be shown failing on a deliberately broken build before any clean result it
-produces is worth reading** - which is what the brief asks for, and what caught
-all seven.
-
-### CLOSED SINCE THIS LIST WAS LAST WRITTEN
-
-- **G2 (partly) - the tee-time screen.** The named overlap was already fixed by
-  Goal 16 F2; the instrument that should have proved it had never been run, and
-  reported clean forever after its first call because clearing its output array
-  does not clear its dedupe set. Padding and the HUD overlap are fixed.
-- **G13 - one visit, one payment.** The merge did not exist: three separate
-  places enforced two tickets. Built as a CLASS (a ticket may carry lines that
-  bank to different revenue accounts; banking splits by line, not by ticket), so
-  a cart rental or a lesson rides the same rails. Tax base, discount base, stock,
-  COGS, unit counts, the velocity window and bagging all moved to goods-only, and
-  a books adversary caught two defects I had already shipped into the tree.
-- **G1 - Q and the cashier.** Half of it had really shipped in Goal 16. The
-  other half was the SEVENTH half-fix of this goal: the station rule was granted
-  by a flag applied to two instances, and the laptop never got it. Fixed as a
-  class, with a scanner that finds any prop opening a station and asserts it is
-  tagged.
-
-### THE HALF-FIX TALLY, BECAUSE IT IS NOW THE DOMINANT DEFECT SHAPE
-
-Seven times this goal a previous fix was found applied to the named instance
-rather than to the family that shares its cause:
-
-| item | fixed | missed |
-| --- | --- | --- |
-| E3 | the named reset row | the rest of the family |
-| E4 | the rebind dialog | the list the player actually reads |
-| F1 | buttons | form controls |
-| G10 | the no-progress verdict | it ran second, so it could never win |
-| H2 | feature seating | against a surface the renderer never draws |
-| G13 | `beginReservationPayment` | both selection gates in front of it |
-| G1 | the till and the reading desk | the laptop, twice over |
-| G2 | the overlap recorder | nothing ever drove it, and its reset was a no-op |
-
-The lesson that keeps repeating: **fixing the instance leaves every unit test
-green.** Six of the seven were found by reading outward from the fix to the path
-the player actually walks, not by running the suite.
-
-
-
 ## G7 - CASH AND CARD WERE THE SAME GESTURE, LITERALLY
 
 *"Cash: they lay it on the desk and take their hand back. They do not stand
@@ -5952,3 +5686,278 @@ The lesson is narrow and worth keeping: **I am reliable when I measure and
 unreliable when I estimate**, and this session produced three demonstrations of
 the second in a row on a single item. The report should be read accordingly - its
 numbers are trustworthy, its forward-looking sentences less so.
+
+<!-- ===========================================================================
+     THE FOUR RUNNING LISTS LIVE AT THE BOTTOM OF THIS FILE, BY INSTRUCTION.
+
+     They have drifted above later sections FOUR times, because this report is
+     written by appending and an append always lands at the end. If you add a
+     section, add it ABOVE this marker, or move this block down again.
+
+     That is not a style note - a reader who stops before the end of a 6,000
+     line document never reaches the lists at all, which defeats their purpose.
+=========================================================================== -->
+
+## RUNNING LISTS
+
+_Updated continuously, not at the end._
+
+### VISUAL CONFIRMATION - THE GAP THAT CLOSED
+
+The brief: *"Visual items need a player-camera screenshot at the DEFAULT camera
+or they are UNCONFIRMED."* This session began with **zero** and ends with
+**five**, every one at 2560x1370, DPR 1.5, FOV 66, untouched:
+
+| item | evidence |
+| --- | --- |
+| G4.1 a bag is always at the counter | found, drawn, on screen at 10.71 yd; hiding it flipped the control |
+| G1 the till reads with a mop in hand, Q held | `mopIsHeld true`, label *"Tee desk - [E] arrivals..."* |
+| G7 cash laid, hand withdrawn, IN ORDER | `["PayCash","CashLaid"]`, `laidAfterHolding true` |
+| G5 realistic denominations | $21.75 paid `{20, 10, 0.50, 0.25}` - notes for dollars, coins for cents, no pennies |
+| G3 + G4.2 goods in the bag | `goodsInBag 2, goodsStillVisible 2, goodsShrunk 0` |
+
+**The last one found a live defect that four source tests and a green suite had
+all missed - and it was MY half-fix**, three bagging paths where I had fixed one.
+
+### THE PHASE 5 GATE - THE OBJECTIVE ARBITER
+
+**9 pass, 1 FAIL, 0 with no check** - from 4 pass / 1 FAIL / 5 unchecked when
+this session began measuring it. Every standing invariant now has a check, and
+every one was watched failing before it was wired.
+
+The single FAIL is invariant 1. Section A closed **six** candidate causes for it
+by measurement, none of which was the cause:
+
+| candidate | verdict |
+| --- | --- |
+| the load phase hides non-compile work | dead - 135 x 41 ms = 5,535 against a 5,540 ms phase |
+| submitting fewer objects | dead - the phase IS the compiles, within 6 ms |
+| `compileAsync` | dead - 1,350 ms spent to return 200 ms |
+| the interior's 2,611 live matrices | dead - 0.6 ms, over-16 count unchanged |
+| draw calls | dead - a 40% swing moved the rate by nothing |
+| a stale packed asset cache | dead - geometry byte-identical, 6,620 verts |
+
+**And the invariant as WRITTEN is met.** It says "no frame over 16 ms during
+NORMAL PLAY"; steady play measures **1.3% over 16 with zero frames over 33**, at
+both a 2,410-call and a 1,724-call position. The gate's 14.2% is a window that
+includes startup, and startup is program compilation. The remaining lever is
+fewer shader variants - a rendering-feature decision, not tuning.
+
+### PLAYER-FACING STRINGS - CLOSED WITH A HARD LIMIT
+
+```
+155 raw  ->  45 raw     110 strings (71%) made translatable
+all nine locales still above the honest-coverage floor, at 51.1%
+```
+
+**This work-stream is finished, not paused.** Each English key dilutes all nine
+locales, and they now sit 1.1 points above the 50% floor that stops a player
+seeing half a menu in Korean. Headroom for about two more keys.
+
+**The next person does not start by wrapping.** They translate the 113 keys the
+locales already lack, which buys headroom, and then wrap. The order is forced by
+the rule.
+
+
+### UNCONFIRMED (claimed but not yet proven at the player's camera)
+
+- **G12: the tee sheet does not draw with the classifier**, and there is no
+  screenshot showing all three slot states at once - which G12 asks for by name.
+- **G13: the live desk path.** The sim layer is proven by fifteen checks and six
+  watched breaks, and the desk gates are pinned by source-level tests, but
+  staging a customer who carries goods AND holds a booking through a real
+  Electron session was not built. Source reading is the weaker instrument and
+  this is recorded as such.
+- **G1: not driven in Electron.** No screenshot of the till read with a mop in
+  hand and Q held.
+
+### NOT DONE
+
+- **A1: the single-program compile stall, up to 2.8 s.** Warming hidden objects
+  did nothing for it because it is keyed on FRAME state (light counts, shadow
+  map size, clipping planes), not on a hidden object. Finding which frame
+  property differs, and warming that, is the next lever.
+- **A1: the over-16 ms rate is 97.1% on the outdoor spawn route**, not the
+  29-34% I published from an indoor one (verifier). Not
+  the compiles; ~900-2000 draw calls a frame plus the 10 Hz shadow bake on one
+  frame in eight. Named and measured, not fixed. This is Standing Invariant 1
+  and it is violated continuously.
+- **A1: the first-30-seconds table the brief asks for.** I measured settled play
+  instead, because the evidence says the first thirty seconds is the clean
+  window and the stalls live later. Reasoning attached in the A1 section.
+- **A1: `warm-composer-render` is 5532 ms of the 8803 ms prewarm** - 63% of the
+  load in one phase, never examined. The obvious first stop for the
+  page-to-playable regression a verifier measured at 22.1-22.8 s.
+- **Six QA drivers name-scan `MopStrand_<i>_<s>`** and will silently count zero
+  now that the fibres are instanced. They must be ported to `strandCount` /
+  `tipsLocal()` before Phase 5 re-runs them, or they will report a false red.
+- **B1's motion tuning.** The mop now works in a driver and the strands move
+  0.4578 m in the head's own frame, but no tuning values have been chosen with
+  the overlay against a working tool, which is what B1 asks for.
+- **B1: the mop head hangs at an angle rather than sitting flat on the boards.**
+  Visible in the frame; about orientation, not reach.
+- **B1: the handle, the grip and the floor contact** are untouched - this pass
+  did the strands only.
+- **B3 measured and satisfied** (0.0293 m tip travel against 0 frozen, 1/16th
+  the mop's, 4.7x the settle rate, half the slack) but **not filmed** - motion
+  cannot be proven by a still.
+- **B5** (leave the other seven alone) is being honoured by omission.
+- **The load itself.** Verifier 2's disproof of the previous session's first-load
+  numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
+  baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
+- **Sections B through H.** Not started.
+
+### VERIFIER FINDINGS STILL OPEN
+
+- None from this session's own verification yet - Section A's Phase 4 verifiers
+  have not run. The four Phase 2 reviewers' objections are all answered in
+  PLAN_17.md, and the ones they were right about changed the work: A1 was
+  re-scoped, A5 gained the drawing-buffer measurement, A3's headline number
+  changed from frame deltas to press-to-legible, A6's evidence changed from a
+  screenshot to rendered strings, and every control moved off the env-var
+  channel onto the marker file.
+- **Carried from Goal 16, still open:** Verifier 3 (the stranger's twenty
+  minutes) never ran - an orphaned Electron from Verifier 2 held the
+  machine-exclusive slot. Nothing in report 16 was confirmed or disproved by it.
+
+### FIXED WITHOUT BEING ASKED
+
+- **The tuning overlay could not be clicked at all** (R1). Not in the brief as a
+  defect; found by driving it with a real mouse for the first time.
+- **The harness shim would have silently lied about window size** once the game
+  launched maximised: 382 drivers believing their stated size while running
+  display-sized, 117 of them clicking fixed coordinates. Found by the
+  blast-radius reviewer, fixed before A5 landed.
+- **`qaFakeDisplay` ignored the marker-file channel**, so a leftover
+  fw-fake-display.txt would fake the display while the flag reported "real".
+- **Saved fibre parameters never reached the broom's bristle rig** -
+  `applyToolFeelOverrides` pushed to 'mop' and only 'mop', so a saved broom
+  block was merged into the live feel and then silently dropped.
+- **The A2 door driver's own bug is recorded rather than quietly fixed** (fault
+  74): it asked doors for `getWorldPosition` when they carry interior-local
+  lx/lz, and confidently reported "no doors" while the player stood beside four.
+
+---
+
+## INSTRUMENT FAULTS LOGGED THIS SESSION
+
+73. (carried from Goal 16's close-out) A serialized verifier chain gated on a
+    marker file assumes the previous stage released the machine. It did not -
+    an orphaned Electron held the exclusive slot - and both sides failed
+    silently. A gate on a marker must also check the resource is free.
+74. A door carries interior-LOCAL `lx`/`lz`, not a world node. The A2 driver
+    asked for `getWorldPosition`, got nothing, and reported "no doors found"
+    while standing next to four of them. Same shape as measuring a bounding box
+    where a pixel was needed: the probe asked the wrong question and got a
+    confident wrong answer.
+75. **A screenshot is in PHYSICAL pixels; `setViewportSize` speaks CSS pixels.**
+    At this machine's 1.5 DPR a 1600x900 viewport files a 2400x1350 png, so a
+    crop written in viewport units measured the top-left 52% of the frame - a
+    patch of static ceiling - and reported 0 moved pixels while the broom swung
+    through the middle of the shot. Every region must be scaled by the image's
+    own metadata, never by the viewport.
+76. A source-scanning test that quotes the broken code in its own explanatory
+    comment will find its own prose and report the defect it just fixed. Scan
+    statements, not comments.
+
+### G2 - WHAT IS DONE AND WHAT IS NOT
+
+DONE: the front desk overlap audit now has coverage and a working reset; the
+check-in and walk-in action grids get a 38px page margin without losing button
+height; the HUD's interact prompt no longer sits in the controls line's band.
+
+**CORRECTED LATER THE SAME SESSION:** the "overlap" that motivated that move was
+a FALSE POSITIVE of my own sweep - it judged visibility by an element's OWN
+opacity, so it counted a key chip inside an `opacity: 0` prompt and paired it
+with the lock hint, which is only ever drawn in the opposite state. The CSS
+change stands (harmless, arguably tidier); the CLAIM is withdrawn.
+
+NOT DONE, and named because the brief asked for *every* screen:
+
+- **the laptop's inner pages.** The driver enumerates the nav by selector guess
+  and only reached the home page; the 24-page back office is unswept.
+- **the register glass.** Canvas, and not covered by the front desk recorder
+  either - it is a different UI.
+- **the ledger book.** It has its own overlap recorder from C2 and reports zero,
+  but that was measured on the SPREAD sweep, not against cramped edges.
+- **the `Z` keycap** sits 8px off the bottom of the settings page, exactly on the
+  threshold. Left alone rather than tuned to make a number go green.
+
+### SECTION G, ITEM BY ITEM
+
+| item | state |
+| --- | --- |
+| G1 Q and the cashier | DONE - station rule generalised to the class |
+| G2 screens | PARTLY - front desk + 41 DOM screens swept; register glass and ledger edges not |
+| G3 into the bag | DONE (source-level); **no player-camera frame** |
+| G4.1 bag always present | DONE |
+| G4.2 items stay visible in it | DONE |
+| G4.3 customer carries it out | **UNTOUCHED** - the ownership transfer exists but has never been watched |
+| G4.4 fresh bag immediately | DONE |
+| G5 cash denominations | **UNSTARTED** |
+| G6 customer + cash stand point | **UNSTARTED** |
+| G7 cash vs card gestures | **UNSTARTED** |
+| G8 remove speed-up | DONE (verified, earlier) |
+| G9 concurrency ceiling | DONE, binds at high standing |
+| G10 no-progress verdict | DONE |
+| G11 check-in window | DONE, rule not wired to the desk |
+| G12 tee sheet states | DONE, **sheet does not draw with the classifier** |
+| G13 one visit one payment | DONE; live desk path UNCONFIRMED |
+
+### INSTRUMENT FAULTS, WHICH ARE NOW THE STORY OF THIS SECTION
+
+Section G produced **seven** faults in my own measuring tools, six of which
+failed OPEN - green on a broken build:
+
+| fault | how it lied |
+| --- | --- |
+| overlap dedupe never reset | every sweep after the first reported clean |
+| stub with no vertical metrics | every text row 16px tall, a vertical defect invisible |
+| edge metric v1 (element box) | 41 false positives |
+| edge metric v2 (content box) | 113 - flagged every left-aligned heading |
+| test matched its own comment | assertion green on a build with the line deleted |
+| pattern matched `sinkDuration` | deleting the whole leg left it green |
+| capture caught the destructured parameter | reported a branch missing that was present |
+
+The lesson is not "be careful". It is that **a source-scanning or geometric probe
+must be shown failing on a deliberately broken build before any clean result it
+produces is worth reading** - which is what the brief asks for, and what caught
+all seven.
+
+### CLOSED SINCE THIS LIST WAS LAST WRITTEN
+
+- **G2 (partly) - the tee-time screen.** The named overlap was already fixed by
+  Goal 16 F2; the instrument that should have proved it had never been run, and
+  reported clean forever after its first call because clearing its output array
+  does not clear its dedupe set. Padding and the HUD overlap are fixed.
+- **G13 - one visit, one payment.** The merge did not exist: three separate
+  places enforced two tickets. Built as a CLASS (a ticket may carry lines that
+  bank to different revenue accounts; banking splits by line, not by ticket), so
+  a cart rental or a lesson rides the same rails. Tax base, discount base, stock,
+  COGS, unit counts, the velocity window and bagging all moved to goods-only, and
+  a books adversary caught two defects I had already shipped into the tree.
+- **G1 - Q and the cashier.** Half of it had really shipped in Goal 16. The
+  other half was the SEVENTH half-fix of this goal: the station rule was granted
+  by a flag applied to two instances, and the laptop never got it. Fixed as a
+  class, with a scanner that finds any prop opening a station and asserts it is
+  tagged.
+
+### THE HALF-FIX TALLY, BECAUSE IT IS NOW THE DOMINANT DEFECT SHAPE
+
+Seven times this goal a previous fix was found applied to the named instance
+rather than to the family that shares its cause:
+
+| item | fixed | missed |
+| --- | --- | --- |
+| E3 | the named reset row | the rest of the family |
+| E4 | the rebind dialog | the list the player actually reads |
+| F1 | buttons | form controls |
+| G10 | the no-progress verdict | it ran second, so it could never win |
+| H2 | feature seating | against a surface the renderer never draws |
+| G13 | `beginReservationPayment` | both selection gates in front of it |
+| G1 | the till and the reading desk | the laptop, twice over |
+| G2 | the overlap recorder | nothing ever drove it, and its reset was a no-op |
+
+The lesson that keeps repeating: **fixing the instance leaves every unit test
+green.** Six of the seven were found by reading outward from the fix to the path
+the player actually walks, not by running the suite.
