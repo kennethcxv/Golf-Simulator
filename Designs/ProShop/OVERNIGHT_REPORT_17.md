@@ -3568,3 +3568,54 @@ rename; it now reads `material-instances` (846), so the driver stopped reporting
 
 Load numbers re-confirmed on three separate runs: `warm-composer-render` 5,524 /
 5,540 / 5,540 ms against 135 GL programs. Stable, and still the compiles.
+
+## A1-FREEZE - THE SECOND LEVER, CLOSED BY MEASUREMENT INSTEAD OF BY WORK
+
+My own Phase 2 review said the third objection had to be answered first: *nobody
+has measured whether 2,611 matrix recompositions are worth anything.* So the next
+action was a throwaway probe, not the machinery.
+
+The probe blanket-freezes the interior - deliberately unsafe, breaking the ledger,
+doors, register and customers for the length of the run - samples 140 real frames
+in each state, and throws the page away. Nothing shipped, nothing saved.
+
+| state | median | mean | p90 | over 16 ms |
+| --- | --- | --- | --- | --- |
+| before | 8.70 ms | 9.00 | 9.7 | 2 |
+| **frozen (2,577 objects)** | **8.10 ms** | 8.47 | 9.3 | **2** |
+| restored | 8.60 ms | 8.88 | 9.8 | 1 |
+
+**Gain: 0.6 ms of median. Change in the over-16 count: none.**
+
+### Both controls held, so the number is real
+
+* **the freeze actually took** - auto-updating objects went 2,577 to 0. A freeze
+  that silently did nothing would have reported a delta of zero and read exactly
+  like "not worth it", which is the failure mode that matters here
+* **the run was not drifting** - restored median 8.60 against a baseline of 8.70,
+  a drift of 0.1 ms against a gain of 0.6. The middle sample is measuring the
+  freeze and not the passage of time
+
+### The verdict
+
+**Not worth building.** The safe version needs an exemption mark on every
+animated root across six subsystems and a driver proving each one still moves -
+a day of work, and a day of risk, for 0.6 ms that **does not move the invariant
+at all**. Invariant 1 counts frames over 16 ms; this changes that count by zero.
+
+That is the SECOND lever on invariant 1 closed by measurement this session:
+the load phase by arithmetic (135 compiles account for 5,540 ms of 5,540 ms), and
+now the per-frame matrix cost by experiment. Both were the obvious candidates and
+both are dead.
+
+### Where the search goes next, with a number attached
+
+Median frame time indoors is **8.7 ms - comfortably inside budget**. The gate
+reports 14.8% of frames over 16 ms, and a verifier previously measured 97.1%
+on the OUTDOOR spawn route. The over-16 frames are not where I have been
+sampling. **The next probe belongs on the outdoor route, not in the clubhouse**,
+and the remaining named suspect is draw calls (~900-2,000 a frame) plus the 10 Hz
+shadow bake landing on one frame in eight.
+
+Recording the negative result in full, because a day not spent on a 0.6 ms fix is
+the most valuable thing this probe could have produced.
