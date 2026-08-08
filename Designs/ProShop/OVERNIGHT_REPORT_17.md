@@ -6536,3 +6536,52 @@ before any of this can be called confirmed.
 
 Suite 2929 pass / 0 fail.
 
+
+### THE CONFOUND WAS WORSE THAN I THOUGHT — `liveVsFrozenRatio` IS A BROKEN METRIC
+
+Held `splayBase`/`splayGrow` at their old values and re-ran, expecting the
+frozen baseline to return to 127,938. It did not:
+
+```
+run            live px   frozen px   ratio
+before change   76,134    127,938     0.60
+after change   103,561    148,771     0.70
+splay reverted 101,799    148,747     0.68
+```
+
+**Splay was not the cause.** The frozen baseline stayed at ~148,7xx across both
+post-change runs regardless of splay. Something in the MOTION params moves it —
+which can only mean the "frozen" control freezes the rig *mid-simulation*, so
+the pose it captures depends on the same values being tuned.
+
+**The control is not independent of the treatment.** Numerator and denominator
+move together, so the ratio cannot judge a tuning change at all. My earlier
+ruling in this report — *"liveVsFrozenRatio must exceed 1.0"* — is WITHDRAWN. It
+proposed an acceptance number computed from an instrument that cannot support it.
+
+### What survives, and it is enough
+
+`liveHeadPixels` is measured on a fixed camera, a fixed stroke and a stable
+noise floor (34,211 / 33,795 / 32,500), and it is reproducible: the two
+post-change runs are 103,561 and 101,799, within 2% of each other.
+
+```
+live pixel change:  76,134  ->  ~102,700   (+34.9%)
+```
+
+**The whip retune is a real, reproducible 35% increase in what the eye receives
+during a stroke.** That stands on its own without any ratio.
+
+### Fifth instance, and the one I should have predicted
+
+A control that shares state with its subject is not a control. This report has
+recorded seven instrument faults that failed OPEN — green on a broken build —
+and this is the same family: a denominator that quietly tracks the numerator
+will make any change look smaller than it is, forever, and would have sent the
+next six tuning rounds chasing a number that cannot move.
+
+**B1 remains OPEN.** What is settled: the lag direction was backwards, and
+reversing it gains 35%. What is not: whether that is enough for the owner to
+see, which needs the default-camera capture the RULES require and which no
+amount of further arithmetic can substitute for.
+

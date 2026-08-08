@@ -464,8 +464,15 @@ export function buildToolViewmodels() {
                     // chase) and overshooting PAST it (high push, far target).
                     // Rigid attachment scores 1.0 by definition, so anything
                     // that only lags can never exceed it.
-                    splayBase: 0.28,    // was 0.22 - a little more floor splay
-                    splayGrow: 0.34,    // was 0.30
+                    // HELD AT THE OLD VALUES ON PURPOSE. Splay changes the
+                    // RESTING pose, so it moves the frozen control as well as
+                    // the live rig - raising it took the baseline from 127,938
+                    // to 148,771 px and made the ratio uninterpretable. The
+                    // motion params below are the subject; these two are part
+                    // of the measuring stick and do not move during a tuning
+                    // comparison.
+                    splayBase: 0.22,
+                    splayGrow: 0.30,
                     pushGain: 3.0,      // was 2.2  - overshoot BEYOND the head
                     dragGain: 0.08,     // was 0.22 - stop falling behind
                     chaseBase: 11.0,    // was 5.5  - arrive promptly, keep up
