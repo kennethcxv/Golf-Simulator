@@ -8226,3 +8226,69 @@ undermine them was measuring the driver, not the game.
 
 Suite 2929 pass / 0 fail.
 
+
+## SEVENTH HYPOTHESIS — AND MY OWN `wheelOpened` FLAG IS PROBABLY LYING
+
+Read the wheel's selection mechanism instead of guessing it. `toolWheel.js:3`:
+
+```js
+export function toolShortcutIndex(entries, key) {
+  return entries.findIndex((e) => String(e.shortcut).toLowerCase() === normalized);
+}
+```
+
+and `main.js:2189`:
+
+```js
+WALK_TOOL_SHORTCUTS = { washer:'W', vacuum:'V', mop:'M', broom:'B',
+                        dustpan:'D', spray:'S', cloth:'C', sponge:'G', trashbag:'T' }
+```
+
+**The wheel selects on the tool's own LETTER.** The driver pressed
+`String(index + 1)` — a positional digit the wheel has no concept of. That is a
+real defect and it is now fixed to press `'b'`.
+
+**And the beat still fails. `equipped` is still `"none"`.**
+
+### The flaw is probably in my own instrument
+
+`wheelOpened` is computed as:
+
+```js
+const el = document.querySelector('.tool-wheel');   // exists whether open or not
+return el ? [...el.querySelectorAll('.tool-wheel-item')].map(...) : [];
+```
+
+`main.js:2417` uses `toolWheel?.isOpen()` for the real question. **So my
+`wheelOpened: true` proves only that the markup exists**, not that the wheel is
+open — and reading nine labels out of hidden markup is exactly what it would do
+either way.
+
+If the wheel never opened, then every key I have pressed — `'4'`, `'b'`, held or
+released — went to a closed wheel, and all seven hypotheses were explanations
+for a symptom with a much duller cause: **the belt key never opened anything.**
+
+**Stated as the most probable remaining cause, not a conclusion.** Six
+before it looked this good.
+
+### The instrument lesson, which is the eighth of the session
+
+I built `wheelOpened` two commits ago *to make this beat honest about its own
+failures*, and it is itself a name wider than its measurement — "the wheel
+opened" measuring "the markup exists". **I wrote the sixteenth instance of this
+report's finding while documenting the fifteenth.**
+
+**The single next check:** `page.evaluate(() => window.__fw.toolWheel?.isOpen?.())`
+immediately after the belt keydown. If false, the belt binding or the hold is
+the whole story and the rig, the assets and the sockets were never involved at
+all.
+
+### Where this leaves the beat
+
+Two real defects found and fixed in the driver — the release-before-select
+ordering, and the positional-digit keypress — neither of which was the cause.
+The rig remains verified healthy. `toolIsLive` still fails on `getTool()`.
+**Invariant 1's frame numbers remain unaffected by any of this.**
+
+Suite 2929 pass / 0 fail.
+

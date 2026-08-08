@@ -190,9 +190,25 @@ async (page) => {
   // bisect, which is exactly what it cost here.
   //
   // Now every failure path carries what it saw.
+  // THE WHEEL SELECTS ON THE TOOL'S OWN LETTER, NOT ON ITS POSITION.
+  //
+  // `toolShortcutIndex` (src/ui/toolWheel.js:3) matches `entry.shortcut`, and
+  // WALK_TOOL_SHORTCUTS (src/main.js:2189) assigns letters: washer W, vacuum V,
+  // mop M, broom B, dustpan D, spray S, cloth C, sponge G, trashbag T.
+  //
+  // This driver pressed String(index + 1) — a positional digit the wheel has no
+  // concept of. That is why `getTool()` came back "none": the keypress matched
+  // no entry at all, so nothing was ever equipped.
+  //
+  // Six hypotheses died before this one, every one of them about the GAME:
+  // turf, unadopted assets, a failed socket lookup, a broken rig, an off-by-one
+  // in a mapping that never existed, and a wheel closed too early. The rig was
+  // healthy throughout — shaftDrop -1.359, headAboveFloor -0.25. The instrument
+  // was pressing a key the game does not use.
   const at = items.findIndex((l) => /broom/i.test(l));
   const wheelOpened = items.length > 0;
-  if (at >= 0) await page.keyboard.press(String(at === 9 ? 0 : at + 1));
+  const shortcut = 'b';
+  if (at >= 0) await page.keyboard.press(shortcut);
   await page.waitForTimeout(250);
   // released only AFTER the choice is made
   await page.keyboard.up(keys.toolBelt || 'f');
