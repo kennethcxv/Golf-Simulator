@@ -9116,3 +9116,68 @@ can never again vary silently.
 
 Suite 2929 pass / 0 fail.
 
+
+## SECTION A, RESOLVED: IT IS ONE COST — FIRST DRAW OF NEWLY VISIBLE GEOMETRY
+
+Reading (2), orientation, was already refuted by the data: `lookOnly` moves the
+mouse 500 -> 1100 -> 500, so under pointer lock the net rotation is **zero** and
+the camera ends where it began. Orientation cannot explain it.
+
+That predicted a second look-around would be cheap. It is:
+
+```
+settle       20.9  (19..22)      control — stable against 19.0 / 19.4
+lookOnly    124.8  (51..198)     FIRST look
+lookOnly2    22.5  (22..23)      SECOND look
+walk         32.5  (32..33)      <- was 383.4 with no look before it
+tool       2331.3  (2108..2554)
+tool2        26.4  (26..27)
+```
+
+**Two results in one run.**
+
+**1. The second look costs 22 ms against the first's 125.** Same input, same
+camera, one-time cost. First-draw work, exactly like the second tool equip.
+
+**2. `walk` collapsed from 383 ms to 32 ms.** The look-around already paid what
+the first step used to pay. **The 375 ms first step and the expensive first look
+were never two findings. They are one cost, charged to whichever action first
+reveals geometry.**
+
+### The unified account of everything Section A measured today
+
+| observation | explanation |
+|---|---|
+| first step 375 ms, later steps 84/34 ms | first draw, paid by the first thing that moves the view |
+| first look 125 ms, second look 22 ms | same cost, same one-time shape |
+| walk 383 -> 32 when a look precedes it | the cost moved, it did not disappear |
+| first equip 339 ms, second 22 ms | the viewmodel's own first draw |
+| equip 339 -> 5020 when a look precedes it | **still unexplained — see below** |
+
+**Four of five collapse into one mechanism.** The boot prewarm compiles the
+scene as it stands behind the veil; anything that first becomes visible after
+that pays on its first frame, and pays once.
+
+### The one thing that does NOT fit, stated plainly
+
+If looking around merely pre-pays a shared cost, a look before the equip should
+make the equip **cheaper**, as it did for `walk` (383 -> 32). Instead it made it
+**dearer** (339 -> 5020, and 2331 here with two looks).
+
+That is the opposite sign, and I do not have an explanation that survives it.
+**It is the open question Section A ends on**, and it is now sharp: *why does
+warming the scene make the tool viewmodel's first draw more expensive rather
+than less?*
+
+### Section A's standing at session end
+
+**Established, with drift control and identical drivers:**
+- first-draw cost is real, one-time, and lands on whichever action reveals
+  geometry first (375 ms as a step, 125 ms as a look)
+- the boot prewarm does not cover it
+- tool equip carries its own first-draw cost (339 ms, second equip 22 ms)
+
+**Open and sharp:** the inverted interaction between looking and equipping.
+
+Suite 2929 pass / 0 fail.
+

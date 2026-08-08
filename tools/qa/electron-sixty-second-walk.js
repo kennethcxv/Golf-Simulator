@@ -79,6 +79,11 @@ async (page) => {
   await page.mouse.move(1100, 420, { steps: 24 });
   await page.mouse.move(500, 420, { steps: 24 });
   await page.waitForTimeout(900);
+  await beat('lookOnly2');
+  await page.mouse.move(500, 420);
+  await page.mouse.move(1100, 420, { steps: 24 });
+  await page.mouse.move(500, 420, { steps: 24 });
+  await page.waitForTimeout(900);
   await beat('walk');
   const posBefore = await page.evaluate(() => {
     const w = window.__fw.scene3d.walk.state;
