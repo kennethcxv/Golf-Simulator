@@ -12710,3 +12710,34 @@ not measured.**
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## THE EXHAUSTIVE NEGATIVE IS NOW DURABLE ACROSS SESSIONS
+
+Wrote `memory/first-equip-shader-stall.md` and indexed it. It records:
+
+- the measured stall (**333-7855 ms first equip, ~24 ms second**) and its shape
+  (54 hand meshes from an off-graph parent, 7 materials, **9 programs — 4
+  `physical`, 5 `depth`**, confirmed two ways);
+- **all sixteen refuted configurations, named individually**;
+- **why they cannot work** — A3's proof that a veil-time warm never holds the
+  light list a later change produces, plus `compile()`'s inability to touch
+  shadow-depth programs at all;
+- the remaining direction, and that it is a design change rather than a tweak.
+
+### Why this is worth a memory rather than only a report entry
+
+**A report is read by whoever opens it. A memory is read by whoever starts.**
+
+The single most expensive thing in this thread was not any wrong hypothesis — it
+was that A3 had already proved the governing law, in this same file tree, and I
+found it after fourteen attempts instead of before the first. **The next session
+should not have to rediscover that the compile family is closed**, and now it
+will be told before it writes a line.
+
+That is the same principle `checkout-bag-does-not-block.test.js` applies to the
+stand point: *"this file records it as an upper bound so the next attempt does
+not spend an afternoon rediscovering it."* **A dead end is worth recording
+precisely because it cost something to find.**
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
