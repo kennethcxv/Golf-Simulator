@@ -5378,3 +5378,45 @@ distinguishing them.
 That is the same discipline that retracted the HUD overlap - **applied BEFORE the
 false claim instead of after it.** Twice today the choice was available; once I
 took it late and once early, and the early one cost a single Electron run.
+
+### G1 CONFIRMED - THE TILL READS WITH A MOP IN HAND AND Q HELD
+
+```
+mopIsHeld: true            focusKind: "prop"
+label: "Tee desk - [E] arrivals, check-ins and walk-ins"
+labelNamesTheStation: true      labelNamesTheMop: false
+camera 2560x1370, DPR 1.5, FOV 66   (untouched)
+```
+
+Mop equipped, **Q physically held down** via the keyboard, standing at the
+counter - and the prompt reads the DESK. That is the brief's own sentence
+answered: *"I should not have to release Q and swap to empty hands first."*
+
+The mop is confirmed held at the moment of reading (`mopIsHeld: true`), which is
+the half that matters: a label naming the desk proves nothing if the tool had
+silently stowed itself first.
+
+### Two visual items in a row, with a pattern that now works
+
+After a session of source-level checks marked UNCONFIRMED, the recipe that
+finally produces frames is:
+
+1. **ASK the game through its own API** - never name-scan the scene graph
+2. **read geometry from `matrixWorld`** - `fw.THREE` is not on the window and
+   reaching for it throws inside `page.evaluate`, surfacing as a stack trace
+   rather than a verdict
+3. **capture the pointer first** - the HUD hides itself when the player is not
+   captured, and a driver that skips this measures elements at opacity 0
+4. **pair every reading with a control** - twice today a control caught a
+   measurement I would otherwise have published
+
+None of those four is obvious, each cost at least one run to learn, and all four
+are now written into drivers the next session inherits.
+
+### The remaining UNCONFIRMED visuals
+
+The bag sink (G3/G4.2), the withdrawn arm after laying cash (G7), and coins on
+the desk (G5). **All three need a customer mid-transaction**, which is the
+staging this session never built - not a missing instrument but a missing
+scenario. That is the honest distinction between what is left and what was
+merely hard.
