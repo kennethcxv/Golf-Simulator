@@ -549,3 +549,46 @@ calls broken, with an invariant attached and nothing watching it.
    "Click the cashier" enters a station; if station entry does not ask what the
    player is holding, then every station is a place a carried thing can be
    stranded, and fixing the cashier alone would leave the class untouched.
+
+
+---
+
+# SECTION E — SETTINGS
+
+## Phase 0 — the section explained back, as verbs
+
+- **E1.** Preset switching lag. **This is A4 and it is already done** - the
+  brief itself says "See A4". Ultra went from a 5197 ms freeze with compiles
+  still arriving 16.7 s later, to 78.7 ms, and a pixel budget now stops a 4K
+  window asking for a 4416x2363 target. Not re-opened.
+- **E2.** I am going to **move the scrollbar inside the section that actually
+  scrolls.** It currently wraps the whole panel, so the page looks scrollable
+  when only the movement section is.
+- **E3.** I am going to **put padding between the reset-to-defaults button and
+  the bottom of the page**, then sweep the whole panel for the same class -
+  controls flush to edges, sections with no breathing room, rows that touch -
+  and fix all of them. Screenshot every page before and after.
+- **E4.** I am going to **make a rebind update the formatted controls list
+  immediately**, in the same layout.
+- **E5.** I am going to **translate all ten languages properly** - real
+  translations, not machine drafts marked UNREVIEWED - and report the key count
+  and honest coverage per language, naming what is still English.
+
+### The reading I am taking on this section, and why
+
+**Goal 16's D section already worked this exact ground** - "settings:
+resolution, translations, rebind display, scrollbar, spacing" - and its
+commits claim the scrollbar moved into the scrolling section, the reset row
+gained breathing room, the rebind display reads live bindings, and ten languages
+reached 117/117.
+
+So the honest first act here is **verification, not rebuilding**, exactly as it
+was for A6. If a thing is already right I will say so with the measurement and
+the commit that did it, and move on. If the brief still lists it, the brief may
+be describing the state before that work, or the fix may not hold at the window
+size A5 just changed - which is a real risk, because A5 moved the default from
+1600x940 to 2560x1370 DIP and **five CSS media queries flip state between
+those**.
+
+That last point is the one I most expect to matter: a spacing fix verified at
+1600 wide is not verified at 2560.
