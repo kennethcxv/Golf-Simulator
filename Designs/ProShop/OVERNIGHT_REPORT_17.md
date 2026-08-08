@@ -5809,3 +5809,53 @@ measures.** That is a real distinction and the gate should probably measure them
 separately - noted rather than changed, because moving a gate's goalposts while
 it is red is exactly the wrong instinct.
 
+
+## THE HANDOVER, WRITTEN WHILE THE DETAIL IS STILL FRESH
+
+### G4.3 - the last visual item, and exactly what it needs
+
+The customer carrying the bag out is the one visual item the working driver does
+NOT yet reach. It stops at `cash-tender`; G4.3 needs the sale COMPLETED.
+
+The blocker is precise: **`acceptPresentedCash()` is internal**, not exposed on
+the register. The physical verb is clicking the tender pile on the desk, and
+`tools/qa/cash-hover-highlight.js` already projects that pile to screen
+coordinates - it is the same projection my driver uses for the goods.
+
+So the next session's path is: project the tender, click it, let the drawer and
+change beats run, then read `bagNode().userData.checkoutOwner === 'customer'`
+and confirm the bag is parented to the customer's carry grip. **All four
+accessors that needs already exist**, because this session added them.
+
+### The four things that made visual confirmation possible
+
+Written down because each cost at least one wasted run to discover, and none is
+obvious from the outside:
+
+1. **ASK the game through its own API.** Name-scanning the scene graph reports
+   nothing when it walks the wrong subtree, and a scan that finds nothing is
+   indistinguishable from a thing that is not there. Three accessors were added
+   this session for exactly this: `bagNode()`, `bagIsAtCounter()`, `itemMesh(uid)`.
+2. **Read geometry from `matrixWorld`.** `fw.THREE` is not on the window;
+   reaching for it throws inside `page.evaluate` and surfaces as a stack trace
+   rather than a verdict.
+3. **Capture the pointer first.** The HUD hides itself when the player is not
+   captured. A driver that skips this measures elements at opacity 0 and blames
+   the wrong thing for three runs.
+4. **Match the sample rate to the event.** `CASH_LAY_SECONDS` is 0.55; sampling
+   at 1500 ms saw only the end state and would have reported the ABSENCE of a
+   behaviour that was there all along.
+
+And the scenario recipe, which nothing documented: **set the clock to
+mid-afternoon (a new day opens CLOSED), rebuild stock, stand at `REGISTER.stand`,
+press E (not `register.enter()`), then click-to-bag each item.**
+
+### What is genuinely left
+
+| item | state |
+| --- | --- |
+| **Invariant 1** | six causes closed by measurement; met in normal play at 1.3%; the remaining lever is fewer shader variants, a rendering-feature decision |
+| **G4.3** | one driver extension, path above |
+| **45 raw strings** | blocked behind translation - every English key dilutes nine locales, now 1.1 points above the honest-coverage floor |
+| **G2 sweep** | laptop inner pages and the register glass never swept |
+| **Sections C, D, E, F, H** | carried from earlier session parts; their items are in this report above |
