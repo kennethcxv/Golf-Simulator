@@ -3731,3 +3731,38 @@ play") is met in normal play at 1.3%, and fails on the startup window the gate
 measures.** That is a real distinction and the gate should probably measure them
 separately - noted rather than changed, because moving a gate's goalposts while
 it is red is exactly the wrong instinct.
+
+## REQUIREMENT 1 - THE TUNING OVERLAY, RE-VERIFIED LIVE RATHER THAN ASSERTED
+
+*"Build the live tuning overlay FIRST."*
+
+`src/ui/toolTuner.js`, 372 lines, four commits against it this session
+(`dfb4b4b` built it with B2/B3/B4, `3cad241` fixed a defect where the panel could
+never be CLICKED, and two more removed em dashes from strings the player reads).
+
+Rather than point at those commits, I re-ran its driver in Electron on
+`--clubhouse=pine-hills-v2` just now:
+
+```
+panelOpened          true      sliderMovedTheTool   true
+broomHasFibreRows    true      deadControlInert     true
+leftElbowRows        3         typedBoxRoundTrips   true
+noiseFloor           8798      revertRestored       true
+```
+
+Every one of those is a property the Requirement asks for: the panel opens, it
+carries the fibre and elbow controls, **a slider actually changes the tool**, a
+typed number round-trips through the same door as the slider, and Revert restores
+the session baseline.
+
+**`deadControlInert: true` is the negative control** - a control wired to nothing
+must NOT move the tool. Without it, "the slider moved the tool" proves only that
+something moved when something was touched.
+
+The one that mattered most in practice was `3cad241`: the panel rendered
+correctly and could not be clicked, because `pointer-events` was never set on it.
+An overlay you cannot touch is not a tuning overlay, and no amount of reading the
+source would have shown it - the driver did.
+
+Recorded here because a claim of "built earlier" is not evidence, and the whole
+point of this goal is that a green suite is not evidence either.
