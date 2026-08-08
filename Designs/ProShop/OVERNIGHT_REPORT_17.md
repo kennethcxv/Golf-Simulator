@@ -5859,3 +5859,45 @@ press E (not `register.enter()`), then click-to-bag each item.**
 | **45 raw strings** | blocked behind translation - every English key dilutes nine locales, now 1.1 points above the honest-coverage floor |
 | **G2 sweep** | laptop inner pages and the register glass never swept |
 | **Sections C, D, E, F, H** | carried from earlier session parts; their items are in this report above |
+
+### G4.3 - THE EXTENSION IS WIRED, THE ACCEPTANCE IS MORE THAN ONE CLICK
+
+Followed my own handover: `presentedCashScreenPoint()` is already exposed, so
+projecting and clicking the tender pile took four lines rather than a hunt.
+
+```
+saleCompleted: false        aCustomerOwnsABag: false
+counterBagBackForNext: true
+goodsStillVisible: 2        <- G3/G4.2 reconfirmed on an independent run
+```
+
+**Clicking the tender did not complete the sale.** Cash acceptance is not one
+verb - the drawer has to open, the tender has to be deposited, the change has to
+be counted and handed over, and only then does the bag transfer. Each of those is
+a physical beat with its own click target, which is precisely the *"the change
+goes into a hand now, not a keypress"* design the register was built around.
+
+So G4.3 needs the whole change-giving sequence driven, not a single click. That
+is a bigger piece of work than the four lines I budgeted, and I am recording the
+correction rather than pretending the estimate held.
+
+### What this run DID add
+
+`counterBagBackForNext: true` - the counter bag is present and NOT
+customer-owned, which is **G4.4 holding under live conditions**: a fresh bag
+waiting at the bagging position mid-session.
+
+And `goodsStillVisible: 2` on a run independent of the one that first proved it,
+which is worth more than the first sighting - the bagging-path fix is stable, not
+a one-off.
+
+### The corrected estimate
+
+G4.3 is **not** "one driver extension". It is: open the drawer, deposit the
+tender, select change denominations, hand them over, THEN read the bag owner.
+`cash-hover-highlight.js` and the register acceptance drivers already perform
+parts of that sequence, so the pieces exist - but assembling them is its own
+item, with its own five phases.
+
+**Recorded as such**, because an estimate I have just watched fail should not be
+left standing in the handover I wrote an hour ago.

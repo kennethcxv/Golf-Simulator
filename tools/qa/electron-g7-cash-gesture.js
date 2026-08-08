@@ -261,6 +261,50 @@ async (page) => {
 
   await page.screenshot({ path: path.join(OUT, 'g7-cash-on-desk.png') });
 
+  // G4.3: FINISH THE SALE AND WATCH THE BAG LEAVE.
+  //
+  // "When payment completes, the customer takes the bag and carries it out with
+  // them. It leaves the shop in their hand."
+  //
+  // acceptPresentedCash() is internal, so the verb is the physical one: click
+  // the tender pile. presentedCashScreenPoint() is already exposed on the
+  // facade, which is the only reason this is four lines rather than a hunt.
+  for (let i = 0; i < 8; i += 1) {
+    const pt = await page.evaluate(() => {
+      const p2 = window.__fw.scene3d.clubhouse().register?.presentedCashScreenPoint?.();
+      return p2 && Number.isFinite(p2.x) ? { x: p2.x, y: p2.y } : null;
+    });
+    if (!pt) break;
+    await page.mouse.click(pt.x, pt.y);
+    await page.waitForTimeout(900);
+    const done = await page.evaluate(() => {
+      const tx = window.__fw.scene3d.clubhouse().register?.getTx?.();
+      return !tx || tx.stage === 'done' || tx.banked === true;
+    });
+    if (done) break;
+  }
+  await page.waitForTimeout(2500);
+
+  out.handoff = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    const bag = ch.register?.bagNode?.();
+    // after the handoff the register builds a FRESH counter bag, so the one it
+    // reports may already be the replacement - that is G4.4 and is fine. What
+    // G4.3 needs is a bag owned by a customer somewhere in the scene.
+    let customerBag = null;
+    ch.group?.parent?.traverse?.((o) => {
+      if (!customerBag && o.userData?.checkoutOwner === 'customer') customerBag = o;
+    });
+    return {
+      counterBagPresent: !!bag,
+      counterBagOwner: bag?.userData?.checkoutOwner ?? null,
+      aCustomerOwnsABag: !!customerBag,
+      customerBagName: customerBag?.name ?? null,
+      txGone: !ch.register?.getTx?.(),
+    };
+  });
+  await page.screenshot({ path: path.join(OUT, 'g4-3-bag-leaves.png') });
+
   const modes = out.samples.map((s) => s.mode).filter(Boolean);
   out.verdict = {
     scenarioStaged: out.staged.ok === true,
@@ -283,6 +327,10 @@ async (page) => {
     goodsStillVisible: (out.inBag.rows || []).filter((r) => r.insideBag && r.visible).length,
     goodsShrunk: (out.inBag.rows || []).filter((r) => r.insideBag && r.scale < 0.9).length,
     bagRows: out.inBag.rows || null,
+    saleCompleted: out.handoff?.txGone === true,
+    aCustomerOwnsABag: out.handoff?.aCustomerOwnsABag === true,
+    counterBagBackForNext: out.handoff?.counterBagPresent === true
+      && out.handoff?.counterBagOwner !== 'customer',
     tendered: out.onDesk.tendered ?? null,
     coinKindsOnDesk: out.onDesk.coinKinds ?? null,
     coinPiecesOnDesk: out.onDesk.coinPieces ?? null,
