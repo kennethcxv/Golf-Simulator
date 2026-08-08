@@ -55,12 +55,39 @@ async (page) => {
   });
   out.before = await rig();
 
-  out.staged = await page.evaluate(() => {
-    const ch = window.__fw.scene3d.clubhouse();
+  // OPEN THE SHOP FIRST, AND STOCK IT.
+  //
+  // Three runs staged a customer who then sat at Idle forever. The blocker was
+  // named in the source and I found it in a working driver: a new day opens
+  // CLOSED, and a staged shopper with nothing to buy and a shut shop never
+  // starts a transaction. Set the clock to mid-afternoon, rebuild stock, stand
+  // where the register expects the cashier, and press E like a player - calling
+  // register.enter() directly was not the same thing.
+  out.staged = await page.evaluate(async () => {
+    const app = window.__fw;
+    const ch = app.scene3d.clubhouse();
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
+    ch.rebuildStock();
+    const walk = app.scene3d.walk.state;
+    const off = ch.interior.position;
+    walk.x = REGISTER.stand.x + off.x;
+    walk.z = REGISTER.stand.z + off.z;
+    const dx = REGISTER.monitor.x - REGISTER.stand.x;
+    const dz = REGISTER.monitor.z - REGISTER.stand.z;
+    const h = Math.hypot(dx, dz) || 0.001;
+    walk.yaw = Math.atan2(-dx / h, -dz / h);
+    walk.pitch = Math.atan2(1.18 - 1.62, h);
     if (!ch.sendToCounter) return { ok: false, why: 'no sendToCounter hook' };
     const who = ch.sendToCounter(['balls3', 'glove1'], 'cash');
     return { ok: !!who, who: who || null };
   });
+
+  // the transaction appears on its own once they reach the counter
+  out.txArrived = await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return !!(tx && tx.items.length >= 2);
+  }, null, { timeout: 60000 }).then(() => true).catch(() => false);
 
   // THE PLAYER HAS TO BE AT THE TILL.
   //
@@ -68,26 +95,12 @@ async (page) => {
   // Idle for sixty seconds. A staged customer walks in on their own; the
   // TRANSACTION only starts when the cashier is present and accepts them. The
   // scenario was half-built - the shopper existed, nobody was serving.
-  await page.evaluate(() => {
-    const ch = window.__fw.scene3d.clubhouse();
-    const st = window.__fw.scene3d.walk.state;
-    const bag = ch.register?.bagNode?.();
-    if (bag) {
-      bag.updateWorldMatrix(true, false);
-      const e = bag.matrixWorld.elements;
-      st.x = e[12] + 0.3; st.z = e[14] + 1.2;
-      st.yaw = Math.atan2(-(e[12] - st.x), -(e[14] - st.z));
-    }
-  });
   await page.mouse.click(700, 500);
-  await page.waitForTimeout(1200);
-  out.entered = await page.evaluate(() => {
-    const ch = window.__fw.scene3d.clubhouse();
-    const r = ch.register;
-    if (!r) return false;
-    if (!r.isActive()) r.enter();
-    return r.isActive();
-  });
+  await page.waitForTimeout(600);
+  await page.keyboard.press('e');          // the player takes the till
+  out.entered = await page.waitForFunction(
+    () => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 12000 },
+  ).then(() => true).catch(() => false);
   await page.waitForTimeout(1500);
 
   // let them be accepted and reach the cash tender
@@ -126,6 +139,8 @@ async (page) => {
   const modes = out.samples.map((s) => s.mode).filter(Boolean);
   out.verdict = {
     scenarioStaged: out.staged.ok === true,
+    txArrived: out.txArrived === true,
+    tookTheTill: out.entered === true,
     // the control: the arm must not already have been back
     controlNotAlreadyLaid: out.before.mode !== 'CashLaid',
     modesSeen: [...new Set(modes)],

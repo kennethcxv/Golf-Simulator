@@ -5473,3 +5473,53 @@ checkout-bag-handoff-path" rather than from "find out how to stage a customer".
 and the exact blocker written down. That is a materially better handover than
 this morning, when the blocker was "no scenario exists" - which turned out to be
 wrong.
+
+### THE STAGING BLOCKER IS SOLVED - AND THE NEXT ONE IS NAMED, NOT GUESSED
+
+I said the next session should try "open the shop, then read
+checkout-bag-handoff-path". **I read it, and both leads were right.**
+
+The working driver does four things my three failed runs did not:
+
+```js
+app.scene3d.applyTimeWeather(14 * 60, app.state.weather);  // a new day opens CLOSED
+clubhouse.rebuildStock();                                   // nothing to buy otherwise
+walk.x = REGISTER.stand.x + off.x;                          // where the till expects a cashier
+await page.keyboard.press('e');                             // NOT register.enter()
+```
+
+Applied, and the result moved:
+
+```
+scenarioStaged: true    txArrived: true    tookTheTill: true
+```
+
+**The customer now walks in, reaches the counter, and a live transaction exists
+with the player serving.** That is the blocker that ate three runs, closed.
+
+### The remaining step, which is gameplay rather than plumbing
+
+`modesSeen: ["Idle"]` still, because **there is no cash on the desk yet**. The
+rig only reaches `PayCash` when a tender exists, and a tender only exists after
+the player SCANS the items and REQUESTS PAYMENT. The transaction is at
+`scanning`, not `cash-tender`.
+
+So the next step is not another hook to find - it is driving the scan: pick each
+item up, sweep it through the scan volume, then request payment. The register's
+own acceptance drivers already do this, and `checkout-bag-handoff-path` sets
+`tx.rng = () => 0.9` to force a card approval, which is the same shape of nudge.
+
+### Why this is a better place to stop than an hour ago
+
+**The unknown has moved twice today and both moves were forward:**
+
+1. this morning: *"no scenario exists for a customer mid-transaction"* - wrong,
+   three hooks exist
+2. an hour ago: *"the hooks exist but the customer never gets served"* - solved,
+   it was a closed shop and an unstocked shelf
+3. now: *"served, but the tender needs the scan driven"* - a known gameplay
+   sequence with existing drivers that already perform it
+
+**G5 and G7 remain UNCONFIRMED VISUALLY**, but each step of that sentence is
+smaller than the one before it, and none of the three answers was reached by
+guessing.
