@@ -13100,3 +13100,44 @@ Cropped the hand region out of the same default-camera broom frame
 around it and the shaft runs continuously through the fist to the lower grip.
 **It does not read as detached.** The mechanism the brief predicted would cause
 it is now gated, and the picture agrees.
+
+
+## SECTION B — PHASE 5 GATE, AND THE TAIL I COULD NOT RESOLVE IS RESOLVED BY A CONTROL I ALREADY HAD
+
+Gate after Section B: **9 pass, 1 FAIL, 0 unchecked** — unchanged, same single red
+item (invariant 1). Suite 2943 pass / 0 fail. No regression from B1/B2/B4.
+
+But the walk's over-16 percentage read **6.3% before B2 and 9.7% then 10.6%
+after**, and I had explicitly left the dense head's frame tail open — *"this
+instrument cannot resolve the question"*. Leaving a trend like that sitting next
+to a change I made is how the retracted conviction happened in the first place.
+
+Two things were wrong with reading those three numbers as a trend at all. **The
+walk driver changed between them** — I added the B2 look-down capture, so the
+beat content is not identical, and "an identical driver, because beat order is
+itself a variable" is one of my own three rules for this. And the dedicated cost
+driver, which *was* identical across configurations and carried a drift control,
+could not separate the configurations either.
+
+**Then the per-beat breakdown answered it in one read:**
+
+| beat | tool held | frames over 16 |
+|---|---|---|
+| walkB | none | **21.8%** |
+| end | none | 17.2% |
+| ledger | none | **14.6%** |
+| door | none | 13.9% |
+| tool2 | mop | 13.8% |
+| tool | broom | 12.1% |
+
+**The tool beats are not the worst; they are among the best.** `ledger` and `door`
+draw no tool at all and run higher than either beat that does, and a bristle count
+cannot affect a beat that draws no bristles. **The elevated tail is session-wide
+and is not the broom.**
+
+The control was in the artifact the whole time. Every run of this driver contains
+beats in which the change under test *cannot act*, which makes it a
+better-controlled instrument for this question than the one I purpose-built —
+and I wrote "unresolvable" while holding it. That is the session's shape once
+more: not a wrong measurement, but a conclusion drawn before looking at what was
+already on the page.
