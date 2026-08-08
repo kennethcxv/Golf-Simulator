@@ -10807,3 +10807,61 @@ ninth specified by elimination with its telemetry contract written down.
 
 Suite 2929 pass / 0 fail.
 
+
+## NINTH ATTEMPT: REFUTED, AND IT TURNED THE SUITE RED — CAUGHT BEFORE COMMIT
+
+Tried the one configuration the eliminations left standing: hands attached to the
+scene **and** `renderer.compile(scene, vmCam)` for each rig camera, together,
+with telemetry computed inside the block.
+
+```
+EQUIP PROGRAM DELTA   +9    (predicted 0)
+scene geometry delta  +54
+tool worst            335.5 ms
+SUITE                 2928 pass / 1 FAIL     <-
+```
+
+**Two failures at once.** The fix did not work, **and it broke a test** — almost
+certainly the extra `prewarmTimings.push({ label: 'hands-viewmodel-warm' })`,
+which a test pins.
+
+**Reverted. Suite back to 2929 / 0. Nothing committed.**
+
+### The rule held, and this is what it is for
+
+*Suite green before each commit* has stood for 237 commits, and this is the run
+that would have broken it. The red was caught **because the suite runs before the
+commit, not after** — the ordering is the whole value. Had I committed first and
+tested after, a red suite would now be on the branch alongside a fix that does
+not work.
+
+**Broken once this session** (fault 92, commit 144, reverted at `bf8ee4a`) and
+held every time since, including here where the temptation was real: the change
+was substantial, the reasoning was sound, and it was the ninth attempt at
+something I have chased all night.
+
+### Nine attempts, and what the ninth eliminates
+
+The last standing configuration is now eliminated too. **Nothing about compiling
+— which camera, which scene membership, which layers, which order — produces
+these 9 programs ahead of time.**
+
+That points somewhere I have not looked: the programs may depend on state that
+only exists **while a tool is actually equipped** — a uniform the rig sets, a
+material property flipped on activation, or `layerOnRecursive` changing what the
+viewmodel pass renders. **Pre-compilation may simply not be the right shape of
+fix**, and the alternative is to make the cost cheaper rather than earlier: fewer
+distinct hand materials, so fewer programs.
+
+**Nine hand materials for two hands is itself worth questioning** — skin, nail,
+cuff and their variants. Sharing one material across both hands would cut the
+count directly, and this session's C5 precedent says the same thing: when warming
+fails, reduce what needs warming.
+
+**Section A tool half, closing:** mechanism fully measured with controls; **nine
+fixes attempted, nine reverted, none shipped**; pre-compilation eliminated as a
+family; and a different class of fix — material sharing — identified but not
+attempted.
+
+Suite 2929 pass / 0 fail. Tree clean.
+
