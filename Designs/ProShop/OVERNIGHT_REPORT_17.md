@@ -9002,3 +9002,58 @@ It needs a cold machine and a `settle` control that matches the reference set.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE DRIFT CONTROL WORKS — AND IT UNDERMINES THE ENTRY THAT ASKED FOR IT
+
+Added `settle` as the drift control and re-ran:
+
+```
+settle  median 21.6 ms  (22..22)      <- control
+tool    median 5020.4   (3563..6478)
+tool2   median   23.9   (22..26)
+```
+
+Against the earlier clean set: **settle 19.4 (19..20)**, **tool 333..336**.
+
+**The control says the machine is fine.** 19.4 -> 21.6 ms is 2 ms on a 20 ms
+number. Meanwhile `tool` went 333 -> 5020, a 15x change, with a stable control
+beside it.
+
+### So "the machine drifted" was wrong
+
+One commit ago I wrote that beats moving 10-50x meant the machine had degraded
+after twenty Electron launches. **That was a hypothesis stated as a diagnosis,
+in the very entry whose subject was that I lacked the control to tell.** I
+identified the missing control and then drew the conclusion the control was
+needed for, in the same breath.
+
+**Twenty-first instance, and the most self-referential one yet.**
+
+### What the evidence actually supports
+
+The only thing that changed between those two sets, besides time, is that I
+**added the `lookOnly` beat** — mouse movement before the first step. With
+`settle` stable, the difference has to come from the driver's own structure,
+not the host.
+
+That is its own real finding: **the measurement is sensitive to the order of
+beats.** Looking around before walking changes what the tool beat costs — by
+15x. Which means cross-set comparisons require an *identical driver*, not merely
+an identical build, and every comparison in this report between sets with
+different beat structures is void.
+
+### The rule this leaves, which is stronger than the one before it
+
+A perf comparison needs **three** things, not one:
+1. a distribution, not a sample (established two hours ago);
+2. a **drift control** that is unchanged between sets (added now);
+3. an **identical driver**, because beat structure is itself a variable
+   (established by this run).
+
+I got (1) after being wrong, (2) after being wrong, and (3) by being wrong about
+(2). The instrument is now genuinely better than the reasoning that produced it —
+which is the whole argument of this report, applied twenty-one times to my own
+work as much as to the codebase's.
+
+Suite 2929 pass / 0 fail.
+

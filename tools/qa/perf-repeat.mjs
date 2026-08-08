@@ -76,5 +76,35 @@ for (const [beat, xs] of perBeat) {
   console.log(`${beat.padEnd(12)} ${fmt(xs)}   ${xs.map((x) => x.toFixed(0)).join(', ')}`);
 }
 console.log(`${'ALL'.padEnd(12)} ${fmt(overall)}`);
+
+// THE DRIFT CONTROL — WITHOUT THIS, A DISTRIBUTION IS NOT A CONTROL.
+//
+// The first version of this script repeated runs and compared medians, which
+// handles variance WITHIN a set and silently assumes the machine is the same
+// between sets. It is not. After ~20 Electron launches in one session, beats
+// whose code had not been touched moved 10-50x: `tool` 333..336 -> 2870..9716,
+// `ledger` 34..70 -> 454..3833, `door` 27..37 -> 20..1381.
+//
+// Spread cannot detect that. In the drifted set `lookOnly` read 3369, 3375,
+// 3403 — a 34 ms band on a 3.4-second number, beautifully tight and entirely
+// worthless, because everything around it had tripled.
+//
+// `settle` is the control: six seconds of standing still, no input, identical
+// code in every configuration anyone would compare. If its median moves between
+// sets, the sets are not comparable and no cross-set claim may be made.
+const settle = perBeat.get('settle');
+console.log('\n--- DRIFT CONTROL ---');
+if (!settle) {
+  console.log('NO `settle` BEAT FOUND. Without it this set cannot be compared to any');
+  console.log('other set, because nothing here is known to be unchanged.');
+} else {
+  console.log(`settle median ${median(settle).toFixed(1)} ms  (${Math.min(...settle).toFixed(0)}..${Math.max(...settle).toFixed(0)})`);
+  console.log('QUOTE THIS NUMBER beside any cross-set comparison. `settle` is pure');
+  console.log('standing-still and never changes, so if it differs from the set you are');
+  console.log('comparing against, the machine moved and the comparison is void —');
+  console.log('however tight either distribution looks.');
+}
 console.log('\nCompare MEDIANS across configurations, and only when the medians');
-console.log('differ by more than the spread. One run against one run proves nothing.');
+console.log('differ by more than the spread AND the settle control matches.');
+console.log('One run against one run proves nothing; two sets on a drifted');
+console.log('machine prove nothing either.');
