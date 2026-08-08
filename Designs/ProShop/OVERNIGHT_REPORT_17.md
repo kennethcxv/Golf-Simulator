@@ -2336,6 +2336,42 @@ its neighbour to land on the right one. Logged as fault 77 - **a break that does
 not break is indistinguishable from a check that does not check**, and both were
 true here at once.
 
+## G8 — verified as genuinely done, and the number the brief asked for
+
+G8: "Delete the speed ladder above 1x entirely, and every path that reads it,
+including the NPC decision/locomotion split... Report the day length and how
+long a full trading day takes in real minutes at the only speed that exists."
+
+**This one the previous session actually finished**, and the implementation is
+the right shape rather than a stub. `simSpeedMultipliers` does `void speedIdx`
+and returns a fixed pair: day compression on `decision`, and **`locomotion: 1`**
+- which is precisely the split G8 names, with the term that produced "customers
+running at 500 mph" pinned to one.
+
+`speedIdx` survives only as a pause flag: 0 is paused, 1 is running, and Space
+toggles between them. There is no rung above 1 to reach.
+
+### The numbers
+
+| | measured |
+| --- | --- |
+| game minutes per real second | 0.13333 |
+| game minutes per real **minute** | **8.0000** |
+| **a full trading day (1440 game min)** | **180.00 real minutes** |
+| multipliers at index 1 | `{ decision: 4, locomotion: 1 }` |
+| multipliers at index 3 (the old 4x rung) | `{ decision: 4, locomotion: 1 }` - **identical** |
+
+### The check, and why its shape matters
+
+`tests/one-speed-only.test.js` feeds the function **every** index - 0, 1, 2, 3,
+4, 99, -1, `undefined`, `null` - and requires the answer never to move.
+
+That behavioural form is deliberate. The function **still takes a `speedIdx`
+argument** and has to: callers pass one, and the symbol is load-bearing in older
+drivers. So nothing about its signature would reveal a rung creeping back in,
+and a test that merely checked the signature would pass a build where the ladder
+had returned. Watched failing with a rung reintroduced.
+
 ---
 
 ## RUNNING LISTS
