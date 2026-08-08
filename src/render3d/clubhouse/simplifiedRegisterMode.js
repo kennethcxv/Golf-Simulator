@@ -2352,7 +2352,7 @@ export function createRegisterMode(B) {
       }
       const resumed = resumeCheckout(tx.checkoutFlow, { nowMs: nowMs + 0.001 });
       if (!resumed.ok) {
-        toast(`Could not pick the sale back up: ${resumed.reason}`, 'warn');
+        toast(t('till.resumeFailed', { reason: resumed.reason }), 'warn');
         return true;
       }
       syncFlow(resumed.flow);
@@ -2366,7 +2366,7 @@ export function createRegisterMode(B) {
         resumeSequence: resumed.flow.sequence,
       });
       checkoutWatchdogEvents.splice(0, Math.max(0, checkoutWatchdogEvents.length - 16));
-      toast(`Checkout recovered from ${fromState}.`);
+      toast(t('till.recovered', { state: fromState }));
       drawScreen();
       drawTerm();
       return true;
@@ -5118,13 +5118,13 @@ export function createRegisterMode(B) {
       layoutGoods();
       drawScreen();
       drawTerm();
-      toast(`Green fee added to this sale - $${joined.amount.toFixed(2)}.`, 'good');
+      toast(t('till.greenFeeAdded', { amount: joined.amount.toFixed(2) }), 'good');
       return true;
     }
     refreshAccessibilityPreferences();
     const waitingCustomer = readyReservationCustomer(reservation.id);
     if (!waitingCustomer) {
-      toast(`${reservation.fullName || reservation.name} has not reached the front desk yet.`, 'warn');
+      toast(t('till.notAtDeskYet', { name: reservation.fullName || reservation.name }), 'warn');
       drawScreen();
       return false;
     }
@@ -6776,7 +6776,7 @@ export function createRegisterMode(B) {
         ? bridge.rejectWalkIn(walkIn.customerId)
         : false;
       if (rejected) {
-        toast(`No tee time was available for ${walkIn.fullName || walkIn.name}.`);
+        toast(t('till.noTeeTimeFor', { name: walkIn.fullName || walkIn.name }));
         selectedWalkInCustomerId = null;
         drawScreen();
       }

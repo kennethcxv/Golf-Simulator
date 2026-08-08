@@ -42,6 +42,12 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // The till, with placeholders so a translation can reorder them.
+  'till.resumeFailed': "Could not pick the sale back up: {reason}",
+  'till.recovered': "Checkout recovered from {state}.",
+  'till.greenFeeAdded': "Green fee added to this sale - ${amount}.",
+  'till.notAtDeskYet': "{name} has not reached the front desk yet.",
+  'till.noTeeTimeFor': "No tee time was available for {name}.",
   // Build mode, with placeholders so word order can differ by language.
   'build.holdingToPlace': "{name} - [E] place · [R] rotate · [RMB] cancel",
   'build.holdingToSetDown': "{name} - [E] set down · [R] rotate · [X] store · [RMB] cancel",

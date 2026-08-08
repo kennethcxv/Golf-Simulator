@@ -4637,3 +4637,33 @@ is under its ten-string threshold, so it did not ask for the baseline to be
 lowered. That is the behaviour I wanted - it should nag on a real batch, not on
 every commit - and this is the first time it has been observed choosing not to
 fire.
+
+### 90 -> 85: the till's interpolated lines
+
+Five more from `simplifiedRegisterMode.js`, each with its data lifted into a
+placeholder:
+
+```
+"Could not pick the sale back up: {reason}"
+"Checkout recovered from {state}."
+"Green fee added to this sale - ${amount}."
+"{name} has not reached the front desk yet."
+"No tee time was available for {name}."
+```
+
+**Two in that file were deliberately left**: the pair that reads
+`${name}: I will pay with ${paymentPreference}`. They carry TWO interpolations
+and a contraction, and the second value is a bare token (`card` / `cash`) that a
+translator would need as a translated WORD rather than a substituted key. Wrapping
+them as-is would produce a French sentence with an English `card` in the middle -
+technically translatable, actually broken.
+
+They need their own small decision: a key per method, or a lookup at the call
+site. Left as they are rather than half-done, and named here so the next pass
+knows why they were skipped rather than missed.
+
+```
+155 -> 146 -> 119 -> 94 -> 90 -> 85
+```
+
+**70 strings, 45%, translatable.** Suite 2928 pass / 0 fail throughout.
