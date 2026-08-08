@@ -9571,3 +9571,61 @@ single most useful thing this session produced.
 
 Suite 2929 pass / 0 fail.
 
+
+## CORRECTION — THE STRAND MATERIALS ARE CREATED AT ADOPTION, NOT AT EQUIP
+
+The previous two entries claim the +9 programs belong to materials that "do not
+exist until the equip runs". **That is wrong.** `toolViewmodel.js`:
+
+```js
+loaded.set(def.id, entry);
+if (def.id === 'mop' && !entry.strandRig) {
+  const yarn = new THREE.MeshStandardMaterial({ ... });
+```
+
+Both lines are **inside the GLTF loader callback** — that is *adoption*, not
+equip. The `!entry.strandRig` guard reads like lazy-on-first-use and is not; it
+guards against a second adoption of the same tool.
+
+And adoption is measured at `programs: 0`, i.e. **before the boot prewarm**. So
+the strand materials **do exist** when the prewarm runs, and the prewarm reveals
+every hidden object and compiles.
+
+### What this invalidates, stated plainly
+
+- *"nothing can pre-compile a material that has not been constructed"* — the
+  material was constructed;
+- the recommended fixes that followed from it (create materials at build time,
+  build rigs during adoption, add proxy meshes) — **all solve a problem that
+  does not exist**;
+- my "fifth correction, caught before implementing" was itself reasoning from
+  the same false premise.
+
+**Twenty-seventh instance, and the fourth consecutive one inside this single
+thread.** I read the guard `!entry.strandRig`, inferred "lazy, so first equip",
+and never checked which callback it sat in — the exact failure this report has
+documented twenty-six times: a conclusion drawn one layer above what was
+actually read.
+
+### What is still true, and where it leaves the diagnosis
+
+**Still measured and solid:** the first equip compiles +9 programs and costs
+333–7855 ms; the second compiles 0 and costs ~24 ms; removing the post-adoption
+compile changed neither, and saved 66 wasted compiles at boot.
+
+**Now genuinely open again:** *why the prewarm does not cover those 9 programs,
+given the materials exist and the objects are reachable from `scene` through
+`scene.add(camera)` -> `camera.add(heldRoot)`.*
+
+Candidates worth measuring, not arguing: the equip may re-key the program by
+changing material state (a map enabled, fog or shadow flags flipped, skinning or
+instancing turned on), or the rig may swap in different materials at equip than
+the ones adoption built.
+
+**The measurement that answers it:** log the 9 programs' cache keys at equip and
+compare them against what the prewarm compiled. `programKeyBreakdown()` already
+exists in this file from earlier in the session and was built for exactly this
+kind of question.
+
+Suite 2929 pass / 0 fail.
+
