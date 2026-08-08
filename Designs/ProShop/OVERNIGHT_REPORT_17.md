@@ -11462,3 +11462,41 @@ single fact, and no documentation would have volunteered it.
 
 Suite 2929 pass / 0 fail. Tree clean. 249 commits, all pushed.
 
+
+## THE ONE SHIPPED CHANGE NOW HAS THE CHECK THE RULES DEMAND
+
+`tests/hand-materials-shared.test.js` — four assertions pinning the material
+deduplication, **watched failing on the unfixed build**:
+
+```
+on the fixed build              4 pass / 0 fail
+with the reuse reverted         not ok 2 - the rig reuses the hands' materials
+restored, full suite            2933 pass / 0 fail   (was 2929: +4)
+```
+
+**Every fix gets a check you have watched fail.** This session shipped exactly
+one change and it had none until now; eleven other attempts were reverted, so
+they needed nothing.
+
+### What the four assertions actually protect
+
+1. `makeFpHands()` returns `mats` — without it a rig has nothing to reuse;
+2. the rig takes its arm materials from `fpHands` when available — **this is the
+   one the control fires on**;
+3. the standalone fallback survives, so the module does not become coupled;
+4. `SKIN`, `CUFF` and `CUFF_DARK` still match between the two files — **if they
+   ever diverge, sharing would silently change how the arms look.**
+
+The fourth is the one worth having. The deduplication is only appearance-neutral
+*because* the constants are identical, and nothing else in the codebase says so.
+A future edit to either file's palette would otherwise change the arms without
+anyone noticing.
+
+### And the test strips comments before scanning
+
+Its own prose quotes the old code it forbids. A source-reading test that skips
+that step matches its own explanation and can never fail — a fault this report
+recorded early on and which this file was written to avoid from the start.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
