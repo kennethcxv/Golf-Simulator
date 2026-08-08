@@ -5159,3 +5159,44 @@ I published a defect, the fix was harmless, and the instrument that found it was
 wrong in a way that only showed up because I pushed for the screenshot the brief
 demands. **The screenshot requirement is what caught it** - three runs of a
 driver, not a test, and not a suite that has been green throughout.
+
+### THE OPACITY FAULT IS A CLASS, AND IT NOW HAS ONE CORRECT IMPLEMENTATION
+
+Requirement 6 says fix the class, not the instance. The effective-opacity fault
+that invented the G2 HUD overlap is not specific to that sweep - **twelve QA
+drivers touch `getComputedStyle(...).opacity`**.
+
+### But most of them are fine, and saying so matters
+
+Almost all of those check the LOAD VEIL:
+
+```js
+const v = document.querySelector('.load-veil');
+return !v || getComputedStyle(v).opacity === '0';
+```
+
+The veil is a top-level element with no transparent ancestor, so the naive check
+is **CORRECT** there. Rewriting twelve drivers to use an ancestor-walking helper
+would be churn dressed as rigour, and would make a dozen files harder to read to
+fix a bug none of them has.
+
+**The fault bites only when the subject is a CHILD of something that can fade.**
+
+### What was added
+
+`tools/qa/lib/qa-boot.mjs` - the module every driver already boots through - now
+exports `EFFECTIVE_OPACITY_SRC` and `isDrawnSrc()`. They return page-side
+function SOURCE, because `getComputedStyle` lives in the page and a driver has to
+inject it into `page.evaluate` rather than call it from Node.
+
+The comment on it carries the whole lesson, including why the naive form is
+still right for a veil, so the next person reaches for the correct one **only
+when it matters** rather than cargo-culting it everywhere.
+
+### The part worth keeping
+
+**A false defect is worse than false comfort.** False comfort wastes a check; a
+false defect wastes a day, and in this case it produced a CSS change, a
+measurement, a report section and a screenshot driver before anything caught it.
+What caught it was the brief's insistence on a player-camera frame - not the
+suite, which was green through all of it.

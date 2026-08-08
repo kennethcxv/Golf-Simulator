@@ -165,3 +165,46 @@ export async function toolIsLive(page, tool, { timeoutMs = 20000 } = {}) {
     ...detail,
   };
 }
+
+// --- IS THIS ELEMENT ACTUALLY ON SCREEN? ------------------------------------
+//
+// `getComputedStyle(el).opacity` is the value set ON THAT ELEMENT. A child of an
+// `opacity: 0` parent reports 1 and passes a naive check while being completely
+// invisible.
+//
+// That is not hypothetical. The G2 screen sweep used the naive check and
+// reported a HUD overlap between a key chip inside a transparent prompt and the
+// lock hint - two elements that are never drawn in the same state at all. It was
+// the only instrument fault of that session which INVENTED a defect rather than
+// hiding one, and inventing is worse: false comfort wastes a check, a false
+// defect wastes a day.
+//
+// Naive `.opacity` is still CORRECT for a top-level element with no transparent
+// ancestor - the load veil, for instance - which is why most drivers using it
+// are fine. Use this whenever the subject is a CHILD of anything.
+//
+// Returns the source of a page-side function, so a driver can inject it into
+// page.evaluate where getComputedStyle actually lives.
+export const EFFECTIVE_OPACITY_SRC = `(el) => {
+  let o = 1;
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    const s = getComputedStyle(n);
+    if (s.visibility === 'hidden' || s.display === 'none') return 0;
+    o *= Number(s.opacity);
+    if (o < 0.05) return 0;
+  }
+  return o;
+}`;
+
+/**
+ * True when the element is drawn: it has a box, and nothing in its ancestor
+ * chain has faded, hidden or collapsed it.
+ * Usage: await page.evaluate(isDrawnSrc(), selector)
+ */
+export const isDrawnSrc = () => `(sel) => {
+  const el = typeof sel === 'string' ? document.querySelector(sel) : sel;
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width < 3 || r.height < 3) return false;
+  return (${EFFECTIVE_OPACITY_SRC})(el) >= 0.05;
+}`;
