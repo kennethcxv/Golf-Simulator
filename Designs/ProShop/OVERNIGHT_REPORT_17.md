@@ -10151,3 +10151,53 @@ equip's Δ must fall **+9 -> 0**, and the census must show **+0 meshes**.
 
 Suite 2929 pass / 0 fail.
 
+
+## THIRTY-THIRD: "CONSTRUCTION" MAY BE RE-PARENTING, AND MY CENSUS CANNOT TELL
+
+Kept pulling. `buildArm` runs at **boot** (`broomViewmodel.js:234/238`, inside
+`createBroomViewmodel`, which the rig loop calls for every tool). And
+`rebuildArmGeometries` (1213) disposes and recreates **two** forearm cylinders —
+not 54 — and is called from a feel-refresh setter, not the equip path.
+
+**So nothing found so far constructs 54 geometries at equip.**
+
+Which exposes an assumption in my own census that I never stated: **it counts the
+CAMERA subtree.** Objects *moved into* that subtree would register as +54 meshes
+and +54 geometries with **nothing constructed at all**. Re-parenting and
+construction are indistinguishable to it.
+
+And there is a mechanism in plain sight: `setActive` calls
+`layerOnRecursive(broomGroup, active)` with the comment *"the broom (and the
+hands parented into it) leave the world pass entirely while the viewmodel pass
+owns them"* — a subsystem that demonstrably moves things between passes at equip.
+
+### This actually explains the +9 programs better than construction did
+
+If the meshes already exist elsewhere and are **drawn for the first time** when
+the equip brings them into the viewmodel pass, then 9 programs compile on that
+first draw — with **ordinary MeshStandardMaterial keys**, exactly as measured,
+and with no new materials needed anywhere.
+
+Construction was never required to explain any of it. **I inferred it from a
+count, and a count cannot distinguish "made" from "moved".**
+
+### What the report should now say, honestly
+
+**Solid:** +9 programs, ordinary keys, one-time, second equip free at ~24 ms.
+Measured repeatedly, three independent ways.
+
+**NOT established:** that anything is constructed at equip. The +54 meshes /
++54 geometries / +9 materials are a **camera-subtree delta**, which re-parenting
+produces just as readily.
+
+**The test that separates them, and it is one line:** record `geometry.uuid` sets
+before and after. If the 54 "new" geometries carry uuids that existed before the
+equip, they were moved. If the uuids are new, they were built.
+
+**Thirty-third finding.** The chain I called "closed" two entries ago, then
+doubted, then re-verified with a stable anchor — and the stable anchor fixed the
+*anchor* while leaving the *interpretation* untested. **A better measurement of
+the wrong quantity is still the wrong quantity.**
+
+Suite 2929 pass / 0 fail.
+
