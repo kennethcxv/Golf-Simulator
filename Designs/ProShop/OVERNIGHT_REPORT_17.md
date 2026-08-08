@@ -6687,3 +6687,23 @@ Instancing keeps the draw calls flat, so the cost is CPU compose, but "it is
 only CPU" is precisely the reasoning that produces a 384 ms frame. The gate is
 re-run below rather than assumed.
 
+
+### The declared perf risk, checked
+
+Gate re-run after +520 instanced bristles:
+
+| | before | after |
+|---|---|---|
+| worst frame | 384.5 ms | 378.5 ms |
+| frames over 16 ms | 634 (15.2%) | 654 (15.6%) |
+| frames over 100 ms | 5 | 1 |
+
+**No clear regression.** Worst frame and the over-100 count improved; the
+over-16 count rose 3%. Two of three moved the *good* way, which is the signature
+of run-to-run variance rather than a cost — and is also why the honest verdict
+here is "no clear regression", not "an improvement". A single gate run cannot
+separate a 3% tick from noise, and I am not going to spend the claim.
+
+Gate holds at 9 pass, 1 FAIL, 0 unchecked. Invariant 1 stays red on its own
+merits, unchanged since Section A.
+
