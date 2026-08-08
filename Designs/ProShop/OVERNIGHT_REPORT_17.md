@@ -5650,3 +5650,41 @@ rule that stopped me publishing a false G4.1 defect and a false HUD overlap.
 **G5: the round-up behaviour is CONFIRMED live. The coins-on-the-desk half
 remains UNCONFIRMED**, with the mechanism to force it identified and the two
 candidate reasons it did not fire written down.
+
+### G5 RESOLVED - I FORCED THE COIN CASE ON THE WRONG NUMBER
+
+The two candidates I named were both wrong, and the real answer is better.
+
+**The prices DID take.** The tender was `$30` for a `$21.75` bill - the round-up
+of MY prices, not of the catalog ones (balls3 + glove1 would round somewhere
+else entirely). So the edit landed, and `tx.rng` was not the problem either.
+
+**Sales tax was.** `customerCash` computes the odd cents from
+`cashTotalOf(tx)` - the total the customer actually pays, **including tax**. I set
+prices summing to `21.75` and reasoned about **75 cents PRE-TAX**. The cents on
+the real total are different, `payableInLargeCoins` saw a value needing pennies,
+and it correctly refused the coin branch.
+
+**The code was right the whole time. My forcing was computed on the wrong
+number.**
+
+### This is the same fault as every other one this session
+
+Not a bug in the game, not a bug in the instrument - **a measurement taken
+against a quantity the subject does not use.** The dry mop, the shut book, the
+unready rig, the 1.5 s sample on a 0.55 s event, and now a pre-tax total on a
+post-tax decision. Five instances of one shape.
+
+The tell each time was the same: **the number that came back was internally
+consistent but did not match what I predicted**, and the temptation each time was
+to conclude the FEATURE was broken rather than the measurement.
+
+### Status
+
+**G5: the round-up-to-the-next-note behaviour is CONFIRMED live** - a $21.75 bill
+paid with a $20 and a $10, realistic denominations, no shrapnel.
+
+**The coins-on-the-desk half is still unconfirmed, but no longer mysterious**: to
+force it, pick prices whose POST-TAX total ends in a multiple of 5 cents, or set
+`tx.taxRate = 0` before pricing. Either is a one-line change for the next run,
+and the unit test already proves the behaviour at 13.5% over a distribution.
