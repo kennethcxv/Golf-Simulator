@@ -11500,3 +11500,45 @@ recorded early on and which this file was written to avoid from the start.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## THE TOOL-BELT-AT-BOOT FINDING, MECHANISM NAMED
+
+Read `presentationMode()` (`main.js:190`) and `walkActive()` (`main.js:186`):
+
+```js
+function walkActive() {
+  return app.view === 'course' && app.courseMode === 'walk'
+      && app.scene3d && app.scene3d.walk.isActive();
+}
+```
+
+**Two things fall out.**
+
+**1. `presentationMode()` has no `'ledger'` branch.** So an open ledger does not
+swallow the belt key through the mode system — it does it through its own
+capture-phase listener (`window.addEventListener('keydown', ledgerKeyHandler,
+true)`), which runs before the main dispatcher. That matches the measurement
+exactly and explains why nothing in the mode machinery hinted at it.
+
+**2. `walkActive()` needs THREE conditions**, and the standalone driver awaited
+only the third: `walk.isActive()`. If `app.view` or `app.courseMode` has not
+settled, the belt key is dispatched into a mode that ignores it — which is the
+most likely reason a freshly-booted driver could not equip while the full walk
+could.
+
+**Stated as the mechanism to check, not as established.** It is one query:
+report `app.view`, `app.courseMode` and `walk.isActive()` immediately after boot,
+and again after the walk beat. If the first two differ between those moments,
+the finding resolves and the driver gains a proper readiness wait instead of the
+one it has.
+
+### Why this is worth leaving on the record
+
+The original observation — *the tool belt does not work straight out of boot* —
+was filed as its own item rather than folded into the geometry hunt, because it
+may matter to a player whose first action is taking a tool out, which the starter
+loop encourages. **It now has a named mechanism and a one-query test**, which is
+the difference between a curiosity and a work item.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
