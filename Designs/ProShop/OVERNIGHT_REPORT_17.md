@@ -14020,3 +14020,53 @@ Ten mechanisms eliminated, one cause found, quantified to two decimal places,
 with a 0.05 ms drift control and a lever that demonstrably takes the failure rate
 from 43.3% to 0.5%. **Invariant 1 was never "the game drops frames". It was a
 post-processing chain costing three quarters of a 120 Hz frame budget.**
+
+
+## THE 0.8 ms IS IN THE MSAA: 4x ON A HALF-FLOAT TARGET COSTS 1.26 ms
+
+The post chain needed to lose ~12% of itself. Two candidates were visible in the
+source and settable at runtime, so both could be priced before touching game code.
+
+| rung | GPU median | frames over 8.33 ms | applied? |
+|---|---|---|---|
+| baseline | **8.37 ms** | **55.8%** | — |
+| **MSAA 0** | **7.11 ms** | **12.7%** | `{rt1: 0, rt2: 0}` ✓ |
+| MSAA 4 again | 8.36 ms | 58.2% | `{rt1: 4, rt2: 4}` ✓ |
+| GTAO 8 taps | 8.37 ms | 58.4% | **did not apply** |
+| baseline again | 8.37 ms | 57.9% | — |
+
+**Drift control: 0.00 ms.** Baseline read 8.37 at both ends of the sweep.
+
+**Dropping 4x MSAA saves 1.26 ms — 15% of the GPU frame — and takes frames over
+the refresh interval from 55.8% to 12.7%.** The frame needed 0.04 ms on this run
+to fit inside 8.33; the lever buys thirty times that.
+
+### The GTAO rung measured nothing, and said so
+
+`applied` came back `{before: {samples: null, paramSamples: null}, after: {samples:
+null, paramSamples: null}}`. The pass exposes `blendIntensity`, `pdSamples` and
+`blendMaterial` — **there is no `samples` property to set**, so the tap count was
+never changed and that rung is a null, not a negative.
+
+Stated because the row reads "8.37 ms, no change" and would otherwise have gone
+into the record as *"GTAO tap count doesn't matter"*. It is untested. The
+composer's four passes are `RenderPass, GTAOPass, UnrealBloomPass, OutputPass`
+and GTAO remains a live candidate for the next look.
+
+### What I am NOT doing with this
+
+**Not shipping `samples: 0`.** It is the correct diagnosis and the wrong fix:
+turning MSAA off trades a stutter for jaggies on every edge in the game, and
+nobody asked for that trade. The honest options, in order of appeal:
+
+1. **4x -> 2x MSAA.** Typically about half the overhead for most of the quality,
+   and the obvious next measurement.
+2. **Post-process AA instead** — SMAA or FXAA as a pass costs a fraction of 4x
+   MSAA on a half-float target, and the chain already ends in an `OutputPass`.
+3. **Wire it to the quality preset**, so the machine that cannot afford it can
+   decline it and everyone else keeps the edges.
+
+All three are cheap to try and all three are now measurable to two decimal places
+against a 0.00 ms control. **The diagnosis is finished; the choice among those is
+a taste decision about how the game should look, which is not mine to make
+unilaterally at 3 a.m.**
