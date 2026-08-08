@@ -2168,6 +2168,53 @@ exactly, and the pure function now behaves as specified.
 
 ---
 
+# SECTION H — CHARACTERS
+
+## H4 — the number the brief asked for, and it explains the whole complaint
+
+H4: "At distance a customer has no face; walk up and it appears... Report the
+distance the swap happens at and what you did."
+
+**The distance is 4.5 yards out and 4.0 yards back in** (the code compares
+squared distance against 20.25 and 16). There is hysteresis, so it does not
+flicker on the boundary - but it is a hard visible/invisible flip of the
+fine-detail meshes, and **4.5 yards is the distance you stand at to talk to
+somebody**. Walk up to a customer and their face arrives. That single number
+explains the entire complaint.
+
+### What I did, and the third option I took
+
+The brief offers two answers: carry the features at distance, or blend the swap.
+I took a third which is really a bounded version of the first - **push the swap
+out to where the features are too small to read**, so the moment cannot be seen.
+A 12 mm brow at 4.5 yd is plainly visible; at 9 yd it is a couple of pixels at
+this window size.
+
+| | before | after |
+| --- | --- | --- |
+| features drop out at | **4.5 yd** | **9.0 yd** |
+| come back in at | 4.0 yd | 8.0 yd |
+| hysteresis | 0.5 yd | 1.0 yd |
+
+**Deliberately not pushed to "never."** These are per-character meshes and A1
+measured this renderer as **draw-call bound** (870-1982 calls a frame), so
+carrying facial detail across a whole distant crowd spends exactly the currency
+the game is shortest of. Doubling the range puts the swap well outside any
+conversation while keeping the saving where it actually pays.
+
+`tests/character-feature-lod.test.js` pins four things: the threshold pair is
+findable, the swap is beyond talking distance, hysteresis survives so it cannot
+flicker, and it is **not** pushed past ~30 yd where the saving would be gone.
+Watched failing on the old 4.5 yd value (3 of 4), green on restore.
+
+**UNCONFIRMED visually.** I have not screenshotted a customer at 8.5 yd and 9.5
+yd to see the swap is imperceptible - that needs a spawned customer at a
+measured distance, and by this brief's rule a visual claim without a
+player-camera frame is unconfirmed. The number is certain; the invisibility is
+reasoned.
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._

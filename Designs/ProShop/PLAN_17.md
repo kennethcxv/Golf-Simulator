@@ -686,3 +686,36 @@ peaked at 1.66 s against a 2.5 s threshold and the branch was reverted because
 **displacement always fired first**. So the thing to fix is not the threshold -
 it is that a displacement test is pre-empting the no-progress test. **The brief
 is explicit that 3 seconds must fire regardless of what displacement thinks.**
+
+
+---
+
+# SECTION H — CHARACTERS
+
+## Phase 0 — the section explained back, as verbs
+
+- **H1.** Fix the rig so a walking torso reads as **one piece** - no pumping, no
+  separation at the waist. Screenshot four customers mid-stride, before and
+  after.
+- **H2.** **Seat eyebrows and moustaches on the skin** so they do not float in
+  front of the face. Profile screenshot at conversational distance, before and
+  after.
+- **H3.** Stop skin passing through the belt, **on any body type in any pose** -
+  checked across several, not one.
+- **H4.** Kill the facial-feature **pop**: at distance a customer has no face,
+  walk up and it appears. Either carry the features at distance or blend the
+  swap. **Report the distance the swap happens at** and what I did.
+
+### Where I am starting, and the reading
+
+Goal 16's G section worked H1 and H2 ("one vertical law for the torso, and the
+face sits on the skull"), so those get **verified before rebuilt**, as E, F and
+G did - a pattern that has now caught two half-fixes (E3's family, E4's
+subject).
+
+**H4 is the one I am starting on**, because it is the only item in this section
+that asks for a number I do not yet have - "report the distance the swap happens
+at" - and because a measurement is the honest first move on an item whose fix
+("carry the features" versus "blend the swap") depends entirely on what that
+number is. If the swap is at 3 yards it is a blend problem; if it is at 25
+yards it is a budget problem and carrying the features may be free.

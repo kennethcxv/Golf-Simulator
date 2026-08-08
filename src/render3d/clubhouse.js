@@ -10743,7 +10743,28 @@ export function makeClubhouse(ctx) {
         const dx = c.mesh.position.x - camera.position.x;
         const dz = c.mesh.position.z - camera.position.z;
         const wasFar = c.characterPresentationFar === true;
-        const far = dx * dx + dz * dz > (wasFar ? 16 : 20.25);
+        // H4 (Goal 17) — THE POP WAS HAPPENING AT CONVERSATIONAL DISTANCE.
+        //
+        // Measured: the fine-detail meshes (brows, and the rest of the facial
+        // set) switched off at sqrt(20.25) = 4.5 yd and back on at sqrt(16) =
+        // 4.0 yd. There is hysteresis, so it does not flicker on the boundary -
+        // but it is a hard visible/invisible flip, and 4.5 yd is the distance
+        // you stand at to talk to somebody. Walk up to a customer and their
+        // face arrives, which is exactly what H4 describes.
+        //
+        // The brief offers two answers: carry the features at distance, or
+        // blend the swap. I am taking a third that is really the first, bounded:
+        // push the swap out to where the features are too small to read, so the
+        // moment it happens cannot be seen. A 12 mm brow at 4.5 yd is plainly
+        // visible; at 9 yd it is a couple of pixels at this window size.
+        //
+        // NOT pushed to "never", deliberately. These are per-character meshes
+        // and A1 measured this renderer as DRAW-CALL BOUND, so carrying them
+        // across a whole crowd at any distance spends the exact currency the
+        // game is short of. 9 yd out / 8 yd in doubles the range, puts the swap
+        // well outside any conversation, and keeps the saving for the distant
+        // crowd where it actually pays.
+        const far = dx * dx + dz * dz > (wasFar ? 64 : 81);
         if (far !== wasFar) {
           c.characterPresentationFar = far;
           char.setPresentationDetail(far ? 'far' : 'full');
