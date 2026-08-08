@@ -13587,3 +13587,49 @@ shipped.** Two plausible fixes were built to the point of measurement and both
 were refused by their own evidence — the shadow cadence for buying 1.2 points at
 the cost of every moving caster's shadow, and this one for having no effect to
 buy at all.
+
+
+## NINETY PERCENT OF THE INDOOR SPIKE IS OUTSIDE THE RENDER CALL
+
+"Per-frame CPU outside draw submission, or GPU-side variance" is still two very
+different places to look. One measurement splits it: wrap `renderer.render` so it
+times itself, then compare that against the whole frame.
+
+The baseline is taken with the patch **already in place**, so the wrapper's own
+cost sits in both populations rather than only one.
+
+| indoors | spike frames | calm frames | difference |
+|---|---|---|---|
+| whole frame | 22.2 ms | 5.6 ms | **+16.6 ms** |
+| inside `render()` | 5.9 ms | 4.2 ms | **+1.7 ms** |
+| render calls | 20 | 20 | 0 |
+
+**Only 10.2% of a spike frame's extra time is inside the render call.** Outdoors
+the same split is +9.8 ms of frame against **+0.1 ms** of render.
+
+So it is not draw submission, not the post chain, not the shadow pass — all of
+which live inside `render()` — and the render-call count is identical at 20 on
+both populations.
+
+**The remaining ~90% is everything else the frame does**: the game update, the
+shop simulation, NPCs, input, and the browser's own style/layout/paint of the
+DOM HUD sitting over the canvas.
+
+### The ambiguity I am not papering over
+
+`renderer.render()` returning means the commands are *queued*, not that the GPU
+finished them. So a flat render time with a spiking frame could also be the GPU
+catching up at the next swap. What this measurement establishes for certain is
+that **the CPU time spent inside the render call does not move**; combined with
+byte-identical draw calls and triangles, and a ~74 ms rhythm, the weight is now
+firmly on the non-render half of the frame — but "GPU catching up at swap" is not
+excluded and would need a timer query to exclude.
+
+### Where this leaves invariant 1
+
+From *"the game drops frames"* at the start of the session to: **indoors only,
+21% of frames, ~90% of the cost outside the render call, on a ~74 ms rhythm, with
+six mechanisms eliminated under controls** (shadow bakes, culling/LOD, geometry
+volume, GC, texture uploads, and now draw submission and the post chain).
+
+Not fixed. Bounded, and pointed at a half of the frame nobody had looked in.
