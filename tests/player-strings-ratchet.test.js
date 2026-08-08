@@ -51,7 +51,18 @@ import path from 'node:path';
 // instrument SEES what you pointed it at, and says nothing about what you failed
 // to point it at. The floor here (raw > 15) looked perfectly healthy while the
 // scanner was blind to a whole class of player-facing text.
-const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])/g;
+// `reason:` joined 2026-08-08 as the first step of the planned widening. It is
+// the biggest sink and the least ambiguous: `toast(result.reason)` is how every
+// refusal in this game reaches the player, so a raw reason string is a refusal
+// nobody can translate - and refusals are the lines a stuck player most needs in
+// their own language.
+//
+// ONE CATEGORY AT A TIME, by decision. Adding all five known sinks at once would
+// take this from 50 to ~1,900 in a single commit and produce a number nobody can
+// act on and a baseline nobody will lower. Still to come, in order: prop
+// `label:` (552), `el({text})` (483, audit first - the factory also builds debug
+// rows), `ctx.fillText` (61), `notify({message})` (14).
+const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])|reason:\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
@@ -60,7 +71,19 @@ const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 // normally the wrong move and needs exactly this kind of justification in
 // writing, or it becomes the escape hatch that makes the whole mechanism
 // pointless.
-const BASELINE = 50;
+// 50 -> 854 when `reason:` joined the sink list. A CORRECTION, not a regression:
+// those 804 refusal strings were always raw and the scanner could not see them.
+//
+// Raising a ratchet ceiling is normally the wrong move and needs this
+// justification in writing, or it becomes the escape hatch that makes the whole
+// mechanism pointless. The rule this file follows: the ceiling may rise ONLY
+// when the MEASUREMENT widens, never when the code regresses - and the commit
+// that raises it must say which.
+//
+// Worst offenders at the time of writing, for whoever wraps them:
+//   sim/register.js 103, sim/courseEditor.js 76, sim/reservations.js 72,
+//   sim/deliveries.js 47, sim/shop.js 37
+const BASELINE = 854;
 
 function jsFiles(dir) {
   const out = [];

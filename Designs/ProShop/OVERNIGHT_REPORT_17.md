@@ -6126,3 +6126,43 @@ step was small enough to verify.
 **And re-run the floor control after each**, because it is calibrated at `> 15`
 for a 50-string world and will need raising as the true count grows - the same
 maintenance fault as 86, which is now predictable rather than surprising.
+
+### SINK WIDENING, STEP 1: `reason:` - 50 -> 854
+
+Executed the plan's first category rather than leaving it written down.
+
+```
+50 -> 854 raw player-facing strings
+804 refusal messages that were always raw and always invisible to the scanner
+```
+
+`toast(result.reason)` is how **every refusal in this game reaches the player**,
+so a raw reason string is a refusal nobody can translate - and refusals are
+exactly the lines a stuck player most needs in their own language. Worst
+offenders, recorded for whoever wraps them:
+
+```
+sim/register.js 103   sim/courseEditor.js 76   sim/reservations.js 72
+sim/deliveries.js 47  sim/shop.js 37
+```
+
+### The rule this file now states about its own ceiling
+
+> **The ceiling may rise ONLY when the MEASUREMENT widens, never when the code
+> regresses - and the commit that raises it must say which.**
+
+Written at the constant, because a ratchet whose ceiling can be raised for any
+reason is not a ratchet. This is the second correction-not-regression rise
+(45 -> 50, now 50 -> 854) and both carry that justification inline.
+
+### Verified the way the last one should have been
+
+Regex tested standalone against a known file BEFORE editing (854, and the
+original sinks still match at 5 in buildMode). Edit tool rather than a python
+escaping layer. **Full suite run before the commit, not after** - which is the
+rule I broke at commit 144 and have not broken since.
+
+Control: a planted `reason:` string pushes 854 -> 855 and fails the ceiling.
+
+**Remaining, in the decided order:** prop `label:` (552), `el({text})` (483,
+audit first), `ctx.fillText` (61), `notify({message})` (14).
