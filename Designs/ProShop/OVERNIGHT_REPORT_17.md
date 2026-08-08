@@ -5961,3 +5961,48 @@ rather than to the family that shares its cause:
 The lesson that keeps repeating: **fixing the instance leaves every unit test
 green.** Six of the seven were found by reading outward from the fix to the path
 the player actually walks, not by running the suite.
+
+77. **The overlap recorder de-duplicated across the whole module.** Clearing
+    `MONITOR_OVERLAPS` did not clear the seen-set, so every sweep after the first
+    reported clean whatever was on screen. Fixed by `resetMonitorAudit()`.
+78. **A measuring stub returned only `width`.** Every text row measured 16px tall
+    regardless of font, and the defect being hunted was vertical.
+79. **A source test matched its own comment.** The prose explaining why
+    `visible = false` had been REMOVED contains that string, so the assertion
+    passed on a build where the line was gone. Comments are stripped now.
+80. **A pattern matched the wrong identifier.** `/motion\.sink/` also matches
+    `motion.sinkDuration`, so deleting the entire sink leg left the check green.
+81. **A block capture stopped at the first `
+  }`**, and then brace-matching
+    from the first `{` caught a DESTRUCTURED PARAMETER instead of the body - so a
+    test reported a branch missing on a build where it was present.
+82. **An anchor string appeared earlier in the same function**, and a fixed
+    character window ran past the branch into its neighbour, so the check read
+    code that was never its subject. Three separate instances of this shape.
+83. **A regex matched a function DEFINITION as well as a call**, so deleting both
+    call sites left the assertion satisfied by the declaration.
+84. **The cramped-edge metric was wrong twice before it was right** - element box
+    (41 false positives), then content box (113), then ink-vs-border-box (1),
+    then scroll-aware (0). Each wrong version produced a number that looked like
+    a finding.
+85. **`getComputedStyle(el).opacity` is the element's OWN opacity.** A child of an
+    `opacity: 0` parent reports 1, so the sweep counted an invisible key chip and
+    INVENTED a HUD overlap between two elements never drawn in the same state.
+    The only fault this session that manufactured work rather than false comfort.
+86. **A ratchet's FLOOR failed on a strictly better build.** The `raw > 50` guard
+    was set when 155 strings were raw; real work took the true count below it, so
+    the control fired on success. A ratchet has two numbers and they move for
+    opposite reasons.
+87. **My own G4.2 fix covered one of three bagging paths**, and my test scanned
+    only the function I had changed. Found by a live driver reading
+    `visible: false` on goods correctly inside the bag at scale 1. The half-fix
+    shape I had catalogued seven times in other people's work, committed by me
+    four hours later.
+88. **A driver name-scanned the scene graph** and reported a bag missing that was
+    present - caught only because its control hid nothing. Fixed by exposing
+    `bagNode()` / `itemMesh()` and asking rather than searching.
+89. **A 1500 ms sample on a 0.55 s event** reported the ABSENCE of a behaviour
+    that was there throughout. Caught only because the verdict was written
+    UNPROVEN rather than false.
+90. **Coin forcing computed on a PRE-TAX total** when `customerCash` reads the
+    post-tax one. The code was right; the measurement asked the wrong number.
