@@ -7218,3 +7218,60 @@ before anyone translates them. That audit is the real next step — this group w
 the FIRST one opened, and it was broken, so the base rate for composed keys
 elsewhere in the file is not zero.
 
+
+### THE AUDIT THE LAST COMMIT CALLED FOR — RUN, AND IT SPLITS IN TWO
+
+Audited every placeholder in the English dictionary, since the cart group was
+the first one opened and it was broken.
+
+**Detector 1** — a `t()` result substituted into another `t()`, the exact cart
+signature: **zero remaining**. The cart group was the only instance. That
+failure — a translated grammatical fragment glued into a translated sentence —
+is now extinct in this codebase.
+
+**Detector 2** — every placeholder, classified by what kind of value it takes:
+
+```
+placeholder  uses  kind
+name          15   whole value - safe
+cart          13   whole value - safe
+hole           4   whole value - safe
+price/count/time/amount/total   whole value - safe
+disease, club, what, cost, title, mode, label, number, kind,
+pin, tool, head, preset, bay, line, company, method, reason,
+state, done                     -> reviewed individually
+```
+
+None of the reviewed group composes a *translated* fragment. But they surfaced a
+**second, separate defect**: they interpolate values that are themselves raw
+English.
+
+| key | substituted with | what a French player sees |
+|---|---|---|
+| `editor.undid` | `res.label` | "Annulé : Rename hole" |
+| `till.iWillPayWith` | payment method | French frame, English method |
+| `editor.selectFeatureFirst` | feature kind | French frame, English noun |
+| `till.recovered` | **`fromState`** | an INTERNAL STATE NAME, shown to the player |
+
+**Half-translated sentences.** Grammatically valid — an English noun in a French
+frame is not ungrammatical, merely untranslated — so this is less severe than
+the cart bug and could not have been caught by the same reasoning. It is exactly
+the class the 2,108-string finding predicts: `res.label` IS one of those
+unwrapped `label:` strings, so wrapping the frame achieved nothing while the
+filling stayed raw.
+
+**`till.recovered` is its own bug**, and not an i18n one: it prints an internal
+state identifier into a player-facing sentence. That is worth fixing regardless
+of language.
+
+### What this audit changes about the E5 estimate
+
+The earlier note said ~103 remaining keys "need auditing for the same flaw".
+They have been, and the answer is **no** — the cart bug was singular. The
+remaining keys can be translated without restructuring.
+
+But translating them buys less than the coverage number will suggest, because a
+translated frame around an English value is still English to the reader. **The
+5.0% honest figure does not improve until the fillings are wrapped too** — which
+is the same 2,108-string job, reached from a third direction.
+
