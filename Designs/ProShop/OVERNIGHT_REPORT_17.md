@@ -12554,3 +12554,57 @@ configuration.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## THE MECHANISM, COMPLETE: THE VIEWMODEL LAYER HAS NO LIGHTS UNTIL THE EQUIP
+
+`courseScene.js:6755`:
+
+```js
+function enableBroomLightLayer() {
+  scene.traverse((object) => {
+    if (object.isLight) object.layers.enable(BROOM_FEEL.camera.layer);
+  });
+}
+```
+
+It does not add or remove lights. **It enables the viewmodel's layer on every
+existing light** — and it is called on equip (`:7459`, `:8154`).
+
+**From the viewmodel pass's point of view that is exactly A3's mechanism.**
+Before the equip, the broom layer is lit by **nothing**; after it, by everything.
+three.js bakes light *counts* into every program's cache key, so the same
+material compiled for a zero-light layer and for a fully-lit one are **two
+different programs**.
+
+### Every refutation now has a reason
+
+- **Fix 5** (compile per `vmCamera`) added **71 programs** and helped nothing:
+  those 71 were the **zero-light variants**, because `enableBroomLightLayer()`
+  had not run at veil time.
+- **Fixes 6-9, 13** (layers, attachment, matrices, pairings) all compiled under
+  the same zero-light condition, so none could produce the lit programs.
+- **Fixes 1-4** compiled the main-camera pass, which never had this problem.
+- **Fixes 10, 11, 14** (shadow suppression) addressed the 5 `depth` programs,
+  which are a *separate* consequence of the same light-list change.
+
+**Fourteen refutations, one cause.**
+
+### The fix, and it is A3's fix applied to a second subsystem
+
+**Call `enableBroomLightLayer()` before the prewarm compiles**, so the viewmodel
+layer's light list is final when its programs are built. A3 solved the ledger by
+refusing to change the light's membership mid-session; the same principle here is
+to settle the layer's lighting once, at boot, rather than at first equip.
+
+**Predicted:** the equip's Δ falls from +9 toward 0, because the programs
+compiled behind the veil would finally carry the light count the equip actually
+draws with.
+
+**Not implemented** — this is the fifteenth candidate and my context is spent;
+implementing it unverified would be the mistake this report has documented
+throughout. **But unlike the previous fourteen, it is derived from a named
+mechanism that A3 already proved on a different subsystem in this same file
+tree.**
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
