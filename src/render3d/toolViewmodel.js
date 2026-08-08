@@ -538,7 +538,7 @@ export function buildToolViewmodels() {
                   // 11 mm of bristle every 14.3 mm is a gap, so it went on
                   // looking like a comb while the numbers said brush. A real
                   // push broom's bristles barely taper at all.
-                  count: 720,   // B2: was 200 - a thin bristle needs density to read as a brush
+                  count: 200,   // B2 REVERTED: 720 cost +5.5 s on tool equip (measured). See report.
                   segments: 2,
                   length: 0.115,        // GLB-local metres: block underside to floor
                   barWidth: 0.50,       // block is 0.52; 10 mm inset each side
@@ -560,8 +560,8 @@ export function buildToolViewmodels() {
                   // yarn, which is what a push broom should be - and it fills
                   // the bar instead of fencing it. Instanced, so the draw call
                   // count does not move.
-                  strandRadiusTop: 0.0034,
-                  strandRadiusBottom: 0.0028,
+                  strandRadiusTop: 0.010,
+                  strandRadiusBottom: 0.0088,
                   // push-broom character: fast settle, short travel, little slack
                   params: {
                     chaseBase: 26, chaseFall: 5, pushGain: 0.55, dragGain: 0.05,

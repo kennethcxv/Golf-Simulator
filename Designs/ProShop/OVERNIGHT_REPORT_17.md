@@ -8510,3 +8510,54 @@ Invariant 1 was red all session for reasons nobody could name. It now has the
 largest single frame in the report sitting inside it, in a beat that only
 started working an hour ago.
 
+
+## B2 REVERTED — IT TRIPLED THE WORST FRAME IN THE GAME, AND I MEASURED IT ONLY BECAUSE THE BEAT STARTED WORKING
+
+Ran the test that separates the candidates:
+
+| bristles | tool-beat worst frame |
+|---|---|
+| **720** (B2 as shipped) | **8282.8 ms** |
+| **200** (original) | **2770.2 ms** |
+
+**B2 added 5.5 seconds to every tool equip.** Not a regression at the margin —
+a 3x multiplier on the single worst frame anywhere in this report.
+
+And 2.8 s remains at 200 bristles, so B2 did not *create* the hitch. It
+multiplied a large pre-existing cost that nothing had ever measured, because
+the tool beat had never completed.
+
+### The decision, and the rule it follows
+
+**Reverted in full** — count 720 -> 200 and radius 3.4 mm -> 10 mm. Shipping a
+measured 5.5-second regression to fix an *unconfirmed* visual complaint is the
+wrong trade in both directions: the cost is measured and the benefit is not.
+
+Requirement 7's rule, which C5 already applied to the ledger ribbon: **name the
+cost in the same breath as shipping the change.** C5 measured its material clone
+at 1673 ms and dropped it, shipping the geometry alone. This is the same call on
+the same kind of evidence.
+
+**B2 is NOT abandoned.** The complaint — "the bristles read as separated tines
+rather than a brush" — is real, the 5:1 kindling ratio diagnosis holds, and the
+fix is right. It is **blocked on the equip cost**, and it should return the
+moment that 2.8 s base is understood, because at that point density is cheap.
+
+### What this says about my own work today
+
+I shipped B2 with a perf check that I recorded as "no clear regression". That
+check was real, correctly run, and **structurally blind to what the change
+touched** — it compared frame counts across a walk whose tool beat was failing,
+so it never equipped a broom.
+
+**The eighteenth instance was mine, and it cost a shipped 5.5-second
+regression** that survived nine commits before the instrument existed to see it.
+It was caught in the end by the same discipline that found the other seventeen:
+fix the instrument first, then re-read every conclusion drawn while it was
+broken.
+
+That is why the tool-beat thread was worth eight failed hypotheses. **A working
+beat immediately convicted a change that a broken beat had cleared.**
+
+Suite 2929 pass / 0 fail.
+
