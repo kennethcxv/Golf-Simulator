@@ -1379,6 +1379,12 @@ export function createRegisterMode(B) {
     ))
     .add(BAG_POS);
 
+  // How far down the bag an item sinks before it is hidden, as a fraction of the
+  // rim height. 0.34 puts it about two thirds of the way below the rim - past
+  // the point where the near wall covers it from the player's seated angle, with
+  // room to spare rather than exactly at the line.
+  const BAG_SWALLOW_DEPTH = 0.34;
+
   // --- THE DEVICE BAY ------------------------------------------------------
   // A CLOSED ALCOVE: back panel, floor, ceiling and two side walls, opening
   // toward the staff. Round 8 (2026-08-02) rebuilt it — the round-7 version
@@ -6294,13 +6300,30 @@ export function createRegisterMode(B) {
     }
     const dropInto = BAG_POS.clone().sub(bagMouth).setY(0).normalize()
       .multiplyScalar(0.30 * BAG_COUNTER_SCALE);
+    // G3: IT GOES OUT OF SIGHT BECAUSE THE BAG IS AROUND IT.
+    //
+    // The travel used to stop AT the mouth and then flip visible=false, which is
+    // a pop - the item blinks out in full view, above the rim, and reads as fake
+    // however carefully its size was preserved. The size was already held (F3);
+    // the disappearance was the remaining lie.
+    //
+    // Two legs now. Over the rim first, because a straight line from the counter
+    // to the inside would pass through the bag wall. Then DOWN into the bag,
+    // still at full size, still visible, until the bag's own walls have swallowed
+    // it. Only then is it hidden, and by that point hiding it changes nothing on
+    // screen.
+    const insideBag = BAG_POS.clone().add(
+      bagMouth.clone().sub(BAG_POS).multiplyScalar(BAG_SWALLOW_DEPTH),
+    ).add(dropInto.clone().multiplyScalar(0.5));
     bagDropMotions.push({
       mesh: drag.mesh,
       from: drag.mesh.position.clone(),
       to: bagMouth.clone().add(dropInto),
+      sink: insideBag,
       fromQuaternion: drag.mesh.quaternion.clone(),
       elapsed: 0,
       duration: 0.46,
+      sinkDuration: 0.22,
       baseScale: drag.fromScale.clone(),
     });
     drawScreen();
@@ -6368,13 +6391,23 @@ export function createRegisterMode(B) {
   function updateBagDropMotions(dt) {
     for (let index = bagDropMotions.length - 1; index >= 0; index -= 1) {
       const motion = bagDropMotions[index];
-      motion.elapsed = Math.min(motion.duration, motion.elapsed + dt);
-      const t = THREE.MathUtils.smoothstep(motion.elapsed / motion.duration, 0, 1);
-      motion.mesh.position.lerpVectors(motion.from, motion.to, t);
+      const total = motion.duration + (motion.sinkDuration || 0);
+      motion.elapsed = Math.min(total, motion.elapsed + dt);
+      if (motion.elapsed <= motion.duration) {
+        // leg one: across the counter and over the rim
+        const t = THREE.MathUtils.smoothstep(motion.elapsed / motion.duration, 0, 1);
+        motion.mesh.position.lerpVectors(motion.from, motion.to, t);
+      } else if (motion.sink) {
+        // leg two: down inside, at full size, until the bag hides it
+        const st = THREE.MathUtils.smoothstep(
+          (motion.elapsed - motion.duration) / motion.sinkDuration, 0, 1,
+        );
+        motion.mesh.position.lerpVectors(motion.to, motion.sink, st);
+      }
       // Same rule as the clicked ring-up above: goods slide into the mouth,
-      // they are not lobbed over the rim — and per F3 they keep their size;
-      // the interior shell is what swallows them.
-      if (motion.elapsed < motion.duration) continue;
+      // they are not lobbed over the rim — and per F3 they keep their size.
+      // NOTHING here touches motion.mesh.scale, on either leg, by design.
+      if (motion.elapsed < total) continue;
       bagDropMotions.splice(index, 1);
       bagGroup.add(motion.mesh);
       motion.mesh.visible = false;

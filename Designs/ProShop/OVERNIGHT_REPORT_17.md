@@ -3027,3 +3027,52 @@ this instrument does not look for and would not find.
 
 The one real defect it did find, the HUD prompt over the controls line, was found
 by the FIRST and crudest version of the metric.
+
+## G3 - THE ITEMS DID NOT SHRINK; THEY POPPED
+
+*"They shrink and vanish, which reads as fake. Let the item travel into the
+bag's mouth and go out of sight because the bag is around it. Occlude if you
+must, but nothing shrinks."*
+
+Two claims in one sentence, and they had different answers.
+
+**NOTHING SHRINKS was already true.** Goal 16 F3 stopped the drop scaling the
+mesh; the motion carries a `baseScale` it RESTORES rather than a scale it
+animates. Verified and now pinned so it cannot quietly come back.
+
+**GOES OUT OF SIGHT BECAUSE THE BAG IS AROUND IT was not.** The travel ended AT
+the mouth - `to: bagMouth.clone().add(dropInto)` - and then set
+`visible = false`. The item blinked out **in full view, above the rim**. That is
+a pop, and it reads as fake however carefully the size was preserved. The half
+of the complaint that had been fixed was the half that was easy to measure.
+
+### The fix
+
+Two legs, because a straight line from the counter to the inside of the bag
+passes through the bag wall:
+
+1. across the counter and **over the rim** (0.46 s, unchanged)
+2. **down inside** to `BAG_SWALLOW_DEPTH = 0.34` of the rim height (0.22 s), at
+   full size, still visible, until the bag's own walls have swallowed it
+
+Only then is it hidden - and by that point hiding it changes nothing on screen,
+which is the difference between an occlusion and a pop.
+
+### Evidence
+
+Five checks. Watched two breaks fail:
+
+* shrinking it on the way in - caught by the scale check
+* deleting the sink leg entirely - caught, but **only after I fixed my own
+  test**. The first version matched `/motion\.sink/`, which also matches
+  `motion.sinkDuration`, so removing the whole leg left the assertion green. The
+  check now requires the POSITION lerp to the sink point, which is the thing that
+  actually moves the item.
+
+That is the second instrument fault of this section: a pattern loose enough to
+match the wrong identifier is a check that cannot fail.
+
+Suite **2902 pass / 0 fail**.
+
+**UNCONFIRMED:** source-level only. No player-camera frame of an item descending
+into the bag, so the occlusion is reasoned from geometry rather than seen.
