@@ -11774,3 +11774,58 @@ resolution costs one paragraph and was available from measurements already taken
 
 Suite 2933 pass / 0 fail. Tree clean. 256 commits.
 
+
+## TWELFTH REFUTATION — AND THE 4/5 SPLIT IS NOW CONFIRMED EXACTLY
+
+Re-ran the paired fix — hands attached to the scene **and** compiled through
+every rig's `vmCamera` **and** the main camera — this time without the
+`prewarmTimings.push` that turned the suite red before it could be judged.
+
+```
+suite                 2933 pass / 0 fail
+EQUIP PROGRAM DELTA   +9   (predicted lower)
+added keys            9  ->  physical: 4,  depth: 5
+tool worst            349.4 ms
+```
+
+**Two results.**
+
+**1. The 4/5 split is confirmed exactly**, by a second method. The field-by-field
+key diff found `physical | depth` at field 0; counting key prefixes directly
+gives **4 physical, 5 depth**. Two independent reads, same answer.
+
+**2. The paired fix warmed neither half.** Not the 5 depth — expected, since
+`compile()` cannot reach shadow passes — but **not the 4 physical either**, which
+it was specifically designed to reach and which every prior elimination said
+should be reachable.
+
+### Twelve fixes, twelve refutations, and what survives
+
+**No arrangement of `renderer.compile()` warms these programs**: not the boot
+prewarm, not on adoption, not after it, not per-`vmCamera`, not with every layer
+enabled, not with the hands attached, and not with attachment and `vmCamera`
+paired. Seven distinct compile configurations, all measured, all refuted.
+
+**That is a strong negative result and it is worth more than another attempt.**
+Something about how these meshes are drawn at equip differs from anything
+`compile()` can simulate — plausibly that they are drawn through a camera whose
+matrices are set per-frame by the rig (`vmCamera.matrixAutoUpdate = false`, and
+`vmCamera.matrixWorld.copy(camera.matrixWorld)` happens in the rig's update), so
+a compile-time `vmCamera` is not the camera that draws them.
+
+**Reverted.** Suite green throughout; nothing shipped.
+
+### Section A tool half — final for this session
+
+**Measured, with controls and two independent methods on the key split:** 54
+meshes move in from an off-graph parent at first equip; 7 distinct materials; **9
+programs — 4 physical, 5 depth**; 333-7855 ms first equip, ~24 ms second.
+
+**Refuted:** twelve fixes, all reverted. Pre-compilation is eliminated as a
+family by seven distinct configurations.
+
+**The one shipped change** remains the material deduplication, with its own
+regression check watched failing.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
