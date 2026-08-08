@@ -6862,3 +6862,54 @@ teaches the reader to skip it. Tasks #30 and #31 now carry the measured state,
 including the instruction not to trust `liveVsFrozenRatio` and the exact line
 B4 starts from.
 
+
+## SECTION C PHASE 1 — C8 AND C6 PULL AGAINST EACH OTHER, AND THE ORDER MATTERS
+
+### Most of C8 is already built
+
+C8 asks for "typography, ruling, ink weight, margins, paper". Surveying before
+planning:
+
+- **paper** — done, and thoroughly: a radial base gradient, an edge vignette,
+  130 deterministic laid-line fibres at 0.045 alpha, and 14 foxing blooms. Its
+  own comment calls the fibre *"the missing cue between 'canvas with text' and
+  a page"*, added under C2.
+- **ruling** — done. `ledgerBook.js:946` builds "the reference sheet's ruled
+  table: column dividers, a full grid", driven by `rowHeight` and
+  `ROWS_PER_PAGE`.
+- **margins** — `FOOT_MARGIN` exists and the foot row measures against it.
+- **typography** — Georgia serif throughout at several weights and sizes.
+
+So the honest remainder of C8 is **ink weight**: every glyph is a flat
+`fillStyle`, and real ink on laid paper is not flat.
+
+### The tension, which is the actual finding
+
+Pages are painted into canvas textures and flushed with `needsUpdate = true`,
+and that happens **on page change** — nine such flushes across the file. The
+page turn is therefore where the paint cost is paid.
+
+**That is the exact event C6 says is laggy and must come in under 16 ms.**
+
+So C8 and C6 are not independent items that happen to share a file. Every
+gramme of prettiness C8 adds is charged to the frame C6 is trying to shrink,
+and working them in the listed order — C6 then C8 — would mean optimising a
+turn and then immediately re-loading it.
+
+### Recorded reading (brief's ambiguity rule)
+
+**Work C8's ink weight only as a change that does not increase per-turn paint
+cost**, and treat "no measured rise in page-turn worst frame" as part of C8's
+acceptance rather than as C6's problem. Where a richer effect cannot be had for
+free, it belongs in the same place C5's dye was sent: baked at build time, not
+painted per turn.
+
+This is the C5 lesson generalised. That item measured its material clone at
+1673 ms and dropped it rather than shipping a prettier ribbon that cost 40x the
+turn budget. The same trap is open across the whole of C8, which is a list of
+five ways to make the page cost more to draw.
+
+**Not implemented this session.** The survey is the deliverable: four of C8's
+five nouns are already done, the fifth is identified, and the constraint it must
+satisfy is now written down before anybody spends a turn's budget on it.
+
