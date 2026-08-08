@@ -67,15 +67,38 @@ const EN = Object.freeze({
   'editor.planted': "{count} planted ({cost} pending).",
   'editor.pathLaid': "Path laid ({cost} pending).",
   // Cart hinges. The state word is LOOKED UP, not substituted raw.
-  'cart.driverDoor': "{cart} driver door {state}.",
-  'cart.windshield': "{cart} windshield {state}.",
-  'cart.rearStorage': "{cart} rear storage {state}.",
-  'cart.batteryHatch': "{cart} battery hatch {state}.",
-  'cart.passengerDoor': "{cart} passenger door {state}.",
-  'state.opened': "opened",
-  'state.closed': "closed",
-  'state.folded': "folded",
-  'state.raised': "raised",
+  // E5 — WHOLE SENTENCES, NOT ASSEMBLED ONES.
+  //
+  // These were five templates plus four shared state fragments:
+  //   'cart.driverDoor': "{cart} driver door {state}."   'state.opened': "opened"
+  //
+  // That is only translatable into English. English adjectives do not inflect,
+  // so one "opened" serves every noun; almost nowhere else does. In French
+  // `la porte` needs *ouverte* while `le pare-brise` needs *ouvert*, so a
+  // single `state.opened` substituted into all five parts is guaranteed wrong
+  // for at least two of them. The same breaks in Spanish, Portuguese and
+  // Russian (gender AND number) and partly in German.
+  //
+  // Six of the nine target locales could not express these sentences at all,
+  // and the failure is INVISIBLE from English - the templates read perfectly,
+  // and a translator handed `state.opened` in isolation has no way to know
+  // which nouns it will be glued to.
+  //
+  // So each part-state pair is now its own complete sentence. Ten keys instead
+  // of nine, and every one is a whole clause a translator can render and a
+  // reviewer can check. The general rule, which this file should keep: never
+  // interpolate a grammatical fragment across languages - only whole values
+  // like names, counts and times.
+  'cart.driverDoorOpened': "{cart} driver door opened.",
+  'cart.driverDoorClosed': "{cart} driver door closed.",
+  'cart.passengerDoorOpened': "{cart} passenger door opened.",
+  'cart.passengerDoorClosed': "{cart} passenger door closed.",
+  'cart.rearStorageOpened': "{cart} rear storage opened.",
+  'cart.rearStorageClosed': "{cart} rear storage closed.",
+  'cart.batteryHatchOpened': "{cart} battery hatch opened.",
+  'cart.batteryHatchClosed': "{cart} battery hatch closed.",
+  'cart.windshieldFolded': "{cart} windshield folded.",
+  'cart.windshieldRaised': "{cart} windshield raised.",
   // Carts and tool selection.
   'cart.needsCharging': "{cart} needs charging before it can be driven.",
   'cart.needsRepair': "{cart} needs workshop repair before it can be driven.",

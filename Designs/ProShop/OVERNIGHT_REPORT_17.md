@@ -7178,3 +7178,43 @@ authoritative figure; my 117 carries ~4 false positives.** Eleventh instance
 today of a number meaning slightly less than its name — and the first one that
 was mine, caught in the same breath as producing it.
 
+
+### E5 UNBLOCKED — THE COMPOSED KEYS ARE NOW WHOLE SENTENCES
+
+The ruling above is implemented rather than left as a note.
+
+```
+BEFORE  5 templates + 4 shared fragments
+  'cart.driverDoor': "{cart} driver door {state}."
+  'state.opened': "opened"   'state.closed': "closed"
+  toast(t('cart.driverDoor', { cart: prefix,
+    state: on ? t('state.opened') : t('state.closed') }))
+
+AFTER   10 complete sentences
+  'cart.driverDoorOpened': "{cart} driver door opened."
+  'cart.driverDoorClosed': "{cart} driver door closed."
+  toast(t(on ? 'cart.driverDoorOpened' : 'cart.driverDoorClosed',
+    { cart: prefix }))
+```
+
+Five call sites in `courseScene.js` rewritten; **zero residual references** to
+the removed fragment keys anywhere in `src/` or `tests/` (the only surviving
+mention is inside the comment that explains why they went). English key count
+231 -> 232.
+
+`{cart}` survives as an interpolation because it is a NAME, not a grammatical
+fragment — that is the line the rule draws: whole values (names, counts, times)
+may be substituted; adjectives, nouns and verb forms may not.
+
+**Checked for the regression this could have caused:** if any locale had
+translated the old `cart.*` keys, replacing them would have silently un-
+translated those strings. `t('cart.driverDoor')` under `fr` returns the raw key,
+proving the old keys were never translated there either. **No locale lost
+anything.** Suite 2929 pass / 0 fail.
+
+**E5 status now:** report DELIVERED, structural blocker REMOVED for the cart
+group, and the remaining ~103 missing keys can be audited for the same flaw
+before anyone translates them. That audit is the real next step — this group was
+the FIRST one opened, and it was broken, so the base rate for composed keys
+elsewhere in the file is not zero.
+

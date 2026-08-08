@@ -4974,7 +4974,7 @@ export function makeCourseScene(canvas, state) {
           label: `${prefix} driver/passenger door - [E] open to enter`,
           action: () => {
           const on = toggleHinge('Door_FL');
-          toast(t('cart.driverDoor', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+          toast(t(on ? 'cart.driverDoorOpened' : 'cart.driverDoorClosed', { cart: prefix }));
         },
         };
         return {
@@ -4989,7 +4989,7 @@ export function makeCourseScene(canvas, state) {
         label: `${prefix} windshield - [E] ${hinge.open ? 'raise' : 'fold'}`,
         action: () => {
           const on = toggleHinge('Windshield_Upper');
-          toast(t('cart.windshield', { cart: prefix, state: on ? t('state.folded') : t('state.raised') }));
+          toast(t(on ? 'cart.windshieldFolded' : 'cart.windshieldRaised', { cart: prefix }));
         },
       };
     }
@@ -4999,7 +4999,7 @@ export function makeCourseScene(canvas, state) {
         label: `${prefix} rear storage - [E] ${hinge.open ? 'close' : 'open'}`,
         action: () => {
           const on = toggleHinge('StorageLid_Rear');
-          toast(t('cart.rearStorage', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+          toast(t(on ? 'cart.rearStorageOpened' : 'cart.rearStorageClosed', { cart: prefix }));
         },
       };
     }
@@ -5027,7 +5027,7 @@ export function makeCourseScene(canvas, state) {
         label: `${prefix} battery hatch - ${Math.round(cartState.batteryPercent)}% - [E] ${hinge.open ? 'close' : 'open'}`,
         action: () => {
           const on = toggleHinge('BatteryCompartment_Lid');
-          toast(t('cart.batteryHatch', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+          toast(t(on ? 'cart.batteryHatchOpened' : 'cart.batteryHatchClosed', { cart: prefix }));
         },
       };
     }
@@ -5040,7 +5040,7 @@ export function makeCourseScene(canvas, state) {
         label: `${prefix} passenger door - [E] ${hinge.open ? 'close' : 'open'}`,
         action: () => {
           const on = toggleHinge(doorName);
-          toast(t('cart.passengerDoor', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+          toast(t(on ? 'cart.passengerDoorOpened' : 'cart.passengerDoorClosed', { cart: prefix }));
         },
       };
     }
