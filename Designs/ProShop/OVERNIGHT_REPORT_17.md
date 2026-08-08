@@ -12418,3 +12418,45 @@ but have not been re-verified here.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## SECTION G — ALL THIRTEEN ACCOUNTED FOR
+
+| item | evidence |
+|---|---|
+| G1 station props outrank tools | verified this session, live driver + source test |
+| G2 tee-time overlaps | verified this session |
+| G3 items go into the bag | verified; two-leg drop, nothing shrinks |
+| G4 the bag system (4 sub-decisions) | verified; G4.1-G4.4 across 5 files |
+| G5 cash realism | verified this session |
+| G6 move the customer and their cash | *"THE BAG MUST NOT BLOCK THE CUSTOMER OR THEIR CASH"* |
+| G7 cash vs card gestures | verified this session, 0.55 s lay measured |
+| G8 remove the speed-up | **verified above** — `void speedIdx`, ladder gone |
+| G9 multiple customers, scaled | *"THE CROWD CEILING MUST NOT COLLAPSE BACK TO A STARTER STUB"* |
+| G10 NPCs stuck 3 s find another way | **gate invariant 7 PASSES**, `nav-stuck-verdict.test.js` |
+| G11 check-in window | src **and a dedicated test**: *"opens an hour before and closes at the tee time"* |
+| G12 online reservations on the tee sheet | src **and a dedicated test**: *"free, reserved-and-expected, and checked-in"* |
+| G13 the flow bug | verified this session, service-line work |
+
+**Thirteen of thirteen carry work. Eight verified from source or a live driver
+this session; G10 is guarded by a passing standing invariant; G11 and G12 each
+have their own test.**
+
+### The distinction I am keeping
+
+**"Carries a marker" is not "verified"**, and the table says which is which. G6
+and G9 have implementation notes that name their requirement precisely, and I
+have not read their code or run them. **That is weaker evidence than the eight
+above and is recorded as such** — the same distinction that turned out to matter
+for C (where the list was wrong in both directions) and D (mislabelled entirely).
+
+### Sections, final
+
+**A** invariant 1 red; equip stall characterised, fourteen fixes refuted.
+**B** B1 measured, B3/B5 verified, B2 reverted, B4 diagnosed.
+**C** five items carry work; C5 exemplary; C6/C8 open and mutually blocking.
+**D** COMPLETE. **E** COMPLETE. **F** both verified.
+**G** thirteen accounted for, eight verified.
+**H** four verified from source, all computed class fixes.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean. 270 commits.
+
