@@ -42,6 +42,16 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Cart hinges. The state word is LOOKED UP, not substituted raw.
+  'cart.driverDoor': "{cart} driver door {state}.",
+  'cart.windshield': "{cart} windshield {state}.",
+  'cart.rearStorage': "{cart} rear storage {state}.",
+  'cart.batteryHatch': "{cart} battery hatch {state}.",
+  'cart.passengerDoor': "{cart} passenger door {state}.",
+  'state.opened': "opened",
+  'state.closed': "closed",
+  'state.folded': "folded",
+  'state.raised': "raised",
   // Carts and tool selection.
   'cart.needsCharging': "{cart} needs charging before it can be driven.",
   'cart.needsRepair': "{cart} needs workshop repair before it can be driven.",

@@ -4778,3 +4778,43 @@ so the next pass knows the trap is real rather than theoretical.
 ```
 
 **87 strings, 56%, translatable.** Suite 2928 pass / 0 fail.
+
+### 68 -> 63: THE SIDE-EFFECT STRINGS, DONE WITHOUT DOUBLE-TOGGLING
+
+I deferred these one commit ago and named the trap. The brief says a finding is
+the next item, not a note for later, so they are done.
+
+```js
+// before - the toggle lives INSIDE the string
+toast(`${prefix} driver door ${toggleHinge('Door_FL') ? 'opened' : 'closed'}.`)
+
+// after - called once, captured, and the state word is LOOKED UP
+const on = toggleHinge('Door_FL');
+toast(t('cart.driverDoor', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+```
+
+Five handlers: driver door, passenger door, windshield, rear storage, battery
+hatch. Four state words as their own keys - opened, closed, folded, raised -
+because `'opened'` substituted raw is an English word inside a translated
+sentence, the same defect as the card/cash pair.
+
+### The check that mattered, and it is not the suite
+
+A green suite proves nothing about a double toggle: the door would open and shut
+in the same frame and every test would still pass. So the property was measured
+directly in the source:
+
+```
+toggleHinge occurrences:            5
+handlers capturing it once:         5
+any ternary still calling inline:   false
+```
+
+**Five call sites, five single captures, zero inline calls.** No handler can
+toggle twice, and that is verified rather than argued.
+
+```
+155 -> ... -> 68 -> 63
+```
+
+**92 strings, 59%, translatable.** Ratchet lowered to 63. Suite 2928 pass / 0 fail.

@@ -4972,7 +4972,10 @@ export function makeCourseScene(canvas, state) {
         const driverDoor = golfCartHinge(root, 'Door_FL');
         if (driverDoor && !driverDoor.open) return {
           label: `${prefix} driver/passenger door - [E] open to enter`,
-          action: () => toast(`${prefix} driver door ${toggleHinge('Door_FL') ? 'opened' : 'closed'}.`),
+          action: () => {
+          const on = toggleHinge('Door_FL');
+          toast(t('cart.driverDoor', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+        },
         };
         return {
           label: `${prefix} - [E] enter driver seat`,
@@ -4984,14 +4987,20 @@ export function makeCourseScene(canvas, state) {
       const hinge = golfCartHinge(root, 'Windshield_Upper');
       return {
         label: `${prefix} windshield - [E] ${hinge.open ? 'raise' : 'fold'}`,
-        action: () => toast(`${prefix} windshield ${toggleHinge('Windshield_Upper') ? 'folded' : 'raised'}.`),
+        action: () => {
+          const on = toggleHinge('Windshield_Upper');
+          toast(t('cart.windshield', { cart: prefix, state: on ? t('state.folded') : t('state.raised') }));
+        },
       };
     }
     if (dz > 0.7 && golfCartHinge(root, 'StorageLid_Rear')) {
       const hinge = golfCartHinge(root, 'StorageLid_Rear');
       return {
         label: `${prefix} rear storage - [E] ${hinge.open ? 'close' : 'open'}`,
-        action: () => toast(`${prefix} rear storage ${toggleHinge('StorageLid_Rear') ? 'opened' : 'closed'}.`),
+        action: () => {
+          const on = toggleHinge('StorageLid_Rear');
+          toast(t('cart.rearStorage', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+        },
       };
     }
     const atChargeSide = dx > 0.55 && dz > -0.25;
@@ -5016,7 +5025,10 @@ export function makeCourseScene(canvas, state) {
       const hinge = golfCartHinge(root, 'BatteryCompartment_Lid');
       return {
         label: `${prefix} battery hatch - ${Math.round(cartState.batteryPercent)}% - [E] ${hinge.open ? 'close' : 'open'}`,
-        action: () => toast(`${prefix} battery hatch ${toggleHinge('BatteryCompartment_Lid') ? 'opened' : 'closed'}.`),
+        action: () => {
+          const on = toggleHinge('BatteryCompartment_Lid');
+          toast(t('cart.batteryHatch', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+        },
       };
     }
     if (tier.id === 'luxury' && Math.abs(dx) > 0.55) {
@@ -5026,7 +5038,10 @@ export function makeCourseScene(canvas, state) {
       const hinge = golfCartHinge(root, doorName);
       if (hinge) return {
         label: `${prefix} passenger door - [E] ${hinge.open ? 'close' : 'open'}`,
-        action: () => toast(`${prefix} passenger door ${toggleHinge(doorName) ? 'opened' : 'closed'}.`),
+        action: () => {
+          const on = toggleHinge(doorName);
+          toast(t('cart.passengerDoor', { cart: prefix, state: on ? t('state.opened') : t('state.closed') }));
+        },
       };
     }
     return {
