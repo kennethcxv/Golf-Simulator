@@ -193,7 +193,7 @@ async (page) => {
   // 5. A TOOL, through the real wheel
   out.keysBefore = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetBefore = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
-  out.namesBefore = await page.evaluate(() => { const cam = window.__fw?.scene3d?.camera; if (!cam) return null; const out=[]; cam.traverse(o=>{ if(o.isMesh||o.isInstancedMesh) out.push((o.name||'(unnamed)')+(o.isInstancedMesh?' [inst'+o.count+']':'')); }); return out; }).catch(() => null);
+  out.uuidBefore = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
   await beat('tool');
   // THE BELT IS HOLD-TO-OPEN, SO THE SELECTION MUST HAPPEN WHILE IT IS HELD.
   //
@@ -299,7 +299,7 @@ async (page) => {
   out.precompile = await page.evaluate(() => window.__fw?.scene3d?.walk?.toolPrecompileInfo?.() ?? 'no accessor').catch(() => null);
   out.keysAfter = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetAfter = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
-  out.namesAfter = await page.evaluate(() => { const cam = window.__fw?.scene3d?.camera; if (!cam) return null; const out=[]; cam.traverse(o=>{ if(o.isMesh||o.isInstancedMesh) out.push((o.name||'(unnamed)')+(o.isInstancedMesh?' [inst'+o.count+']':'')); }); return out; }).catch(() => null);
+  out.uuidAfter = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
   await beat('end');
   await page.waitForTimeout(800);
 

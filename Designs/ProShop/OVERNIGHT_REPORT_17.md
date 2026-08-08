@@ -10201,3 +10201,59 @@ the wrong quantity is still the wrong quantity.**
 
 Suite 2929 pass / 0 fail.
 
+
+## SETTLED: THE GEOMETRIES ARE BUILT, NOT MOVED — A SCENE-WIDE COUNT DECIDES IT
+
+Ran the test the previous entry demanded, and added the control that makes it
+conclusive:
+
+```
+camera-subtree geometries   129 -> 183    ADDED 54
+SCENE-WIDE geometry count  2730 -> 2784   delta +54
+```
+
+**The scene total moved.** That is the whole answer. The camera is *in* the
+scene (`scene.add(camera)`), so re-parenting objects into the camera subtree is
+net zero scene-wide. A scene-wide rise of exactly +54 can only mean **54
+geometries were created**.
+
+**Construction confirmed.** The doubt was right to raise — a camera-subtree count
+genuinely cannot distinguish made from moved — and the answer came back in the
+original reading's favour.
+
+### The pattern in these last four entries is worth naming
+
+```
+closed the chain          (+54/+9 from a fragile anchor)
+doubted the anchor        -> re-measured with a stable one, held
+doubted the INTERPRETATION -> re-measured scene-wide, held
+```
+
+Two consecutive doubts, both legitimate, both resolved **in favour of the
+original result** — and each cost one run. **Doubting a result is cheap; the
+error is acting on either the result or the doubt without the run.** I published
+the doubt, which was right, and did not act on it, which was also right.
+
+### The established chain, now with the control it needed
+
+```
+first equip -> 54 geometries CREATED (scene-wide +54, not re-parented)
+            -> carried by 54 meshes with 9 new materials
+            -> 9 ordinary MeshStandardMaterial programs compile on first draw
+            -> 333-7855 ms stall
+second equip -> 0 created, 0 compiled, ~24 ms
+```
+
+**What is still not established is WHERE.** `buildArm` runs at boot,
+`rebuildArmGeometries` makes two cylinders from a feel setter, `setActive` flips
+flags, `fpHands.setTool` sets fields. Four readings, no constructor — and the
+scene count says one exists.
+
+**The next step is a stack, not another read.** `THREE` is not on `window`, but
+`scene3d` is: wrap `BufferGeometry` creation by monkey-patching a known geometry
+class reachable from an existing mesh's `constructor`, log `new Error().stack`
+during the equip window, and read where it points. Four inspections have now
+failed at this; a stack trace will not.
+
+Suite 2929 pass / 0 fail.
+
