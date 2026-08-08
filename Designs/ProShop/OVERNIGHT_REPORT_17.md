@@ -11891,3 +11891,57 @@ regression check watched failing.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## FOURTEENTH REFUTATION — SHADOW SUPPRESSION IS EXHAUSTED TOO
+
+Gave the shadow-reduction approach the clean run it deserved: `castShadow = false`
+on the rig's own arm meshes, alone this time.
+
+```
+suite                 2933 pass / 0 fail   (the earlier red came from combining
+                                            this with the fpHands change, not
+                                            from this)
+EQUIP PROGRAM DELTA   +9
+added                 9  ->  physical: 4,  depth: 5    (unchanged)
+```
+
+**No change.** Reverted.
+
+### Both families are now exhausted
+
+```
+WARM THEM     8 compile configurations   all refuted
+REMOVE THEM   fpHands meshes             refuted
+              rig arm meshes             refuted
+              (procedural tools, adopted GLB, strand rigs already set it)
+```
+
+**Every named mesh subsystem either already suppresses shadows or was tried.**
+The 5 depth programs survive all of it, which means they belong to geometry I
+have not identified — and the named-owner census said the 54 arriving meshes are
+hands, so whatever casts these shadows is **not among the meshes that arrive.**
+
+That is a genuinely strange result and I am not going to explain it away. It is
+possible the depth programs are compiled for the *shadow map's own* re-render
+when the viewmodel pass changes state, rather than for any particular mesh — but
+**that is a hypothesis and this session has refuted fourteen of them.**
+
+### Section A tool half — final, and honest about what it is
+
+**Measured, repeatedly, with controls and two independent methods:** 54 meshes
+arrive from an off-graph parent at first equip; 7 distinct materials; 9 programs,
+**4 `physical` and 5 `depth`**; 333-7855 ms first equip; ~24 ms second.
+
+**Fourteen fixes, fourteen refutations, all reverted, none shipped.** Two whole
+families eliminated — pre-compilation (8 configurations) and shadow suppression
+(every named subsystem).
+
+**One change shipped this session:** the material deduplication, with a
+regression check watched failing.
+
+**What the next session inherits is not a fix but a very well-fenced problem**,
+and the fence is the deliverable: every cheap explanation is gone, and the
+remaining space is small enough to search deliberately instead of by guessing.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
