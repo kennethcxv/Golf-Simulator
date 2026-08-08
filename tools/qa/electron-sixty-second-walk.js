@@ -76,9 +76,12 @@ async (page) => {
     return { x: w.x, z: w.z };
   });
   await hold('w', 2600);
+  await beat('walkB');
   await page.mouse.move(600, 420);
   await page.mouse.move(1000, 420, { steps: 18 });
   await hold('w', 1800);
+  await beat('walkC');
+  await page.waitForTimeout(400);
   const posAfter = await page.evaluate(() => {
     const w = window.__fw.scene3d.walk.state;
     return { x: w.x, z: w.z };

@@ -8792,3 +8792,53 @@ pure noise.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE 376 ms HITCH IS THE FIRST STEP THE PLAYER TAKES
+
+Split the walk beat into three and re-ran the protocol:
+
+```
+beat        median    min..max     samples
+walk        373.8     372..387     372, 374, 387     <- FIRST 'w' hold
+walkB        83.5      82..84       82,  84,  84
+walkC        34.1      31..36       31,  36,  34
+```
+
+**It is entirely in the first hold.** The second and third movements cost 84 ms
+and 34 ms. Whatever this is, it happens once, on the player's **first step**.
+
+Across two independent 3-run sets the figure reads **371, 377, 371, 372, 374,
+387** — six samples inside a 16 ms band. **This is the single most reproducible
+measurement in this report**, and it describes the first thing a player does
+after the loading veil lifts.
+
+### The protocol immediately caught its own limit, which is the honest part
+
+`tool` in this set: **333, 335, 336**. `tool` in the previous set, same code:
+**334, 715, 1110**.
+
+**Three runs is enough for `walk` and not enough for `tool`.** The two sets
+disagree by 2x on the median for a beat whose code did not change between them.
+So the rule from the last entry needs a rider: *N runs* is not a fixed number —
+**the spread tells you whether N was enough**, and a beat whose min..max spans a
+factor of three has not been measured yet however many runs you did.
+
+`door` also collapsed from 30..738 to 27..37 between the sets. Same conclusion:
+that beat's earlier 738 ms was an artefact, and a single run of it means nothing.
+
+### Where Section A stands now, with distributions instead of anecdotes
+
+| finding | evidence | confidence |
+|---|---|---|
+| **first step costs ~375 ms** | 6 samples, 371..387 | **solid** |
+| second equip is free (~25 ms) | tight in both sets | **solid** |
+| first equip costs 335..1110 ms | 2 sets disagree 2x | **real but unmeasured** |
+| door, ledger costs | spreads collapsed between sets | **noise so far** |
+
+**The next investigation is named and narrow:** what does the game do on the
+first step that it never does again? Terrain streaming, the interior becoming
+visible, a shadow cascade fitting for the first time, or a physics broadphase
+building — and the split-beat harness now makes it a bisect rather than a guess.
+
+Suite 2929 pass / 0 fail.
+
