@@ -117,11 +117,22 @@ async (page) => {
         const t = m.map;
         if (!t || !t.image || t.image.tagName !== 'CANVAS' || seen.has(t.uuid)) continue;
         // Page canvases are large and roughly page-shaped; skip signage.
-        if (t.image.width < 400 || t.image.height < 400) continue;
+
         let label = o.name || '';
         let p = o.parent;
         while (!label && p) { label = p.name || ''; p = p.parent; }
-        if (!/ledger|page|book/i.test(label)) continue;
+        // NO NAME FILTER. The first cut required /ledger|page|book/ in the
+        // owner's name and wrote zero files — the ledger's page meshes are
+        // GLB-generated layers with names like `LB_LayerR0_3`, which match none
+        // of those words. A filter built from what a thing is CALLED rather than
+        // what it IS is how this driver reported "canvasesWritten: 0" while
+        // sitting in front of three page canvases.
+        //
+        // The page canvases are 768x512 (PAGE_W x PAGE_H); that shape is the
+        // identity, so match on it and cap the count so a scene full of signage
+        // cannot flood the output.
+        if (t.image.width !== 768 || t.image.height !== 512) continue;
+        if (found.length >= 6) continue;
         seen.add(t.uuid);
         try {
           found.push({ label, w: t.image.width, h: t.image.height, data: t.image.toDataURL('image/png') });

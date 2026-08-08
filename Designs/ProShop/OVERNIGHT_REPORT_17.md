@@ -14328,3 +14328,44 @@ a reason now recorded **in the code** rather than in a comment's memory.
 
 The remedy the original note already named is the only one left: **recolour the
 shared material at build time in Blender**, where it costs nothing at runtime.
+
+
+## C7 — THE LOCKS ARE ALIGNED IN THE CANVAS AND READ RAGGED ON THE CURVED PAGE
+
+On **Firsts** at the default camera, seven identical *"not yet"* values drift
+about **40 px rightward** down the column while their labels drift about 7.
+Identical text at visibly different positions is the most obvious misalignment a
+page can have — which is exactly why the brief says Firsts is the worst.
+
+The obvious conclusion is a layout bug, **and it is wrong.** Dumped the flat page
+canvas straight out of the `CanvasTexture` — no curvature, no lighting, no
+perspective — and the alignment is **perfect**: every value's right edge on the
+same x, labels flush left at 48, separator rules even. `ruledRows` sets
+`textAlign = 'right'` and draws at a constant `PAGE_W - 72`, and it does exactly
+that.
+
+**So the raggedness is the page MESH curving away toward the outer edge, where
+the value column sits.** The text layout is not broken, and changing it would be
+work on a correct thing.
+
+That reframes the fix entirely. The candidates are now: **pull the value column
+inward**, out of the zone where curvature is strongest — the same reasoning that
+already moved it once, since the existing comment records *"the page MESH curves
+into the gutter and crops the canvas's last ~25 px"* and pulled the right edge
+from -48 to -72 — or **flatten the page mesh**, or accept it.
+
+**Recorded rather than fixed.** The measurement says which lever; choosing between
+"pull the column in" and "flatten the page" changes how *every* page in the book
+reads, so it wants a decision made on more than one page's evidence.
+
+### Fault 103 — the dump that filtered on names
+
+The driver's canvas dump required the owning mesh's name to match
+`/ledger|page|book/` and wrote **zero files while sitting in front of three page
+canvases**. The ledger's page meshes are called `LB_FaceL`, `LB_FaceR` and
+`LB_FaceTitle` — none of those words.
+
+**A filter built from what a thing is CALLED rather than what it IS.** It now
+matches on the 768x512 page shape and writes all three, which is reusable
+machinery for the rest of C7 and C8 — and it is what made this finding possible
+at all.
