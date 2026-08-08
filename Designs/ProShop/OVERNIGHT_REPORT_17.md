@@ -7778,3 +7778,59 @@ history for one word is a worse trade than a note. **Use a quoted heredoc
 (`<<'MSG'`) for any commit message containing backticks** — this file's own
 appends use exactly that and were unaffected.
 
+
+## FOURTEENTH INSTANCE — `toolIsLive` CANNOT REPORT READY ON TURF
+
+Before touching B4's rig maths I asked the one question that decides whether
+there is anything to fix: **is `headAboveFloor` null because the rig is broken,
+or because nothing sampled a floor?**
+
+The chain, all of it in the source:
+
+```
+broomViewmodel.js:1159   state.headAboveFloor = floorHere == null
+                             ? null : _assetHead.y - floorHere
+courseScene.js:6587      floorY: (x, z) => clubhouseApi.groundYAt(x, z) ?? null
+courseScene.js:8379      floorY !== null ? 'boards' : 'turf'
+qa-boot.mjs:133          return !!(d && d.headAboveFloor != null)   // "rig is running"
+```
+
+`groundYAt` answers for **clubhouse boards** and returns null on **turf** — the
+game says so itself at 8379. So `headAboveFloor` is structurally null outdoors,
+and `toolIsLive`'s readiness proxy **can never be satisfied there, however
+healthy the rig is.**
+
+### What this does and does not establish
+
+**Established:** `toolIsLive` uses a boards-only quantity as its universal
+readiness test. Any driver calling it outdoors gets `ok: false` for a working
+tool. It is a shared helper in `qa-boot.mjs`, so this reaches every driver that
+uses it, not just the walk.
+
+**NOT established:** where the walk driver actually stands at beat 5. I have not
+verified that it is on turf, and I am not going to assert it — that would be the
+fifteenth instance, and today has already supplied three of my own.
+
+Both readings still leave a real defect:
+
+- if the beat runs on turf, the tool beat has been failing for a reason that has
+  nothing to do with the broom, and **invariant 1's walk is fine**;
+- if it runs on boards, then `headAboveFloor` really is null on boards and the
+  rig genuinely is not solving — which is B4's subsystem.
+
+**The check I built last commit distinguishes them in one run**, because it now
+reports the reason string. The next run only has to be read.
+
+### Why this is the session's finding in miniature
+
+`toolIsLive` is *correct*. `headAboveFloor != null` genuinely does mean the rig
+solved a pose — **on boards**. Its name promises a general readiness test and it
+delivers a floor-dependent one, and every driver that trusted the name inherited
+a limit nobody wrote down.
+
+That is the fourteenth time today. A check named for 100% of a surface covering
+3%. A figure named "strand travel" measuring a rigid skirt. A control whose
+baseline tracked its treatment. A coverage number measuring the dictionary. A
+marker scan matching a golf hole. **Every number correct; every name wider than
+the thing it measured.**
+
