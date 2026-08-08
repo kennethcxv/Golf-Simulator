@@ -8898,3 +8898,53 @@ one walk.
 
 Suite 2929 pass / 0 fail.
 
+
+## ALL SIX LAZY BUILDERS ELIMINATED — IN ONE RUN, BY MEASURING INSTEAD OF GUESSING
+
+Wrapped every lazy builder to record its **first** invocation, exposed the list
+as `walk.lazyBuildTimings()`, and ran one walk:
+
+```json
+[{"name":"ensureFarEvergreenFloraAsset","ms":0.2,"order":0},
+ {"name":"ensureGolfFacilities","ms":0.1,"order":1}]
+```
+
+**Only two fire at all, and together they cost 0.3 ms.** Against a 375 ms
+first-step hitch that is not a contribution, it is a rounding error. The other
+four never run during the walk.
+
+**Six candidates, all eliminated, one run, no hypothesis.** Had I picked one —
+and every one of them had a plausible story — I would have been wrong, and the
+tool-beat thread shows exactly how expensive that gets: eight hypotheses, each
+sound-looking, each dead.
+
+### The instrument is the point
+
+`lazyBuildTimings()` cost one closure per builder and a boolean test per call.
+It joins `toolAuthoredResults()` and the walk beat's failure reasons as the third
+accessor this session that turned an unanswerable question into a one-run
+answer. **Every one of them exposed something the engine already computed and
+threw away.**
+
+That is the session's most transferable lesson, stated as a rule: **when a
+question about this codebase cannot be answered from outside, the fix is usually
+to expose a value the engine already has — not to reason harder about what it
+might be.**
+
+### What the 375 ms first step still could be
+
+Now genuinely narrowed, with the cheap explanations gone:
+
+- **terrain/chunk streaming** on first movement
+- **shadow cascade fitting** — this project's notes record `fitSunShadow` owning
+  `sun.target`, and a first fit could be expensive
+- **first draw of geometry that becomes visible** as the camera translates —
+  GPU-side, and invisible to any JS timer
+- **a physics broadphase** building on first motion
+
+The last is the one worth checking first, because it is the only one that
+naturally fires on *movement* rather than on *time*, and the measurement already
+proves the cost is bound to the first step rather than to the first seconds.
+
+Suite 2929 pass / 0 fail.
+

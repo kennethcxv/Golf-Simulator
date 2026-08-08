@@ -87,7 +87,8 @@ async (page) => {
     return { x: w.x, z: w.z };
   });
   const walked = Math.hypot(posAfter.x - posBefore.x, posAfter.z - posBefore.z);
-  record('walk', walked > 1.0, { yardsMoved: +walked.toFixed(2) });
+  const lazy = await page.evaluate(() => window.__fw?.scene3d?.walk?.lazyBuildTimings?.() ?? 'no accessor').catch(() => null);
+  record('walk', walked > 1.0, { yardsMoved: +walked.toFixed(2), lazy });
 
   // 3. A DOOR
   await beat('door');

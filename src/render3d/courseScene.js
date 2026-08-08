@@ -2587,6 +2587,42 @@ export function makeCourseScene(canvas, state) {
     treeGroup.name = 'CourseFlora';
   }
 
+  // A — WHICH LAZY BUILDER COSTS THE PLAYER'S FIRST STEP?
+  //
+  // Measured with tools/qa/perf-repeat.mjs: the first 'w' hold costs ~375 ms
+  // (371..387 across six runs, a 16 ms band), while the second and third
+  // movements cost 84 ms and 34 ms. Something builds once, on the first step.
+  //
+  // Six builders construct on first need and any of them is a plausible story.
+  // Six plausible stories is exactly how the tool-beat thread burned eight
+  // hypotheses, so this measures instead of guessing: each builder is wrapped
+  // once, and its FIRST invocation records name, duration and call order.
+  //
+  // Function declarations hoist and their bindings are mutable, so all six can
+  // be wrapped here in one place rather than edited at six sites.
+  //
+  // The cost is one closure per builder and a single boolean test per call
+  // after the first. Read it with `walk.lazyBuildTimings()`.
+  const lazyBuildTimings = [];
+  const timeFirstCall = (name, fn) => function timed(...args) {
+    if (timed.__done) return fn.apply(this, args);
+    timed.__done = true;
+    const t0 = performance.now();
+    try {
+      return fn.apply(this, args);
+    } finally {
+      lazyBuildTimings.push({
+        name, ms: +(performance.now() - t0).toFixed(1), order: lazyBuildTimings.length,
+      });
+    }
+  };
+  ensureFarEvergreenFloraAsset = timeFirstCall('ensureFarEvergreenFloraAsset', ensureFarEvergreenFloraAsset);
+  ensureGolfCartRuntimeLights = timeFirstCall('ensureGolfCartRuntimeLights', ensureGolfCartRuntimeLights);
+  ensureGolfFacilities = timeFirstCall('ensureGolfFacilities', ensureGolfFacilities);
+  ensureGolferVisual = timeFirstCall('ensureGolferVisual', ensureGolferVisual);
+  ensurePartyVisual = timeFirstCall('ensurePartyVisual', ensurePartyVisual);
+  ensureTractorModel = timeFirstCall('ensureTractorModel', ensureTractorModel);
+
   function ensureFarEvergreenFloraAsset(assets) {
     if (assets.has('pine_far')) return;
     const pieces = [];
@@ -12239,6 +12275,10 @@ export function makeCourseScene(canvas, state) {
       //
       // null here means adoption has not resolved yet, which is itself an
       // answer a driver needs to be able to tell apart from failure.
+      // First-invocation cost of every lazy builder, in call order. Empty until
+      // one actually builds, which is itself the answer to "does this fire on
+      // the first step at all?"
+      lazyBuildTimings: () => lazyBuildTimings.map((r) => ({ ...r })),
       toolAuthoredResults: () => (toolViewmodelsAuthored
         ? toolViewmodelsAuthored.map((r) => ({ id: r.id, ok: r.ok, reason: r.reason ?? null }))
         : null),
