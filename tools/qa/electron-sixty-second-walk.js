@@ -71,6 +71,15 @@ async (page) => {
     await page.waitForTimeout(ms);
     await page.keyboard.up(k);
   };
+  // LOOK-ONLY BEAT: rotate the camera without translating. Separates a
+  // view-dependent first-frame cost (culling, shadows, first draw of newly
+  // visible geometry) from a movement-dependent one (streaming, broadphase).
+  await beat('lookOnly');
+  await page.mouse.move(500, 420);
+  await page.mouse.move(1100, 420, { steps: 24 });
+  await page.mouse.move(500, 420, { steps: 24 });
+  await page.waitForTimeout(900);
+  await beat('walk');
   const posBefore = await page.evaluate(() => {
     const w = window.__fw.scene3d.walk.state;
     return { x: w.x, z: w.z };

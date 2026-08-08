@@ -8948,3 +8948,57 @@ proves the cost is bound to the first step rather than to the first seconds.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE TWENTIETH INSTANCE: MY PROTOCOL ASSUMES A STATIONARY MACHINE, AND THE MACHINE MOVED
+
+Added a look-only beat to separate view-dependent cost from movement-dependent
+cost, and ran the protocol. **The run set is invalid, and the way I know is
+that beats I never touched moved with it:**
+
+```
+beat        this set              earlier set        change
+tool        2870..9716            333..336           ~10-30x
+ledger       454..3833             34..70            ~13-55x
+door          20..1381             27..37            up to 37x
+lookOnly    3369..3403            (new)
+ALL       11058..11783           371..1110
+```
+
+`tool`, `ledger` and `door` have **identical code** between the two sets. They
+did not get slower; **the machine did**, after roughly twenty Electron launches
+in this session.
+
+### What this does to the protocol I shipped two hours ago
+
+`perf-repeat.mjs` repeats runs and compares medians — which controls for
+*within-set* variance and **assumes the machine is stationary between sets.**
+It is not. Comparing a configuration measured now against one measured an hour
+ago is exactly the error it was built to prevent, wearing a distribution instead
+of a single sample.
+
+**A distribution is not automatically a control.** Mine measures spread, and
+spread does not detect drift: this set's `lookOnly` reads 3369, 3375, 3403 — a
+34 ms band on a 3.4-second number, beautifully tight and completely worthless,
+because everything around it had tripled.
+
+### The fix, and it is the same shape as every other fix this session
+
+**The protocol needs an untouched beat as a drift control.** `settle` never
+changes and is pure standing-still: if its median moves between sets, the sets
+are not comparable and no cross-set claim may be made. That is a negative
+control for the *harness*, which the RULES demanded for every new instrument and
+which I did not give this one.
+
+I built an instrument to stop myself drawing conclusions from noise, and it
+still let me compare across a drifting baseline. **The rule needs to be: every
+cross-set comparison carries the control beat's numbers beside it, or it is not
+a comparison.**
+
+### Nothing is claimed from this run
+
+The look-only question — view-dependent or movement-dependent — **remains
+open**. The beat is committed and correct; its first measurement is unusable.
+It needs a cold machine and a `settle` control that matches the reference set.
+
+Suite 2929 pass / 0 fail.
+
