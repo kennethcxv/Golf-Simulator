@@ -12321,3 +12321,56 @@ mechanism, the class coverage, and the cost are all measured and written down.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## SECTION H — ALL FOUR ITEMS FIXED WITH COMPUTED, CLASS-LEVEL SOLUTIONS
+
+Verified each from source, the way H2 was.
+
+**H1 — stomachs pump and detach while walking.**
+> *"FOUR vertical laws used to meet at the waist — shirt 1.0x bob, stomach 0.7x,
+> belt and buckle never, hips never — so at stride the hem slid against a static
+> belt at 2.8 Hz and the torso read as pumping apart. **One law now**: the whole
+> trunk rides the same bob, and the only remaining seam (pelvis-to-hip) is the
+> one hipCap already covers."*
+
+Four competing laws collapsed to one, with the residual seam named and already
+covered. **Class fix, and it says what it does not solve.**
+
+**H2 — features float in front of the face.** Segment count raised so the DRAWN
+surface (0.1540) sits outside the brow rather than inside it (0.1521); fixes
+eyes, brows, catchlights and moustache at once; cost named as 280 -> 560
+triangles on a draw-call-bound renderer.
+
+**H3 — skin phases through the belt.**
+> *"Computed rather than eyeballed. The belt sits at y 1.055; the chest group at
+> 1.07, so the belt meets the torso lathe at local y -0.015. The profile
+> interpolates between (0.202, -0.018) and (0.212, 0.035) to a radius of 0.2026
+> there. The belt's mid radius was (0.205 + 0.198) / 2 = 0.2015."*
+
+**A 1.1 mm overlap, derived exactly** — and the note names both causes at once
+("the torso was wider than the belt, AND the belt was a coarser polygon. Both, at
+once, on the sides"), which is the same class-not-instance instinct.
+
+**H4 — features pop in when a customer gets close.** The fine-detail meshes
+switched off at sqrt(20.25) = 4.5 yd and back at sqrt(16) = 4.0 yd — with
+hysteresis, so it never flickered, but the switch landed at conversational
+distance.
+
+### What Section H demonstrates
+
+**Every one of the four is computed rather than adjusted, and every one is a
+class fix**: one bob law rather than four; one segment count rather than four
+re-seatings; both belt causes at once; a distance derived from its own hysteresis
+pair.
+
+**This is the section that most consistently does what this report spent forty
+findings arguing for**, and it was already done before the session began. Worth
+recording plainly: the codebase's best work is very good, and the failures this
+report catalogues are concentrated in *instruments and their names*, not in the
+game's engineering.
+
+**H: verified from source, all four.** Player-camera screenshots remain the
+outstanding evidence for all of them, as for every visual item this session.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
