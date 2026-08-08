@@ -12651,3 +12651,62 @@ than the session started, and it is where I am leaving it.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## SIXTEENTH REFUTATION — ALL THREE CONDITIONS TOGETHER, AND STILL +9
+
+The one configuration never tried: hands attached to the scene, compiled through
+every rig's `vmCamera` with the drawing matrix set, **and** the viewmodel light
+layer enabled first.
+
+```
+suite                 2933 pass / 0 fail
+EQUIP PROGRAM DELTA   +9      (unchanged)
+added                 9  ->  physical: 4,  depth: 5
+settle (control)      19.7 ms
+```
+
+**Unchanged.** Reverted.
+
+### `renderer.compile()` is now definitively exhausted
+
+Sixteen configurations, each measured, each reverted, the suite green throughout:
+
+```
+1  boot prewarm as it stands        9   hands + vmCamera paired
+2  compile on adoption             10  castShadow off (fpHands)
+3  compile after adoption          11  castShadow off (rig arms)
+4  materials at build time         12  (10 and 11 combined)
+5  compile per vmCamera            13  vmCamera with drawing matrix set
+6  every layer enabled             14  shadow suppression, clean run
+7  hands attached to scene         15  light layer settled first
+8  hands attached, guarded         16  ALL THREE CONDITIONS AT ONCE
+```
+
+**This is a complete negative result, not an incomplete search.** Every named
+precondition was satisfied, individually and together, and the equip still
+compiles its 9 programs.
+
+### What that leaves, stated as the honest end of the thread
+
+The diagnosis is solid and multiply confirmed. **The remedy is not
+pre-compilation** — sixteen attempts say so — and the alternative A3 used on the
+ledger was not to warm the programs but to **stop the state change that
+invalidates them**. Here that would mean the viewmodel pass not switching its
+lighting or its membership at equip at all: settling both at boot and leaving
+them settled.
+
+**That is a design change to how viewmodels are staged, not a tweak**, and it
+belongs to someone with the runway to do it properly and see it on screen.
+
+### Final: what this thread produced
+
+**Not a fix.** A completely characterised stall, sixteen eliminated remedies, two
+whole families closed, four instruments that did not exist before, one shipped
+deduplication with its own regression check, and a mechanism traced to A3's
+already-proven law about light lists and cache keys.
+
+**Every attempt reverted. Suite green at every commit. Nothing shipped that was
+not measured.**
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
