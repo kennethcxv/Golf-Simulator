@@ -13912,3 +13912,54 @@ could be tested from outside the engine has been, and the honest next instrument
 is a GPU timer query (`EXT_disjoint_timer_query_webgl2`) — which measures the one
 thing every driver here has been unable to see: how long the GPU actually spends
 on a frame it has been handed.
+
+
+## THE ANSWER: THE GPU NEEDS 8.4 ms A FRAME AND THE REFRESH INTERVAL IS 8.33
+
+`EXT_disjoint_timer_query_webgl2` is available in this build. 1,170 samples
+indoors, disjoint results discarded rather than averaged in:
+
+| indoors | spike frames | calm frames | gap |
+|---|---|---|---|
+| frame (dt) | **18.5 ms** | **5.0 ms** | +13.5 |
+| **GPU time** | **8.42 ms** | **8.36 ms** | **+0.06** |
+
+**The GPU takes the same 8.4 ms on every frame** — on the 5 ms frames and on the
+18.5 ms ones alike. It is not running late on the slow ones. It is not running
+late at all. **It is running at a constant 8.4 ms against an 8.33 ms refresh
+interval.**
+
+### That is the whole mechanism
+
+The GPU is over budget by **70 microseconds, on every single frame.** Work is
+submitted faster than it can be drawn, a queue builds, and eventually a frame has
+to wait a whole extra interval — 16.7 ms — after which the loop fires back-to-back
+at 4 ms to catch up. **The "spikes" are not spikes. They are a pipeline that is
+101% subscribed, expressed as a stutter.**
+
+Every piece of evidence collected over the last several hours falls into place at
+once: identical draw calls and triangles on spike and calm frames (the same work
+every frame), flat CPU inside `render()` (the queue, not the execution), a
+miss-then-catch-up histogram against 120 Hz, and a ~74 ms rhythm (how long it
+takes to accumulate one interval of debt at 70 µs a frame — about 119 frames, or
+one second at best; the shorter observed rhythm says the real margin varies).
+
+### And it explains every null result I got
+
+Nine mechanisms eliminated, each moving ~0-1 points. **Of course they did.** The
+system is 0.8% over the line. A change worth a tenth of a millisecond of GPU time
+is worth more here than any amount of CPU work, and almost everything I tested
+was CPU-side. The one GPU-side test — dimming thirteen interior lights — moved
+0.3 points, which is now readable as *a small real GPU saving*, not as noise.
+
+**The lever is GPU milliseconds and nothing else.** Resolution and DPR,
+the post chain, shadow map size, overdraw. Not the simulation, not the DOM (the
+HUD's 5 points are a separate compositor cost on top), not draw-call count.
+
+### What I am NOT claiming
+
+This is one machine, at 120 Hz, indoors, standing still. On a 60 Hz display the
+same 8.4 ms would sit at half the budget and none of this would happen. **The
+finding is not "the game is too slow"; it is "on a 120 Hz display the indoor
+frame is 0.8% over the interval, and that 0.8% is what invariant 1 has been
+reporting all along."**
