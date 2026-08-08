@@ -12504,3 +12504,53 @@ only the things you are about to record as done.**
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## THE ANSWER TO MY FOURTEEN REFUTATIONS WAS ALREADY IN THIS CODEBASE
+
+C6 defers to A3. `ledgerBook.js:2074`:
+
+> **"A3 — THIS ONE LINE COST 1.6 SECONDS, AND IT WAS NOT ABOUT LIGHT.**
+>
+> It used to read `readingLight.visible = intensity > 0.001`, so the light
+> ENTERED AND LEFT THE SCENE'S LIGHT LIST as the book rose. three bakes the light
+> counts into every program's cache key, so the frame where that flag flipped
+> invalidated every lit material on screen and recompiled them inside that frame.
+>
+> Measured on a fresh profile: at the flip frame the program count went
+> **209 -> 241**, draw calls 1140 -> 1509 and triangles 5.09M -> 6.42M, all of it
+> gone again on the very next frame. **That frame took 1571.6 ms.**
+>
+> **It is also why 'warm both light states behind the veil' was tried once and
+> did not move the number: the veil-time warm never held the exact light list
+> this flip produces."**
+
+### That last paragraph is my entire thread, written before I started
+
+I spent **fourteen fixes and eight compile configurations** discovering that
+`renderer.compile()` at veil time cannot warm the programs the first tool equip
+produces. **A3 states the general law**: a veil-time warm cannot hold the exact
+light list a later state change produces, and three.js keys every program on that
+list.
+
+**The tool equip almost certainly changes the light list too** — the viewmodel
+pass has its own lighting, `enableBroomLightLayer()` exists and is called on
+equip (`courseScene.js:7459`), and that is exactly the shape of change A3
+describes. **9 new programs at equip is the same phenomenon as 32 new programs at
+the book's light flip, scaled down.**
+
+### What I should have done, and what it cost
+
+**The answer was one grep away** — `A3` in the ledger — and I found it at the end
+rather than the beginning, after fourteen refutations. This report's own lesson,
+applied to itself one final time: **before explaining a phenomenon, search
+whether this codebase has already explained it.**
+
+**A3 also names the fix that worked for the book**: stop flipping the light's
+membership. `intensity` goes to zero instead, so the light never leaves the list
+and no cache key changes. **The analogous move for the tool equip is to stop
+`enableBroomLightLayer()` from changing the light list** — which is a real,
+specific, testable fix, and the first one this session that is not a compile
+configuration.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
