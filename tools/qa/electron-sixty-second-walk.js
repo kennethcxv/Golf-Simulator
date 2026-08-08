@@ -278,6 +278,13 @@ async (page) => {
     while (p && chain.length < 10) { chain.push(p.name || `(${p.type})`); p = p.parent; }
     return chain.join(' <- ');
   }).catch((e) => `threw: ${String(e && e.message)}`);
+  const matIds = () => page.evaluate(() => {
+    const s3 = window.__fw && window.__fw.scene3d;
+    const seen = [];
+    if (s3 && s3.scene) s3.scene.traverse((o) => { if (o.material) seen.push(o.material.uuid); });
+    return seen;
+  }).catch(() => []);
+  out.matIdsBefore = await matIds();
   out.geoIdsBefore = await geoIds();
   out.geoCountBefore = await sceneGeoCount();
   await page.evaluate(() => { window.__geoOn = true; });
@@ -388,6 +395,27 @@ async (page) => {
   out.keySetAfter = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
   out.uuidAfter = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
   out.geoCountAfter = await sceneGeoCount();
+  // ATTRIBUTE THE NEW MATERIALS, not just the new meshes. The census showed the
+  // +54 meshes are hands and I inferred the +9 materials were theirs too — but
+  // fpHands has five map-less materials that share one program key, and the
+  // measured keys are textured. Two deltas in one window are not one fact.
+  out.newMatOwners = await page.evaluate((before) => {
+    const s3 = window.__fw && window.__fw.scene3d;
+    const known = new Set(before);
+    const tally = {};
+    if (s3 && s3.scene) {
+      s3.scene.traverse((o) => {
+        if (!o.material || known.has(o.material.uuid)) return;
+        let p = o;
+        let label = '(no named ancestor)';
+        while (p) { if (p.name) { label = p.name; break; } p = p.parent; }
+        const maps = o.material.map ? 'textured' : 'flat';
+        const key = `${label} [${maps}]`;
+        tally[key] = (tally[key] || 0) + 1;
+      });
+    }
+    return Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  }, out.matIdsBefore || []).catch(() => null);
   // NAME THE SUBTREE. Walk each newly-present geometry's owner up its parent
   // chain to the first ancestor with a name — that is the subsystem that
   // attached it, and it is the one thing this whole thread has not identified.

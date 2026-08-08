@@ -10926,3 +10926,58 @@ one that merely arrived alongside it.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE NEW MATERIALS ARE ALL THE HANDS' AND ALL FLAT — SO THE 9 PROGRAMS ARE MIXED
+
+Attributed the new **materials** by owner, tagging each textured or flat:
+
+```
+x23  FirstPersonRightHand  [flat]     x3  FirstPersonRightCuff  [flat]
+x23  FirstPersonLeftHand   [flat]     x3  FirstPersonLeftCuff   [flat]
+x1   FirstPersonRightForearm [flat]   x1  FirstPersonLeftForearm [flat]
+```
+
+**Every new material belongs to the hands, and every one is flat** — no map
+bound on any of them.
+
+### Which means the +9 programs are not one subsystem
+
+The nine cache keys measured earlier include entries with `uv` slots bound:
+
+```
+[1] physical,STANDARD,...,uv,...,uv,...,uv,uv,...
+```
+
+**A flat material cannot produce a textured key.** So the +9 is a *mixture*: the
+hands account for the flat-key program(s), and something else drawn for the first
+time in the same frame accounts for the textured ones — most plausibly the
+authored tool GLB, whose meshes carry maps.
+
+**That is why nine fixes failed.** Every one treated the +9 as a single
+subsystem's cold programs. It is at least two, arriving together, and warming
+either alone leaves the other cold.
+
+### The honest limit of this attribution
+
+It counts **meshes carrying new materials** (54), not **distinct materials** (9).
+So it proves every new material is the hands' and flat; it does not prove there
+are exactly nine distinct ones, nor rule out that a tenth textured material
+arrived on a mesh whose ancestor is also named `FirstPerson*`. **Stated as
+measured, with its limit named**, because this thread has twice been caught
+treating one delta as evidence about another.
+
+### Section A tool half — the accurate final state
+
+**Measured with controls:** first equip costs 333-7855 ms; compiles +9 programs
+with *mixed* flat and textured keys; brings in 54 hand meshes and 54 geometries;
+all new materials are the hands' and flat; second equip is free at ~24 ms.
+
+**Eliminated:** pre-compilation as a family (nine attempts, all reverted);
+material sharing (already done); the hands as sole source of the 9 programs.
+
+**Open, and now correctly framed:** *which* subsystem contributes the textured
+programs, and whether warming the two together is even possible given that nine
+compile-shaped fixes have failed.
+
+Suite 2929 pass / 0 fail.
+
