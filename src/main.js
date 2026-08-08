@@ -1677,6 +1677,25 @@ function showQualityApplying(ms = 1800) {
 function applySettings() {
   const values = preferences.values;
   applyDocumentPreferences(values);
+  // E4 (Goal 17) — THE FORMATTED CONTROLS LIST FOLLOWS THE BINDINGS.
+  //
+  // "Changing a key in Controls must change it in the formatted controls list
+  // too, immediately, in the same layout."
+  //
+  // The rebind dialog already refreshed its own BUTTONS. What it never touched
+  // is the list the player actually reads in the world - the lock hint that
+  // spells out "Click to look, WASD move, Shift run, E interact, X carry, Z set
+  // down..." - because that string is built by walkControlHintText() once at
+  // mount and then never again. Rebind Forward to T and the game went on
+  // telling you it was W.
+  //
+  // applySettings already runs on every preference change, so this is where the
+  // list belongs. Every element carrying the hint is updated, not one captured
+  // reference, because the hint is mounted in two places.
+  try {
+    const hint = walkControlHintText();
+    for (const node of document.querySelectorAll('.shop-lockhint')) node.textContent = hint;
+  } catch { /* before the UI is mounted there is nothing to update */ }
   audio.applyPreferences();
   if (laptopUi) laptopUi.setScale(values.display.uiScale);
   if (!app.scene3d) return;

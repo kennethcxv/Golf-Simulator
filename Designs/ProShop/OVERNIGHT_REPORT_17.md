@@ -1947,6 +1947,36 @@ the thing the brief names, and it was already fine; a previous pass fixed
 exactly what it was pointed at. The class - "sweep the panel for the same fault,
 controls flush to edges" - needed one line that had never been written.
 
+### E4 fixed: the list the player reads now follows the bindings
+
+**The subject was not the rebind dialog.** The dialog's own buttons were always
+refreshing themselves - which is exactly why this item could read as fixed from
+inside the panel and broken from where the player stands. What never updated is
+the **in-world controls hint**, the line that spells out "Click to look, WASD
+move, Shift run, E interact, X carry, Z set down...". That string is built by
+`walkControlHintText()` once at mount and then never again, so rebinding Forward
+to T left the game still telling you it was W.
+
+`applySettings()` already runs on every preference change, so that is where the
+refresh belongs. **Every** element carrying the hint is updated rather than one
+captured reference, because the hint is mounted in two places.
+
+Rebinding `moveForward` from `w` to `t`, read from the DOM where the player
+reads it:
+
+| | before the fix | after |
+| --- | --- | --- |
+| hint shows the new key | **no** | **yes** - "T/A/S/D move" |
+| hint still shows the old key | yes | **no** |
+| control: did it show `t` beforehand? | no | no |
+
+The control matters: the hint did not contain `t` before the rebind either, so
+the check can tell the two states apart rather than passing by accident.
+
+**Section E now stands at:** E1 done under A4, E2 verified as already correct at
+the new window, E3 fixed (10 edge-touching elements to 0), E4 fixed. E5 (ten
+languages, honest per-language coverage) is unstarted.
+
 ---
 
 ## RUNNING LISTS

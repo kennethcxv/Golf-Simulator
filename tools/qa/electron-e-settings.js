@@ -125,9 +125,22 @@ async (page) => {
   });
   await page.waitForTimeout(900);
   out.e4.after = await readControlsText();
+  // The list the PLAYER reads is the in-world lock hint, not the rebind
+  // dialog's own buttons - the dialog was always refreshing itself. Read it
+  // from the DOM where it lives.
+  out.e4.hint = await page.evaluate(() => {
+    const n = document.querySelector('.shop-lockhint');
+    return n ? n.textContent.replace(/\s+/g, ' ') : null;
+  });
   const key = out.e4.rebind?.next;
-  out.e4.listShowsNewKey = !!(key && new RegExp(`\\b${key}\\b`, 'i').test(out.e4.after));
-  out.e4.listShowedItBefore = !!(key && new RegExp(`\\b${key}\\b`, 'i').test(out.e4.before));
+  // The subject is the IN-WORLD hint, not the dialog's own buttons - those were
+  // always refreshing themselves, which is why this item kept reading as fixed
+  // from inside the panel and broken from where the player stands.
+  const inHint = (text) => !!(key && text && new RegExp(`\\b${key}\\b`, 'i').test(text));
+  out.e4.listShowsNewKey = inHint(out.e4.hint);
+  out.e4.hintMentionsOldKey = !!(out.e4.rebind?.before && out.e4.hint
+    && new RegExp(`\\b${out.e4.rebind.before}\\b`, 'i').test(out.e4.hint));
+  out.e4.listShowedItBefore = inHint(out.e4.before);
 
   await page.screenshot({ path: path.join(OUT, 'e-controls-after-rebind.png') });
   fs.writeFileSync(path.join(OUT, 'e.json'), `${JSON.stringify(out, null, 2)}\n`);
@@ -138,6 +151,8 @@ async (page) => {
     rebind: out.e4.rebind,
     listShowsNewKey: out.e4.listShowsNewKey,
     listShowedItBefore: out.e4.listShowedItBefore,
+    hintMentionsOldKey: out.e4.hintMentionsOldKey,
+    hint: (out.e4.hint || '').slice(0, 120),
   }));
   if (out.errs.length) console.log('pageerrors', JSON.stringify(out.errs.slice(0, 3)));
   return out;
