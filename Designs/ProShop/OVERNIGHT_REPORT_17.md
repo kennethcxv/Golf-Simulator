@@ -5286,3 +5286,53 @@ am not willing to claim from a driver whose control failed.
 **That is now twice in three drivers that the control caught a measurement I
 would otherwise have published.** The controls are earning their cost more
 reliably than anything else built this session.
+
+### THE ACCESSOR IS RIGHT; THE CONFIRMATION STILL IS NOT
+
+Acting on the previous finding, the register now exposes its own bag:
+
+```js
+bagNode: () => bagGroup,
+bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
+  && bagGroup.userData?.checkoutOwner !== 'customer'),
+```
+
+**That change stands on its own merits.** A driver that hunts the scene graph for
+`/bag/i` reports nothing when it walks the wrong subtree, and a scan that finds
+nothing is indistinguishable from a thing that is not there - which is exactly
+how six mop drivers silently reported zero after the fibres went instanced.
+Anything checking G4.1 should ASK, not SEARCH, and now it can.
+
+**But the driver still reports `bagFound: false` through the accessor**, so one
+of two things is true and I could not determine which before running out of room
+to work:
+
+1. `ch.register` is not the register-mode object the accessor lives on - the
+   clubhouse may wrap or re-export it
+2. `bagGroup` is null at boot, meaning `buildBag()` at line 8406 does not run in
+   the path a fresh session takes
+
+**Option 2 would be a real G4.1 defect** - a bag that only exists after the first
+transaction is precisely the "player waits for one" the item forbids. Option 1 is
+a driver bug. **They are not distinguishable from the outside, and I will not
+guess between them**, because guessing is what produced the false HUD overlap
+earlier today.
+
+### The precise next step, so nobody starts from zero
+
+One `page.evaluate` answers it:
+
+```js
+Object.keys(ch).filter((k) => /reg|bag/i.test(k))   // is `register` even the name
+typeof ch.register?.bagNode                          // did the accessor land
+ch.register?.bagNode?.() === null                    // built, or not built yet
+```
+
+If `bagNode` is a function returning null, **G4.1 is not fixed** and the source
+test that pins it is passing on a code path a fresh session never takes - which
+would make it the ninth instrument fault of this session and the second to hide
+a real defect behind a green check.
+
+**G4.1 remains UNCONFIRMED, and now with a specific suspicion attached rather
+than a vague one.** That is a better handover than the same words were an hour
+ago.

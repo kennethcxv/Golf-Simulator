@@ -65,12 +65,11 @@ async (page) => {
     const ch = fw.scene3d.clubhouse();
     const cam = fw.scene3d.camera;
     // find the counter bag by its own marker rather than by name guessing
-    let bag = null;
-    ch.register?.root?.traverse?.((o) => {
-      if (!bag && o.userData?.checkoutOwner !== 'customer'
-        && /bag/i.test(o.name || '') && o.visible) bag = o;
-    });
-    if (!bag) return { found: false };
+    // ASK, do not search. The first version of this driver hunted the scene
+    // graph for /bag/i, walked the wrong subtree, and reported the bag missing
+    // when it was present - caught only because its own control hid nothing.
+    const bag = ch.register?.bagNode?.() || null;
+    if (!bag) return { found: false, why: 'register exposed no bag node' };
     const p = bag.getWorldPosition(new THREE.Vector3());
     // is it drawn, and is it in front of the eye?
     let drawn = bag.visible;
@@ -92,11 +91,10 @@ async (page) => {
   // THE CONTROL: hide it, and the same measurement must say so.
   out.controlHidden = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
-    let hid = 0;
-    ch.register?.root?.traverse?.((o) => {
-      if (/bag/i.test(o.name || '') && o.visible) { o.visible = false; hid += 1; }
-    });
-    return hid;
+    const bag = ch.register?.bagNode?.();
+    if (!bag || !bag.visible) return 0;
+    bag.visible = false;
+    return 1;
   });
   await page.waitForTimeout(400);
   out.afterHiding = await look();

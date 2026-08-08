@@ -8582,6 +8582,16 @@ export function createRegisterMode(B) {
     isActive: () => active,
     hasTx: () => !!tx,
     getTx: () => tx,
+    // THE COUNTER BAG, EXPOSED RATHER THAN GUESSED AT.
+    //
+    // A driver that hunts the scene graph for /bag/i finds nothing when it walks
+    // the wrong subtree, and a scan that finds nothing looks exactly like a thing
+    // that is not there - which is how six mop drivers silently reported zero
+    // after the fibres went instanced. G4.1 says a bag is ALWAYS at the bagging
+    // position; anything checking that should ask, not search.
+    bagNode: () => bagGroup,
+    bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
+      && bagGroup.userData?.checkoutOwner !== 'customer'),
     getCustomer: () => cust,
     getFlow: () => (tx && tx.checkoutFlow ? tx.checkoutFlow : null),
     checkoutWatchdogDiagnostics: () => ({
