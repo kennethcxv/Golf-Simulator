@@ -40,11 +40,27 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // Sinks whose first argument is read by the player as prose.
-const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])/g;
+// SINKS, and the list is the thing most likely to be incomplete.
+//
+// It began as toast|announce|setPrompt|setHint and MISSED `shop.log.unshift`
+// entirely - the activity feed the player reads on the laptop. Five strings sat
+// behind that gap all session, so every "N remaining" figure reported before
+// this was an undercount by five.
+//
+// The lesson is not "add a sink". It is that a negative control proves an
+// instrument SEES what you pointed it at, and says nothing about what you failed
+// to point it at. The floor here (raw > 15) looked perfectly healthy while the
+// scanner was blind to a whole class of player-facing text.
+const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
-const BASELINE = 45;
+// 45 -> 50 is a CORRECTION, not a regression: the five `shop.log` strings were
+// always raw and the scanner could not see them. Raising a ratchet ceiling is
+// normally the wrong move and needs exactly this kind of justification in
+// writing, or it becomes the escape hatch that makes the whole mechanism
+// pointless.
+const BASELINE = 50;
 
 function jsFiles(dir) {
   const out = [];

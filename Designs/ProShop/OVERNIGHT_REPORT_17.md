@@ -6006,3 +6006,46 @@ the player actually walks, not by running the suite.
     UNPROVEN rather than false.
 90. **Coin forcing computed on a PRE-TAX total** when `customerCash` reads the
     post-tax one. The code was right; the measurement asked the wrong number.
+
+### FAULT 91 - AN INCOMPLETE SINK LIST, AND FAULT 92 - I COMMITTED A RED SUITE
+
+Auditing my own multi-site fixes for the shape of fault 87 found a different one,
+in the ratchet itself.
+
+**The sink list was `toast|announce|setPrompt|setHint` and missed
+`shop.log.unshift`** - the activity feed the player reads on the laptop. Five
+strings, in `checkout.js`, `register.js` and `shop.js`. They were **always raw**,
+and the scanner could not see them, so **every figure reported this session was
+an undercount by five.** True count: **50**.
+
+Raising the ceiling 45 -> 50 is a CORRECTION rather than a regression, and the
+justification is written at the constant - because raising a ratchet ceiling is
+normally the wrong move, and without that note in writing it becomes the escape
+hatch that makes the whole mechanism pointless.
+
+### Why fault 91 matters more than its size
+
+Invariant 8 has been GREEN since I wired it, resting on a scanner blind to a
+whole class of player-facing text. **The check was correct about what it measured
+and wrong about what it claimed.**
+
+The floor control could never have caught it - 45 sits comfortably above `> 15`,
+so the scanner looked healthy. **A negative control proves an instrument SEES
+what you pointed it at. It says nothing about what you failed to point it at.**
+That is the honest limit of every green in this report.
+
+### FAULT 92, and it is a process failure rather than an instrument one
+
+**I committed the fault-91 fix with a RED SUITE** - two failures - having held
+"suite green before each commit" for 143 commits. A python write mangled the
+regex escaping; the pattern I had reasoned about was correct, the pattern that
+reached the file was not, and I committed without re-running.
+
+Reverted (`bf8ee4a`), restored to green, then re-applied with the Edit tool
+instead of a python escaping layer and **tested the regex standalone BEFORE
+editing** - which is what I should have done first and had done all session
+until I was tired.
+
+The revert is in the history rather than squashed away, because "I broke my own
+rule at commit 144" is exactly the kind of thing a report like this exists to
+record.
