@@ -13354,3 +13354,68 @@ wrong" confirms nothing** — and this one was about to discredit a real result.
 Now reads `w.state.x`, reports the coordinates it used, and keeps the old
 reading alongside: `{known: true, x: -359.65, z: 4.76, inside: true,
 viaApiFields: false}`. That last field is the fault, preserved as a value.
+
+
+## THE SHADOW-CADENCE FIX, REFUTED BEFORE IT WAS WRITTEN
+
+I had a mechanism (the bake costs 4x indoors), a measurement reproduced twice, and
+a ready fix: the walk fit snaps the shadow focus to a 0.117 yd texel grid
+(`courseScene.js:10415-10419`), so standing still every bake re-renders a
+bit-identical image, and skipping redundant bakes is free quality.
+
+It is also risky — a slower cadence lags every MOVING caster, and the source says
+so at the setter: at 200 ms a character's shadow *"lags perceptibly on a fast
+turn"*. So measure the prize before paying that.
+
+`setShadowQuality({ bakeMs })` takes 16..1000 ms at runtime, so the cadence
+sweeps **without touching a line of game code** — the measurement cannot be
+contaminated by the fix it is meant to justify. Indoors, standing still, 9 s per
+rung, with **bakeMs 100 measured twice, first and last**, so drift across the
+sweep shows up as two readings of the same setting disagreeing:
+
+| bakeMs | bake share of frames | bake median | overall over 16.7 ms |
+|---|---|---|---|
+| 100 | 8.5% | 18.7 ms | **21.1%** |
+| 200 | 4.6% | 16.3 ms | 20.4% |
+| 400 | 2.4% | 12.4 ms | 21.0% |
+| 1000 | 0.9% | 18.9 ms | **19.9%** |
+| 100 (control) | 8.5% | 18.3 ms | **21.5%** |
+
+The share tracks the cadence exactly — 8.5, 4.6, 2.4, 0.9 — so the sweep really
+swept. **The drift control agrees with itself to 0.4 points.**
+
+**Removing ninety percent of the bakes buys 1.2 points of a 21-point problem.**
+
+Both things are true at once and only look contradictory: a bake frame really
+does cost 18.7 ms against a 5.0 ms neighbour, and bakes really are only ~8.5% of
+frames, so their total contribution is small. **An expensive thing that happens
+rarely is not where a 21% failure rate lives.** I would have shipped a shadow
+responsiveness regression for one point.
+
+### Where the other nineteen points are
+
+Non-bake frames indoors: **median 5.0 ms, and 15.1% of them still exceed 16.7 ms.**
+That is the real shape of invariant 1 — a low median with a heavy, frequent
+spike population that has nothing to do with shadows. That is the next search,
+and it now starts from a much better place than "the game is slow".
+
+### Fault 101 — the sweep that swept nothing
+
+The first run of this driver reported `appliedBakeMs: undefined` on all five
+rungs and an over-16 ladder of 22.1 / 21.9 / 25.0 / 22.9 / 22.5 — which I could
+easily have read as "cadence makes no difference".
+
+The callback was `(ms) => setShadowQuality({ bakeMs })`. The parameter is `ms`;
+`bakeMs` is a Node-side variable that does not exist in the page. `.catch` turned
+the ReferenceError into the string `"threw: bakeMs is not defined"`, and
+`"threw: ...".bakeMs` is `undefined`.
+
+**What gave it away was not the undefined — it was the bake SHARE sitting at 9.3%
+at a supposed 1000 ms cadence**, when it should have fallen under 1%. The
+conclusion would have been right by accident and wrong in its reasoning, which is
+the worst kind of correct. The driver now asserts the setter took, and pushes to
+`errs` if it did not.
+
+Those five void rungs are not wasted: they are five independent 9 s samples of
+one configuration, and they put the indoor over-16 rate's run-to-run spread at
+**21.9-25.0%**.
