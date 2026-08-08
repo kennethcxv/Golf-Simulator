@@ -6094,3 +6094,35 @@ asks on its own, and the reason the brief's rule about screenshots exists at all
 **Recorded as the top item on NOT DONE**, above the 50 raw strings, because
 widening the sink list changes what the number MEANS rather than merely moving
 it.
+
+### THE SINK-WIDENING PLAN, DECIDED RATHER THAN LEFT TO THE NEXT SESSION
+
+Widening invariant 8's sink list is the top NOT DONE item. It needs a judgement
+per category, and those judgements are the slow part - so they are made here,
+with the counts, so the next session executes rather than re-derives.
+
+```
+513  label:  '...'      plain      +  39 template   = 552 prop labels
+662  reason: '...'      plain      + 138 template   = 800 refusals
+483  el({ text: })
+ 61  ctx.fillText
+ 14  notify({ message })
+```
+
+| category | player-facing? | verdict |
+| --- | --- | --- |
+| **`reason:`** (800) | **YES** - `toast(result.reason)` is how every refusal reaches the player | **add first.** Biggest, unambiguous, and the lines a stuck player most needs in their language |
+| **prop `label:`** (552) | **YES** - the `[E]` prompt under the crosshair | **add second.** Many are built per-frame from live state, so expect placeholder work rather than plain keys |
+| **`el({ text: })`** (483) | **MOSTLY** - DOM labels, but the factory is also used for debug rows | **audit before adding** - needs a spot-check that the sample is really all player-visible |
+| **`ctx.fillText`** (61) | **YES** - the canvas screens | **add**, but note the front desk already has its own truncation ledger, so some are covered differently |
+| **`notify({ message })`** (14) | **YES** | trivial, add with `reason:` |
+
+**Do NOT widen all at once.** A single change taking the ratchet from 50 to ~1,900
+produces a number nobody can act on and a baseline nobody will ever lower. One
+category per commit, each with its own baseline line and its own justification -
+the same discipline the 155 -> 50 run used, which worked precisely because each
+step was small enough to verify.
+
+**And re-run the floor control after each**, because it is calibrated at `> 15`
+for a 50-string world and will need raising as the true count grows - the same
+maintenance fault as 86, which is now predictable rather than surprising.
