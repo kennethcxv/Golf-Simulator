@@ -117,6 +117,12 @@ async (page) => {
   out.pricedForCoins = await page.evaluate(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     if (!tx) return null;
+    // TAX OFF FIRST. The previous run set prices summing to 21.75 and reasoned
+    // about 75 cents - but customerCash reads cashTotalOf(tx), which INCLUDES
+    // TAX, so the cents it actually saw were different and needed pennies. The
+    // code refused the coin branch correctly; the forcing was computed on the
+    // wrong number. Zeroing the rate makes the pre-tax total the real total.
+    tx.taxRate = 0;
     // 12.40 + 9.35 = 21.75 - cents 75, payable in three quarters
     const prices = [12.40, 9.35];
     tx.items.forEach((item, i) => {
@@ -125,7 +131,7 @@ async (page) => {
       item.priceCents = Math.round(p * 100);
     });
     tx.rng = () => 0.2;   // under 0.55: takes the pay-the-cents-in-coins branch
-    return tx.items.map((i) => i.price);
+    return { prices: tx.items.map((i) => i.price), taxRate: tx.taxRate };
   });
 
   // DRIVE THE SCAN. The tender only exists after the goods are rung up, and

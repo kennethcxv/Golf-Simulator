@@ -5688,3 +5688,50 @@ paid with a $20 and a $10, realistic denominations, no shrapnel.
 force it, pick prices whose POST-TAX total ends in a multiple of 5 cents, or set
 `tx.taxRate = 0` before pricing. Either is a one-line change for the next run,
 and the unit test already proves the behaviour at 13.5% over a distribution.
+
+### G5 CONFIRMED - COINS ON THE DESK, WITH THE TAX CORRECTION APPLIED
+
+One line - `tx.taxRate = 0` before pricing, so the pre-tax total IS the total the
+customer faces - and the coin branch fires:
+
+```
+tendered: { "10": 1, "20": 1, "0.5": 1, "0.25": 1 }
+coinKindsOnDesk: 1     coinPiecesOnDesk: 1
+pricedForCoins: { prices: [12.40, 9.35], taxRate: 0 }
+```
+
+**A $21.75 bill paid with a $20, a $10, a half-dollar and a quarter.** Notes for
+the dollars, coins for the cents - which is G5's first behaviour, and the change
+comes back in whole dollars, which was the entire point of building it.
+
+Both behaviours G5 names are now seen live at the desk:
+
+| behaviour | evidence |
+| --- | --- |
+| round up to the next note | $21.75 paid with a $20 and a $10 (previous run) |
+| notes plus coins for the odd amount | $21.75 paid with $20 + $10 + 50c + 25c |
+
+And F4's rule holds in both: **no pennies, no shrapnel.** The coins that appeared
+are a half-dollar and a quarter - the large ones a customer digs out.
+
+### The full G7 run in the same frame
+
+That same run also carries `modesSeen: ["PayCash","CashLaid"]`,
+`laidAfterHolding: true`, `itemsScanned: 2`, `reachedTender: true` - so the
+gesture and the denominations are confirmed **in one transaction**, at the
+default camera, with the control valid.
+
+### Visual confirmations, final
+
+| item | state |
+| --- | --- |
+| G4.1 a bag is always at the counter | **CONFIRMED** |
+| G1 the till reads with a mop in hand, Q held | **CONFIRMED** |
+| G7 cash laid, hand withdrawn, in that order | **CONFIRMED** |
+| G5 realistic denominations, coins on the desk | **CONFIRMED** |
+| G3 / G4.2 the bag sink | not attempted - the driver reaches this beat and could |
+
+**Four visual items now clear the brief's bar, from zero this morning.** Every
+one of them needed a scenario nobody had built, an accessor nobody had exposed,
+or a sample rate nobody had matched to the event - and each was found by reading
+rather than guessing.
