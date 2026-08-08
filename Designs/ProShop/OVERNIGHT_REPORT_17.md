@@ -12079,3 +12079,48 @@ survives the next person reading it.**
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## E4 — THE MECHANISM IS ARCHITECTURAL; "IMMEDIATELY" IS THE UNVERIFIED HALF
+
+E4: *"Changing a key in Controls must change it in the formatted controls list
+too, immediately, in the same layout."*
+
+`keyBindings.js:3` states the contract the whole game runs on:
+
+> *"Consumers never read `event.key` against a letter again — they ask
+> `actionForKey`/`keyForAction`, so **a rebind changes every surface at once**
+> (main.js dispatch, walk movement, the dirt-sense hold, prompts)."*
+
+And `ui.js:374` is the single place bracketed tokens become keycaps: *"each token
+maps to its ACTION and the keycap prints whatever key that action is bound to
+right now. Source strings stay untouched."*
+
+**So the formatted list cannot show a stale key**, because it never stores one —
+it resolves through the binding table every time it renders. **"In the same
+layout" is satisfied by construction**, since the same renderer produces it.
+
+### What is NOT established
+
+**"Immediately."** A display that resolves correctly *when rendered* still shows
+the old key until something re-renders it. Nothing read so far shows the controls
+list subscribing to a binding change, and a list rendered once at panel-open
+would update only on reopen.
+
+**That is the whole of E4's remaining risk**, and it is one driver: open
+Controls, rebind a key, and read the formatted list **without closing the panel**.
+
+### Recorded reading
+
+**E4's correctness is architectural and solid; its immediacy is unverified.** I
+am recording it that way rather than as satisfied, because "resolves through the
+live table" and "updates on screen without a reopen" are different claims, and
+this report has been caught six times treating a sound mechanism as evidence of
+the behaviour it enables.
+
+**Section E status:** E5 delivered and unblocked; E3 substantively complete
+(padding fixed, class guarded, screenshots outstanding); **E4 mechanism verified,
+immediacy open**; E1 untouched (it defers to A4); E2 diagnosed to two exact lines
+and deliberately not changed.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
