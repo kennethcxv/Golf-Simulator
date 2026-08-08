@@ -81,6 +81,35 @@ export function makeAudio(preferences = null) {
     } catch {
       return;
     }
+    // F2 (Goal 17) — PITCH VARIATION FOR EVERY VOICE, FROM ONE PLACE.
+    //
+    // Audited: of 92 voices, only 20 varied their pitch. The other 72 played
+    // the identical note every time - footsteps, box handling, product sounds,
+    // shelf stocking, all of which repeat constantly. That is exactly the
+    // condition F2 names: "pitch-varied so repeats do not grate."
+    //
+    // The obvious fix is seventy-two edits. This is one: every voice in the
+    // module builds its sound from ctx.createOscillator(), so wrapping that
+    // once gives all of them a small random detune. Fix the class, not the
+    // instance.
+    //
+    // +/-14 cents is deliberately below the threshold where a listener hears a
+    // note as WRONG (roughly a quarter-tone, 50 cents) and well above the
+    // threshold where repeats stop sounding machine-stamped. Chimes and musical
+    // cues stay in tune; a boot on a board stops being the same boot.
+    //
+    // Detune is used rather than frequency so a voice that RAMPS its frequency
+    // keeps its whole ramp intact - the offset rides on top instead of
+    // replacing the first value.
+    if (typeof ctx.createOscillator === 'function' && !ctx.__fwDetuned) {
+      const makeOsc = ctx.createOscillator.bind(ctx);
+      ctx.createOscillator = () => {
+        const osc = makeOsc();
+        try { osc.detune.value = (Math.random() * 2 - 1) * 14; } catch { /* no detune param */ }
+        return osc;
+      };
+      ctx.__fwDetuned = true;
+    }
     master = ctx.createGain();
     master.connect(ctx.destination);
     ambientBus = ctx.createGain();

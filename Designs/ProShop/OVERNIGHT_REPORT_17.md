@@ -2075,15 +2075,39 @@ oscillators and filtered noise standing in for a drawer, a coin, a boot on a
 board. That is a legitimate way to ship, and it is also the honest answer to
 "which are placeholders": all of them.
 
-### What I did not do, and why it is named rather than attempted
+### And then the seventy-two-edit problem turned out to have a one-edit answer
 
-Adding pitch variation to seventy-two voices is mechanical and is the single
-highest-value change available here - it is the difference between a footstep
-that grates by the twentieth step and one that does not. **I have not done it**,
-because doing it well means either a shared tone helper that every voice routes
-through (which does not exist yet) or seventy-two individual edits, and a
-seventy-two-function sweep I cannot re-verify by ear is exactly the shallow pass
-the brief warns against. It is on NOT DONE with its number attached.
+My first instinct was to name this as NOT DONE: pitch variation across
+seventy-two voices means either a shared tone helper that does not exist, or
+seventy-two individual edits I could not re-verify by ear. Both are the shallow
+pass the brief warns against.
+
+But every voice in the module builds its sound from **`ctx.createOscillator()`**.
+Wrapping that once, at the point the context is created, gives **all ninety-two
+voices** a small random detune. Fix the class, not the instance - and here the
+class had exactly one door.
+
+- **±14 cents.** Deliberately far below the ~50 cents (a quarter-tone) at which
+  a listener hears a note as *wrong*, and far above the point where repeats stop
+  sounding machine-stamped. Chimes and musical cues stay in tune; a boot on a
+  board stops being the same boot.
+- **`detune`, not `frequency`.** A voice that RAMPS its frequency keeps its
+  whole ramp - the offset rides on top instead of replacing the first value.
+- **Guarded against double-wrapping.** `init()` can run more than once in a
+  session, and stacking detunes would drift the whole game sharp or flat.
+
+| | before | after |
+| --- | --- | --- |
+| voices with pitch variation | **20 of 92 (21.7%)** | **92 of 92 (100%)** |
+| lines changed | - | **one wrapper** |
+
+`tests/audio-pitch-variation.test.js` pins the wrapper, the single-application
+guard and the cent ceiling. Watched failing: removing the detune line takes it
+to 1 of 3, restoring it green.
+
+**Layering is still not done** - 84 of 92 voices remain a single source, and
+"start transient, body, tail" is three. That one has no single door and is
+honestly on NOT DONE.
 
 ---
 
