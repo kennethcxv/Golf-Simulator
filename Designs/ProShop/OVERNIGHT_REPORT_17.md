@@ -5244,3 +5244,45 @@ other direction.
 The screenshot driver now works - it captures the pointer first, which was the
 thing missing - so the next session has a working pattern for exactly that gap
 rather than a blank page.
+
+### G4.1 STILL UNCONFIRMED, AND THE CONTROL IS WHY I KNOW
+
+Wrote a driver to photograph the counter bag at the default camera - the biggest
+remaining gap being that every visual item this session is unconfirmed. It
+reported:
+
+```
+bagFound: false    bagDrawn: false    controlHidAnything: false
+```
+
+**`controlHidAnything: false` is the tell.** The control hides every matching
+object and counts them; it hid ZERO. So the driver never found anything to
+measure, and `bagFound: false` describes MY TRAVERSAL, not the game.
+
+### The bag is there
+
+* it is built at register construction - `buildBag()` at
+  `simplifiedRegisterMode.js:8406`, not lazily on first sale
+* it is named `FrontDeskShoppingBag`, which my `/bag/i` scan would have matched
+
+So the object exists and the name matches. **The subtree I walked
+(`ch.register.root`) is not where it lives**, and my optional chaining swallowed
+that silently - `ch.register?.root?.traverse?.()` returns undefined just as
+quietly for a wrong property as for a missing one.
+
+### Why this is recorded as a failure and not retried into a pass
+
+I had the option of guessing another subtree until something matched. That is how
+the six mop drivers came to name-scan `MopStrand_<i>_<s>` and silently report zero
+after the fibres went instanced - **a scan that finds nothing looks exactly like a
+thing that is not there.**
+
+**G4.1 remains UNCONFIRMED visually.** What it needs is the register exposing its
+bag through its own API rather than a driver guessing at scene-graph shape, which
+is a ten-minute change and the correct one. The frame is filed at
+`qa/electron/g4-bag-present/` and shows the counter; whether the bag is in it, I
+am not willing to claim from a driver whose control failed.
+
+**That is now twice in three drivers that the control caught a measurement I
+would otherwise have published.** The controls are earning their cost more
+reliably than anything else built this session.
