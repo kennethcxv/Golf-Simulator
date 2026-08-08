@@ -3619,3 +3619,56 @@ shadow bake landing on one frame in eight.
 
 Recording the negative result in full, because a day not spent on a 0.6 ms fix is
 the most valuable thing this probe could have produced.
+
+## REQUIREMENT 2 - THE ASSET-CACHE CHECK, WHICH CLEARS THE SUSPECT
+
+*"Before any tool work delete the packed asset cache, rebuild from source, and
+confirm the GLB hash the game loads is the one you built. That check alone may
+explain six rounds of tool measurements."*
+
+The game loads `vendor/models/assets_51_100/...`. The Blender build writes
+`Assets/assets_51_100/glb/...`. They are different files, so the check is real.
+
+### A naive hash comparison says everything is stale, and it is wrong
+
+| asset | vendor | Assets |
+| --- | --- | --- |
+| asset_072_mop_fp | 4,019,348 b | 13,504,444 b |
+| asset_074_broom_fp | 2,875,524 b | 9,459,880 b |
+| asset_072_mop | 4,020,776 b | 13,505,644 b |
+| asset_074_broom | 2,877,164 b | 9,461,400 b |
+
+**All four diverge, at a consistent 3.3x.** That reads exactly like a stale cache.
+It is not one.
+
+### What it actually is
+
+* the packed copy is **NEWER than its source by 18-21 seconds** - a pack step
+  running immediately after each export
+* identical `extensionsUsed` (`KHR_texture_transform`), identical 11 images,
+  identical 10 meshes
+* **geometry byte-for-byte identical**:
+  `Cylinder.004:162v/636i | Cylinder.003:146v/564i | Torus:105v/504i ...`,
+  **6,620 total vertices on both**
+
+The 3.3x is **texture data alone**. The meshes the game loads are the meshes that
+were built.
+
+### The verdict, and it is a negative one
+
+**The suspected cause of six rounds of tool measurements is not this.** The mop
+and broom geometry in the running game has been the geometry on disk the whole
+time. The measurement problems this session traced to other causes and were
+recorded as they were found: a DRY mop measured as if wet, an unready rig
+producing a fake dead zone, and six QA drivers name-scanning `MopStrand_<i>_<s>`
+after the fibres became instanced.
+
+### The trap, which is the part worth keeping
+
+**Any future version of this check must compare `vendor` against a FRESH PACK of
+the current source, never against the source itself.** Comparing raw hashes
+reports "stale" every single time, on a pipeline that is working perfectly, and
+would send the next session chasing a cache that was never wrong.
+
+That is the same shape as the seven instrument faults in section G: a check that
+returns a confident answer about something it is not actually looking at.
