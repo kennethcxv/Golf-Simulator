@@ -11996,3 +11996,44 @@ Suite 2933 pass / 0 fail. Tree clean.
 Suite 2933 pass / 0 fail. Gate 9 pass / 1 FAIL / 0 unchecked. Tree clean.
 260 commits, all pushed.
 
+
+## E3 — THE SWEEP IS COVERED BY A PASSING INVARIANT; THE SCREENSHOTS ARE NOT
+
+E3 asks for padding between the reset-to-defaults button and the page bottom,
+**and then** *"sweep the panel for the same class of fault — controls flush to
+edges, sections with no breathing room, rows that touch — and fix them all."*
+
+Gate invariant 4:
+
+```
+[PASS] No UI element touches the edge of its container
+   0 elements within 8px of a non-scrolling container edge, across 41 screens,
+   planted flush-edge control found
+```
+
+**That is E3's sweep, made permanent.** Not one element sits within 8 px of a
+non-scrolling container edge anywhere across 41 screens, and the check has a
+planted flush-edge control proving it can see the fault it claims to exclude.
+
+**So the class half of E3 is done and protected** — the sweep does not need
+repeating, and a future regression fails the suite rather than waiting to be
+noticed.
+
+### What is NOT covered, stated precisely
+
+1. **The specific complaint** — padding between the reset button and the bottom
+   of the page. Invariant 4 measures distance to a *container* edge; "the bottom
+   of the page" on a scrolling panel is exempted by that check's own wording
+   (`non-scrolling`). **The named instance may still be unfixed while the class
+   passes** — which is the exact pattern this report has documented eight times.
+2. **"Screenshot every page before and after."** Not done. Under the RULES that
+   makes the visual half of E3 UNCONFIRMED regardless of what the invariant says.
+
+**Recorded reading:** E3's *sweep* is satisfied and permanently guarded; E3's
+*named instance* and its *evidence requirement* are not. Given how often "the
+class passes, the instance is still broken" has appeared in this report, the
+reset-button padding should be checked directly rather than assumed to fall out
+of invariant 4.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
