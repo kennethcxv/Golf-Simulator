@@ -13481,3 +13481,57 @@ the five the measurement was fine and the sentence beside it was wrong.
 **The two most useful results this stretch were both negatives** — the cadence fix
 refuted before it was built, and the broom cleared of a frame tail it never
 caused. Both were settled by a control that already existed and had not been read.
+
+
+## THE INDOOR SPIKES ARE NOT GEOMETRY, NOT CULLING, NOT GC — AND THEY HAVE A RHYTHM
+
+The remaining ~19 points of invariant 1 are non-bake indoor frames. A low median
+with frequent large spikes is a distinctive shape, and it splits three ways
+before any code is read: **periodic** means a timer, **correlated with draw-call
+jumps** means culling or LOD churn, **irregular and clustered with heap drops**
+means GC. Each points somewhere different, so measure which rather than pick the
+likeliest.
+
+Per frame: dt, bake counter, draw calls, triangles, JS heap. Outdoors first as a
+second control — anything that correlates there too is the engine, not the room.
+
+| | indoor | outdoor |
+|---|---|---|
+| non-bake spikes | **17.1%** | 1.0% |
+| gap between spikes, median | **74 ms** (IQR 41, range 25-200) | 1005 ms |
+| draw calls on spike / on calm | **771 / 771** | 2407 / 2407 |
+| triangles on spike / on calm | **4,814,860 / 4,814,860** | 5,157,258 / 5,157,258 |
+| heap drops | 0 | 0 |
+
+### What that eliminates
+
+- **Not culling or LOD churn.** Draw calls and triangle counts are *byte-identical*
+  on spike and calm frames. The renderer submits exactly the same work; it simply
+  takes three times as long to get through the frame.
+- **Not geometry volume.** Indoors submits **771 draws against outdoors' 2,407**
+  and similar triangles — **a third of the draw calls and seventeen times the
+  spike rate.** Whatever this is, "the room has more stuff in it" is not it.
+- **Not garbage collection**, at least not visibly: `performance.memory` was
+  available and the heap never fell once in either window.
+- **Not shadows.** These are the non-bake frames by construction, and the cadence
+  sweep already put bakes at 1.2 points of the 21.
+
+### What it leaves, and the rhythm
+
+Identical submitted work taking longer means the cost is **outside the draw
+submission** — per-frame CPU that is not draw calls, or a GPU-side stall such as a
+texture upload.
+
+And there is a rhythm: **spikes every ~74 ms, IQR 41.** Loose for a timer,
+far too regular for noise, and nothing like the outdoor 1005 ms.
+
+**A canvas texture upload has exactly this signature** — same draws, same
+triangles, extra milliseconds — and this codebase has measured it before: the
+ledger's page canvases cost *"~55 ms per `needsUpdate` REGARDLESS of canvas size"*
+until mipmaps were turned off (`ledgerBook.js:175`). The clubhouse interior is
+full of canvas-backed surfaces the outdoors has none of. **That is the next
+search**, and it is a specific one: find what repaints a canvas on a ~74 ms
+rhythm indoors.
+
+Recorded as a lead, not a conclusion. The elimination is solid; the candidate is
+a candidate.
