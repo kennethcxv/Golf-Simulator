@@ -6340,3 +6340,47 @@ the game): the strand system is built as **new geometry authored in the .blend**
 not as a runtime bone-chain draped over the existing skirt. A runtime chain over
 a rigid cone would reproduce the exact defect this entry just diagnosed.
 
+
+## CORRECTION TO THE ENTRY ABOVE — I READ THE ASSET AND CONCLUDED ABOUT THE GAME
+
+The GLB audit above is accurate: the packed mop contains no strand geometry,
+and its whole head is one welded `MESH_MopSkirt`. Both facts verified.
+
+The sentence I drew from them — *"the strands do not move because there are
+none"* — is wrong, and wrong in the exact way this report keeps documenting.
+It is a claim about the RUNNING GAME inferred from a STATIC ASSET, and there is
+a layer in between that I did not look at.
+
+`src/render3d/toolViewmodel.js:382` hides the welded skirt at load and replaces
+it with a **procedural strand rig of 84 instanced strands**, built 2026-08-07.
+The welded mesh is deliberately KEPT in the GLB so hash gates and frozen-strand
+controls can still find it. So:
+
+- there ARE strands at runtime, and they DO move — 0.135 m, measured;
+- the `_join(strands, "MopSkirt")` at `build_assets_71_80.py:485` is real and is
+  the reason the GLB looks strand-less, but the runtime already routes around it;
+- **B1 is not "build strands". It is the next round after strands were built.**
+
+The prior round's own note records why the owner still sees nothing: with the
+fibres welded, 69% of the stroke's visible change belonged to the HEAD, and the
+strand-specific signal was 42,348 px against 22,991 px of idle shimmer — only
+1.84x noise. The lever chosen was density (26 -> 84) to make the strands' share
+of the picture dominate the head's.
+
+**What this changes about the work:** do not rebuild the .blend. The subject is
+the runtime rig and the head motion it competes with. My recorded ambiguity
+ruling in the previous entry — "author strands as geometry in the .blend" — is
+WITHDRAWN; it was reasoned from the incomplete picture and would have rebuilt
+something that already exists one layer up.
+
+**Cost of the error:** none banked, caught inside the same phase. But it is the
+third instance this session of a conclusion outrunning its evidence, after
+invariant 8 (a check named for 100% of a subject it covered 3% of) and the
+0.25 yd strand figure (accurate motion, wrong name). The recurring shape is not
+carelessness about facts — every individual measurement here was sound — it is
+**stating a conclusion at a layer above the one actually measured.**
+
+The discipline that catches it is cheap and I did not apply it: before
+concluding about the game, grep the runtime for the thing you just read in the
+asset.
+
