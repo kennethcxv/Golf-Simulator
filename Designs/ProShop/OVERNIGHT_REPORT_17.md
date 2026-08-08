@@ -6803,3 +6803,62 @@ finding is single instruments that are confidently wrong.
 
 **B5: SATISFIED.**
 
+
+---
+
+# SECTION C — PHASE 0. THE TRACKING WAS WRONG IN BOTH DIRECTIONS.
+
+Before working any C item, audited which are actually done. The task list said
+*"C1, C2, C3 done; C4-C8 open"*. Marker audit of `ledgerBook.js`:
+
+| item | Goal-17 markers | task list said |
+|---|---|---|
+| C1 opening sequence | 2 | done |
+| C2 overflow/pagination | 2 | done |
+| C3 overlaps | 0 *in this file* | done |
+| C4 turn phases through | 1 | **open** |
+| C5 bookmark | 2 | **open** |
+| C6 turn latency | 0 | open |
+| C7 lock alignment | 1 | **open** |
+| C8 typography | 0 | open |
+
+**Wrong in both directions.** Three items listed open (C4, C5, C7) carry real
+work; one listed done (C3) has no marker here — though gate invariant 3 passes
+with a planted control, so C3's recorder most likely lives in another file and
+is genuinely finished.
+
+Had I trusted the list I would have rebuilt C5 from scratch. It is not merely
+done, it is done carefully — see below. **That is the second time today a stale
+tracking note nearly caused rework**, after the Section B entry that had B
+marked complete while B1-B5 were open.
+
+### C5 is worth reading before touching anything else in this section
+
+The bookmark is found **by shape, not by name**: the GLB calls it
+`LB_LayerR0_3`, a generated layer name, so searching 59 nodes for "bookmark" or
+"ribbon" finds nothing — which is exactly why this item once read as stale. It
+is instead identified as the one mesh that is green AND has a strap ratio above
+6 (measured 176x17x10 mm, ratio 10.4; the runner-up scores 2.11 and is part of
+the back cover). A rebuild that renames the layer still finds it.
+
+And its material change was **deliberately not shipped**, with the cost
+measured: re-dyeing meant cloning the material, a clone is a new material, a new
+material is a new shader program compiled on first draw. Page-turn worst frame
+went from 39.2 and 49.0 ms across two runs to **1673.7, 186.1 and 579.3 ms**
+across three. Three-for-three in the wrong direction is a regression, not
+variance. The geometry — the substance of C5 — shipped alone, and the note says
+where the dye belongs instead: the shared material at build time in Blender,
+where it costs nothing.
+
+**Genuinely open, on this evidence: C6 (page turns under 16 ms) and C8
+(typography, ruling, ink weight, margins, paper).** C6 is entangled with
+invariant 1, which is still the one red item in the gate.
+
+### The task list is now corrected rather than flagged
+
+I had noted the stale entry four times across this session without fixing it,
+which is worse than not noticing — a warning that repeats and never resolves
+teaches the reader to skip it. Tasks #30 and #31 now carry the measured state,
+including the instruction not to trust `liveVsFrozenRatio` and the exact line
+B4 starts from.
+
