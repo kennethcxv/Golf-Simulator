@@ -122,12 +122,18 @@ async (page) => {
   await run('baseline', null);
   // MSAA off on both composer buffers. Three.js rebuilds the target when
   // `samples` changes, so the read-back proves the change reached the GL object.
+  // Through the REAL API now, not by reaching into `composer.renderTarget1`.
+  // `setAntialiasSamples` was added to courseScene precisely because a measured
+  // 1.28 ms lever should not be reachable only by a QA driver poking at
+  // internals — and running the sweep through it is what proves the API works
+  // rather than merely exists. The read-back comes from `antialiasSamples()`,
+  // so a setter that silently did nothing would show as unchanged samples
+  // rather than as a saving that failed to appear.
   await run('msaa 0', () => {
-    const c = window.__fw.scene3d.post.composer;
-    if (!c) return 'no composer';
-    c.renderTarget1.samples = 0; c.renderTarget2.samples = 0;
-    c.renderTarget1.dispose(); c.renderTarget2.dispose();
-    return { rt1: c.renderTarget1.samples, rt2: c.renderTarget2.samples };
+    const s3 = window.__fw.scene3d;
+    if (!s3.setAntialiasSamples) return 'no setter';
+    const returned = s3.setAntialiasSamples(0);
+    return { returned, readBack: s3.antialiasSamples() };
   });
   // 2x is the option worth shipping if it lands near 0x on cost: half the
   // samples, most of the edge quality. Priced between the two extremes so the

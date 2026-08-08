@@ -14122,3 +14122,44 @@ that gap is what the decision rests on.
 What survives: replace MSAA with a post-process AA pass (SMAA or FXAA; the chain
 already ends in an `OutputPass`), or make it a quality-preset choice. Both still
 need measuring, and both are now measurable against a 0.04 ms control.
+
+
+## THE LEVER IS NOW REACHABLE FROM THE GAME, AND THE DEFAULT IS UNCHANGED
+
+Three measurements of the same gap, on three separate runs, against drift
+controls of 0.00-0.04 ms:
+
+| MSAA | GPU median | frames over 8.33 ms |
+|---|---|---|
+| **4x (shipped)** | 9.09-9.12 ms | **100%** |
+| 2x | 8.71-8.75 ms | 100% |
+| **0x** | 7.83-7.84 ms | **27-28%** |
+
+**1.26 / 1.28 / 1.26 ms.** One constructor argument is 14% of the entire GPU
+frame — and for this whole session it was reachable only by a QA driver poking
+at `composer.renderTarget1`.
+
+Added `setAntialiasSamples(n)` and `antialiasSamples()` to courseScene's API.
+Two details that matter:
+
+- **Both ping-pong targets, not just the template.** The composer clones
+  `renderTarget1` and `renderTarget2` from `composerTarget`; writing only to the
+  template changes nothing that draws. Both are set and both are disposed so the
+  GL object is rebuilt at the new count.
+- **A reader alongside the setter.** A setter whose effect cannot be verified is
+  precisely how a silent no-op gets filed as *"this is not where the time is"* —
+  which happened twice today, to the bake cadence and to the GTAO taps.
+
+**Verified through the API rather than around it**: the sweep was re-run using
+`setAntialiasSamples(0)`, which returned 0, read back `{target: 0, rt1: 0,
+rt2: 0}`, and reproduced the saving at 1.26 ms with over-refresh frames going
+100% -> 28.4%.
+
+**The default stays 4x, deliberately.** The numbers say 0 is faster; they do not
+say the game should look worse. That is a taste decision and it now has data
+behind it instead of a literal buried in a constructor.
+
+`tests/antialias-lever-is-reachable.test.js` pins the setter, the reader, the
+both-targets detail, and **the 4x default as a tripwire** — so if the look ever
+changes it will be on purpose. Watched failing with both functions removed from
+the returned API.

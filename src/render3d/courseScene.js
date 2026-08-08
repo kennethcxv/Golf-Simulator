@@ -10468,6 +10468,58 @@ export function makeCourseScene(canvas, state) {
     return postEnabled;
   }
 
+  // THE MOST EXPENSIVE SINGLE ATTRIBUTE IN THIS RENDERER, AND UNTIL NOW A LITERAL.
+  //
+  // `composerTarget` is built with `samples: 4` — 4x MSAA on a HalfFloatType
+  // target. Measured with EXT_disjoint_timer_query_webgl2, indoors, against a
+  // 0.00-0.04 ms drift control:
+  //
+  //   4x (shipped)   GPU 9.11 ms   100% of frames over the 8.33 ms refresh
+  //   2x             GPU 8.75 ms   100%          <- 0.37 ms, clears nothing
+  //   0x             GPU 7.84 ms    27%          <- 1.28 ms
+  //
+  // The GPU runs a FLAT 8.4-9.1 ms whatever the frame time does, so the indoor
+  // stutter is not a spike: it is a pipeline permanently ~1% over a 120 Hz
+  // interval. This one attribute is 14% of the whole GPU frame, and it was
+  // reachable only by a QA driver reaching into `composer.renderTarget1`.
+  //
+  // Exposed, not changed. The default stays 4x because dropping it trades a
+  // stutter for aliased edges on every surface in the game and that is a taste
+  // decision, not a bug fix. What this does is make the lever addressable — by a
+  // settings row, by a quality preset, or by a driver measuring the next idea —
+  // instead of leaving a measured 1.28 ms locked inside a constructor.
+  function setAntialiasSamples(next) {
+    const n = Number(next);
+    // three.js accepts any non-negative count and silently clamps to the
+    // driver's max; 0, 2, 4 and 8 are the ones worth offering.
+    if (!Number.isFinite(n) || n < 0) return composerTarget.samples;
+    const want = Math.min(8, Math.round(n));
+    if (want === composerTarget.samples
+      && (!composer.renderTarget1 || composer.renderTarget1.samples === want)) {
+      return composerTarget.samples;
+    }
+    composerTarget.samples = want;
+    // The composer keeps two ping-pong targets cloned from this one; both have
+    // to be told, and both have to be disposed so the GL object is rebuilt at
+    // the new sample count rather than reused at the old one.
+    for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
+      if (!rt) continue;
+      rt.samples = want;
+      rt.dispose();
+    }
+    return want;
+  }
+
+  // What it currently is, so a caller can read before it writes and a driver can
+  // prove the write landed rather than assuming it did.
+  function antialiasSamples() {
+    return {
+      target: composerTarget.samples,
+      rt1: composer.renderTarget1?.samples ?? null,
+      rt2: composer.renderTarget2?.samples ?? null,
+    };
+  }
+
   function setEditorShadowFocus(active) {
     const next = !!active;
     if (editorShadowFocus === next) return;
@@ -12077,6 +12129,8 @@ export function makeCourseScene(canvas, state) {
     setEditorShadowFocus,
     setShadowQuality,
     setPostEnabled,
+    setAntialiasSamples,
+    antialiasSamples,
     assetBarrier: (timeoutMs = 12000) => ({
       idle: !assetsInFlight,
       promise: whenAssetsIdle(timeoutMs),
