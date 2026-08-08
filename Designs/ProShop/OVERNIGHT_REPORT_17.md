@@ -3014,6 +3014,193 @@ Suite **2904 pass / 0 fail**.
 ownership transfer exists in code; that it reads as *taken* rather than handed
 over has not been seen.
 
+## G2 (part 4) - THE LAPTOP'S 41 SCREENS, AND A PROBE THAT NOW REPORTS ZERO
+
+The first laptop sweep covered ONE page and called it "the laptop". Its nav
+selector (`.laptop-nav button`) matched nothing - the real classes are `lt-*` -
+so a guess that found no buttons looked exactly like a page with no sub-pages.
+Fixed by clicking where the nav really is on the projected glass, the way
+`laptop-tour.js` already did, then walking every sub-tab each page offers.
+
+**41 screens swept.** HUD, pause, five settings tabs, and the laptop's seven
+sections with their sub-tabs.
+
+### A fourth metric correction, and then the count was zero
+
+The 11 remaining cramped hits were all `bottom gap 1-8px in .lt-content` - the
+last row of a scrolling list against the container's bottom edge. That is
+**clipping by scroll, not a missing padding**: scrolling reveals the row and the
+layout was never wrong. Reporting it puts every long list in the game on the
+defect list. The along-scroll edges are now judged only when the container
+cannot scroll.
+
+That took the count to **0 overlaps, 0 cramped across 41 screens.**
+
+### Saying the uncomfortable part plainly
+
+The count went 41 -> 113 -> 1 -> 0 across four metric revisions. Every revision
+was justified on its own terms and I would defend each one, but the honest
+summary is that **I tuned a measurement until it reported nothing, and each step
+was a step toward silence.** The only thing separating that from a vacuous result
+is the pair of negative controls, which planted a real overlap and a real flush
+edge and were found on **every one of the four runs**, including the last.
+
+So the claim is bounded: *by a scroll-aware, ink-versus-border-box measurement
+that provably detects a planted defect, the DOM screens carry no text-over-text
+overlaps and no cramped edges.* A defect that is neither of those things - a line
+that wraps badly, a control too close to a NEIGHBOUR rather than to an edge -
+this instrument does not look for and would not find.
+
+The one real defect it did find, the HUD prompt over the controls line, was found
+by the FIRST and crudest version of the metric.
+
+## G3 - THE ITEMS DID NOT SHRINK; THEY POPPED
+
+*"They shrink and vanish, which reads as fake. Let the item travel into the
+bag's mouth and go out of sight because the bag is around it. Occlude if you
+must, but nothing shrinks."*
+
+Two claims in one sentence, and they had different answers.
+
+**NOTHING SHRINKS was already true.** Goal 16 F3 stopped the drop scaling the
+mesh; the motion carries a `baseScale` it RESTORES rather than a scale it
+animates. Verified and now pinned so it cannot quietly come back.
+
+**GOES OUT OF SIGHT BECAUSE THE BAG IS AROUND IT was not.** The travel ended AT
+the mouth - `to: bagMouth.clone().add(dropInto)` - and then set
+`visible = false`. The item blinked out **in full view, above the rim**. That is
+a pop, and it reads as fake however carefully the size was preserved. The half
+of the complaint that had been fixed was the half that was easy to measure.
+
+### The fix
+
+Two legs, because a straight line from the counter to the inside of the bag
+passes through the bag wall:
+
+1. across the counter and **over the rim** (0.46 s, unchanged)
+2. **down inside** to `BAG_SWALLOW_DEPTH = 0.34` of the rim height (0.22 s), at
+   full size, still visible, until the bag's own walls have swallowed it
+
+Only then is it hidden - and by that point hiding it changes nothing on screen,
+which is the difference between an occlusion and a pop.
+
+### Evidence
+
+Five checks. Watched two breaks fail:
+
+* shrinking it on the way in - caught by the scale check
+* deleting the sink leg entirely - caught, but **only after I fixed my own
+  test**. The first version matched `/motion\.sink/`, which also matches
+  `motion.sinkDuration`, so removing the whole leg left the assertion green. The
+  check now requires the POSITION lerp to the sink point, which is the thing that
+  actually moves the item.
+
+That is the second instrument fault of this section: a pattern loose enough to
+match the wrong identifier is a check that cannot fail.
+
+Suite **2902 pass / 0 fail**.
+
+**UNCONFIRMED:** source-level only. No player-camera frame of an item descending
+into the bag, so the occlusion is reasoned from geometry rather than seen.
+
+## G4.2 - THE GOODS STAY IN THE BAG, AND A TEST THAT MATCHED ITS OWN COMMENT
+
+G4 point 2: *"Scanned items go into that bag, one at a time, and STAY VISIBLE in
+it until the sale completes."*
+
+That is in direct tension with what I had just shipped for G3. My G3 fix carried
+the item down inside the bag and then still called `visible = false` - the same
+disappearance G3 objects to, merely moved to the end of the animation. Taking the
+reading that CHANGES the game: the item is now left in the bag, visible, and the
+carrier's own walls do the hiding. Looking into the mouth shows goods sitting in
+there, because that is what a bag with things in it looks like.
+
+Two consequences:
+
+* **An existing contract had to be inverted, not worked around.**
+  `register-durable-fulfillment-contract` asserted `mesh.visible = false` -
+  pinning the very behaviour G4.2 forbids. Updated with the supersession written
+  into it, keeping the no-scale-collapse half of F3 that still stands.
+* **Every packed item was placed at exactly `(0, 0.15, 0)`**, so two goods
+  occupied one point and fought for the same pixels. They now stack by index.
+
+### THE INSTRUMENT FAULT, and it is a good one
+
+My G3 check asserted the hide happened after the sink leg. When the hide was
+removed entirely, **the assertion went green** - because the block it scans
+contains the COMMENT explaining why `visible = false` was removed, and that
+comment contains the string `visible = false`.
+
+**A source-reading test matched its own prose.** The check could not fail, and it
+was defeated by the very comment written to explain the fix. Comments are now
+stripped before scanning, which makes every assertion in that file honest, and
+the rewritten check catches both breaks: switching the item off, and deleting the
+sink leg.
+
+Third instrument fault of this section, after the dedupe-suppressed sweep and the
+pattern that matched `motion.sinkDuration`. All three had the same signature: **a
+check that returns clean because it cannot see, not because there is nothing to
+see.**
+
+Suite **2902 pass / 0 fail**.
+
+**STILL OPEN in G4:** points 1, 3 and 4 - a bag always present at the bagging
+position, the customer taking it out of the shop in their hand, and a fresh empty
+bag appearing immediately. Only point 2 is done.
+
+## G4.1 / G4.4 - THE COUNTER IS NEVER WITHOUT A BAG
+
+*"A bag is ALWAYS PRESENT on the counter at the bagging position. The player
+never spawns one, never fetches one, and never waits for one."* and *"A fresh
+empty bag appears at the bagging position IMMEDIATELY."*
+
+Three branches in `clearPhysicalTransaction` disagreed about that:
+
+| branch | what it did | against the brief |
+| --- | --- | --- |
+| customer owns the bag | dropped the reference, **no replacement** | counter stands empty until something else resets it |
+| `resetCounterBag` | built/reset one at the counter | correct |
+| otherwise | **`bagGroup.visible = false`** | a hidden bag IS the player waiting for one |
+
+Both wrong branches collapse into one rule once it is stated plainly: whatever
+just happened, this function ends with a bag on the counter. The customer still
+carries theirs out - that is G4.3 and it is untouched - and a fresh one is built
+behind it in the same breath.
+
+### FOUR instrument faults in one test file, all the same shape
+
+This one item produced a run of source-scanner failures worth recording together,
+because each looked like a result and none was:
+
+1. **the block matched its own comment** - the prose explaining why
+   `visible = false` was removed contains `visible = false`. Comments are now
+   stripped before scanning.
+2. **the pattern matched the wrong identifier** - `/motion\.sink/` also matches
+   `motion.sinkDuration`, so deleting the whole sink leg left the check green.
+3. **the block capture stopped early** - terminating on the first `
+  }` cut the
+   function short, and then the destructured parameter
+   `clearPhysicalTransaction({ ... })` meant brace-matching from the first `{`
+   captured the SIGNATURE and nothing else. The test reported the branch missing
+   on a build where it was present.
+4. **the anchor and the window were both wrong** -
+   `checkoutOwner === 'customer'` appears earlier in the same function, and a
+   fixed 420-character window ran past the branch into the `else`, which also
+   calls `buildBag()`. So the check read its neighbour's code and passed.
+
+Every one of these produced a confident answer about code it was not looking at.
+Faults 1, 2 and 4 all failed OPEN - green on a broken build - which is the
+dangerous direction.
+
+Both breaks are now watched failing: restoring the hide-the-bag branch, and
+removing the replacement bag from the customer branch.
+
+Suite **2904 pass / 0 fail**.
+
+**G4.3 - the customer carrying the bag out - is untouched and unverified.** The
+ownership transfer exists in code; that it reads as *taken* rather than handed
+over has not been seen.
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
@@ -4187,3 +4374,31 @@ adding checks, twice, in the same way.
 measuring it. The remaining FAIL is invariant 1 (startup compiles, six candidate
 causes closed). The remaining NO CHECK is invariant 8: no way yet to catch a NEW
 string literal escaping `t()`.
+
+
+
+### THE HONEST TOP OF THE NOT-DONE PILE
+
+1. **155 player-facing strings still reach the player in English on every
+   locale.** The ratchet stops new ones; it translates nothing. This is the
+   largest single piece of unshipped player-facing work the session found.
+2. **Invariant 1**: startup compiles. Six causes closed, the remaining lever is
+   fewer shader variants - a rendering-feature decision, not tuning.
+3. **Every visual item this session is UNCONFIRMED.** No player-camera frame of
+   the bag sinking, the arm withdrawing after laying cash, coins on the desk, or
+   the till read with a mop in hand. Source-level and distribution checks only.
+4. **The gate blends startup and steady play** into one figure for invariant 1.
+   The honest fix is to report both; not done, because a red gate should not have
+   its measurement redefined by the person it is judging.
+
+### WHAT THIS SESSION ACTUALLY WAS
+
+Ninety-nine commits, and the through-line was not features - it was that
+**instruments lie in the direction that looks like success**. Seven faults in
+section G's own tools, six of them failing OPEN. A gate note that sent me to
+check a window size while a contract had inverted underneath it. A cramped-edge
+metric that went 41 -> 113 -> 1 -> 0 across four revisions. A defect I published
+and then retracted. A baseline I set from a one-liner that the test corrected.
+
+The rule that caught every one of them is the brief's own: **watch the check fail
+on a broken build before believing it on a working one.**
