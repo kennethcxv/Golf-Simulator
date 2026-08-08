@@ -7360,3 +7360,61 @@ footer that should leave it is `settingsPanel.js:532`, and the verification is
 already specified by E3 — before/after screenshots of every settings page, with
 gate invariant 2 as the automated backstop.
 
+
+---
+
+# SECTIONS F, G, H — AUDITED. ALL NINETEEN ITEMS CARRY WORK.
+
+Completed the survey across the rest of the document, the same way C and D were
+audited. Marker scan of `src/` and `tests/`:
+
+| section | items | carrying work markers |
+|---|---|---|
+| F (audio) | F1, F2 | **2 of 2** |
+| G (checkout) | G1-G13 | **13 of 13** |
+| H (characters) | H1-H4 | **4 of 4** |
+
+**G4 initially read as zero and that was my pattern, not the code.** It is
+tracked as `G4.1`-`G4.4` (the bag system's four sub-decisions), 15 occurrences
+across `simplifiedRegisterMode.js`, `clubhouse.js`,
+`bag-drop-nothing-shrinks.test.js`, `bag-leaves-in-their-hand.test.js` and
+`register-durable-fulfillment-contract.test.js`. Checking before reporting a gap
+is the whole lesson of this report, and it applied to my own scan within a
+minute of writing it.
+
+### The corrected map of the whole document
+
+| section | state |
+|---|---|
+| A performance | invariant 1 still FAILS; six candidate causes closed by measurement |
+| B mop/broom | B1 +35% measured, B2 fixed, B3 verified as correct, B4 diagnosed, B5 satisfied |
+| C ledger | C1/C2/C4/C5/C7 carry work; C5 exemplary; C6/C8 open, and they fight each other |
+| D carrying | **COMPLETE** - all four items, covered by passing invariant 6 |
+| E settings | E5 reported + unblocked + audited + one player-visible bug fixed; E1-E4 diagnosed or open |
+| F audio | both items carry work |
+| G checkout | all thirteen carry work |
+| H characters | all four carry work |
+
+**This is not a document with six untouched sections.** It is a document whose
+items have nearly all been worked at least once, where the open question is
+almost always *quality and confirmation* rather than *existence* — which is
+exactly what this session kept finding: B3 needed nothing, C5 was already done
+well, D was finished, G4 was tracked under a name my scan did not know.
+
+### The single most repeated mistake in this report, stated plainly
+
+Ten times today something was believed about this codebase that a thirty-second
+check disproved:
+
+- five stale tracking entries (B complete, C in both directions, D mislabelled,
+  E off by a section, my own G4 scan)
+- a check named for 100% of a surface it covered 3% of
+- a figure named "strand travel" measuring a rigid skirt
+- a control whose baseline tracked its own treatment
+- a coverage number measuring the dictionary, not the game
+- my own conclusion about a game, drawn from an asset
+
+**Every one was cheap to disprove and expensive to carry.** The habit that
+catches all of them is the same: before acting on a belief about this codebase,
+spend the thirty seconds to ask the codebase.
+
