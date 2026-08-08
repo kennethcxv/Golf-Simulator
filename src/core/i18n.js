@@ -42,6 +42,18 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Build mode. Wrapped from raw literals so they CAN be translated; the other
+  // nine locales fall through to English until somebody translates them, which
+  // is what the coverage fraction is for.
+  'build.storageEmpty': "Property storage is empty.",
+  'build.setDownFirst': "Set down or cancel the item in your hands first.",
+  'build.nothingToUndo': "Nothing to undo.",
+  'build.undone': "Last property placement undone.",
+  'build.onlyStoredSell': "Only stored items can be sold.",
+  'build.modeHint': "Build mode - [I] property inventory · look at placed items and [E] to move · [B] stop.",
+  'build.setDownClear': "Set down. The customers will find their way round it.",
+  'build.returnedToStorage': "Returned to property storage. [Z] undo",
+  'build.intoTheBack': "Into the back it goes.",
   'settings.reset.footerButton': "Reset all settings to defaults",
   'settings.reset.confirm': "Press again to reset everything",
   'settings.title': 'Settings',
