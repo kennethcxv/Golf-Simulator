@@ -11306,3 +11306,57 @@ reasoning could not.**
 
 Suite 2929 pass / 0 fail.
 
+
+## TENTH AND ELEVENTH FIXES REFUTED — AND THE SECOND TURNED THE SUITE RED
+
+**Tenth:** `castShadow = false` on the `fpHands` subtree. Suite green, and the
+equip still compiled **+9 with 5 depth programs**. So the hands' own meshes were
+not the shadow casters.
+
+**Eleventh:** the same on the rig's arms — `broomViewmodel` builds its *own*
+arms via `buildArm`, separate meshes using the same `FirstPerson*` names, which
+is why a census by name cannot tell the two sets apart.
+
+```
+EQUIP PROGRAM DELTA   +9    (5 still depth)
+SUITE                 2928 pass / 1 FAIL
+```
+
+**Refuted and red.** Reverted both files; suite back to 2929/0; tree clean;
+nothing committed.
+
+### The rule held again, and that is now twice tonight
+
+*Suite green before each commit.* Two attempts this session have gone red, and
+**both were caught because the suite runs before the commit, not after.** Neither
+reached the branch. The one time this rule was broken (fault 92, commit 144) it
+took a revert to undo; the two times it has been tested since, it cost nothing.
+
+### What the two refutations establish
+
+**The shadow casters are neither the fpHands meshes nor the rig's arm meshes.**
+Both were covered, both left the 5 depth programs intact.
+
+That leaves the tool's own authored GLB meshes — which `toolViewmodel.js` sets
+`castShadow = false` on for its *procedural* parts, but which the **adopted GLB
+meshes may not inherit**, since they arrive later from a loader.
+
+**That is a specific, testable next step**, and it is consistent with everything
+measured: the depth programs appear at equip because an authored tool mesh
+renders into the shadow map for the first time.
+
+### Section A tool half — the honest close
+
+**Established, with controls:** 9 programs at first equip, **5 of them shadow
+depth**; 54 meshes and geometries entering; 333-7855 ms first equip, ~24 ms
+second; material duplication real and fixed; `renderer.compile()` cannot warm
+depth programs, which explains nine compile-shaped failures at a stroke.
+
+**Refuted:** eleven fixes, all reverted, none shipped.
+
+**Next:** check `castShadow` on the adopted GLB meshes in
+`toolViewmodel.adoptAuthored`, where the procedural parts get it and the authored
+ones may not.
+
+Suite 2929 pass / 0 fail. Tree clean.
+
