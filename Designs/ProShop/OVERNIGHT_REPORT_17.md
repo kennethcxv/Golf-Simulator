@@ -2853,3 +2853,57 @@ different measurement (cramped edges, not overlaps) and is still open.
 | check-in note baseline 496 to 516 | `"11:30 AM is open..." x "11:30 AM asked" (240x5px at 482,506)` |
 
 Both name the exact strings and the pixel overlap. Suite **2894 pass / 0 fail**.
+
+## G2 (part 2) - THE CRAMPED EDGE, MEASURED RATHER THAN EYEBALLED
+
+*"Add padding between the two bottom boxes and the page edge. Add padding
+between the Full Sheet and Turn Away buttons and the bottom of that section -
+they are far too tight against it right now."*
+
+### What the numbers said
+
+The check-in view's action grid ran `482, 512, 494, 104` - a bottom line of
+**616 on a 640px page, a 24px margin**. The same screen's LEFT column pager ends
+at 602 with **38px**, and the right margin is 48px. So the screen already had a
+house style and the block the brief named was the one violating it.
+
+### The fix
+
+Both action grids now end on **602**, the left column's own bottom line:
+
+| | before | after |
+| --- | --- | --- |
+| check-in grid | `482, 512, 494, 104` -> bottom 616, gap 24px | `482, 508, 494, 94` -> bottom 602, **gap 38px** |
+| walk-in strip | `482, 500, 494, 116` -> bottom 616, gap 24px | `482, 500, 494, 102` -> bottom 602, **gap 38px** |
+
+The check-in grid moved UP four pixels as well as shortening, so the buttons keep
+**42px of height** instead of paying for the margin out of their own size. That
+trade is the obvious wrong turn here and it now has its own check.
+
+### Evidence
+
+`monitorAuditRectSnapshot()` exposes the recorded rects so padding is measured
+from what was actually drawn, not from reading the source. Three checks: the
+snapshot returns real buttons (control), no button ends within 32px of the page
+edge, and no button is squeezed below 40px tall.
+
+Watched both fail, and the first names the brief's own words back:
+
+```
+check-in: "Full Sheet" ends 24px from the page edge
+check-in: "Turn Away" ends 24px from the page edge
+```
+
+and, when the padding is bought by shortening instead of moving:
+
+```
+check-in: "Full Sheet" is only 36px tall
+```
+
+Suite **2897 pass / 0 fail**.
+
+**STILL OPEN in G2:** the brief also asks to *"sweep every screen in the game for
+overlapping text and cramped edges"* - laptop, ledger, HUD, menus. Only the front
+desk monitor has been swept. The instrument now exists and is proven, but it is
+canvas-specific; the DOM screens need the equivalent measured from
+`getBoundingClientRect`.

@@ -33,6 +33,7 @@ import {
   MONITOR_OVERLAPS,
   MONITOR_AUDIT_STATS,
   resetMonitorAudit,
+  monitorAuditRectSnapshot,
 } from '../src/render3d/clubhouse/frontDeskMonitorUi.js';
 
 // The audit is gated on a window flag so it costs nothing in normal play.
@@ -262,4 +263,55 @@ test('no front-desk monitor screen draws text over its own text', () => {
   const lines = found.map((o) => `${o.screen}: "${o.a.label}" x "${o.b.label}" `
     + `(${o.overlapW}x${o.overlapH}px at ${o.a.x},${o.a.y})`);
   assert.deepEqual(lines, [], `overlapping text on the front desk:\n${lines.join('\n')}`);
+});
+
+// --- G2 part two: CRAMPED EDGES -------------------------------------------
+//
+// "Add padding between the two bottom boxes and the page edge. Add padding
+// between the Full Sheet and Turn Away buttons and the bottom of that section -
+// they are far too tight against it right now."
+//
+// The right column's action grid ended at 616 on a 640px page: a 24px margin,
+// while the left column's pager ends at 602 with 38px. The tighter of the two
+// was the one the brief named. This measures the gap rather than eyeballing it.
+
+const PAGE_BOTTOM_MIN = 32;
+
+function buttonsFor(model) {
+  resetMonitorAudit();
+  const ctx = makeMeasuringContext();
+  const ui = createFrontDeskMonitorUi({ getContext: () => ctx, width: 0, height: 0 });
+  ui.draw(model);
+  return monitorAuditRectSnapshot().filter((r) => r.kind === 'button');
+}
+
+test('the rect snapshot returns real buttons (control)', () => {
+  const buttons = buttonsFor(MODELS[0]);
+  assert.ok(buttons.length >= 4, `expected the action buttons, got ${buttons.length}`);
+  assert.ok(buttons.every((b) => b.w > 40 && b.h > 20), 'and they have real sizes');
+});
+
+test('no button is crammed against the bottom of the page', () => {
+  const tight = [];
+  for (const model of MODELS) {
+    for (const b of buttonsFor(model)) {
+      const gap = FRONT_DESK_MONITOR_HEIGHT - (b.y + b.h);
+      if (gap < PAGE_BOTTOM_MIN) {
+        tight.push(`${model.view}: "${b.label}" ends ${Math.round(gap)}px from the page edge`);
+      }
+    }
+  }
+  assert.deepEqual(tight, [], ['buttons too tight against the page edge:', ...tight].join(' | '));
+});
+
+test('the buttons did not pay for that padding with their own height', () => {
+  // The cheap way to add a bottom margin is to shorten the buttons, which trades
+  // one cramped thing for another. A 40px control is the floor.
+  const short = [];
+  for (const model of MODELS) {
+    for (const b of buttonsFor(model)) {
+      if (b.h < 40) short.push(`${model.view}: "${b.label}" is only ${Math.round(b.h)}px tall`);
+    }
+  }
+  assert.deepEqual(short, [], ['buttons squeezed below a usable height:', ...short].join(' | '));
 });

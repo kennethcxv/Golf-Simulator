@@ -129,6 +129,13 @@ const monitorAuditRects = [];
 // SILENCE - every overlap it would have found is suppressed as already seen.
 // A sweep that clears only the array therefore reports clean forever after its
 // first run, which is indistinguishable from a screen with no overlaps.
+// The rects the LAST draw recorded, for callers that need to measure padding
+// rather than intersection. Returns copies: the live array is cleared on the
+// next draw.
+export function monitorAuditRectSnapshot() {
+  return monitorAuditRects.map((r) => ({ ...r }));
+}
+
 export function resetMonitorAudit() {
   MONITOR_OVERLAPS.length = 0;
   MONITOR_TRUNCATIONS.length = 0;
@@ -582,7 +589,10 @@ export function createFrontDeskMonitorUi(canvas) {
       // columns over two rows instead. It runs to 616, which is the detail
       // panel's own bottom edge, and each button is 242px - room for the
       // longest label with margin.
-      drawActionGrid(model.actions, 482, 500, 494, 116, 2);
+      // G2: the grid used to end at 616, 24px off the page edge, while the left
+      // column's pager ends at 602 with 38px. The tighter of the two was the one
+      // the brief called out. Both columns now end on the same bottom line.
+      drawActionGrid(model.actions, 482, 500, 494, 102, 2);
       return;
     }
 
@@ -629,7 +639,10 @@ export function createFrontDeskMonitorUi(canvas) {
     // F1: the same two-columns-over-two-rows as the walk-in strip above. At 74px
     // tall the grid put four buttons across at 92px each and every label with a
     // time in it truncated. F2 moved it to 512/104 (same 616 bottom line).
-    drawActionGrid(model.actions, 482, 512, 494, 104, 2);
+    // G2: same bottom line as every other column - 602, a 38px page margin.
+    // Moved up 4px as well as shortened so the buttons keep 42px of height
+    // rather than being squeezed to pay for the padding.
+    drawActionGrid(model.actions, 482, 508, 494, 94, 2);
   }
 
   function drawCheckIn(model) {
