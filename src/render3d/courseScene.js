@@ -6532,12 +6532,26 @@ export function makeCourseScene(canvas, state) {
         // Every field below is computed INSIDE this block, so a value here at
         // all proves the block executed. `revealed` and the before/after program
         // counts cannot be produced from outside it.
-        const before = renderer.info.programs?.length ?? null;
-        renderer.compile(scene, camera);
-        const after = renderer.info.programs?.length ?? null;
+        // THE COMPILE ITSELF IS REMOVED. It ran, it worked, and it was useless:
+        // measured {ran:true, revealed:18, before:0, after:66, compiled:66}.
+        //
+        // `before: 0` shows it fires before the boot prewarm, so its 66 programs
+        // are keyed to a render state the scene has not finished building. And
+        // retiming it would not help either: the 9 programs the first equip
+        // compiles belong to materials that DO NOT EXIST until the equip runs —
+        // `toolViewmodel.js` creates each strand rig's material lazily, guarded
+        // on first equip. Nothing can pre-compile a material that has not been
+        // constructed.
+        //
+        // So this cost 66 program compiles at boot and bought nothing. The
+        // reveal/restore is kept only for the measurement below, which is cheap
+        // and is the check that must fall from +9 to 0 when the real fix lands.
         for (const object of hidden) object.visible = false;
         toolPrecompile = {
-          ran: true, revealed: hidden.length, before, after, compiled: (after ?? 0) - (before ?? 0),
+          ran: true,
+          revealed: hidden.length,
+          programs: renderer.info.programs?.length ?? null,
+          note: 'compile removed: the equip-time materials do not exist yet',
         };
       }
     } catch (err) {

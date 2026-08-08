@@ -9526,3 +9526,48 @@ materials earlier instead".
 
 Suite 2929 pass / 0 fail.
 
+
+## FIFTH CORRECTION, CAUGHT BEFORE IMPLEMENTING — AND THE DEAD COMPILE IS REMOVED
+
+Before applying my own recommended fix (1) — *"create the strand materials at
+build time so the prewarm can see them"* — checked whether it would work.
+
+**It would not.** `renderer.compile(scene, camera)` compiles the materials **of
+objects in the scene**. Creating a material earlier is not enough; nothing
+carries it until the rig is built, so the prewarm still has nothing to compile.
+**My proposed fix fails for exactly the reason the previous fix failed.**
+
+Fifth correction to this one fix, and the first caught *before* implementation
+rather than after. The remaining shapes are (2) build the rigs during adoption,
+or attach a hidden proxy mesh carrying each strand material so the prewarm has
+something to walk — both real changes, neither a one-liner.
+
+### The dead compile is removed, and its removal is verified
+
+```
+before removal   walk 210 programs   tool 218 -> 227  (+9)   tool worst 7855 ms
+after  removal   walk 208 programs   tool 216 -> 225  (+9)   tool worst 1655 ms
+```
+
+**+9 either way.** The compile bought nothing, exactly as diagnosed, and boot no
+longer pays **66 wasted program compiles**. `renderer.compile(scene, camera)` now
+appears twice in the file — both in the boot prewarm, where it belongs.
+
+The reveal/restore is kept, because it is nearly free and it carries the
+telemetry that must read **+0 instead of +9** when the real fix lands.
+
+### The honest state of Section A's tool half
+
+**Fully diagnosed, not fixed.** Mechanism confirmed by program count. One-time
+shape confirmed by a 1 ms-spread paired measurement. Five candidate fixes
+evaluated, four eliminated by measurement or reasoning that survived checking,
+one remaining pair identified. The failed attempt removed rather than left in
+place to look like progress.
+
+**Five corrections to one fix, every one exposed by measuring instead of
+arguing.** The first cost a session; the last cost nothing at all, because by
+then the instrument answered before the code was written. That trend is the
+single most useful thing this session produced.
+
+Suite 2929 pass / 0 fail.
+
