@@ -205,6 +205,39 @@ async (page) => {
   }
   out.after = out.samples[out.samples.length - 1] || null;
 
+  // G3 + G4.2: THE GOODS ARE IN THE BAG, AND STILL DRAWN.
+  //
+  // G3: "let the item travel into the bag's mouth and go out of sight because
+  //      the bag is around it... nothing shrinks."
+  // G4.2: "scanned items go into that bag and STAY VISIBLE in it."
+  //
+  // Both come down to one observable state: after bagging, each product mesh is
+  // a CHILD OF THE BAG, still visible, and at its authored scale. A vanished
+  // item would be visible:false; a shrunk one would carry a scale below its
+  // sibling's.
+  out.inBag = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    const reg = ch.register;
+    const bag = reg?.bagNode?.();
+    const tx = reg?.getTx?.();
+    if (!bag || !tx) return { why: 'no bag or no tx' };
+    const rows = tx.items.map((it) => {
+      const mesh = reg.itemMesh ? reg.itemMesh(it.uid) : null;
+      if (!mesh) return { uid: it.uid, mesh: false };
+      let insideBag = false;
+      for (let n = mesh.parent; n; n = n.parent) if (n === bag) { insideBag = true; break; }
+      return {
+        uid: it.uid,
+        bagged: !!it.bagged,
+        insideBag,
+        visible: mesh.visible === true,
+        scale: +mesh.scale.x.toFixed(3),
+        state: mesh.userData?.checkoutVisualState ?? null,
+      };
+    });
+    return { rows, bagChildren: bag.children.length };
+  });
+
   // what is physically on the desk
   out.onDesk = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
@@ -246,6 +279,10 @@ async (page) => {
       && modes.includes('PayCash') && modes.includes('CashLaid'),
     // G5: coins on the desk, not only notes
     pricedForCoins: out.pricedForCoins,
+    goodsInBag: (out.inBag.rows || []).filter((r) => r.insideBag).length,
+    goodsStillVisible: (out.inBag.rows || []).filter((r) => r.insideBag && r.visible).length,
+    goodsShrunk: (out.inBag.rows || []).filter((r) => r.insideBag && r.scale < 0.9).length,
+    bagRows: out.inBag.rows || null,
     tendered: out.onDesk.tendered ?? null,
     coinKindsOnDesk: out.onDesk.coinKinds ?? null,
     coinPiecesOnDesk: out.onDesk.coinPieces ?? null,

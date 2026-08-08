@@ -5715,10 +5715,13 @@ export function createRegisterMode(B) {
     if (!bagResult.ok) toast(bagResult.reason, 'warn');
     setObjectPickable(motion.mesh, false);
     if (motion.destinationKind === 'bag') {
-      // F3: fully past the mouth — the item now belongs to the carrier at
-      // FULL SIZE, hidden because the bag is around it. No miniature stack.
+      // F3: fully past the mouth - the item now belongs to the carrier at FULL
+      // SIZE. G4.2 (Goal 17): it stays VISIBLE and the bag's own walls hide it.
+      // This is the SCAN-MOTION path; the drag path was fixed first and this one
+      // was missed, which a live driver caught by reading visible:false on goods
+      // that were correctly inside the bag at scale 1.
       bagGroup.add(motion.mesh);
-      motion.mesh.visible = false;
+      motion.mesh.visible = true;
       motion.mesh.position.set(0, 0.15, 0);
       motion.mesh.quaternion.identity();
       motion.mesh.scale.copy(motion.fromScale);
@@ -6550,12 +6553,13 @@ export function createRegisterMode(B) {
           ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
           : new THREE.Vector3(0, 0.18, 0);
         const column = compactIndex % 2;
-        // F3: restored contents are hidden at FULL SIZE inside the carrier,
-        // exactly like freshly bagged ones — no miniature stack on resume.
+        // F3: restored contents sit at FULL SIZE inside the carrier, exactly
+        // like freshly bagged ones - no miniature stack on resume. G4.2: and
+        // VISIBLE, because a resumed sale must look like the one it resumes.
         mesh.position.set(0, 0.15, 0);
         mesh.quaternion.identity();
         mesh.scale.copy(mesh.userData.originalScale || new THREE.Vector3(1, 1, 1));
-        mesh.visible = false;
+        mesh.visible = true;
         mesh.userData.checkoutVisualState = 'packed-in-bag';
         mesh.userData.checkoutOwner = 'bag';
         compactIndex += 1;

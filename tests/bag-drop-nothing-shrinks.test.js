@@ -167,3 +167,31 @@ test('the customer taking the bag is followed by a fresh one', () => {
   assert.match(branch, /buildBag\(\)/, 'a replacement bag is built straight away');
   assert.match(branch, /resetBagAtCounter\(\)/, 'and put at the bagging position');
 });
+
+test('EVERY path that packs a good into the bag leaves it visible', () => {
+  // G4.2 was fixed in updateBagDropMotions - the DRAG path - and there are
+  // THREE. The scan-motion path and the resume-restore path both still switched
+  // the mesh off, and my original test only scanned the one function I had
+  // changed. A live driver caught it: goods correctly inside the bag, correctly
+  // at scale 1, and invisible.
+  //
+  // This scans every site that marks an item packed, which is the class.
+  const src2 = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url), 'utf8',
+  ).replace(/\/\/.*$/gm, '');
+  const sites = [];
+  let from = 0;
+  for (;;) {
+    const at = src2.indexOf("checkoutVisualState = 'packed-in-bag'", from);
+    if (at < 0) break;
+    sites.push(at);
+    from = at + 1;
+  }
+  assert.ok(sites.length >= 3, `expected every packing site, found ${sites.length}`);
+  for (const at of sites) {
+    // the 400 characters before the mark are where the mesh is placed
+    const block = src2.slice(Math.max(0, at - 400), at);
+    assert.doesNotMatch(block, /visible = false/,
+      'a packing path must not switch the good off - the bag hides it');
+  }
+});

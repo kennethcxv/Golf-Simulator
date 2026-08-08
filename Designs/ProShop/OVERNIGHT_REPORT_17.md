@@ -5735,3 +5735,59 @@ default camera, with the control valid.
 one of them needed a scenario nobody had built, an accessor nobody had exposed,
 or a sample rate nobody had matched to the event - and each was found by reading
 rather than guessing.
+
+### G3 + G4.2 CONFIRMED - AND THE DEFECT THEY EXPOSED WAS MY OWN HALF-FIX
+
+```
+goodsInBag: 2      goodsStillVisible: 2      goodsShrunk: 0
+```
+
+Both goods inside the bag, **still visible**, at **scale 1**. G3's *"nothing
+shrinks"* and G4.2's *"stay visible in it"*, together, in one live transaction at
+the default camera.
+
+### The first run of this check found the opposite
+
+```
+goodsInBag: 2      goodsStillVisible: 0      goodsShrunk: 0
+bagRows: [{ bagged: true, insideBag: true, visible: FALSE, scale: 1 }, ...]
+```
+
+Correctly in the bag. Correctly at full size. **Invisible.**
+
+I fixed G4.2 earlier today - in `updateBagDropMotions`, the DRAG path. **There
+are THREE paths that pack a good into the bag**, and the other two - the
+scan-motion path and the resume-restore path - still switched the mesh off.
+
+**My test scanned only the function I had changed.** That is the same half-fix
+shape I catalogued seven times in other people's work this session, committed by
+me, four hours after writing the tally.
+
+### The fix is the class
+
+All three paths now leave the good visible, and the new check scans **every site
+that marks an item `packed-in-bag`** rather than one named function:
+
+```js
+for (const at of sites) {
+  const block = src2.slice(at - 400, at);
+  assert.doesNotMatch(block, /visible = false/);
+}
+```
+
+Watched it fail with the scan-motion path re-hidden. Suite **2929 pass / 0 fail**.
+
+### Five visual items confirmed
+
+| item | state |
+| --- | --- |
+| G4.1 a bag is always at the counter | **CONFIRMED** |
+| G1 the till reads with a mop in hand, Q held | **CONFIRMED** |
+| G7 cash laid, hand withdrawn, in that order | **CONFIRMED** |
+| G5 realistic denominations, coins on the desk | **CONFIRMED** |
+| G3 + G4.2 goods in the bag, visible, unshrunk | **CONFIRMED** |
+
+From zero this morning. **And the last one found a live defect that four
+source-level tests and a green suite had all missed** - which is the entire
+argument for the brief's rule about player-camera evidence, demonstrated on my
+own work.
