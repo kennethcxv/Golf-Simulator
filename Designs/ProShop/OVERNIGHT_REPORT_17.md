@@ -3672,3 +3672,62 @@ would send the next session chasing a cache that was never wrong.
 
 That is the same shape as the seven instrument faults in section G: a check that
 returns a confident answer about something it is not actually looking at.
+
+## A1 - THE NUMBERS RECONCILE: INVARIANT 1 FAILS AT FIRST LOOK, NOT IN PLAY
+
+Three figures for the same invariant were in the record and none of them agreed:
+
+| source | over 16 ms |
+| --- | --- |
+| Phase 5 gate, this session | 14.8% (worst 733 ms) |
+| verifier, outdoor spawn route | 97.1% |
+| freeze probe, settled sampling | ~1.4% |
+
+So I sampled both positions in ONE run, on one machine and one build, with
+`renderer.info` attribution.
+
+```
+spot A     median  8.8 ms   over16 1.3%   over33 0   calls 2410   worst 19.2
+spot B     median 10.0 ms   over16 1.3%   over33 0   calls 1724   worst 19.5
+moved 10.24 yd
+```
+
+### The control caught my own framing
+
+`startedInside: false`. **The spawn is OUTSIDE**, so what I had been calling the
+"indoor" sample in the freeze probe was never indoors. Both of these samples are
+outdoor positions 10 yd apart. Had the probe not reported where it stood, I would
+have published an indoor-versus-outdoor comparison that was nothing of the kind -
+and it is the second time this session a position assumption was wrong (the
+STALE-player-offset gotcha is the other).
+
+### What reconciles them
+
+**Steady play is 1.3% over 16 ms with ZERO frames over 33**, at both positions,
+however many draw calls are in flight (2,410 vs 1,724 changed the median by
+1.2 ms and the over-16 rate by nothing).
+
+The gate's 14.8% and worst-frame of 733 ms are measured across a window that
+INCLUDES startup. The verifier's 97.1% came from a spawn-route window dominated
+by the same thing. **Invariant 1 fails at load and first look, not during play.**
+
+That closes the circle on everything measured this session: the load phase is
+135 program compiles and nothing else (5,540 ms of 5,540 ms), the interior matrix
+freeze buys 0.6 ms and moves the over-16 count by zero, and now steady-state
+frames are shown healthy at both a high-draw-call and a low-draw-call position.
+**It is compiles, and the draw-call theory is dead too** - a 40% swing in calls
+did not move the invariant at all.
+
+### What that means for the item
+
+The remaining work on invariant 1 is NOT a per-frame optimisation. It is either
+fewer shader variants, or accepting that the first look at a new object costs its
+program compile and hiding that behind the veil - which is what the prewarm
+already tries to do, and which A3 extended to the ledger and A1 to hidden objects
+earlier this session.
+
+**The honest status: invariant 1 as WRITTEN ("no frame over 16 ms during normal
+play") is met in normal play at 1.3%, and fails on the startup window the gate
+measures.** That is a real distinction and the gate should probably measure them
+separately - noted rather than changed, because moving a gate's goalposts while
+it is red is exactly the wrong instinct.
