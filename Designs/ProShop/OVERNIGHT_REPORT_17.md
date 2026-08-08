@@ -3404,3 +3404,55 @@ Remaining without checks: 2 (text cut off - whole-game), 5 (the hand-pixels
 driver exists but its pixel floor was calibrated at 1280x720 and A5 changed the
 default window, so it owes a recalibration before it can be wired), and 8 (no
 check that a NEW string literal escapes `t()`).
+
+## G4.3 - THE BAG LEAVES IN THEIR HAND, AND A CHECK I COULD NOT MAKE FAIL
+
+*"When payment completes, the customer takes the bag and carries it out with
+them. It leaves the shop in their hand. It does not vanish, and the player does
+not hand it over as a separate step."*
+
+**Verified rather than rebuilt - the chain exists and works**, across three
+files:
+
+1. the goods are bagged and `beginBagDeliveryOrRelease()` runs on its own
+   (`simplifiedRegisterMode.js:6176` and `:6575`). The player's click-drag on the
+   bag is an ALTERNATIVE, not a prerequisite - so there is no separate hand-over
+   step
+2. `transferBagOwnershipToCustomer()` marks the carrier and its contents
+   `checkoutOwner: 'customer'` and parks it on `cust.checkoutHandoffBag`. Nothing
+   in it hides or removes the bag: it does not vanish
+3. `clubhouse.js` picks that up and calls `attachPaidBagToCustomer` against the
+   character's LEFT carry grip - an ATTACH, not a position, which is what makes it
+   travel. `holdBagAtCustomer()` only places the bag in the REGISTER's space, and
+   a bag that is merely positioned stays behind when the customer walks away.
+
+### The failure mode worth guarding, which nothing else watched
+
+Step 3 has a fallback: `handedBag || kitBag || legacyBag`. If the handoff ever
+breaks, the departure code **instantiates a fresh kit bag instead** - so the
+customer still walks out carrying something and the real carrier is silently
+orphaned on the counter. **A broken handoff does not look like a missing bag.**
+That is a failure nobody would catch by playing, and it now has a check.
+
+Watched two breaks fail: preferring the fresh kit bag over the handed one, and
+leaving the handoff slot set so the next departure re-attaches a bag already in
+somebody else's hand.
+
+### The one I could not break, recorded as such
+
+The check that the release runs WITHOUT the player's drag **cannot be shown
+failing**. Deleting both automatic call sites left it green. Two faults were
+found and fixed chasing it - the anchor took the first of several
+`autoFulfilled = true;` sites, and the pattern matched the function's own
+DEFINITION as well as a call - and it still does not fail, so a third remains.
+
+**A check I have never watched fail is not evidence.** The claim is true and I
+read both call sites myself, but that test is not what establishes it. Left in
+place with the caveat written into the file, and counted here as UNVERIFIED
+rather than as one of the checks.
+
+That makes **five pattern-and-anchor faults** in this section, all with one
+signature: the scan matched something adjacent to its subject rather than its
+subject.
+
+Suite **2925 pass / 0 fail**.
