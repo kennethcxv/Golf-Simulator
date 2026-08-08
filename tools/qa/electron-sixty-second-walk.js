@@ -409,6 +409,12 @@ async (page) => {
         let p = o;
         let label = '(no named ancestor)';
         while (p) { if (p.name) { label = p.name; break; } p = p.parent; }
+        // DISTINCT materials, not meshes. The previous pass counted 54 meshes
+        // and could not say how many distinct materials that was — which is the
+        // number that maps onto the +9 programs.
+        if (tally.__seen == null) tally.__seen = {};
+        if (tally.__seen[o.material.uuid]) return;
+        tally.__seen[o.material.uuid] = true;
         const maps = o.material.map ? 'textured' : 'flat';
         const key = `${label} [${maps}]`;
         tally[key] = (tally[key] || 0) + 1;

@@ -10981,3 +10981,57 @@ compile-shaped fixes have failed.
 
 Suite 2929 pass / 0 fail.
 
+
+## NINE DISTINCT MATERIALS, NINE PROGRAMS, ONE-TO-ONE — THE HANDS ARE THE WHOLE CAUSE
+
+Counted **distinct** new materials rather than meshes carrying them:
+
+```
+x6  FirstPersonRightHand     [flat]
+x2  FirstPersonRightCuff     [flat]
+x1  FirstPersonRightForearm  [flat]
+    ------------------------------
+    9 distinct                        program delta: +9
+```
+
+**Nine materials, nine programs, exactly one to one.** All belonging to the
+hands, all flat.
+
+### This reverses the previous entry, and the inference under it
+
+I wrote that the +9 must be a *mixture* because some cache keys carried `uv`
+slots while the hands' materials are map-less. **That inference was wrong.** In
+three.js a program key's `uv` entries reflect the **geometry's UV attributes**,
+not a bound texture map — a flat material on a UV-carrying geometry produces
+exactly those keys.
+
+So there is no second subsystem. **The hands account for all nine.**
+
+**Thirty-ninth finding, and the fourth time in this thread that a careful
+inference about a measurement lost to measuring the thing directly.** Counting
+distinct materials took one line and settled what two entries of reasoning about
+cache-key syntax could not.
+
+### The complete, closed chain
+
+```
+boot         fpHands builds its meshes; they live outside the scene
+prewarm      compiles what is in the scene; the hands are not there
+first equip  54 hand meshes enter the graph carrying 9 distinct flat materials
+             -> 9 programs compile on first draw -> 333-7855 ms
+second equip already present and warm -> 0 new, 0 compiled, ~24 ms
+```
+
+Every link measured, every count matched: 54 meshes, 54 geometries, 9 materials,
+9 programs, named owners, scene-wide controls, and a zero-construction trace.
+
+**Nine fixes still failed**, and that remains the open question — but it is now a
+question about *one* subsystem with an exact program count, not about a mixture.
+The most likely remaining explanation is the one the ninth attempt could not
+test: these programs depend on render state that exists only while a tool is
+active, so no amount of pre-compilation reaches them, and the fix must reduce the
+material count instead — **nine distinct flat materials for two hands is the
+number to attack.**
+
+Suite 2929 pass / 0 fail.
+
