@@ -167,11 +167,35 @@ async (page) => {
     return el ? [...el.querySelectorAll('.tool-wheel-item')]
       .map((b) => b.querySelector('.tool-wheel-label')?.textContent || '') : [];
   });
+  // THE SILENT SKIP THAT HID THIS BEAT'S FAILURE FOR AN UNKNOWN NUMBER OF RUNS.
+  //
+  // `if (at >= 0)` means: when the broom is not found among the wheel labels,
+  // press nothing, equip nothing, and report `tool` failed with no reason. The
+  // gate then prints beatsThatDidNot:["tool"] and the ONE fact that explains it
+  // — what the wheel actually offered — is thrown away.
+  //
+  // Three gate runs reported this failure and not one could say why. A driver
+  // that discards its own evidence turns a five-minute diagnosis into a
+  // bisect, which is exactly what it cost here.
+  //
+  // Now every failure path carries what it saw.
   const at = items.findIndex((l) => /broom/i.test(l));
+  const wheelOpened = items.length > 0;
   if (at >= 0) await page.keyboard.press(String(at === 9 ? 0 : at + 1));
   await page.waitForTimeout(1200);
   const live = await boot.toolIsLive(page, 'broom').catch(() => ({ ok: false }));
-  record('tool', live.ok === true, { held: live.held ?? null });
+  record('tool', live.ok === true, {
+    held: live.held ?? null,
+    // why it failed, in the artifact, instead of nowhere
+    wheelOpened,
+    wheelItems: items,
+    broomIndex: at,
+    pressedKey: at >= 0 ? String(at === 9 ? 0 : at + 1) : null,
+    reason: live.ok === true ? null
+      : !wheelOpened ? 'the tool wheel never opened (.tool-wheel absent or empty)'
+        : at < 0 ? `no wheel label matched /broom/i — offered: ${items.join(' | ')}`
+          : 'the broom was selected but the rig never solved a pose',
+  });
 
   await beat('end');
   await page.waitForTimeout(800);

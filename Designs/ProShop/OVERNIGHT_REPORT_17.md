@@ -7703,3 +7703,65 @@ the driver, and re-measure invariant 1 against a walk that actually uses a tool.
 The A-section perf conclusions should be re-read afterwards, since they were
 drawn against the incomplete walk.
 
+
+## FIXED THE INSTRUMENT, AND IT ANSWERED IN ONE RUN — PLUS A CORRECTION TO MY OWN CLAIM
+
+The tool beat carried a **silent skip**:
+
+```js
+const at = items.findIndex((l) => /broom/i.test(l));
+if (at >= 0) await page.keyboard.press(...);       // and if not: press nothing,
+record('tool', live.ok === true, { held: ... });   // report failure, say nothing
+```
+
+When the broom was not found, the driver pressed nothing, equipped nothing, and
+recorded a bare failure. `items` — the one fact that explains it — was thrown
+away. **Three gate runs reported `beatsThatDidNot:["tool"]` and not one could
+say why**, which turned a five-minute diagnosis into a bisect against my own
+commit.
+
+Every failure path now carries what it saw: `wheelOpened`, `wheelItems`,
+`broomIndex`, `pressedKey`, and a plain-language `reason`.
+
+### The answer, first run after the fix
+
+```
+wheelOpened: true
+wheelItems: ["Hands free","Shop vacuum","Mop","Push broom","Dustpan",
+             "All-purpose cleaner","Microfibre cloth","Scouring sponge","Trash bag"]
+broomIndex: 3        pressedKey: "4"
+reason: "the broom was selected but the rig never solved a pose"
+```
+
+### CORRECTION to the previous entry
+
+I wrote that invariant 1's walk **"never picks up a tool."** That is wrong. The
+wheel opens, the broom is found at index 3, the key is pressed. **The tool is
+equipped.** What fails is `toolRigDiagnostics('broom').headAboveFloor` staying
+null — the difference `toolIsLive` draws between *equipped* and *running*.
+
+So the correct statement is narrower and more interesting: **invariant 1's walk
+equips a tool whose rig never solves a pose.** Its frames include carrying a
+broom; they exclude whatever the solved rig costs.
+
+That matters for the fourteenth-instance count only if I am honest about which
+way it cuts — my previous entry over-claimed, and the instrument I built to
+check it caught me within one run. **This is the third of my own errors caught
+today by my own new instrument**, after the missing-key probe and the H-marker
+scan.
+
+### Where this now points — straight at B4
+
+`headAboveFloor` is the plant metric. B4's diagnosis, recorded earlier today:
+*the rig plants the head on the floor regardless of whether the handle can
+reach*, gated `pitch > 0`, at `broomViewmodel.js:863`.
+
+**A rig that never solves a pose and a plant that ignores reach are the same
+subsystem**, and B4 was left deliberately unedited for want of a way to watch it
+fail. **This is that way.** `beatsThatDidNot:["tool"]` with
+`reason: "…never solved a pose"` is a check that fails on the unfixed build —
+exactly what the RULES demand before a fix, and what I could not produce when I
+stopped on B4.
+
+Suite 2929 pass / 0 fail.
+
