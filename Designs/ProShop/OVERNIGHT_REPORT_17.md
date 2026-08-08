@@ -12984,3 +12984,119 @@ along.
 mm long is 5.8:1, which reads as a slat. Needs >= 12:1"* — 2 of 4 failing, with
 **the overlap assertion passing**, which is the whole argument for why the test
 is written this way.
+
+
+## B4 — THE PLANT WAS FIXED AND UNVERIFIABLE, WHICH IS MOST OF WHY IT STAYED OPEN
+
+*"Fix the plant you logged and did not fix. Your own note: the rig plants the
+tool head on the floor regardless of whether the handle can physically reach.
+That is why the plant number read 0.073-0.084 for every candidate in your sweep
+including one two yards below the eye."*
+
+### Phase 0 — the fix was already in
+
+`broomViewmodel.js` has carried an eased `plantAuthority` term since 2026-08-07:
+authority is full while the hands are above the contact plane and fades to none
+across 12 cm as they sink through it. The running list said "diagnosed, not
+fixed"; the source disagreed.
+
+What was actually missing is the RULES' other half — *every fix gets a check you
+have watched fail on the unfixed build*. B4 had none, and could not easily have
+one, because the rule was three lines inside a five-hundred-line frame solve
+reachable only by booting Electron, equipping a broom and driving a grip-anchor
+override.
+
+### Fault 96 — the fix's own number was not readable
+
+`state.plantAuthority` has been set every frame since the gate landed and
+**`diagnostics()` never returned it.** The first sweep driver written against it
+got `null` on all eight rungs and could say nothing whatever about the rule it
+existed to test.
+
+This is the "instrument that was never wired" fault again, and this time it is in
+the game rather than in a driver. Exposed `plantAuthority` — and `floorWorldY`
+with it, because authority is a statement *about* the floor plane and a reader
+who cannot see where that plane is cannot tell a hand below the boards from a
+hand above them.
+
+### Fault 97 — my ladder never reached the regime it was built to test
+
+Round 2 of the sweep reported **authority 1 on every rung**, and I was one
+sentence from writing up "the gate never engages". Then the newly-exposed
+`floorWorldY` said where the plane actually was: **-1.317, so plane-plus-kiss is
+-1.305, and the lowest rung had put the hands at gripY -1.168 — still 0.137 yd
+ABOVE it.**
+
+The ladder never entered the regime it was testing. **A flat authority column was
+the CORRECT answer to a question I had not asked**, and it looked exactly like
+the bug: a number that does not move. It did not move because nothing moved it.
+
+Worth noting that `floorWorldY` came out at **-1.317, then 0.725, then -2.417**
+on three consecutive runs — the spawn floor height genuinely varies — so a ladder
+written against an assumed plane would have been wrong by two yards on some runs
+and right by accident on others.
+
+### The sweep, with the rungs extended past the plane
+
+| anchorY | gripY | sink below plane | authority | headAboveFloor |
+|---|---|---|---|---|
+| -0.10 | 2.662 | -1.925 | 1 | 0.593 |
+| -0.55 | 2.282 | -1.545 | 1 | 0.213 |
+| -1.30 | 1.641 | -0.904 | 1 | **0.012** |
+| -2.20 | 0.870 | -0.133 | 1 | **0.011** |
+| -2.45 | 0.655 | **+0.082** | **0.315** | 0.305 |
+| -2.70 | 0.445 | +0.292 | **0** | 0.440 |
+| -2.95 | 0.235 | +0.502 | 0 | 0.440 |
+| -3.20 | 0.022 | +0.715 | 0 | 0.440 |
+
+**The exported rule predicts the live rig to within 0.004.** At sink 0.082,
+`1 - 0.082/0.12` is 0.317 and the rig reported 0.315. That cross-check matters
+for a reason beyond tidiness: it is the evidence that the unit test is not
+testing a copy of the formula that has drifted from the one that runs.
+
+### The control, grouped correctly on the second attempt
+
+My first verdict grouped by `plantAuthority === 1` and asserted the head height
+was constant across it. **The run said no: 0.593, 0.213, 0.012, 0.011, a spread
+of 0.582** — because above the boards the head DESCENDS WITH THE HANDS and only
+stops once it arrives. Those rungs are carry poses, not plants, and a control
+that lumps them in measures the pose changing rather than the plant holding.
+
+Regrouped on what a plant actually is — head within a centimetre of the boards:
+
+- **plantedRungs 2, plantedHandRange 0.77 yd, plantedHeadSpread 0.001.** Two hand
+  heights three quarters of a yard apart put the head within a millimetre of the
+  same place, because the plant is legal in both. **The instrument is not merely
+  noisy.**
+- **sunkRungs 4, reachesZero true, hasPartialFade true.** The fade is real and
+  continuous, not a switch.
+- **everyCandidateIdentical: false.** The bug's signature is absent.
+
+### The test, and the counter-example put in by name
+
+Extracted the rule to an exported `plantAuthorityFor(gripWorldY, floorWorldY,
+floorKiss, ease)` and wrote `tests/broom-plant-authority.test.js`, 6 assertions —
+including the brief's own candidate as a case: the eye stands 1.62 yd above the
+boards, so *two yards below the eye* is 0.38 yd **under the floor**, and that
+candidate must have no authority to plant at all.
+
+The spread assertion is deliberately two-sided: **above the plane the numbers must
+agree with each other, below it they must not.** An instrument that varied
+everywhere would be exactly as suspect as one that varied nowhere.
+
+**Watched failing** with the body replaced by `return 1` — literally the
+unconditional plant — 5 of 6 fail, and the spread case fails with the brief's own
+symptom in its own words: *"every candidate returned the same authority (spread
+0.000)"*.
+
+### The second clause
+
+*"It is very likely upstream of the hand reading as detached — a head pinned to
+the floor while the hands sit where the handle cannot span means the shaft is
+drawn between two points that do not belong to the same object."*
+
+Cropped the hand region out of the same default-camera broom frame
+(`b4-shaft-and-hands.png`). The hand grips the shaft with the fingers wrapped
+around it and the shaft runs continuously through the fist to the lower grip.
+**It does not read as detached.** The mechanism the brief predicted would cause
+it is now gated, and the picture agrees.

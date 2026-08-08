@@ -182,6 +182,42 @@ function buildArm(mats, mirror) {
   return { group, forearmPivot, cuff, sleevePivot };
 }
 
+// B4 — HOW MUCH RIGHT THE POSE HAS TO PUT THE HEAD ON THE FLOOR.
+//
+// The brief: "the rig plants the tool head on the floor regardless of whether
+// the handle can physically reach. That is why the plant number read 0.073-0.084
+// for every candidate in your sweep including one two yards below the eye."
+//
+// A head pinned to the boards while the hands sit somewhere no handle can span
+// draws a shaft between two points that do not belong to the same object, which
+// is very likely why the hand read as detached.
+//
+// So the plant is not a fact, it is an AUTHORITY: full while the hands are above
+// the contact plane, fading to none across `ease` as they sink through it. Eased
+// rather than switched, so there is no pop at the boundary.
+//
+// Pulled out of the frame solve and exported ON PURPOSE. Inside the solve it was
+// three lines among five hundred, reachable only by booting Electron, equipping
+// a broom and driving a grip-anchor override — which is why the rule shipped
+// with no check at all. As a named function it is one import and a table of
+// numbers, and `tests/broom-plant-authority.test.js` puts the brief's own
+// counter-example in as a case.
+//
+// @param {number} gripWorldY   the gripping hand's world height
+// @param {number} floorWorldY  the boards under the player
+// @param {number} floorKiss    bristle compression into the boards
+// @param {number} ease         metres of sink over which authority fades to 0
+// @returns {number} 0..1
+export function plantAuthorityFor(gripWorldY, floorWorldY, floorKiss, ease = 0.12) {
+  const workDrop = gripWorldY - (floorWorldY + floorKiss);
+  // Only sinking BELOW the plane costs authority. The too-high side needs no
+  // gate here: a saturated drop already hangs the head a rigid handle's length
+  // under the hands, so it cannot reach the floor by accident.
+  const sinkYd = Math.max(0, -workDrop);
+  const span = Math.max(1e-6, ease);
+  return Math.max(0, Math.min(1, 1 - sinkYd / span));
+}
+
 /**
  * @param {object} deps
  * @param {THREE.PerspectiveCamera} deps.camera   the world camera (pose source)
@@ -844,9 +880,9 @@ export function createBroomViewmodel({
     // sink through the plant height (12 cm ease, no pop at the boundary);
     // the too-high side needs no gate — a saturated dropEff already hangs
     // the head a rigid handle below the hands.
-    const workDrop = _gripCam.y - (floorWorldY + feel.surface.floorKiss);
-    const sinkYd = Math.max(0, -workDrop);
-    const plantAuthority = Math.max(0, Math.min(1, 1 - sinkYd / 0.12));
+    // The rule itself now lives at module scope as `plantAuthorityFor`, so it
+    // can be read and tested without booting a renderer. Behaviour unchanged.
+    const plantAuthority = plantAuthorityFor(_gripCam.y, floorWorldY, feel.surface.floorKiss);
     const workBlendEff = workBlend * plantAuthority;
     const hover = cc.carryHover * (1 - workBlendEff) + feel.surface.floorKiss * workBlendEff;
 
@@ -1131,6 +1167,8 @@ export function createBroomViewmodel({
     // see the EFFECTIVE blend — pitch-wants-work x handle-can-reach
     state.workBlend = workBlendEff;
     state.plantAuthority = plantAuthority;
+    // Where the plane the authority is measured against actually is.
+    state.floorWorldY = floorWorldY;
     // Q7: the head's trail, so a driver can measure that it actually swings
     // and settles rather than taking "it has physics" on trust
     state.headLag = {
@@ -1310,6 +1348,19 @@ export function createBroomViewmodel({
       shaftDrop: state.shaftDrop == null ? null : +state.shaftDrop.toFixed(3),
       shaftDropUnit: state.shaftDropUnit == null ? null : +state.shaftDropUnit.toFixed(3),
       headAboveFloor: state.headAboveFloor == null ? null : +state.headAboveFloor.toFixed(3),
+      // B4: THE FIX'S OWN QUANTITY, WHICH SHIPPED UNREADABLE.
+      //
+      // `plantAuthority` has been computed and stashed on `state` since the plant
+      // gate landed, and `diagnostics()` never returned it — so the one number
+      // that says whether the rig believes it may plant could not be read from
+      // outside the module. The first sweep driver written against it got `null`
+      // on every rung and could say nothing about the rule it was built to test.
+      //
+      // `floorWorldY` comes with it, because authority is a statement ABOUT the
+      // floor plane and a reader who cannot see where that plane is cannot tell
+      // a hand below the boards from a hand above them.
+      plantAuthority: state.plantAuthority == null ? null : +state.plantAuthority.toFixed(3),
+      floorWorldY: state.floorWorldY == null ? null : +state.floorWorldY.toFixed(3),
       assetHeadNdc: state.assetHeadNdc ?? null,
       assetHeadWorldY: state.assetHeadWorldY == null ? null : +state.assetHeadWorldY.toFixed(3),
       assetGripWorldY: state.assetGripWorldY == null ? null : +state.assetGripWorldY.toFixed(3),
