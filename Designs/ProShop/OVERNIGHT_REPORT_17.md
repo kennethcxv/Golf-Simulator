@@ -9405,3 +9405,55 @@ then one walk answers it.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE POST-ADOPTION COMPILE RUNS, COMPILES 66 PROGRAMS, AND IS USELESS — MEASURED
+
+Re-wired the telemetry so every field is computed **inside** the compile block,
+making "was never wired" impossible to confuse with "did not run". Then one walk:
+
+```json
+{"ran": true, "revealed": 18, "before": 0, "after": 66, "compiled": 66}
+```
+
+**It runs.** It reveals 18 hidden tool objects and compiles **66 programs**.
+
+**And `before: 0` is the whole story.** It executes when the renderer has
+compiled *nothing at all* — **before the boot prewarm**, not after it. The
+adoption promise resolves far earlier than I assumed.
+
+By the walk beat the scene stands at 210 programs, and the tool equip still adds
+**+9**. So the 66 programs compiled early are **not** the 9 needed at equip.
+
+### Why early compilation does not count
+
+Three.js keys a program on the material **plus the render state it will be drawn
+under** — lights, fog, shadow configuration, tone mapping. Programs compiled
+before the scene's lighting and shadow setup are final are keyed differently
+from the ones the same material needs later. **Compiling 66 programs at
+`before: 0` warms a cache for a render state that no longer exists by the time
+the player equips anything.**
+
+### The corrected fix, and it is a one-line move rather than a redesign
+
+Run the tool compile **after the boot prewarm**, when the scene is in its final
+render state — not on the adoption promise, which resolves too early. The
+existing prewarm at `courseScene.js:11487` already force-reveals hidden objects
+and compiles; the tool groups simply need to be in the scene and adopted by the
+time it runs, or the same treatment repeated once after it.
+
+**This is the third correction to this fix** — first "add a prewarm" (one
+already existed), then "compile on adoption" (runs too early), now "compile after
+the prewarm". Each was wrong for a reason only measurement exposed, and the cost
+of each was one run rather than one session, because the instrument improved
+each time.
+
+### What this closes
+
+The equip stall now has: a confirmed mechanism (shader compilation, +9 programs),
+a confirmed one-time shape (second equip: 0 programs, ~24 ms), a measured failed
+fix with the reason it failed, and a specific corrected fix. **That is Section A's
+tool half fully diagnosed**, with only the corrected fix left to apply and verify
+— and the verification is already built: the tool beat's Δ must fall from +9 to 0.
+
+Suite 2929 pass / 0 fail.
+

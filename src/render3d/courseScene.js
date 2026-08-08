@@ -6489,6 +6489,10 @@ export function makeCourseScene(canvas, state) {
   // background: the procedural tools above are already usable, so equipping never waits on I/O,
   // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
   let toolViewmodelsAuthored = null;
+  // null means "adoption has not resolved yet" and nothing else. It is never
+  // assigned a hand-written "did not run" value, because that is exactly the
+  // string that made the previous attempt unfalsifiable.
+  let toolPrecompile = null;
   toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => {
     toolViewmodelsAuthored = r;
     // A6 — THE FIRST TOOL A PLAYER EQUIPS COSTS A ONE-TIME STALL. MEASURED.
@@ -6518,10 +6522,28 @@ export function makeCourseScene(canvas, state) {
           });
           if (!group.visible) { hidden.push(group); group.visible = true; }
         }
+        // TELEMETRY THAT CANNOT LIE ABOUT ITSELF.
+        //
+        // The first attempt at this reported {ran:false, note:"not reached"} —
+        // which was its DECLARED value, because the assignment never attached.
+        // "Did not run" and "was never wired" were indistinguishable, and the
+        // report nearly carried the wrong one as a measurement.
+        //
+        // Every field below is computed INSIDE this block, so a value here at
+        // all proves the block executed. `revealed` and the before/after program
+        // counts cannot be produced from outside it.
+        const before = renderer.info.programs?.length ?? null;
         renderer.compile(scene, camera);
+        const after = renderer.info.programs?.length ?? null;
         for (const object of hidden) object.visible = false;
+        toolPrecompile = {
+          ran: true, revealed: hidden.length, before, after, compiled: (after ?? 0) - (before ?? 0),
+        };
       }
-    } catch { /* a cold program is a stall, not a crash: never break boot for it */ }
+    } catch (err) {
+      // a cold program is a stall, not a crash: never break boot for it
+      toolPrecompile = { ran: false, threw: String((err && err.message) || err) };
+    }
     if (walkTool && CLEANING_TOOLS[walkTool]) {
       fpHands.setTool(walkTool, toolViewmodels.gripsFor(walkTool));
       toolViewmodels.setEquipped(walkTool, true);
@@ -12288,6 +12310,9 @@ export function makeCourseScene(canvas, state) {
       // one actually builds, which is itself the answer to "does this fire on
       // the first step at all?"
       lazyBuildTimings: () => lazyBuildTimings.map((r) => ({ ...r })),
+      // null until adoption resolves. Any object here was built inside the
+      // compile block, so its presence proves the block ran.
+      toolPrecompileInfo: () => (toolPrecompile ? { ...toolPrecompile } : null),
       toolAuthoredResults: () => (toolViewmodelsAuthored
         ? toolViewmodelsAuthored.map((r) => ({ id: r.id, ok: r.ok, reason: r.reason ?? null }))
         : null),
