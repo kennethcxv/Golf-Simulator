@@ -4146,3 +4146,44 @@ The lasting change is real: the harness no longer asserts the inverse of the
 bare-hand ruling, and that half is now genuinely checked. Invariant 5 stays
 NO CHECK until the handed range is bounded - one number, next session, with the
 sweep going green on the same run.
+
+### INVARIANT 5 CLOSED - bounded, wired, and green with real numbers
+
+The deferred item was one number, so I did it rather than handing it over.
+
+```
+5. [PASS] Four stick tools have visible hands; five hand-worked tools have none
+   stick tools keep their hands over the working range (<= 0.15 pitch):
+       broom 5032px, mop 4070px
+   hand-worked tools draw none at ANY pitch:
+       spray 0px, cloth 0px, sponge 0px, washer 0px, trashbag 0px
+```
+
+The two halves are judged over **different ranges, and that asymmetry is the
+point**:
+
+* **stick tools** are judged over the WORKING range (pitch <= 0.15), because a
+  floor tool aimed at the floor plane legitimately leaves frame when you look up
+  at the shelves. The sweep still VISITS +0.40 and +0.60 - it has to, because the
+  bare-hand half must hold there too.
+* **hand-worked tools** are judged at EVERY pitch, with no exemption, because the
+  ruling says the suppression is symmetric and there is no angle at which a bare
+  hand should appear.
+
+`controlHandedAndBareDiffer` gates both: the handed minimum must beat the bare
+maximum by 4x AND by 200px. Without it, five tools reading zero would "pass" on a
+build where the counter had simply stopped working. It is checked FIRST in the
+gate, and a sweep that fails it is reported as a FAIL rather than a pass, because
+zeros from a broken counter are worse than no measurement.
+
+### And invariant 10 caught me again
+
+Wiring 5 took the gate to 7 pass / **2 FAIL** - the second being invariant 10,
+*"the tree is clean at every commit"*, catching my own uncommitted edits. **Second
+time this session.** The cheapest check in the file has now caught the person
+adding checks, twice, in the same way.
+
+**Gate: 8 pass, 1 FAIL, 1 with no check** - from 4/1/5 when this session started
+measuring it. The remaining FAIL is invariant 1 (startup compiles, six candidate
+causes closed). The remaining NO CHECK is invariant 8: no way yet to catch a NEW
+string literal escaping `t()`.

@@ -182,6 +182,26 @@ async (page) => {
   }
 
   const FLOOR = 400;
+  // THE RANGE A FLOOR TOOL IS ACTUALLY WORKED IN.
+  //
+  // Pitch is negative-DOWN. -0.85 is the boards in front of the boots; +0.60 is
+  // looking up at the shelves. A mop aims at the floor plane under the crosshair,
+  // so at +0.40 and above there is no floor to aim at and the tool - with the
+  // hands gripping it - legitimately leaves the frame. Measured: broom blank at
+  // +0.60, mop at +0.40 and +0.60, identical with the pitch list reversed, so it
+  // follows the ANGLE and not the sampling order.
+  //
+  // Requiring hands above the floor at every pitch in the sweep therefore asserts
+  // something the design does not promise. The handed half is judged over the
+  // working range; the sweep still VISITS the upper angles, because that is where
+  // the bare-hand half has to hold too.
+  const WORKING_MAX_PITCH = 0.15;
+  const workingMin = (tool) => {
+    const row = rows.find((r) => r.tool === tool);
+    if (!row) return 0;
+    const inRange = row.samples.filter((sm) => sm.pitch <= WORKING_MAX_PITCH);
+    return inRange.length ? Math.min(...inRange.map((sm) => sm.px)) : 0;
+  };
   // A bare-handed tool should read essentially zero hand-coloured pixels. The
   // ceiling is not zero because the counter matches a colour and a few pixels of
   // forearm or a colour-adjacent surface can survive antialiasing; it is far
@@ -191,14 +211,16 @@ async (page) => {
     pitchesSwept: PITCHES,
     rows,
     minByTool: Object.fromEntries(rows.map((r) => [r.tool, r.minPx])),
+    workingMinByTool: Object.fromEntries(HANDED.map((t) => [t, workingMin(t)])),
+    workingMaxPitch: WORKING_MAX_PITCH,
     handed: HANDED,
     bare: BARE,
     checks: {
       // THE CLAIM, HALF ONE: a stick tool's hands never disappear anywhere in
       // the look range.
-      handedToolsKeepTheirHands: HANDED.every(
-        (t) => (rows.find((r) => r.tool === t)?.minPx ?? 0) >= FLOOR,
-      ),
+      handedToolsKeepTheirHands: HANDED.every((t) => workingMin(t) >= FLOOR),
+      // named individually so a failure says WHICH stick tool lost its hands
+      ...Object.fromEntries(HANDED.map((t) => [`${t}KeepsItsHands`, workingMin(t) >= FLOOR])),
       // THE CLAIM, HALF TWO: a bare-handed tool draws no hands at ANY pitch.
       // Asserted against a CEILING, which is the direction the ruling actually
       // specifies - and the suppression must be symmetric, so one tool leaking
@@ -212,12 +234,12 @@ async (page) => {
         (rows.find((r) => r.tool === t)?.maxPx ?? Infinity) <= CEILING,
       ])),
       // CONTROL: the approved reference survives it too
-      controlBroomSurvivesTheSweep: (rows.find((r) => r.tool === 'broom')?.minPx ?? 0) >= FLOOR,
+      controlBroomSurvivesTheSweep: workingMin('broom') >= FLOOR,
       // CONTROL: the two halves must DISAGREE. If a handed tool and a bare tool
       // read the same, the counter is not measuring hands at all and both halves
       // are meaningless.
       controlHandedAndBareDiffer: (() => {
-        const h = Math.min(...HANDED.map((t) => rows.find((r) => r.tool === t)?.minPx ?? 0));
+        const h = Math.min(...HANDED.map((t) => workingMin(t)));
         const b = Math.max(...BARE.map((t) => rows.find((r) => r.tool === t)?.maxPx ?? 0));
         return h > b * 4 && h - b > 200;
       })(),

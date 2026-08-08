@@ -156,16 +156,37 @@ const TEN = [
   {
     n: 5,
     text: 'Four stick tools have visible hands; five hand-worked tools have none',
-    check: () => ({
-      ok: null,
-      detail: 'NOT wired, and the reason is bigger than calibration: '
-        + 'electron-hand-pixels-sweep asserts spray/cloth/sponge/washer hands clear a 400px '
-        + 'floor, while cleaningTools.js gives those tools hands:false under the bare-hand '
-        + 'ruling. The driver pins the INVERSE of the shipped contract and would fail on '
-        + 'correct behaviour. It needs splitting - four stick tools above a floor, five '
-        + 'hand-worked tools near zero - with the floor re-derived at the DPR screenshots '
-        + 'are actually filed at (they are physical px; setViewportSize is CSS px)',
-    }),
+    check: () => {
+      const file = path.resolve('qa/electron/hand-pixels-sweep/hand-pixels-sweep.json');
+      if (!fs.existsSync(file)) {
+        return { ok: null, detail: 'the hand-pixels sweep has never been run on this machine' };
+      }
+      let d;
+      try { d = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {
+        return { ok: null, detail: 'the hand-pixels artifact is unreadable' };
+      }
+      const r = d.sweep || d;
+      const c = r.checks || {};
+      // The differ-control is the one that makes both halves mean anything: a
+      // bare tool reading zero proves nothing if EVERYTHING reads zero.
+      if (c.controlHandedAndBareDiffer !== true) {
+        return {
+          ok: false,
+          detail: 'the sweep ran but its handed/bare separation control FAILED - a bare tool '
+            + 'reading zero proves nothing if everything reads zero, so both halves are void',
+        };
+      }
+      const ageH = (Date.now() - fs.statSync(file).mtimeMs) / 3600000;
+      const stale = ageH > 24;
+      const handed = (r.handed || []).map((t) => `${t} ${r.workingMinByTool?.[t] ?? '?'}px`);
+      const bare = (r.bare || []).map((t) => `${t} ${r.minByTool?.[t] ?? '?'}px`);
+      return {
+        ok: stale ? null : r.ok === true,
+        detail: `stick tools keep their hands over the working range (<= ${r.workingMaxPitch} pitch): `
+          + `${handed.join(', ')}; hand-worked tools draw none at ANY pitch: ${bare.join(', ')}`
+          + `${stale ? `; ARTIFACT IS ${ageH.toFixed(0)} h OLD - re-run the sweep` : ''}`,
+      };
+    },
   },
   {
     n: 6,
