@@ -13813,3 +13813,54 @@ Gate: **9 pass, 1 FAIL, 0 unchecked**, unchanged. Suite **2946 pass / 0 fail**
 ## 4. NOT STARTED
 
 - Sections D, E, F, G, H.
+
+
+## THE DISPLAY IS 120 Hz, AND INVARIANT 1 IS GRADED AGAINST A 60 Hz BUDGET
+
+A number nobody had questioned: the indoor median frame is **5.7 ms** and the
+outdoor median is **8.7 ms**. A vsync-locked loop cannot have two different
+medians in one session, so something about the pacing needed measuring rather
+than assuming.
+
+Frame intervals, binned to 1 ms:
+
+**Outdoors** — 58.5% in the **8 ms** bin, 28.9% at 9, 7.6% at 10, and a p05 of 8.
+A very tight lock, and 8.33 ms is **120 Hz**. The fastest frames cannot go under
+the refresh interval, and they do not.
+
+**Indoors** — 41.4% in the **4 ms** bin, then a scattered second population:
+7.1% at 17, 5.0% at 11, 4.6% at 18, 3.7% at 10, 3.6% at 12, 3.4% at 16.
+
+### What that actually says
+
+**16-18 ms is exactly two 8.33 ms refresh intervals.** Roughly 15% of indoor
+frames sit in those bins — that is the *dropped frame* population, stated in the
+display's own units. And the 4 ms bin is not the loop running at 240 Hz; **it is
+the loop catching up after missing a deadline**, firing back-to-back once it is
+behind.
+
+So the shape is not "sometimes slow". It is: **hit 8.3 ms, miss, take 16.7, catch
+up in 4, repeat** — which is precisely the ~74 ms rhythm and the bimodal profile
+measured three drivers ago, now in units that explain both.
+
+### And it reframes the invariant
+
+Invariant 1 grades "no frame over 16 ms". **On a 120 Hz display the budget is
+8.33 ms, not 16.7.** A frame at 16.7 ms has already dropped one; the invariant
+only notices at the point where a second is about to go.
+
+Measured against the display it actually runs on:
+
+| | frames at/under one refresh (~8-9 ms) | frames at two or more |
+|---|---|---|
+| outdoors | **~95%** | ~1% |
+| indoors | ~48% | **~15%** |
+
+The outdoor loop is essentially perfect at 120 Hz. **The indoor loop misses one
+frame in seven.** That is the same finding as before, but it is now a statement
+about the machine the game is running on rather than about an arbitrary line.
+
+**Not a reason to relax the invariant** — 16.7 ms is a sound floor for a 60 Hz
+minimum spec, and tightening it to the live refresh rate would make it a
+different check on every machine. Recorded because the *budget* the indoor frame
+is failing to hit is half what anyone working on it has assumed.
