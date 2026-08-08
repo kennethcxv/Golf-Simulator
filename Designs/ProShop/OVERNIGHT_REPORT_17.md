@@ -12460,3 +12460,47 @@ for C (where the list was wrong in both directions) and D (mislabelled entirely)
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean. 270 commits.
 
+
+## CORRECTION: G6 AND G9 HAVE DEDICATED TESTS — SECTION G IS 13/13 VERIFIED
+
+One entry ago I recorded G6 and G9 as *"markers but I have not read their code"*
+and flagged them as weaker evidence. **Checked, and they are stronger than I
+said.** Both have their own test files:
+
+**G6** — `tests/checkout-bag-does-not-block.test.js`, with the geometry measured:
+```
+bag            desk-local x = -1.16
+stand point    desk-local x = -0.10   (1.06 yd to its right)
+customer cash  desk-local x = -0.38   (0.78 yd to its right)
+```
+> *"VERIFIED RATHER THAN REBUILT, and the answer is that both halves already
+> hold… pushing it to +0.06 was tried and `checkout-space.test.js` failed it
+> immediately — 'bagging is 1.55 yd away at its far corner'… **this file records
+> it as an upper bound so the next attempt does not spend an afternoon
+> rediscovering it.**"*
+
+**That last clause is the practice this whole report argues for**, written by
+someone else before the session started: a constraint recorded where the next
+person will hit it, so a dead end is paid for once.
+
+**G9** — `tests/customer-concurrency-ceiling.test.js`. *"The formula exists; the
+starter tier's cap of 2 hides it."* Caps raised to **5 / 8 / 10 / 12**, pinned so
+they cannot collapse back.
+
+### Section G: thirteen of thirteen, all verified
+
+Eight by live driver or source read this session, G10 by a passing standing
+invariant, and G6, G9, G11, G12 each by a dedicated test.
+
+### And the correction cuts the way worth noting
+
+**I under-rated the evidence and checking corrected it upward.** Every previous
+correction tonight went the other way — a claim was weaker than stated. This one
+was stronger, and I only found out because I refused to leave "carries a marker"
+standing as a verdict.
+
+**The habit is symmetric: check the things you are about to record as weak, not
+only the things you are about to record as done.**
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
