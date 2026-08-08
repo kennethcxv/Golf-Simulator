@@ -7107,3 +7107,74 @@ a rigid skirt. Tenth instance today, and the last one needed to make the point
 unarguable: *every one of these numbers was correct, and every one was read as
 answering a question it never addressed.*
 
+
+## E5 IMPLEMENTATION — BLOCKED ON A STRUCTURAL FLAW, NOT ON TRANSLATOR EFFORT
+
+Went to translate the missing keys and stopped at the first coherent group,
+because **they cannot be translated correctly as written.**
+
+```
+cart.driverDoor     "{cart} driver door {state}."
+cart.windshield     "{cart} windshield {state}."
+cart.rearStorage    "{cart} rear storage {state}."
+cart.batteryHatch   "{cart} battery hatch {state}."
+state.opened        "opened"      state.closed  "closed"
+state.folded        "folded"      state.raised  "raised"
+```
+
+A shared `{state}` fragment is substituted into five different part names. That
+works in English because English adjectives do not inflect. **It is broken in
+most of the target languages.** French, concretely:
+
+| part | gender | "opened" must be |
+|---|---|---|
+| la porte conducteur | feminine | ouvert**e** |
+| le pare-brise | masculine | ouvert |
+| le coffre arrière | masculine | ouvert |
+| la trappe batterie | feminine | ouvert**e** |
+
+One `state.opened` cannot serve all five. The same failure occurs in Spanish,
+Portuguese and Russian (gender + number agreement) and partly in German. **Six
+of the nine languages cannot express these sentences with this key structure.**
+
+Translating them anyway would have produced fluent-looking, confidently wrong
+grammar — and it would have *raised the coverage percentage while lowering the
+quality*, which is the worst possible outcome for a metric this report has spent
+the day showing people over-trust.
+
+### The fix, recorded as the ambiguity ruling (take the option that CHANGES the game)
+
+**Stop composing sentences from fragments.** Each part-state pair becomes its own
+complete key — 5 parts x 4 states = 20 complete sentences per locale, replacing
+5 templates + 4 fragments. More keys, but every one is a whole sentence a
+translator can render correctly and a reviewer can check.
+
+This is the standard i18n rule (never concatenate or interpolate grammatical
+fragments across languages) and the codebase violates it here in a way that is
+invisible from English.
+
+### Why this is worth more than the 81 translations it displaced
+
+I could have produced 9 keys x 9 languages this session and reported progress.
+The coverage number would have risen from 51.1%, and six locales would have
+shipped subtly broken grammar that nobody testing in English would ever see.
+
+**E5 says "Not machine drafts marked UNREVIEWED. Real translations."** A
+translation that is grammatically impossible to get right is worse than a
+missing one: a missing key falls through to English and is obviously untranslated,
+while a wrong one looks finished.
+
+**E5 status:** the report half is DELIVERED (231 keys, 51.1% dictionary
+coverage, 5.0% honest coverage, both groups of still-English text identified).
+The translation half is BLOCKED on restructuring these composed keys, and that
+restructuring is now specified.
+
+### Instrument caveat on my own probe, declared
+
+My missing-key probe counted 117 for French by testing "does the French output
+equal the English output". That also catches keys legitimately translated
+identically. **113 (keys genuinely absent from the dictionary) is the
+authoritative figure; my 117 carries ~4 false positives.** Eleventh instance
+today of a number meaning slightly less than its name — and the first one that
+was mine, caught in the same breath as producing it.
+
