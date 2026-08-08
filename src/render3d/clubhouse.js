@@ -2515,6 +2515,16 @@ export function makeClubhouse(ctx) {
     const compWp = L2W(FRONT_DESK.laptop.x, FRONT_DESK.laptop.z);
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
+      // G1: THE LAPTOP IS A WORK STATION, AND THE RULE ALREADY EXISTED.
+      //
+      // A station in reach outranks the equipped tool's prompt, so a mop in
+      // hand does not have to be put down to use the counter. That was written
+      // for the till and applied to the till and the reading desk — and the
+      // laptop, which opens a full-screen station exactly like both of them, was
+      // never tagged. So with a tool out the prompt read the mop, [E] did
+      // nothing, and the player had to swap to empty hands to open their own
+      // back office.
+      station: true,
       label: () => facilityInstalled(state, 'laptop')
         ? 'Laptop - [E] open GOLF SIMULATOR'
         : null,

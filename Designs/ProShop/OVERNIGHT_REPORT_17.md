@@ -2691,3 +2691,58 @@ That test reads source rather than driving the desk, which is a weaker
 instrument and is recorded as such. **The live desk path remains UNCONFIRMED:**
 staging a customer who carries goods AND holds a booking through a real Electron
 session was not built.
+
+## G1 - Q AND THE CASHIER
+
+**Verify before rebuilding, and the answer was "half of it already shipped".**
+
+The brief asks that with the mop out and Q held, entering the register go
+straight to the cashier: no map, no Q overlay, no dirt reveal, and no needing to
+release Q and swap to empty hands first. Goal 16 F1 claims exactly this fix.
+
+### What was already true
+
+* the 3D dirt reveal is cut to zero the moment a station opens - not faded, cut
+* the `[Q] reveal dirt` affordance is hidden while a station is up
+* `walkFindFocus` gives a station prop in reach priority over the equipped
+  tool's prompt, which is the rule that makes [E] live with a mop in hand
+
+### What was not - the SEVENTH half-fix of this goal
+
+That priority is granted by a `station: true` flag somebody has to remember, and
+only TWO props carried it: the front desk and the reading desk. **The laptop had
+no flag.** It opens a full-screen station exactly like the other two, so with a
+tool in hand the prompt read the mop, [E] did nothing, and the player had to swap
+to empty hands to open their own back office. The rule had been applied to the
+instances, not to the class.
+
+Then, one layer down, the SAME shape again: `syncStationToolStow` - the thing
+that takes the tool out of your hands when a station opens - carried its own
+hard-coded list of two stations and missed the laptop. Its comment reads *"Same
+predicate, one more station, so every tool present and future is covered"*: it
+generalised over every TOOL and then hard-coded the STATIONS. Left alone, tagging
+the laptop would have opened the back office with a mop still in frame.
+
+There were **three separate definitions of "a station is open"** in the codebase.
+The stow now defers to the host predicate that owns the real list, so adding a
+station covers tool stowing for free.
+
+### Evidence
+
+`tests/station-props-outrank-tools.test.js` - five checks, and the important one
+is a CLASS check: it scans every `addProp` literal, finds the ones whose action
+opens a station, and asserts each is tagged. It names the offender in the failure
+message. A negative control asserts the detector does not simply call every prop
+a station.
+
+Watched two breaks fail: the laptop untagged (names `laptop` in the message), and
+the stow predicate reverted to its hard-coded pair.
+
+Also pinned: the station check must stay ABOVE the equipped-tool block in
+`walkFindFocus`. If that order ever flips, every tag above silently stops
+working.
+
+Suite **2890 pass / 0 fail**.
+
+**UNCONFIRMED:** not driven in Electron. No screenshot of the till read with a
+mop in hand and Q down.

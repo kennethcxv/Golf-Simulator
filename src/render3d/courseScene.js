@@ -7367,7 +7367,15 @@ export function makeCourseScene(canvas, state) {
   // every tool present and future is covered by the same setter.
   let stationStowedTool = null;
   function syncStationToolStow() {
-    const stationOpen = !!clubhouseApi?.register?.isActive?.()
+    // G1: ASK THE ONE PREDICATE, NOT A SECOND LIST OF STATIONS.
+    //
+    // This generalised over every TOOL and then hard-coded two STATIONS, so the
+    // laptop was missed: you sat down at the back office with a mop still in
+    // your hands. The host owns the real list (laptop, ledger, front desk,
+    // register); the direct checks stay as a fallback for callers that never set
+    // the hook. Adding a station now covers tool stowing for free.
+    const stationOpen = !!walkHooks.stationOpen?.()
+      || !!clubhouseApi?.register?.isActive?.()
       || !!clubhouseApi?.ledgerBook?.isOpen?.();
     if (stationOpen) {
       if (stationStowedTool !== null || !walkTool) return;
