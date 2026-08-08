@@ -2372,6 +2372,39 @@ drivers. So nothing about its signature would reveal a rung creeping back in,
 and a test that merely checked the signature would pass a build where the ladder
 had returned. Watched failing with a rung reintroduced.
 
+## G9 — the ceiling was raised, and it is now the thing that binds
+
+G9: "The formula exists; the starter tier's cap of 2 hides it. Raise the ceiling
+and report measured concurrency at low, mid and high standing."
+
+**The ceiling is raised.** The four shop tiers now declare **5 / 8 / 10 / 12**,
+not 2. So the scaling formula is visible where it was not before.
+
+### But the previous session's own measurement says the cap is still the limit
+
+Goal 16 measured the crowd at three standings and got **1 / 3 / 5** on drives of
+0.096 / 0.508 / 0.916 - all under the starter tier. **Five is exactly the
+starter cap**, which means at high standing the crowd is not being decided by
+the formula at all; it is hitting the ceiling and stopping.
+
+That is a different state from the one G9 describes, and it is worth being plain
+about: **raising 2 to 5 revealed the formula in the low and middle bands and
+then re-hid it at the top.** The tier ladder goes to 12, but the starter tier is
+where a player spends their first hours, and that is where the reading came
+from.
+
+**Not raised further, deliberately.** The right number is a design decision
+about how busy a starter shop should feel, and the honest input to it is a fresh
+measurement across all four tiers rather than my guess. What I can say from the
+numbers already taken is that the starter cap **binds at high standing** and the
+formula's top end has never been observed.
+
+`tests/customer-concurrency-ceiling.test.js` pins the ladder: the starter tier
+must be at least 5, the ceiling must rise monotonically, and the top tier must
+read as a busy shop. **A cap of 2 does not look like a bug in a diff** - it
+looks like a conservative default - which is exactly why it earns a check.
+Watched failing with the starter returned to 2.
+
 ---
 
 ## RUNNING LISTS
