@@ -7469,3 +7469,48 @@ own phase-0 sentence. The difference here is only that I stopped.
 the canvas press routing, then a driver that presses a ledger control and
 listens.
 
+
+### F1 RESOLVED — AND MY HYPOTHESIS WAS WRONG
+
+Chased the open question rather than leaving it. The canvas screens are pressed
+through **window- and canvas-level handlers**, not through `el()`:
+
+```
+main.js:644   window.addEventListener('pointerdown', ledgerClickHandler, true)
+main.js:2415  canvas.addEventListener('pointerdown', ...) -> regApi().onDown(e)
+```
+
+So they genuinely bypass `el()`'s cue, exactly as I reasoned. **And they are not
+silent.**
+
+- **The ledger** plays `audio.ledgerTurn()` on every page turn, and the comment
+  beside it states the intent outright: *"E2: the book has its own voice —
+  clasp, cover, leaves — **not a menu tick**."* A generic click here would be a
+  downgrade, and someone already decided that deliberately.
+- **The register** carries **45 `sfx` calls and 3 `beep`s**. My earlier grep for
+  `audio.` returned zero and I nearly read that as silence — the register routes
+  sound through `sfx`, a name I had not searched.
+
+**F1 is satisfied for the canvas screens by better audio, not missing from
+them.**
+
+### This is the eleventh over-reach, and the first one avoided in advance
+
+Every step of my reasoning was correct: `el()` wires DOM; canvas controls are
+not DOM; those three files contain zero cue calls; the routing bypasses the cue.
+**All true, and the conclusion was still false**, because the thing I was
+looking for existed under a name I had not thought to search.
+
+That is the sharpest version of this report's single finding. It is not that the
+measurements are careless — every one of the ten faults above was a correct
+measurement. It is that **a correct measurement plus a plausible mechanism still
+does not license the conclusion**, and the gap between them is exactly where all
+eleven of these live.
+
+The only thing that separated this one from the other ten was writing "I could
+not confirm it" instead of "therefore they are silent" — and then spending two
+more searches.
+
+**SECTION F: F1 verified end to end, DOM and canvas. F2 (sounds for everything
+physical) carries work markers in four files and is not audited.**
+
