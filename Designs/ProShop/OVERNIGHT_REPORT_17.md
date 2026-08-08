@@ -11542,3 +11542,46 @@ the difference between a curiosity and a work item.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## THE BOOT-EQUIP MECHANISM IS REFUTED TOO — `walkActive()` IS ALREADY TRUE
+
+Ran the one-query test rather than leaving it specified:
+
+```
+at boot      view=course  courseMode=walk  walkActive=true  ledgerOpen=false
+after click  identical
+equipped     none
+```
+
+**All three `walkActive()` conditions hold at boot.** The ledger is closed. And
+the standalone driver still cannot equip.
+
+**So the mechanism is neither the mode gate nor the ledger** — the two
+explanations that fit every previous observation. Both eliminated by one query
+that cost one run.
+
+### What is left, stated as an elimination rather than a guess
+
+The walk driver equips reliably; this one does not; and the difference is **not**
+`app.view`, `app.courseMode`, `walk.isActive()`, or `ledgerOpen`. What remains
+between them is the sequence itself — several thousand milliseconds of walking,
+a door interaction, a ledger open-and-close, and a second pointer click.
+
+**One of those matters and I do not know which.** The bisect is mechanical:
+add them back to the standalone driver one at a time until it equips. Four runs
+at most, and it needs a fresh session rather than the tail of this one.
+
+### The honest count for this sub-thread
+
+Three hypotheses about why a freshly-booted driver cannot equip — cart mounted,
+mode not settled, ledger capturing — **all three measured and all three wrong.**
+The finding itself stands: *the tool belt does not work straight out of boot in a
+minimal driver*, and it is worth resolving because a player's first action may be
+taking a tool out.
+
+**What it is NOT is confirmed as a game defect.** It may equally be an artefact
+of how the minimal driver drives input. **That distinction has not been
+established, and this entry does not claim it.**
+
+Suite 2933 pass / 0 fail. Tree clean.
+

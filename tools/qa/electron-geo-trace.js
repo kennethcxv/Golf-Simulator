@@ -72,8 +72,29 @@ async (page) => {
     return seen.size;
   }).catch(() => null);
 
+  // WHY COULD THIS DRIVER NOT EQUIP WHILE THE FULL WALK COULD?
+  //
+  // `walkActive()` (main.js:186) requires THREE things — `app.view === 'course'`,
+  // `app.courseMode === 'walk'`, and `walk.isActive()` — and this driver awaited
+  // only the third. If either of the others has not settled, the tool-belt key
+  // is dispatched into a mode that ignores it.
+  //
+  // Sampled before the click and again after, so a difference between the two
+  // shows which condition is late rather than merely which is false.
+  const gate = () => page.evaluate(() => {
+    const fw = window.__fw;
+    return {
+      view: fw?.view ?? null,
+      courseMode: fw?.courseMode ?? null,
+      walkActive: !!fw?.scene3d?.walk?.isActive?.(),
+      ledgerOpen: !!fw?.ledgerOpen,
+    };
+  }).catch(() => null);
+  out.gateAtBoot = await gate();
+
   await page.mouse.click(700, 500);
   await page.waitForTimeout(400);
+  out.gateAfterClick = await gate();
   const keys = await page.evaluate(() => window.__fw.preferences?.values?.controls?.bindings || {});
 
   out.geoBefore = await geoCount();
