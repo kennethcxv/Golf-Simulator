@@ -129,6 +129,16 @@ async (page) => {
     c.renderTarget1.dispose(); c.renderTarget2.dispose();
     return { rt1: c.renderTarget1.samples, rt2: c.renderTarget2.samples };
   });
+  // 2x is the option worth shipping if it lands near 0x on cost: half the
+  // samples, most of the edge quality. Priced between the two extremes so the
+  // saving can be read as a fraction of the 1.26 ms that 0x buys.
+  await run('msaa 2', () => {
+    const c = window.__fw.scene3d.post.composer;
+    if (!c) return 'no composer';
+    c.renderTarget1.samples = 2; c.renderTarget2.samples = 2;
+    c.renderTarget1.dispose(); c.renderTarget2.dispose();
+    return { rt1: c.renderTarget1.samples, rt2: c.renderTarget2.samples };
+  });
   await run('msaa 4 again', () => {
     const c = window.__fw.scene3d.post.composer;
     if (!c) return 'no composer';

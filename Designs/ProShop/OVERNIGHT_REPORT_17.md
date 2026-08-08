@@ -14088,3 +14088,37 @@ carries the finding, and rewriting published history to recover one word is the
 worse trade. **Twice makes it a pattern rather than a slip, so the rule is now
 unconditional: never put backticks in a shell string bash will expand — author
 every commit message as a file.**
+
+
+## 2x MSAA IS NOT THE FIX — IT BUYS UNDER A THIRD AND CLEARS NOTHING
+
+The obvious compromise — halve the samples, keep most of the edge quality — was
+worth pricing before proposing it.
+
+| rung | GPU median | frames over 8.33 ms |
+|---|---|---|
+| baseline | 9.12 ms | **100%** |
+| MSAA 0 | **7.84 ms** | **27.3%** |
+| **MSAA 2** | **8.75 ms** | **100%** |
+| MSAA 4 again | 9.15 ms | 100% |
+| baseline again | 9.16 ms | 100% |
+
+**Control gap 0.04 ms.**
+
+4x -> 0x saves **1.28 ms**. 4x -> 2x saves **0.37 ms** — 29% of it — and leaves
+**every single frame over the refresh interval.** Halving the sample count does
+not halve the cost: the resolve and the bandwidth on a half-float target do not
+scale the way the sample count does.
+
+**So the compromise everyone reaches for first is measurably not a fix here.** It
+would have looked like diligence, shipped, and changed nothing a player could
+feel.
+
+Absolute numbers drifted between this run and the last — baseline 9.12 against
+8.37, and 0x clearing 27.3% against 12.7% — so the machine was in a slower state.
+**The gaps are what reproduce**: 4x-to-0x at 1.26 and 1.28 ms across two runs, and
+that gap is what the decision rests on.
+
+What survives: replace MSAA with a post-process AA pass (SMAA or FXAA; the chain
+already ends in an `OutputPass`), or make it a quality-preset choice. Both still
+need measuring, and both are now measurable against a 0.04 ms control.
