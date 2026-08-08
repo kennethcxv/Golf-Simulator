@@ -10706,3 +10706,53 @@ precondition measured rather than assumed, and the harness judges it in one run.
 
 Suite 2929 pass / 0 fail.
 
+
+## EIGHTH FIX, EIGHTH REFUTATION — AND I REPEATED INSTANCE 26 EXACTLY
+
+Attached `fpHands.root` to the scene unconditionally for the prewarm compile,
+stashing and restoring its real parent so nothing about where it lives changed.
+
+```
+EQUIP PROGRAM DELTA   +9    (predicted 0)
+scene geometry delta  +54   (predicted 0)
+tool worst            337.6 ms
+```
+
+**No movement.** Reverted.
+
+### The repeat is the finding, not the failure
+
+**I shipped it with no telemetry proving it ran.** The block sits inside
+`try { ... } catch { }`, so a `ReferenceError` — `fpHands` not being in scope at
+that point in the file — would be swallowed silently and look identical to
+"ran and did not help."
+
+**That is instance 26, repeated exactly.** Twenty entries ago I removed a lying
+accessor and wrote: *"an accessor that always answers 'not reached' is worse than
+no accessor"*, and *"every field must be computed inside the block so its
+presence proves the block executed."* I then wrote a fix with a bare `catch {}`
+and no field at all.
+
+**Thirty-seventh finding, and the only one this session that is a repeat.** The
+lesson had been written down, in this file, by me, and it did not survive
+contact with the next opportunity to break it.
+
+### What that says about the eight failures
+
+Seven of the eight were refuted by measurement and are genuinely informative —
+each eliminated a mechanism. **The eighth is not informative at all**, because I
+cannot say whether it ran. It is a wasted run, and the waste was avoidable by a
+rule already in the report.
+
+### Section A tool half — the true handover
+
+**Diagnosed completely; eight fixes attempted, eight reverted, none shipped.**
+
+The mechanism is measured with controls and named subsystems. **The next attempt
+must carry telemetry computed inside its own block** — `{attached: true, parent:
+<name>, programsBefore, programsAfter}` — so "did not run" can never again wear
+the costume of "did not work". Without that, a ninth attempt is worth nothing
+regardless of its content.
+
+Suite 2929 pass / 0 fail.
+
