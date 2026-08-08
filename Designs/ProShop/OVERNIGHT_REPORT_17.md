@@ -6980,3 +6980,53 @@ number is what stops anyone looking.** The cheap discipline that catches all of
 them: before concluding, check that the thing you measured is the thing you are
 about to name.
 
+
+---
+
+# SECTION D — CARRYING THINGS. AUDITED, AND IT IS ALREADY DONE.
+
+First correction: my task list called D "settings". It is **carrying things** —
+a stale Goal-16 label, and the third stale tracking entry found today.
+
+D4 asks for the work to be added to the invariant suite, and that is exactly
+gate invariant 6, which passes. Mapping each item onto
+`tests/carryable-system.test.js`:
+
+| item | the check that covers it | state |
+|---|---|---|
+| D1 never left floating | "a station boundary puts carried things down rather than stranding them" | PASS |
+| D2 a way to put it down | "the book answers the same set-down key as every other carryable" | PASS |
+| D3 carrying blocks the belt | "the tool belt refuses while something is carried, **on BOTH its paths**" | PASS |
+| D4 one system + invariant | "one predicate knows about every way the player can carry something" | PASS |
+
+### The full carryable list, which D4 asks for by name
+
+`src/main.js:357`, `carriedThing()` — one predicate, three carry systems:
+
+| carryable | identified by |
+|---|---|
+| carton | `hasCarriedCarton()` (boxPlacementMode + delivery state) |
+| ledger book | `ledgerBook.isCarried()` |
+| loose goods | `state.shop.carry` |
+
+The third was the audit's real find: loose goods were tracked separately, and
+`carriedBox(state) || carriedGoods(state)` appeared together three times in
+clubhouse.js — "the shape of a family that was known about locally and never
+given one name".
+
+### The near-miss recorded in that function is the session's theme again
+
+> *The path is `state.shop.carry` — read from sim/stocking.js's own
+> `carriedGoods()` rather than guessed at. My first attempt wrote
+> `shop.stocking.carried`, which is a plausible name for a field that does not
+> exist, and would have made this branch permanently false while looking
+> completely reasonable.*
+
+A branch that is permanently false while looking correct is the ninth instance
+of this report's one finding, and the only one caught *before* it shipped. The
+thing that caught it was refusing to guess a field name — reading it from the
+module that owns it instead.
+
+**SECTION D: COMPLETE.** D1-D4 implemented, covered by a passing invariant, and
+the carryable list reported as D4 requires.
+
