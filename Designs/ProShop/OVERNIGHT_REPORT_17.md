@@ -8561,3 +8561,57 @@ beat immediately convicted a change that a broken beat had cleared.**
 
 Suite 2929 pass / 0 fail.
 
+
+## SECTION A — THE EQUIP COST IS ONE-TIME. IT IS FIRST-DRAW COMPILATION.
+
+Added a second equip beat and measured both:
+
+```
+tool   (broom, first equip)    worst 1129.3 ms   median 11.7   n 77
+tool2  (mop,   second equip)   worst   22.3 ms   median 11.0   n 195
+```
+
+**Fifty times cheaper on the second equip.** The first tool a player takes out
+costs a stall; every one after it is free. **The cost is one-time, not
+per-equip.**
+
+That is the signature of **first-draw shader/program compilation**, and this
+report has already convicted exactly that mechanism once: C5 measured a single
+cloned material taking the ledger's page turn from 39 ms to 1673 ms, and dropped
+the change rather than ship it.
+
+(The first-equip figure varies run to run — 8282 ms with 720 bristles, 2770 ms
+at 200, 1129 ms here. The *ratio* is the stable result: whatever the absolute
+cost on a given machine, the second equip does not pay it.)
+
+### Why this matters more than its size
+
+A player meets this **the first time they take out a tool**, which the starter
+loop makes one of the first things they ever do. It is a one-second-plus freeze
+at the exact moment the game asks them to try its core verb.
+
+And it is **invisible to every later measurement**, because by then the programs
+are compiled. Six rounds of tool measurements never saw it; neither did any
+session that equipped a tool before starting to measure.
+
+### The fix direction, recorded as the ambiguity ruling
+
+**Compile the tool viewmodel programs during load, while the veil is up**, not
+at first equip. The materials are known from the registry at boot; nothing needs
+the player to have chosen a tool. A warm-up draw of each tool's materials behind
+the loading veil moves a visible one-second stall into a place where a second
+already costs nothing.
+
+This is the same shape as the existing perf work in this project — half-res
+GTAO, fitted shadows, the merged static batch — moving cost to where it is not
+being watched.
+
+### Section A's standing, restated honestly
+
+Invariant 1 has been red all session. The six causes closed early on were closed
+against a walk that never equipped a tool. **The largest single frame in this
+report is a one-time compile at first equip, and it now has a name, a
+measurement, a 50x control, and a fix direction.**
+
+Suite 2929 pass / 0 fail.
+

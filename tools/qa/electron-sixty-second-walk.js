@@ -268,6 +268,16 @@ async (page) => {
           : 'the broom was selected but the rig never solved a pose',
   });
 
+  // SECOND EQUIP - does the cost repeat, or is it one-time?
+  await beat('tool2');
+  await page.keyboard.down(keys.toolBelt || 'f');
+  await page.waitForTimeout(450);
+  await page.keyboard.press('m');
+  await page.waitForTimeout(250);
+  await page.keyboard.up(keys.toolBelt || 'f');
+  await page.waitForTimeout(1500);
+  record('tool2', true, { equipped2: await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? 'none').catch(() => null) });
+
   await beat('end');
   await page.waitForTimeout(800);
 
