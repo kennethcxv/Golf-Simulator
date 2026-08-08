@@ -9457,3 +9457,72 @@ tool half fully diagnosed**, with only the corrected fix left to apply and verif
 
 Suite 2929 pass / 0 fail.
 
+
+## WHY IT CANNOT BE PRE-COMPILED: THE 9 PROGRAMS DO NOT EXIST YET
+
+Chased the last link rather than assuming it. The tool viewmodels are parented
+to the **camera**:
+
+```js
+courseScene.js:6461   scene.add(camera);
+courseScene.js:6464   camera.add(heldRoot);      // heldRoot.visible = false
+```
+
+I expected the camera to be outside the scene graph — that would have explained
+everything neatly, because `renderer.compile(scene, camera)` traverses `scene`
+and would never have reached the viewmodels.
+
+**It is in the scene.** Line 6461 adds it. So the boot prewarm's force-reveal
+*does* reach `heldRoot` and every tool group beneath it, and it *does* compile
+them.
+
+### Which leaves only one explanation standing
+
+If the prewarm reaches the tool viewmodels and compiles them, and the equip
+still compiles **+9 programs**, then those 9 programs' materials **did not exist
+at prewarm time**. You cannot pre-compile a material that has not been created.
+
+And the codebase says exactly where they come from. `toolViewmodel.js` builds
+strand rigs lazily, guarded on first equip:
+
+```js
+if (def.id === 'mop' && !entry.strandRig) {
+  const yarn = new THREE.MeshStandardMaterial({ ... });   // NEW material
+  const rig = createMopStrands({ THREE, material: yarn, ... });
+```
+
+**A new material on first equip is a new program on first draw.** That is the
++9, it is created by the equip itself, and no amount of earlier compiling can
+anticipate it.
+
+### The fix this actually implies — and it is not another compile
+
+Three shapes, in increasing order of how much they change:
+
+1. **Create the strand materials at build time**, not at first equip, so the
+   prewarm can see them. Smallest change; the rigs stay lazy, only the materials
+   move.
+2. **Build the strand rigs during adoption** rather than on first equip. Costs
+   boot time for every tool the player may never take out.
+3. **Share one material across tools** instead of one per rig, cutting the
+   program count rather than moving it.
+
+**(1) is the reading that changes the game in the intended direction** — it
+removes the stall without paying boot cost for unused tools and without altering
+what anything looks like.
+
+### And it retires my own three-times-corrected fix
+
+The post-adoption `renderer.compile()` I added is **not the fix and cannot
+become one** — it runs at `before: 0`, compiles 66 irrelevant programs, and
+could not cover the 9 even if perfectly timed, because they do not exist until
+the equip creates them. **It should be removed by whoever applies fix (1)**,
+not retimed.
+
+Four corrections to one fix, each exposed by measurement: "add a prewarm" (one
+existed), "compile on adoption" (too early), "compile after the prewarm" (right
+timing, wrong target), and now "there is nothing to compile — create the
+materials earlier instead".
+
+Suite 2929 pass / 0 fail.
+
