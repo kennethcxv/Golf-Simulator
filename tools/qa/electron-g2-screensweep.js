@@ -60,12 +60,28 @@ async (page) => {
       }
       return true;
     };
+    // EFFECTIVE opacity, not the element's own.
+    //
+    // `getComputedStyle(el).opacity` is the value set ON THAT ELEMENT. A child of
+    // an `opacity: 0` parent reports 1 and passes a naive check while being
+    // completely invisible. That fault made this sweep report a HUD overlap
+    // between a key chip inside a transparent prompt and the lock hint - two
+    // elements that are never drawn in the same state at all. It is the only
+    // instrument fault this session that INVENTED a defect rather than hiding
+    // one, so the fix walks the ancestor chain and multiplies.
+    const effectiveOpacity = (el) => {
+      let o = 1;
+      for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+        const s = getComputedStyle(n);
+        if (s.visibility === 'hidden' || s.display === 'none') return 0;
+        o *= Number(s.opacity);
+        if (o < 0.05) return 0;
+      }
+      return o;
+    };
     const visible = (el, r) => {
       if (r.width < 3 || r.height < 3) return false;
-      const s = getComputedStyle(el);
-      if (s.visibility === 'hidden' || s.display === 'none') return false;
-      if (Number(s.opacity) < 0.05) return false;
-      return true;
+      return effectiveOpacity(el) >= 0.05;
     };
 
     window.__g2sweep = (screen, rootSel) => {
