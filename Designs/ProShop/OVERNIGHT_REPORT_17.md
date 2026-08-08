@@ -3980,3 +3980,36 @@ the fix and the wiring land together. **Written onto NOT DONE with the numbers.*
 That is the fourth time this session an instrument was wrong in a way that hid a
 real defect rather than inventing a false one - and the most expensive kind,
 because a driver asserting the inverse of the ruling looks like coverage.
+
+### Invariant 5, the follow-up: the vanish is PLAYER-REACHABLE
+
+Before treating "hands go to zero at pitch 0.4" as a defect I checked whether the
+sweep was driving somewhere the player cannot go. It is not.
+
+```
+mouseLook.js:16    export const PITCH_LIMIT = 1.35;      (~77 degrees)
+sweep range        -0.85 .. +0.60
+broom blank at     +0.60
+mop blank at       +0.40, +0.60
+```
+
+**The player can look more than twice as far up as the pitch where the mop's
+hands disappear.** This is not a probe artifact and it is not an extreme the
+design excludes - it is inside normal looking.
+
+There is also a structural reason to call it wrong rather than natural: a
+first-person viewmodel is CAMERA-ATTACHED. It rotates with the camera, so pitch
+should not be able to carry it out of frame at all - the hands should ride the
+view. Something here is either world-anchored or being clipped, and the fact that
+0.15 is fine while 0.40 is empty says there is a threshold rather than a gradual
+slide out of shot.
+
+**Handed over rather than fixed**, with the numbers, because a viewmodel change
+needs its own five phases and a screenshot at the default camera to confirm - and
+the session that makes it should watch the corrected sweep go from red to green
+on the same run.
+
+It belongs to Section B (the stick-tool viewmodel), and it is on NOT DONE as:
+*mop and broom hands vanish entirely at pitch 0.40 / 0.60, both well inside a
+1.35 rad look limit; the corrected hand-pixels sweep is the check that proves the
+fix.*
