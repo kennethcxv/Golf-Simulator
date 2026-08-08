@@ -8590,6 +8590,10 @@ export function createRegisterMode(B) {
     // after the fibres went instanced. G4.1 says a bag is ALWAYS at the bagging
     // position; anything checking that should ask, not search.
     bagNode: () => bagGroup,
+    // The mesh for a ticket line, by uid. Same reason as bagNode: a driver that
+    // hunts the scene graph for a product finds nothing when it guesses wrong,
+    // and a scan that finds nothing is indistinguishable from an empty counter.
+    itemMesh: (uid) => itemMeshes.get(uid) || null,
     bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
       && bagGroup.userData?.checkoutOwner !== 'customer'),
     getCustomer: () => cust,

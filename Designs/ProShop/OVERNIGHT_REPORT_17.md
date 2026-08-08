@@ -5523,3 +5523,48 @@ own acceptance drivers already do this, and `checkout-bag-handoff-path` sets
 **G5 and G7 remain UNCONFIRMED VISUALLY**, but each step of that sentence is
 smaller than the one before it, and none of the three answers was reached by
 guessing.
+
+### G7 CONFIRMED - THE ARM COMES BACK, WITH A LIVE TRANSACTION
+
+The full scenario runs end to end at last:
+
+```
+scenarioStaged true   txArrived true    tookTheTill true
+itemsScanned 2        reachedTender true
+modesSeen ["CashLaid"]                  armCameBack: TRUE
+controlNotAlreadyLaid true
+camera 2560x1370, DPR 1.5, FOV 66 (untouched)
+```
+
+Shop opened, customer staged, walked in, served, both goods scanned and bagged
+by click-to-bag, cash tender reached - **and the customer stands in `CashLaid`,
+arm back, not holding the money out.** That is G7's sentence answered against a
+live transaction rather than a source scan.
+
+The control holds: the mode was NOT already `CashLaid` before staging, so the
+reading is something this driver detected rather than the pose the customer
+happened to be in.
+
+### The last piece was another "ask, do not search"
+
+`projectItem` needed the product mesh, and `itemMeshes` was a private Map. Same
+gap as the bag, same fix: `itemMesh(uid)` exposed on the register and forwarded
+through the clubhouse facade. **That is the third accessor this session added
+because a driver would otherwise have had to guess at scene-graph shape**, and
+each one turned a failing measurement into a working one.
+
+### Two caveats, recorded rather than glossed
+
+* **`heldItOut: false`** - I never sampled `PayCash`. `CASH_LAY_SECONDS` is 0.55
+  and my first sample lands 1.5 s after the tender, so the hold phase had already
+  passed. **`laidAfterHolding` is therefore UNPROVEN, not false.** A faster
+  sample would settle it; the ordering claim is not established by this run.
+* **`coinKindsOnDesk: 0`** - no coins in this tender. That does NOT contradict
+  G5: coins reach the desk in ~13.5% of tenders because only totals ending in a
+  multiple of 5 cents qualify. **One sample cannot disprove a 13.5% behaviour**,
+  and reading this as a failure would be the same error as trusting a single
+  reading anywhere else in this session.
+
+**G7 is CONFIRMED. G5 remains UNCONFIRMED and needs a run over many tenders**,
+which is the same distribution argument its unit test already makes - now with a
+driver that can actually reach a tender to sample.

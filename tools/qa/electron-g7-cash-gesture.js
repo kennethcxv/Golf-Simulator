@@ -103,6 +103,57 @@ async (page) => {
   ).then(() => true).catch(() => false);
   await page.waitForTimeout(1500);
 
+  // DRIVE THE SCAN. The tender only exists after the goods are rung up, and
+  // click-to-bag is the shipped verb: project the item to the screen, click it,
+  // wait for the register to mark it scanned AND bagged. Lifted from
+  // cash-hover-highlight.js, which reaches the same beat.
+  const projectItem = (uid) => page.evaluate((id) => {
+    const app = window.__fw;
+    const reg = app.scene3d.clubhouse().register;
+    const mesh = reg.itemMesh ? reg.itemMesh(id) : null;
+    const node = mesh || null;
+    if (!node) return null;
+    node.updateWorldMatrix(true, false);
+    const e = node.matrixWorld.elements;
+    const cam = app.scene3d.camera;
+    const v = { x: e[12], y: e[13], z: e[14] };
+    // manual projection: world -> clip, using the camera's matrices
+    cam.updateMatrixWorld();
+    const m = cam.projectionMatrix.elements;
+    const inv = cam.matrixWorldInverse.elements;
+    const vx = inv[0] * v.x + inv[4] * v.y + inv[8] * v.z + inv[12];
+    const vy = inv[1] * v.x + inv[5] * v.y + inv[9] * v.z + inv[13];
+    const vz = inv[2] * v.x + inv[6] * v.y + inv[10] * v.z + inv[14];
+    const cw = m[3] * vx + m[7] * vy + m[11] * vz + m[15];
+    if (!cw) return null;
+    const cx = (m[0] * vx + m[4] * vy + m[8] * vz + m[12]) / cw;
+    const cy = (m[1] * vx + m[5] * vy + m[9] * vz + m[13]) / cw;
+    const rect = document.querySelector('canvas').getBoundingClientRect();
+    return {
+      x: rect.left + ((cx + 1) / 2) * rect.width,
+      y: rect.top + ((-cy + 1) / 2) * rect.height,
+      inView: Math.abs(cx) <= 1 && Math.abs(cy) <= 1,
+    };
+  }, uid);
+
+  const uids = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.getTx()?.items.map((i) => i.uid) || []));
+  out.scanned = [];
+  for (const uid of uids) {
+    const p = await projectItem(uid);
+    if (!p || !p.inView) { out.scanned.push({ uid, why: 'not in frame' }); continue; }
+    await page.mouse.click(p.x, p.y);
+    const ok = await page.waitForFunction((id) => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      const it = tx?.items.find((c) => c.uid === id);
+      return !!(it?.scanned && it?.bagged);
+    }, uid, { timeout: 15000 }).then(() => true).catch(() => false);
+    out.scanned.push({ uid, ok });
+  }
+  out.reachedTender = await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
+  ), null, { timeout: 40000 }).then(() => true).catch(() => false);
+
   // let them be accepted and reach the cash tender
   out.samples = [];
   for (let i = 0; i < 40; i += 1) {
@@ -141,6 +192,8 @@ async (page) => {
     scenarioStaged: out.staged.ok === true,
     txArrived: out.txArrived === true,
     tookTheTill: out.entered === true,
+    itemsScanned: (out.scanned || []).filter((x) => x.ok).length,
+    reachedTender: out.reachedTender === true,
     // the control: the arm must not already have been back
     controlNotAlreadyLaid: out.before.mode !== 'CashLaid',
     modesSeen: [...new Set(modes)],

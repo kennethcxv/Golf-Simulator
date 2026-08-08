@@ -11902,6 +11902,7 @@ export function makeClubhouse(ctx) {
       // never built. A probe reported registerKeysMatching /bag/i as [] and
       // accessorType undefined, which is what settled it.
       bagNode: () => (register.bagNode ? register.bagNode() : null),
+      itemMesh: (uid) => (register.itemMesh ? register.itemMesh(uid) : null),
       bagIsAtCounter: () => (register.bagIsAtCounter ? register.bagIsAtCounter() : false),
       enter: () => register.enter(),
       leave: () => register.leave(),
