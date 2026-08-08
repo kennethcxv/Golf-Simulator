@@ -10865,3 +10865,64 @@ attempted.
 
 Suite 2929 pass / 0 fail. Tree clean.
 
+
+## THE HANDS CANNOT BE THE 9 PROGRAMS — THEY HAVE FIVE MAP-LESS MATERIALS
+
+Looked at what to share before writing a sharing fix. `fpHands.js:367`:
+
+```js
+skin:     MeshStandardMaterial({ color: SKIN,       roughness: 0.72 })
+shade:    MeshStandardMaterial({ color: SKIN_SHADE, roughness: 0.78 })
+cuff:     MeshStandardMaterial({ color: CUFF,       roughness: 0.78 })
+cuffDark: MeshStandardMaterial({ color: CUFF_DARK,  roughness: 0.85 })
+nail:     MeshStandardMaterial({ color: NAIL,       roughness: 0.5  })
+```
+
+**Five materials, not nine — and already shared**: one `mats` object serves both
+hands. So "share materials across hands" is *already done*, and would have been
+the tenth fix aimed at something already true.
+
+### And they cannot produce nine programs
+
+**All five are map-less.** A three.js program key encodes *structural* features —
+which map slots are bound, precision, encoding, defines — **not colour or
+roughness values.** Five materials that differ only in `color` and `roughness`
+**share a single program key.**
+
+The nine keys measured earlier tell the same story from the other side:
+
+```
+[0] physical,STANDARD,...,false,false,false,...        <- no maps
+[1] physical,STANDARD,...,uv,...,uv,...,uv,uv,...      <- several maps
+[2] physical,STANDARD,...,uv,...,uv,...                <- some maps
+```
+
+**Keys [1] and [2] have `uv` slots bound.** The hands' materials have no maps at
+all and cannot produce those keys.
+
+### So the +9 materials are not the hands' materials
+
+The named-owner census showed the +54 **meshes** are hands. It did **not** show
+that the +9 **materials** are theirs — I inferred that, and the material
+composition refutes it. The textured programs belong to something else arriving
+in the same window, most plausibly the authored tool GLB, whose meshes carry
+texture maps.
+
+**Thirty-eighth finding**, and the same shape as the census one: two deltas
+measured in the same window, assumed to describe the same objects. **+54 meshes
+and +9 materials were never shown to belong together.**
+
+### What Section A actually hands over now
+
+**Measured:** +9 programs with ordinary but *textured* keys; +54 hand meshes;
++54 geometries; second equip free; nine fixes refuted and reverted;
+pre-compilation eliminated as a family.
+
+**Corrected:** the hands are not the source of the 9 programs.
+
+**Next, and cheap:** attribute the +9 **materials** by owner name, exactly as the
+meshes were attributed. One query, and it names the real subsystem instead of the
+one that merely arrived alongside it.
+
+Suite 2929 pass / 0 fail.
+
