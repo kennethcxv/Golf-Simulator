@@ -11585,3 +11585,57 @@ established, and this entry does not claim it.**
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## BISECT: TWO STEPS, BOTH REFUTED — AND THE REAL DIFFERENCE IS THE WHEEL READ
+
+Added the walk driver's steps back to the standalone one at a time.
+
+```
+step 1  a second pointer click before the equip     equipped: none
+step 2  hold 'w' for 2.6 s first                    equipped: none
+```
+
+**Neither is the difference.** Combined with the earlier eliminations —
+`app.view`, `app.courseMode`, `walk.isActive()`, `ledgerOpen`, cart mounted —
+almost every candidate is gone.
+
+### What a line-by-line comparison shows
+
+```
+WALK DRIVER                          STANDALONE
+down('f')                            down('f')
+wait 450                             wait 450
+page.evaluate(read .tool-wheel)      —
+at = items.findIndex(/broom/i)       —
+if (at >= 0) press('b')              press('b')
+wait 250                             wait 250
+up('f')                              up('f')
+```
+
+**The walk driver performs a `page.evaluate()` between the keydown and the
+press, and presses only when the wheel is actually populated.** The standalone
+presses unconditionally.
+
+Two readings, and they are distinguishable:
+
+1. **The evaluate is load-bearing** — a round-trip to the page between keydown
+   and keypress lets the 230 ms wheel timer fire and settle in a way a bare
+   `waitForTimeout` does not.
+2. **The wheel never opens in the standalone driver**, so `at` would be `-1`,
+   the walk driver would skip the press, and only the standalone presses into
+   nothing.
+
+**Reading 2 is testable in one line** and was never checked here: read
+`.tool-wheel` in the standalone driver and report `items.length`. If it is zero,
+the wheel is not opening and everything downstream is moot — which would also
+explain every refuted hypothesis in this sub-thread at once.
+
+### Where this sub-thread stops
+
+Five hypotheses measured and refuted (cart, mode, ledger, second click, walking
+first). **The remaining candidate is the cheapest one and the one I have not
+run**, which is a fair description of this whole session's pattern and worth
+recording as such rather than dressed up.
+
+Suite 2933 pass / 0 fail. Tree clean.
+

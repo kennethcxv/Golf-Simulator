@@ -100,6 +100,23 @@ async (page) => {
   out.geoBefore = await geoCount();
   await page.evaluate(() => { window.__geoOn = true; });
 
+  // BISECT STEP 1: a second pointer click before the equip.
+  //
+  // The walk driver clicks twice — once at the start and again after the ledger
+  // releases pointer lock — and it equips reliably. This driver clicked once and
+  // does not. Every state condition has been eliminated (`app.view`,
+  // `app.courseMode`, `walk.isActive()`, `ledgerOpen` all correct at boot), so
+  // the difference is in the sequence, and this is its cheapest element.
+  await page.mouse.click(700, 500);
+  await page.waitForTimeout(300);
+  // BISECT STEP 2: actually walk first. The walk driver holds 'w' for seconds
+  // before it equips; a second click alone changed nothing.
+  await page.keyboard.down('w');
+  await page.waitForTimeout(2600);
+  await page.keyboard.up('w');
+  await page.waitForTimeout(600);
+  out.gateBeforeEquip = await gate();
+
   // Equip through the real wheel: hold the belt, press the tool's LETTER, release.
   await page.keyboard.down(keys.toolBelt || 'f');
   await page.waitForTimeout(450);
