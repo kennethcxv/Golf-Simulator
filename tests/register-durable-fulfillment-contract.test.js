@@ -204,8 +204,18 @@ test('separate-handoff products never enter the compact bag-drop scale path', ()
   const compactMotion = registerFunction('updateBagDropMotions');
   // F3 (Full_Goal_16): goods are never miniaturized — they keep their scale
   // and the carrier's interior shell is what ends their visibility.
-  assert.match(compactMotion, /mesh\.visible = false/,
-    'bagged goods hide inside the carrier at full size');
+  //
+  // SUPERSEDED IN PART by G4.2 (Full_Goal_17): "Scanned items go into that bag,
+  // one at a time, and STAY VISIBLE in it until the sale completes." This used
+  // to require `mesh.visible = false`, which pinned the disappearance G3
+  // objects to - merely moved to the end of the animation. The carrier's walls
+  // are what should hide the goods, and looking into the mouth should show them
+  // sitting there. So the requirement inverts: they must NOT be switched off.
+  // The no-scale-collapse half of F3 stands and is asserted below.
+  assert.doesNotMatch(compactMotion, /mesh\.visible = false/,
+    'bagged goods stay in the carrier rather than being switched off inside it');
+  assert.match(compactMotion, /mesh\.visible = true/,
+    'and they are explicitly left visible once packed');
   assert.doesNotMatch(compactMotion, /multiplyScalar\(0\.(38|48|52)\)|1 - t \* 0\.52/,
     'no scale collapse anywhere in the compact drop path');
 });

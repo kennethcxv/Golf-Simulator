@@ -30,12 +30,21 @@ const src = fs.readFileSync(
   'utf8',
 );
 
-const updateBlock = (() => {
+const rawBlock = (() => {
   const at = src.indexOf('function updateBagDropMotions(');
   if (at < 0) return null;
   const end = src.indexOf('\n  }', at);
   return end < 0 ? src.slice(at, at + 2000) : src.slice(at, end);
 })();
+
+// STRIP THE COMMENTS BEFORE SCANNING.
+//
+// A source-reading test matches its own prose otherwise. The comment in that
+// function explaining why `visible = false` was REMOVED contains the string
+// `visible = false`, so an assertion looking for it passed on a build where the
+// line was gone — a check that could not fail, defeated by the comment written
+// to explain the fix.
+const updateBlock = rawBlock == null ? null : rawBlock.replace(/\/\/.*$/gm, '');
 
 test('the bag drop routine is still findable', () => {
   assert.ok(updateBlock, 'updateBagDropMotions is where the drop is animated');
@@ -60,18 +69,22 @@ test('nothing in the drop animates the scale', () => {
     'it restores the size it was given');
 });
 
-test('the item sinks into the bag before it is hidden', () => {
-  // Hiding must happen AFTER the sink leg, not at the mouth. If `visible = false`
-  // can be reached while the item is still at the rim, the pop is back.
-  // NOT /motion\.sink/ - that also matches `motion.sinkDuration`, so deleting the
-  // whole sink leg left the assertion passing. The thing that matters is the
-  // POSITION being carried to the sink point.
-  assert.match(updateBlock, /lerpVectors\(motion\.to, motion\.sink\)|lerpVectors\(motion\.to, motion\.sink,/,
+test('the item sinks into the bag and is left in it, not switched off', () => {
+  // G3 and G4.2 land on the same requirement from opposite directions. G3 wants
+  // it to go out of sight BECAUSE THE BAG IS AROUND IT; G4.2 wants scanned items
+  // to STAY VISIBLE in the bag until the sale completes. Both are satisfied by
+  // carrying it down inside and leaving it there, with the carrier's walls doing
+  // the hiding.
+  //
+  // Matching on `motion.sink` alone is not enough - that also matches
+  // `motion.sinkDuration`, so deleting the whole leg left the check green. What
+  // matters is the POSITION being carried to the sink point.
+  assert.match(updateBlock, /lerpVectors\(motion\.to, motion\.sink,/,
     'the second leg moves the item from the mouth down to the sink point');
-  const hideAt = updateBlock.indexOf('visible = false');
-  const sinkAt = updateBlock.search(/lerpVectors\(motion\.to, motion\.sink/);
-  assert.ok(sinkAt > 0 && hideAt > sinkAt,
-    'the item is hidden only after the sink leg has run');
+  assert.doesNotMatch(updateBlock, /visible = false/,
+    'nothing in the drop switches the item off - the bag is what hides it');
+  assert.match(updateBlock, /mesh\.visible = true/,
+    'and it is explicitly left visible once it is packed');
 });
 
 test('the sink really is below the rim, not another point on it', () => {

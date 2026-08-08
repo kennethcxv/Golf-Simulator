@@ -3076,3 +3076,48 @@ Suite **2902 pass / 0 fail**.
 
 **UNCONFIRMED:** source-level only. No player-camera frame of an item descending
 into the bag, so the occlusion is reasoned from geometry rather than seen.
+
+## G4.2 - THE GOODS STAY IN THE BAG, AND A TEST THAT MATCHED ITS OWN COMMENT
+
+G4 point 2: *"Scanned items go into that bag, one at a time, and STAY VISIBLE in
+it until the sale completes."*
+
+That is in direct tension with what I had just shipped for G3. My G3 fix carried
+the item down inside the bag and then still called `visible = false` - the same
+disappearance G3 objects to, merely moved to the end of the animation. Taking the
+reading that CHANGES the game: the item is now left in the bag, visible, and the
+carrier's own walls do the hiding. Looking into the mouth shows goods sitting in
+there, because that is what a bag with things in it looks like.
+
+Two consequences:
+
+* **An existing contract had to be inverted, not worked around.**
+  `register-durable-fulfillment-contract` asserted `mesh.visible = false` -
+  pinning the very behaviour G4.2 forbids. Updated with the supersession written
+  into it, keeping the no-scale-collapse half of F3 that still stands.
+* **Every packed item was placed at exactly `(0, 0.15, 0)`**, so two goods
+  occupied one point and fought for the same pixels. They now stack by index.
+
+### THE INSTRUMENT FAULT, and it is a good one
+
+My G3 check asserted the hide happened after the sink leg. When the hide was
+removed entirely, **the assertion went green** - because the block it scans
+contains the COMMENT explaining why `visible = false` was removed, and that
+comment contains the string `visible = false`.
+
+**A source-reading test matched its own prose.** The check could not fail, and it
+was defeated by the very comment written to explain the fix. Comments are now
+stripped before scanning, which makes every assertion in that file honest, and
+the rewritten check catches both breaks: switching the item off, and deleting the
+sink leg.
+
+Third instrument fault of this section, after the dedupe-suppressed sweep and the
+pattern that matched `motion.sinkDuration`. All three had the same signature: **a
+check that returns clean because it cannot see, not because there is nothing to
+see.**
+
+Suite **2902 pass / 0 fail**.
+
+**STILL OPEN in G4:** points 1, 3 and 4 - a bag always present at the bagging
+position, the customer taking it out of the shop in their hand, and a fresh empty
+bag appearing immediately. Only point 2 is done.

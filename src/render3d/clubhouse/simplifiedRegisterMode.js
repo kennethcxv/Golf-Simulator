@@ -6410,8 +6410,26 @@ export function createRegisterMode(B) {
       if (motion.elapsed < total) continue;
       bagDropMotions.splice(index, 1);
       bagGroup.add(motion.mesh);
-      motion.mesh.visible = false;
-      motion.mesh.position.set(0, 0.15, 0);
+      // G4.2: "Scanned items go into that bag, one at a time, and STAY VISIBLE
+      // in it until the sale completes."
+      //
+      // This used to set visible = false once the item was parented in, which is
+      // the same disappearance G3 objects to - just moved later. The bag's own
+      // walls are what should hide it, and they already do from the counter
+      // angle; looking down into the mouth should show the goods sitting in
+      // there, because that is what a bag with things in it looks like.
+      motion.mesh.visible = true;
+      // Stacked, not stacked IN THE SAME SPOT. Every packed item used to be put
+      // at exactly (0, 0.15, 0), so two goods occupied one point and fought for
+      // the same pixels.
+      const packedIndex = bagGroup.children.filter(
+        (c) => c.userData?.checkoutVisualState === 'packed-in-bag',
+      ).length;
+      motion.mesh.position.set(
+        ((packedIndex % 2) - 0.5) * 0.06,
+        0.10 + packedIndex * 0.035,
+        (Math.floor(packedIndex / 2) % 2 - 0.5) * 0.05,
+      );
       motion.mesh.scale.copy(motion.baseScale);
       motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
       sfx('bagItem');
