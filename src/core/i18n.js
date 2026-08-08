@@ -42,6 +42,11 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Carts and tool selection.
+  'cart.needsCharging': "{cart} needs charging before it can be driven.",
+  'cart.needsRepair': "{cart} needs workshop repair before it can be driven.",
+  'cart.charging': "{cart} connected. Charging to 100%.",
+  'tool.selectedHint': "{tool} selected. Press R for blades if fitted; hold LMB to work.",
   // The shop floor: customers, fixtures, lighting.
   'shop.spotlightAimed': "{name} spotlight {head} aimed to {preset}.",
   'shop.openBayDoorFirst': "Open a bay {bay} cabinet door first.",

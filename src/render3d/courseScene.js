@@ -4959,13 +4959,13 @@ export function makeCourseScene(canvas, state) {
       if (cartState.status === 'available' && cartState.batteryPercent < 5) {
         return {
           label: `${prefix} - battery depleted - [E] inspect`,
-          action: () => toast(`${prefix} needs charging before it can be driven.`),
+          action: () => toast(t('cart.needsCharging', { cart: prefix })),
         };
       }
       if (cartState.status === 'available' && cartState.condition < 15) {
         return {
           label: `${prefix} - unsafe condition - [E] inspect`,
-          action: () => toast(`${prefix} needs workshop repair before it can be driven.`),
+          action: () => toast(t('cart.needsRepair', { cart: prefix })),
         };
       }
       if (cartState.status === 'available') {
@@ -5004,7 +5004,7 @@ export function makeCourseScene(canvas, state) {
             const lid = golfCartHinge(root, 'BatteryCompartment_Lid');
             if (lid) lid.open = true;
             sfx('chime');
-            toast(`${prefix} connected. Charging to 100%.`);
+            toast(t('cart.charging', { cart: prefix }));
           } else {
             sfx('thunk');
             toast(result.reason);
@@ -10854,7 +10854,7 @@ export function makeCourseScene(canvas, state) {
         return;
       }
       walkSetTool(tool);
-      if (walkHooks.toast) walkHooks.toast(`${label} selected. Press R for blades if fitted; hold LMB to work.`);
+      if (walkHooks.toast) walkHooks.toast(t('tool.selectedHint', { tool: label }));
     };
     const greensYard = { x: yardBx + 13.0, z: bz + 22.5 };
     pushedParkPose.greensMower = { ...greensYard, yaw: 0.25 };

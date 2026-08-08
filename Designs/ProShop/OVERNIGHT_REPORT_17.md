@@ -4747,3 +4747,34 @@ not use a colon there at all. A template literal could never express that.
 
 Remaining, per file: `main.js` 18, `courseScene.js` 12, `courseEditor.js` 12,
 `buildMode.js` 5, and a tail of ones and twos.
+
+### 72 -> 68: four clean cart lines, and eight left for a reason
+
+`courseScene.js` had twelve. **Four were clean** and are done: needs charging,
+needs workshop repair, connected and charging, and the tool-selected hint.
+
+**Eight were not, and they share one shape:**
+
+```js
+`${prefix} driver door ${toggleHinge(doorName) ? 'open' : 'closed'}`
+```
+
+Two problems in one line, and the second is the interesting one:
+
+1. `'open'` / `'closed'` are **bare English tokens**, the same defect the
+   card/cash pair had - they need a key each, not a substitution.
+2. **`toggleHinge()` is a SIDE EFFECT inside the string.** It changes the door
+   and returns the new state. Wrapping naively - lifting the expression into a
+   `values` object - is safe, but lifting it TWICE (once for the condition, once
+   for the value) would toggle the door twice and report the wrong state. A
+   careless wrap here does not produce a bad translation, it produces a **bug**.
+
+That is a genuinely different risk from every batch before it, and it is not one
+to take at the tail end of a long session. Left, with the mechanism written down
+so the next pass knows the trap is real rather than theoretical.
+
+```
+155 -> 146 -> 119 -> 94 -> 90 -> 85 -> 83 -> 78 -> 72 -> 68
+```
+
+**87 strings, 56%, translatable.** Suite 2928 pass / 0 fail.
