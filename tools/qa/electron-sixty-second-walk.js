@@ -201,6 +201,7 @@ async (page) => {
   record('tool', live.ok === true, {
     held: live.held ?? null,
     stoodOn: stood,
+    authored: await page.evaluate(() => window.__fw?.scene3d?.walk?.toolAuthoredResults?.() ?? "no accessor").catch(() => null),
     // why it failed, in the artifact, instead of nowhere
     wheelOpened,
     wheelItems: items,

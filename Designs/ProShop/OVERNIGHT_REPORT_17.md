@@ -8044,3 +8044,59 @@ asset-derived diagnostic plus a general-sounding readiness helper equals six
 rounds of tool measurements against a tool that never reported ready — which is
 what the brief predicted on its first page, from the symptom alone.
 
+
+## THE ADOPTION HYPOTHESIS IS FALSIFIED TOO — BY THE ACCESSOR I ADDED TO TEST IT
+
+`adoptAuthored()`'s per-tool results were assigned to a closure variable that
+nothing read, so "did the broom adopt?" was unanswerable by construction. Added
+`walk.toolAuthoredResults()` to expose it, and probed the walk scenario:
+
+```json
+[{"id":"washer","ok":true},{"id":"vacuum","ok":true},{"id":"mop","ok":true},
+ {"id":"broom","ok":true},{"id":"dustpan","ok":true},{"id":"spray","ok":true},
+ {"id":"cloth","ok":true},{"id":"sponge","ok":true},{"id":"trashbag","ok":true}]
+```
+
+**All nine adopted. The broom adopted. `ok: true`, no reason.** And the beat
+still reports `"the broom was selected but the rig never solved a pose"`.
+
+**Fourth falsification in this thread, all of my own claims:**
+
+```
+1  "the walk never picks up a tool"          WRONG - broom selected, '4' pressed
+2  "headAboveFloor is null: it's on turf"    WRONG - boards, groundY -1.4402931
+3  "the null is the authored-socket branch"  CONFIRMED (the guard is socketRefs.found)
+4  "the authored asset never adopted"        WRONG - broom ok:true
+```
+
+Claim 3 remains true — the guard *is* `socketRefs.found`. Claim 4 was my
+explanation for *why* it would be false, and it is dead.
+
+### What that leaves, stated as the open question rather than an answer
+
+Either `socketRefs.found` is true and `floorY(_assetHead.x, _assetHead.z)`
+returns null at the **head's** position — the player stands on boards but the
+bristle socket may not — or `toolRigDiagnostics('broom')` reads a rig that is
+not the one drawing. That second possibility has support: this project's notes
+record that **the broom's bespoke rig ignores the tool registry**, so
+`toolRigs['broom']` and `broomViewmodel.js` may be different code paths.
+
+**I am not going to pick between them.** Four hypotheses in this thread looked
+this good and two of them were wrong.
+
+### What was actually gained, which is not the answer
+
+Three instruments that did not exist this morning:
+
+1. the walk driver now reports **why** its tool beat failed, not just that it did;
+2. it reports the surface stood on, which killed hypothesis 2;
+3. `walk.toolAuthoredResults()` exposes per-tool adoption, which killed
+   hypothesis 4 — a fact the engine computed and threw away.
+
+**Each one killed a plausible, well-evidenced belief in a single run.** The
+question is still open, but it is now open *with instruments pointed at it*,
+which is the difference between six rounds of tool measurements and a seventh
+that would settle it.
+
+Suite 2929 pass / 0 fail.
+

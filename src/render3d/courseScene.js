@@ -12191,6 +12191,26 @@ export function makeCourseScene(canvas, state) {
       // tool the rig does not own, so a driver cannot mistake "no rig" for a
       // healthy pose.
       toolRigDiagnostics: (id) => (toolRigs[id] ? toolRigs[id].diagnostics() : null),
+      // WHICH AUTHORED TOOL ASSETS ACTUALLY ADOPTED, AND WHY NOT.
+      //
+      // `adoptAuthored()` resolves an array of {id, ok, reason} and the result
+      // was assigned to a closure variable that NOTHING READ. A tool whose GLB
+      // fails to load falls back to its procedural stand-in on purpose - "not
+      // fatal, the procedural tool is already on screen and fully playable" -
+      // so the failure is invisible on screen AND unreadable from a driver.
+      //
+      // That combination is what cost this session's tool-beat investigation:
+      // every asset-socket diagnostic (shaftDrop, assetHeadNdc, headAboveFloor)
+      // returns null when the authored asset is absent, and qa-boot's
+      // `toolIsLive` reads that null as "the rig is not running". The one fact
+      // that separates "broken rig" from "asset never adopted" existed and was
+      // thrown away.
+      //
+      // null here means adoption has not resolved yet, which is itself an
+      // answer a driver needs to be able to tell apart from failure.
+      toolAuthoredResults: () => (toolViewmodelsAuthored
+        ? toolViewmodelsAuthored.map((r) => ({ id: r.id, ok: r.ok, reason: r.reason ?? null }))
+        : null),
       // B2 — the tuning overlay's surface. toolFeelLive hands back the LIVE
       // mutable clone (the overlay writes leaves directly and calls refresh
       // for the constructor-captured set); toolFeelSet is the path-string
