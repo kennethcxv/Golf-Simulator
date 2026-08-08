@@ -304,7 +304,7 @@ export function buildBuildMode(B, deps) {
     sellConfirmation = null;
     makePlaceableGhost(item.skuId);
     ghost.visible = true;
-    if (hooks.toast) hooks.toast(`${item.displayName} - [E] place · [R] rotate · [RMB] cancel`);
+    if (hooks.toast) hooks.toast(t('build.holdingToPlace', { name: item.displayName }));
     return true;
   }
 
@@ -322,7 +322,7 @@ export function buildBuildMode(B, deps) {
     makePlaceableGhost(spec.skuId);
     ghost.visible = true;
     setDecorPlacementVisible(placement.id, false);
-    if (hooks.toast) hooks.toast(`${spec.displayName} - [E] set down · [R] rotate · [X] store · [RMB] cancel`);
+    if (hooks.toast) hooks.toast(t('build.holdingToSetDown', { name: spec.displayName }));
     return true;
   }
 
@@ -358,7 +358,7 @@ export function buildBuildMode(B, deps) {
     finishDecorCarry();
     rebuildDecor();
     if (hooks.sfx) hooks.sfx('thunk');
-    if (hooks.toast) hooks.toast(`${name} placed. [Z] undo`);
+    if (hooks.toast) hooks.toast(t('build.placed', { name }));
     return true;
   }
 
@@ -561,7 +561,7 @@ export function buildBuildMode(B, deps) {
       if (anchor) anchor.visible = false;
       setFixtureCollidersActive(f.id, false);
       setFixtureStockVisible(f.id, false);
-      if (hooks.toast) hooks.toast(`${f.title || f.kind} - [E] set down · [R] turn · [X] into the back · [RMB] cancel`);
+      if (hooks.toast) hooks.toast(t('build.movingFixture', { name: f.title || f.kind }));
       return true;
     },
 

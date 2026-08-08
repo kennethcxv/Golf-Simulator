@@ -42,6 +42,11 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Build mode, with placeholders so word order can differ by language.
+  'build.holdingToPlace': "{name} - [E] place · [R] rotate · [RMB] cancel",
+  'build.holdingToSetDown': "{name} - [E] set down · [R] rotate · [X] store · [RMB] cancel",
+  'build.placed': "{name} placed. [Z] undo",
+  'build.movingFixture': "{name} - [E] set down · [R] turn · [X] into the back · [RMB] cancel",
   // Editor and HUD, wrapped from raw literals.
   'editor.selectAPathFirst': "Select a path first.",
   'editor.copiedDragItInto': "Copied - drag it into place.",

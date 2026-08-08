@@ -4604,3 +4604,36 @@ description of what the remaining 94 need.
 
 None of that was in the brief as an item. It came out of wiring the gate's last
 NO CHECK and following what the measurement said.
+
+### 94 -> 90: THE FIRST INTERPOLATED ONES, WITH PLACEHOLDERS
+
+The remaining strings are the interpolated kind, and they need a judgement per
+string rather than a pattern replacement. Four from build mode, done properly:
+
+```js
+`${item.displayName} - [E] place - [R] rotate - [RMB] cancel`
+  -> t('build.holdingToPlace', { name: item.displayName })
+     "{name} - [E] place - [R] rotate - [RMB] cancel"
+```
+
+**The point of the placeholder is not tidiness, it is word order.** `i18n.test.js`
+already pins that placeholders substitute AFTER lookup so a translation may put
+`{name}` somewhere else in the sentence - which a template literal, baked at the
+call site, can never do. These four were untranslatable in a way that no amount
+of table-filling would have fixed.
+
+The judgement each one needs: **which parts are DATA and which are PROSE.** In
+these, the item name is data and the key hints are prose - the bracketed keys
+stay in the string because a translator may want them read as "appuyez sur [E]"
+rather than reproduced verbatim, and that is their call to make, not mine to
+foreclose.
+
+```
+155 -> 146 -> 119 -> 94 -> 90
+```
+
+The ratchet's third check correctly stayed SILENT this time: a four-string drop
+is under its ten-string threshold, so it did not ask for the baseline to be
+lowered. That is the behaviour I wanted - it should nag on a real batch, not on
+every commit - and this is the first time it has been observed choosing not to
+fire.
