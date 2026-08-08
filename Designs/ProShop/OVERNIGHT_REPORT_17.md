@@ -14203,3 +14203,52 @@ the state space.
 
 **So the running list was wrong** to mark C2 and C3 as carrying Goal-17 work and
 leave them at that. They carry the work *and* the defect. Corrected.
+
+
+### C2/C3 root cause: a step clamp with no matching row-count reduction
+
+`paintComplaints` caps at `rows.slice(0, 7)` — a cap on row **count**. The
+overflow is in row **height**, and a fixed count cannot bound a variable-height
+list.
+
+`ruledRows` already budgets correctly for both things that make a row taller than
+one line — it measures wrapped labels in the font they will be drawn in, counts
+note rows, and solves for the step:
+
+```js
+step = min(maxStep, max(24,
+  (contentBottom() - 14 - top - noteCount*noteExtra - wrapCount*labelExtra)
+    / rows.length))
+```
+
+**The `max(24, ...)` is the defect.** It guarantees a legible minimum step, which
+is right — and then draws all `rows.length` rows anyway, which is not. Once the
+solved step falls under 24 the clamp wins, the run no longer fits the space it
+was solved for, and the rows march past `contentBottom()` into the footer band.
+
+**Both defects come out of that one line**: the last row lands on *"◀ A previous
+page"* (C3) and its note clips on the page edge (C2).
+
+Two earlier fixes are visible in the same function's own comments — note rows got
+their own extra height, then wrapped labels got theirs — **both correct, both
+incomplete in the same way.** Neither added the step that says *"and if it still
+does not fit, fewer rows go on this page."*
+
+### The fix C2 names is pagination, not a smaller cap
+
+*"If a page has more content than fits, paginate it — the book already paginates
+the guest register, so use the same machinery."* Dropping rows to fit would be
+truncation, which C2 forbids in the same breath: *"Overflow is a layout decision,
+not a truncation."*
+
+The shape: `ruledRows` returns how many rows it could place at the legible
+minimum; `paintComplaints` takes a `complaintPage` index and slices by it; the
+model builder emits `ceil(rows/capacity)` complaints pages exactly as it already
+emits `guestPageCount` pages for the register.
+
+**Not implemented in this commit, deliberately.** It is a layout change to a hot
+shared file, and the RULES require a suite-green run, a check watched failing on
+the unfixed build, and a default-camera screenshot before it counts. **Half a
+layout change banked without those is worse than none.** The diagnosis, the
+evidence and the design are recorded so the work starts from a solved problem
+rather than a photograph.
