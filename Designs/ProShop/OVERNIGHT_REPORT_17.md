@@ -11093,3 +11093,53 @@ materials. Verification already built and run thirteen times — equip Δ must f
 
 Suite 2929 pass / 0 fail.
 
+
+## THE DUPLICATION, NAMED: TWO FILES BUILD THE SAME HAND MATERIALS
+
+Traced the four extra materials. `fpHands` clones nothing — it creates exactly
+five. The rest come from the arm builder, which takes a `mats` passed in:
+
+```
+fpHands.js:367          skin, shade, cuff, cuffDark, nail     (5)
+broomViewmodel.js:230   skin, cuff, cuffDark                  (3 more)
+```
+
+**`broomViewmodel` builds its own `skin`, `cuff` and `cuffDark`** — the same
+three materials `fpHands` already holds, from the same `SKIN`, `CUFF` and
+`CUFF_DARK` constants, at the same roughness values. **Identical materials,
+constructed twice, in two files.**
+
+And `createBroomViewmodel` runs **once per rig** (`courseScene.js:6689` loops
+`VM_RIG_TOOLS`), so it is three more for every stick tool — not three once.
+
+### That is the nine, and the fix is now trivial to state
+
+Five from `fpHands` plus duplicates from each rig's arm builder. The nine
+structurally identical materials measured at equip are the product of **the same
+hand appearance being defined in two places.**
+
+**The fix: pass `fpHands`'s material set into `createBroomViewmodel` instead of
+building a second one.** One shared set, one program key family, and the equip's
++9 collapses toward +1.
+
+**Nothing about the game's appearance changes** — the colours and roughness
+values are already identical constants; this only stops them being instantiated
+twice.
+
+### Why nine compile-shaped fixes could never have worked
+
+Every one tried to warm nine programs earlier. **The nine exist because of
+duplication, not timing.** No prewarm, camera, layer or attachment order removes
+a material that a second file constructs independently. **The problem was never
+when they compile — it was that they exist at all.**
+
+### Section A tool half — complete
+
+**Measured:** 54 hand meshes, 54 geometries, 9 distinct structurally identical
+materials, 9 programs, one-to-one; 333-7855 ms first equip; ~24 ms second.
+**Located:** `fpHands.js:367` and `broomViewmodel.js:230`, the same three
+materials in both. **Fix specified**, appearance-neutral, with verification built
+and run thirteen times: equip Δ **+9 -> ~+1**.
+
+Suite 2929 pass / 0 fail.
+
