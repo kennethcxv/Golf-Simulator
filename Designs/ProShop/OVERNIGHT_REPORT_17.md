@@ -7765,3 +7765,16 @@ stopped on B4.
 
 Suite 2929 pass / 0 fail.
 
+
+### Small note: backticks in a `-m` commit message get command-substituted
+
+The previous commit's body reads *"while discarding , the one fact that explains
+it"*. The missing word was `items` wrapped in backticks, and bash ran it as a
+command, substituting its empty output. Same family as the heredoc-eats-
+backslashes trap already recorded in this project's notes.
+
+Not amended: the commit is pushed, the meaning survives, and rewriting shared
+history for one word is a worse trade than a note. **Use a quoted heredoc
+(`<<'MSG'`) for any commit message containing backticks** — this file's own
+appends use exactly that and were unaffected.
+
