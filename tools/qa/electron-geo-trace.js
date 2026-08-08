@@ -120,6 +120,25 @@ async (page) => {
   // Equip through the real wheel: hold the belt, press the tool's LETTER, release.
   await page.keyboard.down(keys.toolBelt || 'f');
   await page.waitForTimeout(450);
+  // THE ONE LINE NEVER CHECKED HERE: is the wheel actually populated?
+  //
+  // The walk driver reads `.tool-wheel` between the keydown and the press and
+  // only presses `if (at >= 0)`. This driver pressed unconditionally. If the
+  // wheel is empty here, every refuted hypothesis in this sub-thread — cart,
+  // mode, ledger, second click, walking first — was explaining a symptom whose
+  // cause is simply that there was nothing to select from.
+  out.wheelItems = await page.evaluate(() => {
+    const el = document.querySelector('.tool-wheel');
+    if (!el) return { present: false, items: [] };
+    return {
+      present: true,
+      open: !!(el.className || '').match(/open|is-open|visible/i),
+      className: String(el.className || '').slice(0, 60),
+      items: [...el.querySelectorAll('.tool-wheel-item')]
+        .map((b) => b.querySelector('.tool-wheel-label')?.textContent || ''),
+    };
+  }).catch((e) => ({ threw: String(e && e.message) }));
+
   await page.keyboard.press('b');
   await page.waitForTimeout(250);
   await page.keyboard.up(keys.toolBelt || 'f');

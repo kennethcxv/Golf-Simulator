@@ -11639,3 +11639,48 @@ recording as such rather than dressed up.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## RESOLVED: THE CLEANING TOOLS ARE NOT IN THE WHEEL AT BOOT
+
+Ran the one line never checked. The wheel, in the standalone driver, right after
+the belt keydown:
+
+```
+["Hands free", "Rented washer", "Watering hose", "Divot kit", "Bunker rake"]
+```
+
+**No broom. No mop. No cleaning tools at all** — only the course tools. The walk
+driver's wheel, by contrast, listed nine: *"Hands free, Shop vacuum, Mop, Push
+broom, Dustpan, All-purpose cleaner, Microfibre cloth, Scouring sponge, Trash
+bag."*
+
+**Pressing `'b'` selected nothing because no entry carries that shortcut yet.**
+
+### This explains every refuted hypothesis in the sub-thread at once
+
+Cart mounted, mode not settled, ledger capturing, a missing second click, not
+having walked — **five hypotheses, all about input plumbing, all measured, all
+wrong** — because the input was arriving correctly the whole time and there was
+simply nothing named "Push broom" to select.
+
+**Sixth candidate, first correct one, and it was the cheapest available**: read
+what the menu is offering before asking why the selection failed.
+
+### And it is a real fact about the game, not just the harness
+
+The cleaning kit appears in the tool wheel only after something the walk does —
+reaching the clubhouse, entering it, or a proximity/progression gate. **At boot,
+a player pressing the belt sees five course tools and none of the cleaning
+ones.**
+
+Whether that is intended is the owner's call. It is worth knowing because the
+starter loop's first tasks are cleaning tasks, and this is what the player is
+offered before they get there.
+
+**The original filing was right to be cautious**: I recorded it as *"the tool
+belt does not work straight out of boot"* and explicitly refused to call it a
+game defect versus a harness artefact. **It is neither** — the belt works
+perfectly; the kit is not stocked yet.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
