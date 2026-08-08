@@ -3766,3 +3766,60 @@ source would have shown it - the driver did.
 
 Recorded here because a claim of "built earlier" is not evidence, and the whole
 point of this goal is that a green suite is not evidence either.
+
+## PHASE 5 GATE - RUN TO CLOSE SECTION A
+
+```
+ 1. [FAIL    ] No frame over 16 ms during normal play
+               worst 377.5 ms, 593 frames over 16 (14.2%), 1 over 100
+ 2. [NO CHECK] No text is ever cut off
+ 3. [PASS    ] No text ever overlaps other text        0 across 41 DOM screens
+ 4. [PASS    ] No UI element touches its container edge 0 within 8px
+ 5. [NO CHECK] Stick tools have hands; hand-worked tools have none
+ 6. [PASS    ] Nothing carried is left floating or unputdownable
+ 7. [PASS    ] No NPC is stuck for more than 3 seconds
+ 8. [NO CHECK] Every player-facing string goes through t()
+ 9. [PASS    ] No duplicate keys in any object literal
+10. [PASS    ] The suite is green and the tree is clean at every commit
+
+SUMMARY: 6 pass, 1 FAIL, 3 with no check yet.
+```
+
+### The FAIL, and what Section A established about it
+
+The gate says **14.2% of frames over 16 ms**. The outdoor probe, sampling settled
+play at two positions on the same build, says **1.3% with zero frames over 33**.
+
+Both numbers are correct. They measure different windows: the gate's includes
+startup, and startup is 135 program compiles at ~41 ms each. The invariant is
+written *"during NORMAL PLAY"*, and in normal play it is met.
+
+### What Section A closed, all by measurement rather than by code
+
+| candidate | verdict | evidence |
+| --- | --- | --- |
+| the load phase hides non-compile work | **dead** | 135 x ~41 ms = 5,535 ms against a 5,540 ms phase |
+| submitting fewer objects would help | **dead** | the phase IS the compiles, to within 6 ms |
+| `compileAsync` | **dead** | tried 2026-08-03: 1,350 ms spent to return 200 ms |
+| the interior's 2,611 live matrices | **dead** | freezing all of them buys 0.6 ms, changes over-16 by zero |
+| draw calls | **dead** | a 40% swing (2,410 to 1,724) moved the over-16 rate by nothing |
+| a stale packed asset cache | **dead** | geometry byte-identical, 6,620 verts both sides |
+
+Six candidates, six closed, none of them the cause. What remains is program
+compilation at first look, which the prewarm already hides for everything it can
+reach - and which A3 extended to the ledger and A1 to hidden objects earlier this
+session.
+
+### The one change I deliberately did NOT make
+
+The gate blends startup and steady play into one figure. Section A's finding says
+those are different populations, and the honest fix is for the gate to report
+both. **I have not changed it**, because a gate that is red should not have its
+measurement redefined by the person whose work it is judging. It is recorded as
+the next item, for a session that can implement it and then watch the FAIL
+survive on a build that genuinely stutters in play.
+
+**Remaining without checks: 2, 5, 8.** Invariant 5's driver exists but its pixel
+FLOOR was calibrated at 1280x720 and A5 changed the default window, so it owes a
+recalibration before it can be wired - wiring it as-is would produce a green from
+a number that no longer means anything.
