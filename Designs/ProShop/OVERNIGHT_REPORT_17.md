@@ -11684,3 +11684,45 @@ perfectly; the kit is not stocked yet.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## FULLY RESOLVED, AND IT IS DELIBERATE: THE KIT IS GATED ON `inside` AND OWNERSHIP
+
+`walkToolEntries()` (`main.js:2204`) builds the wheel:
+
+```js
+const inside = !!(walk && clubhouse?.isInside(walk.state.x, walk.state.z));
+const cleaningKitOwned = !!(app.state && vacuumOwned(app.state));
+```
+
+**Two gates: the player must be INSIDE the clubhouse, and must own the kit.**
+
+The standalone driver stands outside at boot, so the wheel offers only the course
+tools — washer, hose, divot kit, rake. The walk driver walks in first, so it sees
+all nine. **The belt was never broken and the input was never wrong.**
+
+### So the earlier filing should be withdrawn, not merely softened
+
+I filed *"the tool belt does not work straight out of boot"* as a finding worth
+the owner's attention, and hedged on defect-versus-artefact. **It is neither.**
+Cleaning tools are indoor tools, correctly gated on location and ownership, and
+the wheel is behaving exactly as designed.
+
+**Withdrawn.** The only real content left is a note for whoever writes drivers:
+**a driver that wants a cleaning tool must be inside the clubhouse first**, which
+is now recorded where the next person will hit it.
+
+### The full arc of this sub-thread, as a caution
+
+**Six hypotheses. Five refuted by measurement. One correct.** And the finding
+that started it — a driver failing to equip — turned out to describe **nothing
+wrong at all**. Every one of the five refuted explanations was about input
+plumbing, because the symptom looked like input, and the cause was a design gate
+two files away.
+
+**The lesson is the one this whole session keeps producing, in its sharpest
+form:** I spent six rounds explaining a failure before checking whether there was
+a failure. The wheel's own contents — five items, none of them a broom — were
+readable from the first run and would have ended it immediately.
+
+Suite 2933 pass / 0 fail. Tree clean.
+
