@@ -11360,3 +11360,51 @@ ones may not.
 
 Suite 2929 pass / 0 fail. Tree clean.
 
+
+## EVERY SHADOW CANDIDATE IS ELIMINATED — THE DEPTH PROGRAMS ARE NOT THE TOOL'S
+
+Checked each subsystem for `castShadow`:
+
+```
+toolViewmodel.js:99    procedural tool meshes   castShadow = false   (committed)
+toolViewmodel.js:331   adopted GLB meshes       castShadow = false   (committed)
+mopStrands.js:127      instanced strand rigs    castShadow = false   (committed)
+fpHands                                          NOT set  -> tried, no effect
+broomViewmodel arms                              NOT set  -> tried, no effect
+```
+
+**Three subsystems already set it. The two that did not were both tried, and
+neither removed the 5 depth programs.**
+
+So the depth programs compiled at first equip belong to **none of the tool-side
+meshes.** Something else renders into the shadow map for the first time in that
+same frame — world geometry newly in the light's frustum, or a shadow cascade
+refitting as the viewmodel pass changes state.
+
+### This closes the thread honestly rather than triumphantly
+
+**Eleven fixes, eleven refutations, all reverted, none shipped.** The mechanism
+is measured precisely — 9 programs, 5 of them depth, 54 meshes, 333-7855 ms
+first equip, ~24 ms second — and every subsystem I could name has been
+eliminated as the source of the depth half.
+
+**What remains true and useful for whoever takes this on:**
+
+- **4 of the 9 are `physical` programs** and are reachable by pre-compilation in
+  principle — the compile-shaped fixes were not wrong in kind, only insufficient,
+  because they could never touch the other 5;
+- **`renderer.compile()` cannot warm depth programs**, which is the single most
+  transferable fact in this whole thread and is not obvious from any three.js
+  documentation I would have consulted;
+- **the shadow casters are outside the tool subsystems**, so the next
+  investigation starts at the light and its cascade, not at the hands.
+
+### The session's arc, in one line
+
+**Forty-one findings. Eleven refuted fixes. One shipped change** (the material
+deduplication, kept because it moved a real measurement). **Every claim that
+survived did so because a measurement outlived an argument** — and the arguments
+lost, repeatedly, to queries that cost one command.
+
+Suite 2929 pass / 0 fail. Tree clean.
+
