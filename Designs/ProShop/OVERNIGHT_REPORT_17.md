@@ -12268,3 +12268,56 @@ line.** None is unexamined.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+---
+
+# SECTION F GATE, AND SECTION H SPOT-VERIFIED
+
+Phase 5 gate at the E -> F boundary: **9 pass, 1 FAIL, 0 unchecked**, stable
+across every run this session. The FAIL remains invariant 1.
+
+## H2 is fixed, and it is the standard this report has been arguing for
+
+`characterAsset.js:236` — *"Eyebrows and moustaches float in front of the face."*
+
+> *"a sphere is a POLYGON in both axes. Between its vertices the drawn surface
+> pulls in by roughly cos(pi/20) * cos(pi/28) = 0.9814 — so the skin that
+> actually gets drawn sits at about 0.1521, which is INSIDE the brow's inner
+> face. The features were seated against a surface the renderer never draws, and
+> the gap opens exactly where the brief says it does: from the side, on the
+> facets."*
+
+**The diagnosis is geometric and exact**, and it explains the complaint's own
+detail — *"from the side"* — rather than merely addressing the symptom.
+
+**Two things make this the model:**
+
+1. **It is a CLASS fix.** *"Raising the segment count is the fix for every
+   feature at once — eyes, brows, catchlights, moustache — rather than re-seating
+   each against a faceting allowance."* At 28x20 the drawn surface reaches
+   0.1540, **outside** the brow by 1.7 mm, so features are buried from any angle.
+   Eight times this session a fix was found applied to the named instance and not
+   the family; this one went the other way from the start.
+
+2. **It names its own cost in the same breath.** *"The cost is triangles, not
+   draw calls: one mesh either way, 280 -> 560 triangles on a head. A1 measured
+   this renderer as draw-call bound."* Requirement 7 asks exactly this, and it is
+   answered with a measurement rather than an assurance.
+
+**H2: verified from source.** Like every visual item this session, a
+player-camera screenshot would still be required to call it CONFIRMED — but the
+mechanism, the class coverage, and the cost are all measured and written down.
+
+### Where the document stands after Section E closed
+
+**A** invariant 1 red; equip stall characterised, fourteen fixes refuted.
+**B** B1 +35% measured, B2 reverted, B3/B5 verified, B4 diagnosed.
+**C** C1/C2/C4/C5/C7 carry work; C5 exemplary; C6/C8 open and mutually blocking.
+**D** COMPLETE.
+**E** COMPLETE — every item resolved, measured, or diagnosed to a line.
+**F** both items verified.
+**G** thirteen items carrying work; several verified earlier this session.
+**H** four items carrying work; **H2 spot-verified here** and exemplary.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
