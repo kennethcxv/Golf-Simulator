@@ -10550,3 +10550,61 @@ this driver.
 
 Suite 2929 pass / 0 fail.
 
+
+## NAMED: IT IS THE FIRST-PERSON HANDS. SECTION A'S TOOL HALF IS EXPLAINED.
+
+Walked each newly-present geometry up to its first named ancestor:
+
+```
+x23  FirstPersonRightHand      x3  FirstPersonRightCuff    x1  FirstPersonRightForearm
+x23  FirstPersonLeftHand       x3  FirstPersonLeftCuff     x1  FirstPersonLeftForearm
+                                                          --- 54 exactly
+```
+
+**The first-person hands.** Twenty-three meshes per hand — fingers, joints,
+nails — plus cuffs and forearms. Fifty-four, summing exactly.
+
+And `setActive` said so all along, in the comment I quoted twice without seeing
+it: *"The broom **(and the hands parented into it)** leave the world pass
+entirely while the viewmodel pass owns them."* **The hands are parented into the
+tool group on activation** — which is the moment they enter the scene graph.
+
+### The complete, measured mechanism
+
+```
+boot         fpHands BUILDS its meshes; they are NOT in the scene
+prewarm      compiles what is in the scene; the hands are not, so they are missed
+first equip  the hands are parented into the tool group -> they enter the scene
+             -> their 9 materials draw for the first time
+             -> 9 ordinary MeshStandardMaterial programs compile
+             -> 333-7855 ms stall
+second equip already parented and warm -> 0 new, 0 compiled, ~24 ms
+```
+
+Every link measured, in one run, with controls: scene-wide geometry delta (+54),
+named owners (54 exactly), program delta (+9), cache keys (ordinary), and a
+trace confirming nothing is *constructed* (0 `setAttribute` calls).
+
+### The fix, now precise
+
+**Parent the fpHands root into the scene at boot, hidden**, exactly as
+`heldGroups` already are (`courseScene.js:6576`), so the prewarm's force-reveal
+compiles its 9 programs behind the veil. The equip then only re-parents warm
+objects.
+
+**Verification, built and run ten times:** equip Δ **+9 -> 0**, scene geometry
+delta **+54 -> 0**, `tool` beat approaching `tool2`'s ~24 ms.
+
+### What it took, and the one habit that did the work
+
+Thirty-four findings. Six refuted fixes, all reverted. Three claims called
+settled and reopened — every reopening correct. Four instruments, three of which
+caught faults in the others.
+
+**And the answer came from the cheapest question available**, asked last instead
+of first: *what are these objects called?* Names cost one query and pointed
+straight at a subsystem that four code readings, six fixes and thirty findings
+had walked past — including a comment naming it, which I had quoted twice.
+
+Suite 2929 pass / 0 fail.
+
