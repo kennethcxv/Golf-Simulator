@@ -7514,3 +7514,49 @@ more searches.
 **SECTION F: F1 verified end to end, DOM and canvas. F2 (sounds for everything
 physical) carries work markers in four files and is not audited.**
 
+
+## SECTION F COMPLETE — F2 AUDITED, AND IT FOUND ITS OWN 72-CASE FAMILY
+
+F2 is *"sounds for everything physical"*, and the implementation note at
+`src/core/audio.js:84` records the audit that matters:
+
+> **Of 92 voices, only 20 varied their pitch. The other 72 played the identical
+> note every time** — footsteps, box handling, product sounds, shelf stocking,
+> all of which repeat constantly.
+
+That is the named-instance-vs-family pattern again, found and fixed by whoever
+did F2: twenty voices had the treatment, seventy-two did not, and the seventy-two
+were the ones that repeat most. Pitch variation now comes from one place.
+
+Covered by `tests/audio-pitch-variation.test.js`; that file plus
+`key-bindings.test.js` run **12 pass / 0 fail**.
+
+**SECTION F: both items verified.** F1 end to end across DOM and canvas, F2 by
+its own audit and a passing test.
+
+### An E4 sighting while auditing F2
+
+`src/ui/ui.js:374` carries an `N2/F2` note describing exactly what E4 asks for:
+
+> *prompts follow the BINDING, not the letter. Label strings all over the game
+> carry bracketed tokens written against the default keys ([E], [X]...). This
+> renderer is the one place those tokens become keycaps, so it is the one place
+> a rebind has to reach: each token maps to its ACTION and the keycap prints
+> whatever key that action is bound to right now.*
+
+E4 is *"Rebinding must update the general controls display… immediately, in the
+same layout."* A single renderer resolving every bracketed token through the
+live binding is the mechanism that satisfies it, and `key-bindings.test.js`
+passes. **Not claimed as verified** — I have not driven a rebind and watched the
+formatted list change, which is what E4 actually asks for. Recorded as a strong
+lead with the exact file and mechanism, not as a result.
+
+### Phase 5 gate after Section F
+
+```
+9 pass, 1 FAIL, 0 with no check yet.   FAILING: invariant 1
+```
+
+Fourth consecutive run at this figure. Invariant 1 remains the only red item and
+is unchanged since Section A.
+
