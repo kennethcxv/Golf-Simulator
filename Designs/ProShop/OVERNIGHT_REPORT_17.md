@@ -6425,3 +6425,62 @@ my phase-0 sentence, and now "84" inside the very entry correcting the last one.
 Each was a number read from the right place and carried one step past where it
 was still true.
 
+
+## B1 MEASURED — THE LIVE RIG IS *LESS* VISUALLY ACTIVE THAN THE FROZEN CONTROL
+
+Ran `tools/qa/electron-b1-divergence.js` against the 480-strand rig, Electron,
+`--clubhouse=pine-hills-v2`, default camera.
+
+```
+noiseFloor          34,211
+liveHeadPixels      76,134
+frozenHeadPixels   127,938
+liveVsFrozenRatio      0.60
+tip travel  live  0.4624 m   frozen 0.0001 m
+strandsVisiblyMove: false
+toolWorkedLive: true   toolWorkedFrozen: true
+```
+
+**Ratio 0.60. The live build changes 40% FEWER pixels than the build with the
+strands frozen solid to the head.** Both legs confirmed the tool actually
+worked, and the frozen leg's tip travel of 0.0001 m proves the freeze took —
+this is a real negative control, not a broken one.
+
+### Why this is the answer to B1
+
+The strand tips travel **0.46 m** in world space. The simulation is not
+failing; it is working hard. But every one of yesterday's nine param changes
+pushed in the same direction — *lag more*:
+
+```
+deficitBase 0.55 -> 0.85     chaseBase 9.5 -> 5.5
+dragGain    0.10 -> 0.22     pushGain  1.15 -> 2.2
+```
+
+Carried far enough, "trail harder" stops meaning *the yarn sweeps behind the
+head* and starts meaning *the head leaves the yarn behind*. A strand that lags
+enough is a strand that does not move on screen. The head swings through its
+arc, the yarn hangs back near where it already was, and the eye sees static
+fibres on a moving stick — **which is precisely the owner's words: "the yarn
+welded to a swinging head."** The complaint was never that the strands are
+frozen. It is that they are *too slow to keep up*, which looks identical.
+
+### Recorded reading (brief's ambiguity rule: take the option that CHANGES the game)
+
+The next move is to REVERSE the lag params, not to increase them further, and to
+treat `liveVsFrozenRatio` as the acceptance number: it must exceed 1.0 before any
+strand tuning can be called successful. **A ratio under 1.0 means the frozen mop
+looks livelier than the simulated one**, and no amount of density fixes that.
+
+This also retires the density lever definitively. 26 -> 84 -> 240 -> 480 all
+happened while the ratio was below 1, so every one of those rounds was adding
+strands to a rig whose motion was subtracting from the picture.
+
+### Why six rounds of tuning could not find this
+
+Every prior measurement asked "do the strands move?" and got a true answer: yes,
+0.135 m then 0.46 m. **None asked whether they move MORE than the thing they
+are attached to.** The frozen control existed and had been run — but its output
+was read as a floor to clear, not as a rival to beat. A ratio of 0.6 was
+sitting in reach the whole time and nobody computed the division.
+
