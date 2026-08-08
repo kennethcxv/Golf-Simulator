@@ -10398,3 +10398,57 @@ that actually owns `setAttribute`, and report which class was patched.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE CORRECTED TRACE CAPTURES NOTHING — AND NOW TWO INSTRUMENTS DISAGREE
+
+Fixed the prototype walk and added the control the instrument lacked. It now
+reports **which** class it patched:
+
+```
+armed: patched:BufferGeometry        <- the right class, named
+geoSites: (empty)                    <- zero constructions in the equip window
+```
+
+**`BufferGeometry` is correct**, so the previous entry's fault is fixed and
+proven fixed by the name itself — exactly the control that was missing.
+
+**And it captured nothing.** Across the same window in which the census counts
+**+54 geometries scene-wide**, `BufferGeometry.prototype.setAttribute` was never
+called with the trace on.
+
+### Both cannot be right, and that is the finding
+
+- **Census:** scene-wide distinct `geometry.uuid` count 2730 -> 2784, +54.
+  Controlled against re-parenting; repeated.
+- **Trace:** `setAttribute` on the base class, zero calls in the same window.
+  Correct class, verified by name.
+
+**Either 54 geometries appeared without ever calling `setAttribute`** — which is
+possible if they are **pre-existing instances becoming newly reachable** rather
+than newly built, e.g. a pool or cache whose members were not attached to the
+scene before — **or the trace window and the census window are not the same
+window**, despite being bracketed by the same two beats.
+
+**The census's "created not moved" control assumed the scene graph is the only
+place a geometry can live.** A geometry held in a JS array — a pool, a cache, a
+prebuilt tuft set — is not in the scene until attached, and attaching it raises
+the scene-wide count **without constructing anything.** That control was weaker
+than I claimed, and the trace is what exposed it.
+
+**So the honest state reverts one step:** *built vs moved* is **open again**, and
+this time with an instrument on each side of the question.
+
+### Section A's tool half — the accurate handover
+
+**Measured, repeatedly, uncontested:** +9 programs at first equip; ordinary
+`MeshStandardMaterial` keys; second equip 0 programs at ~24 ms; six warming
+fixes refuted and reverted; the tool belt unusable straight out of boot.
+
+**Contested between two working instruments:** whether the 54 geometries are
+constructed or merely attached. The next measurement is the one that settles it:
+record the 54 uuids at `after`, and check whether any of them existed in a
+`before` snapshot taken over *all reachable objects* — including the pools —
+rather than over the scene graph alone.
+
+Suite 2929 pass / 0 fail.
+

@@ -77,7 +77,18 @@ async (page) => {
       s3.scene.traverse((o) => { if (!proto && o.geometry) proto = Object.getPrototypeOf(o.geometry); });
     }
     if (!proto) return 'no geometry to reach the prototype';
-    if (proto.__fwGeoPatched) return 'already patched';
+    // WALK UP TO THE CLASS THAT ACTUALLY OWNS `setAttribute`.
+    //
+    // `getPrototypeOf(someBoxGeometry)` is BoxGeometry.prototype, and patching
+    // that intercepts boxes only. The first attempt did exactly this, reported
+    // `patched`, and captured nothing — because the 54 geometries built at equip
+    // are cylinders and lathes. `setAttribute` lives on BufferGeometry, so climb
+    // until the prototype owns it.
+    while (proto && !Object.prototype.hasOwnProperty.call(proto, 'setAttribute')) {
+      proto = Object.getPrototypeOf(proto);
+    }
+    if (!proto) return 'no prototype owns setAttribute';
+    if (proto.__fwGeoPatched) return `already patched (${proto.constructor && proto.constructor.name})`;
     proto.__fwGeoPatched = true;
     window.__geoOn = false;
     window.__geoStacks = [];
@@ -88,7 +99,11 @@ async (page) => {
       }
       return original.call(this, name, value);
     };
-    return 'patched';
+    // THE NEGATIVE CONTROL THIS INSTRUMENT LACKED: name the class. A bare
+    // "patched" cannot distinguish patching the right class and seeing nothing
+    // from patching the wrong one, which is exactly how the first attempt hid
+    // its own failure.
+    return `patched:${(proto.constructor && proto.constructor.name) || 'unknown'}`;
   }).catch((e) => `threw: ${String(e && e.message)}`);
 
   // 1. SETTLE — the first frames after the veil. The brief exempts the first
