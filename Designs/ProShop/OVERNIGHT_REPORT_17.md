@@ -2585,3 +2585,109 @@ _Updated continuously, not at the end._
 76. A source-scanning test that quotes the broken code in its own explanatory
     comment will find its own prose and report the defect it just fixed. Scan
     statements, not comments.
+
+## G13 - THE FLOW BUG: ONE VISIT, ONE PAYMENT
+
+**The brief numbers the flow and ends it "one transaction, one payment".** Goal 16
+fixed the escape (a customer leaving with unpaid goods) and NAMED the one-payment
+merge as a seam it did not build. That seam was this item.
+
+### Reproduced before diagnosing (Requirement 3)
+
+Step 6 was not mistuned, it was ABSENT, and three separate places enforced that:
+
+| where | what it did |
+| --- | --- |
+| `beginReservationPayment` | `if (!reservation || tx) return false` - with goods on the counter there IS a tx, so the check-in could not start at all |
+| `createReservationCheckInTx` | built its own ticket carrying exactly ONE virtual line |
+| `completeServicePayment` | posted the WHOLE ticket total to greenFees, and refused unless `totalOf(tx) === fee` |
+
+Two tickets was the only reachable flow. The customer paid twice for one trip to
+the desk.
+
+### The reading I took, and the class (Requirement 6)
+
+The instance is "green fee plus goods". The class is **A TICKET MAY CARRY LINES
+THAT BANK TO DIFFERENT REVENUE ACCOUNTS, AND BANKING MUST SPLIT BY LINE RATHER
+THAN BY TICKET.** So the split keys on a SKU PREFIX (`service:`) rather than on
+the green fee. A cart rental or a lesson rides the same rails with no further
+surgery, and a test pins that the classifier reads the prefix.
+
+### What the merge actually touched - each one a way to get money wrong
+
+* **tax base** and **discount base** move to goods only. Left alone, a $40 fee
+  beside $25 of goods at 7% would have charged **$4.38 instead of $1.58 - $2.80
+  of sales tax on golf**, against an explicit ruling that the fee is untaxed. And
+  a staff discount would have eaten into a fee the reservation already agreed,
+  which then fails the check-in`s own equality check.
+* **`completeSale`** computes goods revenue net of the service half and posts
+  that half to its own account. Cash rounding stays with the goods DELIBERATELY,
+  so the fee lands on the books at exactly the figure that was booked.
+* **stock, COGS, unit counts, and the per-SKU velocity window** cover goods only.
+  A tee time has no shelf to reorder.
+* **`allBagged`** ignores service lines - you cannot put a tee time in a bag, and
+  requiring it would have made a combined ticket impossible to hand over.
+* **the desk** routes on what the ticket CARRIES, not on how it started. This is
+  the same half-fix class caught five times already this goal: `transactionKind`
+  remembers only the first thing that happened, so a visit that began as a shirt
+  would have banked as an anonymous sale and left the round un-checked-in.
+
+### The adversarial review found two defects I had shipped into the tree
+
+* **completeSale had become a SECOND DOOR to greenFees that validated nothing
+  about the booking** - not that it was still booked, not that the fee still read
+  the same. Fixed by refusing a service line unless the caller that owns the
+  reservation checks passes a clearance. This makes "fee banked, round still
+  showing open, no-show fee landing on top of it" **unreachable rather than
+  merely unused**.
+* **the merged ticket left no service-typed trail**, blinding the exact-once
+  history guard and `serviceTicketByReference`. The row now names its booking and
+  carries its own split.
+
+Two more it raised were checked and found unfounded on the current tree: cash
+rounding cannot drift the fee (the drawer carries pennies, so `dueOf === totalOf`),
+and there is no post-bank void path for any ticket, so nothing can un-post either
+half.
+
+### Evidence
+
+Eleven new checks in `tests/one-visit-one-payment.test.js`. **Five breaks watched
+fail one at a time**, each caught by exactly one test and no other:
+
+| break | caught by |
+| --- | --- |
+| fee not removed from goods revenue | the money-split test |
+| fee pulled into the taxable base | the untaxed-golf test |
+| clearance gate removed | the sale-door test |
+| service provenance dropped | the trail test |
+| fee fed back into the velocity window | the phantom-SKU test |
+
+Suite **2881 pass / 0 fail**. Committed `b5e1909`.
+
+**UNCONFIRMED:** the desk path itself has not been driven in Electron. The sim
+layer is proven; that the player can reach it at the counter is not yet.
+
+### G13 addendum - the fix was unreachable from the counter
+
+Committing the sim layer and then reading the desk found **two more refusals**,
+and this is the half-fix class this goal has now caught SIX times:
+
+```
+select-reservation:   if (tx) { toast("Finish the active transaction first"); }
+select-walkin-slot:   if (tx) return false;
+```
+
+The player must SELECT a reservation before check-in can be pressed. Fixing
+`beginReservationPayment` alone left the merge **unreachable from the counter
+while every unit test passed** - the exact shape of E3, E4, F1, G10 and H2.
+
+Both gates now scope their refusal to a ticket that has already started payment,
+which is the real rule: a ticket still being scanned can take a fee onto it.
+`tests/desk-accepts-tee-time-mid-sale.test.js` pins all four desk decisions
+(both selection gates, the entry point, and the finalize routing). Watched it
+fail with the select-reservation gate reclosed to a bare `if (tx)`.
+
+That test reads source rather than driving the desk, which is a weaker
+instrument and is recorded as such. **The live desk path remains UNCONFIRMED:**
+staging a customer who carries goods AND holds a booking through a real Electron
+session was not built.

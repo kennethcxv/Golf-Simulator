@@ -6673,7 +6673,9 @@ export function createRegisterMode(B) {
       return true;
     }
     if (action.startsWith('select-walkin-slot:')) {
-      if (tx) return false;
+      // Same rule as selecting a booked reservation: a ticket still being
+      // scanned can carry the fee for a slot booked right now at the counter.
+      if (tx && (tx.stage !== 'scanning' || tx.banked)) return false;
       const payload = action.slice('select-walkin-slot:'.length);
       const parts = payload.split(':');
       const minute = Number(parts.pop());
@@ -6707,7 +6709,10 @@ export function createRegisterMode(B) {
       return Boolean(rejected);
     }
     if (action.startsWith('select-reservation:')) {
-      if (tx) {
+      // A ticket that is still being scanned can take a tee time on it, so
+      // selecting one is exactly what the player is here to do. Only a ticket
+      // that has started payment is too late to add to.
+      if (tx && (tx.stage !== 'scanning' || tx.banked)) {
         toast('Finish the active transaction before selecting another reservation.', 'warn');
         return true;
       }
