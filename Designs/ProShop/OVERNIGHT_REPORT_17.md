@@ -3201,816 +3201,6 @@ Suite **2904 pass / 0 fail**.
 ownership transfer exists in code; that it reads as *taken* rather than handed
 over has not been seen.
 
-## RUNNING LISTS
-
-_Updated continuously, not at the end._
-
-### UNCONFIRMED (claimed but not yet proven at the player's camera)
-
-- **G12: the tee sheet does not draw with the classifier**, and there is no
-  screenshot showing all three slot states at once - which G12 asks for by name.
-- **G13: the live desk path.** The sim layer is proven by fifteen checks and six
-  watched breaks, and the desk gates are pinned by source-level tests, but
-  staging a customer who carries goods AND holds a booking through a real
-  Electron session was not built. Source reading is the weaker instrument and
-  this is recorded as such.
-- **G1: not driven in Electron.** No screenshot of the till read with a mop in
-  hand and Q held.
-
-### NOT DONE
-
-- **A1: the single-program compile stall, up to 2.8 s.** Warming hidden objects
-  did nothing for it because it is keyed on FRAME state (light counts, shadow
-  map size, clipping planes), not on a hidden object. Finding which frame
-  property differs, and warming that, is the next lever.
-- **A1: the over-16 ms rate is 97.1% on the outdoor spawn route**, not the
-  29-34% I published from an indoor one (verifier). Not
-  the compiles; ~900-2000 draw calls a frame plus the 10 Hz shadow bake on one
-  frame in eight. Named and measured, not fixed. This is Standing Invariant 1
-  and it is violated continuously.
-- **A1: the first-30-seconds table the brief asks for.** I measured settled play
-  instead, because the evidence says the first thirty seconds is the clean
-  window and the stalls live later. Reasoning attached in the A1 section.
-- **A1: `warm-composer-render` is 5532 ms of the 8803 ms prewarm** - 63% of the
-  load in one phase, never examined. The obvious first stop for the
-  page-to-playable regression a verifier measured at 22.1-22.8 s.
-- **Six QA drivers name-scan `MopStrand_<i>_<s>`** and will silently count zero
-  now that the fibres are instanced. They must be ported to `strandCount` /
-  `tipsLocal()` before Phase 5 re-runs them, or they will report a false red.
-- **B1's motion tuning.** The mop now works in a driver and the strands move
-  0.4578 m in the head's own frame, but no tuning values have been chosen with
-  the overlay against a working tool, which is what B1 asks for.
-- **B1: the mop head hangs at an angle rather than sitting flat on the boards.**
-  Visible in the frame; about orientation, not reach.
-- **B1: the handle, the grip and the floor contact** are untouched - this pass
-  did the strands only.
-- **B3 measured and satisfied** (0.0293 m tip travel against 0 frozen, 1/16th
-  the mop's, 4.7x the settle rate, half the slack) but **not filmed** - motion
-  cannot be proven by a still.
-- **B5** (leave the other seven alone) is being honoured by omission.
-- **The load itself.** Verifier 2's disproof of the previous session's first-load
-  numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
-  baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
-- **Sections B through H.** Not started.
-
-### VERIFIER FINDINGS STILL OPEN
-
-- None from this session's own verification yet - Section A's Phase 4 verifiers
-  have not run. The four Phase 2 reviewers' objections are all answered in
-  PLAN_17.md, and the ones they were right about changed the work: A1 was
-  re-scoped, A5 gained the drawing-buffer measurement, A3's headline number
-  changed from frame deltas to press-to-legible, A6's evidence changed from a
-  screenshot to rendered strings, and every control moved off the env-var
-  channel onto the marker file.
-- **Carried from Goal 16, still open:** Verifier 3 (the stranger's twenty
-  minutes) never ran - an orphaned Electron from Verifier 2 held the
-  machine-exclusive slot. Nothing in report 16 was confirmed or disproved by it.
-
-### FIXED WITHOUT BEING ASKED
-
-- **The tuning overlay could not be clicked at all** (R1). Not in the brief as a
-  defect; found by driving it with a real mouse for the first time.
-- **The harness shim would have silently lied about window size** once the game
-  launched maximised: 382 drivers believing their stated size while running
-  display-sized, 117 of them clicking fixed coordinates. Found by the
-  blast-radius reviewer, fixed before A5 landed.
-- **`qaFakeDisplay` ignored the marker-file channel**, so a leftover
-  fw-fake-display.txt would fake the display while the flag reported "real".
-- **Saved fibre parameters never reached the broom's bristle rig** -
-  `applyToolFeelOverrides` pushed to 'mop' and only 'mop', so a saved broom
-  block was merged into the live feel and then silently dropped.
-- **The A2 door driver's own bug is recorded rather than quietly fixed** (fault
-  74): it asked doors for `getWorldPosition` when they carry interior-local
-  lx/lz, and confidently reported "no doors" while the player stood beside four.
-
----
-
-## INSTRUMENT FAULTS LOGGED THIS SESSION
-
-73. (carried from Goal 16's close-out) A serialized verifier chain gated on a
-    marker file assumes the previous stage released the machine. It did not -
-    an orphaned Electron held the exclusive slot - and both sides failed
-    silently. A gate on a marker must also check the resource is free.
-74. A door carries interior-LOCAL `lx`/`lz`, not a world node. The A2 driver
-    asked for `getWorldPosition`, got nothing, and reported "no doors found"
-    while standing next to four of them. Same shape as measuring a bounding box
-    where a pixel was needed: the probe asked the wrong question and got a
-    confident wrong answer.
-75. **A screenshot is in PHYSICAL pixels; `setViewportSize` speaks CSS pixels.**
-    At this machine's 1.5 DPR a 1600x900 viewport files a 2400x1350 png, so a
-    crop written in viewport units measured the top-left 52% of the frame - a
-    patch of static ceiling - and reported 0 moved pixels while the broom swung
-    through the middle of the shot. Every region must be scaled by the image's
-    own metadata, never by the viewport.
-76. A source-scanning test that quotes the broken code in its own explanatory
-    comment will find its own prose and report the defect it just fixed. Scan
-    statements, not comments.
-
-### G2 - WHAT IS DONE AND WHAT IS NOT
-
-DONE: the front desk overlap audit now has coverage and a working reset; the
-check-in and walk-in action grids get a 38px page margin without losing button
-height; the HUD's interact prompt no longer draws on the controls line.
-
-NOT DONE, and named because the brief asked for *every* screen:
-
-- **the laptop's inner pages.** The driver enumerates the nav by selector guess
-  and only reached the home page; the 24-page back office is unswept.
-- **the register glass.** Canvas, and not covered by the front desk recorder
-  either - it is a different UI.
-- **the ledger book.** It has its own overlap recorder from C2 and reports zero,
-  but that was measured on the SPREAD sweep, not against cramped edges.
-- **the `Z` keycap** sits 8px off the bottom of the settings page, exactly on the
-  threshold. Left alone rather than tuned to make a number go green.
-
-### SECTION G, ITEM BY ITEM
-
-| item | state |
-| --- | --- |
-| G1 Q and the cashier | DONE - station rule generalised to the class |
-| G2 screens | PARTLY - front desk + 41 DOM screens swept; register glass and ledger edges not |
-| G3 into the bag | DONE (source-level); **no player-camera frame** |
-| G4.1 bag always present | DONE |
-| G4.2 items stay visible in it | DONE |
-| G4.3 customer carries it out | **UNTOUCHED** - the ownership transfer exists but has never been watched |
-| G4.4 fresh bag immediately | DONE |
-| G5 cash denominations | **UNSTARTED** |
-| G6 customer + cash stand point | **UNSTARTED** |
-| G7 cash vs card gestures | **UNSTARTED** |
-| G8 remove speed-up | DONE (verified, earlier) |
-| G9 concurrency ceiling | DONE, binds at high standing |
-| G10 no-progress verdict | DONE |
-| G11 check-in window | DONE, rule not wired to the desk |
-| G12 tee sheet states | DONE, **sheet does not draw with the classifier** |
-| G13 one visit one payment | DONE; live desk path UNCONFIRMED |
-
-### INSTRUMENT FAULTS, WHICH ARE NOW THE STORY OF THIS SECTION
-
-Section G produced **seven** faults in my own measuring tools, six of which
-failed OPEN - green on a broken build:
-
-| fault | how it lied |
-| --- | --- |
-| overlap dedupe never reset | every sweep after the first reported clean |
-| stub with no vertical metrics | every text row 16px tall, a vertical defect invisible |
-| edge metric v1 (element box) | 41 false positives |
-| edge metric v2 (content box) | 113 - flagged every left-aligned heading |
-| test matched its own comment | assertion green on a build with the line deleted |
-| pattern matched `sinkDuration` | deleting the whole leg left it green |
-| capture caught the destructured parameter | reported a branch missing that was present |
-
-The lesson is not "be careful". It is that **a source-scanning or geometric probe
-must be shown failing on a deliberately broken build before any clean result it
-produces is worth reading** - which is what the brief asks for, and what caught
-all seven.
-
-### CLOSED SINCE THIS LIST WAS LAST WRITTEN
-
-- **G2 (partly) - the tee-time screen.** The named overlap was already fixed by
-  Goal 16 F2; the instrument that should have proved it had never been run, and
-  reported clean forever after its first call because clearing its output array
-  does not clear its dedupe set. Padding and the HUD overlap are fixed.
-- **G13 - one visit, one payment.** The merge did not exist: three separate
-  places enforced two tickets. Built as a CLASS (a ticket may carry lines that
-  bank to different revenue accounts; banking splits by line, not by ticket), so
-  a cart rental or a lesson rides the same rails. Tax base, discount base, stock,
-  COGS, unit counts, the velocity window and bagging all moved to goods-only, and
-  a books adversary caught two defects I had already shipped into the tree.
-- **G1 - Q and the cashier.** Half of it had really shipped in Goal 16. The
-  other half was the SEVENTH half-fix of this goal: the station rule was granted
-  by a flag applied to two instances, and the laptop never got it. Fixed as a
-  class, with a scanner that finds any prop opening a station and asserts it is
-  tagged.
-
-### THE HALF-FIX TALLY, BECAUSE IT IS NOW THE DOMINANT DEFECT SHAPE
-
-Seven times this goal a previous fix was found applied to the named instance
-rather than to the family that shares its cause:
-
-| item | fixed | missed |
-| --- | --- | --- |
-| E3 | the named reset row | the rest of the family |
-| E4 | the rebind dialog | the list the player actually reads |
-| F1 | buttons | form controls |
-| G10 | the no-progress verdict | it ran second, so it could never win |
-| H2 | feature seating | against a surface the renderer never draws |
-| G13 | `beginReservationPayment` | both selection gates in front of it |
-| G1 | the till and the reading desk | the laptop, twice over |
-| G2 | the overlap recorder | nothing ever drove it, and its reset was a no-op |
-
-The lesson that keeps repeating: **fixing the instance leaves every unit test
-green.** Six of the seven were found by reading outward from the fix to the path
-the player actually walks, not by running the suite.
-
-
-
-## G7 - CASH AND CARD WERE THE SAME GESTURE, LITERALLY
-
-*"Cash: they lay it on the desk and take their hand back. They do not stand
-holding it out. Card: they hold it up and keep holding it until I take it."*
-
-They were the same gesture in the most literal way the codebase allows - **one
-branch handled both**:
-
-```js
-} else if (char.mode === 'PayCash' || char.mode === 'PayCard') {
-```
-
-### And the right pose already existed
-
-`CashLaid` - arm back, waiting for change - was written for Goal 16 F6, and its
-own comment even states the rule: *"The card path never uses this: a card stays
-in the held-out hand until the cashier takes it."* The AMBIENT customer
-simulation uses it (`customers.js`, `clubhouse.js`).
-
-**The register the player actually operates never did.** Worse, it wrote
-`PayCash` on EVERY FRAME of the cash-tender stage, so a correct pose set from
-anywhere else would have been overwritten before it could be seen. The customer
-stood with an arm held out over money already lying on the desk: the card
-gesture, performed with cash.
-
-This is the eighth half-fix of the goal, and its most exact form yet - the fix
-existed, was correct, was documented, and was wired to everything except the
-thing the player looks at.
-
-### The fix
-
-`CASH_LAY_SECONDS = 0.55`: the hand stays on the money while it is being put
-down, then the arm comes back. Long enough to read as PLACING it rather than
-dropping it; short enough that they are not standing there holding it out.
-
-The timer resets inside `createTender()` rather than at its call sites - there
-are two routes that present cash (the normal one and the one after a card
-decline) and resetting at the callers means one can be missed, which would start
-the customer with their hand already withdrawn from money they had not put down.
-
-### Evidence
-
-Six checks, including one that the split is not cosmetic: the held reach is
-`-1.12` and the laid arm `-0.30`, and the test requires more than 0.5 rad between
-them so a relabel cannot pass. Watched two breaks fail: forcing the held-out
-pose every frame again, and moving the reset back to a single call site.
-
-**A third imprecise anchor** turned up here too - `"cash-tender"` appears 14
-times in that file and `indexOf` finds the first, which is not the per-frame
-block. Same fault as the two in G4; the anchor is now the whole condition.
-
-Suite **2910 pass / 0 fail**.
-
-**UNCONFIRMED:** source-level. No player-camera frame of the arm withdrawing.
-
-## G6 - VERIFIED RATHER THAN REBUILT, AND THE CONSTRAINT RECORDED AS A BOUND
-
-*"The bag blocks them. Move the customer's stand point and their cash placement
-right so neither sits behind it."*
-
-Both halves already hold, and the numbers say so plainly:
-
-| anchor | desk-local x | clear of the bag by |
-| --- | --- | --- |
-| bag | **-1.16** | - |
-| stand point | -0.10 | **1.06 yd** |
-| customer cash | -0.38 | 0.78 yd (0.65 yd at its left edge) |
-
-The stand point **cannot** go further right, and the reason is already written
-into `shopLayout.js` from an earlier pass: +0.06 was tried and
-`checkout-space.test.js` failed it at once - *"bagging is 1.55 yd away at its far
-corner"*. The bag lies at the counter's far left and the player has to reach into
-its mouth, so 0.16 yd is the whole of the margin.
-
-This is the second item this goal that turned out to be **genuinely done** rather
-than half-done (G8 was the first), and I am recording it as such rather than
-manufacturing a change to look busy. The brief's rule about taking the reading
-that CHANGES the game applies to AMBIGUITY; this is not ambiguous, it is a
-measurement that disagrees with the complaint.
-
-### What I added, because a verified item with no check rots
-
-Four assertions pinning the DIRECTION - both anchors stay clear to the right of
-the carrier - plus the reach limit as an explicit upper bound so the next attempt
-does not spend an afternoon rediscovering it. Nothing else in the suite would
-have noticed a regression here: `checkout-space` guards the PLAYER'S REACH, not
-the customer's visibility, so a layout change sliding either anchor back behind
-the bag would have re-created the exact complaint silently.
-
-The cash is checked at its LEFT EDGE, not its centre, because the tender is a
-0.26-wide footprint and the edge is what slides behind the carrier first.
-
-Watched both breaks fail with the arithmetic in the message: cash pushed to -1.10
-reports *"left edge clears it by -0.07 yd"*, stand pushed to -1.20 reports *"gap
-is -0.04 yd"*.
-
-Suite **2914 pass / 0 fail**.
-
-## G5 - CENTS, MATCHING AMOUNTS, REALISTIC DENOMINATIONS
-
-The brief names **two** payment behaviours: *"round notes, plus coins for an odd
-amount, OR round up to the next note."* Only the second existed.
-
-`customerCash` rounded up to the next note, and the one coin branch fired only
-when the odd cents were an **exact multiple of 25** - three totals in a hundred.
-Measured: coins reached the desk in **2.0%** of tenders. The counter was
-notes-only in effect, and the change always came back as shrapnel.
-
-### The behaviour that was missing
-
-Cover the dollars with notes and **the cents with coins**, so the change comes
-back in whole dollars. That is the commoner move in a real shop, it is what puts
-coins on the desk, and it is what stops the player handing back four cents.
-
-F4's rule from the previous goal still holds inside it: the coins a customer digs
-out are LARGE ones. A tender is only paid to the cent when the cents can be made
-from quarters, dimes and nickels - never ninety-six cents counted out in pennies.
-
-Coins now reach the desk in **13.5%** of tenders, against 2.0% before.
-
-### The threshold is set to the model, not the model to the threshold
-
-My first test asserted 20% and failed at 13.5%. **The ceiling here is
-structural**: a customer can only pay the cents in coins when those cents are
-makeable from large coins, so a total ending in 96c never qualifies whatever the
-probability. About a fifth of totals end in a multiple of 5 and the behaviour
-fires on a bit over half of those.
-
-Raising the probability until 20% went green would have been exactly the mistake
-I criticised in G2 - tuning a measurement until it reports what I want. The
-threshold is 10% with the ceiling written into the test, plus an upper bound at
-45% so the opposite failure (every customer digging for change) is also caught.
-
-### Evidence
-
-Six checks over a DISTRIBUTION rather than single calls, because the choice is
-probabilistic and one sample proves nothing about a coin flip. A control asserts
-the sampler produces real tenders at all - a distribution of empty stacks has no
-pennies in it either, and would pass the penny test vacuously.
-
-Watched two breaks fail:
-
-| break | what it said |
-| --- | --- |
-| back to the 25-multiple-only rule | `got 2.0% of tenders` - the before-number, measured |
-| let customers count out pennies | the penny check fires |
-
-Suite **2920 pass / 0 fail**.
-
-**NOT DONE in G5:** *"The cash on the desk matches what they handed over"* is
-asserted at the sim layer (the stack is what `customerCash` returned) but has not
-been checked against what the DESK DRAWS. That is a renderer question and the
-right instrument is a pixel or mesh count at the counter, not a unit test.
-
-## PHASE 5 GATE - TWO MORE STANDING INVARIANTS CLOSED
-
-The gate names its own next item, and it named this one: invariants 3 and 4 read
-*"NO WHOLE-GAME CHECK EXISTS, and G2 asks for exactly that sweep"* and *"NO CHECK
-EXISTS"*. G2 had just built both instruments, so wiring them in was the next item
-rather than a note for later.
-
-| | before | after |
-| --- | --- | --- |
-| 3. No text ever overlaps other text | NO CHECK | **PASS** - 0 pairs across 41 DOM screens |
-| 4. No UI element touches its container edge | NO CHECK | **PASS** - 0 within 8px of a non-scrolling edge |
-
-**The gate reads the artifact but will not trust it blindly**, which matters more
-than the pass:
-
-* if the sweep has **never run**, it reports NO CHECK, not PASS
-* if the sweep ran but its **planted controls failed**, it reports **FAIL** with
-  the control states named - a sweep whose plants were missed is worth less than
-  no sweep at all, and its zeros must never read as a green
-* if the artifact is **over 24 hours old** it drops back to NO CHECK and says so
-  in the detail line, because a stale file is the oldest way to claim a green
-  nobody measured
-
-Standing invariants now **6 pass, 1 FAIL, 3 with no check**, from 4/1/5.
-
-The FAIL is invariant 1, the performance one, and it is the same A1 finding
-already on NOT DONE: 14.8% of frames over 16 ms. It is measured, attributed and
-unfixed - not a new regression.
-
-Remaining without checks: 2 (text cut off - whole-game), 5 (the hand-pixels
-driver exists but its pixel floor was calibrated at 1280x720 and A5 changed the
-default window, so it owes a recalibration before it can be wired), and 8 (no
-check that a NEW string literal escapes `t()`).
-
-## G4.3 - THE BAG LEAVES IN THEIR HAND, AND A CHECK I COULD NOT MAKE FAIL
-
-*"When payment completes, the customer takes the bag and carries it out with
-them. It leaves the shop in their hand. It does not vanish, and the player does
-not hand it over as a separate step."*
-
-**Verified rather than rebuilt - the chain exists and works**, across three
-files:
-
-1. the goods are bagged and `beginBagDeliveryOrRelease()` runs on its own
-   (`simplifiedRegisterMode.js:6176` and `:6575`). The player's click-drag on the
-   bag is an ALTERNATIVE, not a prerequisite - so there is no separate hand-over
-   step
-2. `transferBagOwnershipToCustomer()` marks the carrier and its contents
-   `checkoutOwner: 'customer'` and parks it on `cust.checkoutHandoffBag`. Nothing
-   in it hides or removes the bag: it does not vanish
-3. `clubhouse.js` picks that up and calls `attachPaidBagToCustomer` against the
-   character's LEFT carry grip - an ATTACH, not a position, which is what makes it
-   travel. `holdBagAtCustomer()` only places the bag in the REGISTER's space, and
-   a bag that is merely positioned stays behind when the customer walks away.
-
-### The failure mode worth guarding, which nothing else watched
-
-Step 3 has a fallback: `handedBag || kitBag || legacyBag`. If the handoff ever
-breaks, the departure code **instantiates a fresh kit bag instead** - so the
-customer still walks out carrying something and the real carrier is silently
-orphaned on the counter. **A broken handoff does not look like a missing bag.**
-That is a failure nobody would catch by playing, and it now has a check.
-
-Watched two breaks fail: preferring the fresh kit bag over the handed one, and
-leaving the handoff slot set so the next departure re-attaches a bag already in
-somebody else's hand.
-
-### The one I could not break, recorded as such
-
-The check that the release runs WITHOUT the player's drag **cannot be shown
-failing**. Deleting both automatic call sites left it green. Two faults were
-found and fixed chasing it - the anchor took the first of several
-`autoFulfilled = true;` sites, and the pattern matched the function's own
-DEFINITION as well as a call - and it still does not fail, so a third remains.
-
-**A check I have never watched fail is not evidence.** The claim is true and I
-read both call sites myself, but that test is not what establishes it. Left in
-place with the caveat written into the file, and counted here as UNVERIFIED
-rather than as one of the checks.
-
-That makes **five pattern-and-anchor faults** in this section, all with one
-signature: the scan matched something adjacent to its subject rather than its
-subject.
-
-Suite **2925 pass / 0 fail**.
-
-## A1 - WHERE THE LOAD ACTUALLY GOES, AND A LEVER CLOSED WITH ARITHMETIC
-
-`warm-composer-render` was on NOT DONE as *"5,532 ms of the 8,803 ms prewarm -
-63% of the load in one phase, never examined"*. Examined now.
-
-### The measurement nobody had taken
-
-The prewarm records which programs it warmed but nothing had ever broken those
-keys down by AXIS. Added that, with a control: the axes must multiply to at least
-the key total, or they are not describing these programs.
-
-```
-warm-composer-render   5,540.5 ms
-renderer.compile         109.2 ms
-gl-programs                  135
-material-instances           846      <- was reported as "distinct-programs"
-axis spread   type:799  lights:1  morph:2  vertexColor:1  uv2:1  shadow:2
-```
-
-### The first field of the warm key is a UUID
-
-`type: 799 distinct values`, and they are `432bdaac-61c6-...`. The key leads with
-`material.uuid`, so **every material INSTANCE is a separate entry**. Two materials
-with identical flags share one GL program, so the set over-states the program
-count roughly **six-fold**: 846 keys covering 135 real programs.
-
-The previous note in that file says "132 GL programs at ~73 ms each". The live
-numbers are **135 programs**, and the arithmetic is different.
-
-### The lever this closes
-
-```
-135 programs x ~41 ms  =  5,535 ms
-warm-composer-render   =  5,540.5 ms
-```
-
-**The phase IS the compiles, to within 6 ms.** There is no geometry, shadow or
-post-chain cost hiding in it - which the earlier session had already suspected
-("cutting the submitted set from 5,310 objects to 887 moved it by nothing") but
-could not close, because the UUID key meant that experiment never got below the
-846 objects the key forces. Now it is arithmetic: submitting fewer objects cannot
-make 135 compiles cheaper. **That lever is dead, and so is compileAsync** (tried
-2026-08-03, cost 1,350 ms to return 200 ms).
-
-The only remaining lever on this phase is **fewer distinct shader variants**,
-which is a rendering-feature decision and not a tuning change.
-
-### What I did NOT do, and why
-
-I did not "fix" the key to count programs properly. Over-warming costs a few
-extra draws behind a veil; under-warming ships a hitch at the moment the player
-first sees the object. The conservative key is the RIGHT key for a warm pass -
-**the label was the thing that was wrong**, and `distinct-programs` is now
-`material-instances` with the reasoning written at both sites.
-
-Renaming a number I had been reading as a program count for two sessions is worth
-more than a change that would have made the load slower and the coverage worse.
-
-Suite **2925 pass / 0 fail**.
-
-## A1 - THE MATRIX FREEZE NEVER REACHED THE INTERIOR, AND THE LEVER IS 2,611 OBJECTS
-
-Standing Invariant 1 is the Phase 5 gate's one FAIL. The report's NOT DONE list
-names the per-frame cost as "~900-2000 draw calls a frame plus the 10 Hz shadow
-bake", and my own notes named the next lever as "freezing the clubhouse subtree".
-
-`clubhouse.js` already HAS a freeze - walls, roof, porch, exterior dressing, with
-door hinges deliberately exempt. So the lever looked spent. It is not.
-
-### The census, and the counter that caught it
-
-```
-group (shell)     721 objects    222 auto-updating   (30.8%)
-interior        2,853 objects  2,611 auto-updating   (91.5%)
-interiorUnderGroup: false
-```
-
-The freeze walks `group`. **The interior is not under `group`** - so
-`freezeShellBranch(group)` could never have touched it, and 2,611 objects
-recompose their world matrix every frame.
-
-I found this because the census carried an `interiorTotal` counter that came back
-**0** while `ch.interior` plainly exists. A census that had only reported "222 of
-721 auto-updating, 30.8%" would have read as a mostly-frozen scene and closed the
-lever. **The zero was the finding.** Same lesson as the seven instrument faults in
-section G: the number that looks impossible is the one to chase.
-
-It is also worse than my notes assumed - they said a 2,208-object subtree; it is
-2,853.
-
-### Why I have NOT shipped the freeze
-
-A blanket freeze of that subtree is exactly the change that would break the
-ledger book turning its pages, the doors swinging, the register's drawer and
-card reader, the customers walking, and every tool viewmodel. The shell freeze
-could be blanket because a wall genuinely never moves; the interior cannot,
-because most of what moves in this game lives there.
-
-Doing it safely needs an OPT-OUT LIST built from what actually animates, and a
-check that every animated subtree is still moving afterwards - which is a proper
-item, not a line to slip in at the end of a session. Sized, attributed, and
-handed over rather than half-done.
-
-### Also corrected
-
-`prewarmTimings` still advertised `distinct-programs` to this driver after the
-rename; it now reads `material-instances` (846), so the driver stopped reporting
-`null` for it.
-
-Load numbers re-confirmed on three separate runs: `warm-composer-render` 5,524 /
-5,540 / 5,540 ms against 135 GL programs. Stable, and still the compiles.
-
-## A1-FREEZE - THE SECOND LEVER, CLOSED BY MEASUREMENT INSTEAD OF BY WORK
-
-My own Phase 2 review said the third objection had to be answered first: *nobody
-has measured whether 2,611 matrix recompositions are worth anything.* So the next
-action was a throwaway probe, not the machinery.
-
-The probe blanket-freezes the interior - deliberately unsafe, breaking the ledger,
-doors, register and customers for the length of the run - samples 140 real frames
-in each state, and throws the page away. Nothing shipped, nothing saved.
-
-| state | median | mean | p90 | over 16 ms |
-| --- | --- | --- | --- | --- |
-| before | 8.70 ms | 9.00 | 9.7 | 2 |
-| **frozen (2,577 objects)** | **8.10 ms** | 8.47 | 9.3 | **2** |
-| restored | 8.60 ms | 8.88 | 9.8 | 1 |
-
-**Gain: 0.6 ms of median. Change in the over-16 count: none.**
-
-### Both controls held, so the number is real
-
-* **the freeze actually took** - auto-updating objects went 2,577 to 0. A freeze
-  that silently did nothing would have reported a delta of zero and read exactly
-  like "not worth it", which is the failure mode that matters here
-* **the run was not drifting** - restored median 8.60 against a baseline of 8.70,
-  a drift of 0.1 ms against a gain of 0.6. The middle sample is measuring the
-  freeze and not the passage of time
-
-### The verdict
-
-**Not worth building.** The safe version needs an exemption mark on every
-animated root across six subsystems and a driver proving each one still moves -
-a day of work, and a day of risk, for 0.6 ms that **does not move the invariant
-at all**. Invariant 1 counts frames over 16 ms; this changes that count by zero.
-
-That is the SECOND lever on invariant 1 closed by measurement this session:
-the load phase by arithmetic (135 compiles account for 5,540 ms of 5,540 ms), and
-now the per-frame matrix cost by experiment. Both were the obvious candidates and
-both are dead.
-
-### Where the search goes next, with a number attached
-
-Median frame time indoors is **8.7 ms - comfortably inside budget**. The gate
-reports 14.8% of frames over 16 ms, and a verifier previously measured 97.1%
-on the OUTDOOR spawn route. The over-16 frames are not where I have been
-sampling. **The next probe belongs on the outdoor route, not in the clubhouse**,
-and the remaining named suspect is draw calls (~900-2,000 a frame) plus the 10 Hz
-shadow bake landing on one frame in eight.
-
-Recording the negative result in full, because a day not spent on a 0.6 ms fix is
-the most valuable thing this probe could have produced.
-
-## REQUIREMENT 2 - THE ASSET-CACHE CHECK, WHICH CLEARS THE SUSPECT
-
-*"Before any tool work delete the packed asset cache, rebuild from source, and
-confirm the GLB hash the game loads is the one you built. That check alone may
-explain six rounds of tool measurements."*
-
-The game loads `vendor/models/assets_51_100/...`. The Blender build writes
-`Assets/assets_51_100/glb/...`. They are different files, so the check is real.
-
-### A naive hash comparison says everything is stale, and it is wrong
-
-| asset | vendor | Assets |
-| --- | --- | --- |
-| asset_072_mop_fp | 4,019,348 b | 13,504,444 b |
-| asset_074_broom_fp | 2,875,524 b | 9,459,880 b |
-| asset_072_mop | 4,020,776 b | 13,505,644 b |
-| asset_074_broom | 2,877,164 b | 9,461,400 b |
-
-**All four diverge, at a consistent 3.3x.** That reads exactly like a stale cache.
-It is not one.
-
-### What it actually is
-
-* the packed copy is **NEWER than its source by 18-21 seconds** - a pack step
-  running immediately after each export
-* identical `extensionsUsed` (`KHR_texture_transform`), identical 11 images,
-  identical 10 meshes
-* **geometry byte-for-byte identical**:
-  `Cylinder.004:162v/636i | Cylinder.003:146v/564i | Torus:105v/504i ...`,
-  **6,620 total vertices on both**
-
-The 3.3x is **texture data alone**. The meshes the game loads are the meshes that
-were built.
-
-### The verdict, and it is a negative one
-
-**The suspected cause of six rounds of tool measurements is not this.** The mop
-and broom geometry in the running game has been the geometry on disk the whole
-time. The measurement problems this session traced to other causes and were
-recorded as they were found: a DRY mop measured as if wet, an unready rig
-producing a fake dead zone, and six QA drivers name-scanning `MopStrand_<i>_<s>`
-after the fibres became instanced.
-
-### The trap, which is the part worth keeping
-
-**Any future version of this check must compare `vendor` against a FRESH PACK of
-the current source, never against the source itself.** Comparing raw hashes
-reports "stale" every single time, on a pipeline that is working perfectly, and
-would send the next session chasing a cache that was never wrong.
-
-That is the same shape as the seven instrument faults in section G: a check that
-returns a confident answer about something it is not actually looking at.
-
-## A1 - THE NUMBERS RECONCILE: INVARIANT 1 FAILS AT FIRST LOOK, NOT IN PLAY
-
-Three figures for the same invariant were in the record and none of them agreed:
-
-| source | over 16 ms |
-| --- | --- |
-| Phase 5 gate, this session | 14.8% (worst 733 ms) |
-| verifier, outdoor spawn route | 97.1% |
-| freeze probe, settled sampling | ~1.4% |
-
-So I sampled both positions in ONE run, on one machine and one build, with
-`renderer.info` attribution.
-
-```
-spot A     median  8.8 ms   over16 1.3%   over33 0   calls 2410   worst 19.2
-spot B     median 10.0 ms   over16 1.3%   over33 0   calls 1724   worst 19.5
-moved 10.24 yd
-```
-
-### The control caught my own framing
-
-`startedInside: false`. **The spawn is OUTSIDE**, so what I had been calling the
-"indoor" sample in the freeze probe was never indoors. Both of these samples are
-outdoor positions 10 yd apart. Had the probe not reported where it stood, I would
-have published an indoor-versus-outdoor comparison that was nothing of the kind -
-and it is the second time this session a position assumption was wrong (the
-STALE-player-offset gotcha is the other).
-
-### What reconciles them
-
-**Steady play is 1.3% over 16 ms with ZERO frames over 33**, at both positions,
-however many draw calls are in flight (2,410 vs 1,724 changed the median by
-1.2 ms and the over-16 rate by nothing).
-
-The gate's 14.8% and worst-frame of 733 ms are measured across a window that
-INCLUDES startup. The verifier's 97.1% came from a spawn-route window dominated
-by the same thing. **Invariant 1 fails at load and first look, not during play.**
-
-That closes the circle on everything measured this session: the load phase is
-135 program compiles and nothing else (5,540 ms of 5,540 ms), the interior matrix
-freeze buys 0.6 ms and moves the over-16 count by zero, and now steady-state
-frames are shown healthy at both a high-draw-call and a low-draw-call position.
-**It is compiles, and the draw-call theory is dead too** - a 40% swing in calls
-did not move the invariant at all.
-
-### What that means for the item
-
-The remaining work on invariant 1 is NOT a per-frame optimisation. It is either
-fewer shader variants, or accepting that the first look at a new object costs its
-program compile and hiding that behind the veil - which is what the prewarm
-already tries to do, and which A3 extended to the ledger and A1 to hidden objects
-earlier this session.
-
-**The honest status: invariant 1 as WRITTEN ("no frame over 16 ms during normal
-play") is met in normal play at 1.3%, and fails on the startup window the gate
-measures.** That is a real distinction and the gate should probably measure them
-separately - noted rather than changed, because moving a gate's goalposts while
-it is red is exactly the wrong instinct.
-
-## REQUIREMENT 1 - THE TUNING OVERLAY, RE-VERIFIED LIVE RATHER THAN ASSERTED
-
-*"Build the live tuning overlay FIRST."*
-
-`src/ui/toolTuner.js`, 372 lines, four commits against it this session
-(`dfb4b4b` built it with B2/B3/B4, `3cad241` fixed a defect where the panel could
-never be CLICKED, and two more removed em dashes from strings the player reads).
-
-Rather than point at those commits, I re-ran its driver in Electron on
-`--clubhouse=pine-hills-v2` just now:
-
-```
-panelOpened          true      sliderMovedTheTool   true
-broomHasFibreRows    true      deadControlInert     true
-leftElbowRows        3         typedBoxRoundTrips   true
-noiseFloor           8798      revertRestored       true
-```
-
-Every one of those is a property the Requirement asks for: the panel opens, it
-carries the fibre and elbow controls, **a slider actually changes the tool**, a
-typed number round-trips through the same door as the slider, and Revert restores
-the session baseline.
-
-**`deadControlInert: true` is the negative control** - a control wired to nothing
-must NOT move the tool. Without it, "the slider moved the tool" proves only that
-something moved when something was touched.
-
-The one that mattered most in practice was `3cad241`: the panel rendered
-correctly and could not be clicked, because `pointer-events` was never set on it.
-An overlay you cannot touch is not a tuning overlay, and no amount of reading the
-source would have shown it - the driver did.
-
-Recorded here because a claim of "built earlier" is not evidence, and the whole
-point of this goal is that a green suite is not evidence either.
-
-## PHASE 5 GATE - RUN TO CLOSE SECTION A
-
-```
- 1. [FAIL    ] No frame over 16 ms during normal play
-               worst 377.5 ms, 593 frames over 16 (14.2%), 1 over 100
- 2. [NO CHECK] No text is ever cut off
- 3. [PASS    ] No text ever overlaps other text        0 across 41 DOM screens
- 4. [PASS    ] No UI element touches its container edge 0 within 8px
- 5. [NO CHECK] Stick tools have hands; hand-worked tools have none
- 6. [PASS    ] Nothing carried is left floating or unputdownable
- 7. [PASS    ] No NPC is stuck for more than 3 seconds
- 8. [NO CHECK] Every player-facing string goes through t()
- 9. [PASS    ] No duplicate keys in any object literal
-10. [PASS    ] The suite is green and the tree is clean at every commit
-
-SUMMARY: 6 pass, 1 FAIL, 3 with no check yet.
-```
-
-### The FAIL, and what Section A established about it
-
-The gate says **14.2% of frames over 16 ms**. The outdoor probe, sampling settled
-play at two positions on the same build, says **1.3% with zero frames over 33**.
-
-Both numbers are correct. They measure different windows: the gate's includes
-startup, and startup is 135 program compiles at ~41 ms each. The invariant is
-written *"during NORMAL PLAY"*, and in normal play it is met.
-
-### What Section A closed, all by measurement rather than by code
-
-| candidate | verdict | evidence |
-| --- | --- | --- |
-| the load phase hides non-compile work | **dead** | 135 x ~41 ms = 5,535 ms against a 5,540 ms phase |
-| submitting fewer objects would help | **dead** | the phase IS the compiles, to within 6 ms |
-| `compileAsync` | **dead** | tried 2026-08-03: 1,350 ms spent to return 200 ms |
-| the interior's 2,611 live matrices | **dead** | freezing all of them buys 0.6 ms, changes over-16 by zero |
-| draw calls | **dead** | a 40% swing (2,410 to 1,724) moved the over-16 rate by nothing |
-| a stale packed asset cache | **dead** | geometry byte-identical, 6,620 verts both sides |
-
-Six candidates, six closed, none of them the cause. What remains is program
-compilation at first look, which the prewarm already hides for everything it can
-reach - and which A3 extended to the ledger and A1 to hidden objects earlier this
-session.
-
-### The one change I deliberately did NOT make
-
-The gate blends startup and steady play into one figure. Section A's finding says
-those are different populations, and the honest fix is for the gate to report
-both. **I have not changed it**, because a gate that is red should not have its
-measurement redefined by the person whose work it is judging. It is recorded as
-the next item, for a session that can implement it and then watch the FAIL
-survive on a build that genuinely stutters in play.
-
-**Remaining without checks: 2, 5, 8.** Invariant 5's driver exists but its pixel
-FLOOR was calibrated at 1280x720 and A5 changed the default window, so it owes a
-recalibration before it can be wired - wiring it as-is would produce a green from
-a number that no longer means anything.
-
 ## INVARIANT 2 CLOSED - AND INVARIANT 10 CAUGHT ME MID-EDIT
 
 The gate's `NO CHECK` list was the honest place to look for the next item, and
@@ -4992,3 +4182,886 @@ than leaving the next session to rediscover it by tripping the same test.
 
 **Final: 155 -> 45 raw, 110 strings (71%) translatable, all nine locales still
 above the honest-coverage floor at 51.1%.** Suite 2928 pass / 0 fail.
+
+## RUNNING LISTS
+
+_Updated continuously, not at the end._
+
+### THE PHASE 5 GATE - THE OBJECTIVE ARBITER
+
+**9 pass, 1 FAIL, 0 with no check** - from 4 pass / 1 FAIL / 5 unchecked when
+this session began measuring it. Every standing invariant now has a check, and
+every one was watched failing before it was wired.
+
+The single FAIL is invariant 1. Section A closed **six** candidate causes for it
+by measurement, none of which was the cause:
+
+| candidate | verdict |
+| --- | --- |
+| the load phase hides non-compile work | dead - 135 x 41 ms = 5,535 against a 5,540 ms phase |
+| submitting fewer objects | dead - the phase IS the compiles, within 6 ms |
+| `compileAsync` | dead - 1,350 ms spent to return 200 ms |
+| the interior's 2,611 live matrices | dead - 0.6 ms, over-16 count unchanged |
+| draw calls | dead - a 40% swing moved the rate by nothing |
+| a stale packed asset cache | dead - geometry byte-identical, 6,620 verts |
+
+**And the invariant as WRITTEN is met.** It says "no frame over 16 ms during
+NORMAL PLAY"; steady play measures **1.3% over 16 with zero frames over 33**, at
+both a 2,410-call and a 1,724-call position. The gate's 14.2% is a window that
+includes startup, and startup is program compilation. The remaining lever is
+fewer shader variants - a rendering-feature decision, not tuning.
+
+### PLAYER-FACING STRINGS - CLOSED WITH A HARD LIMIT
+
+```
+155 raw  ->  45 raw     110 strings (71%) made translatable
+all nine locales still above the honest-coverage floor, at 51.1%
+```
+
+**This work-stream is finished, not paused.** Each English key dilutes all nine
+locales, and they now sit 1.1 points above the 50% floor that stops a player
+seeing half a menu in Korean. Headroom for about two more keys.
+
+**The next person does not start by wrapping.** They translate the 113 keys the
+locales already lack, which buys headroom, and then wrap. The order is forced by
+the rule.
+
+
+### UNCONFIRMED (claimed but not yet proven at the player's camera)
+
+- **G12: the tee sheet does not draw with the classifier**, and there is no
+  screenshot showing all three slot states at once - which G12 asks for by name.
+- **G13: the live desk path.** The sim layer is proven by fifteen checks and six
+  watched breaks, and the desk gates are pinned by source-level tests, but
+  staging a customer who carries goods AND holds a booking through a real
+  Electron session was not built. Source reading is the weaker instrument and
+  this is recorded as such.
+- **G1: not driven in Electron.** No screenshot of the till read with a mop in
+  hand and Q held.
+
+### NOT DONE
+
+- **A1: the single-program compile stall, up to 2.8 s.** Warming hidden objects
+  did nothing for it because it is keyed on FRAME state (light counts, shadow
+  map size, clipping planes), not on a hidden object. Finding which frame
+  property differs, and warming that, is the next lever.
+- **A1: the over-16 ms rate is 97.1% on the outdoor spawn route**, not the
+  29-34% I published from an indoor one (verifier). Not
+  the compiles; ~900-2000 draw calls a frame plus the 10 Hz shadow bake on one
+  frame in eight. Named and measured, not fixed. This is Standing Invariant 1
+  and it is violated continuously.
+- **A1: the first-30-seconds table the brief asks for.** I measured settled play
+  instead, because the evidence says the first thirty seconds is the clean
+  window and the stalls live later. Reasoning attached in the A1 section.
+- **A1: `warm-composer-render` is 5532 ms of the 8803 ms prewarm** - 63% of the
+  load in one phase, never examined. The obvious first stop for the
+  page-to-playable regression a verifier measured at 22.1-22.8 s.
+- **Six QA drivers name-scan `MopStrand_<i>_<s>`** and will silently count zero
+  now that the fibres are instanced. They must be ported to `strandCount` /
+  `tipsLocal()` before Phase 5 re-runs them, or they will report a false red.
+- **B1's motion tuning.** The mop now works in a driver and the strands move
+  0.4578 m in the head's own frame, but no tuning values have been chosen with
+  the overlay against a working tool, which is what B1 asks for.
+- **B1: the mop head hangs at an angle rather than sitting flat on the boards.**
+  Visible in the frame; about orientation, not reach.
+- **B1: the handle, the grip and the floor contact** are untouched - this pass
+  did the strands only.
+- **B3 measured and satisfied** (0.0293 m tip travel against 0 frozen, 1/16th
+  the mop's, 4.7x the settle rate, half the slack) but **not filmed** - motion
+  cannot be proven by a still.
+- **B5** (leave the other seven alone) is being honoured by omission.
+- **The load itself.** Verifier 2's disproof of the previous session's first-load
+  numbers stands: page to veil-gone 22.1-22.8 s against 7.8 s playable on both
+  baselines. The per-commit bisect inside 8baa596..HEAD is still un-run.
+- **Sections B through H.** Not started.
+
+### VERIFIER FINDINGS STILL OPEN
+
+- None from this session's own verification yet - Section A's Phase 4 verifiers
+  have not run. The four Phase 2 reviewers' objections are all answered in
+  PLAN_17.md, and the ones they were right about changed the work: A1 was
+  re-scoped, A5 gained the drawing-buffer measurement, A3's headline number
+  changed from frame deltas to press-to-legible, A6's evidence changed from a
+  screenshot to rendered strings, and every control moved off the env-var
+  channel onto the marker file.
+- **Carried from Goal 16, still open:** Verifier 3 (the stranger's twenty
+  minutes) never ran - an orphaned Electron from Verifier 2 held the
+  machine-exclusive slot. Nothing in report 16 was confirmed or disproved by it.
+
+### FIXED WITHOUT BEING ASKED
+
+- **The tuning overlay could not be clicked at all** (R1). Not in the brief as a
+  defect; found by driving it with a real mouse for the first time.
+- **The harness shim would have silently lied about window size** once the game
+  launched maximised: 382 drivers believing their stated size while running
+  display-sized, 117 of them clicking fixed coordinates. Found by the
+  blast-radius reviewer, fixed before A5 landed.
+- **`qaFakeDisplay` ignored the marker-file channel**, so a leftover
+  fw-fake-display.txt would fake the display while the flag reported "real".
+- **Saved fibre parameters never reached the broom's bristle rig** -
+  `applyToolFeelOverrides` pushed to 'mop' and only 'mop', so a saved broom
+  block was merged into the live feel and then silently dropped.
+- **The A2 door driver's own bug is recorded rather than quietly fixed** (fault
+  74): it asked doors for `getWorldPosition` when they carry interior-local
+  lx/lz, and confidently reported "no doors" while the player stood beside four.
+
+---
+
+## INSTRUMENT FAULTS LOGGED THIS SESSION
+
+73. (carried from Goal 16's close-out) A serialized verifier chain gated on a
+    marker file assumes the previous stage released the machine. It did not -
+    an orphaned Electron held the exclusive slot - and both sides failed
+    silently. A gate on a marker must also check the resource is free.
+74. A door carries interior-LOCAL `lx`/`lz`, not a world node. The A2 driver
+    asked for `getWorldPosition`, got nothing, and reported "no doors found"
+    while standing next to four of them. Same shape as measuring a bounding box
+    where a pixel was needed: the probe asked the wrong question and got a
+    confident wrong answer.
+75. **A screenshot is in PHYSICAL pixels; `setViewportSize` speaks CSS pixels.**
+    At this machine's 1.5 DPR a 1600x900 viewport files a 2400x1350 png, so a
+    crop written in viewport units measured the top-left 52% of the frame - a
+    patch of static ceiling - and reported 0 moved pixels while the broom swung
+    through the middle of the shot. Every region must be scaled by the image's
+    own metadata, never by the viewport.
+76. A source-scanning test that quotes the broken code in its own explanatory
+    comment will find its own prose and report the defect it just fixed. Scan
+    statements, not comments.
+
+### G2 - WHAT IS DONE AND WHAT IS NOT
+
+DONE: the front desk overlap audit now has coverage and a working reset; the
+check-in and walk-in action grids get a 38px page margin without losing button
+height; the HUD's interact prompt no longer draws on the controls line.
+
+NOT DONE, and named because the brief asked for *every* screen:
+
+- **the laptop's inner pages.** The driver enumerates the nav by selector guess
+  and only reached the home page; the 24-page back office is unswept.
+- **the register glass.** Canvas, and not covered by the front desk recorder
+  either - it is a different UI.
+- **the ledger book.** It has its own overlap recorder from C2 and reports zero,
+  but that was measured on the SPREAD sweep, not against cramped edges.
+- **the `Z` keycap** sits 8px off the bottom of the settings page, exactly on the
+  threshold. Left alone rather than tuned to make a number go green.
+
+### SECTION G, ITEM BY ITEM
+
+| item | state |
+| --- | --- |
+| G1 Q and the cashier | DONE - station rule generalised to the class |
+| G2 screens | PARTLY - front desk + 41 DOM screens swept; register glass and ledger edges not |
+| G3 into the bag | DONE (source-level); **no player-camera frame** |
+| G4.1 bag always present | DONE |
+| G4.2 items stay visible in it | DONE |
+| G4.3 customer carries it out | **UNTOUCHED** - the ownership transfer exists but has never been watched |
+| G4.4 fresh bag immediately | DONE |
+| G5 cash denominations | **UNSTARTED** |
+| G6 customer + cash stand point | **UNSTARTED** |
+| G7 cash vs card gestures | **UNSTARTED** |
+| G8 remove speed-up | DONE (verified, earlier) |
+| G9 concurrency ceiling | DONE, binds at high standing |
+| G10 no-progress verdict | DONE |
+| G11 check-in window | DONE, rule not wired to the desk |
+| G12 tee sheet states | DONE, **sheet does not draw with the classifier** |
+| G13 one visit one payment | DONE; live desk path UNCONFIRMED |
+
+### INSTRUMENT FAULTS, WHICH ARE NOW THE STORY OF THIS SECTION
+
+Section G produced **seven** faults in my own measuring tools, six of which
+failed OPEN - green on a broken build:
+
+| fault | how it lied |
+| --- | --- |
+| overlap dedupe never reset | every sweep after the first reported clean |
+| stub with no vertical metrics | every text row 16px tall, a vertical defect invisible |
+| edge metric v1 (element box) | 41 false positives |
+| edge metric v2 (content box) | 113 - flagged every left-aligned heading |
+| test matched its own comment | assertion green on a build with the line deleted |
+| pattern matched `sinkDuration` | deleting the whole leg left it green |
+| capture caught the destructured parameter | reported a branch missing that was present |
+
+The lesson is not "be careful". It is that **a source-scanning or geometric probe
+must be shown failing on a deliberately broken build before any clean result it
+produces is worth reading** - which is what the brief asks for, and what caught
+all seven.
+
+### CLOSED SINCE THIS LIST WAS LAST WRITTEN
+
+- **G2 (partly) - the tee-time screen.** The named overlap was already fixed by
+  Goal 16 F2; the instrument that should have proved it had never been run, and
+  reported clean forever after its first call because clearing its output array
+  does not clear its dedupe set. Padding and the HUD overlap are fixed.
+- **G13 - one visit, one payment.** The merge did not exist: three separate
+  places enforced two tickets. Built as a CLASS (a ticket may carry lines that
+  bank to different revenue accounts; banking splits by line, not by ticket), so
+  a cart rental or a lesson rides the same rails. Tax base, discount base, stock,
+  COGS, unit counts, the velocity window and bagging all moved to goods-only, and
+  a books adversary caught two defects I had already shipped into the tree.
+- **G1 - Q and the cashier.** Half of it had really shipped in Goal 16. The
+  other half was the SEVENTH half-fix of this goal: the station rule was granted
+  by a flag applied to two instances, and the laptop never got it. Fixed as a
+  class, with a scanner that finds any prop opening a station and asserts it is
+  tagged.
+
+### THE HALF-FIX TALLY, BECAUSE IT IS NOW THE DOMINANT DEFECT SHAPE
+
+Seven times this goal a previous fix was found applied to the named instance
+rather than to the family that shares its cause:
+
+| item | fixed | missed |
+| --- | --- | --- |
+| E3 | the named reset row | the rest of the family |
+| E4 | the rebind dialog | the list the player actually reads |
+| F1 | buttons | form controls |
+| G10 | the no-progress verdict | it ran second, so it could never win |
+| H2 | feature seating | against a surface the renderer never draws |
+| G13 | `beginReservationPayment` | both selection gates in front of it |
+| G1 | the till and the reading desk | the laptop, twice over |
+| G2 | the overlap recorder | nothing ever drove it, and its reset was a no-op |
+
+The lesson that keeps repeating: **fixing the instance leaves every unit test
+green.** Six of the seven were found by reading outward from the fix to the path
+the player actually walks, not by running the suite.
+
+
+
+## G7 - CASH AND CARD WERE THE SAME GESTURE, LITERALLY
+
+*"Cash: they lay it on the desk and take their hand back. They do not stand
+holding it out. Card: they hold it up and keep holding it until I take it."*
+
+They were the same gesture in the most literal way the codebase allows - **one
+branch handled both**:
+
+```js
+} else if (char.mode === 'PayCash' || char.mode === 'PayCard') {
+```
+
+### And the right pose already existed
+
+`CashLaid` - arm back, waiting for change - was written for Goal 16 F6, and its
+own comment even states the rule: *"The card path never uses this: a card stays
+in the held-out hand until the cashier takes it."* The AMBIENT customer
+simulation uses it (`customers.js`, `clubhouse.js`).
+
+**The register the player actually operates never did.** Worse, it wrote
+`PayCash` on EVERY FRAME of the cash-tender stage, so a correct pose set from
+anywhere else would have been overwritten before it could be seen. The customer
+stood with an arm held out over money already lying on the desk: the card
+gesture, performed with cash.
+
+This is the eighth half-fix of the goal, and its most exact form yet - the fix
+existed, was correct, was documented, and was wired to everything except the
+thing the player looks at.
+
+### The fix
+
+`CASH_LAY_SECONDS = 0.55`: the hand stays on the money while it is being put
+down, then the arm comes back. Long enough to read as PLACING it rather than
+dropping it; short enough that they are not standing there holding it out.
+
+The timer resets inside `createTender()` rather than at its call sites - there
+are two routes that present cash (the normal one and the one after a card
+decline) and resetting at the callers means one can be missed, which would start
+the customer with their hand already withdrawn from money they had not put down.
+
+### Evidence
+
+Six checks, including one that the split is not cosmetic: the held reach is
+`-1.12` and the laid arm `-0.30`, and the test requires more than 0.5 rad between
+them so a relabel cannot pass. Watched two breaks fail: forcing the held-out
+pose every frame again, and moving the reset back to a single call site.
+
+**A third imprecise anchor** turned up here too - `"cash-tender"` appears 14
+times in that file and `indexOf` finds the first, which is not the per-frame
+block. Same fault as the two in G4; the anchor is now the whole condition.
+
+Suite **2910 pass / 0 fail**.
+
+**UNCONFIRMED:** source-level. No player-camera frame of the arm withdrawing.
+
+## G6 - VERIFIED RATHER THAN REBUILT, AND THE CONSTRAINT RECORDED AS A BOUND
+
+*"The bag blocks them. Move the customer's stand point and their cash placement
+right so neither sits behind it."*
+
+Both halves already hold, and the numbers say so plainly:
+
+| anchor | desk-local x | clear of the bag by |
+| --- | --- | --- |
+| bag | **-1.16** | - |
+| stand point | -0.10 | **1.06 yd** |
+| customer cash | -0.38 | 0.78 yd (0.65 yd at its left edge) |
+
+The stand point **cannot** go further right, and the reason is already written
+into `shopLayout.js` from an earlier pass: +0.06 was tried and
+`checkout-space.test.js` failed it at once - *"bagging is 1.55 yd away at its far
+corner"*. The bag lies at the counter's far left and the player has to reach into
+its mouth, so 0.16 yd is the whole of the margin.
+
+This is the second item this goal that turned out to be **genuinely done** rather
+than half-done (G8 was the first), and I am recording it as such rather than
+manufacturing a change to look busy. The brief's rule about taking the reading
+that CHANGES the game applies to AMBIGUITY; this is not ambiguous, it is a
+measurement that disagrees with the complaint.
+
+### What I added, because a verified item with no check rots
+
+Four assertions pinning the DIRECTION - both anchors stay clear to the right of
+the carrier - plus the reach limit as an explicit upper bound so the next attempt
+does not spend an afternoon rediscovering it. Nothing else in the suite would
+have noticed a regression here: `checkout-space` guards the PLAYER'S REACH, not
+the customer's visibility, so a layout change sliding either anchor back behind
+the bag would have re-created the exact complaint silently.
+
+The cash is checked at its LEFT EDGE, not its centre, because the tender is a
+0.26-wide footprint and the edge is what slides behind the carrier first.
+
+Watched both breaks fail with the arithmetic in the message: cash pushed to -1.10
+reports *"left edge clears it by -0.07 yd"*, stand pushed to -1.20 reports *"gap
+is -0.04 yd"*.
+
+Suite **2914 pass / 0 fail**.
+
+## G5 - CENTS, MATCHING AMOUNTS, REALISTIC DENOMINATIONS
+
+The brief names **two** payment behaviours: *"round notes, plus coins for an odd
+amount, OR round up to the next note."* Only the second existed.
+
+`customerCash` rounded up to the next note, and the one coin branch fired only
+when the odd cents were an **exact multiple of 25** - three totals in a hundred.
+Measured: coins reached the desk in **2.0%** of tenders. The counter was
+notes-only in effect, and the change always came back as shrapnel.
+
+### The behaviour that was missing
+
+Cover the dollars with notes and **the cents with coins**, so the change comes
+back in whole dollars. That is the commoner move in a real shop, it is what puts
+coins on the desk, and it is what stops the player handing back four cents.
+
+F4's rule from the previous goal still holds inside it: the coins a customer digs
+out are LARGE ones. A tender is only paid to the cent when the cents can be made
+from quarters, dimes and nickels - never ninety-six cents counted out in pennies.
+
+Coins now reach the desk in **13.5%** of tenders, against 2.0% before.
+
+### The threshold is set to the model, not the model to the threshold
+
+My first test asserted 20% and failed at 13.5%. **The ceiling here is
+structural**: a customer can only pay the cents in coins when those cents are
+makeable from large coins, so a total ending in 96c never qualifies whatever the
+probability. About a fifth of totals end in a multiple of 5 and the behaviour
+fires on a bit over half of those.
+
+Raising the probability until 20% went green would have been exactly the mistake
+I criticised in G2 - tuning a measurement until it reports what I want. The
+threshold is 10% with the ceiling written into the test, plus an upper bound at
+45% so the opposite failure (every customer digging for change) is also caught.
+
+### Evidence
+
+Six checks over a DISTRIBUTION rather than single calls, because the choice is
+probabilistic and one sample proves nothing about a coin flip. A control asserts
+the sampler produces real tenders at all - a distribution of empty stacks has no
+pennies in it either, and would pass the penny test vacuously.
+
+Watched two breaks fail:
+
+| break | what it said |
+| --- | --- |
+| back to the 25-multiple-only rule | `got 2.0% of tenders` - the before-number, measured |
+| let customers count out pennies | the penny check fires |
+
+Suite **2920 pass / 0 fail**.
+
+**NOT DONE in G5:** *"The cash on the desk matches what they handed over"* is
+asserted at the sim layer (the stack is what `customerCash` returned) but has not
+been checked against what the DESK DRAWS. That is a renderer question and the
+right instrument is a pixel or mesh count at the counter, not a unit test.
+
+## PHASE 5 GATE - TWO MORE STANDING INVARIANTS CLOSED
+
+The gate names its own next item, and it named this one: invariants 3 and 4 read
+*"NO WHOLE-GAME CHECK EXISTS, and G2 asks for exactly that sweep"* and *"NO CHECK
+EXISTS"*. G2 had just built both instruments, so wiring them in was the next item
+rather than a note for later.
+
+| | before | after |
+| --- | --- | --- |
+| 3. No text ever overlaps other text | NO CHECK | **PASS** - 0 pairs across 41 DOM screens |
+| 4. No UI element touches its container edge | NO CHECK | **PASS** - 0 within 8px of a non-scrolling edge |
+
+**The gate reads the artifact but will not trust it blindly**, which matters more
+than the pass:
+
+* if the sweep has **never run**, it reports NO CHECK, not PASS
+* if the sweep ran but its **planted controls failed**, it reports **FAIL** with
+  the control states named - a sweep whose plants were missed is worth less than
+  no sweep at all, and its zeros must never read as a green
+* if the artifact is **over 24 hours old** it drops back to NO CHECK and says so
+  in the detail line, because a stale file is the oldest way to claim a green
+  nobody measured
+
+Standing invariants now **6 pass, 1 FAIL, 3 with no check**, from 4/1/5.
+
+The FAIL is invariant 1, the performance one, and it is the same A1 finding
+already on NOT DONE: 14.8% of frames over 16 ms. It is measured, attributed and
+unfixed - not a new regression.
+
+Remaining without checks: 2 (text cut off - whole-game), 5 (the hand-pixels
+driver exists but its pixel floor was calibrated at 1280x720 and A5 changed the
+default window, so it owes a recalibration before it can be wired), and 8 (no
+check that a NEW string literal escapes `t()`).
+
+## G4.3 - THE BAG LEAVES IN THEIR HAND, AND A CHECK I COULD NOT MAKE FAIL
+
+*"When payment completes, the customer takes the bag and carries it out with
+them. It leaves the shop in their hand. It does not vanish, and the player does
+not hand it over as a separate step."*
+
+**Verified rather than rebuilt - the chain exists and works**, across three
+files:
+
+1. the goods are bagged and `beginBagDeliveryOrRelease()` runs on its own
+   (`simplifiedRegisterMode.js:6176` and `:6575`). The player's click-drag on the
+   bag is an ALTERNATIVE, not a prerequisite - so there is no separate hand-over
+   step
+2. `transferBagOwnershipToCustomer()` marks the carrier and its contents
+   `checkoutOwner: 'customer'` and parks it on `cust.checkoutHandoffBag`. Nothing
+   in it hides or removes the bag: it does not vanish
+3. `clubhouse.js` picks that up and calls `attachPaidBagToCustomer` against the
+   character's LEFT carry grip - an ATTACH, not a position, which is what makes it
+   travel. `holdBagAtCustomer()` only places the bag in the REGISTER's space, and
+   a bag that is merely positioned stays behind when the customer walks away.
+
+### The failure mode worth guarding, which nothing else watched
+
+Step 3 has a fallback: `handedBag || kitBag || legacyBag`. If the handoff ever
+breaks, the departure code **instantiates a fresh kit bag instead** - so the
+customer still walks out carrying something and the real carrier is silently
+orphaned on the counter. **A broken handoff does not look like a missing bag.**
+That is a failure nobody would catch by playing, and it now has a check.
+
+Watched two breaks fail: preferring the fresh kit bag over the handed one, and
+leaving the handoff slot set so the next departure re-attaches a bag already in
+somebody else's hand.
+
+### The one I could not break, recorded as such
+
+The check that the release runs WITHOUT the player's drag **cannot be shown
+failing**. Deleting both automatic call sites left it green. Two faults were
+found and fixed chasing it - the anchor took the first of several
+`autoFulfilled = true;` sites, and the pattern matched the function's own
+DEFINITION as well as a call - and it still does not fail, so a third remains.
+
+**A check I have never watched fail is not evidence.** The claim is true and I
+read both call sites myself, but that test is not what establishes it. Left in
+place with the caveat written into the file, and counted here as UNVERIFIED
+rather than as one of the checks.
+
+That makes **five pattern-and-anchor faults** in this section, all with one
+signature: the scan matched something adjacent to its subject rather than its
+subject.
+
+Suite **2925 pass / 0 fail**.
+
+## A1 - WHERE THE LOAD ACTUALLY GOES, AND A LEVER CLOSED WITH ARITHMETIC
+
+`warm-composer-render` was on NOT DONE as *"5,532 ms of the 8,803 ms prewarm -
+63% of the load in one phase, never examined"*. Examined now.
+
+### The measurement nobody had taken
+
+The prewarm records which programs it warmed but nothing had ever broken those
+keys down by AXIS. Added that, with a control: the axes must multiply to at least
+the key total, or they are not describing these programs.
+
+```
+warm-composer-render   5,540.5 ms
+renderer.compile         109.2 ms
+gl-programs                  135
+material-instances           846      <- was reported as "distinct-programs"
+axis spread   type:799  lights:1  morph:2  vertexColor:1  uv2:1  shadow:2
+```
+
+### The first field of the warm key is a UUID
+
+`type: 799 distinct values`, and they are `432bdaac-61c6-...`. The key leads with
+`material.uuid`, so **every material INSTANCE is a separate entry**. Two materials
+with identical flags share one GL program, so the set over-states the program
+count roughly **six-fold**: 846 keys covering 135 real programs.
+
+The previous note in that file says "132 GL programs at ~73 ms each". The live
+numbers are **135 programs**, and the arithmetic is different.
+
+### The lever this closes
+
+```
+135 programs x ~41 ms  =  5,535 ms
+warm-composer-render   =  5,540.5 ms
+```
+
+**The phase IS the compiles, to within 6 ms.** There is no geometry, shadow or
+post-chain cost hiding in it - which the earlier session had already suspected
+("cutting the submitted set from 5,310 objects to 887 moved it by nothing") but
+could not close, because the UUID key meant that experiment never got below the
+846 objects the key forces. Now it is arithmetic: submitting fewer objects cannot
+make 135 compiles cheaper. **That lever is dead, and so is compileAsync** (tried
+2026-08-03, cost 1,350 ms to return 200 ms).
+
+The only remaining lever on this phase is **fewer distinct shader variants**,
+which is a rendering-feature decision and not a tuning change.
+
+### What I did NOT do, and why
+
+I did not "fix" the key to count programs properly. Over-warming costs a few
+extra draws behind a veil; under-warming ships a hitch at the moment the player
+first sees the object. The conservative key is the RIGHT key for a warm pass -
+**the label was the thing that was wrong**, and `distinct-programs` is now
+`material-instances` with the reasoning written at both sites.
+
+Renaming a number I had been reading as a program count for two sessions is worth
+more than a change that would have made the load slower and the coverage worse.
+
+Suite **2925 pass / 0 fail**.
+
+## A1 - THE MATRIX FREEZE NEVER REACHED THE INTERIOR, AND THE LEVER IS 2,611 OBJECTS
+
+Standing Invariant 1 is the Phase 5 gate's one FAIL. The report's NOT DONE list
+names the per-frame cost as "~900-2000 draw calls a frame plus the 10 Hz shadow
+bake", and my own notes named the next lever as "freezing the clubhouse subtree".
+
+`clubhouse.js` already HAS a freeze - walls, roof, porch, exterior dressing, with
+door hinges deliberately exempt. So the lever looked spent. It is not.
+
+### The census, and the counter that caught it
+
+```
+group (shell)     721 objects    222 auto-updating   (30.8%)
+interior        2,853 objects  2,611 auto-updating   (91.5%)
+interiorUnderGroup: false
+```
+
+The freeze walks `group`. **The interior is not under `group`** - so
+`freezeShellBranch(group)` could never have touched it, and 2,611 objects
+recompose their world matrix every frame.
+
+I found this because the census carried an `interiorTotal` counter that came back
+**0** while `ch.interior` plainly exists. A census that had only reported "222 of
+721 auto-updating, 30.8%" would have read as a mostly-frozen scene and closed the
+lever. **The zero was the finding.** Same lesson as the seven instrument faults in
+section G: the number that looks impossible is the one to chase.
+
+It is also worse than my notes assumed - they said a 2,208-object subtree; it is
+2,853.
+
+### Why I have NOT shipped the freeze
+
+A blanket freeze of that subtree is exactly the change that would break the
+ledger book turning its pages, the doors swinging, the register's drawer and
+card reader, the customers walking, and every tool viewmodel. The shell freeze
+could be blanket because a wall genuinely never moves; the interior cannot,
+because most of what moves in this game lives there.
+
+Doing it safely needs an OPT-OUT LIST built from what actually animates, and a
+check that every animated subtree is still moving afterwards - which is a proper
+item, not a line to slip in at the end of a session. Sized, attributed, and
+handed over rather than half-done.
+
+### Also corrected
+
+`prewarmTimings` still advertised `distinct-programs` to this driver after the
+rename; it now reads `material-instances` (846), so the driver stopped reporting
+`null` for it.
+
+Load numbers re-confirmed on three separate runs: `warm-composer-render` 5,524 /
+5,540 / 5,540 ms against 135 GL programs. Stable, and still the compiles.
+
+## A1-FREEZE - THE SECOND LEVER, CLOSED BY MEASUREMENT INSTEAD OF BY WORK
+
+My own Phase 2 review said the third objection had to be answered first: *nobody
+has measured whether 2,611 matrix recompositions are worth anything.* So the next
+action was a throwaway probe, not the machinery.
+
+The probe blanket-freezes the interior - deliberately unsafe, breaking the ledger,
+doors, register and customers for the length of the run - samples 140 real frames
+in each state, and throws the page away. Nothing shipped, nothing saved.
+
+| state | median | mean | p90 | over 16 ms |
+| --- | --- | --- | --- | --- |
+| before | 8.70 ms | 9.00 | 9.7 | 2 |
+| **frozen (2,577 objects)** | **8.10 ms** | 8.47 | 9.3 | **2** |
+| restored | 8.60 ms | 8.88 | 9.8 | 1 |
+
+**Gain: 0.6 ms of median. Change in the over-16 count: none.**
+
+### Both controls held, so the number is real
+
+* **the freeze actually took** - auto-updating objects went 2,577 to 0. A freeze
+  that silently did nothing would have reported a delta of zero and read exactly
+  like "not worth it", which is the failure mode that matters here
+* **the run was not drifting** - restored median 8.60 against a baseline of 8.70,
+  a drift of 0.1 ms against a gain of 0.6. The middle sample is measuring the
+  freeze and not the passage of time
+
+### The verdict
+
+**Not worth building.** The safe version needs an exemption mark on every
+animated root across six subsystems and a driver proving each one still moves -
+a day of work, and a day of risk, for 0.6 ms that **does not move the invariant
+at all**. Invariant 1 counts frames over 16 ms; this changes that count by zero.
+
+That is the SECOND lever on invariant 1 closed by measurement this session:
+the load phase by arithmetic (135 compiles account for 5,540 ms of 5,540 ms), and
+now the per-frame matrix cost by experiment. Both were the obvious candidates and
+both are dead.
+
+### Where the search goes next, with a number attached
+
+Median frame time indoors is **8.7 ms - comfortably inside budget**. The gate
+reports 14.8% of frames over 16 ms, and a verifier previously measured 97.1%
+on the OUTDOOR spawn route. The over-16 frames are not where I have been
+sampling. **The next probe belongs on the outdoor route, not in the clubhouse**,
+and the remaining named suspect is draw calls (~900-2,000 a frame) plus the 10 Hz
+shadow bake landing on one frame in eight.
+
+Recording the negative result in full, because a day not spent on a 0.6 ms fix is
+the most valuable thing this probe could have produced.
+
+## REQUIREMENT 2 - THE ASSET-CACHE CHECK, WHICH CLEARS THE SUSPECT
+
+*"Before any tool work delete the packed asset cache, rebuild from source, and
+confirm the GLB hash the game loads is the one you built. That check alone may
+explain six rounds of tool measurements."*
+
+The game loads `vendor/models/assets_51_100/...`. The Blender build writes
+`Assets/assets_51_100/glb/...`. They are different files, so the check is real.
+
+### A naive hash comparison says everything is stale, and it is wrong
+
+| asset | vendor | Assets |
+| --- | --- | --- |
+| asset_072_mop_fp | 4,019,348 b | 13,504,444 b |
+| asset_074_broom_fp | 2,875,524 b | 9,459,880 b |
+| asset_072_mop | 4,020,776 b | 13,505,644 b |
+| asset_074_broom | 2,877,164 b | 9,461,400 b |
+
+**All four diverge, at a consistent 3.3x.** That reads exactly like a stale cache.
+It is not one.
+
+### What it actually is
+
+* the packed copy is **NEWER than its source by 18-21 seconds** - a pack step
+  running immediately after each export
+* identical `extensionsUsed` (`KHR_texture_transform`), identical 11 images,
+  identical 10 meshes
+* **geometry byte-for-byte identical**:
+  `Cylinder.004:162v/636i | Cylinder.003:146v/564i | Torus:105v/504i ...`,
+  **6,620 total vertices on both**
+
+The 3.3x is **texture data alone**. The meshes the game loads are the meshes that
+were built.
+
+### The verdict, and it is a negative one
+
+**The suspected cause of six rounds of tool measurements is not this.** The mop
+and broom geometry in the running game has been the geometry on disk the whole
+time. The measurement problems this session traced to other causes and were
+recorded as they were found: a DRY mop measured as if wet, an unready rig
+producing a fake dead zone, and six QA drivers name-scanning `MopStrand_<i>_<s>`
+after the fibres became instanced.
+
+### The trap, which is the part worth keeping
+
+**Any future version of this check must compare `vendor` against a FRESH PACK of
+the current source, never against the source itself.** Comparing raw hashes
+reports "stale" every single time, on a pipeline that is working perfectly, and
+would send the next session chasing a cache that was never wrong.
+
+That is the same shape as the seven instrument faults in section G: a check that
+returns a confident answer about something it is not actually looking at.
+
+## A1 - THE NUMBERS RECONCILE: INVARIANT 1 FAILS AT FIRST LOOK, NOT IN PLAY
+
+Three figures for the same invariant were in the record and none of them agreed:
+
+| source | over 16 ms |
+| --- | --- |
+| Phase 5 gate, this session | 14.8% (worst 733 ms) |
+| verifier, outdoor spawn route | 97.1% |
+| freeze probe, settled sampling | ~1.4% |
+
+So I sampled both positions in ONE run, on one machine and one build, with
+`renderer.info` attribution.
+
+```
+spot A     median  8.8 ms   over16 1.3%   over33 0   calls 2410   worst 19.2
+spot B     median 10.0 ms   over16 1.3%   over33 0   calls 1724   worst 19.5
+moved 10.24 yd
+```
+
+### The control caught my own framing
+
+`startedInside: false`. **The spawn is OUTSIDE**, so what I had been calling the
+"indoor" sample in the freeze probe was never indoors. Both of these samples are
+outdoor positions 10 yd apart. Had the probe not reported where it stood, I would
+have published an indoor-versus-outdoor comparison that was nothing of the kind -
+and it is the second time this session a position assumption was wrong (the
+STALE-player-offset gotcha is the other).
+
+### What reconciles them
+
+**Steady play is 1.3% over 16 ms with ZERO frames over 33**, at both positions,
+however many draw calls are in flight (2,410 vs 1,724 changed the median by
+1.2 ms and the over-16 rate by nothing).
+
+The gate's 14.8% and worst-frame of 733 ms are measured across a window that
+INCLUDES startup. The verifier's 97.1% came from a spawn-route window dominated
+by the same thing. **Invariant 1 fails at load and first look, not during play.**
+
+That closes the circle on everything measured this session: the load phase is
+135 program compiles and nothing else (5,540 ms of 5,540 ms), the interior matrix
+freeze buys 0.6 ms and moves the over-16 count by zero, and now steady-state
+frames are shown healthy at both a high-draw-call and a low-draw-call position.
+**It is compiles, and the draw-call theory is dead too** - a 40% swing in calls
+did not move the invariant at all.
+
+### What that means for the item
+
+The remaining work on invariant 1 is NOT a per-frame optimisation. It is either
+fewer shader variants, or accepting that the first look at a new object costs its
+program compile and hiding that behind the veil - which is what the prewarm
+already tries to do, and which A3 extended to the ledger and A1 to hidden objects
+earlier this session.
+
+**The honest status: invariant 1 as WRITTEN ("no frame over 16 ms during normal
+play") is met in normal play at 1.3%, and fails on the startup window the gate
+measures.** That is a real distinction and the gate should probably measure them
+separately - noted rather than changed, because moving a gate's goalposts while
+it is red is exactly the wrong instinct.
+
+## REQUIREMENT 1 - THE TUNING OVERLAY, RE-VERIFIED LIVE RATHER THAN ASSERTED
+
+*"Build the live tuning overlay FIRST."*
+
+`src/ui/toolTuner.js`, 372 lines, four commits against it this session
+(`dfb4b4b` built it with B2/B3/B4, `3cad241` fixed a defect where the panel could
+never be CLICKED, and two more removed em dashes from strings the player reads).
+
+Rather than point at those commits, I re-ran its driver in Electron on
+`--clubhouse=pine-hills-v2` just now:
+
+```
+panelOpened          true      sliderMovedTheTool   true
+broomHasFibreRows    true      deadControlInert     true
+leftElbowRows        3         typedBoxRoundTrips   true
+noiseFloor           8798      revertRestored       true
+```
+
+Every one of those is a property the Requirement asks for: the panel opens, it
+carries the fibre and elbow controls, **a slider actually changes the tool**, a
+typed number round-trips through the same door as the slider, and Revert restores
+the session baseline.
+
+**`deadControlInert: true` is the negative control** - a control wired to nothing
+must NOT move the tool. Without it, "the slider moved the tool" proves only that
+something moved when something was touched.
+
+The one that mattered most in practice was `3cad241`: the panel rendered
+correctly and could not be clicked, because `pointer-events` was never set on it.
+An overlay you cannot touch is not a tuning overlay, and no amount of reading the
+source would have shown it - the driver did.
+
+Recorded here because a claim of "built earlier" is not evidence, and the whole
+point of this goal is that a green suite is not evidence either.
+
+## PHASE 5 GATE - RUN TO CLOSE SECTION A
+
+```
+ 1. [FAIL    ] No frame over 16 ms during normal play
+               worst 377.5 ms, 593 frames over 16 (14.2%), 1 over 100
+ 2. [NO CHECK] No text is ever cut off
+ 3. [PASS    ] No text ever overlaps other text        0 across 41 DOM screens
+ 4. [PASS    ] No UI element touches its container edge 0 within 8px
+ 5. [NO CHECK] Stick tools have hands; hand-worked tools have none
+ 6. [PASS    ] Nothing carried is left floating or unputdownable
+ 7. [PASS    ] No NPC is stuck for more than 3 seconds
+ 8. [NO CHECK] Every player-facing string goes through t()
+ 9. [PASS    ] No duplicate keys in any object literal
+10. [PASS    ] The suite is green and the tree is clean at every commit
+
+SUMMARY: 6 pass, 1 FAIL, 3 with no check yet.
+```
+
+### The FAIL, and what Section A established about it
+
+The gate says **14.2% of frames over 16 ms**. The outdoor probe, sampling settled
+play at two positions on the same build, says **1.3% with zero frames over 33**.
+
+Both numbers are correct. They measure different windows: the gate's includes
+startup, and startup is 135 program compiles at ~41 ms each. The invariant is
+written *"during NORMAL PLAY"*, and in normal play it is met.
+
+### What Section A closed, all by measurement rather than by code
+
+| candidate | verdict | evidence |
+| --- | --- | --- |
+| the load phase hides non-compile work | **dead** | 135 x ~41 ms = 5,535 ms against a 5,540 ms phase |
+| submitting fewer objects would help | **dead** | the phase IS the compiles, to within 6 ms |
+| `compileAsync` | **dead** | tried 2026-08-03: 1,350 ms spent to return 200 ms |
+| the interior's 2,611 live matrices | **dead** | freezing all of them buys 0.6 ms, changes over-16 by zero |
+| draw calls | **dead** | a 40% swing (2,410 to 1,724) moved the over-16 rate by nothing |
+| a stale packed asset cache | **dead** | geometry byte-identical, 6,620 verts both sides |
+
+Six candidates, six closed, none of them the cause. What remains is program
+compilation at first look, which the prewarm already hides for everything it can
+reach - and which A3 extended to the ledger and A1 to hidden objects earlier this
+session.
+
+### The one change I deliberately did NOT make
+
+The gate blends startup and steady play into one figure. Section A's finding says
+those are different populations, and the honest fix is for the gate to report
+both. **I have not changed it**, because a gate that is red should not have its
+measurement redefined by the person whose work it is judging. It is recorded as
+the next item, for a session that can implement it and then watch the FAIL
+survive on a build that genuinely stutters in play.
+
+**Remaining without checks: 2, 5, 8.** Invariant 5's driver exists but its pixel
+FLOOR was calibrated at 1280x720 and A5 changed the default window, so it owes a
+recalibration before it can be wired - wiring it as-is would produce a green from
+a number that no longer means anything.
+
+### WHAT REMAINS, HONESTLY
+
+1. **Every visual item this session is UNCONFIRMED.** No player-camera frame of
+   the bag sinking, the arm withdrawing after laying cash, coins on the desk, or
+   the till read with a mop in hand. Source-level and distribution checks only.
+   This is the largest gap between what is claimed and what is *seen*.
+2. **Invariant 1**, as above: measured, attributed, six causes eliminated, and
+   the remaining lever is a design decision rather than a fix.
+3. **The gate blends startup and steady play** into one figure. The honest fix is
+   to report both; deliberately not done, because a red gate should not have its
+   measurement redefined by the person it is judging.
+4. **45 raw strings**, blocked behind translation as above.
+
+### THE METHOD, WHICH IS THE REAL DELIVERABLE
+
+One hundred and fifteen commits, and the through-line was never features. It was
+that **instruments lie in the direction that looks like success**:
+
+* seven faults in section G's own tools, **six failing OPEN** - green on a broken
+  build
+* a gate note that sent me to check a window size while a contract had inverted
+  underneath it
+* a cramped-edge metric that went 41 -> 113 -> 1 -> 0 across four revisions
+* a defect published, then retracted, then explained by a comment I had read
+  twice
+* a ratchet whose FLOOR failed on a build that was strictly better
+* an item costed at 1,395 translations, then at one invariant, and truly at 110
+  strings of headroom
+
+Every one of those was caught by the brief's own rule: **watch the check fail on
+a broken build before believing it on a working one.** Nothing else in this
+session found as much.
