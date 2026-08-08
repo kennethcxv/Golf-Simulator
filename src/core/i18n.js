@@ -42,6 +42,10 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // The payment method is a translated word, not a substituted token.
+  'till.iWillPayWith': "{name}: I'll pay with {method}.",
+  'till.method.card': "card",
+  'till.method.cash': "cash",
   // The till, with placeholders so a translation can reorder them.
   'till.resumeFailed': "Could not pick the sale back up: {reason}",
   'till.recovered': "Checkout recovered from {state}.",

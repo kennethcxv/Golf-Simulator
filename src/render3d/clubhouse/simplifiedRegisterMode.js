@@ -2022,6 +2022,12 @@ export function createRegisterMode(B) {
     return root.worldToLocal(grip.getWorldPosition(new THREE.Vector3()));
   }
 
+
+  // G-i18n: the payment method is a WORD the player reads, so it is looked up
+  // rather than interpolated raw. Substituting the bare token would put an
+  // English 'card' inside a translated sentence.
+  const payMethodWord = (pref) => (pref === 'cash' ? t('till.method.cash') : t('till.method.card'));
+
   function poseCustomerForCheckout(mode) {
     const char = cust && cust.mesh && cust.mesh.userData && cust.mesh.userData.char;
     if (!char) return false;
@@ -6766,7 +6772,10 @@ export function createRegisterMode(B) {
       }
       selectedWalkInCustomerId = null;
       selectedReservationId = booked.res.id;
-      toast(`${booked.res.fullName || booked.res.name}: I'll pay with ${booked.res.paymentPreference || 'card'}.`);
+      toast(t('till.iWillPayWith', {
+        name: booked.res.fullName || booked.res.name,
+        method: payMethodWord(booked.res.paymentPreference),
+      }));
       return beginReservationPayment(booked.res);
     }
     if (action === 'reject-walkin') {
@@ -6801,7 +6810,10 @@ export function createRegisterMode(B) {
     }
     if (action === 'reservation-check-in') {
       const reservation = activeReservation();
-      if (reservation) toast(`${reservation.fullName || reservation.name}: I'll pay with ${reservation.paymentPreference || 'card'}.`);
+      if (reservation) toast(t('till.iWillPayWith', {
+        name: reservation.fullName || reservation.name,
+        method: payMethodWord(reservation.paymentPreference),
+      }));
       return beginReservationPayment(reservation);
     }
     if (action === 'start-scanning') return startScanning();

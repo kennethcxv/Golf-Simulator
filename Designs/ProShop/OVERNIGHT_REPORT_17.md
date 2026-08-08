@@ -4667,3 +4667,37 @@ knows why they were skipped rather than missed.
 ```
 
 **70 strings, 45%, translatable.** Suite 2928 pass / 0 fail throughout.
+
+### 85 -> 83: the payment method is a WORD, not a token
+
+The two lines I left in the last batch are done, and the reason they were left is
+the whole content of the fix.
+
+```js
+`${name}: I'll pay with ${paymentPreference || 'card'}.`
+```
+
+`paymentPreference` holds `card` or `cash` - **bare English tokens**. Substituting
+one into a translated sentence gives you a French line with an English word
+sitting in the middle: technically translatable, actually broken. That is why
+they could not go through the same pass as the others.
+
+```js
+const payMethodWord = (pref) => (pref === 'cash' ? t('till.method.cash') : t('till.method.card'));
+toast(t('till.iWillPayWith', { name, method: payMethodWord(pref) }));
+```
+
+Three keys instead of one: the sentence, and a word per method. **The method is
+looked up before it is substituted**, so a translator gets both halves.
+
+That is the shape most of the remaining 83 will need - not "wrap the string", but
+**decide what each interpolated value IS**. A name is data and passes through. A
+price is data and passes through. A `card`/`cash` token is prose wearing a
+data-shaped hat, and it needs a key of its own.
+
+```
+155 -> 146 -> 119 -> 94 -> 90 -> 85 -> 83
+```
+
+**72 strings, 46%, translatable.** Ratchet lowered to 83 and watched failing at
+84. Suite 2928 pass / 0 fail.
