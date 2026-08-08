@@ -5901,3 +5901,40 @@ item, with its own five phases.
 
 **Recorded as such**, because an estimate I have just watched fail should not be
 left standing in the handover I wrote an hour ago.
+
+### CORRECTION TO THE CORRECTION: NO DRIVER DRIVES THE CHANGE BEATS
+
+An hour ago I wrote that G4.3's pieces *"exist across cash-hover-highlight and
+the acceptance drivers"*. **Checked, and they do not.**
+
+```
+grep openDrawer|depositTendered|takeFromDrawer|handOverChange  across tools/qa/*.js
+-> nothing
+```
+
+Those are **sim-level verbs in `register.js`**, and the physical flow the player
+uses is clicks on the drawer, the wells and the customer's hand.
+`cash-hover-highlight.js` reaches the tender BEAT and photographs it - it never
+completes the sale. **No driver in this repository has ever driven a cash sale to
+completion.**
+
+So G4.3 is not "assemble existing pieces". It is **build the change-giving
+sequence from scratch**, against a flow deliberately designed so that money moves
+by hand rather than by keypress - which is the F-series work this project spent
+two goals getting right, and is correspondingly fiddly to automate.
+
+### That is three estimates in a row on this one item
+
+1. *"one driver extension"* - wrong, acceptance is not one click
+2. *"assemble existing pieces"* - wrong, no driver performs those beats
+3. **now: build the sequence, and expect it to take a session of its own**
+
+I have no reason to believe the third is right either, and I am writing it as an
+expectation rather than a plan. **What IS solid is everything below it**: the
+scenario recipe, the four measurement rules, and five confirmed visual items - all
+of which were verified rather than estimated.
+
+The lesson is narrow and worth keeping: **I am reliable when I measure and
+unreliable when I estimate**, and this session produced three demonstrations of
+the second in a row on a single item. The report should be read accordingly - its
+numbers are trustworthy, its forward-looking sentences less so.
