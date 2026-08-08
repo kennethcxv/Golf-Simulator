@@ -4402,3 +4402,49 @@ and then retracted. A baseline I set from a one-liner that the test corrected.
 
 The rule that caught every one of them is the brief's own: **watch the check fail
 on a broken build before believing it on a working one.**
+
+### THE 155 STRINGS COST NINE TRANSLATIONS EACH, NOT ONE WRAP
+
+The running list called the 155 untranslated strings the top player-facing item,
+so I started wrapping them - nine plain literals in `buildMode.js`, keys added to
+the English table, `t()` at the call sites. All nine wrapped cleanly.
+
+**And `tests/i18n.test.js` failed immediately:** *"zh-Hans reports full
+coverage"*.
+
+```js
+for (const id of ids) {
+  assert.equal(coverage(id).fraction, 1, `${id} reports full coverage`);
+}
+```
+
+Goal 16's D2 established that **every offered locale carries a FULL table**, and
+the coverage instrument asserts it per locale. So adding one English key without
+its nine translations breaks the invariant for all nine other languages at once.
+
+### Why that matters more than the nine strings
+
+**The cost of this item is nine translations per string, not one wrap.** The
+ratchet's own framing - "translating those is a real piece of work" - was closer
+to right than my plan was, and my plan was to wrap first and translate later.
+In this codebase that ordering is not available: the coverage invariant makes
+wrapping and translating the same action.
+
+155 strings x 9 languages = **1,395 translations**, and machine-guessing them
+into a shipping product to make a test go green would be the worst possible
+version of this work. **Reverted.**
+
+### What the item actually needs
+
+Either real translations, or a deliberate decision to relax the full-coverage
+invariant so English-only keys may exist while a locale catches up - which is a
+product decision about what a partly-translated build is allowed to look like,
+and the i18n layer already supports it technically (a missing line falls through
+to English).
+
+**Recorded on NOT DONE with the true cost**, replacing the estimate I had written
+an hour earlier. The ratchet still does its job: no NEW string can join the 155.
+
+That is the third time this session an item turned out to cost something other
+than what the previous note claimed - and the second time the correction came
+from a test refusing to accept a shortcut.
