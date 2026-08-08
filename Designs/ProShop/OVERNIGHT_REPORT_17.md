@@ -10302,3 +10302,46 @@ as a file, not as a nested string.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE TRACE DRIVER IS BUILT AND ARMS CORRECTLY — THE MINIMAL SCENARIO WILL NOT EQUIP
+
+Wrote `tools/qa/electron-geo-trace.js` **as a file**, per the rule the previous
+entry earned. It parses, boots, and arms cleanly:
+
+```
+GEO-TRACE {"armed":"patched","equipped":"none","geometriesCreated":0,"distinctSites":0}
+```
+
+**`armed: "patched"`** — the prototype was reached and `setAttribute` wrapped, so
+the instrument itself works. **`equipped: "none"`** — the scenario never equipped
+the broom, so there was nothing to trace.
+
+### What that isolates
+
+The walk driver equips reliably (`equipped: "broom"`, +54 geometries every run).
+This one — boot, capture pointer, hold belt, press `b`, release — does not.
+**The difference is the preceding beats**: walking, a door, the ledger, and the
+ledger being closed again.
+
+So equipping depends on state the minimal scenario does not reach. That is worth
+knowing on its own: **the tool belt is not usable straight out of boot**, which
+is either a real gate (cart, tutorial, walk-state) or a timing requirement, and
+either way it is a fact about the game that no test had recorded.
+
+### The handover, corrected
+
+**Do not run the trace standalone.** Fold the arming call and the stack readout
+into `electron-sixty-second-walk.js`, which already reaches the state where
+equipping works — as a small imported helper file, never as an inline string.
+
+The instrument is proven (it patched successfully); only its host scenario is
+wrong. That is a much smaller gap than it looked an hour ago, and it is the last
+thing standing between Section A and the construction site.
+
+**Filed as a fresh finding, not folded into an old one**: *the tool belt does not
+work immediately after boot.* Whether that is intended is a question for the
+owner, and it may matter to a player who takes a tool out as their first action —
+which the starter loop encourages.
+
+Suite 2929 pass / 0 fail.
+
