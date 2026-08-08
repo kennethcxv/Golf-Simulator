@@ -6585,3 +6585,47 @@ reversing it gains 35%. What is not: whether that is enough for the owner to
 see, which needs the default-camera capture the RULES require and which no
 amount of further arithmetic can substitute for.
 
+
+## SECTION B PHASE 5 — REGRESSION GATE RUN, AND IT CAUGHT ITS OWN NARRATION
+
+```
+SUMMARY: 9 pass, 1 FAIL, 0 with no check yet.
+FAILING: 1  (No frame over 16 ms - worst 384.5 ms, 634 frames over, 15.2%)
+```
+
+The single FAIL is invariant 1, the known Section A item, unchanged and still
+honestly red.
+
+### The gate's own invariant 8 line was a round out of date
+
+It printed `2108 raw strings at FOUR SINKS ... roughly 1,650 further literals at
+prop labels, el({text}), ctx.fillText and refusal reasons, **none of them
+scanned**` — while the 2,108 it quotes exists *only because those categories
+were scanned today*. The number and the sentence explaining it disagreed, and
+the gate printed them side by side without noticing.
+
+Harmless to the verdict, and exactly the failure this report keeps finding: a
+measurement that is right sitting next to a description that is stale, where the
+description is what a reader believes.
+
+### Fixed by DERIVING the description, not rewriting it
+
+The detail line now reads the sink families out of the ratchet's own `SINK`
+regex and lists what is still unscanned, so it cannot drift again:
+
+```
+2108 raw strings across 5 sink families (toast/announce/setPrompt/setHint,
+shop.log, reason:, label:, el({text})) are held under a ratchet - a new one
+there fails the suite. Still unscanned: ctx.fillText (~61),
+notify({message}) (~14). This invariant reads PASS because NOTHING NEW is
+bypassing t(), not because the game is translated - the 2,108 already there
+are raw and reach every locale in English. Wrapping them is the open work.
+```
+
+Rewriting the prose would have been correct for a day. Deriving it is correct
+until someone changes the sinks, at which point it updates itself — which is
+the only version of this that survives a session that ends mid-thought.
+
+**Section B: phases 0, 1, 2, 3, 4 and the Phase 5 gate are complete.** B1 itself
+remains open on its default-camera capture; B2-B5 are untouched.
+

@@ -227,13 +227,37 @@ const TEN = [
       if (!baseline) return { ok: null, detail: 'the ratchet has no readable baseline' };
       return {
         ok: Number(fail) === 0,
-        detail: `${baseline} raw strings at FOUR SINKS (toast/announce/setPrompt/setHint plus `
-          + 'shop.log) are held under a ratchet - a new one there fails the suite. THAT IS THE '
-          + 'WHOLE OF WHAT THIS CHECKS, and it is a small fraction of the surface: measured '
-          + '2026-08-08, roughly 1,650 further player-facing literals live at prop labels, '
-          + 'el({text}), ctx.fillText and refusal reasons, none of them scanned. This invariant '
-          + 'reads PASS because its check is narrow, not because the game is translated. '
-          + 'Widening the sink list is on NOT DONE and is the honest next step',
+        // DERIVED FROM THE SINK LIST, NOT RESTATED ALONGSIDE IT.
+        //
+        // This line used to hardcode "FOUR SINKS ... roughly 1,650 further
+        // literals ... none of them scanned" while printing a baseline that had
+        // grown to 2,108 precisely BECAUSE those categories were now scanned.
+        // The number and the sentence describing it disagreed, and the gate
+        // printed both together without noticing - a check whose own narration
+        // was a round out of date.
+        //
+        // Reading the sinks out of the regex means the description cannot drift
+        // from the thing it describes again.
+        detail: (() => {
+          const sinkSrc = /const SINK = \/(.+?)\/g;/.exec(fs.readFileSync(file, 'utf8'))?.[1] || '';
+          const named = [];
+          if (/toast\|announce/.test(sinkSrc)) named.push('toast/announce/setPrompt/setHint');
+          if (/log\\\.unshift/.test(sinkSrc)) named.push('shop.log');
+          if (/reason:/.test(sinkSrc)) named.push('reason:');
+          if (/label:/.test(sinkSrc)) named.push('label:');
+          if (/text:/.test(sinkSrc)) named.push('el({text})');
+          const unscanned = [];
+          if (!/fillText/.test(sinkSrc)) unscanned.push('ctx.fillText (~61)');
+          if (!/message:/.test(sinkSrc)) unscanned.push('notify({message}) (~14)');
+          return `${baseline} raw strings across ${named.length} sink families `
+            + `(${named.join(', ')}) are held under a ratchet - a new one there fails the suite. `
+            + (unscanned.length
+              ? `Still unscanned: ${unscanned.join(', ')}. `
+              : 'Every known player-facing sink is now scanned. ')
+            + 'This invariant reads PASS because NOTHING NEW is bypassing t(), not because the '
+            + 'game is translated - the 2,108 already there are raw and reach every locale in '
+            + 'English. Wrapping them is the open work';
+        })(),
       };
     },
   },
