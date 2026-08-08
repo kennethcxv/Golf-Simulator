@@ -66,7 +66,22 @@ import path from 'node:path';
 // settings row titles, and every named control - text the player reads more
 // often than any toast, because a prompt is on screen continuously while a
 // toast flashes.
-const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])|reason:\s*(['"`])|\blabel:\s*(['"`])/g;
+// `text:` joined as step 3, and it is the one the plan said to AUDIT FIRST
+// rather than add blind. The audit paid for itself immediately.
+//
+// The naive pattern `text:\s*['"`]` matches `context: 'walk'` - because
+// `context:` ENDS with the literal characters `text:`. Eleven internal state
+// keys in sim/tutorial.js and elsewhere would have been counted as player
+// prose, in a check whose entire value is that its number means what its name
+// says. `\b` fixes it: `n` to `t` is word-char to word-char, so there is no
+// boundary inside `context:` and the match is refused.
+//
+// This is the first instrument fault this session that the PLAN caught instead
+// of a failing run - the audit step existed precisely because the el() factory
+// also builds debug rows. The spot-check found the sample was overwhelmingly
+// real player prose ("Revenue", "Amenities", "Close Laptop", "Add a walk-in"),
+// and found this at the same time.
+const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])|reason:\s*(['"`])|\blabel:\s*(['"`])|\btext:\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
@@ -90,7 +105,18 @@ const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 // 854 -> 1406 when `label:` joined. Third correction-not-regression rise.
 // Worst offenders now: sim/register.js 103, sim/courseEditor.js 87,
 // sim/reservations.js 72, sim/campaign.js 61, ui/laptop.js 60.
-const BASELINE = 1406;
+// 1406 -> 2108 when `text:` joined. Fourth correction-not-regression rise, and
+// the last of the planned widening except `ctx.fillText` (61) and
+// `notify({message})` (14).
+//
+// The shape of the number changed here. Every earlier step added strings from
+// the 3D world and the sim; this one is dominated by the BACK OFFICE - laptop
+// 254 and courseEditor 159 are now the top two files, ahead of register's 103.
+// The screens a player spends the most reading time on were the ones no
+// measurement had ever looked at.
+// Worst offenders now: ui/laptop.js 254, ui/courseEditor.js 159,
+// sim/register.js 103, sim/courseEditor.js 87, sim/reservations.js 72.
+const BASELINE = 2108;
 
 function jsFiles(dir) {
   const out = [];
