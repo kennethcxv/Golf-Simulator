@@ -10257,3 +10257,48 @@ failed at this; a stack trace will not.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE STACK TRACE ATTEMPT FAILED ON ESCAPING — AND THAT IS ITS OWN LESSON
+
+Tried to patch `BufferGeometry.prototype.setAttribute` from the driver to capture
+where the 54 geometries are built. The patch is sound in principle: the prototype
+is reachable from any existing mesh, and every geometry calls `setAttribute`
+during construction.
+
+**It never ran.** Building that patch as a JS string, inside a `node -e` string,
+inside a bash command, produced `SyntaxError: Invalid or unexpected token` and
+left the driver unparseable. Restored from git; `node --check` clean; suite green.
+
+### Third escaping failure of this session, same root cause
+
+- bash heredocs ate backslashes in a regex (fault, early);
+- backticks in a `-m` commit message were command-substituted and ate a word;
+- now four levels of nesting mangled a driver patch.
+
+**Every one came from generating code as a string through a shell.** The Edit
+tool has failed loudly and correctly every time it was used; the string-through-
+shell route has failed silently or destructively three times.
+
+**Rule, earned three times over: never author code through nested shell strings.**
+Write the file, or use the editor. `node -e` is for reading, not for writing
+code that contains quotes.
+
+### Where this leaves the constructor hunt
+
+Unchanged and honest: **54 geometries are created at first equip (scene-wide
++54, controlled), and four code readings have not found the site.** The stack
+trace remains the right instrument and is a ten-line driver file away — written
+as a file, not as a nested string.
+
+**Section A's tool half, final state for this session:**
+
+| claim | status |
+|---|---|
+| +9 programs at first equip, ordinary keys | **measured, 3 ways** |
+| second equip free (~24 ms, 0 programs) | **measured, 1 ms spread** |
+| 54 geometries CREATED, not moved | **measured, scene-wide control** |
+| six warming fixes | **all refuted, all reverted** |
+| where the construction happens | **open — needs a stack, not a read** |
+
+Suite 2929 pass / 0 fail.
+
