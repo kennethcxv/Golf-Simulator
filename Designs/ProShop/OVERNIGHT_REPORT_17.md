@@ -12124,3 +12124,50 @@ and deliberately not changed.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## E4's IMMEDIACY: THE REBIND ROWS REFRESH; THE FORMATTED LIST IS THE OPEN HALF
+
+Read the rebind handler (`settingsPanel.js:315`):
+
+```js
+stopCapture();
+set('controls.bindings', next);
+if (holder) notify({ ... });
+refreshButtons();
+```
+
+**A rebind does refresh immediately** — `refreshButtons()` runs on the same tick
+as the write. So the keycaps in the Controls rows update without a reopen.
+
+**But E4 names a second surface.** Its wording — *"must change it in the
+formatted controls list TOO"* — distinguishes the rebind rows from a separate
+formatted list, and `refreshButtons()` is named for the former. Whether the
+latter re-renders on the same event is exactly the word "too" in the requirement,
+and it is not answered by this line.
+
+### Where E4 actually stands
+
+| claim | state |
+|---|---|
+| the list resolves through the live binding, never a cached key | **verified** (`ui.js:374`, `keyBindings.js:3`) |
+| the same renderer produces it, so the layout matches | **verified by construction** |
+| the rebind rows update immediately | **verified** (`refreshButtons()` on the write) |
+| the **formatted list** updates immediately | **open** |
+
+**Three of four verified from source, and the fourth is precisely the one the
+requirement's own wording singles out.**
+
+### The check that closes it
+
+One driver: open Controls, rebind a key, and read the formatted controls list
+**without closing the panel**. If it shows the new key, E4 is done; if it shows
+the old one, the fix is to have `refreshButtons()` — or the write itself — reach
+that surface too.
+
+**Not run**, and recorded as open rather than inferred, because "a refresh
+happens" and "*that* surface refreshes" are different claims — the same
+distinction that E3 required an hour ago and that eight earlier findings in this
+report turned on.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
