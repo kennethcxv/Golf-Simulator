@@ -7418,3 +7418,54 @@ check disproved:
 catches all of them is the same: before acting on a belief about this codebase,
 spend the thirty seconds to ask the codebase.
 
+
+## SECTION F — F1 VERIFIED FOR DOM; THE CANVAS SCREENS ARE AN OPEN QUESTION
+
+F1 is *"a click on every button, everywhere"*, and the word doing the work is
+**everywhere**.
+
+### What is verified
+
+The cue is wired in `el()` at `src/ui/ui.js:22`, and it is thorough. Its own
+recorded audit: **128 pressable elements across the pause menu, four settings
+tabs, the HUD and the laptop; 117 cued (91.4%)**, with all eleven misses being
+`<select>` or `<input>` — quality preset, shadow tier, window mode, resolution,
+accessibility hold-mode and six sliders. Those are now wired, each on the event
+that control actually fires (`pointerdown` for buttons, `change` for selects,
+`input` for sliders, riding the 120 ms debounce so a drag is not a machine-gun).
+
+It also records the ordering trap: the wiring must run AFTER the attribute loop,
+because `type` is set by that loop — before it, every `<input>` looks alike and a
+text field gets wired for clicking. *"Typing is not pressing."*
+
+**That is a genuinely complete piece of work, and it already caught its own
+half-fix** — the 91.4% audit is exactly the "named instance vs the family" check
+this report keeps asking for.
+
+### What is NOT established, and I am not going to assert it
+
+`el()` wires DOM. The ledger, the front desk monitor and the register draw their
+controls **on canvas**, where there is no element to attach a listener to. Those
+three files contain **zero** click-cue calls.
+
+The obvious conclusion is that canvas buttons are silent and F1's "everywhere"
+is unmet. **I could not confirm it.** Searching those files for click handling
+found nothing under any name I tried, and searching `courseScene.js` and
+`clubhouse.js` for the routing found nothing either. I know from this session's
+own drivers that the register IS clickable — click-to-bag works — so the routing
+exists somewhere I did not locate.
+
+**So the finding is: three canvas UIs have no click cue, and where their presses
+are handled is unresolved.** Whether that means silence depends entirely on the
+answer.
+
+Asserting the conclusion would have been the eleventh over-reach in this report,
+and the pattern is specific: I had a plausible mechanism, a suggestive absence
+(zero cue calls), and no evidence for the step in between. **That is the exact
+shape of every fault listed above** — the strand figure, the coverage number, my
+own phase-0 sentence. The difference here is only that I stopped.
+
+**F1 status: VERIFIED for DOM, OPEN for canvas.** Next step is one search for
+the canvas press routing, then a driver that presses a ledger control and
+listens.
+
