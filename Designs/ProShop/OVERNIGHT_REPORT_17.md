@@ -2213,6 +2213,41 @@ measured distance, and by this brief's rule a visual claim without a
 player-camera frame is unconfirmed. The number is certain; the invisibility is
 reasoned.
 
+## H3 — the skin through the belt was static geometry, and it computes
+
+H3 says skin passes through the belt and asks for a fix that holds "on any body
+in any pose". It turned out **not to be a pose problem at all** - the shirt was
+outside the belt standing still - which is why it can be settled with arithmetic
+instead of a pose sweep.
+
+Two independent causes, and a fix for either alone would have left it visible:
+
+| | measurement |
+| --- | --- |
+| where they meet | belt at y 1.055, chest group at 1.07, so the belt meets the torso lathe at local y **-0.015** |
+| shirt radius there | profile interpolates (0.202, -0.018) to (0.212, 0.035) → **0.2026** |
+| belt mid radius | (0.205 + 0.198) / 2 = **0.2015** → the shirt was **1.1 mm** outside before any pose |
+| belt segments | **18**, against the torso's **24** |
+| belt surface on its flats | a cylinder is a polygon: 0.2015 × cos(π/18) = **0.1984** → **4.2 mm** of shirt outside the belt at every flat |
+
+**The second cause is the one an eye would never diagnose and a radius tweak
+would never fix.** The belt was not merely too narrow; it was a coarser polygon
+than the thing it wrapped, so even a belt with the right nominal radius would
+have shown shirt between its vertices.
+
+Fixed on both counts: segments matched to the torso's 24, and radii set so the
+belt's **inscribed** radius (0.206 × cos(π/24) = 0.2043) clears the shirt's
+0.2026 with 1.7 mm to spare. Depth was never the problem - at `scale.z` 0.74
+against the torso's 0.72 the belt already stood 6.6 mm proud front and back,
+which is why the fault showed on the **sides**.
+
+`tests/character-belt-clearance.test.js` compares the belt's inscribed radius
+against the shirt's circumscribed radius at the meeting height - **comparing
+nominal radii would miss the segment-count cause entirely**. Watched failing
+twice, once per cause: old radii with matched segments fails the clearance test;
+new radii with 18 segments fails the polygon test. Each break is caught by its
+own assertion.
+
 ---
 
 ## RUNNING LISTS

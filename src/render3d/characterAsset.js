@@ -99,7 +99,29 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   // hovered ~5 cm above the ground. Every base height below is lowered to plant the feet.
   const pelvis = ellipsoid(0.32, 0.18, 0.21, mKhaki, 0.98);
   root.add(pelvis);
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.198, 0.038, 18), mBelt);
+  // H3 (Goal 17) — THE TORSO WAS WIDER THAN THE BELT, AND THE BELT WAS A
+  // COARSER POLYGON. Both, at once, on the sides.
+  //
+  // Computed rather than eyeballed. The belt sits at y 1.055; the chest group
+  // sits at 1.07, so the belt meets the torso lathe at local y -0.015. The
+  // profile interpolates between (0.202, -0.018) and (0.212, 0.035) to a radius
+  // of 0.2026 there. The belt's mid radius was (0.205 + 0.198) / 2 = 0.2015.
+  // The shirt was already 1.1 mm outside the belt before any pose.
+  //
+  // And the belt had 18 radial segments to the torso's 24. A cylinder is a
+  // POLYGON: between its vertices its surface sits at r * cos(pi/n), so the
+  // belt's real surface on its flats was 0.2015 * 0.9848 = 0.1984 - putting
+  // 4.2 mm of shirt outside the belt at every flat. That is the "skin phases
+  // through the belt" of H3, and it is a static geometry fault, not a pose one:
+  // it is true standing still.
+  //
+  // Fixed on both counts. The segment count matches the torso, so neither is a
+  // coarser polygon than the other, and the radii are set so the belt's
+  // INSCRIBED radius (0.206 * cos(pi/24) = 0.2043) clears the torso's
+  // circumscribed 0.2026 with 1.7 mm to spare. Depth is unchanged and was never
+  // the problem: at scale.z 0.74 against the torso's 0.72 the belt already
+  // stood 6.6 mm proud front and back.
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.209, 0.203, 0.038, 24), mBelt);
   belt.position.y = 1.055;
   belt.scale.z = 0.74;
   belt.castShadow = true;
