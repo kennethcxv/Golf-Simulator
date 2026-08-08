@@ -57,6 +57,40 @@ async (page) => {
   out.progs = {};
   const record = (name, ok, detail) => { out.beats.push({ name, ok, ...detail }); };
 
+  // GEOMETRY TRACE — WHERE ARE THE 54 BUILT?
+  //
+  // The first equip creates 54 geometries (scene-wide +54, controlled, so built
+  // and not re-parented) carrying 9 materials that compile 9 programs and cost
+  // 333-7855 ms. Four code readings failed to find the constructor.
+  //
+  // `THREE` is not on `window`, but every geometry's prototype is reachable from
+  // any mesh in the scene, and every geometry calls `setAttribute` while being
+  // built. Patch that once here, keep it OFF, and switch it on only across the
+  // tool beat so the capture is the equip and nothing else.
+  //
+  // A standalone driver could not be used: the tool belt does not work straight
+  // out of boot, and only this walk reaches the state where equipping succeeds.
+  out.geoArmed = await page.evaluate(() => {
+    const s3 = window.__fw && window.__fw.scene3d;
+    let proto = null;
+    if (s3 && s3.scene) {
+      s3.scene.traverse((o) => { if (!proto && o.geometry) proto = Object.getPrototypeOf(o.geometry); });
+    }
+    if (!proto) return 'no geometry to reach the prototype';
+    if (proto.__fwGeoPatched) return 'already patched';
+    proto.__fwGeoPatched = true;
+    window.__geoOn = false;
+    window.__geoStacks = [];
+    const original = proto.setAttribute;
+    proto.setAttribute = function patched(name, value) {
+      if (window.__geoOn && window.__geoStacks.length < 500) {
+        window.__geoStacks.push(String(new Error().stack || '').split('\n').slice(2, 7).join(' <- '));
+      }
+      return original.call(this, name, value);
+    };
+    return 'patched';
+  }).catch((e) => `threw: ${String(e && e.message)}`);
+
   // 1. SETTLE — the first frames after the veil. The brief exempts the first
   //    frame only, so this is sampled but reported separately.
   await page.waitForTimeout(6000);
@@ -194,6 +228,7 @@ async (page) => {
   out.keysBefore = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetBefore = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
   out.uuidBefore = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
+  await page.evaluate(() => { window.__geoOn = true; });
   await beat('tool');
   // THE BELT IS HOLD-TO-OPEN, SO THE SELECTION MUST HAPPEN WHILE IT IS HELD.
   //
@@ -300,6 +335,13 @@ async (page) => {
   out.keysAfter = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetAfter = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
   out.uuidAfter = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
+  out.geoSites = await page.evaluate(() => {
+    window.__geoOn = false;
+    const tally = {};
+    for (const s of (window.__geoStacks || [])) tally[s] = (tally[s] || 0) + 1;
+    return Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }).catch(() => null);
+
   await beat('end');
   await page.waitForTimeout(800);
 

@@ -10345,3 +10345,56 @@ which the starter loop encourages.
 
 Suite 2929 pass / 0 fail.
 
+
+## THIRTY-FOURTH: I PATCHED A SUBCLASS PROTOTYPE AND EXPECTED IT TO CATCH EVERYTHING
+
+Folded the trace into the walk driver, which does reach the equip state. It
+armed — `geoArmed: "patched"` — and captured **nothing**.
+
+The fault is one line of my own instrument:
+
+```js
+s3.scene.traverse((o) => { if (!proto && o.geometry) proto = Object.getPrototypeOf(o.geometry); });
+```
+
+**That takes the prototype of the FIRST mesh's geometry.** If that geometry is a
+`BoxGeometry`, this patches `BoxGeometry.prototype.setAttribute` — which
+intercepts box geometries and nothing else. The 54 built at equip are cylinders
+and lathes; they never touch the wrapped method.
+
+`getPrototypeOf` on a subclass instance returns the **subclass** prototype, not
+`BufferGeometry.prototype`. The patch had to walk the chain up to the base:
+
+```js
+let proto = Object.getPrototypeOf(o.geometry);
+while (Object.getPrototypeOf(proto) && !Object.prototype.hasOwnProperty.call(proto, 'setAttribute')) {
+  proto = Object.getPrototypeOf(proto);
+}
+```
+
+### Why this one is worth its own entry
+
+**The instrument reported success.** `armed: "patched"` was true — a prototype
+*was* patched. It just was not the one that mattered, and nothing in the output
+could distinguish "patched the right class and saw no construction" from
+"patched the wrong class". **A status string that says `patched` without saying
+*what* was patched is the same failure as `"not reached"` twenty entries ago.**
+
+Fixed properly, the arming call should return the constructor **name** it
+patched (`BufferGeometry` vs `BoxGeometry`), which makes the mistake impossible
+to miss. That is the negative control this instrument never had — and the RULES
+demand one for every new instrument.
+
+### Section A's tool half, closing state for this session
+
+**Measured and controlled:** +9 programs at first equip with ordinary keys; 54
+geometries genuinely created (scene-wide control); second equip free at ~24 ms
+with 0 programs; six warming fixes refuted and reverted; the tool belt unusable
+straight out of boot.
+
+**Open:** where the 54 are built. The trace is the right instrument, is now in
+the right host, and needs one correction — walk the prototype chain to the class
+that actually owns `setAttribute`, and report which class was patched.
+
+Suite 2929 pass / 0 fail.
+
