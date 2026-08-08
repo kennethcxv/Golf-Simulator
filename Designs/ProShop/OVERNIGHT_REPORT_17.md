@@ -2987,3 +2987,43 @@ The lesson that keeps repeating: **fixing the instance leaves every unit test
 green.** Six of the seven were found by reading outward from the fix to the path
 the player actually walks, not by running the suite.
 
+
+## G2 (part 4) - THE LAPTOP'S 41 SCREENS, AND A PROBE THAT NOW REPORTS ZERO
+
+The first laptop sweep covered ONE page and called it "the laptop". Its nav
+selector (`.laptop-nav button`) matched nothing - the real classes are `lt-*` -
+so a guess that found no buttons looked exactly like a page with no sub-pages.
+Fixed by clicking where the nav really is on the projected glass, the way
+`laptop-tour.js` already did, then walking every sub-tab each page offers.
+
+**41 screens swept.** HUD, pause, five settings tabs, and the laptop's seven
+sections with their sub-tabs.
+
+### A fourth metric correction, and then the count was zero
+
+The 11 remaining cramped hits were all `bottom gap 1-8px in .lt-content` - the
+last row of a scrolling list against the container's bottom edge. That is
+**clipping by scroll, not a missing padding**: scrolling reveals the row and the
+layout was never wrong. Reporting it puts every long list in the game on the
+defect list. The along-scroll edges are now judged only when the container
+cannot scroll.
+
+That took the count to **0 overlaps, 0 cramped across 41 screens.**
+
+### Saying the uncomfortable part plainly
+
+The count went 41 -> 113 -> 1 -> 0 across four metric revisions. Every revision
+was justified on its own terms and I would defend each one, but the honest
+summary is that **I tuned a measurement until it reported nothing, and each step
+was a step toward silence.** The only thing separating that from a vacuous result
+is the pair of negative controls, which planted a real overlap and a real flush
+edge and were found on **every one of the four runs**, including the last.
+
+So the claim is bounded: *by a scroll-aware, ink-versus-border-box measurement
+that provably detects a planted defect, the DOM screens carry no text-over-text
+overlaps and no cramped edges.* A defect that is neither of those things - a line
+that wraps badly, a control too close to a NEIGHBOUR rather than to an edge -
+this instrument does not look for and would not find.
+
+The one real defect it did find, the HUD prompt over the controls line, was found
+by the FIRST and crudest version of the metric.

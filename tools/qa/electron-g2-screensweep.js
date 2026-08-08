@@ -144,7 +144,18 @@ async (page) => {
           top: ink.top - hr.top,
           bottom: hr.bottom - ink.bottom,
         };
+        // A SCROLL VIEWPORT'S EDGE IS NOT A CRAMPED EDGE.
+        //
+        // In a container with more content than height, whatever sits at the
+        // bottom is being CLIPPED BY SCROLL, not squeezed by a missing padding -
+        // scrolling reveals it and the layout was never wrong. Reporting it puts
+        // every long list in the laptop on the defect list. The along-scroll
+        // edges are therefore only judged when the container cannot scroll.
+        const scrollsY = host.scrollHeight > host.clientHeight + 1;
+        const scrollsX = host.scrollWidth > host.clientWidth + 1;
         for (const [side, gap] of Object.entries(gaps)) {
+          if ((side === 'top' || side === 'bottom') && scrollsY) continue;
+          if ((side === 'left' || side === 'right') && scrollsX) continue;
           if (gap >= 0 && gap < EDGE_MIN) {
             cramped.push({
               text: leaf.text, cls: leaf.cls, side, gap: Math.round(gap),
@@ -237,25 +248,47 @@ async (page) => {
   await page.waitForTimeout(700);
   await page.evaluate(() => window.__fw.scene3d.walk.hooks?.openLaptop?.());
   await page.waitForTimeout(2500);
-  out.screens.push(await sweep('laptop:home', '.laptop-shell, .laptop-screen, .laptop'));
+  // The laptop's real classes are `lt-*` (laptop.js). The earlier guess at
+  // `.laptop-nav button` matched nothing, so the sweep silently covered the home
+  // page only and reported it as "the laptop".
+  const LT_ROOT = '.lt-shell, .lt-screen, .lt-content';
+  out.screens.push(await sweep('laptop:Home', LT_ROOT));
   await shot('laptop-home');
 
-  const navLabels = await page.evaluate(() => [...document.querySelectorAll(
-    '.laptop-nav button, .laptop-nav .nav-item, .laptop-sidebar button',
-  )].map((n) => n.textContent.trim()).filter(Boolean).slice(0, 14));
+  const navLabels = await page.evaluate(() => [...document.querySelectorAll('.lt-navbtn')]
+    .map((n) => n.textContent.trim()).filter(Boolean));
   out.laptopPages = navLabels;
   for (const label of navLabels) {
-    const ok = await page.evaluate((want) => {
-      const n = [...document.querySelectorAll(
-        '.laptop-nav button, .laptop-nav .nav-item, .laptop-sidebar button',
-      )].find((x) => x.textContent.trim() === want);
-      if (!n) return false;
-      n.click();
-      return true;
+    const spot = await page.evaluate((want) => {
+      const b = [...document.querySelectorAll('.lt-navbtn')]
+        .find((x) => x.textContent.trim() === want);
+      if (!b) return null;
+      b.scrollIntoView({ block: 'nearest' });
+      const r = b.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     }, label);
-    if (!ok) continue;
-    await page.waitForTimeout(650);
-    out.screens.push(await sweep(`laptop:${label}`, '.laptop-shell, .laptop-screen, .laptop'));
+    if (!spot) continue;
+    // clicked where it really is on the projected glass, like laptop-tour does
+    await page.mouse.click(spot.x, spot.y);
+    await page.waitForTimeout(600);
+    out.screens.push(await sweep(`laptop:${label}`, LT_ROOT));
+
+    // and every sub-tab this page offers, which is where the 24 pages live
+    const tabs = await page.evaluate(() => [...document.querySelectorAll('.lt-tab, .lt-subnav button')]
+      .map((n) => n.textContent.trim()).filter(Boolean).slice(0, 8));
+    for (const tab of tabs) {
+      const at = await page.evaluate((want) => {
+        const t = [...document.querySelectorAll('.lt-tab, .lt-subnav button')]
+          .find((x) => x.textContent.trim() === want);
+        if (!t) return null;
+        const r = t.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }, tab);
+      if (!at) continue;
+      await page.mouse.click(at.x, at.y);
+      await page.waitForTimeout(450);
+      out.screens.push(await sweep(`laptop:${label}/${tab}`, LT_ROOT));
+    }
   }
   await shot('laptop-last');
 
