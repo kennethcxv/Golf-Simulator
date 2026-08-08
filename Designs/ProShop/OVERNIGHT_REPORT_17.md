@@ -7030,3 +7030,80 @@ module that owns it instead.
 **SECTION D: COMPLETE.** D1-D4 implemented, covered by a passing invariant, and
 the carryable list reported as D4 requires.
 
+
+---
+
+# SECTION E5 — THE TRANSLATION REPORT THE GOAL ASKS FOR
+
+First, a correction that matters for the whole document: **E is SETTINGS.** My
+task list called *D* "settings", so it was off by a whole section — the fourth
+stale tracking entry today. E5 is *"Translate all ten languages properly …
+Report the key count and honest coverage per language, and say what is still
+English."*
+
+**That makes this session's invariant-8 work E5's measurement phase**, not a
+side quest. The two numbers only mean something together.
+
+### Key count and coverage per language
+
+```
+English keys that go through t(): 231
+
+locale     coverage   translated/total   still English
+en         100.0%      231/231              0
+zh-Hans     51.1%      118/231            113
+ru          51.1%      118/231            113
+es          51.1%      118/231            113
+pt-BR       51.1%      118/231            113
+de          51.1%      118/231            113
+ja          51.1%      118/231            113
+ko          51.1%      118/231            113
+fr          51.1%      118/231            113
+tr          51.1%      118/231            113
+```
+
+**Identical to a tenth of a percent across all nine.** That is not nine
+languages that happened to drift to the same place — it is the *same 113 keys*
+missing from every one, which means they were added to English after the last
+translation pass and no locale has caught up since.
+
+### The honest coverage, which is the number E5 actually asks for
+
+`51.1%` is coverage of **the keys that exist**. It says nothing about the text
+that never became a key. Invariant 8 measured that this session:
+
+```
+strings reaching the player through t()        231
+strings bypassing t() entirely               2,108
+                                             -----
+total player-facing strings                  2,339
+translated into any non-English locale          118
+
+HONEST COVERAGE:  118 / 2,339  =  5.0%
+```
+
+**Five per cent.** A player in French, Japanese or Turkish reads roughly
+nineteen words of English for every one in their own language.
+
+### What is still English, as E5 requires
+
+1. **All 2,108 strings that bypass `t()`** — permanently, in every locale, with
+   no translation route at all. These are prompts, refusals, control labels and
+   the entire back office: `ui/laptop.js` 254, `ui/courseEditor.js` 159,
+   `sim/register.js` 103.
+2. **The 113 keys missing from all nine locales** — these DO have a route; they
+   fall through to English because no locale supplies them.
+
+The second group is the tractable one: 113 keys x 9 languages is a bounded piece
+of work with a clear finish line. The first is 2,108 wrapping edits before a
+translator can even begin.
+
+### Why the reported figure was 51.1% and not 5%
+
+Because the coverage function measures the dictionary, and the dictionary is the
+part that exists. **A metric can only see its own subject** — the same shape as
+invariant 8 reading PASS over 3% of its surface, and the strand figure measuring
+a rigid skirt. Tenth instance today, and the last one needed to make the point
+unarguable: *every one of these numbers was correct, and every one was read as
+answering a question it never addressed.*
+
