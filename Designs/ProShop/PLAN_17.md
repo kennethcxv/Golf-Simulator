@@ -786,3 +786,71 @@ A six-step flow test: scan two goods, attach a tee time, pay ONCE, and assert
 the books moved on BOTH lines - shopSales up by the goods, greenFees up by the
 fee, one ticket number, one payment method, reservation played.
 On the unfixed build it cannot even reach step 5.
+
+
+## A1-FREEZE — THE INTERIOR MATRIX FREEZE (Phases 0, 1, 2)
+
+### Phase 0 — explain back
+
+Standing Invariant 1 is the Phase 5 gate's only FAIL: frames over 16 ms during
+normal play, measured this session at 14.8%. Two levers were named. The LOAD
+lever is now closed by arithmetic - `warm-composer-render` is 135 program
+compiles at ~41 ms and nothing else, so submitting fewer objects cannot help and
+`compileAsync` was already measured as a net loss. The PER-FRAME lever is this
+one, and it is sized:
+
+```
+interior   2,853 objects   2,611 auto-updating   91.5%   (not under `group`)
+```
+
+`freezeShellBranch(group)` runs inline at construction over the SHELL. The
+interior is a sibling subtree, so it was never reached. Every frame, three.js
+recomposes 2,611 world matrices that almost all describe things that never move.
+
+### Phase 1 — plan
+
+**Do NOT blanket-freeze.** The shell could be blanket because a wall genuinely
+never moves. Most of what DOES move in this game lives in the interior: the
+ledger book turning pages, the doors, the register drawer and card reader, the
+customers walking, every tool viewmodel.
+
+The design is an EXEMPTION, marked at the source that owns the animation:
+
+1. every module that animates a transform marks its root `userData.fwAnimated`
+   at creation - ledgerBook, door hinges, the register root, customer meshes,
+   tool viewmodels, the cart
+2. the freeze runs in the SAME late ready callback as
+   `suppressInteriorSunShadows(interior)`, so it sees the populated subtree, and
+   skips any branch whose root carries the mark
+3. anything added AFTER that callback stays auto-updating by default, which is
+   the safe direction
+
+### Phase 2 — adversarial review, and the objections I could not answer cheaply
+
+* **"A prop that moves once an hour will freeze and then never move again."**
+  Real. The porch light, a restocked shelf, a repaired component. Visibility and
+  material changes are fine on a frozen object, but a POSITION change is not. The
+  mark has to cover anything that ever writes `.position`, `.rotation` or
+  `.scale` after build - and grepping for those is how the list gets built, not
+  guesswork.
+* **"How do you prove afterwards that nothing stopped moving?"** A suite pass
+  proves nothing here. The check has to be a driver that records the world matrix
+  of each marked root across a walk that opens the ledger, swings a door, works
+  the register and watches a customer, and asserts each one CHANGED. That is the
+  negative control, and it must be watched failing with a mark deliberately
+  removed.
+* **"Is it even worth it?"** Unmeasured. 2,611 matrix recompositions is maybe
+  1-3 ms a frame, and the gate says the worst frames are 100 ms+. It may be
+  invisible against the draw-call cost. **The honest order is to measure the cost
+  of the recomposition FIRST** - freeze the subtree temporarily in a throwaway
+  probe, read the frame time, and only build the exemption machinery if the
+  number justifies it.
+
+### The reading I take
+
+The third objection wins. Building an exemption list across six subsystems, and
+the driver to prove it, is a day of work that must not be spent before the prize
+is known. **Next action: a throwaway probe that blanket-freezes the interior for
+sixty frames and reports the frame-time delta - accepting that animation breaks
+during it, because nothing is shipped.** If it buys under a millisecond, this
+lever is closed like the last one and the search moves to draw calls.
