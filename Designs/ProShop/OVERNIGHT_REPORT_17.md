@@ -2798,6 +2798,12 @@ sharpening, not the probe going blind.
 
 ### What it found
 
+> **RETRACTED LATER THIS SESSION - see "RETRACTION: THE G2 HUD OVERLAP WAS A
+> FALSE POSITIVE".** The sweep judged visibility by an element's OWN opacity, so
+> it counted a key chip inside an `opacity: 0` prompt and paired it with the lock
+> hint, which is only drawn in the opposite state. The two are never on screen
+> together. The CSS change stands; the defect claim does not.
+
 **HUD, one real overlap:**
 
 ```
@@ -3619,6 +3625,10 @@ ratchet's own framing - "translating those is a real piece of work" - was closer
 to right than my plan was, and my plan was to wrap first and translate later.
 In this codebase that ordering is not available: the coverage invariant makes
 wrapping and translating the same action.
+
+> **SUPERSEDED - see "UNBLOCK THE 155" and then "THE WRAPPING CAMPAIGN HAS A
+> HARD LIMIT".** The true cost was one over-strict invariant relaxed, then 110
+> strings of headroom, then a genuine floor at 51.1% locale coverage.
 
 155 strings x 9 languages = **1,395 translations**, and machine-guessing them
 into a shipping product to make a test go green would be the worst possible
@@ -4547,6 +4557,10 @@ to work:
    clubhouse may wrap or re-export it
 2. `bagGroup` is null at boot, meaning `buildBag()` at line 8406 does not run in
    the path a fresh session takes
+
+> **DISPROVEN - see "G4.1 CONFIRMED".** It was option 1, a driver bug:
+> `ch.register` is a narrow facade that did not forward the accessor. The bag was
+> built at construction all along.
 
 **Option 2 would be a real G4.1 defect** - a bag that only exists after the first
 transaction is precisely the "player waits for one" the item forbids. Option 1 is
