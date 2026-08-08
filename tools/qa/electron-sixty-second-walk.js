@@ -243,6 +243,15 @@ async (page) => {
   out.keysBefore = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetBefore = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
   out.uuidBefore = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
+  // BOTH INSTRUMENTS, ONE RUN. The previous entry compared a trace from one run
+  // against a census from another and called it "the same window". It was not.
+  const sceneGeoCount = () => page.evaluate(() => {
+    const s3 = window.__fw && window.__fw.scene3d;
+    const seen = new Set();
+    if (s3 && s3.scene) s3.scene.traverse((o) => { if (o.geometry) seen.add(o.geometry.uuid); });
+    return seen.size;
+  }).catch(() => null);
+  out.geoCountBefore = await sceneGeoCount();
   await page.evaluate(() => { window.__geoOn = true; });
   await beat('tool');
   // THE BELT IS HOLD-TO-OPEN, SO THE SELECTION MUST HAPPEN WHILE IT IS HELD.
@@ -350,6 +359,7 @@ async (page) => {
   out.keysAfter = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
   out.keySetAfter = await page.evaluate(() => (window.__fw?.scene3d?.renderer?.info?.programs ?? []).map((pr) => String(pr.cacheKey ?? '')).slice()).catch(() => null);
   out.uuidAfter = await page.evaluate(() => { const s3 = window.__fw?.scene3d; if(!s3) return null; const cam=s3.camera, sc=s3.scene; const camG=new Set(), sceneG=new Set(); cam?.traverse(o=>{ if(o.geometry) camG.add(o.geometry.uuid); }); sc?.traverse(o=>{ if(o.geometry) sceneG.add(o.geometry.uuid); }); return { cam:[...camG], sceneCount: sceneG.size }; }).catch(() => null);
+  out.geoCountAfter = await sceneGeoCount();
   out.geoSites = await page.evaluate(() => {
     window.__geoOn = false;
     const tally = {};

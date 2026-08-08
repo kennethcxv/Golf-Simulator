@@ -10452,3 +10452,65 @@ rather than over the scene graph alone.
 
 Suite 2929 pass / 0 fail.
 
+
+## SETTLED, SAME RUN, BOTH INSTRUMENTS: THE 54 ARE ATTACHED, NOT BUILT
+
+First, a correction: the previous entry compared a trace from one run against a
+census from another and called it "the same window". **It was not** — earlier
+edits had replaced the census probes with the trace. Put both in one run:
+
+```
+armed: patched:BufferGeometry
+scene geometries 2729 -> 2783    delta +54
+trace captures: 0
+```
+
+**Same run. +54 geometries reachable, zero `setAttribute` calls.**
+
+Every construction path calls `setAttribute`: `new CylinderGeometry()` builds its
+attributes through it, and `.clone()` reaches it via `copy()`. Zero calls while
+54 appear can only mean **the 54 already existed and were attached.**
+
+**Built vs moved settles on MOVED**, and my "created not moved" claim — which the
+scene-wide control seemed to prove — was wrong for the reason the last entry
+identified: a geometry in a pool is not in the scene, and attaching it raises the
+scene count without constructing anything.
+
+### The whole mechanism, finally coherent
+
+```
+boot         -> tool meshes and geometries are built, held OUTSIDE the scene
+prewarm      -> compiles what is in the scene; these are not, so they are missed
+first equip  -> attaches them; their 9 materials draw for the first time
+             -> 9 ordinary MeshStandardMaterial programs compile -> 333-7855 ms
+second equip -> already attached and warm -> 0 programs, ~24 ms
+```
+
+**And that vindicates the very first fix direction**, five entries before I
+retracted it: *get them into the scene before the prewarm runs.* All six attempts
+failed because every one compiled things **already in the scene** — while these
+were being held outside it. The fix was never about cameras, layers, or timing;
+it was about **membership**.
+
+### The fix, stated with what it must satisfy
+
+Attach the tool viewmodel subtrees to the scene at boot — hidden, as the prewarm
+already handles (`forced.length` reveals every invisible object, compiles, and
+restores) — instead of attaching them at first equip.
+
+**Verification, already built and run nine times:** the equip's Δ must fall
+**+9 -> 0**, `geoCountAfter - geoCountBefore` must fall **+54 -> 0**, and the
+`tool` beat's worst frame must approach `tool2`'s ~24 ms.
+
+### What this thread cost and what it settled
+
+Thirty-four findings. Six refuted fixes, all reverted. Four instruments built,
+three of which caught faults in the other instruments or in my own reasoning.
+**Three claims I called settled and had to reopen — and each reopening was
+right.**
+
+The mechanism is now explained end to end by measurements taken in a single run,
+with a named-class control on the trace and a same-run pairing on the census.
+
+Suite 2929 pass / 0 fail.
+
