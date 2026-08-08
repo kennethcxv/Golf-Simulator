@@ -7313,3 +7313,50 @@ fine, 2,108 unwrapped strings are invisible to the language they are already in.
 only appears after a checkout watchdog recovery, which is rare enough that
 nobody had read the toast.
 
+
+## E2 — LOCATED, NOT CHANGED, AND THIS TIME THE REASON IS NARROWER
+
+*"The scrollbar wraps the whole panel, so it looks like the entire page scrolls
+when only the movement section does. Put it inside the scrolling section and
+nowhere else."*
+
+The structure, confirmed:
+
+```
+.settings-shell   (flex column)              styles.css:2003
+  .settings-tabs
+  .settings-page  { overflow-y: auto }       styles.css:2037   <- the scroller
+      .settings-group  x N
+      .settings-footer  (the reset button)   settingsPanel.js:532
+```
+
+`root.append(tabs, content)` puts everything except the tabs inside the single
+scrolling element, **including the footer**. So the scrollbar's track spans the
+reset button as well as the settings, which is exactly the reported symptom: it
+reads as the whole panel scrolling when only one long section overflows.
+
+The fix is to make the overflowing SECTION the scroller and let the page size to
+its content, with the footer outside the scrolled region.
+
+### Why I am not making this change
+
+Not the B4 reason (rig maths I cannot measure) and not the C8 reason (a cost
+that fights another item). This one is simpler: **E3, the very next item, says
+"Screenshot every page before and after."** The brief's RULES say the same thing
+more generally — a visual item without a default-camera screenshot is
+UNCONFIRMED.
+
+I have no measurement to reason from here. B2's bristle change shipped unseen
+because its geometry argument transferred from a *measured* diagnosis of the mop;
+this would be a structural guess about a layout I have never looked at, and the
+plausible failure — content that no longer reaches the scroller and is silently
+cut off — is the failure invariant 2 exists to catch, on a panel with 41 screens.
+
+**A layout change I cannot see is not a fix, it is a coin toss with a commit
+message.**
+
+**E2 status: DIAGNOSED, NOT FIXED.** The scroller is `styles.css:2037`, the
+footer that should leave it is `settingsPanel.js:532`, and the verification is
+already specified by E3 — before/after screenshots of every settings page, with
+gate invariant 2 as the automated backstop.
+
