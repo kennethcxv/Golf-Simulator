@@ -6262,3 +6262,81 @@ Remaining in the planned order: `ctx.fillText` (61), `notify({message})` (14).
 Both are small; the widening is essentially finished at 2,108 of a likely
 ~2,180.
 
+
+---
+
+# SECTION B — THE MOP. PHASE 0 (EXPLAIN-BACK) AND REQUIREMENT 2 RESOLVED
+
+B1 blocks its own work: *"I have been told they move and shown a measurement of
+0.25 yd of travel, and they do not move at all on my screen. **Resolve that
+before you build** — Requirement 2."* So that is the whole of this entry.
+
+## The cache-staleness hypothesis is DEAD
+
+The brief named this as the likely cause and said it "alone may explain six
+rounds of tool measurements". It does not. Two trees hold a mop and they are
+very different sizes, which looks damning:
+
+| tree | bytes | md5 |
+|---|---|---|
+| `Assets/…/firstperson/asset_072_mop_fp.glb` | 13,504,444 | `1f79ebc93135` |
+| `vendor/models/…/firstperson/asset_072_mop_fp.glb` | 4,019,348 | `700ac734d251` |
+
+The game loads **`vendor/models/`** — `src/data/cleaningTools.js:237` names it.
+But the chain is fresh, not stale:
+
+```
+asset_..._mop_fp.blend        2026-08-07 00:35:24
+Assets/…/asset_072_mop_fp.glb 2026-08-07 00:35:25
+vendor/…/asset_072_mop_fp.glb 2026-08-07 00:35:43   <- 18s AFTER the source
+```
+
+And the contents are identical node-for-node and animation-for-animation. The
+size gap is compression, not content. **Ruled out by measurement, cleanly.**
+
+## The real answer: there are no strands
+
+The mop the game loads, in full — 16 nodes:
+
+```
+MESH_MopBand      MESH_MopCollar     MESH_MopGripBand_0/1/2
+MESH_MopGripWrap  MESH_MopHandle     MESH_MopHandleCap
+MESH_MopHangHole  MESH_MopSkirt      SOCKET_Drip/FloorContact/GripPrimary/GripSupport
+LOD0_MopHeld      A_072_MOP_FP_ROOT
+animations: Mop_Equip, Mop_HeadCompress, Mop_StrokeLeft, Mop_StrokeRight, Mop_Unequip
+```
+
+Ten meshes, and **nine of them are handle furniture**. The entire head is a
+single rigid mesh: `MESH_MopSkirt`. Not strands that fail to animate — one
+tapered solid, which is exactly what B1 describes in its own words: *"Not a cone
+with a texture on it."* The player was describing `MESH_MopSkirt` precisely.
+
+**The strands do not move because there are none.** The 0.25 yd was never a
+false number: the head really does travel that far with the stroke. It was
+*labelled* strand travel, and strand travel is not a motion this asset can
+express.
+
+## This is the session's second instance of the same fault class
+
+Invariant 8 reported PASS while measuring 3% of its subject. The strand
+measurement reported 0.25 yd while measuring a rigid skirt. Neither number was
+wrong inside its own frame; both carried a name that promised something the
+subject could not deliver, and in both cases **the name is what stopped anyone
+looking further for months**. A negative control cannot catch this — the plants
+fire, the floors are healthy, every figure is accurate.
+
+The check that would have caught it is the one this entry performs: *list what
+the subject actually contains, and confirm the thing being measured exists.*
+
+## What this means for B1
+
+B1 says "do not patch it, delete it and build a new one" — and the asset audit
+independently arrives at the same instruction. There is nothing to patch: no
+strand geometry exists to fix, and `Mop_HeadCompress` is the only head animation
+in the file. The rebuild is not a preference, it is the only available route.
+
+Recorded reading (per the brief's ambiguity rule — take the option that CHANGES
+the game): the strand system is built as **new geometry authored in the .blend**,
+not as a runtime bone-chain draped over the existing skirt. A runtime chain over
+a rigid cone would reproduce the exact defect this entry just diagnosed.
+
