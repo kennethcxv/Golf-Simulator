@@ -3314,3 +3314,59 @@ reports *"left edge clears it by -0.07 yd"*, stand pushed to -1.20 reports *"gap
 is -0.04 yd"*.
 
 Suite **2914 pass / 0 fail**.
+
+## G5 - CENTS, MATCHING AMOUNTS, REALISTIC DENOMINATIONS
+
+The brief names **two** payment behaviours: *"round notes, plus coins for an odd
+amount, OR round up to the next note."* Only the second existed.
+
+`customerCash` rounded up to the next note, and the one coin branch fired only
+when the odd cents were an **exact multiple of 25** - three totals in a hundred.
+Measured: coins reached the desk in **2.0%** of tenders. The counter was
+notes-only in effect, and the change always came back as shrapnel.
+
+### The behaviour that was missing
+
+Cover the dollars with notes and **the cents with coins**, so the change comes
+back in whole dollars. That is the commoner move in a real shop, it is what puts
+coins on the desk, and it is what stops the player handing back four cents.
+
+F4's rule from the previous goal still holds inside it: the coins a customer digs
+out are LARGE ones. A tender is only paid to the cent when the cents can be made
+from quarters, dimes and nickels - never ninety-six cents counted out in pennies.
+
+Coins now reach the desk in **13.5%** of tenders, against 2.0% before.
+
+### The threshold is set to the model, not the model to the threshold
+
+My first test asserted 20% and failed at 13.5%. **The ceiling here is
+structural**: a customer can only pay the cents in coins when those cents are
+makeable from large coins, so a total ending in 96c never qualifies whatever the
+probability. About a fifth of totals end in a multiple of 5 and the behaviour
+fires on a bit over half of those.
+
+Raising the probability until 20% went green would have been exactly the mistake
+I criticised in G2 - tuning a measurement until it reports what I want. The
+threshold is 10% with the ceiling written into the test, plus an upper bound at
+45% so the opposite failure (every customer digging for change) is also caught.
+
+### Evidence
+
+Six checks over a DISTRIBUTION rather than single calls, because the choice is
+probabilistic and one sample proves nothing about a coin flip. A control asserts
+the sampler produces real tenders at all - a distribution of empty stacks has no
+pennies in it either, and would pass the penny test vacuously.
+
+Watched two breaks fail:
+
+| break | what it said |
+| --- | --- |
+| back to the 25-multiple-only rule | `got 2.0% of tenders` - the before-number, measured |
+| let customers count out pennies | the penny check fires |
+
+Suite **2920 pass / 0 fail**.
+
+**NOT DONE in G5:** *"The cash on the desk matches what they handed over"* is
+asserted at the sim layer (the stack is what `customerCash` returned) but has not
+been checked against what the DESK DRAWS. That is a renderer question and the
+right instrument is a pixel or mesh count at the counter, not a unit test.

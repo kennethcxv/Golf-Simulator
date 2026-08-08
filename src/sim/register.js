@@ -610,17 +610,47 @@ export function newDrawer() {
 export function customerCash(tx) {
   const due = cashTotalOf(tx);
   const step = due > 100 ? 50 : due > 40 ? 20 : due > 15 ? 10 : 5;
+  const oddCents = Math.round(due * 100) % 100;
   let amount = Math.ceil(round2(due) / step) * step;
-  if (tx.rng() < 0.35) {
-    // F4 (Full_Goal_16): the dig-for-coins gesture only happens when the odd
-    // cents come out in LARGE coins — "and a quarter", never ninety-six cents
-    // counted out in dimes and pennies. Audited 2026-08-07: the unrestricted
-    // branch put sub-quarter shrapnel in 34% of all cash tenders.
-    const oddCents = Math.round(due * 100) % 100;
-    if (oddCents > 0 && oddCents % 25 === 0) amount = round2(amount + oddCents / 100);
+
+  // G5: HOW PEOPLE ACTUALLY PAY.
+  //
+  // "Coins on the desk, not only notes... Nobody pays $29.96 to get four cents
+  // back. Model how people actually pay: round notes, plus coins for an odd
+  // amount, or round up to the next note."
+  //
+  // Two behaviours, and before this only the second existed. Rounding up to the
+  // next note was the ONLY path unless the odd cents happened to be an exact
+  // multiple of 25 - which is 3 totals in 100 - so the counter was notes-only in
+  // almost every sale and the change was always shrapnel.
+  //
+  // The other, and the commoner one in a real shop: cover the dollars with notes
+  // and THE CENTS WITH COINS, so the change comes back in whole dollars. That is
+  // the move the brief describes and it is what puts coins on the desk.
+  //
+  // F4 (Full_Goal_16) still holds inside it: the coins a customer digs out are
+  // large ones. A tender is only paid to the cent when the cents can be made
+  // from quarters and dimes - "and a quarter, and a dime" - never ninety-six
+  // cents counted out in pennies. Audited 2026-08-07: the unrestricted branch
+  // put sub-quarter shrapnel in 34% of all cash tenders.
+  if (oddCents > 0 && payableInLargeCoins(oddCents) && tx.rng() < 0.55) {
+    // notes for the dollars, coins for the cents: the change is whole dollars
+    amount = round2(Math.ceil(round2(due - oddCents / 100) / step) * step + oddCents / 100);
+  } else if (oddCents > 0 && oddCents % 25 === 0 && tx.rng() < 0.35) {
+    amount = round2(amount + oddCents / 100);
   }
   tx.tendered = makeChange(amount);
   return tx.tendered;
+}
+
+// Cents a customer would plausibly have loose: quarters and dimes, and nickels
+// only to finish a five. Anything needing a penny is not a gesture anybody makes
+// at a counter, it is counting out shrapnel.
+export function payableInLargeCoins(cents_) {
+  let left = cents_;
+  left %= 25;
+  left %= 10;
+  return left % 5 === 0;
 }
 
 // Change the till can ACTUALLY produce. Greedy over what is really in each slot:
