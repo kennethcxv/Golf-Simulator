@@ -12374,3 +12374,47 @@ outstanding evidence for all of them, as for every visual item this session.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## G8 VERIFIED — THE SPEED LADDER IS GONE, AND THE REMOVAL IS EXPLICIT
+
+G8: *"Remove the game speed-up entirely."* `balance.js:202`:
+
+```js
+export function simSpeedMultipliers(speedIdx, balance = BALANCE) {
+  // A3: with the ladder gone this is not a speed feature any more — it is
+  // the DAY-COMPRESSION constant (the day runs 4x the NPC authoring
+  // baseline) plus the pause flag's resume value...
+  void speedIdx;
+```
+
+**`void speedIdx`** — the parameter is deliberately ignored, and the comment says
+what the function became rather than leaving a dead argument to mislead the next
+reader. The same pattern appears above it: `void speedRung`, with *"golfers walk
+at the one speed the world runs."*
+
+**What survives is not the speed-up**: a day-compression constant, and
+`app.speedIdx = 0` used solely to freeze the world while the course editor is
+open (*"the world holds its breath while you shape it"*), with the previous value
+restored on exit. Pausing is not speeding.
+
+**And it carries a correctness note worth the space:**
+> *"A paused world still reports the multipliers it would resume at — the
+> clubhouse loop reads these every frame regardless of pause, and 0 would divide
+> the shop's whole notion of time by nothing."*
+
+That is a division-by-zero avoided by design and explained where someone might
+otherwise "simplify" it back in.
+
+**G8: verified from source.** Removal complete, the vestige named, and the one
+legitimate remaining use of the variable documented.
+
+### Section G so far
+
+Thirteen items, all carrying work markers. Verified from source this session:
+**G1** (station props outrank tools), **G2** (tee-time overlaps), **G3/G4** (bag
+physicality and the four sub-decisions), **G5** (cash realism), **G7** (cash vs
+card gestures), **G13** (the flow bug), and now **G8**. **G6, G9-G12** carry work
+but have not been re-verified here.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
