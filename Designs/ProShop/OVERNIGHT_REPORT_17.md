@@ -10608,3 +10608,50 @@ had walked past — including a comment naming it, which I had quoted twice.
 
 Suite 2929 pass / 0 fail.
 
+
+## SEVENTH FIX, SEVENTH REFUTATION — THE HANDS ALREADY HAVE A PARENT
+
+Attached `fpHands.root` to the scene inside the prewarm, guarded on
+`!handsRoot.parent`, so the existing reveal-and-compile would cover it. Detached
+immediately after so the equip path was untouched.
+
+```
+EQUIP PROGRAM DELTA   +9    (predicted 0)
+scene geometry delta  +54   (predicted 0)
+tool worst            336 ms
+```
+
+**Nothing moved.** The guard is the likely reason: `!handsRoot.parent` was false,
+so the attach never ran. **The hands already have a parent — just not one inside
+the scene.** Something holds them off-graph in a way "no parent" does not
+describe, and my fix silently did nothing rather than failing loudly.
+
+**Reverted.** It changed no measurement and I will not leave code that might.
+
+### The instrument was right; the guard was a guess
+
+Every measurement in this thread has held up: +9 programs, +54 geometries, 54
+named hand meshes, 0 constructions. **The failure is in the one line I did not
+measure** — the assumption that "not in the scene" means "no parent".
+
+That is the thirty-fifth instance and the same shape as all the others: a claim
+that reads as obviously true, inserted between measurements that are sound, and
+never checked on its own.
+
+### What the next session should do differently
+
+**Measure the parent before writing the guard.** One query at prewarm time —
+`fpHands.root.parent && fpHands.root.parent.name` — says whether the hands are
+unparented, parented to something off-scene, or already somewhere unexpected.
+The fix follows trivially once that is known; without it, any guard is a guess,
+and this one cost a run to disprove.
+
+### Section A's tool half, final and honest
+
+**Fully diagnosed, not fixed.** Mechanism measured end to end with controls and
+named subsystems. **Seven fixes attempted, seven refuted, all reverted, none
+shipped.** The verification harness is built and has run eleven times, so the
+next attempt costs one run to judge.
+
+Suite 2929 pass / 0 fail.
+
