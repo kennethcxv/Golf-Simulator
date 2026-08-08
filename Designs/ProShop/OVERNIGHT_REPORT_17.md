@@ -12608,3 +12608,46 @@ tree.**
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## FIFTEENTH REFUTATION — THE LIGHT-LAYER FIX ALONE DOES NOT DO IT EITHER
+
+Called `enableBroomLightLayer()` before the prewarm compile, so the viewmodel
+layer's light list would be final when its programs were built.
+
+```
+suite                 2933 pass / 0 fail
+EQUIP PROGRAM DELTA   +9        (unchanged)
+added                 9  ->  physical: 4,  depth: 5
+```
+
+**No change.** Reverted.
+
+### What that does and does not overturn
+
+**It does not overturn the mechanism.** A3 proved that a light-list change
+invalidates every affected program, and `enableBroomLightLayer()` demonstrably
+changes what the viewmodel layer is lit by. Both remain true.
+
+**What it overturns is that settling the light list is SUFFICIENT.** The prewarm
+compiles `(scene, camera)` — the main camera — and the main camera does not draw
+the viewmodel layer. Making that layer's lighting final does not cause its
+programs to be built, because nothing in that compile renders through it.
+
+**The full condition would need all three at once**: the hands in the scene, the
+compile driven through `vmCamera`, and the light layer already enabled. Fixes 7
+and 9 had the first two. This had the third. **No attempt has had all three**,
+and I do not have the runway to build and judge it properly.
+
+### Fifteen refutations, and the honest shape of what is left
+
+**The diagnosis is strong and multiply-confirmed:** 9 programs (4 `physical`,
+5 `depth`), 54 meshes arriving from an off-graph parent, a light layer that goes
+from unlit to lit at equip, and A3's proof that veil-time warming cannot hold a
+light list a later change produces.
+
+**The fix is not found**, and fifteen attempts have narrowed it to a single
+untried configuration rather than to nothing. That is a materially better place
+than the session started, and it is where I am leaving it.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
