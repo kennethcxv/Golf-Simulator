@@ -13419,3 +13419,65 @@ the worst kind of correct. The driver now asserts the setter took, and pushes to
 Those five void rungs are not wasted: they are five independent 9 s samples of
 one configuration, and they put the indoor over-16 rate's run-to-run spread at
 **21.9-25.0%**.
+
+
+# THE FOUR RUNNING LISTS — BROUGHT CURRENT
+
+## 1. DONE AND VERIFIED
+
+- **Section B is complete.** B1 confirmed at the default camera (strand whip: a
+  concentric bell at rest, a displaced trailing mass under stroke). B2 confirmed
+  like-for-like at the identical pose (comb -> brush, 720 fibres at 3 radial
+  segments, **+32 draw calls unchanged**, 19,376 -> 13,616 triangles). B3 and B5
+  verified earlier. **B4 verified two ways** — 6 unit tests on the extracted
+  `plantAuthorityFor`, watched failing on `return 1`, plus a live grip-anchor
+  ladder in which the rule predicts the rig to within **0.004**.
+- **Invariant 1 localised.** Outdoors **1.0%** of frames exceed 16.7 ms; indoors
+  **21.3%**. The shadow bake costs **18.6-22.0 ms indoors against a 5.0 ms
+  non-bake median**, 72-88% of bake frames over budget — reproduced twice, with a
+  within-run control.
+- **C1's opening sequence is correct**: two presses, 340 ms per stage, traced with
+  the prompt read alongside.
+- Three new permanent tests (`broom-bristles-read-as-brush`,
+  `broom-plant-authority`, and B-section coverage), each watched failing.
+- Suite **2943 pass / 0 fail**. Gate **9 pass / 1 FAIL / 0 unchecked**.
+
+## 2. MEASURED AND DELIBERATELY NOT ACTED ON
+
+- **The shadow bake cadence.** Removing 90% of bakes buys **1.2 points of 21**,
+  against a drift control of 0.4, and costs shadow responsiveness on every moving
+  caster. Refuted before it was written.
+
+## 3. OPEN, WITH THE SEARCH NARROWED
+
+- **The other ~19 points of invariant 1**: non-bake indoor frames, 5.0 ms median,
+  **15.1% over 16.7 ms**. Not shadows, not the broom, not the ledger, not tools.
+  This is the next search and it now starts from a place, not a feeling.
+- **C1's third clause** — the first open of a session costs a single 0.3-3.5 s
+  frame in **3 runs of 10**; the second open is ~30 ms in every run. programs
+  209 -> 210 (A3's explosion is gone), textures unchanged, +25 geometries. Not the
+  light count. Mechanism unresolved; a rate is not a mechanism.
+- **C6 reframed**: a page turn costs **0.8 ms**; the room it is turned in costs 20.
+  Also, the C6 driver grades at 33 ms while the brief says 16.
+- **C8** untouched. It is no longer blocked by C6's budget the way it appeared —
+  the turn has budget to spare; the room does not.
+- **C2, C3, C4, C5, C7** carry Goal-17 markers and have not been re-verified this
+  session.
+- **The 2,108 unwrapped player-facing strings** (invariant 8 is a ratchet, not a
+  translation).
+
+## 4. NOT STARTED
+
+- Sections D, E, F, G, H.
+
+### The shape of this stretch
+
+Five faults logged (94-101), and **every one of them was an instrument reporting
+a default as a value**: a capture whose subject was out of frame, a predicate that
+conflated swinging with cleaning, a ladder that never entered its own test regime,
+a confirmation that could not fail, and a sweep that swept nothing. In four of
+the five the measurement was fine and the sentence beside it was wrong.
+
+**The two most useful results this stretch were both negatives** — the cadence fix
+refuted before it was built, and the broom cleared of a frame tail it never
+caused. Both were settled by a control that already existed and had not been read.
